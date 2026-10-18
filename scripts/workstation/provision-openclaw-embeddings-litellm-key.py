@@ -5,11 +5,43 @@ import json
 import os
 from pathlib import Path
 import sys
+import stat
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 LOCAL = {"http://127.0.0.1:4000", "http://localhost:4000", "http://[::1]:4000"}
 ALIAS = "openclaw-embeddings"
+
+def private_file(path):
+    """Require a regular, owner-only file owned by the invoking user (no symlinks)."""
+    try:
+        meta = path.lstat()
+        return (stat.S_ISREG(meta.st_mode) and meta.st_uid == os.geteuid()
+                and not (meta.st_mode & 0o077))
+    except OSError:
+        return False
+
+
+def private_directory(path):
+    """Reject untrusted leaf and ancestor components below the user's home."""
+    home = Path.home().resolve()
+    try:
+        relative = path.relative_to(home)
+    except ValueError:
+        return False
+    current = home
+    for part in relative.parts:
+        current = current / part
+        try:
+            meta = current.lstat()
+        except FileNotFoundError:
+            return True  # remaining directories are created by us with umask 077
+        if not stat.S_ISDIR(meta.st_mode) or meta.st_uid != os.geteuid():
+            return False
+        if meta.st_mode & 0o022:
+            return False
+    return True
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -27,12 +59,15 @@ def main():
         print("ERROR: invalid model alias", file=sys.stderr)
         return 2
     output = Path(args.output).expanduser().absolute()
+    if not private_directory(output.parent):
+        print("ERROR: output directory hierarchy is untrusted", file=sys.stderr)
+        return 2
     if output.is_symlink():
         print("ERROR: output is a symlink; refusing to follow", file=sys.stderr)
         return 2
     if args.check:
         if output.exists():
-            if not output.is_file() or output.stat().st_mode & 0o077:
+            if not private_file(output):
                 print("ERROR: existing key file is not a private regular file", file=sys.stderr)
                 return 2
             print(f"provisioning=already_present alias={ALIAS} model={args.model}")
@@ -49,11 +84,12 @@ def main():
     if not master:
         print("ERROR: LITELLM_MASTER_KEY must be set in the operator shell", file=sys.stderr)
         return 2
-    if output.parent.is_symlink():
-        print("ERROR: output parent is a symlink", file=sys.stderr)
-        return 2
-    output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if output.parent.stat().st_mode & 0o077:
+    old_umask = os.umask(0o077)
+    try:
+        output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    finally:
+        os.umask(old_umask)
+    if not private_directory(output.parent) or output.parent.stat().st_mode & 0o077:
         print("ERROR: output directory is accessible to group/others", file=sys.stderr)
         return 2
     body = json.dumps({"key_alias": ALIAS, "models": [args.model], "max_budget": 1.0, "budget_duration": "30d", "rpm_limit": 5, "tpm_limit": 20000}).encode()
@@ -69,6 +105,8 @@ def main():
         print("ERROR: key generation response missing key; check for orphaned key in LiteLLM", file=sys.stderr)
         return 1
     try:
+        if not private_directory(output.parent):
+            raise OSError("untrusted output directory")
         fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
         with os.fdopen(fd, "w") as handle:
             handle.write(key + "\n")

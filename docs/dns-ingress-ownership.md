@@ -290,3 +290,49 @@ The observed S3 XML `AccessDenied` at `garage.albandrieu.com` means that hostnam
 The user has confirmed that `https://garage-admin.albandrieu.com/` currently displays a browser UI, while `https://garage.albandrieu.com/` has returned an S3-style XML `AccessDenied`. This **does not establish the active Cloudflare Tunnel origin ports**. The declared configuration associates `garage-admin` with :3903 and `garage` with the WebUI :3909; compare actual Cloudflare public-hostname origin settings, deployment, and redirects before any rewrite. A UI response does not itself identify the backend origin.
 
 Long-term, Garage Web UI should be private. Keep temporary remote access for now, preferably behind Cloudflare Access, until a reversible and convenient private-access mechanism (Tailscale/WireGuard or equivalent with least-privilege ACLs and MFA) is accepted. Preserve the independence of the S3 API and the Admin API; never assume private intent means proven lack of WAN access.
+
+## 2026-10-17 — Unbound private-zone regression and pfSense posture audit
+
+Workstation SSH alias `home.albandrieu.com` resolves to user `admin`, port `9922`, identity `~/.ssh/id_ed25519`; `scripts/pfsense/audit-posture.sh` now defaults to this alias in SSH mode. Explicit `--ssh`, `--port`, `--api` and `--local` remain supported. The workstation successfully ran the read-only audit.
+
+Operator's pfSense DNS Resolver entries:
+
+| Host | Domain | Address | Comment |
+| --- | --- | --- | --- |
+| bitwarden | albandrieu.com | 172.17.0.24 | For bitwarden api intenal acces |
+| vaultwarden | int.albandrieu.com | 172.17.0.24 | Override for internal use of vaultwarden |
+
+These are **Host Overrides** (host + domain + IP), not the intended **Domain Override** forwarding all `int.albandrieu.com` queries to Pi-hole. Do not change the `vaultwarden` comment alone expecting zone forwarding, and do not delete either entry without validating its consumers. Confirm whether a separate Domain Override exists in the pfSense UI and the persisted configuration. Active generated Unbound configuration contains no `int.albandrieu.com` forwarding directive; `defectdojo.int.albandrieu.com` is resolved via public Cloudflare nameservers. Reestablish the canonical split zone only after checking Pi-hole upstream to avoid a forwarding loop. Do not publish DefectDojo publicly or add a WAN HAProxy route.
+
+The 2026-10-17 read-only posture audit reported Unbound running, RSS 131604 KiB, available memory 212312 KiB, and kernel OOM evidence at 02:11:32 local time (`unbound` killed by memory reclaim). Native Unbound cache counters were ~4.97 MiB; they do not account for all process RSS. DNSBL loaded entries and RAM hot-swap guard remain WARN. The audit also reported **two separate FAIL checks**: missing pflow exporter domain 1 -> `172.17.0.24:2055` and domain 2 -> `162.159.65.1:2055`, with zero connected exporters. These are unrelated to DefectDojo DNS and should be tracked independently; do not alter pflow during DNS recovery. Zabbix agent remains stopped (WARN). No pfSense configuration change or restart was performed.
+
+## 2026-10-17 23:33 — pfSense recovery accepted and configuration backups
+
+Operator confirms that after changing DNS Resolver **Outgoing Network Interfaces** from `WAN` to `All` (while keeping Domain Override `int.albandrieu.com -> 172.17.0.24`), `dig @172.17.0.1` returned `172.17.0.24` for `defectdojo.int.albandrieu.com`, `vaultwarden.int.albandrieu.com`, and `hello.int.albandrieu.com`. This closes the immediate LAN DNS regression; a post-change memory/Unbound posture check remains prudent due to the prior OOM incident. Pi-hole returned an authoritative (`aa`) DefectDojo A record before the correction.
+
+The operator made a pfSense XML backup (not stored in Git):
+
+- `/media/backup/lab/infra/pfsense/2026-10/config-pfsense.albandrieu.com-20261017233344.xml`
+- comparison: `/media/backup/lab/infra/pfsense/2026-09/config-pfsense.albandrieu.com-20260907184207-memory-optimized.xml`
+- comparison: `/media/backup/lab/infra/pfsense/2026-09/config-pfsense.albandrieu.com-20260908172552-unbound-php-crash-pfsense-exporter-too-agressif.xml`
+
+These backups can contain credentials, API tokens, certificates, and private keys. Never commit them or attach them to public CI logs. Compare locally using a redacted/semantic configuration diff, focusing on Unbound outgoing interfaces, Domain/Host Overrides, pfBlockerNG, and memory-related settings. Existence, integrity and contents of these local backup files have not been independently verified by the agent.
+
+The operator also removed a public Cloudflare DNS record named `int.albandrieu.com`, which they had expected to behave as a wildcard. This change is distinct from the private pfSense Domain Override and must not be reversed for private services. A DNS record at `int.albandrieu.com` does not wildcard `*.int.albandrieu.com`; an explicit wildcard record would be needed for that public behavior, which is prohibited by the private-zone policy. The remaining public Hello exception must be reviewed separately. Re-run the Cloudflare DNS inventory to establish whether the prior unexpected record finding is cleared.
+
+Cloudflare DNS configuration should be managed through reviewed OpenTofu/Terraform infrastructure as code, with imports of existing resources before changes, a read-only drift audit, least-privilege scoped API token sourced from a secret store, explicit protected exceptions, and CI `plan` without automatic `apply`. Never place Terraform state containing secrets in Git; use a protected remote backend. No Cloudflare API modification has been performed by this documentation update.
+
+### Cloudflare inventory follow-up — 2026-10-17 23:39 CEST
+
+Read-only `scripts/security/audit-public-int-dns.sh --check` returned exit 3, identifying exactly one unexpected record:
+
+| Public Cloudflare record | Type | Target | Classification |
+| --- | --- | --- | --- |
+| `hello.int.albandrieu.com` | A | `82.66.4.247` | TEMPORARY-EXCEPTION (allowed) |
+| `s3.int.albandrieu.com` | CNAME | `albandrieu.com` | UNEXPECTED (not allowlisted) |
+
+Cloudflare record ID for the unexpected S3 alias: `8ed02a21a1b0b9e4cab48cea079962c7`. The operator has already removed the separate `int.albandrieu.com` record. **Do not add S3 to the public exceptions allowlist**: `config/public-int-dns-exceptions.txt` explicitly requires Garage S3 to remain internal. First inventory any external S3 clients and their dependencies, confirm internal `dig @172.17.0.1 s3.int.albandrieu.com A` and internal HTTPS/S3 operations, then remove the public CNAME through a reviewed change and rerun the audit. DNS publication does not by itself prove the S3 API is reachable through public ingress; test separately. No Cloudflare DNS record was modified by this documentation update.
+
+### Cloudflare S3 cleanup accepted — 2026-10-17 23:42 CEST
+
+Operator verified `dig +time=2 +tries=1 @172.17.0.1 s3.int.albandrieu.com A` returned `NOERROR` with `172.17.0.24` (TTL 0). They then removed the public Cloudflare CNAME `s3.int.albandrieu.com -> albandrieu.com`. A subsequent `bash scripts/security/audit-public-int-dns.sh --check` returned **exit=0, failed=0, warnings=1** with the expected finding `Only reviewed temporary public .int DNS exceptions remain`. This confirms the unexpected public `.int` record inventory is clean according to the audit's allowlist, not that every external ingress path has been independently penetration-tested. The temporary public Hello exception remains by policy. No further Cloudflare changes are needed for this specific finding. Evidence report: `/tmp/audit-public-int-dns-20261017-234223.697obp.log` (workstation-local, not checked into Git).

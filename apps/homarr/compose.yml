@@ -29,7 +29,7 @@ x-nabla:
 
 services:
   homarr:
-    image: ghcr.io/homarr-labs/homarr:v1.76.2
+    image: ghcr.io/homarr-labs/homarr:v2.6.0
     container_name: homarr
     labels:
       com.albandrieu.nabla.entity-ref: component:default/homarr
@@ -109,7 +109,7 @@ services:
     environment:
       HOMARR_BASE_URL: http://homarr:7575
       HOMARR_MANIFEST: /config/nabla/apps.json
-      HOMARR_SYNC_STATE: /state/homarr-map.json
+      HOMARR_BOARDS_CONFIG: /config/nabla/boards.json
       HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
       HOMARR_BOARD_ENABLED: ${HOMARR_BOARD_ENABLED:-true}
       HOMARR_BOARD_NAME: ${HOMARR_BOARD_NAME:-Nabla}
@@ -120,8 +120,8 @@ services:
       - /opt/nabla/sync.py
     volumes:
       - ./generated:/config/nabla:ro
+      - ./config/boards.json:/config/nabla/boards.json:ro
       - ./sync.py:/opt/nabla/sync.py:ro
-      - /mnt/cpool/homarr/sync:/state
     networks:
       - intranet
     cap_drop:

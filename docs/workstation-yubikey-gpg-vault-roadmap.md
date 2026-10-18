@@ -2081,3 +2081,286 @@ et efface le fichier temporaire au retour. Ne pas utiliser
 avec un autre dossier temporaire sur disque ou exposer la
 clé en sortie. Le test du déchiffrement SOPS de fixture reste
 une étape indépendante.
+
+### Gate SOPS USB → TrueNAS → fixture validée (17 octobre 2026)
+
+L'opérateur a obtenu `message: sops-recovery-ok` puis
+`PASS: SOPS recovery with USB-backed escrow` en relançant
+manuellement le test avec la SanDisk déverrouillée.
+Ce résultat valide le chemin de récupération de l'identité
+logicielle et le déchiffrement d'une fixture SOPS. Ne pas
+assimiler ce contrôle à une seconde copie de la **clé privée
+d'escrow USB** : celle-ci demeure un risque de point unique
+de défaillance.
+
+La première tentative a entraîné la fermeture de la fenêtre
+de terminal. Cause non démontrée : un bloc avec
+`set -euo pipefail` et `trap ... EXIT` peut fermer le shell
+interactif lorsqu'il est collé/exécuté dans ce contexte.
+Utiliser désormais **un fichier Bash exécuté en sous-processus**
+(`bash scripts/workstation/test-sops-usb-recovery.sh`),
+sans `source`. Le script refuse explicitement le sourcing,
+valide une fixture SOPS et n'utilise la copie déchiffrée
+que sous `/dev/shm` (tmpfs).
+
+```bash
+bash scripts/workstation/test-sops-usb-recovery.sh \
+  --backup /media/backup/lab/secret/keepass/sops-age-identity-20261017T183615Z.age \
+  --usb-identity "/run/media/$USER/NABLA_ESCROW/age-escrow/recovery-identity.txt"
+```
+
+**Prochaines portes de sécurité matérielles :**
+- [x] Sauvegarde SOPS age chiffrée sur TrueNAS ; restauration et
+  fixture SOPS validées avec SanDisk.
+- [ ] Deuxième copie hors ligne chiffrée de l'identité privée
+  SanDisk (ne jamais la publier ni la copier en clair sur TrueNAS).
+- [ ] Inventaire PIV 82 confirmé juste avant chaque écriture ;
+  OTP2 KeePassXC et ancien PIV 9A intouchables.
+- [ ] Une identité age PIV 82 distincte sur chaque YubiKey,
+  avec preuve de déchiffrement synthétique par clé.
+- [ ] Intégration multi-recipient SOPS uniquement après
+  démonstration de recovery et identification des contraintes
+  des environnements CI et headless.
+
+### Runbook pérenne PRA et diagnostic PIV 82 (17 octobre 2026)
+
+La procédure **autonome de récupération** est désormais dans [`docs/runbooks/sops-age-usb-disaster-recovery.md`](runbooks/sops-age-usb-disaster-recovery.md) : emplacements TrueNAS/workstation/USB, empreinte SHA-256 vérifiée, référence de la phrase secrète **LastPass → USB SANDISK LUKS2**, UUID LUKS, destinataires publics, restauration testée, limites de recréation d'une SanDisk perdue, contrôles de permissions et commandes de secours. Ne jamais confondre sauvegarde de la clé SOPS avec sauvegarde de la clé **escrow** de la SanDisk : la deuxième copie de celle-ci reste à réaliser.
+
+Lors du PIV82 preflight : `Connect exactly the selected single YubiKey` sur le secours et `PIV 82 info unavailable` sur la principale. Le script a été corrigé pour traiter **uniquement** les messages explicites « no key » comme slot vide, y compris si `ykman` retourne un code non nul ; tous les autres échecs restent bloquants. Ne pas provisionner tant que les diagnostics ne renvoient pas PASS.
+
+### Correctif PIV 82 : principale vérifiée vide (17 octobre 2026)
+
+Avec la principale seule branchée, `ykman list --serials` a retourné `23501671` et `ykman --device 23501671 piv keys info 82` a répondu `ERROR: No key stored in slot 82 (RETIRED1).` C'est un constat direct de slot **vide** ; aucune identité n'a été créée et les slots OTP2/9A restent intouchés. Le précontrôle rejetait cette carte à cause de deux défauts logiciels : backreference `sed` échappée deux fois et message d'absence de clé non reconnu. Correctifs dans la PR #259, à vérifier sur la workstation après fetch. La YubiKey de secours devra être vérifiée séparément avec **une seule carte branchée**, sans présumer le résultat des diagnostics précédents.
+
+### PIV 82 — les deux précontrôles matériels PASS
+
+Les deux YubiKeys ont **PASS** au script non destructif `preflight-age-yubikey-piv82.sh`, avec chacune son numéro de série et une seule carte connectée : principale `23501671`, secours `22916048`. Les slots PIV 82 sont donc vérifiés vides au moment du contrôle ; ni génération, ni écriture, ni modification des OTP2 et PIV9A. Il reste à provisionner séparément les identités age matérielles puis à effectuer les tests de déchiffrement synthétique. Les sorties des scripts shell interactifs suivent désormais `AGENTS.md` : états colorés et icônes si TTY UTF-8, repli texte pour CI/NO_COLOR/non-TTY, sans secrets dans les sorties.
+
+### Validation age-plugin-yubikey 0.5.1 et tests locaux (17 octobre 2026)
+
+Sur la YubiKey secondaire, le précontrôle PIV82 a affiché **PASS** avec
+icônes/couleurs. `age-plugin-yubikey --version` affiche `0.5.1` ;
+l'aide confirme les options `--generate`, `--identity`,
+`--list`, `--list-all`, `--name`, `--pin-policy always|once|never`,
+`--serial`, `--slot`, `--touch-policy always|cached|never`.
+Ne jamais employer `--force` : il écraserait une clé en slot occupé.
+
+L'opérateur a exécuté la suite `unittest` : **17 PASS, 1 FAIL**,
+uniquement l'assertion du texte ancien `Connect exactly the selected
+single YubiKey` alors que le script affiche désormais `Expected exactly
+one YubiKey matching requested serial`. Assertion corrigée dans la PR
+#259 ; revalider les 18 tests avant provisionnement.
+
+Commande envisagée **seulement après cette gate**, avec **une seule**
+YubiKey secondaire connectée et après une seconde vérification PIV82 :
+```bash
+age-plugin-yubikey --generate --serial 22916048 --slot 1 \
+  --pin-policy always --touch-policy always \
+  --name nabla-age-backup
+```
+Cette commande modifie réellement le slot PIV82 (clé privée non
+exportable) et pourra demander le PIN ou le toucher physique.
+Collecter **uniquement** le destinataire public/identité plugin,
+puis tester une fixture age synthétique séparément.
+Procéder à la principale après le test de la secondaire.
+Conserver OTP2, PIV9A et l'identité SOPS X25519 existants.
+
+### Correctif de numérotation age-plugin-yubikey 0.5.1 (17 octobre 2026)
+
+Le contrôle `ykman piv keys info 82` désigne le slot matériel PIV hexadécimal **82** (`RETIRED1`). En revanche `age-plugin-yubikey --slot` n'accepte **que l'index décimal de 1 à 20** des slots retired : `--slot 1` correspond à PIV 82, `--slot 2` à PIV 83, etc. La tentative `--generate --slot 82` a échoué en validation `Invalid slot '82' (expected number between 1 and 20)` et **n'a pas créé de clé**. Les 18 tests locaux `unittest` sont maintenant PASS.
+
+Avant génération, vérifier que le plugin `--list` est toujours vide et que PIV82 est encore libre sur la seule carte connectée. La commande corrigée de la secondaire est :
+```bash
+age-plugin-yubikey --generate --serial 22916048 --slot 1 \\
+  --pin-policy always --touch-policy always --name nabla-age-backup
+```
+
+ATTENTION : la clé de gestion PIV existante est **AES256 PIN-protected** ; le plugin 0.5.1 peut ne pas supporter certains formats de management key. En cas d'erreur, arrêter, documenter et rechercher une option compatible ; **ne pas** réinitialiser PIV, convertir sa clé de gestion, utiliser `--force`, ni modifier le slot 9A ou OTP2 pour contourner l'échec. Une éventuelle écriture doit être confirmée après opération avec `ykman piv keys info 82`, puis test sur fixture de chiffrement avant tout usage SOPS.
+
+### Blocage matériel age-plugin-yubikey AES et référence PIN (17 octobre 2026)
+
+Sur la YubiKey secondaire `22916048`, `age-plugin-yubikey 0.5.1 --generate --slot 1 --pin-policy always --touch-policy always` a échoué après demande de PIN : `Failed to authenticate with the PIN-protected management key`; le message précise explicitement **AES non supporté** (issue [str4d/age-plugin-yubikey#92](https://github.com/str4d/age-plugin-yubikey/issues/92)). La carte utilise une clé de gestion PIV **AES256 protégée par PIN**. **L'échec ne prouve pas un PIN erroné.** L'opérateur a sélectionné le PIN depuis LastPass **« yubikey-5-nabla principal »** alors que **la carte secondaire** était connectée. Cette entrée est désignée pour la principale et ne prouve pas que les PIN sont identiques. Vérifier la bonne entrée secondaire sans révéler la valeur. Éviter les essais répétés (compteur PIN limité).
+
+**Aucune génération réussie confirmée.** Avant toute autre action, effectuer un inventaire PIV 82 et des compteurs PIN en lecture seule. Ne pas suivre automatiquement la suggestion du plugin de migrer la management key vers TDES : rétrogradation crypto pour contourner une incompatibilité logicielle, avec risques opérationnels pour le slot historique 9A. Conserver PIV 9A et OTP2. Chercher prioritairement une version/fork du plugin prenant en charge AES ou un processus compatible et contrôlé, puis tester sur fixture avec une carte uniquement. La génération de l'identité age matérielle reste **BLOCKED** tant que compatibilité et PIN de secours ne sont pas validés.
+
+Le préflight affiche maintenant un **rappel non sensible de la référence LastPass** selon le numéro de série ; jamais la valeur du PIN.
+
+### PIN secondaire et compatibilité AES — contrôle matériel
+
+Le diagnostic en lecture seule de la carte secondaire indique PIN 3/3 et PUK 3/3, management key AES256 protégée par PIN, ancien certificat 9A inchangé et slot 82 vide. L'échec du plugin ne démontre pas un PIN erroné : il annonce une incompatibilité avec AES.
+
+Références LastPass confirmées par l'opérateur : principale `yubikey-5-nabla principal` ; secondaire `yubikey-5-nabla backup`. Ne conserver que les libellés, jamais les valeurs. Ne pas migrer la management key vers TDES et ne pas réinitialiser PIV ; recherche d'un chemin AES-compatible requise avant toute génération.
+
+### P1 — AES management-key compatibility: investigation and guard (2026-10-17)
+
+The upstream `str4d/age-plugin-yubikey` issue [#92](https://github.com/str4d/age-plugin-yubikey/issues/92) remains open, blocked by an upstream dependency. Version `0.5.1` does **not** establish PIN-protected AES management-key compatibility. Its latest release as checked is `0.5.1`; the reported `--generate` failure on the backup card is consistent with this known blocker, not proof of wrong PIN. See [issues #238](https://github.com/str4d/age-plugin-yubikey/issues/238) and [#92](https://github.com/str4d/age-plugin-yubikey/issues/92).
+
+Read-only guard:
+```bash
+bash scripts/workstation/check-age-yubikey-aes-compat.sh --serial 22916048
+```
+It intentionally exits **3** on incompatible AES or unapproved management-key configurations (nonzero means **blocked by policy**, not a hardware failure). Never use it as a provisioning success signal. The previous PIV82 preflight still checks slot emptiness independently.
+
+Investigation plan before any write:
+1. Check age-plugin-yubikey's current dependencies and upstream #92 fixes, with reproducible, pinned versions; test first against a disposable token if possible.
+2. Research external ECC P-256 key generation directly on-card in retired PIV 82 using AES-compatible `ykman`, **plus plugin-compatible certificate encoding** and PIN/touch policy; verify that no existing PIV applet state must be reset. Building a P-256 key alone is insufficient.
+3. Validate the resulting recipient and actual synthetic age decrypt against the plugin, and independently inspect PIV 9A and OTP2 afterwards.
+4. Document rollback, slot 83 rotation reservation, and migration impact for unattended SOPS/CI before new production recipients.
+
+No automatic TDES downgrade, no PIN guessing, no PIV reset, no wildcard `--force`. Existing SOPS X25519 and TrueNAS/SanDisk recovery remain operational.
+
+### Acceptation locale AES guard — 17 octobre 2026
+
+L'opérateur a synchronisé le worktree PR #259 au commit `9464f03d`, puis exécuté `bash -n scripts/workstation/check-age-yubikey-aes-compat.sh` et `python3 -m unittest discover -s tests -p test_yubikey_keepassxc_diagnostic_contract.py -v` : **19 tests PASS / 19**. Avec la YubiKey secondaire `22916048` connectée, `check-age-yubikey-aes-compat.sh --serial 22916048` a affiché le blocage attendu AES PIV management key et retourné **3**, par politique de sécurité. Cela valide le garde-fou local en lecture seule, pas la compatibilité age-plugin-yubikey ni le provisionnement matériel. PIV82 reste non provisionné ; ne pas convertir en TDES, ne pas saisir de PIN pour refaire ce diagnostic. Prochaine tâche : analyser les métadonnées d'un certificat compatible age-plugin-yubikey et un chemin de génération P-256 via ykman compatible AES, d'abord sans écriture.
+
+### Investigation external P-256 via ykman (lecture seule — 17 octobre 2026)
+
+L'aide de la version `ykman` installée confirme que
+`piv keys generate SLOT PUBLIC-KEY` propose `ECCP256`,
+`--pin-policy ALWAYS` et `--touch-policy ALWAYS`.
+La génération de certificat utilise
+`piv certificates generate SLOT PUBLIC-KEY --subject SUBJECT`.
+La commande `age-plugin-yubikey --list-all` n'a produit
+aucune entrée avec la carte secondaire présente : **aucune identité
+age détectée** à ce stade.
+
+Source amont importante :
+[age-plugin-yubikey issue #206](https://github.com/str4d/age-plugin-yubikey/issues/206)
+décrit une **méthode expérimentale de génération externe**
+par `ykman` suivie d'un certificat X.509. L'auteur précise
+que l'organisation de sujet `O=age-plugin-yubikey` joue
+sur la découverte automatique, et que des extensions OID
+peuvent porter les politiques PIN/touch. **Cette expérience
+n'établit pas** que le certificat ordinaire émis par
+`ykman piv certificates generate` reproduise toutes
+les métadonnées attendues, ni que le plugin détecte
+correctement les politiques ALWAYS. Le témoignage amont
+utilise même des politiques NEVER : **ne pas copier cet
+exemple** sur des cartes opérationnelles.
+
+**Avant écriture :** analyser source/format de certificat
+du plugin et préparer un test de compatibilité sur clé
+jetable ou certificat simulé ; prévoir un outil de signature
+et extensions conforme si nécessaire. Vérifier ensuite
+`age-plugin-yubikey --list-all` et un déchiffrement
+réel avec PIN/touch avant tout usage. Les cartes existantes
+restent inchangées et le workflow `--generate` du plugin
+est toujours bloqué par AES256. Ne pas passer en TDES.
+
+### Offline certificate inspection gate (2026-10-17)
+
+Added `scripts/workstation/inspect-age-yubikey-certificate.sh` with `--certificate PATH.pem`; it reads a local public X.509 certificate only, never connects to a YubiKey or requests secrets. It validates the certificate's public key curve **EC P-256** and warns when `O=age-plugin-yubikey` is absent. Exit **3** is intentional even for a matching certificate: PIN and touch policy extension semantics, token slot binding, plugin selection, and actual age decryption are **unverified**. No certificate currently exists for PIV82, so do not run an apply workflow as a shortcut. Use `--help` and run updated `unittest` contracts (expected **20** tests) on the workstation.
+
+[Upstream external-generation issue #206](https://github.com/str4d/age-plugin-yubikey/issues/206) is **not a certified secure recipe**: its example uses `PIN=NEVER` and `touch=NEVER`. Never copy those policies; investigate supported OIDs/encoding and require `ALWAYS` for both. [Plugin README](https://github.com/str4d/age-plugin-yubikey) notes `--list-all` lists compatible retired-slot keys even if not plugin-owned, but this is a discovery check only. A successful synthetic decryption is still mandatory before any production rollout.
+
+### Certificat compatible : exigences extraites du code amont (2026-10-17)
+
+Analyse de `str4d/age-plugin-yubikey` (`src/builder.rs`, `src/util.rs`, `src/key.rs`) : sujet X.509 avec `O=age-plugin-yubikey`, `OU` version (ex. `0.5.1`), `CN` nom ; clé publique ECDSA P-256 dans un slot *retired*. Extension de politique **non critique** `1.3.6.1.4.1.41482.3.8` dont la valeur est constituée de deux octets : `03 02` signifie `PIN=ALWAYS` et `TOUCH=ALWAYS`. Le plugin rejette les extensions critiques inconnues. Sans organisation reconnue, `--list-all` peut découvrir une clé compatible, mais `--list` la masque.
+
+Nouveau test de contrat OpenSSL synthétique `test_plugin_policy_oid_synthetic_certificate` : génère temporairement une clé P-256 logicielle et un certificat avec cette extension, vérifie l'encodage DER attendu et passe le certificat à notre inspecteur en lecture seule. Test du fixture OpenSSL effectué hors carte ; validation `unittest` dans le worktree opérateur encore à faire. Ce test **ne prouve ni la lecture réelle par le binaire age-plugin-yubikey, ni les politiques effectives dans le matériel, ni un déchiffrement** : il faut encore un jeton jetable ou une procédure matérielle explicitement autorisée, avec inventaire PIV avant/après et déchiffrement synthétique.
+
+Ne jamais utiliser `age-plugin-yubikey --generate` version 0.5.1 contre une clé de gestion AES256 protégée par PIN : incompatibilité connue. Ne pas convertir en TDES, ne pas altérer OTP2 ni PIV9A.
+
+### Acceptation locale du test X.509 synthétique (17 octobre 2026)
+
+L'opérateur a mis à jour son worktree vers `7226a265` et exécuté `python3 -m unittest discover -s tests -p test_yubikey_keepassxc_diagnostic_contract.py -v` : **22 tests sur 22 PASS (0,470 s)**. Le test `test_plugin_policy_oid_synthetic_certificate` passe après correction de l'écriture des fins de ligne dans la configuration OpenSSL. Cette acceptation valide uniquement la fixture synthétique, le contrôle des OID et l'inspecteur hors matériel. Il reste à démontrer reconnaissance effective par `age-plugin-yubikey` et déchiffrement avec PIV 82 sur matériel AES256. Aucune saisie PIN ou écriture PIV lors de cette acceptation.
+
+### PIV82 AES256 : procédure en deux phases — statut NO-GO matériel (2026-10-18)
+
+**Préflight validé :** le worktree PR #259 dispose de `scripts/workstation/plan-age-yubikey-piv82-enrollment.sh --serial 22916048`, strictement en lecture seule. À lancer avec une seule carte. Le script vérifie la série, la clé de gestion AES256 protégée par PIN et l'absence de clé dans PIV82. Code 0 : préconditions vérifiées, **pas** une autorisation d'écrire.
+
+**Étape 1 (préparation, aucune écriture) :**
+```bash
+bash scripts/workstation/plan-age-yubikey-piv82-enrollment.sh --serial 22916048
+ykman --device 22916048 piv keys generate --help
+ykman --device 22916048 piv certificates generate --help
+```
+
+**Étape 2 (NO-GO, ne pas exécuter sur les YubiKeys opérationnelles pour l'instant) :** l'instruction générique `ykman piv keys generate -a ECCP256 --pin-policy ALWAYS --touch-policy ALWAYS 82 PUBLIC.pem` est supportée par la CLI et préserverait la clé de gestion AES256, mais créerait une clé privée permanente dans PIV82. Le plan de certificat n'est **pas encore** prouvé : `ykman piv certificates generate` offre sujet et validité, mais pas de paramètre explicite pour ajouter l'extension non critique `1.3.6.1.4.1.41482.3.8` contenant précisément `03 02`. Ne pas enchaîner ces deux commandes au hasard ; pas de `--force`, de downgrade TDES, d'effacement/recréation PIV, d'accès OTP2 ni d'écriture PIV9A.
+
+**Critères de GO avant toute clé réelle :**
+1. Construire et auditer une chaîne de certificats (signature par la clé PIV82 elle-même) avec `O=age-plugin-yubikey`, `OU=0.5.1`, `CN=nabla-age-backup`, clé publique P-256 correspondante, extension OID `1.3.6.1.4.1.41482.3.8` non critique avec deux octets `03 02`. Prouver les octets DER et absence d'extensions critiques inconnues.
+2. Vérifier l'intégration de cette chaîne avec les API PIV/ykman sans exposer le PIN ni la management key et sans passer sur TDES. Tester si possible sur YubiKey de test non opérationnelle.
+3. Confirmer que la carte reconnaît `PIN=ALWAYS` et `touch=ALWAYS` réellement ; le certificat n'impose pas à lui seul la politique du slot.
+4. Exécuter sur une seule carte secondaire après sauvegardes et inventaires avant/après, vérifier `age-plugin-yubikey --list-all`, récupérer uniquement le destinataire public et réussir un vrai encrypt/decrypt synthétique. Ne pas re-lancer une création de clé si un incident survient après l'étape 2.
+5. Même procédure indépendante pour la principale avant toute migration SOPS. Garder l'identité logicielle et le coffre USB comme voie de retour arrière.
+
+Le contrôle X.509 de base peut désormais afficher la présence de l'OID, mais il est délibérément **non conclusif** : il ne vérifie pas complètement les octets ou les politiques effectives, et retourne le code 3. Les tests synthétiques `unittest` ne remplacent pas un essai du binaire réel ni un déchiffrement sur matériel.
+
+**Décision :** aucun provisionnement sur les deux clés tant que le point 1 + la méthode de signature/installation ne sont pas validés. Il est acceptable de conserver durablement le blocage et de surveiller la correction amont d'age-plugin-yubikey AES.
+
+### Exécution regroupée hors matériel — 18 octobre 2026
+
+Le dernier résultat opérateur confirme **23/23 tests PASS** après réparation du contrat d'inscription AES256. Pour éviter des commandes répétées et les erreurs de `pytest` manquant, utiliser désormais une seule quality gate standard-library :
+
+```bash
+cd /tmp/nabla-yubikey-pr259
+git fetch origin fix/quality-reviewed-deletions-defectdojo-lan-20261017
+git switch --detach origin/fix/quality-reviewed-deletions-defectdojo-lan-20261017
+bash scripts/workstation/verify-age-yubikey-offline.sh
+```
+
+Cette commande réalise `py_compile` puis `unittest discover` sur le contrat YubiKey, et **ne contacte aucune carte**. Son nouveau test porte le total attendu à **24** (à confirmer sur workstation). Les contrôles de préflight matériel séparés restent strictement en lecture seule. Aucun script de provisionnement `--apply` n'est proposé tant que la chaîne de signature et d'import du certificat avec l'OID `1.3.6.1.4.1.41482.3.8` et les politiques `PIN=ALWAYS` / `touch=ALWAYS` n'a pas été prouvée.
+
+**Point de reprise :** étudier comment obtenir un certificat P-256 signé par la clé de PIV82 avec extensions personnalisées sans jamais exporter la clé privée ; démontrer l'outil sur un jeton jetable ou environnement de test avant d'utiliser les deux YubiKeys opérationnelles. Ne pas confondre validation du certificat synthétique et acceptation par le plugin matériel.
+
+### Acceptation opérateur de la quality gate hors matériel (2026-10-18)
+
+L'opérateur a synchronisé le worktree au commit `8f88d706` puis exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **24/24 tests PASS en 0,518 s**, compilation Python comprise, sans contact matériel. L'avertissement final `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified` est le comportement attendu. Ces résultats sont une acceptation du parcours local-first, **pas** une autorisation de créer une clé en PIV82. La prochaine étape consiste à valider hors matériel la signature X.509 avec extension OID, puis la compatibilité réelle avant écriture sur la YubiKey secondaire.
+
+### CSR → certificat P-256 : PoC hors matériel ajouté (2026-10-18)
+
+Ajout de `scripts/workstation/test-age-yubikey-csr-offline.sh` et de son contrat `unittest` : génération d'une clé **logicielle éphémère**, d'un CSR, autosignature X.509, inclusion de l'OID de politiques `1.3.6.1.4.1.41482.3.8=DER:03:02` et vérification que la clé publique certifiée correspond à celle de la clé générée. Fichiers temporaires privés supprimés à la sortie ; aucune commande `ykman` et aucun PIN. Le modèle équivalent OpenSSL a été exécuté hors matériel ; la quality gate intégrée (désormais **25 tests attendus**) reste à confirmer sur la workstation.
+
+**Limite essentielle :** ce PoC emploie une clé privée logicielle via `openssl x509 -signkey`. Cette commande **ne peut pas être copiée telle quelle sur une clé PIV privée non exportable**. Il manque une voie de signature depuis PIV82 (PKCS#11 provider, outil utilisant `ykman piv keys attest`/signature ou SDK), qui ajoute exactement la même extension non critique tout en préservant le certificat existant 9A, la management key AES256 et les politiques on-card. Il faut aussi vérifier les octets DER et réellement déchiffrer avec le plugin. **Pas de GO matériel** sur la base de cette seule fixture.
+
+L'opérateur a validé le précédent lot **24/24 tests PASS** au commit `8f88d706`; aucune nouvelle intervention n'est nécessaire avant la prochaine vérification groupée.
+
+### Acceptation opérateur de la chaîne CSR synthétique (18 octobre 2026)
+
+L'opérateur a exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **25 tests PASS / 25, 0,563 s**. Le test `test_offline_csr_certificate_pipeline` est notamment PASS. Le script signale correctement `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified`. **Conclusion :** génération CSR + certificat et vérifications synthétiques acceptées en local ; signature par clé privée non exportable en PIV82, installation compatible et déchiffrement age matériel restent à valider. Aucun provisionnement matériel autorisé par ce résultat.
+
+### 2026-10-18 — Chemin SDK Python pour signature PIV non exportable
+
+Recherche documentation Yubico : `ykman.piv.sign_certificate_builder(session, slot, key_type, builder, hash_algorithm)` sait signer un `cryptography.x509.CertificateBuilder` au moyen de la clé privée stockée sur PIV. Ceci ouvre une voie pour ajouter `x509.UnrecognizedExtension(ObjectIdentifier("1.3.6.1.4.1.41482.3.8"), b"\\x03\\x02")` à un certificat auto-signé, contrairement au CLI standard `ykman piv certificates generate` qui ne propose pas directement ces extensions. Sources : https://developers.yubico.com/yubikey-manager/API_Documentation/autoapi/ykman/piv/index.html et https://github.com/Yubico/yubikey-manager/blob/main/ykman/piv.py .
+
+Ajout d'un script de découverte **sans matériel** : `bash scripts/workstation/check-yubikey-piv-python-sdk.sh`. Il vérifie l'existence des modules Python `ykman`, `yubikit`, `cryptography` et de l'API `sign_certificate_builder` dans l'interpréteur sélectionné. **Exit 3** lorsque le SDK manque ou n'est pas compatible, sans tentative d'installation globale. Une nouvelle assertion de contrat porte le nombre attendu de tests `unittest` à **26** (encore à revalider sur workstation).
+
+Chemin étudié **non exécuté** :
+1. Préflight strict série + une carte + slot PIV82 vide + AES256 PIN-protected.
+2. Génération sur carte de clé ECCP256 en PIV82 avec PIN et toucher `ALWAYS`, uniquement après approbation opérateur de l'étape d'écriture.
+3. Construction `x509.CertificateBuilder` avec sujet `O=age-plugin-yubikey,OU=0.5.1,CN=nabla-age-backup`, public key PIV82, dates contrôlées, extension non critique `1.3.6.1.4.1.41482.3.8` = octets `03 02`. Signature par `ykman.piv.sign_certificate_builder` via PIV82 non exportable ; vérifier la signature avec sa clé publique.
+4. Import explicite du certificat en PIV82 avec vérification correspondance clé/certificat ; ne pas modifier PIV9A, CHUID ni la management key AES256.
+5. `age-plugin-yubikey --list-all` + lecture identité puis vrai encrypt/decrypt synthétique avec toucher/PIN, suivi inventaire slot 9A et OTP2.
+
+**NO-GO persistant :** le script d'inscription matérielle et l'ouverture d'une session PIV authentifiée AES256 ne sont pas encore implémentés/validés ; la compatibilité réelle avec le plugin demeure inconnue. Aucun appel de signature matériel ni mutation de carte n'est autorisé par cette seule découverte de l'API. Préférer un environnement virtuel à versions épinglées et une carte jetable avant déploiement sur secondaire.
+
+### SDK Python manquant — préparation isolée (2026-10-18)
+
+L'opérateur a validé la quality gate **26/26 PASS**, puis `check-yubikey-piv-python-sdk.sh` a indiqué l'absence des modules Python `ykman`, `yubikit` et `cryptography` dans l'interpréteur `mise` Python 3.14.8. Il ne s'agit pas d'un échec YubiKey ni d'un défaut de PIN.
+
+Nouveau `scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh` : mode `--check` implicite (sans téléchargement), `--apply` explicite pour installer un environnement virtuel privé sous `~/.local/share/nabla/piv-sdk-venv`; dépendances top-level épinglées à `yubikey-manager==5.8.0` et `cryptography==46.0.3`, transitive lock encore à produire après résolution. L'installation nécessite un index Python fiable et l'examen de la politique d'approvisionnement logiciel. Le diagnostic SDK accepte désormais `NABLA_PIV_PYTHON` pour sélectionner cet interpréteur sans modifier Python global.
+
+```bash
+bash scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh --check
+# Si dépôt, sources et versions approuvés :
+bash scripts/workstation/bootstrap-yubikey-piv-python-sdk.sh --apply
+```
+
+Aucune carte requise, aucun PIN et aucune commande de génération/import PIV. Un contrat ajouté porte le total attendu à **27 tests**, à confirmer localement. **Ne pas confondre capacité Python et GO matériel** ; le chemin CSR/certificat signé par PIV82 et le déchiffrement age ne sont pas encore validés.
+
+### SDK isolé accepté par l'opérateur (2026-10-18)
+
+Le retour workstation confirme **27/27 tests PASS**. L'opérateur a exécuté `bootstrap-yubikey-piv-python-sdk.sh --apply` avec succès : environnement isolé `~/.local/share/nabla/piv-sdk-venv` sous Python 3.14.8, `yubikey-manager==5.8.0`, `cryptography==46.0.3`, et dépendances résolues. `check-yubikey-piv-python-sdk.sh` rapporte `Python SDK imports and signing-builder capability available` puis `SDK capability gate ... available without downgrading AES`. C'est une validation d'import/API, **pas** une validation de session PIV ni de signature sur carte. Aucun PIN, aucune écriture matérielle ni altération AES256 confirmés par ces commandes. Avant opération matérielle : figer dépendances transitives, inspecter les signatures exactes de `PivSession`, du constructeur X.509 et de `sign_certificate_builder`, puis vérifier l'authentification AES256 dans un mode strictement contrôlé. Les YubiKeys restent NO-GO matériel jusqu'à procédure signée et interopérabilité age validées.
+
+### 2026-10-18 — Validation de l'API réelle de signature avec session PIV simulée
+
+Ajout de `scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py`. Ce test n'utilise **pas** `openssl x509 -signkey` : il appelle réellement `ykman.piv.sign_certificate_builder` (Yubico Manager 5.8.0), avec une fausse session PIV dont la méthode `sign` est exécutée par une clé P-256 éphémère en mémoire. Il vérifie la signature ECDSA du certificat final, la correspondance de la clé publique, le sujet, la présence d'une extension **non critique** `1.3.6.1.4.1.41482.3.8` valant exactement `03 02` et le slot `SLOT.RETIRED1` simulé. Le script n'ouvre aucune connexion PC/SC, ne persiste aucune clé, ne demande aucun PIN et ne modifie aucune carte.
+
+Nouveau contrat dans `tests/test_yubikey_keepassxc_diagnostic_contract.py` : test statique systématique et exécution du PoC avec `~/.local/share/nabla/piv-sdk-venv/bin/python` lorsque cet environnement existe. **28 tests attendus**, à vérifier sur workstation. Commandes en une fois :
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py
+```
+
+**Restent NO-GO :** authentification AES256 on-card, import du certificat en PIV82 et vérification de l'identité/du déchiffrement du vrai plugin. Le test par session simulée prouve la structure du certificat et l'API de substitution de signature, **pas** la compatibilité matérielle. Refuser tout script `--apply` sur les deux clés jusqu'à validation séparée et autorisation explicite.

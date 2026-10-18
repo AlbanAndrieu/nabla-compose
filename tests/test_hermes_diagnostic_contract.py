@@ -14,7 +14,7 @@ SCRIPT = ROOT / "scripts/truenas/diagnose-hermes-agent.sh"
 @pytest.mark.parametrize(
     ("privileged", "mount", "health", "expected_status", "expected_text"),
     [
-        ("false", "/opt/data|true", "healthy", 0, "summary failures=0"),
+        ("false", "/opt/data|true", "healthy", 0, "failures=0 unknown=0"),
         ("true", "/opt/data|true", "healthy", 1, "Privileged container"),
         ("false", "/var/run/docker.sock|true", "healthy", 1, "Docker socket mounted"),
         ("false", "/opt/data|true", "unhealthy", 1, "Hermes container health=unhealthy"),

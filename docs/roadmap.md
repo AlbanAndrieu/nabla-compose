@@ -1,4 +1,187 @@
+## Homarr GitOps declarative migration (2026-10-18)
+
+- [x] Pin Homarr v2.6.0 (upstream release dated 2026-10-15) in Compose; deployment on TrueNAS remains to be verified.
+- [x] Introduce versioned board definitions under apps/homarr/config/boards.json; service catalog remains the canonical app inventory.
+- [x] Remove dependency on a persisted reconciler mapping file; resolve apps and boards from remote API on each run.
+- [ ] Validate Homarr v2.6.0 API contracts for board item listing, updates and widget layout, and add contract tests before enabling production reconciliation.
+- [ ] Add declarative sections, widgets, integrations and drift reports; fail closed on ambiguous IDs or unsupported endpoints.
+- [ ] Verify live upgrade and reconciliation on TrueNAS; no backup or preservation of user-defined dashboard state required by operator, but retain non-destructive behavior until full declarative convergence is proven.
+- [ ] Review least-privilege MCP/API permissions, secret injection, observability, rollback via declarative redeploy, and CI quality gates.
+
+## CURRENT · Prometheus correlation → pfSense stabilization → DefectDojo LAN (2026-10-18)
+
+**Execution order: pfSense safety gate first; DefectDojo only after pfSense DNS and memory remain stable.** Evidence is operator-provided, not a live deployment validation.
+
+### P1 — pfSense memory, DNSBL and observability
+
+- [x] Read-only memory sampling `scripts/pfsense/diagnose-memory-pressure.sh --check --samples 10 --interval 30`: 00:22–00:26 CEST, available free+inactive 223.8–234.4 MiB, Unbound PID 75160 stable, pfBlockerNG cron absent; this does **not** explain earlier transient 24.2 MiB at 00:16.
+- [x] pfBlockerNG latest DNSBL `225631 PASSED` and latest update END marker complete; localhost and LAN Unbound DNS checks PASS. Historical OOM at 2026-10-17 02:11 is not a new incident.
+- [x] Existing Prometheus multi-target pfSense exporter `172.17.0.24:9945/metrics?target=172.17.0.1`, `up=1`; scrape duration ~5.13–5.22 s. `pfsense_system_memory_usage_ratio=0.31`, recorded `nabla:core:pfsense_memory_available_ratio=0.69`. **Do not equate** exporter ratio with FreeBSD `free+inactive` MiB; compare semantics and sample timestamps before alert thresholds.
+- [x] Existing pfSense `pfsense_service_up` confirms unbound, snort, haproxy, kea-dhcp4, pfb_dnsbl, pfb_filter running; ntopng, softflowd, zabbix intentionally off. `pfsense_gateway_up{name="WANGW"}=1`. CrowdSec service=0 but firewall bouncer=1: diagnose before claiming full CrowdSec health.
+- [x] Read-only cross-platform `scripts/pfsense/diagnose-prometheus-telemetry.sh --check` executed on workstation: pfSense, TrueNAS node, Akvorado inlet/outlet scrapes UP; FastAPI Sample metrics scrape DOWN.
+- [ ] **Next pfSense closure:** capture 24 h trend around cron windows (minimum, duration below 128 MiB, process/UMA snapshot on recurrence), compare Prometheus memory ratio to SSH sampling, check Unbound PID/response and OOM event *deltas*, confirm DNSBL update completes without sustained memory pressure. No proactive reboot, package patch or DNSBL rebuild; pflow activation explicitly operator-approved on 2026-10-18, subject to preflight and rollback.
+- [ ] Investigate `dnsbl_ram_swap_gate=missing` and legacy `dnsbl_loaded_entries=0` semantics without mutating pfSense. pflow kernel module not loaded and zero exporters at last observation; operator approved starting pflow for TrueNAS Akvorado only. Require supported persistent configuration, preflight memory/DNS, baseline, limited collector, post-activation verification and rollback. Cloudflare exporter remains disabled. Cloudflare IPFIX exporter must be justified before enabling.
+- [ ] Add conditional read-only capture under 128 MiB with rate limiting, retention and secrets redaction; only after validating no resource amplification on 1 GiB Netgate.
+- [ ] Close pfSense incident only after 24 h stable DNS, no *new* OOM, pfBlockerNG completion and verified rollback. Treat exporter `up` as telemetry evidence, not DNS/application proof.
+
+### P1 — Operator-approved pflow trial (2026-10-18; review tomorrow)
+
+- [x] Operator authorized enabling pflow now, with review tomorrow; **approval is not evidence that it has been activated**.
+- [x] Preflight evidence at 2026-10-18 00:44 CEST: pflow.ko exists (not loaded), pflowctl usage `[-lc] [-d id] [-s id ...] [-v]`, no pflow interfaces; free+inactive 232244 KiB (~226.8 MiB), no active pfBlockerNG cron, Unbound and internal DNS healthy; historical OOM in dmesg. Integration found in `/etc/inc/filter.inc` (also `.orig`). Still inspect relevant function and persistence semantics before activation.
+- [ ] Review `/etc/inc/filter.inc` pflow integration and associated pfSense configuration (redact secrets); establish supported persistence and rollback, then enable **only** the TrueNAS Akvorado collector `172.17.0.24:2055/udp` via supported persistent pfSense configuration. Avoid manual kernel/module hacks or unreviewed boot config; Cloudflare flow collector remains off. Capture configuration backup and exact rollback before mutation.
+- [ ] Verify pflow interface/exporter status and actual UDP flow ingestion via Akvorado metrics (counter deltas, not just `up`), plus pfSense memory/CPU, Unbound, DNS and pfBlockerNG after activation; stop and revert for memory below 128 MiB, fresh OOM, DNS failure or sustained CPU pressure.
+- [ ] Tomorrow: compare 24h before/after resource trends, collector packet deltas, dropped flows and gateway health. Decide keep/revert, document outcome. Do not call the trial complete without observed traffic and stability.
+
+### P1 — OpenRAG/OpenClaw shared embeddings and safe fallback (planned)
+
+- [x] OpenRAG 0.7.1 already targets the workstation LiteLLM `embedding` alias through its OpenAI-compatible backend and shared Langflow. OpenClaw `main`/`cron` migration is still pending.
+- [ ] Reconcile both consumers on a stable `embedding` alias and identical embedding model revision/configuration. Keep application-specific LiteLLM virtual keys, budgets and audit trails; **do not** reuse the OpenClaw file token as OpenRAG's chat credential.
+- [ ] Test TrueNAS LiteLLM/Ollama as fallback from both consumers, including upstream model identity, sentinel-vector compatibility, retrieval correctness, observability and bounded retry. Never auto-failover across distinct vector spaces, even if dimensions match.
+- [ ] If incompatible fallback is desired, use explicit collection/index versioning and a controlled re-embedding cutover. Fail closed on retrieval rather than mixing vectors.
+- [ ] Keep OpenRAG 0.7.1 `LITELLM_IDE_API_KEY` until separate chat/embedding credentials are supported; determine supported upgrade or restricted per-consumer proxy before changing secrets.
+- [ ] Accept staged OpenRAG ingestion/query and OpenClaw memory smoke, then enable failover with rollback. Do not redeploy TrueNAS or rebuild indexes from documentation-only changes.
+
+Design/acceptance: `apps/openrag/README.md#shared-embedding-contract-with-openclaw-planned-not-deployed`.
+
+### OpenClaw backup and gateway restoration — operator, 2026-10-18
+
+- [x] Gateway quiesced before backup; archive `openclaw-20261017T223508Z-121931.tar.gz` verified (106934 files, SHA-256 recorded in operator output), temporary restore test successful.
+- [x] Gateway restarted and `systemctl --user is-active` returned active; control UI WebSocket requests succeeded.
+- [ ] Investigate gateway systemd cgroup memory ~5.8 GiB (peak 6.3 GiB), Codex app-server child processes, and one delayed heartbeat (overdue 2852ms; elapsed 32852ms); measure trend before changing limits. No restart warranted by current evidence.
+
+### DefectDojo LAN runtime evidence — operator, 2026-10-18
+
+- [x] pfSense Unbound resolves `defectdojo.int.albandrieu.com` to `172.17.0.24`; HTTPS returns 302 via nginx; previous strict workstation TLS check passed.
+- [x] TrueNAS `app.query`: defectdojo RUNNING. Docker: `defectdojo` frontend, `defectdojo-uwsgi`, `defectdojo-celeryworker`, `defectdojo-celerybeat` Up ~2h; `defectdojo-initializer` Exited (0). Frontend binds `172.17.0.24:31085->8080/tcp`.
+- [ ] Confirm 302 Location safely (do not publish token/query), verify app readiness and authenticated API, Celery worker responsiveness, database/migrations, synthetic test import and retention/rollback. Container Up and initializer exit 0 alone do not prove these.
+- [ ] No change to pfSense DNS, Traefik, firewall or Cloudflare until a specific failure is demonstrated.
+
+### P1 — TrueNAS / Prometheus target quality
+
+- [x] `node_memory_MemAvailable_bytes=6732337152` (~6.27 GiB) and `nabla:core:truenas_memory_available_ratio=0.1011855` at sampled time; `node_vmstat_oom_kill=5` is a cumulative counter, not five recent OOMs. Use `increase(...[1h])` with counter-reset awareness.
+- [ ] Investigate scrape failures separately from application health: `pihole_exporter`, `haproxy`, `opensearch-security`, `postgres_exporter`, `fastapi_sample`, `opensearch`, `docling`. Inspect `/api/v1/targets` lastError, expected metric path/port/auth and intended service lifecycle; do not restart blindly.
+- [ ] Confirm scrape timeout configured for pfSense (observed ~5.2 s); `scrape_timeout_seconds` series absent in sample. Inspect Prometheus scrape configuration rather than treating absent metric as zero.
+- [ ] Reuse Prometheus, Alertmanager, Grafana, Loki and Alloy; no new pfSense daemon by default. Keep Cloudflare Access on public Prometheus; use LAN API or least-privilege service token for automation.
+
+### P1 — FastAPI Sample probes and DefectDojo LAN
+
+- [ ] Explain `up{job="fastapi_sample"}=0`: inspect Prometheus target `lastError`, `metrics_path`, scrape port, and independent `http://172.17.0.24:8091` HTTP/health checks. Never classify app DOWN solely because metrics scrape fails.
+- [ ] In FastAPI Sample's own PR, add Prometheus corroboration with explicit `healthy / degraded / unknown` evidence and timestamps: scrape missing/stale/timeout → telemetry warning, not service DOWN. Preserve TrueNAS-primary, direct HTTP/HTTPS/TCP, pfSense and Cloudflare probe precedence; no silent fallback to fabricated values.
+- [ ] **DefectDojo LAN gate:** validate `defectdojo.int.albandrieu.com` via pfSense Unbound → Pi-hole → Traefik → DefectDojo with DNS, TLS/Host/SNI, HTTP response and authentication checks. No public `.int` DNS, no external ingress, no unreviewed deployment changes.
+- [ ] Verify DefectDojo containers/DB/migrations/worker readiness and authorized API endpoint using secrets from private runtime store; perform synthetic import in an isolated test product, confirm ingestion and rollback. Document exact errors before changes.
+- [ ] Add read-only repeatable DefectDojo LAN smoke/runbook and local quality gate; finish validation before marking complete. Do not merge PR automatically.
+
+---
+
+## P1 · pfSense memory stability and pflow recovery — active (2026-10-17)
+
+- [x] Restore Unbound outgoing interfaces `WAN -> All`, verify DefectDojo/Vaultwarden/Hello/S3 private DNS, and document pfSense XML backup paths.
+- [x] Add read-only `scripts/pfsense/diagnose-memory-pflow.sh --check` for resident memory, swap, Unbound status, OOM history and pflow interfaces.
+- [ ] Execute new diagnostic and `scripts/pfsense/audit-posture.sh` from workstation; record timestamped memory baseline and compare with 2026-10-17 pre-change Unbound RSS ~125–131 MiB and historical OOM. Do not infer new OOM from old dmesg lines.
+- [ ] Investigate pfBlockerNG `dnsbl_ram_swap_gate missing` and `dnsbl_loaded_entries 0` without changing package files on pfSense or triggering DNSBL rebuild on memory-constrained Netgate 1100.
+- [ ] Diagnose `pflow.truenas missing` (domain 1, 172.17.0.24:2055), `pflow.cloudflare missing` (domain 2, 162.159.65.1:2055), and `pflow.connected_exporters 0`; validate actual desired collectors and routing before any exporter changes.
+- [ ] After 24h of stable memory and DNS, close pfSense regression acceptance; retain historical incident evidence and avoid disruptive service restarts.
+
+
+## P2 · Cloudflare DNS OpenTofu GitOps — preparation (2026-10-17)
+
+- [x] Restore pfSense private DNS forwarding to Pi-hole and validate three internal services; retain local pfSense XML backup inventory in `docs/dns-ingress-ownership.md`.
+- [x] Inventory Cloudflare public `.int` records; remove unexpected `s3.int.albandrieu.com` CNAME, retain approved Hello exception; audit exit=0, warnings=1.
+- [ ] Build a dedicated OpenTofu/Terraform Cloudflare DNS module with pinned provider, explicit public DNS allowlist and no `*.int.albandrieu.com` wildcard. Import pre-existing records into state before planning changes; do not recreate or delete unmanaged resources.
+- [ ] Configure protected remote state, least-privilege API token via secret injection (never checked into Git), `fmt`/`validate`/`plan` and reviewed manual-only `apply`. Never publish state, secrets or full API payloads in CI artifacts.
+- [ ] Add read-only drift detection and tests that reject publication of private names (including DefectDojo), preserving intentional public Hello exception until separately approved.
+
+## P1 · YubiKey age / AES256 PIV management-key compatibility — BLOCKED (2026-10-17)
+
+- [x] Validate both YubiKeys PIV82 empty (read-only), OTP2/KeePassXC and historical PIV9A preserved. Main serial `23501671`, backup serial `22916048`.
+- [x] Verify software SOPS age recovery using encrypted TrueNAS backup and LUKS2 SanDisk escrow: synthetic SOPS fixture PASS; 18/18 targeted Python unittest PASS.
+- [x] Identify blocker: `age-plugin-yubikey 0.5.1 --generate --slot 1` fails on backup key because PIN-protected management key uses **AES256**; the plugin reports no AES support. PIN/PUK retries remain 3/3; PIV82 remains empty. Do **not** interpret this as evidence of incorrect PIN.
+- [x] Add isolated synthetic X.509 unittest scenarios: EC P-256 with expected organization, RSA rejection, EC P-256 without organization warning. No card access or hardware mutation; OpenSSL fixture generation verified locally, workstation unittest execution pending.
+- [x] Prepare a read-only offline X.509 metadata inspector `scripts/workstation/inspect-age-yubikey-certificate.sh` (public EC P-256 and `O=age-plugin-yubikey` hint, exits 3 because it cannot prove PIN/touch or decrypt). Add a unittest contract; run workstation validation next.
+- [ ] **P1 compatible provisioner research:** evaluate upstream [issue #92](https://github.com/str4d/age-plugin-yubikey/issues/92), upstream dependency status and safe external ECC P-256 PIV82 generation/certificate import via `ykman` without overwrites; confirm exact certificate metadata and plugin `--list-all` + actual synthetic decrypt interoperability **before** documenting an executable apply path.
+- [ ] **Security gate:** do not downgrade existing AES256 management keys to TDES, reset PIV, import/overwrite PIV9A, touch OTP2, use `--force`, or retry PINs without a verified need. Keep hardware operations manual and single-card, fail closed on occupied/unknown slots.
+- [ ] **P1 offsite resilience:** add separately protected offline copy of USB `recovery-identity.txt`, LUKS header backup and recovery validation. LastPass stores only references `yubikey-5-nabla principal`, `yubikey-5-nabla backup`, `USB SANDISK LUKS2`; no values in repository.
+- [ ] Generate **distinct** hardware age identities for secondary and main only after compatible method is demonstrated, test each decryption independently, and then assess SOPS multi-recipient rollout including noninteractive CI paths.
+- [ ] Preserve rollback: existing software X25519 age recipient and SanDisk/TrueNAS escrow remain in service until all dependent SOPS files and automation are successfully re-encrypted and restored.
+
+Owner runbook: `docs/workstation-yubikey-gpg-vault-roadmap.md` and `docs/runbooks/sops-age-usb-disaster-recovery.md`. Keep all work in current PR #259, no automatic merge.
+
+## OpenClaw embeddings — operator-approved fresh index strategy (2026-10-17)
+
+- [x] Operator strict secrets audit returned exit 1 with valid object JSON; category and cause unknown.
+- [x] Preflight `--audit` now emits allowlisted category counts only for recognized top-level fields and reports unknown schemas explicitly; raw findings suppressed.
+- [x] Added offline classification regression tests; execution pending.
+- [ ] If audit schema is unknown, inspect only structural key names/types with a reviewed sanitizer; never dump raw JSON or values. Fix findings before migration.
+
+
+- [x] Operator reran strict audit: `secret_audit=findings_or_error`, `secret_audit_strict_check=true`, no configuration change. Root cause unknown because raw findings intentionally suppressed; do not label as unresolved ref without evidence.
+- [x] Diagnostic preflight now reports numeric exit code and top-level JSON type only (never paths, IDs, values, or finding bodies), allowing safe first-stage triage.
+- [ ] Inspect sanitized audit exit code; if JSON is valid and findings persist, implement allowlisted aggregate classification only after verifying exact audit JSON schema. No active secret/config/index changes.
+
+
+- [x] Operator ran initial `check-openclaw-litellm-memory-config.py --audit`: `secret_audit=completed`, raw output suppressed, no configuration change. Initial mode did **not** pass OpenClaw's `--check`, so no claim of zero findings.
+- [x] Updated reusable `--audit` to invoke `openclaw secrets audit --check --json` (no `--allow-exec`), report `secret_audit=clean` only on strict success and otherwise `findings_or_error`; no raw findings exposed.
+- [ ] Rerun strict audit locally; resolve any findings through a separately reviewed diagnostic. Runtime LiteLLM file-secret resolution and source isolation remain pending.
+
+
+- [x] Operator confirmed OpenClaw 2026.9.5 supports `openclaw secrets audit --json` and `--check`; `--allow-exec` is opt-in (default false). `configure`, `apply`, `reload` are potentially mutating and remain out of scope.
+- [x] Reusable preflight now offers `--audit`, invoking read-only audit without `--allow-exec` and suppressing raw JSON/finding details. An audit of existing config does **not** prove a not-yet-configured LiteLLM file SecretRef resolves.
+- [ ] Run `check-openclaw-litellm-memory-config.py --audit` locally and interpret outcome; test file SecretRef runtime resolution with a synthetic secret/provider in an isolated configuration before touching active config.
+
+
+- [x] Operator reran updated `check-openclaw-litellm-memory-config.py --check`: `file_secret_provider_schema=compatible`, `memory_search_schema=compatible`, `virtual_key_file=private`, `target_provider=openai-compatible`, `target_model=embedding`, `target_endpoint=loopback`, `configuration_changed=false`.
+- [ ] Runtime file secret reference remains `file_secret_resolution=unverified`; do not claim the `singleValue` reference ID works until tested without disclosing the key.
+- [ ] Historical source isolation remains `source_reindex_guard=pending`; no index reset or source removal until proven.
+
+
+- [x] Operator inspected `secrets.providers` schema: a named provider may use `source=file`, `path`, `mode=singleValue`; `memory.search.remote.apiKey` may reference `{source:file,provider,id}`. These are schema declarations, not proof of runtime secret resolution.
+- [x] Extended reusable `check-openclaw-litellm-memory-config.py --check` to validate the `secrets.providers` file/singleValue shape; rerun workstation acceptance pending.
+- [ ] Verify OpenClaw's documented/runtime `singleValue` secret-ref ID semantics (do not assume `id=value` works); avoid writing untested configuration or exposing key values.
+
+
+- [x] Operator confirmed schema `memory.search.remote.apiKey` supports `file` secret reference with required `source`, `provider`, `id`. This validates schema shape **only**; provider identifier, file path resolution, and runtime secret-provider configuration remain unverified.
+- [x] Added reusable read-only workstation preflight `python3 scripts/workstation/check-openclaw-litellm-memory-config.py --check`: checks installed schema and private key permissions, reports no secret values; does not modify OpenClaw configuration or reset indexes.
+- [x] Operator ran `check-openclaw-litellm-memory-config.py --check`: `memory_search_schema=compatible`, `virtual_key_file=private`, `target_provider=openai-compatible`, `target_model=embedding`, `target_endpoint=loopback`, `configuration_changed=false`.
+- [ ] Resolve `file_secret_resolution=unverified`: inspect `secrets.providers` schema and effective provider names **without displaying values**; `source_reindex_guard=pending` until source discovery is controlled. Do not assume secret `id` is a direct filesystem path.
+
+
+- [x] Operator inspected installed `openclaw config schema --json`: top-level `memory.search` exists and exposes `provider`, `model`, `remote`, `outputDimensionality`, `sources`, `extraPaths`, `store`, `enabled`; this confirms property names only, not permitted values or effective runtime configuration.
+- [x] Operator inspected installed schema: `memory.search.provider` supports `openai-compatible`; `remote.baseUrl`, `remote.apiKey` (string or secret ref via env/file/exec/store), `remote.batch.enabled`, `sources` (`memory`/`sessions`), `extraPaths`, and `outputDimensionality` are declared. No runtime configuration changed.
+- [ ] Prepare `memory.search` target provider=`openai-compatible`, model=`embedding`, baseUrl=`http://127.0.0.1:4000/v1`, dedicated private virtual-key secret reference, sources=`["memory"]`, extraPaths=`[]`, remote.batch.enabled=false; confirm `file` secret-ref provider/id semantics and validate config locally before applying. Do not persist key material in config or git.
+- [ ] To ensure a truly clean index, quarantine original `MEMORY.md` and `memory/*.md` sources in a private directory **outside indexed paths** (after verified backup) or otherwise suppress their discovery; merely setting sources=`["memory"]` does not prevent reindex. No automatic source deletion.
+- [ ] Do not set `outputDimensionality=768` without verifying Ollama backend compatibility; LiteLLM local smoke already returned 768-dimensional vectors.
+
+
+- [x] Operator executed `backup-openclaw-memory-markdown.py --check` and `--apply`: 2 workspaces, 617 Markdown files, `backup_verified=true`, `source_files_modified=false`. Archive checksums were verified locally; backup remains unencrypted and should be kept on encrypted private storage.
+- [x] Operator ran `python3 scripts/workstation/backup-openclaw-memory-markdown.py --verify-restore`: `isolated_restore_verified=true markdown_files=617` and `active_workspaces_modified=false`; isolated archive restoration and SHA-256 verification succeeded.
+- [ ] Confirm OpenClaw memory-source auto-indexing is disabled or isolated before any reset; do not delete source files or active indexes yet.
+
+- [x] Operator permits abandoning existing and pending **index entries**: latest runtime reports main 15 files/57 chunks, vector index unverified, dirty=true; cron 0 files/0 chunks, index empty, dirty=true. Prior deep scan reported additional candidate source files (main 105, cron 63); do not assume these source files were deleted.
+- [ ] Preserve existing verified private SQLite backups and source memory files. No automatic deletion of workspaces, Markdown memory, chat history or secrets.
+- [ ] Confirm the effective OpenClaw 2026.9.5 embedding configuration path from local schema/package (do not use invalid `agents.defaults.memorySearch`); validate LiteLLM virtual key, model alias, budget and TLS/private routing before any reset.
+- [ ] Explicit operator-controlled stop/quiesce of memory writers, then replace only agent-specific generated SQLite vector indexes after validating backup restore and target provider configuration. Avoid deleting unrelated state.
+- [ ] Start with clean empty indexes, verify both agents report target provider/model and expected 768 dimensions, then run a minimal **synthetic, non-sensitive** indexing/retrieval smoke test; do not automatically ingest historical or pending documents.
+- [ ] Keep rollback instructions and do not auto-merge. Full quality gate remains deferred, not waived.
+
 - [ ] **OpenClaw memory root cause confirmed (2026-10-17)**: `memory status --deep` shows both agents requesting provider `openai` / `text-embedding-3-small`, with direct HTTP 401 `invalid_api_key` (redacted credential); main 15/105 files and 57 cached embeddings, cron 0/63. `agents.defaults.memorySearch` is an invalid config path in OpenClaw 2026.9.5. Determine valid configuration through installed `openclaw config schema`/local package, verify LiteLLM OpenAI-compatible embeddings alias and a dedicated virtual key/budget, then migrate safely without exposing API keys or forcing paid indexing. Existing FTS remains available; preserve caches and SQLite.\n- [ ] **OpenClaw embedding routing and budgets (2026-10-17)**: explain main 15/105 files (57 chunks) and cron 0/63; enumerate effective workspace memory sources without printing file content, confirm OpenClaw 2026.9.5 remote OpenAI-compatible embedding configuration, then route embeddings via LiteLLM with a dedicated virtual key, dedicated budget and model alias. Do not assume memorySearch exists under agents.defaults, do not index until auth and limits verified.\n- [ ] **OpenClaw LiteLLM budget matrix**: map actual main, cron, memory/embedding and auxiliary model routes to hashed key IDs and read-only spend/max_budget/TPM/RPM, distinguish key/team/model budgets. Observed main $10.016404/$10 reset 2026-10-19T00:00Z, openclaw $0.25612/$2, cron hashed key ID unknown, embedding key absent. No automatic budget changes or key disclosure.\n
+
+## OpenClaw embeddings — post-PR #258 controlled handoff (2026-10-17)
+
+- [x] Operator preflight: OpenClaw memory schema compatible; active `main` and `cron` SQLite indexes found; private embedding virtual-key file confirmed.
+- [x] Workstation LiteLLM `embedding` probe returned one 768-dimensional vector. This validates API reachability and vector shape, **not** existing index/vector-space compatibility or TrueNAS LiteLLM routing.
+- [x] Operator ran `prepare-openclaw-embedding-migration.py --apply`: two SQLite backups passed integrity checks; `migration_applied=false`.
+- [x] Operator ran `python3 scripts/workstation/prepare-openclaw-embedding-migration.py --verify-backup`: `backup_snapshot=verified`, `sqlite_backups_verified=2`, `migration_applied=false`. This establishes private-file and SQLite integrity checks, **not** a completed isolated restore.
+- [ ] Restore a copy of each backup in an isolated temporary directory, test representative read-only queries and compare schema/metadata without disclosing memory content. Do not overwrite active indexes.
+- [x] Operator confirmed both `main` and `cron` currently report `provider=openai`, `model=text-embedding-3-small` via `openclaw memory status --json`; reported dimensions and indexedFiles are `null`. Slack state-migration warnings are unrelated and should not trigger configuration changes.
+- [x] Operator vector status: `main` database 30384128 bytes, `vector.enabled=true`, `vector.dims=768`, `vector.index.state=unverified`; `cron` database 1748992 bytes, `vector.enabled=true`, `vector.index.state=empty`, no `dims` reported. These are runtime declarations, not independent SQLite vector verification.
+- [ ] Investigate `main` unverified vector index read-only before rebuilding; determine whether `cron` has source files to index and whether empty is expected. Keep agent-specific acceptance and rollback criteria.
+- [ ] Inspect actual SQLite vector dimensions, embedding metadata and any model fingerprint for **both** agents without printing indexed content; a `null` status dimension does not establish the stored dimension. `text-embedding-3-small` defaults to 1536 dimensions but supports reduced dimensions.
+- [ ] Plan a **controlled reindex** for any switch from `text-embedding-3-small` to Ollama `nomic-embed-text`, even if vector dimensions match: the vector spaces are not interchangeable. Require isolated restore, model consistency and explicit operator approval before changing OpenClaw runtime.
+- [ ] Establish authenticated private TrueNAS LiteLLM route with explicit trust/TLS policy, least-privilege virtual key, RPM/TPM and budget controls. Do not reuse master key; do not expose embeddings publicly.
+- [ ] Test end-to-end model output and verify retrieval quality using non-sensitive fixtures before altering active OpenClaw memory configuration. Keep workload and backup rollback plans per agent.
+- [ ] Perform any OpenClaw config change and reindex only with explicit operator approval; never silently discard or mix previous SQLite vectors.
+- [ ] Local-first targeted validation; full repository quality gate deliberately deferred, not considered passed. No automated merge.
+
 ## P1 — Cutover catalogue historique et secrets runtime (2026-10-17)
 
 - [x] Corriger la syntaxe du réconciliateur Gatus après introduction accidentelle de séquences littérales `\\n` dans le code Python (PR #257). Rejouer le script sur TrueNAS et ne jamais réutiliser un ancien JSON après échec de génération.
@@ -2858,3 +3041,18 @@ When restarting a ChatGPT/agent discussion, begin from **Restart context** and
 the first unchecked item in **Immediate TrueNAS acceptance queue**. Do not
 reconstruct completed history from chat memory when the repository runbook or
 current runtime evidence can answer it.
+
+### pfSense runtime evidence — 2026-10-17 23:47 CEST
+
+Operator ran `scripts/pfsense/diagnose-memory-pflow.sh --check` and `scripts/pfsense/audit-posture.sh` on workstation. pfSense uptime 13d, Unbound 1.26.1 PID 18989 uptime 816s RSS 123744 KiB, memory available 233580 KiB (free 219640 + inactive 13940), swap used 0, DNS public and private DefectDojo/S3 PASS. Kernel last OOM timestamp remains 2026-10-17 02:11:32+02:00 (historical, not a new OOM). Snort RSS 60896 KiB, pfBlocker helper 51268 KiB. pfBlocker Python loader 11809988 bytes, last DNSBL PASSED 225631 at 00:04:29; RAM swap gate missing WARN, loaded entries 0 WARN with legacy-counter semantics. pflow TrueNAS domain 1 to 172.17.0.24:2055 FAIL, Cloudflare domain 2 to 162.159.65.1:2055 FAIL, connected exporters 0 WARN. Zabbix agent stopped WARN. No services restarted.
+
+Next: confirm desired pflow destinations and whether UDP/2055 collectors exist before any pflow configuration change. Collect a second memory baseline after 24h and compare OOM timestamps. Investigate pfBlockerNG guard without package patching or DNSBL rebuild. Read-only pflow inspection reported no interfaces, but this alone cannot establish whether collector or exporter configuration is the root cause.
+
+### pfSense pflow investigation — 2026-10-17 23:53 CEST
+
+Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/pflow.ko` present (62984 bytes) but `kldstat` shows no pflow module and `ifconfig -l` shows no pflow interface. `pflowctl -v -l` fails `pflow.ko is not loaded`. TrueNAS Akvorado 2026.8.0 inlet publishes UDP 172.17.0.24:2055; inlet logs over last 15 minutes were empty. These establish missing pfSense exporter, not Akvorado ingestion health or the reason for missing module.
+
+- [ ] Inspect read-only pfSense pflow configuration and boot persistence, confirm native pflow support on installed pfSense Plus build and available rollback before any `kldload`.
+- [ ] Validate Akvorado inlet container health, receiver settings and counters without generating artificial traffic.
+- [ ] Review pflow TrueNAS destination first; keep Cloudflare domain 2 export disabled until recipient and data privacy requirements confirmed.
+- [ ] After explicit approval, activate in a controlled window with baseline memory/DNS and rollback checks. Do not start softflowd or restart Unbound.

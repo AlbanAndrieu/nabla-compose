@@ -1,0 +1,84 @@
+"""Offline contract tests for redacted OpenClaw secret audit summaries."""
+import importlib.util
+from pathlib import Path
+import unittest
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts/workstation/check-openclaw-litellm-memory-config.py"
+spec = importlib.util.spec_from_file_location("openclaw_memory_preflight", SCRIPT)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+class AuditSummaryTests(unittest.TestCase):
+    def test_known_categories(self):
+        result = module.audit_summary({
+            "plaintextSecrets": [{"secret": "never-display"}],
+            "unresolvedRefs": [{"path": "/private"}],
+            "precedenceDrift": [],
+        })
+        self.assertEqual(result["categories"], {
+            "plaintext": 1, "unresolved": 1, "precedence_drift": 0,
+        })
+        self.assertNotIn("never-display", str(result))
+        self.assertNotIn("/private", str(result))
+
+    def test_unknown_schema_is_fail_closed(self):
+        result = module.audit_summary({"findings": [{"token": "sensitive"}]})
+        self.assertEqual(result["schema"], "unknown")
+        self.assertTrue(result["unclassified"])
+        self.assertNotIn("sensitive", str(result))
+
+    def test_audit_shape_never_exposes_arbitrary_names_or_values(self):
+        result = module.audit_shape({
+            "top-secret-name": "sk-sensitive",
+            "private-path": ["/private/secrets"],
+            "metadata": {"value": "sensitive"},
+            "enabled": True,
+        })
+        self.assertEqual(
+            result, "array:1,object:1,string:1,number:0,boolean:1,null:0"
+        )
+        self.assertNotIn("sensitive", result)
+        self.assertNotIn("private", result)
+
+    def test_nested_shape_does_not_disclose_identifiers_or_values(self):
+        result = module.audit_structure({
+            "path-/home/private": [{"secret": "sk-private", "path": "/home/private"}],
+            "config": {"password": "private", "findings": [1]},
+            "notes": "private",
+        })
+        self.assertEqual(result, "array(1,0,0);object(1,0,1);scalar")
+        self.assertNotIn("private", result)
+        self.assertNotIn("password", result)
+        self.assertNotIn("secret", result)
+
+    def test_documented_audit_schema_counts_only(self):
+        data = {
+            "status": "findings",
+            "summary": {
+                "plaintextCount": 7, "unresolvedRefCount": 0,
+                "shadowedRefCount": 1, "storeResidueCount": 2,
+                "legacyResidueCount": 0,
+            },
+            "resolution": {"resolvabilityComplete": True},
+            "findings": [{"path": "/private", "value": "sk-secret"}],
+        }
+        result = module.audit_v2_summary(data)
+        self.assertEqual(result["status"], "findings")
+        self.assertEqual(result["categories"]["plaintext"], 7)
+        self.assertEqual(result["categories"]["shadowed"], 1)
+        self.assertNotIn("sk-secret", str(result))
+        self.assertNotIn("/private", str(result))
+
+    def test_documented_audit_schema_rejects_missing_counts(self):
+        data = {"status": "clean", "summary": {"plaintextCount": 0},
+                "resolution": {"resolvabilityComplete": True}}
+        self.assertIsNone(module.audit_v2_summary(data))
+
+    def test_invalid_or_boolean_counts_not_accepted(self):
+        result = module.audit_summary({"plaintext": True})
+        self.assertEqual(result["schema"], "unknown")
+
+
+if __name__ == "__main__":
+    unittest.main()

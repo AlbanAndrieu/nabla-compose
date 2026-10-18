@@ -9,7 +9,7 @@ SCAN_TYPE="${DEFECTDOJO_SCAN_TYPE:-Trivy Scan}"
 SERVICE_ID="${DEFECTDOJO_SERVICE_ID:-}"
 ENGAGEMENT="${DEFECTDOJO_ENGAGEMENT_ID:-}"
 TOKEN_FILE="${DEFECTDOJO_IMPORT_TOKEN_FILE:-/mnt/cpool/secrets/runtime/defectdojo/import-token}"
-API="http://127.0.0.1:31085/api/v2/reimport-scan/"
+API="http://172.17.0.24:31085/api/v2/reimport-scan/"
 # shellcheck source=../lib/common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in --check|--apply) ;; *) fail "usage: bash $0 [--check|--apply] /absolute/report.json" ;; esac
@@ -30,10 +30,13 @@ if [[ "${MODE}" == --check ]]; then
 fi
 [[ "${EUID}" == 0 && "${DEFECTDOJO_IMPORT_APPROVED:-}" == YES ]] || fail "root and DEFECTDOJO_IMPORT_APPROVED=YES required"
 command -v curl >/dev/null || fail "curl required"
-# Fail closed if invoked on a remote workstation where localhost could be
-# an unintended service; only the canonical TrueNAS host has this dataset.
+# Fail closed outside the canonical TrueNAS host: the API is bound to its LAN
+# address, not to loopback. Dataset presence alone does not prove host identity.
 [[ -d /mnt/cpool/compose/nabla-compose ]] ||
   fail "import only from TrueNAS host; no remote fallback to a public endpoint"
+command -v ip >/dev/null || fail "ip command required to confirm TrueNAS LAN identity"
+ip -o -4 addr show | grep -Eq '[[:space:]]172[.]17[.]0[.]24/([0-9]{1,2})[[:space:]]' ||
+  fail "TrueNAS LAN address 172.17.0.24 not assigned on this host"
 [[ -f "${TOKEN_FILE}" && ! -L "${TOKEN_FILE}" && -s "${TOKEN_FILE}" ]] || fail "token file missing"
 [[ "$(stat -c %u:%g "${TOKEN_FILE}")" == 0:0 && "$(stat -c %a "${TOKEN_FILE}")" == 600 ]] ||
   fail "token file must be root:root 0600"

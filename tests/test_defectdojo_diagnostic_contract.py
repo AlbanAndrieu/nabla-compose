@@ -1,0 +1,80 @@
+"""DefectDojo private ingress diagnostic contract (offline, fake CLIs)."""
+
+from pathlib import Path
+import os
+import shutil
+import subprocess
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/truenas/diagnose-defectdojo.sh"
+PREFLIGHT = ROOT / "scripts/truenas/preflight-defectdojo.sh"
+
+FAKES = {
+    "ip": "printf '2: br0    inet 172.17.0.24/24 brd 172.17.0.255 scope global br0\\n'\n",
+    "docker": """case "$1" in
+  inspect)
+    case "$*" in
+      *State.Status*) printf 'running\\n' ;;
+      *NetworkSettings.Networks*) printf '{"traefik_network":{}}\\n' ;;
+    esac ;;
+  port) printf '172.17.0.24:31085\\n' ;;
+esac
+""",
+    "curl": """case "$*" in
+  *api/v2*) printf '403' ;;
+  *) printf '302' ;;
+esac
+""",
+    "dig": """resolver=""
+for arg in "$@"; do [[ "${arg}" == @* ]] && resolver="${arg#@}"; done
+if [[ "${resolver}" != 1.1.1.1 || "${FAKE_PUBLIC_DNS:-0}" == 1 ]]; then
+  printf 'defectdojo.int.albandrieu.com. 300 IN A 172.17.0.24\\n'
+fi
+""",
+}
+
+
+def _run(extra_env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    # TrueNAS /tmp can be noexec: executable fake CLIs must live on the repo FS.
+    with tempfile.TemporaryDirectory(prefix=".defectdojo-mock-", dir=ROOT) as temp_dir:
+        for name, body in FAKES.items():
+            fake = Path(temp_dir) / name
+            fake.write_text("#!/usr/bin/env bash\n" + body)
+            fake.chmod(0o755)
+        jq = shutil.which("jq")
+        assert jq, "jq is required for this contract"
+        env = os.environ | {
+            "PATH": f"{temp_dir}:{os.environ['PATH']}",
+            "DIAG_COLOR": "never",
+            "DIAG_ICONS": "never",
+        } | extra_env
+        return subprocess.run(
+            ["bash", str(SCRIPT), "--check"], cwd=ROOT, env=env, capture_output=True, text=True, check=False,
+        )
+
+
+def test_private_ingress_acceptance_passes() -> None:
+    result = _run({})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "== 1/4 · TrueNAS identity and Docker network (metadata only) ==" in result.stdout
+    assert "OK: unauthenticated API access rejected" in result.stdout
+    assert "OK: no public A record" in result.stdout
+    assert "OK: HTTPS router responds with HTTP 302" in result.stdout
+    assert "checks: warnings=0 failures=0 unknown=0" in result.stdout
+
+
+def test_public_dns_record_fails_acceptance() -> None:
+    result = _run({"FAKE_PUBLIC_DNS": "1"})
+    assert result.returncode == 1
+    assert "FAIL: public A record present" in result.stdout
+
+
+def test_usage_and_preflight_syntax() -> None:
+    usage = subprocess.run(["bash", str(SCRIPT), "--apply"], capture_output=True, text=True, check=False)
+    assert usage.returncode == 2
+    assert subprocess.run(["bash", "-n", str(PREFLIGHT)], check=False).returncode == 0
+    source = PREFLIGHT.read_text(encoding="utf-8")
+    assert "diag_summary" in source
+    for forbidden in ("docker restart", "manage.py migrate", "midclt call app."):
+        assert forbidden not in source

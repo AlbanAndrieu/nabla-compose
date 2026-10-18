@@ -59,6 +59,15 @@ services:
       retries: 10
       start_period: 60s
     volumes:
+      # ZFS dataset cpool/bababou; source mountpoint must be verified on TrueNAS.
+      # Read-only, no :U ownership rewrite and no SELinux :z relabel of private files.
+      # A non-existent host directory must never be silently created.
+      - type: bind
+        source: ${OPENRAG_BABABOU_SOURCE:-/mnt/cpool/bababou}
+        target: /mnt/bababou
+        read_only: true
+        bind:
+          create_host_path: false
       - ./openrag-documents:/app/openrag-documents:U,z
       - ./keys:/app/keys:U,z
       # Keep the image-bundled OpenRAG 0.7.1 flows visible. Only the mutable

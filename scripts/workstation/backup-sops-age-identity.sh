@@ -2,6 +2,8 @@
 # Encrypt a SOPS age identity locally BEFORE sending it to backup storage.
 # The recipient must be an INDEPENDENT offsite escrow identity, not the identity being backed up.
 set -euo pipefail
+# shellcheck source=scripts/workstation/shell-status.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/shell-status.sh"
 umask 077
 source_file="${HOME}/.config/sops/age/keys.txt"
 destination=''
@@ -49,9 +51,9 @@ mount_target="$(findmnt -n -o TARGET -T "${destination}")"
   echo 'Destination must be on a separately mounted backup filesystem' >&2; exit 2;
 }
 [[ -w "${destination}" ]] || { echo 'Destination not writable' >&2; exit 2; }
-printf 'Escrow preflight OK: mounted destination verified; local identity permissions 600/700; independent recipient provided.\n'
+nabla_status ok 'Escrow preflight OK: mounted destination verified; local identity permissions 600/700; independent recipient provided.'
 if ! "${apply}"; then
-  echo 'CHECK ONLY: no file created. Pass --apply after safeguarding independent escrow private key.'
+  nabla_status info 'CHECK ONLY: no file created. Pass --apply after safeguarding independent escrow private key.'
   exit 0
 fi
 # Never print recipient, private key, ciphertext or sensitive path in routine output.
@@ -68,5 +70,5 @@ chmod 600 "${temp}"
 ln "${temp}" "${output}"
 rm -- "${temp}"
 trap - EXIT
-echo 'Encrypted backup created (age recipient escrow); OFFLINE DECRYPTION/RECOVERY TEST STILL REQUIRED.'
-echo 'Do not delete the current identity or provision PIV keys until offline restore passes.'
+nabla_status ok 'Encrypted backup created (age recipient escrow); OFFLINE DECRYPTION/RECOVERY TEST STILL REQUIRED.'
+nabla_status warn 'Do not delete the current identity or provision PIV keys until offline restore passes.'
