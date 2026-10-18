@@ -1,3 +1,10 @@
+## [0.47.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.47.0...0.47.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **quality,defectdojo:** approve merged deletions and align LAN importer ([#259](https://github.com/AlbanAndrieu/nabla-compose/issues/259)) ([ea6c9ff](https://github.com/AlbanAndrieu/nabla-compose/commit/ea6c9fff9fdf245da1935efda83bcf0ba3855c7c))
+
 # [0.47.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.46.1...0.47.0) (2026-10-17)
 
 
