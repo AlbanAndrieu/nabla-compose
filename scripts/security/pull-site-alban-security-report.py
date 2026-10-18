@@ -24,7 +24,7 @@ MAX_REPORT_BYTES = 8_000_000
 KINDS = {
     "trivy": ("Supply Chain Security (Trivy)", "trivy-security.json", "Trivy Scan"),
     "nuclei": ("Nuclei public DAST (Site Alban)", "nuclei-results/nuclei.jsonl", "Nuclei Scan"),
-    "zap": ("Production DAST", "report_json.json", "ZAP Scan"),
+    "zap": ("Production DAST", "report_json.json", "Zed Attack Proxy"),
 }
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
