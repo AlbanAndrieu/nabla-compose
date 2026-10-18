@@ -20,3 +20,18 @@ No third-party hosted CI runner should upload to this private endpoint.
 Security acceptance: owner exact-match, verified MFA and independent JWT
 validation; no public `*.int`, origin admin/metrics, bypass NAT, Access login
 loop misread as healthy or Terraform unmanaged shared Tunnel overwrite.
+
+## Génération d'un rapport SCA pour DefectDojo
+
+Le script `scripts/security/scan-repo-trivy.py` prépare un scan de
+dépendances du dépôt à partir d'un checkout propre et immuable. Sans option,
+il est en **préflight hors réseau**. `--scan` exige une approbation
+explicite, un utilisateur non-root, Trivy et un répertoire privé `0700`.
+Il écrit un rapport Trivy JSON `0600` (10 Mo maximum), **sans upload**.
+
+L'ingestion reste confiée au script existant
+`scripts/security/import-scan-defectdojo.sh`, uniquement depuis TrueNAS
+avec un token restreint, un engagement DefectDojo déjà créé et une
+autorisation distincte. La réussite CodeQL sur GitHub ne produit
+pas en soi un rapport Trivy importé. Une revue des findings et de la
+déduplication dans l'API privée reste indispensable.
