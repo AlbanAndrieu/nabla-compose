@@ -66,12 +66,6 @@ jobs:
           restore-keys: |
             pre-commit-${{ runner.os }}-
 
-      # Temporary, safe diagnostics for a public non-secret JSON manifest.
-      # The authoritative gate below remains blocking.
-      - name: Diagnose Biome migration-manifest formatting
-        if: github.event_name == 'pull_request'
-        run: pre-commit run biome-check --files config/migrations/workstreams.json --show-diff-on-failure || true
-
       - name: Run targeted check-only agent gate
         if: github.event_name == 'pull_request'
         env:
