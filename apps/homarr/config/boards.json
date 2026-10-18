@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "boards": [
+    {
+      "name": "Nabla",
+      "columns": 12,
+      "public": false,
+      "applications": "*"
+    },
+    {
+      "name": "Infrastructure",
+      "columns": 12,
+      "public": false,
+      "applications": [
+        "truenas",
+        "pfsense",
+        "traefik",
+        "grafana"
+      ]
+    },
+    {
+      "name": "Security",
+      "columns": 12,
+      "public": false,
+      "applications": [
+        "crowdsec",
+        "defectdojo",
+        "sentry"
+      ]
+    }
+  ]
+}
