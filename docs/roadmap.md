@@ -1,3 +1,32 @@
+## P0/P1/P3 — Déploiement ops.albandrieu.com privé (2026-10-18)
+
+Épopée [#262](https://github.com/AlbanAndrieu/nabla-compose/issues/262),
+[architecture Access/Tunnel](private-homelab-access-architecture.md) ;
+[Site Alban #233](https://github.com/AlbanAndrieu/nabla-site-alban/issues/233)
+et [FastAPI #352](https://github.com/AlbanAndrieu/fastapi-sample/issues/352).
+
+- [ ] **P0** Inventorier exposition réelle (DNS, Cloudflare, HAProxy, Traefik,
+  NAT), fermer les bypass de l'API privée et définir policy Access deny-by-default.
+- [ ] **P1** Préparer Terraform/OpenTofu import-first pour **`ops.albandrieu.com`**
+  (FQDN confirmé, non déployé) : Access application hostname entier, policy
+  deny-by-default, MFA indépendant vérifié ou IdP MFA attestée, session courte,
+  origine FastAPI isolée, Tunnel dédié si faisable, DNS proxied CNAME et
+  catch-all 404. Service tokens serveur uniquement, TLS origine vérifié.
+- [ ] **Gates 0–5** : absence de fuites site, JWT origine et DTO FastAPI,
+  inventaire/réconciliation Cloudflare/NAT, policy Access avant DNS, tests
+  anonyme/autorisé/bypass, décommissionnement caches + rollback.
+  Références : [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263),
+  [FastAPI #353](https://github.com/AlbanAndrieu/fastapi-sample/pull/353),
+  [Site #234](https://github.com/AlbanAndrieu/nabla-site-alban/pull/234).
+- [ ] **P1** Router seulement FastAPI opérateur read-only, vérifier JWT à
+  l'origine, tests négatifs et santé Access vs origine indépendantes ;
+  interfaces management et métriques LAN-only.
+- [ ] **P3** Évaluer Keycloak existant `apps/keycloak/compose.yml` **planned**
+  comme IdP OIDC futur après DB/secrets/backup et audit; pas de dépendance P0.
+- [ ] Ne jamais interpréter la présence des documents ou de la route déclarée
+  comme une activation live ; pas de merge ni de déploiement implicite.
+
+
 ## Homarr GitOps declarative migration (2026-10-18)
 
 - [x] Pin Homarr v2.6.0 (upstream release dated 2026-10-15) in Compose; deployment on TrueNAS remains to be verified.
