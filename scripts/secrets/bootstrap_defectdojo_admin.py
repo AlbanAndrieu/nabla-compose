@@ -11,9 +11,6 @@ import argparse
 import os
 import secrets
 
-from import_env_to_bitwarden import edit_item, sync_after_write
-from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
-
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,12 +24,14 @@ def main() -> int:
     args = p.parse_args()
     if args.check == args.apply:
         p.error("choose --check or --apply")
-    manifest = load_manifest(ROOT / "config/secrets/manifest.json")
-    spec = next(item for item in manifest["items"] if item["app"] == "defectdojo")
-    assert {"DD_ADMIN_USER", "DD_ADMIN_PASSWORD"} <= {s["env"] for s in spec["secrets"]}
     if args.check:
         print("CHECK: Vaultwarden existing exact item; generate before first initializer only")
         return 0
+    from import_env_to_bitwarden import edit_item, sync_after_write
+    from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
+    manifest = load_manifest(ROOT / "config/secrets/manifest.json")
+    spec = next(item for item in manifest["items"] if item["app"] == "defectdojo")
+    assert {"DD_ADMIN_USER", "DD_ADMIN_PASSWORD"} <= {s["env"] for s in spec["secrets"]}
     if os.geteuid() == 0 or not args.fresh_initializer_confirmed:
         p.error("unprivileged user and --fresh-initializer-confirmed required")
     client = BitwardenClient(session=os.environ.get("BW_SESSION", ""), server=manifest["server"])

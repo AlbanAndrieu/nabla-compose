@@ -485,3 +485,11 @@ repos:
         entry: python3 -m pytest -q tests/test_quality_gate_content_scope.py
         pass_filenames: false
         files: '^(scripts/quality-gate[.]sh|tests/test_quality_gate_content_scope[.]py)$'
+
+      - id: defectdojo-migration-security-contract
+        name: "🔐 security · Validate DefectDojo runtime, imports and private Trivy scans"
+        language: system
+        entry: python3 -m unittest tests.test_defectdojo_runtime_credential_contract tests.test_defectdojo_import_policy tests.test_defectdojo_repo_scan -v
+        pass_filenames: false
+        files: >-
+          ^(apps/defectdojo/.*|config/security/defectdojo-allowed-imports[.]json|config/secrets/manifest[.]json|scripts/(?:security/(?:scan-repo-trivy|validate-defectdojo-report)[.]py|security/import-scan-defectdojo[.]sh|secrets/bootstrap_defectdojo_admin[.]py|truenas/prepare-defectdojo-runtime-env[.]py)|tests/test_defectdojo_(?:runtime_credential_contract|import_policy|repo_scan)[.]py)$
