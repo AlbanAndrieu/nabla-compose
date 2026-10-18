@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import tarfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -62,18 +63,28 @@ def run() -> int:
     os.close(fd)
     temporary = Path(temp_name)
     try:
-        subprocess.run(
-            [
-                "trivy", "fs", "--quiet", "--scanners", "vuln",
-                "--format", "json", "--output", str(temporary),
-                "--skip-dirs", str(ROOT / ".git"),
-                "--skip-dirs", str(ROOT / ".terraform"),
-                "--skip-dirs", str(ROOT / ".venv"),
-                "--skip-dirs", str(ROOT / "node_modules"),
-                str(ROOT),
-            ],
-            check=True, timeout=600,
-        )
+        # Avoid scanning ignored .env files, untracked documents or live datasets.
+        # Scan a sandboxed archive containing only tracked HEAD content.
+        with tempfile.TemporaryDirectory(prefix=".trivy-source-", dir=directory) as snapshot:
+            with subprocess.Popen(
+                ["git", "-C", str(ROOT), "archive", "--format=tar", "HEAD"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            ) as archive:
+                if archive.stdout is None:
+                    raise ValueError("git archive has no output stream")
+                with tarfile.open(fileobj=archive.stdout, mode="r|") as entries:
+                    entries.extractall(path=snapshot, filter="data")
+                if archive.wait(timeout=30) != 0:
+                    raise ValueError("git archive failed")
+            subprocess.run(
+                [
+                    "trivy", "fs", "--quiet", "--scanners", "vuln",
+                    "--format", "json", "--output", str(temporary),
+                    "--skip-dirs", str(Path(snapshot) / "node_modules"),
+                    str(snapshot),
+                ],
+                check=True, timeout=600,
+            )
         payload = json.loads(temporary.read_text(encoding="utf-8"))
         if not isinstance(payload, dict) or not isinstance(payload.get("Results"), list):
             raise ValueError("invalid Trivy JSON: missing Results")

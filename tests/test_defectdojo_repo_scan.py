@@ -36,6 +36,8 @@ class TrivyRepoDefectDojoContract(unittest.TestCase):
         self.assertIn('"--scanners", "vuln"', source)
         self.assertIn("0o600", source)
         self.assertIn("10_000_000", source)
+        self.assertIn('"archive", "--format=tar", "HEAD"', source)
+        self.assertIn('filter="data"', source)
         self.assertNotIn("reimport-scan", source)
         self.assertIn("172.17.0.24:31085/api/v2/reimport-scan/", importer)
         self.assertIn("DEFECTDOJO_IMPORT_APPROVED", importer)
