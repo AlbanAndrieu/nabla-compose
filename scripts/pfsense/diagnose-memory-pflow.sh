@@ -14,9 +14,9 @@ while (($#)); do
   esac
 done
 opts=(-o BatchMode=yes -o ConnectTimeout=8)
-[[ -z "$port" ]] || opts+=(-p "$port")
-echo "Read-only pfSense memory/pflow audit target=$target"
-ssh "${opts[@]}" "$target" '/bin/sh -s' <<'REMOTE'
+[[ -z "${port}" ]] || opts+=(-p "${port}")
+echo "Read-only pfSense memory/pflow audit target=${target}"
+ssh "${opts[@]}" "${target}" '/bin/sh -s' <<'REMOTE'
 set -u
 echo '==> Timestamp and uptime'
 date; uptime
