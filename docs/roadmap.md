@@ -57,6 +57,27 @@ only after secrets acceptance. Validate with
 `python3 scripts/security/check-migration-readiness.py --check`;
 no deployment, secret read, mutation, reindex or automatic merge.
 
+## P1/P2 — DefectDojo : pull sélectif des artefacts de sécurité de Site Alban (2026-10-18)
+
+- [x] Préparer `scripts/security/pull-site-alban-security-report.py` et
+  les tests de provenance `master` réussie, allowlist workflow/artifact,
+  extraction ZIP bornée et filtrage Trivy HIGH/CRITICAL, Nuclei HIGH/CRITICAL
+  et ZAP HIGH; **aucun import automatique**.
+- [x] Restreindre `config/security/defectdojo-allowed-imports.json` pour
+  `nabla-site-alban` à ces trois parsers seulement. BetterLeaks/GitGuardian,
+  SARIF et SBOM ne sont jamais ingérés par ce parcours.
+- [ ] Vérifier le parsing dans l'instance DefectDojo privée, la séparation
+  du jeton GH Actions:read et du jeton import DefectDojo, les artefacts
+  `master` par run/SHA, les ACL sur TrueNAS et le filtrage des hôtes.
+- [ ] Les rapports DAST exhaustifs **ne doivent pas être publiés en clair**
+  comme artifacts d'un repo GitHub public : préférer scan depuis TrueNAS
+  ou chiffrement age vers clé de réception privée avant automatisation.
+- [ ] Tester import/reimport `--check` puis `--apply` explicitement
+  approuvé sur engagement dédié, valider absence de doublons et
+  `close_old_findings=false`; ne pas présenter les rapports non ingérés
+  comme réussis. Voir [runbook](defectdojo-private-scan-ingestion.md) et
+  [Site PR #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236).
+
 ## P0/P1/P3 — Déploiement ops.albandrieu.com privé (2026-10-18)
 
 Épopée [#262](https://github.com/AlbanAndrieu/nabla-compose/issues/262),
