@@ -63,8 +63,8 @@ services:
       # Read-only, no :U ownership rewrite and no SELinux :z relabel of private files.
       # A non-existent host directory must never be silently created.
       - type: bind
-        source: ${OPENRAG_BABOU_SOURCE:-/mnt/cpool/bababou}
-        target: /mnt/babou-source
+        source: ${OPENRAG_BABABOU_SOURCE:-/mnt/cpool/bababou}
+        target: /mnt/bababou
         read_only: true
         bind:
           create_host_path: false
