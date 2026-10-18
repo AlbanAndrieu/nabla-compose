@@ -8,8 +8,9 @@
 
 - `apps/openrag/compose.yml` déclare `openrag-backend` et `openrag-frontend`, les documents applicatifs sous `./openrag-documents:/app/openrag-documents`, et les volumes `./data`, `./config`, `./keys` ainsi que `./flows/backup`.
 - Le backend utilise `http://docling:5001`, `http://langflow:7860`, `opensearch:9200` et LiteLLM `http://172.17.0.57:4000/v1` par défaut. Ces variables n'attestent **ni** la disponibilité des services **ni** une ingestion réussie.
-- Le Compose **ne déclare aucun montage** du dataset Babou vers `/app/openrag-documents` : il faut d'abord identifier la source, choisir un sous-ensemble autorisé et spécifier un montage **en lecture seule**, sans supprimer les volumes applicatifs existants.
-- Le **nom ZFS exact, le mountpoint, la structure et l'état de synchronisation** du répertoire Babou ne sont pas connus. Ne pas les déduire de son nom. L'appellation historique `Bababou` peut différer de `babou`.
+- Dataset **confirmé par le propriétaire** : `cpool/bababou`, propriétaire `albandrieu:albandrieu`. Son mountpoint ZFS réel et ses ACL effectives restent à vérifier ; `cpool/bababou` n'implique pas nécessairement `/mnt/cpool/bababou`.
+- Le Compose monte désormais `${OPENRAG_BABOU_SOURCE:-/mnt/cpool/bababou}` vers `/mnt/babou-source` **en lecture seule**, avec `create_host_path: false`. Cette valeur par défaut doit être comparée au mountpoint ZFS avant déploiement, sinon définir `OPENRAG_BABOU_SOURCE` dans la configuration Compose non sensible. Le montage de `./openrag-documents` reste inchangé.
+- L'accès au dataset par le processus OpenRAG dépend des permissions de traversée et lecture du propriétaire/groupe, des ACL ZFS et de l'UID/GID runtime. Ne pas lancer de `chown -R`, de `chmod -R` ni appliquer `:U` ou `:z` à la source privée. Préférer des ACL de lecture et traversée minimales attribuées à l'identité effective du service.
 
 ## 1. Diagnostic source (lecture seule, zéro contenu de document)
 
