@@ -1,5 +1,67 @@
 # DefectDojo — ingestion privée de scans sans exposition Internet
 
+## Ingestion sélective Site Alban depuis GitHub Actions (`master`)
+
+**Préparé, non activé** — suivi [Site Alban #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+
+Un runner GitHub-hosted ne doit pas appeler
+`defectdojo.int.albandrieu.com` directement et n'a pas de token
+d'import. Le collecteur `scripts/security/pull-site-alban-security-report.py`
+tourne côté TrueNAS : il télécharge uniquement les artefacts de
+**workflows nommés précisément**, dont la run a réussi sur `master`.
+L'identité GitHub ne doit avoir que **Actions:read** sur Site Alban, sans
+droit de commit ni secret DefectDojo.
+
+**Modes (exemples sans effet runtime)** :
+
+```bash
+python3 scripts/security/pull-site-alban-security-report.py --kind trivy --run-id 123
+python3 scripts/security/pull-site-alban-security-report.py --kind nuclei --run-id 123
+python3 scripts/security/pull-site-alban-security-report.py --kind zap --run-id 123
+```
+
+Le mode par défaut fait un **contrôle de configuration sans réseau ni
+lecture de jeton**. Une fois l'accès au réseau TrueNAS et au dépôt GitHub
+explicitement autorisé, ajouter `--pull` prépare un fichier filtré dans
+`/mnt/cpool/defectdojo/imports/site-alban` sous permissions root-only :
+
+- **Trivy** : seul le JSON de vulnérabilités `HIGH/CRITICAL` est conservé.
+  Les licences, misconfigurations et le SBOM sont exclus de l'import
+  automatique.
+- **Nuclei** : seules les lignes `high/critical`, ciblant les hôtes
+  HTTPS de Site Alban déjà autorisés par le validateur, sont préparées.
+- **ZAP production** : seules les alertes `riskcode=3` sont préparées.
+  Le parser installé doit s'appeler **`Zed Attack Proxy`**.
+- Aucun CodeQL, Semgrep, GitGuardian, BetterLeaks, artifact PR,
+  événement non-`master`, run échouée ou archive expirée ne doit
+  être accepté par ce parcours.
+
+Le collecteur **n'importe jamais** dans DefectDojo. Une personne
+autorisée vérifie le fichier, le scanner, le produit/engagement,
+puis passe séparément à
+`scripts/security/import-scan-defectdojo.sh --check`.
+L'import `--apply` exige encore root, approbation explicite et jeton
+dédié dans le coffre. Le `--check` de l'importeur valide la policy
+`config/security/defectdojo-allowed-imports.json`.
+
+**Confidentialité** : les artifacts de scans attachés à un dépôt GitHub
+public peuvent être consultables par d'autres acteurs autorisés sur
+le dépôt; ne pas y stocker de captures HTTP authentifiées, tokens,
+headers, captures de chemins internes ou résultats confidentiels.
+Pour les rapports complets DAST, faire les scans et leur import
+directement dans le homelab, ou chiffrer les artefacts avant upload et
+ne garder la clé de déchiffrement que sur TrueNAS. Le collecteur
+actuel ne déchiffre pas encore de tels rapports; **ne pas lui attribuer
+une conformité de confidentialité non prouvée**.
+
+**Règle de clôture** : `GH_TOKEN` lecture seule depuis le fichier privé,
+provenance workflow/master/SHA vérifiée, taille plafonnée, ZIP contrôlé,
+fichier root-only, parser DefectDojo vérifié, import/reimport testé dans
+un engagement dédié, déduplication et absence de fuite confirmées,
+puis seulement planification éventuelle sous contrôle et alertes.
+
+
 > **Préparation uniquement.** Le service DefectDojo est déclaré dans
 > `apps/defectdojo/compose.yml` sur `172.17.0.24:31085`. Ce port est
 > une liaison LAN/host TrueNAS, **pas** un endpoint Internet nécessaire
