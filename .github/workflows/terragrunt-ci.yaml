@@ -126,6 +126,20 @@ jobs:
         shell: bash
         run: tofu validate -no-color
 
+      - name: Validate Cloudflare ops safety contracts
+        shell: bash
+        run: python3 -m unittest tests.test_cloudflare_ops_contract -v
+
+      - name: Initialize Cloudflare ops provider without backend
+        working-directory: terraform/cloudflare-ops
+        shell: bash
+        run: tofu init -backend=false -input=false
+
+      - name: Validate Cloudflare ops module
+        working-directory: terraform/cloudflare-ops
+        shell: bash
+        run: tofu validate -no-color
+
       - name: Publish static-check summary
         if: always()
         shell: bash
