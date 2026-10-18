@@ -23,9 +23,7 @@
       "id": "defectdojo",
       "priority": "P1",
       "phase": "runtime_observed",
-      "requires": [
-        "secrets-runtime"
-      ],
+      "requires": ["secrets-runtime"],
       "artifacts": [
         "apps/defectdojo/compose.yml",
         "scripts/truenas/diagnose-defectdojo.sh"
@@ -39,9 +37,7 @@
       "id": "backstage-v2",
       "priority": "P1",
       "phase": "repository_ready",
-      "requires": [
-        "secrets-runtime"
-      ],
+      "requires": ["secrets-runtime"],
       "artifacts": [
         "docs/service-catalog-v2-normalization.md",
         "tests/test_catalog_v2_parity.py"
@@ -55,9 +51,7 @@
       "id": "openclaw-litellm",
       "priority": "P1",
       "phase": "repository_ready",
-      "requires": [
-        "secrets-runtime"
-      ],
+      "requires": ["secrets-runtime"],
       "artifacts": [
         "scripts/workstation/check-openclaw-litellm-memory-config.py",
         "docs/roadmap.md"
@@ -71,13 +65,8 @@
       "id": "openrag-docling-bababou",
       "priority": "P1",
       "phase": "repository_ready",
-      "requires": [
-        "secrets-runtime"
-      ],
-      "artifacts": [
-        "apps/openrag/compose.yml",
-        "apps/docling/compose.yml"
-      ],
+      "requires": ["secrets-runtime"],
+      "artifacts": ["apps/openrag/compose.yml","apps/docling/compose.yml"],
       "acceptance": [
         "cpool/bababou mounted read-only at /mnt/bababou with UID-safe traversal",
         "Docling bounded conversion and OpenRAG indexed retrieval with no vector mixing"
@@ -101,9 +90,7 @@
       "id": "freshrss-gitops-mcp",
       "priority": "P2",
       "phase": "repository_ready",
-      "requires": [
-        "secrets-runtime"
-      ],
+      "requires": ["secrets-runtime"],
       "artifacts": [
         "scripts/truenas/freshrss-ops.sh",
         "scripts/mcp/freshrss_readonly.py"
