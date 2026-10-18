@@ -1,3 +1,13 @@
+## Homarr GitOps declarative migration (2026-10-18)
+
+- [x] Pin Homarr v2.6.0 (upstream release dated 2026-10-15) in Compose; deployment on TrueNAS remains to be verified.
+- [x] Introduce versioned board definitions under apps/homarr/config/boards.json; service catalog remains the canonical app inventory.
+- [x] Remove dependency on a persisted reconciler mapping file; resolve apps and boards from remote API on each run.
+- [ ] Validate Homarr v2.6.0 API contracts for board item listing, updates and widget layout, and add contract tests before enabling production reconciliation.
+- [ ] Add declarative sections, widgets, integrations and drift reports; fail closed on ambiguous IDs or unsupported endpoints.
+- [ ] Verify live upgrade and reconciliation on TrueNAS; no backup or preservation of user-defined dashboard state required by operator, but retain non-destructive behavior until full declarative convergence is proven.
+- [ ] Review least-privilege MCP/API permissions, secret injection, observability, rollback via declarative redeploy, and CI quality gates.
+
 ## CURRENT · Prometheus correlation → pfSense stabilization → DefectDojo LAN (2026-10-18)
 
 **Execution order: pfSense safety gate first; DefectDojo only after pfSense DNS and memory remain stable.** Evidence is operator-provided, not a live deployment validation.
