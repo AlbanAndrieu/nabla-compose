@@ -4,21 +4,30 @@
   "defaultDeny": true,
   "producers": {
     "nabla-compose": {
-      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
       "hosts": []
     },
     "nabla-site-alban": {
       "allow": [
         "Trivy Scan",
-        "CodeQL Scan",
-        "Semgrep JSON Report",
         "Nuclei Scan",
         "Zed Attack Proxy"
       ],
-      "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
+      "hosts": [
+        "www.albanandrieu.com",
+        "albanandrieu.com"
+      ]
     },
     "fastapi-sample": {
-      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
       "hosts": []
     }
   },
@@ -29,5 +38,5 @@
     "Unverified Scan",
     "SARIF"
   ],
-  "notice": "Never import plaintext secret findings, PII, raw HTTP authentication headers, or arbitrary untrusted tools. Approval and valid private report provenance required."
+  "notice": "Explicit reviewed scan types only; site intake limited to Trivy HIGH/CRITICAL, Nuclei HIGH/CRITICAL and ZAP HIGH through the private provenance collector. Never import plaintext secret findings, PII, raw auth headers, SARIF or arbitrary tools."
 }
