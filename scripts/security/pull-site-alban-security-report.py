@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Pull a strictly allowlisted master security artifact into a private inbox.
 
 No public DefectDojo URL is used. A separate existing, explicitly approved
