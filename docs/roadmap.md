@@ -1,3 +1,18 @@
+## Cloudflare ops OpenTofu GitOps + DefectDojo import staging (2026-10-18)
+
+- [x] Add opt-in Cloudflare v5 module for dedicated Tunnel, remote ingress
+  and proxied `ops.albandrieu.com` CNAME with **all mutation flags false**,
+  protected destroy, Access/JWT/TLS/website-redaction prerequisites and no
+  embedded token. [Runbook](cloudflare-ops-execution-2026-10-18.md).
+- [ ] Validate HCL format/provider schema and lock v5.28.0 in CI (offline state).
+- [ ] Import only an independently verified dedicated Tunnel/record; inspect
+  actual Access policies, certificate, private origin, Garage state and rollback.
+- [ ] Activate ingress/DNS only once public site, origin JWT and MFA gates pass.
+- [ ] Capture an actual private Trivy JSON report from this repository or an
+  immutable image; validate DefectDojo authenticated API and existing engagement,
+  then import from a LAN-trusted host with the existing fail-closed importer.
+  GitHub CodeQL success alone is **not** an importable private report.
+
 ## P0–P2 — Seven controlled migrations (2026-10-18, PR #263)
 
 **Read-only GitOps preparation, not runtime acceptance.**
