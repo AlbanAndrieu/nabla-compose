@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 BASE_URL = os.getenv("HOMARR_BASE_URL", "http://homarr:7575").rstrip("/")
 API_KEY = os.getenv("HOMARR_API_KEY", "").strip()
 MANIFEST_PATH = Path(os.getenv("HOMARR_MANIFEST", "/config/nabla/apps.json"))
-STATE_PATH = Path(os.getenv("HOMARR_SYNC_STATE", "/state/homarr-map.json"))
+BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/nabla/boards.json"))
 DRY_RUN = os.getenv("HOMARR_SYNC_DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 MAX_ATTEMPTS = int(os.getenv("HOMARR_SYNC_ATTEMPTS", "20"))
 RETRY_SECONDS = float(os.getenv("HOMARR_SYNC_RETRY_SECONDS", "3"))
@@ -77,16 +77,6 @@ def load_json(path: Path, fallback: object) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def save_state(state: dict[str, str]) -> None:
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary = STATE_PATH.with_suffix(".tmp")
-    temporary.write_text(
-        json.dumps(state, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    temporary.replace(STATE_PATH)
-
-
 def wait_for_homarr() -> list[dict[str, Any]]:
     last_error: Exception | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -112,7 +102,6 @@ def desired_payload(item: dict[str, Any]) -> dict[str, Any]:
         "description": str(description)[:512] if description else None,
         "iconUrl": icon,
         "href": str(item["href"]),
-        "pingUrl": "",
     }
 
 
@@ -145,129 +134,82 @@ def differs(existing: dict[str, Any], desired: dict[str, Any]) -> bool:
     for key in ("name", "description", "iconUrl", "href"):
         if existing.get(key) != desired.get(key):
             return True
-    existing_ping = existing.get("pingUrl") or ""
-    return existing_ping != desired.get("pingUrl", "")
-
-
-def board_state_key() -> str:
-    return f"__board__:{BOARD_NAME.casefold()}"
-
-
-def board_item_state_key(nabla_id: str) -> str:
-    return f"__board_item__:{BOARD_NAME.casefold()}:{nabla_id}"
-
-
-def find_board(boards: list[dict[str, Any]]) -> dict[str, Any] | None:
-    matches = [
-        board
-        for board in boards
-        if str(board.get("name", "")).casefold() == BOARD_NAME.casefold()
-    ]
-    if len(matches) > 1:
-        raise RuntimeError(f"multiple Homarr boards are named {BOARD_NAME!r}")
-    return matches[0] if matches else None
+    return False
 
 
 def reconcile_board(
     state: dict[str, str],
     desired_items: list[dict[str, Any]],
 ) -> tuple[bool, int]:
-    """Create/populate the managed Nabla board without deleting user content."""
+    """Discover managed boards by name; never rely on persisted mapping state."""
     if not BOARD_SYNC_ENABLED:
-        log("Homarr board reconciliation is disabled")
         return False, 0
-    if not 1 <= BOARD_COLUMN_COUNT <= 24:
-        raise ValueError("HOMARR_BOARD_COLUMNS must be between 1 and 24")
-
-    raw_boards = request_json("GET", "/api/boards")
-    if not isinstance(raw_boards, list):
-        raise RuntimeError("Homarr /api/boards did not return an array")
-    boards = [board for board in raw_boards if isinstance(board, dict)]
-    existing = find_board(boards)
-    state_key = board_state_key()
-    mapped_board_id = state.get(state_key)
-    created_board = False
-
-    if existing is None:
-        if mapped_board_id:
-            log(
-                f"managed board {BOARD_NAME!r} is missing; refusing to recreate it "
-                "automatically after an external deletion"
-            )
-            return False, 0
-        if DRY_RUN:
-            log(
-                f"would create Homarr board {BOARD_NAME!r} "
-                f"with {BOARD_COLUMN_COUNT} columns"
-            )
-            return False, 0
-        result = request_json(
-            "POST",
-            "/api/boards",
-            {
-                "name": BOARD_NAME,
-                "columnCount": BOARD_COLUMN_COUNT,
-                "isPublic": BOARD_PUBLIC,
-            },
-        )
-        if not isinstance(result, dict) or not result.get("boardId"):
-            raise RuntimeError("Homarr did not return boardId while creating board")
-        board_id = str(result["boardId"])
-        state[state_key] = board_id
-        created_board = True
-        log(f"created Homarr board {BOARD_NAME!r} as {board_id}")
-    else:
-        board_id = str(existing.get("id", ""))
-        if not board_id:
-            raise RuntimeError(f"Homarr board {BOARD_NAME!r} has no id")
-        if not mapped_board_id:
-            log(
-                f"board {BOARD_NAME!r} already exists but is not managed by Nabla; "
-                "leaving it unchanged to avoid duplicate items"
-            )
-            return False, 0
-        if mapped_board_id != board_id:
-            log(
-                f"managed board mapping points to {mapped_board_id}, but Homarr "
-                f"reports {board_id}; leaving the replacement board unchanged"
-            )
-            return False, 0
-
+    definitions = load_json(BOARDS_PATH, {})
+    if not isinstance(definitions, dict) or definitions.get("version") != 1:
+        raise ValueError("Homarr boards configuration requires version: 1")
+    boards_config = definitions.get("boards")
+    if not isinstance(boards_config, list) or not boards_config:
+        raise ValueError("boards must be a nonempty array")
+    remote = request_json("GET", "/api/boards")
+    if not isinstance(remote, list):
+        raise RuntimeError("Homarr /api/boards response is not an array")
+    created = False
     added = 0
-    for item in desired_items:
-        nabla_id = str(item["id"])
-        homarr_app_id = state.get(nabla_id)
-        if not homarr_app_id:
-            log(f"skipping board item {nabla_id}: Homarr app id is unavailable")
-            continue
-        item_state_key = board_item_state_key(nabla_id)
-        if state.get(item_state_key):
-            continue
-        if DRY_RUN:
-            log(
-                f"would add {nabla_id} / {homarr_app_id} "
-                f"to board {BOARD_NAME!r}"
-            )
-            continue
-        result = request_json(
-            "POST",
-            "/api/boards/items",
-            {
-                "boardId": board_id,
-                "kind": "app",
-                "options": {"appId": homarr_app_id},
-                "integrationIds": [],
-            },
-        )
-        if not isinstance(result, dict) or not result.get("itemId"):
-            raise RuntimeError(
-                f"Homarr did not return itemId while adding {nabla_id} to board"
-            )
-        state[item_state_key] = str(result["itemId"])
-        added += 1
-        log(f"added {nabla_id} to Homarr board {BOARD_NAME!r}")
-
-    return created_board, added
+    eligible = {str(item["id"]): item for item in desired_items}
+    for config in boards_config:
+        if not isinstance(config, dict):
+            raise ValueError("Invalid board configuration")
+        name = str(config["name"])
+        matches = [b for b in remote if isinstance(b, dict) and b.get("name") == name]
+        if len(matches) > 1:
+            raise RuntimeError(f"ambiguous board name: {name}")
+        if matches:
+            board_id = str(matches[0]["id"])
+        else:
+            if DRY_RUN:
+                log(f"would create board {name}")
+                continue
+            result = request_json("POST", "/api/boards", {
+                "name": name,
+                "columnCount": int(config.get("columns", 12)),
+                "isPublic": bool(config.get("public", False)),
+            })
+            if not isinstance(result, dict) or not result.get("boardId"):
+                raise RuntimeError(f"missing boardId for {name}")
+            board_id = str(result["boardId"])
+            created = True
+        # Read remote membership; refuse writes if endpoint is absent rather than duplicate items.
+        items = request_json("GET", f"/api/boards/{board_id}/items")
+        if not isinstance(items, list):
+            raise RuntimeError("board items endpoint must return an array")
+        existing_ids = {
+            str(i.get("options", {}).get("appId"))
+            for i in items if isinstance(i, dict) and isinstance(i.get("options"), dict)
+        }
+        selected = config.get("applications", [])
+        if selected == "*":
+            selected = sorted(eligible)
+        if not isinstance(selected, list):
+            raise ValueError(f"invalid applications for board {name}")
+        for nabla_id in selected:
+            nabla_id = str(nabla_id)
+            if nabla_id not in eligible:
+                raise ValueError(f"unknown or ineligible application {nabla_id}")
+            app_id = state.get(nabla_id)
+            if not app_id or app_id in existing_ids:
+                continue
+            if DRY_RUN:
+                log(f"would add {nabla_id} to {name}")
+                continue
+            result = request_json("POST", "/api/boards/items", {
+                "boardId": board_id, "kind": "app",
+                "options": {"appId": app_id}, "integrationIds": [],
+            })
+            if not isinstance(result, dict) or not result.get("itemId"):
+                raise RuntimeError(f"missing itemId for {nabla_id}")
+            existing_ids.add(app_id)
+            added += 1
+    return created, added
 
 
 def main() -> int:
@@ -285,9 +227,7 @@ def main() -> int:
         for item in manifest["applications"]
         if isinstance(item, dict) and item.get("syncEligible") is True and item.get("href")
     ]
-    state_raw = load_json(STATE_PATH, {})
-    state = state_raw if isinstance(state_raw, dict) else {}
-    state = {str(key): str(value) for key, value in state.items()}
+    state: dict[str, str] = {}
 
     apps = wait_for_homarr()
     created = updated = unchanged = 0
@@ -324,8 +264,6 @@ def main() -> int:
 
     board_created, board_items_added = reconcile_board(state, desired_items)
 
-    if not DRY_RUN:
-        save_state(state)
     log(
         f"reconciliation complete: desired={len(desired_items)} created={created} "
         f"updated={updated} unchanged={unchanged} board_created={board_created} "
