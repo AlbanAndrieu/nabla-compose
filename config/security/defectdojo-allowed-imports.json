@@ -4,11 +4,7 @@
   "defaultDeny": true,
   "producers": {
     "nabla-compose": {
-      "allow": [
-        "Trivy Scan",
-        "CodeQL Scan",
-        "Semgrep JSON Report"
-      ],
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
       "hosts": []
     },
     "nabla-site-alban": {
@@ -19,17 +15,10 @@
         "Nuclei Scan",
         "Zed Attack Proxy"
       ],
-      "hosts": [
-        "www.albanandrieu.com",
-        "albanandrieu.com"
-      ]
+      "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
     },
     "fastapi-sample": {
-      "allow": [
-        "Trivy Scan",
-        "CodeQL Scan",
-        "Semgrep JSON Report"
-      ],
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
       "hosts": []
     }
   },
