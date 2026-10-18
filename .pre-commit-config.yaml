@@ -470,3 +470,11 @@ repos:
         entry: bash scripts/quality/check-compose-config.sh
         files: '^apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml$'
         stages: [pre-commit]
+
+      - id: migration-readiness-contract
+        name: "🔐 security · Validate seven migration readiness contracts (offline)"
+        language: system
+        entry: bash -c 'python3 scripts/security/check-migration-readiness.py --check && python3 -m unittest tests.test_migration_readiness_contract -v'
+        pass_filenames: false
+        files: >-
+          ^(config/migrations/workstreams[.]json|scripts/security/check-migration-readiness[.]py|tests/test_migration_readiness_contract[.]py|docs/migration-batch-execution-2026-10-18[.]md)$

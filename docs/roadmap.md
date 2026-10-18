@@ -1,3 +1,15 @@
+## P0–P2 — Seven controlled migrations (2026-10-18, PR #263)
+
+**Read-only GitOps preparation, not runtime acceptance.**
+[Execution contract](migration-batch-execution-2026-10-18.md) ·
+[Offline manifest](../config/migrations/workstreams.json).
+Priority: secrets/Vaultwarden → DefectDojo LAN → Backstage v2;
+in parallel, prepare OpenClaw/LiteLLM and OpenRAG/Docling/Bababou,
+reconcile Gatus/Prometheus/FastAPI probes, and enable FreshRSS GitOps/MCP
+only after secrets acceptance. Validate with
+`python3 scripts/security/check-migration-readiness.py --check`;
+no deployment, secret read, mutation, reindex or automatic merge.
+
 ## P0/P1/P3 — Déploiement ops.albandrieu.com privé (2026-10-18)
 
 Épopée [#262](https://github.com/AlbanAndrieu/nabla-compose/issues/262),
