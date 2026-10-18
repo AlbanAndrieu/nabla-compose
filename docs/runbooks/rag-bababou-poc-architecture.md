@@ -57,6 +57,9 @@ Le rôle de LiteLLM est la **passerelle modèle** (chat/embeddings), pas l'orche
 
 ## P2 — POC corpus Bababou (copie Google Drive sur cpool)
 
+Diagnostic opératoire associé : [OpenRAG — ingestion du dataset Babou](openrag-babou-ingestion-diagnostics.md). Il détaille la découverte du mountpoint, les contrôles D0–D8 et les limites de confidentialité.
+
+
 Le répertoire exact sur `/mnt/cpool` **n'est pas établi par ce document**. Ne pas inventer un montage `/mnt/cpool/bababou` ; découvrir le chemin avec l'opérateur et confirmer qu'il s'agit de la copie Google Drive attendue. Ne jamais faire de `find /mnt/cpool` non borné ou de copie globale sans accord.
 
 1. **Inventaire sans lecture du contenu** : découvrir le dataset et le point de montage par `zfs list` / `stat`, compter fichiers et extensions avec un parcours borné au répertoire confirmé ; identifier doublons, pièces sensibles, fichiers Google natifs éventuellement non exportés, symlinks, MIME et tailles.
