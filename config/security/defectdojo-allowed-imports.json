@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "scope": "private-approved-reports-only",
+  "defaultDeny": true,
+  "producers": {
+    "nabla-compose": {
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
+      "hosts": []
+    },
+    "nabla-site-alban": {
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report",
+        "Nuclei Scan",
+        "Zed Attack Proxy"
+      ],
+      "hosts": [
+        "www.albanandrieu.com",
+        "albanandrieu.com"
+      ]
+    },
+    "fastapi-sample": {
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
+      "hosts": []
+    }
+  },
+  "deny": [
+    "BetterLeaks",
+    "GitGuardian",
+    "Secret Scan",
+    "Unverified Scan",
+    "SARIF"
+  ],
+  "notice": "Never import plaintext secret findings, PII, raw HTTP authentication headers, or arbitrary untrusted tools. Approval and valid private report provenance required."
+}
