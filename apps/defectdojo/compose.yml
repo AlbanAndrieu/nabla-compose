@@ -6,6 +6,7 @@ x-defectdojo-django: &defectdojo-django
   env_file:
     # Must define DD_DATABASE_URL, DD_CELERY_BROKER_URL, DD_CACHE_URL,
     # DD_SECRET_KEY and DD_CREDENTIAL_AES_256_KEY. Keep credentials outside Git.
+    - /mnt/cpool/secrets/runtime/defectdojo/.env
     - /mnt/cpool/secrets/runtime/defectdojo/.env.secrets
   environment: &defectdojo-env
     DD_DEBUG: "False"
@@ -31,8 +32,6 @@ services:
     environment:
       <<: *defectdojo-env
       DD_INITIALIZE: ${DD_INITIALIZE:-true}
-      DD_ADMIN_USER: ${DD_ADMIN_USER:-admin}
-      DD_ADMIN_MAIL: ${DD_ADMIN_MAIL:-admin@defectdojo.local}
     labels:
       com.albandrieu.nabla.entity-ref: component:default/defectdojo-initializer
     x-nabla:
