@@ -66,6 +66,13 @@ jobs:
           restore-keys: |
             pre-commit-${{ runner.os }}-
 
+      - name: Diagnose canonical Biome formatting of non-secret manifests
+        shell: bash
+        run: >-
+          pre-commit run biome-check --files package.json
+          package-lock.json config/security/defectdojo-allowed-imports.json
+          --show-diff-on-failure || true
+
       - name: Run targeted check-only agent gate
         if: github.event_name == 'pull_request'
         env:
