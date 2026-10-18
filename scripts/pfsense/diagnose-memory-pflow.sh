@@ -47,7 +47,7 @@ unbound-control -c /var/unbound/unbound.conf status 2>&1 || true
 unbound-control -c /var/unbound/unbound.conf stats_noreset 2>/dev/null | grep -E '^(mem[.]|total[.]num[.]queries|total[.]num[.]recursivereplies)' | head -22 || true
 echo '==> Recent kernel memory failures (historical evidence; check timestamps)'
 dmesg | grep -Ei 'failed to reclaim|out of swap|killed.*(unbound|php|netstat)' | tail -20 || true
-echo '==> pfSense kernel and pflow module availability' 
+echo '==> pfSense kernel and pflow module availability'
 uname -a
 kldstat 2>/dev/null | grep -E '(^Id|pflow)' || true
 for module in /boot/kernel/pflow.ko /boot/modules/pflow.ko; do
