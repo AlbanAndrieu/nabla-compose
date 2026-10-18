@@ -89,3 +89,30 @@ Pour isoler une panne, mesurer successivement : (a) visibilité du dossier dans 
 **Définition de terminé :** dataset identifié, montage RO/ACL validés, ingestion et recherche vérifiées sur le sous-ensemble approuvé, Docling et LiteLLM opérationnels, comptages cohérents, aucune fuite de données ni exposition WAN.
 
 **Références internes :** [architecture RAG Bababou](rag-bababou-poc-architecture.md), [roadmap](../roadmap.md), `apps/openrag/compose.yml`, `apps/docling/compose.yml`, `apps/langflow/compose.yml`.
+
+## 6. Roadmap affinée après revue de la PR #259 (2026-10-18)
+
+**Décision de nommage :** le dataset ZFS est `cpool/bababou`, source par défaut `/mnt/cpool/bababou`, et **target obligatoire `/mnt/bababou`**. Le paramètre d'override est `OPENRAG_BABABOU_SOURCE`. Les noms de fichiers documentaires historiques ne changent pas la configuration fonctionnelle.
+
+| Priorité | Action concrète | Preuve d'acceptation | État |
+| --- | --- | --- | --- |
+| P0 | Confirmer `zfs get mountpoint,mounted,canmount cpool/bababou` ; contrôler chemin, absence de montage manquant | Mountpoint identique à la source Compose ou override explicite ; dataset monté | NON VÉRIFIÉ |
+| P0 | Vérifier `docker compose config -q` et le montage `/mnt/bababou` RO sans création de répertoire | `Source` correcte, `Destination=/mnt/bababou`, `RW=false` | COMPOSE MODIFIÉ / NON DÉPLOYÉ |
+| P0 | Identifier UID/GID du backend ; vérifier ACL ZFS / POSIX et permissions de traverse sur chaque parent | Lecture effective par le compte runtime non-root ; aucun `chown -R` | NON VÉRIFIÉ |
+| P1 | Inspecter l'API et le mécanisme d'import *réel* du backend 0.7.1, sans supposer l'existence d'un scanner filesystem | Contrat d'ingestion / traitement confirmé par version ; pas de lecture brute implicite | À FAIRE |
+| P1 | Préparer importateur borné avec allowlist de types, rejet symlinks, limites de taille, profondeur et nombre de documents, et dry-run par défaut | Tests unitaires (récursivité limitée, refus path traversal, dry-run) | À FAIRE |
+| P1 | Valider Docling, Langflow, LiteLLM et OpenSearch sur document synthétique | Extraction, embeddings, index, recherche/citations vérifiés | À FAIRE |
+| P2 | Créer le corpus `bababou-poc` avec namespace/index séparé, politique de purge, comptes et ACL | Accès inter-corpus refusé ; aucune sortie brute dans traces | À FAIRE |
+| P2 | Ingestion de 10–20 fichiers explicitement approuvés ; indexation incrémentale/déduplication et reprise contrôlée | Comptages admis/rejetés/indexés, idempotence, aucune suppression à la source | BLOQUÉ PAR GATES |
+| P3 | Évaluer qualité et sécurité de la recherche avant ouverture à d'autres clients | Recall@5, MRR@10, citations, p95, tests prompt injection et ACL | À FAIRE |
+
+**Points d'attention issus de la revue de la PR :**
+
+1. La PR #259 contient aussi le chantier de quality gate et DefectDojo : tester les changements OpenRAG sans présumer que les autres changements de la PR sont acceptés.
+2. Le bind source seule ne configure **ni** un watcher de fichiers **ni** un déclenchement d'ingestion. Un importateur devra s'appuyer sur l'API réellement compatible avec la version déployée.
+3. L'owner `albandrieu:albandrieu` ne garantit pas la lecture depuis un conteneur ; l'accès dépend du mapping UID/GID et des ACL. Corriger les ACL de façon minimale uniquement après diagnostic.
+4. Ne pas lancer de `docker compose up`, changer de configuration TrueNAS, ni lire le contenu des documents depuis la CI.
+5. Les documents peuvent contenir des données à caractère personnel et des pièces juridiques. Interdire publication de noms, chemins de fichiers et extraits dans GitHub, CI, observabilité, embeddings hébergés non autorisés ou API publiques.
+6. Avant le merge, vérifier le diff global de la PR #259, les éventuels conflits avec master, les contrôles de qualité, et l'absence de régression DefectDojo / quality gate. Aucun de ces statuts n'est réputé vert sans preuve.
+
+**Gate de livraison :** Compose syntaxiquement valide, mountpoint et permissions vérifiés, tests contractuels de découverte/ingestion, autorisation du sous-ensemble, puis preuve runtime. Tant que ces conditions manquent, le changement reste préparatoire.
