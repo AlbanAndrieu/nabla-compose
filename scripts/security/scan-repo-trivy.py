@@ -76,15 +76,41 @@ def run() -> int:
                     entries.extractall(path=snapshot, filter="data")
                 if archive.wait(timeout=30) != 0:
                     raise ValueError("git archive failed")
+            # Run a bounded vulnerability-only report for DefectDojo parsers.
+            # Extended license/misconfiguration evidence is private and does
+            # not silently enter the vulnerability manager.
+            common = ["trivy", "fs", "--quiet", "--skip-dirs",
+                      str(Path(snapshot) / "node_modules")]
             subprocess.run(
-                [
-                    "trivy", "fs", "--quiet", "--scanners", "vuln",
-                    "--format", "json", "--output", str(temporary),
-                    "--skip-dirs", str(Path(snapshot) / "node_modules"),
-                    str(snapshot),
-                ],
+                [*common, "--scanners", "vuln", "--format", "json",
+                 "--output", str(temporary), str(snapshot)],
                 check=True, timeout=600,
             )
+            audit_file = directory / f"nabla-compose-{revision}-{timestamp}.audit.json"
+            sbom_file = directory / f"nabla-compose-{revision}-{timestamp}.cdx.json"
+            if audit_file.exists() or sbom_file.exists():
+                raise ValueError("private scan artifact already exists")
+            try:
+                subprocess.run(
+                    [*common, "--scanners", "vuln,misconfig,license",
+                     "--format", "json", "--output", str(audit_file), str(snapshot)],
+                    check=True, timeout=600,
+                )
+                subprocess.run(
+                    [*common, "--format", "cyclonedx",
+                     "--output", str(sbom_file), str(snapshot)],
+                    check=True, timeout=600,
+                )
+                audit = json.loads(audit_file.read_text(encoding="utf-8"))
+                sbom = json.loads(sbom_file.read_text(encoding="utf-8"))
+                if not isinstance(audit.get("Results"), list) or sbom.get("bomFormat") != "CycloneDX":
+                    raise ValueError("invalid extended Trivy audit or CycloneDX SBOM")
+                os.chmod(audit_file, 0o600)
+                os.chmod(sbom_file, 0o600)
+            except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                audit_file.unlink(missing_ok=True)
+                sbom_file.unlink(missing_ok=True)
+                raise
         payload = json.loads(temporary.read_text(encoding="utf-8"))
         if not isinstance(payload, dict) or not isinstance(payload.get("Results"), list):
             raise ValueError("invalid Trivy JSON: missing Results")
@@ -97,7 +123,7 @@ def run() -> int:
         return 1
     finally:
         temporary.unlink(missing_ok=True)
-    print(f"CREATED: {report.name}; private=true upload=false")
+    print(f"CREATED: {report.name} + audit.json + cdx.json; private=true upload=false")
     return 0
 
 

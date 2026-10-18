@@ -1,3 +1,24 @@
+## P0–P2 — DefectDojo/Vaultwarden, Trivy licence, SBOM et scans multi-repos (2026-10-18)
+
+- [x] DefectDojo Compose charge les deux fichiers runtime
+  `/mnt/cpool/secrets/runtime/defectdojo/.env` (non secret)
+  et `.env.secrets` (Vaultwarden). Identifiants UI dans le manifeste
+  Vaultwarden, **aucun mot de passe en Git**.
+- [x] Préparer la génération d'un mot de passe UI aléatoire directement
+  dans l'item Vaultwarden avant le premier initializer. Ne **jamais**
+  traiter une génération comme une rotation effective d'une instance existante.
+- [ ] Vérifier l'utilisateur courant, récupérer ou réinitialiser la
+  session administrateur existante; ensuite synchroniser Vaultwarden,
+  matérialiser et vérifier l'authentification après reboot.
+- [x] Générer en local privé des rapports Trivy vulnérabilités compatibles
+  DefectDojo, audit séparé misconfig/licence et CycloneDX SBOM.
+- [ ] Étendre la provenance d'import au dépôt canonique, à CodeQL SARIF,
+  Semgrep, Nuclei et ZAP sur allowlist stricte sans ingérer les secrets BetterLeaks,
+  les données PII ou tous les rapports indistinctement.
+- [ ] Préparer la réception des scans `nabla-site-alban` sur `master`
+  uniquement, depuis un runner interne de confiance et dans des engagements
+  DefectDojo isolés, avec quota CI DAST (ZAP production existant, Nuclei hebdomadaire).
+
 ## P0/P1 — DefectDojo : bootstrap credentials Vaultwarden et collecte de scans (2026-10-18)
 
 **Owner** : `nabla-compose` pour utilisateur/secret/UI/permissions LAN ; `fastapi-sample` PR #353 pour production locale des rapports et client d'import ; `nabla-site-alban` pour DAST de son propre domaine. DefectDojo doit rester `defectdojo.int.albandrieu.com` strictement interne (DNS/TLS/Traefik/RBAC), sans tunnel ou scrape public.
