@@ -136,20 +136,15 @@ class GitHubArtifactsTests(TestCase):
         self.assertEqual(saved["matched-at"], "https://www.albanandrieu.com")
         self.assertEqual(saved["template-id"], "cve-2026-1234")
 
-    def test_filter_zap_emits_minimal_xml_without_http_secrets(self):
-        raw = {
+    def test_filter_zap_requires_minimized_producer_payload(self):
+        safe = {
             "site": [{
                 "@name": "https://www.albanandrieu.com",
-                "alerts": [{
-                    "riskcode": "3", "pluginid": "10035", "alert": "Content policy",
-                    "instances": [{"uri": "https://www.albanandrieu.com/auth?token=PRIVATE_TOKEN",
-                                   "requestheader": "Authorization: PRIVATE_TOKEN"}],
-                    "evidence": "PRIVATE_COOKIE",
-                }],
+                "alerts": [{"riskcode": "3", "pluginid": "10035",
+                            "alert": "ZAP passive rule 10035"}],
             }],
         }
-        sanitized = pull.filter_findings("zap", json.dumps(raw).encode())
-        self.assertNotIn(b"PRIVATE_", sanitized)
+        sanitized = pull.filter_findings("zap", json.dumps(safe).encode())
         root = ElementTree.fromstring(sanitized)
         self.assertEqual(root.tag, "OWASPZAPReport")
         self.assertEqual(root.findtext("./site/alerts/alertitem/riskcode"), "3")
@@ -157,8 +152,15 @@ class GitHubArtifactsTests(TestCase):
             root.findtext("./site/alerts/alertitem/instances/instance/uri"),
             "https://www.albanandrieu.com",
         )
-        raw["site"][0]["alerts"][0]["riskcode"] = "1"
-        self.assertEqual(pull.filter_findings("zap", json.dumps(raw).encode()), b"")
+        raw = json.loads(json.dumps(safe))
+        raw["site"][0]["alerts"][0]["instances"] = [{
+            "requestheader": "Authorization: PRIVATE_TOKEN",
+            "uri": "https://www.albanandrieu.com/auth?token=PRIVATE_TOKEN",
+        }]
+        with self.assertRaises(SystemExit):
+            pull.filter_findings("zap", json.dumps(raw).encode())
+        safe["site"][0]["alerts"] = []
+        self.assertEqual(pull.filter_findings("zap", json.dumps(safe).encode()), b"")
 
     def test_stage_forwards_repository_source_to_the_private_puller(self):
         with (
@@ -183,27 +185,24 @@ class GitHubArtifactsTests(TestCase):
             self.assertIn("nabla-site-bababou", metadata.call_args.args[0])
             self.assertIn("production-dast.yml", metadata.call_args.args[0])
 
-    def test_bababou_zap_report_is_sanitized_without_http_evidence(self):
-        raw = {
+    def test_bababou_zap_remains_blocked_until_source_minimized(self):
+        approved = pull.SOURCES["bababou"]["hosts"]
+        safe = {
             "site": [{
                 "@name": "https://www.bababou.com",
-                "alerts": [{
-                    "riskcode": "3", "pluginid": "10035",
-                    "alert": "X-Frame-Options missing",
-                    "instances": [{"uri": "https://www.bababou.com/private?key=SECRET"}],
-                    "responseheader": "Set-Cookie: PRIVATE",
-                }],
+                "alerts": [{"riskcode": "3", "pluginid": "10035",
+                            "alert": "ZAP passive rule 10035"}],
             }],
         }
-        allowed = pull.SOURCES["bababou"]["hosts"]
-        report = pull.filter_findings("zap", json.dumps(raw).encode(), allowed)
+        report = pull.filter_findings("zap", json.dumps(safe).encode(), approved)
         self.assertIn(b"OWASPZAPReport", report)
-        self.assertNotIn(b"PRIVATE", report)
-        self.assertNotIn(b"SECRET", report)
-        self.assertIn(b"https://www.bababou.com", report)
-        raw["site"][0]["@name"] = "https://defectdojo.int.albandrieu.com"
+        raw = json.loads(json.dumps(safe))
+        raw["site"][0]["alerts"][0]["responseheader"] = "Set-Cookie: PRIVATE"
         with self.assertRaises(SystemExit):
-            pull.filter_findings("zap", json.dumps(raw).encode(), allowed)
+            pull.filter_findings("zap", json.dumps(raw).encode(), approved)
+        safe["site"][0]["@name"] = "https://defectdojo.int.albandrieu.com"
+        with self.assertRaises(SystemExit):
+            pull.filter_findings("zap", json.dumps(safe).encode(), approved)
 
     def test_github_routes_are_repo_and_workflow_allowlisted(self):
         allowed = github._RUNS.fullmatch(
