@@ -28,7 +28,7 @@ REPOSITORIES = [
     "AlbanAndrieu/nabla-site-alban",
     "AlbanAndrieu/nabla-site-bababou",
 ]
-APP_NAME = "nabla-security-artifact-reader"
+APP_NAME = "nabla-github-app"
 
 
 def manifest_for(redirect_url: str) -> dict:

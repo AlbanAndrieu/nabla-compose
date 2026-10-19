@@ -1,3 +1,23 @@
+## P0 — Quatre dépôts, une GitHub App, Vaultwarden et Cron (2026-10-19)
+
+- [x] Définir `nabla-github-app` unique pour nabla-compose,
+  fastapi-sample, nabla-site-alban et nabla-site-bababou, avec
+  `Actions:read` et jetons éphémères restreints par dépôt.
+- [x] Préparer `defectdojo-compose-handoff.yml` : rapport minimal Trivy
+  HIGH/CRITICAL sur lockfiles, manifest SHA-256 sur master chaque semaine,
+  sans DAST supplémentaire et sans consommation de CI PR.
+- [x] Étendre le collecteur aux quatre dépôts et la validation Trivy
+  universelle avant import ; les workflows amont non encore présents dans
+  master doivent être signalés `NOT_OBSERVED`.
+- [x] Ajouter le bootstrap Vaultwarden `nabla/prod/nabla-github-app`,
+  PEM root-only, `.env.secrets` Cron à références et launcher contrôlé.
+- [x] Documenter l'amélioration des agents/skills : inspection bornée,
+  commits groupés, logs d'échec ciblés et contrôle HEAD concurrent.
+- [ ] Approbation GitHub, installation sur quatre repos, import PEM en
+  Vaultwarden, matérialisation TrueNAS et acceptation des quatre Product/
+  Engagement DefectDojo. La création effective de l'App et du Cron
+  ne peut être affirmée depuis la PR seule.
+
 ## P0/P1 — Clôture du contrat collecteur DefectDojo inter-dépôts (2026-10-19)
 
 Réconciliation [Site Alban #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
@@ -44,7 +64,7 @@ La source autoritative de la procédure reste
 
 ## P0/P1 — GitOps single GitHub App / Site Bababou convergence (2026-10-19)
 
-- [x] Unifier `nabla-security-artifact-reader` pour quatre dépôts Nabla,
+- [x] Unifier `nabla-github-app` pour quatre dépôts Nabla,
   installation GitHub à dépôts sélectionnés, jeton à durée courte
   `Actions:read` limité à **un seul dépôt par appel**, sans PAT.
 - [x] Ajouter le bootstrap Python stdlib du GitHub App Manifest Flow

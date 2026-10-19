@@ -93,28 +93,46 @@ def validate(service: str, scanner: str, data: bytes) -> None:
         results = report.get("Results")
         if not isinstance(results, list):
             raise ValueError("not a Trivy report")
+        if set(report) - {"SchemaVersion", "ArtifactName", "ArtifactType", "Results"}:
+            raise ValueError("raw Trivy report metadata forbidden")
+        approved_fields = {"VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity"}
+        rows = {"nabla-site-alban": {"package-lock.json"}, "fastapi-sample": {"uv.lock"}}
+        allowed_targets = rows.get(service)
         for row in results:
             if not isinstance(row, dict):
                 raise ValueError("invalid Trivy result")
-            if row.get("Secrets"):
+            if "Secrets" in row:
                 raise ValueError("Trivy secret evidence forbidden from import")
-            if service == "nabla-site-alban":
-                if row.get("Target") != "package-lock.json":
-                    raise ValueError("site-alban import accepts only the npm lockfile")
-                findings = row.get("Vulnerabilities")
-                if not isinstance(findings, list) or not findings:
-                    raise ValueError("no actionable Trivy vulnerabilities")
-                allowed = {"VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity"}
-                for finding in findings:
-                    if (
-                        not isinstance(finding, dict)
-                        or finding.get("Severity") not in {"HIGH", "CRITICAL"}
-                        or not all(isinstance(finding.get(k), str) for k in ("VulnerabilityID", "PkgName"))
-                        or set(finding) - allowed
-                    ):
-                        raise ValueError("unapproved Trivy evidence or severity")
-        if service == "nabla-site-alban" and not results:
-            raise ValueError("empty site-alban Trivy report")
+            if set(row) - {"Target", "Class", "Type", "Vulnerabilities"}:
+                raise ValueError("raw Trivy evidence forbidden")
+            target = row.get("Target")
+            if not isinstance(target, str):
+                raise ValueError("Trivy target missing")
+            if allowed_targets is not None and target not in allowed_targets:
+                raise ValueError("unapproved project lockfile target")
+            if service == "nabla-compose":
+                import re
+                if not re.fullmatch(
+                    r"(?:uv[.]lock|poetry[.]lock|Pipfile[.]lock|package-lock[.]json|"
+                    r"pnpm-lock[.]yaml|requirements[A-Za-z0-9._-]*[.]txt)", target
+                ):
+                    raise ValueError("compose report must target an approved lockfile")
+            findings = row.get("Vulnerabilities")
+            if not isinstance(findings, list) or not findings:
+                raise ValueError("Trivy report row has no actionable findings")
+            for finding in findings:
+                if (
+                    not isinstance(finding, dict)
+                    or finding.get("Severity") not in {"HIGH", "CRITICAL"}
+                    or not all(
+                        isinstance(finding.get(k), str) and finding[k]
+                        for k in ("VulnerabilityID", "PkgName")
+                    )
+                    or set(finding) - approved_fields
+                ):
+                    raise ValueError("unapproved Trivy evidence or severity")
+        if service in {"nabla-site-alban", "fastapi-sample"} and not results:
+            raise ValueError("empty lockfile report")
     elif scanner == "CodeQL Scan":
         if report.get("version") != "2.1.0" or not isinstance(report.get("runs"), list):
             raise ValueError("invalid CodeQL SARIF")

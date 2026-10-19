@@ -1,0 +1,61 @@
+---
+name: DefectDojo Compose Trivy Handoff
+
+on:
+  schedule:
+    - cron: "41 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: defectdojo-compose-handoff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reviewed-handoff:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact master commit without retained credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Scan master dependencies once per week
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          scan-type: fs
+          scan-ref: "."
+          scanners: vuln
+          format: json
+          severity: HIGH,CRITICAL
+          output: ${{ runner.temp }}/compose-trivy-raw.json
+          exit-code: "0"
+          ignore-unfixed: false
+
+      - name: Emit provenance-attested minimal handoff only
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/defectdojo-reviewed"
+          python3 scripts/security/export-defectdojo-compose-trivy.py \
+            --input "$RUNNER_TEMP/compose-trivy-raw.json" \
+            --report "$RUNNER_TEMP/defectdojo-reviewed/trivy-compose-master.json" \
+            --manifest "$RUNNER_TEMP/defectdojo-reviewed/trivy-compose-master.manifest.json" \
+            --revision "$SOURCE_REVISION"
+          rm -f -- "$RUNNER_TEMP/compose-trivy-raw.json"
+
+      - name: Upload minimized SCA only (no raw secrets or SBOM)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: defectdojo-compose-trivy-${{ github.sha }}
+          path: ${{ runner.temp }}/defectdojo-reviewed/
+          retention-days: 3
+          if-no-files-found: error

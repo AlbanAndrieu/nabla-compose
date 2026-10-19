@@ -52,6 +52,11 @@ SOURCES = {
     },
     # Same TrueNAS collector and GitHub App; repository-specific installation
     # token, inbox and engagement. Opt-in only, not part of default Cron.
+    "compose": {
+        "repository": "AlbanAndrieu/nabla-compose",
+        "workflow_files": {"trivy": "defectdojo-compose-handoff.yml"},
+        "workflows": {"trivy": ("DefectDojo Compose Trivy Handoff", "Trivy Scan")},
+    },
     "fastapi-sample": {
         "repository": "AlbanAndrieu/fastapi-sample",
         "workflow_files": {"trivy": "defectdojo-trivy-handoff.yml"},
@@ -118,6 +123,108 @@ def validate_fastapi_handoff(run: dict, manifest: bytes, report: bytes) -> bool:
     if not counts["CRITICAL"] and meta.get("policy_status") == "needs_review":
         fail("contradictory fastapi scan status")
     return bool(counts["CRITICAL"] or counts["HIGH"])
+
+
+COMPOSE_REPORT = "trivy-compose-master.json"
+COMPOSE_MANIFEST = "trivy-compose-master.manifest.json"
+COMPOSE_INBOX = Path("/mnt/cpool/defectdojo/imports/nabla-compose")
+
+
+def validate_compose_handoff(run: dict, manifest: bytes, report: bytes) -> bool:
+    """Check SHA-bound provenance and a minimal lockfile-only report."""
+    if len(manifest) > 8192 or len(report) > 1_000_000:
+        fail("compose report exceeds private budget")
+    try:
+        meta = json.loads(manifest)
+        payload = json.loads(report)
+    except (ValueError, UnicodeError):
+        fail("invalid compose handoff JSON")
+    if not isinstance(meta, dict) or not isinstance(payload, dict):
+        fail("invalid compose artifact schema")
+    if (set(meta) != {"schema_version", "project", "scanner", "mode", "state",
+                      "revision", "report_file", "report_sha256", "counts"}
+            or meta.get("schema_version") != 1
+            or meta.get("project") != "nabla-compose"
+            or meta.get("scanner") != "Trivy Scan"
+            or meta.get("mode") != "master" or meta.get("state") != "complete"
+            or meta.get("revision") != run.get("head_sha")
+            or _SHA40.fullmatch(str(meta.get("revision"))) is None
+            or meta.get("report_file") != COMPOSE_REPORT
+            or meta.get("report_sha256") != sha256(report).hexdigest()):
+        fail("compose artifact digest or origin mismatch")
+    spec = importlib.util.spec_from_file_location(
+        "compose_handoff", SECURITY / "export-defectdojo-compose-trivy.py"
+    )
+    if spec is None or spec.loader is None:
+        fail("missing reviewed compose sanitizer")
+    sanitizer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sanitizer)
+    if sanitizer.sanitize(payload) != payload:
+        fail("compose Trivy report contains unauthorized evidence")
+    counts = {"HIGH": 0, "CRITICAL": 0}
+    for row in payload["Results"]:
+        for finding in row["Vulnerabilities"]:
+            counts[finding["Severity"]] += 1
+    if meta["counts"] != counts:
+        fail("compose finding counts mismatch")
+    return sum(counts.values()) > 0
+
+
+def stage_compose_handoff(token: str, run_id: int) -> str:
+    """Stage exactly two reviewed ZIP members from an immutable master run."""
+    repo = SOURCES["compose"]["repository"]
+    run = metadata(f"repos/{repo}/actions/runs/{run_id}", token)
+    if (run.get("id") != run_id or run.get("name") != "DefectDojo Compose Trivy Handoff"
+            or run.get("head_branch") != "master" or run.get("status") != "completed"
+            or run.get("conclusion") != "success"
+            or run.get("event") not in {"schedule", "workflow_dispatch"}
+            or _SHA40.fullmatch(str(run.get("head_sha"))) is None):
+        fail("compose artifact run provenance invalid")
+    artifact_name = "defectdojo-compose-trivy-" + run["head_sha"]
+    listing = metadata(f"repos/{repo}/actions/runs/{run_id}/artifacts", token)
+    matches = [
+        a for a in listing.get("artifacts", [])
+        if isinstance(a, dict) and a.get("name") == artifact_name
+        and a.get("expired") is False
+        and type(a.get("id")) is int and a["id"] > 0
+        and type(a.get("size_in_bytes")) is int
+        and 0 < a["size_in_bytes"] <= 10_000_000
+    ]
+    if len(matches) != 1:
+        fail("compose artifact absent or ambiguous")
+    archive = api(f"repos/{repo}/actions/artifacts/{matches[0]['id']}/zip", token)
+    try:
+        with ZipFile(BytesIO(archive)) as z:
+            entries = z.infolist()
+            if len(entries) != 2 or {x.filename for x in entries} != {
+                COMPOSE_REPORT, COMPOSE_MANIFEST
+            }:
+                fail("unapproved compose archive entries")
+            if any(x.is_dir() or (x.external_attr >> 16) & 0o170000 == 0o120000
+                   or x.file_size > 1_000_000 for x in entries):
+                fail("unsafe compose archive")
+            report, manifest = z.read(COMPOSE_REPORT), z.read(COMPOSE_MANIFEST)
+    except (OSError, KeyError, RuntimeError, ValueError):
+        fail("compose ZIP invalid")
+    if not validate_compose_handoff(run, manifest, report):
+        return "NO_ACTIONABLE_FINDINGS"
+    if COMPOSE_INBOX.is_symlink():
+        fail("compose inbox symlink forbidden")
+    COMPOSE_INBOX.mkdir(parents=True, exist_ok=True, mode=0o700)
+    st = COMPOSE_INBOX.stat()
+    if st.st_uid != os.geteuid() or st.st_mode & 0o077:
+        fail("compose inbox not private")
+    target = COMPOSE_INBOX / f"compose-{run_id}-trivy.json"
+    try:
+        fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY
+                     | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except FileExistsError:
+        if target.is_symlink() or not target.is_file() or target.stat().st_mode & 0o077:
+            fail("unsafe staged compose report")
+        return "ALREADY_STAGED"
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(report)
+    return "STAGED"
 
 
 def stage_fastapi_handoff(token: str, run_id: int) -> str:
@@ -227,13 +334,22 @@ def latest_runs(token: str, source: str = "alban") -> dict[str, int]:
 
 
 def stage(kind: str, run_id: int, source: str = "alban", token: str = "") -> str:
-    if source == "fastapi-sample":
+    if source in {"fastapi-sample", "compose"}:
         if kind != "trivy" or not token:
-            fail("fastapi handoff requires an approved scoped token")
+            fail("lockfile handoff requires an approved scoped token")
+        if source == "compose":
+            return stage_compose_handoff(token, run_id)
         return stage_fastapi_handoff(token, run_id)
     # The downloaded ZIP and JSON are validated again by the restricted collector.
     suffix = "xml" if kind == "zap" else "json"
-    output = Path("/mnt/cpool/defectdojo/imports") / f"site-{source}" / f"site-{source}-{run_id}-{kind}.{suffix}"
+    output = (
+        COMPOSE_INBOX / f"compose-{run_id}-trivy.json"
+        if source == "compose"
+        else FASTAPI_INBOX / f"fastapi-{run_id}-trivy.json"
+        if source == "fastapi-sample"
+        else Path("/mnt/cpool/defectdojo/imports") / f"site-{source}"
+             / f"site-{source}-{run_id}-{kind}.{suffix}"
+    )
     if output.exists():
         if output.is_symlink() or not output.is_file():
             fail("staged report path is unsafe")
@@ -252,14 +368,20 @@ def stage(kind: str, run_id: int, source: str = "alban", token: str = "") -> str
 def import_report(kind: str, run_id: int, source: str = "alban") -> None:
     if os.environ.get("DEFECTDOJO_IMPORT_APPROVED") != "YES":
         fail("import requires DEFECTDOJO_IMPORT_APPROVED=YES")
-    engagement = os.environ.get(f"DEFECTDOJO_SITE_{source.upper()}_ENGAGEMENT_ID", "")
+    prefix = {"compose": "COMPOSE", "fastapi-sample": "FASTAPI_SAMPLE",
+              "alban": "SITE_ALBAN", "bababou": "SITE_BABABOU"}[source]
+    engagement = os.environ.get(f"DEFECTDOJO_{prefix}_ENGAGEMENT_ID", "")
     if not engagement.isascii() or not engagement.isdecimal() or not int(engagement):
         fail("approved DefectDojo site-alban engagement ID missing")
     suffix = "xml" if kind == "zap" else "json"
     output = Path("/mnt/cpool/defectdojo/imports") / f"site-{source}" / f"site-{source}-{run_id}-{kind}.{suffix}"
     env = {
         **os.environ,
-        "DEFECTDOJO_SERVICE_ID": f"nabla-site-{source}",
+        "DEFECTDOJO_SERVICE_ID": (
+            "nabla-compose" if source == "compose"
+            else "fastapi-sample" if source == "fastapi-sample"
+            else f"nabla-site-{source}"
+        ),
         "DEFECTDOJO_SCAN_TYPE": SOURCES[source]["workflows"][kind][1],
         "DEFECTDOJO_ENGAGEMENT_ID": engagement,
     }
@@ -277,7 +399,7 @@ def main() -> int:
     group.add_argument("--check", action="store_true")
     group.add_argument("--pull", action="store_true")
     group.add_argument("--pull-and-import", action="store_true")
-    parser.add_argument("--source", choices=[*SOURCES, "all"], default="alban")
+    parser.add_argument("--source", choices=[*SOURCES, "all"], default="all")
     parser.add_argument("--kind", choices=["all", *WORKFLOWS], default="all")
     args = parser.parse_args()
     requested = SOURCES if args.source == "all" else {args.source: SOURCES[args.source]}
@@ -287,15 +409,18 @@ def main() -> int:
         print("CHECK: approved master GitHub Actions workflows; no token or LAN access")
         print("CHECK: " + ", ".join(f"{name}:{','.join(cfg['workflows'])}" for name, cfg in requested.items()))
         return 0
-    if "fastapi-sample" in requested and os.environ.get("DEFECTDOJO_FASTAPI_PULL_APPROVED") != "YES":
-        fail("fastapi source requires explicit local opt-in before artifact polling")
     if args.pull_and_import and "fastapi-sample" in requested:
-        fail("fastapi import needs a separately accepted parser and engagement; only --pull allowed")
+        fail("fastapi import requires separate parser/engagement acceptance")
     if os.geteuid() != 0 or not Path("/mnt/cpool/compose/nabla-compose").is_dir():
         fail("polling restricted to canonical TrueNAS host")
     if args.pull_and_import and os.environ.get("DEFECTDOJO_IMPORT_APPROVED") != "YES":
         fail("explicit import approval required")
     for source, config in requested.items():
+        if source == "fastapi-sample" and os.environ.get("DEFECTDOJO_FASTAPI_PULL_APPROVED") != "YES":
+            if args.source == "fastapi-sample":
+                fail("fastapi source requires explicit opt-in")
+            print("NOT_APPROVED: fastapi-sample requires local pull authorization")
+            continue
         kinds = config["workflows"] if args.kind == "all" else (
             {args.kind: config["workflows"][args.kind]}
             if args.kind in config["workflows"] else {}

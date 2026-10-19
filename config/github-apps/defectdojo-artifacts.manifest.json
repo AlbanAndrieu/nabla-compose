@@ -1,5 +1,5 @@
 {
-  "name": "nabla-security-artifact-reader",
+  "name": "nabla-github-app",
   "url": "https://github.com/AlbanAndrieu/nabla-compose",
   "description": "One read-only security report App across selected Nabla repositories",
   "public": false,

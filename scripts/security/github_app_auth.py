@@ -18,8 +18,9 @@ from urllib import error, request
 
 from github_actions_artifact_api import GitHubArtifactError, NoRedirect, bounded_read
 
-CONFIG = Path("/mnt/cpool/secrets/runtime/defectdojo/github-app.json")
-PRIVATE_KEY = Path("/mnt/cpool/secrets/runtime/defectdojo/github-app-private-key.pem")
+APP_RUNTIME = Path("/mnt/cpool/secrets/runtime/nabla-github-app")
+CONFIG = APP_RUNTIME / "github-app.json"
+PRIVATE_KEY = APP_RUNTIME / "github-app-private-key.pem"
 DEFAULT_REPOSITORY = "AlbanAndrieu/nabla-site-alban"
 ALLOWED_REPOSITORIES = frozenset({
     "AlbanAndrieu/nabla-compose",
@@ -92,7 +93,7 @@ def make_jwt(app_id: int, *, now: int | None = None) -> str:
 
 
 def installation_token(repository: str = DEFAULT_REPOSITORY) -> str:
-    """Mint one ≤1 h token, permission-reduced to Actions:read on Site Alban."""
+    """Mint a short-lived token limited to Actions:read on one approved repository."""
     if repository not in ALLOWED_REPOSITORIES:
         raise GitHubArtifactError("GitHub App repository not allowlisted")
     app_id, installation_id = configuration(repository)

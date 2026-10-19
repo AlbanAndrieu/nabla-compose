@@ -31,7 +31,7 @@ JOB = {
     "command": (
         "/usr/bin/python3 "
         "/mnt/cpool/compose/nabla-compose/scripts/security/"
-        "poll-defectdojo-gh-artifacts.py --pull"
+        "run-nabla-github-app-cron.py --run"
     ),
 }
 

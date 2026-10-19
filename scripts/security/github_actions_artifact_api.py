@@ -19,7 +19,7 @@ API = "https://api.github.com/"
 MAX_API_BYTES = 1_000_000
 MAX_ARCHIVE_BYTES = 10_000_000
 _RUNS = re.compile(
-    r"^repos/AlbanAndrieu/(?P<repository>nabla-compose|fastapi-sample|nabla-site-alban|nabla-site-bababou)/actions/(?:runs/[1-9][0-9]*(?:/artifacts)?|artifacts/[1-9][0-9]*/zip|workflows/(?:security-supply-chain|nuclei-public|master-dast|production-dast|defectdojo-trivy-handoff)[.]yml/runs[?]branch=master&per_page=10)$"
+    r"^repos/AlbanAndrieu/(?P<repository>nabla-compose|fastapi-sample|nabla-site-alban|nabla-site-bababou)/actions/(?:runs/[1-9][0-9]*(?:/artifacts)?|artifacts/[1-9][0-9]*/zip|workflows/(?:security-supply-chain|nuclei-public|master-dast|production-dast|defectdojo-trivy-handoff|defectdojo-compose-handoff)[.]yml/runs[?]branch=master&per_page=10)$"
 )
 
 

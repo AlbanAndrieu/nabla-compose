@@ -19,7 +19,7 @@ SPEC.loader.exec_module(cron)
 class NativeCronContract(TestCase):
     def test_cron_is_disabled_and_not_an_importer(self):
         self.assertFalse(cron.JOB["enabled"])
-        self.assertIn("--pull", cron.JOB["command"])
+        self.assertIn("run-nabla-github-app-cron.py --run", cron.JOB["command"])
         self.assertNotIn("--pull-and-import", cron.JOB["command"])
         self.assertEqual(cron.JOB["user"], "root")
         self.assertEqual(cron.JOB["schedule"]["minute"], "50")

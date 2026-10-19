@@ -204,3 +204,22 @@ Site Bababou has a separate inbox `.../imports/site-bababou` and requires
 `DEFECTDOJO_SITE_BABABOU_ENGAGEMENT_ID` for explicit import.
 No speculative Nuclei source or new DAST workflow is added.
 See [shared App GitOps architecture](github-app-defectdojo.md).
+
+## Quatrième producteur : nabla-compose
+
+Le workflow `defectdojo-compose-handoff.yml` est séparé du gate CRITICAL
+sur PR : il génère **une seule fois par semaine sur master** un Trivy fs JSON
+puis applique `export-defectdojo-compose-trivy.py`, qui ne conserve que les
+vulnérabilités HIGH/CRITICAL liées aux fichiers de verrouillage. L'artefact
+`defectdojo-compose-trivy-<sha>` ne contient que le rapport JSON réduit
+et son manifeste de provenance SHA-256. Les rapports bruts, licences, SBOM,
+preuves HTTP et findings Secrets sont exclus. Le collecteur vérifie
+le dernier run, l'identité du workflow, les deux membres ZIP, le SHA
+et les champs autorisés avant stockage en zone privée.
+
+`--source all --check` doit afficher les **quatre** dépôts : alban,
+bababou, fastapi-sample, compose. Le Cron utilise le loader
+`run-nabla-github-app-cron.py` avec `.env.secrets` root-only et les
+jetons temporaires de l'App. Une source dont le workflow n'existe pas
+encore sur `master` est **NOT_OBSERVED**, jamais « zéro finding ».
+L'acceptation DefectDojo et le déploiement TrueNAS restent séparés.

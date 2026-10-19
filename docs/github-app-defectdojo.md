@@ -1,6 +1,6 @@
 # GitOps bootstrap : une seule GitHub App Nabla pour plusieurs dépôts
 
-**Décision du 19 octobre 2026 : une seule App `nabla-security-artifact-reader`,
+**Décision du 19 octobre 2026 : une seule App `nabla-github-app`,
 pas une App par dépôt, pas de PAT permanent, pas de runner GitHub interne.**
 
 La source d'autorité est
@@ -36,7 +36,7 @@ la GitHub App. GitHub expose plutôt un protocole officiel
    n'affiche aucun secret et n'écoute que sur 127.0.0.1.
    Il ne conserve pas `client_secret` ou `webhook_secret` du résultat.
 5. Importer le PEM dans un item **Vaultwarden distinct**
-   `nabla/prod/defectdojo-github-app` en pièce jointe chiffrée,
+   `nabla/prod/nabla-github-app` en pièce jointe chiffrée,
    puis **supprimer le PEM local de staging**. Ne jamais placer le PEM
    en `*.tfvars`, dans le state OpenTofu, dans un secret Actions ou
    dans le `.env.secrets` du conteneur DefectDojo.
@@ -99,3 +99,32 @@ Références :
 - https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
 - https://docs.github.com/en/rest/apps/apps
 - https://registry.terraform.io/providers/integrations/github/latest/docs
+
+## Coffre Vaultwarden et vrai environnement Cron
+
+Après création et consentement GitHub pour les **quatre** dépôts, le script
+`scripts/security/sync-nabla-github-app-vaultwarden.py` fournit :
+
+```bash
+python3 scripts/security/sync-nabla-github-app-vaultwarden.py --check
+python3 scripts/security/sync-nabla-github-app-vaultwarden.py \\
+  --import-vaultwarden --pem /chemin/prive/github-app-private-key.pem \\
+  --metadata /chemin/prive/github-app.json
+python3 scripts/security/sync-nabla-github-app-vaultwarden.py \\
+  --materialize --metadata /chemin/prive/github-app.json
+```
+
+Les actions de coffre nécessitent un opérateur `BW_SESSION` déverrouillé ;
+elles **ne sont pas exécutées dans cette PR**. La pièce jointe PEM est
+chiffrée dans l'item `nabla/prod/nabla-github-app`. La matérialisation
+sur TrueNAS crée sous `/mnt/cpool/secrets/runtime/nabla-github-app/` :
+`github-app-private-key.pem`, `github-app.json` et `.env.secrets`, avec
+permissions `root:root 0600`. Le PEM reste un fichier séparé, **jamais
+une chaîne Base64 dotenv** ; `.env.secrets` contient uniquement les chemins
+canoniques et l'indicateur d'acceptation du handoff FastAPI. Le Cron native
+exécute `run-nabla-github-app-cron.py --run`, qui valide ces références
+avant le polling `--source all --pull`.
+
+L'ID d'installation reste à 0 jusqu'à l'installation GitHub vérifiée
+et `discover-github-app-installation.py --apply`. Ne pas déclarer l'App
+créée, la PEM importée ou le Cron activé sans preuves runtime.

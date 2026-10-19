@@ -5,6 +5,21 @@ description: Converge formatter, lint, generated artifacts, targeted contracts a
 
 # Local-first quality
 
+## Efficiency for multi-repository security changes
+
+- Inspect the exact selected PR head and only relevant files and failed checks.
+  For the very large roadmap, read only bounded section ranges.
+- Batch related edits into one Git tree/commit, use expected-HEAD compare-and-swap
+  updates and reconcile a concurrent writer by comparing changed paths.
+- Run offline targeted tests and formatting before a commit whenever possible;
+  do not repeatedly poll GitHub checks without new evidence.
+- Fetch only the failing job's relevant log lines, never full successful logs.
+  CI remains a security gate: do not silence BetterLeaks, CodeQL, Trivy,
+  Checkov, formatter or executor-mode failures to save time.
+- Distinguish static preparedness, CI success at exact HEAD and actual
+  TrueNAS/Vaultwarden/DefectDojo runtime acceptance.
+
+
 Use this skill for CI failures, quality-gate work, PR continuation, formatter/linter
 fixes, or any task where remote CI should remain a safety net rather than the
 edit loop.
