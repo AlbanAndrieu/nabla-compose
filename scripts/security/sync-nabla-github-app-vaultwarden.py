@@ -18,8 +18,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/secrets"))
-from import_env_to_bitwarden import create_item, exact_items, sync_after_write  # noqa: E402
-from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest  # noqa: E402
+class SecretsError(RuntimeError):
+    """Sanitized secret handling failure; never embed credential values."""
 
 ITEM = "nabla/prod/nabla-github-app"
 RUNTIME = Path("/mnt/cpool/secrets/runtime/nabla-github-app")
@@ -54,6 +54,9 @@ def metadata(path: Path) -> dict:
 
 
 def client_item():
+    from import_env_to_bitwarden import exact_items
+    from render_from_bitwarden import BitwardenClient, load_manifest
+
     if os.geteuid() == 0:
         raise SecretsError("Vaultwarden operations require unlocked non-root operator")
     manifest = load_manifest(ROOT / "config/secrets/manifest.json")
@@ -70,6 +73,8 @@ def client_item():
 
 
 def upload(pem: Path, info: Path) -> None:
+    from import_env_to_bitwarden import create_item, sync_after_write
+
     metadata(info)
     file_contract(pem)
     if pem.stat().st_size > 16384 or pem.stat().st_size < 256:
@@ -190,5 +195,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (SecretsError, OSError, ValueError) as exc:
+    except (SecretsError, OSError, ValueError, RuntimeError) as exc:
         raise SystemExit(f"REJECTED: {exc}") from None
