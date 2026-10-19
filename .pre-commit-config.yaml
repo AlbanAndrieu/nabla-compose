@@ -493,3 +493,11 @@ repos:
         pass_filenames: false
         files: >-
           ^(apps/defectdojo/.*|config/security/defectdojo-allowed-imports[.]json|config/secrets/manifest[.]json|scripts/(?:security/(?:scan-repo-trivy|validate-defectdojo-report)[.]py|security/import-scan-defectdojo[.]sh|secrets/bootstrap_defectdojo_admin[.]py|truenas/prepare-defectdojo-runtime-env[.]py)|tests/test_defectdojo_(?:runtime_credential_contract|import_policy|repo_scan)[.]py)$
+
+      - id: defectdojo-artifact-poller-contract
+        name: "🔐 security · Offline GitHub artifact collector and Vaultwarden bootstrap tests"
+        language: system
+        entry: python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:secrets/bootstrap_defectdojo_admin[.]py|security/(?:github_actions_artifact_api|poll-defectdojo-gh-artifacts|pull-site-alban-security-report)[.]py)|tests/test_defectdojo_(?:admin_bootstrap|artifact_collector)[.]py|docs/defectdojo-artifact-poller[.]md)$

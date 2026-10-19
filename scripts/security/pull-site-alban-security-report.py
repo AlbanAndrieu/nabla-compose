@@ -12,8 +12,9 @@ import json
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from zipfile import ZipFile
 
 REPO = "AlbanAndrieu/nabla-site-alban"
@@ -47,32 +48,8 @@ def require_token() -> str:
     return token
 
 
-def api(route: str, token: str) -> bytes:
-    if not route.startswith(f"repos/{REPO}/"):
-        fail("unsupported API route")
-    env = {**os.environ, "GH_TOKEN": token, "GH_PROMPT_DISABLED": "1"}
-    try:
-        result = subprocess.run(
-            ["gh", "api", f"/{route}"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=env,
-            timeout=45,
-        )
-    except (subprocess.SubprocessError, FileNotFoundError):
-        fail("GitHub API or artifact fetch failed")
-    return result.stdout
-
-
-def metadata(route: str, token: str) -> dict:
-    try:
-        value = json.loads(api(route, token))
-    except (ValueError, UnicodeDecodeError):
-        fail("invalid GitHub API JSON")
-    if not isinstance(value, dict):
-        fail("invalid API object")
-    return value
+# Read-only API client; Authorization never crosses a storage redirect.
+from github_actions_artifact_api import api, metadata, GitHubArtifactError  # noqa: E402
 
 
 def allowed_artifact(kind: str, run: dict, run_id: int) -> str:
@@ -175,7 +152,7 @@ def main() -> None:
                 fail("archive does not contain the expected bounded report")
             raw = zipped.read(matching[0])
         filtered = filter_findings(args.kind, raw)
-    except (ValueError, KeyError, UnicodeError, OSError):
+    except (ValueError, KeyError, UnicodeError, OSError, GitHubArtifactError):
         fail("malformed archive or report")
     if not filtered or (
         args.kind == "nuclei" and not filtered.strip()

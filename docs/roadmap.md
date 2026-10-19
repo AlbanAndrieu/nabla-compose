@@ -1,3 +1,26 @@
+## P0/P1 — DefectDojo GitHub Actions artifact polling without a runner (2026-10-19)
+
+[Execution/runbook](defectdojo-artifact-poller.md) · source-only in PR #263.
+
+- [x] Make the existing `bootstrap_defectdojo_admin.py` create a missing
+  Vaultwarden login for first-run `admin` with a CSPRNG password,
+  preserving DB/Redis fields and refusing overwrites, without checking
+  DefectDojo's DB. `.env.secrets` remains Vaultwarden materialized.
+- [x] Prepare GitHub Actions **pull** by native TrueNAS cron, not
+  self-hosted runner. Standard-library HTTPS client, separate Actions:read
+  token, exact repo/workflow/master/SHA provenance, restricted signed-URL
+  downloads, small ZIP/report size ceilings and root-only inbox.
+- [x] Add `poll-defectdojo-gh-artifacts.py` to discover recent successful
+  master scans for Site Alban and stage them without rerunning ZAP/Nuclei.
+  Optional import is separately gated and limited to an existing engagement;
+  default mode is offline and no network/no secrets.
+- [ ] Operator acceptance: Vaultwarden login created and materialized,
+  TrueNAS scoped GH token installed, disabled native cron job registered,
+  artifact retention/ACL checked, ZAP/Nuclei report sanitization reviewed,
+  and Product RBAC + async reimport/deduplication proven.
+- [ ] Enable the 06:20/18:20 local TrueNAS cron only after the above gates.
+  No public DefectDojo API, no raw GitHub secret findings, no new DAST CI jobs.
+
 ## P0–P2 — DefectDojo/Vaultwarden, Trivy licence, SBOM et scans multi-repos (2026-10-18)
 
 - [x] DefectDojo Compose charge les deux fichiers runtime
