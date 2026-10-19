@@ -160,6 +160,17 @@ class GitHubArtifactsTests(TestCase):
         raw["site"][0]["alerts"][0]["riskcode"] = "1"
         self.assertEqual(pull.filter_findings("zap", json.dumps(raw).encode()), b"")
 
+    def test_stage_forwards_repository_source_to_the_private_puller(self):
+        with (
+            mock.patch.object(poll.Path, "exists", return_value=False),
+            mock.patch.object(poll.Path, "is_file", return_value=False),
+            mock.patch.object(poll.subprocess, "run", return_value=mock.Mock(returncode=0)) as run,
+        ):
+            self.assertEqual(poll.stage("zap", 88, source="bababou"), "NO_FINDINGS_OR_MISSING")
+        args = run.call_args.args[0]
+        self.assertEqual(args[args.index("--source") + 1], "bababou")
+        self.assertEqual(args[args.index("--kind") + 1], "zap")
+
     def test_bababou_source_uses_only_existing_zap_master(self):
         self.assertEqual(set(poll.SOURCES["bababou"]["workflows"]), {"zap"})
         example = {
