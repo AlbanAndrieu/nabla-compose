@@ -87,17 +87,17 @@ class DefectDojoImportPolicyTests(unittest.TestCase):
             b"<instances><instance><uri>https://www.albanandrieu.com</uri>"
             b"</instance></instances></alertitem></alerts></site></OWASPZAPReport>"
         )
-        module.validate("nabla-site-alban", "Zed Attack Proxy", good)
+        module.validate("nabla-site-alban", "ZAP Scan", good)
         with self.assertRaises(ValueError):
-            module.validate("nabla-site-alban", "Zed Attack Proxy", b'{"site":[]}')
+            module.validate("nabla-site-alban", "ZAP Scan", b'{"site":[]}')
         with self.assertRaises(ValueError):
             module.validate(
-                "nabla-site-alban", "Zed Attack Proxy",
+                "nabla-site-alban", "ZAP Scan",
                 good.replace(b"www.albanandrieu.com", b"evil.example"),
             )
         with self.assertRaises(ValueError):
             module.validate(
-                "nabla-site-alban", "Zed Attack Proxy",
+                "nabla-site-alban", "ZAP Scan",
                 good.replace(b"</instance>", b"<requestheader>secret</requestheader></instance>"),
             )
 
