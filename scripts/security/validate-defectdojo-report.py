@@ -29,10 +29,26 @@ def validate(service: str, scanner: str, data: bytes) -> None:
         if not results:
             raise ValueError("empty Nuclei report")
         for entry in results:
+            if not isinstance(entry, dict):
+                raise ValueError("invalid Nuclei finding")
             url = entry.get("matched-at") or entry.get("host", "")
             parsed = urlsplit(url)
             if parsed.scheme != "https" or parsed.hostname not in spec["hosts"]:
                 raise ValueError("Nuclei target is not in the permitted HTTPS domain set")
+            if service == "nabla-site-alban":
+                if parsed.username or parsed.password or parsed.port not in (None, 443):
+                    raise ValueError("Nuclei userinfo and custom ports forbidden")
+                if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+                    raise ValueError("Nuclei URL must be minimized to origin")
+                info = entry.get("info")
+                if not isinstance(info, dict) or info.get("severity") not in {"high", "critical"}:
+                    raise ValueError("unexpected Nuclei severity")
+                if not isinstance(entry.get("template-id"), str) or not entry["template-id"]:
+                    raise ValueError("Nuclei template identity missing")
+                if set(entry) - {"template-id", "type", "info", "matched-at"}:
+                    raise ValueError("raw Nuclei HTTP evidence forbidden")
+                if set(info) - {"name", "severity"}:
+                    raise ValueError("unapproved Nuclei description or evidence")
         return
     if scanner == "Zed Attack Proxy":
         if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
@@ -82,6 +98,23 @@ def validate(service: str, scanner: str, data: bytes) -> None:
                 raise ValueError("invalid Trivy result")
             if row.get("Secrets"):
                 raise ValueError("Trivy secret evidence forbidden from import")
+            if service == "nabla-site-alban":
+                if row.get("Target") != "package-lock.json":
+                    raise ValueError("site-alban import accepts only the npm lockfile")
+                findings = row.get("Vulnerabilities")
+                if not isinstance(findings, list) or not findings:
+                    raise ValueError("no actionable Trivy vulnerabilities")
+                allowed = {"VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity"}
+                for finding in findings:
+                    if (
+                        not isinstance(finding, dict)
+                        or finding.get("Severity") not in {"HIGH", "CRITICAL"}
+                        or not all(isinstance(finding.get(k), str) for k in ("VulnerabilityID", "PkgName"))
+                        or set(finding) - allowed
+                    ):
+                        raise ValueError("unapproved Trivy evidence or severity")
+        if service == "nabla-site-alban" and not results:
+            raise ValueError("empty site-alban Trivy report")
     elif scanner == "CodeQL Scan":
         if report.get("version") != "2.1.0" or not isinstance(report.get("runs"), list):
             raise ValueError("invalid CodeQL SARIF")
