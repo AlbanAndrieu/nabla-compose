@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 import re
 import sys
+from urllib.parse import urlsplit
+from xml.etree import ElementTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from zipfile import ZipFile
@@ -57,7 +59,27 @@ def allowed_artifact(kind: str, run: dict, run_id: int) -> str:
     return "zap-production-report"
 
 
+APPROVED_HOSTS = frozenset({"www.albanandrieu.com", "albanandrieu.com"})
+
+
+def public_origin(value: object) -> str:
+    """Retain only the canonical HTTPS origin, never credentials or URL paths."""
+    if not isinstance(value, str):
+        fail("missing approved public target")
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in APPROVED_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in (None, 443)
+    ):
+        fail("scan result references a non-allowlisted target")
+    return f"https://{parsed.hostname}"
+
+
 def filter_findings(kind: str, raw: bytes) -> bytes:
+    """Produce a minimal, parser-compatible report; never stage raw HTTP evidence."""
     if len(raw) > MAX_REPORT_BYTES:
         fail("extracted report exceeds private size budget")
     if kind == "nuclei":
@@ -66,41 +88,123 @@ def filter_findings(kind: str, raw: bytes) -> bytes:
             if not line.strip():
                 continue
             item = json.loads(line)
-            severity = str(item.get("info", {}).get("severity", "")).lower()
-            if severity in {"critical", "high"}:
-                kept.append(json.dumps(item, separators=(",", ":")))
+            if not isinstance(item, dict) or not isinstance(item.get("info"), dict):
+                fail("invalid Nuclei finding")
+            severity = str(item["info"].get("severity", "")).lower()
+            if severity not in {"critical", "high"}:
+                continue
+            origin = public_origin(item.get("matched-at") or item.get("host"))
+            template = item.get("template-id") or item.get("templateID")
+            name = item["info"].get("name")
+            if not isinstance(template, str) or not template or len(template) > 150:
+                fail("invalid Nuclei template identity")
+            if not isinstance(name, str) or not name or len(name) > 200:
+                fail("invalid Nuclei finding name")
+            kept.append(
+                json.dumps(
+                    {
+                        "template-id": template,
+                        "type": "http",
+                        "info": {"name": name, "severity": severity},
+                        "matched-at": origin,
+                    },
+                    separators=(",", ":"),
+                )
+            )
         return ("\n".join(kept) + ("\n" if kept else "")).encode()
+
     payload = json.loads(raw)
     if not isinstance(payload, dict):
         fail("invalid report object")
+
     if kind == "trivy":
         results = payload.get("Results")
         if not isinstance(results, list):
             fail("invalid Trivy results")
+        safe_results = []
+        fields = ("VulnerabilityID", "PkgName", "InstalledVersion", "FixedVersion", "Severity")
         for result in results:
             if not isinstance(result, dict):
                 fail("invalid Trivy result")
-            result["Vulnerabilities"] = [
-                v for v in (result.get("Vulnerabilities") or [])
-                if isinstance(v, dict) and str(v.get("Severity", "")).upper() in {"CRITICAL", "HIGH"}
-            ]
-            # License and configuration reports are reviewed separately, not
-            # silently imported as vulnerability findings.
-            result.pop("Licenses", None)
-            result.pop("Misconfigurations", None)
-    elif kind == "zap":
+            target = result.get("Target")
+            # Only the npm lockfile is approved for the site-alban product.
+            if not isinstance(target, str) or not re.fullmatch(r"(?:[^/]+/)*package-lock\.json", target):
+                continue
+            safe_vulnerabilities = []
+            for vuln in result.get("Vulnerabilities") or []:
+                if not isinstance(vuln, dict):
+                    fail("invalid Trivy vulnerability")
+                if str(vuln.get("Severity", "")).upper() not in {"CRITICAL", "HIGH"}:
+                    continue
+                candidate = {k: vuln[k] for k in fields if isinstance(vuln.get(k), str)}
+                if not all(k in candidate for k in ("VulnerabilityID", "PkgName", "Severity")):
+                    fail("invalid Trivy vulnerability identity")
+                safe_vulnerabilities.append(candidate)
+            if safe_vulnerabilities:
+                safe_results.append(
+                    {
+                        "Target": "package-lock.json",
+                        "Class": "lang-pkgs",
+                        "Type": "npm",
+                        "Vulnerabilities": safe_vulnerabilities,
+                    }
+                )
+        if not safe_results:
+            return b""
+        return json.dumps(
+            {"SchemaVersion": 2, "ArtifactName": "nabla-site-alban",
+             "ArtifactType": "filesystem", "Results": safe_results},
+            separators=(",", ":"),
+        ).encode()
+
+    if kind == "zap":
         sites = payload.get("site")
         if not isinstance(sites, list):
             fail("invalid ZAP report")
+        report = ElementTree.Element("OWASPZAPReport", {"version": "2.17"})
+        count = 0
         for site in sites:
             if not isinstance(site, dict):
                 fail("invalid ZAP site")
-            site["alerts"] = [
-                alert for alert in (site.get("alerts") or [])
-                if isinstance(alert, dict) and str(alert.get("riskcode")) == "3"
-            ]
-    return json.dumps(payload, separators=(",", ":")).encode()
-
+            origin = public_origin(site.get("@name"))
+            host = urlsplit(origin).hostname
+            element = ElementTree.SubElement(
+                report, "site",
+                {"name": origin, "host": host, "port": "443", "ssl": "true"},
+            )
+            alerts_element = ElementTree.SubElement(element, "alerts")
+            alerts = site.get("alerts") or []
+            if not isinstance(alerts, list):
+                fail("invalid ZAP alerts")
+            for alert in alerts:
+                if not isinstance(alert, dict):
+                    fail("invalid ZAP alert")
+                if str(alert.get("riskcode")) != "3":
+                    continue
+                pluginid = str(alert.get("pluginid", ""))
+                title = alert.get("alert")
+                if not pluginid.isdecimal() or not isinstance(title, str) or not title or len(title) > 200:
+                    fail("invalid ZAP alert identity")
+                node = ElementTree.SubElement(alerts_element, "alertitem")
+                for key, value in (
+                    ("pluginid", pluginid),
+                    ("alert", title),
+                    ("riskcode", "3"),
+                    ("confidence", "2"),
+                    ("desc", "High-risk passive ZAP alert; raw HTTP evidence withheld."),
+                    ("solution", "Review the finding against the private scanner evidence."),
+                ):
+                    ElementTree.SubElement(node, key).text = value
+                instances = ElementTree.SubElement(node, "instances")
+                instance = ElementTree.SubElement(instances, "instance")
+                ElementTree.SubElement(instance, "uri").text = origin
+                ElementTree.SubElement(instance, "method").text = "GET"
+                count += 1
+        if count == 0:
+            return b""
+        # DefectDojo's Zed Attack Proxy importer uses XML, not ZAP JSON.
+        return ElementTree.tostring(report, encoding="utf-8", xml_declaration=True)
+    fail("unsupported report type")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -141,9 +245,7 @@ def main() -> None:
         filtered = filter_findings(args.kind, raw)
     except (ValueError, KeyError, UnicodeError, OSError, GitHubArtifactError):
         fail("malformed archive or report")
-    if not filtered or (
-        args.kind == "nuclei" and not filtered.strip()
-    ):
+    if not filtered or not filtered.strip():
         print("NO_ACTIONABLE_FINDINGS: nothing imported")
         return
     if INBOX.is_symlink():
@@ -151,7 +253,8 @@ def main() -> None:
     INBOX.mkdir(parents=True, exist_ok=True, mode=0o700)
     if INBOX.stat().st_uid != 0 or INBOX.stat().st_mode & 0o077:
         fail("inbox ownership/permissions must be root-only")
-    out = INBOX / f"site-alban-{args.run_id}-{args.kind}.json"
+    suffix = "xml" if args.kind == "zap" else "json"
+    out = INBOX / f"site-alban-{args.run_id}-{args.kind}.{suffix}"
     descriptor = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
     with os.fdopen(descriptor, "wb") as stream:
         stream.write(filtered)
