@@ -20,7 +20,13 @@ from github_actions_artifact_api import GitHubArtifactError, NoRedirect, bounded
 
 CONFIG = Path("/mnt/cpool/secrets/runtime/defectdojo/github-app.json")
 PRIVATE_KEY = Path("/mnt/cpool/secrets/runtime/defectdojo/github-app-private-key.pem")
-REPO = "nabla-site-alban"
+DEFAULT_REPOSITORY = "AlbanAndrieu/nabla-site-alban"
+ALLOWED_REPOSITORIES = frozenset({
+    "AlbanAndrieu/nabla-compose",
+    "AlbanAndrieu/fastapi-sample",
+    "AlbanAndrieu/nabla-site-alban",
+    "AlbanAndrieu/nabla-site-bababou",
+})
 MAX_JSON_BYTES = 16_384
 
 
@@ -32,7 +38,7 @@ def _verify_root_file(path: Path) -> None:
         raise GitHubArtifactError("GitHub App files require root:root 0600")
 
 
-def configuration() -> tuple[int, int]:
+def configuration(repository: str = DEFAULT_REPOSITORY) -> tuple[int, int]:
     """Return App/Installation IDs; validate runtime ownership without secrets in logs."""
     if os.geteuid() != 0:
         raise GitHubArtifactError("GitHub App collector requires TrueNAS root")
@@ -42,9 +48,14 @@ def configuration() -> tuple[int, int]:
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise GitHubArtifactError("invalid GitHub App metadata file") from None
-    if not isinstance(config, dict) or set(config) != {"app_id", "installation_id", "repository"}:
+    if not isinstance(config, dict) or set(config) != {"app_id", "installation_id", "repositories"}:
         raise GitHubArtifactError("unsupported GitHub App metadata fields")
-    if config["repository"] != "AlbanAndrieu/nabla-site-alban":
+    repos = config["repositories"]
+    if (not isinstance(repos, list) or not repos
+            or any(not isinstance(value, str) for value in repos)
+            or len(set(repos)) != len(repos)
+            or not set(repos).issubset(ALLOWED_REPOSITORIES)
+            or repository not in repos):
         raise GitHubArtifactError("GitHub App repository scope mismatch")
     ids = config["app_id"], config["installation_id"]
     if any(type(value) is not int or value <= 0 for value in ids):
@@ -80,16 +91,18 @@ def make_jwt(app_id: int, *, now: int | None = None) -> str:
     return f"{message}.{_b64(signed)}"
 
 
-def installation_token() -> str:
+def installation_token(repository: str = DEFAULT_REPOSITORY) -> str:
     """Mint one ≤1 h token, permission-reduced to Actions:read on Site Alban."""
-    app_id, installation_id = configuration()
+    if repository not in ALLOWED_REPOSITORIES:
+        raise GitHubArtifactError("GitHub App repository not allowlisted")
+    app_id, installation_id = configuration(repository)
     jwt = make_jwt(app_id)
     endpoint = (
         "https://api.github.com/app/installations/"
         f"{installation_id}/access_tokens"
     )
     body = json.dumps(
-        {"repositories": [REPO], "permissions": {"actions": "read"}},
+        {"repositories": [repository.split("/", 1)[1]], "permissions": {"actions": "read"}},
         separators=(",", ":"),
     ).encode("ascii")
     req = request.Request(
@@ -123,7 +136,7 @@ def installation_token() -> str:
     repos = payload.get("repositories")
     if not isinstance(repos, list) or len(repos) != 1:
         raise GitHubArtifactError("installation token repository scope unverified")
-    if repos[0].get("full_name") != "AlbanAndrieu/nabla-site-alban":
+    if not isinstance(repos[0], dict) or repos[0].get("full_name") != repository:
         raise GitHubArtifactError("installation token repository differs")
     try:
         expires = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))

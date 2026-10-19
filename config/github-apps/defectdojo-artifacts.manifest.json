@@ -1,7 +1,7 @@
 {
-  "name": "nabla-defectdojo-artifacts",
+  "name": "nabla-security-artifact-reader",
   "url": "https://github.com/AlbanAndrieu/nabla-compose",
-  "description": "Read only GitHub Actions artifact collection for private DefectDojo on TrueNAS",
+  "description": "One read-only security report App across selected Nabla repositories",
   "public": false,
   "hook_attributes": {
     "url": "https://github.com/AlbanAndrieu/nabla-compose",

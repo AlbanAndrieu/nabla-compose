@@ -4,16 +4,40 @@
   "defaultDeny": true,
   "producers": {
     "nabla-compose": {
-      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
       "hosts": []
     },
     "nabla-site-alban": {
-      "allow": ["Trivy Scan", "Nuclei Scan", "Zed Attack Proxy"],
-      "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
+      "allow": [
+        "Trivy Scan",
+        "Nuclei Scan",
+        "Zed Attack Proxy"
+      ],
+      "hosts": [
+        "www.albanandrieu.com",
+        "albanandrieu.com"
+      ]
     },
     "fastapi-sample": {
-      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "allow": [
+        "Trivy Scan",
+        "CodeQL Scan",
+        "Semgrep JSON Report"
+      ],
       "hosts": []
+    },
+    "nabla-site-bababou": {
+      "allow": [
+        "Zed Attack Proxy"
+      ],
+      "hosts": [
+        "www.bababou.com",
+        "bababou.com"
+      ]
     }
   },
   "deny": [
@@ -23,5 +47,5 @@
     "Unverified Scan",
     "SARIF"
   ],
-  "notice": "Explicit reviewed scan types only; site intake limited to Trivy HIGH/CRITICAL, Nuclei HIGH/CRITICAL and ZAP HIGH through the private provenance collector. Never import plaintext secret findings, PII, raw auth headers, SARIF or arbitrary tools."
+  "notice": "Private and reviewed only: Bababou production ZAP HIGH -> minimal XML without evidence; Site Alban Trivy lockfile HIGH/CRITICAL, Nuclei HIGH/CRITICAL and ZAP HIGH. No BetterLeaks, GitGuardian, raw SARIF, SBOM, credentials, HTML, or PII. Each product has separate engagement and scoped token."
 }

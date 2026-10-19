@@ -160,6 +160,55 @@ class GitHubArtifactsTests(TestCase):
         raw["site"][0]["alerts"][0]["riskcode"] = "1"
         self.assertEqual(pull.filter_findings("zap", json.dumps(raw).encode()), b"")
 
+    def test_bababou_source_uses_only_existing_zap_master(self):
+        self.assertEqual(set(poll.SOURCES["bababou"]["workflows"]), {"zap"})
+        example = {
+            "id": 17, "name": "Production DAST", "head_branch": "master",
+            "conclusion": "success", "status": "completed", "event": "schedule",
+            "head_sha": "c" * 40,
+        }
+        with mock.patch.object(poll, "metadata", return_value={"workflow_runs": [example]}) as metadata:
+            self.assertEqual(poll.latest_runs("fixture", source="bababou"), {"zap": 17})
+            self.assertIn("nabla-site-bababou", metadata.call_args.args[0])
+            self.assertIn("production-dast.yml", metadata.call_args.args[0])
+
+    def test_bababou_zap_report_is_sanitized_without_http_evidence(self):
+        raw = {
+            "site": [{
+                "@name": "https://www.bababou.com",
+                "alerts": [{
+                    "riskcode": "3", "pluginid": "10035",
+                    "alert": "X-Frame-Options missing",
+                    "instances": [{"uri": "https://www.bababou.com/private?key=SECRET"}],
+                    "responseheader": "Set-Cookie: PRIVATE",
+                }],
+            }],
+        }
+        allowed = pull.SOURCES["bababou"]["hosts"]
+        report = pull.filter_findings("zap", json.dumps(raw).encode(), allowed)
+        self.assertIn(b"OWASPZAPReport", report)
+        self.assertNotIn(b"PRIVATE", report)
+        self.assertNotIn(b"SECRET", report)
+        self.assertIn(b"https://www.bababou.com", report)
+        raw["site"][0]["@name"] = "https://defectdojo.int.albandrieu.com"
+        with self.assertRaises(SystemExit):
+            pull.filter_findings("zap", json.dumps(raw).encode(), allowed)
+
+    def test_github_routes_are_repo_and_workflow_allowlisted(self):
+        allowed = github._RUNS.fullmatch(
+            "repos/AlbanAndrieu/nabla-site-bababou/actions/"
+            "workflows/production-dast.yml/runs?branch=master&per_page=10"
+        )
+        self.assertIsNotNone(allowed)
+        self.assertIsNone(github._RUNS.fullmatch(
+            "repos/AlbanAndrieu/other/actions/"
+            "workflows/production-dast.yml/runs?branch=master&per_page=10"
+        ))
+        self.assertIsNone(github._RUNS.fullmatch(
+            "repos/AlbanAndrieu/nabla-site-bababou/actions/"
+            "workflows/prod-rce.yml/runs?branch=master&per_page=10"
+        ))
+
     def test_poll_default_is_offline_without_token_or_network(self):
         with (
             mock.patch.object(poll, "installation_token", side_effect=AssertionError("token touched")),

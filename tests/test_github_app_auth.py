@@ -41,7 +41,7 @@ class GithubAppAuthContract(unittest.TestCase):
             p = Path(tmp) / "github-app.json"
             p.write_text(json.dumps({
                 "app_id": 111, "installation_id": 222,
-                "repository": "AlbanAndrieu/nabla-site-alban",
+                "repositories": ["AlbanAndrieu/nabla-site-alban"],
             }))
             with (
                 mock.patch.object(app, "CONFIG", p),
@@ -51,10 +51,27 @@ class GithubAppAuthContract(unittest.TestCase):
                 self.assertEqual(app.configuration(), (111, 222))
                 p.write_text(json.dumps({
                     "app_id": 111, "installation_id": 222,
-                    "repository": "AlbanAndrieu/other",
+                    "repositories": ["AlbanAndrieu/other"],
                 }))
                 with self.assertRaises(app.GitHubArtifactError):
                     app.configuration()
+
+    def test_per_repository_scoping(self):
+        self.assertIn("AlbanAndrieu/nabla-site-bababou", app.ALLOWED_REPOSITORIES)
+        with self.assertRaises(app.GitHubArtifactError):
+            app.installation_token("AlbanAndrieu/forbidden")
+        with mock.patch.object(app, "configuration", return_value=(5, 42)), (
+            mock.patch.object(app, "make_jwt", return_value="fixture.jwt.signed")
+        ), mock.patch.object(app.request, "build_opener") as factory:
+            body = self._response(repositories=[{
+                "full_name": "AlbanAndrieu/nabla-site-bababou"
+            }]).getvalue()
+            factory.return_value.open.return_value.__enter__.return_value.read.return_value = body
+            app.installation_token("AlbanAndrieu/nabla-site-bababou")
+            req = factory.return_value.open.call_args.args[0]
+            self.assertEqual(
+                json.loads(req.data)["repositories"], ["nabla-site-bababou"]
+            )
 
     def test_jwt_signature_uses_stdin_and_key_path_only(self):
         with mock.patch.object(app.subprocess, "run", return_value=mock.Mock(stdout=b"X" * 256)) as run:

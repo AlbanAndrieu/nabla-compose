@@ -19,8 +19,20 @@ from xml.etree import ElementTree
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from zipfile import ZipFile
 
-REPO = "AlbanAndrieu/nabla-site-alban"
-INBOX = Path("/mnt/cpool/defectdojo/imports/site-alban")
+SOURCES = {
+    "alban": {
+        "repository": "AlbanAndrieu/nabla-site-alban",
+        "hosts": frozenset({"www.albanandrieu.com", "albanandrieu.com"}),
+        "kinds": frozenset({"trivy", "nuclei", "zap"}),
+    },
+    "bababou": {
+        "repository": "AlbanAndrieu/nabla-site-bababou",
+        "hosts": frozenset({"www.bababou.com", "bababou.com"}),
+        # Only the bounded production ZAP workflow currently exists on master.
+        "kinds": frozenset({"zap"}),
+    },
+}
+INBOX_ROOT = Path("/mnt/cpool/defectdojo/imports")
 MAX_ZIP_BYTES = 10_000_000
 MAX_REPORT_BYTES = 8_000_000
 KINDS = {
@@ -59,17 +71,19 @@ def allowed_artifact(kind: str, run: dict, run_id: int) -> str:
     return "zap-production-report"
 
 
-APPROVED_HOSTS = frozenset({"www.albanandrieu.com", "albanandrieu.com"})
+APPROVED_HOSTS = SOURCES["alban"]["hosts"]
 
 
-def public_origin(value: object) -> str:
+def public_origin(value: object, approved_hosts=None) -> str:
     """Retain only the canonical HTTPS origin, never credentials or URL paths."""
+    if approved_hosts is None:
+        approved_hosts = APPROVED_HOSTS
     if not isinstance(value, str):
         fail("missing approved public target")
     parsed = urlsplit(value)
     if (
         parsed.scheme != "https"
-        or parsed.hostname not in APPROVED_HOSTS
+        or parsed.hostname not in approved_hosts
         or parsed.username is not None
         or parsed.password is not None
         or parsed.port not in (None, 443)
@@ -78,8 +92,10 @@ def public_origin(value: object) -> str:
     return f"https://{parsed.hostname}"
 
 
-def filter_findings(kind: str, raw: bytes) -> bytes:
+def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
     """Produce a minimal, parser-compatible report; never stage raw HTTP evidence."""
+    if approved_hosts is None:
+        approved_hosts = APPROVED_HOSTS
     if len(raw) > MAX_REPORT_BYTES:
         fail("extracted report exceeds private size budget")
     if kind == "nuclei":
@@ -93,7 +109,7 @@ def filter_findings(kind: str, raw: bytes) -> bytes:
             severity = str(item["info"].get("severity", "")).lower()
             if severity not in {"critical", "high"}:
                 continue
-            origin = public_origin(item.get("matched-at") or item.get("host"))
+            origin = public_origin(item.get("matched-at") or item.get("host"), approved_hosts)
             template = item.get("template-id") or item.get("templateID")
             name = item["info"].get("name")
             if not isinstance(template, str) or not template or len(template) > 150:
@@ -166,7 +182,7 @@ def filter_findings(kind: str, raw: bytes) -> bytes:
         for site in sites:
             if not isinstance(site, dict):
                 fail("invalid ZAP site")
-            origin = public_origin(site.get("@name"))
+            origin = public_origin(site.get("@name"), approved_hosts)
             host = urlsplit(origin).hostname
             element = ElementTree.SubElement(
                 report, "site",
@@ -208,22 +224,28 @@ def filter_findings(kind: str, raw: bytes) -> bytes:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", choices=sorted(SOURCES), default="alban")
     parser.add_argument("--kind", choices=sorted(KINDS), required=True)
     parser.add_argument("--run-id", type=int, required=True)
     parser.add_argument("--pull", action="store_true", help="fetch and filter; NEVER import automatically")
     args = parser.parse_args()
     if args.run_id <= 0:
         fail("run id must be positive")
+    source = SOURCES[args.source]
+    if args.kind not in source["kinds"]:
+        fail("scan type not allowlisted for this repository")
+    repo = source["repository"]
+    inbox = INBOX_ROOT / f"site-{args.source}"
     workflow, filename, scan_type = KINDS[args.kind]
     print(f"Policy: {args.kind} -> {scan_type}; source=successful master {workflow}")
     if not args.pull:
         print("CHECK_ONLY: no network, no token, no DefectDojo mutation")
         return
 
-    token = installation_token()
-    run = metadata(f"repos/{REPO}/actions/runs/{args.run_id}", token)
+    token = installation_token(repo)
+    run = metadata(f"repos/{repo}/actions/runs/{args.run_id}", token)
     artifact_name = allowed_artifact(args.kind, run, args.run_id)
-    artifacts = metadata(f"repos/{REPO}/actions/runs/{args.run_id}/artifacts", token)
+    artifacts = metadata(f"repos/{repo}/actions/runs/{args.run_id}/artifacts", token)
     matches = [
         a for a in artifacts.get("artifacts", [])
         if a.get("name") == artifact_name and not a.get("expired")
@@ -233,7 +255,7 @@ def main() -> None:
     artifact = matches[0]
     if not isinstance(artifact.get("id"), int) or not 0 < artifact.get("size_in_bytes", 0) <= MAX_ZIP_BYTES:
         fail("artifact size/id invalid")
-    archive = api(f"repos/{REPO}/actions/artifacts/{artifact['id']}/zip", token)
+    archive = api(f"repos/{repo}/actions/artifacts/{artifact['id']}/zip", token)
     if len(archive) > MAX_ZIP_BYTES:
         fail("download exceeds zip limit")
     try:
@@ -242,19 +264,19 @@ def main() -> None:
             if len(matching) != 1 or matching[0].file_size > MAX_REPORT_BYTES:
                 fail("archive does not contain the expected bounded report")
             raw = zipped.read(matching[0])
-        filtered = filter_findings(args.kind, raw)
+        filtered = filter_findings(args.kind, raw, source["hosts"])
     except (ValueError, KeyError, UnicodeError, OSError, GitHubArtifactError):
         fail("malformed archive or report")
     if not filtered or not filtered.strip():
         print("NO_ACTIONABLE_FINDINGS: nothing imported")
         return
-    if INBOX.is_symlink():
+    if inbox.is_symlink():
         fail("inbox must not be a symlink")
-    INBOX.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if INBOX.stat().st_uid != 0 or INBOX.stat().st_mode & 0o077:
+    inbox.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if inbox.stat().st_uid != 0 or inbox.stat().st_mode & 0o077:
         fail("inbox ownership/permissions must be root-only")
     suffix = "xml" if args.kind == "zap" else "json"
-    out = INBOX / f"site-alban-{args.run_id}-{args.kind}.{suffix}"
+    out = inbox / f"site-{args.source}-{args.run_id}-{args.kind}.{suffix}"
     descriptor = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
     with os.fdopen(descriptor, "wb") as stream:
         stream.write(filtered)

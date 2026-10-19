@@ -1,3 +1,21 @@
+## P0/P1 — GitOps single GitHub App / Site Bababou convergence (2026-10-19)
+
+- [x] Unifier `nabla-security-artifact-reader` pour quatre dépôts Nabla,
+  installation GitHub à dépôts sélectionnés, jeton à durée courte
+  `Actions:read` limité à **un seul dépôt par appel**, sans PAT.
+- [x] Ajouter le bootstrap Python stdlib du GitHub App Manifest Flow
+  (boucle locale 127.0.0.1, code CSRF, échange de code, PEM privé 0600
+  hors Git) et le contrôle d'installation via API.
+- [x] Préparer le collecteur Bababou : workflow `production-dast.yml`
+  existant sur `master`, ZAP HIGH uniquement, XML minimal sans preuves
+  HTTP sensibles, hôtes `bababou.com` explicitement autorisés.
+- [ ] Recette GitHub App owner consent/installation, transfert PEM
+  Vaultwarden, matérialisation TrueNAS, tests de JWT et un import
+  DefectDojo réel sur un engagement Bababou isolé.
+- [ ] Évaluer Nuclei SARIF minimisé après publication d'un artefact
+  vérifiable sur `master`. Ne pas créer de nouveau scan DAST en PR.
+  [Runbook](github-app-defectdojo.md).
+
 ## P0/P1 — DefectDojo `nabla` et GitHub App à durée courte (2026-10-19)
 
 - [x] Remplacer le compte UI initial `admin` par **`nabla`** dans le

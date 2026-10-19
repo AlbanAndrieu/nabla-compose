@@ -9,12 +9,17 @@ import json
 import re
 from urllib import error, parse, request
 
-REPOSITORY = "AlbanAndrieu/nabla-site-alban"
+REPOSITORIES = frozenset({
+    "AlbanAndrieu/nabla-compose",
+    "AlbanAndrieu/fastapi-sample",
+    "AlbanAndrieu/nabla-site-alban",
+    "AlbanAndrieu/nabla-site-bababou",
+})
 API = "https://api.github.com/"
 MAX_API_BYTES = 1_000_000
 MAX_ARCHIVE_BYTES = 10_000_000
 _RUNS = re.compile(
-    rf"^repos/{REPOSITORY}/actions/(?:runs/[1-9][0-9]*(?:/artifacts)?|artifacts/[1-9][0-9]*/zip|workflows/(?:security-supply-chain|nuclei-public|master-dast)\.yml/runs[?]branch=master&per_page=10)$"
+    r"^repos/AlbanAndrieu/(?P<repository>nabla-compose|fastapi-sample|nabla-site-alban|nabla-site-bababou)/actions/(?:runs/[1-9][0-9]*(?:/artifacts)?|artifacts/[1-9][0-9]*/zip|workflows/(?:security-supply-chain|nuclei-public|master-dast|production-dast)[.]yml/runs[?]branch=master&per_page=10)$"
 )
 
 
@@ -51,7 +56,8 @@ def bounded_read(response, limit: int) -> bytes:
 
 def api(route: str, token: str) -> bytes:
     """Fetch exact repo metadata or one ZIP; token is *only* sent to api.github.com."""
-    if not _RUNS.fullmatch(route):
+    match = _RUNS.fullmatch(route)
+    if match is None or f"AlbanAndrieu/{match.group('repository')}" not in REPOSITORIES:
         raise GitHubArtifactError("unapproved GitHub Actions API route")
     download = route.endswith("/zip")
     headers = {

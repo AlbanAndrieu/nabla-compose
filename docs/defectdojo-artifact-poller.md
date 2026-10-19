@@ -57,9 +57,10 @@ settings when run; Vaultwarden provisioning alone is not a deployed account.
 
 ## Polling: no runner, no gh CLI
 
-- Register the restricted **GitHub App** described in
-  [github-app-defectdojo.md](github-app-defectdojo.md) and install it only on
-  `AlbanAndrieu/nabla-site-alban`. Materialize its private key separately
+- Register the one shared **GitHub App** described in
+  [github-app-defectdojo.md](github-app-defectdojo.md) and install it on the explicitly selected Nabla repositories
+  (`nabla-compose`, `fastapi-sample`, `nabla-site-alban`,
+  `nabla-site-bababou`). Each token is still scoped to one repository. Materialize its private key separately
   from DefectDojo's Compose env. The collector mints a ≤1h Actions:read
   installation token per job; **no persistent PAT**.
 - Keep a separate DefectDojo **import-only** identity and token at
@@ -90,7 +91,8 @@ settings when run; Vaultwarden provisioning alone is not a deployed account.
   never implicitly enables recurring writes. An already staged report is
   not reuploaded: verify/import it separately if needed.
 - The API consumer cannot select other repos or workflows via environment
-  variables. Poll only the latest 100 GitHub Actions runs, no extra scans,
+  variables. Bababou only permits existing `Production DAST` ZAP HIGH
+  without request or response evidence. Poll only the latest 100 GitHub Actions runs, no extra scans,
   and report NOT_OBSERVED instead of treating missing evidence as zero findings.
 
 ## Privacy and limits
@@ -154,3 +156,14 @@ rendre ZAP automatique, remplacer ce dépôt brut par une sortie
 pré-expurgée ou lancer ce scan dans l'environnement privé. Vérifier la
 version du parser OSS sur l'instance et l'absence d'en-tête de bypass.
 Ce point reste ouvert, sans changer la fréquence des scans.
+
+## Site Bababou integration (2026-10-19)
+
+`poll-defectdojo-gh-artifacts.py --source bababou --check` displays
+the approved read-only workflow without fetching anything.
+The default `--source all --pull` stages Site Alban reports and
+Bababou's existing master `Production DAST` ZAP report.
+Site Bababou has a separate inbox `.../imports/site-bababou` and requires
+`DEFECTDOJO_SITE_BABABOU_ENGAGEMENT_ID` for explicit import.
+No speculative Nuclei source or new DAST workflow is added.
+See [shared App GitOps architecture](github-app-defectdojo.md).

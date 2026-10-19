@@ -1,98 +1,101 @@
-# DefectDojo GitHub App — sécurité et provisioning GitOps
+# GitOps bootstrap : une seule GitHub App Nabla pour plusieurs dépôts
 
-**État : préparation de PR uniquement. GitHub App non créée, aucun token réel
-émis, aucun job TrueNAS activé.**
+**Décision du 19 octobre 2026 : une seule App `nabla-security-artifact-reader`,
+pas une App par dépôt, pas de PAT permanent, pas de runner GitHub interne.**
 
-## App cible
+La source d'autorité est
+[`config/github-apps/defectdojo-artifacts.manifest.json`](../config/github-apps/defectdojo-artifacts.manifest.json).
+Les dépôts candidats explicitement autorisés sont :
+`nabla-compose`, `fastapi-sample`, `nabla-site-alban`,
+`nabla-site-bababou`. L'installation GitHub reste *Selected repositories*.
+Les permissions de l'App sont `Actions:read` et `Metadata:read` implicite,
+aucun webhook et aucun événement. Chaque jeton d'installation est limité
+à **un seul dépôt** et à `actions:read`.
 
-- Nom : `nabla-defectdojo-artifacts`
-- Compte propriétaire : `AlbanAndrieu`
-- Installation : **Selected repositories**, uniquement
-  `AlbanAndrieu/nabla-site-alban`
-- Permissions : Repository `Actions: read` et `Metadata: read` (implicite)
-- Événements : aucun ; webhook désactivé ; aucune écriture de dépôt
-- Déclaration versionnée : [manifest](../config/github-apps/defectdojo-artifacts.manifest.json)
-- GitHub App distincte de l'identité **DefectDojo API** qui importe
-  les rapports ; aucune permission d'administration GitHub nécessaire
+## Création en code open source (bootstrap initial)
 
-Le provider `integrations/github` utilisé sous `terraform/github` sait
-**s'authentifier avec une GitHub App existante** via `app_auth`, mais ne
-sert pas à enregistrer initialement une GitHub App. Le Terraform de
-gouvernance GitHub existant reste inchangé et désactivé par défaut.
-L'enregistrement de l'App est une étape de confiance initiale, nécessitant
-l'approbation du propriétaire via la page
-https://github.com/settings/apps/new ou le *GitHub App Manifest Flow* :
-https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest.
-Le fichier du dépôt documente les paramètres de cette étape ; ce n'est
-**ni** un App créée, **ni** un Terraform `apply` automatique.
+Le provider `integrations/github` peut utiliser une App existante et
+gérer la gouvernance GitHub, mais **ne crée pas l'enregistrement initial** de
+la GitHub App. GitHub expose plutôt un protocole officiel
+[App Manifest Flow](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest).
 
-## Jeton dynamique (sans PAT)
+1. Revoir/valider hors ligne le manifeste : `python3
+   scripts/security/bootstrap-github-app-manifest.py --check`.
+2. Sur une machine opérateur disposant d'un navigateur, préparer un répertoire
+   **hors Git, 0700 et privé**, puis lancer `python3
+   scripts/security/bootstrap-github-app-manifest.py --serve
+   --output-dir /chemin/prive/0700`.
+3. Visiter le point d'entrée local `http://127.0.0.1:8765/`,
+   puis confirmer la création dans GitHub. Le formulaire poste
+   **le manifeste versionné** ; seul GitHub peut enregistrer une App.
+   Le callback reçoit un `state` aléatoire et un code à usage unique.
+   Le code est échangé contre l'App ID et la clé RSA via
+   `POST /app-manifests/{code}/conversions` dans l'heure.
+4. Le script laisse `github-app-private-key.pem` et `github-app.json` dans
+   le dossier 0700, tous deux **0600** ; il refuse tout écrasement,
+   n'affiche aucun secret et n'écoute que sur 127.0.0.1.
+   Il ne conserve pas `client_secret` ou `webhook_secret` du résultat.
+5. Importer le PEM dans un item **Vaultwarden distinct**
+   `nabla/prod/defectdojo-github-app` en pièce jointe chiffrée,
+   puis **supprimer le PEM local de staging**. Ne jamais placer le PEM
+   en `*.tfvars`, dans le state OpenTofu, dans un secret Actions ou
+   dans le `.env.secrets` du conteneur DefectDojo.
+6. Installer **une seule fois** l'App depuis les paramètres GitHub
+   et sélectionner explicitement les dépôts autorisés. Pour TrueNAS,
+   matérialiser PEM + JSON en `root:root 0600` dans
+   `/mnt/cpool/secrets/runtime/defectdojo/`.
+   L'ID d'installation vaut initialement **0** pour empêcher toute
+   activation prématurée.
+7. Depuis TrueNAS, le script
+   `scripts/security/discover-github-app-installation.py --apply`
+   consulte l'installation du dépôt Bababou via un JWT App signé.
+   Il exige propriétaire `AlbanAndrieu`, `repository_selection=selected`,
+   `Actions:read`, puis remplit l'ID privé sans le stocker dans Git.
+8. Activer le Cron **seulement** après vérification des permissions,
+   artefacts autorisés, ACL Vaultwarden et acceptation du product DefectDojo.
 
-1. Après validation de l'App, relever son **App ID** (distinct du Client ID)
-   et son **installation ID**. Une clé RSA PEM est créée depuis GitHub.
-2. Conserver le PEM dans un item Vaultwarden **séparé**
-   `nabla/prod/defectdojo-github-app` (pièce jointe chiffrée) ;
-   ne jamais l'insérer dans `nabla/prod/defectdojo` ou dans le
-   `.env.secrets` du conteneur. La CLI `bw` doit le matérialiser sous
-   `/mnt/cpool/secrets/runtime/defectdojo/github-app-private-key.pem`
-   (root:root 0600), sans l'afficher et sans l'enregistrer dans Git ou
-   Terraform state. La matérialisation du PEM depuis Vaultwarden reste
-   à outiller/accepter sur TrueNAS ; aucune clé n'existe dans la PR.
-3. Un fichier metadata également privé `github-app.json` (root:root 0600)
-   contient uniquement les identifiants numériques et le dépôt autorisé :
+Le manifeste versionné constitue l'état désiré. La création est **un
+bootstrap autorisé une seule fois**, pas un Terraform `apply` en CI ;
+les scripts de validation sont le contrôleur de dérive.
+La gestion GitHub Terraform existante peut poursuivre après ce bootstrap,
+mais l'inventaire import-first et les droits réels priment sur le state.
 
-```json
-{
-  "app_id": 0,
-  "installation_id": 0,
-  "repository": "AlbanAndrieu/nabla-site-alban"
-}
-```
+## Convergence avec Site Bababou
 
-Les zéros sont uniquement des placeholders : le collecteur les refuse.
-Les vrais IDs sont découverts après installation et ne sont pas devinés.
+Le workflow `production-dast.yml` sur `master` est nommé
+`Production DAST` et produit l'artefact ZAP
+`zap-production-report`. Aucun nouveau job DAST n'est déclenché :
+le collecteur TrueNAS réutilise ce résultat uniquement s'il s'agit du
+**dernier run terminé avec succès** (aucun fallback vers un run ancien
+si un scan récent est rouge).
 
-4. À chaque invocation du poll TrueNAS, `github_app_auth.py` vérifie
-   l'identité des fichiers et génère un JWT **RS256 signé par OpenSSL**
-   sur une durée de 9 minutes. Le secret PEM ne passe ni dans
-   les arguments CLI, ni dans les logs, ni dans un environnement Compose.
-5. Le client envoie ce JWT à
-   `POST /app/installations/{installation_id}/access_tokens` avec :
-   `{"repositories":["nabla-site-alban"],"permissions":{"actions":"read"}}`.
-   Il refuse une réponse ne confirmant pas le scope du dépôt,
-   les permissions et une expiration dans l'heure.
-   **Le jeton d'installation (durée maximale 1 h) reste en mémoire** :
-   il n'est ni archivé dans Vaultwarden, ni écrit sur disque,
-   ni transmis au stockage des ZIP lors des redirections GitHub.
-6. Le job Cron natif TrueNAS lit les **runs master réussis** en lecture
-   seule et récupère les JSON filtrés ; il reste désactivé jusqu'à
-   vérification des artefacts et du produit/engagement dans DefectDojo.
+L'adaptateur n'autorise aujourd'hui que **ZAP HIGH**, transformé du
+JSON original en XML minimal consommable par le parseur DefectDojo ;
+aucun cookie, header, corps HTTP, URL authentifiée, query string,
+token, PII, ni rapport ZAP brut n'est conservé. Il refuse les hôtes
+hors `https://www.bababou.com` / `https://bababou.com`.
+Le contenu brut du rapport GitHub peut malgré tout être sensible :
+**ne pas activer l'import sans preuve de minimisation à la source**.
 
-Le GitHub App ne peut **pas** importer dans DefectDojo : cette action
-nécessite un jeton DefectDojo distinct, limité au produit autorisé.
-Les rapports BetterLeaks, GitGuardian, secrets bruts et DAST avec PII
-restent hors ingestion automatique.
+L'analyse Bababou mentionne un futur rapport Nuclei SARIF minimisé.
+Ce flux n'est **pas encore vérifié sur `master`**. Il reste désactivé ;
+pas d'activation automatique de Nuclei/SARIF, ni ingestion SARIF brute.
 
-## Refus et maintenance
+## Sécurité et limitations
 
-- Clé PEM absente, trop permissive, symlink, App ID non numérique,
-  installation inexistante, retour token hors scope, erreur réseau :
-  `ERROR/UNKNOWN`, **jamais** un résultat de scan à zéro finding.
-- Aucune substitution automatique par PAT. Ne pas mettre de PAT dans
-  le checkout, dans un GitHub Actions secret pour TrueNAS ni dans le state.
-- Rotation clé : nouvelle clé depuis GitHub, mise à jour atomique
-  de la pièce jointe Vaultwarden et de la matérialisation, test
-  du mint, puis révocation de l'ancienne clé.
-- Vérifier que l'accès GitHub aux archives GitHub Actions n'est pas
-  plus large que nécessaire et que les rapports DAST téléchargés
-  ne contiennent pas de données sensibles.
-- Les credentials UI DefectDojo doivent utiliser le login **`nabla`** ;
-  si Vaultwarden contient un mot de passe existant pour `admin`,
-  le bootstrap **refuse** toute modification automatique. La base
-  Django initialisée ne renomme pas un utilisateur par un simple
-  changement de `DD_ADMIN_USER`.
+- Un seul App ID et PEM, mais jetons de collecte **par dépôt**, durée
+  maximale 1 heure. Aucune propagation du jeton GitHub vers les URLs
+  de stockage de ZIP ; aucun accès entrant DefectDojo depuis GitHub.
+- L'App est en **lecture seule** ; un jeton DefectDojo distinct et
+  des engagements isolés contrôlent chaque réimport.
+- L'intégration ne suppose pas que la CI réussie signifie que la donnée
+  est saine ; acceptation obligatoire du parseur, des findings et de la
+  déduplication dans DefectDojo.
+- Les états `--check` de tous les scripts restent offline ;
+  `--serve`, `--apply` et le polling réel exigent une action explicite.
+- La GitHub App n'est **pas créée** par ce commit.
 
-Sources :
-- https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app
+Références :
+- https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
 - https://docs.github.com/en/rest/apps/apps
 - https://registry.terraform.io/providers/integrations/github/latest/docs
