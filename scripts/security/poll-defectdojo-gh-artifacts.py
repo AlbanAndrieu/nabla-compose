@@ -352,7 +352,14 @@ def import_report(kind: str, run_id: int, source: str = "alban") -> None:
     if not engagement.isascii() or not engagement.isdecimal() or not int(engagement):
         fail("approved DefectDojo site-alban engagement ID missing")
     suffix = "xml" if kind == "zap" else "json"
-    output = Path("/mnt/cpool/defectdojo/imports") / f"site-{source}" / f"site-{source}-{run_id}-{kind}.{suffix}"
+    output = (
+        COMPOSE_INBOX / f"compose-{run_id}-trivy.json"
+        if source == "compose"
+        else FASTAPI_INBOX / f"fastapi-{run_id}-trivy.json"
+        if source == "fastapi-sample"
+        else Path("/mnt/cpool/defectdojo/imports") / f"site-{source}"
+             / f"site-{source}-{run_id}-{kind}.{suffix}"
+    )
     env = {
         **os.environ,
         "DEFECTDOJO_SERVICE_ID": (
@@ -387,13 +394,17 @@ def main() -> int:
         print("CHECK: approved master GitHub Actions workflows; no token or LAN access")
         print("CHECK: " + ", ".join(f"{name}:{','.join(cfg['workflows'])}" for name, cfg in requested.items()))
         return 0
-    if args.pull_and_import and "fastapi-sample" in requested:
-        fail("fastapi import requires separate parser/engagement acceptance")
     if os.geteuid() != 0 or not Path("/mnt/cpool/compose/nabla-compose").is_dir():
         fail("polling restricted to canonical TrueNAS host")
     if args.pull_and_import and os.environ.get("DEFECTDOJO_IMPORT_APPROVED") != "YES":
         fail("explicit import approval required")
     for source, config in requested.items():
+        if (source == "fastapi-sample" and args.pull_and_import
+                and os.environ.get("DEFECTDOJO_FASTAPI_IMPORT_APPROVED") != "YES"):
+            if args.source == "fastapi-sample":
+                fail("fastapi import requires separate parser/engagement acceptance")
+            print("NOT_APPROVED: fastapi-sample import requires explicit authorization")
+            continue
         if source == "fastapi-sample" and os.environ.get("DEFECTDOJO_FASTAPI_PULL_APPROVED") != "YES":
             if args.source == "fastapi-sample":
                 fail("fastapi source requires explicit opt-in")
