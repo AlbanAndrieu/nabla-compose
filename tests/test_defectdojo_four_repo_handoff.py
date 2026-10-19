@@ -116,6 +116,40 @@ class AllRepositoriesContracts(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 collector.stage_compose_handoff("read-token", 13)
 
+    def test_isolated_import_engagement_and_inbox_per_source(self):
+        cases = {
+            "compose": (
+                "DEFECTDOJO_COMPOSE_ENGAGEMENT_ID",
+                "/mnt/cpool/defectdojo/imports/nabla-compose/compose-13-trivy.json",
+                "nabla-compose",
+            ),
+            "fastapi-sample": (
+                "DEFECTDOJO_FASTAPI_SAMPLE_ENGAGEMENT_ID",
+                "/mnt/cpool/defectdojo/imports/fastapi-sample/fastapi-13-trivy.json",
+                "fastapi-sample",
+            ),
+            "bababou": (
+                "DEFECTDOJO_SITE_BABABOU_ENGAGEMENT_ID",
+                "/mnt/cpool/defectdojo/imports/site-bababou/site-bababou-13-zap.xml",
+                "nabla-site-bababou",
+            ),
+        }
+        for source, (env_name, expected_path, service) in cases.items():
+            kind = "zap" if source == "bababou" else "trivy"
+            with (
+                self.subTest(source=source),
+                mock.patch.dict("os.environ", {
+                    "DEFECTDOJO_IMPORT_APPROVED": "YES",
+                    env_name: "12",
+                }, clear=True),
+                mock.patch.object(collector.subprocess, "run", return_value=mock.Mock(returncode=0)) as run,
+            ):
+                collector.import_report(kind, 13, source=source)
+                args = run.call_args.args[0]
+                self.assertEqual(args[-1], expected_path)
+                self.assertEqual(run.call_args.kwargs["env"]["DEFECTDOJO_SERVICE_ID"], service)
+                self.assertEqual(run.call_args.kwargs["env"]["DEFECTDOJO_ENGAGEMENT_ID"], "12")
+
     def test_vaultwarden_bootstrap_and_cron_check_are_offline(self):
         with mock.patch.object(sys, "argv", ["vault", "--check"]):
             self.assertEqual(vault.main(), 0)
