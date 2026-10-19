@@ -19,13 +19,13 @@ size="$(stat -c %s "${REPORT}")"
 [[ "${SERVICE_ID}" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || fail "DEFECTDOJO_SERVICE_ID required"
 [[ "${ENGAGEMENT}" =~ ^[1-9][0-9]*$ ]] || fail "existing DEFECTDOJO_ENGAGEMENT_ID required (no auto-create)"
 case "${SCAN_TYPE}" in
-  "Trivy Scan"|"CodeQL Scan"|"Semgrep JSON Report"|"Nuclei Scan"|"Zed Attack Proxy") ;;
+  "Trivy Scan"|"CodeQL Scan"|"Semgrep JSON Report"|"Nuclei Scan"|"ZAP Scan") ;;
   *) fail "unsupported parser; verify in the installed edition" ;;
 esac
 python3 "$(dirname -- "${BASH_SOURCE[0]}")/validate-defectdojo-report.py" \
   --service "${SERVICE_ID}" --scan-type "${SCAN_TYPE}" --report "${REPORT}"
 REPORT_MIME="application/json"
-if [[ "${SCAN_TYPE}" == "Zed Attack Proxy" ]]; then
+if [[ "${SCAN_TYPE}" == "ZAP Scan" ]]; then
   [[ "${REPORT}" == *.xml ]] || fail "ZAP report must use .xml extension"
   REPORT_MIME="application/xml"
 fi
