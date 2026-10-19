@@ -23,7 +23,7 @@ class Response(BytesIO):
 class GithubAppAuthContract(unittest.TestCase):
     def _response(self, **overrides):
         payload = {
-            "token": "ghs_fixture_only_01234567890",
+            "token": "ghs_" + ("test" * 10),
             "permissions": {"actions": "read", "metadata": "read"},
             "repositories": [{"full_name": "AlbanAndrieu/nabla-site-alban"}],
             "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=45)).isoformat(),
