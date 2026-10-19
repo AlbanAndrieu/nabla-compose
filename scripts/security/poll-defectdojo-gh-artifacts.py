@@ -61,9 +61,9 @@ SOURCES = {
 FASTAPI_INBOX = Path("/mnt/cpool/defectdojo/imports/fastapi-sample")
 FASTAPI_REPORT = "trivy-fastapi-master.json"
 FASTAPI_MANIFEST = "trivy-fastapi-master.manifest.json"
-_SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
-_SHA256 = re.compile(r"[0-9a-f]{64}\\Z")
-_SAFE_FIELD = re.compile(r"[A-Za-z0-9._+!:/-]{1,128}\\Z")
+_SHA40 = re.compile(r"[0-9a-f]{40}\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_SAFE_FIELD = re.compile(r"[A-Za-z0-9._+!-]{1,128}\Z")
 _ALLOWED_FIELDS = {"VulnerabilityID", "PkgName", "InstalledVersion", "Severity", "FixedVersion"}
 
 
@@ -154,7 +154,7 @@ def stage_fastapi_handoff(token: str, run_id: int) -> str:
                 fail("unsafe fastapi ZIP member")
             report = zipped.read(FASTAPI_REPORT)
             manifest = zipped.read(FASTAPI_MANIFEST)
-    except (OSError, ValueError, RuntimeError, KeyError) as exc:
+    except (OSError, ValueError, RuntimeError, KeyError):
         fail("fastapi artifact ZIP is not valid")
     if not validate_fastapi_handoff(run, manifest, report):
         return "NO_ACTIONABLE_FINDINGS"
