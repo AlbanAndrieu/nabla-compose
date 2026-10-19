@@ -24,6 +24,11 @@ case "${SCAN_TYPE}" in
 esac
 python3 "$(dirname -- "${BASH_SOURCE[0]}")/validate-defectdojo-report.py" \
   --service "${SERVICE_ID}" --scan-type "${SCAN_TYPE}" --report "${REPORT}"
+REPORT_MIME="application/json"
+if [[ "${SCAN_TYPE}" == "Zed Attack Proxy" ]]; then
+  [[ "${REPORT}" == *.xml ]] || fail "ZAP report must use .xml extension"
+  REPORT_MIME="application/xml"
+fi
 printf 'CHECK: private API only; service=%s engagement=%s scan=%s\n' "${SERVICE_ID}" "${ENGAGEMENT}" "${SCAN_TYPE}"
 printf 'CHECK: auto_create_context=false close_old_findings=false verified=false\n'
 if [[ "${MODE}" == --check ]]; then
@@ -62,6 +67,6 @@ http="$(curl --config "${config}" --silent --show-error \
   --form-string "active=true" \
   --form-string "auto_create_context=false" \
   --form-string "close_old_findings=false" \
-  --form "file=@${REPORT};type=application/json")" || fail "private upload transport failed"
+  --form "file=@${REPORT};type=${REPORT_MIME}")" || fail "private upload transport failed"
 [[ "${http}" == 200 || "${http}" == 201 || "${http}" == 202 ]] || fail "import HTTP ${http} (response suppressed)"
 printf 'OK: DefectDojo accepted upload HTTP %s; verify scan processing in private UI\n' "${http}"
