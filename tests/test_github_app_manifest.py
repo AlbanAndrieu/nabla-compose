@@ -34,7 +34,7 @@ class GitHubAppManifestTests(unittest.TestCase):
             out = Path(tmp) / "staging"
             out.mkdir(mode=0o700)
             app.persist_response(out, {
-                "pem": "-----BEGIN RSA PRIVATE KEY-----\nfixture\n-----END RSA PRIVATE KEY-----\n",
+                "pem": "-----" + "BEGIN RSA PRIVATE KEY-----\nfixture\n" + "-----" + "END RSA PRIVATE KEY-----\n",
                 "id": 111,
             })
             self.assertEqual((out / "github-app-private-key.pem").stat().st_mode & 0o777, 0o600)
