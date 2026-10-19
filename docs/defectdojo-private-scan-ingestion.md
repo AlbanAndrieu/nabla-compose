@@ -224,3 +224,42 @@ commit HEAD** via une archive Git extraite avec filtre d'extraction sécurisé.
 Les fichiers `.env` ignorés, documents privés et autres états non versionnés
 ne sont pas scannés ni copiés dans l'artefact. Ce périmètre de SCA ne remplace
 pas l'audit de configuration runtime, image OCI ou le SAST CodeQL.
+
+## Contrat réel des artefacts Site Alban — réconciliation du 19 octobre 2026
+
+Le collecteur est **préparé mais non activé** : aucune installation de la
+GitHub App, aucun Cron ni import réel n'est prouvé par ces commits.
+
+| Source (workflow `master`) | ZIP et fichier GitHub | Fichier dans l'inbox TrueNAS | Import |
+| --- | --- | --- | --- |
+| `Supply Chain Security (Trivy)` | `trivy-master-<sha>` / `trivy-security.json` | `site-alban-<run>-trivy.json` : uniquement CVE npm lockfile High/Critical | `Trivy Scan`, JSON |
+| `Nuclei public DAST (Site Alban)` | `nuclei-public-<run>` / `nuclei-results/nuclei.jsonl` ; projection réduite à la source dans Site #236 | `site-alban-<run>-nuclei.json` : JSONL minimal, URL limitée à l'origine HTTPS | `Nuclei Scan`, JSONL |
+| `Production DAST` | `zap-production-report` / `report_json.json` | `site-alban-<run>-zap.xml` : conversion locale privée **JSON → XML** avec seuls plugin ID, titre, sévérité 3 et origine HTTPS | `Zed Attack Proxy`, XML |
+
+**Point de compatibilité important** : le parser OSS `Zed Attack Proxy`
+accepte le rapport **XML** de ZAP, pas le JSON de `action-baseline`.
+Le collecteur transforme ce JSON dans l'inbox privée et l'importeur envoie
+`application/xml`. Ne pas changer `scan_type` pour masquer une erreur
+de format. Sans test effectif de la version DefectDojo installée, ce
+contrat n'est **pas** une preuve d'ingestion réussie.
+
+Le poll recherche chaque workflow par **fichier identifié** et branche
+`master` avec dix dernières exécutions sans filtre `status=success`.
+La dernière exécution échouée, annulée ou incomplète ne doit **jamais**
+laisser importer un succès plus ancien. Un run absent vaut `NOT_OBSERVED`,
+pas `PASS`.
+
+Les rapports minimisés excluent requêtes/réponses HTTP, cookies, tokens,
+paramètres d'URL, détails de topologie, licences et SBOM. Trivy ne fournit
+dans ce parcours que des vulnérabilités de `package-lock.json`. Aucun
+rapport vide ou sans finding admissible ne doit être importé.
+
+**Gate de confidentialité ZAP non levée** : l'action GitHub ZAP de Site
+Alban téléverse actuellement son propre rapport brut. La conversion
+dans TrueNAS ne rend **pas rétroactivement privé** cet artefact GitHub ;
+celui-ci peut inclure des requêtes/authentifications de scan. Avant de
+rendre ZAP automatique, remplacer ce dépôt brut par une sortie
+pré-expurgée ou lancer ce scan dans l'environnement privé. Vérifier la
+version du parser OSS sur l'instance et l'absence d'en-tête de bypass.
+Ce point reste ouvert, sans changer la fréquence des scans.
+
