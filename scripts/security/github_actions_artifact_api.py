@@ -14,7 +14,7 @@ API = "https://api.github.com/"
 MAX_API_BYTES = 1_000_000
 MAX_ARCHIVE_BYTES = 10_000_000
 _RUNS = re.compile(
-    rf"^repos/{REPOSITORY}/actions/(?:runs(?:/[1-9][0-9]*(?:/artifacts)?)?|artifacts/[1-9][0-9]*/zip)(?:[?]branch=master&status=success&per_page=100)?$"
+    rf"^repos/{REPOSITORY}/actions/(?:runs/[1-9][0-9]*(?:/artifacts)?|artifacts/[1-9][0-9]*/zip|workflows/(?:security-supply-chain|nuclei-public|master-dast)\.yml/runs[?]branch=master&per_page=10)$"
 )
 
 
