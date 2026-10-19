@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from xml.etree import ElementTree
 from pathlib import Path
 
 import pytest
@@ -71,10 +72,17 @@ def test_nuclei_filters_to_high_or_critical() -> None:
     assert [json.loads(row)["template-id"] for row in filtered] == ["H", "C"]
 
 
-def test_zap_only_high_alerts() -> None:
-    payload = {"site": [{"alerts": [{"riskcode": "3"}, {"riskcode": "2"}]}]}
-    filtered = json.loads(module.filter_findings("zap", json.dumps(payload).encode()))
-    assert filtered["site"][0]["alerts"] == [{"riskcode": "3"}]
+def test_zap_only_accepts_pre_minimized_high_alerts() -> None:
+    payload = {"site": [{"@name": "https://www.albanandrieu.com",
+                        "alerts": [{"riskcode": "3", "pluginid": "10035",
+                                    "alert": "ZAP passive rule 10035"}]}]}
+    xml = module.filter_findings("zap", json.dumps(payload).encode())
+    report = ElementTree.fromstring(xml)
+    assert report.findtext("./site/alerts/alertitem/pluginid") == "10035"
+    assert report.findtext("./site/alerts/alertitem/riskcode") == "3"
+    payload["site"][0]["alerts"][0]["instances"] = [{"uri": "/private?token=SECRET"}]
+    with pytest.raises(SystemExit):
+        module.filter_findings("zap", json.dumps(payload).encode())
 
 
 def test_bounded_report_size_is_fail_closed() -> None:
