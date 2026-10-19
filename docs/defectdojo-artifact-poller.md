@@ -29,15 +29,16 @@ import-scan-defectdojo.sh -> http://172.17.0.24:31085/api/v2/reimport-scan/
 DefectDojo Product/Engagement 'nabla-site-alban' (asynchronous acceptance)
 ```
 
-Github: https://docs.github.com/en/rest/actions/artifacts .
+GitHub: https://docs.github.com/en/rest/actions/artifacts .
+App authentication: [dedicated policy](github-app-defectdojo.md).
 TrueNAS cron: https://api.truenas.com/v25.10/api_methods_cronjob.create.html .
 DefectDojo API: https://docs.defectdojo.com/automation/api/api-v2-docs/ .
 
 ## Secrets bootstrap UI
 
 Existing canonical item: `nabla/prod/defectdojo` in the TrueNAS
-Vaultwarden folder. On **first initialization**, the admin identity is
-`admin` and the password is CSPRNG-generated (`secrets.token_urlsafe(48)`).
+Vaultwarden folder. On **first initialization**, the initial UI identity is
+`nabla` and the password is CSPRNG-generated (`secrets.token_urlsafe(48)`).
 `scripts/secrets/bootstrap_defectdojo_admin.py --check` is offline.
 `--apply` runs as an unlocked Vaultwarden **non-root** operator. It creates
 an absent item or fills missing login credentials without overwriting
@@ -56,11 +57,11 @@ settings when run; Vaultwarden provisioning alone is not a deployed account.
 
 ## Polling: no runner, no gh CLI
 
-- Store a fine-grained GitHub token with **Actions:read** on only
-  `AlbanAndrieu/nabla-site-alban`, without `contents:write` or any Dojo
-  permission. Vaultwarden is the durable source; materialize to
-  `/mnt/cpool/secrets/runtime/defectdojo/github-read-token`,
-  `root:root 0600`, outside Git.
+- Register the restricted **GitHub App** described in
+  [github-app-defectdojo.md](github-app-defectdojo.md) and install it only on
+  `AlbanAndrieu/nabla-site-alban`. Materialize its private key separately
+  from DefectDojo's Compose env. The collector mints a ≤1h Actions:read
+  installation token per job; **no persistent PAT**.
 - Keep a separate DefectDojo **import-only** identity and token at
   `/mnt/cpool/secrets/runtime/defectdojo/import-token` (also 0600).
   Configure an existing isolated Product and Engagement; never allow
@@ -69,15 +70,15 @@ settings when run; Vaultwarden provisioning alone is not a deployed account.
   workflows on `master`; never PR/fork/failed/pending runs or expired ZIPs.
   GitHub API token is sent to **api.github.com only**. Subsequent signed ZIP
   retrieval has **no token header** and an HTTPS host allowlist.
-- Scheduled polling is IO-bound and inexpensive. Suggested TrueNAS native
-  cron (not GitHub CI): **06:20 and 18:20** appliance local time,
+- Scheduled polling is IO-bound and inexpensive. Native TrueNAS
+  cron (not GitHub CI): **06:50 daily** appliance local time,
   command `/usr/bin/python3 /mnt/cpool/compose/nabla-compose/scripts/security/poll-defectdojo-gh-artifacts.py --pull`,
   user `root`, stdout/stderr suppressed or sent to secured local logs.
   The repo-owned `scripts/truenas/reconcile-defectdojo-artifact-cron.py`
   validates the exact native cron definition and creates the task as
   **disabled** via `midclt call cronjob.create` on TrueNAS. Its
   `--enable` mode requires `DEFECTDOJO_GH_POLL_APPROVED=YES`, validates the
-  root-owned GitHub token and fails on schedule/command drift.
+  root-owned GitHub App key and installation metadata, and refuses drift.
   `--disable` is an explicit rollback. No Linux root crontab mutation.
   Initial activation remains gated by the scoped GitHub credential, ACL and
   isolated Product.
@@ -110,7 +111,7 @@ asynchronous parser processing, deduplication and Product RBAC separately.
 ### Offline quality contract
 
 ```bash
-python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector -v
+python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector tests.test_defectdojo_artifact_cron tests.test_github_app_auth -v
 python3 scripts/security/poll-defectdojo-gh-artifacts.py --check
 python3 scripts/secrets/bootstrap_defectdojo_admin.py --check
 python3 scripts/truenas/reconcile-defectdojo-artifact-cron.py --check

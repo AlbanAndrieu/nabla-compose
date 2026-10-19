@@ -85,7 +85,7 @@ class GitHubArtifactsTests(TestCase):
 
     def test_poll_default_is_offline_without_token_or_network(self):
         with (
-            mock.patch.object(poll, "read_token", side_effect=AssertionError("token touched")),
+            mock.patch.object(poll, "installation_token", side_effect=AssertionError("token touched")),
             mock.patch.object(poll, "metadata", side_effect=AssertionError("network called")),
             mock.patch.object(sys, "argv", ["poll", "--check"]),
             contextlib.redirect_stdout(StringIO()) as output,

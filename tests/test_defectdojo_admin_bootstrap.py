@@ -71,7 +71,7 @@ class DefectDojoBootstrapTests(TestCase):
         self.assertNotIn(login["password"], output)
 
     def test_existing_keys_preserved_when_login_missing(self):
-        original = {"id": "fixture-id", "login": {"username": "admin"},
+        original = {"id": "fixture-id", "login": {"username": "nabla"},
                     "fields": [{"name": "DD_SECRET_KEY", "value": "not-real"}]}
         result, writes, _ = self.run_case([original])
         self.assertEqual(result, 0)
@@ -79,11 +79,36 @@ class DefectDojoBootstrapTests(TestCase):
         self.assertEqual(writes[0][1]["fields"], original["fields"])
 
     def test_never_rotates_existing_ui_password(self):
-        original = {"id": "fixture-id", "login": {"username": "admin", "password": "existing"}}
+        original = {"id": "fixture-id", "login": {"username": "nabla", "password": "existing"}}
         result, writes, output = self.run_case([original])
         self.assertEqual(result, 0)
         self.assertFalse(writes)
         self.assertIn("EXISTS", output)
+
+    def test_existing_admin_login_with_password_requires_manual_reconciliation(self):
+        original = {"id": "old", "login": {"username": "admin", "password": "existing"}}
+        importer = ModuleType("import_env_to_bitwarden")
+        importer.exact_items = lambda *_a, **_kw: [original]
+        renderer = ModuleType("render_from_bitwarden")
+        renderer.SecretsError = type("SecretsError", (Exception,), {})
+        renderer.BitwardenClient = VaultClient
+        renderer.load_manifest = lambda _path: {
+            "server": "https://vaultwarden.example.invalid",
+            "folder": {"id": "fixture", "name": "TrueNAS"},
+            "items": [{"app": "defectdojo", "item": "nabla/prod/defectdojo",
+                       "secrets": [{"env": "DD_ADMIN_USER"}, {"env": "DD_ADMIN_PASSWORD"}]}],
+        }
+        with (
+            mock.patch.dict(sys.modules, {
+                "import_env_to_bitwarden": importer,
+                "render_from_bitwarden": renderer,
+            }),
+            mock.patch.object(SCRIPT.os, "geteuid", return_value=1000),
+            mock.patch.object(SCRIPT.os, "environ", {"BW_SESSION": "fixture-session"}),
+            mock.patch.object(sys, "argv", [str(SOURCE), "--apply"]),
+        ):
+            with self.assertRaises(renderer.SecretsError):
+                SCRIPT.main()
 
     def test_dry_run_never_loads_credentials(self):
         output = StringIO()

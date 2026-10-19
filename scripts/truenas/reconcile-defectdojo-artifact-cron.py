@@ -14,7 +14,7 @@ import subprocess
 
 NAME = "nabla-defectdojo-github-actions-artifact-pull"
 CHECKOUT = Path("/mnt/cpool/compose/nabla-compose")
-TOKEN = Path("/mnt/cpool/secrets/runtime/defectdojo/github-read-token")
+
 JOB = {
     "description": NAME,
     "user": "root",
@@ -69,12 +69,12 @@ def require_environment():
         raise RuntimeError("must run as root on canonical TrueNAS checkout")
 
 
-def require_poll_token():
-    if TOKEN.is_symlink() or not TOKEN.is_file():
-        raise RuntimeError("Actions:read token is not materialized")
-    meta = TOKEN.stat()
-    if meta.st_uid != 0 or meta.st_gid != 0 or meta.st_mode & 0o777 != 0o600:
-        raise RuntimeError("GitHub read token must be root:root 0600")
+def require_app_material():
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "security"))
+    from github_app_auth import configuration
+    configuration()
+
 
 
 def main() -> int:
@@ -109,7 +109,7 @@ def main() -> int:
     if args.enable:
         if os.environ.get("DEFECTDOJO_GH_POLL_APPROVED") != "YES":
             raise RuntimeError("explicit DEFECTDOJO_GH_POLL_APPROVED=YES required")
-        require_poll_token()
+        require_app_material()
     middleware("cronjob.update", identifier, {"enabled": bool(args.enable)})
     print("UPDATED: native TrueNAS cron " + ("enabled" if args.enable else "disabled"))
     return 0

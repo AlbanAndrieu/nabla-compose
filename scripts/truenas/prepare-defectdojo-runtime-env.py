@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 TARGET = Path("/mnt/cpool/secrets/runtime/defectdojo/.env")
-CONTENTS = "# Metadata only; do not insert secrets.\nDD_ADMIN_MAIL=admin@defectdojo.local\nDD_INITIALIZE=true\n"
+CONTENTS = "# Metadata only; do not insert secrets.\nDD_ADMIN_MAIL=nabla@defectdojo.local\nDD_INITIALIZE=true\n"
 
 
 def main() -> int:

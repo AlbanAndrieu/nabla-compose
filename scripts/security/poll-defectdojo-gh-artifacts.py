@@ -19,12 +19,12 @@ SECURITY = ROOT / "scripts/security"
 sys.path.insert(0, str(SECURITY))
 
 from github_actions_artifact_api import GitHubArtifactError, metadata  # noqa: E402
+from github_app_auth import installation_token  # noqa: E402
 
 PULL = SECURITY / "pull-site-alban-security-report.py"
 IMPORT = SECURITY / "import-scan-defectdojo.sh"
 REPO = "AlbanAndrieu/nabla-site-alban"
 INBOX = Path("/mnt/cpool/defectdojo/imports/site-alban")
-TOKEN = Path("/mnt/cpool/secrets/runtime/defectdojo/github-read-token")
 WORKFLOWS = {
     "trivy": ("Supply Chain Security (Trivy)", "Trivy Scan"),
     "nuclei": ("Nuclei public DAST (Site Alban)", "Nuclei Scan"),
@@ -34,18 +34,6 @@ WORKFLOWS = {
 
 def fail(message: str) -> None:
     raise SystemExit("REJECTED: " + message)
-
-
-def read_token() -> str:
-    if os.geteuid() != 0 or TOKEN.is_symlink() or not TOKEN.is_file():
-        fail("root-only GitHub token file required")
-    st = TOKEN.stat()
-    if st.st_uid != 0 or st.st_gid != 0 or (st.st_mode & 0o777) != 0o600:
-        fail("GitHub read token must be root:root 0600")
-    value = TOKEN.read_text(encoding="utf-8").strip()
-    if not value or any(ch.isspace() for ch in value):
-        fail("invalid GitHub read token")
-    return value
 
 
 def latest_runs(token: str) -> dict[str, int]:
@@ -131,7 +119,7 @@ def main() -> int:
         fail("polling restricted to canonical TrueNAS host")
     if args.pull_and_import and os.environ.get("DEFECTDOJO_IMPORT_APPROVED") != "YES":
         fail("explicit import approval required")
-    runs = latest_runs(read_token())
+    runs = latest_runs(installation_token())
     for kind in selected:
         run_id = runs.get(kind)
         if run_id is None:

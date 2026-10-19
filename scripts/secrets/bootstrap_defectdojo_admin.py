@@ -44,17 +44,17 @@ def main() -> int:
     item = matches[0] if matches else None
     login = (item or {}).get("login") or {}
     if login.get("password"):
-        if login.get("username") != "admin":
+        if login.get("username") != "nabla":
             raise SecretsError("existing login is not initializer admin; no rotation")
-        print("EXISTS: DefectDojo admin credential already in Vaultwarden; unchanged")
+        print("EXISTS: DefectDojo nabla credential already in Vaultwarden; unchanged")
         return 0
-    if login.get("username") not in {"admin", "homelab:defectdojo", None, ""}:
+    if login.get("username") not in {"admin", "nabla", "homelab:defectdojo", None, ""}:
         raise SecretsError("unexpected existing username; manual reconciliation required")
     payload = dict(item or {})
     payload.update(type=1, name=spec["item"], folderId=folder["id"])
     payload["login"] = {
         **login,
-        "username": "admin",
+        "username": "nabla",
         "password": secrets.token_urlsafe(48),
         "uris": login.get("uris") or [{"uri": "https://defectdojo.int.albandrieu.com"}],
     }
@@ -68,7 +68,7 @@ def main() -> int:
         create_item(client, payload)
     if not sync_after_write(client, [spec["item"]]):
         raise SecretsError("Vaultwarden write accepted but sync unverified; do not rerun")
-    print("OK: generated DefectDojo admin credential in Vaultwarden; no secret printed")
+    print("OK: generated DefectDojo nabla credential in Vaultwarden; no secret printed")
     return 0
 
 

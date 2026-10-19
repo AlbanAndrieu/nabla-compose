@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from zipfile import ZipFile
 
 REPO = "AlbanAndrieu/nabla-site-alban"
-TOKEN_FILE = Path("/mnt/cpool/secrets/runtime/defectdojo/github-read-token")
 INBOX = Path("/mnt/cpool/defectdojo/imports/site-alban")
 MAX_ZIP_BYTES = 10_000_000
 MAX_REPORT_BYTES = 8_000_000
@@ -34,22 +33,10 @@ def fail(message: str) -> None:
     raise SystemExit("REJECTED: " + message)
 
 
-def require_token() -> str:
-    if os.geteuid() != 0:
-        fail("pull requires root on the private collector")
-    if TOKEN_FILE.is_symlink() or not TOKEN_FILE.is_file():
-        fail("GitHub read-only token file missing or symlink")
-    info = TOKEN_FILE.stat()
-    if info.st_uid != 0 or info.st_gid != 0 or (info.st_mode & 0o777) != 0o600:
-        fail("token must be root:root mode 0600")
-    token = TOKEN_FILE.read_text(encoding="utf8").strip()
-    if not token or any(c.isspace() for c in token):
-        fail("invalid GitHub artifact read token")
-    return token
-
 
 # Read-only API client; Authorization never crosses a storage redirect.
 from github_actions_artifact_api import api, metadata, GitHubArtifactError  # noqa: E402
+from github_app_auth import installation_token  # noqa: E402
 
 
 def allowed_artifact(kind: str, run: dict, run_id: int) -> str:
@@ -129,7 +116,7 @@ def main() -> None:
         print("CHECK_ONLY: no network, no token, no DefectDojo mutation")
         return
 
-    token = require_token()
+    token = installation_token()
     run = metadata(f"repos/{REPO}/actions/runs/{args.run_id}", token)
     artifact_name = allowed_artifact(args.kind, run, args.run_id)
     artifacts = metadata(f"repos/{REPO}/actions/runs/{args.run_id}/artifacts", token)

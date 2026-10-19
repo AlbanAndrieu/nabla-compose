@@ -1,3 +1,25 @@
+## P0/P1 — DefectDojo `nabla` et GitHub App à durée courte (2026-10-19)
+
+- [x] Remplacer le compte UI initial `admin` par **`nabla`** dans le
+  bootstrap Vaultwarden, le template d'environnement, les contrats et le
+  runbook. Ne pas modifier les mots de passe existants : un item `admin`
+  déjà initialisé reste une **migration de compte Django distincte**.
+- [x] Décrire la GitHub App `nabla-defectdojo-artifacts` avec accès
+  `Actions:read` au seul dépôt `nabla-site-alban` et zéro webhook ;
+  [manifest](../config/github-apps/defectdojo-artifacts.manifest.json) et
+  [runbook](github-app-defectdojo.md). Le provider GitHub Terraform peut
+  *consommer* une App existante, pas enregistrer cette App.
+- [x] Préparer le jeton d'installation **éphémère** (JWT signé par PEM
+  root-only, POST GitHub installation access token, permissions et dépôt
+  explicitement réduits, expiration ≤1 h) pour le collecteur Cron TrueNAS.
+  Suppression de l'obligation d'un PAT GitHub permanent.
+- [ ] Enregistrer/installer l'App sous contrôle du propriétaire, puis
+  importer sa clé PEM en tant que pièce jointe dans Vaultwarden et
+  matérialiser les fichiers runtime `github-app.json` et
+  `github-app-private-key.pem` avec permissions `0600`.
+- [ ] Accepter compte `nabla`, JWT GitHub App, collecte d'artefacts
+  `master`, import DefectDojo et déduplication ; **aucun apply en CI**.
+
 ## P1 — Declarative TrueNAS Cron (2026-10-19)
 
 - [x] Add `scripts/truenas/reconcile-defectdojo-artifact-cron.py`
@@ -5,7 +27,7 @@
   native TrueNAS cron task at 06:50 appliance local time. No GitHub runner,
   external inbound port or hosted PR DAST scan.
 - [x] Test TrueNAS Cron ownership/schedule drift and approval gating offline.
-- [ ] Runtime: register disabled task, validate Actions:read GitHub token and
+- [ ] Runtime: register disabled task, validate GitHub App Actions:read installation and
   allowlisted master artifact, then enable `--pull` only. Add optional
   DefectDojo import **after** existing engagement and parser acceptance.
 
@@ -14,11 +36,11 @@
 [Execution/runbook](defectdojo-artifact-poller.md) · source-only in PR #263.
 
 - [x] Make the existing `bootstrap_defectdojo_admin.py` create a missing
-  Vaultwarden login for first-run `admin` with a CSPRNG password,
+  Vaultwarden login for first-run `nabla` with a CSPRNG password,
   preserving DB/Redis fields and refusing overwrites, without checking
   DefectDojo's DB. `.env.secrets` remains Vaultwarden materialized.
 - [x] Prepare GitHub Actions **pull** by native TrueNAS cron, not
-  self-hosted runner. Standard-library HTTPS client, separate Actions:read
+  self-hosted runner. Standard-library HTTPS client, short-lived GitHub App Actions:read
   token, exact repo/workflow/master/SHA provenance, restricted signed-URL
   downloads, small ZIP/report size ceilings and root-only inbox.
 - [x] Add `poll-defectdojo-gh-artifacts.py` to discover recent successful
@@ -26,10 +48,10 @@
   Optional import is separately gated and limited to an existing engagement;
   default mode is offline and no network/no secrets.
 - [ ] Operator acceptance: Vaultwarden login created and materialized,
-  TrueNAS scoped GH token installed, disabled native cron job registered,
+  TrueNAS scoped GitHub App private key installed, disabled native cron job registered,
   artifact retention/ACL checked, ZAP/Nuclei report sanitization reviewed,
   and Product RBAC + async reimport/deduplication proven.
-- [ ] Enable the 06:20/18:20 local TrueNAS cron only after the above gates.
+- [ ] Enable the 06:50 daily local TrueNAS cron only after the above gates.
   No public DefectDojo API, no raw GitHub secret findings, no new DAST CI jobs.
 
 ## P0–P2 — DefectDojo/Vaultwarden, Trivy licence, SBOM et scans multi-repos (2026-10-18)

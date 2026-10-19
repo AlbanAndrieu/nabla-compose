@@ -58,6 +58,19 @@ class NativeCronContract(TestCase):
                 cron.main()
         mutation.assert_not_called()
 
+    def test_app_credentials_gate_enable(self):
+        with (
+            mock.patch.object(sys, "argv", ["cron", "--enable"]),
+            mock.patch.object(cron, "require_environment"),
+            mock.patch.object(cron, "existing_job", return_value={**cron.JOB, "id": 1}),
+            mock.patch.object(cron.os, "environ", {"DEFECTDOJO_GH_POLL_APPROVED": "YES"}),
+            mock.patch.object(cron, "require_app_material", side_effect=RuntimeError("missing key")),
+            mock.patch.object(cron, "middleware") as mutation,
+        ):
+            with self.assertRaises(RuntimeError):
+                cron.main()
+        mutation.assert_not_called()
+
     def test_refuse_ownership_drift(self):
         drift = {**cron.JOB, "id": 9, "command": "unrelated"}
         with (

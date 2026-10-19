@@ -1,0 +1,15 @@
+{
+  "name": "nabla-defectdojo-artifacts",
+  "url": "https://github.com/AlbanAndrieu/nabla-compose",
+  "description": "Read only GitHub Actions artifact collection for private DefectDojo on TrueNAS",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://github.com/AlbanAndrieu/nabla-compose",
+    "active": false
+  },
+  "default_permissions": {
+    "actions": "read"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}
