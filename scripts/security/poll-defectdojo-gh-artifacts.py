@@ -25,6 +25,11 @@ PULL = SECURITY / "pull-site-alban-security-report.py"
 IMPORT = SECURITY / "import-scan-defectdojo.sh"
 REPO = "AlbanAndrieu/nabla-site-alban"
 INBOX = Path("/mnt/cpool/defectdojo/imports/site-alban")
+WORKFLOW_FILES = {
+    "trivy": "security-supply-chain.yml",
+    "nuclei": "nuclei-public.yml",
+    "zap": "master-dast.yml",
+}
 WORKFLOWS = {
     "trivy": ("Supply Chain Security (Trivy)", "Trivy Scan"),
     "nuclei": ("Nuclei public DAST (Site Alban)", "Nuclei Scan"),
@@ -37,15 +42,18 @@ def fail(message: str) -> None:
 
 
 def latest_runs(token: str) -> dict[str, int]:
-    # Do not skip newer failed/cancelled scans and silently reuse an older PASS.
-    runs = metadata(
-        f"repos/{REPO}/actions/runs?branch=master&per_page=100",
-        token,
-    ).get("workflow_runs", [])
-    if not isinstance(runs, list) or len(runs) > 100:
-        fail("invalid bounded workflow list")
+    """Select latest completed successful master run for each exact workflow.
+
+    Never backtrack to an older successful run when a newer scan failed.
+    Per-workflow pagination avoids losing infrequent scans among other CI runs.
+    """
     selected: dict[str, int] = {}
     for kind, (workflow, _) in WORKFLOWS.items():
+        name = WORKFLOW_FILES[kind]
+        route = f"repos/{REPO}/actions/workflows/{name}/runs?branch=master&per_page=10"
+        runs = metadata(route, token).get("workflow_runs", [])
+        if not isinstance(runs, list) or len(runs) > 10:
+            fail("invalid bounded workflow list")
         matching = [
             entry for entry in runs
             if isinstance(entry, dict)
@@ -62,8 +70,7 @@ def latest_runs(token: str) -> dict[str, int]:
             latest = max(matching, key=lambda entry: entry["id"])
             if latest.get("conclusion") == "success" and latest.get("status") == "completed":
                 selected[kind] = latest["id"]
-            # The most recent failed, pending or cancelled scan blocks stale imports.
-
+            # A failed, pending, or cancelled latest scan blocks stale imports.
     return selected
 
 
