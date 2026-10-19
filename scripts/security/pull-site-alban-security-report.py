@@ -186,6 +186,8 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
             if not isinstance(site, dict) or set(site) != {"@name", "alerts"}:
                 fail("ZAP site contains raw producer evidence")
             origin = public_origin(site.get("@name"), approved_hosts)
+            if site["@name"] != origin:
+                fail("ZAP producer must provide only canonical HTTPS origin")
             host = urlsplit(origin).hostname
             element = ElementTree.SubElement(
                 report, "site",
