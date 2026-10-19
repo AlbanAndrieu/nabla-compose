@@ -37,20 +37,20 @@ def fail(message: str) -> None:
 
 
 def latest_runs(token: str) -> dict[str, int]:
+    # Do not skip newer failed/cancelled scans and silently reuse an older PASS.
     runs = metadata(
-        f"repos/{REPO}/actions/runs?branch=master&status=success&per_page=100",
+        f"repos/{REPO}/actions/runs?branch=master&per_page=100",
         token,
     ).get("workflow_runs", [])
     if not isinstance(runs, list) or len(runs) > 100:
         fail("invalid bounded workflow list")
     selected: dict[str, int] = {}
     for kind, (workflow, _) in WORKFLOWS.items():
-        valid = [
-            entry["id"] for entry in runs
+        matching = [
+            entry for entry in runs
             if isinstance(entry, dict)
             and entry.get("name") == workflow
             and entry.get("head_branch") == "master"
-            and entry.get("conclusion") == "success"
             and entry.get("event") in {"schedule", "workflow_dispatch", "push"}
             and isinstance(entry.get("id"), int)
             and entry["id"] > 0
@@ -58,14 +58,19 @@ def latest_runs(token: str) -> dict[str, int]:
             and len(entry["head_sha"]) == 40
             and all(ch in "0123456789abcdef" for ch in entry["head_sha"])
         ]
-        if valid:
-            selected[kind] = max(valid)
+        if matching:
+            latest = max(matching, key=lambda entry: entry["id"])
+            if latest.get("conclusion") == "success" and latest.get("status") == "completed":
+                selected[kind] = latest["id"]
+            # The most recent failed, pending or cancelled scan blocks stale imports.
+
     return selected
 
 
 def stage(kind: str, run_id: int) -> str:
     # The downloaded ZIP and JSON are validated again by the restricted collector.
-    output = INBOX / f"site-alban-{run_id}-{kind}.json"
+    suffix = "xml" if kind == "zap" else "json"
+    output = INBOX / f"site-alban-{run_id}-{kind}.{suffix}"
     if output.exists():
         if output.is_symlink() or not output.is_file():
             fail("staged report path is unsafe")
@@ -87,7 +92,8 @@ def import_report(kind: str, run_id: int) -> None:
     engagement = os.environ.get("DEFECTDOJO_SITE_ALBAN_ENGAGEMENT_ID", "")
     if not engagement.isascii() or not engagement.isdecimal() or not int(engagement):
         fail("approved DefectDojo site-alban engagement ID missing")
-    output = INBOX / f"site-alban-{run_id}-{kind}.json"
+    suffix = "xml" if kind == "zap" else "json"
+    output = INBOX / f"site-alban-{run_id}-{kind}.{suffix}"
     env = {
         **os.environ,
         "DEFECTDOJO_SERVICE_ID": "nabla-site-alban",
