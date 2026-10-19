@@ -50,7 +50,7 @@ def validate(service: str, scanner: str, data: bytes) -> None:
                 if set(info) - {"name", "severity"}:
                     raise ValueError("unapproved Nuclei description or evidence")
         return
-    if scanner == "Zed Attack Proxy":
+    if scanner == "ZAP Scan":
         if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
             raise ValueError("XML entities and document types forbidden")
         try:
