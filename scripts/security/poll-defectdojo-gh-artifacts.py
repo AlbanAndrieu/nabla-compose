@@ -239,7 +239,7 @@ def stage(kind: str, run_id: int, source: str = "alban", token: str = "") -> str
             fail("staged report path is unsafe")
         return "ALREADY_STAGED"
     result = subprocess.run(
-        [sys.executable, str(PULL), "--kind", kind, "--run-id", str(run_id), "--pull"],
+        [sys.executable, str(PULL), "--source", source, "--kind", kind, "--run-id", str(run_id), "--pull"],
         capture_output=True, text=True, check=False, timeout=150,
     )
     if result.returncode:
