@@ -208,6 +208,7 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
                     ("confidence", "2"),
                     ("desc", "High-risk passive ZAP alert; raw HTTP evidence withheld."),
                     ("solution", "Review the finding against the private scanner evidence."),
+                    ("reference", f"https://www.zaproxy.org/docs/alerts/{pluginid}/"),
                 ):
                     ElementTree.SubElement(node, key).text = value
                 instances = ElementTree.SubElement(node, "instances")
