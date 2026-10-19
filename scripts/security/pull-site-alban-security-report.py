@@ -269,9 +269,15 @@ def main() -> None:
         fail("download exceeds zip limit")
     try:
         with ZipFile(BytesIO(archive)) as zipped:
-            matching = [m for m in zipped.infolist() if m.filename == filename]
+            members = zipped.infolist()
+            matching = [m for m in members if m.filename == filename]
             if len(matching) != 1 or matching[0].file_size > MAX_REPORT_BYTES:
                 fail("archive does not contain the expected bounded report")
+            if args.kind == "zap" and (len(members) != 1 or members[0].filename != filename):
+                fail("ZAP producer uploaded unapproved additional raw files")
+            if any(m.is_dir() or ((m.external_attr >> 16) & 0o170000) == 0o120000
+                   or m.file_size > MAX_REPORT_BYTES for m in matching):
+                fail("unsafe ZIP report member")
             raw = zipped.read(matching[0])
         filtered = filter_findings(args.kind, raw, source["hosts"])
     except (ValueError, KeyError, UnicodeError, OSError, GitHubArtifactError):
