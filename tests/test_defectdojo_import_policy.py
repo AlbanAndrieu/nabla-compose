@@ -16,6 +16,18 @@ class DefectDojoImportPolicyTests(unittest.TestCase):
     def test_valid_trivy_for_compose(self):
         module.validate("nabla-compose", "Trivy Scan", b'{"Results": []}')
 
+    def test_trivy_secrets_rejected_for_allowed_producers(self):
+        report = {"Results": [{"Secrets": [{"RuleID": "fixture-only"}]}]}
+        for producer in ("nabla-compose", "nabla-site-alban", "fastapi-sample"):
+            with self.subTest(producer=producer), self.assertRaisesRegex(ValueError, "secret evidence"):
+                module.validate(producer, "Trivy Scan", json.dumps(report).encode())
+
+    def test_fastapi_reduced_trivy_parser_allowed(self):
+        report = {"Results": [{"Target": "uv.lock", "Vulnerabilities": [
+            {"VulnerabilityID": "GHSA-example", "Severity": "HIGH",
+             "PkgName": "fixture", "InstalledVersion": "1.0"}]}]}
+        module.validate("fastapi-sample", "Trivy Scan", json.dumps(report).encode())
+
     def test_unlisted_service_rejected(self):
         with self.assertRaises(ValueError):
             module.validate("unapproved-repo", "Trivy Scan", b'{"Results": []}')

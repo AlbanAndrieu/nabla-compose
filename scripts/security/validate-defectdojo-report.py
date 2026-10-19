@@ -74,8 +74,14 @@ def validate(service: str, scanner: str, data: bytes) -> None:
     if not isinstance(report, dict):
         raise ValueError("report must be a JSON object")
     if scanner == "Trivy Scan":
-        if not isinstance(report.get("Results"), list):
+        results = report.get("Results")
+        if not isinstance(results, list):
             raise ValueError("not a Trivy report")
+        for row in results:
+            if not isinstance(row, dict):
+                raise ValueError("invalid Trivy result")
+            if row.get("Secrets"):
+                raise ValueError("Trivy secret evidence forbidden from import")
     elif scanner == "CodeQL Scan":
         if report.get("version") != "2.1.0" or not isinstance(report.get("runs"), list):
             raise ValueError("invalid CodeQL SARIF")
