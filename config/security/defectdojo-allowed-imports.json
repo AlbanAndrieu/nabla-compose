@@ -4,40 +4,20 @@
   "defaultDeny": true,
   "producers": {
     "nabla-compose": {
-      "allow": [
-        "Trivy Scan",
-        "CodeQL Scan",
-        "Semgrep JSON Report"
-      ],
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
       "hosts": []
     },
     "nabla-site-alban": {
-      "allow": [
-        "Trivy Scan",
-        "Nuclei Scan",
-        "Zed Attack Proxy"
-      ],
-      "hosts": [
-        "www.albanandrieu.com",
-        "albanandrieu.com"
-      ]
+      "allow": ["Trivy Scan", "Nuclei Scan", "Zed Attack Proxy"],
+      "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
     },
     "fastapi-sample": {
-      "allow": [
-        "Trivy Scan",
-        "CodeQL Scan",
-        "Semgrep JSON Report"
-      ],
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
       "hosts": []
     },
     "nabla-site-bababou": {
-      "allow": [
-        "Zed Attack Proxy"
-      ],
-      "hosts": [
-        "www.bababou.com",
-        "bababou.com"
-      ]
+      "allow": ["Zed Attack Proxy"],
+      "hosts": ["www.bababou.com", "bababou.com"]
     }
   },
   "deny": [
