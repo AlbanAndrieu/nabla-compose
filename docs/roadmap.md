@@ -1,3 +1,29 @@
+## P0 — Reprise Site #236 / Compose #263 : artefacts ZAP et frontière privée (19 octobre 2026)
+
+**Autorité du contrat** : [collecteur privé](defectdojo-artifact-poller.md),
+[Site #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+Sans nouvelle PR, merge, activation, mutation de compte ou import.
+
+| Gate | Statut | Preuve / suite |
+| --- | --- | --- |
+| Site Quality + Trivy au HEAD initial `8a19211` | **PASS** | Runs Site #39325632157 (job quality) et #39325632138 |
+| Site ZAP Preview / Vercel au HEAD initial | **PASS** | Statuses exact SHA ; **ancien workflow uniquement** |
+| Site Playwright au HEAD initial | **FAIL** | Run #39326142907 : 1 échec dû à deux scripts d'initialisation de thème concurrents |
+| Corrections Preview et sortie ZAP brute côté Site | **INCOMPLETE** | CI des nouveaux commits et scanner effectif après fusion non encore validés |
+| Compose fail-closed ZAP JSON → XML | **INCOMPLETE** | Filtrage strict préécriture ajouté, tests adaptés ; exécution de validation exact HEAD à attester |
+| Ancien ZAP brut (Alban/Bababou) | **FAIL** (refus intentionnel) | Instances, preuves, titres reflétés et entêtes sont interdits ; Bababou attend sa propre minimisation source |
+| GitHub App Actions:read, clés Vaultwarden, cron, import DefectDojo | **NOT_RUN** | Nécessite consentement GitHub, RBAC/Engagement, parser `ZAP Scan`, retour Celery et déduplication |
+| Tests opérationnels `ops.albandrieu.com` / Access / origine | **NOT_RUN** | Suite de tests privés Site, activée seulement avec réseau et identité autorisés ; aucune réexposition publique |
+| Audits de refus public CDN/DNS/Tunnel | **INCOMPLETE** | Vérifier négativement les routes, en-têtes, artefacts historiques et exposition WAN avant clôture |
+
+Décisions : **GitHub App → TrueNAS → DefectDojo** reste l'unique voie
+d'ingestion, `--check` sans mutation, `--pull` explicite,
+`--pull-and-import` soumis à autorisation indépendante et engagement
+préexistant. BetterLeaks, Semgrep, Trivy Critical et ZAP/Nuclei bornés
+restent des gates autonomes ; aucune campagne DAST complète sur PR.
+`INCOMPLETE` et `NOT_RUN` ne sont jamais équivalents à `PASS`.
+
 ## P0 — Quatre dépôts, une GitHub App, Vaultwarden et Cron (2026-10-19)
 
 - [x] Définir `nabla-github-app` unique pour nabla-compose,
@@ -53,11 +79,14 @@ La source autoritative de la procédure reste
   Vaultwarden, matérialiser la clé sur TrueNAS et vérifier Cron `--check`.
   Le cron reste désactivé ; `--pull` puis `--pull-and-import`
   nécessitent des autorisations distinctes.
-- [ ] **Bloquant confidentialité** : `zaproxy/action-baseline` peut publier
-  un rapport brut via son propre artefact GitHub. Ne pas autoriser
-  l'import automatique ZAP avant publication source minimisée/chiffrée
-  ou acceptation formelle de son contenu. Pour les DAST exhaustifs,
-  privilégier un scan et stockage **uniquement privés sur TrueNAS**.
+- [x] **Correctif de code source Site #236** : suppression de l'action
+  auto-upload ZAP ; production ne dépose qu'un JSON HIGH minimal,
+  Preview ne dépose aucun rapport ZAP. Le collecteur #263 refuse à
+  présent les JSON bruts préexistants, y compris Bababou.
+- [ ] **INCOMPLETE** : prouver la première exécution du nouveau producteur
+  après merge, la conversion XML et son acceptation par le parser Dojo ;
+  inventorier les anciens artefacts encore accessibles. Aucun import
+  ZAP autorisé jusque-là. Les DAST plus profonds restent privés.
 - [ ] Vérifier les quality gates exact-HEAD dans les deux PR,
   l'absence d'exposition `.int`, le produit/RBAC DefectDojo
   et les règles de rétention/rotation avant activation.
