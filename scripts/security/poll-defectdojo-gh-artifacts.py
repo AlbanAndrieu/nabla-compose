@@ -42,13 +42,13 @@ SOURCES = {
         "workflows": {
             "trivy": ("Supply Chain Security (Trivy)", "Trivy Scan"),
             "nuclei": ("Nuclei public DAST (Site Alban)", "Nuclei Scan"),
-            "zap": ("Production DAST", "Zed Attack Proxy"),
+            "zap": ("Production DAST", "ZAP Scan"),
         },
     },
     "bababou": {
         "repository": "AlbanAndrieu/nabla-site-bababou",
         "workflow_files": {"zap": "production-dast.yml"},
-        "workflows": {"zap": ("Production DAST", "Zed Attack Proxy")},
+        "workflows": {"zap": ("Production DAST", "ZAP Scan")},
     },
     # Same TrueNAS collector and GitHub App; repository-specific installation
     # token, inbox and engagement. Opt-in only, not part of default Cron.
@@ -184,7 +184,7 @@ WORKFLOW_FILES = {
 WORKFLOWS = {
     "trivy": ("Supply Chain Security (Trivy)", "Trivy Scan"),
     "nuclei": ("Nuclei public DAST (Site Alban)", "Nuclei Scan"),
-    "zap": ("Production DAST", "Zed Attack Proxy"),
+    "zap": ("Production DAST", "ZAP Scan"),
 }
 
 
