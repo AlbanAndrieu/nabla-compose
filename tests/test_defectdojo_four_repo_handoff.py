@@ -41,7 +41,7 @@ class AllRepositoriesContracts(unittest.TestCase):
             "AlbanAndrieu/nabla-site-alban",
             "AlbanAndrieu/nabla-site-bababou",
         })
-        self.assertEqual(collector.SOURCES["compose"]["workflow_files"]["trivy"], "security-source-sca.yml")
+        self.assertEqual(collector.SOURCES["compose"]["workflow_files"]["trivy"], "defectdojo-compose-handoff.yml")
 
     def test_scanner_sanitizes_secrets_and_metadata_from_all_rows(self):
         raw = {
