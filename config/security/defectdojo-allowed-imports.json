@@ -8,7 +8,7 @@
       "hosts": []
     },
     "nabla-site-alban": {
-      "allow": ["Trivy Scan", "Nuclei Scan", "Zed Attack Proxy"],
+      "allow": ["Trivy Scan", "Nuclei Scan", "ZAP Scan"],
       "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
     },
     "fastapi-sample": {
@@ -16,7 +16,7 @@
       "hosts": []
     },
     "nabla-site-bababou": {
-      "allow": ["Zed Attack Proxy"],
+      "allow": ["ZAP Scan"],
       "hosts": ["www.bababou.com", "bababou.com"]
     }
   },
