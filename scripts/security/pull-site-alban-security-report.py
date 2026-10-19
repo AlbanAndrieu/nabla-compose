@@ -173,14 +173,18 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
         ).encode()
 
     if kind == "zap":
+        # Defense in depth: only accept ZAP already minimized by its producer.
+        # Filtering a raw GitHub artifact after download cannot undo disclosure.
+        if set(payload) != {"site"}:
+            fail("ZAP raw producer fields forbidden")
         sites = payload.get("site")
-        if not isinstance(sites, list):
+        if not isinstance(sites, list) or len(sites) > 20:
             fail("invalid ZAP report")
         report = ElementTree.Element("OWASPZAPReport", {"version": "2.17"})
         count = 0
         for site in sites:
-            if not isinstance(site, dict):
-                fail("invalid ZAP site")
+            if not isinstance(site, dict) or set(site) != {"@name", "alerts"}:
+                fail("ZAP site contains raw producer evidence")
             origin = public_origin(site.get("@name"), approved_hosts)
             host = urlsplit(origin).hostname
             element = ElementTree.SubElement(
@@ -192,14 +196,17 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
             if not isinstance(alerts, list):
                 fail("invalid ZAP alerts")
             for alert in alerts:
-                if not isinstance(alert, dict):
-                    fail("invalid ZAP alert")
+                if not isinstance(alert, dict) or set(alert) != {
+                    "pluginid", "riskcode", "alert"
+                }:
+                    fail("ZAP raw alert fields forbidden")
                 if str(alert.get("riskcode")) != "3":
-                    continue
+                    fail("ZAP producer must publish HIGH only")
                 pluginid = str(alert.get("pluginid", ""))
                 title = alert.get("alert")
-                if not pluginid.isdecimal() or not isinstance(title, str) or not title or len(title) > 200:
-                    fail("invalid ZAP alert identity")
+                if (re.fullmatch(r"[0-9]{1,10}", pluginid) is None
+                        or title != f"ZAP passive rule {pluginid}"):
+                    fail("ZAP alert must have canonical non-reflected identity")
                 node = ElementTree.SubElement(alerts_element, "alertitem")
                 for key, value in (
                     ("pluginid", pluginid),
