@@ -59,70 +59,47 @@ SOURCES = {
     },
     "fastapi-sample": {
         "repository": "AlbanAndrieu/fastapi-sample",
-        "workflow_files": {"trivy": "defectdojo-trivy-handoff.yml"},
-        "workflows": {"trivy": ("DefectDojo Trivy Handoff (FastAPI)", "Trivy Scan")},
+        "workflow_files": {"trivy": "docker-build.yml"},
+        "workflows": {"trivy": ("Docker CI", "Trivy Scan")},
     },
 }
 FASTAPI_INBOX = Path("/mnt/cpool/defectdojo/imports/fastapi-sample")
-FASTAPI_REPORT = "trivy-fastapi-master.json"
-FASTAPI_MANIFEST = "trivy-fastapi-master.manifest.json"
-_SHA40 = re.compile(r"[0-9a-f]{40}\Z")
-_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-_SAFE_FIELD = re.compile(r"[A-Za-z0-9._+!-]{1,128}\Z")
-_ALLOWED_FIELDS = {"VulnerabilityID", "PkgName", "InstalledVersion", "Severity", "FixedVersion"}
+FASTAPI_REPORT = "trivy-results.json"
+_SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\\Z")
 
 
-def validate_fastapi_handoff(run: dict, manifest: bytes, report: bytes) -> bool:
-    """Deny arbitrary SARIF, secrets, source snippets and other Trivy targets."""
-    if len(manifest) > 8192 or len(report) > 1_000_000:
-        fail("fastapi handoff exceeds the private collection budget")
+def validate_fastapi_handoff(report: bytes) -> bool:
+    """Validate native Trivy JSON without transforming findings for DefectDojo.
+
+    Reject secret/config evidence at the transport boundary. GitHub Actions
+    must produce a vulnerability-only image scan, never a host/LAN scan.
+    """
+    if not 0 < len(report) <= 8_000_000:
+        fail("native Trivy report outside allowed size")
     try:
-        meta = json.loads(manifest)
-        payload = json.loads(report)
-    except (UnicodeError, ValueError):
-        fail("invalid fastapi artifact payload")
-    if not isinstance(meta, dict) or not isinstance(payload, dict):
-        fail("invalid fastapi artifact schema")
-    if (meta.get("schema_version") != 1 or meta.get("project") != "fastapi-sample"
-            or meta.get("scope") != "uv.lock-only-high-critical"
-            or meta.get("mode") != "master" or meta.get("state") != "complete"
-            or meta.get("scanner") != "Trivy Scan"
-            or meta.get("policy_status") not in {"pass", "needs_review"}
-            or meta.get("revision") != run.get("head_sha")
-            or _SHA40.fullmatch(str(meta.get("revision"))) is None
-            or _SHA256.fullmatch(str(meta.get("source_report_sha256"))) is None
-            or meta.get("report_file") != FASTAPI_REPORT
-            or meta.get("artifact_sha256") != sha256(report).hexdigest()):
-        fail("fastapi artifact provenance or digest mismatch")
-    counts = {"HIGH": 0, "CRITICAL": 0}
-    if set(payload) != {"SchemaVersion", "Results"} or payload["SchemaVersion"] != 2:
-        fail("fastapi Trivy output has unapproved fields")
-    rows = payload["Results"]
-    if not isinstance(rows, list) or len(rows) > 1:
-        fail("invalid fastapi Trivy result count")
-    for row in rows:
-        if not isinstance(row, dict) or set(row) != {"Target", "Class", "Type", "Vulnerabilities"}:
-            fail("unexpected Trivy result fields")
-        if row["Target"] != "uv.lock" or row["Class"] != "lang-pkgs" or row["Type"] != "python-pkg":
-            fail("unauthorized Trivy target")
-        findings = row["Vulnerabilities"]
-        if not isinstance(findings, list) or len(findings) > 1000:
-            fail("invalid Trivy finding count")
+        value = json.loads(report)
+    except (ValueError, UnicodeError):
+        fail("malformed native Trivy JSON")
+    if (not isinstance(value, dict)
+            or value.get("SchemaVersion") != 2
+            or not isinstance(value.get("Results"), list)
+            or len(value["Results"]) > 1000):
+        fail("unexpected native Trivy schema")
+    actionable = False
+    for result in value["Results"]:
+        if not isinstance(result, dict):
+            fail("invalid native Trivy result")
+        if result.get("Secrets") or result.get("Misconfigurations"):
+            fail("secret/config evidence not permitted in GitHub artifact")
+        findings = result.get("Vulnerabilities") or []
+        if not isinstance(findings, list) or len(findings) > 5000:
+            fail("invalid Trivy vulnerabilities")
         for finding in findings:
-            if not isinstance(finding, dict) or not {"VulnerabilityID", "PkgName", "InstalledVersion", "Severity"}.issubset(finding) or set(finding) - _ALLOWED_FIELDS:
-                fail("unapproved Trivy findings")
-            if finding["Severity"] not in counts:
-                fail("unapproved Trivy severity")
-            if any(not isinstance(v, str) or not _SAFE_FIELD.fullmatch(v) for k, v in finding.items() if k != "Severity"):
-                fail("unsafe Trivy field")
-            counts[finding["Severity"]] += 1
-    if meta.get("counts") != counts:
-        fail("fastapi handoff counts do not match findings")
-    if counts["CRITICAL"] and meta.get("policy_status") != "needs_review":
-        fail("Critical findings cannot report PASS")
-    if not counts["CRITICAL"] and meta.get("policy_status") == "needs_review":
-        fail("contradictory fastapi scan status")
-    return bool(counts["CRITICAL"] or counts["HIGH"])
+            if not isinstance(finding, dict) or not isinstance(finding.get("VulnerabilityID"), str):
+                fail("invalid native Trivy vulnerability")
+            actionable = True
+    return actionable
 
 
 COMPOSE_REPORT = "trivy-compose-master.json"
@@ -228,60 +205,61 @@ def stage_compose_handoff(token: str, run_id: int) -> str:
 
 
 def stage_fastapi_handoff(token: str, run_id: int) -> str:
-    """Collect a strictly bounded handoff through the SAME shared poller."""
+    """Stage native Trivy JSON from the already-scheduled Docker CI scan."""
     repo = SOURCES["fastapi-sample"]["repository"]
     run = metadata(f"repos/{repo}/actions/runs/{run_id}", token)
-    if (run.get("id") != run_id or run.get("name") != SOURCES["fastapi-sample"]["workflows"]["trivy"][0]
+    if (run.get("id") != run_id or run.get("name") != "Docker CI"
             or run.get("head_branch") != "master" or run.get("status") != "completed"
             or run.get("conclusion") != "success"
-            or run.get("event") not in {"workflow_dispatch", "push", "schedule"}
+            or run.get("event") not in {"schedule", "workflow_dispatch"}
             or _SHA40.fullmatch(str(run.get("head_sha"))) is None):
-        fail("fastapi source run is not an approved completed master scan")
+        fail("FastAPI scan run provenance rejected")
     artifact_name = "defectdojo-fastapi-trivy-" + run["head_sha"]
     listing = metadata(f"repos/{repo}/actions/runs/{run_id}/artifacts", token)
     artifacts = listing.get("artifacts")
     if not isinstance(artifacts, list):
-        fail("invalid GitHub artifacts metadata")
-    matches = [row for row in artifacts if isinstance(row, dict)
-               and row.get("name") == artifact_name and row.get("expired") is False
-               and type(row.get("id")) is int and row["id"] > 0
-               and type(row.get("size_in_bytes")) is int
-               and 0 < row["size_in_bytes"] <= 10_000_000]
-    if len(matches) != 1:
-        fail("missing or ambiguous fastapi artifact")
-    archive = api(f"repos/{repo}/actions/artifacts/{matches[0]['id']}/zip", token)
+        fail("invalid FastAPI artifact listing")
+    matching = [
+        item for item in artifacts if isinstance(item, dict)
+        and item.get("name") == artifact_name and item.get("expired") is False
+        and type(item.get("id")) is int and item["id"] > 0
+        and type(item.get("size_in_bytes")) is int
+        and 0 < item["size_in_bytes"] <= 10_000_000
+    ]
+    if len(matching) != 1:
+        fail("FastAPI native Trivy artifact absent or ambiguous")
+    archive = api(f"repos/{repo}/actions/artifacts/{matching[0]['id']}/zip", token)
     try:
         with ZipFile(BytesIO(archive)) as zipped:
             entries = zipped.infolist()
-            if {x.filename for x in entries} != {FASTAPI_REPORT, FASTAPI_MANIFEST} or len(entries) != 2:
-                fail("unexpected fastapi ZIP content")
-            if any(x.is_dir() or (x.external_attr >> 16) & 0o170000 == 0o120000
-                   or x.file_size > 1_000_000 or x.compress_size > 10_000_000
-                   for x in entries):
-                fail("unsafe fastapi ZIP member")
+            if len(entries) != 1 or entries[0].filename != FASTAPI_REPORT:
+                fail("FastAPI archive members not allowlisted")
+            item = entries[0]
+            if (item.is_dir() or ((item.external_attr >> 16) & 0o170000) == 0o120000
+                    or item.file_size > 8_000_000 or item.compress_size > 10_000_000):
+                fail("FastAPI artifact ZIP member is unsafe")
             report = zipped.read(FASTAPI_REPORT)
-            manifest = zipped.read(FASTAPI_MANIFEST)
     except (OSError, ValueError, RuntimeError, KeyError):
-        fail("fastapi artifact ZIP is not valid")
-    if not validate_fastapi_handoff(run, manifest, report):
+        fail("FastAPI native Trivy archive invalid")
+    if not validate_fastapi_handoff(report):
         return "NO_ACTIONABLE_FINDINGS"
     if FASTAPI_INBOX.is_symlink():
-        fail("fastapi inbox cannot be a symlink")
-    FASTAPI_INBOX.mkdir(mode=0o700, parents=True, exist_ok=True)
-    info = FASTAPI_INBOX.stat()
-    if info.st_uid != os.geteuid() or info.st_mode & 0o077:
-        fail("fastapi inbox permissions must be private")
+        fail("FastAPI inbox symlink forbidden")
+    FASTAPI_INBOX.mkdir(parents=True, mode=0o700, exist_ok=True)
+    meta = FASTAPI_INBOX.stat()
+    if meta.st_uid != os.geteuid() or meta.st_mode & 0o077:
+        fail("FastAPI inbox not private")
     out = FASTAPI_INBOX / f"fastapi-{run_id}-trivy.json"
     try:
-        fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                     | getattr(os, "O_NOFOLLOW", 0), 0o600)
     except FileExistsError:
         if out.is_symlink() or not out.is_file() or out.stat().st_mode & 0o077:
-            fail("existing fastapi artifact is unsafe")
+            fail("existing FastAPI artifact unsafe")
         return "ALREADY_STAGED"
     with os.fdopen(fd, "wb") as stream:
         stream.write(report)
     return "STAGED"
-
 
 WORKFLOW_FILES = {
     "trivy": "security-supply-chain.yml",
