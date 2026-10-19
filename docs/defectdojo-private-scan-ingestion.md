@@ -32,7 +32,7 @@ explicitement autorisé, ajouter `--pull` prépare un fichier filtré dans
 - **Nuclei** : seules les lignes `high/critical`, ciblant les hôtes
   HTTPS de Site Alban déjà autorisés par le validateur, sont préparées.
 - **ZAP production** : seules les alertes `riskcode=3` sont préparées.
-  Le parser installé doit s'appeler **`Zed Attack Proxy`**.
+  Le parser installé doit s'appeler **`ZAP Scan`**.
 - Aucun CodeQL, Semgrep, GitGuardian, BetterLeaks, artifact PR,
   événement non-`master`, run échouée ou archive expirée ne doit
   être accepté par ce parcours.
@@ -234,9 +234,9 @@ GitHub App, aucun Cron ni import réel n'est prouvé par ces commits.
 | --- | --- | --- | --- |
 | `Supply Chain Security (Trivy)` | `trivy-master-<sha>` / `trivy-security.json` | `site-alban-<run>-trivy.json` : uniquement CVE npm lockfile High/Critical | `Trivy Scan`, JSON |
 | `Nuclei public DAST (Site Alban)` | `nuclei-public-<run>` / `nuclei-results/nuclei.jsonl` ; projection réduite à la source dans Site #236 | `site-alban-<run>-nuclei.json` : JSONL minimal, URL limitée à l'origine HTTPS | `Nuclei Scan`, JSONL |
-| `Production DAST` | `zap-production-report` / `report_json.json` | `site-alban-<run>-zap.xml` : conversion locale privée **JSON → XML** avec seuls plugin ID, titre, sévérité 3 et origine HTTPS | `Zed Attack Proxy`, XML |
+| `Production DAST` | `zap-production-report` / `report_json.json` | `site-alban-<run>-zap.xml` : conversion locale privée **JSON → XML** avec seuls plugin ID, titre, sévérité 3 et origine HTTPS | `ZAP Scan`, XML |
 
-**Point de compatibilité important** : le parser OSS `Zed Attack Proxy`
+**Point de compatibilité important** : le parser OSS `ZAP Scan`
 accepte le rapport **XML** de ZAP, pas le JSON de `action-baseline`.
 Le collecteur transforme ce JSON dans l'inbox privée et l'importeur envoie
 `application/xml`. Ne pas changer `scan_type` pour masquer une erreur
