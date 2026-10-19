@@ -228,7 +228,7 @@ class GitHubArtifactsTests(TestCase):
             contextlib.redirect_stdout(StringIO()) as output,
         ):
             self.assertEqual(poll.main(), 0)
-        self.assertIn("offline", output.getvalue())
+        self.assertIn("no token or LAN access", output.getvalue())
 
     def test_automatic_import_needs_separate_opt_in(self):
         with (
