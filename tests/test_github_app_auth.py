@@ -6,11 +6,14 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
-from scripts.security import github_app_auth as app
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts/security"))
+import github_app_auth as app  # noqa: E402
 
 
 class Response(BytesIO):
