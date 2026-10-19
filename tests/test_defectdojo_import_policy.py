@@ -40,12 +40,26 @@ class DefectDojoImportPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.validate("nabla-compose", "CodeQL Scan", json.dumps(good).encode())
 
-    def test_zap_cross_domain_rejected(self):
-        good = {"site":[{"@name":"https://www.albanandrieu.com"}]}
-        module.validate("nabla-site-alban", "Zed Attack Proxy", json.dumps(good).encode())
-        good["site"][0]["@name"] = "https://bad.example"
+    def test_zap_xml_is_required_and_public_domain_is_validated(self):
+        good = (
+            b"<?xml version='1.0'?><OWASPZAPReport><site name='https://www.albanandrieu.com'>"
+            b"<alerts><alertitem><pluginid>10035</pluginid><riskcode>3</riskcode>"
+            b"<instances><instance><uri>https://www.albanandrieu.com</uri>"
+            b"</instance></instances></alertitem></alerts></site></OWASPZAPReport>"
+        )
+        module.validate("nabla-site-alban", "Zed Attack Proxy", good)
         with self.assertRaises(ValueError):
-            module.validate("nabla-site-alban", "Zed Attack Proxy", json.dumps(good).encode())
+            module.validate("nabla-site-alban", "Zed Attack Proxy", b'{"site":[]}')
+        with self.assertRaises(ValueError):
+            module.validate(
+                "nabla-site-alban", "Zed Attack Proxy",
+                good.replace(b"www.albanandrieu.com", b"evil.example"),
+            )
+        with self.assertRaises(ValueError):
+            module.validate(
+                "nabla-site-alban", "Zed Attack Proxy",
+                good.replace(b"</instance>", b"<requestheader>secret</requestheader></instance>"),
+            )
 
     def test_importer_uses_policy(self):
         source = (ROOT / "scripts/security/import-scan-defectdojo.sh").read_text(encoding="utf-8")
