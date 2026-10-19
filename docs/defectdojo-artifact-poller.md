@@ -73,8 +73,14 @@ settings when run; Vaultwarden provisioning alone is not a deployed account.
   cron (not GitHub CI): **06:20 and 18:20** appliance local time,
   command `/usr/bin/python3 /mnt/cpool/compose/nabla-compose/scripts/security/poll-defectdojo-gh-artifacts.py --pull`,
   user `root`, stdout/stderr suppressed or sent to secured local logs.
-  Configure it as **disabled initially**, and enable only once the scoped
-  GitHub credential, ACL and isolated Product are confirmed.
+  The repo-owned `scripts/truenas/reconcile-defectdojo-artifact-cron.py`
+  validates the exact native cron definition and creates the task as
+  **disabled** via `midclt call cronjob.create` on TrueNAS. Its
+  `--enable` mode requires `DEFECTDOJO_GH_POLL_APPROVED=YES`, validates the
+  root-owned GitHub token and fails on schedule/command drift.
+  `--disable` is an explicit rollback. No Linux root crontab mutation.
+  Initial activation remains gated by the scoped GitHub credential, ACL and
+  isolated Product.
 - `--check` requires no credentials, network, or scheduler and leaves
   both products untouched. `--pull` downloads filtered artifacts only.
   `--pull-and-import` additionally requires
@@ -107,4 +113,5 @@ asynchronous parser processing, deduplication and Product RBAC separately.
 python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector -v
 python3 scripts/security/poll-defectdojo-gh-artifacts.py --check
 python3 scripts/secrets/bootstrap_defectdojo_admin.py --check
+python3 scripts/truenas/reconcile-defectdojo-artifact-cron.py --check
 ```

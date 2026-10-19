@@ -1,3 +1,14 @@
+## P1 — Declarative TrueNAS Cron (2026-10-19)
+
+- [x] Add `scripts/truenas/reconcile-defectdojo-artifact-cron.py`
+  (`--check|--apply|--enable|--disable`) with a disabled-by-default
+  native TrueNAS cron task at 06:50 appliance local time. No GitHub runner,
+  external inbound port or hosted PR DAST scan.
+- [x] Test TrueNAS Cron ownership/schedule drift and approval gating offline.
+- [ ] Runtime: register disabled task, validate Actions:read GitHub token and
+  allowlisted master artifact, then enable `--pull` only. Add optional
+  DefectDojo import **after** existing engagement and parser acceptance.
+
 ## P0/P1 — DefectDojo GitHub Actions artifact polling without a runner (2026-10-19)
 
 [Execution/runbook](defectdojo-artifact-poller.md) · source-only in PR #263.
