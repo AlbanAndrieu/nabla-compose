@@ -111,11 +111,10 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
                 continue
             origin = public_origin(item.get("matched-at") or item.get("host"), approved_hosts)
             template = item.get("template-id") or item.get("templateID")
-            name = item["info"].get("name")
-            if not isinstance(template, str) or not template or len(template) > 150:
+            if not isinstance(template, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,150}", template):
                 fail("invalid Nuclei template identity")
-            if not isinstance(name, str) or not name or len(name) > 200:
-                fail("invalid Nuclei finding name")
+            # Reflected template titles can contain HTTP content; use the ID.
+            name = template
             kept.append(
                 json.dumps(
                     {
