@@ -1,5 +1,42 @@
 # DefectDojo — collecteur GitHub Actions sur TrueNAS, sans runner
 
+## 19 octobre 2026 — collecteur unique et formats SARIF
+
+Le collecteur **unique** `scripts/security/poll-defectdojo-gh-artifacts.py`
+dans `nabla-compose` référence aujourd'hui `alban`, `bababou`
+et `fastapi-sample` via son registre `SOURCES`. La commande Cron
+TrueNAS existante ne change pas et reste limitée à `alban` par défaut.
+FastAPI exige une activation explicite `DEFECTDOJO_FASTAPI_PULL_APPROVED=YES`
+avec `--source fastapi-sample --pull`. L'import automatique
+`--pull-and-import` pour FastAPI reste interdit avant les tests RBAC.
+
+**Le collecteur ne nécessite pas de nouveau conteneur Compose** :
+une Cron native TrueNAS déclarée/contrôlée depuis `nabla-compose`
+suffit à exécuter ce code dans le LAN sans ouvrir DefectDojo sur Internet.
+
+`fastapi-sample/scripts/security/export_defectdojo_collector_trivy.py`
+n'est pas un collecteur mais un exporteur **côté producteur**. Il
+prépare une projection Trivy `uv.lock` HIGH/CRITICAL sans captures
+de requêtes, secrets ni inventaire complet. Le workflow GitHub qui
+publierait cet artefact doit encore être conçu et vérifié ; aucune
+publication, collecte ou ingestion réelle n'est prouvée.
+
+**Double format possible** sans second scan : `fastapi-sample` peut
+produire `trivy.json` + `trivy.sarif` via l'option `--sarif`.
+Le JSON natif est préféré pour le parseur DefectDojo `Trivy Scan`.
+CodeQL produit du SARIF et se charge avec `CodeQL Scan` ;
+le parseur générique `SARIF` reste **non autorisé par défaut**
+dans les `producers[].allow`, bien que le veto global SARIF soit retiré.
+Ne pas importer les deux représentations du même finding dans deux
+Tests différents sans stratégie de déduplication. SARIF brut, SBOM,
+evidence de secrets et DAST détaillé restent exclusivement privés.
+
+Tests hors réseau ajoutés ; activation Cron, jetons GitHub App, import
+Celery et contrôle WAN restent non attestés.
+
+---
+
+
 **Préparation uniquement, aucune activation de cron ni upload appliqué.**
 Source de vérité : `config/security/defectdojo-allowed-imports.json`.
 Aucun compte GitHub self-hosted runner n'est nécessaire : TrueNAS interroge
