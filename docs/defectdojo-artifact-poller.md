@@ -1,5 +1,38 @@
 # DefectDojo — collecteur privé GitHub Actions sur TrueNAS
 
+## Gate contractuel ZAP entre producteurs et collecteur — 19 octobre 2026
+
+**Source de vérité :** Site Alban #236 produit désormais, dans sa branche PR,
+`zap-production-report/report_json.json` à schéma réduit. Le collecteur #263
+rejette **avant toute écriture privée** les anciens JSON ZAP bruts :
+objet `site` seul, chaque site `@name` (origine HTTPS autorisée) et `alerts`,
+chaque alerte HIGH seulement `pluginid`, `riskcode=3` et
+`alert="ZAP passive rule <pluginid>"`. La conversion XML interne reste
+nommée **`ZAP Scan`**, jamais un téléchargement/archivage de requêtes HTTP.
+L'ancienne action `zaproxy/action-baseline` de Site Alban téléversait des
+preuves brutes ; un filtrage **après** le téléchargement n'aurait pas protégé
+l'artefact GitHub. Son remplacement côté producteur est **INCOMPLETE**
+tant qu'aucune exécution de `master` avec le nouveau workflow n'est vérifiée.
+Le workflow ZAP Bababou n'a pas encore été mis en conformité à la source :
+son import doit rester **NOT_RUN / rejeté**, non contourné par une exception.
+
+| Contrôle | État | Motif |
+| --- | --- | --- |
+| Contrat source Site Alban JSON minimal | **INCOMPLETE** | Correctif proposé en PR #236, aucune exécution sur master du nouveau workflow |
+| Contrat collecteur JSON minimal → XML `ZAP Scan` | **INCOMPLETE** | Code durci dans PR #263 et tests adaptés, quality gate du nouveau HEAD non encore attestée |
+| Ancien JSON brut, y compris Bababou | **FAIL** (rejet attendu) | Champs HTTP/instances/non canoniques interdits, pas de repli permissif |
+| GitHub App, Vaultwarden, RBAC, parser DefectDojo et Celery réels | **NOT_RUN** | Aucune activation/install/import sur TrueNAS |
+| Retrait des rapports ZAP historiquement téléversés | **NOT_RUN** | Inventaire/expiration/purge à faire avec les droits opérateur |
+| Confidentialité réseau DefectDojo et `ops.albandrieu.com` | **INCOMPLETE** | Modèle privé déclaré ; audit effectif DNS/Tunnel/WAN et JWT non attesté |
+
+Aucune provenance de PR, rapport incomplet ou ancienne exécution réussie après
+un scan récent en échec ne déclenche un import. Le collecteur reste **pull**
+via GitHub App (`Actions:read`), exécutable **uniquement** sur TrueNAS ;
+`--check` reste non mutant, `--pull` requiert sa configuration,
+`--pull-and-import` garde son approbation distincte, son engagement préexistant
+et sa validation RBAC. Aucun nouveau DAST sur PR ni collecteur applicatif.
+
+
 **Contrat courant (19 octobre 2026).** Un seul collecteur déclaratif dans
 `nabla-compose` : `scripts/security/poll-defectdojo-gh-artifacts.py`.
 Aucun runner Github, collecteur par application, webhook entrant, Tunnel
@@ -11,8 +44,8 @@ l'API GitHub `Actions:read` et importés séparément depuis le LAN.
 
 | Source | Workflow courant | Type | Import |
 | --- | --- | --- | --- |
-| `alban` | `security-supply-chain.yml`, `nuclei-public.yml`, `master-dast.yml` | Trivy, Nuclei, ZAP | Validation/approbation distincte |
-| `bababou` | `production-dast.yml` | ZAP | Validation/approbation distincte |
+| `alban` | `security-supply-chain.yml`, `nuclei-public.yml`, `master-dast.yml` | Trivy, Nuclei, ZAP | Validation/approbation distincte, ZAP minimal **après déploiement du producteur** |
+| `bababou` | `production-dast.yml` | ZAP | **Refus tant que le rapport brut n'est pas minimisé à la source** |
 | `compose` | `defectdojo-compose-handoff.yml` | Trivy | Contrat propriétaire existant |
 | `fastapi-sample` | **`docker-build.yml`**, workflow **`Docker CI`** | **Trivy image JSON natif** | Stage uniquement ; import auto interdit |
 
