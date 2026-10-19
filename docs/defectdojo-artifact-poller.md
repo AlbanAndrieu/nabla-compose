@@ -1,40 +1,42 @@
 # DefectDojo — collecteur GitHub Actions sur TrueNAS, sans runner
 
-## 19 octobre 2026 — collecteur unique et formats SARIF
+## Architecture actuelle — 19 octobre 2026
 
-Le collecteur **unique** `scripts/security/poll-defectdojo-gh-artifacts.py`
-dans `nabla-compose` référence aujourd'hui `alban`, `bababou`
-et `fastapi-sample` via son registre `SOURCES`. La commande Cron
-TrueNAS existante ne change pas et reste limitée à `alban` par défaut.
-FastAPI exige une activation explicite `DEFECTDOJO_FASTAPI_PULL_APPROVED=YES`
-avec `--source fastapi-sample --pull`. L'import automatique
-`--pull-and-import` pour FastAPI reste interdit avant les tests RBAC.
+**Un seul collecteur** : `scripts/security/poll-defectdojo-gh-artifacts.py`
+récupère les artefacts allowlistés des dépôts Nabla depuis TrueNAS.
+Les sources `alban`, `bababou`, `compose` et `fastapi-sample`
+sont des entrées de sa configuration, **pas des agents, conteneurs ou
+Cron supplémentaires**. Les tokens GitHub App sont limités à
+`Actions:read` et à un dépôt par appel. La Cron et l'import automatique
+ne sont pas activés par cette préparation.
 
-**Le collecteur ne nécessite pas de nouveau conteneur Compose** :
-une Cron native TrueNAS déclarée/contrôlée depuis `nabla-compose`
-suffit à exécuter ce code dans le LAN sans ouvrir DefectDojo sur Internet.
+**Rapport natif FastAPI** : la source `fastapi-sample` réutilise
+le workflow existant `Docker CI` (`docker-build.yml`), dont la cadence
+hebdomadaire existe déjà et qui peut être déclenché manuellement.
+L'analyse Trivy existante produit `trivy-results.json` pour DefectDojo,
+puis `trivy-results.sarif` par conversion sans nouveau scan. Le
+collecteur télécharge un ZIP à **un seul fichier** `trivy-results.json`,
+nommé `defectdojo-fastapi-trivy-<sha>` et attaché uniquement au run
+`master` réussi. Il n'exige plus l'ancien exporteur ni un manifeste
+spécifique à DefectDojo.
 
-`fastapi-sample/scripts/security/export_defectdojo_collector_trivy.py`
-n'est pas un collecteur mais un exporteur **côté producteur**. Il
-prépare une projection Trivy `uv.lock` HIGH/CRITICAL sans captures
-de requêtes, secrets ni inventaire complet. Le workflow GitHub qui
-publierait cet artefact doit encore être conçu et vérifié ; aucune
-publication, collecte ou ingestion réelle n'est prouvée.
+**Sécurité** : Trivy image vulnerability-only, pas de captures DAST,
+résultats secrets ou inventaire LAN dans les artefacts GitHub. Validation
+du run, SHA, ZIP exact, taille, schéma Trivy et refus des preuves de secrets ;
+les findings natifs ne sont **pas filtrés ou réécrits pour DefectDojo**.
+Les rapports contenant des données privées restent importés via la voie
+LAN, sans publication GitHub. Le parseur `Trivy Scan` conserve le
+JSON natif ; `CodeQL Scan` lit directement SARIF CodeQL. Ne jamais
+importer les deux représentations d'un même scan comme deux Tests
+sans contrôle des doublons.
 
-**Double format possible** sans second scan : `fastapi-sample` peut
-produire `trivy.json` + `trivy.sarif` via l'option `--sarif`.
-Le JSON natif est préféré pour le parseur DefectDojo `Trivy Scan`.
-CodeQL produit du SARIF et se charge avec `CodeQL Scan` ;
-le parseur générique `SARIF` reste **non autorisé par défaut**
-dans les `producers[].allow`, bien que le veto global SARIF soit retiré.
-Ne pas importer les deux représentations du même finding dans deux
-Tests différents sans stratégie de déduplication. SARIF brut, SBOM,
-evidence de secrets et DAST détaillé restent exclusivement privés.
-
-Tests hors réseau ajoutés ; activation Cron, jetons GitHub App, import
-Celery et contrôle WAN restent non attestés.
+**Statut** : code/config/tests préparés ; vérification du premier
+artefact GitHub, du compte robot RBAC, du LAN-only HTTPS/SNI et de
+l'ingestion Celery `NOT_RUN`. Aucune exposition publique de
+`defectdojo.int.albandrieu.com`.
 
 ---
+
 
 
 **Préparation uniquement, aucune activation de cron ni upload appliqué.**

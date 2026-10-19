@@ -1,13 +1,8 @@
-"""Offline contracts for the shared GitHub Actions DefectDojo collector.
-
-The same TrueNAS poller handles site and fastapi sources. No network,
-Github App, DefectDojo token or Cron configuration is required.
-"""
+"""Shared TrueNAS collector: native Trivy artifact, no producer-side export."""
 
 from __future__ import annotations
 
 import contextlib
-from hashlib import sha256
 from io import BytesIO, StringIO
 import importlib.util
 import json
@@ -21,111 +16,93 @@ ROOT = Path(__file__).resolve().parents[1]
 SECURITY = ROOT / "scripts/security"
 sys.path.insert(0, str(SECURITY))
 spec = importlib.util.spec_from_file_location(
-    "shared_defectdojo_poller", SECURITY / "poll-defectdojo-gh-artifacts.py"
+    "shared_dojo", SECURITY / "poll-defectdojo-gh-artifacts.py"
 )
 assert spec and spec.loader
-poller = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(poller)
+poll = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(poll)
 
 
-class SharedCollectorTests(unittest.TestCase):
-    @staticmethod
-    def fixture(severity="HIGH", extra=None):
-        report = {"SchemaVersion": 2, "Results": [
-            {"Target": "uv.lock", "Class": "lang-pkgs", "Type": "python-pkg",
-             "Vulnerabilities": [
-                 {"VulnerabilityID": "CVE-2026-12345",
-                  "PkgName": "httpx", "InstalledVersion": "1.2.3",
-                  "Severity": severity, **(extra or {})}]}]}
-        raw = json.dumps(report).encode()
-        revision = "a" * 40
-        manifest = {
-            "schema_version": 1, "project": "fastapi-sample",
-            "scope": "uv.lock-only-high-critical",
-            "mode": "master", "state": "complete", "scanner": "Trivy Scan",
-            "policy_status": "needs_review" if severity == "CRITICAL" else "pass",
-            "revision": revision, "source_report_sha256": "b" * 64,
-            "report_file": poller.FASTAPI_REPORT, "artifact_sha256": sha256(raw).hexdigest(),
-            "counts": {"HIGH": int(severity == "HIGH"), "CRITICAL": int(severity == "CRITICAL")},
-        }
-        run = {"id": 104, "head_sha": revision, "head_branch": "master",
-               "name": "DefectDojo Trivy Handoff (FastAPI)", "status": "completed",
-               "conclusion": "success", "event": "workflow_dispatch"}
-        return run, json.dumps(manifest).encode(), raw
+def native_report(*, include_secret=False, findings=True):
+    row = {
+        "Target": "ghcr.io/albanandrieu/fastapi-sample:master",
+        "Class": "os-pkgs", "Type": "debian",
+        "Vulnerabilities": ([{"VulnerabilityID": "CVE-2026-12345",
+                             "PkgName": "fixture", "Severity": "CRITICAL",
+                             "Description": "native field retained"}]
+                            if findings else []),
+    }
+    if include_secret:
+        row["Secrets"] = [{"Match": "MUST_NOT_IMPORT"}]
+    return json.dumps({"SchemaVersion": 2, "Results": [row]}).encode()
 
-    @staticmethod
-    def zip_contents(manifest: bytes, report: bytes, extra=False) -> bytes:
-        buffer = BytesIO()
-        with ZipFile(buffer, "w", compression=ZIP_DEFLATED) as archive:
-            archive.writestr(poller.FASTAPI_REPORT, report)
-            archive.writestr(poller.FASTAPI_MANIFEST, manifest)
-            if extra:
-                archive.writestr("secrets.txt", "NEVER")
-        return buffer.getvalue()
 
-    def test_shared_collector_has_one_explicit_fastapi_source(self):
-        self.assertEqual(poller.SOURCES["fastapi-sample"]["repository"],
+def archive(data, extra=False):
+    sink = BytesIO()
+    with ZipFile(sink, "w", compression=ZIP_DEFLATED) as z:
+        z.writestr(poll.FASTAPI_REPORT, data)
+        if extra:
+            z.writestr("unapproved.json", b"{}")
+    return sink.getvalue()
+
+
+class FastapiSharedCollectorContract(unittest.TestCase):
+    def test_existing_poller_lists_native_docker_scan(self):
+        self.assertEqual(poll.SOURCES["fastapi-sample"]["repository"],
                          "AlbanAndrieu/fastapi-sample")
-        self.assertEqual(poller.SOURCES["fastapi-sample"]["workflow_files"]["trivy"],
-                         "defectdojo-trivy-handoff.yml")
-        self.assertNotIn("fastapi-sample", poller.WORKFLOW_FILES)
-        with (mock.patch.object(poller, "installation_token",
-                                side_effect=AssertionError("token accessed")),
-              mock.patch.object(poller, "metadata",
-                                side_effect=AssertionError("network accessed")),
+        self.assertEqual(poll.SOURCES["fastapi-sample"]["workflow_files"]["trivy"],
+                         "docker-build.yml")
+        self.assertEqual(poll.FASTAPI_REPORT, "trivy-results.json")
+        with (mock.patch.object(poll, "installation_token",
+                                side_effect=AssertionError("token read")),
+              mock.patch.object(poll, "metadata",
+                                side_effect=AssertionError("network read")),
               mock.patch.object(sys, "argv", ["poll", "--source", "fastapi-sample", "--check"]),
-              contextlib.redirect_stdout(StringIO()) as stdout):
-            self.assertEqual(poller.main(), 0)
-        self.assertIn("fastapi-sample:trivy", stdout.getvalue())
+              contextlib.redirect_stdout(StringIO()) as output):
+            self.assertEqual(poll.main(), 0)
+        self.assertIn("fastapi-sample:trivy", output.getvalue())
 
-    def test_accepts_only_exact_trivy_allowlist_and_receipt(self):
-        run, manifest, raw = self.fixture()
-        self.assertTrue(poller.validate_fastapi_handoff(run, manifest, raw))
-        run, manifest, raw = self.fixture("CRITICAL")
-        self.assertTrue(poller.validate_fastapi_handoff(run, manifest, raw))
-        report = json.loads(raw)
-        report["Results"][0]["Vulnerabilities"][0]["Description"] = "PRIVATE TOKEN"
-        with self.assertRaises(SystemExit):
-            poller.validate_fastapi_handoff(run, manifest, json.dumps(report).encode())
+    def test_native_trivy_not_transformed(self):
+        raw = native_report()
+        self.assertTrue(poll.validate_fastapi_handoff(raw))
+        self.assertIn(b"native field retained", raw)
+        self.assertFalse(poll.validate_fastapi_handoff(native_report(findings=False)))
+        for bad in (native_report(include_secret=True), b"{}",
+                    b'{"SchemaVersion":2,"Results":"unexpected"}',
+                    b'{"SchemaVersion":2,"Results":[{"Misconfigurations":[{"ID":"x"}]}]}'):
+            with self.subTest(bad=bad[:45]), self.assertRaises(SystemExit):
+                poll.validate_fastapi_handoff(bad)
 
-    def test_rejects_bad_provenance_and_critical_masked_as_pass(self):
-        run, manifest, raw = self.fixture("CRITICAL")
-        for changed in ({"revision": "b" * 40}, {"policy_status": "pass"},
-                        {"report_file": "private.json"}, {"scope": "full-filesystem"}):
-            info = json.loads(manifest)
-            info.update(changed)
-            with self.subTest(changed=changed), self.assertRaises(SystemExit):
-                poller.validate_fastapi_handoff(run, json.dumps(info).encode(), raw)
-
-    def test_stage_verifies_exact_zip_and_uses_no_import(self):
-        run, manifest, raw = self.fixture()
-        listing = {"artifacts": [{
-            "id": 123, "name": "defectdojo-fastapi-trivy-" + run["head_sha"],
-            "expired": False, "size_in_bytes": 2000,
-        }]}
+    def test_zip_members_and_run_provenance_required(self):
+        run = {"id": 104, "head_sha": "a"*40, "head_branch": "master",
+               "name": "Docker CI", "status": "completed",
+               "conclusion": "success", "event": "schedule"}
+        listing = {"artifacts": [{"id": 123,
+                    "name": "defectdojo-fastapi-trivy-" + "a"*40,
+                    "expired": False, "size_in_bytes": 4000}]}
         def metadata(route, token):
-            if route.endswith("/artifacts"):
-                return listing
-            return run
-        with (mock.patch.object(poller, "metadata", side_effect=metadata),
-              mock.patch.object(poller, "api", return_value=self.zip_contents(manifest, raw, extra=True))):
+            return listing if route.endswith("/artifacts") else run
+        with (mock.patch.object(poll, "metadata", side_effect=metadata),
+              mock.patch.object(poll, "api", return_value=archive(native_report(), extra=True))):
             with self.assertRaises(SystemExit):
-                poller.stage_fastapi_handoff("fixture-token", run["id"])
-        with (mock.patch.object(poller, "metadata", side_effect=metadata),
-              mock.patch.object(poller, "api", return_value=self.zip_contents(manifest, raw)),
-              mock.patch.object(poller, "FASTAPI_INBOX", Path("/tmp/defectdojo-fixture-inexistent")),
-              mock.patch.object(poller, "validate_fastapi_handoff", return_value=False)):
-            self.assertEqual(poller.stage_fastapi_handoff("fixture-token", run["id"]),
+                poll.stage_fastapi_handoff("fixture-only", 104)
+        with (mock.patch.object(poll, "metadata", side_effect=metadata),
+              mock.patch.object(poll, "api", return_value=archive(native_report(findings=False)))):
+            self.assertEqual(poll.stage_fastapi_handoff("fixture-only", 104),
                              "NO_ACTIONABLE_FINDINGS")
+        run["head_branch"] = "untrusted"
+        with mock.patch.object(poll, "metadata", side_effect=metadata):
+            with self.assertRaises(SystemExit):
+                poll.stage_fastapi_handoff("fixture-only", 104)
 
-    def test_latest_failed_scan_blocks_older_success(self):
-        good = {"id": 100, "name": "DefectDojo Trivy Handoff (FastAPI)",
-                "head_branch": "master", "status": "completed", "conclusion": "success",
-                "event": "workflow_dispatch", "head_sha": "a" * 40}
-        bad = dict(good, id=101, conclusion="failure")
-        with mock.patch.object(poller, "metadata",
+    def test_new_failure_blocks_previous_success(self):
+        good = {"id": 111, "head_sha": "a"*40, "head_branch": "master",
+                "name": "Docker CI", "status": "completed",
+                "conclusion": "success", "event": "schedule"}
+        bad = dict(good, id=112, conclusion="failure")
+        with mock.patch.object(poll, "metadata",
                                return_value={"workflow_runs": [good, bad]}):
-            self.assertEqual(poller.latest_runs("fixture", "fastapi-sample"), {})
+            self.assertEqual(poll.latest_runs("fixture", source="fastapi-sample"), {})
 
 
 if __name__ == "__main__":
