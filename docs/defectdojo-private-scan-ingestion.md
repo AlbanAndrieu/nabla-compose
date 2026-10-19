@@ -262,4 +262,3 @@ rendre ZAP automatique, remplacer ce dépôt brut par une sortie
 pré-expurgée ou lancer ce scan dans l'environnement privé. Vérifier la
 version du parser OSS sur l'instance et l'absence d'en-tête de bypass.
 Ce point reste ouvert, sans changer la fréquence des scans.
-
