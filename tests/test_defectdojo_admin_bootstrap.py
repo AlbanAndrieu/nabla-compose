@@ -66,7 +66,7 @@ class DefectDojoBootstrapTests(TestCase):
         self.assertEqual(len(writes), 1)
         self.assertEqual(writes[0][0], "create")
         login = writes[0][1]["login"]
-        self.assertEqual(login["username"], "admin")
+        self.assertEqual(login["username"], "nabla")
         self.assertGreaterEqual(len(login["password"]), 64)
         self.assertNotIn(login["password"], output)
 
@@ -89,6 +89,9 @@ class DefectDojoBootstrapTests(TestCase):
         original = {"id": "old", "login": {"username": "admin", "password": "existing"}}
         importer = ModuleType("import_env_to_bitwarden")
         importer.exact_items = lambda *_a, **_kw: [original]
+        importer.create_item = lambda *_a, **_kw: self.fail("unexpected create")
+        importer.edit_item = lambda *_a, **_kw: self.fail("unexpected edit")
+        importer.sync_after_write = lambda *_a, **_kw: self.fail("unexpected sync")
         renderer = ModuleType("render_from_bitwarden")
         renderer.SecretsError = type("SecretsError", (Exception,), {})
         renderer.BitwardenClient = VaultClient

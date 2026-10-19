@@ -45,7 +45,7 @@ def main() -> int:
     login = (item or {}).get("login") or {}
     if login.get("password"):
         if login.get("username") != "nabla":
-            raise SecretsError("existing login is not initializer admin; no rotation")
+            raise SecretsError("existing login differs from requested nabla account; no rotation")
         print("EXISTS: DefectDojo nabla credential already in Vaultwarden; unchanged")
         return 0
     if login.get("username") not in {"admin", "nabla", "homelab:defectdojo", None, ""}:
