@@ -12,8 +12,7 @@ from hashlib import sha256
 from io import BytesIO
 import json
 import re
-import stat
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 import importlib.util
 import os
 from pathlib import Path
@@ -181,7 +180,7 @@ def stage_compose_handoff(token: str, run_id: int) -> str:
                    or x.file_size > 1_000_000 for x in entries):
                 fail("unsafe compose archive")
             report, manifest = z.read(COMPOSE_REPORT), z.read(COMPOSE_MANIFEST)
-    except (OSError, KeyError, RuntimeError, ValueError):
+    except (OSError, BadZipFile, KeyError, RuntimeError, ValueError):
         fail("compose ZIP invalid")
     if not validate_compose_handoff(run, manifest, report):
         return "NO_ACTIONABLE_FINDINGS"
@@ -239,7 +238,7 @@ def stage_fastapi_handoff(token: str, run_id: int) -> str:
                     or item.file_size > 8_000_000 or item.compress_size > 10_000_000):
                 fail("FastAPI artifact ZIP member is unsafe")
             report = zipped.read(FASTAPI_REPORT)
-    except (OSError, ValueError, RuntimeError, KeyError):
+    except (OSError, BadZipFile, ValueError, RuntimeError, KeyError):
         fail("FastAPI native Trivy archive invalid")
     if not validate_fastapi_handoff(report):
         return "NO_ACTIONABLE_FINDINGS"
