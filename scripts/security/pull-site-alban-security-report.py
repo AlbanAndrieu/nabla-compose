@@ -38,7 +38,7 @@ MAX_REPORT_BYTES = 8_000_000
 KINDS = {
     "trivy": ("Supply Chain Security (Trivy)", "trivy-security.json", "Trivy Scan"),
     "nuclei": ("Nuclei public DAST (Site Alban)", "nuclei-results/nuclei.jsonl", "Nuclei Scan"),
-    "zap": ("Production DAST", "report_json.json", "Zed Attack Proxy"),
+    "zap": ("Production DAST", "report_json.json", "ZAP Scan"),
 }
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -217,7 +217,7 @@ def filter_findings(kind: str, raw: bytes, approved_hosts=None) -> bytes:
                 count += 1
         if count == 0:
             return b""
-        # DefectDojo's Zed Attack Proxy importer uses XML, not ZAP JSON.
+        # DefectDojo's ZAP Scan importer uses XML, not ZAP JSON.
         return ElementTree.tostring(report, encoding="utf-8", xml_declaration=True)
     fail("unsupported report type")
 
