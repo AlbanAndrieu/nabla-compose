@@ -1,3 +1,47 @@
+## P0/P1 — Clôture du contrat collecteur DefectDojo inter-dépôts (2026-10-19)
+
+Réconciliation [Site Alban #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+La source autoritative de la procédure reste
+[docs/defectdojo-artifact-poller.md](defectdojo-artifact-poller.md).
+
+- [x] GitHub App partagée, permissions de lecture `Actions:read` limitées
+  à un dépôt sélectionné par jeton ; pas de PAT statique ou runner
+  GitHub auto-hébergé, pas d'API DefectDojo exposée.
+- [x] Recherche bornée par **workflow identifié + dépôt + master** ;
+  le dernier run en échec, annulé ou non terminé bloque le retour à
+  un ancien scan réussi. Filtrage par `head_sha`, état, événement,
+  identité et nom exact d'artefact.
+- [x] Correctif poll multi-dépôts : transmettre `--source` au collecteur
+  pour éviter un téléchargement involontaire depuis Site Alban lorsqu'on
+  demande Bababou ; ajouter test de non-régression.
+- [x] Formats de stage minimaux : Trivy vuln High/Critical
+  (`package-lock.json` uniquement pour Site Alban), Nuclei JSONL
+  High/Critical origin-only et titre fondé sur le template-ID, ZAP
+  JSON → XML expurgé High uniquement. API parser officiel
+  **`ZAP Scan`** (et non `Zed Attack Proxy`) ; importer le XML
+  avec `application/xml`. Ne jamais importer les captures HTTP
+  complètes, secrets, SBOM, licences ou SARIF arbitraires.
+- [x] Tests source ajoutés pour la minimisation des rapports, le
+  rejet des origines non autorisées et des secrets HTTP, les runs obsolètes
+  et le contrat de provenance. Le statut de leur exécution dépend
+  du dernier HEAD CI : ce n'est pas une preuve runtime.
+- [ ] Faire accepter par le **parser installé** sur TrueNAS un exemple
+  XML expurgé réel et vérifier la déduplication et l'état asynchrone
+  du reimport dans l'engagement isolé.
+- [ ] Créer/installer la GitHub App (owner consent), stocker la PEM dans
+  Vaultwarden, matérialiser la clé sur TrueNAS et vérifier Cron `--check`.
+  Le cron reste désactivé ; `--pull` puis `--pull-and-import`
+  nécessitent des autorisations distinctes.
+- [ ] **Bloquant confidentialité** : `zaproxy/action-baseline` peut publier
+  un rapport brut via son propre artefact GitHub. Ne pas autoriser
+  l'import automatique ZAP avant publication source minimisée/chiffrée
+  ou acceptation formelle de son contenu. Pour les DAST exhaustifs,
+  privilégier un scan et stockage **uniquement privés sur TrueNAS**.
+- [ ] Vérifier les quality gates exact-HEAD dans les deux PR,
+  l'absence d'exposition `.int`, le produit/RBAC DefectDojo
+  et les règles de rétention/rotation avant activation.
+
 ## P0/P1 — GitOps single GitHub App / Site Bababou convergence (2026-10-19)
 
 - [x] Unifier `nabla-security-artifact-reader` pour quatre dépôts Nabla,
