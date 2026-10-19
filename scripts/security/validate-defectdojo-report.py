@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 from urllib.parse import urlsplit
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/security/defectdojo-allowed-imports.json"
@@ -33,6 +34,42 @@ def validate(service: str, scanner: str, data: bytes) -> None:
             if parsed.scheme != "https" or parsed.hostname not in spec["hosts"]:
                 raise ValueError("Nuclei target is not in the permitted HTTPS domain set")
         return
+    if scanner == "Zed Attack Proxy":
+        if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
+            raise ValueError("XML entities and document types forbidden")
+        try:
+            root = ElementTree.fromstring(data)
+        except ElementTree.ParseError as exc:
+            raise ValueError("invalid ZAP XML report") from exc
+        if root.tag != "OWASPZAPReport":
+            raise ValueError("expected OWASP ZAP XML report")
+        sites = root.findall("site")
+        if not sites:
+            raise ValueError("empty ZAP XML target set")
+        total = 0
+        for site in sites:
+            uri = urlsplit(site.get("name", ""))
+            if uri.scheme != "https" or uri.hostname not in spec["hosts"] or uri.query or uri.fragment:
+                raise ValueError("ZAP target outside permitted HTTPS hosts")
+            for alert in site.findall("alerts/alertitem"):
+                if alert.findtext("riskcode") != "3" or not (alert.findtext("pluginid") or "").isdecimal():
+                    raise ValueError("unexpected ZAP alert content")
+                if alert.find("requestheader") is not None or alert.find("responseheader") is not None:
+                    raise ValueError("raw ZAP requests forbidden")
+                for instance in alert.findall("instances/instance"):
+                    url = urlsplit(instance.findtext("uri", ""))
+                    if (
+                        url.scheme != "https"
+                        or url.hostname not in spec["hosts"]
+                        or url.query or url.fragment
+                    ):
+                        raise ValueError("unsafe ZAP instance URL")
+                    if any(instance.find(p) is not None for p in ("requestheader", "requestbody", "responseheader", "responsebody", "evidence", "param", "attack")):
+                        raise ValueError("raw ZAP HTTP evidence forbidden")
+                total += 1
+        if total == 0:
+            raise ValueError("no actionable ZAP alerts")
+        return
     report = json.loads(data)
     if not isinstance(report, dict):
         raise ValueError("report must be a JSON object")
@@ -50,17 +87,6 @@ def validate(service: str, scanner: str, data: bytes) -> None:
     elif scanner == "Semgrep JSON Report":
         if not isinstance(report.get("results"), list):
             raise ValueError("not a Semgrep report")
-    elif scanner == "Zed Attack Proxy":
-        sites = report.get("site")
-        if not isinstance(sites, list):
-            raise ValueError("not a ZAP JSON report")
-        if not sites:
-            raise ValueError("empty ZAP targets")
-        for site in sites:
-            url = site.get("@name", "") if isinstance(site, dict) else ""
-            parsed = urlsplit(url)
-            if parsed.scheme != "https" or parsed.hostname not in spec["hosts"]:
-                raise ValueError("ZAP target outside the approved HTTPS hosts")
 
 
 def main() -> int:
