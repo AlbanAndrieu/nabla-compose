@@ -64,8 +64,8 @@ SOURCES = {
 }
 FASTAPI_INBOX = Path("/mnt/cpool/defectdojo/imports/fastapi-sample")
 FASTAPI_REPORT = "trivy-results.json"
-_SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
-_SHA256 = re.compile(r"[0-9a-f]{64}\\Z")
+_SHA40 = re.compile(r"[0-9a-f]{40}\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def validate_fastapi_handoff(report: bytes) -> bool:
