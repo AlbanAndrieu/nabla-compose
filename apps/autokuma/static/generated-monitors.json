@@ -1,5 +1,6 @@
 [
   {
+    "id": "2fauth",
     "type": "port",
     "name": "2FAuth",
     "description": "Nabla generated monitor: 2fauth",
@@ -10,6 +11,7 @@
     "port": 30081
   },
   {
+    "id": "aistor",
     "type": "port",
     "name": "AIStor",
     "description": "MinIO AIStor-compatible object storage service.",
@@ -20,6 +22,7 @@
     "port": 9002
   },
   {
+    "id": "alloy",
     "type": "http",
     "name": "Grafana Alloy",
     "description": "Nabla generated monitor: alloy",
@@ -29,6 +32,7 @@
     "url": "http://172.17.0.24:12345/-/healthy"
   },
   {
+    "id": "autoxpose",
     "type": "http",
     "name": "AutoXpose",
     "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
@@ -38,6 +42,7 @@
     "url": "http://172.17.0.24:4949/api/settings/status"
   },
   {
+    "id": "bichon",
     "type": "port",
     "name": "Bichon",
     "description": "Nabla generated monitor: bichon",
@@ -48,6 +53,7 @@
     "port": 15630
   },
   {
+    "id": "clickhouse",
     "type": "port",
     "name": "ClickHouse",
     "description": "Shared analytical database for event and network-flow pipelines.",
@@ -58,6 +64,7 @@
     "port": 8123
   },
   {
+    "id": "code-server",
     "type": "http",
     "name": "Code Server",
     "description": "Browser-based development environment for homelab repositories.",
@@ -67,6 +74,7 @@
     "url": "http://172.17.0.24:8443/healthz"
   },
   {
+    "id": "cyberbro",
     "type": "http",
     "name": "Cyberbro",
     "description": "Threat-intelligence workbench for IoC extraction and reputation analysis.",
@@ -76,6 +84,7 @@
     "url": "http://172.17.0.24:5100/"
   },
   {
+    "id": "defectdojo",
     "type": "port",
     "name": "DefectDojo",
     "description": "Central normalized security-finding aggregation, triage and remediation workflow.",
@@ -86,6 +95,7 @@
     "port": 31085
   },
   {
+    "id": "dependency-track",
     "type": "port",
     "name": "Dependency-Track",
     "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
@@ -96,6 +106,7 @@
     "port": 31084
   },
   {
+    "id": "dependency-track-api",
     "type": "port",
     "name": "Dependency-Track API",
     "description": "Nabla generated monitor: dependency-track-api",
@@ -106,6 +117,7 @@
     "port": 31083
   },
   {
+    "id": "docker",
     "type": "port",
     "name": "Docker API",
     "description": "Nabla generated monitor: docker",
@@ -116,6 +128,7 @@
     "port": 2375
   },
   {
+    "id": "dockhand",
     "type": "port",
     "name": "Dockhand",
     "description": "Docker container management UI for the homelab runtime.",
@@ -126,6 +139,7 @@
     "port": 3050
   },
   {
+    "id": "docling",
     "type": "http",
     "name": "Docling Serve",
     "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
@@ -135,6 +149,7 @@
     "url": "http://172.17.0.24:5001/ready"
   },
   {
+    "id": "doco-cd",
     "type": "port",
     "name": "Doco-CD",
     "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
@@ -145,6 +160,7 @@
     "port": 9120
   },
   {
+    "id": "dozzle",
     "type": "port",
     "name": "Dozzle",
     "description": "Live Docker log viewer and MCP-enabled operations UI.",
@@ -155,6 +171,7 @@
     "port": 8888
   },
   {
+    "id": "drawio",
     "type": "port",
     "name": "Draw.io",
     "description": "Self-hosted diagrams.net editor for internal diagram authoring.",
@@ -165,6 +182,7 @@
     "port": 9080
   },
   {
+    "id": "elasticsearch",
     "type": "port",
     "name": "Elasticsearch",
     "description": "Nabla generated monitor: elasticsearch",
@@ -175,6 +193,7 @@
     "port": 9200
   },
   {
+    "id": "fastapi-sample",
     "type": "http",
     "name": "FastAPI Sample",
     "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
@@ -184,6 +203,7 @@
     "url": "http://172.17.0.24:8091/health"
   },
   {
+    "id": "garage",
     "type": "port",
     "name": "Garage S3 API",
     "description": "S3-compatible object storage hosted on TrueNAS.",
@@ -194,6 +214,7 @@
     "port": 3900
   },
   {
+    "id": "garage-webui",
     "type": "port",
     "name": "Garage Web UI",
     "description": "Web administration UI for Garage.",
@@ -204,6 +225,7 @@
     "port": 3909
   },
   {
+    "id": "gatus",
     "type": "port",
     "name": "Gatus",
     "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
@@ -214,6 +236,7 @@
     "port": 8085
   },
   {
+    "id": "grafana",
     "type": "http",
     "name": "Grafana",
     "description": "Nabla generated monitor: grafana",
@@ -223,6 +246,7 @@
     "url": "http://172.17.0.24:30037/api/health"
   },
   {
+    "id": "graylog",
     "type": "port",
     "name": "Graylog",
     "description": "Nabla generated monitor: graylog",
@@ -233,6 +257,7 @@
     "port": 9003
   },
   {
+    "id": "haproxy-exporter",
     "type": "port",
     "name": "pfSense HAProxy Exporter",
     "description": "Nabla generated monitor: haproxy-exporter",
@@ -243,6 +268,7 @@
     "port": 9101
   },
   {
+    "id": "hello-nginx",
     "type": "port",
     "name": "Hello Nginx",
     "description": "Small internal Nginx service used for ingress and routing experiments.",
@@ -253,6 +279,7 @@
     "port": 8099
   },
   {
+    "id": "homarr",
     "type": "port",
     "name": "Homarr",
     "description": "Homelab application dashboard generated from the Nabla service inventory.",
@@ -263,6 +290,7 @@
     "port": 30100
   },
   {
+    "id": "homeassistant",
     "type": "http",
     "name": "Home Assistant",
     "description": "Home automation control plane exposed through the dedicated IoT network.",
@@ -272,6 +300,7 @@
     "url": "https://homeassistant.albanandrieu.com"
   },
   {
+    "id": "joplin",
     "type": "http",
     "name": "Joplin Server",
     "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
@@ -281,6 +310,7 @@
     "url": "http://172.17.0.24:22300/api/ping"
   },
   {
+    "id": "kafka",
     "type": "port",
     "name": "Apache Kafka",
     "description": "Shared homelab message broker.",
@@ -291,6 +321,7 @@
     "port": 9092
   },
   {
+    "id": "kafka-exporter",
     "type": "http",
     "name": "Kafka Exporter",
     "description": "Prometheus exporter for Kafka broker and consumer-group state.",
@@ -300,6 +331,7 @@
     "url": "http://172.17.0.24:9308/metrics"
   },
   {
+    "id": "kibana",
     "type": "port",
     "name": "Kibana",
     "description": "Nabla generated monitor: kibana",
@@ -310,6 +342,7 @@
     "port": 5601
   },
   {
+    "id": "langflow",
     "type": "port",
     "name": "Langflow",
     "description": "Nabla generated monitor: langflow",
@@ -320,6 +353,7 @@
     "port": 7860
   },
   {
+    "id": "langfuse-web",
     "type": "port",
     "name": "Langfuse Web",
     "description": "Nabla generated monitor: langfuse-web",
@@ -330,6 +364,7 @@
     "port": 3000
   },
   {
+    "id": "languagetool",
     "type": "http",
     "name": "LanguageTool",
     "description": "Self-hosted grammar and style checking API.",
@@ -339,6 +374,7 @@
     "url": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
   },
   {
+    "id": "litellm",
     "type": "port",
     "name": "LiteLLM",
     "description": "OpenAI-compatible model gateway used by OpenWebUI and AI workloads.",
@@ -349,6 +385,7 @@
     "port": 4000
   },
   {
+    "id": "loki",
     "type": "http",
     "name": "Loki",
     "description": "Nabla generated monitor: loki",
@@ -358,6 +395,7 @@
     "url": "http://172.17.0.24:3100/ready"
   },
   {
+    "id": "mcp-cyberbro",
     "type": "port",
     "name": "Cyberbro MCP",
     "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
@@ -368,6 +406,7 @@
     "port": 8013
   },
   {
+    "id": "mimir",
     "type": "http",
     "name": "Mimir",
     "description": "Nabla generated monitor: mimir",
@@ -377,6 +416,7 @@
     "url": "http://172.17.0.24:9009/ready"
   },
   {
+    "id": "minio",
     "type": "port",
     "name": "MinIO",
     "description": "Nabla generated monitor: minio",
@@ -387,6 +427,7 @@
     "port": 9002
   },
   {
+    "id": "neo4j-security",
     "type": "port",
     "name": "Neo4j Security Graph",
     "description": "Analytical graph store for attack-path and blast-radius analysis.",
@@ -397,6 +438,7 @@
     "port": 31086
   },
   {
+    "id": "netbox",
     "type": "port",
     "name": "NetBox",
     "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
@@ -407,6 +449,7 @@
     "port": 31082
   },
   {
+    "id": "nexus",
     "type": "port",
     "name": "Nexus Repository",
     "description": "Repository manager for development artifacts and package proxies.",
@@ -417,6 +460,7 @@
     "port": 8081
   },
   {
+    "id": "nginx-proxy-manager",
     "type": "port",
     "name": "Nginx Proxy Manager",
     "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
@@ -427,6 +471,7 @@
     "port": 30021
   },
   {
+    "id": "npmplus",
     "type": "port",
     "name": "NPMplus",
     "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
@@ -437,6 +482,7 @@
     "port": 30360
   },
   {
+    "id": "ntopng",
     "type": "port",
     "name": "ntopng",
     "description": "LAN network traffic monitoring UI.",
@@ -447,6 +493,7 @@
     "port": 3000
   },
   {
+    "id": "obsidian",
     "type": "port",
     "name": "Obsidian",
     "description": "Nabla generated monitor: obsidian",
@@ -457,6 +504,7 @@
     "port": 3002
   },
   {
+    "id": "ollama",
     "type": "port",
     "name": "Ollama",
     "description": "Nabla generated monitor: ollama",
@@ -467,6 +515,7 @@
     "port": 30068
   },
   {
+    "id": "openhands",
     "type": "port",
     "name": "OpenHands",
     "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
@@ -477,6 +526,7 @@
     "port": 3010
   },
   {
+    "id": "openrag-frontend",
     "type": "port",
     "name": "OpenRAG Frontend",
     "description": "OpenRAG frontend and collective-health UI.",
@@ -487,6 +537,7 @@
     "port": 31060
   },
   {
+    "id": "opensearch",
     "type": "port",
     "name": "OpenSearch",
     "description": "Nabla generated monitor: opensearch",
@@ -497,6 +548,7 @@
     "port": 9200
   },
   {
+    "id": "opensearch-dashboards",
     "type": "port",
     "name": "OpenSearch Dashboards",
     "description": "Nabla generated monitor: opensearch-dashboards",
@@ -507,6 +559,7 @@
     "port": 5601
   },
   {
+    "id": "opensearch-exporter",
     "type": "port",
     "name": "OpenSearch Exporter",
     "description": "Nabla generated monitor: opensearch-exporter",
@@ -517,6 +570,7 @@
     "port": 9114
   },
   {
+    "id": "opensearch-security-exporter",
     "type": "port",
     "name": "OpenSearch Security Exporter",
     "description": "Nabla generated monitor: opensearch-security-exporter",
@@ -527,6 +581,7 @@
     "port": 9115
   },
   {
+    "id": "openwebui",
     "type": "port",
     "name": "Open WebUI",
     "description": "Self-hosted AI chat and RAG interface using the homelab LiteLLM gateway.",
@@ -537,6 +592,7 @@
     "port": 31028
   },
   {
+    "id": "pfsense",
     "type": "port",
     "name": "pfSense",
     "description": "Homelab firewall, router and network-edge appliance.",
@@ -547,6 +603,7 @@
     "port": 10443
   },
   {
+    "id": "pfsense-exporter",
     "type": "port",
     "name": "pfSense Exporter",
     "description": "Nabla generated monitor: pfsense-exporter",
@@ -557,6 +614,7 @@
     "port": 9945
   },
   {
+    "id": "pihole",
     "type": "http",
     "name": "Pi-hole",
     "description": "LAN DNS filtering and private *.int.albandrieu.com DNS service.",
@@ -566,6 +624,7 @@
     "url": "http://172.17.0.24:20720/admin/"
   },
   {
+    "id": "pihole-exporter",
     "type": "port",
     "name": "Pi-hole Exporter",
     "description": "Prometheus-compatible metrics exporter for Pi-hole.",
@@ -576,6 +635,7 @@
     "port": 9617
   },
   {
+    "id": "plumber",
     "type": "port",
     "name": "Plumber",
     "description": "Repository-managed developer platform frontend and workflow UI.",
@@ -586,6 +646,7 @@
     "port": 31070
   },
   {
+    "id": "plumber-api",
     "type": "port",
     "name": "Plumber API",
     "description": "Backend API for the Plumber developer platform.",
@@ -596,6 +657,7 @@
     "port": 31071
   },
   {
+    "id": "portracker",
     "type": "http",
     "name": "Portracker",
     "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
@@ -605,6 +667,7 @@
     "url": "http://172.17.0.24:30233/metrics"
   },
   {
+    "id": "postgres-exporter",
     "type": "port",
     "name": "PostgreSQL Exporter",
     "description": "Prometheus exporter for the shared PostgreSQL Resource.",
@@ -615,6 +678,7 @@
     "port": 9187
   },
   {
+    "id": "postgresql",
     "type": "port",
     "name": "PostgreSQL",
     "description": "Shared native TrueNAS PostgreSQL service used by homelab consumers.",
@@ -625,6 +689,7 @@
     "port": 5432
   },
   {
+    "id": "prometheus",
     "type": "http",
     "name": "Prometheus",
     "description": "Nabla generated monitor: prometheus",
@@ -634,6 +699,7 @@
     "url": "http://172.17.0.24:9090/-/ready"
   },
   {
+    "id": "prometheus-alertmanager",
     "type": "http",
     "name": "Alertmanager",
     "description": "Nabla generated monitor: prometheus-alertmanager",
@@ -643,6 +709,7 @@
     "url": "http://172.17.0.24:9093/-/ready"
   },
   {
+    "id": "prometheus-node-exporter",
     "type": "port",
     "name": "Node Exporter",
     "description": "Nabla generated monitor: prometheus-node-exporter",
@@ -653,6 +720,7 @@
     "port": 9100
   },
   {
+    "id": "pyroscope",
     "type": "http",
     "name": "Grafana Pyroscope",
     "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
@@ -662,6 +730,7 @@
     "url": "http://172.17.0.24:4040/"
   },
   {
+    "id": "redis",
     "type": "port",
     "name": "Redis",
     "description": "Shared homelab Redis cache and runtime-state service.",
@@ -672,6 +741,7 @@
     "port": 30059
   },
   {
+    "id": "redis-redis-exporter",
     "type": "port",
     "name": "Redis Exporter",
     "description": "Nabla generated monitor: redis-redis-exporter",
@@ -682,6 +752,7 @@
     "port": 9121
   },
   {
+    "id": "scanopy",
     "type": "port",
     "name": "Scanopy",
     "description": "Agentless network discovery and continuously updated topology documentation.",
@@ -692,6 +763,7 @@
     "port": 60072
   },
   {
+    "id": "scrutiny",
     "type": "http",
     "name": "Scrutiny",
     "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
@@ -701,6 +773,7 @@
     "url": "http://172.17.0.24:31054/api/health"
   },
   {
+    "id": "sentry",
     "type": "http",
     "name": "Sentry",
     "description": "Self-hosted Sentry errors-only observability service.",
@@ -710,6 +783,7 @@
     "url": "http://172.17.0.24:9005/_health/"
   },
   {
+    "id": "sentry-clickhouse",
     "type": "port",
     "name": "Sentry ClickHouse",
     "description": "Dedicated analytical datastore for the self-hosted Sentry stack.",
@@ -720,6 +794,7 @@
     "port": 9000
   },
   {
+    "id": "sentry-edge",
     "type": "http",
     "name": "Sentry Edge",
     "description": "Nabla generated monitor: sentry-edge",
@@ -729,6 +804,7 @@
     "url": "http://172.17.0.24:9005/_health/"
   },
   {
+    "id": "sonarqube",
     "type": "port",
     "name": "SonarQube",
     "description": "Nabla generated monitor: sonarqube",
@@ -739,6 +815,7 @@
     "port": 9001
   },
   {
+    "id": "squid",
     "type": "port",
     "name": "Squid Proxy",
     "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
@@ -749,6 +826,7 @@
     "port": 3128
   },
   {
+    "id": "sybase-exporter",
     "type": "port",
     "name": "Sybase Exporter",
     "description": "Nabla generated monitor: sybase-exporter",
@@ -759,6 +837,7 @@
     "port": 9113
   },
   {
+    "id": "tempo",
     "type": "http",
     "name": "Tempo",
     "description": "Nabla generated monitor: tempo",
@@ -768,6 +847,7 @@
     "url": "http://172.17.0.24:3200/ready"
   },
   {
+    "id": "traefik",
     "type": "port",
     "name": "Traefik",
     "description": "Internal reverse proxy for repository-managed homelab services.",
@@ -778,6 +858,7 @@
     "port": 80
   },
   {
+    "id": "traefik-ddns-updater",
     "type": "port",
     "name": "Ddns Updater",
     "description": "Nabla generated monitor: traefik-ddns-updater",
@@ -788,6 +869,7 @@
     "port": 8000
   },
   {
+    "id": "truenas",
     "type": "port",
     "name": "TrueNAS",
     "description": "Always-on storage, virtualization and Docker application platform.",
@@ -798,6 +880,7 @@
     "port": 7000
   },
   {
+    "id": "vaultwarden",
     "type": "port",
     "name": "Vaultwarden",
     "description": "Self-hosted Bitwarden-compatible password and secret vault.",
@@ -808,6 +891,7 @@
     "port": 30032
   },
   {
+    "id": "wazuh-manager",
     "type": "port",
     "name": "Wazuh Manager",
     "description": "Nabla generated monitor: wazuh-manager",
@@ -818,6 +902,7 @@
     "port": 1514
   },
   {
+    "id": "wordpress",
     "type": "port",
     "name": "WordPress",
     "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
