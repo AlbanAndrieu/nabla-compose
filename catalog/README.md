@@ -44,7 +44,7 @@ python scripts/generate-catalog-v2-artifacts.py --check
 
 The v2 read models are `catalog/generated/entities.json` and
 `catalog/generated/homelab.cdx.json`. Current coverage (20 October 2026):
-96 Backstage entities, 85 Homarr entries, 85 Gatus probes and 85 AutoKuma
+95 Backstage entities, 85 Homarr entries, 85 Gatus probes and 85 AutoKuma
 monitors; the CycloneDX projection represents 92 Component/Resource/API entities
 and excludes organizational entities (Group/System/Domain). The old Homarr count (143) includes unmigrated v1-only entries;
 do not silently synthesize v2 identities from names to recover that count.

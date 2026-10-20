@@ -107,3 +107,20 @@ d'un contrôle sans validation humaine et preuve traçable.
   des services exécutables.
 - La qualité CI et les contrôles de secrets restent applicables ; aucune
   exigence de correspondance exhaustive entre l'ancien et le nouveau catalogue.
+
+## Provisional BIA assumptions (not audited conclusions)
+
+Gatus and ntopng are independent application capabilities, not subcomponents
+of another service. They therefore have provisional **direct** BIA profiles
+rather than a fictional Backstage parent or fabricated dependent.
+
+- Gatus: current provisional `low` business-criticality; the ability to
+  manually verify endpoints is the stated continuity baseline.
+- ntopng: provisional `medium` based on confidentiality impacts of traffic
+  metadata; flow observability can be reconstructed from authoritative sources.
+
+The values `MTPD=P7D`, `RTO=P3D` are **planning assumptions** for the
+repository contract, not operator-validated recovery objectives. Review
+business impacts, RTO/RPO and retention with the service owner before relying
+on them for a formal ISO 27001 or continuity assessment. These labels never
+represent runtime health evidence.
