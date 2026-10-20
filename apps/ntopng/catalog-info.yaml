@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ntopng
+  title: ntopng
+  description: LAN network traffic monitoring UI.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - network
+    - observability
+  links:
+    - url: http://172.17.0.24:3000
+      title: Dashboard
+spec:
+  type: network-observability
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

@@ -98,6 +98,9 @@ metadata:
   name: pfsense
   title: pfSense
   description: Homelab firewall, router and network-edge appliance.
+  links:
+    - url: https://172.17.0.1:10443
+      title: Administration
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: critical
@@ -168,6 +171,9 @@ metadata:
   name: truenas
   title: TrueNAS
   description: Always-on storage, virtualization and Docker application platform.
+  links:
+    - url: https://172.17.0.24:7000
+      title: Administration
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: critical
@@ -273,6 +279,9 @@ metadata:
   name: docker
   title: Docker Runtime
   description: Docker Engine runtime used by repository-managed Compose workloads.
+  links:
+    - url: http://172.17.0.24:3050
+      title: Administration
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: high

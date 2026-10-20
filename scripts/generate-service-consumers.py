@@ -18,6 +18,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
+from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
 ROOT = SCRIPTS_DIR.parent
 STATIC_CONFIG = ROOT / "catalog" / "service-consumers.static.yml"
@@ -462,6 +463,45 @@ def apply_monitoring_static(
             monitors[extra_id] = monitor
 
 
+def backstage_entities() -> dict[str, dict[str, Any]]:
+    """Backstage documents alone own entity identity and declared state."""
+    paths = [ROOT / "catalog" / "catalog-info.yaml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    return {
+        entity["entityRef"]: entity
+        for entity in load_backstage_entities(path for path in paths if path.is_file())
+    }
+
+
+def entity_metadata(
+    entity: dict[str, Any],
+) -> tuple[str, str, str | None, str | None, str | None]:
+    metadata = entity["metadata"]
+    name = concrete_text(metadata.get("title")) or str(metadata["name"])
+    tags = metadata.get("tags")
+    category = (
+        str(tags[0])
+        if isinstance(tags, list) and tags and isinstance(tags[0], str)
+        else "infrastructure"
+    )
+    description = concrete_text(metadata.get("description"))
+    links = metadata.get("links") or []
+    url = next(
+        (
+            concrete_text(link.get("url"))
+            for link in links
+            if isinstance(link, dict) and concrete_text(link.get("url"))
+        ),
+        None,
+    )
+    return name, category, description, url, str((entity.get("spec") or {}).get("type") or "")
+
+
+def declared_entity_active(entity: dict[str, Any]) -> bool:
+    labels = (entity.get("metadata") or {}).get("labels") or {}
+    return labels.get("albandrieu.com/operational-state", "active") == "active"
+
+
 def collect_services(
     static: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -472,7 +512,15 @@ def collect_services(
     default_interval = concrete_text(defaults.get("interval")) or "60s"
     homarr_apps: dict[str, dict[str, Any]] = {}
     monitors: dict[str, dict[str, Any]] = {}
-    declared_service_ids: set[str] = set()
+    entities = backstage_entities()
+    by_id: dict[str, dict[str, Any]] = {}
+    for ref, entity in entities.items():
+        if entity["kind"] not in {"Component", "Resource", "API"}:
+            continue
+        service_id = str(entity["metadata"]["name"])
+        if service_id in by_id:
+            fail(f"ambiguous Backstage service id {service_id!r}")
+        by_id[service_id] = entity
 
     for relative_path in tracked_compose_paths():
         document = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8")) or {}
@@ -481,78 +529,92 @@ def collect_services(
         services = document.get("services", {})
         if not isinstance(services, dict):
             continue
-        is_app_compose = bool(
-            relative_path.parts and relative_path.parts[0] == "apps"
-        )
-        app_name = relative_path.parts[1] if is_app_compose else relative_path.stem
-
         for raw_service_name, raw_service in services.items():
             if not isinstance(raw_service, dict):
                 continue
-            service_name = str(raw_service_name)
-            raw_metadata = raw_service.get("x-nabla")
-            if not is_app_compose and not isinstance(raw_metadata, dict):
-                continue
-            metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
-            service_id = app_service_id(app_name, service_name, metadata)
-            if isinstance(raw_metadata, dict):
-                declared_service_ids.add(service_id)
-            name = concrete_text(metadata.get("name")) or title(service_name)
-            kind = concrete_text(metadata.get("kind"))
-            category = concrete_text(metadata.get("category")) or slug(app_name)
-            description = concrete_text(metadata.get("description"))
-            icon = concrete_text(metadata.get("icon"))
-            ports = published_ports(raw_service)
-            href = (
-                concrete_text(metadata.get("url"))
-                or traefik_url(raw_service)
-                or infer_web_url(host, kind, ports)
+            entity_ref = concrete_text(
+                label_map(raw_service).get("com.albandrieu.nabla.entity-ref")
             )
-
+            if not entity_ref:
+                continue  # unmanaged support containers are not catalog entities
+            entity = entities.get(entity_ref.lower())
+            if entity is None:
+                fail(f"{relative_path}: unresolved Backstage ref {entity_ref}")
+            service_id = str(entity["metadata"]["name"])
+            name, category, description, canonical_url, kind = entity_metadata(entity)
+            ports = published_ports(raw_service)
+            href = canonical_url or traefik_url(raw_service) or infer_web_url(host, kind, ports)
             entry: dict[str, Any] = {
                 "id": service_id,
+                "entityRef": entity_ref.lower(),
                 "name": name,
                 "group": category,
                 "sourcePath": relative_path.as_posix(),
-                "composeService": service_name,
+                "composeService": str(raw_service_name),
                 "dockerManaged": True,
                 "href": href,
                 "syncEligible": bool(href),
             }
             if description:
                 entry["description"] = description
-            if icon:
-                entry["icon"] = icon
+            previous = homarr_apps.get(service_id)
+            if previous and previous.get("entityRef") != entry["entityRef"]:
+                fail(f"duplicate Homarr id {service_id!r}")
             homarr_apps[service_id] = entry
-
-            declared_status = concrete_text(metadata.get("status")) or "active"
-            if declared_status == "active":
-                monitor = monitor_from_metadata(
-                    service_id,
-                    name,
-                    category,
-                    description,
-                    metadata.get("monitoring"),
-                    default_interval,
+            if declared_entity_active(entity):
+                # Portable generic probes only: service-specific probe policy lives
+                # in consumer monitoring overrides, never in identity metadata.
+                monitor = fallback_monitor(
+                    service_id, name, category, description, host, ports, default_interval
                 )
-                if monitor is None and is_app_compose:
-                    monitor = fallback_monitor(
-                        service_id,
-                        name,
-                        category,
-                        description,
-                        host,
-                        ports,
-                        default_interval,
-                    )
                 if monitor:
+                    monitor["service_id"] = service_id
                     monitors[service_id] = monitor
 
+    # Non-Compose entities (pfSense/TrueNAS/Docker) are projected from their
+    # Backstage standard links, without re-declaring identity in a static list.
+    for service_id, entity in by_id.items():
+        if service_id in homarr_apps:
+            continue
+        name, category, description, href, _ = entity_metadata(entity)
+        if not href:
+            continue
+        entry = {
+            "id": service_id,
+            "entityRef": entity["entityRef"],
+            "name": name,
+            "group": category,
+            "sourcePath": entity["sourcePath"],
+            "composeService": None,
+            "dockerManaged": False,
+            "href": href,
+            "syncEligible": True,
+        }
+        if description:
+            entry["description"] = description
+        homarr_apps[service_id] = entry
+
+    # Override *probe behavior* only, never the service identity/description.
+    for override in (static.get("monitoring") or {}).get("overrides", []):
+        if not isinstance(override, dict):
+            continue
+        ref = concrete_text(override.get("entityRef"))
+        if not ref:
+            fail("monitoring override requires entityRef")
+        entity = entities.get(ref.lower())
+        if entity is None:
+            fail(f"monitoring override refers to missing Backstage entity {ref}")
+        if not declared_entity_active(entity):
+            continue
+        service_id = str(entity["metadata"]["name"])
+        name, category, description, _, _ = entity_metadata(entity)
+        monitor = monitor_from_metadata(
+            service_id, name, category, description, override, default_interval
+        )
+        if monitor:
+            monitor["service_id"] = service_id
+            monitors[service_id] = monitor
     apply_homarr_static(homarr_apps, static)
-    apply_monitoring_static(monitors, static, default_interval)
-    for monitor_id, monitor in monitors.items():
-        if monitor_id in declared_service_ids:
-            monitor["service_id"] = monitor_id
     return (
         [homarr_apps[key] for key in sorted(homarr_apps)],
         [monitors[key] for key in sorted(monitors)],
