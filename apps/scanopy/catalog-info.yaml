@@ -42,7 +42,6 @@ spec:
   system: system:default/nabla-homelab
   dependsOn:
     - resource:default/postgresql
-    - component:default/scanopy-daemon
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
