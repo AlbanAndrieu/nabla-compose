@@ -908,6 +908,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "resource:default/docker",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "docker",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/dockhand",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "dockhand",
@@ -1232,6 +1238,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/prometheus-node-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "prometheus-node-exporter",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/pyroscope",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "pyroscope",
@@ -1241,6 +1253,12 @@
       "entityRef": "resource:default/redis",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "redis",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/redis-redis-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "redis-redis-exporter",
       "sourceType": "gatus"
     },
     {
@@ -1304,6 +1322,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/traefik-ddns-updater",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "traefik-ddns-updater",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "resource:default/truenas",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "truenas",
@@ -1330,30 +1354,5 @@
   ],
   "model": "backstage-identity-crosswalk",
   "schemaVersion": 1,
-  "unresolved": [
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "missing-service-id",
-      "sourceId": "docker",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "missing-service-id",
-      "sourceId": "prometheus-node-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "missing-service-id",
-      "sourceId": "redis-redis-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "missing-service-id",
-      "sourceId": "traefik-ddns-updater",
-      "sourceType": "gatus"
-    }
-  ]
+  "unresolved": []
 }

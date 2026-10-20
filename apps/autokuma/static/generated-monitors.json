@@ -120,7 +120,7 @@
     "id": "docker",
     "type": "port",
     "name": "Docker API",
-    "description": "Nabla generated monitor: docker",
+    "description": "Docker Engine runtime used by repository-managed Compose workloads.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
