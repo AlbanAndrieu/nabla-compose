@@ -1,4 +1,4 @@
-name: Temporary Backstage v2 reconciliation # retry deduped Scanopy
+name: Temporary Backstage v2 reconciliation # retry BIA valid direct profiles # retry deduped Scanopy
 on:
   push:
     branches: [feat/catalog-v2-runtime-secrets-20261020]
