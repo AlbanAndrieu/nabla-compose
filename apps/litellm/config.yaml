@@ -126,6 +126,18 @@ model_list:
       mode: chat
       supports_function_calling: true
 
+  # Dedicated FastAPI staging relay: never reuse unrestricted IDE key.
+  # This is a different TrueNAS virtual model, not a workstation model name.
+  - model_name: fastapi-qwen
+    litellm_params:
+      model: openai/qwen
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_FASTAPI_WORKSTATION_API_KEY
+      request_timeout: 120
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
   - model_name: gemma3
     litellm_params:
       model: "ollama_chat/gemma3"
@@ -181,6 +193,8 @@ litellm_settings:
     - { "llama3.2": ["gpt-4.1-mini"] }
     - { "gemma3": ["gpt-4.1-mini"] }
     - { "qwen": ["llama3.2"] }
+    # Explicitly no alternate paid/local model for this budget-scoped service.
+    - { "fastapi-qwen": [] }
   default_fallbacks: ["llama3.2"]
   cache: true
   cache_params:

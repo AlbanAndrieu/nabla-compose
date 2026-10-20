@@ -52,6 +52,13 @@ services:
           description: FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.
           evidence:
             - apps/sample/compose.yml:/mnt/cpool/secrets/runtime/sample/.env.secrets:REDIS_URL
+        - target: litellm
+          type: routesTo
+          strength: optional
+          description: Staging DeepAgent sends its model requests to the budget-scoped TrueNAS LiteLLM gateway, then workstation Qwen.
+          evidence:
+            - apps/sample/compose.yml:LITELLM_URL
+            - apps/litellm/config.yaml:fastapi-qwen
         - target: postgresql
           type: dependsOn
           strength: required
@@ -93,6 +100,10 @@ services:
       EXPOSE_PORT: "8080"
       SICKZ_INTERNAL_NETWORK: "true"
       HOMELAB_INTERNAL_PROBES_ENABLED: "true"
+      # TrueNAS staging only: use virtual key from sample/.env.secrets.
+      # Never copy this private LAN base URL into FastAPI Cloud production.
+      LITELLM_URL: http://172.17.0.24:4000
+      DEFAULT_CHAT_MODEL: fastapi-qwen
       # Generic synthetic evidence is read from the existing LAN Prometheus/Gatus
       # plane. These are non-secret settings; env_file values cannot silently
       # replace the reviewed Compose defaults.
