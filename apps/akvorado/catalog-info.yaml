@@ -1,31 +1,22 @@
 ---
 apiVersion: backstage.io/v1alpha1
-kind: System
-metadata:
-  name: akvorado
-  title: Akvorado Network Flow Analytics
-  description: Planned IPFIX/NetFlow ingestion and flow analytics pipeline.
-spec:
-  owner: group:default/nabla-platform
-  domain: domain:default/nabla
----
-apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: akvorado-orchestrator
   title: Akvorado Orchestrator
-  description: Planned control plane for Akvorado flow processing.
+  description: Planned Akvorado configuration and coordination control plane.
   labels:
     albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: high
   tags:
-    - observability
     - network
+    - observability
+    - netflow
 spec:
-  type: network-flow-controller
+  type: controller
   lifecycle: experimental
   owner: group:default/nabla-platform
-  system: system:default/akvorado
+  system: system:default/nabla-homelab
   dependsOn:
     - resource:default/kafka
     - resource:default/clickhouse
@@ -35,19 +26,21 @@ kind: Component
 metadata:
   name: akvorado-inlet
   title: Akvorado Inlet
-  description: Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka.
+  description: Planned NetFlow/IPFIX UDP receiver and Kafka producer.
   labels:
     albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: high
   tags:
-    - observability
     - network
+    - observability
+    - netflow
 spec:
-  type: network-flow-collector
+  type: worker
   lifecycle: experimental
   owner: group:default/nabla-platform
-  system: system:default/akvorado
+  system: system:default/nabla-homelab
   dependsOn:
+    - component:default/akvorado-orchestrator
     - resource:default/kafka
 ---
 apiVersion: backstage.io/v1alpha1
@@ -55,19 +48,21 @@ kind: Component
 metadata:
   name: akvorado-outlet
   title: Akvorado Outlet
-  description: Planned flow processing and ClickHouse persistence.
+  description: Planned Kafka flow consumer and ClickHouse ingestion pipeline.
   labels:
     albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: high
   tags:
-    - observability
     - network
+    - observability
+    - netflow
 spec:
-  type: network-flow-processor
+  type: worker
   lifecycle: experimental
   owner: group:default/nabla-platform
-  system: system:default/akvorado
+  system: system:default/nabla-homelab
   dependsOn:
+    - component:default/akvorado-orchestrator
     - resource:default/kafka
     - resource:default/clickhouse
 ---
@@ -76,17 +71,22 @@ kind: Component
 metadata:
   name: akvorado-console
   title: Akvorado Console
-  description: Planned web explorer for network flow history.
+  description: Planned UI for historical network-flow search and analysis.
+  links:
+    - url: http://172.17.0.24:31056/
+      title: Console
   labels:
     albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
   tags:
-    - observability
     - network
+    - observability
+    - netflow
 spec:
-  type: network-observability
+  type: website
   lifecycle: experimental
   owner: group:default/nabla-platform
-  system: system:default/akvorado
+  system: system:default/nabla-homelab
   dependsOn:
+    - component:default/akvorado-orchestrator
     - resource:default/clickhouse

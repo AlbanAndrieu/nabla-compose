@@ -3376,3 +3376,12 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
   Scanopy, flux Akvorado/ntopng, identités Compose/Kubernetes, sans utiliser
   l'adresse IP comme clé primaire de service et sans inventer de dépendance
   opérationnelle entre les outils de collecte.
+
+
+### 2026-10-20 — Reconcilier Backstage / security asset discovery
+
+- [x] Akvorado v2 : quatre composants Backstage (orchestrator/inlet/outlet/console), états `planned` préservés depuis Compose, dépendances Kafka et ClickHouse natives.
+- [x] Scanopy : relier le serveur à son daemon via `spec.dependsOn`, sans recréer un service réseau découvert dans le catalogue déclaré.
+- [ ] Corréler les découvertes Scanopy, flux Akvorado/ntopng et graphe Cartography/Neo4j sur des identifiants stables, en conservant provenance, horodatage et confiance ; ne pas déclarer automatiquement un composant Backstage pour chaque IP ou port.
+- [ ] Publier les findings vers DefectDojo via les API privées, les métriques vers OpenTelemetry/Prometheus et les preuves DSOMM/OSCAL sans verdict de maturité automatique.
+- [ ] Examiner les formats standards complémentaires : OpenTelemetry semantic conventions, NIST CSF 2.0, NIST OSCAL, CSAF 2.0, SPDX 3 et CycloneDX 1.7 ; conserver Backstage comme seule autorité des identités.
