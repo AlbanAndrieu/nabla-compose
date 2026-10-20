@@ -1,4 +1,4 @@
-name: Temporary Catalog v2 identity & restart checks # rerun after YAML fixtures
+name: Temporary Catalog v2 identity & restart checks # reconcile all Gatus IDs
 on:
   push:
     branches:
