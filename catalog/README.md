@@ -48,6 +48,10 @@ The v2 read models are `catalog/generated/entities.json` and
 monitors. The old Homarr count (143) includes unmigrated v1-only entries;
 do not silently synthesize v2 identities from names to recover that count.
 
+`catalog/service-consumers.static.yml` has been removed; Homarr's Docker
+proxy endpoint/network and the homelab host binding are now derived from its
+Compose file.
+
 The v1 JSONs remain temporarily for **other** scripts and repositories;
 they are not read by the three updated consumers.
 

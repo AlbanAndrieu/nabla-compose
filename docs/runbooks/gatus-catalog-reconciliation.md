@@ -26,9 +26,9 @@ python -m pytest -q tests/test_service_consumer_monitor_coverage.py tests/test_r
 
 Pour ajouter ou modifier une sonde, éditer **uniquement** l'endpoint natif
 dans `config/monitoring/gatus-endpoints.yml`, puis exécuter le générateur.
-Ne pas utiliser `service-consumers.static.yml` pour créer un service ou une
-sonde. Le fichier statique ne conserve que des paramètres d'adaptateurs tels
-que le proxy Docker Homarr.
+`catalog/service-consumers.static.yml` est supprimé : les paramètres du proxy
+Docker Homarr proviennent directement de `apps/homarr/compose.yml`, les liens
+de navigation proviennent de Backstage et les sondes du YAML Gatus natif.
 
 ## Diagnostic runtime (lecture seule)
 

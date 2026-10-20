@@ -20,7 +20,7 @@ from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_pa
 from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
 ROOT = SCRIPTS_DIR.parent
-STATIC_CONFIG = ROOT / "catalog" / "service-consumers.static.yml"
+HOMARR_COMPOSE = ROOT / "apps" / "homarr" / "compose.yml"
 GATUS_DECLARED = ROOT / "config" / "monitoring" / "gatus-endpoints.yml"
 HOMARR_OUTPUT = ROOT / "apps" / "homarr" / "generated" / "apps.json"
 GATUS_OUTPUT = ROOT / "apps" / "gatus" / "config" / "config.yml"
@@ -99,11 +99,44 @@ def tracked_compose_paths() -> list[Path]:
     return discover_compose_paths(ROOT)
 
 
-def load_static() -> dict[str, Any]:
-    data = yaml.safe_load(STATIC_CONFIG.read_text(encoding="utf-8")) or {}
-    if not isinstance(data, dict) or data.get("version") != 1:
-        fail("catalog/service-consumers.static.yml must contain version: 1")
-    return data
+def load_native_adapter_policy() -> dict[str, Any]:
+    """Read Homarr Docker connector details from its Compose config."""
+    compose = yaml.safe_load(HOMARR_COMPOSE.read_text(encoding="utf-8"))
+    if not isinstance(compose, dict):
+        fail("apps/homarr/compose.yml must contain a mapping")
+    services = compose.get("services") or {}
+    svc = services.get("homarr") if isinstance(services, dict) else None
+    if not isinstance(svc, dict):
+        fail("apps/homarr/compose.yml has no homarr service")
+    env = svc.get("environment") or {}
+    if not isinstance(env, dict):
+        fail("Homarr environment must be a Compose mapping")
+    hostname = concrete_text(env.get("DOCKER_HOSTNAMES"))
+    raw_port = concrete_text(env.get("DOCKER_PORTS"))
+    if not hostname or not raw_port:
+        fail("Homarr Docker connector requires DOCKER_HOSTNAMES and DOCKER_PORTS")
+    try:
+        port = int(raw_port)
+    except ValueError as exc:
+        raise ValueError("Homarr DOCKER_PORTS must be numeric") from exc
+    networks = svc.get("networks") or []
+    network = str(networks[0]) if isinstance(networks, list) and networks else None
+    if not network:
+        fail("Homarr must declare its Docker socket proxy network")
+    host = None
+    for value in svc.get("ports") or []:
+        parts = str(value).split(":")
+        if len(parts) == 3 and re.fullmatch(r"[0-9.]+", parts[0]):
+            host = parts[0]
+            break
+    if not host:
+        fail("Homarr published port must provide an explicit host IP")
+    return {
+        "defaults": {"host": host},
+        "homarr": {"docker": {
+            "hostname": hostname, "port": port, "network": network,
+        }},
+    }
 
 
 def concrete_text(value: object) -> str | None:
@@ -571,7 +604,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        static = load_static()
+        static = load_native_adapter_policy()
         apps, monitors = collect_services(static)
         outputs = {
             HOMARR_OUTPUT: render_json(homarr_payload(static, apps)),

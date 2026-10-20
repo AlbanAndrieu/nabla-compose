@@ -3344,7 +3344,7 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 
 - [x] Backstage `catalog-info.yaml` pour l'identité et `com.albandrieu.nabla.entity-ref` pour relier Compose.
 - [x] Gatus YAML natif **unique** (`config/monitoring/gatus-endpoints.yml`) ; 85 sondes projetées vers Gatus et AutoKuma, sans second inventaire de cibles.
-- [x] Homarr construit depuis Backstage + routage Compose ; 80 entrées v2 matérialisées, contre 143 entrées historiques **non comparables sans migration des descripteurs**.
+- [x] Homarr construit depuis Backstage + routage Compose ; suppression de `catalog/service-consumers.static.yml` au profit des paramètres réseau du Compose Homarr ; 80 entrées v2 matérialisées, contre 143 entrées historiques **non comparables sans migration des descripteurs**.
 - [x] Projections standard Backstage/CycloneDX générées, validation `--check` intégrée au quality gate.
 - [ ] Étendre Backstage aux identités/relations restantes et aux environnements sans deviner de valeur métier.
 - [ ] Migrer les lecteurs FastAPI Sample, nabla-site-alban et les scripts TrueNAS, puis retirer définitivement les fichiers/catalogues v1.
