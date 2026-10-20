@@ -52,3 +52,16 @@ jq '[.monitors[] | select(.mapping_source == "unresolved") | {monitor_id, servic
 ```
 
 Les anciens chiffres de `needs_service_mapping` ne sont plus directement comparables : le rapprochement utilise désormais les composants de la topologie canonique. Ne pas modifier les identités Gatus avant d'avoir examiné la nouvelle liste `unresolved_monitor_ids`.
+
+
+## 2026-10-20 — Gatus / Prometheus labels for critical services
+
+The Prometheus synthetic-probe recording rules require the explicit
+`nabla_service_id` label. PostgreSQL, pfSense and TrueNAS previously only had
+`nabla_monitor_id`, so their otherwise valid Gatus observations were absent
+from FastAPI's per-service Prometheus aggregation. Their catalog-consistent
+labels are now declared on the three existing monitors (no extra probes).
+Apply the Gatus configuration through the current TrueNAS deployment process,
+then verify Prometheus rule evaluation and each corresponding
+`nabla:service:synthetic_probe_success{nabla_service_id="..."}` series.
+A declared label does **not** prove live scrape or TrueNAS deployment.
