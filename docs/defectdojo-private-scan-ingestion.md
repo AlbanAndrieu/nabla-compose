@@ -1,5 +1,67 @@
 # DefectDojo — ingestion privée de scans sans exposition Internet
 
+## Ingestion sélective Site Alban depuis GitHub Actions (`master`)
+
+**Préparé, non activé** — suivi [Site Alban #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+
+Un runner GitHub-hosted ne doit pas appeler
+`defectdojo.int.albandrieu.com` directement et n'a pas de token
+d'import. Le collecteur `scripts/security/pull-site-alban-security-report.py`
+tourne côté TrueNAS : il télécharge uniquement les artefacts de
+**workflows nommés précisément**, dont la run a réussi sur `master`.
+L'identité GitHub ne doit avoir que **Actions:read** sur Site Alban, sans
+droit de commit ni secret DefectDojo.
+
+**Modes (exemples sans effet runtime)** :
+
+```bash
+python3 scripts/security/pull-site-alban-security-report.py --kind trivy --run-id 123
+python3 scripts/security/pull-site-alban-security-report.py --kind nuclei --run-id 123
+python3 scripts/security/pull-site-alban-security-report.py --kind zap --run-id 123
+```
+
+Le mode par défaut fait un **contrôle de configuration sans réseau ni
+lecture de jeton**. Une fois l'accès au réseau TrueNAS et au dépôt GitHub
+explicitement autorisé, ajouter `--pull` prépare un fichier filtré dans
+`/mnt/cpool/defectdojo/imports/site-alban` sous permissions root-only :
+
+- **Trivy** : seul le JSON de vulnérabilités `HIGH/CRITICAL` est conservé.
+  Les licences, misconfigurations et le SBOM sont exclus de l'import
+  automatique.
+- **Nuclei** : seules les lignes `high/critical`, ciblant les hôtes
+  HTTPS de Site Alban déjà autorisés par le validateur, sont préparées.
+- **ZAP production** : seules les alertes `riskcode=3` sont préparées.
+  Le parser installé doit s'appeler **`ZAP Scan`**.
+- Aucun CodeQL, Semgrep, GitGuardian, BetterLeaks, artifact PR,
+  événement non-`master`, run échouée ou archive expirée ne doit
+  être accepté par ce parcours.
+
+Le collecteur **n'importe jamais** dans DefectDojo. Une personne
+autorisée vérifie le fichier, le scanner, le produit/engagement,
+puis passe séparément à
+`scripts/security/import-scan-defectdojo.sh --check`.
+L'import `--apply` exige encore root, approbation explicite et jeton
+dédié dans le coffre. Le `--check` de l'importeur valide la policy
+`config/security/defectdojo-allowed-imports.json`.
+
+**Confidentialité** : les artifacts de scans attachés à un dépôt GitHub
+public peuvent être consultables par d'autres acteurs autorisés sur
+le dépôt; ne pas y stocker de captures HTTP authentifiées, tokens,
+headers, captures de chemins internes ou résultats confidentiels.
+Pour les rapports complets DAST, faire les scans et leur import
+directement dans le homelab, ou chiffrer les artefacts avant upload et
+ne garder la clé de déchiffrement que sur TrueNAS. Le collecteur
+actuel ne déchiffre pas encore de tels rapports; **ne pas lui attribuer
+une conformité de confidentialité non prouvée**.
+
+**Règle de clôture** : `GH_TOKEN` lecture seule depuis le fichier privé,
+provenance workflow/master/SHA vérifiée, taille plafonnée, ZIP contrôlé,
+fichier root-only, parser DefectDojo vérifié, import/reimport testé dans
+un engagement dédié, déduplication et absence de fuite confirmées,
+puis seulement planification éventuelle sous contrôle et alertes.
+
+
 > **Préparation uniquement.** Le service DefectDojo est déclaré dans
 > `apps/defectdojo/compose.yml` sur `172.17.0.24:31085`. Ce port est
 > une liaison LAN/host TrueNAS, **pas** un endpoint Internet nécessaire
@@ -15,7 +77,7 @@ Build/CI interne / scanner Syft + Trivy (sans socket Docker brut)
   v
 Job importateur à privilèges minimaux sur TrueNAS / réseau intranet
   POST /api/v2/reimport-scan/ (Authorization: Token ...)
-  → http://127.0.0.1:31085 → DefectDojo existant (interne)
+  → http://172.17.0.24:31085 (TrueNAS host) → DefectDojo existant
   → PostgreSQL/Redis internes
   ↛ Cloudflare Access / Tunnel / Internet / navigateur public
 ```
@@ -49,7 +111,7 @@ La documentation officielle recommande le **réimport** :
 doublons. L'import `/api/v2/import-scan/` crée plutôt des Tests nouveaux.
 Avant d'utiliser `reimport-scan`, vérifier les noms des scanners et les
 permissions dans l'OpenAPI de l'instance :
-`http://127.0.0.1:31085/api/v2/oa3/swagger-ui/`.
+`http://172.17.0.24:31085/api/v2/oa3/swagger-ui/`.
 
 Créer dans DefectDojo une identité *ingestion* spécifique avec droits
 seulement sur le produit et l'engagement retenus. Garder une identité
@@ -139,28 +201,64 @@ séparée (jeton read-only, minimisation, revue des exports) avant toute
 mise en ligne.
 
 
-### Durcissement de l'import : loopback uniquement (12/10/2026)
+### Contrat d'import effectif (18/10/2026) — TrueNAS LAN uniquement
 
-Le script `scripts/security/import-scan-defectdojo.sh` utilise
-**exclusivement** `http://127.0.0.1:31085/api/v2/reimport-scan/`
-depuis l'hôte **TrueNAS**. Il refuse de s'exécuter depuis une machine
-sans le checkout canonique `/mnt/cpool/compose/nabla-compose`,
-désactive explicitement tous les proxys avec `curl --noproxy '*'`,
-interdit les redirections et n'envoie jamais le token ailleurs.
-L'import HTTP loopback ne traverse pas le LAN, mais la recette doit
-**prouver** que l'App existante publie bien le port côté loopback.
+Le script `scripts/security/import-scan-defectdojo.sh` pointe actuellement sur
+`http://172.17.0.24:31085/api/v2/reimport-scan/`, conformément au bind
+déclaré dans `apps/defectdojo/compose.yml`. Cela **remplace l'ancien
+contrat loopback** du 12 octobre (qui n'est plus applicable à ce script).
+Le script impose le checkout canonique sur TrueNAS, la présence effective de
+`172.17.0.24` sur l'hôte, `root:root 0600` sur le token privé,
+`curl --noproxy '*'`, zéro redirection et une confirmation explicite.
+L'accès LAN HTTP reste une frontière de confiance à auditer : le contrat
+n'implique **pas** que TLS externe, pfSense NAT ou ACL soient validés.
 
-**Ne pas confondre** sécurisation de l'importeur avec suppression de
-l'exposition du serveur : le Compose actuel déclare également le port
-hôte `31085`, dont le bind effectif et les règles WAN ne sont pas
-validés. Vérifier `docker inspect`, `ss -ltn`, pfSense NAT/ACL,
-Cloudflare Tunnel/Access, Traefik et Gatus, sans supposer « privé »
-sur la seule base d'une adresse RFC1918. En cible, limiter l'écoute
-à `127.0.0.1` ou au réseau interne isolé avec TLS si d'autres runners
-en ont réellement besoin. Ne jamais ouvrir l'interface ni l'API sans
-contrôle d'accès.
+Cible plus stricte : importateur dédié sur réseau Docker privé, ou publication
+locale loopback réelle et prouvée par `docker inspect` / `ss`, suivie
+d'une modification atomique de Compose + importeur + tests. Ne pas substituer
+127.0.0.1 tant que le socket n'y est pas réellement écouté. Un runner distant
+ou Kubernetes exige un chemin privé avec TLS vérifié, identité dédiée et RBAC.
 
-Si le job doit tourner **dans un autre conteneur** ou dans Kubernetes,
-il ne peut pas utiliser cette route loopback : prévoir un importeur
-dédié sur réseau privé avec TLS vérifié et RBAC, plutôt que
-remplacer le hostname par une IP LAN dans ce script.
+Le rapport `scan-repo-trivy.py` ne traite **que les fichiers versionnés au
+commit HEAD** via une archive Git extraite avec filtre d'extraction sécurisé.
+Les fichiers `.env` ignorés, documents privés et autres états non versionnés
+ne sont pas scannés ni copiés dans l'artefact. Ce périmètre de SCA ne remplace
+pas l'audit de configuration runtime, image OCI ou le SAST CodeQL.
+
+## Contrat réel des artefacts Site Alban — réconciliation du 19 octobre 2026
+
+Le collecteur est **préparé mais non activé** : aucune installation de la
+GitHub App, aucun Cron ni import réel n'est prouvé par ces commits.
+
+| Source (workflow `master`) | ZIP et fichier GitHub | Fichier dans l'inbox TrueNAS | Import |
+| --- | --- | --- | --- |
+| `Supply Chain Security (Trivy)` | `trivy-master-<sha>` / `trivy-security.json` | `site-alban-<run>-trivy.json` : uniquement CVE npm lockfile High/Critical | `Trivy Scan`, JSON |
+| `Nuclei public DAST (Site Alban)` | `nuclei-public-<run>` / `nuclei-results/nuclei.jsonl` ; projection réduite à la source dans Site #236 | `site-alban-<run>-nuclei.json` : JSONL minimal, URL limitée à l'origine HTTPS | `Nuclei Scan`, JSONL |
+| `Production DAST` | `zap-production-report` / `report_json.json` | `site-alban-<run>-zap.xml` : conversion locale privée **JSON → XML** avec seuls plugin ID, titre, sévérité 3 et origine HTTPS | `ZAP Scan`, XML |
+
+**Point de compatibilité important** : le parser OSS `ZAP Scan`
+accepte le rapport **XML** de ZAP, pas le JSON de `action-baseline`.
+Le collecteur transforme ce JSON dans l'inbox privée et l'importeur envoie
+`application/xml`. Ne pas changer `scan_type` pour masquer une erreur
+de format. Sans test effectif de la version DefectDojo installée, ce
+contrat n'est **pas** une preuve d'ingestion réussie.
+
+Le poll recherche chaque workflow par **fichier identifié** et branche
+`master` avec dix dernières exécutions sans filtre `status=success`.
+La dernière exécution échouée, annulée ou incomplète ne doit **jamais**
+laisser importer un succès plus ancien. Un run absent vaut `NOT_OBSERVED`,
+pas `PASS`.
+
+Les rapports minimisés excluent requêtes/réponses HTTP, cookies, tokens,
+paramètres d'URL, détails de topologie, licences et SBOM. Trivy ne fournit
+dans ce parcours que des vulnérabilités de `package-lock.json`. Aucun
+rapport vide ou sans finding admissible ne doit être importé.
+
+**Gate de confidentialité ZAP non levée** : l'action GitHub ZAP de Site
+Alban téléverse actuellement son propre rapport brut. La conversion
+dans TrueNAS ne rend **pas rétroactivement privé** cet artefact GitHub ;
+celui-ci peut inclure des requêtes/authentifications de scan. Avant de
+rendre ZAP automatique, remplacer ce dépôt brut par une sortie
+pré-expurgée ou lancer ce scan dans l'environnement privé. Vérifier la
+version du parser OSS sur l'instance et l'absence d'en-tête de bypass.
+Ce point reste ouvert, sans changer la fréquence des scans.

@@ -1,0 +1,15 @@
+{
+  "name": "nabla-github-app",
+  "url": "https://github.com/AlbanAndrieu/nabla-compose",
+  "description": "One read-only security report App across selected Nabla repositories",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://github.com/AlbanAndrieu/nabla-compose",
+    "active": false
+  },
+  "default_permissions": {
+    "actions": "read"
+  },
+  "default_events": [],
+  "request_oauth_on_install": false
+}

@@ -507,6 +507,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: pfsense
+    nabla_service_id: pfsense
   url: tcp://172.17.0.1:10443
   conditions:
   - '[CONNECTED] == true'
@@ -580,6 +581,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: postgresql
+    nabla_service_id: postgresql
   url: tcp://172.17.0.24:5432
   conditions:
   - '[CONNECTED] == true'
@@ -741,6 +743,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: truenas
+    nabla_service_id: truenas
   url: tcp://172.17.0.24:7000
   conditions:
   - '[CONNECTED] == true'

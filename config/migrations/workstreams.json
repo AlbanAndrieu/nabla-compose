@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-10-18",
+  "authority": "docs/roadmap.md",
+  "scope": "repository-evidence-only",
+  "runtimeAcceptance": false,
+  "workstreams": [
+    {
+      "id": "secrets-runtime",
+      "priority": "P0",
+      "phase": "repository_ready",
+      "requires": [],
+      "artifacts": [
+        "config/secrets/manifest.json",
+        "docs/secrets-migration-roadmap.md"
+      ],
+      "acceptance": [
+        "per-service byte-identical staging and mode 0600",
+        "functional smoke, rollback and reboot retention"
+      ]
+    },
+    {
+      "id": "defectdojo",
+      "priority": "P1",
+      "phase": "runtime_observed",
+      "requires": ["secrets-runtime"],
+      "artifacts": [
+        "apps/defectdojo/compose.yml",
+        "scripts/truenas/diagnose-defectdojo.sh"
+      ],
+      "acceptance": [
+        "private DNS TLS and authorized API verify without WAN ingress",
+        "isolated scan reimport deduplication and worker/database readiness"
+      ]
+    },
+    {
+      "id": "backstage-v2",
+      "priority": "P1",
+      "phase": "repository_ready",
+      "requires": ["secrets-runtime"],
+      "artifacts": [
+        "docs/service-catalog-v2-normalization.md",
+        "tests/test_catalog_v2_parity.py"
+      ],
+      "acceptance": [
+        "all critical service identities and consumers have lossless parity",
+        "coordinated cutover without persistent dual schemas"
+      ]
+    },
+    {
+      "id": "openclaw-litellm",
+      "priority": "P1",
+      "phase": "repository_ready",
+      "requires": ["secrets-runtime"],
+      "artifacts": [
+        "scripts/workstation/check-openclaw-litellm-memory-config.py",
+        "docs/roadmap.md"
+      ],
+      "acceptance": [
+        "dedicated LiteLLM key budget and actual file SecretRef resolution",
+        "isolated SQLite restore and model-fingerprint-safe embedding smoke"
+      ]
+    },
+    {
+      "id": "openrag-docling-bababou",
+      "priority": "P1",
+      "phase": "repository_ready",
+      "requires": ["secrets-runtime"],
+      "artifacts": ["apps/openrag/compose.yml", "apps/docling/compose.yml"],
+      "acceptance": [
+        "cpool/bababou mounted read-only at /mnt/bababou with UID-safe traversal",
+        "Docling bounded conversion and OpenRAG indexed retrieval with no vector mixing"
+      ]
+    },
+    {
+      "id": "observability",
+      "priority": "P1",
+      "phase": "runtime_observed",
+      "requires": [],
+      "artifacts": [
+        "scripts/truenas/reconcile-gatus-catalog.py",
+        "scripts/truenas/diagnose-prometheus-targets.sh"
+      ],
+      "acceptance": [
+        "85 Gatus identities classified without equating probe failure to downtime",
+        "Prometheus target errors correlated with independent FastAPI and service health"
+      ]
+    },
+    {
+      "id": "freshrss-gitops-mcp",
+      "priority": "P2",
+      "phase": "repository_ready",
+      "requires": ["secrets-runtime"],
+      "artifacts": [
+        "scripts/truenas/freshrss-ops.sh",
+        "scripts/mcp/freshrss_readonly.py"
+      ],
+      "acceptance": [
+        "two scoped accounts and ten approved sources verified",
+        "read-only local MCP and separate tokens with no public API exposure"
+      ]
+    }
+  ]
+}

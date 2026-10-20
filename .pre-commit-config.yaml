@@ -470,3 +470,34 @@ repos:
         entry: bash scripts/quality/check-compose-config.sh
         files: '^apps/[^/]+/(?:compose|docker-compose)(?:[.-][^./]+)?[.]ya?ml$'
         stages: [pre-commit]
+
+      - id: migration-readiness-contract
+        name: "🔐 security · Validate seven migration readiness contracts (offline)"
+        language: system
+        entry: bash -c 'python3 scripts/security/check-migration-readiness.py --check && python3 -m unittest tests.test_migration_readiness_contract -v'
+        pass_filenames: false
+        files: >-
+          ^(config/migrations/workstreams[.]json|scripts/security/check-migration-readiness[.]py|tests/test_migration_readiness_contract[.]py|docs/migration-batch-execution-2026-10-18[.]md)$
+
+      - id: quality-gate-content-scope
+        name: "✅ quality · Validate content-only lint scope without skipping exec-bit checks"
+        language: system
+        entry: python3 -m pytest -q tests/test_quality_gate_content_scope.py
+        pass_filenames: false
+        files: '^(scripts/quality-gate[.]sh|tests/test_quality_gate_content_scope[.]py)$'
+
+      - id: defectdojo-migration-security-contract
+        name: "🔐 security · Validate DefectDojo runtime, imports and private Trivy scans"
+        language: system
+        entry: python3 -m unittest tests.test_defectdojo_runtime_credential_contract tests.test_defectdojo_import_policy tests.test_defectdojo_repo_scan -v
+        pass_filenames: false
+        files: >-
+          ^(apps/defectdojo/.*|config/security/defectdojo-allowed-imports[.]json|config/secrets/manifest[.]json|scripts/(?:security/(?:scan-repo-trivy|validate-defectdojo-report)[.]py|security/import-scan-defectdojo[.]sh|secrets/bootstrap_defectdojo_admin[.]py|truenas/prepare-defectdojo-runtime-env[.]py)|tests/test_defectdojo_(?:runtime_credential_contract|import_policy|repo_scan)[.]py)$
+
+      - id: defectdojo-artifact-poller-contract
+        name: "🔐 security · Offline GitHub artifact collector and Vaultwarden bootstrap tests"
+        language: system
+        entry: python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector tests.test_defectdojo_artifact_cron tests.test_github_app_auth tests.test_github_app_manifest tests.test_github_app_installation tests.test_defectdojo_four_repo_handoff -v
+        pass_filenames: false
+        files: >-
+          ^(scripts/(?:secrets/bootstrap_defectdojo_admin[.]py|security/(?:github_actions_artifact_api|github_app_auth|bootstrap-github-app-manifest|discover-github-app-installation|poll-defectdojo-gh-artifacts|pull-site-alban-security-report|export-defectdojo-compose-trivy|sync-nabla-github-app-vaultwarden|run-nabla-github-app-cron)[.]py|truenas/reconcile-defectdojo-artifact-cron[.]py)|tests/(?:test_defectdojo_(?:admin_bootstrap|artifact_collector|artifact_cron)|test_github_app_auth|test_github_app_manifest|test_github_app_installation|test_defectdojo_four_repo_handoff)[.]py|docs/(?:defectdojo-artifact-poller|github-app-defectdojo)[.]md|config/github-apps/defectdojo-artifacts[.]manifest[.]json)$

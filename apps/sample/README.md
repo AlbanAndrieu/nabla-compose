@@ -1,5 +1,15 @@
 # FastAPI Sample on TrueNAS
 
+## Qwen via LiteLLM TrueNAS and workstation
+
+TrueNAS staging uses `DEFAULT_CHAT_MODEL=fastapi-qwen` and the LAN
+TrueNAS LiteLLM proxy. The proxy forwards to the workstation's existing
+`qwen` route with distinct virtual keys and conservative spend caps.
+See [the canonical provisioning and acceptance runbook](../../docs/runbooks/fastapi-sample-litellm.md).
+Do not enable this new route or redeploy LiteLLM before its scoped secrets
+are provisioned from Vaultwarden; production FastAPI Cloud is out of scope.
+
+
 `apps/sample/compose.yml` runs the `fastapi-sample` repository locally on TrueNAS while keeping runtime secrets outside Git.
 
 ## Prerequisites

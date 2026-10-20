@@ -64,6 +64,9 @@ services:
       - "4000:4000"
     env_file:
       - .env
+      # Optional until the dedicated Vaultwarden-backed upstream key is staged.
+      - path: /mnt/cpool/secrets/runtime/litellm/.env.secrets
+        required: false
     #  - /mnt/cpool/litellm/.env.secrets
     environment:
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm

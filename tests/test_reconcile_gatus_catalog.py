@@ -65,3 +65,21 @@ def test_unknown_service_remains_unresolved():
                                "nabla_service_id": "unknown"}}]}
     report = module.reconcile({"services": []}, config, topology={"nodes": []})
     assert report["unresolved_monitor_ids"] == ["unknown"]
+
+
+def test_critical_gatus_monitors_have_prometheus_service_id_labels():
+    """Prometheus recording rules discard Gatus metrics lacking this label."""
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    config = yaml.safe_load((root / "apps/gatus/config/config.yml").read_text())
+    catalog = __import__("json").loads((root / "catalog/homelab-services.json").read_text())
+    catalog_ids = {entry["id"] for entry in catalog["services"]}
+    monitors = {entry["extra-labels"]["nabla_monitor_id"]: entry
+                for entry in config["endpoints"]
+                if "nabla_monitor_id" in entry.get("extra-labels", {})}
+    for service_id in ("pfsense", "postgresql", "truenas"):
+        assert service_id in catalog_ids
+        assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id
+    rules = (root / "apps/prometheus/rules/nabla-service.rules.yml").read_text()
+    assert 'nabla_service_id!=""' in rules

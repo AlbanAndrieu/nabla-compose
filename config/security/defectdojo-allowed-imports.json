@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scope": "private-approved-reports-only",
+  "defaultDeny": true,
+  "producers": {
+    "nabla-compose": {
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "hosts": []
+    },
+    "nabla-site-alban": {
+      "allow": ["Trivy Scan", "Nuclei Scan", "ZAP Scan"],
+      "hosts": ["www.albanandrieu.com", "albanandrieu.com"]
+    },
+    "fastapi-sample": {
+      "allow": ["Trivy Scan", "CodeQL Scan", "Semgrep JSON Report"],
+      "hosts": []
+    },
+    "nabla-site-bababou": {
+      "allow": ["ZAP Scan"],
+      "hosts": ["www.bababou.com", "bababou.com"]
+    }
+  },
+  "deny": ["BetterLeaks", "GitGuardian", "Secret Scan", "Unverified Scan"],
+  "notice": "Private and reviewed only: Bababou production ZAP HIGH -> minimal XML without evidence; Site Alban Trivy lockfile HIGH/CRITICAL, Nuclei HIGH/CRITICAL and ZAP HIGH. No BetterLeaks, GitGuardian, raw SARIF, SBOM, credentials, HTML, or PII. Each product has separate engagement and scoped token. CodeQL Scan accepts CodeQL SARIF; generic SARIF is still default-denied by per-producer allowlist and must not duplicate the native Test."
+}

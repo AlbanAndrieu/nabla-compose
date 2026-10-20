@@ -63,13 +63,24 @@ publication_status() {
     printf '%s' "${status}"
   fi
 }
+# The shebang/exec-bit security preflight audits *every* tracked script.
+# Formatters and linters instead receive changed file *content*. A metadata-
+# only chmod is not a source change and must not relint inherited baseline code.
+content_changed_paths() {
+  git diff --numstat --diff-filter=ACMR "$@" |
+    awk -F '\t' 'NF >= 3 && ($1 != "0" || $2 != "0") {
+      sub(/^[^\t]*\t[^\t]*\t/, "")
+      print
+    }'
+}
+
 mapfile -t CHANGED_FILES < <(
   {
     if [[ "${BASE_REF}" != "HEAD" ]]; then
-      git diff --name-only --diff-filter=ACMR "${BASE_REF}...HEAD"
+      content_changed_paths "${BASE_REF}...HEAD"
     fi
-    git diff --name-only --diff-filter=ACMR
-    git diff --cached --name-only --diff-filter=ACMR
+    content_changed_paths
+    content_changed_paths --cached
     git ls-files --others --exclude-standard
   } | awk 'NF' | sort -u | while IFS= read -r file; do
     [[ -f "${file}" ]] && printf '%s\n' "${file}"

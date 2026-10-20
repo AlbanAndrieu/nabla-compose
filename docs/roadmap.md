@@ -1,3 +1,285 @@
+## P0 — Reprise Site #236 / Compose #263 : artefacts ZAP et frontière privée (19 octobre 2026)
+
+## P1 — FastAPI staging → TrueNAS LiteLLM → workstation Qwen (2026-10-20)
+- [x] Declare dedicated `fastapi-qwen` relay (no IDE token reuse), sample staging URL/model, model-allowlisted keys, lifetime budget and Vaultwarden metadata. [Runbook](runbooks/fastapi-sample-litellm.md).
+- [ ] Provision two separate private virtual keys via loopback/SSH tunnel, store in separate Vaultwarden items, materialize without replacing existing sample secrets. Never store a key in Git.
+- [ ] Validate effective proxies/DB, internal Qwen token accounting, no costly fallback, tool calling, model allowlists, 2-stage `/v1`, and staged `/run` authorization before deployment. Cloud production not routed into LAN.
+
+
+**Autorité du contrat** : [collecteur privé](defectdojo-artifact-poller.md),
+[Site #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+Sans nouvelle PR, merge, activation, mutation de compte ou import.
+
+| Gate | Statut | Preuve / suite |
+| --- | --- | --- |
+| Site Quality + Trivy au HEAD initial `8a19211` | **PASS** | Runs Site #39325632157 (job quality) et #39325632138 |
+| Site ZAP Preview / Vercel au HEAD initial | **PASS** | Statuses exact SHA ; **ancien workflow uniquement** |
+| Site Playwright au HEAD initial | **FAIL** | Run #39326142907 : 1 échec dû à deux scripts d'initialisation de thème concurrents |
+| Corrections Preview et sortie ZAP brute côté Site | **INCOMPLETE** | CI des nouveaux commits et scanner effectif après fusion non encore validés |
+| Compose fail-closed ZAP JSON → XML | **INCOMPLETE** | Filtrage strict préécriture ajouté, tests adaptés ; exécution de validation exact HEAD à attester |
+| Ancien ZAP brut (Alban/Bababou) | **FAIL** (refus intentionnel) | Instances, preuves, titres reflétés et entêtes sont interdits ; Bababou attend sa propre minimisation source |
+| GitHub App Actions:read, clés Vaultwarden, cron, import DefectDojo | **NOT_RUN** | Nécessite consentement GitHub, RBAC/Engagement, parser `ZAP Scan`, retour Celery et déduplication |
+| Tests opérationnels `ops.albandrieu.com` / Access / origine | **NOT_RUN** | Suite de tests privés Site, activée seulement avec réseau et identité autorisés ; aucune réexposition publique |
+| Audits de refus public CDN/DNS/Tunnel | **INCOMPLETE** | Vérifier négativement les routes, en-têtes, artefacts historiques et exposition WAN avant clôture |
+
+Décisions : **GitHub App → TrueNAS → DefectDojo** reste l'unique voie
+d'ingestion, `--check` sans mutation, `--pull` explicite,
+`--pull-and-import` soumis à autorisation indépendante et engagement
+préexistant. BetterLeaks, Semgrep, Trivy Critical et ZAP/Nuclei bornés
+restent des gates autonomes ; aucune campagne DAST complète sur PR.
+`INCOMPLETE` et `NOT_RUN` ne sont jamais équivalents à `PASS`.
+
+## P0 — Quatre dépôts, une GitHub App, Vaultwarden et Cron (2026-10-19)
+
+- [x] Définir `nabla-github-app` unique pour nabla-compose,
+  fastapi-sample, nabla-site-alban et nabla-site-bababou, avec
+  `Actions:read` et jetons éphémères restreints par dépôt.
+- [x] Préparer `defectdojo-compose-handoff.yml` : rapport minimal Trivy
+  HIGH/CRITICAL sur lockfiles, manifest SHA-256 sur master chaque semaine,
+  sans DAST supplémentaire et sans consommation de CI PR.
+- [x] Étendre le collecteur aux quatre dépôts et la validation Trivy
+  universelle avant import ; les workflows amont non encore présents dans
+  master doivent être signalés `NOT_OBSERVED`.
+- [x] Ajouter le bootstrap Vaultwarden `nabla/prod/nabla-github-app`,
+  PEM root-only, `.env.secrets` Cron à références et launcher contrôlé.
+- [x] Documenter l'amélioration des agents/skills : inspection bornée,
+  commits groupés, logs d'échec ciblés et contrôle HEAD concurrent.
+- [ ] Approbation GitHub, installation sur quatre repos, import PEM en
+  Vaultwarden, matérialisation TrueNAS et acceptation des quatre Product/
+  Engagement DefectDojo. La création effective de l'App et du Cron
+  ne peut être affirmée depuis la PR seule.
+
+## P0/P1 — Clôture du contrat collecteur DefectDojo inter-dépôts (2026-10-19)
+
+Réconciliation [Site Alban #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
+et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
+La source autoritative de la procédure reste
+[docs/defectdojo-artifact-poller.md](defectdojo-artifact-poller.md).
+
+- [x] GitHub App partagée, permissions de lecture `Actions:read` limitées
+  à un dépôt sélectionné par jeton ; pas de PAT statique ou runner
+  GitHub auto-hébergé, pas d'API DefectDojo exposée.
+- [x] Recherche bornée par **workflow identifié + dépôt + master** ;
+  le dernier run en échec, annulé ou non terminé bloque le retour à
+  un ancien scan réussi. Filtrage par `head_sha`, état, événement,
+  identité et nom exact d'artefact.
+- [x] Correctif poll multi-dépôts : transmettre `--source` au collecteur
+  pour éviter un téléchargement involontaire depuis Site Alban lorsqu'on
+  demande Bababou ; ajouter test de non-régression.
+- [x] Formats de stage minimaux : Trivy vuln High/Critical
+  (`package-lock.json` uniquement pour Site Alban), Nuclei JSONL
+  High/Critical origin-only et titre fondé sur le template-ID, ZAP
+  JSON → XML expurgé High uniquement. API parser officiel
+  **`ZAP Scan`** (et non `Zed Attack Proxy`) ; importer le XML
+  avec `application/xml`. Ne jamais importer les captures HTTP
+  complètes, secrets, SBOM, licences ou SARIF arbitraires.
+- [x] Tests source ajoutés pour la minimisation des rapports, le
+  rejet des origines non autorisées et des secrets HTTP, les runs obsolètes
+  et le contrat de provenance. Le statut de leur exécution dépend
+  du dernier HEAD CI : ce n'est pas une preuve runtime.
+- [ ] Faire accepter par le **parser installé** sur TrueNAS un exemple
+  XML expurgé réel et vérifier la déduplication et l'état asynchrone
+  du reimport dans l'engagement isolé.
+- [ ] Créer/installer la GitHub App (owner consent), stocker la PEM dans
+  Vaultwarden, matérialiser la clé sur TrueNAS et vérifier Cron `--check`.
+  Le cron reste désactivé ; `--pull` puis `--pull-and-import`
+  nécessitent des autorisations distinctes.
+- [x] **Correctif de code source Site #236** : suppression de l'action
+  auto-upload ZAP ; production ne dépose qu'un JSON HIGH minimal,
+  Preview ne dépose aucun rapport ZAP. Le collecteur #263 refuse à
+  présent les JSON bruts préexistants, y compris Bababou.
+- [ ] **INCOMPLETE** : prouver la première exécution du nouveau producteur
+  après merge, la conversion XML et son acceptation par le parser Dojo ;
+  inventorier les anciens artefacts encore accessibles. Aucun import
+  ZAP autorisé jusque-là. Les DAST plus profonds restent privés.
+- [ ] Vérifier les quality gates exact-HEAD dans les deux PR,
+  l'absence d'exposition `.int`, le produit/RBAC DefectDojo
+  et les règles de rétention/rotation avant activation.
+
+## P0/P1 — GitOps single GitHub App / Site Bababou convergence (2026-10-19)
+
+- [x] Unifier `nabla-github-app` pour quatre dépôts Nabla,
+  installation GitHub à dépôts sélectionnés, jeton à durée courte
+  `Actions:read` limité à **un seul dépôt par appel**, sans PAT.
+- [x] Ajouter le bootstrap Python stdlib du GitHub App Manifest Flow
+  (boucle locale 127.0.0.1, code CSRF, échange de code, PEM privé 0600
+  hors Git) et le contrôle d'installation via API.
+- [x] Préparer le collecteur Bababou : workflow `production-dast.yml`
+  existant sur `master`, ZAP HIGH uniquement, XML minimal sans preuves
+  HTTP sensibles, hôtes `bababou.com` explicitement autorisés.
+- [ ] Recette GitHub App owner consent/installation, transfert PEM
+  Vaultwarden, matérialisation TrueNAS, tests de JWT et un import
+  DefectDojo réel sur un engagement Bababou isolé.
+- [ ] Évaluer Nuclei SARIF minimisé après publication d'un artefact
+  vérifiable sur `master`. Ne pas créer de nouveau scan DAST en PR.
+  [Runbook](github-app-defectdojo.md).
+
+## P0/P1 — DefectDojo `nabla` et GitHub App à durée courte (2026-10-19)
+
+- [x] Remplacer le compte UI initial `admin` par **`nabla`** dans le
+  bootstrap Vaultwarden, le template d'environnement, les contrats et le
+  runbook. Ne pas modifier les mots de passe existants : un item `admin`
+  déjà initialisé reste une **migration de compte Django distincte**.
+- [x] Décrire la GitHub App `nabla-defectdojo-artifacts` avec accès
+  `Actions:read` au seul dépôt `nabla-site-alban` et zéro webhook ;
+  [manifest](../config/github-apps/defectdojo-artifacts.manifest.json) et
+  [runbook](github-app-defectdojo.md). Le provider GitHub Terraform peut
+  *consommer* une App existante, pas enregistrer cette App.
+- [x] Préparer le jeton d'installation **éphémère** (JWT signé par PEM
+  root-only, POST GitHub installation access token, permissions et dépôt
+  explicitement réduits, expiration ≤1 h) pour le collecteur Cron TrueNAS.
+  Suppression de l'obligation d'un PAT GitHub permanent.
+- [ ] Enregistrer/installer l'App sous contrôle du propriétaire, puis
+  importer sa clé PEM en tant que pièce jointe dans Vaultwarden et
+  matérialiser les fichiers runtime `github-app.json` et
+  `github-app-private-key.pem` avec permissions `0600`.
+- [ ] Accepter compte `nabla`, JWT GitHub App, collecte d'artefacts
+  `master`, import DefectDojo et déduplication ; **aucun apply en CI**.
+
+## P1 — Declarative TrueNAS Cron (2026-10-19)
+
+- [x] Add `scripts/truenas/reconcile-defectdojo-artifact-cron.py`
+  (`--check|--apply|--enable|--disable`) with a disabled-by-default
+  native TrueNAS cron task at 06:50 appliance local time. No GitHub runner,
+  external inbound port or hosted PR DAST scan.
+- [x] Test TrueNAS Cron ownership/schedule drift and approval gating offline.
+- [ ] Runtime: register disabled task, validate GitHub App Actions:read installation and
+  allowlisted master artifact, then enable `--pull` only. Add optional
+  DefectDojo import **after** existing engagement and parser acceptance.
+
+## P0/P1 — DefectDojo GitHub Actions artifact polling without a runner (2026-10-19)
+
+[Execution/runbook](defectdojo-artifact-poller.md) · source-only in PR #263.
+
+- [x] Make the existing `bootstrap_defectdojo_admin.py` create a missing
+  Vaultwarden login for first-run `nabla` with a CSPRNG password,
+  preserving DB/Redis fields and refusing overwrites, without checking
+  DefectDojo's DB. `.env.secrets` remains Vaultwarden materialized.
+- [x] Prepare GitHub Actions **pull** by native TrueNAS cron, not
+  self-hosted runner. Standard-library HTTPS client, short-lived GitHub App Actions:read
+  token, exact repo/workflow/master/SHA provenance, restricted signed-URL
+  downloads, small ZIP/report size ceilings and root-only inbox.
+- [x] Add `poll-defectdojo-gh-artifacts.py` to discover recent successful
+  master scans for Site Alban and stage them without rerunning ZAP/Nuclei.
+  Optional import is separately gated and limited to an existing engagement;
+  default mode is offline and no network/no secrets.
+- [ ] Operator acceptance: Vaultwarden login created and materialized,
+  TrueNAS scoped GitHub App private key installed, disabled native cron job registered,
+  artifact retention/ACL checked, ZAP/Nuclei report sanitization reviewed,
+  and Product RBAC + async reimport/deduplication proven.
+- [ ] Enable the 06:50 daily local TrueNAS cron only after the above gates.
+  No public DefectDojo API, no raw GitHub secret findings, no new DAST CI jobs.
+
+## P0–P2 — DefectDojo/Vaultwarden, Trivy licence, SBOM et scans multi-repos (2026-10-18)
+
+- [x] DefectDojo Compose charge les deux fichiers runtime
+  `/mnt/cpool/secrets/runtime/defectdojo/.env` (non secret)
+  et `.env.secrets` (Vaultwarden). Identifiants UI dans le manifeste
+  Vaultwarden, **aucun mot de passe en Git**.
+- [x] Préparer la génération d'un mot de passe UI aléatoire directement
+  dans l'item Vaultwarden avant le premier initializer. Ne **jamais**
+  traiter une génération comme une rotation effective d'une instance existante.
+- [ ] Vérifier l'utilisateur courant, récupérer ou réinitialiser la
+  session administrateur existante; ensuite synchroniser Vaultwarden,
+  matérialiser et vérifier l'authentification après reboot.
+- [x] Générer en local privé des rapports Trivy vulnérabilités compatibles
+  DefectDojo, audit séparé misconfig/licence et CycloneDX SBOM.
+- [ ] Étendre la provenance d'import au dépôt canonique, à CodeQL SARIF,
+  Semgrep, Nuclei et ZAP sur allowlist stricte sans ingérer les secrets BetterLeaks,
+  les données PII ou tous les rapports indistinctement.
+- [ ] Préparer la réception des scans `nabla-site-alban` sur `master`
+  uniquement, depuis un runner interne de confiance et dans des engagements
+  DefectDojo isolés, avec quota CI DAST (ZAP production existant, Nuclei hebdomadaire).
+
+## P0/P1 — DefectDojo : bootstrap credentials Vaultwarden et collecte de scans (2026-10-18)
+
+**Owner** : `nabla-compose` pour utilisateur/secret/UI/permissions LAN ; `fastapi-sample` PR #353 pour production locale des rapports et client d'import ; `nabla-site-alban` pour DAST de son propre domaine. DefectDojo doit rester `defectdojo.int.albandrieu.com` strictement interne (DNS/TLS/Traefik/RBAC), sans tunnel ou scrape public.
+
+- [ ] **P0 Génération utilisateur UI** : vérifier le bootstrap DefectDojo installé, créer un utilisateur opérateur nominatif **non-superuser**, mot de passe cryptographiquement aléatoire ≥32 caractères et secret de récupération ; ne jamais générer ou stocker ces secrets dans le Git, les logs, les outputs CI, Docker image ou stdout. Contrôler l'accès direct à `https://defectdojo.int.albandrieu.com` et sa non-exposition publique avant création.
+- [ ] **P0 Coffre Vaultwarden** : créer/mettre à jour un item `defectdojo/operator-ui` (username/password/URL) via la CLI `bw` locale avec `BW_SESSION` disponible en mémoire, permissions restreintes, aucun doublon et vérification après import sans afficher le mot de passe. Réutiliser `scripts/truenas/prepare-security-tooling-secrets.sh` et la logique `scripts/secrets/import_env_to_bitwarden.py`, mais **ne pas exporter le mot de passe UI dans un .env de conteneur**.
+- [ ] **P0 Service API séparé** : créer un compte importeur DefectDojo limité aux Products/Engagements précréés `fastapi-sample` et `nabla-site-alban`; stocker **son jeton distinct** dans Vaultwarden (item `defectdojo/security-importer`), le matérialiser au runtime en lecture limitée ; pas d'admin, pas d'énumération globale, pas de tokens dans URLs ni dans artifacts.
+- [ ] **P1 Scan bundles private-only** : sur `master` produire en interne Trivy JSON (vuln/misconfig/secret/license, inclure `uv.lock`), CycloneDX, Semgrep, ZAP/Nuclei low-rate selon scope. Utiliser `fastapi-sample/scripts/security/import_defectdojo.py` en `--apply` seulement après validation TLS, Product RBAC et identifiants d'Engagement. Imports via `/api/v2/reimport-scan/` depuis client LAN approuvé ; **Dojo ne scrape pas GitHub Actions**, ni stockage public, ni OpenAPI, ni les rapports secrets Betterleaks. Aucun `auto_create_context`.
+- [ ] **P1 Validation** : audit des deux Products, tests TLS/SNI, refus anonyme 401/403, refus WAN, token importeur refusé hors son engagement, rapport importé asynchrone traité et dédupliqué, retention/purge et rollback. Les scans non exécutés ou incomplets restent `NOT_RUN`, pas zéro findings.
+- [ ] **P2 Sans dépense Actions excessive** : conserver les hooks GitGuardian/Betterleaks, CodeQL déjà présents et le Trivy Critical PR ; ZAP/Nuclei approfondis uniquement sur `master` ou déclenchement manuel autorisé, et préférer le runner LAN local-first. Comparer `nabla-site-alban/.github/workflows/master-dast.yml` et `nuclei-public.yml` avant d'ajouter de nouvelles fréquences.
+
+## Cloudflare ops OpenTofu GitOps + DefectDojo import staging (2026-10-18)
+
+- [x] Add opt-in Cloudflare v5 module for dedicated Tunnel, remote ingress
+  and proxied `ops.albandrieu.com` CNAME with **all mutation flags false**,
+  protected destroy, Access/JWT/TLS/website-redaction prerequisites and no
+  embedded token. [Runbook](cloudflare-ops-execution-2026-10-18.md).
+- [ ] Validate HCL format/provider schema and lock v5.28.0 in CI (offline state).
+- [ ] Import only an independently verified dedicated Tunnel/record; inspect
+  actual Access policies, certificate, private origin, Garage state and rollback.
+- [ ] Activate ingress/DNS only once public site, origin JWT and MFA gates pass.
+- [ ] Capture an actual private Trivy JSON report from this repository or an
+  immutable image; validate DefectDojo authenticated API and existing engagement,
+  then import from a LAN-trusted host with the existing fail-closed importer.
+  GitHub CodeQL success alone is **not** an importable private report.
+
+## P0–P2 — Seven controlled migrations (2026-10-18, PR #263)
+
+**Read-only GitOps preparation, not runtime acceptance.**
+[Execution contract](migration-batch-execution-2026-10-18.md) ·
+[Offline manifest](../config/migrations/workstreams.json).
+Priority: secrets/Vaultwarden → DefectDojo LAN → Backstage v2;
+in parallel, prepare OpenClaw/LiteLLM and OpenRAG/Docling/Bababou,
+reconcile Gatus/Prometheus/FastAPI probes, and enable FreshRSS GitOps/MCP
+only after secrets acceptance. Validate with
+`python3 scripts/security/check-migration-readiness.py --check`;
+no deployment, secret read, mutation, reindex or automatic merge.
+
+## P1/P2 — DefectDojo : pull sélectif des artefacts de sécurité de Site Alban (2026-10-18)
+
+- [x] Préparer `scripts/security/pull-site-alban-security-report.py` et
+  les tests de provenance `master` réussie, allowlist workflow/artifact,
+  extraction ZIP bornée et filtrage Trivy HIGH/CRITICAL, Nuclei HIGH/CRITICAL
+  et ZAP HIGH; **aucun import automatique**.
+- [x] Restreindre `config/security/defectdojo-allowed-imports.json` pour
+  `nabla-site-alban` à ces trois parsers seulement. BetterLeaks/GitGuardian,
+  SARIF et SBOM ne sont jamais ingérés par ce parcours.
+- [ ] Vérifier le parsing dans l'instance DefectDojo privée, la séparation
+  du jeton GH Actions:read et du jeton import DefectDojo, les artefacts
+  `master` par run/SHA, les ACL sur TrueNAS et le filtrage des hôtes.
+- [ ] Les rapports DAST exhaustifs **ne doivent pas être publiés en clair**
+  comme artifacts d'un repo GitHub public : préférer scan depuis TrueNAS
+  ou chiffrement age vers clé de réception privée avant automatisation.
+- [ ] Tester import/reimport `--check` puis `--apply` explicitement
+  approuvé sur engagement dédié, valider absence de doublons et
+  `close_old_findings=false`; ne pas présenter les rapports non ingérés
+  comme réussis. Voir [runbook](defectdojo-private-scan-ingestion.md) et
+  [Site PR #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236).
+
+## P0/P1/P3 — Déploiement ops.albandrieu.com privé (2026-10-18)
+
+Épopée [#262](https://github.com/AlbanAndrieu/nabla-compose/issues/262),
+[architecture Access/Tunnel](private-homelab-access-architecture.md) ;
+[Site Alban #233](https://github.com/AlbanAndrieu/nabla-site-alban/issues/233)
+et [FastAPI #352](https://github.com/AlbanAndrieu/fastapi-sample/issues/352).
+
+- [ ] **P0** Inventorier exposition réelle (DNS, Cloudflare, HAProxy, Traefik,
+  NAT), fermer les bypass de l'API privée et définir policy Access deny-by-default.
+- [ ] **P1** Préparer Terraform/OpenTofu import-first pour **`ops.albandrieu.com`**
+  (FQDN confirmé, non déployé) : Access application hostname entier, policy
+  deny-by-default, MFA indépendant vérifié ou IdP MFA attestée, session courte,
+  origine FastAPI isolée, Tunnel dédié si faisable, DNS proxied CNAME et
+  catch-all 404. Service tokens serveur uniquement, TLS origine vérifié.
+- [ ] **Gates 0–5** : absence de fuites site, JWT origine et DTO FastAPI,
+  inventaire/réconciliation Cloudflare/NAT, policy Access avant DNS, tests
+  anonyme/autorisé/bypass, décommissionnement caches + rollback.
+  Références : [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263),
+  [FastAPI #353](https://github.com/AlbanAndrieu/fastapi-sample/pull/353),
+  [Site #234](https://github.com/AlbanAndrieu/nabla-site-alban/pull/234).
+- [ ] **P1** Router seulement FastAPI opérateur read-only, vérifier JWT à
+  l'origine, tests négatifs et santé Access vs origine indépendantes ;
+  interfaces management et métriques LAN-only.
+- [ ] **P3** Évaluer Keycloak existant `apps/keycloak/compose.yml` **planned**
+  comme IdP OIDC futur après DB/secrets/backup et audit; pas de dépendance P0.
+- [ ] Ne jamais interpréter la présence des documents ou de la route déclarée
+  comme une activation live ; pas de merge ni de déploiement implicite.
+
+
 ## Homarr GitOps declarative migration (2026-10-18)
 
 - [x] Pin Homarr v2.6.0 (upstream release dated 2026-10-15) in Compose; deployment on TrueNAS remains to be verified.

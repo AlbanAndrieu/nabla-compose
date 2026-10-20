@@ -1,0 +1,62 @@
+---
+name: Source SCA Critical Gate
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "uv.lock"
+      - "poetry.lock"
+      - "Pipfile.lock"
+      - "requirements*.txt"
+      - "**/requirements*.txt"
+      - "package-lock.json"
+      - "**/package-lock.json"
+      - "pnpm-lock.yaml"
+      - "**/pnpm-lock.yaml"
+      - "pyproject.toml"
+      - "**/Dockerfile*"
+      - "apps/**/compose*.yml"
+      - "apps/**/compose*.yaml"
+      - ".github/workflows/security-source-sca.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-sca-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy-critical:
+    name: Trivy SCA Critical (lockfiles + filesystem)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact revision without retained credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Filesystem dependencies, fail on any CRITICAL vulnerability
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          scan-type: fs
+          scan-ref: "."
+          scanners: vuln
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: false
+
+      - name: Document separation of responsibilities
+        if: always()
+        run: |
+          echo "## Security scope" >> "$GITHUB_STEP_SUMMARY"
+          echo "- CRITICAL SCA findings fail this job; scan errors never count as clean." >> "$GITHUB_STEP_SUMMARY"
+          echo "- BetterLeaks is blocking in Pre-commit; CodeQL is independent SAST." >> "$GITHUB_STEP_SUMMARY"
+          echo "- ZAP/Nuclei production schedules belong to nabla-site-alban; no duplicate active DAST here." >> "$GITHUB_STEP_SUMMARY"
+          echo "- No DefectDojo token, report upload, or private network access in hosted PR CI." >> "$GITHUB_STEP_SUMMARY"
