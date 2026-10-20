@@ -1,5 +1,7 @@
 services:
   elasticsearch:
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/elasticsearch
     image: docker.io/elasticsearch:8.14.0
     container_name: elasticsearch
     x-nabla:
@@ -30,6 +32,8 @@ services:
     restart: unless-stopped
 
   kibana:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/kibana
     image: docker.io/kibana:8.14.0
     container_name: kibana
     x-nabla:

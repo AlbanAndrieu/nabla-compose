@@ -1,6 +1,8 @@
 ---
 services:
   graylog:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/graylog
     image: docker.io/graylog/graylog:6.3.15
     container_name: graylog
     restart: unless-stopped

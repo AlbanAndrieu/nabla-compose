@@ -44,6 +44,7 @@ services:
       WATCHTOWER_POLL_INTERVAL: "86400"
       WATCHTOWER_NO_STARTUP_MESSAGE: "true"
     labels:
+      com.albandrieu.nabla.entity-ref: component:default/watchtower
       com.centurylinklabs.watchtower.enable: "false"
     # Audit-only Docker GET boundary: the existing proxy has POST=0.
     # No raw engine socket, host ports or update capabilities here.

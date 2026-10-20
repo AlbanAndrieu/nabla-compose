@@ -1,6 +1,8 @@
 ---
 services:
   prometheus:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/prometheus
     image: prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}
     container_name: prometheus
     restart: unless-stopped
@@ -57,6 +59,8 @@ services:
     #   - "traefik.http.routers.prometheus-svc.service=prometheus"
 
   node-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/prometheus-node-exporter
     network_mode: bridge
     image: quay.io/prometheus/node-exporter:v1.12.1
     restart: unless-stopped
@@ -76,6 +80,8 @@ services:
     # networks: ["traefik_network"]
 
   alertmanager:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/prometheus-alertmanager
     network_mode: bridge
     image: prom/alertmanager
     restart: unless-stopped
@@ -110,6 +116,8 @@ services:
   # remove them instead of marking Prometheus CRASHED for optional telemetry.
 
   pfsense-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/pfsense-exporter
     network_mode: bridge
     image: ghcr.io/pfrest/pfsense_exporter:${PFSENSE_EXPORTER_IMG:-v0.0.10}
     container_name: pfsense-exporter

@@ -1,6 +1,12 @@
 {
-  "catalogRevision": "sha256:55dccf748a6e5b1b358434902111b72a6c1761eedae5ec92ce0c7d67b75d4e48",
+  "catalogRevision": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4",
   "mappings": [
+    {
+      "entityRef": "component:default/2fauth",
+      "evidence": "apps/2fauth/compose.yml:services.2fauth.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/2fauth/compose.yml#services/2fauth",
+      "sourceType": "compose"
+    },
     {
       "entityRef": "component:default/aistor",
       "evidence": "apps/aistor/compose.yml:services.aistor.labels.com.albandrieu.nabla.entity-ref",
@@ -44,6 +50,12 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/bichon",
+      "evidence": "apps/bichon/compose.yml:services.bichon.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/bichon/compose.yml#services/bichon",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/cartography",
       "evidence": "apps/cartography/compose.yml:services.cartography.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/cartography/compose.yml#services/cartography",
@@ -59,6 +71,12 @@
       "entityRef": "component:default/code-server",
       "evidence": "apps/code/compose.yml:services.code-server.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/code/compose.yml#services/code-server",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/crowdsec",
+      "evidence": "apps/crowdsec/compose.yml:services.crowdsec.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/crowdsec/compose.yml#services/crowdsec",
       "sourceType": "compose"
     },
     {
@@ -152,6 +170,18 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "resource:default/elasticsearch",
+      "evidence": "apps/elasticsearch/compose.yml:services.elasticsearch.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/elasticsearch/compose.yml#services/elasticsearch",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/kibana",
+      "evidence": "apps/elasticsearch/compose.yml:services.kibana.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/elasticsearch/compose.yml#services/kibana",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/garage",
       "evidence": "apps/garage/compose.yml:services.garage.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/garage/compose.yml#services/garage",
@@ -167,6 +197,48 @@
       "entityRef": "component:default/gatus",
       "evidence": "apps/gatus/compose.yml:services.gatus.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/gatus/compose.yml#services/gatus",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/alloy",
+      "evidence": "apps/grafana/compose.yml:services.alloy.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana/compose.yml#services/alloy",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/grafana",
+      "evidence": "apps/grafana/compose.yml:services.grafana.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana/compose.yml#services/grafana",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/loki",
+      "evidence": "apps/grafana/compose.yml:services.loki.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana/compose.yml#services/loki",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/mimir",
+      "evidence": "apps/grafana/compose.yml:services.mimir.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana/compose.yml#services/mimir",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/tempo",
+      "evidence": "apps/grafana/compose.yml:services.tempo.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/grafana/compose.yml#services/tempo",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/graylog",
+      "evidence": "apps/graylog/compose.yml:services.graylog.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/graylog/compose.yml#services/graylog",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/haproxy-exporter",
+      "evidence": "apps/haproxy-exporter/compose.yml:services.haproxy-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/haproxy-exporter/compose.yml#services/haproxy-exporter",
       "sourceType": "compose"
     },
     {
@@ -212,6 +284,30 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/keycloak",
+      "evidence": "apps/keycloak/compose.yml:services.keycloak.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/keycloak/compose.yml#services/keycloak",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/langflow",
+      "evidence": "apps/langflow/compose.yml:services.langflow.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/langflow/compose.yml#services/langflow",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/langfuse-web",
+      "evidence": "apps/langfuse/compose.yml:services.langfuse-web.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/langfuse/compose.yml#services/langfuse-web",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/langfuse-worker",
+      "evidence": "apps/langfuse/compose.yml:services.langfuse-worker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/langfuse/compose.yml#services/langfuse-worker",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/languagetool",
       "evidence": "apps/languagetool/compose.yml:services.languagetool.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/languagetool/compose.yml#services/languagetool",
@@ -221,6 +317,24 @@
       "entityRef": "component:default/litellm",
       "evidence": "apps/litellm/compose.yml:services.litellm.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/litellm/compose.yml#services/litellm",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/minio",
+      "evidence": "apps/minio/compose.yml:services.minio.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/minio/compose.yml#services/minio",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/mongo",
+      "evidence": "apps/mongo/compose.yml:services.mongo.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/mongo/compose.yml#services/mongo",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/n8n",
+      "evidence": "apps/n8n/compose.yml:services.n8n.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/n8n/compose.yml#services/n8n",
       "sourceType": "compose"
     },
     {
@@ -278,6 +392,30 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/obsidian",
+      "evidence": "apps/obsidian/compose.yml:services.obsidian.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/obsidian/compose.yml#services/obsidian",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/ollama",
+      "evidence": "apps/ollama/compose.yml:services.ollama.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/ollama/compose.yml#services/ollama",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/op-connect-api",
+      "evidence": "apps/opconnect/compose.yml:services.op-connect-api.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opconnect/compose.yml#services/op-connect-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/op-connect-sync",
+      "evidence": "apps/opconnect/compose.yml:services.op-connect-sync.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opconnect/compose.yml#services/op-connect-sync",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/openclaw-sandbox",
       "evidence": "apps/openclaw/compose.yml:services.openclaw-sandbox.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/openclaw/compose.yml#services/openclaw-sandbox",
@@ -305,6 +443,36 @@
       "entityRef": "component:default/openrag-frontend",
       "evidence": "apps/openrag/compose.yml:services.openrag-frontend.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/openrag/compose.yml#services/openrag-frontend",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/opensearch-exporter",
+      "evidence": "apps/opensearch-exporter/compose.yml:services.opensearch-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opensearch-exporter/compose.yml#services/opensearch-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/opensearch-security-exporter",
+      "evidence": "apps/opensearch-exporter/compose.yml:services.opensearch-security-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opensearch-exporter/compose.yml#services/opensearch-security-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/opensearch-dashboards",
+      "evidence": "apps/opensearch/compose.yml:services.dashboards.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opensearch/compose.yml#services/dashboards",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/opensearch",
+      "evidence": "apps/opensearch/compose.yml:services.opensearch.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opensearch/compose.yml#services/opensearch",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/opensearch-security",
+      "evidence": "apps/opensearch/compose.yml:services.opensearch-security.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opensearch/compose.yml#services/opensearch-security",
       "sourceType": "compose"
     },
     {
@@ -362,6 +530,30 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/prometheus-alertmanager",
+      "evidence": "apps/prometheus/compose.yml:services.alertmanager.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/prometheus/compose.yml#services/alertmanager",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/prometheus-node-exporter",
+      "evidence": "apps/prometheus/compose.yml:services.node-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/prometheus/compose.yml#services/node-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/pfsense-exporter",
+      "evidence": "apps/prometheus/compose.yml:services.pfsense-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/prometheus/compose.yml#services/pfsense-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/prometheus",
+      "evidence": "apps/prometheus/compose.yml:services.prometheus.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/prometheus/compose.yml#services/prometheus",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/pyroscope",
       "evidence": "apps/pyroscope/compose.yml:services.pyroscope.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/pyroscope/compose.yml#services/pyroscope",
@@ -371,6 +563,12 @@
       "entityRef": "resource:default/redis",
       "evidence": "apps/redis/compose.yml:services.redis.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/redis/compose.yml#services/redis",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/redis-redis-exporter",
+      "evidence": "apps/redis/compose.yml:services.redis_exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/redis/compose.yml#services/redis_exporter",
       "sourceType": "compose"
     },
     {
@@ -416,6 +614,12 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/sentry-memcached",
+      "evidence": "apps/sentry/compose.yml:services.memcached.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/memcached",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/sentry-edge",
       "evidence": "apps/sentry/compose.yml:services.nginx.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/sentry/compose.yml#services/nginx",
@@ -425,6 +629,36 @@
       "entityRef": "component:default/sentry-relay",
       "evidence": "apps/sentry/compose.yml:services.relay.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/sentry/compose.yml#services/relay",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-sentry-attachments-consumer",
+      "evidence": "apps/sentry/compose.yml:services.sentry-attachments-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-attachments-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-sentry-events-consumer",
+      "evidence": "apps/sentry/compose.yml:services.sentry-events-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-events-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-sentry-migrate",
+      "evidence": "apps/sentry/compose.yml:services.sentry-migrate.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-migrate",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-sentry-post-process-forwarder-errors",
+      "evidence": "apps/sentry/compose.yml:services.sentry-post-process-forwarder-errors.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-post-process-forwarder-errors",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-sentry-taskscheduler",
+      "evidence": "apps/sentry/compose.yml:services.sentry-taskscheduler.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-taskscheduler",
       "sourceType": "compose"
     },
     {
@@ -446,15 +680,93 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/sentry-snuba-errors-consumer",
+      "evidence": "apps/sentry/compose.yml:services.snuba-errors-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-errors-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-group-attributes-consumer",
+      "evidence": "apps/sentry/compose.yml:services.snuba-group-attributes-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-group-attributes-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-migrate",
+      "evidence": "apps/sentry/compose.yml:services.snuba-migrate.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-migrate",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-outcomes-billing-consumer",
+      "evidence": "apps/sentry/compose.yml:services.snuba-outcomes-billing-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-outcomes-billing-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-outcomes-consumer",
+      "evidence": "apps/sentry/compose.yml:services.snuba-outcomes-consumer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-outcomes-consumer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-replacer",
+      "evidence": "apps/sentry/compose.yml:services.snuba-replacer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-replacer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-subscription-consumer-events",
+      "evidence": "apps/sentry/compose.yml:services.snuba-subscription-consumer-events.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-subscription-consumer-events",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/sentry-taskbroker",
       "evidence": "apps/sentry/compose.yml:services.taskbroker.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/sentry/compose.yml#services/taskbroker",
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/sonarqube",
+      "evidence": "apps/sonarqube/compose.yml:services.sonarqube.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sonarqube/compose.yml#services/sonarqube",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/squid",
       "evidence": "apps/squid/compose.yml:services.squid.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/squid/compose.yml#services/squid",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/suricata",
+      "evidence": "apps/suricata/compose.yml:services.suricata.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/suricata/compose.yml#services/suricata",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sybase-exporter",
+      "evidence": "apps/sybase-exporter/compose.yml:services.sybase-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sybase-exporter/compose.yml#services/sybase-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/traefik-cloudflare-ddns",
+      "evidence": "apps/traefik/compose.yml:services.cloudflare-ddns.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/traefik/compose.yml#services/cloudflare-ddns",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/traefik-ddns-updater",
+      "evidence": "apps/traefik/compose.yml:services.ddns-updater.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/traefik/compose.yml#services/ddns-updater",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/traefik-dnsupdater",
+      "evidence": "apps/traefik/compose.yml:services.dnsupdater.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/traefik/compose.yml#services/dnsupdater",
       "sourceType": "compose"
     },
     {
@@ -476,9 +788,45 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/watchtower",
+      "evidence": "apps/watchtower/compose.yml:services.watchtower.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/watchtower/compose.yml#services/watchtower",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wazuh-forwarder",
+      "evidence": "apps/wazuh/compose.yml:services.wazuh-forwarder.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wazuh/compose.yml#services/wazuh-forwarder",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wazuh-dashboard",
+      "evidence": "apps/wazuh/compose.yml:services.wazuh.dashboard.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wazuh/compose.yml#services/wazuh.dashboard",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wazuh-indexer",
+      "evidence": "apps/wazuh/compose.yml:services.wazuh.indexer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wazuh/compose.yml#services/wazuh.indexer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wazuh-manager",
+      "evidence": "apps/wazuh/compose.yml:services.wazuh.manager.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wazuh/compose.yml#services/wazuh.manager",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/wordpress",
       "evidence": "apps/wordpress/compose.yml:services.wordpress.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/wordpress/compose.yml#services/wordpress",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wordpress-wordpress-initdb",
+      "evidence": "apps/wordpress/compose.yml:services.wordpress-initdb.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wordpress/compose.yml#services/wordpress-initdb",
       "sourceType": "compose"
     },
     {
@@ -494,15 +842,33 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/2fauth",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "2fauth",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/aistor",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "aistor",
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/alloy",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "alloy",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/autoxpose",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "autoxpose",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/bichon",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "bichon",
       "sourceType": "gatus"
     },
     {
@@ -572,6 +938,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "resource:default/elasticsearch",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "elasticsearch",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/fastapi-sample",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "fastapi-sample",
@@ -593,6 +965,24 @@
       "entityRef": "component:default/gatus",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "gatus",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/grafana",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "grafana",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/graylog",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "graylog",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/haproxy-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "haproxy-exporter",
       "sourceType": "gatus"
     },
     {
@@ -632,6 +1022,24 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/kibana",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "kibana",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/langflow",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "langflow",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/langfuse-web",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "langfuse-web",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/languagetool",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "languagetool",
@@ -644,9 +1052,27 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "resource:default/loki",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "loki",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/mcp-cyberbro",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "mcp-cyberbro",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/mimir",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "mimir",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/minio",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "minio",
       "sourceType": "gatus"
     },
     {
@@ -686,6 +1112,18 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/obsidian",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "obsidian",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/ollama",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "ollama",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/openhands",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "openhands",
@@ -698,6 +1136,30 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "resource:default/opensearch",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "opensearch",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/opensearch-dashboards",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "opensearch-dashboards",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/opensearch-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "opensearch-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/opensearch-security-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "opensearch-security-exporter",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/openwebui",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "openwebui",
@@ -707,6 +1169,12 @@
       "entityRef": "resource:default/pfsense",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "pfsense",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/pfsense-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "pfsense-exporter",
       "sourceType": "gatus"
     },
     {
@@ -752,6 +1220,18 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/prometheus",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "prometheus",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/prometheus-alertmanager",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "prometheus-alertmanager",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/pyroscope",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "pyroscope",
@@ -794,9 +1274,27 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/sonarqube",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "sonarqube",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/squid",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "squid",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/sybase-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "sybase-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/tempo",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "tempo",
       "sourceType": "gatus"
     },
     {
@@ -818,6 +1316,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/wazuh-manager",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "wazuh-manager",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/wordpress",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "wordpress",
@@ -829,140 +1333,8 @@
   "unresolved": [
     {
       "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "2fauth",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "alloy",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "bichon",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
       "reason": "missing-service-id",
       "sourceId": "docker",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "elasticsearch",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "grafana",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "graylog",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "haproxy-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "kibana",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "langflow",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "langfuse-web",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "loki",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "mimir",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "minio",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "obsidian",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "ollama",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "opensearch",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "opensearch-dashboards",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "opensearch-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "opensearch-security-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "pfsense-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "prometheus",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "prometheus-alertmanager",
       "sourceType": "gatus"
     },
     {
@@ -979,32 +1351,8 @@
     },
     {
       "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "sonarqube",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "sybase-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "tempo",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
       "reason": "missing-service-id",
       "sourceId": "traefik-ddns-updater",
-      "sourceType": "gatus"
-    },
-    {
-      "evidence": "config/monitoring/gatus-endpoints.yml",
-      "reason": "unknown-or-ambiguous-service-id",
-      "sourceId": "wazuh-manager",
       "sourceType": "gatus"
     }
   ]

@@ -1,0 +1,20 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: graylog
+  title: Graylog
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - observability
+  links:
+  - url: http://172.17.0.24:9003
+    title: Application
+spec:
+  type: log-management
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

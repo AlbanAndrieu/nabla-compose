@@ -19,3 +19,22 @@ spec:
   type: cache
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: redis-redis-exporter
+  title: Redis Exporter
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - redis
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

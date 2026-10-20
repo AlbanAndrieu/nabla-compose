@@ -1,6 +1,8 @@
 ---
 services:
   opensearch:
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/opensearch
     image: docker.io/langflowai/openrag-opensearch:${OPENRAG_VERSION:-latest}
     build:
       context: .
@@ -51,6 +53,8 @@ services:
           - opensearch
 
   opensearch-security:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/opensearch-security
     image: docker.io/opensearchproject/opensearch:2.19.5
     container_name: opensearch-security
     hostname: opensearch-security
@@ -89,6 +93,8 @@ services:
       start_period: 60s
 
   dashboards:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/opensearch-dashboards
     image: docker.io/opensearchproject/opensearch-dashboards:3.6.0
     container_name: ${COMPOSE_PROJECT_NAME:-openrag}-dashboards
     x-nabla:

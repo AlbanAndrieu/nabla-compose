@@ -1,0 +1,18 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: watchtower
+  title: Watchtower
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
+  tags:
+  - security
+  description: Manual monitor-only image update audit through the read-only Docker
+    socket proxy; never updates containers.
+spec:
+  type: image-update-auditor
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

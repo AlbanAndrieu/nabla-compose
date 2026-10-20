@@ -1,6 +1,8 @@
 ---
 services:
   langflow:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/langflow
     # Shared global Langflow runtime for OpenRAG; this is not a private
     # openrag-langflow service. Pin the OpenRAG-compatible Langflow image to the
     # same release as the OpenRAG backend/frontend.

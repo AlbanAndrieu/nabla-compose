@@ -1,6 +1,8 @@
 ---
 services:
   op-connect-api:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/op-connect-api
     image: 1password/connect-api:latest
     x-nabla:
       id: op-connect-api
@@ -31,6 +33,8 @@ services:
       # - op_data:/home/opuser/.op/data
 
   op-connect-sync:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/op-connect-sync
     image: 1password/connect-sync:latest
     x-nabla:
       id: op-connect-sync

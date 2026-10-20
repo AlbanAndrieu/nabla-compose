@@ -1,0 +1,20 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ollama
+  title: Ollama
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - ai
+  links:
+  - url: https://ollama.int.albandrieu.com
+    title: Application
+spec:
+  type: model-runtime
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

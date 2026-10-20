@@ -1,0 +1,19 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: minio
+  title: MinIO
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - data
+  links:
+  - url: http://172.17.0.24:9091
+    title: Application
+spec:
+  type: object-storage
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

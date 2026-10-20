@@ -1,0 +1,19 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: n8n
+  title: n8n
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
+  tags:
+  - automation
+  links:
+  - url: https://n8n.int.albandrieu.com
+    title: Application
+spec:
+  type: workflow
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

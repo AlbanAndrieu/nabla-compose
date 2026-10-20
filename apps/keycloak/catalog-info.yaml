@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: keycloak
+  title: Keycloak
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: critical
+  tags:
+  - security
+  description: Central OIDC/SAML identity provider backed by the shared PostgreSQL
+    service.
+  links:
+  - url: http://172.17.0.24:30238
+    title: Application
+spec:
+  type: identity-provider
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

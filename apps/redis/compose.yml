@@ -40,6 +40,8 @@ services:
           - redis
 
   redis_exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/redis-redis-exporter
     image: oliver006/redis_exporter:latest
     container_name: redis_exporter
     restart: unless-stopped

@@ -9,6 +9,8 @@ x-nabla:
 
 services:
   wazuh.manager:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/wazuh-manager
     image: wazuh/wazuh-manager:4.14.7
     container_name: wazuh-manager
     hostname: wazuh.manager
@@ -90,6 +92,8 @@ services:
           create_host_path: false
 
   wazuh.indexer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/wazuh-indexer
     image: wazuh/wazuh-indexer:4.14.7
     container_name: wazuh-indexer
     hostname: wazuh.indexer
@@ -154,6 +158,8 @@ services:
       - ./config/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/config/opensearch-security/internal_users.yml:ro
 
   wazuh.dashboard:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/wazuh-dashboard
     image: wazuh/wazuh-dashboard:4.14.7
     container_name: wazuh-dashboard
     hostname: wazuh.dashboard
@@ -222,6 +228,8 @@ services:
       - wazuh_dashboard_custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
 
   wazuh-forwarder:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/wazuh-forwarder
     profiles:
       - forwarding
     build:

@@ -145,6 +145,8 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_BASIC_AUTH}"
 
   ddns-updater:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/traefik-ddns-updater
     # Legacy DDNS updater intentionally disabled by default. Its previous
     # /mnt/cpool/traefik/ddns/config.json owned int.albandrieu.com and a slow
     # healthcheck could make the whole TrueNAS Traefik Custom App CRASHED.
@@ -193,6 +195,8 @@ services:
       - SHOUTRRR_ADDRESSES=
 
   cloudflare-ddns:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/traefik-cloudflare-ddns
     image: favonia/cloudflare-ddns:1
     # Prefer "1" or "1.x.y" in production.
     #
@@ -238,6 +242,8 @@ services:
   #     - /mnt/cpool/traefik/config.ddns.json:/config.json:ro
 
   dnsupdater:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/traefik-dnsupdater
     # Legacy Traefik -> Cloudflare companion. Keep it from owning records that
     # AutoXpose manages, and keep private *.int names out of public DNS.
     image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:7.4.0

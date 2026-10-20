@@ -1,0 +1,20 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sonarqube
+  title: SonarQube
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - development
+  links:
+  - url: http://172.17.0.24:9001
+    title: Application
+spec:
+  type: code-quality
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

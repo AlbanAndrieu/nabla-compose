@@ -1,6 +1,8 @@
 ---
 services:
   haproxy-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/haproxy-exporter
     image: quay.io/prometheus/haproxy-exporter:v0.15.0
     container_name: haproxy-exporter
     restart: unless-stopped

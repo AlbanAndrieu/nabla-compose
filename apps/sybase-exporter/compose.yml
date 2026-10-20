@@ -9,6 +9,8 @@ x-nabla:
 
 services:
   sybase-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sybase-exporter
     image: ncabatoff/dbms_exporter:latest
     container_name: sybase-exporter
     restart: unless-stopped

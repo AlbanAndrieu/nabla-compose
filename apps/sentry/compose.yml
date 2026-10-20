@@ -75,6 +75,8 @@ x-consumer-health: &consumer-health
 
 services:
   memcached:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-memcached
     image: memcached:1.6.45-alpine
     restart: unless-stopped
     command: ["-I", "1M"]
@@ -88,6 +90,8 @@ services:
       - sentry
 
   snuba-migrate:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-migrate
     <<: *snuba-service
     restart: "no"
     env_file:
@@ -152,6 +156,8 @@ services:
       start_period: 20s
 
   snuba-errors-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-errors-consumer
     <<: *snuba-service
     command:
       - rust-consumer
@@ -177,6 +183,8 @@ services:
     healthcheck: *consumer-health
 
   snuba-outcomes-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-outcomes-consumer
     <<: *snuba-service
     command:
       - rust-consumer
@@ -202,6 +210,8 @@ services:
     healthcheck: *consumer-health
 
   snuba-outcomes-billing-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-outcomes-billing-consumer
     <<: *snuba-service
     command:
       - rust-consumer
@@ -229,6 +239,8 @@ services:
     healthcheck: *consumer-health
 
   snuba-group-attributes-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-group-attributes-consumer
     <<: *snuba-service
     command:
       - rust-consumer
@@ -254,6 +266,8 @@ services:
     healthcheck: *consumer-health
 
   snuba-replacer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-replacer
     <<: *snuba-service
     command:
       - replacer
@@ -275,6 +289,8 @@ services:
     healthcheck: *consumer-health
 
   snuba-subscription-consumer-events:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-snuba-subscription-consumer-events
     <<: *snuba-service
     command:
       - subscriptions-scheduler-executor
@@ -300,6 +316,8 @@ services:
     healthcheck: *consumer-health
 
   sentry-migrate:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-migrate
     <<: *sentry-service
     restart: "no"
     command: ["upgrade", "--noinput", "--create-kafka-topics"]
@@ -376,6 +394,8 @@ services:
       start_period: 120s
 
   sentry-events-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-events-consumer
     <<: *sentry-service
     command:
       - run
@@ -395,6 +415,8 @@ services:
     healthcheck: *consumer-health
 
   sentry-attachments-consumer:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-attachments-consumer
     <<: *sentry-service
     command:
       - run
@@ -414,6 +436,8 @@ services:
     healthcheck: *consumer-health
 
   sentry-post-process-forwarder-errors:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-post-process-forwarder-errors
     <<: *sentry-service
     command:
       - run
@@ -468,6 +492,8 @@ services:
       - intranet
 
   sentry-taskscheduler:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sentry-sentry-taskscheduler
     <<: *sentry-service
     command: ["run", "taskworker-scheduler"]
     depends_on:

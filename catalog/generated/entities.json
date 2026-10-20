@@ -1,6 +1,30 @@
 {
-  "catalogRevision": "sha256:55dccf748a6e5b1b358434902111b72a6c1761eedae5ec92ce0c7d67b75d4e48",
+  "catalogRevision": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4",
   "entities": [
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/2fauth",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "2fauth",
+        "tags": [
+          "security"
+        ],
+        "title": "2FAuth"
+      },
+      "sourcePath": "apps/2fauth/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-app"
+      }
+    },
     {
       "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/aistor",
@@ -172,6 +196,30 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/alloy",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "alloy",
+        "tags": [
+          "observability"
+        ],
+        "title": "Grafana Alloy"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "telemetry-collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/autokuma",
       "kind": "Component",
       "metadata": {
@@ -267,6 +315,36 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/bichon",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:15630"
+          }
+        ],
+        "name": "bichon",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Bichon"
+      },
+      "sourcePath": "apps/bichon/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/cartography",
       "kind": "Component",
       "metadata": {
@@ -356,6 +434,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "development-environment"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/crowdsec",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "crowdsec",
+        "tags": [
+          "security"
+        ],
+        "title": "CrowdSec"
+      },
+      "sourcePath": "apps/crowdsec/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-agent"
       }
     },
     {
@@ -1162,6 +1263,90 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/grafana",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:30037"
+          }
+        ],
+        "name": "grafana",
+        "tags": [
+          "observability"
+        ],
+        "title": "Grafana"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability-ui"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/graylog",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9003"
+          }
+        ],
+        "name": "graylog",
+        "tags": [
+          "observability"
+        ],
+        "title": "Graylog"
+      },
+      "sourcePath": "apps/graylog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "log-management"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/haproxy-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "haproxy-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "pfSense HAProxy Exporter"
+      },
+      "sourcePath": "apps/haproxy-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/hello-nginx",
       "kind": "Component",
       "metadata": {
@@ -1405,6 +1590,150 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/keycloak",
+      "kind": "Component",
+      "metadata": {
+        "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:30238"
+          }
+        ],
+        "name": "keycloak",
+        "tags": [
+          "security"
+        ],
+        "title": "Keycloak"
+      },
+      "sourcePath": "apps/keycloak/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "identity-provider"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/kibana",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:5601"
+          }
+        ],
+        "name": "kibana",
+        "tags": [
+          "observability"
+        ],
+        "title": "Kibana"
+      },
+      "sourcePath": "apps/elasticsearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "dashboard"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langflow",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:7860"
+          }
+        ],
+        "name": "langflow",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langflow"
+      },
+      "sourcePath": "apps/langflow/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "workflow"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langfuse-web",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:3000"
+          }
+        ],
+        "name": "langfuse-web",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langfuse Web"
+      },
+      "sourcePath": "apps/langfuse/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langfuse-worker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "langfuse-worker",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langfuse Worker"
+      },
+      "sourcePath": "apps/langfuse/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/languagetool",
       "kind": "Component",
       "metadata": {
@@ -1506,6 +1835,35 @@
         "subcomponentOf": "component:default/cyberbro",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/n8n",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "https://n8n.int.albandrieu.com"
+          }
+        ],
+        "name": "n8n",
+        "tags": [
+          "automation"
+        ],
+        "title": "n8n"
+      },
+      "sourcePath": "apps/n8n/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "workflow"
       }
     },
     {
@@ -1798,6 +2156,126 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/obsidian",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:3002"
+          }
+        ],
+        "name": "obsidian",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Obsidian"
+      },
+      "sourcePath": "apps/obsidian/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ollama",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "https://ollama.int.albandrieu.com"
+          }
+        ],
+        "name": "ollama",
+        "tags": [
+          "ai"
+        ],
+        "title": "Ollama"
+      },
+      "sourcePath": "apps/ollama/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "model-runtime"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/op-connect-api",
+      "kind": "Component",
+      "metadata": {
+        "description": "1Password Connect API for machine-readable secret access.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:8097"
+          }
+        ],
+        "name": "op-connect-api",
+        "tags": [
+          "security"
+        ],
+        "title": "1Password Connect API"
+      },
+      "sourcePath": "apps/opconnect/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "secrets-api"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/op-connect-sync",
+      "kind": "Component",
+      "metadata": {
+        "description": "Synchronizes 1Password vault state for the Connect API.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:8098"
+          }
+        ],
+        "name": "op-connect-sync",
+        "tags": [
+          "security"
+        ],
+        "title": "1Password Connect Sync"
+      },
+      "sourcePath": "apps/opconnect/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "secrets-sync"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/openclaw-sandbox",
       "kind": "Component",
       "metadata": {
@@ -1981,6 +2459,108 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-dashboards",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:5601"
+          }
+        ],
+        "name": "opensearch-dashboards",
+        "tags": [
+          "data"
+        ],
+        "title": "OpenSearch Dashboards"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "OpenSearch Exporter"
+      },
+      "sourcePath": "apps/opensearch-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-security",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-security",
+        "tags": [
+          "security"
+        ],
+        "title": "OpenSearch Security"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-security-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-security-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "OpenSearch Security Exporter"
+      },
+      "sourcePath": "apps/opensearch-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/openssf-scorecard",
       "kind": "Component",
       "metadata": {
@@ -2073,6 +2653,30 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pfsense-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pfsense-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "pfSense Exporter"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
       }
     },
     {
@@ -2343,6 +2947,87 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9090"
+          }
+        ],
+        "name": "prometheus",
+        "tags": [
+          "observability"
+        ],
+        "title": "Prometheus"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus-alertmanager",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "prometheus-alertmanager",
+        "tags": [
+          "observability"
+        ],
+        "title": "Alertmanager"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "alerting"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus-node-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "prometheus-node-exporter",
+        "tags": [
+          "prometheus"
+        ],
+        "title": "Node Exporter"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/pyroscope",
       "kind": "Component",
       "metadata": {
@@ -2384,6 +3069,33 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/redis-redis-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "redis-redis-exporter",
+        "tags": [
+          "redis"
+        ],
+        "title": "Redis Exporter"
+      },
+      "sourcePath": "apps/redis/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -2622,6 +3334,33 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-memcached",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-memcached",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Memcached"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/sentry-relay",
       "kind": "Component",
       "metadata": {
@@ -2652,6 +3391,141 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-attachments-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-attachments-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Attachments Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-events-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-events-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Events Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-migrate",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-migrate",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Migrate"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-post-process-forwarder-errors",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-post-process-forwarder-errors",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Post Process Forwarder Errors"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-taskscheduler",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-taskscheduler",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Taskscheduler"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/sentry-snuba-api",
       "kind": "Component",
       "metadata": {
@@ -2678,6 +3552,195 @@
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-errors-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-errors-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Errors Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-group-attributes-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-group-attributes-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Group Attributes Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-migrate",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-migrate",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Migrate"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-outcomes-billing-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-outcomes-billing-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Outcomes Billing Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-outcomes-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-outcomes-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Outcomes Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-replacer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-replacer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Replacer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-subscription-consumer-events",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-subscription-consumer-events",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Subscription Consumer Events"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -2737,6 +3800,36 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sonarqube",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9001"
+          }
+        ],
+        "name": "sonarqube",
+        "tags": [
+          "development"
+        ],
+        "title": "SonarQube"
+      },
+      "sourcePath": "apps/sonarqube/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "code-quality"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/squid",
       "kind": "Component",
       "metadata": {
@@ -2782,6 +3875,54 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/suricata",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "suricata",
+        "tags": [
+          "security"
+        ],
+        "title": "Suricata"
+      },
+      "sourcePath": "apps/suricata/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ids"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sybase-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sybase-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "Sybase Exporter"
+      },
+      "sourcePath": "apps/sybase-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/traefik",
       "kind": "Component",
       "metadata": {
@@ -2822,6 +3963,87 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-cloudflare-ddns",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-cloudflare-ddns",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Cloudflare Ddns"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-ddns-updater",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-ddns-updater",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Ddns Updater"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-dnsupdater",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-dnsupdater",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Dnsupdater"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -2903,6 +4125,126 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/watchtower",
+      "kind": "Component",
+      "metadata": {
+        "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "watchtower",
+        "tags": [
+          "security"
+        ],
+        "title": "Watchtower"
+      },
+      "sourcePath": "apps/watchtower/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "image-update-auditor"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-dashboard",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-dashboard",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Dashboard"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-forwarder",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-forwarder",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh OpenSearch Forwarder"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "telemetry-forwarder"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-indexer",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-indexer",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Indexer"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-manager",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-manager",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Manager"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-manager"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/wordpress",
       "kind": "Component",
       "metadata": {
@@ -2947,6 +4289,33 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wordpress-wordpress-initdb",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wordpress-wordpress-initdb",
+        "tags": [
+          "wordpress"
+        ],
+        "title": "Wordpress Initdb"
+      },
+      "sourcePath": "apps/wordpress/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -3076,6 +4445,29 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/elasticsearch",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "elasticsearch",
+        "tags": [
+          "data"
+        ],
+        "title": "Elasticsearch"
+      },
+      "sourcePath": "apps/elasticsearch/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "resource:default/gpu-openai-compatible-inference",
       "kind": "Resource",
       "metadata": {
@@ -3201,6 +4593,104 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/loki",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "loki",
+        "tags": [
+          "observability"
+        ],
+        "title": "Loki"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "log-store"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/mimir",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mimir",
+        "tags": [
+          "observability"
+        ],
+        "title": "Mimir"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-store"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/minio",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9091"
+          }
+        ],
+        "name": "minio",
+        "tags": [
+          "data"
+        ],
+        "title": "MinIO"
+      },
+      "sourcePath": "apps/minio/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "object-storage"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/mongo",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mongo",
+        "tags": [
+          "data"
+        ],
+        "title": "MongoDB"
+      },
+      "sourcePath": "apps/mongo/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "resource:default/neo4j-security",
       "kind": "Resource",
       "metadata": {
@@ -3243,6 +4733,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "graph-database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/opensearch",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch",
+        "tags": [
+          "data"
+        ],
+        "title": "OpenSearch"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
       }
     },
     {
@@ -3527,6 +5040,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "host-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/tempo",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "tempo",
+        "tags": [
+          "observability"
+        ],
+        "title": "Tempo"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "trace-store"
       }
     },
     {

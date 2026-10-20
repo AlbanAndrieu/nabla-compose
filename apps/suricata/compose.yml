@@ -1,6 +1,8 @@
 ---
 services:
   suricata:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/suricata
     image: jasonish/suricata:8.0.6
     container_name: suricata
     restart: unless-stopped

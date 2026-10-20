@@ -1,6 +1,8 @@
 ---
 services:
   opensearch-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/opensearch-exporter
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0
     container_name: opensearch-exporter
     restart: unless-stopped
@@ -34,6 +36,8 @@ services:
       - "${OPENSEARCH_EXPORTER_PORT:-9114}:9114"
 
   opensearch-security-exporter:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/opensearch-security-exporter
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0
     container_name: opensearch-security-exporter
     restart: unless-stopped

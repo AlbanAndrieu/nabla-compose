@@ -8,6 +8,17 @@
   },
   "applications": [
     {
+      "id": "2fauth",
+      "entityRef": "component:default/2fauth",
+      "name": "2FAuth",
+      "group": "security",
+      "sourcePath": "apps/2fauth/compose.yml",
+      "composeService": "2fauth",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "aistor",
       "entityRef": "component:default/aistor",
       "name": "AIStor",
@@ -68,6 +79,17 @@
       "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline."
     },
     {
+      "id": "alloy",
+      "entityRef": "component:default/alloy",
+      "name": "Grafana Alloy",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "alloy",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "autokuma",
       "entityRef": "component:default/autokuma",
       "name": "AutoKuma",
@@ -90,6 +112,17 @@
       "href": null,
       "syncEligible": false,
       "description": "Reconciles Docker service exposure and DNS/proxy provider state."
+    },
+    {
+      "id": "bichon",
+      "entityRef": "component:default/bichon",
+      "name": "Bichon",
+      "group": "productivity",
+      "sourcePath": "apps/bichon/compose.yml",
+      "composeService": "bichon",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:15630",
+      "syncEligible": true
     },
     {
       "id": "cartography",
@@ -126,6 +159,17 @@
       "href": "https://code.int.albandrieu.com",
       "syncEligible": true,
       "description": "Browser-based development environment for homelab repositories."
+    },
+    {
+      "id": "crowdsec",
+      "entityRef": "component:default/crowdsec",
+      "name": "CrowdSec",
+      "group": "security",
+      "sourcePath": "apps/crowdsec/compose.yml",
+      "composeService": "crowdsec",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "cyberbro",
@@ -327,6 +371,17 @@
       "description": "Planned evidence scanner producing supporting DSOMM baseline reports for human review."
     },
     {
+      "id": "elasticsearch",
+      "entityRef": "resource:default/elasticsearch",
+      "name": "Elasticsearch",
+      "group": "data",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "elasticsearch",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "fastapi-sample",
       "entityRef": "component:default/fastapi-sample",
       "name": "FastAPI Sample",
@@ -373,6 +428,39 @@
       "href": "http://172.17.0.24:8085",
       "syncEligible": true,
       "description": "Declarative endpoint and status monitoring for the Nabla homelab."
+    },
+    {
+      "id": "grafana",
+      "entityRef": "component:default/grafana",
+      "name": "Grafana",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "grafana",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30037",
+      "syncEligible": true
+    },
+    {
+      "id": "graylog",
+      "entityRef": "component:default/graylog",
+      "name": "Graylog",
+      "group": "observability",
+      "sourcePath": "apps/graylog/compose.yml",
+      "composeService": "graylog",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9003",
+      "syncEligible": true
+    },
+    {
+      "id": "haproxy-exporter",
+      "entityRef": "component:default/haproxy-exporter",
+      "name": "pfSense HAProxy Exporter",
+      "group": "observability",
+      "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "composeService": "haproxy-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "hello-nginx",
@@ -471,6 +559,62 @@
       "description": "Prometheus exporter for Kafka broker and consumer-group state."
     },
     {
+      "id": "keycloak",
+      "entityRef": "component:default/keycloak",
+      "name": "Keycloak",
+      "group": "security",
+      "sourcePath": "apps/keycloak/compose.yml",
+      "composeService": "keycloak",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:30238",
+      "syncEligible": false,
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service."
+    },
+    {
+      "id": "kibana",
+      "entityRef": "component:default/kibana",
+      "name": "Kibana",
+      "group": "observability",
+      "sourcePath": "apps/elasticsearch/compose.yml",
+      "composeService": "kibana",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5601",
+      "syncEligible": true
+    },
+    {
+      "id": "langflow",
+      "entityRef": "component:default/langflow",
+      "name": "Langflow",
+      "group": "ai",
+      "sourcePath": "apps/langflow/compose.yml",
+      "composeService": "langflow",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:7860",
+      "syncEligible": true
+    },
+    {
+      "id": "langfuse-web",
+      "entityRef": "component:default/langfuse-web",
+      "name": "Langfuse Web",
+      "group": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-web",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3000",
+      "syncEligible": true
+    },
+    {
+      "id": "langfuse-worker",
+      "entityRef": "component:default/langfuse-worker",
+      "name": "Langfuse Worker",
+      "group": "ai",
+      "sourcePath": "apps/langfuse/compose.yml",
+      "composeService": "langfuse-worker",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "languagetool",
       "entityRef": "component:default/languagetool",
       "name": "LanguageTool",
@@ -495,6 +639,17 @@
       "description": "OpenAI-compatible model gateway used by OpenWebUI and AI workloads."
     },
     {
+      "id": "loki",
+      "entityRef": "resource:default/loki",
+      "name": "Loki",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "loki",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "mcp-cyberbro",
       "entityRef": "component:default/mcp-cyberbro",
       "name": "Cyberbro MCP",
@@ -505,6 +660,50 @@
       "href": null,
       "syncEligible": false,
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients."
+    },
+    {
+      "id": "mimir",
+      "entityRef": "resource:default/mimir",
+      "name": "Mimir",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "mimir",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "minio",
+      "entityRef": "resource:default/minio",
+      "name": "MinIO",
+      "group": "data",
+      "sourcePath": "apps/minio/compose.yml",
+      "composeService": "minio",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9091",
+      "syncEligible": true
+    },
+    {
+      "id": "mongo",
+      "entityRef": "resource:default/mongo",
+      "name": "MongoDB",
+      "group": "data",
+      "sourcePath": "apps/mongo/compose.yml",
+      "composeService": "mongo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "n8n",
+      "entityRef": "component:default/n8n",
+      "name": "n8n",
+      "group": "automation",
+      "sourcePath": "apps/n8n/compose.yml",
+      "composeService": "n8n",
+      "dockerManaged": true,
+      "href": "https://n8n.int.albandrieu.com",
+      "syncEligible": false
     },
     {
       "id": "neo4j-security",
@@ -601,6 +800,52 @@
       "description": "LAN network traffic monitoring UI."
     },
     {
+      "id": "obsidian",
+      "entityRef": "component:default/obsidian",
+      "name": "Obsidian",
+      "group": "productivity",
+      "sourcePath": "apps/obsidian/compose.yml",
+      "composeService": "obsidian",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:3002",
+      "syncEligible": true
+    },
+    {
+      "id": "ollama",
+      "entityRef": "component:default/ollama",
+      "name": "Ollama",
+      "group": "ai",
+      "sourcePath": "apps/ollama/compose.yml",
+      "composeService": "ollama",
+      "dockerManaged": true,
+      "href": "https://ollama.int.albandrieu.com",
+      "syncEligible": true
+    },
+    {
+      "id": "op-connect-api",
+      "entityRef": "component:default/op-connect-api",
+      "name": "1Password Connect API",
+      "group": "security",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-api",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8097",
+      "syncEligible": false,
+      "description": "1Password Connect API for machine-readable secret access."
+    },
+    {
+      "id": "op-connect-sync",
+      "entityRef": "component:default/op-connect-sync",
+      "name": "1Password Connect Sync",
+      "group": "security",
+      "sourcePath": "apps/opconnect/compose.yml",
+      "composeService": "op-connect-sync",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:8098",
+      "syncEligible": false,
+      "description": "Synchronizes 1Password vault state for the Connect API."
+    },
+    {
       "id": "openclaw-sandbox",
       "entityRef": "component:default/openclaw-sandbox",
       "name": "OpenClaw Sandbox",
@@ -661,6 +906,61 @@
       "description": "OpenRAG frontend and collective-health UI."
     },
     {
+      "id": "opensearch",
+      "entityRef": "resource:default/opensearch",
+      "name": "OpenSearch",
+      "group": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-dashboards",
+      "entityRef": "component:default/opensearch-dashboards",
+      "name": "OpenSearch Dashboards",
+      "group": "data",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "dashboards",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:5601",
+      "syncEligible": true
+    },
+    {
+      "id": "opensearch-exporter",
+      "entityRef": "component:default/opensearch-exporter",
+      "name": "OpenSearch Exporter",
+      "group": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-security",
+      "entityRef": "component:default/opensearch-security",
+      "name": "OpenSearch Security",
+      "group": "security",
+      "sourcePath": "apps/opensearch/compose.yml",
+      "composeService": "opensearch-security",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "opensearch-security-exporter",
+      "entityRef": "component:default/opensearch-security-exporter",
+      "name": "OpenSearch Security Exporter",
+      "group": "observability",
+      "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "composeService": "opensearch-security-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "openssf-scorecard",
       "entityRef": "component:default/openssf-scorecard",
       "name": "OpenSSF Scorecard",
@@ -695,6 +995,17 @@
       "href": "https://172.17.0.1:10443",
       "syncEligible": true,
       "description": "Homelab firewall, router and network-edge appliance."
+    },
+    {
+      "id": "pfsense-exporter",
+      "entityRef": "component:default/pfsense-exporter",
+      "name": "pfSense Exporter",
+      "group": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "pfsense-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "pihole",
@@ -793,6 +1104,39 @@
       "description": "Prometheus exporter for the shared PostgreSQL Resource."
     },
     {
+      "id": "prometheus",
+      "entityRef": "component:default/prometheus",
+      "name": "Prometheus",
+      "group": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "prometheus",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9090",
+      "syncEligible": true
+    },
+    {
+      "id": "prometheus-alertmanager",
+      "entityRef": "component:default/prometheus-alertmanager",
+      "name": "Alertmanager",
+      "group": "observability",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "alertmanager",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "prometheus-node-exporter",
+      "entityRef": "component:default/prometheus-node-exporter",
+      "name": "Node Exporter",
+      "group": "prometheus",
+      "sourcePath": "apps/prometheus/compose.yml",
+      "composeService": "node-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "pyroscope",
       "entityRef": "component:default/pyroscope",
       "name": "Grafana Pyroscope",
@@ -815,6 +1159,17 @@
       "href": null,
       "syncEligible": false,
       "description": "Shared homelab Redis cache and runtime-state service."
+    },
+    {
+      "id": "redis-redis-exporter",
+      "entityRef": "component:default/redis-redis-exporter",
+      "name": "Redis Exporter",
+      "group": "redis",
+      "sourcePath": "apps/redis/compose.yml",
+      "composeService": "redis_exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "scanopy",
@@ -900,12 +1255,78 @@
       "syncEligible": true
     },
     {
+      "id": "sentry-memcached",
+      "entityRef": "component:default/sentry-memcached",
+      "name": "Memcached",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "memcached",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "sentry-relay",
       "entityRef": "component:default/sentry-relay",
       "name": "Sentry Relay",
       "group": "observability",
       "sourcePath": "apps/sentry/compose.yml",
       "composeService": "relay",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-attachments-consumer",
+      "entityRef": "component:default/sentry-sentry-attachments-consumer",
+      "name": "Sentry Attachments Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-attachments-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-events-consumer",
+      "entityRef": "component:default/sentry-sentry-events-consumer",
+      "name": "Sentry Events Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-events-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-migrate",
+      "entityRef": "component:default/sentry-sentry-migrate",
+      "name": "Sentry Migrate",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-migrate",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-post-process-forwarder-errors",
+      "entityRef": "component:default/sentry-sentry-post-process-forwarder-errors",
+      "name": "Sentry Post Process Forwarder Errors",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-post-process-forwarder-errors",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-sentry-taskscheduler",
+      "entityRef": "component:default/sentry-sentry-taskscheduler",
+      "name": "Sentry Taskscheduler",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "sentry-taskscheduler",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
@@ -921,6 +1342,83 @@
       "href": null,
       "syncEligible": false,
       "description": "Sentry query service backed by the dedicated Sentry ClickHouse."
+    },
+    {
+      "id": "sentry-snuba-errors-consumer",
+      "entityRef": "component:default/sentry-snuba-errors-consumer",
+      "name": "Snuba Errors Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-errors-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-group-attributes-consumer",
+      "entityRef": "component:default/sentry-snuba-group-attributes-consumer",
+      "name": "Snuba Group Attributes Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-group-attributes-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-migrate",
+      "entityRef": "component:default/sentry-snuba-migrate",
+      "name": "Snuba Migrate",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-migrate",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-outcomes-billing-consumer",
+      "entityRef": "component:default/sentry-snuba-outcomes-billing-consumer",
+      "name": "Snuba Outcomes Billing Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-outcomes-billing-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-outcomes-consumer",
+      "entityRef": "component:default/sentry-snuba-outcomes-consumer",
+      "name": "Snuba Outcomes Consumer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-outcomes-consumer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-replacer",
+      "entityRef": "component:default/sentry-snuba-replacer",
+      "name": "Snuba Replacer",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-replacer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sentry-snuba-subscription-consumer-events",
+      "entityRef": "component:default/sentry-snuba-subscription-consumer-events",
+      "name": "Snuba Subscription Consumer Events",
+      "group": "sentry",
+      "sourcePath": "apps/sentry/compose.yml",
+      "composeService": "snuba-subscription-consumer-events",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "sentry-taskbroker",
@@ -945,6 +1443,17 @@
       "syncEligible": false
     },
     {
+      "id": "sonarqube",
+      "entityRef": "component:default/sonarqube",
+      "name": "SonarQube",
+      "group": "development",
+      "sourcePath": "apps/sonarqube/compose.yml",
+      "composeService": "sonarqube",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:9001",
+      "syncEligible": true
+    },
+    {
       "id": "squid",
       "entityRef": "component:default/squid",
       "name": "Squid Proxy",
@@ -957,6 +1466,39 @@
       "description": "Internal forward proxy for controlled HTTP(S) egress experiments."
     },
     {
+      "id": "suricata",
+      "entityRef": "component:default/suricata",
+      "name": "Suricata",
+      "group": "security",
+      "sourcePath": "apps/suricata/compose.yml",
+      "composeService": "suricata",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "sybase-exporter",
+      "entityRef": "component:default/sybase-exporter",
+      "name": "Sybase Exporter",
+      "group": "observability",
+      "sourcePath": "apps/sybase-exporter/compose.yml",
+      "composeService": "sybase-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "tempo",
+      "entityRef": "resource:default/tempo",
+      "name": "Tempo",
+      "group": "observability",
+      "sourcePath": "apps/grafana/compose.yml",
+      "composeService": "tempo",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "traefik",
       "entityRef": "component:default/traefik",
       "name": "Traefik",
@@ -967,6 +1509,39 @@
       "href": "http://172.17.0.24:80",
       "syncEligible": true,
       "description": "Internal reverse proxy for repository-managed homelab services."
+    },
+    {
+      "id": "traefik-cloudflare-ddns",
+      "entityRef": "component:default/traefik-cloudflare-ddns",
+      "name": "Cloudflare Ddns",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "cloudflare-ddns",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik-ddns-updater",
+      "entityRef": "component:default/traefik-ddns-updater",
+      "name": "Ddns Updater",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "ddns-updater",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "traefik-dnsupdater",
+      "entityRef": "component:default/traefik-dnsupdater",
+      "name": "Dnsupdater",
+      "group": "traefik",
+      "sourcePath": "apps/traefik/compose.yml",
+      "composeService": "dnsupdater",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     },
     {
       "id": "truenas",
@@ -1005,6 +1580,62 @@
       "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval."
     },
     {
+      "id": "watchtower",
+      "entityRef": "component:default/watchtower",
+      "name": "Watchtower",
+      "group": "security",
+      "sourcePath": "apps/watchtower/compose.yml",
+      "composeService": "watchtower",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers."
+    },
+    {
+      "id": "wazuh-dashboard",
+      "entityRef": "component:default/wazuh-dashboard",
+      "name": "Wazuh Dashboard",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.dashboard",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-forwarder",
+      "entityRef": "component:default/wazuh-forwarder",
+      "name": "Wazuh OpenSearch Forwarder",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh-forwarder",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-indexer",
+      "entityRef": "component:default/wazuh-indexer",
+      "name": "Wazuh Indexer",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.indexer",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
+      "id": "wazuh-manager",
+      "entityRef": "component:default/wazuh-manager",
+      "name": "Wazuh Manager",
+      "group": "security",
+      "sourcePath": "apps/wazuh/compose.yml",
+      "composeService": "wazuh.manager",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
+    },
+    {
       "id": "wordpress",
       "entityRef": "component:default/wordpress",
       "name": "WordPress",
@@ -1015,6 +1646,17 @@
       "href": "http://172.17.0.24:8088",
       "syncEligible": true,
       "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP."
+    },
+    {
+      "id": "wordpress-wordpress-initdb",
+      "entityRef": "component:default/wordpress-wordpress-initdb",
+      "name": "Wordpress Initdb",
+      "group": "wordpress",
+      "sourcePath": "apps/wordpress/compose.yml",
+      "composeService": "wordpress-initdb",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false
     }
   ]
 }

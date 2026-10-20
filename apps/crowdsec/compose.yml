@@ -18,6 +18,8 @@ x-nabla:
 
 services:
   crowdsec:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/crowdsec
     image: crowdsecurity/crowdsec:v1.8.1
     container_name: crowdsec
     restart: unless-stopped

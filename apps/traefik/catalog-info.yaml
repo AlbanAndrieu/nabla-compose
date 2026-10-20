@@ -34,3 +34,60 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: traefik-cloudflare-ddns
+  title: Cloudflare Ddns
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - traefik
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: traefik-ddns-updater
+  title: Ddns Updater
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - traefik
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: traefik-dnsupdater
+  title: Dnsupdater
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - traefik
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
