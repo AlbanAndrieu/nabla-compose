@@ -1,4 +1,4 @@
-name: Temporary Backstage missing identity migration
+name: Temporary Backstage missing identity migration # retry Compose-only exporters
 on:
   push:
     branches:

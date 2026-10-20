@@ -91,8 +91,12 @@ def materialize(root: Path, legacy: dict) -> dict:
         if not isinstance(native, dict):
             raise ValueError(f"{name}: missing Compose service {service_name}")
         metadata = native.get("x-nabla")
-        if not isinstance(metadata, dict) or not metadata.get("id"):
-            raise ValueError(f"{name}: missing explicit legacy identity")
+        if not isinstance(metadata, dict):
+            # Some v1 entries were generated from a real Compose service with
+            # no x-nabla block (exporters and sidecars). The *exact* source
+            # path and Compose service name in the reviewed v1 snapshot is
+            # sufficient migration evidence; do not synthesize a new runtime.
+            metadata = {}
         status = metadata.get("status", "active")
         if status not in {"active", "planned", "disabled"}:
             raise ValueError(f"{name}: invalid declared operational-state {status!r}")
@@ -133,6 +137,10 @@ def materialize(root: Path, legacy: dict) -> dict:
         href = app.get("href")
         if isinstance(href, str) and href.startswith(("https://", "http://")):
             descriptor["metadata"]["links"] = [{"url": href, "title": "Application"}]
+        if "x-nabla" not in native:
+            descriptor["metadata"].setdefault("annotations", {})[
+                "albandrieu.com/migration-provenance"
+            ] = "legacy-homarr-compose"
         pending_docs.setdefault(doc_path, []).append(descriptor)
         migrated.append(name)
         touched.add(relative)
