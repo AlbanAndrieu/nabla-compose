@@ -537,6 +537,7 @@ def autokuma_payload(monitors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for monitor in monitors:
         entity: dict[str, Any] = {
+            "id": monitor["id"],  # stable Gatus ID; deployment renderer removes it
             "type": "http"
             if monitor["type"] == "http"
             else ("ping" if monitor["type"] == "ping" else "port"),

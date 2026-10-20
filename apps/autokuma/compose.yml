@@ -56,7 +56,8 @@ services:
       AUTOKUMA__TAG_NAME: Nabla
     volumes:
       - /mnt/cpool/autokuma:/data
-      - ./static:/config/static:ro
+      # Materialized one-file-per-ID definitions; aggregate never mounted.
+      - /mnt/cpool/autokuma/static-monitors:/config/static:ro
     networks:
       - intranet
     cap_drop:
