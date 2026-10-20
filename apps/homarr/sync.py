@@ -28,14 +28,7 @@ BOARD_SYNC_ENABLED = os.getenv("HOMARR_BOARD_ENABLED", "true").lower() in {
     "yes",
     "on",
 }
-BOARD_NAME = os.getenv("HOMARR_BOARD_NAME", "Nabla").strip() or "Nabla"
-BOARD_COLUMN_COUNT = int(os.getenv("HOMARR_BOARD_COLUMNS", "12"))
-BOARD_PUBLIC = os.getenv("HOMARR_BOARD_PUBLIC", "false").lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+# Board names, columns, visibility and members are declared in BOARDS_PATH.
 
 
 def log(message: str) -> None:
@@ -141,7 +134,12 @@ def reconcile_board(
     state: dict[str, str],
     desired_items: list[dict[str, Any]],
 ) -> tuple[bool, int]:
-    """Discover managed boards by name; never rely on persisted mapping state."""
+    """Converge the boards declared in boards.json; code owns them.
+
+    Boards are matched by name without persisted mapping state: a declared
+    board that is missing (never created or deleted by hand) is created again,
+    and missing application items are added. Nothing is ever deleted.
+    """
     if not BOARD_SYNC_ENABLED:
         return False, 0
     definitions = load_json(BOARDS_PATH, {})

@@ -140,6 +140,29 @@ class HomarrSyncTests(unittest.TestCase):
             ],
         )
 
+    def test_code_managed_board_is_recreated_after_manual_deletion(self) -> None:
+        # boards.json is the source of truth: a deleted declared board comes back.
+        state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
+        request_json = Mock(side_effect=[
+            [{"id": "user-board", "name": "Personal"}],
+            {"boardId": "board-infra"},
+            [],
+            {"itemId": "item-pfsense"},
+        ])
+
+        created, added = _reconcile(
+            _boards({"name": "Infrastructure", "applications": ["pfsense"]}), request_json, state,
+        )
+
+        self.assertEqual((created, added), (True, 1))
+        self.assertIn(
+            call("POST", "/api/boards", {"name": "Infrastructure", "columnCount": 12, "isPublic": False}),
+            request_json.call_args_list,
+        )
+        # Unrelated user boards are never touched or deleted.
+        self.assertFalse(any("user-board" in str(args) for args, _ in request_json.call_args_list[1:]))
+        self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
+
     def test_reconcile_board_is_idempotent_against_existing_items(self) -> None:
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
         request_json = Mock(side_effect=[

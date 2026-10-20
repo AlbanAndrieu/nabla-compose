@@ -634,6 +634,18 @@ class AgentQualityGateContractTests(unittest.TestCase):
             self.assertIn(hook_id, [hook["id"] for hook in repos[url]["hooks"]])
         zizmor = repos["https://github.com/zizmorcore/zizmor-pre-commit"]["hooks"][0]
         self.assertIn("--offline", zizmor["args"])
+        self.assertNotIn("files", zizmor)
+
+    def test_prettier_does_not_use_the_archived_mirror(self) -> None:
+        config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+        self.assertNotIn("https://github.com/pre-commit/mirrors-prettier", [repo["repo"] for repo in config["repos"]])
+        prettier = [
+            hook for repo in config["repos"] if repo["repo"] == "local"
+            for hook in repo["hooks"] if hook["id"] == "prettier"
+        ]
+        self.assertEqual(len(prettier), 1)
+        self.assertEqual(prettier[0]["language"], "node")
+        self.assertRegex(prettier[0]["additional_dependencies"][0], r"^prettier@\d+\.\d+\.\d+$")
 
     def test_duplicate_contract_workflows_are_manual_only(self) -> None:
         for path in (
