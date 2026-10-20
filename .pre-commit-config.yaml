@@ -286,6 +286,14 @@ repos:
         files: >-
           ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2|compose_paths)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_security_inventory|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
+      - id: catalog-v2-native-identity-contract
+        name: "🕸️ catalog · Verify Backstage/native provider identity joins and restart plan"
+        language: system
+        entry: python -m pytest -q tests/test_catalog_v2_exports.py tests/test_catalog_v2_identity_map.py tests/test_catalog_v2_restart_plan.py
+        pass_filenames: false
+        files: >-
+          ^(catalog/(?:generated/(?:entities|homelab[.]cdx|identity-map)[.]json|catalog-info[.]yaml)|config/monitoring/gatus-endpoints[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|compose[.]yml)|scripts/(?:generate-catalog-v2-artifacts[.]py|nabla_ops/(?:catalog_exports|compose_paths)[.]py|truenas/plan-catalog-v2-restart[.]py)|tests/test_catalog_v2_(?:exports|identity_map|restart_plan)[.]py)$
+
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"
         language: system
