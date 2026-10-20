@@ -297,3 +297,14 @@ sans copie dans les paramètres Gatus ou Homarr.
 Pour la provenance observée, les formats OTel/OCSF et l'export
 CycloneDX/OSCAL/OWASP SAMM, voir
 [la décision normes et sécurité](../docs/catalog-security-standards.md).
+
+
+### AutoKuma native Files provider
+
+Le JSON agrégé `apps/autokuma/static/generated-monitors.json` est un
+**artefact intermédiaire non monté**, et non un fichier statique AutoKuma
+valide. Le runtime monte `/mnt/cpool/autokuma/static-monitors`, rempli à
+la demande par `scripts/truenas/render-autokuma-monitors.py --apply` ; un
+fichier `nabla-<nabla_monitor_id>.json` par sonde, sans le champ agrégé
+`id`. L'identifiant est stable même si le titre Gatus change. Le YAML Gatus
+reste l'unique politique de sondes.

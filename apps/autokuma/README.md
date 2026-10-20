@@ -15,10 +15,31 @@ Until the Uptime Kuma Compose service exists and `172.17.0.24:31050` is
 reachable, keep AutoKuma stopped. Starting AutoKuma alone cannot provide uptime
 monitoring and will fail its required `kuma.url`/connection contract.
 
-The repository owns the desired monitor definitions under:
+The sole editable probe authority is `config/monitoring/gatus-endpoints.yml`.
+The repository-generated **intermediate** manifest is:
 
 ```text
 apps/autokuma/static/generated-monitors.json
+```
+
+AutoKuma 2.0.0 expects **one JSON object per file**, with the filename stem
+as a stable AutoKuma monitor ID. A JSON array is **not** a native static
+monitor file. The aggregate manifest is therefore deliberately **not mounted**.
+The deploy helper materializes it into the runtime-only folder:
+
+```text
+/mnt/cpool/autokuma/static-monitors/nabla-<Gatus ID>.json
+```
+
+The renderer strips the manifest-only `id` field before writing native AutoKuma
+JSON. Only files prefixed `nabla-` belong to the reconciler. The generator and
+runtime renderer reject duplicate/invalid IDs and unsafe symlinks, and prune
+only stale `nabla-*.json` files. AutoKuma's `ON_DELETE=keep` additionally
+avoids deleting existing Uptime Kuma monitors when mappings are retired.
+
+```bash
+python scripts/generate-service-consumers.py --check
+python scripts/truenas/render-autokuma-monitors.py --validate-only
 ```
 
 The TrueNAS runtime is a dedicated Custom App named `autokuma`.

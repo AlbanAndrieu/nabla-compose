@@ -31,6 +31,8 @@ hash_outputs() {
 BEFORE="$(hash_outputs)"
 python scripts/generate-service-consumers.py
 AFTER="$(hash_outputs)"
+# Native static-file schema and stable monitor IDs, not a JSON-array mount.
+python scripts/truenas/render-autokuma-monitors.py --validate-only
 DRIFT=false
 
 if [[ "${BEFORE}" != "${AFTER}" ]]; then
