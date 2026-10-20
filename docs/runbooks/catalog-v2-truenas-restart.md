@@ -114,4 +114,8 @@ supprimé pour améliorer artificiellement la couverture.
 La génération du plan, les tests hors-ligne et le contrôle des fichiers sont
 implémentés ; **aucun redémarrage, vérification Vaultwarden live, ni recette
 Gatus/TrueNAS n'a été exécuté** depuis cette PR.
-\n**Contrat de corrélation maintenant convergé :** les 85 sondes Gatus natives\nont une correspondance canonique Backstage dans\n`catalog/generated/identity-map.json` (`unresolved: []`), tandis que les 143\nentrées Homarr sont matérialisées par les 153 entités du catalogue v2.\n
+
+**Contrat de corrélation maintenant convergé :** les 85 sondes Gatus natives
+ont une correspondance canonique Backstage dans
+`catalog/generated/identity-map.json` (`unresolved: []`), tandis que les 143
+entrées Homarr sont matérialisées par les 153 entités du catalogue v2.

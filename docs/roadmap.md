@@ -3385,4 +3385,13 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 - [ ] Corréler les découvertes Scanopy, flux Akvorado/ntopng et graphe Cartography/Neo4j sur des identifiants stables, en conservant provenance, horodatage et confiance ; ne pas déclarer automatiquement un composant Backstage pour chaque IP ou port.
 - [ ] Publier les findings vers DefectDojo via les API privées, les métriques vers OpenTelemetry/Prometheus et les preuves DSOMM/OSCAL sans verdict de maturité automatique.
 - [ ] Examiner les formats standards complémentaires : OpenTelemetry semantic conventions, NIST CSF 2.0, NIST OSCAL, CSAF 2.0, SPDX 3 et CycloneDX 1.7 ; conserver Backstage comme seule autorité des identités.
-\n\n### 2026-10-21 — Catalog v2 : convergence et reprise TrueNAS\n\n- [x] Convergence des identités Homarr : 143/143 entrées historiques matérialisées dans 153 entités Backstage, en réutilisant les preuves Compose et sans conserver le script one-shot.\n- [x] Gatus ↔ Backstage : 85/85 sondes reliées à une référence canonique, zéro entrée `unresolved` dans `catalog/generated/identity-map.json`, projections AutoKuma inchangées sur le fond.\n- [x] Tests de correspondances non ambiguës, revision déterministe et planificateur de reprise v2 en lecture seule (`scripts/truenas/plan-catalog-v2-restart.py`).\n- [ ] Observer les états réels `app.query` et générer les vagues `RUNNING` puis non-running ; ne pas redémarrer sans secrets et dépendances prêts.\n- [ ] Vérifier sur TrueNAS Vaultwarden, fichiers de secrets runtime, healthchecks/sondes et probes FastAPI après chaque vague.\n- [ ] Migrer les derniers lecteurs v1 de FastAPI, Site Alban et scripts de reprise avant suppression des JSON v1 ; aucune restauration automatique initiée depuis GitHub.\n
+
+
+### 2026-10-21 — Catalog v2 : convergence et reprise TrueNAS
+
+- [x] Convergence des identités Homarr : 143/143 entrées historiques matérialisées dans 153 entités Backstage, en réutilisant les preuves Compose et sans conserver le script one-shot.
+- [x] Gatus ↔ Backstage : 85/85 sondes reliées à une référence canonique, zéro entrée `unresolved` dans `catalog/generated/identity-map.json`, projections AutoKuma inchangées sur le fond.
+- [x] Tests de correspondances non ambiguës, revision déterministe et planificateur de reprise v2 en lecture seule (`scripts/truenas/plan-catalog-v2-restart.py`).
+- [ ] Observer les états réels `app.query` et générer les vagues `RUNNING` puis non-running ; ne pas redémarrer sans secrets et dépendances prêts.
+- [ ] Vérifier sur TrueNAS Vaultwarden, fichiers de secrets runtime, healthchecks/sondes et probes FastAPI après chaque vague.
+- [ ] Migrer les derniers lecteurs v1 de FastAPI, Site Alban et scripts de reprise avant suppression des JSON v1 ; aucune restauration automatique initiée depuis GitHub.
