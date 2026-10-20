@@ -137,6 +137,10 @@ model_list:
     model_info:
       mode: chat
       supports_function_calling: true
+      # Internal metering quota for on-prem Qwen, NOT a provider invoice.
+      # Verify effective spend counters before treating virtual budget as enforced.
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000002
 
   - model_name: gemma3
     litellm_params:
@@ -170,6 +174,8 @@ general_settings:
   # P1 hardening: named proxy_admin verified with access to models, users and budgets.
   # Deploy only after validating Cloudflare Access and rollback procedure.
   disable_env_credential_login: true
+  # A service key restricted to fastapi-qwen cannot use global router fallbacks.
+  enforce_fallback_model_access: true
   store_prompts_in_spend_logs: true
   custom_headers:
     forward_headers:

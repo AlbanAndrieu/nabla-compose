@@ -33,6 +33,9 @@ def test_compose_routes_qwen_through_both_litellm_proxies():
     assert "model: openai/qwen" in config
     assert "api_key: os.environ/LITELLM_FASTAPI_WORKSTATION_API_KEY" in config
     assert '"fastapi-qwen": []' in config
+    assert "enforce_fallback_model_access: true" in config
+    assert "input_cost_per_token: 0.000001" in config
+    assert "output_cost_per_token: 0.000002" in config
     truenas = (ROOT / "apps/litellm/compose.yml").read_text(encoding="utf-8")
     assert "/mnt/cpool/secrets/runtime/litellm/.env.secrets" in truenas
     sample = (ROOT / "apps/sample/compose.yml").read_text(encoding="utf-8")
