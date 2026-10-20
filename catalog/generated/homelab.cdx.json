@@ -435,7 +435,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:b758c1b79c0c45aeaa7e0e28f306a04b6ba7cb576184e57400a163bb9bbe70d7"
+        "value": "sha256:dd49f834cf6ba3f8ca50db02987a815080ab326e36741a0e2fd932c0c29d289d"
       },
       {
         "name": "nabla:catalog-authority",
@@ -443,7 +443,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:b758c1b7-9c0c-45ae-aa7e-0e28f306a04b",
+  "serialNumber": "urn:uuid:dd49f834-cf6b-a3f8-ca50-db02987a8150",
   "services": [
     {
       "bom-ref": "component:default/aistor",

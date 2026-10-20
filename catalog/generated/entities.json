@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:b758c1b79c0c45aeaa7e0e28f306a04b6ba7cb576184e57400a163bb9bbe70d7",
+  "catalogRevision": "sha256:dd49f834cf6ba3f8ca50db02987a815080ab326e36741a0e2fd932c0c29d289d",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3177,6 +3177,12 @@
           "albandrieu.com/operational-criticality": "critical",
           "albandrieu.com/operational-state": "active"
         },
+        "links": [
+          {
+            "title": "Administration",
+            "url": "http://172.17.0.24:20720/admin/"
+          }
+        ],
         "name": "pihole",
         "tags": [
           "network",

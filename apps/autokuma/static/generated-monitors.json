@@ -1,6 +1,16 @@
 [
   {
     "type": "port",
+    "name": "2FAuth",
+    "description": "Nabla generated monitor: 2fauth",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30081
+  },
+  {
+    "type": "port",
     "name": "AIStor",
     "description": "MinIO AIStor-compatible object storage service.",
     "interval": 60,
@@ -10,34 +20,60 @@
     "port": 9002
   },
   {
-    "type": "port",
+    "type": "http",
+    "name": "Grafana Alloy",
+    "description": "Nabla generated monitor: alloy",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:12345/-/healthy"
+  },
+  {
+    "type": "http",
     "name": "AutoXpose",
     "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 4949
+    "url": "http://172.17.0.24:4949/api/settings/status"
   },
   {
     "type": "port",
+    "name": "Bichon",
+    "description": "Nabla generated monitor: bichon",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 15630
+  },
+  {
+    "type": "port",
+    "name": "ClickHouse",
+    "description": "Nabla generated monitor: clickhouse",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8123
+  },
+  {
+    "type": "http",
     "name": "Code Server",
     "description": "Browser-based development environment for homelab repositories.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8443
+    "url": "http://172.17.0.24:8443/healthz"
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Cyberbro",
     "description": "Threat-intelligence workbench for IoC extraction and reputation analysis.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 5100
+    "url": "http://172.17.0.24:5100/"
   },
   {
     "type": "port",
@@ -71,8 +107,8 @@
   },
   {
     "type": "port",
-    "name": "Docker Runtime",
-    "description": "Docker Engine runtime used by repository-managed Compose workloads.",
+    "name": "Docker API",
+    "description": "Nabla generated monitor: docker",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -90,14 +126,13 @@
     "port": 3050
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Docling Serve",
     "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 5001
+    "url": "http://172.17.0.24:5001/ready"
   },
   {
     "type": "port",
@@ -107,7 +142,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 30080
+    "port": 9120
   },
   {
     "type": "port",
@@ -131,17 +166,26 @@
   },
   {
     "type": "port",
+    "name": "Elasticsearch",
+    "description": "Nabla generated monitor: elasticsearch",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9200
+  },
+  {
+    "type": "http",
     "name": "FastAPI Sample",
     "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8091
+    "url": "http://172.17.0.24:8091/health"
   },
   {
     "type": "port",
-    "name": "Garage S3",
+    "name": "Garage S3 API",
     "description": "S3-compatible object storage hosted on TrueNAS.",
     "interval": 60,
     "max_retries": 3,
@@ -151,7 +195,7 @@
   },
   {
     "type": "port",
-    "name": "Garage WebUI",
+    "name": "Garage Web UI",
     "description": "Web administration UI for Garage.",
     "interval": 60,
     "max_retries": 3,
@@ -168,6 +212,35 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8085
+  },
+  {
+    "type": "http",
+    "name": "Grafana",
+    "description": "Nabla generated monitor: grafana",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:30037/api/health"
+  },
+  {
+    "type": "port",
+    "name": "Graylog",
+    "description": "Nabla generated monitor: graylog",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9003
+  },
+  {
+    "type": "port",
+    "name": "pfSense HAProxy Exporter",
+    "description": "Nabla generated monitor: haproxy-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9101
   },
   {
     "type": "port",
@@ -199,34 +272,71 @@
     "url": "https://homeassistant.albanandrieu.com"
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Joplin Server",
     "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 22300
+    "url": "http://172.17.0.24:22300/api/ping"
   },
   {
     "type": "port",
+    "name": "Apache Kafka",
+    "description": "Shared homelab message broker.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "kafka",
+    "port": 9092
+  },
+  {
+    "type": "http",
     "name": "Kafka Exporter",
     "description": "Prometheus exporter for Kafka broker and consumer-group state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9308
+    "url": "http://172.17.0.24:9308/metrics"
   },
   {
     "type": "port",
+    "name": "Kibana",
+    "description": "Nabla generated monitor: kibana",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5601
+  },
+  {
+    "type": "port",
+    "name": "Langflow",
+    "description": "Nabla generated monitor: langflow",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 7860
+  },
+  {
+    "type": "port",
+    "name": "Langfuse Web",
+    "description": "Nabla generated monitor: langfuse-web",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3000
+  },
+  {
+    "type": "http",
     "name": "LanguageTool",
     "description": "Self-hosted grammar and style checking API.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8010
+    "url": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
   },
   {
     "type": "port",
@@ -239,6 +349,15 @@
     "port": 4000
   },
   {
+    "type": "http",
+    "name": "Loki",
+    "description": "Nabla generated monitor: loki",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:3100/ready"
+  },
+  {
     "type": "port",
     "name": "Cyberbro MCP",
     "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
@@ -247,6 +366,25 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8013
+  },
+  {
+    "type": "http",
+    "name": "Mimir",
+    "description": "Nabla generated monitor: mimir",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9009/ready"
+  },
+  {
+    "type": "port",
+    "name": "MinIO",
+    "description": "Nabla generated monitor: minio",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9002
   },
   {
     "type": "port",
@@ -286,7 +424,17 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 30020
+    "port": 30021
+  },
+  {
+    "type": "port",
+    "name": "NPMplus",
+    "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30360
   },
   {
     "type": "port",
@@ -297,6 +445,26 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 3000
+  },
+  {
+    "type": "port",
+    "name": "Obsidian",
+    "description": "Nabla generated monitor: obsidian",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 3002
+  },
+  {
+    "type": "port",
+    "name": "Ollama",
+    "description": "Nabla generated monitor: ollama",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30068
   },
   {
     "type": "port",
@@ -320,6 +488,46 @@
   },
   {
     "type": "port",
+    "name": "OpenSearch",
+    "description": "Nabla generated monitor: opensearch",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9200
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Dashboards",
+    "description": "Nabla generated monitor: opensearch-dashboards",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 5601
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Exporter",
+    "description": "Nabla generated monitor: opensearch-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9114
+  },
+  {
+    "type": "port",
+    "name": "OpenSearch Security Exporter",
+    "description": "Nabla generated monitor: opensearch-security-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9115
+  },
+  {
+    "type": "port",
     "name": "Open WebUI",
     "description": "Self-hosted AI chat and RAG interface using the homelab LiteLLM gateway.",
     "interval": 60,
@@ -337,6 +545,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.1",
     "port": 10443
+  },
+  {
+    "type": "port",
+    "name": "pfSense Exporter",
+    "description": "Nabla generated monitor: pfsense-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9945
   },
   {
     "type": "http",
@@ -378,14 +596,13 @@
     "port": 31071
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Portracker",
     "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30233
+    "url": "http://172.17.0.24:30233/metrics"
   },
   {
     "type": "port",
@@ -408,14 +625,41 @@
     "port": 5432
   },
   {
+    "type": "http",
+    "name": "Prometheus",
+    "description": "Nabla generated monitor: prometheus",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9090/-/ready"
+  },
+  {
+    "type": "http",
+    "name": "Alertmanager",
+    "description": "Nabla generated monitor: prometheus-alertmanager",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9093/-/ready"
+  },
+  {
     "type": "port",
+    "name": "Node Exporter",
+    "description": "Nabla generated monitor: prometheus-node-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9100
+  },
+  {
+    "type": "http",
     "name": "Grafana Pyroscope",
     "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 4040
+    "url": "http://172.17.0.24:4040/"
   },
   {
     "type": "port",
@@ -429,6 +673,16 @@
   },
   {
     "type": "port",
+    "name": "Redis Exporter",
+    "description": "Nabla generated monitor: redis-redis-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9121
+  },
+  {
+    "type": "port",
     "name": "Scanopy",
     "description": "Agentless network discovery and continuously updated topology documentation.",
     "interval": 60,
@@ -438,24 +692,51 @@
     "port": 60072
   },
   {
-    "type": "port",
+    "type": "http",
     "name": "Scrutiny",
     "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31054
+    "url": "http://172.17.0.24:31054/api/health"
+  },
+  {
+    "type": "http",
+    "name": "Sentry",
+    "description": "Self-hosted Sentry errors-only observability service.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:9005/_health/"
   },
   {
     "type": "port",
+    "name": "Sentry ClickHouse",
+    "description": "Dedicated analytical datastore for the self-hosted Sentry stack.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "sentry-clickhouse",
+    "port": 9000
+  },
+  {
+    "type": "http",
     "name": "Sentry Edge",
     "description": "Nabla generated monitor: sentry-edge",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
+    "url": "http://172.17.0.24:9005/_health/"
+  },
+  {
+    "type": "port",
+    "name": "SonarQube",
+    "description": "Nabla generated monitor: sonarqube",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9005
+    "port": 9001
   },
   {
     "type": "port",
@@ -469,6 +750,25 @@
   },
   {
     "type": "port",
+    "name": "Sybase Exporter",
+    "description": "Nabla generated monitor: sybase-exporter",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9113
+  },
+  {
+    "type": "http",
+    "name": "Tempo",
+    "description": "Nabla generated monitor: tempo",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:3200/ready"
+  },
+  {
+    "type": "port",
     "name": "Traefik",
     "description": "Internal reverse proxy for repository-managed homelab services.",
     "interval": 60,
@@ -476,6 +776,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 80
+  },
+  {
+    "type": "port",
+    "name": "Ddns Updater",
+    "description": "Nabla generated monitor: traefik-ddns-updater",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 8000
   },
   {
     "type": "port",
@@ -496,6 +806,16 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 30032
+  },
+  {
+    "type": "port",
+    "name": "Wazuh Manager",
+    "description": "Nabla generated monitor: wazuh-manager",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 1514
   },
   {
     "type": "port",
