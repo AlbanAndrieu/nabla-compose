@@ -157,3 +157,14 @@ def test_prometheus_audit_only_accepts_approved_port() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     assert "if uri.port != 9090:" in source
     assert "prometheus-url must use the dedicated Prometheus port 9090" in source
+
+
+def test_core_metrics_not_recorded_twice_across_rule_groups() -> None:
+    content = (ROOT / "apps/prometheus/rules/nabla-core.rules.yml").read_text()
+    for name in ("nabla:telemetry:postgres_exporter_up",
+                 "nabla:telemetry:redis_exporter_up",
+                 "nabla:telemetry:fastapi_sample_up",
+                 "nabla:telemetry:pyroscope_up",
+                 "nabla:telemetry:alertmanager_up",
+                 "nabla:service:postgres_up", "nabla:service:redis_up"):
+        assert content.count("record: " + name + "\\n") == 1, name
