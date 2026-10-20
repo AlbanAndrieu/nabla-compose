@@ -39,7 +39,7 @@ def test_akvorado_inactive_and_not_silently_monitored() -> None:
     for name in names:
         component = entities[f"component:default/{name}"]
         assert component["metadata"]["labels"]["albandrieu.com/operational-state"] == "planned"
-        assert component["spec"]["system"] == "system:default/akvorado"
+        assert component["spec"]["system"] == "system:default/nabla-homelab"
         assert set(component["spec"].get("dependsOn", [])) <= {
             "resource:default/clickhouse", "resource:default/kafka"
         }

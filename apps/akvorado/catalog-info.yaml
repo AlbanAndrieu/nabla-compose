@@ -40,7 +40,6 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   dependsOn:
-    - component:default/akvorado-orchestrator
     - resource:default/kafka
 ---
 apiVersion: backstage.io/v1alpha1
@@ -62,7 +61,6 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   dependsOn:
-    - component:default/akvorado-orchestrator
     - resource:default/kafka
     - resource:default/clickhouse
 ---
@@ -88,5 +86,4 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   dependsOn:
-    - component:default/akvorado-orchestrator
     - resource:default/clickhouse

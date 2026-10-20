@@ -3355,7 +3355,7 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 
 - [x] Créer `resource:default/clickhouse` (ressource analytique partagée),
   référencée sans duplication depuis ntopng et la stack Akvorado.
-- [x] Décrire `system:default/akvorado` et ses 4 composants `planned`,
+- [x] Décrire `system:default/nabla-homelab` et ses 4 composants `planned`,
   liens Kafka/ClickHouse et labels Compose `entity-ref`; **aucune nouvelle sonde**
   ni dashboard actif pour les services prévus.
 - [x] Conserver Cartography → Neo4j et Scanopy → PostgreSQL en dépendances

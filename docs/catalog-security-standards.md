@@ -30,7 +30,7 @@ registre de services.
 | --- | --- | --- |
 | `component:default/scanopy` + `scanopy-daemon` | Découverte active du LAN, ports et conteneurs | Distinguer actifs **observés** des services **déclarés**. Une association n'est validée qu'avec une identité fournisseur et sa provenance. |
 | `component:default/cartography` | Ingesteur de graphe de sécurité, profil Compose `manual` | Dépend de `resource:default/neo4j-security`. Neo4j n'est pas la CMDB canonique des déclarations. |
-| `component:default/akvorado-*` (4 entités, état `planned`) | Collecteur, processeur, contrôleur et console IPFIX/NetFlow | `system:default/akvorado`, Kafka et ClickHouse ; **ne pas** les considérer en production tant que l'état déclaré reste `planned`. |
+| `component:default/akvorado-*` (4 entités, état `planned`) | Collecteur, processeur, contrôleur et console IPFIX/NetFlow | `system:default/nabla-homelab`, Kafka et ClickHouse ; **ne pas** les considérer en production tant que l'état déclaré reste `planned`. |
 | `component:default/ntopng` | Analyse de trafic réseau | `dependsOn: resource:default/clickhouse`. Le flux ne crée aucune entité Backstage. |
 | `component:default/dsomm` et `dsomm-baseline` | Évaluation maturité DevSecOps et collecteur de preuves GitHub | Relation `subcomponentOf`. Une preuve automatisée ne valide pas à elle seule une pratique ou un niveau DSOMM. |
 
