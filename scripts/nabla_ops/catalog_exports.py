@@ -101,11 +101,18 @@ def _dependency_refs(entity: dict[str, Any]) -> list[str]:
 def cyclonedx_projection(entities: list[dict[str, Any]]) -> dict[str, Any]:
     """Project catalog entities to a CycloneDX 1.7 service dependency graph."""
 
-    refs = {entity["entityRef"] for entity in entities}
+    # Group/System/Domain are organization metadata, not deployable BOM services.
+    # Keep these entities in the Backstage export but never synthesize runtime
+    # service inventory items from them.
+    materialized = [
+        entity for entity in entities
+        if entity.get("kind") in {"Component", "Resource", "API"}
+    ]
+    refs = {entity["entityRef"] for entity in materialized}
     services: list[dict[str, Any]] = []
     dependencies: list[dict[str, Any]] = []
 
-    for entity in entities:
+    for entity in materialized:
         ref = entity["entityRef"]
         metadata = entity.get("metadata") or {}
         spec = entity.get("spec") or {}

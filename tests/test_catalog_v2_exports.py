@@ -74,6 +74,24 @@ spec:
             entities = load_backstage_entities(self._fixture(Path(tmp)))
         self.assertEqual(catalog_revision(entities), catalog_revision(list(reversed(entities))))
 
+    def test_organizational_entities_are_not_software_services(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            files = self._fixture(Path(tmp))
+            with files[0].open("a", encoding="utf-8") as stream:
+                stream.write(
+                    "\\n---\\napiVersion: backstage.io/v1alpha1\\n"
+                    "kind: System\\nmetadata:\\n  name: homelab\\n"
+                    "spec:\\n  owner: group:default/nabla-platform\\n"
+                )
+            entities = load_backstage_entities(files)
+        cdx = cyclonedx_projection(entities)
+        refs = {entry["bom-ref"] for entry in cdx["services"]}
+        self.assertEqual(refs, {"component:default/api", "resource:default/database"})
+        self.assertNotIn("system:default/homelab", refs)
+        self.assertEqual(
+            {entry["ref"] for entry in cdx["dependencies"]}, refs
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
