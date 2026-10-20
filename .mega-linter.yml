@@ -3,9 +3,9 @@ APPLY_FIXES: none
 DEFAULT_BRANCH: master
 # Keep only checks that add coverage beyond the canonical pre-commit gate.
 # JSON/YAML/Shell/Make/Dockerfile formatting and linting already run locally
-# and in the universal PR preflight.
+# and in the universal PR preflight. GitHub Actions (actionlint, zizmor) are
+# pre-commit hooks, so MegaLinter does not run them again.
 ENABLE_LINTERS:
-  - ACTION_ZIZMOR
   - COPYPASTE_JSCPD
   - EDITORCONFIG_EDITORCONFIG_CHECKER
   - REPOSITORY_CHECKOV
@@ -35,9 +35,6 @@ DISABLE_LINTERS:
 IGNORE_GITIGNORED_FILES: true
 FILTER_REGEX_EXCLUDE: >-
   (megalinter-reports/|\.megalinter_github_conf/|anything-llm/|langfuse/|litellm/|n8n/|pgwatch/|plumber-platform/|reactive/|sentry/|temporal/|\.venv/|\.direnv/|\.mypy_cache/|(^|/)docker-compose\.yml$|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
-ACTION_ZIZMOR_FILTER_REGEX_EXCLUDE: (^|/)\.github/workflows/linter\.yml$
-ACTION_ZIZMOR_UNSECURED_ENV_VARIABLES:
-  - GITHUB_TOKEN
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: >-
   ((^|/)(\.vscode|\.devcontainer)/|(^|/)uv\.lock$|(^|/)Pipfile\.lock$|(^|/)trivy-sbom\.json$)
 JSON_PRETTIER_FILTER_REGEX_EXCLUDE: >-

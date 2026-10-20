@@ -167,4 +167,4 @@ def test_core_metrics_not_recorded_twice_across_rule_groups() -> None:
                  "nabla:telemetry:pyroscope_up",
                  "nabla:telemetry:alertmanager_up",
                  "nabla:service:postgres_up", "nabla:service:redis_up"):
-        assert content.count("record: " + name + "\\n") == 1, name
+        assert content.count("record: " + name + "\n") == 1, name

@@ -614,7 +614,6 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertEqual(
             set(config["ENABLE_LINTERS"]),
             {
-                "ACTION_ZIZMOR",
                 "COPYPASTE_JSCPD",
                 "EDITORCONFIG_EDITORCONFIG_CHECKER",
                 "REPOSITORY_CHECKOV",
@@ -622,6 +621,31 @@ class AgentQualityGateContractTests(unittest.TestCase):
             },
         )
         self.assertFalse(config["GITHUB_COMMENT_REPORTER"])
+
+    def test_github_actions_are_linted_and_audited_by_pre_commit(self) -> None:
+        config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+        repos = {repo["repo"]: repo for repo in config["repos"]}
+        for url, hook_id in (
+            ("https://github.com/rhysd/actionlint", "actionlint"),
+            ("https://github.com/zizmorcore/zizmor-pre-commit", "zizmor"),
+        ):
+            self.assertIn(url, repos)
+            self.assertRegex(repos[url]["rev"], r"^v\d+\.\d+\.\d+$")
+            self.assertIn(hook_id, [hook["id"] for hook in repos[url]["hooks"]])
+        zizmor = repos["https://github.com/zizmorcore/zizmor-pre-commit"]["hooks"][0]
+        self.assertIn("--offline", zizmor["args"])
+        self.assertNotIn("files", zizmor)
+
+    def test_prettier_does_not_use_the_archived_mirror(self) -> None:
+        config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+        self.assertNotIn("https://github.com/pre-commit/mirrors-prettier", [repo["repo"] for repo in config["repos"]])
+        prettier = [
+            hook for repo in config["repos"] if repo["repo"] == "local"
+            for hook in repo["hooks"] if hook["id"] == "prettier"
+        ]
+        self.assertEqual(len(prettier), 1)
+        self.assertEqual(prettier[0]["language"], "node")
+        self.assertRegex(prettier[0]["additional_dependencies"][0], r"^prettier@\d+\.\d+\.\d+$")
 
     def test_duplicate_contract_workflows_are_manual_only(self) -> None:
         for path in (

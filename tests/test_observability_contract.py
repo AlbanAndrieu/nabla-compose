@@ -456,6 +456,12 @@ class ObservabilityContractTests(unittest.TestCase):
             (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
         )
         catalog_ids = {service["id"] for service in catalog["services"]}
+        # Like reconcile-gatus-catalog.py, canonical topology nodes (pfsense,
+        # postgresql, truenas) are valid service identities too.
+        topology = json.loads(
+            (ROOT / "catalog" / "service-topology.json").read_text(encoding="utf-8")
+        )
+        catalog_ids |= {node["id"] for node in topology["nodes"]}
         gatus_service_ids = {
             line.split(":", 1)[1].strip()
             for line in gatus.splitlines()

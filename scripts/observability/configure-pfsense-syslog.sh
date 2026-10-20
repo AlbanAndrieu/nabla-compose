@@ -21,20 +21,15 @@ PFSENSE_SYSLOG_SOURCE_INTERFACE="${PFSENSE_SYSLOG_SOURCE_INTERFACE:-}"
 PFSENSE_API_INSECURE_SKIP_VERIFY="${PFSENSE_API_INSECURE_SKIP_VERIFY:-false}"
 PFSENSE_RESTAPI_MIN_VERSION="v2.9.0"
 
-errors=0
-warnings=0
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 
-ok() { printf '✅ %s\n' "$*"; }
-warn() {
-  printf '⚠️  %s\n' "$*" >&2
-  warnings=$((warnings + 1))
-}
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  errors=$((errors + 1))
-}
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+ok() { diag_ok "$*"; }
+warn() { diag_warn "$*" >&2; }
+fail() { diag_fail "$*" >&2; }
 
 version_at_least() {
   local current="$1"
@@ -86,7 +81,7 @@ if [[ -z "${PFSENSE_OBSERVABILITY_API_KEY:-}" ]]; then
   fail "PFSENSE_OBSERVABILITY_API_KEY is required; use a dedicated local operator key with GET restapi/version and GET/PATCH status/logs/settings only"
 fi
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   exit 1
 fi
 
@@ -117,7 +112,7 @@ elif [[ "${PFSENSE_API_INSECURE_SKIP_VERIFY}" != "false" ]]; then
   fail "PFSENSE_API_INSECURE_SKIP_VERIFY must be true or false"
 fi
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   exit 1
 fi
 
@@ -308,8 +303,8 @@ if [[ -n "${PFSENSE_SYSLOG_SOURCE_INTERFACE}" ]]; then
   fi
 fi
 
-if ((errors > 0)); then
-  printf '\n❌ pfSense configuration applied but post-apply verification found %d error(s).\n' "${errors}" >&2
+if ((DIAG_FAILURES > 0)); then
+  printf '\n❌ pfSense configuration applied but post-apply verification found %d error(s).\n' "${DIAG_FAILURES}" >&2
   exit 1
 fi
 

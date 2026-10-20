@@ -27,15 +27,14 @@ PFSENSE_SYSLOG_SOURCE_IP="${PFSENSE_SYSLOG_SOURCE_IP:-172.17.0.1}"
 PFSENSE_LOG_LOOKBACK="${PFSENSE_LOG_LOOKBACK:-30m}"
 SYSLOG_SMOKE_TIMEOUT="${SYSLOG_SMOKE_TIMEOUT:-20}"
 
-errors=0
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 
-ok() { printf '✅ %s\n' "$*"; }
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  errors=$((errors + 1))
-}
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+ok() { diag_ok "$*"; }
+fail() { diag_fail "$*" >&2; }
 
 require_command() {
   if command -v "$1" >/dev/null 2>&1; then
@@ -142,7 +141,7 @@ for command in curl date jq mktemp python3; do
   require_command "${command}"
 done
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   printf '\n❌ Missing local dependencies; stopping before network checks.\n' >&2
   exit 1
 fi
@@ -151,7 +150,7 @@ check_http_200 "Alloy readiness" "${ALLOY_URL%/}/-/ready"
 check_http_200 "Alloy component health" "${ALLOY_URL%/}/-/healthy"
 check_http_200 "Loki readiness" "${LOKI_URL%/}/ready"
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   printf '\n❌ Core log services are not healthy; syslog tests were not started.\n' >&2
   exit 1
 fi
@@ -164,8 +163,8 @@ if [[ "${mode}" != "synthetic" ]]; then
 fi
 
 printf '\n'
-if ((errors > 0)); then
-  printf '❌ pfSense syslog verification failed with %d error(s).\n' "${errors}" >&2
+if ((DIAG_FAILURES > 0)); then
+  printf '❌ pfSense syslog verification failed with %d error(s).\n' "${DIAG_FAILURES}" >&2
   printf 'Compact diagnostics: docker logs alloy --since 10m 2>&1 | grep -Ei "syslog|1514|172\\.17\\.0\\.1|warn|error" | tail -40\n' >&2
   exit 1
 fi

@@ -83,3 +83,14 @@ def test_critical_gatus_monitors_have_prometheus_service_id_labels():
         assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id
     rules = (root / "apps/prometheus/rules/nabla-service.rules.yml").read_text()
     assert 'nabla_service_id!=""' in rules
+
+
+def test_critical_service_id_labels_come_from_generator_source():
+    """The labels must survive regeneration: declare them in the static catalog."""
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    static = yaml.safe_load((root / "catalog/service-consumers.static.yml").read_text())
+    extras = {entry["id"]: entry for entry in static["monitoring"]["extras"]}
+    for service_id in ("pfsense", "postgresql", "truenas"):
+        assert extras[service_id]["serviceId"] == service_id

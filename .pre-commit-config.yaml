@@ -95,11 +95,14 @@ repos:
         additional_dependencies: ["@biomejs/biome@2.4.12"]
         exclude: '^(trivy-sbom\.json|catalog/(?:service-topology|services)\.json|apps/n8n/.*)$'
 
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
+  # pre-commit/mirrors-prettier is archived: install the pinned npm package
+  # directly instead of trusting another third-party mirror.
+  - repo: local
     hooks:
       - id: prettier
         name: "✨ config · Format YAML/HTML/SCSS"
+        language: node
+        entry: prettier --write --ignore-unknown
         types_or: [yaml, html, scss]
         additional_dependencies: ["prettier@3.4.2"]
         exclude: '^(\.pre-commit-config\.yaml|apps/n8n/.*)$'
@@ -132,6 +135,22 @@ repos:
     hooks:
       - id: hadolint-docker
         name: "🐳 hadolint · Validate Dockerfile"
+
+  # GitHub Actions: actionlint checks workflow syntax/expressions (and embedded
+  # shell via ShellCheck); zizmor audits workflow security (pinning, injection,
+  # credential persistence). Both run locally and in the PR pre-commit job.
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        name: "⚙️ actions · Lint GitHub workflows with actionlint"
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+        name: "🛡️ actions · Audit GitHub workflows with zizmor"
+        args: [--offline]
 
   - repo: https://github.com/betterleaks/betterleaks
     rev: v1.9.0

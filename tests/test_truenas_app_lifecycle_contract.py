@@ -431,11 +431,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_homarr_compose_preserves_native_port_and_dataset(self) -> None:
         homarr = self.read("apps/homarr/compose.yml")
 
-        self.assertIn("ghcr.io/homarr-labs/homarr:v1.76.2", homarr)
+        # Renovate owns the exact tag; the contract only requires a pinned release.
+        self.assertRegex(homarr, r"image: ghcr\.io/homarr-labs/homarr:v\d+\.\d+\.\d+\n")
         self.assertIn("172.17.0.24:30100:7575", homarr)
         self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
         self.assertIn("/mnt/cpool/homarr/.env.secrets", homarr)
-        self.assertIn("/mnt/cpool/homarr/sync:/state", homarr)
+        # Homarr v2 sync discovers boards by name; it keeps no persisted state.
+        self.assertIn("./config/boards.json:/config/nabla/boards.json:ro", homarr)
+        self.assertNotIn(":/state", homarr)
         self.assertNotIn("SECRET_ENCRYPTION_KEY: ${", homarr)
         self.assertIn(
             "cap_add:\n      - CHOWN\n      - DAC_OVERRIDE\n      - SETGID\n      - SETUID",

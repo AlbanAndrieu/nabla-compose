@@ -44,6 +44,13 @@ class RenovateConfigContractTest(unittest.TestCase):
         self.assertEqual(self.config["prConcurrentLimit"], 2)
         self.assertEqual(self.config["branchConcurrentLimit"], 2)
 
+    def test_pre_commit_hooks_are_updated_by_renovate(self) -> None:
+        # The pre-commit manager is disabled by default in Renovate.
+        self.assertTrue(self.config["pre-commit"]["enabled"])
+        rule = next(r for r in self.config["packageRules"] if r.get("matchManagers") == ["pre-commit"])
+        self.assertFalse(rule["automerge"])
+        self.assertEqual(rule["groupName"], "pre-commit hooks")
+
 
 if __name__ == "__main__":
     unittest.main()

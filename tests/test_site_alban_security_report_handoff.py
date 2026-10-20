@@ -43,9 +43,9 @@ def test_trivy_only_high_and_critical_vulnerabilities() -> None:
             {
                 "Target": "package-lock.json",
                 "Vulnerabilities": [
-                    {"VulnerabilityID": "HIGH-1", "Severity": "HIGH"},
-                    {"VulnerabilityID": "LOW-1", "Severity": "LOW"},
-                    {"VulnerabilityID": "CRIT-1", "Severity": "CRITICAL"},
+                    {"VulnerabilityID": "HIGH-1", "PkgName": "lodash", "Severity": "HIGH"},
+                    {"VulnerabilityID": "LOW-1", "PkgName": "debug", "Severity": "LOW"},
+                    {"VulnerabilityID": "CRIT-1", "PkgName": "axios", "Severity": "CRITICAL"},
                 ],
                 "Misconfigurations": [{"ID": "ignored"}],
                 "Licenses": [{"Name": "reviewed separately"}],
@@ -62,14 +62,17 @@ def test_trivy_only_high_and_critical_vulnerabilities() -> None:
 
 
 def test_nuclei_filters_to_high_or_critical() -> None:
+    target = "https://www.albanandrieu.com/login?token=redacted"
     rows = [
-        {"info": {"severity": "low"}, "template-id": "L"},
-        {"info": {"severity": "high"}, "template-id": "H"},
-        {"info": {"severity": "critical"}, "template-id": "C"},
+        {"info": {"severity": "low"}, "template-id": "L", "matched-at": target},
+        {"info": {"severity": "high"}, "template-id": "H", "matched-at": target},
+        {"info": {"severity": "critical"}, "template-id": "C", "matched-at": target},
     ]
     payload = "\n".join(json.dumps(row) for row in rows).encode()
-    filtered = module.filter_findings("nuclei", payload).decode().splitlines()
-    assert [json.loads(row)["template-id"] for row in filtered] == ["H", "C"]
+    filtered = [json.loads(row) for row in module.filter_findings("nuclei", payload).decode().splitlines()]
+    assert [row["template-id"] for row in filtered] == ["H", "C"]
+    # Only the approved HTTPS origin is kept: no path or query string.
+    assert {row["matched-at"] for row in filtered} == {"https://www.albanandrieu.com"}
 
 
 def test_zap_only_accepts_pre_minimized_high_alerts() -> None:

@@ -454,6 +454,11 @@ def apply_monitoring_static(
             default_interval,
         )
         if monitor:
+            # Static probes of canonical topology nodes (pfSense, TrueNAS, ...)
+            # declare their service identity explicitly for Prometheus rules.
+            service_id = slug(extra.get("serviceId")) if extra.get("serviceId") else None
+            if service_id:
+                monitor["service_id"] = service_id
             monitors[extra_id] = monitor
 
 

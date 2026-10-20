@@ -111,10 +111,8 @@ services:
       HOMARR_MANIFEST: /config/nabla/apps.json
       HOMARR_BOARDS_CONFIG: /config/nabla/boards.json
       HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
+      # Boards (name, columns, visibility, members) are code-managed in boards.json.
       HOMARR_BOARD_ENABLED: ${HOMARR_BOARD_ENABLED:-true}
-      HOMARR_BOARD_NAME: ${HOMARR_BOARD_NAME:-Nabla}
-      HOMARR_BOARD_COLUMNS: ${HOMARR_BOARD_COLUMNS:-12}
-      HOMARR_BOARD_PUBLIC: ${HOMARR_BOARD_PUBLIC:-false}
     command:
       - python
       - /opt/nabla/sync.py
