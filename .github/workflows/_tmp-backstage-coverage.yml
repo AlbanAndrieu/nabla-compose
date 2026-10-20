@@ -1,0 +1,48 @@
+name: Temporary Backstage missing identity migration
+on:
+  push:
+    branches:
+      - feat/catalog-v2-runtime-secrets-20261020
+    paths:
+      - .github/workflows/_tmp-backstage-coverage.yml
+permissions:
+  contents: write
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: '3.13'
+      - name: Materialize missing Backstage descriptors and native Compose refs
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pytest==9.1.1 PyYAML==6.0.3
+          git show origin/master:apps/homarr/generated/apps.json > /tmp/legacy-homarr-migration.json
+          python scripts/migrations/materialize-missing-backstage.py --legacy-homarr-json /tmp/legacy-homarr-migration.json
+          rm -f /tmp/legacy-homarr-migration.json
+          python scripts/generate-service-topology.py
+          python scripts/generate-service-consumers.py
+          python scripts/generate-catalog-v2-artifacts.py
+          python scripts/generate-service-consumers.py --check
+          python scripts/generate-catalog-v2-artifacts.py --check
+          python -m pytest -q --disable-warnings --maxfail=1 --tb=short tests/test_catalog_v2_exports.py tests/test_catalog_v2_restart_plan.py
+          git diff --check
+      - name: Commit v2-only declarations and outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add -- apps catalog/generated catalog/services.json catalog/service-topology.json
+          git diff --cached --stat
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(catalog): materialize historical declared identities as Backstage v2'
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" push origin HEAD:refs/heads/feat/catalog-v2-runtime-secrets-20261020
