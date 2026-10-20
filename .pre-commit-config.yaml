@@ -95,7 +95,7 @@ repos:
         additional_dependencies: ["@biomejs/biome@2.4.12"]
         # These JSON artifacts are fully generated and checked byte-for-byte.
         # A second formatter must not compete with the canonical generator.
-        exclude: '^(trivy-sbom\.json|catalog/(?:service-topology|services)\.json|catalog/generated/.*\.json|apps/(?:homarr/generated/apps|autokuma/static/generated-monitors)\.json|apps/n8n/.*)
+        exclude: '^(trivy-sbom\.json|catalog/(?:service-topology|services)\.json|catalog/generated/.*\.json|apps/(?:homarr/generated/apps|autokuma/static/generated-monitors)\.json|apps/n8n/.*)$'
 
   # pre-commit/mirrors-prettier is archived: install the pinned npm package
   # directly instead of trusting another third-party mirror.
@@ -108,7 +108,7 @@ repos:
         types_or: [yaml, html, scss]
         additional_dependencies: ["prettier@3.4.2"]
         # Gatus runtime YAML is deterministically emitted from native source.
-        exclude: '^(\.pre-commit-config\.yaml|apps/gatus/config/config\.yml|apps/n8n/.*)
+        exclude: '^(\.pre-commit-config\.yaml|apps/gatus/config/config\.yml|apps/n8n/.*)$'
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.38.0

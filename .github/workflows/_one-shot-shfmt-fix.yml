@@ -1,4 +1,4 @@
-name: One-shot shell formatter repair
+name: One-shot shell formatter repair # retry with valid YAML
 on:
   push:
     branches: [feat/catalog-v2-runtime-secrets-20261020]
