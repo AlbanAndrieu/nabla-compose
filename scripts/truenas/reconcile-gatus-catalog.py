@@ -10,16 +10,26 @@ import argparse
 import json
 from collections import Counter
 from pathlib import Path
+import sys
 
 import yaml
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPTS_DIR))
+from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
 
 def reconcile(
     catalog: dict, config: dict, statuses: list | None = None,
-    topology: dict | None = None,
 ) -> dict:
-    services = {entry["id"]: entry for entry in catalog["services"] if entry.get("id")}
-    topology_ids = {node["id"] for node in (topology or {}).get("nodes", []) if node.get("id")}
+    """Compare Gatus monitor IDs to canonical Backstage entity identities."""
+    services = {
+        entry["metadata"]["name"]: entry
+        for entry in catalog["entities"]
+        if entry.get("kind") in {"Component", "Resource", "API"}
+        and isinstance(entry.get("metadata"), dict)
+        and entry["metadata"].get("name")
+    }
     monitors = {}
     duplicates = []
     for endpoint in config.get("endpoints", []):
@@ -62,19 +72,16 @@ def reconcile(
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
         state = runtime.get(monitor_id, "not_checked")
-        historical_match = bool(service_id and service_id in services)
-        topology_match = bool(service_id and service_id in topology_ids)
+        catalog_match = bool(service_id and service_id in services)
         mapping = (
-            "historical_catalog" if historical_match
-            else "canonical_topology" if topology_match
+            "backstage" if catalog_match
             else "infrastructure_unmapped" if not service_id
             else "unresolved"
         )
         rows.append({
             "monitor_id": monitor_id,
             "service_id": service_id,
-            "catalog_match": historical_match,
-            "topology_match": topology_match,
+            "catalog_match": catalog_match,
             "mapping_source": mapping,
             "probe_type": mon["probe_type"],
             "evidence": state,
@@ -107,11 +114,12 @@ def main() -> int:
     parser.add_argument("--statuses", type=Path, help="Optional locally captured Gatus API JSON")
     parser.add_argument("--output", type=Path, help="Optional JSON report path")
     args = parser.parse_args()
-    catalog = json.loads((args.root / "catalog/homelab-services.json").read_text())
+    paths = [args.root / "catalog/catalog-info.yaml"]
+    paths.extend(sorted((args.root / "apps").glob("*/catalog-info.yaml")))
+    catalog = {"entities": load_backstage_entities(path for path in paths if path.is_file())}
     config = yaml.safe_load((args.root / "apps/gatus/config/config.yml").read_text())
-    topology = json.loads((args.root / "catalog/service-topology.json").read_text())
     statuses = json.loads(args.statuses.read_text()) if args.statuses else None
-    report = reconcile(catalog, config, statuses, topology)
+    report = reconcile(catalog, config, statuses)
     payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.write_text(payload)
