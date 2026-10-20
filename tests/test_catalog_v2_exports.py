@@ -100,21 +100,21 @@ spec:
             compose = root / "apps" / "demo" / "compose.yml"
             compose.parent.mkdir(parents=True)
             compose.write_text(
-                "services:\\n  api:\\n    labels:\\n"
-                "      com.albandrieu.nabla.entity-ref: component:default/api\\n"
-                "    x-nabla:\\n      id: legacy-api\\n"
-                "  ignored:\\n    image: example.invalid/ignored\\n",
+                "services:\n  api:\n    labels:\n"
+                "      com.albandrieu.nabla.entity-ref: component:default/api\n"
+                "    x-nabla:\n      id: legacy-api\n"
+                "  ignored:\n    image: example.invalid/ignored\n",
                 encoding="utf-8",
             )
             gatus = root / "config" / "monitoring" / "gatus-endpoints.yml"
             gatus.parent.mkdir(parents=True)
             gatus.write_text(
-                "endpoints:\\n  - name: API\\n    extra-labels:\\n"
-                "      nabla_monitor_id: api-health\\n"
-                "      nabla_service_id: api\\n"
-                "  - name: Unknown\\n    extra-labels:\\n"
-                "      nabla_monitor_id: missing-probe\\n"
-                "      nabla_service_id: missing\\n",
+                "endpoints:\n  - name: API\n    extra-labels:\n"
+                "      nabla_monitor_id: api-health\n"
+                "      nabla_service_id: api\n"
+                "  - name: Unknown\n    extra-labels:\n"
+                "      nabla_monitor_id: missing-probe\n"
+                "      nabla_service_id: missing\n",
                 encoding="utf-8",
             )
             result = identity_mapping_projection(entities, [compose], gatus, root)
