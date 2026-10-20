@@ -6,6 +6,32 @@
       "ref": "component:default/aistor"
     },
     {
+      "dependsOn": [
+        "resource:default/clickhouse"
+      ],
+      "ref": "component:default/akvorado-console"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-inlet"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse",
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-orchestrator"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse",
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-outlet"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/autokuma"
     },
@@ -196,7 +222,9 @@
       "ref": "component:default/npmplus"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "resource:default/clickhouse"
+      ],
       "ref": "component:default/ntopng"
     },
     {
@@ -358,11 +386,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "domain:default/nabla"
-    },
-    {
-      "dependsOn": [],
-      "ref": "group:default/nabla-platform"
+      "ref": "resource:default/clickhouse"
     },
     {
       "dependsOn": [],
@@ -425,17 +449,13 @@
     {
       "dependsOn": [],
       "ref": "resource:default/truenas"
-    },
-    {
-      "dependsOn": [],
-      "ref": "system:default/nabla-homelab"
     }
   ],
   "metadata": {
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:dd49f834cf6ba3f8ca50db02987a815080ab326e36741a0e2fd932c0c29d289d"
+        "value": "sha256:15f2d1c0bfa8a709efcfe19d8f8c0655ac1bc60c0c3e4a96ce1375832c472354"
       },
       {
         "name": "nabla:catalog-authority",
@@ -443,7 +463,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:dd49f834-cf6b-a3f8-ca50-db02987a8150",
+  "serialNumber": "urn:uuid:15f2d1c0-bfa8-a709-efcf-e19d8f8c0655",
   "services": [
     {
       "bom-ref": "component:default/aistor",
@@ -469,6 +489,114 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-console",
+      "description": "Planned web explorer for network flow history.",
+      "name": "Akvorado Console",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-console"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-inlet",
+      "description": "Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka.",
+      "name": "Akvorado Inlet",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-inlet"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-flow-collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-orchestrator",
+      "description": "Planned control plane for Akvorado flow processing.",
+      "name": "Akvorado Orchestrator",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-orchestrator"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-flow-controller"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-outlet",
+      "description": "Planned flow processing and ClickHouse persistence.",
+      "name": "Akvorado Outlet",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-outlet"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-flow-processor"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },
@@ -2379,42 +2507,25 @@
       ]
     },
     {
-      "bom-ref": "domain:default/nabla",
-      "name": "Nabla",
+      "bom-ref": "resource:default/clickhouse",
+      "description": "Shared analytical database for event and network-flow pipelines.",
+      "name": "ClickHouse",
       "properties": [
         {
           "name": "nabla:backstage:kind",
-          "value": "Domain"
+          "value": "Resource"
         },
         {
           "name": "nabla:backstage:entity-ref",
-          "value": "domain:default/nabla"
+          "value": "resource:default/clickhouse"
         },
         {
           "name": "nabla:source-path",
-          "value": "catalog/catalog-info.yaml"
-        }
-      ]
-    },
-    {
-      "bom-ref": "group:default/nabla-platform",
-      "name": "Nabla Platform",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Group"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "group:default/nabla-platform"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "catalog/catalog-info.yaml"
+          "value": "apps/clickhouse/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
-          "value": "team"
+          "value": "database"
         }
       ]
     },
@@ -2760,24 +2871,6 @@
         {
           "name": "nabla:backstage:type",
           "value": "virtualization-platform"
-        }
-      ]
-    },
-    {
-      "bom-ref": "system:default/nabla-homelab",
-      "name": "Nabla Homelab",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "System"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "system:default/nabla-homelab"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "catalog/catalog-info.yaml"
         }
       ]
     }

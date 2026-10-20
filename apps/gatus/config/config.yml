@@ -58,6 +58,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: clickhouse
     nabla_service_id: clickhouse
+    nabla_entity_ref: resource:default/clickhouse
   url: tcp://172.17.0.24:8123
   conditions:
   - '[CONNECTED] == true'

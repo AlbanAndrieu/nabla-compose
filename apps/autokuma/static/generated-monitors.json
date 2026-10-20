@@ -50,7 +50,7 @@
   {
     "type": "port",
     "name": "ClickHouse",
-    "description": "Nabla generated monitor: clickhouse",
+    "description": "Shared analytical database for event and network-flow pipelines.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:dd49f834cf6ba3f8ca50db02987a815080ab326e36741a0e2fd932c0c29d289d",
+  "catalogRevision": "sha256:15f2d1c0bfa8a709efcfe19d8f8c0655ac1bc60c0c3e4a96ce1375832c472354",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -44,6 +44,120 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "object-storage"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-console",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned web explorer for network flow history.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-console",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Akvorado Console"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/akvorado",
+        "type": "network-observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-inlet",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-inlet",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Akvorado Inlet"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/akvorado",
+        "type": "network-flow-collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-orchestrator",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned control plane for Akvorado flow processing.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-orchestrator",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Akvorado Orchestrator"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/akvorado",
+        "type": "network-flow-controller"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-outlet",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned flow processing and ClickHouse persistence.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-outlet",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Akvorado Outlet"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/akvorado",
+        "type": "network-flow-processor"
       }
     },
     {
@@ -830,6 +944,7 @@
       "spec": {
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/dsomm",
         "system": "system:default/nabla-homelab",
         "type": "tool"
       }
@@ -1630,6 +1745,9 @@
       },
       "sourcePath": "apps/ntopng/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "resource:default/clickhouse"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
@@ -2256,6 +2374,12 @@
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
+        "links": [
+          {
+            "title": "Network topology",
+            "url": "http://172.17.0.24:60072"
+          }
+        ],
         "name": "scanopy",
         "tags": [
           "network",
@@ -2808,6 +2932,31 @@
       "spec": {
         "children": [],
         "type": "team"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/clickhouse",
+      "kind": "Resource",
+      "metadata": {
+        "description": "Shared analytical database for event and network-flow pipelines.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "clickhouse",
+        "tags": [
+          "data",
+          "analytics"
+        ],
+        "title": "ClickHouse"
+      },
+      "sourcePath": "apps/clickhouse/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
       }
     },
     {
@@ -3389,6 +3538,21 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "virtualization-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "system:default/akvorado",
+      "kind": "System",
+      "metadata": {
+        "description": "Planned IPFIX/NetFlow ingestion and flow analytics pipeline.",
+        "name": "akvorado",
+        "title": "Akvorado Network Flow Analytics"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "domain": "domain:default/nabla",
+        "owner": "group:default/nabla-platform"
       }
     },
     {

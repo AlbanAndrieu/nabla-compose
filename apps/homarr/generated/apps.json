@@ -20,6 +20,54 @@
       "description": "MinIO AIStor-compatible object storage service."
     },
     {
+      "id": "akvorado-console",
+      "entityRef": "component:default/akvorado-console",
+      "name": "Akvorado Console",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-console",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31056",
+      "syncEligible": false,
+      "description": "Planned web explorer for network flow history."
+    },
+    {
+      "id": "akvorado-inlet",
+      "entityRef": "component:default/akvorado-inlet",
+      "name": "Akvorado Inlet",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-inlet",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka."
+    },
+    {
+      "id": "akvorado-orchestrator",
+      "entityRef": "component:default/akvorado-orchestrator",
+      "name": "Akvorado Orchestrator",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-orchestrator",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned control plane for Akvorado flow processing."
+    },
+    {
+      "id": "akvorado-outlet",
+      "entityRef": "component:default/akvorado-outlet",
+      "name": "Akvorado Outlet",
+      "group": "observability",
+      "sourcePath": "apps/akvorado/compose.yml",
+      "composeService": "akvorado-outlet",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned flow processing and ClickHouse persistence."
+    },
+    {
       "id": "autokuma",
       "entityRef": "component:default/autokuma",
       "name": "AutoKuma",
@@ -54,6 +102,18 @@
       "href": null,
       "syncEligible": false,
       "description": "Scheduled or manual security asset and relationship ingestion into Neo4j."
+    },
+    {
+      "id": "clickhouse",
+      "entityRef": "resource:default/clickhouse",
+      "name": "ClickHouse",
+      "group": "data",
+      "sourcePath": "apps/clickhouse/compose.yml",
+      "composeService": "clickhouse",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Shared analytical database for event and network-flow pipelines."
     },
     {
       "id": "code-server",
@@ -764,8 +824,8 @@
       "sourcePath": "apps/scanopy/compose.yml",
       "composeService": "scanopy",
       "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
+      "href": "http://172.17.0.24:60072",
+      "syncEligible": true,
       "description": "Agentless network discovery and continuously updated topology documentation."
     },
     {
