@@ -46,8 +46,7 @@ The v2 read models are `catalog/generated/entities.json` and
 `catalog/generated/homelab.cdx.json`. Current coverage (20 October 2026):
 95 Backstage entities, 85 Homarr entries, 85 Gatus probes and 85 AutoKuma
 monitors; the CycloneDX projection represents 92 Component/Resource/API entities
-and excludes organizational entities (Group/System/Domain). The old Homarr count (143) includes unmigrated v1-only entries;
-do not silently synthesize v2 identities from names to recover that count.
+and excludes organizational entities (Group/System/Domain). The 143 historical Homarr entries were migrated once from exact Compose service\nprovenance into Backstage descriptors and explicit entity-ref labels. Their\noriginal v1 inventory is not needed by the three consumers.
 
 `catalog/service-consumers.static.yml` has been removed; Homarr's Docker
 proxy endpoint/network and the homelab host binding are now derived from its
