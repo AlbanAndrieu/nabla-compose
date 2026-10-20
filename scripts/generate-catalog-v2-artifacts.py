@@ -11,7 +11,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from nabla_ops.catalog_exports import build_standard_artifacts  # noqa: E402
+from nabla_ops.catalog_exports import (  # noqa: E402
+    build_standard_artifacts,
+    identity_mapping_projection,
+)
+from nabla_ops.compose_paths import tracked_compose_paths  # noqa: E402
 
 
 def descriptor_paths() -> list[Path]:
@@ -35,6 +39,13 @@ def main() -> int:
     args = parser.parse_args()
 
     artifacts = build_standard_artifacts(descriptor_paths())
+    # Derived crosswalk is a join across native authorities, never authored by hand.
+    artifacts["identity-map.json"] = identity_mapping_projection(
+        artifacts["entities.json"]["entities"],
+        [ROOT / path for path in tracked_compose_paths(ROOT)],
+        ROOT / "config/monitoring/gatus-endpoints.yml",
+        ROOT,
+    )
     stale: list[str] = []
 
     for name, payload in artifacts.items():
