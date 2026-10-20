@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Homarr, Gatus and AutoKuma consumers from app Compose files."""
+"""Project Backstage identity, Compose routing and native Gatus checks to consumers."""
 
 from __future__ import annotations
 
@@ -27,7 +27,6 @@ HOMARR_OUTPUT = ROOT / "apps" / "homarr" / "generated" / "apps.json"
 GATUS_OUTPUT = ROOT / "apps" / "gatus" / "config" / "config.yml"
 AUTOKUMA_OUTPUT = ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
 
-IDENTIFIER_RE = re.compile(r"[^a-z0-9]+")
 COMPOSE_DEFAULT_RE = re.compile(
     r"\$\{[A-Za-z_][A-Za-z0-9_]*(?::-|-)([^}]*)\}"
 )
@@ -94,17 +93,6 @@ WEB_PORT_SCHEMES = {
 
 def fail(message: str) -> None:
     raise ValueError(message)
-
-
-def slug(value: object) -> str:
-    text = str(value or "").strip().lower()
-    text = IDENTIFIER_RE.sub("-", text).strip("-")
-    return text or "service"
-
-
-def title(value: str) -> str:
-    parts = re.split(r"[-_]+", value)
-    return " ".join(part.capitalize() for part in parts if part)
 
 
 def tracked_compose_paths() -> list[Path]:
@@ -240,19 +228,6 @@ def traefik_url(service: dict[str, Any]) -> str | None:
     return f"{'https' if secure else 'http'}://{host}"
 
 
-def app_service_id(
-    app_name: str,
-    service_name: str,
-    metadata: dict[str, Any],
-) -> str:
-    explicit = concrete_text(metadata.get("id"))
-    if explicit:
-        return slug(explicit)
-    app_id = slug(app_name)
-    service_id = slug(service_name)
-    return app_id if app_id == service_id else f"{app_id}-{service_id}"
-
-
 def infer_web_url(
     host: str,
     kind: str | None,
@@ -289,179 +264,6 @@ def parse_port_target(target: str) -> tuple[str, int] | None:
     if not host or not 1 <= port <= 65535:
         return None
     return host, port
-
-
-def monitor_from_metadata(
-    service_id: str,
-    name: str,
-    category: str,
-    description: str | None,
-    monitoring: object,
-    default_interval: str,
-) -> dict[str, Any] | None:
-    if not isinstance(monitoring, dict) or monitoring.get("enabled") is False:
-        return None
-    monitor_type = str(monitoring.get("type", "")).lower()
-    group = concrete_text(monitoring.get("group")) or category
-    interval = concrete_text(monitoring.get("interval")) or default_interval
-    result: dict[str, Any] = {
-        "id": service_id,
-        "name": name,
-        "group": group,
-        "interval": interval,
-    }
-    if description:
-        result["description"] = description
-
-    if monitor_type == "http":
-        target = concrete_text(monitoring.get("target")) or concrete_text(
-            monitoring.get("url")
-        )
-        if not target or urlparse(target).scheme not in {"http", "https"}:
-            fail(f"{service_id}: HTTP monitoring requires an http(s) target")
-        result.update({"type": "http", "url": target})
-        conditions = monitoring.get("conditions")
-        if conditions is not None:
-            valid = isinstance(conditions, list) and all(
-                isinstance(item, str) and item.strip() for item in conditions
-            )
-            if not valid:
-                fail(f"{service_id}: monitoring.conditions must be a list of strings")
-            result["conditions"] = [item.strip() for item in conditions]
-        return result
-
-    if monitor_type in {"port", "tcp"}:
-        host = concrete_text(monitoring.get("host"))
-        port = monitoring.get("port")
-        target = concrete_text(monitoring.get("target"))
-        parsed = parse_port_target(target) if target else None
-        if parsed:
-            host, port = parsed
-        try:
-            port = int(str(port))
-        except (TypeError, ValueError):
-            return None
-        if not host or not 1 <= port <= 65535:
-            fail(f"{service_id}: port monitoring requires host and port")
-        result.update({"type": "port", "host": host, "port": port})
-        return result
-
-    if monitor_type in {"icmp", "ping"}:
-        host = concrete_text(monitoring.get("host")) or concrete_text(
-            monitoring.get("target")
-        )
-        if not host:
-            fail(f"{service_id}: ping monitoring requires host or target")
-        result.update({"type": "ping", "host": host})
-        return result
-
-    if monitor_type:
-        fail(f"{service_id}: unsupported monitoring type {monitor_type!r}")
-    return None
-
-
-def fallback_monitor(
-    service_id: str,
-    name: str,
-    category: str,
-    description: str | None,
-    host: str,
-    ports: list[dict[str, int | str]],
-    default_interval: str,
-) -> dict[str, Any] | None:
-    if not ports:
-        return None
-    item = ports[0]
-    result: dict[str, Any] = {
-        "id": service_id,
-        "name": name,
-        "group": category,
-        "type": "port",
-        "host": host,
-        "port": int(item["published"]),
-        "interval": default_interval,
-    }
-    if description:
-        result["description"] = description
-    return result
-
-
-def apply_homarr_static(
-    homarr_apps: dict[str, dict[str, Any]],
-    static: dict[str, Any],
-) -> None:
-    config = static.get("homarr", {})
-    if not isinstance(config, dict):
-        return
-
-    for extra in config.get("extras", []):
-        if not isinstance(extra, dict):
-            continue
-        extra_id = slug(extra.get("id"))
-        href = concrete_text(extra.get("url"))
-        entry: dict[str, Any] = {
-            "id": extra_id,
-            "name": concrete_text(extra.get("name")) or title(extra_id),
-            "group": concrete_text(extra.get("category")) or "infrastructure",
-            "sourcePath": "catalog/service-consumers.static.yml",
-            "composeService": None,
-            "dockerManaged": False,
-            "href": href,
-            "syncEligible": bool(href),
-        }
-        for key in ("description", "icon"):
-            value = concrete_text(extra.get(key))
-            if value:
-                entry[key] = value
-        homarr_apps.setdefault(extra_id, entry)
-
-    for override in config.get("overrides", []):
-        if not isinstance(override, dict):
-            continue
-        service_id = slug(override.get("id"))
-        entry = homarr_apps.get(service_id)
-        if not entry:
-            continue
-        for source, target in (
-            ("name", "name"),
-            ("category", "group"),
-            ("url", "href"),
-            ("description", "description"),
-            ("icon", "icon"),
-        ):
-            value = concrete_text(override.get(source))
-            if value:
-                entry[target] = value
-        entry["syncEligible"] = bool(entry.get("href"))
-
-
-def apply_monitoring_static(
-    monitors: dict[str, dict[str, Any]],
-    static: dict[str, Any],
-    default_interval: str,
-) -> None:
-    config = static.get("monitoring", {})
-    if not isinstance(config, dict):
-        return
-    for extra in config.get("extras", []):
-        if not isinstance(extra, dict):
-            continue
-        extra_id = slug(extra.get("id"))
-        monitor = monitor_from_metadata(
-            extra_id,
-            concrete_text(extra.get("name")) or title(extra_id),
-            concrete_text(extra.get("category")) or "infrastructure",
-            concrete_text(extra.get("description")),
-            {**extra, "enabled": True},
-            default_interval,
-        )
-        if monitor:
-            # Static probes of canonical topology nodes (pfSense, TrueNAS, ...)
-            # declare their service identity explicitly for Prometheus rules.
-            service_id = slug(extra.get("serviceId")) if extra.get("serviceId") else None
-            if service_id:
-                monitor["service_id"] = service_id
-            monitors[extra_id] = monitor
 
 
 def backstage_entities() -> dict[str, dict[str, Any]]:
@@ -576,9 +378,7 @@ def collect_services(
     if not isinstance(defaults, dict):
         defaults = {}
     host = concrete_text(defaults.get("host")) or "172.17.0.24"
-    default_interval = concrete_text(defaults.get("interval")) or "60s"
     homarr_apps: dict[str, dict[str, Any]] = {}
-    monitors: dict[str, dict[str, Any]] = {}
     entities = backstage_entities()
     by_id: dict[str, dict[str, Any]] = {}
     for ref, entity in entities.items():
@@ -655,7 +455,6 @@ def collect_services(
     # Gatus native endpoint YAML owns the probe target and conditions.
     # AutoKuma projects those same probe targets; no parallel monitoring inventory.
     monitors = {item["id"]: item for item in native_gatus_monitors(entities)}
-    apply_homarr_static(homarr_apps, static)
     return (
         [homarr_apps[key] for key in sorted(homarr_apps)],
         [monitors[key] for key in sorted(monitors)],

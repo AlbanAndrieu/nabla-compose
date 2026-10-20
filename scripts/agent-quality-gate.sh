@@ -481,7 +481,7 @@ if [[ "${MODE}" == "fix" ]]; then
   generator_scope_changed=false
   for file in "${CHANGED_FILES[@]}"; do
     case "${file}" in
-      catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|catalog/service-consumers.static.yml|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|scripts/nabla_ops/compose_paths.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+      catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|catalog/service-consumers.static.yml|catalog/catalog-info.yaml|catalog/generated/*.json|apps/*/catalog-info.yaml|config/monitoring/gatus-endpoints.yml|scripts/generate-catalog-v2-artifacts.py|scripts/nabla_ops/catalog_exports.py|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|scripts/nabla_ops/compose_paths.py|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
         generator_scope_changed=true
         break
         ;;
@@ -495,6 +495,8 @@ if [[ "${MODE}" == "fix" ]]; then
         "${PYTHON_CMD[@]}" scripts/generate-service-topology.py
       run_compact "regenerate service consumers" \
         "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py
+      run_compact "regenerate Backstage v2 projections" \
+        "${PYTHON_CMD[@]}" scripts/generate-catalog-v2-artifacts.py
     fi
 
     if ! changed_output="$(collect_changed_files)"; then
@@ -594,7 +596,7 @@ fi
 generated_contract_scope_changed=false
 for file in "${CHANGED_FILES[@]}"; do
   case "${file}" in
-    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*/compose.yml|apps/*/compose.yaml|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
+    catalog/service-topology.json|catalog/services.json|catalog/service-topology.static.json|catalog/service-icons.json|catalog/service-consumers.static.yml|catalog/catalog-info.yaml|catalog/generated/*.json|apps/*/catalog-info.yaml|config/monitoring/gatus-endpoints.yml|scripts/generate-catalog-v2-artifacts.py|scripts/nabla_ops/catalog_exports.py|scripts/generate-service-topology.py|scripts/generate-service-consumers.py|apps/*/compose.yml|apps/*/compose.yaml|apps/*.yml|apps/*.yaml|compose*.yml|compose*.yaml|docker-compose*.yml|docker-compose*.yaml)
       generated_contract_scope_changed=true
       break
       ;;
@@ -606,6 +608,8 @@ if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == tru
     "${PYTHON_CMD[@]}" scripts/generate-service-topology.py --check
   run_compact "Homarr/Gatus/AutoKuma consumers are synchronized" \
     "${PYTHON_CMD[@]}" scripts/generate-service-consumers.py --check
+  run_compact "Backstage/CycloneDX v2 read models are synchronized" \
+    "${PYTHON_CMD[@]}" scripts/generate-catalog-v2-artifacts.py --check
 else
   printf 'ℹ️  %s mode: generated topology/consumer checks skipped because no generator input changed\n' "${TARGETED_LABEL}"
 fi

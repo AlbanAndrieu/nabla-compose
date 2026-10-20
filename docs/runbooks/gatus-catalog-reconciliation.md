@@ -1,5 +1,33 @@
 # Gatus → catalogue canonique : rapprochement sans mutation (2026-10-17)
 
+## 20 octobre 2026 — sources v2 pour les consommateurs
+
+Le graphe d'identité et les états déclaratifs sont dans les fichiers Backstage
+`catalog-info.yaml` ; les ports/labels de liaison sont dans Compose. Les
+**85 sondes** sont désormais déclarées une seule fois au **format natif Gatus**
+dans `config/monitoring/gatus-endpoints.yml`, séparé du répertoire
+`apps/gatus/config` monté dans le conteneur (évite tout double chargement).
+
+`scripts/generate-service-consumers.py` projette ce fichier vers
+`apps/gatus/config/config.yml` et
+`apps/autokuma/static/generated-monitors.json` ; il enrichit les labels
+`nabla_entity_ref` lorsque l'entité Backstage existe. Les labels
+`nabla_service_id` sont temporairement conservés pour les règles Prometheus
+existantes. **Aucun port ouvert ne devient automatiquement une sonde.**
+Le catalogue Backstage v2 est aussi projeté vers `catalog/generated/entities.json`
+et `catalog/generated/homelab.cdx.json`.
+
+```bash
+python scripts/generate-service-consumers.py --check
+python scripts/generate-catalog-v2-artifacts.py --check
+python -m unittest tests.test_service_consumers_status_contract -v
+python -m pytest -q tests/test_service_consumer_monitor_coverage.py tests/test_reconcile_gatus_catalog.py
+```
+
+La transition n'exige pas la parité stricte avec les inventaires v1 ;
+les anciens lecteurs FastAPI/site/TrueNAS restent à migrer. Les 85 sondes
+déclarées ne constituent pas une preuve de disponibilité effective.
+
 ## Sources et limites
 
 - `catalog/homelab-services.json` : intentions de service historiques ; **pas** un état Docker.
