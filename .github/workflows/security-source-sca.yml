@@ -55,8 +55,10 @@ jobs:
       - name: Document separation of responsibilities
         if: always()
         run: |
-          echo "## Security scope" >> "$GITHUB_STEP_SUMMARY"
-          echo "- CRITICAL SCA findings fail this job; scan errors never count as clean." >> "$GITHUB_STEP_SUMMARY"
-          echo "- BetterLeaks is blocking in Pre-commit; CodeQL is independent SAST." >> "$GITHUB_STEP_SUMMARY"
-          echo "- ZAP/Nuclei production schedules belong to nabla-site-alban; no duplicate active DAST here." >> "$GITHUB_STEP_SUMMARY"
-          echo "- No DefectDojo token, report upload, or private network access in hosted PR CI." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Security scope"
+            echo "- CRITICAL SCA findings fail this job; scan errors never count as clean."
+            echo "- BetterLeaks is blocking in Pre-commit; CodeQL is independent SAST."
+            echo "- ZAP/Nuclei production schedules belong to nabla-site-alban; no duplicate active DAST here."
+            echo "- No DefectDojo token, report upload, or private network access in hosted PR CI."
+          } >> "${GITHUB_STEP_SUMMARY}"

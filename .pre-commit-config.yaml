@@ -133,6 +133,24 @@ repos:
       - id: hadolint-docker
         name: "🐳 hadolint · Validate Dockerfile"
 
+  # GitHub Actions: actionlint checks workflow syntax/expressions (and embedded
+  # shell via ShellCheck); zizmor audits workflow security (pinning, injection,
+  # credential persistence). Both run locally and in the PR pre-commit job.
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        name: "⚙️ actions · Lint GitHub workflows with actionlint"
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+        name: "🛡️ actions · Audit GitHub workflows with zizmor"
+        args: [--offline]
+        # Workflows/actions only; pre-commit repo hygiene is tracked separately.
+        files: ^\.github/
+
   - repo: https://github.com/betterleaks/betterleaks
     rev: v1.9.0
     hooks:
