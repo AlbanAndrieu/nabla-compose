@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c9aa46d62bb5021d5be6b1e09a1c493c71b87b8264cf7609d00f56f9ad57d651",
+  "catalogRevision": "sha256:55dccf748a6e5b1b358434902111b72a6c1761eedae5ec92ce0c7d67b75d4e48",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -73,7 +73,6 @@
       "sourcePath": "apps/akvorado/catalog-info.yaml",
       "spec": {
         "dependsOn": [
-          "component:default/akvorado-orchestrator",
           "resource:default/clickhouse"
         ],
         "lifecycle": "experimental",
@@ -103,7 +102,6 @@
       "sourcePath": "apps/akvorado/catalog-info.yaml",
       "spec": {
         "dependsOn": [
-          "component:default/akvorado-orchestrator",
           "resource:default/kafka"
         ],
         "lifecycle": "experimental",
@@ -163,7 +161,6 @@
       "sourcePath": "apps/akvorado/catalog-info.yaml",
       "spec": {
         "dependsOn": [
-          "component:default/akvorado-orchestrator",
           "resource:default/kafka",
           "resource:default/clickhouse"
         ],
@@ -1121,9 +1118,25 @@
       "entityRef": "component:default/gatus",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "manual-endpoint-verification-remains-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-20",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1737,9 +1750,25 @@
       "entityRef": "component:default/ntopng",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "traffic-visibility-can-be-restored-from-primary-flow-sources",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-20",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "description": "LAN network traffic monitoring UI.",
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -2405,8 +2434,7 @@
       "sourcePath": "apps/scanopy/catalog-info.yaml",
       "spec": {
         "dependsOn": [
-          "resource:default/postgresql",
-          "component:default/scanopy-daemon"
+          "resource:default/postgresql"
         ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",

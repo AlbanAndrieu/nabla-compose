@@ -7,14 +7,12 @@
     },
     {
       "dependsOn": [
-        "component:default/akvorado-orchestrator",
         "resource:default/clickhouse"
       ],
       "ref": "component:default/akvorado-console"
     },
     {
       "dependsOn": [
-        "component:default/akvorado-orchestrator",
         "resource:default/kafka"
       ],
       "ref": "component:default/akvorado-inlet"
@@ -28,7 +26,6 @@
     },
     {
       "dependsOn": [
-        "component:default/akvorado-orchestrator",
         "resource:default/clickhouse",
         "resource:default/kafka"
       ],
@@ -310,7 +307,6 @@
     },
     {
       "dependsOn": [
-        "component:default/scanopy-daemon",
         "resource:default/postgresql"
       ],
       "ref": "component:default/scanopy"
@@ -459,7 +455,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:c9aa46d62bb5021d5be6b1e09a1c493c71b87b8264cf7609d00f56f9ad57d651"
+        "value": "sha256:55dccf748a6e5b1b358434902111b72a6c1761eedae5ec92ce0c7d67b75d4e48"
       },
       {
         "name": "nabla:catalog-authority",
@@ -467,7 +463,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:c9aa46d6-2bb5-021d-5be6-b1e09a1c493c",
+  "serialNumber": "urn:uuid:55dccf74-8a6e-5b1b-3584-34902111b72a",
   "services": [
     {
       "bom-ref": "component:default/aistor",
