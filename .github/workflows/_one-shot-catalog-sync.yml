@@ -1,4 +1,4 @@
-name: One-shot Catalog v2 consumer synchronization
+name: One-shot Catalog v2 consumer synchronization # retry canonical Pi-hole resource
 on:
   push:
     branches:

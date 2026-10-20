@@ -42,6 +42,6 @@ monitoring:
       conditions:
         - "[STATUS] >= 200"
         - "[STATUS] < 400"
-    - entityRef: component:default/pihole
+    - entityRef: resource:default/pihole
       type: http
       target: http://172.17.0.24:20720/admin/
