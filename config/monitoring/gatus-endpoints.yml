@@ -108,6 +108,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: docker
+    nabla_service_id: docker
   url: tcp://docker-socket-proxy:2375
   conditions:
   - '[CONNECTED] == true'
@@ -606,6 +607,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: prometheus-node-exporter
+    nabla_service_id: prometheus-node-exporter
   url: tcp://172.17.0.24:9100
   conditions:
   - '[CONNECTED] == true'
@@ -633,6 +635,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: redis-redis-exporter
+    nabla_service_id: redis-redis-exporter
   url: tcp://172.17.0.24:9121
   conditions:
   - '[CONNECTED] == true'
@@ -733,6 +736,7 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: traefik-ddns-updater
+    nabla_service_id: traefik-ddns-updater
   url: tcp://172.17.0.24:8000
   conditions:
   - '[CONNECTED] == true'
