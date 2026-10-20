@@ -222,3 +222,14 @@ See [catalog-security-standards.md](../docs/catalog-security-standards.md) for t
 Backstage/Compose/Gatus/CycloneDX/OCSF/OSCAL/OTel roles, the correlated
 Scanopy/Cartography/Akvorado/ntopng/DSOMM workflow, and its secure-by-design
 audit. A discovered IP/flow/host is **not** a new Backstage service identity.
+
+### AutoKuma native output (v2)
+
+AutoKuma does **not** read a JSON array as one static monitor. Its 2.x Files
+provider expects one JSON object per file, and uses the filename as ID.
+The canonical Gatus probes generate an intermediate array under
+`apps/autokuma/static/generated-monitors.json` (not mounted). On TrueNAS,
+`scripts/truenas/deploy-autokuma.sh` materializes individual native
+`/mnt/cpool/autokuma/static-monitors/nabla-<monitor-id>.json` files before
+reconciliation. No second editable inventory is introduced. See
+`apps/autokuma/README.md`.

@@ -44,6 +44,7 @@ fi
 TESTS_FAILED=false
 if ! python -m unittest -v \
   tests.test_homarr_sync \
+  tests.test_autokuma_materialization \
   tests.test_service_consumers_status_contract \
   tests.test_service_topology_generator; then
   TESTS_FAILED=true
