@@ -1,0 +1,1011 @@
+{
+  "catalogRevision": "sha256:55dccf748a6e5b1b358434902111b72a6c1761eedae5ec92ce0c7d67b75d4e48",
+  "mappings": [
+    {
+      "entityRef": "component:default/aistor",
+      "evidence": "apps/aistor/compose.yml:services.aistor.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/aistor/compose.yml#services/aistor",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/akvorado-console",
+      "evidence": "apps/akvorado/compose.yml:services.akvorado-console.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/akvorado/compose.yml#services/akvorado-console",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/akvorado-inlet",
+      "evidence": "apps/akvorado/compose.yml:services.akvorado-inlet.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/akvorado/compose.yml#services/akvorado-inlet",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/akvorado-orchestrator",
+      "evidence": "apps/akvorado/compose.yml:services.akvorado-orchestrator.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/akvorado/compose.yml#services/akvorado-orchestrator",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/akvorado-outlet",
+      "evidence": "apps/akvorado/compose.yml:services.akvorado-outlet.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/akvorado/compose.yml#services/akvorado-outlet",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/autokuma",
+      "evidence": "apps/autokuma/compose.yml:services.autokuma.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/autokuma/compose.yml#services/autokuma",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/autoxpose",
+      "evidence": "apps/autoxpose/compose.yml:services.autoxpose.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/autoxpose/compose.yml#services/autoxpose",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/cartography",
+      "evidence": "apps/cartography/compose.yml:services.cartography.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/cartography/compose.yml#services/cartography",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/clickhouse",
+      "evidence": "apps/clickhouse/compose.yml:services.clickhouse.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/clickhouse/compose.yml#services/clickhouse",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/code-server",
+      "evidence": "apps/code/compose.yml:services.code-server.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/code/compose.yml#services/code-server",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/cyberbro",
+      "evidence": "apps/cyberbro/compose.yml:services.cyberbro.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/cyberbro/compose.yml#services/cyberbro",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/mcp-cyberbro",
+      "evidence": "apps/cyberbro/compose.yml:services.mcp-cyberbro.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/cyberbro/compose.yml#services/mcp-cyberbro",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/defectdojo",
+      "evidence": "apps/defectdojo/compose.yml:services.defectdojo.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/defectdojo/compose.yml#services/defectdojo",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/defectdojo-celerybeat",
+      "evidence": "apps/defectdojo/compose.yml:services.defectdojo-celerybeat.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/defectdojo/compose.yml#services/defectdojo-celerybeat",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/defectdojo-worker",
+      "evidence": "apps/defectdojo/compose.yml:services.defectdojo-celeryworker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/defectdojo/compose.yml#services/defectdojo-celeryworker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/defectdojo-initializer",
+      "evidence": "apps/defectdojo/compose.yml:services.defectdojo-initializer.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/defectdojo/compose.yml#services/defectdojo-initializer",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/defectdojo-api",
+      "evidence": "apps/defectdojo/compose.yml:services.defectdojo-uwsgi.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/defectdojo/compose.yml#services/defectdojo-uwsgi",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dependency-track",
+      "evidence": "apps/dependency-track/compose.yml:services.dependency-track.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dependency-track/compose.yml#services/dependency-track",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dependency-track-api",
+      "evidence": "apps/dependency-track/compose.yml:services.dependency-track-api.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dependency-track/compose.yml#services/dependency-track-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dockhand",
+      "evidence": "apps/dockhand/compose.yml:services.dockhand.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dockhand/compose.yml#services/dockhand",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/docling",
+      "evidence": "apps/docling/compose.yml:services.docling.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/docling/compose.yml#services/docling",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dozzle",
+      "evidence": "apps/dozzle/compose.yml:services.dozzle.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dozzle/compose.yml#services/dozzle",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/drawio",
+      "evidence": "apps/drawio/compose.yml:services.drawio.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/drawio/compose.yml#services/drawio",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dsomm",
+      "evidence": "apps/dsomm/compose.yml:services.dsomm.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dsomm/compose.yml#services/dsomm",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/dsomm-baseline",
+      "evidence": "apps/dsomm/compose.yml:services.dsomm-baseline.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/dsomm/compose.yml#services/dsomm-baseline",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/garage",
+      "evidence": "apps/garage/compose.yml:services.garage.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/garage/compose.yml#services/garage",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/garage-webui",
+      "evidence": "apps/garage/compose.yml:services.webui.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/garage/compose.yml#services/webui",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/gatus",
+      "evidence": "apps/gatus/compose.yml:services.gatus.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/gatus/compose.yml#services/gatus",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/homarr",
+      "evidence": "apps/homarr/compose.yml:services.homarr.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/homarr/compose.yml#services/homarr",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/homarr-sync",
+      "evidence": "apps/homarr/compose.yml:services.homarr-sync.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/homarr/compose.yml#services/homarr-sync",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/homeassistant",
+      "evidence": "apps/homeassistant/compose.yml:services.homeassistant.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/homeassistant/compose.yml#services/homeassistant",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/influxdb",
+      "evidence": "apps/influxdb/compose.yml:services.influxdb.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/influxdb/compose.yml#services/influxdb",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/joplin",
+      "evidence": "apps/joplin/compose.yml:services.joplin.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/joplin/compose.yml#services/joplin",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/kafka",
+      "evidence": "apps/kafka/compose.yml:services.kafka.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/kafka/compose.yml#services/kafka",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/kafka-exporter",
+      "evidence": "apps/kafka/compose.yml:services.kafka-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/kafka/compose.yml#services/kafka-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/languagetool",
+      "evidence": "apps/languagetool/compose.yml:services.languagetool.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/languagetool/compose.yml#services/languagetool",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/litellm",
+      "evidence": "apps/litellm/compose.yml:services.litellm.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/litellm/compose.yml#services/litellm",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/neo4j-security",
+      "evidence": "apps/neo4j/compose.yml:services.neo4j-security.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/neo4j/compose.yml#services/neo4j-security",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/netbox",
+      "evidence": "apps/netbox/compose.yml:services.netbox.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/netbox/compose.yml#services/netbox",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/netbox-housekeeping",
+      "evidence": "apps/netbox/compose.yml:services.netbox-housekeeping.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/netbox/compose.yml#services/netbox-housekeeping",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/netbox-worker",
+      "evidence": "apps/netbox/compose.yml:services.netbox-worker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/netbox/compose.yml#services/netbox-worker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/nexus",
+      "evidence": "apps/nexus/compose.yml:services.nexus.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/nexus/compose.yml#services/nexus",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/nginx-proxy-manager",
+      "evidence": "apps/nginx-proxy-manager/compose.yml:services.app.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/nginx-proxy-manager/compose.yml#services/app",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/hello-nginx",
+      "evidence": "apps/nginx/compose.yml:services.nginx.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/nginx/compose.yml#services/nginx",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/npmplus",
+      "evidence": "apps/npmplus/compose.yml:services.npmplus.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/npmplus/compose.yml#services/npmplus",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/ntopng",
+      "evidence": "apps/ntopng/compose.yml:services.ntopng.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/ntopng/compose.yml#services/ntopng",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openclaw-sandbox",
+      "evidence": "apps/openclaw/compose.yml:services.openclaw-sandbox.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openclaw/compose.yml#services/openclaw-sandbox",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/opencre",
+      "evidence": "apps/opencre/compose.yml:services.opencre.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/opencre/compose.yml#services/opencre",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openhands",
+      "evidence": "apps/openhands/compose.yml:services.openhands.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openhands/compose.yml#services/openhands",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openrag-backend",
+      "evidence": "apps/openrag/compose.yml:services.openrag-backend.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openrag/compose.yml#services/openrag-backend",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openrag-frontend",
+      "evidence": "apps/openrag/compose.yml:services.openrag-frontend.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openrag/compose.yml#services/openrag-frontend",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openwebui",
+      "evidence": "apps/openwebui/compose.yml:services.open-webui.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openwebui/compose.yml#services/open-webui",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/pihole",
+      "evidence": "apps/pihole/compose.yml:services.pihole.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/pihole/compose.yml#services/pihole",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/pihole-dns-sync",
+      "evidence": "apps/pihole/compose.yml:services.pihole-dns-sync.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/pihole/compose.yml#services/pihole-dns-sync",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/pihole-exporter",
+      "evidence": "apps/pihole/compose.yml:services.pihole-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/pihole/compose.yml#services/pihole-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/plumber",
+      "evidence": "apps/plumber/compose.yml:services.plumber.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/plumber/compose.yml#services/plumber",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/plumber-api",
+      "evidence": "apps/plumber/compose.yml:services.plumber-api.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/plumber/compose.yml#services/plumber-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/plumber-worker",
+      "evidence": "apps/plumber/compose.yml:services.plumber-worker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/plumber/compose.yml#services/plumber-worker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/portracker",
+      "evidence": "apps/portracker/compose.yml:services.portracker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/portracker/compose.yml#services/portracker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/postgres-exporter",
+      "evidence": "apps/postgres/compose.yml:services.postgres_exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/postgres/compose.yml#services/postgres_exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/pyroscope",
+      "evidence": "apps/pyroscope/compose.yml:services.pyroscope.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/pyroscope/compose.yml#services/pyroscope",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/redis",
+      "evidence": "apps/redis/compose.yml:services.redis.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/redis/compose.yml#services/redis",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/fastapi-sample",
+      "evidence": "apps/sample/compose.yml:services.fastapi-sample.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sample/compose.yml#services/fastapi-sample",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/scanopy",
+      "evidence": "apps/scanopy/compose.yml:services.scanopy.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/scanopy/compose.yml#services/scanopy",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/scanopy-daemon",
+      "evidence": "apps/scanopy/compose.yml:services.scanopy-daemon.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/scanopy/compose.yml#services/scanopy-daemon",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/openssf-scorecard",
+      "evidence": "apps/scorecard/compose.yml:services.scorecard.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/scorecard/compose.yml#services/scorecard",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/scrutiny",
+      "evidence": "apps/scrutiny/compose.yml:services.scrutiny.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/scrutiny/compose.yml#services/scrutiny",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/scrutiny-collector",
+      "evidence": "apps/scrutiny/compose.yml:services.scrutiny-collector.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/scrutiny/compose.yml#services/scrutiny-collector",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "resource:default/sentry-clickhouse",
+      "evidence": "apps/sentry-clickhouse/compose.yml:services.sentry-clickhouse.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry-clickhouse/compose.yml#services/sentry-clickhouse",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-edge",
+      "evidence": "apps/sentry/compose.yml:services.nginx.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/nginx",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-relay",
+      "evidence": "apps/sentry/compose.yml:services.relay.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/relay",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-taskworker",
+      "evidence": "apps/sentry/compose.yml:services.sentry-taskworker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-taskworker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry",
+      "evidence": "apps/sentry/compose.yml:services.sentry-web.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/sentry-web",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-snuba-api",
+      "evidence": "apps/sentry/compose.yml:services.snuba-api.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/snuba-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sentry-taskbroker",
+      "evidence": "apps/sentry/compose.yml:services.taskbroker.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sentry/compose.yml#services/taskbroker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/squid",
+      "evidence": "apps/squid/compose.yml:services.squid.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/squid/compose.yml#services/squid",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/traefik",
+      "evidence": "apps/traefik/compose.yml:services.traefik.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/traefik/compose.yml#services/traefik",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/vaultwarden-rest-api",
+      "evidence": "apps/vaultwarden/compose.yml:services.bitwarden-api.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/vaultwarden/compose.yml#services/bitwarden-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/vaultwarden",
+      "evidence": "apps/vaultwarden/compose.yml:services.vaultwarden.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/vaultwarden/compose.yml#services/vaultwarden",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/wordpress",
+      "evidence": "apps/wordpress/compose.yml:services.wordpress.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/wordpress/compose.yml#services/wordpress",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/doco-cd",
+      "evidence": "docker-compose-truenas.yml:services.doco-cd.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "docker-compose-truenas.yml#services/doco-cd",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/docker-socket-proxy",
+      "evidence": "docker-compose.yml:services.docker-socket-proxy.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "docker-compose.yml#services/docker-socket-proxy",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/aistor",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "aistor",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/autoxpose",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "autoxpose",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/clickhouse",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "clickhouse",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/code-server",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "code-server",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/cyberbro",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "cyberbro",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/defectdojo",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "defectdojo",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/dependency-track",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "dependency-track",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/dependency-track-api",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "dependency-track-api",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/dockhand",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "dockhand",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/docling",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "docling",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/doco-cd",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "doco-cd",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/dozzle",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "dozzle",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/drawio",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "drawio",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/fastapi-sample",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "fastapi-sample",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/garage",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "garage",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/garage-webui",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "garage-webui",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/gatus",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "gatus",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/hello-nginx",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "hello-nginx",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/homarr",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "homarr",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/homeassistant",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "homeassistant",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/joplin",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "joplin",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/kafka",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "kafka",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/kafka-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "kafka-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/languagetool",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "languagetool",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/litellm",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "litellm",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/mcp-cyberbro",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "mcp-cyberbro",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/neo4j-security",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "neo4j-security",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/netbox",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "netbox",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/nexus",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "nexus",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/nginx-proxy-manager",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "nginx-proxy-manager",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/npmplus",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "npmplus",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/ntopng",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "ntopng",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/openhands",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "openhands",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/openrag-frontend",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "openrag-frontend",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/openwebui",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "openwebui",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/pfsense",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "pfsense",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/pihole",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "pihole",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/pihole-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "pihole-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/plumber",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "plumber",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/plumber-api",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "plumber-api",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/portracker",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "portracker",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/postgres-exporter",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "postgres-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/postgresql",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "postgresql",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/pyroscope",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "pyroscope",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/redis",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "redis",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/scanopy",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "scanopy",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/scrutiny",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "scrutiny",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/sentry",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "sentry",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/sentry-clickhouse",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "sentry-clickhouse",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/sentry-edge",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "sentry-edge",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/squid",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "squid",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/traefik",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "traefik",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/truenas",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "truenas",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/vaultwarden",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "vaultwarden",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/wordpress",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "wordpress",
+      "sourceType": "gatus"
+    }
+  ],
+  "model": "backstage-identity-crosswalk",
+  "schemaVersion": 1,
+  "unresolved": [
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "2fauth",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "alloy",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "bichon",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "missing-service-id",
+      "sourceId": "docker",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "elasticsearch",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "grafana",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "graylog",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "haproxy-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "kibana",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "langflow",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "langfuse-web",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "loki",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "mimir",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "minio",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "obsidian",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "ollama",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "opensearch",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "opensearch-dashboards",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "opensearch-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "opensearch-security-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "pfsense-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "prometheus",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "prometheus-alertmanager",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "missing-service-id",
+      "sourceId": "prometheus-node-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "missing-service-id",
+      "sourceId": "redis-redis-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "sonarqube",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "sybase-exporter",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "tempo",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "missing-service-id",
+      "sourceId": "traefik-ddns-updater",
+      "sourceType": "gatus"
+    },
+    {
+      "evidence": "config/monitoring/gatus-endpoints.yml",
+      "reason": "unknown-or-ambiguous-service-id",
+      "sourceId": "wazuh-manager",
+      "sourceType": "gatus"
+    }
+  ]
+}
