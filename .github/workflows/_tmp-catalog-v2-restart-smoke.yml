@@ -1,4 +1,4 @@
-name: Temporary Catalog v2 restart-plan offline smoke
+name: Temporary Catalog v2 restart-plan offline smoke # retest blockers
 on:
   push:
     branches: [feat/catalog-v2-runtime-secrets-20261020]
