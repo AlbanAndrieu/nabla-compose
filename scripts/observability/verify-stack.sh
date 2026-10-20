@@ -29,20 +29,15 @@ PROMETHEUS_URL="${PROMETHEUS_URL:-http://${OBSERVABILITY_HOST}:9090}"
 ALERTMANAGER_URL="${ALERTMANAGER_URL:-http://${OBSERVABILITY_HOST}:9093}"
 PFSENSE_EXPORTER_URL="${PFSENSE_EXPORTER_URL:-http://${OBSERVABILITY_HOST}:9945}"
 
-errors=0
-warnings=0
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 
-ok() { printf '✅ %s\n' "$*"; }
-warn() {
-  printf '⚠️  %s\n' "$*" >&2
-  warnings=$((warnings + 1))
-}
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  errors=$((errors + 1))
-}
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+ok() { diag_ok "$*"; }
+warn() { diag_warn "$*" >&2; }
+fail() { diag_fail "$*" >&2; }
 
 require_command() {
   if command -v "$1" >/dev/null 2>&1; then
@@ -340,7 +335,7 @@ for command in curl grep jq mktemp; do
   require_command "${command}"
 done
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   printf '\n❌ Missing local dependencies; stopping before network checks.\n' >&2
   exit 1
 fi
@@ -374,9 +369,9 @@ printf '\n📊 Grafana integration\n'
 check_grafana_integrations
 
 printf '\n'
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   printf '❌ Observability preflight failed: %d error(s), %d warning(s).\n' \
-    "${errors}" "${warnings}" >&2
+    "${DIAG_FAILURES}" "${DIAG_WARNINGS}" >&2
   exit 1
 fi
 
@@ -386,4 +381,4 @@ if [[ "${strict}" == "true" ]]; then
   bash "${SCRIPT_DIR}/verify-pfsense-syslog.sh" --synthetic-only
 fi
 
-printf '✅ Observability preflight passed with %d warning(s).\n' "${warnings}"
+printf '✅ Observability preflight passed with %d warning(s).\n' "${DIAG_WARNINGS}"

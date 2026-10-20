@@ -40,6 +40,8 @@ def test_metadata_only_chmod_does_not_trigger_shellcheck_on_unchanged_content():
         fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$GATE_ARGS_LOG\"\n", encoding="utf-8")
         fake.chmod(0o755)
         # Local test-only binaries must not count as repository changes.
+        # A custom init.templateDir may omit .git/info.
+        (work / ".git/info").mkdir(exist_ok=True)
         (work / ".git/info/exclude").write_text(
             "bin/\nargs.log\n", encoding="utf-8"
         )

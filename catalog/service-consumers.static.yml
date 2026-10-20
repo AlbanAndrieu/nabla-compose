@@ -53,6 +53,7 @@ monitoring:
       type: port
       host: 172.17.0.1
       port: 10443
+      serviceId: pfsense
       description: pfSense endpoint already consumed by the Prometheus exporter.
     - id: truenas
       name: TrueNAS
@@ -60,6 +61,7 @@ monitoring:
       type: port
       host: 172.17.0.24
       port: 7000
+      serviceId: truenas
       description: TrueNAS HTTPS management endpoint.
     - id: postgresql
       name: PostgreSQL
@@ -67,6 +69,7 @@ monitoring:
       type: port
       host: 172.17.0.24
       port: 5432
+      serviceId: postgresql
       description: Shared PostgreSQL service consumed by application stacks.
     - id: ntopng
       name: ntopng

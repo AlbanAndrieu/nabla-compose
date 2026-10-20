@@ -3321,6 +3321,17 @@
     },
     {
       "source": "fastapi-sample",
+      "target": "litellm",
+      "type": "routesTo",
+      "strength": "optional",
+      "description": "Staging DeepAgent sends its model requests to the budget-scoped TrueNAS LiteLLM gateway, then workstation Qwen.",
+      "evidence": [
+        "apps/sample/compose.yml:LITELLM_URL",
+        "apps/litellm/config.yaml:fastapi-qwen"
+      ]
+    },
+    {
+      "source": "fastapi-sample",
       "target": "postgresql",
       "type": "dependsOn",
       "strength": "required",

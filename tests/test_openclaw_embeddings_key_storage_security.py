@@ -31,7 +31,8 @@ class EmbeddingKeyStorageSecurityTest(unittest.TestCase):
 
     def test_private_directory_rejects_symlinks_and_group_writable(self):
         with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
+            # macOS temp dirs live under the /var -> /private/var symlink.
+            home = Path(directory).resolve()
             root = home / "secrets"
             root.mkdir(mode=0o700)
             nested = root / "new"

@@ -14,15 +14,14 @@ MIMIR_URL="${MIMIR_URL:-http://${OBSERVABILITY_HOST}:9009}"
 TEMPO_URL="${TEMPO_URL:-http://${OBSERVABILITY_HOST}:3200}"
 OTLP_SMOKE_TIMEOUT="${OTLP_SMOKE_TIMEOUT:-30}"
 
-errors=0
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 
-ok() { printf '✅ %s\n' "$*"; }
-fail() {
-  printf '❌ %s\n' "$*" >&2
-  errors=$((errors + 1))
-}
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+ok() { diag_ok "$*"; }
+fail() { diag_fail "$*" >&2; }
 
 for command in curl date jq mktemp python3; do
   if command -v "${command}" >/dev/null 2>&1; then
@@ -31,7 +30,7 @@ for command in curl date jq mktemp python3; do
     fail "missing command: ${command}"
   fi
 done
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   exit 1
 fi
 
@@ -169,7 +168,7 @@ post_otlp logs
 post_otlp metrics
 post_otlp traces
 
-if ((errors > 0)); then
+if ((DIAG_FAILURES > 0)); then
   exit 1
 fi
 
@@ -221,8 +220,8 @@ done
 [[ "${tempo_ok}" == "true" ]] || fail "OTLP trace did not become queryable in Tempo within ${OTLP_SMOKE_TIMEOUT}s"
 
 printf '\n'
-if ((errors > 0)); then
-  printf '❌ OTLP integration smoke test failed with %d error(s).\n' "${errors}" >&2
+if ((DIAG_FAILURES > 0)); then
+  printf '❌ OTLP integration smoke test failed with %d error(s).\n' "${DIAG_FAILURES}" >&2
   exit 1
 fi
 
