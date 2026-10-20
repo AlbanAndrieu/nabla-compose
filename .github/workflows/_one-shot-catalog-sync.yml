@@ -1,0 +1,59 @@
+name: One-shot Catalog v2 consumer synchronization
+on:
+  push:
+    branches:
+      - feat/catalog-v2-runtime-secrets-20261020
+    paths:
+      - .github/workflows/_one-shot-catalog-sync.yml
+permissions:
+  contents: write
+jobs:
+  sync-consumers:
+    if: github.repository == 'AlbanAndrieu/nabla-compose'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+      - name: Generate in an isolated runner, no homelab secrets
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet PyYAML==6.0.3
+          python scripts/generate-service-consumers.py
+          python scripts/generate-catalog-v2-artifacts.py
+          python - <<'PY'
+          import json, pathlib, yaml
+          root = pathlib.Path(".")
+          homarr = json.loads((root / "apps/homarr/generated/apps.json").read_text())
+          gatus = yaml.safe_load((root / "apps/gatus/config/config.yml").read_text())
+          kuma = json.loads((root / "apps/autokuma/static/generated-monitors.json").read_text())
+          entities = json.loads((root / "catalog/generated/entities.json").read_text())
+          print("homarr_apps=", len(homarr["applications"]))
+          print("gatus_endpoints=", len(gatus["endpoints"]))
+          print("autokuma_monitors=", len(kuma))
+          print("backstage_entities=", len(entities["entities"]))
+          PY
+      - name: Commit deterministic generated outputs to this branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: feat/catalog-v2-runtime-secrets-20261020
+        run: |
+          set -euo pipefail
+          git add -- apps/homarr/generated/apps.json apps/gatus/config/config.yml apps/autokuma/static/generated-monitors.json catalog/generated/entities.json catalog/generated/homelab.cdx.json
+          if git diff --cached --quiet; then
+            echo "Generated artifacts already current"
+            exit 0
+          fi
+          git diff --cached --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(catalog): synchronize Backstage consumer projections"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" push origin "HEAD:refs/heads/${TARGET_BRANCH}"
