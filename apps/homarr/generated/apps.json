@@ -23,49 +23,49 @@
       "id": "akvorado-console",
       "entityRef": "component:default/akvorado-console",
       "name": "Akvorado Console",
-      "group": "observability",
+      "group": "network",
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-console",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:31056",
+      "href": "http://172.17.0.24:31056/",
       "syncEligible": false,
-      "description": "Planned web explorer for network flow history."
+      "description": "Planned UI for historical network-flow search and analysis."
     },
     {
       "id": "akvorado-inlet",
       "entityRef": "component:default/akvorado-inlet",
       "name": "Akvorado Inlet",
-      "group": "observability",
+      "group": "network",
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-inlet",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka."
+      "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer."
     },
     {
       "id": "akvorado-orchestrator",
       "entityRef": "component:default/akvorado-orchestrator",
       "name": "Akvorado Orchestrator",
-      "group": "observability",
+      "group": "network",
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-orchestrator",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned control plane for Akvorado flow processing."
+      "description": "Planned Akvorado configuration and coordination control plane."
     },
     {
       "id": "akvorado-outlet",
       "entityRef": "component:default/akvorado-outlet",
       "name": "Akvorado Outlet",
-      "group": "observability",
+      "group": "network",
       "sourcePath": "apps/akvorado/compose.yml",
       "composeService": "akvorado-outlet",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned flow processing and ClickHouse persistence."
+      "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline."
     },
     {
       "id": "autokuma",

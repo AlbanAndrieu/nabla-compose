@@ -7,12 +7,14 @@
     },
     {
       "dependsOn": [
+        "component:default/akvorado-orchestrator",
         "resource:default/clickhouse"
       ],
       "ref": "component:default/akvorado-console"
     },
     {
       "dependsOn": [
+        "component:default/akvorado-orchestrator",
         "resource:default/kafka"
       ],
       "ref": "component:default/akvorado-inlet"
@@ -26,6 +28,7 @@
     },
     {
       "dependsOn": [
+        "component:default/akvorado-orchestrator",
         "resource:default/clickhouse",
         "resource:default/kafka"
       ],
@@ -307,6 +310,7 @@
     },
     {
       "dependsOn": [
+        "component:default/scanopy-daemon",
         "resource:default/postgresql"
       ],
       "ref": "component:default/scanopy"
@@ -455,7 +459,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:15f2d1c0bfa8a709efcfe19d8f8c0655ac1bc60c0c3e4a96ce1375832c472354"
+        "value": "sha256:c9aa46d62bb5021d5be6b1e09a1c493c71b87b8264cf7609d00f56f9ad57d651"
       },
       {
         "name": "nabla:catalog-authority",
@@ -463,7 +467,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:15f2d1c0-bfa8-a709-efcf-e19d8f8c0655",
+  "serialNumber": "urn:uuid:c9aa46d6-2bb5-021d-5be6-b1e09a1c493c",
   "services": [
     {
       "bom-ref": "component:default/aistor",
@@ -494,7 +498,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-console",
-      "description": "Planned web explorer for network flow history.",
+      "description": "Planned UI for historical network-flow search and analysis.",
       "name": "Akvorado Console",
       "properties": [
         {
@@ -511,7 +515,7 @@
         },
         {
           "name": "nabla:backstage:type",
-          "value": "network-observability"
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -521,7 +525,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-inlet",
-      "description": "Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka.",
+      "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer.",
       "name": "Akvorado Inlet",
       "properties": [
         {
@@ -538,7 +542,7 @@
         },
         {
           "name": "nabla:backstage:type",
-          "value": "network-flow-collector"
+          "value": "worker"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -548,7 +552,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-orchestrator",
-      "description": "Planned control plane for Akvorado flow processing.",
+      "description": "Planned Akvorado configuration and coordination control plane.",
       "name": "Akvorado Orchestrator",
       "properties": [
         {
@@ -565,7 +569,7 @@
         },
         {
           "name": "nabla:backstage:type",
-          "value": "network-flow-controller"
+          "value": "controller"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -575,7 +579,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-outlet",
-      "description": "Planned flow processing and ClickHouse persistence.",
+      "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline.",
       "name": "Akvorado Outlet",
       "properties": [
         {
@@ -592,7 +596,7 @@
         },
         {
           "name": "nabla:backstage:type",
-          "value": "network-flow-processor"
+          "value": "worker"
         },
         {
           "name": "nabla:backstage:lifecycle",
