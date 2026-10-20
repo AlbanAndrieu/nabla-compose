@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "workload": "fastapi-sample",
+  "target_environment": "truenas-staging",
+  "budget": {
+    "requested_eur_max": 10,
+    "litellm_usd_lifetime_cap": 8,
+    "budget_duration": null,
+    "reason": "Conservative USD cap; LiteLLM budgets are denominated in USD, not EUR; independent FX review required."
+  },
+  "limits": {
+    "rpm_limit": 5,
+    "tpm_limit": 15000,
+    "max_parallel_requests": 1
+  },
+  "keys": {
+    "workstation": {
+      "key_alias": "fastapi-sample-upstream",
+      "models": [
+        "qwen"
+      ],
+      "endpoint": "http://127.0.0.1:4000",
+      "master_env": "LITELLM_MASTER_KEY",
+      "consume_env": "LITELLM_FASTAPI_WORKSTATION_API_KEY"
+    },
+    "truenas": {
+      "key_alias": "fastapi-sample-staging",
+      "models": [
+        "fastapi-qwen"
+      ],
+      "endpoint": "http://127.0.0.1:14000",
+      "master_env": "LITELLM_TRUENAS_MASTER_KEY",
+      "consume_env": "LITELLM_API_KEY"
+    }
+  }
+}
