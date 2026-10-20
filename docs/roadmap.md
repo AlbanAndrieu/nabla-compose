@@ -1,5 +1,11 @@
 ## P0 — Reprise Site #236 / Compose #263 : artefacts ZAP et frontière privée (19 octobre 2026)
 
+## P1 — FastAPI staging → TrueNAS LiteLLM → workstation Qwen (2026-10-20)
+- [x] Declare dedicated `fastapi-qwen` relay (no IDE token reuse), sample staging URL/model, model-allowlisted keys, lifetime budget and Vaultwarden metadata. [Runbook](runbooks/fastapi-sample-litellm.md).
+- [ ] Provision two separate private virtual keys via loopback/SSH tunnel, store in separate Vaultwarden items, materialize without replacing existing sample secrets. Never store a key in Git.
+- [ ] Validate effective proxies/DB, internal Qwen token accounting, no costly fallback, tool calling, model allowlists, 2-stage `/v1`, and staged `/run` authorization before deployment. Cloud production not routed into LAN.
+
+
 **Autorité du contrat** : [collecteur privé](defectdojo-artifact-poller.md),
 [Site #236](https://github.com/AlbanAndrieu/nabla-site-alban/pull/236)
 et [Compose #263](https://github.com/AlbanAndrieu/nabla-compose/pull/263).
