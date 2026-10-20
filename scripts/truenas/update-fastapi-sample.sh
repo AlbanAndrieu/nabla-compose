@@ -15,10 +15,8 @@ DEPLOY_LOG_TAIL="${FASTAPI_SAMPLE_DEPLOY_LOG_TAIL:-40}"
 CANONICAL_ENV_ROOT="${FASTAPI_SAMPLE_ENV_ROOT:-/mnt/cpool/secrets/runtime/sample}"
 LEGACY_ENV_ROOT="${FASTAPI_SAMPLE_LEGACY_ENV_ROOT:-/mnt/cpool/sample}"
 
-fail() {
-    printf 'ERROR: %s\n' "$*" >&2
-    exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 for command in git docker jq curl sudo midclt stat awk grep mktemp tee cmp; do
     command -v "${command}" >/dev/null 2>&1 ||

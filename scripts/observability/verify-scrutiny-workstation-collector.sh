@@ -11,10 +11,8 @@ SUMMARY_WAIT_ATTEMPTS="${SCRUTINY_WORKSTATION_SUMMARY_WAIT_ATTEMPTS:-20}"
 SUMMARY_WAIT_DELAY="${SCRUTINY_WORKSTATION_SUMMARY_WAIT_DELAY_SECONDS:-3}"
 SUMMARY_MAX_TIME="${SCRUTINY_WORKSTATION_SUMMARY_MAX_TIME_SECONDS:-35}"
 
-fail() {
-    printf 'ERROR: %s\n' "$*" >&2
-    exit 1
-}
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 case "${MODE}" in
 --check | --submit) ;;

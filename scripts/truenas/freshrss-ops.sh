@@ -11,24 +11,24 @@ SECRETS="${FRESHRSS_SECRET_ROOT:-/mnt/cpool/secrets/runtime/freshrss}"
 OPML="${ROOT}/apps/nabla-site-alban/data/security/security-feeds.opml"
 SUBMODULE="apps/nabla-site-alban"
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-info() { printf 'INFO: %s\n' "$*"; }
+# shellcheck source=../lib/common.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
 case "${MODE}" in
   --check|--apply|--import-opml|--enable-api) ;;
-  *) die "usage: bash scripts/truenas/freshrss-ops.sh [--check|--apply|--import-opml|--enable-api]" ;;
+  *) fail "usage: bash scripts/truenas/freshrss-ops.sh [--check|--apply|--import-opml|--enable-api]" ;;
 esac
-command -v docker >/dev/null || die "docker required"
-[[ "${CONTAINER}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}$ ]] || die "invalid container name"
-[[ "${CLI_USER}" == www-data || "${CLI_USER}" == apache ]] || die "CLI user must be www-data or apache"
+command -v docker >/dev/null || fail "docker required"
+[[ "${CONTAINER}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,80}$ ]] || fail "invalid container name"
+[[ "${CLI_USER}" == www-data || "${CLI_USER}" == apache ]] || fail "CLI user must be www-data or apache"
 # Verify the exact submodule commit pinned by the superproject; never fetch latest master.
-command -v git >/dev/null || die "git required to verify pinned OPML"
-[[ -z "${FRESHRSS_OPML:-}" || "${FRESHRSS_OPML}" == "${OPML}" ]] || die "OPML override outside pinned submodule refused"
-[[ -r "${OPML}" && ! -L "${OPML}" ]] || die "pinned Site Alban OPML missing; initialize git submodule"
-PINNED_SHA="$(git -C "${ROOT}" rev-parse "HEAD:${SUBMODULE}" 2>/dev/null)" || die "missing Site Alban gitlink"
-ACTUAL_SHA="$(git -C "${ROOT}/${SUBMODULE}" rev-parse HEAD 2>/dev/null)" || die "submodule not initialized"
-[[ "${PINNED_SHA}" == "${ACTUAL_SHA}" ]] || die "Site Alban submodule revision differs from committed gitlink"
-[[ -z "$(git -C "${ROOT}/${SUBMODULE}" status --porcelain --untracked-files=no)" ]] || die "submodule has uncommitted tracked changes"
-command -v python3 >/dev/null || die "python3 required"
+command -v git >/dev/null || fail "git required to verify pinned OPML"
+[[ -z "${FRESHRSS_OPML:-}" || "${FRESHRSS_OPML}" == "${OPML}" ]] || fail "OPML override outside pinned submodule refused"
+[[ -r "${OPML}" && ! -L "${OPML}" ]] || fail "pinned Site Alban OPML missing; initialize git submodule"
+PINNED_SHA="$(git -C "${ROOT}" rev-parse "HEAD:${SUBMODULE}" 2>/dev/null)" || fail "missing Site Alban gitlink"
+ACTUAL_SHA="$(git -C "${ROOT}/${SUBMODULE}" rev-parse HEAD 2>/dev/null)" || fail "submodule not initialized"
+[[ "${PINNED_SHA}" == "${ACTUAL_SHA}" ]] || fail "Site Alban submodule revision differs from committed gitlink"
+[[ -z "$(git -C "${ROOT}/${SUBMODULE}" status --porcelain --untracked-files=no)" ]] || fail "submodule has uncommitted tracked changes"
+command -v python3 >/dev/null || fail "python3 required"
 python3 - "${OPML}" <<'PY'
 import sys
 from urllib.parse import urlsplit
@@ -41,13 +41,13 @@ if any(urlsplit(url).scheme != "https" or urlsplit(url).username or urlsplit(url
 print(f"OK: pinned OPML with {len(urls)} sources")
 PY
 docker inspect "${CONTAINER}" >/dev/null 2>&1 ||
-  die "FreshRSS container not found; inspect midclt app.query and choose FRESHRSS_CONTAINER explicitly"
+  fail "FreshRSS container not found; inspect midclt app.query and choose FRESHRSS_CONTAINER explicitly"
 image="$(docker inspect -f '{{.Config.Image}}' "${CONTAINER}")"
-[[ "${image}" == *freshrss* ]] || die "container image is not FreshRSS"
+[[ "${image}" == *freshrss* ]] || fail "container image is not FreshRSS"
 running="$(docker inspect -f '{{.State.Running}}' "${CONTAINER}")"
-[[ "${running}" == true ]] || die "FreshRSS container is not running (no automatic start/redeploy)"
+[[ "${running}" == true ]] || fail "FreshRSS container is not running (no automatic start/redeploy)"
 docker exec --user "${CLI_USER}" "${CONTAINER}" cli/list-users.php >/dev/null ||
-  die "official FreshRSS CLI unavailable; verify image user/path"
+  fail "official FreshRSS CLI unavailable; verify image user/path"
 info "existing FreshRSS healthy for CLI; container=${CONTAINER}, mode=${MODE}"
 if [[ "${MODE}" == --check ]]; then
   for user in securitypublic securityagent; do
@@ -62,9 +62,9 @@ if [[ "${MODE}" == --check ]]; then
   exit 0
 fi
 
-[[ "${EUID}" == 0 ]] || die "apply must be run as root on TrueNAS"
+[[ "${EUID}" == 0 ]] || fail "apply must be run as root on TrueNAS"
 [[ "${FRESHRSS_APPROVE_APPLY:-}" == YES ]] ||
-  die "explicit approval required: FRESHRSS_APPROVE_APPLY=YES"
+  fail "explicit approval required: FRESHRSS_APPROVE_APPLY=YES"
 # Account bootstrap also imports feeds; block all import-capable modes when
 # the unfiltered Site Alban OPML cannot satisfy the GReader ten-feed contract.
 if [[ "${MODE}" == --apply || "${MODE}" == --import-opml ]]; then
@@ -75,12 +75,12 @@ print(sum(bool(node.get("xmlUrl")) for node in ElementTree.parse(sys.argv[1]).it
 PY
   )"
   [[ "${opml_count}" == 10 ]] ||
-    die "blocked: pinned OPML contains ${opml_count} feeds, but public GReader contract requires exactly 10"
+    fail "blocked: pinned OPML contains ${opml_count} feeds, but public GReader contract requires exactly 10"
 fi
 # Global API enablement is an independent and explicitly approved operation.
 if [[ "${MODE}" == --enable-api ]]; then
   [[ "${FRESHRSS_ENABLE_GLOBAL_API:-}" == YES ]] ||
-    die "FRESHRSS_ENABLE_GLOBAL_API=YES required; review instance-wide API exposure"
+    fail "FRESHRSS_ENABLE_GLOBAL_API=YES required; review instance-wide API exposure"
   docker exec --user "${CLI_USER}" "${CONTAINER}" cli/reconfigure.php --api-enabled >/dev/null
   info "global API enable request applied; verify protections and GReader auth independently"
   exit 0
@@ -89,11 +89,11 @@ fi
 # process observers remains possible. For stronger isolation create passwords in UI.
 check_secret() {
   local file="$1" permission owner
-  [[ -f "${file}" && ! -L "${file}" && -s "${file}" ]] || die "secret file missing: ${file}"
+  [[ -f "${file}" && ! -L "${file}" && -s "${file}" ]] || fail "secret file missing: ${file}"
   permission="$(stat -c %a "${file}")"
   owner="$(stat -c %u:%g "${file}")"
   [[ "${permission}" == 600 && "${owner}" == 0:0 ]] ||
-    die "secret must be root:root 0600: ${file}"
+    fail "secret must be root:root 0600: ${file}"
 }
 
 import_one() {
@@ -104,17 +104,17 @@ import_one() {
   if ! docker exec --user "${CLI_USER}" "${CONTAINER}" cli/import-for-user.php \
     --user "${user}" --filename "${target}" >/dev/null; then
     docker exec "${CONTAINER}" rm -f "${target}" >/dev/null 2>&1 || true
-    die "FreshRSS import failed for ${user}"
+    fail "FreshRSS import failed for ${user}"
   fi
   docker exec "${CONTAINER}" rm -f "${target}" >/dev/null 2>&1 ||
-    die "temporary OPML cleanup failed for ${user}"
+    fail "temporary OPML cleanup failed for ${user}"
   info "import submitted for ${user}; verify subscriptions via GReader before publication"
 }
 if [[ "${MODE}" == --import-opml ]]; then
-  [[ "${FRESHRSS_IMPORT_APPROVED:-}" == YES ]] || die "FRESHRSS_IMPORT_APPROVED=YES required"
+  [[ "${FRESHRSS_IMPORT_APPROVED:-}" == YES ]] || fail "FRESHRSS_IMPORT_APPROVED=YES required"
   for user in securitypublic securityagent; do
     docker exec --user "${CLI_USER}" "${CONTAINER}" cli/list-users.php |
-      grep -Fxq "${user}" || die "account does not exist: ${user}"
+      grep -Fxq "${user}" || fail "account does not exist: ${user}"
     import_one "${user}"
   done
   exit 0
@@ -137,7 +137,7 @@ for user in securitypublic securityagent; do
   login_pass="$(<"${login_file}")"
   api_pass="$(<"${api_file}")"
   [[ "${#login_pass}" -ge 24 && "${#api_pass}" -ge 24 ]] ||
-    die "password lengths must be >=24 characters"
+    fail "password lengths must be >=24 characters"
   docker exec --user "${CLI_USER}" "${CONTAINER}" cli/create-user.php \
     --user "${user}" --password "${login_pass}" --api-password "${api_pass}" \
     --language fr --no-default-feeds >/dev/null
