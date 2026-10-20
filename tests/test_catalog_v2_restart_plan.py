@@ -66,3 +66,39 @@ def test_two_stages_and_no_secret_values() -> None:
     assert rows["scanopy"]["runtimeSecretFiles"][0]["status"] == "not-checked"
     assert "secret-value" not in json.dumps(report)
     assert report["readOnly"] is True
+
+
+def test_running_first_holds_dependencies_and_missing_runtime_secrets() -> None:
+    # Dependency and path checks are independent; a RUNNING app with a missing
+    # prerequisite is never eligible for an automatic redeploy.
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        for app in ("mongo", "worker"):
+            (root / "apps" / app).mkdir(parents=True)
+        (root / "catalog").mkdir()
+        (root / "config/secrets").mkdir(parents=True)
+        (root / "config/secrets/manifest.json").write_text(json.dumps({"items": []}))
+        (root / "catalog/catalog-info.yaml").write_text(
+            "kind: Resource\nmetadata:\n  name: mongo\n---\n"
+            "kind: Component\nmetadata:\n  name: worker\n"
+            "spec:\n  dependsOn: [resource:default/mongo]\n"
+        )
+        (root / "apps/mongo/compose.yml").write_text(
+            "services:\n  mongo:\n    labels:\n"
+            "      com.albandrieu.nabla.entity-ref: resource:default/mongo\n"
+        )
+        (root / "apps/worker/compose.yml").write_text(
+            "services:\n  worker:\n    labels:\n"
+            "      com.albandrieu.nabla.entity-ref: component:default/worker\n"
+            "    env_file: [/mnt/cpool/secrets/runtime/worker/.env.secrets]\n"
+        )
+        report = mod.build_plan(root, [
+            {"id": "mongo", "state": "STOPPED"},
+            {"id": "worker", "state": "RUNNING"},
+        ], check_host_secrets=True)
+    worker = next(app for app in report["apps"] if app["appId"] == "worker")
+    assert worker["action"] == "hold"
+    assert set(worker["blockers"]) == {
+        "dependency-not-running", "runtime-secrets-not-ready"
+    }
+    assert worker["vaultwardenValidation"] == "not-checked"

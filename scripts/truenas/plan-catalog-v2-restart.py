@@ -165,22 +165,38 @@ def build_plan(
         status = sorted(app_states.get(app, []))
         declared = bool(status)
         blocked = status and set(status) <= {"planned", "disabled"}
+        dependencies = sorted(
+            dep for dep, target in edges if target == app and dep in states
+        )
+        secret_files = [
+            {"path": path, "status": secret_file_posture(path)
+             if check_host_secrets else "not-checked"} for path in paths
+        ]
+        blockers = []
+        if blocked:
+            blockers.append("planned-or-disabled")
+        if state in {"CRASHED", "ERROR", "DEPLOYING"}:
+            blockers.append("runtime-diagnostic-required")
+        # A RUNNING dependent must not be redeployed before a non-running
+        # prerequisite. We keep it in stage A for visibility, but HOLD it.
+        if state == "RUNNING" and any(states[dep] != "RUNNING" for dep in dependencies):
+            blockers.append("dependency-not-running")
+        if check_host_secrets and any(
+            item["status"] != "present-root-only" for item in secret_files
+        ):
+            blockers.append("runtime-secrets-not-ready")
         rows.append({
             "appId": app,
             "currentState": state,
             "stage": "running-first" if state == "RUNNING" else "remaining",
-            "action": ("hold" if blocked or state in {"CRASHED", "ERROR", "DEPLOYING"}
-                       else "redeploy" if state == "RUNNING" else "start"),
+            "action": ("hold" if blockers else "redeploy" if state == "RUNNING" else "start"),
+            "blockers": blockers,
             "catalogMapped": declared,
             "declaredStates": status,
             "vaultwardenItem": vaulted.get(app),
-            "runtimeSecretFiles": [
-                {"path": path, "status": secret_file_posture(path)
-                 if check_host_secrets else "not-checked"} for path in paths
-            ],
-            "dependencies": sorted(
-                dep for dep, target in edges if target == app and dep in states
-            ),
+            "vaultwardenValidation": "not-checked",
+            "runtimeSecretFiles": secret_files,
+            "dependencies": dependencies,
         })
     stage_order: dict[str, list[list[str]]] = {}
     for stage in ("running-first", "remaining"):
