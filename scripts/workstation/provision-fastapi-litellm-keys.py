@@ -13,7 +13,7 @@ from pathlib import Path
 import stat
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/fastapi-sample/litellm-key-policy.json"
@@ -74,6 +74,13 @@ def payload(policy: dict, target: str) -> dict:
     }
 
 
+class NoRedirect(HTTPRedirectHandler):
+    """Never forward the admin Authorization header across redirects."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def provision(policy: dict, target: str, output: Path) -> None:
     """Reserve the secret destination before calling /key/generate."""
     entry = policy["keys"][target]
@@ -98,7 +105,7 @@ def provision(policy: dict, target: str, output: Path) -> None:
         )
         # No redirect to a non-loopback URL and no token in command arguments.
         # HTTP loopback is intentional; TrueNAS must be reached via SSH.
-        with urlopen(request, timeout=15) as response:
+        with build_opener(NoRedirect()).open(request, timeout=15) as response:
             if response.geturl() != entry["endpoint"] + "/key/generate":
                 raise ValueError("key-generation endpoint redirected")
             result = json.load(response)
@@ -110,7 +117,9 @@ def provision(policy: dict, target: str, output: Path) -> None:
         info = result.get("key_info") if isinstance(result.get("key_info"), dict) else result
         if "max_budget" in info and info["max_budget"] != 8:
             raise ValueError("proxy ignored required virtual-key budget")
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream = os.fdopen(fd, "w", encoding="utf-8")
+        fd = -1
+        with stream:
             stream.write(key + "\n")
             stream.flush()
             os.fsync(stream.fileno())

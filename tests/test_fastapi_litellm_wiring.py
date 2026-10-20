@@ -40,3 +40,10 @@ def test_compose_routes_qwen_through_both_litellm_proxies():
     assert "DEFAULT_CHAT_MODEL: fastapi-qwen" in sample
     assert "/mnt/cpool/secrets/runtime/sample/.env.secrets" in sample
     assert "LITELLM_API_KEY:" not in sample # never interpolate a master key
+
+
+def test_key_bootstrap_never_follows_authenticated_redirects():
+    src = FILE.read_text(encoding="utf-8")
+    assert "build_opener(NoRedirect()).open" in src
+    assert "return None" in src
+    assert "urlopen(request" not in src
