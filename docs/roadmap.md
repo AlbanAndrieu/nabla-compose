@@ -3349,3 +3349,30 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 - [ ] Étendre Backstage aux identités/relations restantes et aux environnements sans deviner de valeur métier.
 - [ ] Migrer les lecteurs FastAPI Sample, nabla-site-alban et les scripts TrueNAS, puis retirer définitivement les fichiers/catalogues v1.
 - [ ] Recette des secrets runtime via Vaultwarden sur TrueNAS, non exécutée depuis GitHub.
+
+
+### 2026-10-20 — Normalisation discovery graph / outils de sécurité (PR #265)
+
+- [x] Créer `resource:default/clickhouse` (ressource analytique partagée),
+  référencée sans duplication depuis ntopng et la stack Akvorado.
+- [x] Décrire `system:default/akvorado` et ses 4 composants `planned`,
+  liens Kafka/ClickHouse et labels Compose `entity-ref`; **aucune nouvelle sonde**
+  ni dashboard actif pour les services prévus.
+- [x] Conserver Cartography → Neo4j et Scanopy → PostgreSQL en dépendances
+  Backstage ; rapprocher les *observations* par provenance, pas par IP seule.
+- [x] Associer `dsomm-baseline` à DSOMM ; ne pas publier de conclusion de
+  maturité à partir d'un CSV sans revue humaine.
+- [x] Exclure les Group/System/Domain des *services* CycloneDX 1.7 ; garder
+  ces entités dans la projection native Backstage.
+- [x] Cataloguer les références ouvertes dans
+  [docs/catalog-security-standards.md](catalog-security-standards.md), sans
+  second registre d'inventaire Nabla.
+- [ ] **P1 Scanopy** : retirer la dépendance administrateur
+  `/var/run/docker.sock:ro` après mise en place et vérification d'un
+  *Docker Proxy credential* via l'API restreinte du docker-socket-proxy
+  TrueNAS ; conserver `POST`/`EXEC` interdits sans revue de risque ;
+  étudier la suppression de `privileged: true` et la réduction des capabilities.
+- [ ] **P2 CMDB observée** : enrichir Neo4j de la provenance des actifs
+  Scanopy, flux Akvorado/ntopng, identités Compose/Kubernetes, sans utiliser
+  l'adresse IP comme clé primaire de service et sans inventer de dépendance
+  opérationnelle entre les outils de collecte.

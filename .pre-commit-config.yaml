@@ -277,11 +277,11 @@ repos:
       - id: catalog-v2-preparation-contract
         name: "🕸️ catalog · Validate v2 migration inventory coverage"
         language: python
-        entry: bash -c 'python scripts/audit-service-catalog-v2-parity.py --check && python -m pytest -q tests/test_catalog_v2_exports.py'
+        entry: bash -c 'python scripts/audit-service-catalog-v2-parity.py --check && python -m pytest -q tests/test_catalog_v2_exports.py tests/test_catalog_security_inventory.py'
         additional_dependencies: ["pytest==9.1.1", "PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2|compose_paths)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
+          ^(catalog/(?:business-criticality-policy[.]yaml|catalog-info[.]yaml|homelab-services[.]json|homelab-exposure-overrides[.]json|services[.]json)|docker-compose(?:-truenas)?[.]yml|apps/[^/]+/(?:catalog-info[.]yaml|(?:compose|docker-compose)(?:[.][^.]*)?[.]ya?ml)|scripts/(?:audit-service-catalog-v2-parity[.]py|generate-catalog-v2-artifacts[.]py|nabla_ops/(?:business_criticality|catalog_exports|catalog_v2|compose_paths)[.]py)|tests/(?:test_business_criticality|test_catalog_v2_exports|test_catalog_security_inventory|test_catalog_v2_parity)[.]py|docs/(?:service-catalog-v2-normalization|service-catalog-security-graph|roadmap)[.]md)$
 
       - id: catalog-v2-pilot-contract
         name: "🕸️ catalog · Validate Backstage/Compose v2 pilot"

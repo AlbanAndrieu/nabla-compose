@@ -286,3 +286,14 @@ Rules:
 - TrueNAS API client: https://github.com/truenas/api_client
 - Official TrueNAS MCP research preview: https://github.com/truenas/truenas-mcp
 - TrueNAS 25.10+/26 read-only MCP: https://github.com/profanter-dev/truenas-mcp
+
+
+## Correspondances d'inventaire sécurité (2026-10-20)
+
+Le catalogue v2 possède désormais le système Akvorado (4 composants prévus)
+et la ressource ClickHouse partagée ; les relations ntopng/ClickHouse,
+Cartography/Neo4j, Scanopy/PostgreSQL et DSOMM/baseline restent en Backstage,
+sans copie dans les paramètres Gatus ou Homarr.
+Pour la provenance observée, les formats OTel/OCSF et l'export
+CycloneDX/OSCAL/OWASP SAMM, voir
+[la décision normes et sécurité](../docs/catalog-security-standards.md).
