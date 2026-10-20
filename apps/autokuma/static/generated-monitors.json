@@ -1,16 +1,6 @@
 [
   {
     "type": "port",
-    "name": "2FAuth",
-    "description": "Nabla generated monitor: 2fauth",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30081
-  },
-  {
-    "type": "port",
     "name": "AIStor",
     "description": "MinIO AIStor-compatible object storage service.",
     "interval": 60,
@@ -20,65 +10,39 @@
     "port": 9002
   },
   {
-    "type": "http",
-    "name": "Grafana Alloy",
-    "description": "Nabla generated monitor: alloy",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:12345/-/healthy"
-  },
-  {
-    "type": "http",
+    "type": "port",
     "name": "AutoXpose",
     "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:4949/api/settings/status"
+    "hostname": "172.17.0.24",
+    "port": 4949
   },
   {
     "type": "port",
-    "name": "Bichon",
-    "description": "Nabla generated monitor: bichon",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 15630
-  },
-  {
-    "type": "port",
-    "name": "ClickHouse",
-    "description": "Nabla generated monitor: clickhouse",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8123
-  },
-  {
-    "type": "http",
     "name": "Code Server",
     "description": "Browser-based development environment for homelab repositories.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:8443/healthz"
+    "hostname": "172.17.0.24",
+    "port": 8443
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "Cyberbro",
-    "description": "Lightweight threat-intelligence workbench for extracting IoCs and checking reputation across OSINT, CTI, and EDR engines.",
+    "description": "Threat-intelligence workbench for IoC extraction and reputation analysis.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:5100/"
+    "hostname": "172.17.0.24",
+    "port": 5100
   },
   {
     "type": "port",
     "name": "DefectDojo",
-    "description": "Central normalized security-finding aggregation, deduplication, triage and remediation workflow.",
+    "description": "Central normalized security-finding aggregation, triage and remediation workflow.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -88,7 +52,7 @@
   {
     "type": "port",
     "name": "Dependency-Track",
-    "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
+    "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -107,8 +71,8 @@
   },
   {
     "type": "port",
-    "name": "Docker API",
-    "description": "Read-only Docker socket proxy used by Homarr and automation.",
+    "name": "Docker Runtime",
+    "description": "Docker Engine runtime used by repository-managed Compose workloads.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -118,7 +82,7 @@
   {
     "type": "port",
     "name": "Dockhand",
-    "description": "Docker container management UI.",
+    "description": "Docker container management UI for the homelab runtime.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -126,13 +90,14 @@
     "port": 3050
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "Docling Serve",
     "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:5001/ready"
+    "hostname": "172.17.0.24",
+    "port": 5001
   },
   {
     "type": "port",
@@ -142,7 +107,7 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9120
+    "port": 30080
   },
   {
     "type": "port",
@@ -157,7 +122,7 @@
   {
     "type": "port",
     "name": "Draw.io",
-    "description": "Self-hosted diagrams.net editor.",
+    "description": "Self-hosted diagrams.net editor for internal diagram authoring.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -166,27 +131,18 @@
   },
   {
     "type": "port",
-    "name": "Elasticsearch",
-    "description": "Nabla generated monitor: elasticsearch",
+    "name": "FastAPI Sample",
+    "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9200
-  },
-  {
-    "type": "http",
-    "name": "FastAPI Sample",
-    "description": "FastAPI Sample service with FastAPI Cloud production and TrueNAS staging environments.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:8091/health"
+    "port": 8091
   },
   {
     "type": "port",
-    "name": "Garage S3 API",
-    "description": "S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.",
+    "name": "Garage S3",
+    "description": "S3-compatible object storage hosted on TrueNAS.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -195,8 +151,8 @@
   },
   {
     "type": "port",
-    "name": "Garage Web UI",
-    "description": "Garage web administration UI exposed by Cloudflare Tunnel directly to the LAN-bound :3909 origin without Traefik.",
+    "name": "Garage WebUI",
+    "description": "Web administration UI for Garage.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -206,41 +162,12 @@
   {
     "type": "port",
     "name": "Gatus",
-    "description": "Declarative status monitoring generated from Nabla Compose services.",
+    "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8085
-  },
-  {
-    "type": "http",
-    "name": "Grafana",
-    "description": "Nabla generated monitor: grafana",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:30037/api/health"
-  },
-  {
-    "type": "port",
-    "name": "Graylog",
-    "description": "Nabla generated monitor: graylog",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9003
-  },
-  {
-    "type": "port",
-    "name": "pfSense HAProxy Exporter",
-    "description": "Nabla generated monitor: haproxy-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9101
   },
   {
     "type": "port",
@@ -265,83 +192,46 @@
   {
     "type": "http",
     "name": "Home Assistant",
-    "description": "Home Assistant routed through Traefik.",
+    "description": "Home automation control plane exposed through the dedicated IoT network.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "url": "https://homeassistant.albanandrieu.com"
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "Joplin Server",
-    "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
+    "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:22300/api/ping"
+    "hostname": "172.17.0.24",
+    "port": 22300
   },
   {
     "type": "port",
-    "name": "Apache Kafka",
-    "description": "Nabla generated monitor: kafka",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "kafka",
-    "port": 9092
-  },
-  {
-    "type": "http",
     "name": "Kafka Exporter",
-    "description": "Nabla generated monitor: kafka-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9308/metrics"
-  },
-  {
-    "type": "port",
-    "name": "Kibana",
-    "description": "Nabla generated monitor: kibana",
+    "description": "Prometheus exporter for Kafka broker and consumer-group state.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 5601
+    "port": 9308
   },
   {
     "type": "port",
-    "name": "Langflow",
-    "description": "Nabla generated monitor: langflow",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 7860
-  },
-  {
-    "type": "port",
-    "name": "Langfuse Web",
-    "description": "Nabla generated monitor: langfuse-web",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3000
-  },
-  {
-    "type": "http",
     "name": "LanguageTool",
     "description": "Self-hosted grammar and style checking API.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
+    "hostname": "172.17.0.24",
+    "port": 8010
   },
   {
     "type": "port",
     "name": "LiteLLM",
-    "description": "Nabla generated monitor: litellm",
+    "description": "OpenAI-compatible model gateway used by OpenWebUI and AI workloads.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -349,18 +239,9 @@
     "port": 4000
   },
   {
-    "type": "http",
-    "name": "Loki",
-    "description": "Nabla generated monitor: loki",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:3100/ready"
-  },
-  {
     "type": "port",
     "name": "Cyberbro MCP",
-    "description": "Model Context Protocol bridge exposing Cyberbro observable-analysis tools to MCP-capable clients such as LiteLLM.",
+    "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -368,28 +249,9 @@
     "port": 8013
   },
   {
-    "type": "http",
-    "name": "Mimir",
-    "description": "Nabla generated monitor: mimir",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9009/ready"
-  },
-  {
-    "type": "port",
-    "name": "MinIO",
-    "description": "Nabla generated monitor: minio",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9002
-  },
-  {
     "type": "port",
     "name": "Neo4j Security Graph",
-    "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
+    "description": "Analytical graph store for attack-path and blast-radius analysis.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -399,7 +261,7 @@
   {
     "type": "port",
     "name": "NetBox",
-    "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
+    "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -424,47 +286,17 @@
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 30021
-  },
-  {
-    "type": "port",
-    "name": "NPMplus",
-    "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30360
+    "port": 30020
   },
   {
     "type": "port",
     "name": "ntopng",
-    "description": "Host-network ntopng web service.",
+    "description": "LAN network traffic monitoring UI.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 3000
-  },
-  {
-    "type": "port",
-    "name": "Obsidian",
-    "description": "Nabla generated monitor: obsidian",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3002
-  },
-  {
-    "type": "port",
-    "name": "Ollama",
-    "description": "Nabla generated monitor: ollama",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30068
   },
   {
     "type": "port",
@@ -479,7 +311,7 @@
   {
     "type": "port",
     "name": "OpenRAG Frontend",
-    "description": "Nabla generated monitor: openrag-frontend",
+    "description": "OpenRAG frontend and collective-health UI.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -488,48 +320,8 @@
   },
   {
     "type": "port",
-    "name": "OpenSearch",
-    "description": "Nabla generated monitor: opensearch",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9200
-  },
-  {
-    "type": "port",
-    "name": "OpenSearch Dashboards",
-    "description": "Nabla generated monitor: opensearch-dashboards",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 5601
-  },
-  {
-    "type": "port",
-    "name": "OpenSearch Exporter",
-    "description": "Nabla generated monitor: opensearch-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9114
-  },
-  {
-    "type": "port",
-    "name": "OpenSearch Security Exporter",
-    "description": "Nabla generated monitor: opensearch-security-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9115
-  },
-  {
-    "type": "port",
     "name": "Open WebUI",
-    "description": "Nabla generated monitor: openwebui",
+    "description": "Self-hosted AI chat and RAG interface using the homelab LiteLLM gateway.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -539,7 +331,7 @@
   {
     "type": "port",
     "name": "pfSense",
-    "description": "pfSense endpoint already consumed by the Prometheus exporter.",
+    "description": "Homelab firewall, router and network-edge appliance.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -547,19 +339,9 @@
     "port": 10443
   },
   {
-    "type": "port",
-    "name": "pfSense Exporter",
-    "description": "Nabla generated monitor: pfsense-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9945
-  },
-  {
     "type": "http",
     "name": "Pi-hole",
-    "description": "LAN DNS filtering and private *.int.albandrieu.com record consumer.",
+    "description": "LAN DNS filtering and private *.int.albandrieu.com DNS service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -578,7 +360,7 @@
   {
     "type": "port",
     "name": "Plumber",
-    "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
+    "description": "Repository-managed developer platform frontend and workflow UI.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -588,7 +370,7 @@
   {
     "type": "port",
     "name": "Plumber API",
-    "description": "Nabla generated monitor: plumber-api",
+    "description": "Backend API for the Plumber developer platform.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -596,18 +378,19 @@
     "port": 31071
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "Portracker",
     "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:30233/metrics"
+    "hostname": "172.17.0.24",
+    "port": 30233
   },
   {
     "type": "port",
     "name": "PostgreSQL Exporter",
-    "description": "Prometheus exporter for the shared PostgreSQL service.",
+    "description": "Prometheus exporter for the shared PostgreSQL Resource.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -617,7 +400,7 @@
   {
     "type": "port",
     "name": "PostgreSQL",
-    "description": "Shared PostgreSQL service consumed by application stacks.",
+    "description": "Shared native TrueNAS PostgreSQL service used by homelab consumers.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -625,46 +408,19 @@
     "port": 5432
   },
   {
-    "type": "http",
-    "name": "Prometheus",
-    "description": "Nabla generated monitor: prometheus",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9090/-/ready"
-  },
-  {
-    "type": "http",
-    "name": "Alertmanager",
-    "description": "Nabla generated monitor: prometheus-alertmanager",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9093/-/ready"
-  },
-  {
     "type": "port",
-    "name": "Node Exporter",
-    "description": "Nabla generated monitor: prometheus-node-exporter",
+    "name": "Grafana Pyroscope",
+    "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9100
-  },
-  {
-    "type": "http",
-    "name": "Grafana Pyroscope",
-    "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:4040/"
+    "port": 4040
   },
   {
     "type": "port",
     "name": "Redis",
-    "description": "Nabla generated monitor: redis",
+    "description": "Shared homelab Redis cache and runtime-state service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -673,18 +429,8 @@
   },
   {
     "type": "port",
-    "name": "Redis Exporter",
-    "description": "Nabla generated monitor: redis-redis-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9121
-  },
-  {
-    "type": "port",
     "name": "Scanopy",
-    "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
+    "description": "Agentless network discovery and continuously updated topology documentation.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -692,51 +438,24 @@
     "port": 60072
   },
   {
-    "type": "http",
+    "type": "port",
     "name": "Scrutiny",
     "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:31054/api/health"
-  },
-  {
-    "type": "http",
-    "name": "Sentry",
-    "description": "Self-hosted Sentry 26.8 errors-only application service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:9005/_health/"
+    "hostname": "172.17.0.24",
+    "port": 31054
   },
   {
     "type": "port",
-    "name": "Sentry ClickHouse",
-    "description": "Nabla generated monitor: sentry-clickhouse",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "sentry-clickhouse",
-    "port": 9000
-  },
-  {
-    "type": "http",
     "name": "Sentry Edge",
     "description": "Nabla generated monitor: sentry-edge",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
-    "url": "http://172.17.0.24:9005/_health/"
-  },
-  {
-    "type": "port",
-    "name": "SonarQube",
-    "description": "Nabla generated monitor: sonarqube",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
     "hostname": "172.17.0.24",
-    "port": 9001
+    "port": 9005
   },
   {
     "type": "port",
@@ -750,27 +469,8 @@
   },
   {
     "type": "port",
-    "name": "Sybase Exporter",
-    "description": "Nabla generated monitor: sybase-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9113
-  },
-  {
-    "type": "http",
-    "name": "Tempo",
-    "description": "Nabla generated monitor: tempo",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:3200/ready"
-  },
-  {
-    "type": "port",
     "name": "Traefik",
-    "description": "Docker reverse proxy on TrueNAS for direct *.int.albandrieu.com services.",
+    "description": "Internal reverse proxy for repository-managed homelab services.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -779,18 +479,8 @@
   },
   {
     "type": "port",
-    "name": "Ddns Updater",
-    "description": "Nabla generated monitor: traefik-ddns-updater",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8000
-  },
-  {
-    "type": "port",
     "name": "TrueNAS",
-    "description": "TrueNAS HTTPS management endpoint.",
+    "description": "Always-on storage, virtualization and Docker application platform.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
@@ -809,18 +499,8 @@
   },
   {
     "type": "port",
-    "name": "Wazuh Manager",
-    "description": "Nabla generated monitor: wazuh-manager",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 1514
-  },
-  {
-    "type": "port",
     "name": "WordPress",
-    "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
+    "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
     "interval": 60,
     "max_retries": 3,
     "retry_interval": 60,
