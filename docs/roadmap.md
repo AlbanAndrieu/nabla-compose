@@ -3338,3 +3338,14 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 - [ ] Validate Akvorado inlet container health, receiver settings and counters without generating artificial traffic.
 - [ ] Review pflow TrueNAS destination first; keep Cloudflare domain 2 export disabled until recipient and data privacy requirements confirmed.
 - [ ] After explicit approval, activate in a controlled window with baseline memory/DNS and rollback checks. Do not start softflowd or restart Unbound.
+
+
+### 2026-10-20 — Simplification des consommateurs du catalogue (PR #265)
+
+- [x] Backstage `catalog-info.yaml` pour l'identité et `com.albandrieu.nabla.entity-ref` pour relier Compose.
+- [x] Gatus YAML natif **unique** (`config/monitoring/gatus-endpoints.yml`) ; 85 sondes projetées vers Gatus et AutoKuma, sans second inventaire de cibles.
+- [x] Homarr construit depuis Backstage + routage Compose ; 80 entrées v2 matérialisées, contre 143 entrées historiques **non comparables sans migration des descripteurs**.
+- [x] Projections standard Backstage/CycloneDX générées, validation `--check` intégrée au quality gate.
+- [ ] Étendre Backstage aux identités/relations restantes et aux environnements sans deviner de valeur métier.
+- [ ] Migrer les lecteurs FastAPI Sample, nabla-site-alban et les scripts TrueNAS, puis retirer définitivement les fichiers/catalogues v1.
+- [ ] Recette des secrets runtime via Vaultwarden sur TrueNAS, non exécutée depuis GitHub.

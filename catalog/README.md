@@ -29,6 +29,28 @@ Use one authority per concern:
 
 The preferred v2 service has **no x-nabla block**.
 
+### Consumer projections already on v2 (PR #265)
+
+Backstage + Compose now generate Homarr entries and enrich Gatus monitor IDs.
+Gatus probe targets/conditions are maintained **in Gatus-native format**
+at `config/monitoring/gatus-endpoints.yml`, outside the mounted Gatus
+runtime configuration directory. AutoKuma is derived from those same probes:
+no independent monitor inventory or generic-port monitoring fallback.
+
+```bash
+python scripts/generate-service-consumers.py --check
+python scripts/generate-catalog-v2-artifacts.py --check
+```
+
+The v2 read models are `catalog/generated/entities.json` and
+`catalog/generated/homelab.cdx.json`. Current coverage:
+90 Backstage entities, 80 Homarr entries, 85 Gatus probes and 85 AutoKuma
+monitors. The old Homarr count (143) includes unmigrated v1-only entries;
+do not silently synthesize v2 identities from names to recover that count.
+
+The v1 JSONs remain temporarily for **other** scripts and repositories;
+they are not read by the three updated consumers.
+
 The migration mapping from legacy x-nabla fields to Backstage/Compose/provider
 sources is intentionally retained in
 `docs/service-catalog-v2-normalization.md` as documentation after cutover.

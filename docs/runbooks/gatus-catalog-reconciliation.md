@@ -1,21 +1,21 @@
-# Gatus → catalogue canonique : rapprochement sans mutation (2026-10-17)
+# Réconciliation Gatus ↔ Backstage v2 (20 octobre 2026)
 
-## 20 octobre 2026 — sources v2 pour les consommateurs
+## Autorités déclaratives
 
-Le graphe d'identité et les états déclaratifs sont dans les fichiers Backstage
-`catalog-info.yaml` ; les ports/labels de liaison sont dans Compose. Les
-**85 sondes** sont désormais déclarées une seule fois au **format natif Gatus**
-dans `config/monitoring/gatus-endpoints.yml`, séparé du répertoire
-`apps/gatus/config` monté dans le conteneur (évite tout double chargement).
+- **Backstage** : `catalog/catalog-info.yaml` et `apps/*/catalog-info.yaml` — identité, dépendances, criticité, état `active/planned/disabled`.
+- **Compose** : ports, conteneurs, labels `com.albandrieu.nabla.entity-ref`.
+- **Gatus natif** : `config/monitoring/gatus-endpoints.yml` — cibles HTTP/TCP, intervalles, conditions. Ce fichier **n'est pas monté dans Gatus**, évitant le chargement des sondes en double.
+- **Artefacts générés** : `apps/gatus/config/config.yml`, `apps/autokuma/static/generated-monitors.json` et le manifeste Homarr ; jamais édités manuellement.
+- **Observations** : Gatus `/api/v1/endpoints/statuses`, Prometheus, Docker/TrueNAS ; une sonde négative n'implique pas qu'un service soit DOWN.
 
-`scripts/generate-service-consumers.py` projette ce fichier vers
-`apps/gatus/config/config.yml` et
-`apps/autokuma/static/generated-monitors.json` ; il enrichit les labels
-`nabla_entity_ref` lorsque l'entité Backstage existe. Les labels
-`nabla_service_id` sont temporairement conservés pour les règles Prometheus
-existantes. **Aucun port ouvert ne devient automatiquement une sonde.**
-Le catalogue Backstage v2 est aussi projeté vers `catalog/generated/entities.json`
-et `catalog/generated/homelab.cdx.json`.
+Le générateur conserve les 85 sondes Gatus existantes. Il ajoute l'étiquette
+`nabla_entity_ref` aux sondes dont le service est déjà identifié dans
+Backstage. La métrique `nabla_service_id` reste transitoirement publiée pour
+les règles d'enregistrement Prometheus existantes. Les moniteurs sans entité
+Backstage constituent un chantier d'inventaire, pas un prétexte pour en créer
+une par déduction.
+
+## Génération et vérification locales (sans réseau)
 
 ```bash
 python scripts/generate-service-consumers.py --check
@@ -24,28 +24,19 @@ python -m unittest tests.test_service_consumers_status_contract -v
 python -m pytest -q tests/test_service_consumer_monitor_coverage.py tests/test_reconcile_gatus_catalog.py
 ```
 
-La transition n'exige pas la parité stricte avec les inventaires v1 ;
-les anciens lecteurs FastAPI/site/TrueNAS restent à migrer. Les 85 sondes
-déclarées ne constituent pas une preuve de disponibilité effective.
+Pour ajouter ou modifier une sonde, éditer **uniquement** l'endpoint natif
+dans `config/monitoring/gatus-endpoints.yml`, puis exécuter le générateur.
+Ne pas utiliser `service-consumers.static.yml` pour créer un service ou une
+sonde. Le fichier statique ne conserve que des paramètres d'adaptateurs tels
+que le proxy Docker Homarr.
 
-## Sources et limites
-
-- `catalog/homelab-services.json` : intentions de service historiques ; **pas** un état Docker.
-- `apps/gatus/config/config.yml` : sondes déclarées, `nabla_monitor_id` et `nabla_service_id`.
-- `/api/v1/endpoints/statuses` : preuves de sonde datées, **pas** preuve suffisante d'arrêt applicatif.
-- `x-nabla` / `catalog/service-topology.json` : source déclarative pour la migration v2.
-- TrueNAS Docker / Prometheus : preuves runtime indépendantes à corréler manuellement.
-
-## Exécution read-only
-
-Depuis le checkout `nabla-compose` :
+## Diagnostic runtime (lecture seule)
 
 ```bash
 python3 scripts/truenas/reconcile-gatus-catalog.py \
   --output /tmp/gatus-catalog-declared.json
 
-# Snapshot local facultatif. Ne pas afficher ni committer le JSON brut :
-# il peut contenir des URLs, chemins et informations sensibles.
+# Snapshot privé sans affichage du corps HTTP ni des secrets :
 umask 077
 curl -fsS --max-time 10 http://127.0.0.1:8085/api/v1/endpoints/statuses \
   -o /tmp/gatus-statuses-private.json
@@ -55,41 +46,16 @@ python3 scripts/truenas/reconcile-gatus-catalog.py \
 rm -f /tmp/gatus-statuses-private.json
 ```
 
-Le rapport dérivé n'imprime ni URLs de sondes, ni en-têtes, ni identifiants de connexion. Il indique `probe_failed_unconfirmed` ou `investigate_probe_not_service_down` plutôt que `DOWN`. Un moniteur sans `nabla_service_id` peut représenter une infrastructure légitime : il ne doit pas être créé comme service par déduction.
+Le rapport ne publie pas les URL ni jetons. Il distingue
+`probe_failed_unconfirmed`, `no_recent_evidence`,
+`infrastructure_unmapped` et `unresolved` d'une panne de service.
 
-## Ordre d'investigation et migration
+Priorités de diagnostic : Home Assistant HTTP vs TCP ; exporters
+PostgreSQL/OpenSearch distincts des bases ; Scanopy, NetBox, Graylog,
+Plumber et NPMplus selon état attendu et environnement. Garder
+`nabla:service:synthetic_probe_success` observable pour pfSense,
+PostgreSQL et TrueNAS, sans considérer un label comme preuve de scrape.
 
-1. **Home Assistant** : Docker healthy mais sonde négative ; comparer HTTP/TCP, code attendu, authentification, résolution réseau et port effectif avant toute correction de cible.
-2. **OpenSearch, OpenSearch Security et PostgreSQL** : distinguer état du service, conteneur exporter, job Prometheus, route `/metrics` et statut Gatus. Ne pas dégrader une base healthy parce qu'un exporter est absent.
-3. **Scanopy, SonarQube, NetBox, Graylog, Plumber, NPMplus** : vérifier `expectedRunning` et environnement avant de classer l'absence d'un conteneur ; Plumber peut être hébergé sur la workstation.
-4. **Mapping v2** : enregistrer identifiant stable, unité, criticité opérationnelle et métier, environnement, cible et type de sonde, auth requise (sans secret), dépendances et `monitoringPolicy`. Garder les relations v1 jusqu'à la parité des consommateurs.
-5. **Acceptation** : zéro ID de moniteur dupliqué, chaque service critique attendu dispose d'une preuve runtime et d'une sonde pertinente ; justifier les moniteurs sans service associé, vérifier stabilité Gatus et écarts avant migration.
-
-**Interdits** : ne pas relancer un service sur un simple échec Gatus, ne pas désactiver une sonde pour améliorer artificiellement le score, ne pas publier les URLs privées ni modifier les secrets. Les 85 sondes et le ratio 60/25 sont un snapshot fourni, pas une mesure en temps réel.
-
-## Réconciliation à deux référentiels (PR #257)
-
-Le rapport inclut désormais `mapping_counts`, `mapping_source`, `topology_match` et `unresolved_monitor_ids`. Un composant présent dans `catalog/service-topology.json` est reconnu même s'il est absent du catalogue historique ; aucun service n'est ajouté automatiquement. Les moniteurs sans `nabla_service_id` restent `infrastructure_unmapped` et doivent être examinés, non assimilés à des pannes.
-
-Après synchronisation de la branche :
-
-```bash
-python3 scripts/truenas/reconcile-gatus-catalog.py --output /tmp/gatus-catalog-declared.json
-jq '{declared_monitors, mapping_counts, classification_counts, unresolved_monitor_ids, duplicate_monitor_ids}' /tmp/gatus-catalog-declared.json
-jq '[.monitors[] | select(.mapping_source == "unresolved") | {monitor_id, service_id, probe_type}]' /tmp/gatus-catalog-declared.json
-```
-
-Les anciens chiffres de `needs_service_mapping` ne sont plus directement comparables : le rapprochement utilise désormais les composants de la topologie canonique. Ne pas modifier les identités Gatus avant d'avoir examiné la nouvelle liste `unresolved_monitor_ids`.
-
-
-## 2026-10-20 — Gatus / Prometheus labels for critical services
-
-The Prometheus synthetic-probe recording rules require the explicit
-`nabla_service_id` label. PostgreSQL, pfSense and TrueNAS previously only had
-`nabla_monitor_id`, so their otherwise valid Gatus observations were absent
-from FastAPI's per-service Prometheus aggregation. Their catalog-consistent
-labels are now declared on the three existing monitors (no extra probes).
-Apply the Gatus configuration through the current TrueNAS deployment process,
-then verify Prometheus rule evaluation and each corresponding
-`nabla:service:synthetic_probe_success{nabla_service_id="..."}` series.
-A declared label does **not** prove live scrape or TrueNAS deployment.
+Les 85 sondes déclarées sont un **inventaire Git**, pas une mesure
+de disponibilité réelle. Aucun déploiement TrueNAS ni migration
+des deux autres lecteurs FastAPI/site n'est effectué par la génération.
