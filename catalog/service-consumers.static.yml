@@ -1,47 +1,10 @@
 ---
 version: 1
-# Consumer policy only. Service identity, title and description: Backstage.
+# No service inventory or probe policy here: Backstage + native Gatus YAML.
 defaults:
   host: 172.17.0.24
-  interval: 60s
 homarr:
   docker:
     hostname: docker-socket-proxy
     port: 2375
     network: intranet
-  overrides:
-    - id: pihole
-      url: http://172.17.0.24:20720/admin/
-    - id: ntopng
-      url: http://172.17.0.24:3000
-monitoring:
-  overrides:
-    - entityRef: resource:default/docker
-      type: port
-      host: docker-socket-proxy
-      port: 2375
-    - entityRef: resource:default/pfsense
-      type: port
-      host: 172.17.0.1
-      port: 10443
-    - entityRef: resource:default/truenas
-      type: port
-      host: 172.17.0.24
-      port: 7000
-    - entityRef: resource:default/postgresql
-      type: port
-      host: 172.17.0.24
-      port: 5432
-    - entityRef: component:default/ntopng
-      type: port
-      host: 172.17.0.24
-      port: 3000
-    - entityRef: component:default/homeassistant
-      type: http
-      target: https://homeassistant.albanandrieu.com
-      conditions:
-        - "[STATUS] >= 200"
-        - "[STATUS] < 400"
-    - entityRef: resource:default/pihole
-      type: http
-      target: http://172.17.0.24:20720/admin/

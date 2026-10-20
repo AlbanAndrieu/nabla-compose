@@ -100,10 +100,10 @@ def test_critical_monitor_ids_come_from_backstage_refs():
     import yaml
 
     root = Path(__file__).resolve().parents[1]
-    static = yaml.safe_load((root / "catalog/service-consumers.static.yml").read_text())
-    overrides = {
-        entry["entityRef"].split("/")[-1]: entry
-        for entry in static["monitoring"]["overrides"]
+    source = yaml.safe_load((root / "config/monitoring/gatus-endpoints.yml").read_text())
+    monitors = {
+        endpoint["extra-labels"]["nabla_monitor_id"]: endpoint
+        for endpoint in source["endpoints"]
     }
     for service_id in ("pfsense", "postgresql", "truenas"):
-        assert overrides[service_id]["entityRef"] == f"resource:default/{service_id}"
+        assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id

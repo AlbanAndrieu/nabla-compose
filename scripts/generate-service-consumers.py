@@ -22,6 +22,7 @@ from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
 ROOT = SCRIPTS_DIR.parent
 STATIC_CONFIG = ROOT / "catalog" / "service-consumers.static.yml"
+GATUS_DECLARED = ROOT / "config" / "monitoring" / "gatus-endpoints.yml"
 HOMARR_OUTPUT = ROOT / "apps" / "homarr" / "generated" / "apps.json"
 GATUS_OUTPUT = ROOT / "apps" / "gatus" / "config" / "config.yml"
 AUTOKUMA_OUTPUT = ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
@@ -502,6 +503,72 @@ def declared_entity_active(entity: dict[str, Any]) -> bool:
     return labels.get("albandrieu.com/operational-state", "active") == "active"
 
 
+def native_gatus_monitors(
+    entities: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Gatus YAML is the authority for probe semantics, Backstage for identity."""
+    payload = yaml.safe_load(GATUS_DECLARED.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("endpoints"), list):
+        fail("config/monitoring/gatus-endpoints.yml requires an endpoints array")
+    by_id = {
+        str(entity["metadata"]["name"]): entity
+        for entity in entities.values()
+        if entity.get("kind") in {"Component", "Resource", "API"}
+    }
+    seen: set[str] = set()
+    monitors: list[dict[str, Any]] = []
+    for source in payload["endpoints"]:
+        if not isinstance(source, dict):
+            fail("Gatus endpoints must be mappings")
+        endpoint = dict(source)
+        labels = dict(endpoint.get("extra-labels") or {})
+        monitor_id = concrete_text(labels.get("nabla_monitor_id"))
+        if not monitor_id:
+            fail("Gatus endpoint requires extra-labels.nabla_monitor_id")
+        if monitor_id in seen:
+            fail(f"duplicate Gatus monitor identifier {monitor_id}")
+        seen.add(monitor_id)
+        service_id = concrete_text(labels.get("nabla_service_id"))
+        entity = by_id.get(service_id) if service_id else None
+        if entity and not declared_entity_active(entity):
+            continue
+        if entity:
+            labels["nabla_entity_ref"] = entity["entityRef"]
+        endpoint["extra-labels"] = labels
+        url = concrete_text(endpoint.get("url"))
+        name = concrete_text(endpoint.get("name"))
+        group = concrete_text(endpoint.get("group"))
+        interval = concrete_text(endpoint.get("interval"))
+        if not all((url, name, group, interval)):
+            fail(f"Gatus endpoint {monitor_id} missing url/name/group/interval")
+        monitor: dict[str, Any] = {
+            "id": monitor_id,
+            "name": name,
+            "group": group,
+            "interval": interval,
+            "gatus_endpoint": endpoint,
+        }
+        if service_id:
+            monitor["service_id"] = service_id
+        if url.startswith(("http://", "https://")):
+            monitor.update({"type": "http", "url": url})
+        elif url.startswith("tcp://"):
+            parsed = parse_port_target(url)
+            if not parsed:
+                fail(f"Gatus endpoint {monitor_id}: invalid TCP URL")
+            monitor.update({"type": "port", "host": parsed[0], "port": parsed[1]})
+        elif url.startswith("icmp://"):
+            monitor.update({"type": "ping", "host": url.removeprefix("icmp://")})
+        else:
+            fail(f"Gatus endpoint {monitor_id}: unsupported AutoKuma URL scheme")
+        if entity:
+            description = concrete_text(entity["metadata"].get("description"))
+            if description:
+                monitor["description"] = description
+        monitors.append(monitor)
+    return sorted(monitors, key=lambda item: item["id"])
+
+
 def collect_services(
     static: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -561,15 +628,6 @@ def collect_services(
             if previous and previous.get("entityRef") != entry["entityRef"]:
                 fail(f"duplicate Homarr id {service_id!r}")
             homarr_apps[service_id] = entry
-            if declared_entity_active(entity):
-                # Portable generic probes only: service-specific probe policy lives
-                # in consumer monitoring overrides, never in identity metadata.
-                monitor = fallback_monitor(
-                    service_id, name, category, description, host, ports, default_interval
-                )
-                if monitor:
-                    monitor["service_id"] = service_id
-                    monitors[service_id] = monitor
 
     # Non-Compose entities (pfSense/TrueNAS/Docker) are projected from their
     # Backstage standard links, without re-declaring identity in a static list.
@@ -594,26 +652,9 @@ def collect_services(
             entry["description"] = description
         homarr_apps[service_id] = entry
 
-    # Override *probe behavior* only, never the service identity/description.
-    for override in (static.get("monitoring") or {}).get("overrides", []):
-        if not isinstance(override, dict):
-            continue
-        ref = concrete_text(override.get("entityRef"))
-        if not ref:
-            fail("monitoring override requires entityRef")
-        entity = entities.get(ref.lower())
-        if entity is None:
-            fail(f"monitoring override refers to missing Backstage entity {ref}")
-        if not declared_entity_active(entity):
-            continue
-        service_id = str(entity["metadata"]["name"])
-        name, category, description, _, _ = entity_metadata(entity)
-        monitor = monitor_from_metadata(
-            service_id, name, category, description, override, default_interval
-        )
-        if monitor:
-            monitor["service_id"] = service_id
-            monitors[service_id] = monitor
+    # Gatus native endpoint YAML owns the probe target and conditions.
+    # AutoKuma projects those same probe targets; no parallel monitoring inventory.
+    monitors = {item["id"]: item for item in native_gatus_monitors(entities)}
     apply_homarr_static(homarr_apps, static)
     return (
         [homarr_apps[key] for key in sorted(homarr_apps)],
@@ -645,40 +686,11 @@ def homarr_payload(
 
 
 def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
-    endpoints: list[dict[str, Any]] = []
-    for monitor in monitors:
-        endpoint: dict[str, Any] = {
-            "name": monitor["name"],
-            "group": monitor["group"],
-            "interval": monitor["interval"],
-            "extra-labels": {
-                "nabla_monitor_id": monitor["id"],
-                **(
-                    {"nabla_service_id": monitor["service_id"]}
-                    if monitor.get("service_id")
-                    else {}
-                ),
-            },
-        }
-        if monitor["type"] == "http":
-            endpoint["url"] = monitor["url"]
-            endpoint["conditions"] = monitor.get(
-                "conditions",
-                ["[STATUS] >= 200", "[STATUS] < 400"],
-            )
-        elif monitor["type"] == "port":
-            endpoint["url"] = f"tcp://{monitor['host']}:{monitor['port']}"
-            endpoint["conditions"] = ["[CONNECTED] == true"]
-        elif monitor["type"] == "ping":
-            endpoint["url"] = f"icmp://{monitor['host']}"
-            endpoint["conditions"] = ["[CONNECTED] == true"]
-        else:
-            continue
-        endpoints.append(endpoint)
+    # Preserve Gatus-native conditions, intervals and custom endpoint settings.
     return {
         "metrics": True,
         "storage": {"type": "sqlite", "path": "/data/gatus.db"},
-        "endpoints": endpoints,
+        "endpoints": [monitor["gatus_endpoint"] for monitor in monitors],
     }
 
 

@@ -105,10 +105,32 @@ class ServiceConsumerArchiveContractTests(unittest.TestCase):
                   implicit-duplicate:
                     ports: ["8080:8080"]
                 """).lstrip(), encoding="utf-8")
+            monitoring = root / "config" / "monitoring"
+            monitoring.mkdir(parents=True)
+            (monitoring / "gatus-endpoints.yml").write_text(textwrap.dedent(
+                """
+                endpoints:
+                  - name: Doco-CD
+                    group: operations
+                    interval: 60s
+                    url: tcp://172.17.0.24:9120
+                    conditions: ["[CONNECTED] == true"]
+                    extra-labels:
+                      nabla_monitor_id: doco-cd
+                      nabla_service_id: doco-cd
+                  - name: Future
+                    group: test
+                    interval: 60s
+                    url: tcp://172.17.0.24:9999
+                    extra-labels:
+                      nabla_monitor_id: future
+                      nabla_service_id: future
+                """).lstrip(), encoding="utf-8")
             with patch.object(consumers, "ROOT", root):
-                apps, monitors = consumers.collect_services({
-                    "defaults": {"host": "172.17.0.24", "interval": "60s"}
-                })
+                with patch.object(consumers, "GATUS_DECLARED", monitoring / "gatus-endpoints.yml"):
+                    apps, monitors = consumers.collect_services({
+                        "defaults": {"host": "172.17.0.24", "interval": "60s"}
+                    })
 
         apps_by_id = {item["id"]: item for item in apps}
         monitors_by_id = {item["id"]: item for item in monitors}
