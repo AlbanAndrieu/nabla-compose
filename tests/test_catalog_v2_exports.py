@@ -79,9 +79,9 @@ spec:
             files = self._fixture(Path(tmp))
             with files[0].open("a", encoding="utf-8") as stream:
                 stream.write(
-                    "\\n---\\napiVersion: backstage.io/v1alpha1\\n"
-                    "kind: System\\nmetadata:\\n  name: homelab\\n"
-                    "spec:\\n  owner: group:default/nabla-platform\\n"
+                    "\n---\napiVersion: backstage.io/v1alpha1\n"
+                    "kind: System\nmetadata:\n  name: homelab\n"
+                    "spec:\n  owner: group:default/nabla-platform\n"
                 )
             entities = load_backstage_entities(files)
         cdx = cyclonedx_projection(entities)
