@@ -50,3 +50,22 @@ def test_key_bootstrap_never_follows_authenticated_redirects():
     assert "build_opener(NoRedirect()).open" in src
     assert "return None" in src
     assert "urlopen(request" not in src
+
+
+def test_litellm_secret_item_is_consolidated_and_runtime_is_authoritative():
+    manifest = json.loads((ROOT / "config/secrets/manifest.json").read_text(encoding="utf-8"))
+    spec = next(item for item in manifest["items"] if item["app"] == "litellm")
+    assert spec["item"] == "nabla/prod/litellm"
+    expected = {
+        "LITELLM_MASTER_KEY", "LITELLM_SALT_KEY",
+        "LITELLM_FASTAPI_WORKSTATION_API_KEY", "LITELLM_IDE_API_KEY",
+        "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "REDIS_URL",
+        "UI_USERNAME", "UI_PASSWORD",
+    }
+    assert expected.issubset({field["env"] for field in spec["secrets"]})
+    compose = (ROOT / "apps/litellm/compose.yml").read_text(encoding="utf-8")
+    assert "/mnt/cpool/secrets/runtime/litellm/.env.secrets" in compose
+    assert "required: false" not in compose
+    assert "      - .env\n" not in compose
+    assert "LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}" not in compose
+    assert "LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}" not in compose
