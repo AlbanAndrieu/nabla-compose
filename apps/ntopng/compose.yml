@@ -1,13 +1,15 @@
 ---
 secrets:
   ntopng_runtime_env:
-    file: /mnt/cpool/ntopng/.env.secrets
+    file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets
 
 services:
   ntopng:
     image: ntop/ntopng:latest
     container_name: ntopng
     restart: unless-stopped
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/ntopng
     x-nabla:
       id: ntopng
       name: ntopng

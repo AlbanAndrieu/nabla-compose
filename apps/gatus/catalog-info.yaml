@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: gatus
+  title: Gatus
+  description: Declarative endpoint and status monitoring for the Nabla homelab.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - observability
+  links:
+    - url: http://172.17.0.24:8085
+      title: Monitoring
+spec:
+  type: status-monitor
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
