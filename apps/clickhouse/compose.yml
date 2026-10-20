@@ -2,6 +2,8 @@
 services:
   clickhouse:
     image: docker.io/clickhouse/clickhouse-server:26.8.2.7
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/clickhouse
     x-nabla:
       id: clickhouse
       name: ClickHouse

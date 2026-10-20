@@ -1,0 +1,92 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: akvorado
+  title: Akvorado Network Flow Analytics
+  description: Planned IPFIX/NetFlow ingestion and flow analytics pipeline.
+spec:
+  owner: group:default/nabla-platform
+  domain: domain:default/nabla
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-orchestrator
+  title: Akvorado Orchestrator
+  description: Planned control plane for Akvorado flow processing.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - observability
+    - network
+spec:
+  type: network-flow-controller
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/akvorado
+  dependsOn:
+    - resource:default/kafka
+    - resource:default/clickhouse
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-inlet
+  title: Akvorado Inlet
+  description: Planned NetFlow/IPFIX UDP receiver publishing flows to Kafka.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - observability
+    - network
+spec:
+  type: network-flow-collector
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/akvorado
+  dependsOn:
+    - resource:default/kafka
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-outlet
+  title: Akvorado Outlet
+  description: Planned flow processing and ClickHouse persistence.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - observability
+    - network
+spec:
+  type: network-flow-processor
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/akvorado
+  dependsOn:
+    - resource:default/kafka
+    - resource:default/clickhouse
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-console
+  title: Akvorado Console
+  description: Planned web explorer for network flow history.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
+  tags:
+    - observability
+    - network
+spec:
+  type: network-observability
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/akvorado
+  dependsOn:
+    - resource:default/clickhouse

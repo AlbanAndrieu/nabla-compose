@@ -10,6 +10,8 @@ x-akvorado-service: &akvorado-service
 services:
   akvorado-orchestrator:
     <<: *akvorado-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/akvorado-orchestrator
     x-nabla:
       id: akvorado-orchestrator
       name: Akvorado Orchestrator
@@ -42,6 +44,8 @@ services:
     command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
   akvorado-inlet:
     <<: *akvorado-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/akvorado-inlet
     x-nabla:
       id: akvorado-inlet
       name: Akvorado Inlet
@@ -77,6 +81,8 @@ services:
         condition: service_healthy
   akvorado-outlet:
     <<: *akvorado-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/akvorado-outlet
     x-nabla:
       id: akvorado-outlet
       name: Akvorado Outlet
@@ -123,6 +129,8 @@ services:
       AKVORADO_CFG_OUTLET_FLOW_STATEPERSISTFILE: /run/akvorado/flow.state
   akvorado-console:
     <<: *akvorado-service
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/akvorado-console
     x-nabla:
       id: akvorado-console
       name: Akvorado

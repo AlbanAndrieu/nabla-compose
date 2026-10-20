@@ -452,7 +452,7 @@ def collect_services(
                 "composeService": str(raw_service_name),
                 "dockerManaged": True,
                 "href": href,
-                "syncEligible": bool(href),
+                "syncEligible": bool(href) and declared_entity_active(entity),
             }
             if description:
                 entry["description"] = description
@@ -478,7 +478,7 @@ def collect_services(
             "composeService": None,
             "dockerManaged": False,
             "href": href,
-            "syncEligible": True,
+            "syncEligible": declared_entity_active(entity),
         }
         if description:
             entry["description"] = description
