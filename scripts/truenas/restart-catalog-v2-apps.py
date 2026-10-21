@@ -139,6 +139,14 @@ def make_plan(
         if row["app"] in deferred and row["vaultwardenManifest"]
         and row["runtimeSecretFile"] != "present"
     )
+    entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
+               for row in canonical_plan[phase]}
+    gatus_entry = entries.get("gatus")
+    blocked_deferred = sorted(row["app"] for row in canonical_plan["blocked"]
+                              if row["app"] in deferred)
+    declared_deferred = sorted(app for app in delayed
+                               if {"planned", "disabled"} & set(
+                                   entries.get(app, {}).get("declaredStates", [])))
     unmapped = sorted({
         row["app"] for phase in ("waveRunning", "waveOther")
         for row in canonical_plan[phase] if not row["entityRefs"]
@@ -150,6 +158,11 @@ def make_plan(
         "states": states,
         "coreRestartOrder": core,
         "nonBlockingGatus": gatus,
+        "gatusBlocked": bool(gatus_entry and gatus_entry.get("blockers")),
+        "gatusMissingSecret": bool(gatus_entry and gatus_entry["vaultwardenManifest"]
+                                   and gatus_entry["runtimeSecretFile"] != "present"),
+        "blockedDeferredApps": blocked_deferred,
+        "plannedOrDisabledDeferred": declared_deferred,
         "deferredLast": delayed,
         "runningDeferredExcluded": accidentally_running_deferred,
         "missingRunningSecrets": secret_blockers,
@@ -168,6 +181,26 @@ def make_plan(
     fingerprint = json.dumps(report, sort_keys=True, separators=(",", ":"))
     report["planHash"] = hashlib.sha256(fingerprint.encode()).hexdigest()
     return report
+
+
+def validate_wave(report: dict, wave: str) -> None:
+    """Fail closed for the selected wave, without restarting unrelated workloads."""
+    if wave == "core":
+        if report["blockedApps"] or report["missingRunningSecrets"]:
+            raise RuntimeError("core blocked: unresolved mapping or runtime secrets")
+        if report["runningDeferredExcluded"]:
+            raise RuntimeError("running deferred Apps require manual classification")
+    elif wave == "gatus":
+        if report["states"].get("gatus") not in ("RUNNING", "STOPPED"):
+            raise RuntimeError("Gatus must be present and RUNNING or STOPPED")
+        if report["gatusBlocked"] or report["gatusMissingSecret"]:
+            raise RuntimeError("Gatus blocked: unresolved mapping or runtime secrets")
+    elif wave == "deferred":
+        if (report["missingDeferredSecrets"] or report["blockedDeferredApps"]
+                or report["plannedOrDisabledDeferred"] or report["runningDeferredExcluded"]):
+            raise RuntimeError("deferred wave blocked: reconcile states, mappings and secrets")
+    else:
+        raise ValueError("unknown wave")
 
 
 def middleware_action(action: str, app: str, timeout: int = 900) -> None:
@@ -240,10 +273,11 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="private plan JSON (0600)")
     parser.add_argument("--expected-plan-hash", help="from the most recent --check")
     parser.add_argument("--acknowledge-downtime", help=f"type {ACK} exactly")
-    parser.add_argument("--include-gatus", action="store_true",
-                        help="attempt Gatus separately; never block other waves")
-    parser.add_argument("--include-deferred", action="store_true",
-                        help="start STOPPED non-essential apps after core")
+    waves = parser.add_mutually_exclusive_group()
+    waves.add_argument("--include-gatus", action="store_true",
+                       help="select ONLY Gatus (does not restart core)")
+    waves.add_argument("--include-deferred", action="store_true",
+                       help="select ONLY STOPPED optional Apps (does not restart core)")
     args = parser.parse_args()
     if args.apply and (os.geteuid() != 0 or args.apps_json is not None):
         parser.error("--apply needs root and fresh live app.query")
@@ -253,8 +287,7 @@ def main() -> int:
         or not re.fullmatch("[a-f0-9]{64}", args.expected_plan_hash)
     ):
         parser.error("--apply requires exact acknowledgement and --expected-plan-hash")
-    if not args.apply and (args.include_gatus or args.include_deferred):
-        parser.error("wave opt-ins only apply with --apply")
+    wave = "gatus" if args.include_gatus else "deferred" if args.include_deferred else "core"
 
     apps = read_json(args.apps_json) if args.apps_json else query_apps()
     report = make_plan(
@@ -271,6 +304,7 @@ def main() -> int:
     print(json.dumps({
         "catalogRevision": report["catalogRevision"],
         "planHash": report["planHash"],
+        "selectedWave": wave,
         "counts": report["counts"],
         "missingRunningSecrets": report["missingRunningSecrets"],
         "nonBlockingGatus": report["nonBlockingGatus"],
@@ -282,26 +316,14 @@ def main() -> int:
         return 0
     if report["planHash"] != args.expected_plan_hash:
         raise RuntimeError("plan changed since --check; re-run --check")
-    if report["blockedApps"] or report["missingRunningSecrets"]:
-        raise RuntimeError("core restart preflight blocked: unresolved dependencies or missing runtime secret files")
-    if report["runningDeferredExcluded"]:
-        raise RuntimeError("deferred App already RUNNING; inspect and classify before restart")
-    if args.include_deferred and report["missingDeferredSecrets"]:
-        raise RuntimeError("deferred-wave runtime secrets missing; do not start")
-    if args.include_deferred:
-        reference = {row["app"]: row for row in runpy.run_path(str(PLANNER))["plan"](
-            read_json(CATALOG_FILE), read_json(IDENTITY_FILE),
-            read_json(SECRETS_FILE), apps, Path("/"))["waveOther"]}
-        if any("disabled" in reference.get(app, {}).get("declaredStates", [])
-               or "planned" in reference.get(app, {}).get("declaredStates", [])
-               for app in report["deferredLast"]):
-            raise RuntimeError("deferred Apps include planned/disabled workloads")
+    validate_wave(report, wave)
 
     AUDIT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(AUDIT_DIR, 0o700)
-    journal = AUDIT_DIR / f"catalog-v2-{int(time.time())}-{report['planHash'][:12]}.jsonl"
+    journal = AUDIT_DIR / f"catalog-v2-{wave}-{int(time.time())}-{report['planHash'][:12]}.jsonl"
     with journal.open("x", encoding="utf-8") as audit:
         os.chmod(journal, 0o600)
+        failures: list[str] = []
 
         def execute(action: str, app: str, nonblocking: bool = False) -> None:
             entry = {"app": app, "action": action, "success": False}
@@ -312,6 +334,7 @@ def main() -> int:
                     start_one(app)
                 entry["success"] = True
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as exc:
+                failures.append(app)
                 entry["errorType"] = type(exc).__name__
                 print(f"FAIL {app}: {type(exc).__name__}; review TrueNAS and {journal}", file=sys.stderr)
                 if not nonblocking:
@@ -321,12 +344,13 @@ def main() -> int:
                 audit.flush()
 
         try:
-            for app in report["coreRestartOrder"]:
-                execute("restart", app)
-            if args.include_gatus and "gatus" in report["nonBlockingGatus"]:
+            if wave == "core":
+                for app in report["coreRestartOrder"]:
+                    execute("restart", app)
+            elif wave == "gatus":
                 execute("start" if report["states"]["gatus"] == "STOPPED" else "restart",
                         "gatus", nonblocking=True)
-            if args.include_deferred:
+            else:
                 for app in report["deferredLast"]:
                     if report["states"][app] == "STOPPED":
                         execute("start", app, nonblocking=True)
@@ -334,6 +358,10 @@ def main() -> int:
                         print(f"SKIP deferred {app}: state={report['states'][app]}")
         finally:
             print(f"Audit metadata only: {journal}", flush=True)
+        if failures:
+            print(f"FAIL: {len(failures)} App action(s) failed in {wave} wave",
+                  file=sys.stderr)
+            return 1
     return 0
 
 
