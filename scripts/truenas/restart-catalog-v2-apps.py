@@ -68,6 +68,8 @@ def query_apps() -> list[dict]:
 def state_by_app(apps: list[dict]) -> dict[str, str]:
     result: dict[str, str] = {}
     for row in apps:
+        if row.get("id") and row.get("name") and row["id"] != row["name"]:
+            raise ValueError("TrueNAS App id/name mismatch: reconcile before restart")
         name = row.get("id") or row.get("name")
         if not isinstance(name, str) or not APP_NAME.fullmatch(name):
             raise ValueError("TrueNAS app.query returned an invalid App ID")
@@ -311,6 +313,11 @@ def main() -> int:
         "counts": report["counts"],
         "missingRunningSecrets": report["missingRunningSecrets"],
         "nonBlockingGatus": report["nonBlockingGatus"],
+        "gatusBlocked": report["gatusBlocked"],
+        "gatusMissingSecret": report["gatusMissingSecret"],
+        "blockedCoreApps": report["blockedCoreApps"],
+        "blockedDeferredApps": report["blockedDeferredApps"],
+        "plannedOrDisabledDeferred": report["plannedOrDisabledDeferred"],
         "runningDeferredExcluded": report["runningDeferredExcluded"],
         "deferredLast": report["deferredLast"],
     }, indent=2), flush=True)
@@ -324,8 +331,11 @@ def main() -> int:
     AUDIT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(AUDIT_DIR, 0o700)
     journal = AUDIT_DIR / f"catalog-v2-{wave}-{time.time_ns()}-{report['planHash'][:12]}.jsonl"
-    with journal.open("x", encoding="utf-8") as audit:
-        os.chmod(journal, 0o600)
+    # Create 0600 from the first instant, not after a brief default-umask window.
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    journal_fd = os.open(journal, flags, 0o600)
+    with os.fdopen(journal_fd, "w", encoding="utf-8") as audit:
+        os.fchmod(audit.fileno(), 0o600)
         failures: list[str] = []
 
         def execute(action: str, app: str, nonblocking: bool = False) -> None:
