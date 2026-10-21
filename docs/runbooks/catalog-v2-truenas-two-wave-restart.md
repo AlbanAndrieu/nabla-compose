@@ -1,53 +1,86 @@
-# Catalog v2 — préparation TrueNAS en deux vagues
+# TrueNAS / Catalog v2 — redémarrage par vagues et garde-fous
 
-**Lecture seule : aucune application n'est redémarrée par ce plan.**
+Diagnostic capturé le **21 octobre 2026** (hors production Git) :
+67 Apps RUNNING, 32 STOPPED, 45 Apps sans mapping Backstage direct,
+13 matérialisations runtime de secrets manquantes parmi les RUNNING.
+Ces chiffres sont des observations historiques, **pas des vérités GitOps**.
 
-L'identité est tirée de Backstage, le binding Compose/Gatus du fichier **généré**
-`catalog/generated/identity-map.json`. L'état RUNNING vient uniquement d'un
-snapshot récent `midclt call app.query`, jamais de labels ou de Git.
-Les identités non mappées sont visibles, pas inventées.
+## Ordre unique (source : config/truenas/restore-optional-apps.txt)
 
-## Capturer l'état du TrueNAS (opérateur)
+1. **Core RUNNING** : les Apps réellement RUNNING sont redémarrées **une à une**
+   et non toutes arrêtées d'un coup. L'ordre est topologique pour les
+   dépendances Backstage résolues, avec priorités stables des fondations.
+2. **Gatus isolé** : Gatus n'est **pas** dans les Apps optionnelles et
+   son échec ne bloque **jamais** le core ni les Apps différées. L'activation
+   nécessite `--include-gatus` explicite.
+3. **Dernière vague** : les 31 Apps non essentielles STOPPED du snapshot
+   utilisateur et les autres App IDs déjà déclarés optionnels sont
+   uniquement lancés avec `--include-deferred`. Les Apps
+   `planned`/`disabled` connues bloquent cette action.
+   Aucune App STOPPED n'est implicitement redémarrée.
 
-Sur TrueNAS :
+L'ancien `restore-app-set.sh` réutilise le même fichier d'Apps
+optionnelles et les exclut par défaut. Ce script continue de restaurer
+des Apps STOPPED, il **ne sait pas redémarrer** des Apps RUNNING ; le
+nouvel orchestrateur ci-dessous remplit ce besoin spécifique.
+
+## Préparation (lecture seule sur TrueNAS)
 
 ```bash
-umask 077
-sudo midclt call app.query > /tmp/nabla-truenas-app-query.json
-python3 scripts/truenas/plan-catalog-v2-restart.py \
-  --apps-json /tmp/nabla-truenas-app-query.json \
-  --runtime-root / \
-  --output /tmp/nabla-catalog-v2-restart-plan.json
+cd /mnt/cpool/compose/nabla-compose
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check \
+  --output /tmp/nabla-v2-restart-preflight.json
+sudo jq '{planHash,counts,missingRunningSecrets,nonBlockingGatus,
+          runningDeferredExcluded,deferredLast}' /tmp/nabla-v2-restart-preflight.json
 ```
 
-Le résultat contient **waveRunning** (services actuellement RUNNING),
-**waveOther** (STOPPED/CRASHED/UNKNOWN, à traiter ensuite) et **blocked**.
-Aucune modification d'état n'est effectuée. Les valeurs de secrets et le
-`BW_SESSION` ne sont jamais lus. Le champ `vaultwardenItemVerified=false`
-signifie qu'un item du manifeste n'a **pas** été vérifié réellement dans
-Vaultwarden ; un fichier présent sur disque ne prouve pas que ses clés sont
-à jour ni utilisables.
+`planHash` identifie **les états de tous les TrueNAS Apps**, la révision
+du catalogue et l'état de disponibilité des secrets ; il change dès qu'une
+App change d'état. `--apply` recalcule depuis `app.query` pour éviter
+une exécution sur snapshot périmé.
 
-## Ordonnancement avant toute relance réelle
+### Blocages attendus actuellement
 
-1. Relever les applications `RUNNING` juste avant l'intervention et figer la
-   liste : elles forment **la première vague**, prioritaire pour l'exploitation.
-2. Dans cette vague, respecter `spec.dependsOn` Backstage, puis
-   `depends_on` Compose pour l'ordre au sein d'un projet. Une ressource
-   PostgreSQL/Kafka/ClickHouse ne doit pas être réinitialisée parce qu'un
-   consommateur la mentionne. Identifier les dépendances manquantes.
-3. Pour les applications dotées d'un item dans `config/secrets/manifest.json`,
-   exécuter sous **compte non-root** `scripts/secrets/materialize_runtime.py
-   --app <id> --verify`, puis confirmer les permissions (0600) et que les
-   variables requises sont disponibles sans afficher leurs valeurs.
-4. Vérifier après chaque application les états `app.query`, le healthcheck
-   Docker, Gatus/Prometheus si disponibles et les journaux applicatifs
-   expurgés. Une sonde négative seule ne prouve pas que le service est DOWN.
-5. **Deuxième vague** : traiter les applications qui n'étaient pas RUNNING
-   séparément, y compris `planned`, `disabled` et `CRASHED`. Ne pas
-   démarrer aveuglément les profils manuels ni les services intentionnellement
-   désactivés ; leur activation nécessite un changement explicite d'intention.
+- 13 secrets runtime manquants sur des RUNNING : **aucune mutation tant
+  qu'ils sont absents**. Vérifier chaque App contre
+  `config/secrets/manifest.json` depuis un compte utilisateur déverrouillé :
+  `python3 scripts/secrets/materialize_runtime.py --app <id> --verify`.
+  `--verify` compare seulement avec l'état runtime et peut échouer si
+  celui-ci n'est pas matérialisé. Ne jamais logger `BW_SESSION` ni le
+  contenu secret.
+- 45 Apps sans mapping : rapport de couverture incomplet, **pas**
+  automatiquement une panne. Les liens Backstage/Compose ne doivent
+  jamais être inventés par simple correspondance de noms.
+- Gatus redémarre en boucle, métadonnées observées : permissions
+  config/dataset à diagnostiquer avant `--include-gatus`.
+- FastAPI TrueNAS `127.0.0.1:8091/api/site/catalog/v2` répond 404,
+  FastAPI Cloud renvoie 401 sans clé (attendu) : ce sont des déploiements
+  différents ; ne pas traiter 404/401 comme un DOWN de la plateforme.
 
-Aucune dépendance Catalog v1 n'est introduite dans ce plan. Ce n'est pas un
-script de redémarrage : l'activation doit passer par les contrôleurs et
-scripts TrueNAS existants après résolution des dépendances et des secrets.
+## Exécution sensible : ne faire qu'après validation des secrets
+
+```bash
+HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
+  --expected-plan-hash "$HASH" \
+  --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
+```
+
+Ceci occasionne de vraies interruptions. **Ne pas exécuter actuellement** :
+les 13 secrets manquent. Le préflight refusera sans arrêt d'Apps.
+L'exécution garantit seulement un arrêt/démarrage de chaque App dans son
+périmètre et l'exécution du health gate Docker existant : cela ne garantit
+ni l'accès métier de bout en bout, ni Vaultwarden, ni les sondes réseau.
+
+Une fois le core accepté, Gatus et la vague différée se déclenchent
+**séparément**, avec les mêmes confirmations, en ayant vérifié
+l'état réel des Apps : `--include-gatus` / `--include-deferred`.
+Toute erreur core arrête immédiatement la progression : ne pas
+redémarrer des autres Apps aveuglément. Le journal JSONL sous
+`/mnt/cpool/var/nabla/restart` enregistre les actions et résultats,
+sans variables d'environnement ni contenu de secrets.
+
+**Contraintes :** root requis pour `--apply`, snapshot figé par
+`planHash`, listes d'App ID exactes, `app.stop` et `app.start`
+via TrueNAS middleware uniquement. Aucun usage `apt`, aucun
+redémarrage du TrueNAS hôte, aucun stockage de mot de passe.
