@@ -616,3 +616,50 @@ def test_core_critical_apps_cannot_be_in_optional_list(tmp_path):
         names.write_text(app + "\n", encoding="utf-8")
         with pytest.raises(ValueError, match="critical infrastructure"):
             ops["load_deferred"](names)
+
+
+def test_deferred_wave_stops_after_first_failed_app(monkeypatch, tmp_path):
+    """No dependent/next optional application may start after a failure."""
+    import hashlib
+    import sys
+
+    globals_ = ops["main"].__globals__
+    observed = []
+    fake = {
+        "planHash": "a" * 64, "catalogRevision": "sha256:fixture",
+        "counts": {}, "states": {"first": "STOPPED", "second": "STOPPED"},
+        "coreRestartOrder": [], "nonBlockingGatus": [],
+        "deferredLast": ["first", "second"],
+        "deferredStartOrder": ["first", "second"],
+        "deferredDependencyBlockers": [],
+        "runningDeferredExcluded": [], "missingRunningSecrets": [],
+        "unverifiedRunningSecrets": [], "missingDeferredSecrets": [],
+        "unverifiedDeferredSecrets": [], "blockedCoreApps": [],
+        "blockedDeferredApps": [], "plannedOrDisabledDeferred": [],
+        "declaredCoreInactive": [], "gatusBlocked": False,
+        "gatusMissingSecret": False, "gatusSecretUnverified": False,
+        "gatusDeclaredInactive": False,
+    }
+    def start(app):
+        observed.append(app)
+        if app == "first":
+            raise RuntimeError("health gate failure")
+    monkeypatch.setitem(globals_, "AUDIT_DIR", tmp_path)
+    monkeypatch.setitem(globals_, "query_apps", lambda: [])
+    monkeypatch.setitem(globals_, "read_json", lambda _: {})
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: fake.copy())
+    monkeypatch.setitem(globals_, "start_one", start)
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    expected = hashlib.sha256(("a" * 64 + ":deferred").encode()).hexdigest()
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--apply", "--include-deferred",
+        "--expected-plan-hash", expected,
+        "--acknowledge-downtime", ops["ACK"],
+    ])
+    with pytest.raises(RuntimeError, match="health gate failure"):
+        ops["main"]()
+    assert observed == ["first"]
+    audit = list(tmp_path.glob("catalog-v2-deferred-*.jsonl"))
+    assert len(audit) == 1
+    assert '"success": false' in audit[0].read_text(encoding="utf-8")
