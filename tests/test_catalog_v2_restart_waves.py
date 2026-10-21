@@ -457,3 +457,50 @@ def test_runbook_shell_examples_compile_without_execution():
             check=False, timeout=5,
         )
         assert result.returncode == 0, result.stderr
+
+
+def test_hash_requires_valid_input_and_separates_all_waves():
+    source = "a" * 64
+    hashes = {ops["confirmation_hash"](source, wave)
+              for wave in ("core", "gatus", "deferred")}
+    assert len(hashes) == 3
+    assert all(len(item) == 64 for item in hashes)
+    with pytest.raises(ValueError, match="invalid planHash"):
+        ops["confirmation_hash"]("not-a-sha256", "core")
+    with pytest.raises(ValueError, match="unknown restart wave"):
+        ops["confirmation_hash"](source, "unknown")
+
+
+def test_offline_snapshot_is_never_ready_even_without_secret_manifest(
+    monkeypatch, tmp_path, capsys,
+):
+    import json
+    import sys
+
+    snapshot = tmp_path / "apps.json"
+    snapshot.write_text("[]", encoding="utf-8")
+    globals_ = ops["main"].__globals__
+    mock = {
+        "planHash": "e" * 64, "catalogRevision": "sha256:test",
+        "counts": {}, "states": {}, "coreRestartOrder": [],
+        "nonBlockingGatus": [], "deferredLast": [], "runningDeferredExcluded": [],
+        "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
+        "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
+        "blockedCoreApps": [], "blockedDeferredApps": [],
+        "plannedOrDisabledDeferred": [], "declaredCoreInactive": [],
+        "gatusBlocked": False, "gatusMissingSecret": False,
+        "gatusSecretUnverified": False, "gatusDeclaredInactive": False,
+    }
+    monkeypatch.setitem(globals_, "read_json", lambda _: [])
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: mock.copy())
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--check",
+        "--apps-json", str(snapshot),
+    ])
+    assert ops["main"]() == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["inventorySource"] == "snapshot"
+    assert result["runtimeSecretsSource"] == "not-checked"
+    assert result["selectedWaveReady"] is False
+    assert "live --check" in result["selectedWaveBlocker"]
