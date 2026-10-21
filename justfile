@@ -46,6 +46,12 @@ publish:
 truenas-fastapi-check:
     python3 scripts/truenas/diagnose-fastapi-integrations.py
 
+# Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
+# Requires a locally installed pytest; no package install, runner, or deployment.
+truenas-catalog-v2-test:
+    python3 -m py_compile scripts/truenas/plan-catalog-v2-restart.py scripts/truenas/restart-catalog-v2-apps.py scripts/secrets/inventory_vaultwarden.py
+    python3 -m pytest -q tests/test_catalog_v2_restart_plan.py tests/test_catalog_v2_restart_waves.py tests/test_vaultwarden_inventory_contract.py
+
 # Original repository quality gate, kept separate from the agent-first path.
 quality-gate:
     mise run quality
