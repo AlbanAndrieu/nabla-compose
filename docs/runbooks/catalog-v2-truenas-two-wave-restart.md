@@ -12,10 +12,12 @@ Ces chiffres sont des observations historiques, **pas des vérités GitOps**.
    dépendances Backstage résolues, avec priorités stables des fondations.
 2. **Gatus isolé** : Gatus n'est **pas** dans les Apps optionnelles et
    son échec ne bloque **jamais** le core ni les Apps différées. L'activation
-   nécessite `--include-gatus` explicite.
+   nécessite `--include-gatus` explicite. Cette option traite **Gatus seul**,
+   sans redémarrer les applications RUNNING du core.
 3. **Dernière vague** : les 31 Apps non essentielles STOPPED du snapshot
    utilisateur et les autres App IDs déjà déclarés optionnels sont
-   uniquement lancés avec `--include-deferred`. Les Apps
+   uniquement lancés avec `--include-deferred` (**vague distincte**,
+   sans redémarrage du core). Les Apps
    `planned`/`disabled` connues bloquent cette action.
    Aucune App STOPPED n'est implicitement redémarrée.
 
@@ -72,11 +74,32 @@ L'exécution garantit seulement un arrêt/démarrage de chaque App dans son
 périmètre et l'exécution du health gate Docker existant : cela ne garantit
 ni l'accès métier de bout en bout, ni Vaultwarden, ni les sondes réseau.
 
-Une fois le core accepté, Gatus et la vague différée se déclenchent
-**séparément**, avec les mêmes confirmations, en ayant vérifié
-l'état réel des Apps : `--include-gatus` / `--include-deferred`.
-Toute erreur core arrête immédiatement la progression : ne pas
-redémarrer des autres Apps aveuglément. Le journal JSONL sous
+Une fois le core accepté, relancer `--check` pour capturer un **nouveau**
+`planHash` : la première vague a changé l'état du système. Pour les autres
+vagues, utiliser **une seule** des options mutuellement exclusives :
+
+```bash
+# Diagnostiquer Gatus avant son activation ; si CRASHED, le préflight refuse.
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
+  --include-gatus --expected-plan-hash "$HASH" \\
+  --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
+
+# Vague facultative : autorise uniquement les Apps STOPPED, non planned/disabled.
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
+  --include-deferred --expected-plan-hash "$HASH" \\
+  --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
+```
+
+**Recalculer `HASH` après chaque `--check`**, avant le `--apply` correspondant.
+Chaque `--include-*` sélectionne **seulement** sa vague ; aucune des deux
+ne redémarre le core. La première vague reste le comportement par défaut
+sans option. Les 13 secrets runtime manquants bloquent le core, mais ne
+bloquent pas artificiellement une vague sans dépendance à ces Apps.
+Les erreurs Gatus et des Apps facultatives sont consignées avec un
+**exit code non nul** ; elles n'entraînent pas d'arrêt ou redémarrage
+des applications du core. Toute erreur core arrête immédiatement sa vague. Le journal JSONL sous
 `/mnt/cpool/var/nabla/restart` enregistre les actions et résultats,
 sans variables d'environnement ni contenu de secrets.
 
