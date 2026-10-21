@@ -240,3 +240,10 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
     ])
     assert ops["main"]() == 0
     assert calls == [("start", "plex")]
+
+
+def test_true_nas_id_and_name_must_match_before_any_action():
+    with pytest.raises(ValueError, match="id/name mismatch"):
+        ops["state_by_app"]([
+            {"id": "trusted-service", "name": "another-service", "state": "RUNNING"},
+        ])
