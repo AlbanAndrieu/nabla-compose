@@ -26,6 +26,37 @@ optionnelles et les exclut par défaut. Ce script continue de restaurer
 des Apps STOPPED, il **ne sait pas redémarrer** des Apps RUNNING ; le
 nouvel orchestrateur ci-dessous remplit ce besoin spécifique.
 
+## Contrôles locaux sans GitHub Actions
+
+Depuis une copie locale du dépôt disposant de `python3`, `pytest` et `just` :
+
+```bash
+just truenas-catalog-v2-test
+```
+
+La cible exécute la compilation Python et les contrats de planification, vagues,
+Vaultwarden. Elle n'utilise aucun runner GitHub, ne contacte pas TrueNAS et
+n'installe aucune dépendance. Pour la validation complète avant publication,
+exécuter séparément `just quality` sur l'environnement de développement
+disposant de `mise` et des outils déclarés. Un test local réussi **ne remplace
+pas** la validation réelle `--check` sur TrueNAS.
+
+## Protection des opérations concurrentes
+
+Toute commande `--apply` prend un verrou exclusif du noyau Linux
+(`flock`) sur `/mnt/cpool/var/nabla/restart/.catalog-v2-restart.lock`
+**avant** la lecture de `app.query` et le calcul de `planHash`. Si une
+autre exécution est en cours, la commande refuse d'intervenir ; le verrou
+est libéré à la sortie, même sur erreur. Le répertoire est privé (`0700`),
+le verrou et les journaux sont `0600` ; liens symboliques et fichiers
+spéciaux ne sont pas acceptés comme verrou.
+
+`--check` est strictement sans verrou ni modification ; son JSON indique
+`selectedWaveReady` et `selectedWaveBlocker` pour la vague choisie.
+Une dépendance ayant plusieurs fournisseurs Backstage est une **ambiguïté
+bloquante** : ne pas déduire le service cible par nom. Le verrou protège
+uniquement cet orchestrateur, pas les actions `midclt` manuelles externes.
+
 ## Préparation (lecture seule sur TrueNAS)
 
 ```bash
