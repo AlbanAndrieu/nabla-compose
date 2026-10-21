@@ -436,3 +436,24 @@ def test_plan_confirmation_hash_is_wave_bound(monkeypatch, tmp_path):
     ])
     with pytest.raises(RuntimeError, match="plan changed"):
         ops["main"]()
+
+
+def test_runbook_shell_examples_compile_without_execution():
+    """Prevent broken backslash continuations in operator-facing commands."""
+    import re
+    import subprocess
+
+    runbook = (ROOT / "docs/runbooks/catalog-v2-truenas-two-wave-restart.md"
+               ).read_text(encoding="utf-8")
+    blocks = re.findall(r"```bash\\n(.*?)\\n```", runbook, flags=re.DOTALL)
+    assert len(blocks) >= 3
+    for block in blocks:
+        for line in block.splitlines():
+            assert not line.endswith("\\\\"), (
+                "double shell continuation breaks the multi-line command"
+            )
+        result = subprocess.run(
+            ["bash", "-n"], input=block, text=True, capture_output=True,
+            check=False, timeout=5,
+        )
+        assert result.returncode == 0, result.stderr
