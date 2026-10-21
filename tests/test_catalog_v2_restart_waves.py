@@ -148,6 +148,8 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
         "runningDeferredExcluded": [],
         "gatusBlocked": False,
         "gatusMissingSecret": False,
+        "gatusDeclaredInactive": False,
+        "declaredCoreInactive": [],
         "missingDeferredSecrets": [],
         "blockedDeferredApps": [],
         "plannedOrDisabledDeferred": [],
@@ -221,6 +223,8 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
         "runningDeferredExcluded": [],
         "gatusBlocked": False,
         "gatusMissingSecret": False,
+        "gatusDeclaredInactive": False,
+        "declaredCoreInactive": [],
         "missingDeferredSecrets": [],
         "blockedDeferredApps": [],
         "plannedOrDisabledDeferred": [],
@@ -310,3 +314,30 @@ def test_check_reports_readiness_without_creating_audit_dir(
     assert payload["selectedWaveReady"] is False
     assert "RUNNING or STOPPED" in payload["selectedWaveBlocker"]
     assert not audit_dir.exists()
+
+
+def test_planned_gatus_and_running_core_are_not_started_automatically():
+    catalog = {"catalogRevision": "sha256:test", "entities": [
+        {"entityRef": "component:default/gatus",
+         "metadata": {"labels": {"albandrieu.com/operational-state": "planned"}},
+         "spec": {}},
+        {"entityRef": "component:default/api",
+         "metadata": {"labels": {"albandrieu.com/operational-state": "planned"}},
+         "spec": {}},
+    ]}
+    mappings = {"catalogRevision": "sha256:test", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/gatus/compose.yml#services/gatus",
+         "entityRef": "component:default/gatus"},
+        {"sourceType": "compose", "sourceId": "apps/api/compose.yml#services/api",
+         "entityRef": "component:default/api"},
+    ]}
+    apps = [{"id": "gatus", "state": "STOPPED"}, {"id": "api", "state": "RUNNING"}]
+    report = ops["make_plan"](
+        apps, catalog, mappings, {"items": []}, set(), Path("/")
+    )
+    assert report["gatusDeclaredInactive"]
+    assert report["declaredCoreInactive"] == ["api"]
+    with pytest.raises(RuntimeError, match="Gatus blocked"):
+        ops["validate_wave"](report, "gatus")
+    with pytest.raises(RuntimeError, match="core blocked"):
+        ops["validate_wave"](report, "core")
