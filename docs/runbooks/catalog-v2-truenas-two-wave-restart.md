@@ -14,12 +14,15 @@ Ces chiffres sont des observations historiques, **pas des vérités GitOps**.
    son échec ne bloque **jamais** le core ni les Apps différées. L'activation
    nécessite `--include-gatus` explicite. Cette option traite **Gatus seul**,
    sans redémarrer les applications RUNNING du core.
-3. **Dernière vague** : les 31 Apps non essentielles STOPPED du snapshot
-   utilisateur et les autres App IDs déjà déclarés optionnels sont
-   uniquement lancés avec `--include-deferred` (**vague distincte**,
-   sans redémarrage du core). Les Apps
-   `planned`/`disabled` connues bloquent cette action.
-   Aucune App STOPPED n'est implicitement redémarrée.
+3. **Dernière vague** : les Apps non essentielles `STOPPED` sont
+   exclusivement démarrées avec `--include-deferred`, **sans redémarrer
+   le core**. L'ordre `deferredStartOrder` suit les dépendances
+   `entityRef`/Backstage résolues, et non l'ordre alphabétique. Les
+   fournisseurs externes à cette vague doivent être `RUNNING` ;
+   les dépendances manquantes, ambiguës ou cycliques bloquent toute la
+   vague. Les Apps `planned`/`disabled` sont également bloquantes.
+   Le premier échec de démarrage ou du health gate **interrompt la vague**
+   pour éviter de poursuivre vers des consommateurs non fonctionnels.
 
 L'ancien `restore-app-set.sh` réutilise le même fichier d'Apps
 optionnelles et les exclut par défaut. Ce script continue de restaurer
@@ -55,7 +58,11 @@ spéciaux ne sont pas acceptés comme verrou.
 fichier de rapport est toutefois créé si `--output` est fourni. Son JSON indique
 `selectedWaveReady` et `selectedWaveBlocker` pour la vague choisie.
 Une dépendance ayant plusieurs fournisseurs Backstage est une **ambiguïté
-bloquante** : ne pas déduire le service cible par nom. Le verrou protège
+bloquante** : ne pas déduire le service cible par nom.
+Une App `STOPPED` non sélectionnée pour le core n'empêche plus la vague
+core à elle seule. En revanche, une App `STOPPED` dont dépend la vague
+facultative doit être soit incluse explicitement dans cette vague, soit
+déjà `RUNNING` ; sinon le préflight `deferredDependencyBlockers` bloque. Le verrou protège
 uniquement cet orchestrateur, pas les actions `midclt` manuelles externes.
 
 ## Préparation (lecture seule sur TrueNAS)
@@ -147,6 +154,18 @@ sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
   --include-deferred --expected-plan-hash "$HASH" \
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
 ```
+
+Avant une vague facultative, examiner explicitement le graphe prévu :
+
+```bash
+sudo jq '{selectedWave,selectedWaveReady,deferredStartOrder,
+          deferredDependencyBlockers,plannedOrDisabledDeferred,
+          missingDeferredSecrets,unverifiedDeferredSecrets}' "$PLAN"
+```
+
+La liste `deferredLast` reste l'inventaire des Apps déclarées
+facultatives ; **seule `deferredStartOrder` est exécutable**. Un graphe
+incomplet ne doit jamais être reconstitué par heuristique de noms.
 
 **Recalculer `HASH` après chaque `--check`**, avant le `--apply` correspondant.
 Chaque `--include-*` sélectionne **seulement** sa vague ; aucune des deux
