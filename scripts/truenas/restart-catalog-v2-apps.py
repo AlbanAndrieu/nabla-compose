@@ -239,6 +239,15 @@ def validate_wave(report: dict, wave: str) -> None:
         raise ValueError("unknown wave")
 
 
+def confirmation_hash(plan_hash: str, wave: str) -> str:
+    """Bind the operator's approval to both observed state and selected wave."""
+    if not re.fullmatch(r"[a-f0-9]{64}", plan_hash):
+        raise ValueError("invalid planHash")
+    if wave not in ("core", "gatus", "deferred"):
+        raise ValueError("unknown restart wave")
+    return hashlib.sha256(f"{plan_hash}:{wave}".encode("utf-8")).hexdigest()
+
+
 @contextlib.contextmanager
 def mutation_lock() -> Iterator[None]:
     """Serialize mutating runs before reading live state or checking planHash.
@@ -368,9 +377,7 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         None if args.apps_json else Path("/"),
     )
     # A confirmation obtained for Gatus must never authorize a core restart.
-    report["planHash"] = hashlib.sha256(
-        f"{report['planHash']}:{wave}".encode("utf-8")
-    ).hexdigest()
+    report["planHash"] = confirmation_hash(report["planHash"], wave)
     report["selectedWave"] = wave
     report["inventorySource"] = "snapshot" if args.apps_json else "live-midclt"
     report["runtimeSecretsSource"] = (
@@ -378,8 +385,11 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
     )
     try:
         validate_wave(report, wave)
-        selected_wave_ready = True
-        selected_wave_blocker = None
+        selected_wave_ready = args.apps_json is None
+        selected_wave_blocker = (
+            None if selected_wave_ready else
+            "offline snapshot cannot authorize apply; run live --check on TrueNAS"
+        )
     except RuntimeError as exc:
         selected_wave_ready = False
         selected_wave_blocker = str(exc)
