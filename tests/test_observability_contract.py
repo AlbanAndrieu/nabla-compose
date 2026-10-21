@@ -447,28 +447,25 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:8085", prometheus)
         self.assertIn("metrics_path: /metrics", prometheus)
         self.assertEqual(gatus.count("- name:"), gatus.count("nabla_monitor_id:"))
-        self.assertGreater(
+        self.assertEqual(
             gatus.count("nabla_monitor_id:"),
             gatus.count("nabla_service_id:"),
+            "all v2 Gatus probes must have canonical service identity",
         )
-
-        catalog = json.loads(
-            (ROOT / "catalog" / "services.json").read_text(encoding="utf-8")
+        crosswalk = json.loads(
+            (ROOT / "catalog/generated/identity-map.json").read_text(encoding="utf-8")
         )
-        catalog_ids = {service["id"] for service in catalog["services"]}
-        # Like reconcile-gatus-catalog.py, canonical topology nodes (pfsense,
-        # postgresql, truenas) are valid service identities too.
-        topology = json.loads(
-            (ROOT / "catalog" / "service-topology.json").read_text(encoding="utf-8")
-        )
-        catalog_ids |= {node["id"] for node in topology["nodes"]}
-        gatus_service_ids = {
+        mapped = {
+            entry["sourceId"] for entry in crosswalk["mappings"]
+            if entry["sourceType"] == "gatus"
+        }
+        declared = {
             line.split(":", 1)[1].strip()
             for line in gatus.splitlines()
-            if line.strip().startswith("nabla_service_id:")
+            if line.strip().startswith("nabla_monitor_id:")
         }
-        self.assertTrue(gatus_service_ids)
-        self.assertLessEqual(gatus_service_ids, catalog_ids)
+        self.assertEqual(declared, mapped)
+        self.assertEqual(crosswalk["unresolved"], [])
 
         for metric in (
             "nabla:telemetry:gatus_up",
