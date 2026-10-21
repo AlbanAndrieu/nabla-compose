@@ -6,6 +6,8 @@ Default --check is read-only. Never bulk-stop workloads or infer health from Git
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -15,6 +17,7 @@ import runpy
 import subprocess
 import sys
 import time
+from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFERRED_FILE = ROOT / "config/truenas/restore-optional-apps.txt"
@@ -208,6 +211,33 @@ def validate_wave(report: dict, wave: str) -> None:
         raise ValueError("unknown wave")
 
 
+@contextlib.contextmanager
+def mutation_lock() -> Iterator[None]:
+    """Serialize mutating runs before reading live state or checking planHash.
+
+    The file is a persistent coordination point; the kernel releases flock
+    when the process exits, including after interruption or exception.
+    """
+    AUDIT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if AUDIT_DIR.is_symlink():
+        raise RuntimeError("audit directory must not be a symlink")
+    os.chmod(AUDIT_DIR, 0o700)
+    flags = os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
+    fd = os.open(AUDIT_DIR / ".catalog-v2-restart.lock", flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("another TrueNAS Catalog v2 restart is running") from None
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
 def middleware_action(action: str, app: str, timeout: int = 900) -> None:
     if action not in ("start", "stop") or not APP_NAME.fullmatch(app):
         raise ValueError("unsafe App or action")
@@ -293,7 +323,14 @@ def main() -> int:
     ):
         parser.error("--apply requires exact acknowledgement and --expected-plan-hash")
     wave = "gatus" if args.include_gatus else "deferred" if args.include_deferred else "core"
+    if args.apply:
+        with mutation_lock():
+            return execute_selected_wave(args, wave)
+    return execute_selected_wave(args, wave)
 
+
+def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
+    """Check/apply one wave using a fresh snapshot under the mutation lock."""
     apps = read_json(args.apps_json) if args.apps_json else query_apps()
     report = make_plan(
         apps, read_json(CATALOG_FILE), read_json(IDENTITY_FILE),
@@ -306,7 +343,17 @@ def main() -> int:
         with os.fdopen(fd, "w", encoding="utf-8") as output:
             os.fchmod(output.fileno(), 0o600)
             output.write(json.dumps(report, sort_keys=True, indent=2) + "\n")
+    try:
+        validate_wave(report, wave)
+        selected_wave_ready = True
+        selected_wave_blocker = None
+    except RuntimeError as exc:
+        selected_wave_ready = False
+        selected_wave_blocker = str(exc)
+
     print(json.dumps({
+        "selectedWaveReady": selected_wave_ready,
+        "selectedWaveBlocker": selected_wave_blocker,
         "catalogRevision": report["catalogRevision"],
         "planHash": report["planHash"],
         "selectedWave": wave,
@@ -326,7 +373,8 @@ def main() -> int:
         return 0
     if report["planHash"] != args.expected_plan_hash:
         raise RuntimeError("plan changed since --check; re-run --check")
-    validate_wave(report, wave)
+    if not selected_wave_ready:
+        raise RuntimeError(selected_wave_blocker or "selected wave preflight blocked")
 
     AUDIT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(AUDIT_DIR, 0o700)
