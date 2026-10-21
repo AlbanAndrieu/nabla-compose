@@ -2364,3 +2364,7 @@ bash scripts/workstation/verify-age-yubikey-offline.sh
 ```
 
 **Restent NO-GO :** authentification AES256 on-card, import du certificat en PIV82 et vérification de l'identité/du déchiffrement du vrai plugin. Le test par session simulée prouve la structure du certificat et l'API de substitution de signature, **pas** la compatibilité matérielle. Refuser tout script `--apply` sur les deux clés jusqu'à validation séparée et autorisation explicite.
+
+### Validation opérateur 28/28 — 21 octobre 2026
+
+L'opérateur a actualisé `/tmp/nabla-yubikey-pr259` au HEAD `3f530123` et lancé `bash scripts/workstation/verify-age-yubikey-offline.sh`. **28/28 tests PASS en 0,826 s**, y compris `test_piv_sdk_signing_builder_mock_only` utilisant l'API Yubico de signature avec une session simulée. Le script finit correctement par `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified`. Cette validation clôt le jalon **signature logicielle simulée**, mais **n'autorise aucune écriture** sur PIV82. Restent à valider : chemin de session matérielle AES256 protégée par PIN, installation cert PIV82, lecture d'identité plugin et round-trip age réel. Préserver OTP2 et PIV9A, ne pas toucher aux destinataires SOPS en production.
