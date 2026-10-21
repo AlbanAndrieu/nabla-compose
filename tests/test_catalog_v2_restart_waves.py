@@ -69,3 +69,110 @@ def test_duplicate_true_nas_identifiers_fail():
             {"id": "api", "state": "RUNNING"},
             {"id": "api", "state": "STOPPED"},
         ])
+
+
+def test_optional_waves_do_not_depend_on_core_secret_readiness():
+    apps = [
+        {"id": "api", "state": "RUNNING"},
+        {"id": "gatus", "state": "STOPPED"},
+        {"id": "plex", "state": "STOPPED"},
+    ]
+    catalog = {"catalogRevision": "sha256:test", "entities": []}
+    mappings = {"catalogRevision": "sha256:test", "mappings": []}
+    manifest = {"items": [{"app": "api"}]}
+    report = ops["make_plan"](
+        apps, catalog, mappings, manifest, {"plex"}, Path("/no-runtime-secrets")
+    )
+    assert report["missingRunningSecrets"] == ["api"]
+    with pytest.raises(RuntimeError, match="core blocked"):
+        ops["validate_wave"](report, "core")
+    ops["validate_wave"](report, "gatus")
+    ops["validate_wave"](report, "deferred")
+
+
+def test_gatus_wave_requires_safe_state_and_its_own_secrets():
+    apps = [{"id": "gatus", "state": "CRASHED"}]
+    catalog = {"catalogRevision": "sha256:test", "entities": []}
+    mappings = {"catalogRevision": "sha256:test", "mappings": []}
+    report = ops["make_plan"](
+        apps, catalog, mappings, {"items": []}, set(), Path("/")
+    )
+    with pytest.raises(RuntimeError, match="RUNNING or STOPPED"):
+        ops["validate_wave"](report, "gatus")
+    apps[0]["state"] = "STOPPED"
+    report = ops["make_plan"](
+        apps, catalog, mappings, {"items": [{"app": "gatus"}]}, set(),
+        Path("/no-runtime-secrets"),
+    )
+    assert report["gatusMissingSecret"]
+    with pytest.raises(RuntimeError, match="Gatus blocked"):
+        ops["validate_wave"](report, "gatus")
+
+
+def test_deferred_planned_workload_rejected_before_mutation():
+    apps = [{"id": "plex", "state": "STOPPED"}]
+    catalog = {"catalogRevision": "sha256:test", "entities": [
+        {"entityRef": "component:default/plex",
+         "metadata": {"labels": {"albandrieu.com/operational-state": "planned"}},
+         "spec": {}},
+    ]}
+    mappings = {"catalogRevision": "sha256:test", "mappings": [
+        {"sourceType": "compose",
+         "sourceId": "apps/plex/compose.yml#services/plex",
+         "entityRef": "component:default/plex"},
+    ]}
+    report = ops["make_plan"](
+        apps, catalog, mappings, {"items": []}, {"plex"}, Path("/")
+    )
+    assert report["plannedOrDisabledDeferred"] == ["plex"]
+    with pytest.raises(RuntimeError, match="deferred wave blocked"):
+        ops["validate_wave"](report, "deferred")
+
+
+def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, tmp_path):
+    import sys
+
+    globals_ = ops["main"].__globals__
+    calls = []
+    fake = {
+        "planHash": "a" * 64,
+        "states": {"api": "RUNNING", "gatus": "STOPPED"},
+        "coreRestartOrder": ["api"],
+        "nonBlockingGatus": ["gatus"],
+        "deferredLast": [],
+        "catalogRevision": "sha256:fixture",
+        "counts": {},
+        "missingRunningSecrets": ["api"],
+        "blockedApps": [],
+        "runningDeferredExcluded": [],
+        "gatusBlocked": False,
+        "gatusMissingSecret": False,
+        "missingDeferredSecrets": [],
+        "blockedDeferredApps": [],
+        "plannedOrDisabledDeferred": [],
+    }
+    monkeypatch.setitem(globals_, "AUDIT_DIR", tmp_path)
+    monkeypatch.setitem(globals_, "query_apps", lambda: [])
+    monkeypatch.setitem(globals_, "read_json", lambda _: {})
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: fake)
+    monkeypatch.setitem(globals_, "restart_one", lambda app: calls.append(("restart", app)))
+    monkeypatch.setitem(globals_, "start_one", lambda app: calls.append(("start", app)))
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--apply", "--include-gatus",
+        "--expected-plan-hash", "a" * 64,
+        "--acknowledge-downtime", ops["ACK"],
+    ])
+    assert ops["main"]() == 0
+    assert calls == [("start", "gatus")]
+    assert len(list(tmp_path.glob("catalog-v2-gatus-*.jsonl"))) == 1
+
+    def failure(app):
+        calls.append(("failed", app))
+        raise RuntimeError("sensitive diagnostic not to log")
+
+    monkeypatch.setitem(globals_, "start_one", failure)
+    assert ops["main"]() == 1
+    assert calls[-1] == ("failed", "gatus")
+    assert len(list(tmp_path.glob("catalog-v2-gatus-*.jsonl"))) == 2
