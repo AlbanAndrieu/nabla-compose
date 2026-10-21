@@ -541,3 +541,78 @@ def test_report_output_never_truncates_existing_file(monkeypatch, tmp_path):
     with pytest.raises(FileExistsError):
         ops["main"]()
     assert report_file.read_text(encoding="utf-8") == "operator-owned\n"
+
+
+def test_stopped_unrelated_app_cannot_block_running_core_wave():
+    catalog = {"catalogRevision": "sha256:offline", "entities": [
+        {"entityRef": "component:default/api", "metadata": {}, "spec": {}},
+        {"entityRef": "component:default/unrelated", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/not-in-catalog"]}},
+    ]}
+    mappings = {"catalogRevision": "sha256:offline", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/api/compose.yml#services/api",
+         "entityRef": "component:default/api"},
+        {"sourceType": "compose",
+         "sourceId": "apps/unrelated/compose.yml#services/unrelated",
+         "entityRef": "component:default/unrelated"},
+    ]}
+    apps = [{"id": "api", "state": "RUNNING"},
+            {"id": "unrelated", "state": "STOPPED"}]
+    report = ops["make_plan"](apps, catalog, mappings, {"items": []},
+                              set(), Path("/"))
+    assert report["blockedCoreApps"] == []
+    assert report["coreRestartOrder"] == ["api"]
+    ops["validate_wave"](report, "core")
+
+
+def test_deferred_wave_respects_graph_not_alphabetical_order():
+    catalog = {"catalogRevision": "sha256:offline", "entities": [
+        {"entityRef": "component:default/web", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/db"]}},
+        {"entityRef": "resource:default/db", "metadata": {}, "spec": {}},
+    ]}
+    mappings = {"catalogRevision": "sha256:offline", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/a-web/compose.yml#services/web",
+         "entityRef": "component:default/web"},
+        {"sourceType": "compose", "sourceId": "apps/z-db/compose.yml#services/db",
+         "entityRef": "resource:default/db"},
+    ]}
+    apps = [{"id": "a-web", "state": "STOPPED"},
+            {"id": "z-db", "state": "STOPPED"}]
+    report = ops["make_plan"](apps, catalog, mappings, {"items": []},
+                              {"a-web", "z-db"}, Path("/"))
+    assert report["deferredLast"] == ["a-web", "z-db"]
+    assert report["deferredStartOrder"] == ["z-db", "a-web"]
+    assert report["deferredDependencyBlockers"] == []
+    ops["validate_wave"](report, "deferred")
+
+
+def test_deferred_inactive_external_dependency_blocks_start():
+    catalog = {"catalogRevision": "sha256:offline", "entities": [
+        {"entityRef": "component:default/web", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/db"]}},
+        {"entityRef": "resource:default/db", "metadata": {}, "spec": {}},
+    ]}
+    mappings = {"catalogRevision": "sha256:offline", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/web/compose.yml#services/web",
+         "entityRef": "component:default/web"},
+        {"sourceType": "compose", "sourceId": "apps/postgres/compose.yml#services/db",
+         "entityRef": "resource:default/db"},
+    ]}
+    apps = [{"id": "web", "state": "STOPPED"},
+            {"id": "postgres", "state": "STOPPED"}]
+    report = ops["make_plan"](apps, catalog, mappings, {"items": []},
+                              {"web"}, Path("/"))
+    assert report["deferredDependencyBlockers"] == [
+        "web: dependency postgres is not RUNNING"
+    ]
+    with pytest.raises(RuntimeError, match="deferred wave blocked"):
+        ops["validate_wave"](report, "deferred")
+
+
+def test_core_critical_apps_cannot_be_in_optional_list(tmp_path):
+    names = tmp_path / "optional.txt"
+    for app in ("postgres", "traefik", "cloudflared", "redis"):
+        names.write_text(app + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="critical infrastructure"):
+            ops["load_deferred"](names)
