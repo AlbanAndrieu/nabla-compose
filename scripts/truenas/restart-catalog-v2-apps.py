@@ -187,6 +187,20 @@ def assert_state(app: str, expected: str) -> None:
         )
 
 
+def wait_state(app: str, expected: str, timeout_seconds: int = 600) -> None:
+    """Wait for middleware convergence; never start an app still stopping."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        current = state_by_app(query_apps()).get(app, "ABSENT")
+        if current == expected:
+            return
+        if current in ("CRASHED", "ERROR", "ABSENT"):
+            raise RuntimeError(f"{app}: unexpectedly reached {current}")
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"{app}: timeout waiting for {expected}, observed {current}")
+        time.sleep(5)
+
+
 def verify(app: str) -> None:
     subprocess.run(
         ["bash", str(HEALTH_GATE), app],
@@ -198,10 +212,10 @@ def restart_one(app: str) -> None:
     assert_state(app, "RUNNING")
     print(f"STOP {app}", flush=True)
     middleware_action("stop", app)
-    assert_state(app, "STOPPED")
+    wait_state(app, "STOPPED")
     print(f"START {app}", flush=True)
     middleware_action("start", app)
-    assert_state(app, "RUNNING")
+    wait_state(app, "RUNNING")
     print(f"VERIFY {app}", flush=True)
     verify(app)
     print(f"OK {app}", flush=True)
@@ -211,7 +225,7 @@ def start_one(app: str) -> None:
     assert_state(app, "STOPPED")
     print(f"START {app}", flush=True)
     middleware_action("start", app)
-    assert_state(app, "RUNNING")
+    wait_state(app, "RUNNING")
     verify(app)
     print(f"OK {app}", flush=True)
 
@@ -248,11 +262,12 @@ def main() -> int:
         read_json(SECRETS_FILE), load_deferred(), Path("/"),
     )
     if args.output:
-        args.output.write_text(
-            json.dumps(report, sort_keys=True, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        os.chmod(args.output, 0o600)
+        # Reject symlinks, never expose inventory files before chmod.
+        flags = os.O_CREAT | os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW
+        fd = os.open(args.output, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(json.dumps(report, sort_keys=True, indent=2) + "\n")
     print(json.dumps({
         "catalogRevision": report["catalogRevision"],
         "planHash": report["planHash"],
