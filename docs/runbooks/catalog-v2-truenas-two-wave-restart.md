@@ -61,15 +61,28 @@ uniquement cet orchestrateur, pas les actions `midclt` manuelles externes.
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
+PLAN="/tmp/nabla-v2-core-$(date +%s)-$.json"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check \
-  --output /tmp/nabla-v2-restart-preflight.json
+  --output "$PLAN"
 sudo jq '{planHash,counts,missingRunningSecrets,nonBlockingGatus,
-          runningDeferredExcluded,deferredLast}' /tmp/nabla-v2-restart-preflight.json
+          runningDeferredExcluded,deferredLast}' "$PLAN"
 ```
 
+Les sorties `--output` sont créées exclusivement (permissions `0600`) :
+**ne pas réutiliser un nom de fichier existant**. Les exemples génèrent un
+fichier distinct pour chaque vague. Contrôler le champ `selectedWaveReady`
+ainsi que `selectedWaveBlocker` avant toute intervention.
+
+Le mode `--apps-json` est un diagnostic **hors ligne** : la présence des secrets
+sur l'hôte TrueNAS n'y est pas vérifiée. Les secrets concernés portent le statut
+`not-checked` et figurent dans `unverifiedRunningSecrets` /
+`unverifiedDeferredSecrets` (ou `gatusSecretUnverified`). Ce n'est **pas**
+une preuve de fichier manquant et ce n'est **jamais** une autorisation
+d'exécuter `--apply`.
+
 `planHash` identifie **les états de tous les TrueNAS Apps**, la révision
-du catalogue et l'état de disponibilité des secrets ; il change dès qu'une
-App change d'état. `--apply` recalcule depuis `app.query` pour éviter
+du catalogue, les preuves de secrets et **la vague sélectionnée** ; il change
+dès qu'une App change d'état ou que la vague diffère. `--apply` recalcule depuis `app.query` pour éviter
 une exécution sur snapshot périmé.
 
 ### Blocages attendus actuellement
@@ -93,7 +106,7 @@ une exécution sur snapshot périmé.
 ## Exécution sensible : ne faire qu'après validation des secrets
 
 ```bash
-HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
+HASH="$(sudo jq -r .planHash "$PLAN")"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
   --expected-plan-hash "$HASH" \
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
@@ -111,19 +124,21 @@ vagues, utiliser **une seule** des options mutuellement exclusives :
 
 ```bash
 # Diagnostiquer Gatus avant son activation ; si CRASHED, le préflight refuse.
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus \\
-  --output /tmp/nabla-v2-restart-preflight.json
-HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
-  --include-gatus --expected-plan-hash "$HASH" \\
+PLAN="/tmp/nabla-v2-gatus-$(date +%s)-$.json"
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus \
+  --output "$PLAN"
+HASH="$(sudo jq -r .planHash "$PLAN")"
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
+  --include-gatus --expected-plan-hash "$HASH" \
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
 
 # Vague facultative : autorise uniquement les Apps STOPPED, non planned/disabled.
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred \\
-  --output /tmp/nabla-v2-restart-preflight.json
-HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
-  --include-deferred --expected-plan-hash "$HASH" \\
+PLAN="/tmp/nabla-v2-deferred-$(date +%s)-$.json"
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred \
+  --output "$PLAN"
+HASH="$(sudo jq -r .planHash "$PLAN")"
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
+  --include-deferred --expected-plan-hash "$HASH" \
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
 ```
 
