@@ -26,6 +26,7 @@ CATALOG_FILE = ROOT / "catalog/generated/entities.json"
 IDENTITY_FILE = ROOT / "catalog/generated/identity-map.json"
 SECRETS_FILE = ROOT / "config/secrets/manifest.json"
 PLANNER = ROOT / "scripts/truenas/plan-catalog-v2-restart.py"
+DEPENDENCY_GRAPH = ROOT / "scripts/truenas/catalog_v2_restart_dependencies.py"
 HEALTH_GATE = ROOT / "scripts/truenas/verify-app-runtime-health.sh"
 AUDIT_DIR = Path("/mnt/cpool/var/nabla/restart")
 ACK = "I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
@@ -53,7 +54,7 @@ def load_deferred(path: Path = DEFERRED_FILE) -> set[str]:
         apps.add(name)
     if "gatus" in apps:
         raise ValueError("gatus must be its own non-blocking wave")
-    if "vaultwarden" in apps or "docker-socket-proxy" in apps:
+    if apps.intersection(FOUNDATION):
         raise ValueError("critical infrastructure cannot be deferred")
     return apps
 
@@ -158,6 +159,9 @@ def make_plan(
     )
     entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
                for row in canonical_plan[phase]}
+    start_order, deferred_dependency_blockers = runpy.run_path(
+        str(DEPENDENCY_GRAPH)
+    )["deferred_start_order"](entries, states, deferred)
     gatus_entry = entries.get("gatus")
     declared_core_inactive = sorted(
         row["app"] for row in active
@@ -167,7 +171,8 @@ def make_plan(
         gatus_entry and {"planned", "disabled"} & set(gatus_entry["declaredStates"])
     )
     blocked_core = sorted(row["app"] for row in canonical_plan["blocked"]
-                          if row["app"] != "gatus" and row["app"] not in deferred)
+                          if states.get(row["app"]) == "RUNNING"
+                          and row["app"] != "gatus" and row["app"] not in deferred)
     blocked_deferred = sorted(row["app"] for row in canonical_plan["blocked"]
                               if row["app"] in deferred)
     declared_deferred = sorted(app for app in delayed
@@ -194,6 +199,8 @@ def make_plan(
         "blockedDeferredApps": blocked_deferred,
         "plannedOrDisabledDeferred": declared_deferred,
         "deferredLast": delayed,
+        "deferredStartOrder": start_order,
+        "deferredDependencyBlockers": deferred_dependency_blockers,
         "runningDeferredExcluded": accidentally_running_deferred,
         "missingRunningSecrets": secret_blockers,
         "unverifiedRunningSecrets": unverified_running_secrets,
@@ -233,7 +240,8 @@ def validate_wave(report: dict, wave: str) -> None:
     elif wave == "deferred":
         if (report["missingDeferredSecrets"] or report["unverifiedDeferredSecrets"]
                 or report["blockedDeferredApps"] or report["plannedOrDisabledDeferred"]
-                or report["runningDeferredExcluded"]):
+                or report["runningDeferredExcluded"]
+                or report["deferredDependencyBlockers"]):
             raise RuntimeError("deferred wave blocked: reconcile states, mappings and secrets")
     else:
         raise ValueError("unknown wave")
@@ -426,6 +434,8 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         "plannedOrDisabledDeferred": report["plannedOrDisabledDeferred"],
         "runningDeferredExcluded": report["runningDeferredExcluded"],
         "deferredLast": report["deferredLast"],
+        "deferredStartOrder": report["deferredStartOrder"],
+        "deferredDependencyBlockers": report["deferredDependencyBlockers"],
     }, indent=2), flush=True)
 
     if not args.apply:
@@ -471,11 +481,9 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
                 execute("start" if report["states"]["gatus"] == "STOPPED" else "restart",
                         "gatus", nonblocking=True)
             else:
-                for app in report["deferredLast"]:
-                    if report["states"][app] == "STOPPED":
-                        execute("start", app, nonblocking=True)
-                    else:
-                        print(f"SKIP deferred {app}: state={report['states'][app]}")
+                for app in report["deferredStartOrder"]:
+                    # Abort the optional wave on the first failed dependency.
+                    execute("start", app)
         finally:
             print(f"Audit metadata only: {journal}", flush=True)
         if failures:
