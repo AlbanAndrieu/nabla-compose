@@ -144,6 +144,7 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
         "counts": {},
         "missingRunningSecrets": ["api"],
         "blockedApps": [],
+        "blockedCoreApps": [],
         "runningDeferredExcluded": [],
         "gatusBlocked": False,
         "gatusMissingSecret": False,
@@ -176,3 +177,66 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
     assert ops["main"]() == 1
     assert calls[-1] == ("failed", "gatus")
     assert len(list(tmp_path.glob("catalog-v2-gatus-*.jsonl"))) == 2
+
+
+def test_broken_gatus_mapping_does_not_block_core():
+    apps = [
+        {"id": "api", "state": "RUNNING"},
+        {"id": "gatus", "state": "RUNNING"},
+    ]
+    catalog = {"catalogRevision": "sha256:test", "entities": [
+        {"entityRef": "component:default/gatus", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/missing"]}},
+    ]}
+    mappings = {"catalogRevision": "sha256:test", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/gatus/compose.yml#services/gatus",
+         "entityRef": "component:default/gatus"},
+    ]}
+    report = ops["make_plan"](
+        apps, catalog, mappings, {"items": []}, set(), Path("/")
+    )
+    assert report["gatusBlocked"]
+    assert report["blockedCoreApps"] == []
+    ops["validate_wave"](report, "core")
+    with pytest.raises(RuntimeError, match="Gatus blocked"):
+        ops["validate_wave"](report, "gatus")
+
+
+def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
+    import sys
+
+    globals_ = ops["main"].__globals__
+    calls = []
+    fake = {
+        "planHash": "b" * 64,
+        "states": {"api": "RUNNING", "plex": "STOPPED"},
+        "coreRestartOrder": ["api"],
+        "nonBlockingGatus": [],
+        "deferredLast": ["plex"],
+        "catalogRevision": "sha256:fixture",
+        "counts": {},
+        "missingRunningSecrets": ["api"],
+        "blockedApps": [],
+        "blockedCoreApps": [],
+        "runningDeferredExcluded": [],
+        "gatusBlocked": False,
+        "gatusMissingSecret": False,
+        "missingDeferredSecrets": [],
+        "blockedDeferredApps": [],
+        "plannedOrDisabledDeferred": [],
+    }
+    monkeypatch.setitem(globals_, "AUDIT_DIR", tmp_path)
+    monkeypatch.setitem(globals_, "query_apps", lambda: [])
+    monkeypatch.setitem(globals_, "read_json", lambda _: {})
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: fake)
+    monkeypatch.setitem(globals_, "restart_one", lambda app: calls.append(("restart", app)))
+    monkeypatch.setitem(globals_, "start_one", lambda app: calls.append(("start", app)))
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--apply", "--include-deferred",
+        "--expected-plan-hash", "b" * 64,
+        "--acknowledge-downtime", ops["ACK"],
+    ])
+    assert ops["main"]() == 0
+    assert calls == [("start", "plex")]
