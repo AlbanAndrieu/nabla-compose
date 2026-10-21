@@ -140,7 +140,8 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
         "states": {"api": "RUNNING", "gatus": "STOPPED"},
         "coreRestartOrder": ["api"],
         "nonBlockingGatus": ["gatus"],
-        "deferredLast": [],
+        "deferredLast": [], "deferredStartOrder": [],
+        "deferredDependencyBlockers": [],
         "catalogRevision": "sha256:fixture",
         "counts": {},
         "missingRunningSecrets": ["api"],
@@ -219,7 +220,8 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
         "states": {"api": "RUNNING", "plex": "STOPPED"},
         "coreRestartOrder": ["api"],
         "nonBlockingGatus": [],
-        "deferredLast": ["plex"],
+        "deferredLast": ["plex"], "deferredStartOrder": ["plex"],
+        "deferredDependencyBlockers": [],
         "catalogRevision": "sha256:fixture",
         "counts": {},
         "missingRunningSecrets": ["api"],
@@ -306,7 +308,8 @@ def test_check_reports_readiness_without_creating_audit_dir(
     monkeypatch.setitem(globals_, "make_plan", lambda *args: {
         "planHash": "d" * 64, "catalogRevision": "sha256:local",
         "counts": {}, "states": {"gatus": "CRASHED"}, "coreRestartOrder": [],
-        "nonBlockingGatus": ["gatus"], "deferredLast": [],
+        "nonBlockingGatus": ["gatus"], "deferredLast": [], "deferredStartOrder": [],
+        "deferredDependencyBlockers": [],
         "runningDeferredExcluded": [], "missingRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedRunningSecrets": [],
         "unverifiedDeferredSecrets": [], "blockedCoreApps": [],
@@ -413,7 +416,8 @@ def test_plan_confirmation_hash_is_wave_bound(monkeypatch, tmp_path):
         "planHash": "c" * 64, "catalogRevision": "sha256:fixture",
         "counts": {}, "states": {"gatus": "STOPPED"},
         "coreRestartOrder": [], "nonBlockingGatus": ["gatus"],
-        "deferredLast": [], "runningDeferredExcluded": [],
+        "deferredLast": [], "deferredStartOrder": [],
+        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
         "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
         "blockedCoreApps": [], "blockedDeferredApps": [],
@@ -484,7 +488,8 @@ def test_offline_snapshot_is_never_ready_even_without_secret_manifest(
     mock = {
         "planHash": "e" * 64, "catalogRevision": "sha256:test",
         "counts": {}, "states": {}, "coreRestartOrder": [],
-        "nonBlockingGatus": [], "deferredLast": [], "runningDeferredExcluded": [],
+        "nonBlockingGatus": [], "deferredLast": [], "deferredStartOrder": [],
+        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
         "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
         "blockedCoreApps": [], "blockedDeferredApps": [],
@@ -518,7 +523,16 @@ def test_report_output_never_truncates_existing_file(monkeypatch, tmp_path):
     monkeypatch.setitem(globals_, "read_json", lambda _: [])
     monkeypatch.setitem(globals_, "load_deferred", lambda: set())
     monkeypatch.setitem(globals_, "make_plan", lambda *args: {
-        "planHash": "f" * 64,
+        "planHash": "f" * 64, "catalogRevision": "sha256:test", "counts": {},
+        "states": {}, "coreRestartOrder": [], "nonBlockingGatus": [],
+        "deferredLast": [], "deferredStartOrder": [],
+        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
+        "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
+        "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
+        "blockedCoreApps": [], "blockedDeferredApps": [],
+        "plannedOrDisabledDeferred": [], "declaredCoreInactive": [],
+        "gatusBlocked": False, "gatusMissingSecret": False,
+        "gatusSecretUnverified": False, "gatusDeclaredInactive": False,
     })
     monkeypatch.setattr(sys, "argv", [
         "restart-catalog-v2-apps.py", "--check",
