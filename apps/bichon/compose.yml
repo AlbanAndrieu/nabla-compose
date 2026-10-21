@@ -1,6 +1,8 @@
 ---
 services:
   bichon:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/bichon
     image: rustmailer/bichon:2.0.3
     container_name: bichon
     restart: unless-stopped

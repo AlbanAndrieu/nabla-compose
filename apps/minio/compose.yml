@@ -1,6 +1,8 @@
 ---
 services:
   minio:
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/minio
     image: cgr.dev/chainguard/minio
     container_name: minio
     x-nabla:

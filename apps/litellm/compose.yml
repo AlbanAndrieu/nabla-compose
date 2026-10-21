@@ -62,27 +62,20 @@ services:
       # - "--detailed_debug"
     ports:
       - "4000:4000"
+    # All proxy credentials and upstream keys come from the canonical runtime
+    # materialization. Missing secrets must fail deployment, never fall back to
+    # a developer checkout's .env or the LiteLLM master key.
     env_file:
-      - .env
-      # Optional until the dedicated Vaultwarden-backed upstream key is staged.
-      - path: /mnt/cpool/secrets/runtime/litellm/.env.secrets
-        required: false
-    #  - /mnt/cpool/litellm/.env.secrets
+      - /mnt/cpool/secrets/runtime/litellm/.env.secrets
     environment:
       # - DATABASE_URL=postgresql://litellm:XXX@172.17.0.24:5432/litellm
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
       LANGFUSE_OTEL_HOST: http://172.17.0.24:3000
       # - REDIS_URL=redis://:XXX@172.17.0.24:30059
-      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       # Optional upstream LiteLLM proxy on the GPU workstation. The existing
-      # LITELLM_IDE_API_KEY is injected by env_file and is never committed.
+      # LITELLM_IDE_API_KEY is injected through runtime secrets.
       LITELLM_WORKSTATION_API_BASE: ${LITELLM_WORKSTATION_API_BASE:-http://172.17.0.57:4000/v1}
       # Streamable HTTP endpoint exposed by apps/cyberbro/compose.yml.
       CYBERBRO_MCP_URL: ${CYBERBRO_MCP_URL:-http://172.17.0.24:8013/mcp}
-      UI_USERNAME: ${UI_USERNAME}
-      UI_PASSWORD: ${UI_PASSWORD}
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
       HEALTH_CHECK_TIMEOUT: 120 # For cold start of qwen
       LITELLM_HEALTH_CHECK_TIMEOUT: 120

@@ -3,6 +3,8 @@ services:
   gatus:
     image: ghcr.io/twin/gatus:v5.36.0
     container_name: gatus
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/gatus
     x-nabla:
       id: gatus
       name: Gatus

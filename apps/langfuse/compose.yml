@@ -12,6 +12,8 @@ x-nabla:
 
 services:
   langfuse-worker:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/langfuse-worker
     image: ghcr.io/langfuse/langfuse-worker:4.30.0
     restart: always
     depends_on:
@@ -109,6 +111,8 @@ services:
       - intranet
 
   langfuse-web:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/langfuse-web
     image: ghcr.io/langfuse/langfuse:4.30.0
     restart: always
     env_file:

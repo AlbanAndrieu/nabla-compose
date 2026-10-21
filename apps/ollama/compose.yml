@@ -59,6 +59,7 @@ services:
       - 30068:30068
     #  --- Internal Traefik labels
     labels:
+      - com.albandrieu.nabla.entity-ref=component:default/ollama
       - "traefik.enable=true"
       - "traefik.http.routers.ollama.rule=Host(`ollama.int.albandrieu.com`)"
       - "traefik.http.routers.ollama.entrypoints=websecure"

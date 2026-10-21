@@ -1,0 +1,40 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: op-connect-api
+  title: 1Password Connect API
+  labels:
+    albandrieu.com/operational-state: disabled
+    albandrieu.com/operational-criticality: high
+  tags:
+  - security
+  description: 1Password Connect API for machine-readable secret access.
+  links:
+  - url: http://172.17.0.24:8097
+    title: Application
+spec:
+  type: secrets-api
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: op-connect-sync
+  title: 1Password Connect Sync
+  labels:
+    albandrieu.com/operational-state: disabled
+    albandrieu.com/operational-criticality: high
+  tags:
+  - security
+  description: Synchronizes 1Password vault state for the Connect API.
+  links:
+  - url: http://172.17.0.24:8098
+    title: Application
+spec:
+  type: secrets-sync
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

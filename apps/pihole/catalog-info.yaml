@@ -5,6 +5,9 @@ metadata:
   name: pihole
   title: Pi-hole
   description: LAN DNS filtering and private *.int.albandrieu.com DNS service.
+  links:
+    - url: http://172.17.0.24:20720/admin/
+      title: Administration
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: critical

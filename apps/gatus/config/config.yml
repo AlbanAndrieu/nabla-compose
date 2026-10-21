@@ -10,6 +10,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: 2fauth
     nabla_service_id: 2fauth
+    nabla_entity_ref: component:default/2fauth
   url: tcp://172.17.0.24:30081
   conditions:
   - '[CONNECTED] == true'
@@ -19,6 +20,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: aistor
     nabla_service_id: aistor
+    nabla_entity_ref: component:default/aistor
   url: tcp://172.17.0.24:9002
   conditions:
   - '[CONNECTED] == true'
@@ -28,6 +30,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: alloy
     nabla_service_id: alloy
+    nabla_entity_ref: component:default/alloy
   url: http://172.17.0.24:12345/-/healthy
   conditions:
   - '[STATUS] == 200'
@@ -37,6 +40,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: autoxpose
     nabla_service_id: autoxpose
+    nabla_entity_ref: component:default/autoxpose
   url: http://172.17.0.24:4949/api/settings/status
   conditions:
   - '[STATUS] >= 200'
@@ -47,6 +51,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: bichon
     nabla_service_id: bichon
+    nabla_entity_ref: component:default/bichon
   url: tcp://172.17.0.24:15630
   conditions:
   - '[CONNECTED] == true'
@@ -56,6 +61,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: clickhouse
     nabla_service_id: clickhouse
+    nabla_entity_ref: resource:default/clickhouse
   url: tcp://172.17.0.24:8123
   conditions:
   - '[CONNECTED] == true'
@@ -65,6 +71,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: code-server
     nabla_service_id: code-server
+    nabla_entity_ref: component:default/code-server
   url: http://172.17.0.24:8443/healthz
   conditions:
   - '[STATUS] >= 200'
@@ -75,6 +82,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: cyberbro
     nabla_service_id: cyberbro
+    nabla_entity_ref: component:default/cyberbro
   url: http://172.17.0.24:5100/
   conditions:
   - '[STATUS] == 200'
@@ -84,6 +92,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: defectdojo
     nabla_service_id: defectdojo
+    nabla_entity_ref: component:default/defectdojo
   url: tcp://172.17.0.24:31085
   conditions:
   - '[CONNECTED] == true'
@@ -93,6 +102,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: dependency-track
     nabla_service_id: dependency-track
+    nabla_entity_ref: component:default/dependency-track
   url: tcp://172.17.0.24:31084
   conditions:
   - '[CONNECTED] == true'
@@ -102,6 +112,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: dependency-track-api
     nabla_service_id: dependency-track-api
+    nabla_entity_ref: component:default/dependency-track-api
   url: tcp://172.17.0.24:31083
   conditions:
   - '[CONNECTED] == true'
@@ -110,6 +121,8 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: docker
+    nabla_service_id: docker
+    nabla_entity_ref: resource:default/docker
   url: tcp://docker-socket-proxy:2375
   conditions:
   - '[CONNECTED] == true'
@@ -119,6 +132,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: dockhand
     nabla_service_id: dockhand
+    nabla_entity_ref: component:default/dockhand
   url: tcp://172.17.0.24:3050
   conditions:
   - '[CONNECTED] == true'
@@ -128,6 +142,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: docling
     nabla_service_id: docling
+    nabla_entity_ref: component:default/docling
   url: http://172.17.0.24:5001/ready
   conditions:
   - '[STATUS] == 200'
@@ -137,6 +152,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: doco-cd
     nabla_service_id: doco-cd
+    nabla_entity_ref: component:default/doco-cd
   url: tcp://172.17.0.24:9120
   conditions:
   - '[CONNECTED] == true'
@@ -146,6 +162,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: dozzle
     nabla_service_id: dozzle
+    nabla_entity_ref: component:default/dozzle
   url: tcp://172.17.0.24:8888
   conditions:
   - '[CONNECTED] == true'
@@ -155,6 +172,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: drawio
     nabla_service_id: drawio
+    nabla_entity_ref: component:default/drawio
   url: tcp://172.17.0.24:9080
   conditions:
   - '[CONNECTED] == true'
@@ -164,6 +182,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: elasticsearch
     nabla_service_id: elasticsearch
+    nabla_entity_ref: resource:default/elasticsearch
   url: tcp://172.17.0.24:9200
   conditions:
   - '[CONNECTED] == true'
@@ -173,6 +192,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: fastapi-sample
     nabla_service_id: fastapi-sample
+    nabla_entity_ref: component:default/fastapi-sample
   url: http://172.17.0.24:8091/health
   conditions:
   - '[STATUS] == 200'
@@ -182,6 +202,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: garage
     nabla_service_id: garage
+    nabla_entity_ref: component:default/garage
   url: tcp://172.17.0.24:3900
   conditions:
   - '[CONNECTED] == true'
@@ -191,6 +212,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: garage-webui
     nabla_service_id: garage-webui
+    nabla_entity_ref: component:default/garage-webui
   url: tcp://172.17.0.24:3909
   conditions:
   - '[CONNECTED] == true'
@@ -200,6 +222,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: gatus
     nabla_service_id: gatus
+    nabla_entity_ref: component:default/gatus
   url: tcp://172.17.0.24:8085
   conditions:
   - '[CONNECTED] == true'
@@ -209,6 +232,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: grafana
     nabla_service_id: grafana
+    nabla_entity_ref: component:default/grafana
   url: http://172.17.0.24:30037/api/health
   conditions:
   - '[STATUS] == 200'
@@ -218,6 +242,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: graylog
     nabla_service_id: graylog
+    nabla_entity_ref: component:default/graylog
   url: tcp://172.17.0.24:9003
   conditions:
   - '[CONNECTED] == true'
@@ -227,6 +252,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: haproxy-exporter
     nabla_service_id: haproxy-exporter
+    nabla_entity_ref: component:default/haproxy-exporter
   url: tcp://172.17.0.24:9101
   conditions:
   - '[CONNECTED] == true'
@@ -236,6 +262,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: hello-nginx
     nabla_service_id: hello-nginx
+    nabla_entity_ref: component:default/hello-nginx
   url: tcp://172.17.0.24:8099
   conditions:
   - '[CONNECTED] == true'
@@ -245,6 +272,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: homarr
     nabla_service_id: homarr
+    nabla_entity_ref: component:default/homarr
   url: tcp://172.17.0.24:30100
   conditions:
   - '[CONNECTED] == true'
@@ -254,6 +282,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: homeassistant
     nabla_service_id: homeassistant
+    nabla_entity_ref: component:default/homeassistant
   url: https://homeassistant.albanandrieu.com
   conditions:
   - '[STATUS] >= 200'
@@ -264,6 +293,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: joplin
     nabla_service_id: joplin
+    nabla_entity_ref: component:default/joplin
   url: http://172.17.0.24:22300/api/ping
   conditions:
   - '[STATUS] == 200'
@@ -273,6 +303,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: kafka
     nabla_service_id: kafka
+    nabla_entity_ref: resource:default/kafka
   url: tcp://kafka:9092
   conditions:
   - '[CONNECTED] == true'
@@ -282,6 +313,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: kafka-exporter
     nabla_service_id: kafka-exporter
+    nabla_entity_ref: component:default/kafka-exporter
   url: http://172.17.0.24:9308/metrics
   conditions:
   - '[STATUS] == 200'
@@ -291,6 +323,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: kibana
     nabla_service_id: kibana
+    nabla_entity_ref: component:default/kibana
   url: tcp://172.17.0.24:5601
   conditions:
   - '[CONNECTED] == true'
@@ -300,6 +333,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: langflow
     nabla_service_id: langflow
+    nabla_entity_ref: component:default/langflow
   url: tcp://172.17.0.24:7860
   conditions:
   - '[CONNECTED] == true'
@@ -309,6 +343,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: langfuse-web
     nabla_service_id: langfuse-web
+    nabla_entity_ref: component:default/langfuse-web
   url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
@@ -318,6 +353,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: languagetool
     nabla_service_id: languagetool
+    nabla_entity_ref: component:default/languagetool
   url: http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck
   conditions:
   - '[STATUS] >= 200'
@@ -328,6 +364,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: litellm
     nabla_service_id: litellm
+    nabla_entity_ref: component:default/litellm
   url: tcp://172.17.0.24:4000
   conditions:
   - '[CONNECTED] == true'
@@ -337,6 +374,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: loki
     nabla_service_id: loki
+    nabla_entity_ref: resource:default/loki
   url: http://172.17.0.24:3100/ready
   conditions:
   - '[STATUS] == 200'
@@ -346,6 +384,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: mcp-cyberbro
     nabla_service_id: mcp-cyberbro
+    nabla_entity_ref: component:default/mcp-cyberbro
   url: tcp://172.17.0.24:8013
   conditions:
   - '[CONNECTED] == true'
@@ -355,6 +394,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: mimir
     nabla_service_id: mimir
+    nabla_entity_ref: resource:default/mimir
   url: http://172.17.0.24:9009/ready
   conditions:
   - '[STATUS] == 200'
@@ -364,6 +404,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: minio
     nabla_service_id: minio
+    nabla_entity_ref: resource:default/minio
   url: tcp://172.17.0.24:9002
   conditions:
   - '[CONNECTED] == true'
@@ -373,6 +414,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: neo4j-security
     nabla_service_id: neo4j-security
+    nabla_entity_ref: resource:default/neo4j-security
   url: tcp://172.17.0.24:31086
   conditions:
   - '[CONNECTED] == true'
@@ -382,6 +424,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: netbox
     nabla_service_id: netbox
+    nabla_entity_ref: component:default/netbox
   url: tcp://172.17.0.24:31082
   conditions:
   - '[CONNECTED] == true'
@@ -391,6 +434,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: nexus
     nabla_service_id: nexus
+    nabla_entity_ref: component:default/nexus
   url: tcp://172.17.0.24:8081
   conditions:
   - '[CONNECTED] == true'
@@ -400,6 +444,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: nginx-proxy-manager
     nabla_service_id: nginx-proxy-manager
+    nabla_entity_ref: component:default/nginx-proxy-manager
   url: tcp://172.17.0.24:30021
   conditions:
   - '[CONNECTED] == true'
@@ -409,6 +454,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: npmplus
     nabla_service_id: npmplus
+    nabla_entity_ref: component:default/npmplus
   url: tcp://172.17.0.24:30360
   conditions:
   - '[CONNECTED] == true'
@@ -418,6 +464,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: ntopng
     nabla_service_id: ntopng
+    nabla_entity_ref: component:default/ntopng
   url: tcp://172.17.0.24:3000
   conditions:
   - '[CONNECTED] == true'
@@ -427,6 +474,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: obsidian
     nabla_service_id: obsidian
+    nabla_entity_ref: component:default/obsidian
   url: tcp://172.17.0.24:3002
   conditions:
   - '[CONNECTED] == true'
@@ -436,6 +484,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: ollama
     nabla_service_id: ollama
+    nabla_entity_ref: component:default/ollama
   url: tcp://172.17.0.24:30068
   conditions:
   - '[CONNECTED] == true'
@@ -445,6 +494,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: openhands
     nabla_service_id: openhands
+    nabla_entity_ref: component:default/openhands
   url: tcp://172.17.0.24:3010
   conditions:
   - '[CONNECTED] == true'
@@ -454,6 +504,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: openrag-frontend
     nabla_service_id: openrag-frontend
+    nabla_entity_ref: component:default/openrag-frontend
   url: tcp://172.17.0.24:31060
   conditions:
   - '[CONNECTED] == true'
@@ -463,6 +514,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: opensearch
     nabla_service_id: opensearch
+    nabla_entity_ref: resource:default/opensearch
   url: tcp://172.17.0.24:9200
   conditions:
   - '[CONNECTED] == true'
@@ -472,6 +524,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: opensearch-dashboards
     nabla_service_id: opensearch-dashboards
+    nabla_entity_ref: component:default/opensearch-dashboards
   url: tcp://172.17.0.24:5601
   conditions:
   - '[CONNECTED] == true'
@@ -481,6 +534,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: opensearch-exporter
     nabla_service_id: opensearch-exporter
+    nabla_entity_ref: component:default/opensearch-exporter
   url: tcp://172.17.0.24:9114
   conditions:
   - '[CONNECTED] == true'
@@ -490,6 +544,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: opensearch-security-exporter
     nabla_service_id: opensearch-security-exporter
+    nabla_entity_ref: component:default/opensearch-security-exporter
   url: tcp://172.17.0.24:9115
   conditions:
   - '[CONNECTED] == true'
@@ -499,6 +554,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: openwebui
     nabla_service_id: openwebui
+    nabla_entity_ref: component:default/openwebui
   url: tcp://172.17.0.24:31028
   conditions:
   - '[CONNECTED] == true'
@@ -508,6 +564,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pfsense
     nabla_service_id: pfsense
+    nabla_entity_ref: resource:default/pfsense
   url: tcp://172.17.0.1:10443
   conditions:
   - '[CONNECTED] == true'
@@ -517,6 +574,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pfsense-exporter
     nabla_service_id: pfsense-exporter
+    nabla_entity_ref: component:default/pfsense-exporter
   url: tcp://172.17.0.24:9945
   conditions:
   - '[CONNECTED] == true'
@@ -526,6 +584,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pihole
     nabla_service_id: pihole
+    nabla_entity_ref: resource:default/pihole
   url: http://172.17.0.24:20720/admin/
   conditions:
   - '[STATUS] >= 200'
@@ -536,6 +595,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pihole-exporter
     nabla_service_id: pihole-exporter
+    nabla_entity_ref: component:default/pihole-exporter
   url: tcp://172.17.0.24:9617
   conditions:
   - '[CONNECTED] == true'
@@ -545,6 +605,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: plumber
     nabla_service_id: plumber
+    nabla_entity_ref: component:default/plumber
   url: tcp://172.17.0.24:31070
   conditions:
   - '[CONNECTED] == true'
@@ -554,6 +615,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: plumber-api
     nabla_service_id: plumber-api
+    nabla_entity_ref: component:default/plumber-api
   url: tcp://172.17.0.24:31071
   conditions:
   - '[CONNECTED] == true'
@@ -563,6 +625,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: portracker
     nabla_service_id: portracker
+    nabla_entity_ref: component:default/portracker
   url: http://172.17.0.24:30233/metrics
   conditions:
   - '[STATUS] >= 200'
@@ -573,6 +636,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: postgres-exporter
     nabla_service_id: postgres-exporter
+    nabla_entity_ref: component:default/postgres-exporter
   url: tcp://172.17.0.24:9187
   conditions:
   - '[CONNECTED] == true'
@@ -582,6 +646,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: postgresql
     nabla_service_id: postgresql
+    nabla_entity_ref: resource:default/postgresql
   url: tcp://172.17.0.24:5432
   conditions:
   - '[CONNECTED] == true'
@@ -591,6 +656,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: prometheus
     nabla_service_id: prometheus
+    nabla_entity_ref: component:default/prometheus
   url: http://172.17.0.24:9090/-/ready
   conditions:
   - '[STATUS] == 200'
@@ -600,6 +666,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: prometheus-alertmanager
     nabla_service_id: prometheus-alertmanager
+    nabla_entity_ref: component:default/prometheus-alertmanager
   url: http://172.17.0.24:9093/-/ready
   conditions:
   - '[STATUS] == 200'
@@ -608,6 +675,8 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: prometheus-node-exporter
+    nabla_service_id: prometheus-node-exporter
+    nabla_entity_ref: component:default/prometheus-node-exporter
   url: tcp://172.17.0.24:9100
   conditions:
   - '[CONNECTED] == true'
@@ -617,6 +686,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: pyroscope
     nabla_service_id: pyroscope
+    nabla_entity_ref: component:default/pyroscope
   url: http://172.17.0.24:4040/
   conditions:
   - '[STATUS] >= 200'
@@ -627,6 +697,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: redis
     nabla_service_id: redis
+    nabla_entity_ref: resource:default/redis
   url: tcp://172.17.0.24:30059
   conditions:
   - '[CONNECTED] == true'
@@ -635,6 +706,8 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: redis-redis-exporter
+    nabla_service_id: redis-redis-exporter
+    nabla_entity_ref: component:default/redis-redis-exporter
   url: tcp://172.17.0.24:9121
   conditions:
   - '[CONNECTED] == true'
@@ -644,6 +717,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: scanopy
     nabla_service_id: scanopy
+    nabla_entity_ref: component:default/scanopy
   url: tcp://172.17.0.24:60072
   conditions:
   - '[CONNECTED] == true'
@@ -653,6 +727,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: scrutiny
     nabla_service_id: scrutiny
+    nabla_entity_ref: component:default/scrutiny
   url: http://172.17.0.24:31054/api/health
   conditions:
   - '[STATUS] == 200'
@@ -662,6 +737,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: sentry
     nabla_service_id: sentry
+    nabla_entity_ref: component:default/sentry
   url: http://172.17.0.24:9005/_health/
   conditions:
   - '[STATUS] >= 200'
@@ -672,6 +748,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: sentry-clickhouse
     nabla_service_id: sentry-clickhouse
+    nabla_entity_ref: resource:default/sentry-clickhouse
   url: tcp://sentry-clickhouse:9000
   conditions:
   - '[CONNECTED] == true'
@@ -681,6 +758,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: sentry-edge
     nabla_service_id: sentry-edge
+    nabla_entity_ref: component:default/sentry-edge
   url: http://172.17.0.24:9005/_health/
   conditions:
   - '[STATUS] >= 200'
@@ -691,6 +769,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: sonarqube
     nabla_service_id: sonarqube
+    nabla_entity_ref: component:default/sonarqube
   url: tcp://172.17.0.24:9001
   conditions:
   - '[CONNECTED] == true'
@@ -700,6 +779,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: squid
     nabla_service_id: squid
+    nabla_entity_ref: component:default/squid
   url: tcp://172.17.0.24:3128
   conditions:
   - '[CONNECTED] == true'
@@ -709,6 +789,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: sybase-exporter
     nabla_service_id: sybase-exporter
+    nabla_entity_ref: component:default/sybase-exporter
   url: tcp://172.17.0.24:9113
   conditions:
   - '[CONNECTED] == true'
@@ -718,6 +799,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: tempo
     nabla_service_id: tempo
+    nabla_entity_ref: resource:default/tempo
   url: http://172.17.0.24:3200/ready
   conditions:
   - '[STATUS] == 200'
@@ -727,6 +809,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: traefik
     nabla_service_id: traefik
+    nabla_entity_ref: component:default/traefik
   url: tcp://172.17.0.24:80
   conditions:
   - '[CONNECTED] == true'
@@ -735,6 +818,8 @@ endpoints:
   interval: 60s
   extra-labels:
     nabla_monitor_id: traefik-ddns-updater
+    nabla_service_id: traefik-ddns-updater
+    nabla_entity_ref: component:default/traefik-ddns-updater
   url: tcp://172.17.0.24:8000
   conditions:
   - '[CONNECTED] == true'
@@ -744,6 +829,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: truenas
     nabla_service_id: truenas
+    nabla_entity_ref: resource:default/truenas
   url: tcp://172.17.0.24:7000
   conditions:
   - '[CONNECTED] == true'
@@ -753,6 +839,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: vaultwarden
     nabla_service_id: vaultwarden
+    nabla_entity_ref: component:default/vaultwarden
   url: tcp://172.17.0.24:30032
   conditions:
   - '[CONNECTED] == true'
@@ -762,6 +849,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: wazuh-manager
     nabla_service_id: wazuh-manager
+    nabla_entity_ref: component:default/wazuh-manager
   url: tcp://172.17.0.24:1514
   conditions:
   - '[CONNECTED] == true'
@@ -771,6 +859,7 @@ endpoints:
   extra-labels:
     nabla_monitor_id: wordpress
     nabla_service_id: wordpress
+    nabla_entity_ref: component:default/wordpress
   url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'

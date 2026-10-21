@@ -91,7 +91,7 @@ manifest-declared items (both fields hidden/custom fields):
 
 | Key / source | Vaultwarden item | Runtime consumer |
 | --- | --- | --- |
-| workstation key (qwen only) | `nabla/prod/litellm-fastapi-upstream` field `LITELLM_FASTAPI_WORKSTATION_API_KEY` | `/mnt/cpool/secrets/runtime/litellm/.env.secrets` |
+| workstation key (qwen only) | `nabla/prod/litellm` field `LITELLM_FASTAPI_WORKSTATION_API_KEY` | `/mnt/cpool/secrets/runtime/litellm/.env.secrets` |
 | TrueNAS key (fastapi-qwen only) | `nabla/prod/sample-litellm` field `LITELLM_API_KEY` | `/mnt/cpool/secrets/runtime/sample/.env.secrets` |
 
 Use the existing unprivileged `bw` importer and
@@ -102,6 +102,30 @@ credentials. Review resulting root:root 0600 file ownership and avoid
 leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
+
+## LiteLLM secret materialization (single item, no master-key reuse)
+
+The canonical Vaultwarden item for TrueNAS LiteLLM is now `nabla/prod/litellm`.
+It contains distinct hidden fields for the proxy master/salt, upstream restricted
+keys, UI credentials, Langfuse and Redis. This consolidates **storage only**:
+FastAPI still authenticates using a dedicated scoped virtual key, never the
+master key. Moving the existing `litellm-fastapi-upstream` field into the
+consolidated item must preserve its exact value and workstation permissions.
+
+The existing Vaultwarden item is **not** renamed by a Git commit. On the host,
+first ensure the destination item exists and every manifest-declared field is
+present with the original credential values; do not generate replacement keys.
+Then render the complete file using the unprivileged operator session:
+
+```bash
+python3 scripts/secrets/materialize_runtime.py --app litellm --install
+sudo stat -c '%a %U:%G %n' /mnt/cpool/secrets/runtime/litellm/.env.secrets
+```
+
+This materializes a single root-only (0600) env file. The Compose service
+now requires it and has **no repo-local .env fallback**. Do not use the old
+item name or provision new credentials under it. If the fields have not yet
+been moved in Vaultwarden, this deployment intentionally remains unavailable.
 
 ## Gates before deployment
 

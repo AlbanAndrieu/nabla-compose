@@ -1,0 +1,36 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: elasticsearch
+  title: Elasticsearch
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - data
+spec:
+  type: search
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kibana
+  title: Kibana
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - observability
+  links:
+  - url: http://172.17.0.24:5601
+    title: Application
+spec:
+  type: dashboard
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

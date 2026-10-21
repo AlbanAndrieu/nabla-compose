@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Homarr, Gatus and AutoKuma consumers from app Compose files."""
+"""Project Backstage identity, Compose routing and native Gatus checks to consumers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 import yaml
 
@@ -18,14 +17,15 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
+from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
 ROOT = SCRIPTS_DIR.parent
-STATIC_CONFIG = ROOT / "catalog" / "service-consumers.static.yml"
+HOMARR_COMPOSE = ROOT / "apps" / "homarr" / "compose.yml"
+GATUS_DECLARED = ROOT / "config" / "monitoring" / "gatus-endpoints.yml"
 HOMARR_OUTPUT = ROOT / "apps" / "homarr" / "generated" / "apps.json"
 GATUS_OUTPUT = ROOT / "apps" / "gatus" / "config" / "config.yml"
 AUTOKUMA_OUTPUT = ROOT / "apps" / "autokuma" / "static" / "generated-monitors.json"
 
-IDENTIFIER_RE = re.compile(r"[^a-z0-9]+")
 COMPOSE_DEFAULT_RE = re.compile(
     r"\$\{[A-Za-z_][A-Za-z0-9_]*(?::-|-)([^}]*)\}"
 )
@@ -94,27 +94,49 @@ def fail(message: str) -> None:
     raise ValueError(message)
 
 
-def slug(value: object) -> str:
-    text = str(value or "").strip().lower()
-    text = IDENTIFIER_RE.sub("-", text).strip("-")
-    return text or "service"
-
-
-def title(value: str) -> str:
-    parts = re.split(r"[-_]+", value)
-    return " ".join(part.capitalize() for part in parts if part)
-
-
 def tracked_compose_paths() -> list[Path]:
     """Discover Compose inputs in a checkout or immutable source archive."""
     return discover_compose_paths(ROOT)
 
 
-def load_static() -> dict[str, Any]:
-    data = yaml.safe_load(STATIC_CONFIG.read_text(encoding="utf-8")) or {}
-    if not isinstance(data, dict) or data.get("version") != 1:
-        fail("catalog/service-consumers.static.yml must contain version: 1")
-    return data
+def load_native_adapter_policy() -> dict[str, Any]:
+    """Read Homarr Docker connector details from its Compose config."""
+    compose = yaml.safe_load(HOMARR_COMPOSE.read_text(encoding="utf-8"))
+    if not isinstance(compose, dict):
+        fail("apps/homarr/compose.yml must contain a mapping")
+    services = compose.get("services") or {}
+    svc = services.get("homarr") if isinstance(services, dict) else None
+    if not isinstance(svc, dict):
+        fail("apps/homarr/compose.yml has no homarr service")
+    env = svc.get("environment") or {}
+    if not isinstance(env, dict):
+        fail("Homarr environment must be a Compose mapping")
+    hostname = concrete_text(env.get("DOCKER_HOSTNAMES"))
+    raw_port = concrete_text(env.get("DOCKER_PORTS"))
+    if not hostname or not raw_port:
+        fail("Homarr Docker connector requires DOCKER_HOSTNAMES and DOCKER_PORTS")
+    try:
+        port = int(raw_port)
+    except ValueError as exc:
+        raise ValueError("Homarr DOCKER_PORTS must be numeric") from exc
+    networks = svc.get("networks") or []
+    network = str(networks[0]) if isinstance(networks, list) and networks else None
+    if not network:
+        fail("Homarr must declare its Docker socket proxy network")
+    host = None
+    for value in svc.get("ports") or []:
+        parts = str(value).split(":")
+        if len(parts) == 3 and re.fullmatch(r"[0-9.]+", parts[0]):
+            host = parts[0]
+            break
+    if not host:
+        fail("Homarr published port must provide an explicit host IP")
+    return {
+        "defaults": {"host": host},
+        "homarr": {"docker": {
+            "hostname": hostname, "port": port, "network": network,
+        }},
+    }
 
 
 def concrete_text(value: object) -> str | None:
@@ -238,19 +260,6 @@ def traefik_url(service: dict[str, Any]) -> str | None:
     return f"{'https' if secure else 'http'}://{host}"
 
 
-def app_service_id(
-    app_name: str,
-    service_name: str,
-    metadata: dict[str, Any],
-) -> str:
-    explicit = concrete_text(metadata.get("id"))
-    if explicit:
-        return slug(explicit)
-    app_id = slug(app_name)
-    service_id = slug(service_name)
-    return app_id if app_id == service_id else f"{app_id}-{service_id}"
-
-
 def infer_web_url(
     host: str,
     kind: str | None,
@@ -289,177 +298,109 @@ def parse_port_target(target: str) -> tuple[str, int] | None:
     return host, port
 
 
-def monitor_from_metadata(
-    service_id: str,
-    name: str,
-    category: str,
-    description: str | None,
-    monitoring: object,
-    default_interval: str,
-) -> dict[str, Any] | None:
-    if not isinstance(monitoring, dict) or monitoring.get("enabled") is False:
-        return None
-    monitor_type = str(monitoring.get("type", "")).lower()
-    group = concrete_text(monitoring.get("group")) or category
-    interval = concrete_text(monitoring.get("interval")) or default_interval
-    result: dict[str, Any] = {
-        "id": service_id,
-        "name": name,
-        "group": group,
-        "interval": interval,
+def backstage_entities() -> dict[str, dict[str, Any]]:
+    """Backstage documents alone own entity identity and declared state."""
+    paths = [ROOT / "catalog" / "catalog-info.yaml"]
+    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    return {
+        entity["entityRef"]: entity
+        for entity in load_backstage_entities(path for path in paths if path.is_file())
     }
-    if description:
-        result["description"] = description
-
-    if monitor_type == "http":
-        target = concrete_text(monitoring.get("target")) or concrete_text(
-            monitoring.get("url")
-        )
-        if not target or urlparse(target).scheme not in {"http", "https"}:
-            fail(f"{service_id}: HTTP monitoring requires an http(s) target")
-        result.update({"type": "http", "url": target})
-        conditions = monitoring.get("conditions")
-        if conditions is not None:
-            valid = isinstance(conditions, list) and all(
-                isinstance(item, str) and item.strip() for item in conditions
-            )
-            if not valid:
-                fail(f"{service_id}: monitoring.conditions must be a list of strings")
-            result["conditions"] = [item.strip() for item in conditions]
-        return result
-
-    if monitor_type in {"port", "tcp"}:
-        host = concrete_text(monitoring.get("host"))
-        port = monitoring.get("port")
-        target = concrete_text(monitoring.get("target"))
-        parsed = parse_port_target(target) if target else None
-        if parsed:
-            host, port = parsed
-        try:
-            port = int(str(port))
-        except (TypeError, ValueError):
-            return None
-        if not host or not 1 <= port <= 65535:
-            fail(f"{service_id}: port monitoring requires host and port")
-        result.update({"type": "port", "host": host, "port": port})
-        return result
-
-    if monitor_type in {"icmp", "ping"}:
-        host = concrete_text(monitoring.get("host")) or concrete_text(
-            monitoring.get("target")
-        )
-        if not host:
-            fail(f"{service_id}: ping monitoring requires host or target")
-        result.update({"type": "ping", "host": host})
-        return result
-
-    if monitor_type:
-        fail(f"{service_id}: unsupported monitoring type {monitor_type!r}")
-    return None
 
 
-def fallback_monitor(
-    service_id: str,
-    name: str,
-    category: str,
-    description: str | None,
-    host: str,
-    ports: list[dict[str, int | str]],
-    default_interval: str,
-) -> dict[str, Any] | None:
-    if not ports:
-        return None
-    item = ports[0]
-    result: dict[str, Any] = {
-        "id": service_id,
-        "name": name,
-        "group": category,
-        "type": "port",
-        "host": host,
-        "port": int(item["published"]),
-        "interval": default_interval,
+def entity_metadata(
+    entity: dict[str, Any],
+) -> tuple[str, str, str | None, str | None, str | None]:
+    metadata = entity["metadata"]
+    name = concrete_text(metadata.get("title")) or str(metadata["name"])
+    tags = metadata.get("tags")
+    category = (
+        str(tags[0])
+        if isinstance(tags, list) and tags and isinstance(tags[0], str)
+        else "infrastructure"
+    )
+    description = concrete_text(metadata.get("description"))
+    links = metadata.get("links") or []
+    url = next(
+        (
+            concrete_text(link.get("url"))
+            for link in links
+            if isinstance(link, dict) and concrete_text(link.get("url"))
+        ),
+        None,
+    )
+    return name, category, description, url, str((entity.get("spec") or {}).get("type") or "")
+
+
+def declared_entity_active(entity: dict[str, Any]) -> bool:
+    labels = (entity.get("metadata") or {}).get("labels") or {}
+    return labels.get("albandrieu.com/operational-state", "active") == "active"
+
+
+def native_gatus_monitors(
+    entities: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Gatus YAML is the authority for probe semantics, Backstage for identity."""
+    payload = yaml.safe_load(GATUS_DECLARED.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("endpoints"), list):
+        fail("config/monitoring/gatus-endpoints.yml requires an endpoints array")
+    by_id = {
+        str(entity["metadata"]["name"]): entity
+        for entity in entities.values()
+        if entity.get("kind") in {"Component", "Resource", "API"}
     }
-    if description:
-        result["description"] = description
-    return result
-
-
-def apply_homarr_static(
-    homarr_apps: dict[str, dict[str, Any]],
-    static: dict[str, Any],
-) -> None:
-    config = static.get("homarr", {})
-    if not isinstance(config, dict):
-        return
-
-    for extra in config.get("extras", []):
-        if not isinstance(extra, dict):
+    seen: set[str] = set()
+    monitors: list[dict[str, Any]] = []
+    for source in payload["endpoints"]:
+        if not isinstance(source, dict):
+            fail("Gatus endpoints must be mappings")
+        endpoint = dict(source)
+        labels = dict(endpoint.get("extra-labels") or {})
+        monitor_id = concrete_text(labels.get("nabla_monitor_id"))
+        if not monitor_id:
+            fail("Gatus endpoint requires extra-labels.nabla_monitor_id")
+        if monitor_id in seen:
+            fail(f"duplicate Gatus monitor identifier {monitor_id}")
+        seen.add(monitor_id)
+        service_id = concrete_text(labels.get("nabla_service_id"))
+        entity = by_id.get(service_id) if service_id else None
+        if entity and not declared_entity_active(entity):
             continue
-        extra_id = slug(extra.get("id"))
-        href = concrete_text(extra.get("url"))
-        entry: dict[str, Any] = {
-            "id": extra_id,
-            "name": concrete_text(extra.get("name")) or title(extra_id),
-            "group": concrete_text(extra.get("category")) or "infrastructure",
-            "sourcePath": "catalog/service-consumers.static.yml",
-            "composeService": None,
-            "dockerManaged": False,
-            "href": href,
-            "syncEligible": bool(href),
+        if entity:
+            labels["nabla_entity_ref"] = entity["entityRef"]
+        endpoint["extra-labels"] = labels
+        url = concrete_text(endpoint.get("url"))
+        name = concrete_text(endpoint.get("name"))
+        group = concrete_text(endpoint.get("group"))
+        interval = concrete_text(endpoint.get("interval"))
+        if not all((url, name, group, interval)):
+            fail(f"Gatus endpoint {monitor_id} missing url/name/group/interval")
+        monitor: dict[str, Any] = {
+            "id": monitor_id,
+            "name": name,
+            "group": group,
+            "interval": interval,
+            "gatus_endpoint": endpoint,
         }
-        for key in ("description", "icon"):
-            value = concrete_text(extra.get(key))
-            if value:
-                entry[key] = value
-        homarr_apps.setdefault(extra_id, entry)
-
-    for override in config.get("overrides", []):
-        if not isinstance(override, dict):
-            continue
-        service_id = slug(override.get("id"))
-        entry = homarr_apps.get(service_id)
-        if not entry:
-            continue
-        for source, target in (
-            ("name", "name"),
-            ("category", "group"),
-            ("url", "href"),
-            ("description", "description"),
-            ("icon", "icon"),
-        ):
-            value = concrete_text(override.get(source))
-            if value:
-                entry[target] = value
-        entry["syncEligible"] = bool(entry.get("href"))
-
-
-def apply_monitoring_static(
-    monitors: dict[str, dict[str, Any]],
-    static: dict[str, Any],
-    default_interval: str,
-) -> None:
-    config = static.get("monitoring", {})
-    if not isinstance(config, dict):
-        return
-    for extra in config.get("extras", []):
-        if not isinstance(extra, dict):
-            continue
-        extra_id = slug(extra.get("id"))
-        monitor = monitor_from_metadata(
-            extra_id,
-            concrete_text(extra.get("name")) or title(extra_id),
-            concrete_text(extra.get("category")) or "infrastructure",
-            concrete_text(extra.get("description")),
-            {**extra, "enabled": True},
-            default_interval,
-        )
-        if monitor:
-            # Static probes of canonical topology nodes (pfSense, TrueNAS, ...)
-            # declare their service identity explicitly for Prometheus rules.
-            service_id = slug(extra.get("serviceId")) if extra.get("serviceId") else None
-            if service_id:
-                monitor["service_id"] = service_id
-            monitors[extra_id] = monitor
+        if service_id:
+            monitor["service_id"] = service_id
+        if url.startswith(("http://", "https://")):
+            monitor.update({"type": "http", "url": url})
+        elif url.startswith("tcp://"):
+            parsed = parse_port_target(url)
+            if not parsed:
+                fail(f"Gatus endpoint {monitor_id}: invalid TCP URL")
+            monitor.update({"type": "port", "host": parsed[0], "port": parsed[1]})
+        elif url.startswith("icmp://"):
+            monitor.update({"type": "ping", "host": url.removeprefix("icmp://")})
+        else:
+            fail(f"Gatus endpoint {monitor_id}: unsupported AutoKuma URL scheme")
+        if entity:
+            description = concrete_text(entity["metadata"].get("description"))
+            if description:
+                monitor["description"] = description
+        monitors.append(monitor)
+    return sorted(monitors, key=lambda item: item["id"])
 
 
 def collect_services(
@@ -469,10 +410,16 @@ def collect_services(
     if not isinstance(defaults, dict):
         defaults = {}
     host = concrete_text(defaults.get("host")) or "172.17.0.24"
-    default_interval = concrete_text(defaults.get("interval")) or "60s"
     homarr_apps: dict[str, dict[str, Any]] = {}
-    monitors: dict[str, dict[str, Any]] = {}
-    declared_service_ids: set[str] = set()
+    entities = backstage_entities()
+    by_id: dict[str, dict[str, Any]] = {}
+    for ref, entity in entities.items():
+        if entity["kind"] not in {"Component", "Resource", "API"}:
+            continue
+        service_id = str(entity["metadata"]["name"])
+        if service_id in by_id:
+            fail(f"ambiguous Backstage service id {service_id!r}")
+        by_id[service_id] = entity
 
     for relative_path in tracked_compose_paths():
         document = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8")) or {}
@@ -481,78 +428,65 @@ def collect_services(
         services = document.get("services", {})
         if not isinstance(services, dict):
             continue
-        is_app_compose = bool(
-            relative_path.parts and relative_path.parts[0] == "apps"
-        )
-        app_name = relative_path.parts[1] if is_app_compose else relative_path.stem
-
         for raw_service_name, raw_service in services.items():
             if not isinstance(raw_service, dict):
                 continue
-            service_name = str(raw_service_name)
-            raw_metadata = raw_service.get("x-nabla")
-            if not is_app_compose and not isinstance(raw_metadata, dict):
-                continue
-            metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
-            service_id = app_service_id(app_name, service_name, metadata)
-            if isinstance(raw_metadata, dict):
-                declared_service_ids.add(service_id)
-            name = concrete_text(metadata.get("name")) or title(service_name)
-            kind = concrete_text(metadata.get("kind"))
-            category = concrete_text(metadata.get("category")) or slug(app_name)
-            description = concrete_text(metadata.get("description"))
-            icon = concrete_text(metadata.get("icon"))
-            ports = published_ports(raw_service)
-            href = (
-                concrete_text(metadata.get("url"))
-                or traefik_url(raw_service)
-                or infer_web_url(host, kind, ports)
+            entity_ref = concrete_text(
+                label_map(raw_service).get("com.albandrieu.nabla.entity-ref")
             )
-
+            if not entity_ref:
+                continue  # unmanaged support containers are not catalog entities
+            entity = entities.get(entity_ref.lower())
+            if entity is None:
+                fail(f"{relative_path}: unresolved Backstage ref {entity_ref}")
+            service_id = str(entity["metadata"]["name"])
+            name, category, description, canonical_url, kind = entity_metadata(entity)
+            ports = published_ports(raw_service)
+            href = canonical_url or traefik_url(raw_service) or infer_web_url(host, kind, ports)
             entry: dict[str, Any] = {
                 "id": service_id,
+                "entityRef": entity_ref.lower(),
                 "name": name,
                 "group": category,
                 "sourcePath": relative_path.as_posix(),
-                "composeService": service_name,
+                "composeService": str(raw_service_name),
                 "dockerManaged": True,
                 "href": href,
-                "syncEligible": bool(href),
+                "syncEligible": bool(href) and declared_entity_active(entity),
             }
             if description:
                 entry["description"] = description
-            if icon:
-                entry["icon"] = icon
+            previous = homarr_apps.get(service_id)
+            if previous and previous.get("entityRef") != entry["entityRef"]:
+                fail(f"duplicate Homarr id {service_id!r}")
             homarr_apps[service_id] = entry
 
-            declared_status = concrete_text(metadata.get("status")) or "active"
-            if declared_status == "active":
-                monitor = monitor_from_metadata(
-                    service_id,
-                    name,
-                    category,
-                    description,
-                    metadata.get("monitoring"),
-                    default_interval,
-                )
-                if monitor is None and is_app_compose:
-                    monitor = fallback_monitor(
-                        service_id,
-                        name,
-                        category,
-                        description,
-                        host,
-                        ports,
-                        default_interval,
-                    )
-                if monitor:
-                    monitors[service_id] = monitor
+    # Non-Compose entities (pfSense/TrueNAS/Docker) are projected from their
+    # Backstage standard links, without re-declaring identity in a static list.
+    for service_id, entity in by_id.items():
+        if service_id in homarr_apps:
+            continue
+        name, category, description, href, _ = entity_metadata(entity)
+        if not href:
+            continue
+        entry = {
+            "id": service_id,
+            "entityRef": entity["entityRef"],
+            "name": name,
+            "group": category,
+            "sourcePath": entity["sourcePath"],
+            "composeService": None,
+            "dockerManaged": False,
+            "href": href,
+            "syncEligible": declared_entity_active(entity),
+        }
+        if description:
+            entry["description"] = description
+        homarr_apps[service_id] = entry
 
-    apply_homarr_static(homarr_apps, static)
-    apply_monitoring_static(monitors, static, default_interval)
-    for monitor_id, monitor in monitors.items():
-        if monitor_id in declared_service_ids:
-            monitor["service_id"] = monitor_id
+    # Gatus native endpoint YAML owns the probe target and conditions.
+    # AutoKuma projects those same probe targets; no parallel monitoring inventory.
+    monitors = {item["id"]: item for item in native_gatus_monitors(entities)}
     return (
         [homarr_apps[key] for key in sorted(homarr_apps)],
         [monitors[key] for key in sorted(monitors)],
@@ -583,40 +517,11 @@ def homarr_payload(
 
 
 def gatus_payload(monitors: list[dict[str, Any]]) -> dict[str, Any]:
-    endpoints: list[dict[str, Any]] = []
-    for monitor in monitors:
-        endpoint: dict[str, Any] = {
-            "name": monitor["name"],
-            "group": monitor["group"],
-            "interval": monitor["interval"],
-            "extra-labels": {
-                "nabla_monitor_id": monitor["id"],
-                **(
-                    {"nabla_service_id": monitor["service_id"]}
-                    if monitor.get("service_id")
-                    else {}
-                ),
-            },
-        }
-        if monitor["type"] == "http":
-            endpoint["url"] = monitor["url"]
-            endpoint["conditions"] = monitor.get(
-                "conditions",
-                ["[STATUS] >= 200", "[STATUS] < 400"],
-            )
-        elif monitor["type"] == "port":
-            endpoint["url"] = f"tcp://{monitor['host']}:{monitor['port']}"
-            endpoint["conditions"] = ["[CONNECTED] == true"]
-        elif monitor["type"] == "ping":
-            endpoint["url"] = f"icmp://{monitor['host']}"
-            endpoint["conditions"] = ["[CONNECTED] == true"]
-        else:
-            continue
-        endpoints.append(endpoint)
+    # Preserve Gatus-native conditions, intervals and custom endpoint settings.
     return {
         "metrics": True,
         "storage": {"type": "sqlite", "path": "/data/gatus.db"},
-        "endpoints": endpoints,
+        "endpoints": [monitor["gatus_endpoint"] for monitor in monitors],
     }
 
 
@@ -632,6 +537,7 @@ def autokuma_payload(monitors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for monitor in monitors:
         entity: dict[str, Any] = {
+            "id": monitor["id"],  # stable Gatus ID; deployment renderer removes it
             "type": "http"
             if monitor["type"] == "http"
             else ("ping" if monitor["type"] == "ping" else "port"),
@@ -699,7 +605,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        static = load_static()
+        static = load_native_adapter_policy()
         apps, monitors = collect_services(static)
         outputs = {
             HOMARR_OUTPUT: render_json(homarr_payload(static, apps)),

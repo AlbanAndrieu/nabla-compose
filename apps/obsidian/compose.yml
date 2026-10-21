@@ -1,6 +1,8 @@
 ---
 services:
   obsidian:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/obsidian
     image: lscr.io/linuxserver/obsidian:1.13.7
     container_name: obsidian
     restart: unless-stopped

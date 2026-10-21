@@ -1,0 +1,5138 @@
+{
+  "catalogRevision": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4",
+  "entities": [
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/2fauth",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "2fauth",
+        "tags": [
+          "security"
+        ],
+        "title": "2FAuth"
+      },
+      "sourcePath": "apps/2fauth/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-app"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/aistor",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "priority-object-storage-data-remains-recoverable",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/aistor/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "MinIO AIStor-compatible object storage service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "aistor",
+        "tags": [
+          "data",
+          "object-storage"
+        ],
+        "title": "AIStor"
+      },
+      "sourcePath": "apps/aistor/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "object-storage"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-console",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned UI for historical network-flow search and analysis.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "links": [
+          {
+            "title": "Console",
+            "url": "http://172.17.0.24:31056/"
+          }
+        ],
+        "name": "akvorado-console",
+        "tags": [
+          "network",
+          "observability",
+          "netflow"
+        ],
+        "title": "Akvorado Console"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-inlet",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-inlet",
+        "tags": [
+          "network",
+          "observability",
+          "netflow"
+        ],
+        "title": "Akvorado Inlet"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-orchestrator",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned Akvorado configuration and coordination control plane.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-orchestrator",
+        "tags": [
+          "network",
+          "observability",
+          "netflow"
+        ],
+        "title": "Akvorado Orchestrator"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "controller"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/akvorado-outlet",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "akvorado-outlet",
+        "tags": [
+          "network",
+          "observability",
+          "netflow"
+        ],
+        "title": "Akvorado Outlet"
+      },
+      "sourcePath": "apps/akvorado/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/alloy",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "alloy",
+        "tags": [
+          "observability"
+        ],
+        "title": "Grafana Alloy"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "telemetry-collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/autokuma",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "monitoring-definitions-can-be-reconciled-after-uptime-kuma-recovery",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-24",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/autokuma/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Declarative monitor reconciler for the homelab Uptime Kuma instance.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "autokuma",
+        "tags": [
+          "observability",
+          "automation"
+        ],
+        "title": "AutoKuma"
+      },
+      "sourcePath": "apps/autokuma/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "controller"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/autoxpose",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "existing-exposure-state-remains-in-force-while-reconciliation-is-restored",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/autoxpose/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "autoxpose",
+        "tags": [
+          "operations",
+          "network",
+          "automation",
+          "nist-protect"
+        ],
+        "title": "AutoXpose"
+      },
+      "sourcePath": "apps/autoxpose/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/docker-socket-proxy"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/bichon",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:15630"
+          }
+        ],
+        "name": "bichon",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Bichon"
+      },
+      "sourcePath": "apps/bichon/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/cartography",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "manual-security-inventory-remains-available-from-source-systems",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cartography/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Scheduled or manual security asset and relationship ingestion into Neo4j.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "cartography",
+        "tags": [
+          "security",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "Cartography"
+      },
+      "sourcePath": "apps/cartography/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/neo4j-security"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "job"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/code-server",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "repositories-remain-accessible-through-native-git-clients",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/code/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Browser-based development environment for homelab repositories.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "code-server",
+        "tags": [
+          "development"
+        ],
+        "title": "Code Server"
+      },
+      "sourcePath": "apps/code/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "development-environment"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/crowdsec",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "crowdsec",
+        "tags": [
+          "security"
+        ],
+        "title": "CrowdSec"
+      },
+      "sourcePath": "apps/crowdsec/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-agent"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/cyberbro",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "manual-osint-and-reputation-analysis-remains-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/cyberbro/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Threat-intelligence workbench for IoC extraction and reputation analysis.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "cyberbro",
+        "tags": [
+          "security",
+          "threat-intelligence",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "Cyberbro"
+      },
+      "sourcePath": "apps/cyberbro/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/defectdojo",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "medium",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "access-to-current-security-findings-and-remediation-workflow",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/defectdojo/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Central normalized security-finding aggregation, triage and remediation workflow.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "defectdojo",
+        "tags": [
+          "security",
+          "vulnerability-management",
+          "nist-identify",
+          "nist-detect",
+          "nist-respond"
+        ],
+        "title": "DefectDojo"
+      },
+      "sourcePath": "apps/defectdojo/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/defectdojo-api",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "defectdojo-api",
+        "tags": [
+          "security",
+          "vulnerability-management"
+        ],
+        "title": "DefectDojo API"
+      },
+      "sourcePath": "apps/defectdojo/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql",
+          "resource:default/redis"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/defectdojo",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/defectdojo-celerybeat",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "defectdojo-celerybeat",
+        "tags": [
+          "security"
+        ],
+        "title": "DefectDojo Celery Beat"
+      },
+      "sourcePath": "apps/defectdojo/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/defectdojo",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/defectdojo-initializer",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "defectdojo-initializer",
+        "tags": [
+          "security"
+        ],
+        "title": "DefectDojo Initializer"
+      },
+      "sourcePath": "apps/defectdojo/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/defectdojo",
+        "system": "system:default/nabla-homelab",
+        "type": "job"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/defectdojo-worker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "defectdojo-worker",
+        "tags": [
+          "security"
+        ],
+        "title": "DefectDojo Worker"
+      },
+      "sourcePath": "apps/defectdojo/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/defectdojo",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dependency-track",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "medium",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "current-sbom-and-vulnerability-inventory-for-priority-services",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/dependency-track/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "dependency-track",
+        "tags": [
+          "security",
+          "supply-chain",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "Dependency-Track"
+      },
+      "sourcePath": "apps/dependency-track/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dependency-track-api",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "dependency-track-api",
+        "tags": [
+          "security",
+          "supply-chain"
+        ],
+        "title": "Dependency-Track API"
+      },
+      "sourcePath": "apps/dependency-track/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/dependency-track",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/docker-socket-proxy",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Restricted read-only Docker Engine API boundary for repository automation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "docker-socket-proxy",
+        "tags": [
+          "infrastructure",
+          "security",
+          "nist-protect"
+        ],
+        "title": "Docker Socket Proxy"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dockhand",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "docker-cli-and-truenas-management-remain-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/dockhand/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Docker container management UI for the homelab runtime.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "dockhand",
+        "tags": [
+          "operations",
+          "containers"
+        ],
+        "title": "Dockhand"
+      },
+      "sourcePath": "apps/dockhand/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "operations-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/docling",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "knowledge-ingestion-can-queue-until-document-conversion-is-restored",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/docling/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "docling",
+        "tags": [
+          "ai",
+          "document-processing"
+        ],
+        "title": "Docling Serve"
+      },
+      "sourcePath": "apps/docling/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/doco-cd",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "reviewed-compose-deployments-can-be-run-manually-from-git-while-doco-cd-recovers",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-27",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "doco-cd",
+        "tags": [
+          "operations",
+          "deployment",
+          "automation"
+        ],
+        "title": "Doco-CD"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/docker-socket-proxy"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "deployment-automation"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dozzle",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "docker-logs-remain-accessible-through-native-cli",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/dozzle/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Live Docker log viewer and MCP-enabled operations UI.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "dozzle",
+        "tags": [
+          "observability",
+          "operations",
+          "containers"
+        ],
+        "title": "Dozzle"
+      },
+      "sourcePath": "apps/dozzle/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/drawio",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "diagram-authoring-can-be-deferred-or-use-local-files",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-25",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/drawio/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted diagrams.net editor for internal diagram authoring.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "drawio",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Draw.io"
+      },
+      "sourcePath": "apps/drawio/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dsomm",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "dsomm",
+        "tags": [
+          "security",
+          "devsecops",
+          "maturity"
+        ],
+        "title": "OWASP DevSecOps Maturity Model"
+      },
+      "sourcePath": "apps/dsomm/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/dsomm-baseline",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned evidence scanner producing supporting DSOMM baseline reports for human review.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "dsomm-baseline",
+        "tags": [
+          "security",
+          "devsecops",
+          "evidence"
+        ],
+        "title": "DSOMM GitHub Baseline"
+      },
+      "sourcePath": "apps/dsomm/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/dsomm",
+        "system": "system:default/nabla-homelab",
+        "type": "tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/fastapi-sample",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "health-and-read-only-observation-capability",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sample/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "fastapi-sample",
+        "tags": [
+          "development"
+        ],
+        "title": "FastAPI Sample"
+      },
+      "sourcePath": "apps/sample/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/garage",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "medium",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "high",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "priority-object-storage-remains-recoverable",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "PT1H",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/garage/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "S3-compatible object storage hosted on TrueNAS.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "garage",
+        "tags": [
+          "data",
+          "object-storage"
+        ],
+        "title": "Garage S3"
+      },
+      "sourcePath": "apps/garage/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "object-storage"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/garage-admin",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/garage/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Administration API for the Garage object-storage service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "garage-admin",
+        "tags": [
+          "data",
+          "administration"
+        ],
+        "title": "Garage Admin API"
+      },
+      "sourcePath": "apps/garage/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/garage",
+        "system": "system:default/nabla-homelab",
+        "type": "api"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/garage-webui",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/garage/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Web administration UI for Garage.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "garage-webui",
+        "tags": [
+          "data",
+          "administration"
+        ],
+        "title": "Garage WebUI"
+      },
+      "sourcePath": "apps/garage/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/garage",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/gatus",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "manual-endpoint-verification-remains-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-20",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Monitoring",
+            "url": "http://172.17.0.24:8085"
+          }
+        ],
+        "name": "gatus",
+        "tags": [
+          "observability"
+        ],
+        "title": "Gatus"
+      },
+      "sourcePath": "apps/gatus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "status-monitor"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/grafana",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:30037"
+          }
+        ],
+        "name": "grafana",
+        "tags": [
+          "observability"
+        ],
+        "title": "Grafana"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability-ui"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/graylog",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9003"
+          }
+        ],
+        "name": "graylog",
+        "tags": [
+          "observability"
+        ],
+        "title": "Graylog"
+      },
+      "sourcePath": "apps/graylog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "log-management"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/haproxy-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "haproxy-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "pfSense HAProxy Exporter"
+      },
+      "sourcePath": "apps/haproxy-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/hello-nginx",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "routing-experiments-can-be-deferred-without-business-impact",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-25",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nginx/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Small internal Nginx service used for ingress and routing experiments.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "hello-nginx",
+        "tags": [
+          "development"
+        ],
+        "title": "Hello Nginx"
+      },
+      "sourcePath": "apps/nginx/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/homarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "native-service-uis-and-cli-remain-available-without-dashboard",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/homarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Homelab application dashboard generated from the Nabla service inventory.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "homarr",
+        "tags": [
+          "operations",
+          "dashboard"
+        ],
+        "title": "Homarr"
+      },
+      "sourcePath": "apps/homarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/docker-socket-proxy"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "operations-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/homarr-sync",
+      "kind": "Component",
+      "metadata": {
+        "description": "Reconciles generated Nabla application desired state through the Homarr API.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "homarr-sync",
+        "tags": [
+          "operations",
+          "automation"
+        ],
+        "title": "Homarr Reconciler"
+      },
+      "sourcePath": "apps/homarr/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/homarr",
+        "system": "system:default/nabla-homelab",
+        "type": "controller"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/homeassistant",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "essential-home-functions-remain-manually-operable-during-outage",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/homeassistant/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Home automation control plane exposed through the dedicated IoT network.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "homeassistant",
+        "tags": [
+          "automation",
+          "iot"
+        ],
+        "title": "Home Assistant"
+      },
+      "sourcePath": "apps/homeassistant/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "home-automation"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/joplin",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "local-note-copies-remain-usable-until-sync-is-restored",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/joplin/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "joplin",
+        "tags": [
+          "productivity",
+          "data"
+        ],
+        "title": "Joplin Server"
+      },
+      "sourcePath": "apps/joplin/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/kafka-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/kafka/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Prometheus exporter for Kafka broker and consumer-group state.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "kafka-exporter",
+        "tags": [
+          "observability",
+          "messaging"
+        ],
+        "title": "Kafka Exporter"
+      },
+      "sourcePath": "apps/kafka/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "resource:default/kafka",
+        "system": "system:default/nabla-homelab",
+        "type": "exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/keycloak",
+      "kind": "Component",
+      "metadata": {
+        "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:30238"
+          }
+        ],
+        "name": "keycloak",
+        "tags": [
+          "security"
+        ],
+        "title": "Keycloak"
+      },
+      "sourcePath": "apps/keycloak/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "identity-provider"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/kibana",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:5601"
+          }
+        ],
+        "name": "kibana",
+        "tags": [
+          "observability"
+        ],
+        "title": "Kibana"
+      },
+      "sourcePath": "apps/elasticsearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "dashboard"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langflow",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:7860"
+          }
+        ],
+        "name": "langflow",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langflow"
+      },
+      "sourcePath": "apps/langflow/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "workflow"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langfuse-web",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:3000"
+          }
+        ],
+        "name": "langfuse-web",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langfuse Web"
+      },
+      "sourcePath": "apps/langfuse/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/langfuse-worker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "langfuse-worker",
+        "tags": [
+          "ai"
+        ],
+        "title": "Langfuse Worker"
+      },
+      "sourcePath": "apps/langfuse/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/languagetool",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "external-language-services-remain-available-as-fallback",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/languagetool/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted grammar and style checking API.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "languagetool",
+        "tags": [
+          "productivity"
+        ],
+        "title": "LanguageTool"
+      },
+      "sourcePath": "apps/languagetool/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "productivity-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/litellm",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/litellm/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "OpenAI-compatible model gateway used by OpenWebUI and AI workloads.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "litellm",
+        "tags": [
+          "ai",
+          "gateway",
+          "inference"
+        ],
+        "title": "LiteLLM"
+      },
+      "sourcePath": "apps/litellm/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/gpu-openai-compatible-inference"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-gateway"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/mcp-cyberbro",
+      "kind": "Component",
+      "metadata": {
+        "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mcp-cyberbro",
+        "tags": [
+          "security",
+          "mcp"
+        ],
+        "title": "Cyberbro MCP"
+      },
+      "sourcePath": "apps/cyberbro/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/cyberbro",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/n8n",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "https://n8n.int.albandrieu.com"
+          }
+        ],
+        "name": "n8n",
+        "tags": [
+          "automation"
+        ],
+        "title": "n8n"
+      },
+      "sourcePath": "apps/n8n/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "workflow"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netbox",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "trusted-network-and-infrastructure-source-of-truth",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/netbox/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netbox",
+        "tags": [
+          "infrastructure",
+          "network",
+          "nist-identify"
+        ],
+        "title": "NetBox"
+      },
+      "sourcePath": "apps/netbox/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql",
+          "resource:default/redis"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netbox-housekeeping",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netbox-housekeeping",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "NetBox Housekeeping"
+      },
+      "sourcePath": "apps/netbox/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/netbox",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netbox-worker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netbox-worker",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "NetBox Worker"
+      },
+      "sourcePath": "apps/netbox/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/netbox",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/nexus",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "priority-development-artifacts-and-package-proxies-remain-recoverable",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nexus/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Repository manager for development artifacts and package proxies.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "nexus",
+        "tags": [
+          "development",
+          "artifact-repository",
+          "supply-chain"
+        ],
+        "title": "Nexus Repository"
+      },
+      "sourcePath": "apps/nexus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "artifact-repository"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/nginx-proxy-manager",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "legacy-proxy-state-remains-recoverable-during-npmplus-migration",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/nginx-proxy-manager/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "nginx-proxy-manager",
+        "tags": [
+          "network",
+          "proxy",
+          "legacy"
+        ],
+        "title": "Nginx Proxy Manager"
+      },
+      "sourcePath": "apps/nginx-proxy-manager/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "deprecated",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/npmplus",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "migration-target-not-required-for-current-primary-routing",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/npmplus/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "npmplus",
+        "tags": [
+          "network",
+          "proxy"
+        ],
+        "title": "NPMplus"
+      },
+      "sourcePath": "apps/npmplus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ntopng",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "traffic-visibility-can-be-restored-from-primary-flow-sources",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-20",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "LAN network traffic monitoring UI.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Dashboard",
+            "url": "http://172.17.0.24:3000"
+          }
+        ],
+        "name": "ntopng",
+        "tags": [
+          "network",
+          "observability"
+        ],
+        "title": "ntopng"
+      },
+      "sourcePath": "apps/ntopng/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/clickhouse"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "network-observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/obsidian",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:3002"
+          }
+        ],
+        "name": "obsidian",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Obsidian"
+      },
+      "sourcePath": "apps/obsidian/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ollama",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "https://ollama.int.albandrieu.com"
+          }
+        ],
+        "name": "ollama",
+        "tags": [
+          "ai"
+        ],
+        "title": "Ollama"
+      },
+      "sourcePath": "apps/ollama/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "model-runtime"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/op-connect-api",
+      "kind": "Component",
+      "metadata": {
+        "description": "1Password Connect API for machine-readable secret access.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:8097"
+          }
+        ],
+        "name": "op-connect-api",
+        "tags": [
+          "security"
+        ],
+        "title": "1Password Connect API"
+      },
+      "sourcePath": "apps/opconnect/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "secrets-api"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/op-connect-sync",
+      "kind": "Component",
+      "metadata": {
+        "description": "Synchronizes 1Password vault state for the Connect API.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:8098"
+          }
+        ],
+        "name": "op-connect-sync",
+        "tags": [
+          "security"
+        ],
+        "title": "1Password Connect Sync"
+      },
+      "sourcePath": "apps/opconnect/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "secrets-sync"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openclaw-sandbox",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "sandbox-automation-can-be-rebuilt-from-repository-and-source-calendars",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-25",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openclaw/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openclaw-sandbox",
+        "tags": [
+          "development",
+          "automation"
+        ],
+        "title": "OpenClaw Sandbox"
+      },
+      "sourcePath": "apps/openclaw/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opencre",
+      "kind": "Component",
+      "metadata": {
+        "description": "Planned internal service for correlating common security requirements across standards.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "opencre",
+        "tags": [
+          "security",
+          "standards",
+          "owasp",
+          "governance"
+        ],
+        "title": "OWASP OpenCRE"
+      },
+      "sourcePath": "apps/opencre/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openhands",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "development-remains-possible-without-self-hosted-coding-agent",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openhands/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openhands",
+        "tags": [
+          "ai",
+          "development",
+          "containers"
+        ],
+        "title": "OpenHands"
+      },
+      "sourcePath": "apps/openhands/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openrag-backend",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openrag/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Knowledge retrieval backend required by the OpenWebUI continuity path.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openrag-backend",
+        "tags": [
+          "ai",
+          "rag",
+          "knowledge"
+        ],
+        "title": "OpenRAG Backend"
+      },
+      "sourcePath": "apps/openrag/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/gpu-openai-compatible-inference"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openrag-frontend",
+      "kind": "Component",
+      "metadata": {
+        "description": "OpenRAG frontend and collective-health UI.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openrag-frontend",
+        "tags": [
+          "ai",
+          "rag",
+          "ui"
+        ],
+        "title": "OpenRAG Frontend"
+      },
+      "sourcePath": "apps/openrag/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/openrag-backend",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-dashboards",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:5601"
+          }
+        ],
+        "name": "opensearch-dashboards",
+        "tags": [
+          "data"
+        ],
+        "title": "OpenSearch Dashboards"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "OpenSearch Exporter"
+      },
+      "sourcePath": "apps/opensearch-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-security",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-security",
+        "tags": [
+          "security"
+        ],
+        "title": "OpenSearch Security"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/opensearch-security-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch-security-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "OpenSearch Security Exporter"
+      },
+      "sourcePath": "apps/opensearch-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openssf-scorecard",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "security-posture-scan-can-be-rerun-from-source-repositories",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-25",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/scorecard/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Manual repository security-posture scanner whose results can be regenerated from source repositories.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openssf-scorecard",
+        "tags": [
+          "security",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "OpenSSF Scorecard"
+      },
+      "sourcePath": "apps/scorecard/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "job"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openwebui",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "high",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "openwebui-ui-with-litellm-and-openrag-required-on-lan-public-tunnel-optional",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-23",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openwebui/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted AI chat and RAG interface using the homelab LiteLLM gateway.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openwebui",
+        "tags": [
+          "ai",
+          "productivity",
+          "rag"
+        ],
+        "title": "Open WebUI"
+      },
+      "sourcePath": "apps/openwebui/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/litellm",
+          "component:default/openrag-backend"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pfsense-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pfsense-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "pfSense Exporter"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pihole-dns-sync",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Reconciles repository-managed service names into Pi-hole private DNS.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pihole-dns-sync",
+        "tags": [
+          "network",
+          "automation"
+        ],
+        "title": "Pi-hole DNS Sync"
+      },
+      "sourcePath": "apps/pihole/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/docker-socket-proxy"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "resource:default/pihole",
+        "system": "system:default/nabla-homelab",
+        "type": "controller"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pihole-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Prometheus-compatible metrics exporter for Pi-hole.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pihole-exporter",
+        "tags": [
+          "observability",
+          "dns"
+        ],
+        "title": "Pi-hole Exporter"
+      },
+      "sourcePath": "apps/pihole/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "resource:default/pihole",
+        "system": "system:default/nabla-homelab",
+        "type": "exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/plumber",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "developer-workflows-remain-recoverable-with-manual-fallbacks",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/plumber/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Repository-managed developer platform frontend and workflow UI.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "plumber",
+        "tags": [
+          "development",
+          "nist-identify",
+          "nist-protect"
+        ],
+        "title": "Plumber"
+      },
+      "sourcePath": "apps/plumber/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/plumber-api"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "developer-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/plumber-api",
+      "kind": "Component",
+      "metadata": {
+        "description": "Backend API for the Plumber developer platform.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "plumber-api",
+        "tags": [
+          "development",
+          "api"
+        ],
+        "title": "Plumber API"
+      },
+      "sourcePath": "apps/plumber/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql",
+          "resource:default/redis"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/plumber",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/plumber-worker",
+      "kind": "Component",
+      "metadata": {
+        "description": "Background worker for Plumber asynchronous jobs.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "plumber-worker",
+        "tags": [
+          "development"
+        ],
+        "title": "Plumber Worker"
+      },
+      "sourcePath": "apps/plumber/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/plumber",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/portracker",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "manual-port-and-runtime-inventory-remains-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/portracker/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "portracker",
+        "tags": [
+          "operations",
+          "security",
+          "inventory"
+        ],
+        "title": "Portracker"
+      },
+      "sourcePath": "apps/portracker/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/postgres-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "database-observability-can-be-temporarily-degraded",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Prometheus exporter for the shared PostgreSQL Resource.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "postgres-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "PostgreSQL Exporter"
+      },
+      "sourcePath": "apps/postgres/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9090"
+          }
+        ],
+        "name": "prometheus",
+        "tags": [
+          "observability"
+        ],
+        "title": "Prometheus"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus-alertmanager",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "prometheus-alertmanager",
+        "tags": [
+          "observability"
+        ],
+        "title": "Alertmanager"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "alerting"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prometheus-node-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "prometheus-node-exporter",
+        "tags": [
+          "prometheus"
+        ],
+        "title": "Node Exporter"
+      },
+      "sourcePath": "apps/prometheus/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pyroscope",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "application-remains-operational-without-continuous-profiling",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pyroscope/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pyroscope",
+        "tags": [
+          "observability",
+          "profiling"
+        ],
+        "title": "Grafana Pyroscope"
+      },
+      "sourcePath": "apps/pyroscope/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/redis-redis-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "redis-redis-exporter",
+        "tags": [
+          "redis"
+        ],
+        "title": "Redis Exporter"
+      },
+      "sourcePath": "apps/redis/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/scanopy",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "recent-network-topology-can-be-rebuilt-from-discovery",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/scanopy/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Agentless network discovery and continuously updated topology documentation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Network topology",
+            "url": "http://172.17.0.24:60072"
+          }
+        ],
+        "name": "scanopy",
+        "tags": [
+          "network",
+          "security",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "Scanopy"
+      },
+      "sourcePath": "apps/scanopy/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/scanopy-daemon",
+      "kind": "Component",
+      "metadata": {
+        "description": "Privileged network and container discovery scanner for Scanopy.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "scanopy-daemon",
+        "tags": [
+          "network",
+          "security"
+        ],
+        "title": "Scanopy Daemon"
+      },
+      "sourcePath": "apps/scanopy/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/scanopy",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/scrutiny",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "disk-health-history-and-alerting-for-priority-storage-remains-recoverable",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/scrutiny/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "scrutiny",
+        "tags": [
+          "observability",
+          "storage",
+          "nist-detect"
+        ],
+        "title": "Scrutiny"
+      },
+      "sourcePath": "apps/scrutiny/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/influxdb"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/scrutiny-collector",
+      "kind": "Component",
+      "metadata": {
+        "description": "SMART inventory and metrics collector feeding the Scrutiny web/API service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "scrutiny-collector",
+        "tags": [
+          "observability",
+          "storage"
+        ],
+        "title": "Scrutiny Collector"
+      },
+      "sourcePath": "apps/scrutiny/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/scrutiny",
+        "system": "system:default/nabla-homelab",
+        "type": "collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "recent-error-visibility-for-priority-services",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sentry/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted Sentry errors-only observability service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry",
+        "tags": [
+          "observability"
+        ],
+        "title": "Sentry"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/postgresql",
+          "resource:default/redis"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-edge",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-edge",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Sentry Edge"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-memcached",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-memcached",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Memcached"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-relay",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-relay",
+        "tags": [
+          "observability",
+          "network"
+        ],
+        "title": "Sentry Relay"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/redis"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-attachments-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-attachments-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Attachments Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-events-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-events-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Events Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-migrate",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-migrate",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Migrate"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-post-process-forwarder-errors",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-post-process-forwarder-errors",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Post Process Forwarder Errors"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-sentry-taskscheduler",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-sentry-taskscheduler",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Sentry Taskscheduler"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-api",
+      "kind": "Component",
+      "metadata": {
+        "description": "Sentry query service backed by the dedicated Sentry ClickHouse.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-api",
+        "tags": [
+          "observability",
+          "analytics"
+        ],
+        "title": "Sentry Snuba API"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka",
+          "resource:default/redis",
+          "resource:default/sentry-clickhouse"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-errors-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-errors-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Errors Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-group-attributes-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-group-attributes-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Group Attributes Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-migrate",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-migrate",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Migrate"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-outcomes-billing-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-outcomes-billing-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Outcomes Billing Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-outcomes-consumer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-outcomes-consumer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Outcomes Consumer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-replacer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-replacer",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Replacer"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-snuba-subscription-consumer-events",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-snuba-subscription-consumer-events",
+        "tags": [
+          "sentry"
+        ],
+        "title": "Snuba Subscription Consumer Events"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-taskbroker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-taskbroker",
+        "tags": [
+          "observability"
+        ],
+        "title": "Sentry Taskbroker"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/kafka"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sentry-taskworker",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-taskworker",
+        "tags": [
+          "observability"
+        ],
+        "title": "Sentry Taskworker"
+      },
+      "sourcePath": "apps/sentry/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
+        "system": "system:default/nabla-homelab",
+        "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sonarqube",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9001"
+          }
+        ],
+        "name": "sonarqube",
+        "tags": [
+          "development"
+        ],
+        "title": "SonarQube"
+      },
+      "sourcePath": "apps/sonarqube/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "code-quality"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/squid",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "workloads-can-bypass-experimental-forward-proxy",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/squid/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "squid",
+        "tags": [
+          "network",
+          "proxy"
+        ],
+        "title": "Squid Proxy"
+      },
+      "sourcePath": "apps/squid/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/suricata",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "suricata",
+        "tags": [
+          "security"
+        ],
+        "title": "Suricata"
+      },
+      "sourcePath": "apps/suricata/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ids"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sybase-exporter",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sybase-exporter",
+        "tags": [
+          "observability"
+        ],
+        "title": "Sybase Exporter"
+      },
+      "sourcePath": "apps/sybase-exporter/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "critical",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "trusted-lan-ingress-for-priority-services",
+          "albandrieu.com/bia-mtpd": "PT4H",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT1H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/traefik/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Internal reverse proxy for repository-managed homelab services.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "critical",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik",
+        "tags": [
+          "network"
+        ],
+        "title": "Traefik"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-cloudflare-ddns",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-cloudflare-ddns",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Cloudflare Ddns"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-ddns-updater",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-ddns-updater",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Ddns Updater"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/traefik-dnsupdater",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "traefik-dnsupdater",
+        "tags": [
+          "traefik"
+        ],
+        "title": "Dnsupdater"
+      },
+      "sourcePath": "apps/traefik/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/vaultwarden",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "medium",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "high",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "access-to-current-credentials-and-secret-material",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "PT1H",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/vaultwarden/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Self-hosted Bitwarden-compatible password and secret vault.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "vaultwarden",
+        "tags": [
+          "security",
+          "secrets",
+          "nist-protect"
+        ],
+        "title": "Vaultwarden"
+      },
+      "sourcePath": "apps/vaultwarden/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/vaultwarden-rest-api",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/vaultwarden/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "vaultwarden-rest-api",
+        "tags": [
+          "security",
+          "compatibility"
+        ],
+        "title": "Vaultwarden REST API Adapter"
+      },
+      "sourcePath": "apps/vaultwarden/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "deprecated",
+        "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/vaultwarden",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/watchtower",
+      "kind": "Component",
+      "metadata": {
+        "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "watchtower",
+        "tags": [
+          "security"
+        ],
+        "title": "Watchtower"
+      },
+      "sourcePath": "apps/watchtower/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "image-update-auditor"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-dashboard",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-dashboard",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Dashboard"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-forwarder",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-forwarder",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh OpenSearch Forwarder"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "telemetry-forwarder"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-indexer",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-indexer",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Indexer"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wazuh-manager",
+      "kind": "Component",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wazuh-manager",
+        "tags": [
+          "security"
+        ],
+        "title": "Wazuh Manager"
+      },
+      "sourcePath": "apps/wazuh/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-manager"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wordpress",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "public-content-can-remain-offline-while-the-lab-service-is-rebuilt",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-26",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/wordpress/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wordpress",
+        "tags": [
+          "development",
+          "cms"
+        ],
+        "title": "WordPress"
+      },
+      "sourcePath": "apps/wordpress/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wordpress-wordpress-initdb",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
+        },
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wordpress-wordpress-initdb",
+        "tags": [
+          "wordpress"
+        ],
+        "title": "Wordpress Initdb"
+      },
+      "sourcePath": "apps/wordpress/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "domain:default/nabla",
+      "kind": "Domain",
+      "metadata": {
+        "name": "nabla",
+        "title": "Nabla"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "group:default/nabla-platform",
+      "kind": "Group",
+      "metadata": {
+        "name": "nabla-platform",
+        "title": "Nabla Platform"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "children": [],
+        "type": "team"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/clickhouse",
+      "kind": "Resource",
+      "metadata": {
+        "description": "Shared analytical database for event and network-flow pipelines.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "clickhouse",
+        "tags": [
+          "data",
+          "analytics"
+        ],
+        "title": "ClickHouse"
+      },
+      "sourcePath": "apps/clickhouse/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/cloudflare-tunnel",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "priority-public-routes-remain-reachable",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Public edge tunnel provider for reviewed homelab routes.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "cloudflare-tunnel",
+        "tags": [
+          "network",
+          "security"
+        ],
+        "title": "Cloudflare Tunnel"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "network-edge"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/docker",
+      "kind": "Resource",
+      "metadata": {
+        "description": "Docker Engine runtime used by repository-managed Compose workloads.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Administration",
+            "url": "http://172.17.0.24:3050"
+          }
+        ],
+        "name": "docker",
+        "tags": [
+          "infrastructure",
+          "containers"
+        ],
+        "title": "Docker Runtime"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "container-runtime"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/elasticsearch",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "elasticsearch",
+        "tags": [
+          "data"
+        ],
+        "title": "Elasticsearch"
+      },
+      "sourcePath": "apps/elasticsearch/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/gpu-openai-compatible-inference",
+      "kind": "Resource",
+      "metadata": {
+        "description": "Logical GPU inference capability consumed by AI gateways and RAG services; currently backed by the workstation and intended to gain a cloud fallback.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "gpu-openai-compatible-inference",
+        "tags": [
+          "ai",
+          "gpu",
+          "inference"
+        ],
+        "title": "GPU OpenAI-Compatible Inference"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-inference-capability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/influxdb",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/influxdb/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "influxdb",
+        "tags": [
+          "data",
+          "observability"
+        ],
+        "title": "InfluxDB"
+      },
+      "sourcePath": "apps/influxdb/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "time-series-database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/kafka",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/kafka/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Shared homelab message broker.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "kafka",
+        "tags": [
+          "data",
+          "messaging"
+        ],
+        "title": "Apache Kafka"
+      },
+      "sourcePath": "apps/kafka/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "message-broker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/kubernetes",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "cluster-control-plane-recoverable-without-current-business-workloads",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Talos-backed Kubernetes cluster hosted on TrueNAS.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "kubernetes",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "Kubernetes"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "kubernetes-cluster"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/loki",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "loki",
+        "tags": [
+          "observability"
+        ],
+        "title": "Loki"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "log-store"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/mimir",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mimir",
+        "tags": [
+          "observability"
+        ],
+        "title": "Mimir"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "metrics-store"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/minio",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:9091"
+          }
+        ],
+        "name": "minio",
+        "tags": [
+          "data"
+        ],
+        "title": "MinIO"
+      },
+      "sourcePath": "apps/minio/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "object-storage"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/mongo",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "mongo",
+        "tags": [
+          "data"
+        ],
+        "title": "MongoDB"
+      },
+      "sourcePath": "apps/mongo/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/neo4j-security",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "graph-query-unavailable-rebuildable-from-sources",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/neo4j/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Analytical graph store for attack-path and blast-radius analysis.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "neo4j-security",
+        "tags": [
+          "security",
+          "graph",
+          "nist-identify",
+          "nist-detect"
+        ],
+        "title": "Neo4j Security Graph"
+      },
+      "sourcePath": "apps/neo4j/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "graph-database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/opensearch",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "opensearch",
+        "tags": [
+          "data"
+        ],
+        "title": "OpenSearch"
+      },
+      "sourcePath": "apps/opensearch/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "search"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/pfsense",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "high",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "critical",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "critical",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "lan-routing-dns-and-firewalling",
+          "albandrieu.com/bia-mtpd": "PT1H",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT15M",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Homelab firewall, router and network-edge appliance.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "critical",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Administration",
+            "url": "https://172.17.0.1:10443"
+          }
+        ],
+        "name": "pfsense",
+        "tags": [
+          "network",
+          "security"
+        ],
+        "title": "pfSense"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "firewall-router"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/pfsense-haproxy",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "high",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "critical",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "priority-wan-ingress-for-reviewed-services",
+          "albandrieu.com/bia-mtpd": "PT4H",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT1H",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "pfSense HAProxy public TLS ingress and reverse-proxy edge.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "critical",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pfsense-haproxy",
+        "tags": [
+          "network",
+          "security"
+        ],
+        "title": "pfSense HAProxy"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/pfsense"
+        ],
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "reverse-proxy"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/pihole",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "high",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "lan-dns-resolution-for-priority-hosts",
+          "albandrieu.com/bia-mtpd": "P1D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-22",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "PT4H",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/pihole/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "LAN DNS filtering and private *.int.albandrieu.com DNS service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Administration",
+            "url": "http://172.17.0.24:20720/admin/"
+          }
+        ],
+        "name": "pihole",
+        "tags": [
+          "network",
+          "dns",
+          "security"
+        ],
+        "title": "Pi-hole"
+      },
+      "sourcePath": "apps/pihole/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "dns"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/postgresql",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "medium",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "critical",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "critical",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "read-write-database-for-priority-consumers",
+          "albandrieu.com/bia-mtpd": "PT4H",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "PT1H",
+          "albandrieu.com/bia-rto": "PT1H",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Shared native TrueNAS PostgreSQL service used by homelab consumers.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "critical",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "postgresql",
+        "tags": [
+          "data"
+        ],
+        "title": "PostgreSQL"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/redis",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/redis/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Shared homelab Redis cache and runtime-state service.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "redis",
+        "tags": [
+          "data",
+          "cache"
+        ],
+        "title": "Redis"
+      },
+      "sourcePath": "apps/redis/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "cache"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/sentry-clickhouse",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sentry-clickhouse/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Dedicated analytical datastore for the self-hosted Sentry stack.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sentry-clickhouse",
+        "tags": [
+          "data",
+          "observability"
+        ],
+        "title": "Sentry ClickHouse"
+      },
+      "sourcePath": "apps/sentry-clickhouse/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "database"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/talos",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "talos-nodes-recoverable-for-current-empty-cluster",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-09-21",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Immutable operating system for the homelab Kubernetes nodes.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "talos",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "Talos Linux"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "host-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/tempo",
+      "kind": "Resource",
+      "metadata": {
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "tempo",
+        "tags": [
+          "observability"
+        ],
+        "title": "Tempo"
+      },
+      "sourcePath": "apps/grafana/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "trace-store"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/truenas",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-customer": "high",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "critical",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "critical",
+          "albandrieu.com/bia-impact-privacy": "high",
+          "albandrieu.com/bia-impact-reputation": "medium",
+          "albandrieu.com/bia-mbco": "storage-and-priority-always-on-services",
+          "albandrieu.com/bia-mtpd": "PT4H",
+          "albandrieu.com/bia-reviewed-at": "2026-10-03",
+          "albandrieu.com/bia-rpo": "PT1H",
+          "albandrieu.com/bia-rto": "PT1H",
+          "albandrieu.com/bia-status": "provisional",
+          "albandrieu.com/pra-last-tested-at": "2026-10-03",
+          "albandrieu.com/pra-recovery-result": "passed-after-manual-power-cycle",
+          "albandrieu.com/pra-rpo-result": "not-exercised",
+          "albandrieu.com/pra-rto-result": "target-breached",
+          "albandrieu.com/pra-runbook": "docs/homelab-reboot-runbook.md",
+          "albandrieu.com/pra-status": "tested-with-deviation"
+        },
+        "description": "Always-on storage, virtualization and Docker application platform.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "critical",
+          "albandrieu.com/operational-criticality": "critical",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Administration",
+            "url": "https://172.17.0.24:7000"
+          }
+        ],
+        "name": "truenas",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "TrueNAS"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "virtualization-platform"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "system:default/nabla-homelab",
+      "kind": "System",
+      "metadata": {
+        "name": "nabla-homelab",
+        "title": "Nabla Homelab"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "domain": "domain:default/nabla",
+        "owner": "group:default/nabla-platform"
+      }
+    }
+  ],
+  "model": "backstage",
+  "schemaVersion": 2
+}

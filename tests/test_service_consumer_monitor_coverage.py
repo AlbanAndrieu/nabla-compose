@@ -1,5 +1,4 @@
-"""Cross-check active monitoring declarations against generated Gatus endpoints."""
-
+"""Gatus native monitoring declarations drive both generated consumers."""
 from __future__ import annotations
 
 import json
@@ -8,46 +7,34 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOG = ROOT / "catalog" / "services.json"
-GATUS = ROOT / "apps" / "gatus" / "config" / "config.yml"
+SOURCE = ROOT / "config/monitoring/gatus-endpoints.yml"
+GATUS = ROOT / "apps/gatus/config/config.yml"
+AUTOKUMA = ROOT / "apps/autokuma/static/generated-monitors.json"
 
 
-def test_every_active_monitored_service_has_gatus_service_identity() -> None:
-    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+def test_native_monitors_are_projected_without_duplication() -> None:
+    source = yaml.safe_load(SOURCE.read_text(encoding="utf-8"))
     gatus = yaml.safe_load(GATUS.read_text(encoding="utf-8"))
-
-    active_monitored = {
-        service["id"]
-        for service in catalog["services"]
-        if service.get("status", "active") == "active"
-        and isinstance(service.get("monitoring"), dict)
-        and service["monitoring"].get("enabled") is not False
-    }
-    generated = {
-        labels["nabla_service_id"]
-        for endpoint in gatus["endpoints"]
-        if isinstance((labels := endpoint.get("extra-labels")), dict)
-        and isinstance(labels.get("nabla_service_id"), str)
-    }
-
-    assert active_monitored <= generated
-    assert "doco-cd" in generated
+    autokuma = json.loads(AUTOKUMA.read_text(encoding="utf-8"))
+    native_ids = [ep["extra-labels"]["nabla_monitor_id"]
+                  for ep in source["endpoints"]]
+    generated_ids = [ep["extra-labels"]["nabla_monitor_id"]
+                     for ep in gatus["endpoints"]]
+    assert len(native_ids) == len(set(native_ids))
+    assert len(generated_ids) == len(set(generated_ids))
+    assert set(generated_ids) <= set(native_ids)
+    assert len(generated_ids) == len(autokuma)
+    assert len({item["name"] for item in autokuma}) == len(autokuma)
 
 
-def test_planned_and_disabled_monitors_are_not_required_in_gatus() -> None:
-    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
-    gatus = yaml.safe_load(GATUS.read_text(encoding="utf-8"))
-    generated = {
-        labels["nabla_service_id"]
-        for endpoint in gatus["endpoints"]
-        if isinstance((labels := endpoint.get("extra-labels")), dict)
-        and isinstance(labels.get("nabla_service_id"), str)
-    }
-
-    inactive_monitored = {
-        service["id"]
-        for service in catalog["services"]
-        if service.get("status", "active") in {"planned", "disabled"}
-        and isinstance(service.get("monitoring"), dict)
-    }
-    assert inactive_monitored.isdisjoint(generated)
+def test_http_probe_conditions_survive_projection() -> None:
+    native = yaml.safe_load(SOURCE.read_text(encoding="utf-8"))["endpoints"]
+    generated = yaml.safe_load(GATUS.read_text(encoding="utf-8"))["endpoints"]
+    def by_id(endpoints):
+        return {ep["extra-labels"]["nabla_monitor_id"]: ep for ep in endpoints}
+    before, after = by_id(native), by_id(generated)
+    assert after["autoxpose"]["url"] == before["autoxpose"]["url"]
+    assert after["autoxpose"]["conditions"] == before["autoxpose"]["conditions"]
+    assert after["autoxpose"]["url"].startswith("http://")
+    assert after["pfsense"]["extra-labels"]["nabla_service_id"] == "pfsense"
+    assert after["truenas"]["extra-labels"]["nabla_service_id"] == "truenas"

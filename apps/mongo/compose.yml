@@ -1,6 +1,8 @@
 ---
 services:
   mongo:
+    labels:
+      com.albandrieu.nabla.entity-ref: resource:default/mongo
     image: docker.io/mongo:7.0
     container_name: mongo
     restart: unless-stopped

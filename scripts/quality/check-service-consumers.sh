@@ -31,6 +31,8 @@ hash_outputs() {
 BEFORE="$(hash_outputs)"
 python scripts/generate-service-consumers.py
 AFTER="$(hash_outputs)"
+# Native static-file schema and stable monitor IDs, not a JSON-array mount.
+python scripts/truenas/render-autokuma-monitors.py --validate-only
 DRIFT=false
 
 if [[ "${BEFORE}" != "${AFTER}" ]]; then
@@ -42,6 +44,7 @@ fi
 TESTS_FAILED=false
 if ! python -m unittest -v \
   tests.test_homarr_sync \
+  tests.test_autokuma_materialization \
   tests.test_service_consumers_status_contract \
   tests.test_service_topology_generator; then
   TESTS_FAILED=true

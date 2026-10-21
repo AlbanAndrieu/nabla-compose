@@ -141,3 +141,250 @@ spec:
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
   subcomponentOf: component:default/sentry
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-memcached
+  title: Memcached
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-sentry-attachments-consumer
+  title: Sentry Attachments Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-sentry-events-consumer
+  title: Sentry Events Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-sentry-migrate
+  title: Sentry Migrate
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-sentry-post-process-forwarder-errors
+  title: Sentry Post Process Forwarder Errors
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-sentry-taskscheduler
+  title: Sentry Taskscheduler
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-errors-consumer
+  title: Snuba Errors Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-group-attributes-consumer
+  title: Snuba Group Attributes Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-migrate
+  title: Snuba Migrate
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-outcomes-billing-consumer
+  title: Snuba Outcomes Billing Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-outcomes-consumer
+  title: Snuba Outcomes Consumer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-replacer
+  title: Snuba Replacer
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentry-snuba-subscription-consumer-events
+  title: Snuba Subscription Consumer Events
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - sentry
+  annotations:
+    albandrieu.com/migration-provenance: legacy-homarr-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

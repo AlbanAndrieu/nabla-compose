@@ -1,0 +1,16 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: crowdsec
+  title: CrowdSec
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
+  tags:
+  - security
+spec:
+  type: security-agent
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

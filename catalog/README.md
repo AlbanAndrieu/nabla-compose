@@ -29,6 +29,32 @@ Use one authority per concern:
 
 The preferred v2 service has **no x-nabla block**.
 
+### Consumer projections already on v2 (PR #265)
+
+Backstage + Compose now generate Homarr entries and enrich Gatus monitor IDs.
+Gatus probe targets/conditions are maintained **in Gatus-native format**
+at `config/monitoring/gatus-endpoints.yml`, outside the mounted Gatus
+runtime configuration directory. AutoKuma is derived from those same probes:
+no independent monitor inventory or generic-port monitoring fallback.
+
+```bash
+python scripts/generate-service-consumers.py --check
+python scripts/generate-catalog-v2-artifacts.py --check
+```
+
+The v2 read models are `catalog/generated/entities.json` and
+`catalog/generated/homelab.cdx.json`. Current coverage (20 October 2026):
+95 Backstage entities, 85 Homarr entries, 85 Gatus probes and 85 AutoKuma
+monitors; the CycloneDX projection represents 92 Component/Resource/API entities
+and excludes organizational entities (Group/System/Domain). The 143 historical Homarr entries were migrated once from exact Compose service\nprovenance into Backstage descriptors and explicit entity-ref labels. Their\noriginal v1 inventory is not needed by the three consumers.
+
+`catalog/service-consumers.static.yml` has been removed; Homarr's Docker
+proxy endpoint/network and the homelab host binding are now derived from its
+Compose file.
+
+The v1 JSONs remain temporarily for **other** scripts and repositories;
+they are not read by the three updated consumers.
+
 The migration mapping from legacy x-nabla fields to Backstage/Compose/provider
 sources is intentionally retained in
 `docs/service-catalog-v2-normalization.md` as documentation after cutover.
@@ -188,3 +214,21 @@ Backstage `spec.lifecycle` continues to describe catalog/software lifecycle
 substitute.
 
 Runtime health never overwrites declared operational state.
+
+### Security taxonomy and evidence boundaries
+
+See [catalog-security-standards.md](../docs/catalog-security-standards.md) for the
+Backstage/Compose/Gatus/CycloneDX/OCSF/OSCAL/OTel roles, the correlated
+Scanopy/Cartography/Akvorado/ntopng/DSOMM workflow, and its secure-by-design
+audit. A discovered IP/flow/host is **not** a new Backstage service identity.
+
+### AutoKuma native output (v2)
+
+AutoKuma does **not** read a JSON array as one static monitor. Its 2.x Files
+provider expects one JSON object per file, and uses the filename as ID.
+The canonical Gatus probes generate an intermediate array under
+`apps/autokuma/static/generated-monitors.json` (not mounted). On TrueNAS,
+`scripts/truenas/deploy-autokuma.sh` materializes individual native
+`/mnt/cpool/autokuma/static-monitors/nabla-<monitor-id>.json` files before
+reconciliation. No second editable inventory is introduced. See
+`apps/autokuma/README.md`.

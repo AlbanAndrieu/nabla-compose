@@ -11,6 +11,8 @@ name: wordpress
 # based on an older WordPress line — not suitable for untrusted production.
 services:
   wordpress-initdb:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/wordpress-wordpress-initdb
     image: postgres:18-bookworm
     container_name: wordpress-initdb
     restart: "no"

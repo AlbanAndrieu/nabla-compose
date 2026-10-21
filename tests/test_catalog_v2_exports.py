@@ -13,6 +13,7 @@ from nabla_ops.catalog_exports import (  # noqa: E402
     catalog_revision,
     cyclonedx_projection,
     load_backstage_entities,
+    identity_mapping_projection,
 )
 
 
@@ -73,6 +74,63 @@ spec:
         with tempfile.TemporaryDirectory() as tmp:
             entities = load_backstage_entities(self._fixture(Path(tmp)))
         self.assertEqual(catalog_revision(entities), catalog_revision(list(reversed(entities))))
+
+    def test_organizational_entities_are_not_software_services(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            files = self._fixture(Path(tmp))
+            with files[0].open("a", encoding="utf-8") as stream:
+                stream.write(
+                    "\n---\napiVersion: backstage.io/v1alpha1\n"
+                    "kind: System\nmetadata:\n  name: homelab\n"
+                    "spec:\n  owner: group:default/nabla-platform\n"
+                )
+            entities = load_backstage_entities(files)
+        cdx = cyclonedx_projection(entities)
+        refs = {entry["bom-ref"] for entry in cdx["services"]}
+        self.assertEqual(refs, {"component:default/api", "resource:default/database"})
+        self.assertNotIn("system:default/homelab", refs)
+        self.assertEqual(
+            {entry["ref"] for entry in cdx["dependencies"]}, refs
+        )
+
+    def test_explicit_native_identity_crosswalk_and_unresolved_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            entities = load_backstage_entities(self._fixture(root))
+            compose = root / "apps" / "demo" / "compose.yml"
+            compose.parent.mkdir(parents=True)
+            compose.write_text(
+                "services:\n  api:\n    labels:\n"
+                "      com.albandrieu.nabla.entity-ref: component:default/api\n"
+                "    x-nabla:\n      id: legacy-api\n"
+                "  ignored:\n    image: example.invalid/ignored\n",
+                encoding="utf-8",
+            )
+            gatus = root / "config" / "monitoring" / "gatus-endpoints.yml"
+            gatus.parent.mkdir(parents=True)
+            gatus.write_text(
+                "endpoints:\n  - name: API\n    extra-labels:\n"
+                "      nabla_monitor_id: api-health\n"
+                "      nabla_service_id: api\n"
+                "  - name: Unknown\n    extra-labels:\n"
+                "      nabla_monitor_id: missing-probe\n"
+                "      nabla_service_id: missing\n",
+                encoding="utf-8",
+            )
+            result = identity_mapping_projection(entities, [compose], gatus, root)
+        binding = {(e["sourceType"], e["sourceId"]): e["entityRef"]
+                   for e in result["mappings"]}
+        self.assertEqual(
+            binding[("compose", "apps/demo/compose.yml#services/api")],
+            "component:default/api",
+        )
+        self.assertEqual(binding[("gatus", "api-health")], "component:default/api")
+        self.assertEqual(
+            binding[("legacy-service-id", "legacy-api")], "component:default/api"
+        )
+        self.assertEqual(result["unresolved"][0]["sourceId"], "missing-probe")
+        self.assertEqual(result["catalogRevision"], catalog_revision(entities))
+
 
 
 if __name__ == "__main__":

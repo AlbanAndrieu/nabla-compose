@@ -1,22 +1,39 @@
 # Service catalog consumers: Homarr, Heimdall, Gatus and Uptime Kuma
 
-The Nabla `x-nabla` metadata and generated `catalog/services.json` remain the source of truth for service identity, presentation and architecture. Dashboard or monitoring products are consumers of that catalog; they must not become competing service inventories.
+The **v2 source of truth is native Backstage** (`catalog-info.yaml`) for entity
+identity, title, owner, tags, links, and standard relations. Docker Compose owns
+runtime bindings. **Gatus native YAML** owns monitoring targets and conditions.
+Consumer files are generated read models, never independent inventories.
 
 ```text
-apps/**/compose.yml x-nabla
-          |
-          v
-catalog/services.json + service-topology.json
-          |
-          +--> Homarr apps / boards
-          +--> Heimdall item REST/import format
-          +--> Gatus endpoint YAML
-          +--> AutoKuma monitor definitions --> Uptime Kuma
+catalog/catalog-info.yaml + apps/*/catalog-info.yaml
+                       + Docker Compose labels/ports/Traefik routing
+                              |
+                              v
+                 generate-service-consumers.py
+                              |
+                              +--> Homarr generated/apps.json
+                              |
+config/monitoring/gatus-endpoints.yml (Gatus native endpoints)
+                              |
+                              +--> Gatus config/config.yml
+                              +--> AutoKuma generated-monitors.json --> Uptime Kuma
+
+Backstage --> catalog/generated/entities.json + homelab.cdx.json (CycloneDX)
 ```
+
+The v1 `services.json` and `service-topology.json` remain only for old
+readers awaiting migration. The consumer generator no longer reads either.
+All 85 existing Gatus checks are preserved as native probes; the 80 currently
+materialized Homarr entries are limited by the still-incomplete Backstage/Compose
+identity coverage (143 entries existed under the old generator).
 
 ## Current catalog capabilities
 
-A declared service can already provide a stable `id`, display `name`, `kind`, `category`, optional `url`, optional `description`, icon, runtime/provider binding and architecture relations. This is enough for dashboard/bookmark generation, but not for reliable health monitoring: a dashboard URL is not necessarily a health endpoint.
+Use Backstage `entityRef` as the join key; use `metadata.links` for intentional
+UI destinations, rather than treating a dashboard URL as a health endpoint.
+Only routing/ports infer presentation links. Gatus probes are explicit, preserve
+native `conditions` and can enrich metrics with `nabla_entity_ref`.
 
 ## Consumer comparison
 
@@ -24,7 +41,7 @@ A declared service can already provide a stable `id`, display `name`, `kind`, `c
 | --- | --- | --- | --- |
 | Homarr | OpenAPI + tRPC, API-key auth; Docker app discovery | Native MCP, 50+ tools | Reconcile catalog apps through API/MCP; Docker discovery only as enrichment |
 | Heimdall | `GET api/item` / `POST api/item` item round-trip | No credible LinuxServer-Heimdall-specific MCP found | Generate item payloads; never mutate SQLite directly |
-| Gatus | Native YAML; self-hosted status APIs | Community `adambenhassen/gatus-mcp` | Generate YAML from explicit monitoring metadata |
+| Gatus | Native YAML; self-hosted status APIs | Community `adambenhassen/gatus-mcp` | Keep native Gatus endpoint YAML as authored and generate its runtime config |
 | Uptime Kuma | Internal Socket.IO management protocol | Community `@davidfuchs/mcp-uptime-kuma` for v2 | Generate AutoKuma definitions; reserve MCP for operator interactions |
 
 ## Homarr
@@ -137,7 +154,7 @@ labels:
   kuma.fastapi.http.url: https://fastapi-sample.fastapicloud.dev/health
 ```
 
-Generated AutoKuma files are preferable to manually placing monitoring labels in every Compose service because `x-nabla` stays authoritative and consumer policy stays centralized.
+Generated AutoKuma files reuse the **same native Gatus probes**; no separate AutoKuma target inventory is maintained. Backstage stays authoritative for entity identity.
 
 The MCP `@davidfuchs/mcp-uptime-kuma` is pinned to `0.11.9`. It targets Uptime Kuma v2 and supports monitor, heartbeat, notification, tag, maintenance and status-page operations. It is write-capable, including deletion. `UPTIME_KUMA_INCLUDE_SECRETS=false` is forced in project MCP configuration so read operations redact credentials by default.
 
@@ -191,9 +208,9 @@ export FASTAPI_SAMPLE_MCP_URL='http://127.0.0.1:8080/mcp'
 
 Cursor points directly to the production URL.
 
-## Proposed monitoring metadata
+## Legacy monitoring metadata (not part of v2)
 
-Do not infer health semantics from `url`. Add optional, validated service-local monitoring metadata before generating Gatus or AutoKuma resources:
+Do not infer health semantics from a dashboard `url`. The following `x-nabla.monitoring` shape was a v1 proposal, **not** an authoritative v2 representation; use native `config/monitoring/gatus-endpoints.yml` instead:
 
 ```yaml
 x-nabla:
@@ -222,15 +239,16 @@ Suggested initial fields:
 - `conditions`: assertions where applicable;
 - consumer overrides only where a target cannot be represented portably.
 
-## Intended generated artifacts
+## Actual generated artifacts
 
 Once monitoring metadata exists, generate deterministic consumer files, for example:
 
 ```text
-generated/consumers/homarr.json
-generated/consumers/heimdall.json
-generated/consumers/gatus.yaml
-generated/consumers/autokuma.toml
+apps/homarr/generated/apps.json
+apps/gatus/config/config.yml
+apps/autokuma/static/generated-monitors.json
+catalog/generated/entities.json
+catalog/generated/homelab.cdx.json
 ```
 
 Rules:
@@ -268,3 +286,25 @@ Rules:
 - TrueNAS API client: https://github.com/truenas/api_client
 - Official TrueNAS MCP research preview: https://github.com/truenas/truenas-mcp
 - TrueNAS 25.10+/26 read-only MCP: https://github.com/profanter-dev/truenas-mcp
+
+
+## Correspondances d'inventaire sécurité (2026-10-20)
+
+Le catalogue v2 possède désormais le système Akvorado (4 composants prévus)
+et la ressource ClickHouse partagée ; les relations ntopng/ClickHouse,
+Cartography/Neo4j, Scanopy/PostgreSQL et DSOMM/baseline restent en Backstage,
+sans copie dans les paramètres Gatus ou Homarr.
+Pour la provenance observée, les formats OTel/OCSF et l'export
+CycloneDX/OSCAL/OWASP SAMM, voir
+[la décision normes et sécurité](../docs/catalog-security-standards.md).
+
+
+### AutoKuma native Files provider
+
+Le JSON agrégé `apps/autokuma/static/generated-monitors.json` est un
+**artefact intermédiaire non monté**, et non un fichier statique AutoKuma
+valide. Le runtime monte `/mnt/cpool/autokuma/static-monitors`, rempli à
+la demande par `scripts/truenas/render-autokuma-monitors.py --apply` ; un
+fichier `nabla-<nabla_monitor_id>.json` par sonde, sans le champ agrégé
+`id`. L'identifiant est stable même si le titre Gatus change. Le YAML Gatus
+reste l'unique politique de sondes.

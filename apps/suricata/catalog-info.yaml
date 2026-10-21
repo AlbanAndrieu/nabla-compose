@@ -1,0 +1,17 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: suricata
+  title: Suricata
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - security
+spec:
+  type: ids
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

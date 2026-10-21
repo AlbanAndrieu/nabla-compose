@@ -1,0 +1,37 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: langfuse-web
+  title: Langfuse Web
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - ai
+  links:
+  - url: http://172.17.0.24:3000
+    title: Application
+spec:
+  type: application
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: langfuse-worker
+  title: Langfuse Worker
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+  - ai
+spec:
+  type: worker
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

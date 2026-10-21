@@ -1,0 +1,4596 @@
+{
+  "bomFormat": "CycloneDX",
+  "dependencies": [
+    {
+      "dependsOn": [],
+      "ref": "component:default/2fauth"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/aistor"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse"
+      ],
+      "ref": "component:default/akvorado-console"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-inlet"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse",
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-orchestrator"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse",
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/akvorado-outlet"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/alloy"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/autokuma"
+    },
+    {
+      "dependsOn": [
+        "component:default/docker-socket-proxy"
+      ],
+      "ref": "component:default/autoxpose"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/bichon"
+    },
+    {
+      "dependsOn": [
+        "resource:default/neo4j-security"
+      ],
+      "ref": "component:default/cartography"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/code-server"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/crowdsec"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/cyberbro"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/defectdojo"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql",
+        "resource:default/redis"
+      ],
+      "ref": "component:default/defectdojo-api"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/defectdojo-celerybeat"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/defectdojo-initializer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/defectdojo-worker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/dependency-track"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/dependency-track-api"
+    },
+    {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/docker-socket-proxy"
+    },
+    {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/dockhand"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/docling"
+    },
+    {
+      "dependsOn": [
+        "component:default/docker-socket-proxy"
+      ],
+      "ref": "component:default/doco-cd"
+    },
+    {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/dozzle"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/drawio"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/dsomm"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/dsomm-baseline"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/fastapi-sample"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/garage"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/garage-admin"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/garage-webui"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/gatus"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/grafana"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/graylog"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/haproxy-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/hello-nginx"
+    },
+    {
+      "dependsOn": [
+        "component:default/docker-socket-proxy"
+      ],
+      "ref": "component:default/homarr"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/homarr-sync"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/homeassistant"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/joplin"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/kafka-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/keycloak"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/kibana"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/langflow"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/langfuse-web"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/langfuse-worker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/languagetool"
+    },
+    {
+      "dependsOn": [
+        "resource:default/gpu-openai-compatible-inference"
+      ],
+      "ref": "component:default/litellm"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/mcp-cyberbro"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/n8n"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql",
+        "resource:default/redis"
+      ],
+      "ref": "component:default/netbox"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/netbox-housekeeping"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/netbox-worker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/nexus"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/nginx-proxy-manager"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/npmplus"
+    },
+    {
+      "dependsOn": [
+        "resource:default/clickhouse"
+      ],
+      "ref": "component:default/ntopng"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/obsidian"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/ollama"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/op-connect-api"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/op-connect-sync"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/openclaw-sandbox"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/opencre"
+    },
+    {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/openhands"
+    },
+    {
+      "dependsOn": [
+        "resource:default/gpu-openai-compatible-inference"
+      ],
+      "ref": "component:default/openrag-backend"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/openrag-frontend"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/opensearch-dashboards"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/opensearch-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/opensearch-security"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/opensearch-security-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/openssf-scorecard"
+    },
+    {
+      "dependsOn": [
+        "component:default/litellm",
+        "component:default/openrag-backend"
+      ],
+      "ref": "component:default/openwebui"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/pfsense-exporter"
+    },
+    {
+      "dependsOn": [
+        "component:default/docker-socket-proxy"
+      ],
+      "ref": "component:default/pihole-dns-sync"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/pihole-exporter"
+    },
+    {
+      "dependsOn": [
+        "component:default/plumber-api"
+      ],
+      "ref": "component:default/plumber"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql",
+        "resource:default/redis"
+      ],
+      "ref": "component:default/plumber-api"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/plumber-worker"
+    },
+    {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/portracker"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/postgres-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/prometheus"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/prometheus-alertmanager"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/prometheus-node-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/pyroscope"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/redis-redis-exporter"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/scanopy"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/scanopy-daemon"
+    },
+    {
+      "dependsOn": [
+        "resource:default/influxdb"
+      ],
+      "ref": "component:default/scrutiny"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/scrutiny-collector"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka",
+        "resource:default/postgresql",
+        "resource:default/redis"
+      ],
+      "ref": "component:default/sentry"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-edge"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-memcached"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka",
+        "resource:default/redis"
+      ],
+      "ref": "component:default/sentry-relay"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-sentry-attachments-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-sentry-events-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-sentry-migrate"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-sentry-post-process-forwarder-errors"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-sentry-taskscheduler"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka",
+        "resource:default/redis",
+        "resource:default/sentry-clickhouse"
+      ],
+      "ref": "component:default/sentry-snuba-api"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-errors-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-group-attributes-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-migrate"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-outcomes-billing-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-outcomes-consumer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-replacer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-snuba-subscription-consumer-events"
+    },
+    {
+      "dependsOn": [
+        "resource:default/kafka"
+      ],
+      "ref": "component:default/sentry-taskbroker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sentry-taskworker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sonarqube"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/squid"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/suricata"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sybase-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/traefik"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/traefik-cloudflare-ddns"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/traefik-ddns-updater"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/traefik-dnsupdater"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/vaultwarden"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/vaultwarden-rest-api"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/watchtower"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wazuh-dashboard"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wazuh-forwarder"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wazuh-indexer"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wazuh-manager"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
+      "ref": "component:default/wordpress"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wordpress-wordpress-initdb"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/clickhouse"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/cloudflare-tunnel"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/docker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/elasticsearch"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/gpu-openai-compatible-inference"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/influxdb"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/kafka"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/kubernetes"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/loki"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/mimir"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/minio"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/mongo"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/neo4j-security"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/opensearch"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/pfsense"
+    },
+    {
+      "dependsOn": [
+        "resource:default/pfsense"
+      ],
+      "ref": "resource:default/pfsense-haproxy"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/pihole"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/postgresql"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/redis"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/sentry-clickhouse"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/talos"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/tempo"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/truenas"
+    }
+  ],
+  "metadata": {
+    "properties": [
+      {
+        "name": "nabla:catalog-revision",
+        "value": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4"
+      },
+      {
+        "name": "nabla:catalog-authority",
+        "value": "Backstage catalog-info.yaml"
+      }
+    ]
+  },
+  "serialNumber": "urn:uuid:cba7413c-010a-9b6b-5d5a-f984ec71324c",
+  "services": [
+    {
+      "bom-ref": "component:default/2fauth",
+      "name": "2FAuth",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/2fauth"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/2fauth/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-app"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/aistor",
+      "description": "MinIO AIStor-compatible object storage service.",
+      "name": "AIStor",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/aistor"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/aistor/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "object-storage"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-console",
+      "description": "Planned UI for historical network-flow search and analysis.",
+      "name": "Akvorado Console",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-console"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-inlet",
+      "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer.",
+      "name": "Akvorado Inlet",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-inlet"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-orchestrator",
+      "description": "Planned Akvorado configuration and coordination control plane.",
+      "name": "Akvorado Orchestrator",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-orchestrator"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "controller"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/akvorado-outlet",
+      "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline.",
+      "name": "Akvorado Outlet",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/akvorado-outlet"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/akvorado/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/alloy",
+      "name": "Grafana Alloy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/alloy"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "telemetry-collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/autokuma",
+      "description": "Declarative monitor reconciler for the homelab Uptime Kuma instance.",
+      "name": "AutoKuma",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/autokuma"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/autokuma/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "controller"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/autoxpose",
+      "description": "Reconciles Docker service exposure and DNS/proxy provider state.",
+      "name": "AutoXpose",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/autoxpose"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/autoxpose/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/bichon",
+      "name": "Bichon",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/bichon"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/bichon/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/cartography",
+      "description": "Scheduled or manual security asset and relationship ingestion into Neo4j.",
+      "name": "Cartography",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/cartography"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/cartography/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "job"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/code-server",
+      "description": "Browser-based development environment for homelab repositories.",
+      "name": "Code Server",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/code-server"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/code/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "development-environment"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/crowdsec",
+      "name": "CrowdSec",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/crowdsec"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/crowdsec/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-agent"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/cyberbro",
+      "description": "Threat-intelligence workbench for IoC extraction and reputation analysis.",
+      "name": "Cyberbro",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/cyberbro"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/defectdojo",
+      "description": "Central normalized security-finding aggregation, triage and remediation workflow.",
+      "name": "DefectDojo",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/defectdojo"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/defectdojo-api",
+      "name": "DefectDojo API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/defectdojo-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/defectdojo-celerybeat",
+      "name": "DefectDojo Celery Beat",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/defectdojo-celerybeat"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/defectdojo-initializer",
+      "name": "DefectDojo Initializer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/defectdojo-initializer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "job"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/defectdojo-worker",
+      "name": "DefectDojo Worker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/defectdojo-worker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/defectdojo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dependency-track",
+      "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
+      "name": "Dependency-Track",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dependency-track"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dependency-track/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dependency-track-api",
+      "name": "Dependency-Track API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dependency-track-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dependency-track/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/docker-socket-proxy",
+      "description": "Restricted read-only Docker Engine API boundary for repository automation.",
+      "name": "Docker Socket Proxy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/docker-socket-proxy"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dockhand",
+      "description": "Docker container management UI for the homelab runtime.",
+      "name": "Dockhand",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dockhand"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dockhand/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "operations-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/docling",
+      "description": "CPU-backed document conversion API used by OpenRAG knowledge ingestion.",
+      "name": "Docling Serve",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/docling"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/docling/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/doco-cd",
+      "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
+      "name": "Doco-CD",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/doco-cd"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "deployment-automation"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dozzle",
+      "description": "Live Docker log viewer and MCP-enabled operations UI.",
+      "name": "Dozzle",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dozzle"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dozzle/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/drawio",
+      "description": "Self-hosted diagrams.net editor for internal diagram authoring.",
+      "name": "Draw.io",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/drawio"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/drawio/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dsomm",
+      "description": "Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
+      "name": "OWASP DevSecOps Maturity Model",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dsomm"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dsomm/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/dsomm-baseline",
+      "description": "Planned evidence scanner producing supporting DSOMM baseline reports for human review.",
+      "name": "DSOMM GitHub Baseline",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/dsomm-baseline"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/dsomm/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/fastapi-sample",
+      "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
+      "name": "FastAPI Sample",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/fastapi-sample"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sample/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/garage",
+      "description": "S3-compatible object storage hosted on TrueNAS.",
+      "name": "Garage S3",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/garage"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/garage/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "object-storage"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/garage-admin",
+      "description": "Administration API for the Garage object-storage service.",
+      "name": "Garage Admin API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/garage-admin"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/garage/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "api"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/garage-webui",
+      "description": "Web administration UI for Garage.",
+      "name": "Garage WebUI",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/garage-webui"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/garage/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/gatus",
+      "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
+      "name": "Gatus",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/gatus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/gatus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "status-monitor"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/grafana",
+      "name": "Grafana",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/grafana"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "observability-ui"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/graylog",
+      "name": "Graylog",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/graylog"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/graylog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "log-management"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/haproxy-exporter",
+      "name": "pfSense HAProxy Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/haproxy-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/haproxy-exporter/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/hello-nginx",
+      "description": "Small internal Nginx service used for ingress and routing experiments.",
+      "name": "Hello Nginx",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/hello-nginx"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/nginx/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/homarr",
+      "description": "Homelab application dashboard generated from the Nabla service inventory.",
+      "name": "Homarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/homarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/homarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "operations-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/homarr-sync",
+      "description": "Reconciles generated Nabla application desired state through the Homarr API.",
+      "name": "Homarr Reconciler",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/homarr-sync"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/homarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "controller"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/homeassistant",
+      "description": "Home automation control plane exposed through the dedicated IoT network.",
+      "name": "Home Assistant",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/homeassistant"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/homeassistant/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "home-automation"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/joplin",
+      "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
+      "name": "Joplin Server",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/joplin"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/joplin/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/kafka-exporter",
+      "description": "Prometheus exporter for Kafka broker and consumer-group state.",
+      "name": "Kafka Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/kafka-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/kafka/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/keycloak",
+      "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
+      "name": "Keycloak",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/keycloak"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/keycloak/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "identity-provider"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/kibana",
+      "name": "Kibana",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/kibana"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/elasticsearch/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "dashboard"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/langflow",
+      "name": "Langflow",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/langflow"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/langflow/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "workflow"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/langfuse-web",
+      "name": "Langfuse Web",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/langfuse-web"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/langfuse/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/langfuse-worker",
+      "name": "Langfuse Worker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/langfuse-worker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/langfuse/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/languagetool",
+      "description": "Self-hosted grammar and style checking API.",
+      "name": "LanguageTool",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/languagetool"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/languagetool/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "productivity-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/litellm",
+      "description": "OpenAI-compatible model gateway used by OpenWebUI and AI workloads.",
+      "name": "LiteLLM",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/litellm"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/litellm/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-gateway"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/mcp-cyberbro",
+      "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
+      "name": "Cyberbro MCP",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/mcp-cyberbro"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/n8n",
+      "name": "n8n",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/n8n"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/n8n/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "workflow"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netbox",
+      "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
+      "name": "NetBox",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netbox"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/netbox/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netbox-housekeeping",
+      "name": "NetBox Housekeeping",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netbox-housekeeping"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/netbox/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netbox-worker",
+      "name": "NetBox Worker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netbox-worker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/netbox/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/nexus",
+      "description": "Repository manager for development artifacts and package proxies.",
+      "name": "Nexus Repository",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/nexus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/nexus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "artifact-repository"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/nginx-proxy-manager",
+      "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
+      "name": "Nginx Proxy Manager",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/nginx-proxy-manager"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/nginx-proxy-manager/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "deprecated"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/npmplus",
+      "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
+      "name": "NPMplus",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/npmplus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/npmplus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/ntopng",
+      "description": "LAN network traffic monitoring UI.",
+      "name": "ntopng",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/ntopng"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/ntopng/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/obsidian",
+      "name": "Obsidian",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/obsidian"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/obsidian/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/ollama",
+      "name": "Ollama",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/ollama"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/ollama/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "model-runtime"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/op-connect-api",
+      "description": "1Password Connect API for machine-readable secret access.",
+      "name": "1Password Connect API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/op-connect-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opconnect/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "secrets-api"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/op-connect-sync",
+      "description": "Synchronizes 1Password vault state for the Connect API.",
+      "name": "1Password Connect Sync",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/op-connect-sync"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opconnect/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "secrets-sync"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openclaw-sandbox",
+      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
+      "name": "OpenClaw Sandbox",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openclaw-sandbox"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/openclaw/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/opencre",
+      "description": "Planned internal service for correlating common security requirements across standards.",
+      "name": "OWASP OpenCRE",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/opencre"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opencre/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openhands",
+      "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
+      "name": "OpenHands",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openhands"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/openhands/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openrag-backend",
+      "description": "Knowledge retrieval backend required by the OpenWebUI continuity path.",
+      "name": "OpenRAG Backend",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openrag-backend"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/openrag/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openrag-frontend",
+      "description": "OpenRAG frontend and collective-health UI.",
+      "name": "OpenRAG Frontend",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openrag-frontend"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/openrag/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/opensearch-dashboards",
+      "name": "OpenSearch Dashboards",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/opensearch-dashboards"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opensearch/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/opensearch-exporter",
+      "name": "OpenSearch Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/opensearch-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opensearch-exporter/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/opensearch-security",
+      "name": "OpenSearch Security",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/opensearch-security"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opensearch/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "search"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/opensearch-security-exporter",
+      "name": "OpenSearch Security Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/opensearch-security-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opensearch-exporter/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openssf-scorecard",
+      "description": "Manual repository security-posture scanner whose results can be regenerated from source repositories.",
+      "name": "OpenSSF Scorecard",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openssf-scorecard"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/scorecard/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "job"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openwebui",
+      "description": "Self-hosted AI chat and RAG interface using the homelab LiteLLM gateway.",
+      "name": "Open WebUI",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openwebui"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/openwebui/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/pfsense-exporter",
+      "name": "pfSense Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/pfsense-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prometheus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/pihole-dns-sync",
+      "description": "Reconciles repository-managed service names into Pi-hole private DNS.",
+      "name": "Pi-hole DNS Sync",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/pihole-dns-sync"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/pihole/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "controller"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/pihole-exporter",
+      "description": "Prometheus-compatible metrics exporter for Pi-hole.",
+      "name": "Pi-hole Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/pihole-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/pihole/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/plumber",
+      "description": "Repository-managed developer platform frontend and workflow UI.",
+      "name": "Plumber",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/plumber"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/plumber/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "developer-platform"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/plumber-api",
+      "description": "Backend API for the Plumber developer platform.",
+      "name": "Plumber API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/plumber-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/plumber/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/plumber-worker",
+      "description": "Background worker for Plumber asynchronous jobs.",
+      "name": "Plumber Worker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/plumber-worker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/plumber/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/portracker",
+      "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
+      "name": "Portracker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/portracker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/portracker/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/postgres-exporter",
+      "description": "Prometheus exporter for the shared PostgreSQL Resource.",
+      "name": "PostgreSQL Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/postgres-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/postgres/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/prometheus",
+      "name": "Prometheus",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/prometheus"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prometheus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/prometheus-alertmanager",
+      "name": "Alertmanager",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/prometheus-alertmanager"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prometheus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "alerting"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/prometheus-node-exporter",
+      "name": "Node Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/prometheus-node-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prometheus/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/pyroscope",
+      "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
+      "name": "Grafana Pyroscope",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/pyroscope"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/pyroscope/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/redis-redis-exporter",
+      "name": "Redis Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/redis-redis-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/redis/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/scanopy",
+      "description": "Agentless network discovery and continuously updated topology documentation.",
+      "name": "Scanopy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/scanopy"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/scanopy/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/scanopy-daemon",
+      "description": "Privileged network and container discovery scanner for Scanopy.",
+      "name": "Scanopy Daemon",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/scanopy-daemon"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/scanopy/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/scrutiny",
+      "description": "SMART disk health monitoring web/API backed by the shared InfluxDB service.",
+      "name": "Scrutiny",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/scrutiny"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/scrutiny/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "observability"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/scrutiny-collector",
+      "description": "SMART inventory and metrics collector feeding the Scrutiny web/API service.",
+      "name": "Scrutiny Collector",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/scrutiny-collector"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/scrutiny/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry",
+      "description": "Self-hosted Sentry errors-only observability service.",
+      "name": "Sentry",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-edge",
+      "name": "Sentry Edge",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-edge"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-memcached",
+      "name": "Memcached",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-memcached"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-relay",
+      "name": "Sentry Relay",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-relay"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-sentry-attachments-consumer",
+      "name": "Sentry Attachments Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-sentry-attachments-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-sentry-events-consumer",
+      "name": "Sentry Events Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-sentry-events-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-sentry-migrate",
+      "name": "Sentry Migrate",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-sentry-migrate"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-sentry-post-process-forwarder-errors",
+      "name": "Sentry Post Process Forwarder Errors",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-sentry-post-process-forwarder-errors"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-sentry-taskscheduler",
+      "name": "Sentry Taskscheduler",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-sentry-taskscheduler"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-api",
+      "description": "Sentry query service backed by the dedicated Sentry ClickHouse.",
+      "name": "Sentry Snuba API",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-errors-consumer",
+      "name": "Snuba Errors Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-errors-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-group-attributes-consumer",
+      "name": "Snuba Group Attributes Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-group-attributes-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-migrate",
+      "name": "Snuba Migrate",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-migrate"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-outcomes-billing-consumer",
+      "name": "Snuba Outcomes Billing Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-outcomes-billing-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-outcomes-consumer",
+      "name": "Snuba Outcomes Consumer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-outcomes-consumer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-replacer",
+      "name": "Snuba Replacer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-replacer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-snuba-subscription-consumer-events",
+      "name": "Snuba Subscription Consumer Events",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-snuba-subscription-consumer-events"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-taskbroker",
+      "name": "Sentry Taskbroker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-taskbroker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sentry-taskworker",
+      "name": "Sentry Taskworker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sentry-taskworker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sonarqube",
+      "name": "SonarQube",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sonarqube"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sonarqube/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "code-quality"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/squid",
+      "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
+      "name": "Squid Proxy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/squid"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/squid/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/suricata",
+      "name": "Suricata",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/suricata"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/suricata/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ids"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sybase-exporter",
+      "name": "Sybase Exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sybase-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sybase-exporter/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/traefik",
+      "description": "Internal reverse proxy for repository-managed homelab services.",
+      "name": "Traefik",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/traefik"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/traefik/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/traefik-cloudflare-ddns",
+      "name": "Cloudflare Ddns",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/traefik-cloudflare-ddns"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/traefik/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/traefik-ddns-updater",
+      "name": "Ddns Updater",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/traefik-ddns-updater"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/traefik/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/traefik-dnsupdater",
+      "name": "Dnsupdater",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/traefik-dnsupdater"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/traefik/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/vaultwarden",
+      "description": "Self-hosted Bitwarden-compatible password and secret vault.",
+      "name": "Vaultwarden",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/vaultwarden"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/vaultwarden/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/vaultwarden-rest-api",
+      "description": "Legacy Doco-CD compatibility adapter for Vaultwarden secret retrieval.",
+      "name": "Vaultwarden REST API Adapter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/vaultwarden-rest-api"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/vaultwarden/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "deprecated"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/watchtower",
+      "description": "Manual monitor-only image update audit through the read-only Docker socket proxy; never updates containers.",
+      "name": "Watchtower",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/watchtower"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/watchtower/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "image-update-auditor"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wazuh-dashboard",
+      "name": "Wazuh Dashboard",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wazuh-dashboard"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wazuh/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wazuh-forwarder",
+      "name": "Wazuh OpenSearch Forwarder",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wazuh-forwarder"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wazuh/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "telemetry-forwarder"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wazuh-indexer",
+      "name": "Wazuh Indexer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wazuh-indexer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wazuh/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "search"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wazuh-manager",
+      "name": "Wazuh Manager",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wazuh-manager"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wazuh/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-manager"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wordpress",
+      "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
+      "name": "WordPress",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wordpress"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wordpress/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wordpress-wordpress-initdb",
+      "name": "Wordpress Initdb",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wordpress-wordpress-initdb"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/wordpress/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/clickhouse",
+      "description": "Shared analytical database for event and network-flow pipelines.",
+      "name": "ClickHouse",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/clickhouse"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/clickhouse/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/cloudflare-tunnel",
+      "description": "Public edge tunnel provider for reviewed homelab routes.",
+      "name": "Cloudflare Tunnel",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/cloudflare-tunnel"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "network-edge"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/docker",
+      "description": "Docker Engine runtime used by repository-managed Compose workloads.",
+      "name": "Docker Runtime",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/docker"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "container-runtime"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/elasticsearch",
+      "name": "Elasticsearch",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/elasticsearch"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/elasticsearch/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/gpu-openai-compatible-inference",
+      "description": "Logical GPU inference capability consumed by AI gateways and RAG services; currently backed by the workstation and intended to gain a cloud fallback.",
+      "name": "GPU OpenAI-Compatible Inference",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/gpu-openai-compatible-inference"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-inference-capability"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/influxdb",
+      "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
+      "name": "InfluxDB",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/influxdb"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/influxdb/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "time-series-database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/kafka",
+      "description": "Shared homelab message broker.",
+      "name": "Apache Kafka",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/kafka"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/kafka/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "message-broker"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/kubernetes",
+      "description": "Talos-backed Kubernetes cluster hosted on TrueNAS.",
+      "name": "Kubernetes",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/kubernetes"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "kubernetes-cluster"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/loki",
+      "name": "Loki",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/loki"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "log-store"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/mimir",
+      "name": "Mimir",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/mimir"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "metrics-store"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/minio",
+      "name": "MinIO",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/minio"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/minio/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "object-storage"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/mongo",
+      "name": "MongoDB",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/mongo"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/mongo/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/neo4j-security",
+      "description": "Analytical graph store for attack-path and blast-radius analysis.",
+      "name": "Neo4j Security Graph",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/neo4j-security"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/neo4j/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "graph-database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/opensearch",
+      "name": "OpenSearch",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/opensearch"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/opensearch/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/pfsense",
+      "description": "Homelab firewall, router and network-edge appliance.",
+      "name": "pfSense",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/pfsense"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "firewall-router"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/pfsense-haproxy",
+      "description": "pfSense HAProxy public TLS ingress and reverse-proxy edge.",
+      "name": "pfSense HAProxy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/pfsense-haproxy"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "reverse-proxy"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/pihole",
+      "description": "LAN DNS filtering and private *.int.albandrieu.com DNS service.",
+      "name": "Pi-hole",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/pihole"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/pihole/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "dns"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/postgresql",
+      "description": "Shared native TrueNAS PostgreSQL service used by homelab consumers.",
+      "name": "PostgreSQL",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/postgresql"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/redis",
+      "description": "Shared homelab Redis cache and runtime-state service.",
+      "name": "Redis",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/redis"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/redis/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "cache"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/sentry-clickhouse",
+      "description": "Dedicated analytical datastore for the self-hosted Sentry stack.",
+      "name": "Sentry ClickHouse",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/sentry-clickhouse"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sentry-clickhouse/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "database"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/talos",
+      "description": "Immutable operating system for the homelab Kubernetes nodes.",
+      "name": "Talos Linux",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/talos"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "host-platform"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/tempo",
+      "name": "Tempo",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/tempo"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/grafana/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "trace-store"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/truenas",
+      "description": "Always-on storage, virtualization and Docker application platform.",
+      "name": "TrueNAS",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/truenas"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "virtualization-platform"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1.7",
+  "version": 1
+}

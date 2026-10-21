@@ -170,19 +170,22 @@ jobs:
                 exit "${rc}"
               fi
             fi
-          else
+          fi
+
+          # Denial is expected when CI has no valid SERVICE diagnostics key.
+          # Never fall back to a public/legacy topology or mark the service DOWN.
+          if [[ "${protected_available}" == false ]]; then
             status="$(
               curl "${curl_common[@]}" \
-                --output /tmp/public-topology.json \
+                --output /tmp/private-catalog-denied.json \
                 --write-out '%{http_code}' \
-                "${PRODUCTION_URL}/api/public-topology"
+                "${PRODUCTION_URL}/api/site/catalog/v2"
             )"
-            [[ "${status}" == "200" ]] || {
-              printf 'ERROR: public topology fallback returned HTTP %s\n' "${status}" >&2
-              cat /tmp/public-topology.json >&2 || true
+            if [[ "${status}" != "401" && "${status}" != "403" ]]; then
+              printf 'ERROR: v2 catalog must reject unauthenticated CI requests; got HTTP %s\n' "${status}" >&2
               exit 1
-            }
-            jq -e 'type == "object"' /tmp/public-topology.json >/dev/null
+            fi
+            echo "INFO: site/catalog/v2 correctly denies unauthenticated access"
           fi
 
       - name: Run bounded post-merge performance smoke

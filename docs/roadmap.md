@@ -3338,3 +3338,60 @@ Operator evidence: pfSense Plus 26.07 FreeBSD 16.0-CURRENT arm64, `/boot/kernel/
 - [ ] Validate Akvorado inlet container health, receiver settings and counters without generating artificial traffic.
 - [ ] Review pflow TrueNAS destination first; keep Cloudflare domain 2 export disabled until recipient and data privacy requirements confirmed.
 - [ ] After explicit approval, activate in a controlled window with baseline memory/DNS and rollback checks. Do not start softflowd or restart Unbound.
+
+
+### 2026-10-20 — Simplification des consommateurs du catalogue (PR #265)
+
+- [x] Backstage `catalog-info.yaml` pour l'identité et `com.albandrieu.nabla.entity-ref` pour relier Compose.
+- [x] Gatus YAML natif **unique** (`config/monitoring/gatus-endpoints.yml`) ; 85 sondes projetées vers Gatus et AutoKuma, sans second inventaire de cibles.
+- [x] Homarr construit depuis Backstage + routage Compose ; suppression de `catalog/service-consumers.static.yml` au profit des paramètres réseau du Compose Homarr ; 143 entrées Homarr matérialisées depuis Backstage, couverture historique 143/143 et 85 sondes Gatus/AutoKuma conservées ; crosswalk `catalog/generated/identity-map.json` sans correspondances non résolues.
+- [x] Projections standard Backstage/CycloneDX générées, validation `--check` intégrée au quality gate.
+- [ ] Étendre Backstage aux identités/relations restantes et aux environnements sans deviner de valeur métier.
+- [ ] Migrer les lecteurs FastAPI Sample, nabla-site-alban et les scripts TrueNAS, puis retirer définitivement les fichiers/catalogues v1.
+- [ ] Recette des secrets runtime via Vaultwarden sur TrueNAS, non exécutée depuis GitHub.
+
+
+### 2026-10-20 — Normalisation discovery graph / outils de sécurité (PR #265)
+
+- [x] Créer `resource:default/clickhouse` (ressource analytique partagée),
+  référencée sans duplication depuis ntopng et la stack Akvorado.
+- [x] Décrire `system:default/nabla-homelab` et ses 4 composants `planned`,
+  liens Kafka/ClickHouse et labels Compose `entity-ref`; **aucune nouvelle sonde**
+  ni dashboard actif pour les services prévus.
+- [x] Conserver Cartography → Neo4j et Scanopy → PostgreSQL en dépendances
+  Backstage ; rapprocher les *observations* par provenance, pas par IP seule.
+- [x] Associer `dsomm-baseline` à DSOMM ; ne pas publier de conclusion de
+  maturité à partir d'un CSV sans revue humaine.
+- [x] Exclure les Group/System/Domain des *services* CycloneDX 1.7 ; garder
+  ces entités dans la projection native Backstage.
+- [x] Cataloguer les références ouvertes dans
+  [docs/catalog-security-standards.md](catalog-security-standards.md), sans
+  second registre d'inventaire Nabla.
+- [ ] **P1 Scanopy** : retirer la dépendance administrateur
+  `/var/run/docker.sock:ro` après mise en place et vérification d'un
+  *Docker Proxy credential* via l'API restreinte du docker-socket-proxy
+  TrueNAS ; conserver `POST`/`EXEC` interdits sans revue de risque ;
+  étudier la suppression de `privileged: true` et la réduction des capabilities.
+- [ ] **P2 CMDB observée** : enrichir Neo4j de la provenance des actifs
+  Scanopy, flux Akvorado/ntopng, identités Compose/Kubernetes, sans utiliser
+  l'adresse IP comme clé primaire de service et sans inventer de dépendance
+  opérationnelle entre les outils de collecte.
+
+
+### 2026-10-20 — Reconcilier Backstage / security asset discovery
+
+- [x] Akvorado v2 : quatre composants Backstage (orchestrator/inlet/outlet/console), états `planned` préservés depuis Compose, dépendances Kafka et ClickHouse natives.
+- [x] Scanopy : conserver `depends_on` Compose pour le daemon et `subcomponentOf` Backstage, sans dupliquer cet ordre dans `spec.dependsOn` ni recréer les actifs découverts.
+- [ ] Corréler les découvertes Scanopy, flux Akvorado/ntopng et graphe Cartography/Neo4j sur des identifiants stables, en conservant provenance, horodatage et confiance ; ne pas déclarer automatiquement un composant Backstage pour chaque IP ou port.
+- [ ] Publier les findings vers DefectDojo via les API privées, les métriques vers OpenTelemetry/Prometheus et les preuves DSOMM/OSCAL sans verdict de maturité automatique.
+- [ ] Examiner les formats standards complémentaires : OpenTelemetry semantic conventions, NIST CSF 2.0, NIST OSCAL, CSAF 2.0, SPDX 3 et CycloneDX 1.7 ; conserver Backstage comme seule autorité des identités.
+
+
+### 2026-10-21 — Catalog v2 : convergence et reprise TrueNAS
+
+- [x] Convergence des identités Homarr : 143/143 entrées historiques matérialisées dans 153 entités Backstage, en réutilisant les preuves Compose et sans conserver le script one-shot.
+- [x] Gatus ↔ Backstage : 85/85 sondes reliées à une référence canonique, zéro entrée `unresolved` dans `catalog/generated/identity-map.json`, projections AutoKuma inchangées sur le fond.
+- [x] Tests de correspondances non ambiguës, revision déterministe et planificateur de reprise v2 en lecture seule (`scripts/truenas/plan-catalog-v2-restart.py`).
+- [ ] Observer les états réels `app.query` et générer les vagues `RUNNING` puis non-running ; ne pas redémarrer sans secrets et dépendances prêts.
+- [ ] Vérifier sur TrueNAS Vaultwarden, fichiers de secrets runtime, healthchecks/sondes et probes FastAPI après chaque vague.
+- [ ] Migrer les derniers lecteurs v1 de FastAPI, Site Alban et scripts de reprise avant suppression des JSON v1 ; aucune restauration automatique initiée depuis GitHub.

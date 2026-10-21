@@ -66,6 +66,12 @@ docker compose \
 monitor_count="$(
   jq 'length' apps/autokuma/static/generated-monitors.json
 )"
+
+# AutoKuma 2.x Files provider expects one JSON object per named file.
+# Never mount the generated JSON *array*: it is not an AutoKuma monitor.
+python3 scripts/truenas/render-autokuma-monitors.py --apply \
+  --source apps/autokuma/static/generated-monitors.json \
+  --output-dir /mnt/cpool/autokuma/static-monitors
 [[ "${monitor_count}" -gt 0 ]] ||
   fail "generated AutoKuma monitor inventory is empty"
 

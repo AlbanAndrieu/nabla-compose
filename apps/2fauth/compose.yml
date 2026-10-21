@@ -1,6 +1,8 @@
 ---
 services:
   2fauth:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/2fauth
     image: docker.io/2fauth/2fauth:8.0.1
     container_name: 2fauth
     restart: unless-stopped

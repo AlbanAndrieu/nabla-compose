@@ -45,6 +45,7 @@ services:
       retries: 5
       start_period: 20s
     labels:
+      - com.albandrieu.nabla.entity-ref=component:default/n8n
       - "traefik.enable=true"
       - "traefik.http.routers.n8n.rule=Host(`n8n.int.albandrieu.com`)"
       - "traefik.http.routers.n8n.entrypoints=websecure"

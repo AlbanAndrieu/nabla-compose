@@ -1,0 +1,89 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-orchestrator
+  title: Akvorado Orchestrator
+  description: Planned Akvorado configuration and coordination control plane.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - network
+    - observability
+    - netflow
+spec:
+  type: controller
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/kafka
+    - resource:default/clickhouse
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-inlet
+  title: Akvorado Inlet
+  description: Planned NetFlow/IPFIX UDP receiver and Kafka producer.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - network
+    - observability
+    - netflow
+spec:
+  type: worker
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/kafka
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-outlet
+  title: Akvorado Outlet
+  description: Planned Kafka flow consumer and ClickHouse ingestion pipeline.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: high
+  tags:
+    - network
+    - observability
+    - netflow
+spec:
+  type: worker
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/kafka
+    - resource:default/clickhouse
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: akvorado-console
+  title: Akvorado Console
+  description: Planned UI for historical network-flow search and analysis.
+  links:
+    - url: http://172.17.0.24:31056/
+      title: Console
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
+  tags:
+    - network
+    - observability
+    - netflow
+spec:
+  type: website
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/clickhouse

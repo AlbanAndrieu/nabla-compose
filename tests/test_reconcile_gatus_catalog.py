@@ -9,8 +9,12 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
+def _entity(name: str, kind: str = "Component") -> dict:
+    return {"kind": kind, "metadata": {"name": name}}
+
+
 def test_failed_probe_does_not_mean_service_down():
-    catalog = {"services": [{"id": "home-assistant"}]}
+    catalog = {"entities": [_entity("home-assistant")]}
     config = {"endpoints": [{
         "name": "Home Assistant", "group": "home",
         "url": "http://127.0.0.1:8123/private?token=secret",
@@ -23,18 +27,17 @@ def test_failed_probe_does_not_mean_service_down():
                  "results": [{"success": False}]}]
     report = module.reconcile(catalog, config, statuses)
     assert report["monitors"][0]["classification"] == "investigate_probe_not_service_down"
-    # The probe URL and its token must not leak (the report note may say "secrets").
     assert "token=secret" not in str(report)
     assert "127.0.0.1:8123/private" not in str(report)
-    assert report["monitors"][0]["catalog_match"]
+    assert report["monitors"][0]["mapping_source"] == "backstage"
 
 
-def test_unmapped_and_duplicate_monitor_ids():
+def test_duplicate_and_unknown_monitor_ids():
     config = {"endpoints": [
         {"name": "a", "extra-labels": {"nabla_monitor_id": "a", "nabla_service_id": "missing"}},
         {"name": "b", "extra-labels": {"nabla_monitor_id": "a", "nabla_service_id": "missing"}},
     ]}
-    report = module.reconcile({"services": []}, config)
+    report = module.reconcile({"entities": []}, config)
     assert report["duplicate_monitor_ids"] == ["a"]
     assert report["monitors"][0]["classification"] == "needs_service_mapping"
 
@@ -42,19 +45,20 @@ def test_unmapped_and_duplicate_monitor_ids():
 def test_missing_results_remain_unknown():
     config = {"endpoints": [{"name": "a", "group": "ops",
               "extra-labels": {"nabla_monitor_id": "a"}}]}
-    report = module.reconcile({"services": []}, config,
+    report = module.reconcile({"entities": []}, config,
                               [{"name": "a", "group": "ops", "results": []}])
     assert report["monitors"][0]["classification"] == "no_recent_evidence"
 
 
-def test_canonical_topology_resolves_technical_component():
+def test_backstage_component_resolves_technical_service():
     config = {"endpoints": [{"name": "Exporter", "group": "observability",
               "extra-labels": {"nabla_monitor_id": "postgres-exporter",
                                "nabla_service_id": "postgres-exporter"}}]}
-    topology = {"nodes": [{"id": "postgres-exporter"}]}
-    report = module.reconcile({"services": []}, config, topology=topology)
+    report = module.reconcile(
+        {"entities": [_entity("postgres-exporter")]}, config
+    )
     row = report["monitors"][0]
-    assert row["mapping_source"] == "canonical_topology"
+    assert row["mapping_source"] == "backstage"
     assert row["classification"] == "not_checked"
     assert report["unresolved_monitor_ids"] == []
 
@@ -63,34 +67,43 @@ def test_unknown_service_remains_unresolved():
     config = {"endpoints": [{"name": "Unknown",
               "extra-labels": {"nabla_monitor_id": "unknown",
                                "nabla_service_id": "unknown"}}]}
-    report = module.reconcile({"services": []}, config, topology={"nodes": []})
+    report = module.reconcile({"entities": []}, config)
     assert report["unresolved_monitor_ids"] == ["unknown"]
 
 
-def test_critical_gatus_monitors_have_prometheus_service_id_labels():
-    """Prometheus recording rules discard Gatus metrics lacking this label."""
+def test_critical_monitor_ids_reconcile_with_backstage_resources():
     import yaml
 
     root = Path(__file__).resolve().parents[1]
     config = yaml.safe_load((root / "apps/gatus/config/config.yml").read_text())
-    catalog = __import__("json").loads((root / "catalog/homelab-services.json").read_text())
-    catalog_ids = {entry["id"] for entry in catalog["services"]}
-    monitors = {entry["extra-labels"]["nabla_monitor_id"]: entry
-                for entry in config["endpoints"]
-                if "nabla_monitor_id" in entry.get("extra-labels", {})}
+    entries = module.load_backstage_entities(
+        [root / "catalog/catalog-info.yaml"]
+    )
+    resources = {
+        entity["metadata"]["name"]
+        for entity in entries
+        if entity["kind"] == "Resource"
+    }
+    monitors = {
+        entry["extra-labels"]["nabla_monitor_id"]: entry
+        for entry in config["endpoints"]
+        if "nabla_monitor_id" in entry.get("extra-labels", {})
+    }
     for service_id in ("pfsense", "postgresql", "truenas"):
-        assert service_id in catalog_ids
+        assert service_id in resources
         assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id
     rules = (root / "apps/prometheus/rules/nabla-service.rules.yml").read_text()
     assert 'nabla_service_id!=""' in rules
 
 
-def test_critical_service_id_labels_come_from_generator_source():
-    """The labels must survive regeneration: declare them in the static catalog."""
+def test_critical_monitor_ids_come_from_backstage_refs():
     import yaml
 
     root = Path(__file__).resolve().parents[1]
-    static = yaml.safe_load((root / "catalog/service-consumers.static.yml").read_text())
-    extras = {entry["id"]: entry for entry in static["monitoring"]["extras"]}
+    source = yaml.safe_load((root / "config/monitoring/gatus-endpoints.yml").read_text())
+    monitors = {
+        endpoint["extra-labels"]["nabla_monitor_id"]: endpoint
+        for endpoint in source["endpoints"]
+    }
     for service_id in ("pfsense", "postgresql", "truenas"):
-        assert extras[service_id]["serviceId"] == service_id
+        assert monitors[service_id]["extra-labels"]["nabla_service_id"] == service_id
