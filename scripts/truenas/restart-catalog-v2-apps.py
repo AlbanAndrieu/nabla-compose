@@ -367,13 +367,15 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         read_json(SECRETS_FILE), load_deferred(),
         None if args.apps_json else Path("/"),
     )
-    if args.output:
-        # Reject symlinks, never expose inventory files before chmod.
-        flags = os.O_CREAT | os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW
-        fd = os.open(args.output, flags, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as output:
-            os.fchmod(output.fileno(), 0o600)
-            output.write(json.dumps(report, sort_keys=True, indent=2) + "\n")
+    # A confirmation obtained for Gatus must never authorize a core restart.
+    report["planHash"] = hashlib.sha256(
+        f"{report['planHash']}:{wave}".encode("utf-8")
+    ).hexdigest()
+    report["selectedWave"] = wave
+    report["inventorySource"] = "snapshot" if args.apps_json else "live-midclt"
+    report["runtimeSecretsSource"] = (
+        "not-checked" if args.apps_json else "live-filesystem"
+    )
     try:
         validate_wave(report, wave)
         selected_wave_ready = True
@@ -382,12 +384,23 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         selected_wave_ready = False
         selected_wave_blocker = str(exc)
 
+    report["selectedWaveReady"] = selected_wave_ready
+    report["selectedWaveBlocker"] = selected_wave_blocker
+    if args.output:
+        # Safe replace: do not truncate a pre-existing output or follow a link.
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW
+        fd = os.open(args.output, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(json.dumps(report, sort_keys=True, indent=2) + "\n")
     print(json.dumps({
         "selectedWaveReady": selected_wave_ready,
         "selectedWaveBlocker": selected_wave_blocker,
         "catalogRevision": report["catalogRevision"],
         "planHash": report["planHash"],
         "selectedWave": wave,
+        "inventorySource": report["inventorySource"],
+        "runtimeSecretsSource": report["runtimeSecretsSource"],
         "counts": report["counts"],
         "missingRunningSecrets": report["missingRunningSecrets"],
         "unverifiedRunningSecrets": report["unverifiedRunningSecrets"],
