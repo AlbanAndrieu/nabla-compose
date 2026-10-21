@@ -130,6 +130,7 @@ def test_deferred_planned_workload_rejected_before_mutation():
 
 
 def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, tmp_path):
+    import hashlib
     import sys
 
     globals_ = ops["main"].__globals__
@@ -149,8 +150,11 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
         "gatusBlocked": False,
         "gatusMissingSecret": False,
         "gatusDeclaredInactive": False,
+        "gatusSecretUnverified": False,
         "declaredCoreInactive": [],
         "missingDeferredSecrets": [],
+        "unverifiedRunningSecrets": [],
+        "unverifiedDeferredSecrets": [],
         "blockedDeferredApps": [],
         "plannedOrDisabledDeferred": [],
     }
@@ -164,7 +168,7 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
     monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
     monkeypatch.setattr(sys, "argv", [
         "restart-catalog-v2-apps.py", "--apply", "--include-gatus",
-        "--expected-plan-hash", "a" * 64,
+        "--expected-plan-hash", hashlib.sha256(("a" * 64 + ":gatus").encode()).hexdigest(),
         "--acknowledge-downtime", ops["ACK"],
     ])
     assert ops["main"]() == 0
@@ -205,6 +209,7 @@ def test_broken_gatus_mapping_does_not_block_core():
 
 
 def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
+    import hashlib
     import sys
 
     globals_ = ops["main"].__globals__
@@ -224,8 +229,11 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
         "gatusBlocked": False,
         "gatusMissingSecret": False,
         "gatusDeclaredInactive": False,
+        "gatusSecretUnverified": False,
         "declaredCoreInactive": [],
         "missingDeferredSecrets": [],
+        "unverifiedRunningSecrets": [],
+        "unverifiedDeferredSecrets": [],
         "blockedDeferredApps": [],
         "plannedOrDisabledDeferred": [],
     }
@@ -239,7 +247,7 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
     monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
     monkeypatch.setattr(sys, "argv", [
         "restart-catalog-v2-apps.py", "--apply", "--include-deferred",
-        "--expected-plan-hash", "b" * 64,
+        "--expected-plan-hash", hashlib.sha256(("b" * 64 + ":deferred").encode()).hexdigest(),
         "--acknowledge-downtime", ops["ACK"],
     ])
     assert ops["main"]() == 0
@@ -303,6 +311,8 @@ def test_check_reports_readiness_without_creating_audit_dir(
         "missingDeferredSecrets": [], "blockedCoreApps": [],
         "blockedDeferredApps": [], "plannedOrDisabledDeferred": [],
         "gatusBlocked": False, "gatusMissingSecret": False,
+        "gatusSecretUnverified": False, "gatusDeclaredInactive": False,
+        "declaredCoreInactive": [],
     })
     monkeypatch.setattr(sys, "argv", [
         "restart-catalog-v2-apps.py", "--check", "--include-gatus",
@@ -364,3 +374,65 @@ def test_mutation_lock_rejects_fifo_instead_of_lock_file(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="regular file"):
         with ops["mutation_lock"]():
             pytest.fail("FIFO cannot be a coordination lock")
+
+
+def test_offline_secret_readiness_is_unknown_not_missing():
+    apps = [{"id": "api", "state": "RUNNING"}]
+    catalog = {"catalogRevision": "sha256:offline", "entities": []}
+    mappings = {"catalogRevision": "sha256:offline", "mappings": []}
+    manifest = {"items": [{"app": "api"}]}
+    report = ops["make_plan"](apps, catalog, mappings, manifest, set(), None)
+    assert report["missingRunningSecrets"] == []
+    assert report["unverifiedRunningSecrets"] == ["api"]
+    with pytest.raises(RuntimeError, match="core blocked"):
+        ops["validate_wave"](report, "core")
+
+
+def test_offline_gatus_and_deferred_secrets_fail_closed():
+    apps = [{"id": "gatus", "state": "STOPPED"},
+            {"id": "plex", "state": "STOPPED"}]
+    catalog = {"catalogRevision": "sha256:offline", "entities": []}
+    mappings = {"catalogRevision": "sha256:offline", "mappings": []}
+    manifest = {"items": [{"app": "gatus"}, {"app": "plex"}]}
+    report = ops["make_plan"](apps, catalog, mappings, manifest, {"plex"}, None)
+    assert report["gatusSecretUnverified"]
+    assert report["unverifiedDeferredSecrets"] == ["plex"]
+    with pytest.raises(RuntimeError, match="Gatus blocked"):
+        ops["validate_wave"](report, "gatus")
+    with pytest.raises(RuntimeError, match="deferred wave blocked"):
+        ops["validate_wave"](report, "deferred")
+
+
+def test_plan_confirmation_hash_is_wave_bound(monkeypatch, tmp_path):
+    import hashlib
+    import sys
+
+    globals_ = ops["main"].__globals__
+    report = {
+        "planHash": "c" * 64, "catalogRevision": "sha256:fixture",
+        "counts": {}, "states": {"gatus": "STOPPED"},
+        "coreRestartOrder": [], "nonBlockingGatus": ["gatus"],
+        "deferredLast": [], "runningDeferredExcluded": [],
+        "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
+        "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
+        "blockedCoreApps": [], "blockedDeferredApps": [],
+        "plannedOrDisabledDeferred": [], "declaredCoreInactive": [],
+        "gatusBlocked": False, "gatusMissingSecret": False,
+        "gatusSecretUnverified": False, "gatusDeclaredInactive": False,
+    }
+    monkeypatch.setitem(globals_, "AUDIT_DIR", tmp_path / "audit")
+    monkeypatch.setitem(globals_, "query_apps", lambda: [])
+    monkeypatch.setitem(globals_, "read_json", lambda _: {})
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: report.copy())
+    monkeypatch.setitem(globals_, "restart_one",
+                        lambda app: pytest.fail("unexpected mutation"))
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    gatus_hash = hashlib.sha256(("c" * 64 + ":gatus").encode()).hexdigest()
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--apply",
+        "--expected-plan-hash", gatus_hash,
+        "--acknowledge-downtime", ops["ACK"],
+    ])
+    with pytest.raises(RuntimeError, match="plan changed"):
+        ops["main"]()
