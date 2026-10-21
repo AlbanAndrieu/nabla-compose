@@ -8,9 +8,11 @@ on:
     paths:
       - "scripts/truenas/plan-catalog-v2-restart.py"
       - "scripts/truenas/restart-catalog-v2-apps.py"
+      - "scripts/truenas/catalog_v2_restart_dependencies.py"
       - "config/truenas/restore-optional-apps.txt"
       - "tests/test_catalog_v2_restart_plan.py"
       - "tests/test_catalog_v2_restart_waves.py"
+      - "tests/test_catalog_v2_restart_dependencies.py"
       - "scripts/secrets/inventory_vaultwarden.py"
       - "tests/test_vaultwarden_inventory_contract.py"
       - ".github/workflows/catalog-v2-restart-tests.yml"
@@ -41,6 +43,7 @@ jobs:
           python -m py_compile
           scripts/truenas/plan-catalog-v2-restart.py
           scripts/truenas/restart-catalog-v2-apps.py
+          scripts/truenas/catalog_v2_restart_dependencies.py
           scripts/secrets/inventory_vaultwarden.py
       - name: Test planning and safety invariants (no TrueNAS access)
         run: |
@@ -48,4 +51,5 @@ jobs:
           python -m pytest -q \
             tests/test_catalog_v2_restart_plan.py \
             tests/test_catalog_v2_restart_waves.py \
+            tests/test_catalog_v2_restart_dependencies.py \
             tests/test_vaultwarden_inventory_contract.py
