@@ -341,3 +341,26 @@ def test_planned_gatus_and_running_core_are_not_started_automatically():
         ops["validate_wave"](report, "gatus")
     with pytest.raises(RuntimeError, match="core blocked"):
         ops["validate_wave"](report, "core")
+
+
+def test_ambiguous_backstage_provider_fails_before_restart():
+    rows = [
+        {"app": "db-one", "entityRefs": ["resource:default/db"], "dependsOn": []},
+        {"app": "db-two", "entityRefs": ["resource:default/db"], "dependsOn": []},
+        {"app": "api", "entityRefs": ["component:default/api"],
+         "dependsOn": ["resource:default/db"]},
+    ]
+    with pytest.raises(ValueError, match="ambiguous Backstage dependency provider"):
+        ops["dependency_order"](rows)
+
+
+def test_mutation_lock_rejects_fifo_instead_of_lock_file(monkeypatch, tmp_path):
+    import os
+
+    audit_dir = tmp_path / "private-audit"
+    audit_dir.mkdir()
+    os.mkfifo(audit_dir / ".catalog-v2-restart.lock", 0o600)
+    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", audit_dir)
+    with pytest.raises(RuntimeError, match="regular file"):
+        with ops["mutation_lock"]():
+            pytest.fail("FIFO cannot be a coordination lock")
