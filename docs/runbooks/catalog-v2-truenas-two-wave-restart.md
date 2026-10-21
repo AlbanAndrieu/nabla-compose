@@ -61,11 +61,12 @@ uniquement cet orchestrateur, pas les actions `midclt` manuelles externes.
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-PLAN="/tmp/nabla-v2-core-$(date +%s)-$.json"
+PLAN="/tmp/nabla-v2-core-$(date +%s%N).json"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check \
   --output "$PLAN"
-sudo jq '{planHash,counts,missingRunningSecrets,nonBlockingGatus,
-          runningDeferredExcluded,deferredLast}' "$PLAN"
+sudo jq '{selectedWave,selectedWaveReady,selectedWaveBlocker,planHash,
+          counts,missingRunningSecrets,unverifiedRunningSecrets,
+          nonBlockingGatus,runningDeferredExcluded,deferredLast}' "$PLAN"
 ```
 
 Les sorties `--output` sont créées exclusivement (permissions `0600`) :
@@ -124,7 +125,7 @@ vagues, utiliser **une seule** des options mutuellement exclusives :
 
 ```bash
 # Diagnostiquer Gatus avant son activation ; si CRASHED, le préflight refuse.
-PLAN="/tmp/nabla-v2-gatus-$(date +%s)-$.json"
+PLAN="/tmp/nabla-v2-gatus-$(date +%s%N).json"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus \
   --output "$PLAN"
 HASH="$(sudo jq -r .planHash "$PLAN")"
@@ -133,7 +134,7 @@ sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
 
 # Vague facultative : autorise uniquement les Apps STOPPED, non planned/disabled.
-PLAN="/tmp/nabla-v2-deferred-$(date +%s)-$.json"
+PLAN="/tmp/nabla-v2-deferred-$(date +%s%N).json"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred \
   --output "$PLAN"
 HASH="$(sudo jq -r .planHash "$PLAN")"
