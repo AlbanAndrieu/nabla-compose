@@ -505,3 +505,25 @@ def test_offline_snapshot_is_never_ready_even_without_secret_manifest(
     assert result["runtimeSecretsSource"] == "not-checked"
     assert result["selectedWaveReady"] is False
     assert "live --check" in result["selectedWaveBlocker"]
+
+
+def test_report_output_never_truncates_existing_file(monkeypatch, tmp_path):
+    import sys
+
+    snapshot = tmp_path / "apps.json"
+    snapshot.write_text("[]", encoding="utf-8")
+    report_file = tmp_path / "existing.json"
+    report_file.write_text("operator-owned\n", encoding="utf-8")
+    globals_ = ops["main"].__globals__
+    monkeypatch.setitem(globals_, "read_json", lambda _: [])
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: {
+        "planHash": "f" * 64,
+    })
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--check",
+        "--apps-json", str(snapshot), "--output", str(report_file),
+    ])
+    with pytest.raises(FileExistsError):
+        ops["main"]()
+    assert report_file.read_text(encoding="utf-8") == "operator-owned\n"
