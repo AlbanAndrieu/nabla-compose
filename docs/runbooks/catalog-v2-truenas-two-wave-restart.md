@@ -51,7 +51,8 @@ est libéré à la sortie, même sur erreur. Le répertoire est privé (`0700`),
 le verrou et les journaux sont `0600` ; liens symboliques et fichiers
 spéciaux ne sont pas acceptés comme verrou.
 
-`--check` est strictement sans verrou ni modification ; son JSON indique
+`--check` n’utilise aucun verrou et ne modifie **jamais TrueNAS** ; un
+fichier de rapport est toutefois créé si `--output` est fourni. Son JSON indique
 `selectedWaveReady` et `selectedWaveBlocker` pour la vague choisie.
 Une dépendance ayant plusieurs fournisseurs Backstage est une **ambiguïté
 bloquante** : ne pas déduire le service cible par nom. Le verrou protège
@@ -73,6 +74,10 @@ Les sorties `--output` sont créées exclusivement (permissions `0600`) :
 **ne pas réutiliser un nom de fichier existant**. Les exemples génèrent un
 fichier distinct pour chaque vague. Contrôler le champ `selectedWaveReady`
 ainsi que `selectedWaveBlocker` avant toute intervention.
+
+Un snapshot `--apps-json` ne peut **jamais** être marqué
+`selectedWaveReady=true`, même si aucun secret n'est attendu. L'autorisation
+opérationnelle doit être recalculée par `--check` en direct sur TrueNAS.
 
 Le mode `--apps-json` est un diagnostic **hors ligne** : la présence des secrets
 sur l'hôte TrueNAS n'y est pas vérifiée. Les secrets concernés portent le statut
