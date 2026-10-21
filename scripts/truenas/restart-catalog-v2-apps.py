@@ -147,6 +147,13 @@ def make_plan(
     entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
                for row in canonical_plan[phase]}
     gatus_entry = entries.get("gatus")
+    declared_core_inactive = sorted(
+        row["app"] for row in active
+        if {"planned", "disabled"} & set(row["declaredStates"])
+    )
+    gatus_declared_inactive = bool(
+        gatus_entry and {"planned", "disabled"} & set(gatus_entry["declaredStates"])
+    )
     blocked_core = sorted(row["app"] for row in canonical_plan["blocked"]
                           if row["app"] != "gatus" and row["app"] not in deferred)
     blocked_deferred = sorted(row["app"] for row in canonical_plan["blocked"]
@@ -166,6 +173,8 @@ def make_plan(
         "coreRestartOrder": core,
         "nonBlockingGatus": gatus,
         "gatusBlocked": bool(gatus_entry and gatus_entry.get("blockers")),
+        "gatusDeclaredInactive": gatus_declared_inactive,
+        "declaredCoreInactive": declared_core_inactive,
         "gatusMissingSecret": bool(gatus_entry and gatus_entry["vaultwardenManifest"]
                                    and gatus_entry["runtimeSecretFile"] != "present"),
         "blockedDeferredApps": blocked_deferred,
@@ -194,14 +203,16 @@ def make_plan(
 def validate_wave(report: dict, wave: str) -> None:
     """Fail closed for the selected wave, without restarting unrelated workloads."""
     if wave == "core":
-        if report["blockedCoreApps"] or report["missingRunningSecrets"]:
+        if (report["blockedCoreApps"] or report["missingRunningSecrets"]
+                or report["declaredCoreInactive"]):
             raise RuntimeError("core blocked: unresolved mapping or runtime secrets")
         if report["runningDeferredExcluded"]:
             raise RuntimeError("running deferred Apps require manual classification")
     elif wave == "gatus":
         if report["states"].get("gatus") not in ("RUNNING", "STOPPED"):
             raise RuntimeError("Gatus must be present and RUNNING or STOPPED")
-        if report["gatusBlocked"] or report["gatusMissingSecret"]:
+        if (report["gatusBlocked"] or report["gatusMissingSecret"]
+                or report["gatusDeclaredInactive"]):
             raise RuntimeError("Gatus blocked: unresolved mapping or runtime secrets")
     elif wave == "deferred":
         if (report["missingDeferredSecrets"] or report["blockedDeferredApps"]
@@ -361,6 +372,8 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         "missingRunningSecrets": report["missingRunningSecrets"],
         "nonBlockingGatus": report["nonBlockingGatus"],
         "gatusBlocked": report["gatusBlocked"],
+        "gatusDeclaredInactive": report["gatusDeclaredInactive"],
+        "declaredCoreInactive": report["declaredCoreInactive"],
         "gatusMissingSecret": report["gatusMissingSecret"],
         "blockedCoreApps": report["blockedCoreApps"],
         "blockedDeferredApps": report["blockedDeferredApps"],
