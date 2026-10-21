@@ -142,6 +142,8 @@ def make_plan(
     entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
                for row in canonical_plan[phase]}
     gatus_entry = entries.get("gatus")
+    blocked_core = sorted(row["app"] for row in canonical_plan["blocked"]
+                          if row["app"] != "gatus" and row["app"] not in deferred)
     blocked_deferred = sorted(row["app"] for row in canonical_plan["blocked"]
                               if row["app"] in deferred)
     declared_deferred = sorted(app for app in delayed
@@ -169,6 +171,7 @@ def make_plan(
         "missingDeferredSecrets": deferred_secrets,
         "unmappedApps": unmapped,
         "blockedApps": canonical_plan["blocked"],
+        "blockedCoreApps": blocked_core,
         "counts": {
             "running": sum(state == "RUNNING" for state in states.values()),
             "stopped": sum(state == "STOPPED" for state in states.values()),
@@ -186,7 +189,7 @@ def make_plan(
 def validate_wave(report: dict, wave: str) -> None:
     """Fail closed for the selected wave, without restarting unrelated workloads."""
     if wave == "core":
-        if report["blockedApps"] or report["missingRunningSecrets"]:
+        if report["blockedCoreApps"] or report["missingRunningSecrets"]:
             raise RuntimeError("core blocked: unresolved mapping or runtime secrets")
         if report["runningDeferredExcluded"]:
             raise RuntimeError("running deferred Apps require manual classification")
@@ -320,7 +323,7 @@ def main() -> int:
 
     AUDIT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(AUDIT_DIR, 0o700)
-    journal = AUDIT_DIR / f"catalog-v2-{wave}-{int(time.time())}-{report['planHash'][:12]}.jsonl"
+    journal = AUDIT_DIR / f"catalog-v2-{wave}-{time.time_ns()}-{report['planHash'][:12]}.jsonl"
     with journal.open("x", encoding="utf-8") as audit:
         os.chmod(journal, 0o600)
         failures: list[str] = []
