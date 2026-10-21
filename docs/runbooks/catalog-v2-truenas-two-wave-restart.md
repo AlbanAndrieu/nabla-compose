@@ -80,13 +80,17 @@ vagues, utiliser **une seule** des options mutuellement exclusives :
 
 ```bash
 # Diagnostiquer Gatus avant son activation ; si CRASHED, le préflight refuse.
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-gatus \\
+  --output /tmp/nabla-v2-restart-preflight.json
+HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
   --include-gatus --expected-plan-hash "$HASH" \\
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
 
 # Vague facultative : autorise uniquement les Apps STOPPED, non planned/disabled.
-sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred
+sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check --include-deferred \\
+  --output /tmp/nabla-v2-restart-preflight.json
+HASH="$(sudo jq -r .planHash /tmp/nabla-v2-restart-preflight.json)"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --apply \\
   --include-deferred --expected-plan-hash "$HASH" \\
   --acknowledge-downtime I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
