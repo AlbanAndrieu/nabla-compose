@@ -1,3 +1,11 @@
+# [0.48.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.47.1...0.48.0) (2026-10-21)
+
+
+### Features
+
+* **catalog:** cut over consumers to Backstage v2 and runtime secrets ([#265](https://github.com/AlbanAndrieu/nabla-compose/issues/265)) ([92c80d3](https://github.com/AlbanAndrieu/nabla-compose/commit/92c80d33bf518811faa9b235b90e03ec3ba5a057))
+* **security:** préparer sept migrations GitOps et accès ops privé ([#263](https://github.com/AlbanAndrieu/nabla-compose/issues/263)) ([a99d344](https://github.com/AlbanAndrieu/nabla-compose/commit/a99d3444a422e76f53a34f18119315fa9e78e06f)), closes [hi#priority](https://github.com/hi/issues/priority)
+
 ## [0.47.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.47.0...0.47.1) (2026-10-18)
 
 
