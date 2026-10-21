@@ -84,3 +84,17 @@ sans variables d'environnement ni contenu de secrets.
 `planHash`, listes d'App ID exactes, `app.stop` et `app.start`
 via TrueNAS middleware uniquement. Aucun usage `apt`, aucun
 redémarrage du TrueNAS hôte, aucun stockage de mot de passe.
+
+## Diagnostic Vaultwarden CLI lent
+
+L'inventaire utilise dorénavant un délai par requête borné et configurable
+(default 90 s, maximum 300 s) ; aucune donnée secrète n'est renvoyée :
+
+```bash
+python3 scripts/secrets/inventory_vaultwarden.py --timeout-seconds 120
+```
+
+Un timeout indique l'absence de confirmation (et non l'absence de secrets).
+Vérifier `bw --version` et `bw status | jq -r .status` **sans**
+afficher `BW_SESSION`. Ne pas exécuter `bw list items` sans filtres
+en sortie standard destinée aux journaux ou au support.

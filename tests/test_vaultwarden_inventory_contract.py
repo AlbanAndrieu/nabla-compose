@@ -77,3 +77,18 @@ def test_candidate_inventory_only_exposes_name_and_folder_scope() -> None:
     ]
     assert "SECRET" not in str(rows)
     assert "SENSITIVE" not in str(rows)
+
+
+def test_inventory_cli_list_timeout_is_bounded_and_metadata_only(monkeypatch) -> None:
+    import subprocess
+
+    recorded = []
+
+    def fake_run(command, **kwargs):
+        recorded.append(kwargs["timeout"])
+        return subprocess.CompletedProcess(command, 0, stdout='[{"name":"x","password":"secret"}]')
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    result = module.bw_json("list", "items", session="fixture", timeout_seconds=120)
+    assert recorded == [120]
+    assert isinstance(result, list)

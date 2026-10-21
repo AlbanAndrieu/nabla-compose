@@ -65,13 +65,13 @@ def candidate_items(manifest: dict, items: list[dict], app: str) -> list[dict]:
     return sorted(rows, key=lambda row: (row["folder"], row["name"].casefold()))
 
 
-def bw_json(*args: str, session: str) -> list[dict]:
+def bw_json(*args: str, session: str, timeout_seconds: int = 30) -> list[dict]:
     result = subprocess.run(
         ["bw", *args, "--session", session],
         check=False,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=timeout_seconds,
     )
     if result.returncode:
         # stderr may contain sensitive server data; do not echo it.
@@ -87,8 +87,12 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--app", help="limit report to this declared app")
     parser.add_argument("--json", action="store_true", help="metadata-only JSON report")
+    parser.add_argument("--timeout-seconds", type=int, default=90,
+                        help="bounded Bitwarden list timeout (5..300 seconds; default 90)")
     parser.add_argument("--discover-candidates", action="store_true", help="with --app, list matching item names and expected/other/unfiled folder scope only")
     args = parser.parse_args()
+    if not 5 <= args.timeout_seconds <= 300:
+        parser.error("--timeout-seconds must be between 5 and 300")
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     expected = {x["app"] for x in manifest["items"]}
@@ -121,8 +125,10 @@ def main() -> int:
         print("ERROR: Bitwarden CLI vault is not unlocked", file=sys.stderr)
         return 2
 
-    folders = bw_json("list", "folders", session=session)
-    items = bw_json("list", "items", session=session)
+    folders = bw_json("list", "folders", session=session,
+                      timeout_seconds=args.timeout_seconds)
+    items = bw_json("list", "items", session=session,
+                    timeout_seconds=args.timeout_seconds)
     if args.discover_candidates:
         candidates = candidate_items(manifest, items, args.app)
         if args.json:
