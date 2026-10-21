@@ -445,7 +445,7 @@ def test_runbook_shell_examples_compile_without_execution():
 
     runbook = (ROOT / "docs/runbooks/catalog-v2-truenas-two-wave-restart.md"
                ).read_text(encoding="utf-8")
-    blocks = re.findall(r"```bash\\n(.*?)\\n```", runbook, flags=re.DOTALL)
+    blocks = re.findall(r"```bash\n(.*?)\n```", runbook, flags=re.DOTALL)
     assert len(blocks) >= 3
     for block in blocks:
         for line in block.splitlines():
