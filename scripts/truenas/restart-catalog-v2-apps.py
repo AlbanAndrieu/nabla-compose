@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import runpy
+import stat
 import subprocess
 import sys
 import time
@@ -95,6 +96,8 @@ def dependency_order(running: list[dict]) -> list[str]:
         name = row["app"]
         for ref in row["dependsOn"]:
             providers = ref_to_apps.get(ref, set())
+            if len(providers) > 1:
+                raise ValueError(f"ambiguous Backstage dependency provider: {ref}")
             if len(providers) == 1:
                 provider = next(iter(providers))
                 if provider != name:
@@ -236,6 +239,8 @@ def mutation_lock() -> Iterator[None]:
     flags = os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC
     fd = os.open(AUDIT_DIR / ".catalog-v2-restart.lock", flags, 0o600)
     try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise RuntimeError("restart lock must be a regular file")
         os.fchmod(fd, 0o600)
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
