@@ -3,6 +3,8 @@ name: TrueNAS Catalog v2 Restart Plan
 
 on:
   pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "scripts/truenas/plan-catalog-v2-restart.py"
       - "scripts/truenas/restart-catalog-v2-apps.py"
@@ -17,8 +19,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: catalog-v2-restart-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-offline:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Read-only restart contract tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -37,7 +44,7 @@ jobs:
           scripts/secrets/inventory_vaultwarden.py
       - name: Test planning and safety invariants (no TrueNAS access)
         run: |
-          python -m pip install 'pytest==8.4.2'
+          python -m pip install 'pytest==9.1.1'
           python -m pytest -q \
             tests/test_catalog_v2_restart_plan.py \
             tests/test_catalog_v2_restart_waves.py \
