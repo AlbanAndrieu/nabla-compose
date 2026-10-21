@@ -247,3 +247,66 @@ def test_true_nas_id_and_name_must_match_before_any_action():
         ops["state_by_app"]([
             {"id": "trusted-service", "name": "another-service", "state": "RUNNING"},
         ])
+
+
+def test_mutation_lock_is_exclusive_and_released_on_failure(monkeypatch, tmp_path):
+    """No two human or agent apply sessions may mutate TrueNAS concurrently."""
+    audit_dir = tmp_path / "private-audit"
+    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", audit_dir)
+    lock = ops["mutation_lock"]
+    with lock():
+        with pytest.raises(RuntimeError, match="another TrueNAS"):
+            with lock():
+                pytest.fail("second writer must never acquire lock")
+        assert (audit_dir / ".catalog-v2-restart.lock").stat().st_mode & 0o777 == 0o600
+        assert audit_dir.stat().st_mode & 0o777 == 0o700
+    with pytest.raises(ZeroDivisionError):
+        with lock():
+            1 / 0
+    with lock():
+        pass
+
+
+def test_mutation_lock_rejects_symlinked_audit_directory(monkeypatch, tmp_path):
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(target, target_is_directory=True)
+    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", link)
+    with pytest.raises(RuntimeError, match="symlink"):
+        with ops["mutation_lock"]():
+            pytest.fail("symlink must be rejected")
+
+
+def test_check_reports_readiness_without_creating_audit_dir(
+    monkeypatch, tmp_path, capsys,
+):
+    import json
+    import sys
+
+    audit_dir = tmp_path / "audit"
+    snapshot = tmp_path / "apps.json"
+    snapshot.write_text("[]", encoding="utf-8")
+    globals_ = ops["main"].__globals__
+    monkeypatch.setitem(globals_, "AUDIT_DIR", audit_dir)
+    monkeypatch.setitem(globals_, "read_json", lambda _: [])
+    monkeypatch.setitem(globals_, "load_deferred", lambda: set())
+    monkeypatch.setitem(globals_, "make_plan", lambda *args: {
+        "planHash": "d" * 64, "catalogRevision": "sha256:local",
+        "counts": {}, "states": {"gatus": "CRASHED"}, "coreRestartOrder": [],
+        "nonBlockingGatus": ["gatus"], "deferredLast": [],
+        "runningDeferredExcluded": [], "missingRunningSecrets": [],
+        "missingDeferredSecrets": [], "blockedCoreApps": [],
+        "blockedDeferredApps": [], "plannedOrDisabledDeferred": [],
+        "gatusBlocked": False, "gatusMissingSecret": False,
+    })
+    monkeypatch.setattr(sys, "argv", [
+        "restart-catalog-v2-apps.py", "--check", "--include-gatus",
+        "--apps-json", str(snapshot),
+    ])
+    assert ops["main"]() == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["selectedWave"] == "gatus"
+    assert payload["selectedWaveReady"] is False
+    assert "RUNNING or STOPPED" in payload["selectedWaveBlocker"]
+    assert not audit_dir.exists()
