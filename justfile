@@ -66,6 +66,12 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_poc_contract.py tests/test_hermes_poc_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
+# Temporary 24 October migration runbook checks; mocks midclt and App changes.
+# No actual TrueNAS, Kubernetes, cloud model request or paid GitHub CI.
+migration-20261024-test:
+    bash -n scripts/truenas/finish-migrations-20261024.sh
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
