@@ -269,7 +269,7 @@ def test_invalid_run_id_does_not_block_valid_job_metrics(monkeypatch, capsys):
     assert usage.main() == 1
     stdout, stderr = capsys.readouterr()
     assert recorded == [1]
-    assert " :: Build\\t1\\t2.0" in stdout
+    assert " :: Build\t1\t2.0" in stdout
     assert "workflow run identity" in stderr
     assert "metrics incomplete" in stderr
 
@@ -285,7 +285,7 @@ def test_invalid_artifact_size_is_partial_not_negative_usage(monkeypatch, capsys
     monkeypatch.setattr(usage, "job_stats", lambda *args: (2.0, 0))
     assert usage.main() == 1
     stdout, stderr = capsys.readouterr()
-    assert " :: Build\\t1\\t2.0" in stdout
+    assert " :: Build\t1\t2.0" in stdout
     assert "stored artifacts" not in stdout
     assert "artifacts" in stderr
 
@@ -307,5 +307,5 @@ def test_valid_artifact_metrics_survive_later_corrupted_artifact(monkeypatch, ca
     ])
     assert usage.main() == 1
     stdout, stderr = capsys.readouterr()
-    assert "stored artifacts\\t0\\t0.0\\t1.0" in stdout
+    assert "stored artifacts\t0\t0.0\t1.0" in stdout
     assert "metrics incomplete" in stderr
