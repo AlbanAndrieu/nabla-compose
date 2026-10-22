@@ -55,7 +55,7 @@ def fake_operator(tmp_path):
     (truenas / "deploy-gatus.sh").write_text(
         "#!/bin/bash\n"
         "if [[ \"$1\" == --check ]]; then\n"
-        "  [[ \"${MOCK_DRIFT:-false}\" != true || -f \\"${MUTATION_MARKER}\\" ]]\n"
+        "  [[ \"${MOCK_DRIFT:-false}\" != true || -f \"${MUTATION_MARKER}\" ]]\n"
         "else\n"
         "  printf migrated >\"${MUTATION_MARKER}\"\n"
         "fi\n", encoding="utf-8",
