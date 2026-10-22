@@ -196,7 +196,7 @@ jobs:
           path: |
             megalinter-reports
             mega-linter.log
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: ignore
 
       - name: Fail when MegaLinter found errors
