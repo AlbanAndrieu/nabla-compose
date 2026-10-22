@@ -44,6 +44,22 @@ exécuter séparément `just quality` sur l'environnement de développement
 disposant de `mise` et des outils déclarés. Un test local réussi **ne remplace
 pas** la validation réelle `--check` sur TrueNAS.
 
+## Vérification des dépendances du core
+
+Le préflight calcule `coreDependencyBlockers` depuis les seules relations
+`entityRef` identifiées dans Backstage et les états `app.query` TrueNAS.
+Pour chaque App RUNNING de `coreRestartOrder`, une dépendance doit avoir
+**exactement un** fournisseur TrueNAS identifié et ce fournisseur doit être
+`RUNNING`. Un fournisseur absent, ambigu, `STOPPED`, `CRASHED` ou
+`UNKNOWN` bloque **la vague core seulement**, avant tout arrêt/démarrage.
+Le contrôle n'invente jamais d'identité d'App à partir du nom de service.
+
+`coreDependencyBlockers` fait partie du rapport JSON et du `planHash` :
+résoudre les blocages puis relancer `--check` pour une nouvelle empreinte.
+L'absence de relations déclarées dans Backstage n'est pas une preuve de
+santé : la couverture de l'inventaire doit être revue séparément.
+Ce contrôle n'autorise aucun redémarrage dans cette PR.
+
 ## Protection des opérations concurrentes
 
 Toute commande `--apply` prend un verrou exclusif du noyau Linux
@@ -73,7 +89,7 @@ PLAN="/tmp/nabla-v2-core-$(date +%s%N).json"
 sudo python3 scripts/truenas/restart-catalog-v2-apps.py --check \
   --output "$PLAN"
 sudo jq '{selectedWave,selectedWaveReady,selectedWaveBlocker,planHash,
-          counts,missingRunningSecrets,unverifiedRunningSecrets,
+          counts,coreDependencyBlockers,missingRunningSecrets,unverifiedRunningSecrets,
           nonBlockingGatus,runningDeferredExcluded,deferredLast}' "$PLAN"
 ```
 

@@ -61,3 +61,40 @@ def deferred_start_order(
     if len(order) != len(candidates):
         blockers.add("cycle in deferred dependency graph")
     return order, sorted(blockers)
+
+
+def core_dependency_blockers(
+    entries: dict[str, dict[str, Any]],
+    states: dict[str, str],
+    core_order: list[str],
+) -> list[str]:
+    """Verify selected RUNNING core apps have verified, RUNNING providers.
+
+    Do not infer app identities from entity names. If a dependency has no
+    provider, multiple providers, or a provider that is not RUNNING, block
+    the core wave before any stop/start operation.
+    """
+    ref_providers: dict[str, set[str]] = defaultdict(set)
+    for app, entry in entries.items():
+        for ref in entry.get("entityRefs", []):
+            ref_providers[ref].add(app)
+
+    blockers: set[str] = set()
+    for app in sorted(set(core_order)):
+        if states.get(app) != "RUNNING":
+            blockers.add(f"{app}: selected core App is not RUNNING")
+            continue
+        entry = entries.get(app)
+        if entry is None:
+            blockers.add(f"{app}: missing inventory entry")
+            continue
+        for ref in sorted(set(entry.get("dependsOn", []))):
+            providers = ref_providers.get(ref, set())
+            if len(providers) != 1:
+                reason = "missing" if not providers else "ambiguous"
+                blockers.add(f"{app}: {reason} dependency provider for {ref}")
+                continue
+            provider = next(iter(providers))
+            if states.get(provider) != "RUNNING":
+                blockers.add(f"{app}: dependency {provider} is not RUNNING")
+    return sorted(blockers)

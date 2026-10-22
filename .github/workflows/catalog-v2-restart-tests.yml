@@ -13,6 +13,7 @@ on:
       - "tests/test_catalog_v2_restart_plan.py"
       - "tests/test_catalog_v2_restart_waves.py"
       - "tests/test_catalog_v2_restart_dependencies.py"
+      - "tests/test_catalog_v2_core_guard.py"
       - "scripts/secrets/inventory_vaultwarden.py"
       - "tests/test_vaultwarden_inventory_contract.py"
       - ".github/workflows/catalog-v2-restart-tests.yml"
@@ -52,4 +53,5 @@ jobs:
             tests/test_catalog_v2_restart_plan.py \
             tests/test_catalog_v2_restart_waves.py \
             tests/test_catalog_v2_restart_dependencies.py \
+            tests/test_catalog_v2_core_guard.py \
             tests/test_vaultwarden_inventory_contract.py
