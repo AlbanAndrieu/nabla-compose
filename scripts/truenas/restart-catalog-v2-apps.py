@@ -159,9 +159,13 @@ def make_plan(
     )
     entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
                for row in canonical_plan[phase]}
-    start_order, deferred_dependency_blockers = runpy.run_path(
-        str(DEPENDENCY_GRAPH)
-    )["deferred_start_order"](entries, states, deferred)
+    dependency_helpers = runpy.run_path(str(DEPENDENCY_GRAPH))
+    start_order, deferred_dependency_blockers = dependency_helpers[
+        "deferred_start_order"
+    ](entries, states, deferred)
+    core_provider_blockers = dependency_helpers["core_dependency_blockers"](
+        entries, states, core
+    )
     gatus_entry = entries.get("gatus")
     declared_core_inactive = sorted(
         row["app"] for row in active
@@ -209,10 +213,12 @@ def make_plan(
         "unmappedApps": unmapped,
         "blockedApps": canonical_plan["blocked"],
         "blockedCoreApps": blocked_core,
+        "coreDependencyBlockers": core_provider_blockers,
         "counts": {
             "running": sum(state == "RUNNING" for state in states.values()),
             "stopped": sum(state == "STOPPED" for state in states.values()),
             "coreRestart": len(core),
+            "coreDependencyBlockers": len(core_provider_blockers),
             "deferredLast": len(delayed),
             "unmapped": len(unmapped),
             "missingRunningSecrets": len(secret_blockers),
@@ -226,7 +232,8 @@ def make_plan(
 def validate_wave(report: dict, wave: str) -> None:
     """Fail closed for the selected wave, without restarting unrelated workloads."""
     if wave == "core":
-        if (report["blockedCoreApps"] or report["missingRunningSecrets"]
+        if (report["blockedCoreApps"] or report["coreDependencyBlockers"]
+                or report["missingRunningSecrets"]
                 or report["unverifiedRunningSecrets"] or report["declaredCoreInactive"]):
             raise RuntimeError("core blocked: unresolved mapping or runtime secrets")
         if report["runningDeferredExcluded"]:
@@ -430,6 +437,7 @@ def execute_selected_wave(args: argparse.Namespace, wave: str) -> int:
         "gatusMissingSecret": report["gatusMissingSecret"],
         "gatusSecretUnverified": report["gatusSecretUnverified"],
         "blockedCoreApps": report["blockedCoreApps"],
+        "coreDependencyBlockers": report["coreDependencyBlockers"],
         "blockedDeferredApps": report["blockedDeferredApps"],
         "plannedOrDisabledDeferred": report["plannedOrDisabledDeferred"],
         "runningDeferredExcluded": report["runningDeferredExcluded"],
