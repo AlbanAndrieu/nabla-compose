@@ -309,3 +309,54 @@ def test_valid_artifact_metrics_survive_later_corrupted_artifact(monkeypatch, ca
     stdout, stderr = capsys.readouterr()
     assert "stored artifacts\t0\t0.0\t1.0" in stdout
     assert "metrics incomplete" in stderr
+
+
+@pytest.mark.parametrize("start,end", [
+    ("2026-10-22T09:00:00Z", "2026-10-22T08:00:00Z"),
+    ("2026-10-22T09:00:00Z", None),
+    (None, "2026-10-22T09:00:00Z"),
+])
+def test_job_timing_inconsistencies_mark_inventory_partial(monkeypatch, start, end):
+    monkeypatch.setattr(usage, "items", lambda *_: [{
+        "started_at": start, "completed_at": end,
+    }])
+    with pytest.raises(ValueError):
+        usage.job_stats("owner/repo", 1)
+
+
+def test_skipped_job_without_timestamps_is_not_an_error(monkeypatch):
+    monkeypatch.setattr(usage, "items", lambda *_: [{"conclusion": "skipped"}])
+    assert usage.job_stats("owner/repo", 1) == (0, 1)
+
+
+def test_zero_duration_job_is_allowed(monkeypatch):
+    monkeypatch.setattr(usage, "items", lambda *_: [{
+        "started_at": "2026-10-22T09:00:00Z",
+        "completed_at": "2026-10-22T09:00:00Z",
+    }])
+    assert usage.job_stats("owner/repo", 1) == (0, 0)
+
+
+def test_duplicate_repository_selection_only_calls_api_once(monkeypatch, capsys):
+    requested = []
+    monkeypatch.setattr(usage, "recent_runs", lambda name, since, limit:
+                        requested.append(name) or [])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [])
+    monkeypatch.setattr(sys, "argv", [
+        "github-actions-usage.py", "--repo", "foo", "--repo", "foo",
+        "--repo", "bar", "--repo", "foo",
+    ])
+    assert usage.main() == 0
+    assert requested == ["AlbanAndrieu/foo", "AlbanAndrieu/bar"]
+
+
+@pytest.mark.parametrize("days", ["0", "-1", "3651", "1000000000"])
+def test_days_bounded_without_api_calls(monkeypatch, days):
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs:
+                        pytest.fail("unexpected API call"))
+    monkeypatch.setattr(sys, "argv", [
+        "github-actions-usage.py", "--days", days,
+    ])
+    with pytest.raises(SystemExit) as error:
+        usage.main()
+    assert error.value.code == 2
