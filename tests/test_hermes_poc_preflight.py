@@ -107,7 +107,7 @@ def test_preflight_forbids_upstream_provider_keys_in_hermes(fixture_paths, upstr
     m = load_module()
     env, state, image = fixture_paths
     with env.open("a", encoding="utf-8") as fd:
-        fd.write(f"{upstream_key}=SECRET_VALUE_MUST_NOT_APPEAR\\n")
+        fd.write(f"{upstream_key}=SECRET_VALUE_MUST_NOT_APPEAR\n")
     problems = m.validate(env, state, image, False)
     assert any("Privileged master" in problem for problem in problems)
     assert "SECRET_VALUE_MUST_NOT_APPEAR" not in " ".join(problems)
