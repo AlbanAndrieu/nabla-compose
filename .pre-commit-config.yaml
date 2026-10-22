@@ -531,3 +531,11 @@ repos:
         pass_filenames: false
         files: >-
           ^(scripts/(?:secrets/bootstrap_defectdojo_admin[.]py|security/(?:github_actions_artifact_api|github_app_auth|bootstrap-github-app-manifest|discover-github-app-installation|poll-defectdojo-gh-artifacts|pull-site-alban-security-report|export-defectdojo-compose-trivy|sync-nabla-github-app-vaultwarden|run-nabla-github-app-cron)[.]py|truenas/reconcile-defectdojo-artifact-cron[.]py)|tests/(?:test_defectdojo_(?:admin_bootstrap|artifact_collector|artifact_cron)|test_github_app_auth|test_github_app_manifest|test_github_app_installation|test_defectdojo_four_repo_handoff)[.]py|docs/(?:defectdojo-artifact-poller|github-app-defectdojo)[.]md|config/github-apps/defectdojo-artifacts[.]manifest[.]json)$
+
+      - id: precommit-manifest-integrity
+        name: "✅ pre-commit · Reject duplicated security/quality hooks"
+        language: system
+        entry: python3 scripts/quality/check-precommit-config.py
+        pass_filenames: false
+        files: >-
+          ^([.]pre-commit-config[.]yaml|scripts/quality/check-precommit-config[.]py|tests/test_precommit_integrity[.]py)$
