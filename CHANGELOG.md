@@ -1,3 +1,10 @@
+# [0.49.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.48.0...0.49.0) (2026-10-22)
+
+
+### Features
+
+* **truenas:** redémarrage contrôlé Catalog v2, Gatus non bloquant et Apps facultatives en dernier ([#266](https://github.com/AlbanAndrieu/nabla-compose/issues/266)) ([a1effb5](https://github.com/AlbanAndrieu/nabla-compose/commit/a1effb5709564ec4f2ac7f88d44363efb1454c10))
+
 # [0.48.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.47.1...0.48.0) (2026-10-21)
 
 
