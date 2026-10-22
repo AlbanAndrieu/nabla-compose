@@ -60,6 +60,11 @@ quality-contracts-test:
     python3 scripts/quality/check-precommit-config.py
     python3 -m pytest -q tests/test_precommit_integrity.py tests/test_quality_gate_content_scope.py
 
+# Validate Anthropic-first Hermes route and scoped LiteLLM budgets offline.
+# No upstream LLM call, TrueNAS restart, API key or Actions minutes.
+hermes-opus-routing-test:
+    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_poc_contract.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
