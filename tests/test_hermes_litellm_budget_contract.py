@@ -13,7 +13,11 @@ def test_hermes_poc_budget_and_model_allowlist_are_bounded() -> None:
     assert policy["key_alias"] == "hermes-poc"
     assert policy["metadata"]["environment"] == "poc"
     assert policy["metadata"]["managed_by"] == "nabla-compose"
-    assert policy["models"] == ["qwen"]
+    assert policy["models"] == [
+        "hermes-opus-5-5", "hermes-opus-5", "hermes-opus-4-8", "hermes-openai",
+    ]
+    assert policy["metadata"]["routing_policy"] == "anthropic_opus_first_openai_last"
+    assert policy["metadata"]["upstream_secret_owner"] == "litellm_only"
     assert policy["monthly_budget"] == {
         "amount": 20,
         "currency": "EUR",
