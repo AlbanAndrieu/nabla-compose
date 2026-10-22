@@ -52,6 +52,11 @@ truenas-catalog-v2-test:
     python3 -m py_compile scripts/truenas/plan-catalog-v2-restart.py scripts/truenas/restart-catalog-v2-apps.py scripts/truenas/catalog_v2_restart_dependencies.py scripts/secrets/inventory_vaultwarden.py
     python3 -m pytest -q tests/test_catalog_v2_restart_plan.py tests/test_catalog_v2_restart_waves.py tests/test_catalog_v2_restart_dependencies.py tests/test_catalog_v2_core_guard.py tests/test_vaultwarden_inventory_contract.py
 
+# Offline Actions-budget inventory contracts; never starts hosted workflows.
+actions-usage-test:
+    python3 -m py_compile scripts/github-actions-usage.py
+    python3 -m pytest -q tests/test_github_actions_usage.py
+
 # Original repository quality gate, kept separate from the agent-first path.
 quality-gate:
     mise run quality
