@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import functools
 import hashlib
 import json
 import os
@@ -43,6 +44,12 @@ def read_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@functools.cache
+def load_helper(path: Path, name: str):
+    """Execute a sibling helper script once, not on every plan computation."""
+    return runpy.run_path(str(path))[name]
+
+
 def load_deferred(path: Path = DEFERRED_FILE) -> set[str]:
     apps = set()
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -59,10 +66,15 @@ def load_deferred(path: Path = DEFERRED_FILE) -> set[str]:
     return apps
 
 
-def query_apps() -> list[dict]:
+def query_apps(app: str | None = None) -> list[dict]:
+    """Full inventory, or one App filtered server-side for polling."""
+    command = ["midclt", "call", "app.query"]
+    if app is not None:
+        if not APP_NAME.fullmatch(app):
+            raise ValueError("unsafe App ID")
+        command.append(json.dumps([["id", "=", app]]))
     result = subprocess.run(
-        ["midclt", "call", "app.query"],
-        check=True, text=True, capture_output=True, timeout=90,
+        command, check=True, text=True, capture_output=True, timeout=90,
     )
     data = json.loads(result.stdout)
     if not isinstance(data, list):
@@ -127,7 +139,7 @@ def make_plan(
     apps: list[dict], catalog: dict, crosswalk: dict, manifest: dict,
     deferred: set[str], runtime_root: Path | None,
 ) -> dict:
-    canonical_plan = runpy.run_path(str(PLANNER))["plan"](
+    canonical_plan = load_helper(PLANNER, "plan")(
         catalog, crosswalk, manifest, apps, runtime_root
     )
     states = state_by_app(apps)
@@ -159,13 +171,12 @@ def make_plan(
     )
     entries = {row["app"]: row for phase in ("waveRunning", "waveOther", "blocked")
                for row in canonical_plan[phase]}
-    dependency_helpers = runpy.run_path(str(DEPENDENCY_GRAPH))
-    start_order, deferred_dependency_blockers = dependency_helpers[
-        "deferred_start_order"
-    ](entries, states, deferred)
-    core_provider_blockers = dependency_helpers["core_dependency_blockers"](
-        entries, states, core
-    )
+    start_order, deferred_dependency_blockers = load_helper(
+        DEPENDENCY_GRAPH, "deferred_start_order"
+    )(entries, states, deferred)
+    core_provider_blockers = load_helper(
+        DEPENDENCY_GRAPH, "core_dependency_blockers"
+    )(entries, states, core)
     gatus_entry = entries.get("gatus")
     declared_core_inactive = sorted(
         row["app"] for row in active
@@ -301,8 +312,12 @@ def middleware_action(action: str, app: str, timeout: int = 900) -> None:
     )
 
 
+def current_state(app: str) -> str:
+    return state_by_app(query_apps(app)).get(app, "ABSENT")
+
+
 def assert_state(app: str, expected: str) -> None:
-    current = state_by_app(query_apps()).get(app, "ABSENT")
+    current = current_state(app)
     if current != expected:
         raise RuntimeError(
             f"{app}: expected TrueNAS state {expected}, observed {current}"
@@ -313,7 +328,7 @@ def wait_state(app: str, expected: str, timeout_seconds: int = 600) -> None:
     """Wait for middleware convergence; never start an app still stopping."""
     deadline = time.monotonic() + timeout_seconds
     while True:
-        current = state_by_app(query_apps()).get(app, "ABSENT")
+        current = current_state(app)
         if current == expected:
             return
         if current in ("CRASHED", "ERROR", "ABSENT"):
@@ -330,11 +345,7 @@ def verify(app: str) -> None:
     )
 
 
-def restart_one(app: str) -> None:
-    assert_state(app, "RUNNING")
-    print(f"STOP {app}", flush=True)
-    middleware_action("stop", app)
-    wait_state(app, "STOPPED")
+def start_and_verify(app: str) -> None:
     print(f"START {app}", flush=True)
     middleware_action("start", app)
     wait_state(app, "RUNNING")
@@ -343,13 +354,17 @@ def restart_one(app: str) -> None:
     print(f"OK {app}", flush=True)
 
 
+def restart_one(app: str) -> None:
+    assert_state(app, "RUNNING")
+    print(f"STOP {app}", flush=True)
+    middleware_action("stop", app)
+    wait_state(app, "STOPPED")
+    start_and_verify(app)
+
+
 def start_one(app: str) -> None:
     assert_state(app, "STOPPED")
-    print(f"START {app}", flush=True)
-    middleware_action("start", app)
-    wait_state(app, "RUNNING")
-    verify(app)
-    print(f"OK {app}", flush=True)
+    start_and_verify(app)
 
 
 def main() -> int:
