@@ -14,7 +14,7 @@ OpenTerminal, SearXNG, Vaultwarden or Grafana. See
 | Read-only policy configuration and no terminal/browser/file/code/web tools | `config/hermes/poc-config.yaml` | not deployed |
 | Local stdio MCP with allowlisted Prometheus jobs | `scripts/hermes/readonly_mcp.py` | source only |
 | Cost/token query scoped to the Hermes LiteLLM key alias | MCP + Prometheus scrape/recording rules | no real samples yet |
-| Target budget of €20 per calendar month, one model, 5 RPM | `config/hermes/litellm-key-policy.json` | not provisioned |
+| Target budget of €20 per calendar month, four allowlisted model routes, 5 RPM | `config/hermes/litellm-key-policy.json` | not provisioned |
 | Private, API-key protected OpenAI-compatible Hermes API | `compose.api.yml` | **off** |
 | Vaultwarden-only operator provisioning | planned | no automatic secret reads |
 | OpenTerminal, Loki logs, SearXNG search | evaluated and deferred to scoped adapters | **not connected** |
@@ -25,6 +25,47 @@ allowlist, (2) an overview of five jobs, or (3) real key-scoped LiteLLM
 spend/tokens from Prometheus. No raw logs, arbitrary PromQL/LogQL, IPs,
 metrics labels, Docker `exec`, shell, trueNAS API or credentials are exposed.
 Unknown services, non-finite metrics, SSRF origins and redirects are rejected.
+
+## Anthropic Opus primary, OpenAI last resort (configuration only)
+
+The versioned **Hermes POC configuration**, not the live native
+`hermes-agent` TrueNAS App, now requests these ordered aliases through the
+existing **private TrueNAS LiteLLM gateway**:
+
+1. `hermes-opus-5-5` → `anthropic/claude-opus-5-5`
+2. `hermes-opus-5` → `anthropic/claude-opus-5`
+3. `hermes-opus-4-8` → `anthropic/claude-opus-4-8`
+4. `hermes-openai` → `openai/gpt-5.4` (**last resort**)
+
+This is failure-based fallback, not load balancing. Verify model
+availability **and LiteLLM version compatibility** before deployment: the
+deployed `main-stable` image has not been proven to support these model IDs.
+No paid test call has been made.
+
+Upstream `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` belong exclusively
+in Vaultwarden `nabla/prod/litellm`, materialized to root-owned
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`. Manifest entries
+remain optional **while the Anthropic key has not been supplied** so the
+current renderer is not disrupted. Neither key is available merely because
+its field name is declared. **Do not redeploy LiteLLM before these fields
+have been populated and checked.**
+
+Hermes receives only `HERMES_LITELLM_API_KEY` (never upstream API keys or
+the LiteLLM master key), with its dedicated virtual-key allowlist of the
+four aliases, 5 RPM, 10k TPM and one concurrent request. Preserve the
+previously reviewed **€20/month** ceiling: convert conservatively to an
+actual LiteLLM USD `max_budget` with an explicit reset period at provision
+time. The existing proxy `default_fallbacks` may point to local inference
+for other consumers; restrict the Hermes key to these four groups and
+verify fallback access enforcement so no hidden extra route is reachable.
+
+The native TrueNAS `hermes-agent` App is distinct from this POC: it is
+**not reconfigured** until its runtime, exact Hermes version and real config
+path have been inspected. Privacy of prompts in LiteLLM logs, Langfuse
+and Redis cache remains a P0 gate before cloud inference.
+
+References: https://platform.claude.com/docs/en/models/overview and
+https://hermes-agent.nousresearch.com/docs/user-guide/features/fallback-providers/.
 
 ## Preparation on TrueNAS (explicit operator transaction)
 
@@ -57,12 +98,14 @@ Before any activation:
    `DISCORD_BOT_TOKEN` + `DISCORD_ALLOWED_USERS`). Do not set `ALLOW_ALL`,
    `HERMES_YOLO_MODE`, cloud provider keys or API master credentials.
 6. Review the [key budget contract](../../config/hermes/litellm-key-policy.json):\n   **€20 per calendar month** is an operator spending ceiling, not a token\n   price and not yet enforced. LiteLLM virtual-key `max_budget` accounting\n   is USD-denominated; convert the EUR limit to a conservative USD ceiling\n   at key provisioning using a documented FX rate and period/reset policy.\n   Do not send `monthly_budget` directly to LiteLLM as though it were a\n   recognized API field. No automated conversion or key provisioning is\n   implemented by this POC. Create the LiteLLM key only after that review.
-   It must have `key_alias=hermes-poc`, a restricted model list and
+   It must have `key_alias=hermes-poc`, a strict four-model allowlist and
    management routes blocked. **Do not pass LiteLLM master key to Hermes**.
    Before sending anything non-public, eliminate/validate the existing
    LiteLLM `store_prompts_in_spend_logs: true`,
    `turn_off_message_logging: false`, Redis cache and Langfuse body logging
-   for this profile. No automatic cloud fallback.
+   for this profile. Paid cloud fallback is now explicitly modeled but must
+   remain disabled at runtime until both upstream keys, the bounded virtual
+   key, model compatibility and privacy/egress gates are verified.
 7. **Network gate:** enforce an actual container/VM egress allowlist for
    Discord/Telegram, DNS/NTP, the internal authorized LiteLLM endpoint and
    Prometheus endpoint; deny all other destinations including admin APIs,
