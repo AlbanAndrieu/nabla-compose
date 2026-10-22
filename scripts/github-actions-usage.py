@@ -113,8 +113,12 @@ def job_stats(name, run_id):
         if job.get("conclusion") == "skipped":
             skipped += 1
         start, end = timeval(job.get("started_at")), timeval(job.get("completed_at"))
-        if start and end:
-            wall += max(0, (end - start).total_seconds() / 60)
+        if (start is None) != (end is None):
+            raise ValueError("incomplete GitHub job timing")
+        if start is not None and end is not None:
+            if end < start:
+                raise ValueError("GitHub job completed before it started")
+            wall += (end - start).total_seconds() / 60
     return wall, skipped
 
 API_FAILURES = (subprocess.CalledProcessError, subprocess.TimeoutExpired,
@@ -134,13 +138,15 @@ def main():
     p.add_argument("--max-runs", type=int, default=40)
     p.add_argument("--repo", action="append", help="Repository name; repeat to include more. Defaults to the four active projects.")
     a = p.parse_args()
-    if a.days < 1:
-        p.error("--days must be a positive integer")
+    if not 1 <= a.days <= 3650:
+        p.error("--days must be between 1 and 3650")
     if not 1 <= a.max_runs <= MAX_RUNS:
         p.error(f"--max-runs must be between 1 and {MAX_RUNS}")
+    # Duplicate --repo flags must never cause double counting or extra API calls.
+    selected_repos = list(dict.fromkeys(a.repo or DEFAULT_REPOS))
     try:
         validate_component(a.owner)
-        for repo in a.repo or DEFAULT_REPOS:
+        for repo in selected_repos:
             validate_component(repo)
     except ValueError as exc:
         p.error(str(exc))
@@ -149,7 +155,7 @@ def main():
                                              "artifact_mib": 0., "skipped_jobs": 0})
     incomplete = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=JOB_WORKERS) as pool:
-        for repo in a.repo or DEFAULT_REPOS:
+        for repo in selected_repos:
             name = f"{a.owner}/{repo}"
             try:
                 runs = recent_runs(name, since, a.max_runs)
