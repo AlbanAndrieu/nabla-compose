@@ -93,6 +93,23 @@ elif [[ -n "${ACK}" ]]; then
 fi
 if [[ "${ACTION}" == restart || "${ACTION}" == migrate || "${ACTION}" == smoke ]]; then
   ((EUID == 0)) || { echo 'Apply denied: root required on TrueNAS' >&2; exit 2; }
+  # The source checkout may be bind-mounted into running Apps. Refuse
+  # mutation from detached review worktrees or unmerged PR branches.
+  command -v git >/dev/null 2>&1 || { echo 'Apply denied: git required' >&2; exit 2; }
+  CANONICAL_ROOT="$(cd -- "${NABLA_MIGRATION_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}" 2>/dev/null && pwd -P)" || {
+    echo 'Apply denied: canonical TrueNAS checkout unavailable' >&2; exit 2;
+  }
+  [[ "${ROOT}" == "${CANONICAL_ROOT}" ]] || {
+    echo 'Apply denied: only the canonical TrueNAS checkout can mutate Apps' >&2; exit 2;
+  }
+  CURRENT_BRANCH="$(git symbolic-ref -q --short HEAD 2>/dev/null || true)"
+  [[ "${CURRENT_BRANCH}" == master ]] || {
+    echo 'Apply denied: deploy only from reviewed master, never a Draft PR/worktree' >&2; exit 2;
+  }
+  if [[ -n "$(git status --porcelain=v1 --ignore-submodules=all)" ]]; then
+    echo 'Apply denied: canonical superproject is dirty; review/commit first' >&2
+    exit 2
+  fi
 fi
 [[ -x /usr/bin/env ]] || { echo 'POSIX environment unavailable' >&2; exit 2; }
 [[ -f "${ROOT}/scripts/truenas/restart-catalog-v2-apps.py" ]] || {
