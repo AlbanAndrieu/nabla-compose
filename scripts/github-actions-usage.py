@@ -28,6 +28,34 @@ def validate_component(value):
     return value
 
 
+def valid_run_id(value):
+    """Accept only positive numeric GitHub run ids before constructing API paths."""
+    if isinstance(value, bool):
+        raise ValueError("invalid GitHub workflow run id")
+    if isinstance(value, int):
+        run_id = value
+    elif isinstance(value, str) and re.fullmatch(r"[0-9]{1,20}", value):
+        run_id = int(value)
+    else:
+        raise ValueError("invalid GitHub workflow run id")
+    if run_id <= 0 or run_id > 2**63 - 1:
+        raise ValueError("invalid GitHub workflow run id")
+    return run_id
+
+
+def artifact_bytes(value):
+    """Reject negative, fractional, malformed and boolean sizes."""
+    if type(value) is int:
+        size = value
+    elif isinstance(value, str) and re.fullmatch(r"[0-9]{1,20}", value):
+        size = int(value)
+    else:
+        raise ValueError("invalid GitHub artifact size")
+    if size < 0 or size > 2**63 - 1:
+        raise ValueError("invalid GitHub artifact size")
+    return size
+
+
 def safe_label(value):
     """Never allow workflow names to inject terminal lines/control sequences."""
     return "".join(ch if ch.isprintable() and ch not in "\r\n\t" else "?"
@@ -79,6 +107,7 @@ def timeval(raw):
     return when
 
 def job_stats(name, run_id):
+    run_id = valid_run_id(run_id)
     wall, skipped = 0., 0
     for job in items(f"repos/{name}/actions/runs/{run_id}/jobs?per_page=100", "jobs"):
         if job.get("conclusion") == "skipped":
@@ -132,16 +161,24 @@ def main():
                 for artifact in items(f"repos/{name}/actions/artifacts?per_page=100", "artifacts"):
                     if not artifact.get("expired"):
                         total[f"{name} :: stored artifacts"]["artifact_mib"] += (
-                            int(artifact.get("size_in_bytes") or 0) / 1048576
+                            artifact_bytes(artifact.get("size_in_bytes")) / 1048576
                         )
             except API_FAILURES as exc:
                 warn_partial(f"{name} artifacts", exc)
                 incomplete = True
-            futures = {
-                pool.submit(job_stats, name, run["id"]):
-                    f"{name} :: {safe_label(run.get('name') or run.get('path') or 'unknown')}"
-                for run in runs
-            }
+            futures = {}
+            for run in runs:
+                try:
+                    run_id = valid_run_id(run.get("id"))
+                except (ValueError, TypeError, AttributeError) as exc:
+                    warn_partial(f"{name} workflow run identity", exc)
+                    incomplete = True
+                    continue
+                label = (
+                    f"{name} :: "
+                    f"{safe_label(run.get('name') or run.get('path') or 'unknown')}"
+                )
+                futures[pool.submit(job_stats, name, run_id)] = label
             for future in concurrent.futures.as_completed(futures):
                 label = futures[future]
                 try:
