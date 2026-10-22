@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   quality-gate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: pre-commit
     outputs:
       run_megalinter: ${{ steps.scope.outputs.run_megalinter }}

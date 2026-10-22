@@ -1,15 +1,41 @@
-# Non-essential TrueNAS Apps. One exact TrueNAS App ID per line.
-# Restart policy after reboot: LIGHT by default; these remain stopped unless
-# explicitly requested. No wildcard service matching and no destructive cleanup.
-# Validate actual installed IDs with app.query before modifying this list.
-graylog
-zabbix
-transmission
-lidarr
-radarr
-sonarr
-readarr
-prowlarr
+# Non-essential TrueNAS Apps. Canonical exact App ids; always restart last.
+# STOPPED workloads are NOT enabled by default after reboot or migration.
+# Gatus is intentionally absent: observe separately, never a dependency barrier.
+# Services declared planned/disabled must never be started automatically.
+aistor
+arti
 bazarr
-whisparr
+bitcoind
+cleanuparr
+convertx
+dockhand
+domain-watchdog
 emby
+glances
+graylog
+hermes-agent
+i2p
+kasm-workspaces
+lidarr
+netdata
+nginx-proxy-manager
+npmplus
+paperless-ai
+paperless-ngx
+plex
+prowlarr
+radarr
+reactive-resume
+readarr
+smart-home-dashboard
+sonarr
+speedtest-tracker
+squid
+stirling-pdf
+tailscale
+three-proxy
+tracearr
+transmission
+whisparr
+wizarr
+zabbix
