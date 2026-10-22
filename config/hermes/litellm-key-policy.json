@@ -1,7 +1,10 @@
 {
   "key_alias": "hermes-poc",
   "models": [
-    "qwen"
+    "hermes-opus-5-5",
+    "hermes-opus-5",
+    "hermes-opus-4-8",
+    "hermes-openai"
   ],
   "rpm_limit": 5,
   "tpm_limit": 10000,
@@ -10,7 +13,10 @@
     "workload": "hermes",
     "environment": "poc",
     "managed_by": "nabla-compose",
-    "identity": "service"
+    "identity": "service",
+    "routing_policy": "anthropic_opus_first_openai_last",
+    "upstream_secret_owner": "litellm_only",
+    "activation": "disabled_until_credentials_cost_and_privacy_gates_pass"
   },
   "monthly_budget": {
     "amount": 20,
