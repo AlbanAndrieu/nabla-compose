@@ -59,6 +59,20 @@ time. The existing proxy `default_fallbacks` may point to local inference
 for other consumers; restrict the Hermes key to these four groups and
 verify fallback access enforcement so no hidden extra route is reachable.
 
+Before changing the deployed TrueNAS LiteLLM configuration, execute the
+**read-only provider-secret preflight** (prints status/key names, not values):
+
+```bash
+sudo python3 scripts/truenas/check-litellm-hermes-credentials.py --check
+just hermes-opus-routing-test
+```
+
+`hermes_cloud_route=blocked` is expected until the upstream credentials are
+supplied in Vaultwarden and materialized. A status of
+`credentials_present_metadata_only` is **not** proof of valid key
+permissions, LiteLLM compatibility, provider reachability or monthly-budget
+enforcement. The script performs **no inference requests**.
+
 The native TrueNAS `hermes-agent` App is distinct from this POC: it is
 **not reconfigured** until its runtime, exact Hermes version and real config
 path have been inspected. Privacy of prompts in LiteLLM logs, Langfuse

@@ -99,3 +99,15 @@ def test_preflight_rejects_broad_authorization(fixture_paths, line):
             fd.write(line + "\n")
     problems = m.validate(env, state, image, False)
     assert any("Allowlist" in text or "identity surface" in text for text in problems)
+
+
+@pytest.mark.parametrize("upstream_key", ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"])
+def test_preflight_forbids_upstream_provider_keys_in_hermes(fixture_paths, upstream_key):
+    """Hermes is authorized only with HERMES_LITELLM_API_KEY, never vendor tokens."""
+    m = load_module()
+    env, state, image = fixture_paths
+    with env.open("a", encoding="utf-8") as fd:
+        fd.write(f"{upstream_key}=SECRET_VALUE_MUST_NOT_APPEAR\n")
+    problems = m.validate(env, state, image, False)
+    assert any("Privileged master" in problem for problem in problems)
+    assert "SECRET_VALUE_MUST_NOT_APPEAR" not in " ".join(problems)

@@ -829,6 +829,14 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Hermes / TrueNAS LiteLLM — Anthropic Opus d'abord, OpenAI secours (2026-10-23)
+
+- [x] Déclarer `hermes-opus-5-5`, `hermes-opus-5`, `hermes-opus-4-8`, puis `hermes-openai` dans le gateway TrueNAS LiteLLM et le profil Hermes POC ; utiliser uniquement la virtual key Hermes, jamais les secrets upstream dans le conteneur.
+- [x] Enregistrer les **noms** `ANTHROPIC_API_KEY` et `OPENAI_API_KEY` dans le manifeste Vaultwarden `nabla/prod/litellm`, tous deux facultatifs jusqu'à provisioning effectif ; ajouter la prévalidation metadata-only et ses contrats offline (`just hermes-opus-routing-test`).
+- [ ] **P0 activation bloquée** : attente de la vraie clé Anthropic, disponibilité de la clé OpenAI de secours, rendu Vaultwarden root/0600, compatibilité de la version LiteLLM installée avec Opus 5.5/5/4.8 et examen du runtime native `hermes-agent`. Pas de redémarrage automatique ni d'appel facturable.
+- [ ] **P0 gouvernance coût/confidentialité** : provisionner la clé virtuelle `hermes-poc` avec les quatre alias uniquement, 5 RPM, 10k TPM, concurrence 1, montant de 20 EUR converti en `max_budget` USD avec reset ; vérifier le logging des prompts, cache Redis, Langfuse, egress, PII et mesures Prometheus réelles avant tout routage cloud.
+- [ ] **P1 apply supervisé** : vérifier config native Hermes et version exacte (le profil POC n'est pas l'App native), puis déployer uniquement après les gates P0 ; tests de modèle et de fallback facturables soumis à approbation.
+
 ## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
 
 - [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
