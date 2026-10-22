@@ -120,6 +120,7 @@ printf 'phase\tresult\tlog\n' >"${SUMMARY}"
 PASS=0
 FAILED=0
 SKIPPED=0
+WARNINGS=0
 record() {
   local name="$1" state="$2" logfile="$3"
   printf '%s\t%s\t%s\n' "${name}" "${state}" "${logfile}" >>"${SUMMARY}"
@@ -127,6 +128,7 @@ record() {
     PASS) PASS=$((PASS+1)); printf '✅ %s\n' "${name}" ;;
     FAIL) FAILED=$((FAILED+1)); printf '❌ %s (private log: %s)\n' "${name}" "${logfile}" >&2 ;;
     SKIP) SKIPPED=$((SKIPPED+1)); printf '⚠️  %s skipped\n' "${name}" ;;
+    WARN) WARNINGS=$((WARNINGS+1)); printf '⚠️  %s has operator-reviewed drift (private log: %s)\n' "${name}" "${logfile}" ;;
   esac
 }
 run_check() {
@@ -220,18 +222,18 @@ check_section() {
       run_check litellm-provider-keys python3 scripts/truenas/check-litellm-hermes-credentials.py --check
       ;;
     talos)
-      if command -v kubectl >/dev/null 2>&1; then
+      if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
         run_check talos-cluster bash scripts/talos/validate-cluster.sh
         run_check truenas-csi bash scripts/talos/smoke-truenas-csi-nfs.sh --check
       else
-        record talos-cluster SKIP "kubectl not installed on TrueNAS; run from authorized workstation"
-        record truenas-csi SKIP "kubectl not installed on TrueNAS; run from authorized workstation"
+        record talos-cluster SKIP "kubectl/talosctl unavailable on TrueNAS; use an authorized workstation"
+        record truenas-csi SKIP "kubectl/talosctl unavailable on TrueNAS; use an authorized workstation"
       fi
       ;;
   esac
 }
 print_summary() {
-  printf '\nResult: PASS=%d FAIL=%d SKIP=%d; private logs=%s\n' "${PASS}" "${FAILED}" "${SKIPPED}" "${SESSION_DIR}"
+  printf '\nResult: PASS=%d FAIL=%d WARN=%d SKIP=%d; private logs=%s\n' "${PASS}" "${FAILED}" "${WARNINGS}" "${SKIPPED}" "${SESSION_DIR}"
   printf 'Review: sudo cat %q\n' "${SUMMARY}"
 }
 if [[ "${ACTION}" == check ]]; then
@@ -287,14 +289,13 @@ if [[ "${ACTION}" == migrate ]]; then
   if bash "${SCRIPT}" --check >"${SESSION_DIR}/before-${STEP}.log" 2>&1; then
     record "before-${STEP}" PASS "${SESSION_DIR}/before-${STEP}.log"
   else
-    record "before-${STEP}" FAIL "${SESSION_DIR}/before-${STEP}.log"
     if [[ "${ALLOW_DRIFT}" != true ]]; then
+      record "before-${STEP}" FAIL "${SESSION_DIR}/before-${STEP}.log"
       echo 'BLOCKED: check failed. Inspect the log, then re-run with --allow-reviewed-drift if the repair is explicitly approved.' >&2
       print_summary
       exit 1
     fi
-    # The operator knowingly approved this particular check failure.
-    FAILED=$((FAILED-1))
+    record "before-${STEP}" WARN "${SESSION_DIR}/before-${STEP}.log"
   fi
   if bash "${SCRIPT}" --apply >"${SESSION_DIR}/apply-${STEP}.log" 2>&1; then
     record "apply-${STEP}" PASS "${SESSION_DIR}/apply-${STEP}.log"
