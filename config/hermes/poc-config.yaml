@@ -1,10 +1,29 @@
 # POC Hermes profile: NEVER mount it in production before runtime schema validation.
 # Hermes uses this config through a read-only bind in the POC Compose.
+# Anthropic Opus first, OpenAI only after all Anthropic attempts fail.
+# Hermes MUST NOT receive ANTHROPIC_API_KEY or OPENAI_API_KEY: it uses only
+# the budget-scoped LiteLLM virtual key. This file is a non-deployed POC.
 model:
   provider: custom
-  default: qwen
+  default: hermes-opus-5-5
   base_url: http://172.17.0.24:4000/v1
   key_env: HERMES_LITELLM_API_KEY
+
+# Upstream LiteLLM also has a per-group fallback chain. The Hermes fallback
+# is an explicit safety net for gateway-level 401/404/429/5xx errors.
+fallback_providers:
+  - provider: custom
+    model: hermes-opus-5
+    base_url: http://172.17.0.24:4000/v1
+    key_env: HERMES_LITELLM_API_KEY
+  - provider: custom
+    model: hermes-opus-4-8
+    base_url: http://172.17.0.24:4000/v1
+    key_env: HERMES_LITELLM_API_KEY
+  - provider: custom
+    model: hermes-openai
+    base_url: http://172.17.0.24:4000/v1
+    key_env: HERMES_LITELLM_API_KEY
 
 # Authorize ONLY a verified MCP toolset, across every incoming surface.
 platform_toolsets:
