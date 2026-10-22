@@ -115,6 +115,49 @@ model_list:
   #   model_info:
   #     mode: embedding
 
+  # Hermes private/opt-in routing: provider credentials live ONLY in the
+  # LiteLLM TrueNAS secret file; Hermes receives a model-scoped virtual key.
+  # DO NOT redeploy the shared proxy before Vaultwarden materializes both
+  # ANTHROPIC_API_KEY and OPENAI_API_KEY and the installed LiteLLM version
+  # is verified to support these pinned Opus model identifiers.
+  # Exact model versions, no "latest" aliases or wildcard grants.
+  - model_name: hermes-opus-5-5
+    litellm_params:
+      model: anthropic/claude-opus-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  - model_name: hermes-opus-5
+    litellm_params:
+      model: anthropic/claude-opus-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  - model_name: hermes-opus-4-8
+    litellm_params:
+      model: anthropic/claude-opus-4-8
+      api_key: os.environ/ANTHROPIC_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  # Explicitly last in Hermes' failover chain, never a random load-balancer.
+  - model_name: hermes-openai
+    litellm_params:
+      model: openai/gpt-5.4
+      api_key: os.environ/OPENAI_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
   # Future proxy path for consumers that should traverse TrueNAS LiteLLM first.
   - model_name: workstation-qwen
     litellm_params:
@@ -201,6 +244,13 @@ litellm_settings:
     - { "qwen": ["llama3.2"] }
     # Explicitly no alternate paid/local model for this budget-scoped service.
     - { "fastapi-qwen": [] }
+    # Strict paid-model order for Hermes (no local/random model substitution).
+    # The Hermes virtual key permits exactly these four model groups; gateway
+    # enforce_fallback_model_access blocks every other route, including default_fallbacks.
+    - { "hermes-opus-5-5": ["hermes-opus-5", "hermes-opus-4-8", "hermes-openai"] }
+    - { "hermes-opus-5": ["hermes-opus-4-8", "hermes-openai"] }
+    - { "hermes-opus-4-8": ["hermes-openai"] }
+    - { "hermes-openai": [] }
   default_fallbacks: ["llama3.2"]
   cache: true
   cache_params:

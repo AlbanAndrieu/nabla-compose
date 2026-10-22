@@ -64,3 +64,45 @@ def test_metadata_only_chmod_does_not_trigger_shellcheck_on_unchanged_content():
 
 def test_tooling_available():
     assert shutil.which("git") and shutil.which("bash")
+
+
+def test_git_diff_failure_cannot_be_reported_as_empty_quality_scope():
+    """Bababou parity: process-substitution failures must not bypass lint."""
+    with tempfile.TemporaryDirectory() as temp:
+        work = Path(temp)
+        _git(work, "init", "-q")
+        _git(work, "config", "user.email", "ci@example.invalid")
+        _git(work, "config", "user.name", "CI Test")
+        tracked = work / "README.md"
+        tracked.write_text("baseline\n", encoding="utf-8")
+        _git(work, "add", ".")
+        _git(work, "commit", "-qm", "baseline")
+
+        bin_dir = work / "bin"
+        bin_dir.mkdir()
+        real_git = shutil.which("git")
+        assert real_git is not None
+        fake_git = bin_dir / "git"
+        fake_git.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = diff ]; then exit 78; fi\n"
+            f'exec "{real_git}" "$@"\n',
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+        fake_precommit = bin_dir / "pre-commit"
+        fake_precommit.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake_precommit.chmod(0o755)
+
+        result = subprocess.run(
+            ["bash", str(ROOT / "scripts/quality-gate.sh")],
+            cwd=work,
+            env=os.environ | {
+                "PATH": f"{bin_dir}:{os.environ['PATH']}",
+                "QUALITY_BASE_REF": "HEAD",
+            },
+            capture_output=True, text=True, check=False,
+        )
+        assert result.returncode == 2
+        assert "QG_GIT_SCOPE" in result.stderr
+        assert "No changed files" not in result.stdout

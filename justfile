@@ -46,11 +46,35 @@ publish:
 truenas-fastapi-check:
     python3 scripts/truenas/diagnose-fastapi-integrations.py
 
+# Fast, offline manifest hygiene gate, including duplicate hooks/repos.
+# Mirrors Bababou's local-first workflow; does not install hooks or start CI.
+precommit-config-test:
+    python3 -m py_compile scripts/quality/check-precommit-config.py
+    python3 scripts/quality/check-precommit-config.py
+    python3 -m pytest -q tests/test_precommit_integrity.py
+
+# Bababou parity: offline local quality-gate contracts, not hosted Actions.
+quality-contracts-test:
+    bash -n scripts/quality-gate.sh
+    python3 -m py_compile scripts/quality/check-precommit-config.py
+    python3 scripts/quality/check-precommit-config.py
+    python3 -m pytest -q tests/test_precommit_integrity.py tests/test_quality_gate_content_scope.py
+
+# Validate Anthropic-first Hermes route and scoped LiteLLM budgets offline.
+# No upstream LLM call, TrueNAS restart, API key or Actions minutes.
+hermes-opus-routing-test:
+    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_poc_contract.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
     python3 -m py_compile scripts/truenas/plan-catalog-v2-restart.py scripts/truenas/restart-catalog-v2-apps.py scripts/truenas/catalog_v2_restart_dependencies.py scripts/secrets/inventory_vaultwarden.py
     python3 -m pytest -q tests/test_catalog_v2_restart_plan.py tests/test_catalog_v2_restart_waves.py tests/test_catalog_v2_restart_dependencies.py tests/test_catalog_v2_core_guard.py tests/test_vaultwarden_inventory_contract.py
+
+# Read-only local contracts for Actions usage and budget reporting; no hosted runners.
+actions-usage-test:
+    python3 -m py_compile scripts/github-actions-usage.py
+    python3 -m pytest -q tests/test_github_actions_usage.py
 
 # Original repository quality gate, kept separate from the agent-first path.
 quality-gate:

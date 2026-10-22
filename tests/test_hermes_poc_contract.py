@@ -31,6 +31,15 @@ def test_poc_only_exposes_allowlisted_mcp_tools():
     assert cfg["web"]["keyless_rescue"] is False
     assert cfg["model"]["provider"] == "custom"
     assert cfg["model"]["key_env"] == "HERMES_LITELLM_API_KEY"
+    assert cfg["model"]["default"] == "hermes-opus-5-5"
+    assert [route["model"] for route in cfg["fallback_providers"]] == [
+        "hermes-opus-5", "hermes-opus-4-8", "hermes-openai",
+    ]
+    assert all(route["provider"] == "custom" for route in cfg["fallback_providers"])
+    assert all(route["key_env"] == "HERMES_LITELLM_API_KEY"
+               for route in cfg["fallback_providers"])
+    assert "ANTHROPIC_API_KEY" not in str(cfg)
+    assert "OPENAI_API_KEY" not in str(cfg)
     assert cfg["mcp_servers"]["nabla_observe"]["tools"]["resources"] is False
 
 

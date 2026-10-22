@@ -3,3 +3,4 @@
 docs/pfsense-dns-incident-20260927.md	f3d9a84707815176ecdd7ce46eaeb590c3029f8f	DELETED	duplicate incident consolidated under docs/incidents/
 .gitlab-ci.yml	c563d0e8a19c92468c8983a5858bdd99c15d7d0c	DELETED	Reviewed in merged PR #258: legacy GitLab CI removed during GitHub Actions migration; exact base blob only
 api/main.py	5d82d4899bd3a0ff9559b1633e809d504032b213	DELETED	Reviewed in merged PR #258: legacy API entrypoint removed; FastAPI sample runs from its dedicated repository; exact base blob only
+.pre-commit-config.yaml	a06e2fb0eae95fe4a52dc82d147d868ed31e459d	9bbf05b30e9d2f345b2f27e83a95be27eb79c944	Bababou parity audit: remove repeated pre-commit repo blocks while preserving all 77 preexisting hook IDs and adding an integrity gate
