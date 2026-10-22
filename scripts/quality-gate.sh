@@ -86,7 +86,9 @@ if ! changed_output="$(
     content_changed_paths --cached
     git ls-files --others --exclude-standard
   } | awk 'NF' | sort -u | while IFS= read -r file; do
-    [[ -f "${file}" ]] && printf '%s\n' "${file}"
+    if [[ -f "${file}" ]]; then
+      printf '%s\n' "${file}"
+    fi
   done
 )"; then
   echo "❌ QG_GIT_SCOPE: unable to collect changed content; no lint was skipped" >&2
