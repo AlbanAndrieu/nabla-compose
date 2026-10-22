@@ -829,6 +829,15 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Fenêtre opérateur TrueNAS — reprise des migrations, 24 octobre 2026
+
+- [x] Préparer le script **temporaire** `scripts/truenas/finish-migrations-20261024.sh` avec préflight read-only, sections indépendantes, preuves root/0700, redémarrage séquentiel via `planHash` vérifié et vague explicitement approuvée ; aucune action destructive implicite.
+- [x] Ajouter les réparations ciblées Sentry système/migrator, OpenRAG secret et Gatus config avec double contrôle `--check` et acceptation explicite, ainsi qu'un smoke CSI opt-in ; tests de garde-fous via `just migration-20261024-test`.
+- [x] Documenter l'ordre d'exécution et la remise en état dans `docs/runbooks/2026-10-24-truenas-migration-acceptance.md`, y compris les contres-indications du checkout TrueNAS et la différence worktree read-only / checkout canonique.
+- [ ] **Bloquant avant exécution** : contrôle humain de `git status`, HEAD de la branche et catalogue live, preuve de sauvegarde/rollback, secrets manquants, plan `selectedWaveReady=true`, hash exact et fenêtre d'indisponibilité explicitement acceptée.
+- [ ] **À vérifier au runtime le 24/10** : Sentry/DefectDojo/Gatus/Prometheus/TrueNAS, Docling/OpenRAG `cpool/bababou`, Talos/CSI et RPO OpenWebUI ; les échecs/skips restent ouverts dans la roadmap.
+- [ ] **Nettoyage** : retirer ce script, ses tests temporaires et le runbook d'opération transitoire après acceptation et archivage d'un constat expurgé ; conserver uniquement les invariants pérennes dans les scripts canoniques. Pas de redémarrage hôte automatique.
+
 ## Hermes / TrueNAS LiteLLM — Anthropic Opus d'abord, OpenAI secours (2026-10-23)
 
 - [x] Déclarer `hermes-opus-5-5`, `hermes-opus-5`, `hermes-opus-4-8`, puis `hermes-openai` dans le gateway TrueNAS LiteLLM et le profil Hermes POC ; utiliser uniquement la virtual key Hermes, jamais les secrets upstream dans le conteneur.
