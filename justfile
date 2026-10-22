@@ -53,6 +53,13 @@ precommit-config-test:
     python3 scripts/quality/check-precommit-config.py
     python3 -m pytest -q tests/test_precommit_integrity.py
 
+# Bababou parity: offline local quality-gate contracts, not hosted Actions.
+quality-contracts-test:
+    bash -n scripts/quality-gate.sh
+    python3 -m py_compile scripts/quality/check-precommit-config.py
+    python3 scripts/quality/check-precommit-config.py
+    python3 -m pytest -q tests/test_precommit_integrity.py tests/test_quality_gate_content_scope.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
