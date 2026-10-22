@@ -227,3 +227,64 @@ def test_invalid_job_timestamp_means_partial_metrics_not_zero(monkeypatch, capsy
     out, err = capsys.readouterr()
     assert "partial API inventory" in err and "Bad job" in err
     assert "0.0" not in out
+
+
+@pytest.mark.parametrize("value", [0, -1, True, False, "", "1/../../other",
+                                   "01?per_page=1000", 1.5, None,
+                                   "9223372036854775808", {}, []])
+def test_invalid_run_id_fails_closed(value):
+    with pytest.raises(ValueError, match="invalid GitHub workflow run id"):
+        usage.valid_run_id(value)
+
+
+@pytest.mark.parametrize("value", [1, "123", 9223372036854775807])
+def test_valid_run_id(value):
+    assert usage.valid_run_id(value) == int(value)
+
+
+@pytest.mark.parametrize("value", [-1, True, False, None, 1.5, "-5", "1.2",
+                                   "15MiB", "9223372036854775808", {}, []])
+def test_invalid_artifact_bytes_fails_closed(value):
+    with pytest.raises(ValueError, match="invalid GitHub artifact size"):
+        usage.artifact_bytes(value)
+
+
+@pytest.mark.parametrize("value", [0, 1024, "2048", 9223372036854775807])
+def test_valid_artifact_bytes(value):
+    assert usage.artifact_bytes(value) == int(value)
+
+
+def test_invalid_run_id_does_not_block_valid_job_metrics(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["github-actions-usage.py", "--repo", "one"])
+    monkeypatch.setattr(usage, "recent_runs", lambda *args: [
+        {"id": "44/../../secrets", "name": "Unsafe"},
+        {"id": 1, "name": "Build"},
+    ])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [])
+    recorded = []
+    def fake_job(name, run_id):
+        recorded.append(run_id)
+        return (2.0, 0)
+    monkeypatch.setattr(usage, "job_stats", fake_job)
+    assert usage.main() == 1
+    stdout, stderr = capsys.readouterr()
+    assert recorded == [1]
+    assert " :: Build\\t1\\t2.0" in stdout
+    assert "workflow run identity" in stderr
+    assert "metrics incomplete" in stderr
+
+
+def test_invalid_artifact_size_is_partial_not_negative_usage(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["github-actions-usage.py", "--repo", "one"])
+    monkeypatch.setattr(usage, "recent_runs", lambda *args: [
+        {"id": 1, "name": "Build"},
+    ])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [
+        {"expired": False, "size_in_bytes": -1024},
+    ])
+    monkeypatch.setattr(usage, "job_stats", lambda *args: (2.0, 0))
+    assert usage.main() == 1
+    stdout, stderr = capsys.readouterr()
+    assert " :: Build\\t1\\t2.0" in stdout
+    assert "stored artifacts" not in stdout
+    assert "artifacts" in stderr
