@@ -141,7 +141,7 @@ def test_gatus_only_apply_never_restarts_core_and_reports_failure(monkeypatch, t
         "coreRestartOrder": ["api"],
         "nonBlockingGatus": ["gatus"],
         "deferredLast": [], "deferredStartOrder": [],
-        "deferredDependencyBlockers": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [],
         "catalogRevision": "sha256:fixture",
         "counts": {},
         "missingRunningSecrets": ["api"],
@@ -221,7 +221,7 @@ def test_deferred_only_apply_never_restarts_core(monkeypatch, tmp_path):
         "coreRestartOrder": ["api"],
         "nonBlockingGatus": [],
         "deferredLast": ["plex"], "deferredStartOrder": ["plex"],
-        "deferredDependencyBlockers": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [],
         "catalogRevision": "sha256:fixture",
         "counts": {},
         "missingRunningSecrets": ["api"],
@@ -309,7 +309,7 @@ def test_check_reports_readiness_without_creating_audit_dir(
         "planHash": "d" * 64, "catalogRevision": "sha256:local",
         "counts": {}, "states": {"gatus": "CRASHED"}, "coreRestartOrder": [],
         "nonBlockingGatus": ["gatus"], "deferredLast": [], "deferredStartOrder": [],
-        "deferredDependencyBlockers": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [],
         "runningDeferredExcluded": [], "missingRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedRunningSecrets": [],
         "unverifiedDeferredSecrets": [], "blockedCoreApps": [],
@@ -417,7 +417,7 @@ def test_plan_confirmation_hash_is_wave_bound(monkeypatch, tmp_path):
         "counts": {}, "states": {"gatus": "STOPPED"},
         "coreRestartOrder": [], "nonBlockingGatus": ["gatus"],
         "deferredLast": [], "deferredStartOrder": [],
-        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [], "runningDeferredExcluded": [],
         "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
         "blockedCoreApps": [], "blockedDeferredApps": [],
@@ -489,7 +489,7 @@ def test_offline_snapshot_is_never_ready_even_without_secret_manifest(
         "planHash": "e" * 64, "catalogRevision": "sha256:test",
         "counts": {}, "states": {}, "coreRestartOrder": [],
         "nonBlockingGatus": [], "deferredLast": [], "deferredStartOrder": [],
-        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [], "runningDeferredExcluded": [],
         "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
         "blockedCoreApps": [], "blockedDeferredApps": [],
@@ -526,7 +526,7 @@ def test_report_output_never_truncates_existing_file(monkeypatch, tmp_path):
         "planHash": "f" * 64, "catalogRevision": "sha256:test", "counts": {},
         "states": {}, "coreRestartOrder": [], "nonBlockingGatus": [],
         "deferredLast": [], "deferredStartOrder": [],
-        "deferredDependencyBlockers": [], "runningDeferredExcluded": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [], "runningDeferredExcluded": [],
         "missingRunningSecrets": [], "unverifiedRunningSecrets": [],
         "missingDeferredSecrets": [], "unverifiedDeferredSecrets": [],
         "blockedCoreApps": [], "blockedDeferredApps": [],
@@ -631,7 +631,7 @@ def test_deferred_wave_stops_after_first_failed_app(monkeypatch, tmp_path):
         "coreRestartOrder": [], "nonBlockingGatus": [],
         "deferredLast": ["first", "second"],
         "deferredStartOrder": ["first", "second"],
-        "deferredDependencyBlockers": [],
+        "deferredDependencyBlockers": [], "coreDependencyBlockers": [],
         "runningDeferredExcluded": [], "missingRunningSecrets": [],
         "unverifiedRunningSecrets": [], "missingDeferredSecrets": [],
         "unverifiedDeferredSecrets": [], "blockedCoreApps": [],
@@ -663,3 +663,59 @@ def test_deferred_wave_stops_after_first_failed_app(monkeypatch, tmp_path):
     audit = list(tmp_path.glob("catalog-v2-deferred-*.jsonl"))
     assert len(audit) == 1
     assert '"success": false' in audit[0].read_text(encoding="utf-8")
+
+
+def test_core_wave_blocked_if_verified_provider_is_stopped():
+    """Preflight cannot restart API when its verified postgres App is down."""
+    catalog = {"catalogRevision": "sha256:core", "entities": [
+        {"entityRef": "component:default/api", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/postgres"]}},
+        {"entityRef": "resource:default/postgres", "metadata": {}, "spec": {}},
+    ]}
+    crosswalk = {"catalogRevision": "sha256:core", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/api/compose.yml#services/api",
+         "entityRef": "component:default/api"},
+        {"sourceType": "compose",
+         "sourceId": "apps/postgres/compose.yml#services/postgres",
+         "entityRef": "resource:default/postgres"},
+    ]}
+    apps = [{"id": "api", "state": "RUNNING"},
+            {"id": "postgres", "state": "STOPPED"}]
+    report = ops["make_plan"](apps, catalog, crosswalk, {"items": []},
+                              set(), Path("/"))
+    assert report["coreRestartOrder"] == ["api"]
+    assert report["blockedCoreApps"] == []
+    assert report["coreDependencyBlockers"] == [
+        "api: dependency postgres is not RUNNING"
+    ]
+    with pytest.raises(RuntimeError, match="core blocked"):
+        ops["validate_wave"](report, "core")
+    apps[1]["state"] = "RUNNING"
+    healthy = ops["make_plan"](apps, catalog, crosswalk, {"items": []},
+                               set(), Path("/"))
+    assert healthy["coreDependencyBlockers"] == []
+    assert healthy["coreRestartOrder"] == ["postgres", "api"]
+    ops["validate_wave"](healthy, "core")
+
+
+def test_gatus_check_not_blocked_by_unrelated_core_provider_failure():
+    """A core blocker must not automatically invalidate an isolated Gatus wave."""
+    catalog = {"catalogRevision": "sha256:core", "entities": [
+        {"entityRef": "component:default/api", "metadata": {},
+         "spec": {"dependsOn": ["resource:default/postgres"]}},
+        {"entityRef": "resource:default/postgres", "metadata": {}, "spec": {}},
+    ]}
+    crosswalk = {"catalogRevision": "sha256:core", "mappings": [
+        {"sourceType": "compose", "sourceId": "apps/api/compose.yml#services/api",
+         "entityRef": "component:default/api"},
+        {"sourceType": "compose",
+         "sourceId": "apps/postgres/compose.yml#services/postgres",
+         "entityRef": "resource:default/postgres"},
+    ]}
+    apps = [{"id": "api", "state": "RUNNING"},
+            {"id": "postgres", "state": "STOPPED"},
+            {"id": "gatus", "state": "STOPPED"}]
+    report = ops["make_plan"](apps, catalog, crosswalk, {"items": []},
+                              set(), Path("/"))
+    assert report["coreDependencyBlockers"]
+    ops["validate_wave"](report, "gatus")
