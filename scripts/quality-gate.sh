@@ -80,11 +80,11 @@ content_changed_paths() {
 if ! changed_output="$(
   {
     if [[ "${BASE_REF}" != "HEAD" ]]; then
-      content_changed_paths "${BASE_REF}...HEAD"
+      content_changed_paths "${BASE_REF}...HEAD" || exit 2
     fi
-    content_changed_paths
-    content_changed_paths --cached
-    git ls-files --others --exclude-standard
+    content_changed_paths || exit 2
+    content_changed_paths --cached || exit 2
+    git ls-files --others --exclude-standard || exit 2
   } | awk 'NF' | sort -u | while IFS= read -r file; do
     if [[ -f "${file}" ]]; then
       printf '%s\n' "${file}"
