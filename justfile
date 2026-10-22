@@ -46,6 +46,13 @@ publish:
 truenas-fastapi-check:
     python3 scripts/truenas/diagnose-fastapi-integrations.py
 
+# Fast, offline manifest hygiene gate, including duplicate hooks/repos.
+# Mirrors Bababou's local-first workflow; does not install hooks or start CI.
+precommit-config-test:
+    python3 -m py_compile scripts/quality/check-precommit-config.py
+    python3 scripts/quality/check-precommit-config.py
+    python3 -m pytest -q tests/test_precommit_integrity.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
