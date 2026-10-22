@@ -163,6 +163,12 @@ def main():
                 warn_partial(f"{name} workflow runs", exc)
                 incomplete = True
                 runs = []
+            else:
+                if len(runs) >= a.max_runs:
+                    print(f"WARNING: {name} reached --max-runs={a.max_runs}; "
+                          "run history may be truncated; metrics incomplete",
+                          file=sys.stderr)
+                    incomplete = True
             try:
                 for artifact in items(f"repos/{name}/actions/artifacts?per_page=100", "artifacts"):
                     if not artifact.get("expired"):
