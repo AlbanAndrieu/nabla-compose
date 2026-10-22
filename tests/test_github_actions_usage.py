@@ -288,3 +288,24 @@ def test_invalid_artifact_size_is_partial_not_negative_usage(monkeypatch, capsys
     assert " :: Build\\t1\\t2.0" in stdout
     assert "stored artifacts" not in stdout
     assert "artifacts" in stderr
+
+
+def test_job_stats_rejects_invalid_id_before_any_api_request(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid run id must never construct an API request")
+    monkeypatch.setattr(usage, "items", forbidden)
+    with pytest.raises(ValueError, match="invalid GitHub workflow run id"):
+        usage.job_stats("sample/repo", "../runs?all=true")
+
+
+def test_valid_artifact_metrics_survive_later_corrupted_artifact(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["github-actions-usage.py", "--repo", "one"])
+    monkeypatch.setattr(usage, "recent_runs", lambda *args: [])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [
+        {"expired": False, "size_in_bytes": 1048576},
+        {"expired": False, "size_in_bytes": "invalid"},
+    ])
+    assert usage.main() == 1
+    stdout, stderr = capsys.readouterr()
+    assert "stored artifacts\\t0\\t0.0\\t1.0" in stdout
+    assert "metrics incomplete" in stderr
