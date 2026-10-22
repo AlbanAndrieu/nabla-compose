@@ -106,7 +106,11 @@ if [[ "${ACTION}" == restart || "${ACTION}" == migrate || "${ACTION}" == smoke ]
   [[ "${CURRENT_BRANCH}" == master ]] || {
     echo 'Apply denied: deploy only from reviewed master, never a Draft PR/worktree' >&2; exit 2;
   }
-  if [[ -n "$(git status --porcelain=v1 --ignore-submodules=all)" ]]; then
+  if ! GIT_STATUS="$(git status --porcelain=v1 --ignore-submodules=all)"; then
+    echo 'Apply denied: cannot verify canonical superproject cleanliness' >&2
+    exit 2
+  fi
+  if [[ -n "${GIT_STATUS}" ]]; then
     echo 'Apply denied: canonical superproject is dirty; review/commit first' >&2
     exit 2
   fi
