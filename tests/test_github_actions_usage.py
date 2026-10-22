@@ -360,3 +360,32 @@ def test_days_bounded_without_api_calls(monkeypatch, days):
     with pytest.raises(SystemExit) as error:
         usage.main()
     assert error.value.code == 2
+
+
+def test_capped_run_history_is_reported_as_partial(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", [
+        "github-actions-usage.py", "--repo", "one", "--max-runs", "1",
+    ])
+    calls = []
+    monkeypatch.setattr(usage, "recent_runs", lambda *args:
+                        calls.append(args) or [{"id": 1, "name": "Build"}])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [])
+    monkeypatch.setattr(usage, "job_stats", lambda *args: (1.0, 0))
+    assert usage.main() == 1
+    stdout, stderr = capsys.readouterr()
+    assert len(calls) == 1
+    assert "reached --max-runs=1" in stderr
+    assert " :: Build\t1\t1.0" in stdout
+
+
+def test_run_history_below_limit_is_not_flagged_truncated(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", [
+        "github-actions-usage.py", "--repo", "one", "--max-runs", "2",
+    ])
+    monkeypatch.setattr(usage, "recent_runs", lambda *args: [
+        {"id": 1, "name": "Build"},
+    ])
+    monkeypatch.setattr(usage, "items", lambda *args, **kwargs: [])
+    monkeypatch.setattr(usage, "job_stats", lambda *args: (1.0, 0))
+    assert usage.main() == 0
+    assert "truncated" not in capsys.readouterr().err
