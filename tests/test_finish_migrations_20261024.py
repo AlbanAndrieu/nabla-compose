@@ -55,17 +55,24 @@ def fake_operator(tmp_path):
     (truenas / "deploy-gatus.sh").write_text(
         "#!/bin/bash\n"
         "if [[ \"$1\" == --check ]]; then\n"
-        "  [[ \"${MOCK_DRIFT:-false}\" != true ]]\n"
+        "  [[ \"${MOCK_DRIFT:-false}\" != true || -f \\"${MUTATION_MARKER}\\" ]]\n"
         "else\n"
         "  printf migrated >\"${MUTATION_MARKER}\"\n"
         "fi\n", encoding="utf-8",
     )
+    subprocess.run(["git", "init", "-q", "-b", "master"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "ci@example.invalid"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Local Operator Test"], cwd=root, check=True)
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-qm", "synthetic fixture"],
+                   cwd=root, check=True)
     report = tmp_path / "private"
     marker = tmp_path / "applied"
     env = os.environ | {
         "PATH": f"{binary}:{os.environ['PATH']}",
         "NABLA_MIGRATION_REPORT_ROOT": str(report),
         "MUTATION_MARKER": str(marker),
+        "NABLA_MIGRATION_CANONICAL_ROOT": str(root),
     }
     return target, env, report, marker
 
@@ -158,3 +165,42 @@ def test_missing_github_or_ssh_environment_not_required_for_plan(fake_operator):
     result = invoke(fake_operator, "--plan-wave", "core")
     assert result.returncode == 0
     assert "selectedWaveReady=true" in result.stdout
+
+
+@pytest.mark.skipif(os.geteuid() != 0, reason="TrueNAS apply requires root")
+def test_apply_forbidden_from_noncanonical_worktree(fake_operator, tmp_path):
+    _, _, _, marker = fake_operator
+    result = invoke(fake_operator, "--apply-wave", "core",
+                    "--expected-plan-hash", HASH,
+                    "--acknowledge", ACK_RESTART,
+                    env_overrides={
+                        "NABLA_MIGRATION_CANONICAL_ROOT": str(tmp_path),
+                    })
+    assert result.returncode == 2
+    assert "canonical TrueNAS checkout" in result.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.geteuid() != 0, reason="TrueNAS apply requires root")
+def test_apply_forbidden_on_dirty_canonical_checkout(fake_operator):
+    target, _, _, marker = fake_operator
+    (target.parent.parent.parent / "dirty-file").write_text("not committed")
+    result = invoke(fake_operator, "--apply-wave", "core",
+                    "--expected-plan-hash", HASH,
+                    "--acknowledge", ACK_RESTART)
+    assert result.returncode == 2
+    assert "superproject is dirty" in result.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.geteuid() != 0, reason="TrueNAS apply requires root")
+def test_apply_forbidden_on_unreviewed_feature_branch(fake_operator):
+    target, _, _, marker = fake_operator
+    subprocess.run(["git", "switch", "-qc", "feature/unreviewed"],
+                   cwd=target.parent.parent.parent, check=True)
+    result = invoke(fake_operator, "--apply-wave", "core",
+                    "--expected-plan-hash", HASH,
+                    "--acknowledge", ACK_RESTART)
+    assert result.returncode == 2
+    assert "never a Draft PR/worktree" in result.stderr
+    assert not marker.exists()
