@@ -74,7 +74,10 @@ content_changed_paths() {
     }'
 }
 
-mapfile -t CHANGED_FILES < <(
+# Git failures must never be misread as an empty lint scope.
+# Command substitution propagates the pipefail status; process substitution
+# would mask a failed git diff and incorrectly claim all files were clean.
+if ! changed_output="$(
   {
     if [[ "${BASE_REF}" != "HEAD" ]]; then
       content_changed_paths "${BASE_REF}...HEAD"
@@ -85,7 +88,12 @@ mapfile -t CHANGED_FILES < <(
   } | awk 'NF' | sort -u | while IFS= read -r file; do
     [[ -f "${file}" ]] && printf '%s\n' "${file}"
   done
-)
+)"; then
+  echo "❌ QG_GIT_SCOPE: unable to collect changed content; no lint was skipped" >&2
+  exit 2
+fi
+CHANGED_FILES=()
+[[ -z "${changed_output}" ]] || mapfile -t CHANGED_FILES <<<"${changed_output}"
 
 if ((${#CHANGED_FILES[@]} > 0)); then
   echo "🔧 Validating ${#CHANGED_FILES[@]} changed file(s)..."
