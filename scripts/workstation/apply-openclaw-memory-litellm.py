@@ -57,9 +57,17 @@ def verify_schema(config):
         raise ValueError("native_patch_output_invalid")
     # Only accept a confirmed native validation outcome, not arbitrary JSON.
     # Different OpenClaw releases may use different result contracts.
-    if result.get("valid") is True or result.get("ok") is True:
+    checks = result.get("checks")
+    if (result.get("ok") is True and isinstance(checks, dict)
+            and checks.get("schema") is True
+            and checks.get("resolvability") is True
+            and checks.get("resolvabilityComplete") is True
+            and isinstance(result.get("refsChecked"), int)
+            and result["refsChecked"] >= 1
+            and not result.get("errors")
+            and result.get("skippedExecRefs") == 0):
         return
-    raise ValueError("native_patch_result_unrecognized")
+    raise ValueError("native_patch_validation_incomplete_or_failed")
 
 
 def private_file(path):
