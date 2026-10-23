@@ -220,24 +220,29 @@ staging plaintext according to the workstation retention policy.
 ## Phase 3 — migrate consumers (per agent, review before writes)
 
 ```bash
-# Running the wizard requires a real TTY. Review fields and decline apply.
+# Perform only ONE operator-reviewed plan at a time; native wizard is interactive.
 umask 077
-openclaw secrets configure --agent main \
-  --plan-out "$HOME/.local/share/nabla-compose/openclaw-import/main-plan.json"
+install -d -m 700 "$HOME/.local/share/nabla-compose/openclaw-import"
+
+# Begin with cron's single canonical agent-local SQLite finding.
+# In the native wizard explicitly answer NO to "Apply this plan now?".
+# This prompt defaults to YES in OpenClaw 2026.9.5: do not press Enter.
 openclaw secrets configure --agent cron \
   --plan-out "$HOME/.local/share/nabla-compose/openclaw-import/cron-plan.json"
 
-# Plans may encode sensitive references, identities and target metadata.
-# Run only against reviewed plans; no writes in these commands:
-openclaw secrets apply \
-  --from "$HOME/.local/share/nabla-compose/openclaw-import/main-plan.json" \
-  --dry-run
+# Review plan privately, then run a dry-run without writing:
 openclaw secrets apply \
   --from "$HOME/.local/share/nabla-compose/openclaw-import/cron-plan.json" \
   --dry-run
+
+# Later, after reviewing global/shared auth targets and any plan conflicts:
+# openclaw secrets configure --agent main \
+#   --plan-out "$HOME/.local/share/nabla-compose/openclaw-import/main-plan.json"
+# Again explicitly answer NO; review and dry-run separately.
 ```
 
-`configure` might ask whether to apply its proposed plan; **answer No**.
+`configure` displays a confirmation with **Yes selected by default**;
+the operator must **explicitly choose No**.
 The wizard is not guaranteed to expose all targets (the embedding memory
 API key was migrated separately). Never automatically write either plan,
 merge unreviewed auth-profile state or disable provider resolvability gates.
