@@ -187,7 +187,7 @@ if [[ "$MODE" == --workstation ]]; then
     nm_ignore_auto_dns="$(nmcli -g ipv4.ignore-auto-dns connection show "$profile" 2>/dev/null || true)"
     if [[ "$nm_ignore_auto_dns" == yes || "$nm_ignore_auto_dns" == true ]]; then
       warn "NetworkManager profile ignores DHCP DNS; configured static DNS: ${nm_profile_dns:-none}"
-      echo "ACTION: review 'nmcli connection modify <profile> ipv4.ignore-auto-dns no ipv4.dns ""' locally (no change performed)"
+      echo 'ACTION: restore DHCP DNS in the saved profile (ipv4.ignore-auto-dns=no, ipv4.dns empty); no change performed'
     fi
     nmcli -f DHCP4.OPTION device show "$IFACE" 2>/dev/null |
       grep -Ei 'domain_name_servers|dhcp_server_identifier' || true
