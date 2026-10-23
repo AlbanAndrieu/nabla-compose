@@ -39,12 +39,12 @@ def classify(family: str, version: str, policy: dict) -> tuple[str, str]:
     return "unknown", "unclassified runtime branch"
 
 
-def _execute(args: list[str], timeout: int) -> tuple[int, str]:
+def _execute(args: list[str], timeout: int, *, output_limit: int = 512) -> tuple[int, str]:
     try:
         result = subprocess.run(args, check=False, capture_output=True,
                                 text=True, timeout=timeout)
         # Never expose tool errors that could include environment/credentials.
-        return result.returncode, result.stdout[:200]
+        return result.returncode, result.stdout[:output_limit]
     except (OSError, subprocess.TimeoutExpired, UnicodeError):
         return 127, ""
 
@@ -63,9 +63,10 @@ def probe(container: str, family: str, timeout: int) -> str | None:
 
 
 def inventory(policy: dict, timeout: int, limit: int) -> list[dict[str, str]]:
-    code, data = _execute(["docker", "ps", "-q"], timeout=timeout)
-    if code != 0:
-        raise RuntimeError("cannot inspect running Docker containers")
+    code, data = _execute(["docker", "ps", "-q"], timeout=timeout,
+                          output_limit=65536)
+    if code != 0 or len(data) >= 65536:
+        raise RuntimeError("cannot inspect complete running Docker inventory")
     names = [line.strip() for line in data.splitlines() if line.strip()]
     # Never silently report a partial fleet as fully scanned.
     if len(names) > limit:
