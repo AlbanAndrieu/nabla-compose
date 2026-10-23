@@ -34,6 +34,19 @@ ps axo pid,rss,command | grep -E '[p]fblockerng.php cron|[p]hp_pfb|[u]nbound -c'
 for host in defectdojo.int.albandrieu.com s3.int.albandrieu.com; do
   drill "$host" @127.0.0.1 2>/dev/null | grep -E 'rcode:|IN[[:space:]]+A[[:space:]]' | head -4 || true
 done
-echo '=== pflow loaded? (read-only correlation) ==='
-kldstat 2>/dev/null | grep -i pflow || true
+echo '=== pfBlockerNG update log (native format is not ISO 8601) ==='
+if [ -f /var/log/pfblockerng/pfblockerng.log ]; then
+  grep -E 'UPDATE PROCESS ENDED|Saving configuration|Restarting DNSBL Service|Starting firewall filter daemon' /var/log/pfblockerng/pfblockerng.log 2>/dev/null | tail -18 || true
+fi
+echo '=== Unbound / WireGuard ACL changes and restart failures ==='
+for f in /var/log/system.log /var/log/system.log.0 /var/log/resolver.log; do
+  [ -f "$f" ] || continue
+  grep -Ei 'WireGuard.*Unbound ACL|could not open ports|address already in use|Restart of unbound' "$f" 2>/dev/null | tail -12 || true
+done
+echo '=== pflow kernel module and exporter (read-only correlation) ==='
+if kldstat 2>/dev/null | grep -i 'pflow[.]ko'; then
+  pflowctl -l 2>&1 || true
+else
+  echo 'pflow.ko not loaded'
+fi
 REMOTE
