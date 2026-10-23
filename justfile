@@ -114,7 +114,7 @@ truenas-readiness-check:
 
 truenas-readiness-test:
     python3 -m py_compile scripts/truenas/diagnose-service-readiness.py
-    python3 -m pytest -q tests/test_service_readiness_diagnostic.py
+    python3 -m pytest -q tests/test_service_readiness_diagnostic.py tests/test_compact_ops_diagnostics.py
 
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
