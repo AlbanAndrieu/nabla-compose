@@ -28,6 +28,14 @@
 
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Readiness diagnostic hardening — 2026-10-23
+
+- [x] Functional acceptance now considers the independent TrueNAS App state, every required Docker container's status/health/exit/restart count, and each declared application's HTTP response contract; a `RUNNING` App cannot mask `restarting` container(s). OpenRAG checks both backend and frontend and additionally probes frontend HTTP when containers run.
+- [x] Prometheus failure diagnosed from repeated Docker logs: container named `prometheus`, exit **2**, restart count **843**, cannot read `/etc/prometheus/prometheus.yml` (`permission denied`); Compose runtime UID/GID `568:568`. TrueNAS App `RUNNING` is **not** functional. Read-only diagnostics categorize bounded startup logs without exposing raw text, evaluate POSIX modes and ancestor traversability (ZFS ACL still requires explicit check), and verify `/-/ready` plus bounded PromQL `count(up)`. `Prometheus` read-only standalone diagnostics classify this error and surface redacted restart/exit metadata.
+- [x] `just truenas-readiness-check` is a blocking/strict operational gate; `just truenas-readiness-report` remains non-blocking. Added offline coverage for restarting Prometheus, 843 restarts, safe log redaction, POSIX UID/GID, PromQL empty/malformed results and OpenRAG HTTP.
+- [ ] **Operator action only, do not automatically chmod/chown**: on TrueNAS, inspect `stat` / `namei -l` / ACL of `/mnt/cpool/compose/nabla-compose/apps/prometheus/prometheus.yml` and ancestors for user `568`; apply a narrowly scoped ACL or mode change only after confirmation. Preserve Prometheus TSDB data; restart only this service after its config becomes readable, then repeat strict readiness and PromQL.
+- [ ] Validate Gatus, Scrutiny, OpenRAG, Sentry, InfluxDB, LiteLLM and Sample against current TrueNAS runtime in the same strict gate; local tests cannot substitute for runtime evidence.
+
 ### pflow packet proof and Prometheus failure (2026-10-23 19:46 CEST)
 
 - [x] After per-rule **Always Track Flow Data**, pfSense LAN capture at 19:46:15 captured **one UDP datagram, payload length 120 bytes**, from `172.17.0.1:38341` to `172.17.0.24:2055`. NetFlow v5 module/exporter and actual emission now verified. `Track by Default` remains OFF; do not widen scope. Memory free+inactive **219.8 MiB**, Unbound PID **39281**, DNS `NOERROR`, no new OOM observed in displayed log.
