@@ -1,5 +1,16 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Operator update — 2026-10-23: pfSense native pflow exporter and Unbound evidence
+
+- [x] Operator reports an exporter **added** via native pfSense UI `https://172.17.0.1:10443/firewall_pflow.php`. This confirms UI configuration only; runtime `pflowctl -l`, kernel module, Akvorado UDP/2055 receipt, protocol, source address, observation domain, PF rules and reboot persistence remain **unverified**. Do not claim pflow traffic is flowing.
+- [ ] Verify read-only on pfSense: `kldstat | grep pflow`, `pflowctl -l`, `ifconfig -l`, and on TrueNAS the Akvorado inlet packet/flow counter *deltas*; monitor pfSense memory, DNS, OOM and CPU after enabling. If free+inactive falls below 128 MiB, new OOM or DNS failure occurs, disable exporter in the same native UI and validate recovery. Do not dump config.xml or secrets.
+- [x] System log confirms OOM at Oct 22 22:03 (Unbound, netstat, php_pfb) and Oct 23 02:10 (php, netstat). `/var/log/pfblockerng/pfblockerng.log` grep with ISO timestamp yielded no matches: log format/rotation unknown, **not proof of absent cron**.
+- [x] At Oct 23 06:11:42 and 06:12:31, WireGuard package logs show Unbound ACL group de-install/re-install. These events align with resolver stop/start at 06:11–06:12, suggesting configuration-driven restarts; correlation, not proven causation.
+- [ ] Examine pfBlockerNG logs with `tail` and timestamp format, rotated logs and actual cron duration around 02:00–02:15; correlate OOM with PHP/PF memory pressure. Separately inspect WireGuard package configuration events and DNS reload sequencing, avoiding service restarts.
+- [ ] Confirm `firewall_pflow.php` exporter protocol and Akvorado inlet support, then retain only if live counters increase and the firewall remains stable.
+
+
+
 ### Follow-up — operator checks at 09:06 CEST
 
 - [x] Native pfSense pflow integration confirmed in `/etc/inc/filter.inc`: exporter functions at lines 6777–6906 use `pflowctl -c` and `pflowctl -s`; kernel module remains unloaded, no exporter configured. Configure via pfSense-supported UI/API rather than ad hoc boot edits.
