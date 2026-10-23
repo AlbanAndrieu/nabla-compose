@@ -289,6 +289,9 @@ check_section() {
       run_check app-states bash scripts/truenas/triage-post-reboot-apps.sh
       ;;
     ai)
+      # Dependency readiness is a separate gate from Langflow/Docling ingestion.
+      # A frontend stuck CREATED is a functional blocker, not an App outage.
+      run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
       run_check hermes-native bash scripts/truenas/diagnose-hermes-agent.sh --check
       # Required runtime secrets and actual failed Apps are blocking.
       run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
