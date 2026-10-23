@@ -21,6 +21,8 @@ def stub(monkeypatch, rows, checks=None):
                         lambda service: (checks or {}).get(
                             service, {"status": "ok", "detail": "HTTP 200"}))
     monkeypatch.setitem(g, "gatus_access", lambda: None)
+    monkeypatch.setitem(g, "startup_reason", lambda name: "startup reason unverified")
+    monkeypatch.setitem(g, "prometheus_config_access", lambda: None)
 
 
 def test_litellm_liveliness_does_not_override_docker_unhealthy(monkeypatch):
@@ -180,3 +182,100 @@ def test_sentry_probe_uses_declared_lan_bound_port():
     url, kind = module["HTTP"]["sentry"]
     assert url == "http://172.17.0.24:9005/_health/"
     assert kind == "sentry"
+
+
+def test_prometheus_restarting_with_exit2_and_843_restarts_is_blocked(
+        monkeypatch):
+    stub(monkeypatch, {
+        "prometheus": {"status": "restarting", "health": "none",
+                       "exit": 2, "restarts": 843}
+    })
+    g = assess.__globals__
+    monkeypatch.setitem(g, "startup_reason",
+                        lambda name: "Prometheus config permission denied")
+    monkeypatch.setitem(g, "prometheus_config_access",
+                        lambda: "Prometheus config POSIX read permission missing for UID/GID 568")
+    monkeypatch.setitem(g, "http_check",
+                        lambda service: pytest.fail("never probe restarting container"))
+    row = assess("prometheus", {"prometheus": "RUNNING"})
+    assert row["status"] == "BLOCKED"
+    assert "exit=2 restarts=843" in " ".join(row["notes"])
+    assert "Prometheus config permission denied" in " ".join(row["notes"])
+    assert "HTTP probe skipped" in " ".join(row["notes"])
+
+
+def test_docker_state_collects_restart_count_without_environment(monkeypatch):
+    checker = module["docker_state"]
+    sample = '{"Status":"restarting","ExitCode":2,"OOMKilled":false}|843'
+    def fake_run(command, timeout=15):
+        assert command[0:2] == ["docker", "inspect"]
+        assert ".RestartCount" in command[3]
+        assert ".Config.Env" not in " ".join(command)
+        return sample
+    monkeypatch.setitem(checker.__globals__, "run", fake_run)
+    result = checker("prometheus")
+    assert result["status"] == "restarting"
+    assert result["exit"] == 2
+    assert result["restarts"] == 843
+
+
+def test_startup_log_category_does_not_expose_secrets(monkeypatch):
+    reason = module["startup_reason"]
+    class FakeProc:
+        stdout = ""
+        stderr = ('PRIVATE-TOKEN-WITH-SECRET Error loading config '
+                  '/etc/prometheus/prometheus.yml: permission denied')
+    def fake_run(command, **kwargs):
+        assert command == ["docker", "logs", "--tail", "20", "prometheus"]
+        assert kwargs["timeout"] <= 8
+        return FakeProc()
+    monkeypatch.setattr(reason.__globals__["subprocess"], "run", fake_run)
+    value = reason("prometheus")
+    assert value == "Prometheus config permission denied"
+    assert "PRIVATE-TOKEN" not in value
+
+
+def test_prometheus_config_posix_mode_uses_runtime_uid_not_root_access(
+        monkeypatch, tmp_path):
+    config = tmp_path / "apps" / "prometheus" / "prometheus.yml"
+    config.parent.mkdir(parents=True)
+    config.write_text("global: {}\\n")
+    config.chmod(0o600)
+    checker = module["prometheus_config_access"]
+    monkeypatch.setitem(checker.__globals__, "ROOT", tmp_path)
+    message = checker()
+    assert message is not None
+    assert "568" in message
+    assert "permission" in message
+
+
+@pytest.mark.parametrize("result,expected", [
+    ({"status": "success", "data": {"resultType": "vector",
+      "result": [{"metric": {}, "value": [1234, "8"]}]}}, "ok"),
+    ({"status": "success", "data": {"resultType": "vector",
+      "result": []}}, "warning"),
+    ({"status": "error", "error": "unauthorized PRIVATE-TOKEN"}, "fail"),
+])
+def test_prometheus_requires_successful_promql_query(
+        monkeypatch, result, expected):
+    helper = module["prometheus_query_check"]
+    class FakeOpener:
+        def open(self, req, timeout):
+            assert req.full_url.endswith("/api/v1/query?query=count%28up%29")
+            assert timeout <= 5
+            return FakeResponse(json.dumps(result).encode())
+    response = helper(FakeOpener(), 5)
+    assert response["status"] == expected
+    assert "PRIVATE-TOKEN" not in response["detail"]
+
+
+def test_openrag_frontend_http_probed_only_with_running_containers(
+        monkeypatch):
+    stub(monkeypatch, {})
+    seen = []
+    monkeypatch.setitem(assess.__globals__, "http_check",
+                        lambda service: (seen.append(service) or
+                                         {"status": "fail", "detail": "frontend unreachable"}))
+    row = assess("openrag", {"openrag": "RUNNING"})
+    assert seen == ["openrag"]
+    assert row["status"] == "BLOCKED"
