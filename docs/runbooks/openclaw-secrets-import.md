@@ -3,8 +3,12 @@
 **State, 2026-10-23.** The `openclaw-embeddings` **file** SecretRef has
 already been installed and used to rebuild both vector indexes. This
 accomplishment does **not** mean all OpenClaw credentials are migrated.
-Last known strict audit found 16 plaintext occurrences and 2 legacy residues;
-these are *old observations* and may have changed. The next audit is required.
+The workstation's 2026-10-23 strict audit **still reports** 16 plaintext
+findings and 2 legacy residues, with zero unresolved/shadowed/store-residue
+findings and `resolvabilityComplete=true`. The shared team store is empty
+(`openclaw secrets store list` returned no entries). This does **not** imply
+the already-working embedding file SecretRef is absent; its provider is
+independent from that shared SQLite secret store.
 
 ## Choose the correct scope
 
@@ -40,6 +44,37 @@ locations locally: `openclaw.json`, `.env`, per-agent SQLite auth profiles,
 generated `models.json` and retired `auth.json`. OAuth and channel states
 have different migration and recovery contracts. Do not treat a missing
 finding as evidence that all credential uses are functional.
+
+### Read-only, redacted audit location breakdown
+
+The original strict check retains its original exit code and summary. For
+migration planning, run the **additive** `--audit-locations` mode:
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_secret_audit.py' -v
+python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit-locations
+```
+
+This mode consumes the native `openclaw secrets audit --check --json`
+**internally** and emits only fixed source categories and counts:
+`plaintext_location_config` (`openclaw.json`), `dotenv`,
+`auth_store` (SQLite), `generated_models` (`models.json`),
+and `unknown`. Legacy findings are counted separately as
+`oauth_profile`, `legacy_file`, or `unknown`.
+The totals must reconcile exactly against the native summary.
+Unknown finding codes and inconsistent totals **fail closed**.
+Exit code `2` is expected while there are still secret findings;
+it does not mean the classification script itself failed.
+
+**Do not upload** the native raw JSON: findings contain exact file paths,
+jsonPath selectors, provider IDs and profile identifiers.
+The safe group counts do not identify unique credentials.
+A `LEGACY_RESIDUE` referring to an OAuth profile is expected to be
+**out of scope** for static API-key migration and may be essential
+for token refresh. An archived/retired auth source is a distinct recovery
+case. Neither should be deleted solely to make the audit return zero.
 
 ## Phase 2 — optional shared-store import, staged file only
 
