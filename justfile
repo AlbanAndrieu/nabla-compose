@@ -72,6 +72,19 @@ migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
     python3 -m pytest -q tests/test_finish_migrations_20261024.py
 
+# Maintained runtime/version review is read-only, no registry or paid Actions.
+upgrade-runtime-audit:
+    python3 scripts/quality/audit-supported-runtimes.py
+
+# Local-only contracts for platform pins, PHP/Python runtime detection and Talos safety.
+upgrade-runtime-test:
+    python3 -m py_compile scripts/quality/audit-supported-runtimes.py scripts/talos/preflight-supported-upgrade.py
+    python3 -m pytest -q tests/test_supported_runtime_policy.py tests/test_talos_supported_upgrade.py
+
+# Requires authenticated Talos and Kubernetes CLI; this does not upgrade nodes.
+talos-upgrade-preflight:
+    python3 scripts/talos/preflight-supported-upgrade.py --check
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
