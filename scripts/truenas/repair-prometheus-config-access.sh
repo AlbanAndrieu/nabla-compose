@@ -17,6 +17,12 @@ EXPECTED_GID=568
 EXPECTED_USER='568:568'
 
 fail() { printf '❌ Prometheus config: %s\n' "$*" >&2; exit 1; }
+# --apply must reject an unprivileged caller before any Docker, path,
+# credential or filesystem inspection. This also makes the fail-closed
+# contract deterministic on appliance hosts.
+if [[ "${MODE}" == --apply ]]; then
+  (( EUID == 0 )) || fail '--apply requires sudo'
+fi
 for binary in docker getent cut stat chmod chgrp; do
   command -v "${binary}" >/dev/null 2>&1 || fail "missing ${binary}"
 done
@@ -91,7 +97,7 @@ if [[ "${MODE}" == --check ]]; then
   exit 0
 fi
 
-(( EUID == 0 )) || fail '--apply requires sudo'
+# Root guard is enforced before any inspection at entry.
 # Preserve the file owner and inode. Only this one file is modified.
 chgrp -- "${EXPECTED_GID}" "${CONFIG}"
 chmod 0640 -- "${CONFIG}"
