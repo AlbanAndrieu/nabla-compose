@@ -422,6 +422,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key", "otp delete"):
             self.assertNotIn(forbidden, body)
 
+    def test_protected_aes256_mock_authentication_contract(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-aes256-auth-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        result = subprocess.run(["python3", str(script)], capture_output=True,
+                                text=True, check=True)
+        self.assertIn("3 negative paths", result.stdout)
+        text = script.read_text()
+        self.assertIn('["verify_pin", "authenticate", "verify_pin"]', text)
+        self.assertIn("len(protected_key) != 32", text)
+        for forbidden in ("PivSession(", "ykman ", "get_pivman_protected_data(",
+                          "put_certificate(", "generate_key(", "getpass("):
+            self.assertNotIn(forbidden, text)
+
     def test_aes256_sdk_api_inspection_never_opens_hardware(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py"
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
