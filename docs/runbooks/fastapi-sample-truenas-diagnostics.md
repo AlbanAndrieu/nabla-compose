@@ -42,6 +42,23 @@ connus et n'en affiche jamais le contenu. La correction de `pihole.toml`
 doit être réalisée par la configuration gérée de Pi-hole après revue,
 sans effacer le hostname privé `sample.int.albandrieu.com`.
 
+**Interprétation des retours du 23 octobre :** une sortie `just sample-dns`
+avec `failures=1` reste un échec attendu tant que Pi-hole répond par
+`172.17.0.24` pour le hostname public ; ne pas convertir ce FAIL
+en PASS silencieux. `pihole_override_source` est une preuve de
+provenance, pas un second incident comptabilisé. Depuis une workstation,
+l'inspection du conteneur Pi-hole distant est `SKIP`, pas un WARN de
+l'application ; la requête DNS vers Pi-hole fonctionne malgré ce SKIP.
+
+`just sample-dns-workstation` lit désormais les propriétés
+`ipv4.dns`, `ipv4.ignore-auto-dns`, `ipv4.dns-priority` et
+`ipv4.dns-search` du **profil NetworkManager actif**, sans secrets.
+Elle vérifie également `getent ahostsv4 sample.int.albandrieu.com`
+pour éviter qu'un DNS Quad9 public cache une régression sur la zone
+privée. Les cas mockés ont été portés à **5 tests** (exécution du
+nouveau HEAD : `NOT_RUN`). Voir le dossier d'incident pour les
+étapes de remédiation sous Pi-hole v6.
+
 Une réponse **HTTP 302** vers Cloudflare Access sans session est attendue
 après correction DNS ; elle ne prouve pas la santé du backend ni un échec TLS.
 
