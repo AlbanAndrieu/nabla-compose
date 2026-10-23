@@ -1,5 +1,16 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Memory and pflow validation — 2026-10-23 19:00–19:08 CEST
+
+- [x] Full 10-sample memory-pressure CSV (30-second intervals): free+inactive **min 168.7, mean 189.6, max 206.4 MiB**; final 196.1 MiB. No monotonic deterioration over the five-minute window. Unbound PID **39281** stable, RSS **139860–140788 KiB**; pfBlockerNG cron count 0 throughout. PHP-FPM summed RSS **317360 KiB**, not unique resident memory.
+- [x] At 19:07, `diagnose-pflow-activation.sh --check --capture`: free+inactive **216.9 MiB**, `pflow.ko` loaded, `pflow0` NetFlow v5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055, Unbound PID 39281 running, local DNS NOERROR. pfSense LAN 30-second tcpdump **0 captured**, **34043 received by filter** (not NetFlow export count), 0 dropped. TrueNAS br0 earlier captured 0. Akvorado receipt **not validated**.
+- [x] `diagnose-unbound-crash-memory.sh` confirms historical OOM Oct 22 22:03 (Unbound/netstat/php_pfb), Oct 23 02:10 (php/netstat), and earlier incidents. No later OOM in displayed system log, but no 24-hour stability proof. New resolver stop/restart sequence at **12:16** ending Unbound PID 39281; cause still unknown. WireGuard ACL changes at 06:11–06:12 are temporally aligned with earlier resolver restarts.
+- [x] pfBlockerNG daily updates ended around **00:07–00:08**, including Oct 23 00:07:50; these completion times do not establish that hourly 02:00 cron caused 02:10 OOM. Investigate hourly cron details and PHP-FPM memory independently.
+- [ ] Confirm global Track by Default remains OFF and identify one explicit per-rule flow-tracking configuration; create a new matching state, repeat pfSense/TrueNAS captures, then validate Akvorado inlet counters. Do not interpret zero captures as collector failure without rule-state evidence.
+- [ ] Repeat memory and OOM checks across overnight 02:00–02:15 window; consider PHP-FPM worker concurrency and pfBlockerNG job pressure before altering Unbound caches. Roll back pflow if <128 MiB free+inactive, DNS regression or fresh OOM.
+
+
+
 ### Latest pflow capture and diagnostics (2026-10-23)
 
 - [x] Native exporter `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055` persists.
