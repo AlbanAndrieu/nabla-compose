@@ -53,6 +53,52 @@ class MinScoreTests(unittest.TestCase):
         with self.assertRaises(OSError):
             module.inspect(other)
 
+    def test_agent_override_takes_precedence(self):
+        self.write({
+            "memory": {"search": {"query": {"minScore": 0.31}}},
+            "agents": {"entries": {
+                "main": {"memory": {"search": {"query": {"minScore": 0.18}}}},
+                "cron": {"memory": {"search": {}}},
+            }},
+            "secrets": {"providers": {"s": {"value": "SECRET"}}},
+        })
+        self.assertEqual(module.inspect(self.path, "main"), ("agent_explicit", 0.18))
+        self.assertEqual(module.inspect(self.path, "cron"), ("inherited_global", 0.31))
+        with patch("sys.argv", ["inspect", "--config", str(self.path),
+                                "--agent", "main"]):
+            with redirect_stdout(io.StringIO()) as result:
+                self.assertEqual(module.main(), 0)
+        self.assertIn("memory_min_score_status=agent_explicit", result.getvalue())
+        self.assertNotIn("SECRET", result.getvalue())
+
+    def test_agent_list_inherits_pinned_version_default(self):
+        self.write({"agents": {"list": [{"id": "main", "memory": {}},
+                                          {"id": "cron", "memory": {}}]}})
+        self.assertEqual(module.inspect(self.path, "main"),
+                         ("upstream_default", 0.35))
+        self.assertEqual(module.inspect(self.path, "cron"),
+                         ("upstream_default", 0.35))
+
+    def test_unknown_agent_and_invalid_override_fail_closed(self):
+        self.write({"agents": {"entries": {"main": {}}}})
+        self.assertEqual(module.inspect(self.path, "cron"), ("agent_unresolved", None))
+        self.write({"agents": {"entries": {
+            "main": {"memory": {"search": {"query": {"minScore": "SECRET"}}}}
+        }}})
+        self.assertEqual(module.inspect(self.path, "main"), ("invalid", None))
+
+    def test_version_default_is_reference_not_runtime_attestation(self):
+        self.write({"agents": {"entries": {"main": {}}}})
+        with patch("sys.argv", ["inspect", "--config", str(self.path),
+                                "--agent", "main"]):
+            with redirect_stdout(io.StringIO()) as result:
+                self.assertEqual(module.main(), 0)
+        output = result.getvalue()
+        self.assertIn("memory_min_score_status=upstream_default", output)
+        self.assertIn("memory_min_score_reference_default_2026_9_5=0.350", output)
+        self.assertIn("memory_min_score_runtime_version_verified=false", output)
+        self.assertIn("configuration_changed=false", output)
+
     def test_invalid_json_does_not_echo(self):
         self.path.write_text('INVALID SECRET')
         self.path.chmod(0o600)
