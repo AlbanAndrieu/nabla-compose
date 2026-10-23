@@ -195,9 +195,13 @@ sos-generate:
 sos-test:
     python -m pytest -q tests/test_synthetic_open_schema_generation.py
 
-# Read-only DNS split-horizon/ECH diagnosis for FastAPI Sample on TrueNAS.
+# Read-only public/private DNS check on any host (no local Docker inspection).
 sample-dns:
     bash scripts/ingress/diagnose-sample-dns.sh --check
+
+# TrueNAS variant: inspect local Pi-hole container configuration, read-only.
+sample-dns-truenas:
+    bash scripts/ingress/diagnose-sample-dns.sh --truenas
 
 # Run from the workstation (NetworkManager + active DNS/DHCP evidence).
 sample-dns-workstation:
