@@ -267,10 +267,10 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                                      capture_output=True, text=True, check=True)
         self.assertIn("--serial", help_result.stdout)
         content = script.read_text()
-        self.assertIn("Management key algorithm:", content)
+        self.assertIn("inspect-age-yubikey-aes256-hardware.sh", content)
         self.assertIn("yubikey-5-nabla backup", content)
         self.assertIn("yubikey-5-nabla principal", content)
-        self.assertIn("piv keys info 82", content)
+        self.assertNotIn("piv keys info 82", content)
         for command in ("--force", "change-management-key -a TDES",
                         'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
