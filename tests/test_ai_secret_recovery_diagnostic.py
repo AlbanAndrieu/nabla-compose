@@ -103,3 +103,24 @@ def test_failed_middleware_query_is_not_reported_healthy(monkeypatch):
     monkeypatch.setitem(query.__globals__, "call",
                         lambda *args, **kwargs: None)
     assert query("litellm")["state"] == "UNVERIFIED"
+
+
+def test_strict_mode_blocks_runtime_failure_without_leaking(monkeypatch, capsys):
+    main = mod["main"]
+    monkeypatch.setattr(main.__globals__["os"], "geteuid", lambda: 0)
+    monkeypatch.setitem(main.__globals__, "assess",
+                        lambda: {"readOnly": True, "blockers": [
+                            "litellm: restore canonical Vaultwarden runtime secrets"
+                        ]})
+    assert main(["--check", "--strict"]) == 1
+    text = capsys.readouterr().out
+    assert '"blockers"' in text
+    assert "ANTHROPIC_API_KEY" not in text
+    assert main(["--check"]) == 0
+
+
+def test_malformed_middleware_response_fails_closed(monkeypatch):
+    query = mod["query_app"]
+    monkeypatch.setitem(query.__globals__, "call",
+                        lambda *args, **kwargs: '{"unexpected":"shape"}')
+    assert query("scrutiny")["state"] == "UNVERIFIED"
