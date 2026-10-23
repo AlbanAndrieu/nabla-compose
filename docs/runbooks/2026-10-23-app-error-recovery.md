@@ -109,7 +109,14 @@ fichier non vide, noms des clés obligatoires disponibles.
 Si les contrôles passent, **autoriser explicitement** l'action isolée :
 
 ```bash
-sudo midclt call -j app.redeploy litellm
+# Distinguer STOPPED de RUNNING : ne pas tirer de nouvelle image inutilement.
+STATE="$(sudo midclt call app.query '[["id","=","litellm"]]' |
+  jq -r '.[0].state // "MISSING"')"
+case "$STATE" in
+  STOPPED) sudo midclt call -j app.start litellm ;;
+  RUNNING) sudo midclt call -j app.redeploy litellm ;;
+  *) echo "LiteLLM state=$STATE : diagnostiquer avant mutation" >&2 ;;
+esac
 sudo midclt call app.query '[["id","=","litellm"]]' |
   jq '[.[] | {id,state,active_workloads}]'
 sudo docker inspect litellm |
