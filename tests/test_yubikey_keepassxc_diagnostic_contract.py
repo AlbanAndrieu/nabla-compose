@@ -311,6 +311,23 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertNotIn("printf '%s\\n' \"${slot82}\"", body)
         subprocess.run(["bash", "-n", str(script)], check=True)
 
+    def test_observed_retired1_response_pattern(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        line = next(line for line in script.read_text().splitlines()
+                    if line.startswith("empty_slot_pattern="))
+        pattern = line.split("=", 1)[1].strip("'")
+        for message in ("ERROR: No key stored in slot 82 (RETIRED1).",
+                        "No key stored in slot 82 (RETIRED1)."):
+            self.assertEqual(subprocess.run(
+                ["grep", "-Eiq", pattern], input=message, text=True
+            ).returncode, 0)
+        for message in ("ERROR: No key stored in slot 82 (RETIRED1). transport failure",
+                        "ERROR: No key stored in slot 83 (RETIRED2).",
+                        "PCSC device unavailable"):
+            self.assertNotEqual(subprocess.run(
+                ["grep", "-Eiq", pattern], input=message, text=True
+            ).returncode, 0)
+
     def test_aes256_hardware_inventory_read_only(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
