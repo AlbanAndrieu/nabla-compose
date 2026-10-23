@@ -29,7 +29,9 @@ for python_source in \
   "$script_dir/test-age-yubikey-piv-aes256-handshake-offline.py" \
   "$script_dir/test-age-yubikey-piv82-inventory-fake-offline.py" \
   "$script_dir/test-age-yubikey-certificate-negative-offline.py" \
-  "$script_dir/verify-age-yubikey-piv82-certificate.py"
+  "$script_dir/verify-age-yubikey-piv82-certificate.py" \
+  "$script_dir/plan-age-yubikey-piv82-transaction.py" \
+  "$repo_root/tests/test_yubikey_piv82_transaction.py"
 do
   python3 -m py_compile "$python_source"
 done
@@ -42,6 +44,6 @@ for bash_source in \
 do
   bash -n "$bash_source"
 done
-python3 -m unittest discover -s "$repo_root/tests" -p 'test_yubikey_keepassxc_diagnostic_contract.py' -v
+python3 -m unittest discover -s "$repo_root/tests" -p 'test_yubikey*.py' -v
 nabla_status ok 'Offline test suite passed'
 nabla_status warn 'Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified'

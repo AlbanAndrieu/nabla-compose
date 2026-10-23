@@ -1,0 +1,66 @@
+"""Pure offline phase-order and safety tests; no YubiKey or SDK required."""
+from pathlib import Path
+import importlib.util
+import json
+import subprocess
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/workstation/plan-age-yubikey-piv82-transaction.py"
+spec = importlib.util.spec_from_file_location("piv82_transaction_plan", SCRIPT)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+
+
+class Piv82TransactionContract(unittest.TestCase):
+    def test_secondary_order_and_explicit_per_phase_approvals(self):
+        plan = module.build_plan(module.BACKUP)
+        self.assertEqual(plan["status"], "NO-GO")
+        self.assertEqual(plan["prerequisites"], [])
+        phases = plan["phases"]
+        self.assertEqual([phase["name"] for phase in phases], [
+            "inventory", "authenticate", "generate", "certificate", "install", "interoperability"
+        ])
+        for name in ("authenticate", "generate", "certificate", "install"):
+            phase = next(x for x in phases if x["name"] == name)
+            self.assertTrue(any(g.startswith("explicit-approval-") for g in phase["required_evidence"]))
+
+    def test_primary_requires_proven_secondary(self):
+        plan = module.build_plan(module.PRIMARY)
+        self.assertTrue(any("secondary interoperability PASS" in item
+                            for item in plan["prerequisites"]))
+        self.assertEqual(plan["phases"][-1]["name"], "interoperability")
+
+    def test_unknown_serial_is_rejected(self):
+        with self.assertRaises(ValueError):
+            module.build_plan("00000000")
+
+    def test_rules_guard_sops_and_escrow(self):
+        plan = module.build_plan(module.BACKUP)
+        rules = " ".join(plan["rules"]).lower()
+        for word in ("no sops recipient change", "both physical cards",
+                     "software escrow copies", "never auto-retry pin", "otp2", "piv9a"):
+            self.assertIn(word, rules)
+
+    def test_machine_readable_output_is_no_go(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "--serial", module.BACKUP,
+                                 "--json"], capture_output=True, text=True, check=True)
+        doc = json.loads(result.stdout)
+        self.assertEqual(doc["mode"], "read-only-plan-no-device-access")
+        self.assertEqual(doc["status"], "NO-GO")
+        self.assertEqual(len(doc["phases"]), 6)
+
+    def test_no_apply_or_hardware_command(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "--serial", module.BACKUP,
+                                 "--apply"], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        source = SCRIPT.read_text()
+        for dangerous in ("import yubikit", "import ykman", "import smartcard",
+                          "subprocess.run(", "os.system(", "getpass(", "piv.reset("):
+            self.assertNotIn(dangerous, source)
+
+
+if __name__ == "__main__":
+    unittest.main()
