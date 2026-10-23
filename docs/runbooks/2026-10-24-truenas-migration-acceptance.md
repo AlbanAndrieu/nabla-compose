@@ -193,3 +193,84 @@ Sentry et secrets acceptées, aucune dépendance core bloquée, CSI validé si
 testé, RPO OpenWebUI documenté. Inscrire tout FAIL/SKIP restant dans la
 roadmap avant fermeture, conserver une preuve expurgée, puis retirer le
 **script temporaire** dans une PR distincte après acceptation opérateur.
+
+
+## Suivi opérateur du 23 octobre — quality gates et reprise Prometheus/OpenRAG
+
+**Preuves exécutées par l'opérateur sur TrueNAS** : la gate de readiness
+renvoie **72 passed**, celle des versions supportées **68 passed**.
+Ces preuves valident les scripts et mocks du checkout testé, **pas** le
+retour à la santé des Apps et pas l'ensemble du cluster Kubernetes.
+
+### 1. Prometheus — redémarrages après réparation POSIX
+
+Les permissions du fichier YAML sont passées à **uid 1000, gid 568,
+mode 0640**. Le test effectif sous **UID:GID 568:568** avec
+`setpriv ... /usr/bin/test -r` réussit sur l'hôte.
+Mais le conteneur était encore `restarting` (exit 2, 884 restarts)
+lors du dernier diagnostic live. Ne pas réappliquer le chmod,
+effacer la TSDB ni redéployer toute la fondation.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+La seconde commande compare maintenant **la source montée sur
+`/etc/prometheus`** au dossier source attendu, vérifie l'identité
+`568:568`, classe l'accès effectif hôte et analyse séparément les logs
+depuis le **ctime** du YAML (afin de ne pas attribuer des erreurs
+antérieures à la réparation). Les chemins sources, secrets et logs bruts
+ne sont pas imprimés.
+
+**Condition de sortie** : Docker `running`, `/-/ready` HTTP 200,
+PromQL `count(up)` exécutable, targets vérifiables. En cas de
+`config_bind=mismatch`, confronter les sources de la TrueNAS Custom App
+avant une éventuelle **réconciliation unique, revue et approuvée** ;
+aucun automatisme ne la lance.
+
+### 2. OpenRAG — frontend CREATED / Langflow partagé
+
+La définition `apps/openrag/compose.yml` conditionne le démarrage du
+frontend à `openrag-backend: service_healthy`. Il faut donc séparer
+les états Docker backend/frontend de ceux de `langflow`, `opensearch`
+et de l'optionnel `docling`.
+
+```bash
+just truenas-openrag-dependencies-check
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check
+```
+
+Aucune clé, ni mot de passe, ni document
+`cpool/bababou` ne doit être affiché. Ne pas indexer à nouveau ni
+redéployer OpenRAG tant que les dépendances et la définition TrueNAS
+effective ne sont pas confirmées.
+
+**Condition de sortie** : backend **et** frontend
+`running+healthy`, Langflow et OpenSearch fonctionnels, puis tests
+de recherche/ingestion Bababou et Docling réalisés séparément.
+
+### 3. Ordre des migrations après récupération
+
+1. Stabiliser Prometheus puis OpenRAG sans casser Gatus (85 moniteurs :
+   59 UP, 26 DOWN lors du dernier contrôle), LiteLLM et InfluxDB.
+2. Réconcilier **Scrutiny STOPPED** avec le chemin secret canonique
+   `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`, après
+   `sudo bash scripts/truenas/deploy-scrutiny.sh --check` et vérification
+   du token InfluxDB 2.9.1 ; préserver ses données existantes.
+3. Examiner Sentry (web healthy mais consumers unhealthy), sans
+   réinitialiser Kafka, offsets Snuba ou ClickHouse.
+4. Exécuter `sudo bash scripts/truenas/finish-migrations-20261024.sh
+   --check --section migrations`, puis `--section services`, `--section ai`
+   et `--plan-wave core` **sans appliquer**.
+5. Ne passer aux rafraîchissements d'images par lots et aux upgrades
+   Talos/K8s qu'une fois toutes les gates fonctionnelles requises
+   vertes et les risques d'indisponibilité explicitement acceptés.
+   Aucun `--apply` n'est autorisé par ce constat seul.
+
+**DefectDojo** : l'inventaire live PostgreSQL/Django rapporte uniquement
+`admin` ; le bootstrap GitOps/Vaultwarden `nabla` ne correspond
+pas à l'identité existante. Consulter
+`docs/runbooks/defectdojo-admin-access-recovery.md` avant toute rotation.
