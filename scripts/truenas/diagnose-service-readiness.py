@@ -438,7 +438,7 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
     if service == "litellm" and http and http["status"] == "ok" and (
         docker["litellm"]["health"] == "unhealthy"
     ):
-        notes.append("liveliness passes but Docker healthcheck fails")
+        notes.append("readiness passes but Docker healthcheck fails")
     if service == "openrag" and docker["openrag-backend"]["health"] == "healthy":
         notes.append("backend ready; frontend must also be running")
     if service == "sample" and http and http["status"] == "ok":
