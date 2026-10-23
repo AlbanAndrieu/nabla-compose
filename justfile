@@ -78,8 +78,12 @@ upgrade-runtime-audit:
 
 # Local-only contracts for platform pins, PHP/Python runtime detection and Talos safety.
 upgrade-runtime-test:
-    python3 -m py_compile scripts/quality/audit-supported-runtimes.py scripts/talos/preflight-supported-upgrade.py
-    python3 -m pytest -q tests/test_supported_runtime_policy.py tests/test_talos_supported_upgrade.py
+    python3 -m py_compile scripts/quality/audit-supported-runtimes.py scripts/talos/preflight-supported-upgrade.py scripts/truenas/audit-live-language-runtimes.py
+    python3 -m pytest -q tests/test_supported_runtime_policy.py tests/test_talos_supported_upgrade.py tests/test_live_language_runtime_audit.py
+
+# Inventory running TrueNAS container interpreter patches without image pulls/restarts.
+truenas-live-language-audit:
+    python3 scripts/truenas/audit-live-language-runtimes.py --check
 
 # Requires authenticated Talos and Kubernetes CLI; this does not upgrade nodes.
 talos-upgrade-preflight:
