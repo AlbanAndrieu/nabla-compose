@@ -524,3 +524,51 @@ inspect result and exit status before any force/retry. Afterward compare
 `dirty`, index provenance, `Semantic vectors`, number of files and
 retrieval quality for both agents. No `--force` yet, no fallback to an
 incompatible embedding model, and no coupling to TrueNAS/Talos operations.
+
+
+## 2026-10-23 — main reindex completed, both agent indexes healthy
+
+Operator reported `openclaw memory status --index --agent main` completed with
+`main_index_exit=0`, 107/107 files and 199 chunks. Subsequent
+`openclaw memory status --deep` confirmed:
+
+| Agent | Indexed files | Chunks | Dirty | Embeddings | Semantic vectors | Vector dims |
+| --- | --- | --- | --- | --- | --- | --- |
+| main | 107/107 | 199 | no | ready | ready | 768 |
+| cron | 63/63 | 73 | no | ready | ready | 768 |
+
+The earlier `provenance_version` mismatch (main) and
+`metadata_missing` (cron) no longer appear. SQLite WAL returned to zero
+in the status after indexing. Disk headroom remained ~18 GiB free (96%
+used); continue monitoring before any other storage-heavy operation.
+
+**Reliability debt:** main indexing logged repeated
+`embeddings retryable error; retrying in 60000ms` for ~10 minutes
+(19:29–19:39), and `memory status --deep` logged another retry at
+19:40. This is not a clean latency/error-quality result even though both
+indexes succeeded. Do not guess the HTTP error class from this message,
+switch embeddings models, or blindly raise retry budgets.
+
+Next operator checks:
+```bash
+# Query only a harmless, non-sensitive test phrase; inspect result locally.
+openclaw memory search --help
+openclaw memory search --query "deployment" --max-results 5
+
+# Check disk and runtime health without changing index state.
+openclaw gateway status
+df -h "$HOME/.openclaw"
+```
+
+If retries continue, correlate bounded log timestamps with *sanitized* local
+LiteLLM request metadata (status, provider, latency, retries, upstream model
+and concurrency); suppress request/response bodies, tokens and API keys.
+Review HTTP 429, 5xx, timeouts and LiteLLM backend readiness separately.
+Classify whether the retry occurs during indexing, deep provider probing,
+or interactive search. Preserve separate per-service keys and budgets
+(OpenClaw embedding-only; OpenRAG combined chat/embedding).
+
+**Acceptance still pending:** actual semantic retrieval test for each agent,
+plus diagnosis/reduction of repeated embedding retries; no further reindex
+or forced reset is justified by the current status. Keep `fallback=none`
+unless both systems use a provably identical vector space.
