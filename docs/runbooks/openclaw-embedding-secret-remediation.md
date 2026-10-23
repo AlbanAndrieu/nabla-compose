@@ -19,15 +19,42 @@
   5 hits for `deployment`; at `0.35`, `main` returned 0 and `cron`
   returned a **CLI error** (not zero matches). The error class is still
   unknown; do not misattribute it to the relevance threshold.
-- **Open:** calibrate relevance cutoff and query quality; classify the
-  `cron` CLI failure and investigate intermittent 60-second embedding
-  retries (root cause unknown). Workstation free disk: ~18 GiB (96% used).
-  Do not lower persistent thresholds, reindex or activate cross-model
-  fallback without evidence.
+- **Follow-up (2026-10-23):** a single `cron` search at `--min-score
+  0.35 --score-summary` completed as `no_matches`, results=0, latency
+  **5875 ms**, with no CLI error. The earlier error is **not reproducible
+  in this sample**, but its class and root cause remain unknown.
+- **Open:** determine whether a `minScore` is explicitly configured,
+  benchmark known-relevant non-sensitive phrases, and investigate the earlier
+  transient CLI failure and 60-second embedding retries. Workstation disk
+  remains ~18 GiB free (96% used). Do not lower persistent thresholds,
+  reindex or activate cross-model fallback without evidence.
 
 The chronological evidence below preserves original time-of-observation
 statements. Earlier `no configuration update` and `index pending`
 descriptions are historical and are superseded by this section.
+
+### Operator-only, provider-free threshold inspection
+
+The next diagnostic reads **only the local owner-private** OpenClaw config
+and reports whether `memory.search.query.minScore` is explicitly declared.
+It does not contact LiteLLM, trigger recalls, modify configuration or print
+other keys/values. A missing value is reported as `not_explicit`:
+**the effective vendor default remains unverified**.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_min_score.py' -v
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py
+```
+
+Inspect output `memory_min_score_status=explicit` with a bounded numeric
+value or `not_explicit`. A `blocked` / `invalid` result is fail-closed:
+do not weaken config file permissions to bypass the check. The diagnostic
+requires a regular, single-linked file, owned by the current user and not
+accessible by group or others; it rejects symlinks and oversized files.
+If the value is not explicit, assess the actual CLI version's default
+separately before making decisions.
 
 ### Optional score-threshold calibration (not a config change)
 
