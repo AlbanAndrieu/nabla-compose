@@ -337,3 +337,33 @@ a temporary private candidate, only after confirming support with
 strict candidate validation with unchecked JSON edits. No `--apply`,
 Gateway restart, index rebuild or secret migration is authorized by this
 diagnostic.
+
+
+## 2026-10-23 — switch to native OpenClaw patch validation
+
+Operator demonstrated generated schema meta-validation fails on keyword `anyOf`, while
+`openclaw config patch --help` on installed OpenClaw 2026.9.5 confirms
+`--stdin --dry-run --json` performs native schema and SecretRef
+resolvability checks without writing `openclaw.json`. Do not try to
+"repair" the upstream generated schema by deleting `anyOf` or disabling
+validation.
+
+The guarded cutover script now submits a **narrow, in-memory JSON patch**
+through stdin: only `secrets.providers.openclaw-embeddings` and
+`memory.search` target fields. No candidate/keys are printed or written
+during preflight. The script fails closed unless native JSON says
+`ok=true`, `checks.schema=true`, `checks.resolvability=true`,
+`checks.resolvabilityComplete=true`, `refsChecked>=1`,
+`skippedExecRefs=0`, and contains no errors. Other existing `exec`
+references may force a deliberately conservative block; do not pass
+`--allow-exec` to bypass that policy.
+
+Operator preflight:
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+```
+No `jsonschema` installation is required by this updated path. No `--apply`
+before native validation, Gateway stop coordination, and rollback review.
