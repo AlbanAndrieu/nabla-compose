@@ -23,12 +23,16 @@ TARGET_TALOS = (ROOT / "config/talos/VERSION").read_text().strip()
 TARGET_K8S = (ROOT / "config/talos/KUBERNETES_VERSION").read_text().strip()
 NODES = ("172.17.0.50", "172.17.0.51", "172.17.0.52")
 ACK = "I_ACCEPT_FULL_CLUSTER_OUTAGE_WITHOUT_ETCD_BACKUP"
-IMAGE = re.compile(r"^factory\.talos\.dev/metal-installer/[a-f0-9]{64}:v1\.14\.4$")
-REQUIRED_SERVER_VERSION = re.compile(r"(?m)^\s*Tag:\s*v1\.14\.4\s*$")
+# Single reviewed pin; the installer and server checks derive from it.
+REVIEWED_TALOS, REVIEWED_K8S = "v1.14.4", "v1.37.1"
+IMAGE = re.compile(
+    rf"^factory\.talos\.dev/metal-installer/[a-f0-9]{{64}}:{re.escape(REVIEWED_TALOS)}$"
+)
+REQUIRED_SERVER_VERSION = re.compile(rf"(?m)^\s*Tag:\s*{re.escape(REVIEWED_TALOS)}\s*$")
 
 
 def plan(image: str) -> dict:
-    if TARGET_TALOS != "v1.14.4" or TARGET_K8S != "v1.37.1":
+    if TARGET_TALOS != REVIEWED_TALOS or TARGET_K8S != REVIEWED_K8S:
         raise ValueError("unreviewed Talos/Kubernetes version targets")
     if not IMAGE.fullmatch(image):
         raise ValueError("installer must be version-matched Image Factory schematic")
@@ -76,29 +80,29 @@ def wait_node(ip: str, timeout: int) -> None:
     raise RuntimeError(f"Talos did not recover at target version: {ip}")
 
 
-def parallel_nodes(image: str, timeout: int) -> None:
+def failed_nodes(action, *args) -> list[str]:
+    """Run action(ip, *args) on every node concurrently; return failed IPs."""
     failures: list[str] = []
+    with ThreadPoolExecutor(max_workers=len(NODES)) as pool:
+        jobs = {pool.submit(action, ip, *args): ip for ip in NODES}
+        for future in as_completed(jobs):
+            try:
+                future.result()
+            except Exception:
+                failures.append(jobs[future])
+    return sorted(failures)
+
+
+def parallel_nodes(image: str, timeout: int) -> None:
     # Submit ALL THREE Talos upgrades, including singleton control-plane,
     # without serial worker waits. Do not submit Kubernetes until every
     # Talos node is at the target and the cluster preflight is green.
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        jobs = {pool.submit(upgrade_node, ip, image): ip for ip in NODES}
-        for future in as_completed(jobs):
-            try:
-                future.result()
-            except Exception:
-                failures.append(jobs[future])
+    failures = failed_nodes(upgrade_node, image)
     if failures:
-        raise RuntimeError("Talos upgrades failed: " + ",".join(sorted(failures)))
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        jobs = {pool.submit(wait_node, ip, timeout): ip for ip in NODES}
-        for future in as_completed(jobs):
-            try:
-                future.result()
-            except Exception:
-                failures.append(jobs[future])
+        raise RuntimeError("Talos upgrades failed: " + ",".join(failures))
+    failures = failed_nodes(wait_node, timeout)
     if failures:
-        raise RuntimeError("Talos nodes did not recover: " + ",".join(sorted(failures)))
+        raise RuntimeError("Talos nodes did not recover: " + ",".join(failures))
 
 
 def preflight() -> None:

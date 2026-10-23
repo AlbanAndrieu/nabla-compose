@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import threading
 
 ROOT = Path(__file__).resolve().parents[2]
 CRITICAL = {
@@ -43,8 +44,8 @@ def query() -> list[dict]:
 def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
     if scope not in ("applications", "all") or not 1 <= workers <= 16:
         raise ValueError("invalid app scope or concurrency")
-    selected = set()
-    excluded = []
+    selected: set[str] = set()
+    excluded: set[str] = set()
     revisions: dict[str, str] = {}
     chart_pending: list[str] = []
     image_pending: list[str] = []
@@ -55,7 +56,7 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
         if (not isinstance(name, str) or not ID.fullmatch(name)
                 or (app.get("id") and app.get("name") and app["id"] != app["name"])):
             raise ValueError("unsafe TrueNAS App name or identity drift")
-        if name in selected or name in excluded or name in revisions:
+        if name in revisions:
             raise ValueError("duplicate TrueNAS App ID")
         # Include version/image-change state in the plan fingerprint. The
         # operator must re-review if a registry pull/chart upgrade was
@@ -73,11 +74,11 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
             image_pending.append(name)
         if app.get("state") == "RUNNING":
             if scope == "applications" and name in CRITICAL:
-                excluded.append(name)
+                excluded.add(name)
             else:
                 selected.add(name)
         else:
-            excluded.append(name)
+            excluded.add(name)
     waves = []
     if scope == "all":
         waves.append({"name": "foundation", "apps": sorted(selected & CRITICAL)})
@@ -108,34 +109,44 @@ def verify(app: str) -> None:
           timeout=1000)
 
 
+def refresh(app: str, stop: threading.Event) -> str | None:
+    """Redeploy then health-gate one App; return the failed stage, if any."""
+    if stop.is_set():
+        return "skipped"
+    for stage, step in (("redeploy", redeploy), ("health", verify)):
+        try:
+            step(app)
+        except Exception:
+            stop.set()
+            return stage
+    return None
+
+
 def execute(report: dict) -> int:
-    failures: list[str] = []
     for wave in report["waves"]:
         names = wave["apps"]
         if not names:
             continue
         print(f"START {wave['name']} count={len(names)} parallel={report['parallelism']}",
               flush=True)
-        # Do not submit a second wave if any first-wave App failed.
+        # Each App is verified as soon as its own redeploy ends, not after the
+        # slowest pull of the wave. The first failure stops Apps not yet
+        # started; the next wave is never submitted after a failure.
+        failures: list[str] = []
+        skipped: list[str] = []
+        stop = threading.Event()
         with ThreadPoolExecutor(max_workers=report["parallelism"]) as pool:
-            jobs = {pool.submit(redeploy, name): name for name in names}
+            jobs = {pool.submit(refresh, name, stop): name for name in names}
             for job in as_completed(jobs):
-                try:
-                    job.result()
-                except Exception:
-                    failures.append(jobs[job])
+                stage = job.result()
+                if stage == "skipped":
+                    skipped.append(jobs[job])
+                elif stage is not None:
+                    failures.append(f"{jobs[job]}:{stage}")
         if failures:
-            print("BLOCKED redeploy: " + ",".join(sorted(failures)), file=sys.stderr)
-            return 1
-        with ThreadPoolExecutor(max_workers=report["parallelism"]) as pool:
-            jobs = {pool.submit(verify, name): name for name in names}
-            for job in as_completed(jobs):
-                try:
-                    job.result()
-                except Exception:
-                    failures.append(jobs[job])
-        if failures:
-            print("BLOCKED health: " + ",".join(sorted(failures)), file=sys.stderr)
+            print("BLOCKED " + ",".join(sorted(failures))
+                  + (" skipped=" + ",".join(sorted(skipped)) if skipped else ""),
+                  file=sys.stderr)
             return 1
         print(f"OK {wave['name']} verified={len(names)}", flush=True)
     return 0
@@ -174,11 +185,10 @@ def main(argv: list[str] | None = None) -> int:
         if not args.apply:
             print(json.dumps(report, indent=2, sort_keys=True))
             return 0
+        # report comes from a live app.query taken just now: comparing it with
+        # the reviewed hash already detects drift, no second full query needed.
         if args.expected_plan_hash != report["planHash"]:
             raise RuntimeError("App states changed since plan; rerun --check")
-        # Always re-check live state of every targeted App immediately before apply.
-        if make_plan(query(), args.scope, args.parallel)["planHash"] != report["planHash"]:
-            raise RuntimeError("App inventory drift before mutation")
         return execute(report)
     except (ValueError, RuntimeError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as exc:

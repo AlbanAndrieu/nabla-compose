@@ -123,11 +123,43 @@ def test_failure_in_foundation_blocks_application_wave(monkeypatch):
         calls.append(app)
         if app == "postgres":
             raise RuntimeError("no database")
+    verified = []
+    def verify(app):
+        # Read-only health gate of a successfully redeployed App only.
+        assert app != "postgres", "failed App must not be health-verified"
+        verified.append(app)
     monkeypatch.setitem(g, "redeploy", fail_core)
-    monkeypatch.setitem(g, "verify",
-                        lambda app: pytest.fail("no verification after failure"))
+    monkeypatch.setitem(g, "verify", verify)
     assert execute(make_plan(apps(), "all", 3)) == 1
     assert calls and set(calls) <= {"postgres", "redis"}
+    assert set(verified) <= {"redis"}
+
+
+def test_first_failure_cancels_apps_not_yet_started(monkeypatch, capsys):
+    execute = module["execute"]
+    g = execute.__globals__
+    calls = []
+    def redeploy(app):
+        calls.append(app)
+        raise RuntimeError("registry down")
+    monkeypatch.setitem(g, "redeploy", redeploy)
+    monkeypatch.setitem(g, "verify", lambda app: pytest.fail("no health gate"))
+    # One worker: the first failure must stop the remaining queued Apps.
+    assert execute(make_plan(apps(), "applications", 1)) == 1
+    assert len(calls) == 1
+    assert "skipped=" in capsys.readouterr().err
+
+
+def test_each_app_is_verified_right_after_its_own_redeploy(monkeypatch):
+    execute = module["execute"]
+    g = execute.__globals__
+    events = []
+    monkeypatch.setitem(g, "redeploy", lambda app: events.append(("update", app)))
+    monkeypatch.setitem(g, "verify", lambda app: events.append(("verify", app)))
+    assert execute(make_plan(apps(), "applications", 1)) == 0
+    for index in range(0, len(events), 2):
+        assert events[index][0] == "update"
+        assert events[index + 1] == ("verify", events[index][1])
 
 
 def test_empty_fleet_does_not_call_midclt(monkeypatch):
