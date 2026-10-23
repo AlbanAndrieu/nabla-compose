@@ -14,10 +14,16 @@
   diagnostic unit tests passed on workstation. This confirms retrieval of
   candidates, **not** their semantic relevance or the precise configured
   threshold.
-- **Open:** calibrate relevance cutoff and query quality; investigate
-  intermittent 60-second embedding retries (root cause unknown), verify
-  workstation disk headroom (18 GiB free, 96% used). Do not alter
-  persistent thresholds or activate cross-model fallback without evidence.
+- **Observed calibration (2026-10-23):** six diagnostic unit tests passed
+  on the workstation. At `min-score=0.00` and `0.20`, both agents returned
+  5 hits for `deployment`; at `0.35`, `main` returned 0 and `cron`
+  returned a **CLI error** (not zero matches). The error class is still
+  unknown; do not misattribute it to the relevance threshold.
+- **Open:** calibrate relevance cutoff and query quality; classify the
+  `cron` CLI failure and investigate intermittent 60-second embedding
+  retries (root cause unknown). Workstation free disk: ~18 GiB (96% used).
+  Do not lower persistent thresholds, reindex or activate cross-model
+  fallback without evidence.
 
 The chronological evidence below preserves original time-of-observation
 statements. Earlier `no configuration update` and `index pending`
@@ -44,6 +50,48 @@ or establish the current configured default. Avoid lowering the persisted
 threshold based solely on `deployment`; use known, non-sensitive
 corpus phrases and privately inspect relevance. Repeated queries may
 record short-term recall metrics in Dreaming and incur LiteLLM usage.
+
+
+### Bounded, redacted score/error telemetry (agent-local execution only)
+
+The diagnostic now supports \`--score-summary\`: it extracts only numeric
+aggregate scores (min / median / max over up to five returned candidates),
+bounded wall-clock latency and a fixed error category. It does **not** print
+snippets, paths, credentials, full stdout/stderr or raw OpenClaw errors.
+
+Run the cheapest targeted failure check first (one CLI call):
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent cron --min-score 0.35 --score-summary --query deployment
+\`\`\`
+
+If that isolated check is healthy and the LiteLLM backend is stable,
+optionally compare the three bounded thresholds on **main only**:
+
+\`\`\`bash
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent main --calibrate --score-summary --query deployment
+\`\`\`
+
+Results with \`error_category=rate_limit\` require checking LiteLLM virtual-key
+budget/429 evidence; \`timeout\` and \`network\` require backend connectivity
+and latency checks; \`upstream_5xx\` requires upstream service health;
+\`auth\` requires resolving credentials locally without displaying keys;
+\`unknown\` means evidence is insufficient. Never infer the category from
+\`cli_error\` alone. The presence of \`--score-summary\` does not authorize
+retry storms or automatic remediations.
+
+Numeric returned scores can be transformed by OpenClaw after thresholding;
+do not treat the displayed aggregates as the raw pre-filter similarity.
+Zero results at 0.35 for this particular word do not justify changing the
+persistent \`memory.search.query.minScore\`. First test a non-sensitive phrase
+known to occur in a memory file and inspect relevance locally. This
+validation is read-only for the indexes, but searches may create recall
+metadata and invoke billable embeddings.
 
 ---
 
