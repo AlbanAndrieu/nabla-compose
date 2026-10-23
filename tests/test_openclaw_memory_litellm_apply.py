@@ -29,7 +29,7 @@ class CutoverTest(unittest.TestCase):
     def test_native_patch_validation_success(self):
         from subprocess import CompletedProcess
         candidate, _ = module.candidate({"memory": {"search": {}}, "secrets": {"providers": {}}})
-        proc = CompletedProcess(["openclaw"], 0, stdout=b'{"valid":true}')
+        proc = CompletedProcess(["openclaw"], 0, stdout=b'{"ok":true,"checks":{"schema":true,"resolvability":true,"resolvabilityComplete":true},"refsChecked":1,"skippedExecRefs":0}')
         with patch.object(module.subprocess, "run", return_value=proc) as run:
             module.verify_schema(candidate)
             args, kwargs = run.call_args
