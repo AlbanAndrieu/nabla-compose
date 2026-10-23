@@ -46,6 +46,8 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
     selected = set()
     excluded = []
     revisions: dict[str, str] = {}
+    chart_pending: list[str] = []
+    image_pending: list[str] = []
     for app in apps:
         if not isinstance(app, dict):
             raise ValueError("malformed TrueNAS App record")
@@ -65,6 +67,10 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
         revisions[name] = hashlib.sha256(
             json.dumps(identity, sort_keys=True, default=str).encode()
         ).hexdigest()
+        if app.get("upgrade_available") is True:
+            chart_pending.append(name)
+        if app.get("image_updates_available") is True:
+            image_pending.append(name)
         if app.get("state") == "RUNNING":
             if scope == "applications" and name in CRITICAL:
                 excluded.append(name)
@@ -80,6 +86,8 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
         "scope": scope, "parallelism": workers, "waves": waves,
         "excluded": sorted(excluded), "selectedCount": len(selected),
         "inventoryRevisionHashes": {k: revisions[k] for k in sorted(revisions)},
+        "chartUpgradesPending": sorted(chart_pending),
+        "imageUpdatesAvailable": sorted(image_pending),
         "operation": "app.redeploy", "requiresState": "RUNNING",
         "mayPullNewImages": True, "upgradesChartOrPinnedTag": False,
     }
