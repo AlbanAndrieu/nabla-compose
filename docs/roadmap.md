@@ -2930,8 +2930,14 @@ Prochain ordre de travail :
 
 - [ ] **P1 OpenClaw remaining secret imports and migration**: the
   dedicated embedding `file` SecretRef is installed and functional;
-  global secrets migration is **not complete**. Last known audit had 16
-  plaintext and 2 legacy residues (re-audit required). Added private
+  global secrets migration is **not complete**. 2026-10-23 re-audit
+  confirms **16 plaintext + 2 legacy** (possibly retained OAuth state),
+  0 unresolved/shadowed/store residues and full static ref resolvability.
+  The shared team store is empty, but embedding uses its own file SecretRef.
+  A new `--audit-locations` mode classifies counts by source without
+  printing provider names, paths, profiles, credentials or raw findings.
+  Review source counts before importing, especially any auth-profile
+  and `.env` findings. Added private
   staged dotenv **read-only native import preflight**
   `scripts/workstation/preflight-openclaw-secrets-import.py`,
   six locally verified synthetic tests, and
