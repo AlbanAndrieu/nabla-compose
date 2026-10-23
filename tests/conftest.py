@@ -52,9 +52,9 @@ def noexec_safe_bash_mocks(tmp_path):
         envfile = tmp_path / "nabla-bash-mock-env.sh"
         envfile.write_text(
             "".join(
-                f'{command}() {{ BASH_ENV= /bin/bash "$NABLA_MOCK_BIN/{command}" "$@"; }}\\n'
-                for command in commands
-            ).replace("\\\\n", "\\n"),
+                f'{command}() {{ BASH_ENV= /bin/bash "$NABLA_MOCK_BIN/{command}" "$@"; }}'
+                + chr(10) for command in commands
+            ),
             encoding="utf-8",
         )
         env["NABLA_MOCK_BIN"] = str(tmp_path / "bin")
