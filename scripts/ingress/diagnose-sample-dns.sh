@@ -140,6 +140,19 @@ else
 fi
 
 if [[ "$MODE" == --workstation ]]; then
+  echo '==> Sample workstation: system resolution of private .int hostname'
+  if command -v getent >/dev/null 2>&1; then
+    private_system="$(getent ahostsv4 "$PRIVATE_HOST" 2>/dev/null |
+      awk '$2 == "STREAM" {print $1}' | sort -u)"
+    if grep -Fxq "$TRUENAS_IP" <<<"$private_system"; then
+      ok "system resolver correctly routes private .int hostname to TrueNAS"
+    else
+      warn "system resolver cannot resolve private .int hostname to TrueNAS; Quad9/public DNS alone is not sufficient"
+    fi
+  fi
+fi
+
+if [[ "$MODE" == --workstation ]]; then
   echo '==> Sample workstation: active DNS versus DHCP lease'
   if command -v systemctl >/dev/null 2>&1; then
     for manager in NetworkManager systemd-networkd; do
