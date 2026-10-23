@@ -49,6 +49,6 @@ if [ "$capture" = true ]; then
     echo 'SKIP: timeout command unavailable; do not run unbounded capture automatically'
   fi
   echo 'Interpret packets captured: >0 confirms pfSense sent NetFlow UDP; 0 means none observed in this capture window.'
-  echo 'New PF states matching a tracked rule are needed before flow export; collector receipt remains unverified.'
+  echo 'A captured datagram proves pfSense emission only; check TrueNAS br0 and Akvorado inlet for receipt and decoding.'
 fi
 REMOTE
