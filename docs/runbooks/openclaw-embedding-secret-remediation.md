@@ -589,3 +589,52 @@ No retrieval results have yet been observed. Treat nonzero exit status,
 empty results and irrelevant results as distinct outcomes. The Gateway
 remained active with connectivity OK, and free space was still ~18 GiB.
 Do not force reindex or rotate keys in response to this ownership message.
+
+
+## 2026-10-23 — both search commands exit 0 but return no matches
+
+Operator explicitly ran:
+
+- `openclaw memory search --agent main --query "deployment" --max-results 5`:
+  `No matches.`, exit 0.
+- The same for `--agent cron`: `No matches.`, exit 0.
+
+This **does not prove semantic retrieval succeeds**, but it is not a
+transport/ownership error either. Both indexes were previously clean and
+ready. The term may be absent, filtered by the configured relevance
+threshold, or retrieval may return empty for another reason. A single
+English query is not a corpus-specific relevance benchmark.
+
+Bounded, per-agent diagnostic (read-only with respect to indexes; CLI search
+can nevertheless record recall metadata used by Dreaming):
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+
+# Diagnostic override: zero score threshold only for this command, not config.
+# Only count/outcome is printed; no snippets, paths, token values or raw errors.
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --query 'deployment' --min-score 0
+
+# Prefer a short, non-sensitive phrase *known to exist* in one local
+# memory document when assessing recall correctness:
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent main --query 'KNOWN_NON_SENSITIVE_PHRASE' --min-score 0
+```
+
+The diagnostic distinguishes `matches`, `no_matches`, `stale`,
+`backend_error`, `disabled`, malformed JSON, CLI failure and timeout.
+It intentionally suppresses results content and all stderr. A count
+greater than zero proves returned candidates, **not semantic relevance**:
+evaluate relevance privately using ordinary CLI search on a known phrase.
+
+OpenClaw documents a JSON `{"results":[]}` as valid enabled/no-hits
+response and notes `stale=true` changes the interpretation. The
+configured default `memory.search.query.minScore` can filter semantic
+hits; `--min-score 0` is a temporary diagnostic override. Search routes
+via the Gateway and can record recall metadata; no index reset or
+rebuild is needed. Repeated 60-second embedding retries remain a
+separate reliability investigation. Do not change secrets or fallback
+models solely due to an empty result.
