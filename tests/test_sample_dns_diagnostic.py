@@ -40,8 +40,14 @@ case "$host" in
 esac
 """,
             "getent": """#!/bin/sh
-[ "$2" = sample.albandrieu.com ] || exit 0
-printf '%s STREAM sample.albandrieu.com\\n' "${MOCK_SYSTEM_IP:-188.114.96.2}"
+case "$2" in
+  sample.albandrieu.com)
+    printf '%s STREAM sample.albandrieu.com\\n' "${MOCK_SYSTEM_IP:-188.114.96.2}" ;;
+  sample.int.albandrieu.com)
+    [ "${MOCK_PRIVATE_SYS:-good}" = good ] &&
+      printf '172.17.0.24 STREAM sample.int.albandrieu.com\\n'
+    ;;
+esac
 """,
             "docker": """#!/bin/sh
 case "$1" in
@@ -107,6 +113,16 @@ esac
         self.assertIn("ipv4.ignore-auto-dns: yes", outcome.stdout)
         self.assertIn("SKIP: Pi-hole container configuration is only inspected", outcome.stdout)
         self.assertNotIn("Pi-hole container", outcome.stdout.split("SKIP:")[0])
+
+    def test_quad9_only_does_not_prove_private_int_resolution(self) -> None:
+        outcome = self.run_dns(
+            "--workstation", MOCK_ACTIVE_DNS="9.9.9.9 149.112.112.112",
+            MOCK_PRIVATE_SYS="missing",
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
+        self.assertIn("Quad9/public DNS alone is not sufficient", outcome.stdout)
+        self.assertIn("DNS differs from pfSense", outcome.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=2", outcome.stdout)
 
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
