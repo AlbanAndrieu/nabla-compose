@@ -205,4 +205,4 @@ sample-dns-workstation:
 
 # Offline mock-contracts, no real DNS or Docker requests.
 sample-dns-test:
-    python3 -m unittest -v tests/test_sample_dns_diagnostic.py
+    python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v
