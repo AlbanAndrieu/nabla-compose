@@ -56,6 +56,10 @@ esac
             "nmcli": """#!/bin/sh
 case "$*" in
   *DHCP4.OPTION*) echo 'DHCP4.OPTION[5]: domain_name_servers = 172.17.0.1' ;;
+  *"-g GENERAL.CONNECTION"*) echo 'Wired connection' ;;
+  *"connection show Wired connection"*)
+    echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
+    echo 'ipv4.ignore-auto-dns: yes' ;;
   *) echo 'GENERAL.CONNECTION: Wired connection' ;;
 esac
 """,
@@ -89,7 +93,8 @@ esac
         self.assertEqual(outcome.returncode, 1)
         self.assertIn("pihole_override_source=/etc/pihole/pihole.toml", outcome.stdout)
         self.assertIn("bypasses Cloudflare/ECH", outcome.stdout)
-        self.assertIn("sample_dns_summary failures=3", outcome.stdout)
+        self.assertIn("sample_dns_summary failures=2", outcome.stdout)
+        self.assertIn("EVIDENCE: Pi-hole local record explains", outcome.stdout)
 
     def test_dhcp_correct_but_workstation_active_dns_is_quad9(self) -> None:
         outcome = self.run_dns(
@@ -99,6 +104,9 @@ esac
         self.assertIn("domain_name_servers = 172.17.0.1", outcome.stdout)
         self.assertIn("DNS differs from pfSense", outcome.stdout)
         self.assertIn("NetworkManager", outcome.stdout)
+        self.assertIn("ipv4.ignore-auto-dns: yes", outcome.stdout)
+        self.assertIn("SKIP: Pi-hole container configuration is only inspected", outcome.stdout)
+        self.assertNotIn("Pi-hole container", outcome.stdout.split("SKIP:")[0])
 
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
