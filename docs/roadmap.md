@@ -829,6 +829,17 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Upgrade des versions maintenues — Talos / Kubernetes / PHP / Python (2026-10-23)
+
+- [x] Définir la **cible GitOps, non encore appliquée au runtime** : Talos `v1.14.4` (et CLI mise 1.14.4), Kubernetes `v1.37.1`, PHP `8.5`, Python `3.14.9` ; distinguer support officiel et terme « LTS » impropre pour Kubernetes/Python. Voir `config/upgrades/supported-runtime-targets.json`.
+- [x] Préparer `scripts/talos/preflight-supported-upgrade.py --check` et `scripts/quality/audit-supported-runtimes.py` : inventaire des Apps Compose, tags flottants, versions PHP/Python EOL, support sécurité seul et runtimes embarqués non attestés.
+- [x] Stage `apps/dsomm/baseline/Dockerfile` sur Python 3.14.9-slim-bookworm (image officielle publiée) et `mise.toml` sur Python 3.14.9. Aucune compilation OCI ou validation des dépendances effectuée en production.
+- [x] Documenter le runbook `docs/runbooks/2026-10-23-supported-versions-upgrade.md` et brancher les contrôles en lecture seule dans le runner de migration du 24 octobre. Commandes : `just upgrade-runtime-audit`, `just upgrade-runtime-test`, `just talos-upgrade-preflight`.
+- [ ] **P0 Talos/K8s runtime** : vérification état réel/digests, sauvegarde etcd hors nœud avec restauration vérifiable, CSI/NFS, PDB et fenêtre d'indisponibilité du control-plane singleton ; upgrade un worker à la fois, control-plane enfin, Kubernetes ensuite. Aucun `talosctl upgrade`/ `upgrade-k8s` exécuté par un agent.
+- [ ] **P0 PHP/Python Apps** : analyser les résultats complets de l'audit en les confrontant à `docker inspect` live ; corriger les images EOL, puis support-sécurité seulement, puis flottantes et opaques. En particulier WordPress PG4WP doit être migré vers une distribution/driver PHP 8.5 maintenue **sans substituer aveuglément l'image officielle MySQL**.
+- [ ] **P1** : qualifier les releases complètes et digests de LiteLLM, Docling, OpenRAG/Langflow, Sentry, DefectDojo, WordPress, OpenClaw et autres applications ; smokes, compatibilité des schémas, SBOM/Trivy, sauvegarde/rollback avant les changements d'images. Pas de « tout latest » ni de redémarrage massif.
+- [ ] **Acceptation** : version live de chaque nœud et service, Kubernetes Ready/CSI passing, probe Gatus/Prometheus, aucun runtime EOL détecté, exceptions justifiées dans la roadmap et revue de qualité locale complète.
+
 ## Fenêtre opérateur TrueNAS — reprise des migrations, 24 octobre 2026
 
 - [x] Préparer le script **temporaire** `scripts/truenas/finish-migrations-20261024.sh` avec préflight read-only, sections indépendantes, preuves root/0700, redémarrage séquentiel via `planHash` vérifié et vague explicitement approuvée ; aucune action destructive implicite.
