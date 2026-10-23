@@ -2455,3 +2455,9 @@ python3 scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py
 ```
 
 **NO-GO matériel maintenu :** aucune lecture de PIN réel ni authentification effective ; signature PIV82, import de certificat et déchiffrement age matériel restent à valider. Préserver management key AES256, OTP2 KeePassXC, PIV9A et destinataires SOPS de production.
+
+### 23 octobre 2026 — Convergence du plan de provisionnement et de l'inventaire
+
+Le planificateur de PIV82 avait lui aussi conservé une interprétation obsolète du code de sortie 1 de Yubico Manager. Il délègue maintenant **tous** les précontrôles matériels au script de référence inspect-age-yubikey-aes256-hardware.sh : série exacte, carte unique, management key AES256 PIN-protected, PIV82 vide et métadonnées PIV9A présentes. Plus de seconde regex ni de seconde logique d'authentification dans le planificateur.
+
+Le faux exécutable ykman couvre désormais **les deux scripts** (inventaire et planificateur), soit **14 exécutions simulées** pour sept scénarios, avec refus systématique des erreurs. Une commande age-plugin-yubikey factice couvre la vérification de présence de l'outil ; aucune vraie carte n'est utilisée. La quality gate lance également bash -n sur le planificateur avant les tests. **39 tests unittest attendus**, validation réelle sur workstation encore en attente après ce lot. NO-GO pour toute écriture PIV82.
