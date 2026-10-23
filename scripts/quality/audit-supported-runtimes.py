@@ -20,8 +20,8 @@ FROM_RE = re.compile(r"^FROM\s+(?P<image>[^\s]+)", re.MULTILINE | re.IGNORECASE)
 EXPLICIT_RE = re.compile(r"(?:^|[/:])(?P<runtime>python|php):(?P<version>[0-9]+\.[0-9]+)(?:\.[0-9]+)?(?:[-@]|$)")
 TEMPLATED_TAG_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-([^}]+)\}")
 FLOATING = {"latest", "stable", "main-stable", "main-latest", "edge", "nightly"}
-OPAQUE_PYTHON = {"litellm", "defectdojo", "docling", "langflow", "openrag", "sentry", "cyberbro", "dsomm"}
-OPAQUE_PHP = {"wordpress", "freshrss", "nextcloud", "drupal", "mediawiki", "phpmyadmin"}
+OPAQUE_PYTHON = {"litellm", "defectdojo", "docling", "langflow", "openrag", "sentry", "cyberbro", "dsomm", "netbox", "cartography"}
+OPAQUE_PHP = {"2fauth", "wordpress", "freshrss", "nextcloud", "drupal", "mediawiki", "phpmyadmin"}
 
 
 def normalized_image(raw: str) -> str:
