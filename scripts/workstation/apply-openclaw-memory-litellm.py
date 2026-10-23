@@ -51,8 +51,9 @@ def verify_schema(config):
         import jsonschema
     except ImportError as exc:
         raise ModuleNotFoundError("jsonschema") from exc
-    jsonschema.Draft202012Validator.check_schema(schema)
-    jsonschema.validate(config, schema)
+    validator_cls = jsonschema.validators.validator_for(schema)
+    validator_cls.check_schema(schema)
+    validator_cls(schema).validate(config)
 
 
 def private_file(path):
@@ -142,9 +143,30 @@ def main():
         print("blocked_stage=" + stage)
         print("configuration_changed=not_confirmed")
         return 2
-    except Exception:
-        # Stage names are fixed literals; do not expose arbitrary exception text.
+    except Exception as exc:
+        # Fixed-category diagnostics only. Never print exception text,
+        # schema paths, instance paths, or invalid values.
         print("migration=blocked")
+        if stage == "schema_validation":
+            kind = "unknown_schema_failure"
+            if isinstance(exc, ModuleNotFoundError):
+                kind = "python_dependency_missing"
+            else:
+                try:
+                    from jsonschema.exceptions import SchemaError, ValidationError
+                    if isinstance(exc, SchemaError):
+                        kind = "schema_definition_invalid"
+                    elif isinstance(exc, ValidationError):
+                        kind = "candidate_rejected_by_schema"
+                    elif isinstance(exc, (KeyError, TypeError)):
+                        kind = "schema_shape_unexpected"
+                    elif isinstance(exc, ValueError):
+                        kind = "schema_contract_unsupported"
+                    elif isinstance(exc, subprocess.TimeoutExpired):
+                        kind = "schema_cli_timeout"
+                except ImportError:
+                    kind = "python_dependency_missing"
+            print("schema_validation_reason=" + kind)
         print("blocked_stage=" + stage)
         print("configuration_changed=not_confirmed")
         return 2
