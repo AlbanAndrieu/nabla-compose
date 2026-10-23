@@ -45,12 +45,13 @@ def verify_schema(config):
         raise ValueError("file SecretRef unsupported")
     if "providers" not in root["secrets"]["properties"]:
         raise ValueError("secret providers unsupported")
-    # Fail closed if local schema validation is unavailable. Never run a CLI
-    # config validate against live state in lieu of validating the candidate.
+    # Keep the schema validator optional for discovery, mandatory for apply.
+    # Do not auto-install into the global mise/system Python environment.
     try:
         import jsonschema
     except ImportError as exc:
-        raise ValueError("jsonschema unavailable for candidate validation") from exc
+        raise ModuleNotFoundError("jsonschema") from exc
+    jsonschema.Draft202012Validator.check_schema(schema)
     jsonschema.validate(config, schema)
 
 
@@ -129,6 +130,18 @@ def main():
         print("gateway_restart=not_performed")
         print("memory_reindex=not_performed")
         return 0
+    except ModuleNotFoundError as exc:
+        if exc.name == "jsonschema" or str(exc) == "jsonschema":
+            print("migration=blocked")
+            print("blocked_stage=schema_validation")
+            print("blocked_reason=python_jsonschema_missing")
+            print("remediation=use_project_venv_with_jsonschema")
+            print("configuration_changed=false")
+            return 2
+        print("migration=blocked")
+        print("blocked_stage=" + stage)
+        print("configuration_changed=not_confirmed")
+        return 2
     except Exception:
         # Stage names are fixed literals; do not expose arbitrary exception text.
         print("migration=blocked")
