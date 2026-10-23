@@ -76,3 +76,24 @@ de redéployer DefectDojo pour valider le changement de mot de passe.
   avec `sudo bash scripts/truenas/diagnose-defectdojo.sh --check`.
 
 Source éditeur : [DefectDojo — running with Docker Compose](https://github.com/DefectDojo/django-DefectDojo/blob/master/readme-docs/DOCKER.md#option-to-change-the-password).
+
+
+## 5. Inventaire Django réel — 23 octobre 2026
+
+L'opérateur a exécuté la requête Django lecture seule dans
+`defectdojo-uwsgi`. Résultat : **`['admin']`**.
+L'identité `nabla` est une intention de bootstrap inscrite dans GitOps et
+Vaultwarden, **pas le compte actuellement prouvé dans PostgreSQL**.
+
+Pour cette installation existante, utiliser depuis un terminal privé :
+
+```bash
+sudo docker exec -it defectdojo-uwsgi python manage.py changepassword admin
+```
+
+Mettre ensuite à jour dans Vaultwarden l'entrée canonique
+`TrueNAS/nabla/prod/defectdojo` en vérifiant que le username correspond
+**au compte réel `admin`**, sans recréer l'entrée et sans importer de
+nouveau superutilisateur. Cette divergence d'identité doit être revue
+avant un futur initializer/réconciliation. Ne pas supprimer l'utilisateur
+`admin` ni modifier la base pour la masquer.
