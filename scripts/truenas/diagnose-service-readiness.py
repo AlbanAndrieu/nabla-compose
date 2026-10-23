@@ -282,8 +282,12 @@ def http_check(service: str, timeout: int = 5) -> dict:
             total = len(data)
             details = (f"monitors={total} up={counts['up']} down={counts['down']} "
                        f"pending={counts['pending']} unknown={counts['unknown']}")
-            # DOWN target is NOT Gatus outage; it is observability coverage WARN.
-            if not total or counts["down"] or counts["pending"] or counts["unknown"]:
+            # A DOWN target is not an outage of Gatus itself. It should not
+            # fail readiness of the monitoring app; no monitors is different:
+            # it means the process is alive but provides zero coverage.
+            if not total:
+                return {"status": "degraded", "detail": details}
+            if counts["down"] or counts["pending"] or counts["unknown"]:
                 return {"status": "warning", "detail": details}
             return {"status": "ok", "detail": details}
         if kind == "influxdb":
@@ -423,10 +427,12 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
     if http is not None:
         if http["status"] == "fail":
             sev = "BLOCKED"
+        elif http["status"] == "degraded" and sev == "HEALTHY":
+            sev = "DEGRADED"
         elif http["status"] == "warning" and sev == "HEALTHY":
-            # A monitoring system with no monitored targets is not
-            # functionally ready, even if its HTTP process is alive.
-            sev = "DEGRADED" if service in ("prometheus", "gatus") else "WARN"
+            # A failed monitored endpoint is not a Gatus process outage.
+            # Prometheus with no active up series remains a degraded monitor.
+            sev = "DEGRADED" if service == "prometheus" else "WARN"
         elif http["status"] == "unknown" and sev == "HEALTHY":
             sev = "UNKNOWN"
         notes.append(http["detail"])
