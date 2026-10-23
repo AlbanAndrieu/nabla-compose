@@ -12,7 +12,7 @@ The *running* versions must be independently observed before proceeding.
 |---|---|---|---|
 | Talos | v1.14.4 (16 Oct 2026) | Two most recent Talos minor branches; never alpha/RC | https://github.com/siderolabs/talos/releases/tag/v1.14.4 |
 | Kubernetes | v1.37.1 | Official release branches (no traditional LTS); three most recent supported | https://kubernetes.io/releases/ |
-| PHP | 8.5 | Active support through Dec 2027, security through Dec 2029 | https://www.php.net/supported-versions.php |
+| PHP | **8.5.12** (21 Oct 2026 security release) | Active support through Dec 2027, security through Dec 2029 | https://www.php.net/releases/8_5_12.php |
 | Python | 3.14.9 | Supported bugfix branch and patch-level security fix (21 Oct 2026); 3.15.1 is newer but requires broader compatibility | https://devguide.python.org/versions/ |
 
 `config/talos/VERSION`, `config/talos/KUBERNETES_VERSION` and `mise.toml`
@@ -20,6 +20,16 @@ declare **targets**, never evidence that the cluster was upgraded.
 `apps/dsomm/baseline/Dockerfile` now selects `python:3.14.9-slim-bookworm`
 (official published image tag), but its full rebuild and dependent Python
 wheels/packages must be tested in staging before deploying.
+
+**Urgent PHP vulnerability response (21 October 2026):** the PHP team
+published critical fixes for CVE-2026-109618 and CVE-2026-109619
+(unauthenticated RCE risk), with patch floors 8.2.35, 8.3.36, 8.4.27 and
+8.5.12. Any explicitly pinned older patch returns
+`critical-patch-missing` and fails `--strict-eol`. An image pinned only
+to `php:8.5` is `unverified-patch`, **never PASS**; opaque PHP services
+(2FAuth and PG4WP WordPress) require actual in-container version evidence
+before accepting mitigations. Do not infer safety from image push dates.
+Official advisory: https://www.php.net/archive/2026.php#2026-10-21-5.
 
 Run the *full* offline declaration inventory for **all** Compose Apps and
 Dockerfiles. `unknown` means an upstream image controls its PHP/Python
