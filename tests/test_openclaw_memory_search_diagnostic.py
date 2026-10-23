@@ -4,7 +4,7 @@ import io
 import json
 from pathlib import Path
 from subprocess import CompletedProcess, TimeoutExpired
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 import unittest
 from unittest.mock import patch
 
@@ -83,6 +83,66 @@ class SearchDiagnosticTests(unittest.TestCase):
                           side_effect=TimeoutExpired("openclaw", 10)):
             self.assertEqual(diag.probe("cron", "deployment", 0, 10),
                              ("timeout", None))
+
+
+    def test_safe_score_summary_only_uses_numeric_scores(self):
+        payload = json.dumps({"results": [
+            {"score": .24, "snippet": "PRIVATE_DATA"},
+            {"score": .32, "path": "/PRIVATE_PATH"},
+            {"score": "SECRET"},
+            {"score": 1.5},
+            {"score": float("nan")},
+        ]})
+        self.assertEqual(diag.sanitized_score_summary(payload), (2, .24, .28, .32))
+        self.assertIsNone(diag.sanitized_score_summary('{"results":[]}'))
+        self.assertIsNone(diag.sanitized_score_summary('broken'))
+
+    def test_error_categories_from_code_and_known_signatures(self):
+        cases = [
+            ('{"error":{"statusCode":429,"message":"PRIVATE"}}', "", "rate_limit"),
+            ("SECRET", "HTTP 503: PRIVATE_STRING", "upstream_5xx"),
+            ("SECRET", "HTTP 401 Unauthorized", "auth"),
+            ("", "Error: ETIMEDOUT TOKEN", "timeout"),
+            ("", "Error: ECONNREFUSED TOKEN", "network"),
+            ("", "hidden secret only", "unknown"),
+        ]
+        for stdout, stderr, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(diag.classify_cli_error(stdout, stderr), expected)
+
+    def test_score_summary_cli_error_without_leaking_secrets(self):
+        proc = CompletedProcess([], 1, stdout="SECRET_PAYLOAD", stderr="HTTP 429: KEY=PRIVATE")
+        with patch.object(diag.subprocess, "run", return_value=proc):
+            with patch("sys.argv", ["diagnose", "--agent", "cron", "--score-summary"]):
+                with redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(diag.main(), 2)
+        text = output.getvalue()
+        self.assertIn("memory_search_cron_error_category=rate_limit", text)
+        self.assertIn("memory_search_cron_latency_ms=", text)
+        self.assertNotIn("PRIVATE", text)
+        self.assertNotIn("SECRET", text)
+
+    def test_score_summary_calibration_retains_six_request_cap(self):
+        proc = CompletedProcess([], 0, stdout=json.dumps({"results": [{"score": .27,
+                                                                        "snippet": "DO_NOT_ECHO"}]}),
+                                stderr="TOP_SECRET")
+        with patch.object(diag.subprocess, "run", return_value=proc) as run:
+            with patch("sys.argv", ["diagnose", "--calibrate", "--score-summary"]):
+                with redirect_stdout(io.StringIO()) as captured:
+                    self.assertEqual(diag.main(), 0)
+        self.assertEqual(run.call_count, 6)
+        out = captured.getvalue()
+        self.assertIn("memory_search_main_threshold_0_20_score_min=0.270", out)
+        self.assertIn("memory_search_score_summary=true", out)
+        self.assertNotIn("SECRET", out)
+        self.assertNotIn("DO_NOT_ECHO", out)
+
+    def test_invalid_nan_min_score_is_rejected(self):
+        with patch("sys.argv", ["diagnose", "--min-score", "nan"]):
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as caught:
+                    diag.main()
+        self.assertEqual(caught.exception.code, 2)
 
 
 if __name__ == "__main__":
