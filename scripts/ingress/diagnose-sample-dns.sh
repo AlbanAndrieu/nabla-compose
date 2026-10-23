@@ -205,7 +205,9 @@ if [[ "$MODE" == --workstation ]]; then
       # a second source (VPN, global resolved settings or stale link state).
       if [[ -n "${nm_profile_dns:-}" ]]; then
         profile_dns_seen=0
-        for profile_server in ${nm_profile_dns//,/ }; do
+        profile_dns_servers=()
+        IFS=', ' read -r -a profile_dns_servers <<<"$nm_profile_dns"
+        for profile_server in "${profile_dns_servers[@]}"; do
           if grep -Fqw "$profile_server" <<<"$active_dns"; then
             profile_dns_seen=1
           fi
