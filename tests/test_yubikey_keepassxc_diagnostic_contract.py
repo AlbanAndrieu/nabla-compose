@@ -288,6 +288,21 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_aes256_hardware_inventory_read_only(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("read-only, no PIN", result.stdout)
+        body = script.read_text()
+        self.assertIn("piv keys info 82", body)
+        self.assertIn("piv keys info 9a", body)
+        self.assertIn("Management key algorithm:", body)
+        for forbidden in ("piv keys generate", "piv certificates import",
+                          "piv reset", "verify-pin", "change-management-key",
+                          "ykman piv access", "--force"):
+            self.assertNotIn(forbidden, body)
+
     def test_piv82_certificate_adversarial_fixtures(self):
         script = ROOT / "scripts/workstation/test-age-yubikey-certificate-negative-offline.py"
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
