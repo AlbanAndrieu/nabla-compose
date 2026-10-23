@@ -394,6 +394,10 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         content = script.read_text()
         self.assertIn("InMemoryPivSession", content)
         self.assertIn("sign_certificate_builder", content)
+        for required in ("runpy.run_path(", "verify-age-yubikey-piv82-certificate.py",
+                         "wrong_public_pem", "InvalidSignature",
+                         "forged_cert", "Verifier accepted a different public key"):
+            self.assertIn(required, content)
         self.assertIn("critical=False", content)
         self.assertIn("policy_bytes = bytes((3, 2))", content)
         for forbidden in ("SmartCardConnection", "PivSession(", "generate_key(",
