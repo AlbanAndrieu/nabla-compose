@@ -30,8 +30,11 @@ def test_healthy_cluster_offline():
 
 @pytest.mark.parametrize("quantity", [0, 1, 2, 4])
 def test_exact_three_nodes_required(quantity):
+    cluster = nodes()["items"]
+    if quantity > 3:
+        cluster += [cluster[0].copy()]
     assert any("expected 3 nodes" in msg
-               for msg in validate_nodes({"items": nodes()["items"][:quantity]}))
+               for msg in validate_nodes({"items": cluster[:quantity]}))
 
 
 def test_not_ready_and_pressure_are_blocking():
