@@ -17,6 +17,10 @@ LEGACY_ENV_ROOT="${FASTAPI_SAMPLE_LEGACY_ENV_ROOT:-/mnt/cpool/sample}"
 
 # shellcheck source=../lib/common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
+# Common color/icon status presentation. No ANSI for redirected output.
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+diag_ui_init "${FASTAPI_SAMPLE_COLOR:-auto}" "${FASTAPI_SAMPLE_ICONS:-auto}"
 
 for command in git docker jq curl sudo midclt stat awk grep mktemp tee cmp; do
     command -v "${command}" >/dev/null 2>&1 ||
@@ -46,9 +50,9 @@ run_docker() {
     "${DOCKER[@]}" "$@"
 }
 
-step() { printf '\n== [%s] %s ==\n' "$1" "$2"; }
-summary_ok() { printf '✅ %s\n' "$*"; }
-summary_warn() { printf '⚠️  %s\n' "$*" >&2; }
+step() { diag_section "$1" "$2"; }
+summary_ok() { diag_ok "$*"; }
+summary_warn() { diag_warn "$*"; }
 
 # Keep success output short; retain a bounded diagnostic only on failure.
 quiet_step() {
@@ -62,8 +66,11 @@ quiet_step() {
     else
         rc=$?
     fi
-    printf '❌ %s (exit=%d)\n' "${label}" "${rc}" >&2
-    tail -n "${DEPLOY_LOG_TAIL}" "${log}" >&2 || true
+    diag_fail "${label} (exit=${rc})"
+    # Ordinary errors sometimes contain bearer values or internal URLs.
+    # Only an explicit private diagnostic session should retain raw output.
+    # Do not dump the arbitrary subprocess log to interactive stdout.
+    summary_warn 'Check private operator diagnostics; command output suppressed.'
     rm -f -- "${log}"
     return "${rc}"
 }
@@ -137,7 +144,7 @@ wait_for_json_endpoint() {
             return 0
         fi
 
-        if ((attempt == 1 || attempt % 10 == 0)); then
+        if ((attempt == 1 || attempt % 30 == 0)); then
             state="$(
                 sudo midclt call app.query \
                     "[[\"id\",\"=\",\"${APP_ID}\"]]" 2>/dev/null |
@@ -437,9 +444,13 @@ health_payload="$(
         90 \
         2
 )"
-jq -cr '{status, version, components: (.components | with_entries(.value |= .status))}' <<<"${health_payload}"
+health_status="$(jq -r '.status // "unknown"' <<<"${health_payload}")"
+healthy_components="$(jq -r '[.components[]? | select(.status == "healthy")] | length' <<<"${health_payload}")"
+total_components="$(jq -r '[.components[]?] | length' <<<"${health_payload}")"
+[[ "${health_status}" == healthy && "${healthy_components}" == "${total_components}" && "${total_components}" -gt 0 ]] ||
+  fail "FastAPI Sample health contract not healthy for all components"
+summary_ok "FastAPI HTTP application health: ${health_status} (${healthy_components}/${total_components} components)"
 
-printf 'FastAPI Sample version:\n'
 version_payload="$(
     wait_for_json_endpoint \
         "FastAPI Sample version" \
@@ -447,7 +458,15 @@ version_payload="$(
         15 \
         1
 )"
-jq -cr '{release_version, version, build_revision}' <<<"${version_payload}"
+summary_ok "FastAPI version $(jq -r '.release_version // .version // "unknown"' <<<"${version_payload}")"
+# Compare runtime image ID to the exact selected local/ref image. This proves
+# artifact identity but NOT its Git revision when build_revision is null.
+selected_image_id="$(run_docker image inspect "${runtime_image}" --format '{{.Id}}' 2>/dev/null || true)"
+running_image_id="$(run_docker inspect "${CONTAINER}" --format '{{.Image}}' 2>/dev/null || true)"
+if [[ -z "${selected_image_id}" || -z "${running_image_id}" || "${selected_image_id}" != "${running_image_id}" ]]; then
+    fail "running FastAPI container image digest does not match selected local image"
+fi
+summary_ok "Runtime image identity matches selected artifact (not Git SHA attestation)"
 if [[ -z "$(jq -r '.build_revision // empty' <<<"${version_payload}")" ]]; then
     summary_warn 'build_revision=null: the API package version does not attest an exact Git SHA.'
 fi
@@ -491,23 +510,15 @@ quiet_step 'Canonical Sample runtime env post-check' sudo bash scripts/truenas/b
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 pinned_sha="$(run_git git ls-files -s "${SUBMODULE}" | awk '{print $2}')"
 runtime_version="$(jq -r '.release_version // .version // "unknown"' <<<"${version_payload}")"
-printf '\n============================================================\n'
-printf ' FASTAPI SAMPLE · DEPLOYMENT SUMMARY\n'
-printf '============================================================\n'
-printf ' App / runtime          : %s / staging :8091\n' "${APP_ID}"
-printf ' Requested ref          : %s\n' "${REF}"
-printf ' Checked-out Git SHA    : %s\n' "${runtime_sha}"
-printf ' Runtime API version    : %s\n' "${runtime_version}"
-printf ' Image / source         : %s / %s\n' "${runtime_image}" "${image_source}"
-printf ' Health                 : %s\n' "$(jq -r '.status // "unknown"' <<<"${health_payload}")"
-printf ' Prometheus / Gatus     : %s\n' "${prometheus_state}"
-printf ' pfSense RBAC           : %s\n' "${pfsense_state}"
+diag_section '6/6' 'FastAPI Sample · final acceptance'
+diag_ok "staging :8091 | version ${runtime_version} | app HTTP ${health_status}"
+printf 'Git ref: %s (%s) · image: %s\n' "${REF}" "${runtime_sha:0:12}" "${runtime_image}"
+printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s\n' "${prometheus_state}" "${pfsense_state}"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
     summary_warn "Parent gitlink ${pinned_sha:0:12} differs from checkout ${runtime_sha:0:12}. Not automatically staged."
 fi
 if [[ -z "$(jq -r '.build_revision // empty' <<<"${version_payload}")" ]]; then
     summary_warn 'Running image Git SHA is not attested by /v2/version; check OCI provenance separately.'
 fi
-printf ' Rollback inputs        : legacy env files retained; do not finalize them until controlled reboot acceptance\n'
-printf ' Next diagnostics       : bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3\n'
-printf '============================================================\n'
+diag_info 'Legacy env rollback inputs retained; do not finalize until reboot acceptance.'
+diag_info 'Next: bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 3'
