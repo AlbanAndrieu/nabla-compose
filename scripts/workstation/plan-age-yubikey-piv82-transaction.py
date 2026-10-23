@@ -45,6 +45,14 @@ PHASES: tuple[Phase, ...] = (
         "Irreversible slot occupancy; never reset PIV or affect PIV9A/OTP2.",
     ),
     Phase(
+        "attestation",
+        ("explicit-approval-attest", "fresh-piv82-public-spki",
+         "f9-attestation-chain-verifiable", "trusted-yubico-root",
+         "attested-spki-matches-piv82", "attested-pin-touch-03-02"),
+        "Verify F9-issued PIV82 attestation and trust chain independently, including SPKI and on-device policies.",
+        "A self-signed age certificate with extension 03:02 is only a claim; F9 may be replaced.",
+    ),
+    Phase(
         "certificate",
         ("explicit-approval-sign", "piv82-public-spki", "on-card-signature",
          "subject-age-plugin-yubikey", "policy-oid-03-02",
@@ -86,12 +94,20 @@ def build_plan(serial: str) -> dict:
             "Each phase requires its own explicit approval; no blanket authorization.",
             "Stop immediately on any missing evidence, error or PIN failure.",
             "Never auto-retry PIN, regenerate a populated slot or reset PIV.",
+            "Never invoke age-plugin-yubikey --generate or interactive setup: v0.5.1 lacks AES management-key support.",
+            "Do not use a self-signed age certificate policy OID as proof of hardware policies.",
             "Never read, print, persist or commit PIN/PUK/management/private keys.",
             "Preserve OTP2, PIV9A, AES256 management key, software SOPS recipients.",
             "No SOPS recipient change before BOTH physical cards pass a real age roundtrip.",
             "Complete two independently recoverable software escrow copies first.",
         ],
         "phases": [asdict(phase) for phase in PHASES],
+        "compatibility": {
+            "age_plugin_yubikey_version": "0.5.1",
+            "aes_management_key_provisioning": "BLOCKED; use reviewed external Yubico SDK path only",
+            "list_all": "read-only discovery only after on-card validation",
+            "attestation": "independent Yubico/F9 trust-chain evidence required; never trust policy OID alone",
+        },
         "completion": "Hardware provisioning requires separate operator authorization; planning is never GO.",
     }
 

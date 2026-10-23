@@ -21,9 +21,10 @@ class Piv82TransactionContract(unittest.TestCase):
         self.assertEqual(plan["prerequisites"], [])
         phases = plan["phases"]
         self.assertEqual([phase["name"] for phase in phases], [
-            "inventory", "authenticate", "generate", "certificate", "install", "interoperability"
+            "inventory", "authenticate", "generate", "attestation", "certificate",
+            "install", "interoperability"
         ])
-        for name in ("authenticate", "generate", "certificate", "install"):
+        for name in ("authenticate", "generate", "attestation", "certificate", "install"):
             phase = next(x for x in phases if x["name"] == name)
             self.assertTrue(any(g.startswith("explicit-approval-") for g in phase["required_evidence"]))
 
@@ -44,13 +45,31 @@ class Piv82TransactionContract(unittest.TestCase):
                      "software escrow copies", "never auto-retry pin", "otp2", "piv9a"):
             self.assertIn(word, rules)
 
+    def test_attestation_requires_trusted_chain_not_self_asserted_oid(self):
+        phases = module.build_plan(module.BACKUP)["phases"]
+        attest = next(phase for phase in phases if phase["name"] == "attestation")
+        required = set(attest["required_evidence"])
+        self.assertTrue({"trusted-yubico-root", "attested-spki-matches-piv82",
+                         "attested-pin-touch-03-02"} <= required)
+        self.assertLess([p["name"] for p in phases].index("attestation"),
+                        [p["name"] for p in phases].index("certificate"))
+        self.assertIn("only a claim", attest["hazard"])
+
+    def test_aes_plugin_generation_is_blocked_and_hardware_remains_no_go(self):
+        plan = module.build_plan(module.PRIMARY)
+        self.assertEqual(plan["status"], "NO-GO")
+        self.assertEqual(plan["compatibility"]["age_plugin_yubikey_version"], "0.5.1")
+        self.assertIn("BLOCKED", plan["compatibility"]["aes_management_key_provisioning"])
+        self.assertIn("age-plugin-yubikey --generate", " ".join(plan["rules"]))
+        self.assertIn("Do not use a self-signed", " ".join(plan["rules"]))
+
     def test_machine_readable_output_is_no_go(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "--serial", module.BACKUP,
                                  "--json"], capture_output=True, text=True, check=True)
         doc = json.loads(result.stdout)
         self.assertEqual(doc["mode"], "read-only-plan-no-device-access")
         self.assertEqual(doc["status"], "NO-GO")
-        self.assertEqual(len(doc["phases"]), 6)
+        self.assertEqual(len(doc["phases"]), 7)
 
     def test_no_apply_or_hardware_command(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "--serial", module.BACKUP,
