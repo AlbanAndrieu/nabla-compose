@@ -137,12 +137,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         canonical_checkout()
         preflight()
-        # Talos provides the Kubernetes control-plane upgrade plan. Check it
-        # before taking nodes offline, but it cannot guarantee success.
-        run(["talosctl", "--nodes", NODES[0], "upgrade-k8s",
-             "--to", TARGET_K8S.removeprefix("v"), "--dry-run"], timeout=120)
+        # The currently running Talos release might not support the NEW
+        # Kubernetes minor. Dry-run only once target Talos is online.
         parallel_nodes(args.installer_image, args.recovery_timeout)
         preflight()
+        run(["talosctl", "--nodes", NODES[0], "upgrade-k8s",
+             "--to", TARGET_K8S.removeprefix("v"), "--dry-run"], timeout=120)
         run(["talosctl", "--nodes", NODES[0], "upgrade-k8s",
              "--to", TARGET_K8S.removeprefix("v")], timeout=1800)
         preflight()
