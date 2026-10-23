@@ -98,6 +98,41 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
     return report
 
 
+
+# TrueNAS middleware RUNNING does not mean every required Docker process
+# is healthy. Reject bulk mutation if an App selected by the operator is
+# already broken; recovery belongs to a separate, scoped runbook.
+RUNTIME_PREREQUISITES = {
+    "prometheus": ("prometheus",),
+    "openrag": ("openrag-backend", "openrag-frontend"),
+    "gatus": ("gatus",),
+}
+
+
+def selected_runtime_blockers(report: dict) -> list[str]:
+    """Read-only fixed-identity Docker gate before bulk redeployment."""
+    selected = {app for wave in report["waves"] for app in wave["apps"]}
+    blocked: list[str] = []
+    for app in sorted(selected & RUNTIME_PREREQUISITES.keys()):
+        for container in RUNTIME_PREREQUISITES[app]:
+            try:
+                state = shell(
+                    ["docker", "inspect", "--type", "container", "--format",
+                     "{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
+                     container],
+                    timeout=10
+                ).strip()
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                blocked.append(app)
+                break
+            parts = state.split("|")
+            if len(parts) != 2 or parts[0] != "running" or parts[1] in (
+                    "unhealthy", "starting", "unknown"):
+                blocked.append(app)
+                break
+    return blocked
+
+
 def redeploy(app: str) -> None:
     if not ID.fullmatch(app):
         raise ValueError("invalid App")
@@ -189,6 +224,13 @@ def main(argv: list[str] | None = None) -> int:
         # the reviewed hash already detects drift, no second full query needed.
         if args.expected_plan_hash != report["planHash"]:
             raise RuntimeError("App states changed since plan; rerun --check")
+        blockers = selected_runtime_blockers(report)
+        if blockers:
+            print("BLOCKED bulk redeploy: selected Apps not Docker-ready: "
+                  + ",".join(blockers)
+                  + "; repair each App before using a fleet-wide operation",
+                  file=sys.stderr)
+            return 1
         return execute(report)
     except (ValueError, RuntimeError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as exc:
