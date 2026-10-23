@@ -2933,13 +2933,17 @@ Prochain ordre de travail :
 - [ ] **P1 OpenClaw remaining secret imports and migration**: the
   dedicated embedding `file` SecretRef is installed and functional;
   global secrets migration is **not complete**. 2026-10-23 re-audit
-  confirms **16 plaintext + 2 legacy** (possibly retained OAuth state),
+  confirms **16 plaintext + 2 legacy-file** findings,
   0 unresolved/shadowed/store residues and full static ref resolvability.
-  The shared team store is empty, but embedding uses its own file SecretRef.
-  A new `--audit-locations` mode classifies counts by source without
-  printing provider names, paths, profiles, credentials or raw findings.
-  Review source counts before importing, especially any auth-profile
-  and `.env` findings. Added private
+  The 16 findings break down into 5 config, 3 dotenv, 5 auth SQLite and
+  3 generated models.json; the 2 legacy files are **not** OAuth profile
+  findings. The shared team store is empty; embedding uses its separate
+  file SecretRef. `--audit-locations` now also reports fixed
+  `main/cron/other_or_shared` owner counts for auth SQLite, generated
+  models and retired files, without identifiers, paths or credentials.
+  Source categories and per-agent counts must reconcile. Review config
+  and dotenv consumers, then auth stores, then generated copies, and
+  retain legacy files pending local recovery assessment. Added private
   staged dotenv **read-only native import preflight**
   `scripts/workstation/preflight-openclaw-secrets-import.py`,
   six locally verified synthetic tests, and
