@@ -94,7 +94,7 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
         "      echo restarting\n"
         "    fi\n"
         "    ;;\n"
-        "  logs) echo 'error: permission denied PRIVATE-TOKEN-DO-NOT-PRINT' ;;\n"
+        "  logs) echo 'error: open /etc/prometheus/prometheus.yml: permission denied PRIVATE-TOKEN-DO-NOT-PRINT' ;;\n"
         "  exec) echo 'should not run promtool' >&2; exit 99 ;;\n"
         "  *) exit 99 ;;\n"
         "esac\n"
@@ -117,6 +117,7 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
     assert result.returncode == 1
     assert "runtime=restarting" in result.stderr
     assert "permissions=1" in result.stderr
+    assert "root_cause=prometheus_config_permission_denied" in result.stderr
     assert "PRIVATE-TOKEN" not in result.stdout + result.stderr
     assert "should not run promtool" not in result.stderr
     assert "HTTP should not run" not in result.stderr
