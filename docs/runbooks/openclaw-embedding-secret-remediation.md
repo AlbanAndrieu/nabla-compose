@@ -1,5 +1,16 @@
 # OpenClaw embedding secrets — remediation gate (2026-10-18)
 
+## Related secret import workflow
+
+The **embedding-only file SecretRef has already been applied**, but that is
+not an import of all OpenClaw secrets. For other credentials (plaintext in
+config, `.env`, per-agent auth profile SQLite stores, and generated-model
+residues) use the separate
+[OpenClaw staged secret import and migration runbook](./openclaw-secrets-import.md).
+It explicitly distinguishes optional team-shared store imports from
+per-agent consumer `SecretRef` migration and mandates a fresh post-migration
+audit. No other secret values were imported automatically.
+
 ## Current state — 2026-10-23
 
 - **Done:** OpenClaw 2026.9.5 memory configuration switched to the private
