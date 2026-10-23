@@ -36,7 +36,7 @@ CONTAINERS = {
 }
 HTTP = {
     "gatus": ("http://127.0.0.1:8085/api/v1/endpoints/statuses", "gatus"),
-    "litellm": ("http://127.0.0.1:4000/health/liveliness", "litellm"),
+    "litellm": ("http://127.0.0.1:4000/health/readiness", "litellm"),
     "openrag": ("http://127.0.0.1:31060/health/collective_health", "openrag"),
     "scrutiny": ("http://172.17.0.24:31054/api/health", "scrutiny"),
     "influxdb": ("http://127.0.0.1:31055/health", "influxdb"),
@@ -245,11 +245,18 @@ def http_check(service: str, timeout: int = 5) -> dict:
             return {"status": "unknown", "detail": "response exceeds limit"}
         if kind == "prometheus":
             return prometheus_query_check(opener, timeout)
-        if kind in ("litellm", "sentry"):
-            return {"status": "ok", "detail": "HTTP 200; semantics limited"}
+        if kind == "sentry":
+            return {"status": "ok", "detail": "Sentry edge HTTP 200; consumer health checked separately"}
         if kind == "openrag":
             return {"status": "ok", "detail": "OpenRAG frontend HTTP responds; Docker backend/frontend health also required"}
         data = json.loads(body)
+        if kind == "litellm":
+            if not isinstance(data, dict):
+                return {"status": "unknown", "detail": "LiteLLM readiness JSON unverified"}
+            if data.get("db") == "disconnected" or data.get("status") not in (
+                    "healthy", "connected", "ready", "ok"):
+                return {"status": "fail", "detail": "LiteLLM readiness failed"}
+            return {"status": "ok", "detail": "LiteLLM ready; model inference not tested"}
         if kind == "gatus":
             # Aggregates only: never output endpoint names, URLs or result bodies.
             if not isinstance(data, list):
@@ -283,7 +290,7 @@ def http_check(service: str, timeout: int = 5) -> dict:
             if not isinstance(data, dict) or data.get("status") not in (
                     "pass", "ok", "ready"):
                 return {"status": "fail", "detail": "InfluxDB not ready"}
-            return {"status": "ok", "detail": "queries and writes ready"}
+            return {"status": "ok", "detail": "InfluxDB health pass; query/write not tested"}
         if kind == "sample":
             if not isinstance(data, dict) or data.get("status") != "healthy":
                 return {"status": "fail", "detail": "API health not healthy"}
@@ -296,8 +303,12 @@ def http_check(service: str, timeout: int = 5) -> dict:
                 return {"status": "fail", "detail": "component health failed"}
             return {"status": "ok", "detail": f"healthy components={len(statuses)}"}
         if kind == "scrutiny":
-            return {"status": "ok" if isinstance(data, dict) else "unknown",
-                    "detail": "HTTP health contract present"}
+            if not isinstance(data, dict) or not data:
+                return {"status": "unknown", "detail": "Scrutiny health JSON unverified"}
+            if data.get("success") is False or data.get("status") in (
+                    "error", "fail", "unhealthy"):
+                return {"status": "fail", "detail": "Scrutiny health reports failure"}
+            return {"status": "ok", "detail": "Scrutiny health API responded"}
         return {"status": "unknown", "detail": "unclassified HTTP"}
     except (OSError, ValueError, urllib.error.HTTPError,
             urllib.error.URLError, TimeoutError):
