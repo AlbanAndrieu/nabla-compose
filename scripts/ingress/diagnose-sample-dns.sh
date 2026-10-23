@@ -181,6 +181,14 @@ if [[ "$MODE" == --workstation ]]; then
     else
       warn "NetworkManager active connection profile for $IFACE unavailable"
     fi
+    # Canonical machine-readable profile values: DHCP can be correct while
+    # a saved profile deliberately discards it (as on Wired eno1).
+    nm_profile_dns="$(nmcli -g ipv4.dns connection show "$profile" 2>/dev/null || true)"
+    nm_ignore_auto_dns="$(nmcli -g ipv4.ignore-auto-dns connection show "$profile" 2>/dev/null || true)"
+    if [[ "$nm_ignore_auto_dns" == yes || "$nm_ignore_auto_dns" == true ]]; then
+      warn "NetworkManager profile ignores DHCP DNS; configured static DNS: ${nm_profile_dns:-none}"
+      echo "ACTION: review 'nmcli connection modify <profile> ipv4.ignore-auto-dns no ipv4.dns ""' locally (no change performed)"
+    fi
     nmcli -f DHCP4.OPTION device show "$IFACE" 2>/dev/null |
       grep -Ei 'domain_name_servers|dhcp_server_identifier' || true
   else
@@ -192,6 +200,19 @@ if [[ "$MODE" == --workstation ]]; then
       # DHCP may correctly announce pfSense while a local profile selects Quad9.
       if ! grep -Fqw "$PFSENSE_DNS" <<<"$active_dns"; then
         warn "interface $IFACE DNS differs from pfSense; inspect NetworkManager profile/resolved, not DHCP blindly"
+      fi
+      # A configured profile DNS and an unrelated active resolver indicate
+      # a second source (VPN, global resolved settings or stale link state).
+      if [[ -n "${nm_profile_dns:-}" ]]; then
+        profile_dns_seen=0
+        for profile_server in ${nm_profile_dns//,/ }; do
+          if grep -Fqw "$profile_server" <<<"$active_dns"; then
+            profile_dns_seen=1
+          fi
+        done
+        if (( profile_dns_seen == 0 )); then
+          warn "systemd-resolved DNS on $IFACE differs from NetworkManager profile DNS; inspect VPN/global DNS configuration"
+        fi
       fi
     else
       warn "unable to inspect active DNS on $IFACE"
