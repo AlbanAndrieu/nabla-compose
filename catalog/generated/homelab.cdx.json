@@ -173,7 +173,10 @@
       "ref": "component:default/grafana"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "component:default/opensearch-security",
+        "resource:default/mongo"
+      ],
       "ref": "component:default/graylog"
     },
     {
@@ -217,15 +220,21 @@
       "ref": "component:default/kibana"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "resource:default/opensearch"
+      ],
       "ref": "component:default/langflow"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "resource:default/minio"
+      ],
       "ref": "component:default/langfuse-web"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "resource:default/minio"
+      ],
       "ref": "component:default/langfuse-worker"
     },
     {
@@ -332,7 +341,9 @@
       "ref": "component:default/opensearch-security"
     },
     {
-      "dependsOn": [],
+      "dependsOn": [
+        "component:default/opensearch-security"
+      ],
       "ref": "component:default/opensearch-security-exporter"
     },
     {
@@ -687,7 +698,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4"
+        "value": "sha256:3abacd845aed8620adc7054a6c2b979f4704f09f839131aacf228837b9b689d8"
       },
       {
         "name": "nabla:catalog-authority",
@@ -695,7 +706,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:cba7413c-010a-9b6b-5d5a-f984ec71324c",
+  "serialNumber": "urn:uuid:3abacd84-5aed-8620-adc7-054a6c2b979f",
   "services": [
     {
       "bom-ref": "component:default/2fauth",

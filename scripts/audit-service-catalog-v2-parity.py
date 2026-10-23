@@ -294,9 +294,10 @@ def main() -> int:
             set(report["errors"]) | set(runtime_binding_errors)
         )
         report["summary"]["runtimeBindingErrors"] = len(runtime_binding_errors)
+        compose_dependencies = _compose_entity_dependencies()
         dependency_duplicates = backstage_compose_dependency_duplicates(
             backstage_entities,
-            _compose_entity_dependencies(),
+            compose_dependencies,
         )
         report["errors"] = sorted(
             set(report["errors"]) | set(dependency_duplicates)
@@ -323,6 +324,7 @@ def main() -> int:
         business_coverage_errors = business_continuity_coverage_errors(
             backstage_entities,
             business_policy,
+            compose_dependencies,
         )
         report["errors"] = sorted(
             set(report["errors"])

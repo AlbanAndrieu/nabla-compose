@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import runpy
 import sys
 import unittest
 
@@ -229,6 +230,39 @@ class BusinessCriticalityTests(unittest.TestCase):
                 "component:default/orphan-worker: inherited BIA scope requires "
                 "spec.subcomponentOf or at least one declared dependent"
             ],
+        )
+
+    def test_same_project_compose_dependency_counts_as_dependent(self) -> None:
+        """Compose depends_on must count: it cannot be copied into dependsOn."""
+        entity = {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "orphan-worker",
+                "labels": {
+                    "albandrieu.com/operational-state": "active",
+                    "albandrieu.com/operational-criticality": "medium",
+                    "albandrieu.com/bia-scope": "inherited",
+                },
+            },
+            "spec": {"type": "worker", "lifecycle": "production"},
+        }
+        edge = {
+            "sourceEntityRef": "component:default/api",
+            "targetEntityRef": "Component:default/Orphan-Worker",
+        }
+        self_edge = {
+            "sourceEntityRef": "component:default/orphan-worker",
+            "targetEntityRef": "component:default/orphan-worker",
+        }
+
+        self.assertEqual(
+            business_continuity_coverage_errors([entity], _policy(), [edge]),
+            [],
+        )
+        self.assertEqual(
+            len(business_continuity_coverage_errors([entity], _policy(), [self_edge])),
+            1,
         )
 
     def test_active_component_requires_bia_coverage(self) -> None:
@@ -632,8 +666,14 @@ class BusinessCriticalityTests(unittest.TestCase):
         entities = _repository_entities()
         policy = _policy()
         self.assertEqual(business_continuity_errors(entities, policy), [])
+        # Same edges as the parity audit: Compose depends_on are dependents.
+        compose_dependencies = runpy.run_path(
+            str(ROOT / "scripts" / "audit-service-catalog-v2-parity.py")
+        )["_compose_entity_dependencies"]()
         self.assertEqual(
-            business_continuity_coverage_errors(entities, policy),
+            business_continuity_coverage_errors(
+                entities, policy, compose_dependencies
+            ),
             [],
         )
 
