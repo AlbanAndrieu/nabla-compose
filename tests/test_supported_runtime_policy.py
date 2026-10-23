@@ -104,7 +104,7 @@ def test_homarr_python_reconciler_is_maintained():
 def test_vulnerable_php_is_blocking_in_strict_mode(tmp_path, capsys):
     (tmp_path / "apps/unsafe").mkdir(parents=True)
     (tmp_path / "apps/unsafe/compose.yml").write_text(
-        "services:\\n  unsafe:\\n    image: php:8.5.11-fpm\\n"
+        "services:\n  unsafe:\n    image: php:8.5.11-fpm\n"
     )
     assert mod["main"](["--root", str(tmp_path), "--strict-eol"]) == 1
     output = capsys.readouterr().out
