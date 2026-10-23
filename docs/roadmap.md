@@ -1,3 +1,31 @@
+## Santé fonctionnelle et diagnostics lisibles — 23 octobre 2026
+
+- [x] Ajouter une matrice de diagnostic **lecture seule** croisant TrueNAS
+  `app.query`, état/healthcheck Docker, réponse HTTP et validation sémantique
+  des APIs Gatus, LiteLLM, InfluxDB, FastAPI, Prometheus et Sentry :
+  `scripts/truenas/diagnose-service-readiness.py`, avec `--strict`,
+  `--json`, `--color`, `--icons` et filtres `--service`.
+- [x] Raccourcir les sorties des scripts de migration/upgrade FastAPI,
+  d'InfluxDB et des Apps bloquées, conserver les détails privés `0600`,
+  classer les causes sans afficher logs bruts ni secrets.
+- [x] Rendre le preflight Scrutiny STOPPED compatible avec une
+  **réconciliation explicite** de la Custom App et son démarrage ensuite,
+  sans toucher aux historiques InfluxDB ni à Scrutiny SQLite par défaut.
+- [x] Distinguer un backend OpenRAG healthy d'un frontend encore `created`,
+  et un LiteLLM liveliness HTTP 200 de son healthcheck Docker unhealthy.
+- [x] Préserver l'attestation exacte du build FastAPI : l'image exécutée
+  correspond à l'image sélectionnée, mais un `build_revision=null`
+  n'atteste toujours pas un commit Git précis (WARN).
+- [x] Ajouter tests mocks et checks Bash hors réseau via
+  `just truenas-readiness-test` ; ne pas prétendre leur exécution
+  complète tant que TrueNAS ne peut pas `git fetch`.
+- [ ] Réparer en runtime Gatus (GID 568/0640), Scrutiny (ancienne source
+  secrets), OpenRAG frontend, LiteLLM Docker healthcheck, consommateurs
+  Kafka de Sentry et scraper InfluxDB `:30115/metrics`, puis refaire les
+  validations métier et les smoke tests.
+- [ ] Restaurer `git fetch`/HTTPS vers GitHub sur TrueNAS avant de
+  reprendre les tests du HEAD PR, sans Actions payantes.
+
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
 ### Memory and pflow validation — 2026-10-23 19:00–19:08 CEST
