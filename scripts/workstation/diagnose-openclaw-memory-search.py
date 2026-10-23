@@ -56,6 +56,8 @@ def main():
                         default="both")
     parser.add_argument("--min-score", type=float, default=0.0,
                         help="Diagnostic threshold, not a persistent config change")
+    parser.add_argument("--calibrate", action="store_true",
+                        help="Opt-in bounded 0/0.20/0.35 threshold comparisons per agent")
     parser.add_argument("--timeout", type=int, default=90)
     args = parser.parse_args()
     if not args.query.strip() or len(args.query) > 200:
