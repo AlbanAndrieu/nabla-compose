@@ -45,7 +45,7 @@ def noexec_safe_bash_mocks(tmp_path):
     which reads a regular file without trying to execute it from /tmp.
     """
     def activate(env: dict[str, str], *commands: str) -> dict[str, str]:
-        allowed = {"docker", "curl", "getent"}
+        allowed = {"docker", "curl", "getent", "setpriv"}
         if not commands or any(command not in allowed for command in commands):
             raise ValueError("invalid Bash mock command")
         envfile = tmp_path / "nabla-bash-mock-env.sh"
