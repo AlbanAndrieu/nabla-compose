@@ -177,3 +177,20 @@ python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
 The planner checks only local permissions, validates schema field presence, and checks that the intended provider alias is not already configured differently. It proposes `memory.search` globally for both agents, file-backed SecretRef, loopback LiteLLM endpoint, model `embedding` and no fallback unless vector identity is proven. **It does not write the config**; running gateway is allowed during preflight. Runtime field semantics and actual OpenClaw SecretRef resolution require a dedicated acceptance step before a write/apply/restart.
 
 OpenRAG already points to the shared `embedding` LiteLLM alias. Policy is identical for both applications, but key identities and budgets must be separated when OpenRAG's combined chat/embeddings authentication permits. Fallback to another model must fail closed to avoid mixed vector indexes.
+
+
+## 2026-10-23 — embeddings preflight verified; PR #271 continuation
+
+Workstation evidence: 3 original planner tests PASS; file provider and memory schema compatible; dedicated key private; LiteLLM `embedding` probe succeeds with 768 dimensions; `plan=pending` and no runtime config mutation. SecretRef runtime resolution is still **unverified**.
+
+Operator requested continuation in **Draft PR #271**, branch `feat/fast-batch-talos-k8s-services-20261023`. Do not trigger CI, merge, or Talos/TrueNAS maintenance from this embedding change.
+
+The updated read-only planner rejects malformed provider/agent trees and active `memorySearch` agent overrides. Existing global `memory.search` values that conflict with the proposed endpoint/provider/key produce `pending_review_existing_memory_settings`, not an automatic overwrite. No gateway restart, secret application, or reindex performed.
+
+Validate locally:
+```bash
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_plan.py' -v
+python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
+```
+
+Review any `pending_review_existing_memory_settings` locally without sharing raw JSON or secrets. Automatic fallback is **disabled** until vector-space/model identity is validated for workstation and TrueNAS; 768 dimensions are not sufficient. Check root filesystem headroom (previously 95% full) before index rebuild.
