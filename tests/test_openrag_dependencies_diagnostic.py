@@ -50,6 +50,7 @@ def test_dependency_states_are_classified_without_redeployment(
         "TEST_BACKEND": backend,
         "TEST_FRONTEND": frontend,
         "TEST_LANGFLOW": langflow,
+        "NABLA_DIAGNOSTIC_OFFLINE": "1",
     })
     env = noexec_safe_bash_mocks(env, "docker")
     result = subprocess.run(
@@ -86,3 +87,49 @@ def test_migration_ai_acceptance_runs_openrag_dependency_gate():
             "scripts/truenas/diagnose-openrag-dependencies.sh --check") in wrapper
     assert "truenas-openrag-dependencies-check:" in just
     assert "tests/test_openrag_dependencies_diagnostic.py" in just
+
+
+def test_openrag_compose_label_fallback_resolves_trueNAS_containers(
+    tmp_path, noexec_safe_bash_mocks
+):
+    """Resolve ix-openrag and ix-opensearch project service labels offline."""
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    docker = fakebin / "docker"
+    docker.write_text(chr(10).join((
+        "#!/usr/bin/env bash",
+        'if [[ "$1" == inspect ]]; then',
+        '  last="${@: -1}"',
+        '  if [[ "$last" =~ ^[a-f0-9]{12}$ && "$*" == *"--format"* ]]; then',
+        '    echo "running healthy 0 0"; exit 0',
+        '  fi',
+        '  if [[ "$last" == langflow ]]; then',
+        '    if [[ "$*" == *"--format"* ]]; then echo "running healthy 0 0"; fi',
+        '    exit 0',
+        '  fi',
+        '  exit 1',
+        'fi',
+        'if [[ "$1" == ps ]]; then',
+        '  case "$*" in',
+        '    *ix-openrag*openrag-backend*) echo aaaaaaaaaaaa ;;',
+        '    *ix-openrag*openrag-frontend*) echo bbbbbbbbbbbb ;;',
+        '    *ix-opensearch*opensearch*) echo cccccccccccc ;;',
+        '  esac',
+        '  exit 0',
+        'fi',
+        'exit 99',
+        "",
+    )), encoding="utf-8")
+    docker.chmod(0o600)
+    env = os.environ.copy()
+    env["PATH"] = str(fakebin) + os.pathsep + env["PATH"]
+    env["NABLA_DIAGNOSTIC_OFFLINE"] = "1"
+    env = noexec_safe_bash_mocks(env, "docker")
+    result = subprocess.run(
+        ["bash", str(SCRIPT), "--check"], env=env, text=True,
+        capture_output=True, check=False, timeout=10, cwd=ROOT
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "openrag-backend status=running health=healthy" in result.stdout
+    assert "openrag-frontend status=running health=healthy" in result.stdout
+    assert "opensearch status=running health=healthy" in result.stdout
