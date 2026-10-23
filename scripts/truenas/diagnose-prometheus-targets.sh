@@ -73,6 +73,62 @@ if [[ "${runtime_status}" != running ]]; then
       printf '  host metadata: expected path absent\n' >&2
     fi
   done
+  # A repaired host mode cannot establish the bound path or effective access.
+  # Do not print raw Docker mount sources or inspect environment variables.
+  expected_source="$(cd -- "$(dirname -- "${CONFIG}")" && pwd -P)"
+  mount_source="$(docker inspect "${CONTAINER}" --format \
+    '{{range .Mounts}}{{if eq .Destination "/etc/prometheus"}}{{println .Source}}{{end}}{{end}}' 2>/dev/null || true)"
+  if [[ -n "${mount_source}" && "${mount_source}" == "${expected_source}" ]]; then
+    printf '  config_bind=match\n' >&2
+  elif [[ -n "${mount_source}" ]]; then
+    printf '  config_bind=mismatch (do not alter unrelated mount)\n' >&2
+  else
+    printf '  config_bind=unverified\n' >&2
+  fi
+  runtime_user="$(docker inspect "${CONTAINER}" --format \
+    '{{.Config.User}}' 2>/dev/null || true)"
+  if [[ "${runtime_user}" == "568:568" ]]; then
+    printf '  container_identity=expected_568:568\n' >&2
+  else
+    printf '  container_identity=unexpected_or_unverified\n' >&2
+  fi
+  if (( EUID == 0 )) && command -v setpriv >/dev/null 2>&1; then
+    if setpriv --reuid 568 --regid 568 --clear-groups \
+      /usr/bin/test -r "${CONFIG}"; then
+      printf '  effective_host_config_read=ok\n' >&2
+    else
+      printf '  effective_host_config_read=denied\n' >&2
+    fi
+  else
+    printf '  effective_host_config_read=unverified (sudo/setpriv required)\n' >&2
+  fi
+  # chmod/chgrp update ctime, not mtime. Separate new log evidence from
+  # stale errors in the historical 80-line Docker restart-loop tail.
+  if command -v date >/dev/null 2>&1; then
+    changed_epoch="$(stat -c '%Z' -- "${CONFIG}" 2>/dev/null || true)"
+    if [[ "${changed_epoch}" =~ ^[0-9]+$ ]]; then
+      changed_at="$(date -u -d "@${changed_epoch}" +'%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+      if [[ -n "${changed_at}" ]]; then
+        docker logs --since "${changed_at}" --tail 80 "${CONTAINER}" 2>&1 |
+          awk '{
+              t=tolower($0); count++;
+              if (t ~ /permission denied|operation not permitted/) permissions++;
+              if (t ~ /prometheus[.]yml/ && t ~ /permission denied/) config++;
+              if (t ~ /rules.*permission denied/) rules++;
+              if (t ~ /wal.*permission denied|tsdb.*permission denied|storage.*permission denied/) storage++;
+            } END {
+              printf "  since_config_change: sample=%d permissions=%d config=%d rules=%d storage=%d\n",
+                count, permissions, config, rules, storage;
+              if (count == 0)
+                print "  evidence=not_enough_new_logs_after_config_change";
+              else if (config > 0)
+                print "  evidence=continuing_config_permission_denied";
+              else if (permissions > 0)
+                print "  evidence=other_permission_denied_after_config_change";
+            }' >&2 || true
+      fi
+    fi
+  fi
   if docker inspect "${CONTAINER}" >/dev/null 2>&1; then
     docker logs --tail 80 "${CONTAINER}" 2>&1 |
       awk '{
