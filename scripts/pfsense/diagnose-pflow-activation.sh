@@ -48,7 +48,7 @@ if [ "$capture" = true ]; then
   else
     echo 'SKIP: timeout command unavailable; do not run unbounded capture automatically'
   fi
-  echo 'If 0 captured, check Track by Default (normally OFF) and explicit per-rule flow tracking.'
+  echo 'Interpret packets captured: >0 confirms pfSense sent NetFlow UDP; 0 means none observed in this capture window.'
   echo 'New PF states matching a tracked rule are needed before flow export; collector receipt remains unverified.'
 fi
 REMOTE
