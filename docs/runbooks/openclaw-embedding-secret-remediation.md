@@ -497,3 +497,30 @@ response between agents. Do not run `--force` or delete cache/SQLite
 manually as a first response. Keep `fallback=none` until OpenRAG and
 OpenClaw embedding-model equivalence is established. Avoid dumping entire
 status JSON or document content into tickets.
+
+
+## 2026-10-23 — cron embedding reindex succeeded after transient retries
+
+Operator executed `openclaw memory status --index --agent cron` and observed
+`cron_index_exit=0`, 63/63 files, 73 chunks, `dirty=no`, 768 dimensions
+and `Embeddings: ready`. Subsequent `openclaw memory status --deep`
+confirmed `Semantic vectors: ready`, `Vector store: ready`, FTS ready.
+No forced reset or SQLite deletion was needed.
+
+During the run, repeated `embeddings retryable error; retrying in 60000ms`
+messages appeared before success. The cause has **not** been established:
+potential timeout, 429 or backend unavailability should be diagnosed through
+bounded, sanitized LiteLLM telemetry only if the issue repeats. Do not assert
+these messages are harmless, nor turn on alternative embedding models to
+mask them.
+
+Main remains `15/107 files`, `57 chunks`, `dirty=yes`, vector search
+paused because `provenance_version` remains outdated. Free root filesystem
+still ~18 GiB (96% used).
+
+**Next**: run the native incremental rebuilding command
+`openclaw memory status --index --agent main` under operator supervision;
+inspect result and exit status before any force/retry. Afterward compare
+`dirty`, index provenance, `Semantic vectors`, number of files and
+retrieval quality for both agents. No `--force` yet, no fallback to an
+incompatible embedding model, and no coupling to TrueNAS/Talos operations.
