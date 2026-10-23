@@ -1,5 +1,14 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Runtime check — 2026-10-23 19:00 CEST
+
+- [x] Operator started `diagnose-memory-pressure.sh --check --samples 10 --interval 30`; only **2/10** CSV samples provided (19:00:07 and 19:00:37), so full trend not yet available. Free+inactive 168.7→185.6 MiB; Unbound PID 39281 stable, RSS 140068→140664 KiB; no pfBlockerNG cron in samples; PHP-FPM summed RSS 317360 KiB (shared pages may be double counted).
+- [x] TrueNAS `tcpdump -ni br0 'udp and src host 172.17.0.1 and dst port 2055' -c 10` captured **zero packets in 30s**. This does not prove Akvorado is broken: global Track by Default was deliberately left off, PF rules may not be marked for pflow, new qualifying states may be absent, or capture interface/source may differ.
+- [ ] Inspect native pfSense firewall rule **Packet Flow** per-rule setting and enable only on one narrow approved LAN rule; Apply and generate new matching traffic. Confirm via `pflowctl -l`, pfSense-side `tcpdump` on LAN interface for UDP/2055, TrueNAS ingress interface packet capture, then Akvorado collector counters. Avoid globally tracking all rules while OOM is unresolved.
+- [ ] Obtain remaining 8 memory samples and check for fresh kernel OOM; stop exporter via native UI if free+inactive <128 MiB, DNS fails, or new OOM occurs.
+
+
+
 ### Native pflow activated — operator evidence (2026-10-23)
 
 - [x] Operator clicked **Apply** on `firewall_pflow.php`; module now loaded (`pflow.ko`, `kldstat` ID 5) and `pflowctl -l` shows `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055`. This confirms exporter configuration, **not** collector receipt or actual traffic.
