@@ -47,7 +47,7 @@ Sur TrueNAS :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-just sample-dns
+just sample-dns-truenas
 bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 1 --color never
 ```
 
@@ -55,6 +55,7 @@ Sur la workstation avec `eno1` :
 
 ```bash
 just sample-dns-workstation
+# Diagnostic DNS portable, sans introspection du Docker local : just sample-dns
 # équivalent portable :
 bash scripts/ingress/diagnose-sample-dns.sh --workstation
 ```
@@ -152,3 +153,18 @@ réinitialiser le réseau sans fenêtre de maintenance.
 La fermeture exige la preuve des résolutions correctes après
 renouvellement réseau/redémarrage, et pas seulement une correction
 temporaire via `resolvectl`.
+
+## Suivi opérateur : validation du 23 octobre, deuxième passe
+
+L'opérateur a relancé les 5 tests : **5/5 PASS** (0,244 s). Le DNS Pi-hole
+reste incorrect (`172.17.0.24` pour le hostname public) et le contrôle
+workstation confirme Quad9 actif malgré le DHCP correct. La résolution système
+`sample.int.albandrieu.com` ne renvoie **aucune adresse**, ce qui confirme
+que la chaîne DNS privée est dégradée sur ce poste malgré HTTPS public corrigé.
+
+Le contrôle `--check` est désormais portable et n'inspecte pas Docker ;
+le nouveau `--truenas` vérifie les fichiers locaux Pi-hole et est utilisé
+par le diagnostic complet FastAPI. Le mode workstation avertit maintenant
+si les champs DNS du profil NetworkManager sont **vides** (même si `nmcli`
+retourne le statut succès) ; ce silence avait été observé pour `Wired eno1`.
+Les 8 contrats mockés sont à exécuter sur le nouveau HEAD.
