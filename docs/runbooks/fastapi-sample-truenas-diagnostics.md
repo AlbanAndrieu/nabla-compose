@@ -4,6 +4,47 @@ Scope: operator-run procedures for `sample` on TrueNAS. Does not change
 FastAPI Cloud or Cloudflare policies. The stage endpoint is
 `http://127.0.0.1:8091` from TrueNAS.
 
+## Incident DNS/ECH Sample (23 octobre 2026)
+
+Le [dossier d'incident](../incidents/2026-10-23-sample-pihole-ech-split-dns.md)
+compare les incidents du 27 septembre (DHCP vers Pi-hole), du 10 octobre
+(Vaultwarden Unbound public override), et l'incident actuel : **Pi-hole v6**
+a une entrée `172.17.0.24 sample.albandrieu.com` dans `pihole.toml`.
+Le DHCP LAN pfSense annonce déjà **172.17.0.1**, donc ne pas le modifier.
+
+Sur TrueNAS, `diagnose-fastapi-sample.sh` ajoute une septième étape
+pour le DNS, sans redémarrage ni affichage de secrets :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+just sample-dns
+bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 1 --color never
+```
+
+Depuis une **workstation Linux** (`eno1` par défaut) :
+
+```bash
+just sample-dns-workstation
+# ou, sans just :
+bash scripts/ingress/diagnose-sample-dns.sh --workstation
+
+# Pour savoir d'où provient Quad9 malgré le DHCP pfSense :
+nmcli -t -f NAME,DEVICE connection show --active
+nmcli -f DHCP4.OPTION device show eno1 |
+  grep -Ei 'domain_name_servers|dhcp_server_identifier'
+resolvectl dns eno1
+```
+
+`just sample-dns-test` vérifie le diagnostic en local avec des faux DNS,
+Docker, NetworkManager et systemd ; aucune CI payante. Le contrôle Pi-hole
+inspecte uniquement la présence du hostname public dans les fichiers
+connus et n'en affiche jamais le contenu. La correction de `pihole.toml`
+doit être réalisée par la configuration gérée de Pi-hole après revue,
+sans effacer le hostname privé `sample.int.albandrieu.com`.
+
+Une réponse **HTTP 302** vers Cloudflare Access sans session est attendue
+après correction DNS ; elle ne prouve pas la santé du backend ni un échec TLS.
+
 ## What the 2026-10-17 results show
 
 - The unqualified command `sudo bash scripts/truenas/update-fastapi-sample.sh`
