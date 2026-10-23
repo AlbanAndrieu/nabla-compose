@@ -349,8 +349,9 @@ cd /mnt/cpool/compose/nabla-compose
 python3 -m unittest discover -s tests -p test_netflow_v5_ifindex.py
 CAPTURE="$(mktemp /tmp/akvorado-ifindex.XXXXXX.pcap)"
 chmod 600 "$CAPTURE"
-sudo timeout 45 tcpdump -ni br0 -Z "$(id -un)" -s 1500 -c 8 -w "$CAPTURE" \
-  'src host 172.17.0.1 and dst host 172.17.0.24 and udp dst port 2055'
+sudo timeout 45 tcpdump -ni br0 -s 1500 -c 8 -w - \
+  'src host 172.17.0.1 and dst host 172.17.0.24 and udp dst port 2055' \
+  > "$CAPTURE"
 python3 scripts/truenas/inspect-netflow-v5-ifindex.py --pcap "$CAPTURE"
 rm -f -- "$CAPTURE"
 ```
@@ -362,9 +363,4 @@ records; do **not** enable global pflow tracking. Treat ifIndex 0 as unknown.
 Match numerical indexes to verified pfSense interface metadata *before*
 preparing the static provider. No config change or redeployment is implied.
 
-**TrueNAS capture permissions (2026-10-23):** operator's first capture failed with
-`tcpdump: ... Permission denied` because `mktemp` created a private `0600`
-file owned by the operator while tcpdump drops privileges before opening it.
-`-Z "$(id -un)"` selects the owner of that file for tcpdump's privilege drop.
-If this platform's tcpdump does not implement `-Z`, stop and inspect its
-`--help` rather than weakening the capture permissions or making PCAP public.
+**TrueNAS capture permissions (2026-10-23):** both direct `-w "$CAPTURE"` and `-Z "$(id -un)"` failed with `Permission denied` on the operator-owned `0600` file. Use `-w -` and shell stdout redirection so the non-root shell opens the private file before tcpdump writes packet bytes to stdout. Never `chmod 666` a PCAP, expose raw packets, or alter pfSense tracking. A `timeout` exit 124 is possible after capturing fewer than eight packets; parse any nonempty capture.
