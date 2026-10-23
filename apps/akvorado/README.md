@@ -229,3 +229,36 @@ The validated dual-export architecture, Cloudflare Network Flow dashboard,
 pfBlockerNG feed changes, PHP memory limit, Snort HTTP Inspect memcap and
 Netgate 1100 OOM incident are documented in
 [`docs/pfsense-flow-observability-memory.md`](../../docs/pfsense-flow-observability-memory.md).
+
+## pfSense NetFlow v5 → Akvorado: evidence (2026-10-23, operator)
+
+The current pfSense flow exporter is **NetFlow v5**, not the historic IPFIX v10
+configuration shown above. Keep `Track by Default` **OFF** and scope sampling
+exclusively with the LAN rule `Always Track Flow Data` because the Netgate 1100
+has suffered OOM. Do not enable additional exporters or increase collection scope.
+
+Evidence recorded without packet payloads:
+
+- TrueNAS `br0`: UDP `172.17.0.1:38341 → 172.17.0.24:2055`, 504-byte datagram.
+- Docker host: `docker-proxy` socket bound to `172.17.0.24:2055/udp`.
+- Inlet application (not merely host socket): 139 packets, 105768 bytes for
+  exporter `172.17.0.1`; zero UDP receive errors and zero receive-queue drops.
+- Inlet Kafka producer: 139 sent messages; observed internal topic
+  `akvorado-flows-v5` (configuration declares `akvorado-flows`). Verify the
+  version suffix and Outlet subscription before changing the GitOps topic.
+- Outlet consumption, ClickHouse persisted rows, and Console flow visibility
+  remain **unverified**. Cumulative metrics do not prove rates or end-to-end delivery.
+
+Read-only bounded, redacted counters (both Inlet and Outlet):
+
+```bash
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict
+python3 -m unittest discover -s tests -p test_akvorado_flow_diagnostic.py
+```
+
+For a final runtime acceptance, verify an increasing Outlet Kafka consumption
+counter, increasing ClickHouse insertion counters, and nonzero recent rows in
+`akvorado` via an authorized **read-only**, database-scoped SQL identity.
+Confirm that recent records are displayed in Console. Keep raw captures,
+flow addresses and SQL result samples private. Do not infer success from HTTP
+200, container RUNNING, or UDP packet receipt alone.
