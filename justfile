@@ -194,3 +194,15 @@ sos-generate:
 # Validate the deterministic SOS generator contract without network probes.
 sos-test:
     python -m pytest -q tests/test_synthetic_open_schema_generation.py
+
+# Read-only DNS split-horizon/ECH diagnosis for FastAPI Sample on TrueNAS.
+sample-dns:
+    bash scripts/ingress/diagnose-sample-dns.sh --check
+
+# Run from the workstation (NetworkManager + active DNS/DHCP evidence).
+sample-dns-workstation:
+    bash scripts/ingress/diagnose-sample-dns.sh --workstation
+
+# Offline mock-contracts, no real DNS or Docker requests.
+sample-dns-test:
+    python3 -m unittest -v tests/test_sample_dns_diagnostic.py
