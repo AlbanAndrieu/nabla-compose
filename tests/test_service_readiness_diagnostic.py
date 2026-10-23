@@ -156,3 +156,27 @@ def test_gatus_requires_effective_runtime_group_even_when_config_exists(
     # file ownership on synthetic filesystem is unknown: either metadata
     # or missing runtime group must be safely reported, never false PASS.
     assert check() is not None
+
+
+def test_fastapi_missing_build_revision_is_warning_not_down(monkeypatch):
+    checker = module["fastapi_provenance"]
+    opener = type("FakeOpener", (), {"open": lambda self, req, timeout:
+                   FakeResponse(b'{"version":"1.24.3","build_revision":null}')})()
+    monkeypatch.setattr(checker.__globals__["urllib"].request,
+                        "build_opener", lambda *args: opener)
+    assert checker() == "running Git SHA not attested (build_revision missing)"
+
+
+def test_fastapi_provenance_warning_does_not_erase_healthy_components(monkeypatch):
+    stub(monkeypatch, {})
+    monkeypatch.setitem(assess.__globals__, "fastapi_provenance",
+                        lambda: "running Git SHA not attested")
+    row = assess("sample", {"sample": "RUNNING"})
+    assert row["status"] == "WARN"
+    assert any("SHA" in note for note in row["notes"])
+
+
+def test_sentry_probe_uses_declared_lan_bound_port():
+    url, kind = module["HTTP"]["sentry"]
+    assert url == "http://172.17.0.24:9005/_health/"
+    assert kind == "sentry"
