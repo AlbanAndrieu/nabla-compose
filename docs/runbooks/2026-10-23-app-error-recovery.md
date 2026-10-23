@@ -488,3 +488,72 @@ just upgrade-runtime-test
 
 Gatus RUNNING / API 200, 85 moniteurs, 59 UP et 26 DOWN : traiter ces
 cibles séparément, sans redémarrer Gatus.
+
+### 23 octobre — résolution ciblée de deux règles Prometheus illisibles
+
+Dernière preuve opérateur : Prometheus `restarting` / exit=2 /
+958 redémarrages. Le bind `/etc/prometheus` correspond au dossier GitOps,
+l'identité Docker est `568:568`, `prometheus.yml` est lisible sur l'hôte,
+et Docker n'annonce pas de user namespace. **15 fichiers YAML de règles**
+ont été inspectés, **2 refusent la lecture** sous `setpriv 568:568`.
+Le dossier des règles est traversable. Les logs récents donnent
+`config=0 rules=74 storage=0`. L'ancienne catégorie
+`root_cause=prometheus_config_permission_denied` issue de la fenêtre
+historique est désormais remplacée par une priorité donnée aux
+**règles illisibles prouvées sur l'hôte**.
+
+Un nouvel outil opère à l'échelle **du fichier de règle** et
+préserve les autres règles, leurs contenus, l'owner, le YAML principal,
+la TSDB, le WAL et tout le runtime Docker.
+
+Préflight en lecture seule (retour non nul tant que les règles sont
+illisibles) :
+
+```bash
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+```
+
+Il doit afficher `rules_total=15`, `dirs=1`, `unreadable=2` :
+chaque entrée défaillante possède seulement un index, un UID, un GID,
+un mode POSIX et un type, **jamais le nom ni le contenu du fichier**.
+La comparaison du groupe `apps=568`, de l'identité Docker
+`568:568`, de la source du bind et l'interdiction des symlinks
+sont bloquantes.
+
+Si exactement deux fichiers restent illisibles, le propriétaire du
+homelab peut approuver **cette correction limitée uniquement** :
+
+```bash
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh \
+  --apply --expected-unreadable 2 \
+  --acknowledge I_ACCEPT_PROMETHEUS_RULES_PERMISSION_REPAIR
+```
+
+`--apply` utilise `chgrp 568` et `chmod 0640` **seulement sur les
+fichiers refusant la lecture**, avec vérification d'inode, puis
+`setpriv` et test de lecture effectif après chaque changement.
+Il ne redémarre aucun conteneur. Si l'ACL ZFS refuse encore,
+le script s'arrête sans élargir les permissions ni réécrire l'ACL.
+
+Validation après correction :
+
+```bash
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+just truenas-readiness-check
+```
+
+Les conditions de sortie sont `unreadable=0`, Docker
+`prometheus=running`, `/-/ready` HTTP 200 et API/targets Prometheus
+interrogeables. Si la politique de redémarrage Docker ne relance pas le
+processus malgré les règles lisibles, diagnostiquer son état **avant**
+de décider une unique reprise contrôlée. Ne pas effacer
+`/mnt/cpool/prometheus/data` et ne pas démarrer de vague de migration
+globale dans cet état.
+
+Tests prévus en local, sans GitHub Actions :
+
+```bash
+just truenas-prometheus-rules-test
+just truenas-readiness-test
+```
