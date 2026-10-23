@@ -105,3 +105,21 @@ def test_repair_is_explicit_and_file_scoped() -> None:
     for forbidden in ("docker restart", "app.redeploy", "app.start",
                       "rm -rf", "chmod -R", "sqlite3", "truncate "):
         assert forbidden not in source
+
+
+def test_apply_without_root_never_modifies_prometheus_config(tmp_path):
+    """Even a matching Docker bind cannot authorize mutation without sudo."""
+    if os.geteuid() == 0:
+        pytest.skip("root-only runner: cannot validate non-root safety")
+    script, config, env = sandbox(tmp_path)
+    before = (config.stat().st_uid, config.stat().st_gid,
+              config.stat().st_mode, config.read_bytes())
+    result = subprocess.run(
+        ["bash", str(script), "--apply"],
+        capture_output=True, text=True, env=env, check=False, timeout=10
+    )
+    after = (config.stat().st_uid, config.stat().st_gid,
+             config.stat().st_mode, config.read_bytes())
+    assert result.returncode == 1
+    assert "--apply requires sudo" in result.stderr
+    assert before == after
