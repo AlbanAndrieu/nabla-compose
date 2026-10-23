@@ -93,8 +93,18 @@ if [[ -n "${container_id}" ]]; then
 fi
 
 if [[ "${MODE}" == '--check' ]]; then
-  "${DIAGNOSE}"
-  "${REPAIR}" --check
+  # Permissions are the leading cause of the crash loop; report their
+  # actionable failure before the expected HTTP-unavailable symptom.
+  gatus_check_failures=0
+  if ! "${REPAIR}" --check; then
+    printf '%s\n' 'NEXT: scoped config repair is required; run repair-gatus-config-access.sh --apply after reviewing its metadata.' >&2
+    gatus_check_failures=$((gatus_check_failures + 1))
+  fi
+  "${DIAGNOSE}" || gatus_check_failures=$((gatus_check_failures + 1))
+  if ((gatus_check_failures > 0)); then
+    printf 'Gatus preflight failed: %d scoped check(s); no App or SQLite modification.\n' "${gatus_check_failures}" >&2
+    exit 1
+  fi
   curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${URL}" ||
     fail "Gatus HTTP health failed: ${URL}"
   printf 'OK: Gatus source, config access and HTTP health are accepted\n'
