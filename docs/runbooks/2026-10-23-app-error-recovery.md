@@ -386,3 +386,62 @@ disponibles. Il conserve la classification expurgée des dernières erreurs.
 rapport partageable : les journaux Health peuvent contenir des informations
 sensibles. La cause précise n'est pas encore attestée. Conserver
 `/mnt/cpool/prometheus/data` et éviter `app.redeploy` avant diagnostic.
+
+
+### Confirmations opérateur : readiness et remédiation Prometheus (23/10)
+
+Dernière exécution sur TrueNAS : `upgrade-runtime-test` **68/68 PASS** ;
+`truenas-readiness-test` 42 PASS / 1 FAIL à cause du mock Docker
+`inspect --format` ne reconnaissant plus que le premier format ;
+`truenas-readiness-check` détecte **Prometheus restarting exit=2 (855
+restarts), config POSIX non lisible par UID/GID 568**, OpenRAG frontend
+CREATED, Scrutiny STOPPED, Sentry consumers unhealthy, et FastAPI SHA
+non attesté. C'est une photographie datée, **pas une vérification live**.
+
+Gatus est RUNNING et répond HTTP 200 sur
+`/api/v1/endpoints/statuses`. Le diagnostic indépendant confirme
+**85 moniteurs (59 UP, 26 DOWN)**, zéro pending/unknown.
+La sonde readiness limitait historiquement la réponse JSON à 64 KiB,
+ce qui produisait un faux UNKNOWN. Elle accepte maintenant au plus
+4 MiB et rend un WARN de couverture pour les moniteurs DOWN, **sans
+confondre la disponibilité de Gatus avec celle des cibles**. Les noms,
+URLs et détails des moniteurs ne sont pas publiés.
+
+La configuration Prometheus est un fichier en `uid=1000,gid=568,
+mode=0600`, tandis que le Compose exécute le processus en `568:568`.
+Le stockage TSDB est un **répertoire séparé** `/mnt/cpool/prometheus/data`
+(group 568, mode 0770) ; aucune réparation TSDB n'est justifiée par ces
+preuves. Le montage réel doit être vérifié avant toute mutation :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+
+# Une fois le montage /etc/prometheus et l'utilisateur 568:568 confirmés,
+# et seulement si --check signale l'absence de lecture de groupe :
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --apply
+
+# Sans relancer manuellement tous les conteneurs :
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+just truenas-readiness-check
+```
+
+Le script `--apply` n'altère que
+`apps/prometheus/prometheus.yml` : `chgrp 568`, `chmod 0640`,
+avec garde sur le montage et l'UID/GID en cours. Il ne redémarre rien
+et ne touche ni WAL, ni blocs TSDB, ni offsets ni rétention.
+Le conteneur en boucle de redémarrage peut repartir automatiquement ;
+si la permission reste refusée, contrôler les ACL ZFS et les dossiers
+traversés, **sans remplacer les ACL en masse**. Contrôler ensuite
+`/-/ready`, PromQL et les targets.
+
+Quality gate locale après synchronisation **sans rebase de worktree sale**
+et sans déclenchement de CI payante :
+
+```bash
+just truenas-readiness-test
+python3 -m pytest -q tests/test_prometheus_config_access_repair.py \
+  tests/test_gatus_api_diagnostic.py
+just upgrade-runtime-test
+```
