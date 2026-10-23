@@ -124,6 +124,56 @@ This diagnostic may exit `2` due to existing findings while
 `secret_audit_owner_counts_match=true`. That is expected until the
 credential migration is complete.
 
+### Agent-scoped baseline confirmed — 2026-10-23
+
+The operator fast-forwarded to `6e7f0d7c` and reran the new
+`--audit-locations` checks. **12/12 offline tests passed** on the
+workstation. Both `secret_audit_location_counts_match=true` and
+`secret_audit_owner_counts_match=true` were reported, with no changes
+to OpenClaw configuration.
+
+| Audited source | main | cron | other_or_shared | Total |
+| --- | ---: | ---: | ---: | ---: |
+| SQLite auth store | 0 | 1 | 4 | 5 |
+| Generated `models.json` | 3 | 0 | 0 | 3 |
+| Legacy auth files | 2 | 0 | 0 | 2 |
+
+Additionally there are 5 global config and 3 dotenv plaintext findings.
+The four `other_or_shared` SQLite findings **must not be treated as
+confirmed team-scoped keys**; they can be from custom auth-store paths
+that the conservative classifier did not associate with an agent.
+
+**Recommended sequence:**
+
+1. Inventory the five config and three dotenv targets privately using the
+   native audit. Group *consumers*, not raw values; prioritize replacing
+   these upstream sources with owner-scoped file SecretRefs.
+2. Assess the four `other_or_shared` SQLite findings **in the local
+   native audit only**, and determine actual ownership before choosing
+   `--agent`. Do not assign shared credentials based on the filename bucket.
+3. Prepare an agent-specific dry-run plan for `cron` (one explicit
+   SQLite finding), then evaluate the source settings for `main`.
+   Do not assume separate plans commute or can be safely applied together.
+4. Reaudit the three generated `models.json` findings for `main`
+   *after* fixing their credential sources. Treat output files as
+   materialized state, not an initial editing target.
+5. Leave the two main-owned legacy files intact until the recovery/rollback
+   need is assessed locally. No unattended `doctor --fix`.
+
+`secrets configure --agent <id>` is a TTY wizard, **not a no-op**.
+In v2026.9.5 it writes the `--plan-out` file and presents
+`Apply this plan now?` with the default selection **Yes**. The operator
+must explicitly select **No**, not accept the default. Do **not** pass
+`--apply`, `--yes` or `--json` as a substitute for a safe read-only
+plan. A second confirmation may also default Yes if the first is accepted.
+
+Keep plans in a `0700` staging directory with `umask 077`. Review
+each plan privately and use `secrets apply --from ... --dry-run`.
+Review *one plan at a time*; old plans can become stale after subsequent
+config/auth changes. Do not paste plans into tickets, chat or GitHub.
+The on-workstation git status also showed modified `n8n` and `sentry`
+entries: preserve these unrelated working-tree changes.
+
 ## Phase 2 — optional shared-store import, staged file only
 
 Only for entries intentionally shared at **team scope**. Do not import a
