@@ -288,6 +288,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv82_response_diagnostic_is_read_only(self):
+        script = ROOT / "scripts/workstation/diagnose-age-yubikey-piv82-response.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_result = subprocess.run(["bash", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("--serial", help_result.stdout)
+        body = script.read_text()
+        self.assertIn("piv keys info 82", body)
+        self.assertIn("ykman exit code:", body)
+        for forbidden in ("piv keys generate", "piv certificates import",
+                          "piv reset", "verify-pin", "change-management-key", "--force"):
+            self.assertNotIn(forbidden, body)
+
     def test_aes256_inventory_handles_empty_slot_exit_one_fail_closed(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
         body = script.read_text()
