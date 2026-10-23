@@ -149,3 +149,32 @@ ils ne prouvent pas qu'une montée Talos ou TrueNAS live réussira.
 
 Retirer ou archiver les scripts temporaires après l'opération une fois
 le compte rendu vérifié. **Aucun upgrade automatique non approuvé.**
+
+### Garde d'état Docker avant un redéploiement massif
+
+**Correctif ajouté le 23 octobre 2026 dans la PR #271 (Draft).**
+TrueNAS `app.query` peut afficher `prometheus: RUNNING` alors que le
+conteneur `prometheus` est en `restarting` avec `exit=2`.
+Une vague sélectionnée ne doit pas traiter ce processus comme prêt.
+
+Le mode `--apply` vérifie donc, **après** la comparaison du plan hash
+et **avant** le premier `app.redeploy`, l'état Docker des workloads
+canoniques sélectionnés `prometheus`, `gatus` et
+`openrag-backend/openrag-frontend`. Une erreur d'inspection,
+un conteneur non `running`, ou un healthcheck
+`unhealthy/starting` bloque intégralement la vague. Aucun secret
+ou raw health log n'est consulté. Les Apps STOPPED/non sélectionnées
+ne sont pas sondées.
+
+Le `--check` conserve un plan basé sur le middleware (sans mutation) :
+**un plan calculé n'est pas une autorisation de l'appliquer**.
+Le garde-fou ne répare ni Prometheus ni OpenRAG ; utiliser les
+diagnostics spécialisés et attendre leur rétablissement avant les
+migrations massives.
+
+Validation locale :
+
+```bash
+python3 -m pytest -q tests/test_fast_bulk_truenas_redeploy.py
+just fast-maintenance-test
+```
