@@ -156,6 +156,14 @@ def main():
                     from jsonschema.exceptions import SchemaError, ValidationError
                     if isinstance(exc, SchemaError):
                         kind = "schema_definition_invalid"
+                        # Only report the meta-schema keyword, not schema or
+                        # instance paths that may include private plugin data.
+                        keyword = str(exc.validator or "")
+                        if keyword in ("type", "required", "items", "additionalProperties",
+                                       "properties", "patternProperties", "anyOf", "oneOf",
+                                       "allOf", "enum", "const", "format", "$ref",
+                                       "uniqueItems", "minimum", "maximum"):
+                            print("schema_meta_keyword=" + keyword)
                     elif isinstance(exc, ValidationError):
                         kind = "candidate_rejected_by_schema"
                     elif isinstance(exc, (KeyError, TypeError)):
