@@ -2379,3 +2379,9 @@ Exemple futur, uniquement après génération de fichiers **publics** dans une p
 ```
 
 **Restent bloqués :** authentification réelle AES256 protégée par PIN, preuve de liaison de la clé matérielle PIV82, import du certificat et round-trip `age-plugin-yubikey` sur YubiKey secondaire. Ne jamais modifier AES256, OTP2, PIV9A ni destinataires SOPS à ce stade.
+
+### Validation 29/29 et tests négatifs du certificat — 23 octobre 2026
+
+Retour opérateur : `bash scripts/workstation/verify-age-yubikey-offline.sh` **29/29 PASS en 0,913 s** au HEAD `44e1253d`. Le validateur PIV82 est maintenant couvert par le contrat statique. Dans PR #271, ajout d'un banc d'essai hors matériel `scripts/workstation/test-age-yubikey-certificate-negative-offline.py` : un certificat valide signé par une clé P-256 éphémère doit être accepté ; sept variations (mauvaise clé publique, PIN/touch différents de 03:02, extension critique, certificat expiré, mauvaise organisation, issuer différent, signature réalisée avec une autre clé) doivent être refusées. Le test est branché sur la quality gate en utilisant le Python SDK isolé s'il existe. **30 tests attendus à confirmer sur workstation.**
+
+Rester **NO-GO matériel** : validation 30/30 n'autorise aucune inscription ni import. Priorités non résolues : session YubiKey réelle AES256 PIN-protected, import PIV82, découverte `age-plugin-yubikey` et round-trip de déchiffrement avec présence/toucher. La PR #271 reste ouverte sans CI facturée.
