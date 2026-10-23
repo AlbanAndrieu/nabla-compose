@@ -1,5 +1,53 @@
 # OpenClaw embedding secrets — remediation gate (2026-10-18)
 
+## Current state — 2026-10-23
+
+- **Done:** OpenClaw 2026.9.5 memory configuration switched to the private
+  file-backed OpenClaw-only LiteLLM SecretRef, model alias `embedding`,
+  `fallback=none`; Gateway operational.
+- **Done:** `main` index 107/107 files (199 chunks), `cron` index 63/63
+  files (73 chunks); both clean, 768-dimensional vectors and semantic backend
+  ready.
+- **Verified (2026-10-23):** default CLI searches for `deployment`
+  returned no hits on both agents, exit 0; explicit `--min-score 0`
+  returned **5 hits each**, using the redacted local diagnostic. Four
+  diagnostic unit tests passed on workstation. This confirms retrieval of
+  candidates, **not** their semantic relevance or the precise configured
+  threshold.
+- **Open:** calibrate relevance cutoff and query quality; investigate
+  intermittent 60-second embedding retries (root cause unknown), verify
+  workstation disk headroom (18 GiB free, 96% used). Do not alter
+  persistent thresholds or activate cross-model fallback without evidence.
+
+The chronological evidence below preserves original time-of-observation
+statements. Earlier `no configuration update` and `index pending`
+descriptions are historical and are superseded by this section.
+
+### Optional score-threshold calibration (not a config change)
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+# Up to 3 provider search calls per agent (6 total); stop per agent on errors.
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --calibrate --query deployment
+```
+
+The diagnostic prints only the status and top-five count at thresholds
+`0.00`, `0.20` and `0.35`. It hides snippets, paths, tokens and errors.
+OpenClaw documents `memory.search.query.minScore` default `0.35`, but
+the **installed value is not yet verified**. The score filter operates
+on pre-recency relevance; final returned scores may be lower. Counts at
+different thresholds suggest sensitivity but cannot measure relevance
+or establish the current configured default. Avoid lowering the persisted
+threshold based solely on `deployment`; use known, non-sensitive
+corpus phrases and privately inspect relevance. Repeated queries may
+record short-term recall metrics in Dreaming and incur LiteLLM usage.
+
+---
+
+
 ## Evidence (read-only workstation checks)
 - OpenClaw strict audit: status=findings, exit=1, resolvabilityComplete=true.
 - Counts: plaintextCount=16, legacyResidueCount=2; unresolvedRefCount=0, shadowedRefCount=0, storeResidueCount=0.
