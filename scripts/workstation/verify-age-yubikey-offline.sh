@@ -34,6 +34,7 @@ do
 done
 for bash_source in \
   "$script_dir/inspect-age-yubikey-aes256-hardware.sh" \
+  "$script_dir/plan-age-yubikey-piv82-enrollment.sh" \
   "$script_dir/check-yubikey-piv-python-sdk.sh" \
   "$script_dir/bootstrap-yubikey-piv-python-sdk.sh" \
   "$script_dir/verify-age-yubikey-offline.sh"
