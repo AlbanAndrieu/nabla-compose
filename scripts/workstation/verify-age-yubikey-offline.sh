@@ -25,6 +25,7 @@ for python_source in \
   "$repo_root/tests/test_yubikey_keepassxc_diagnostic_contract.py" \
   "$script_dir/inspect-age-yubikey-piv-aes256-sdk-api.py" \
   "$script_dir/test-age-yubikey-piv-signing-sdk-offline.py" \
+  "$script_dir/test-age-yubikey-aes256-auth-offline.py" \
   "$script_dir/test-age-yubikey-piv-aes256-handshake-offline.py" \
   "$script_dir/test-age-yubikey-piv82-inventory-fake-offline.py" \
   "$script_dir/test-age-yubikey-certificate-negative-offline.py" \
