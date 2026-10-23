@@ -2402,3 +2402,9 @@ bash scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 2291604
 ```
 
 **NO-GO provisionnement maintenu** jusqu'à validation du mécanisme d'authentification matérielle AES256 et de l'inscription/certification PIV82, suivie d'un déchiffrement age réel. Aucun merge automatique ni CI facturée.
+
+### Diagnostic PIV82 indéterminé — 23 octobre 2026 (PR #271)
+
+L'opérateur a validé **31/31 tests PASS (0,945 s)** sur HEAD `4f5a95d7`, mais le préflight matériel sur la secondaire série `22916048` s'est arrêté avec `PIV82 is occupied or its empty state is not provable`. **Ce message ne prouve pas que PIV82 contient une clé.** Le code exigeait à tort un status `ykman piv keys info 82` égal à zéro même si certaines versions signalent explicitement un slot vide avec exit 1. La correction accepte désormais uniquement un message d'absence **explicite et reconnu** et un exit status 0 ou 1 ; toute erreur transport, message ambigu ou statut différent reste NO-GO. Un diagnostic catégorisé est imprimé sans exposer la sortie brute. Nouveau contrat : **32 tests attendus**, non encore validés sur la workstation.
+
+Reprise en lecture seule : synchroniser la branche PR #271, lancer `bash scripts/workstation/verify-age-yubikey-offline.sh`, puis `bash scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048` avec uniquement la secondaire branchée. Si résultat toujours indéterminé, examiner séparément la sortie `ykman` sans publier les secrets. **Aucun PIN, aucune écriture matérielle, aucune modification AES256/OTP2/PIV9A**.
