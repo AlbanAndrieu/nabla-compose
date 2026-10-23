@@ -37,6 +37,8 @@ def test_platform_versions_match_mise_and_talos_pins():
     ("php:8.4-fpm", "supported"),
     ("php:8.5-fpm", "supported"),
     ("wordpress:latest", "unknown"),
+    ("docker.io/2fauth/2fauth:8.0.1", "unknown"),
+    ("docker.io/netboxcommunity/netbox:v4.7-5.1.1", "unknown"),
     ("ntninja/wordpress-postgresql:latest", "unknown"),
     ("ghcr.io/berriai/litellm:main-stable", "unknown"),
     ("redis:latest", "floating"),
@@ -80,6 +82,13 @@ def test_every_compose_image_is_visible_and_operator_never_assumes_lts():
                for row in rows)
     assert any(row["app"] == "litellm" and row["status"] == "unknown"
                for row in rows)
+
+
+def test_homarr_python_reconciler_is_maintained():
+    image = (ROOT / "apps/homarr/compose.yml").read_text()
+    assert "docker.io/library/python:3.14.9-alpine3.24" in image
+    reconciler = (ROOT / "apps/homarr/sync.py").read_text()
+    assert "from urllib.request import" in reconciler
 
 
 def test_runtime_policy_is_not_a_deployment_authorization():
