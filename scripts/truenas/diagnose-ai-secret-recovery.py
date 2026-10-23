@@ -65,6 +65,8 @@ def check_secret(path: Path, required: tuple[str, ...],
                 if name in keys:
                     result["issues"].append("duplicate dotenv key")
                 keys.add(name)
+                if name in required and not value.strip().strip('"').strip("'"):
+                    result["issues"].append("required key has empty value: " + name)
                 if name == "SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION":
                     scope_v2 = value.strip().strip('"\'') == "2"
         result["missingKeys"] = [name for name in required if name not in keys]
@@ -96,9 +98,13 @@ def query_app(app: str) -> dict[str, Any]:
         return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
     try:
         rows = json.loads(output)
+        if not isinstance(rows, list):
+            return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
         if len(rows) != 1:
             return {"state": "ABSENT", "legacyScrutinyEnvFile": "unknown"}
         row = rows[0]
+        if not isinstance(row, dict):
+            return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
         summary: dict[str, Any] = {
             "state": row.get("state", "UNKNOWN"),
             "legacyScrutinyEnvFile": "unknown",
