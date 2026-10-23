@@ -69,12 +69,19 @@ def main():
     agents = ("main", "cron") if args.agent == "both" else (args.agent,)
     failure = False
     for agent in agents:
-        outcome, count = probe(agent, args.query, args.min_score, args.timeout)
-        print(f"memory_search_{agent}_outcome={outcome}")
-        if count is not None:
-            print(f"memory_search_{agent}_results={count}")
-        if outcome not in ("matches", "no_matches"):
-            failure = True
+        # At most three requests per agent; opt-in to avoid unnecessary costs.
+        thresholds = (0.0, 0.20, 0.35) if args.calibrate else (args.min_score,)
+        for minimum in thresholds:
+            outcome, count = probe(agent, args.query, minimum, args.timeout)
+            suffix = ("_threshold_" + format(minimum, ".2f").replace(".", "_")
+                      if args.calibrate else "")
+            print(f"memory_search_{agent}{suffix}_outcome={outcome}")
+            if count is not None:
+                print(f"memory_search_{agent}{suffix}_results={count}")
+            if outcome not in ("matches", "no_matches"):
+                failure = True
+                break  # No more attempts for this agent after a technical error.
+    print("memory_search_calibration=" + str(args.calibrate).lower())
     print("memory_search_threshold_override=true")
     print("memory_search_result_text_exposed=false")
     print("memory_search_recall_recording=possible")
