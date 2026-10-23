@@ -17,7 +17,7 @@ pour le DNS, sans redémarrage ni affichage de secrets :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-just sample-dns
+just sample-dns-truenas
 bash scripts/truenas/diagnose-fastapi-sample.sh --cycles 1 --color never
 ```
 
@@ -50,12 +50,16 @@ provenance, pas un second incident comptabilisé. Depuis une workstation,
 l'inspection du conteneur Pi-hole distant est `SKIP`, pas un WARN de
 l'application ; la requête DNS vers Pi-hole fonctionne malgré ce SKIP.
 
+`just sample-dns` vérifie le DNS sur tout hôte **sans introspection Docker locale** ;
+`just sample-dns-truenas` exige explicitement TrueNAS et inspecte Pi-hole en lecture seule.
+Un WARN Docker sur un poste Linux qui n'héberge pas Pi-hole n'est plus attendu.
+
 `just sample-dns-workstation` lit désormais les propriétés
 `ipv4.dns`, `ipv4.ignore-auto-dns`, `ipv4.dns-priority` et
 `ipv4.dns-search` du **profil NetworkManager actif**, sans secrets.
 Elle vérifie également `getent ahostsv4 sample.int.albandrieu.com`
 pour éviter qu'un DNS Quad9 public cache une régression sur la zone
-privée. Les cas mockés ont été portés à **5 tests** (exécution du
+privée. Les cas mockés ont été portés à **8 tests**, incluant une réponse DNS NetworkManager vide (code de sortie zéro) et les modes TrueNAS/workstation (exécution du
 nouveau HEAD : `NOT_RUN`). Voir le dossier d'incident pour les
 étapes de remédiation sous Pi-hole v6.
 
