@@ -89,6 +89,17 @@ truenas-live-language-audit:
 talos-upgrade-preflight:
     python3 scripts/talos/preflight-supported-upgrade.py --check
 
+# Fast operator-acknowledged upgrade paths; check prints immutable hashes only.
+fast-talos-plan image:
+    python3 scripts/talos/fast-batch-upgrade.py --check --installer-image "{{image}}"
+
+fast-truenas-plan scope="applications" parallel="6":
+    python3 scripts/truenas/fast-bulk-redeploy-apps.py --check --scope "{{scope}}" --parallel "{{parallel}}"
+
+fast-maintenance-test:
+    python3 -m py_compile scripts/talos/fast-batch-upgrade.py scripts/truenas/fast-bulk-redeploy-apps.py
+    python3 -m pytest -q tests/test_fast_batch_talos_upgrade.py tests/test_fast_bulk_truenas_redeploy.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
