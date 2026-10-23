@@ -44,12 +44,12 @@ slot82="$(ykman --device "${serial}" piv keys info 82 2>&1)" && rc82=0 || rc82=$
 # Yubico Manager 5.8.0 raises CliFail("No key stored in slot {slot}.")
 # Click may prefix its single error line with "Error: "; PIV slot 82 is RETIRED1.
 # Match the WHOLE response to avoid trusting a transport error with incidental text.
-empty_slot_pattern='^[[:space:]]*(ERROR:[[:space:]]*)?No key stored in slot 82[[:space:]]*\(RETIRED1\)[.]?[[:space:]]*
+empty_slot_pattern='^[[:space:]]*(ERROR:[[:space:]]*)?No key stored in slot 82[[:space:]]*\(RETIRED1\)[.]?[[:space:]]*$'
 if (( rc82 > 1 )) || ! grep -Eiq "$empty_slot_pattern" <<<"${slot82}"; then
   nabla_status warn "PIV82 unverified (ykman exit=${rc82}); no provisioning permitted"
-  if grep -Eiq 'permission|access denied|pcsc|smart.card|connection|timeout' <<<"${slot82}"; then
+  if grep -Eiq "permission|access denied|pcsc|smart.card|connection|timeout" <<<"${slot82}"; then
     nabla_status info 'Category: reader / access / transport error'
-  elif grep -Eiq 'key type|algorithm|pin policy|touch policy|public key' <<<"${slot82}"; then
+  elif grep -Eiq "key type|algorithm|pin policy|touch policy|public key" <<<"${slot82}"; then
     nabla_status info 'Category: key metadata reported; inspect slot separately'
   else
     nabla_status info 'Category: unsupported or unrecognized ykman response'
@@ -57,29 +57,9 @@ if (( rc82 > 1 )) || ! grep -Eiq "$empty_slot_pattern" <<<"${slot82}"; then
   exit 3
 fi
 slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
-  nabla_status error 'Cannot read PIV9A key metadata'; exit 3;
+  nabla_status error 'Cannot read PIV9A key metadata'; exit 3
 }
-if grep -Eiq 'No key stored|No key in slot' <<<"${slot9a}"; then
-  nabla_status error 'Previously populated PIV9A appears missing'; exit 3
-fi
-nabla_status ok "Read-only inventory: ${label} (${serial}), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
-nabla_status warn 'No PIN entered; AES256 authentication and age decrypt are NOT validated. Hardware writes remain NO-GO.'
-
-if (( rc82 > 1 )) || ! grep -Eiq "$empty_slot_pattern" <<<"${slot82}"; then
-  nabla_status warn "PIV82 unverified (ykman exit=${rc82}); no provisioning permitted"
-  if grep -Eiq 'permission|access denied|pcsc|smart.card|connection|timeout' <<<"${slot82}"; then
-    nabla_status info 'Category: reader / access / transport error'
-  elif grep -Eiq 'key type|algorithm|pin policy|touch policy|public key' <<<"${slot82}"; then
-    nabla_status info 'Category: key metadata reported; inspect slot separately'
-  else
-    nabla_status info 'Category: unsupported or unrecognized ykman response'
-  fi
-  exit 3
-fi
-slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
-  nabla_status error 'Cannot read PIV9A key metadata'; exit 3;
-}
-if grep -Eiq 'No key stored|No key in slot' <<<"${slot9a}"; then
+if grep -Eiq "No key stored|No key in slot" <<<"${slot9a}"; then
   nabla_status error 'Previously populated PIV9A appears missing'; exit 3
 fi
 nabla_status ok "Read-only inventory: ${label} (${serial}), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
