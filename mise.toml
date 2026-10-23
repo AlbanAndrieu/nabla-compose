@@ -8,7 +8,7 @@ ruff = "latest"
 awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
 kubectl = "latest"
-"aqua:siderolabs/talos" = "1.13.9"
+"aqua:siderolabs/talos" = "1.14.4"
 helm = "latest"
 argocd = "latest"
 trivy = "latest"
