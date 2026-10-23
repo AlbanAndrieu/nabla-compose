@@ -44,8 +44,8 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
     if scope not in ("applications", "all") or not 1 <= workers <= 16:
         raise ValueError("invalid app scope or concurrency")
     selected = set()
-    duplicates = set()
     excluded = []
+    revisions: dict[str, str] = {}
     for app in apps:
         if not isinstance(app, dict):
             raise ValueError("malformed TrueNAS App record")
@@ -53,8 +53,18 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
         if (not isinstance(name, str) or not ID.fullmatch(name)
                 or (app.get("id") and app.get("name") and app["id"] != app["name"])):
             raise ValueError("unsafe TrueNAS App name or identity drift")
-        if name in selected or name in excluded or name in duplicates:
+        if name in selected or name in excluded or name in revisions:
             raise ValueError("duplicate TrueNAS App ID")
+        # Include version/image-change state in the plan fingerprint. The
+        # operator must re-review if a registry pull/chart upgrade was
+        # discovered between preview and apply.
+        identity = {key: app.get(key) for key in (
+            "state", "images", "version", "latest_version",
+            "upgrade_available", "image_updates_available", "custom_app",
+        )}
+        revisions[name] = hashlib.sha256(
+            json.dumps(identity, sort_keys=True, default=str).encode()
+        ).hexdigest()
         if app.get("state") == "RUNNING":
             if scope == "applications" and name in CRITICAL:
                 excluded.append(name)
@@ -69,6 +79,7 @@ def make_plan(apps: list[dict], scope: str, workers: int) -> dict:
     report = {
         "scope": scope, "parallelism": workers, "waves": waves,
         "excluded": sorted(excluded), "selectedCount": len(selected),
+        "inventoryRevisionHashes": {k: revisions[k] for k in sorted(revisions)},
         "operation": "app.redeploy", "requiresState": "RUNNING",
         "mayPullNewImages": True, "upgradesChartOrPinnedTag": False,
     }
