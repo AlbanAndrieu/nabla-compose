@@ -2461,3 +2461,11 @@ python3 scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py
 Le planificateur de PIV82 avait lui aussi conservé une interprétation obsolète du code de sortie 1 de Yubico Manager. Il délègue maintenant **tous** les précontrôles matériels au script de référence inspect-age-yubikey-aes256-hardware.sh : série exacte, carte unique, management key AES256 PIN-protected, PIV82 vide et métadonnées PIV9A présentes. Plus de seconde regex ni de seconde logique d'authentification dans le planificateur.
 
 Le faux exécutable ykman couvre désormais **les deux scripts** (inventaire et planificateur), soit **14 exécutions simulées** pour sept scénarios, avec refus systématique des erreurs. Une commande age-plugin-yubikey factice couvre la vérification de présence de l'outil ; aucune vraie carte n'est utilisée. La quality gate lance également bash -n sur le planificateur avant les tests. **39 tests unittest attendus**, validation réelle sur workstation encore en attente après ce lot. NO-GO pour toute écriture PIV82.
+
+### 23 octobre 2026 — Lot groupé de contrôles AES256 hors matériel
+
+La workstation a confirmé `36/36 PASS` sur HEAD `ce9801f0`. Le script `inspect-age-yubikey-piv-aes256-sdk-api.py` rapporte `PASS: SDK AES256 (32-byte), protected Pivman data, PIV82 and PIN/touch ALWAYS APIs`, sans authentification réelle. Ajout de `scripts/workstation/test-age-yubikey-aes256-auth-offline.py` : session **entièrement simulée**, clé fictive de 32 octets, séquence `verify_pin → authenticate → verify_pin` et trois rejets (PIN factice erroné, authentification factice rejetée, longueur AES256 incorrecte). Aucun périphérique PC/SC, secret ni fonction d'écriture. Contrat unittest ajouté.
+
+**Limite de preuve :** ce test reproduit le chemin du SDK documenté, sans exercer l'API authentifiée sur matériel et sans vérifier la lecture de Pivman protégé. La première authentification réelle devra être une opération séparée avec contrôle des tentatives PIN, approbation opérateur et absence de retry automatique. Les slots 82 et 9A, OTP2, la management key AES256 et les identités SOPS restent inchangés. **Aucun GO pour le provisionnement.**
+
+Dans la branche PR #271, le nombre de tests peut varier avec les commits concurrents : prendre `python3 -m unittest discover` comme source de vérité et ne pas présumer du décompte avant exécution.
