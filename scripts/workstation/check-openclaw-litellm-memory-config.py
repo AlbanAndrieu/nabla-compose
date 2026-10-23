@@ -135,6 +135,93 @@ def audit_v2_summary(data):
             "complete": resolution["resolvabilityComplete"]}
 
 
+
+# OpenClaw v2026.9.5 src/secrets/audit.ts emits stable, non-sensitive codes.
+# No arbitrary paths, provider names, profile IDs or jsonPath values are printed.
+AUDIT_CODE_TO_SUMMARY = {
+    "PLAINTEXT_FOUND": "plaintext",
+    "REF_UNRESOLVED": "unresolved",
+    "REF_SHADOWED": "shadowed",
+    "STORE_PLAINTEXT_RESIDUE": "store_residue",
+    "LEGACY_RESIDUE": "legacy_residue",
+}
+PLAINTEXT_LOCATIONS = (
+    "config", "dotenv", "auth_store", "generated_models", "unknown",
+)
+LEGACY_LOCATIONS = ("oauth_profile", "legacy_file", "unknown")
+
+
+def audit_location_breakdown(data, v2):
+    """Classify aggregate locations only, with summary consistency gate.
+
+    v2026.9.5 audit findings contain code/file/jsonPath/message and optional
+    provider/profileId. NEVER return or display those fields.
+    """
+    if not isinstance(data, dict) or not isinstance(v2, dict):
+        return None
+    findings = data.get("findings")
+    if not isinstance(findings, list) or len(findings) > 10000:
+        return None
+    counts = {key: 0 for key in PLAINTEXT_LOCATIONS}
+    legacy = {key: 0 for key in LEGACY_LOCATIONS}
+    codes = {code: 0 for code in AUDIT_CODE_TO_SUMMARY}
+    for item in findings:
+        if not isinstance(item, dict):
+            return None
+        code = item.get("code")
+        if code not in codes:
+            return None
+        codes[code] += 1
+        if code == "PLAINTEXT_FOUND":
+            file_name = item.get("file")
+            if not isinstance(file_name, str):
+                category = "unknown"
+            else:
+                base = file_name.replace("\\", "/").rsplit("/", 1)[-1]
+                if base == "openclaw.json":
+                    category = "config"
+                elif base == ".env":
+                    category = "dotenv"
+                elif base == "models.json":
+                    category = "generated_models"
+                elif base.endswith((".sqlite", ".sqlite3", ".db")):
+                    category = "auth_store"
+                else:
+                    category = "unknown"
+            counts[category] += 1
+        elif code == "LEGACY_RESIDUE":
+            field = item.get("jsonPath")
+            if not isinstance(field, str):
+                category = "unknown"
+            elif field.startswith("profiles."):
+                category = "oauth_profile"
+            else:
+                category = "legacy_file"
+            legacy[category] += 1
+    counts_match = all(
+        codes[code] == v2["categories"][key]
+        for code, key in AUDIT_CODE_TO_SUMMARY.items()
+    )
+    return {"plaintext": counts, "legacy": legacy, "counts_match": counts_match}
+
+
+def print_audit_location_breakdown(data, v2):
+    """Emit only fixed classification labels, integer counts and gates."""
+    result = audit_location_breakdown(data, v2)
+    if result is None:
+        print("secret_audit_location_breakdown=unavailable")
+        return False
+    print("secret_audit_location_breakdown=" +
+          ("complete" if result["counts_match"] else "inconsistent"))
+    for key in PLAINTEXT_LOCATIONS:
+        print(f"secret_audit_plaintext_location_{key}={result['plaintext'][key]}")
+    for key in LEGACY_LOCATIONS:
+        print(f"secret_audit_legacy_location_{key}={result['legacy'][key]}")
+    print("secret_audit_location_counts_match=" + str(result["counts_match"]).lower())
+    print("secret_audit_sensitive_fields_exposed=false")
+    return result["counts_match"]
+
+
 def audit_shape(data):
     """Emit only type distribution; arbitrary JSON property names and values stay private."""
     if not isinstance(data, dict):
@@ -191,7 +278,7 @@ def audit_structure(data):
     return ";".join(sorted(signatures))
 
 
-def audit():
+def audit(include_locations=False):
     """Run the built-in read-only audit without displaying its potentially sensitive findings."""
     process = subprocess.run(
         ["openclaw", "secrets", "audit", "--check", "--json"],
@@ -223,6 +310,8 @@ def audit():
              and v2["complete"] and all(value == 0 for value in v2["categories"].values()))
     print("secret_audit=" + ("clean" if clean else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
+    if include_locations:
+        print_audit_location_breakdown(data, v2)
     print("secret_audit_strict_check=true")
     print("file_secret_resolution=unverified")
     print("configuration_changed=false")
@@ -234,9 +323,11 @@ def main():
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
     modes.add_argument("--audit", action="store_true", help="Read-only secrets audit; suppress sensitive findings")
+    modes.add_argument("--audit-locations", action="store_true",
+                       help="Audit aggregate finding locations only; never print file paths")
     args = parser.parse_args()
     try:
-        return audit() if args.audit else check()
+        return audit(include_locations=args.audit_locations) if (args.audit or args.audit_locations) else check()
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
         print("ERROR: cannot verify schema; no configuration changed", file=sys.stderr)
         return 2
