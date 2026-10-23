@@ -1,3 +1,12 @@
+## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
+
+- [x] Add read-only `scripts/pfsense/diagnose-unbound-crash-memory.sh --check` to PR #271; no pfSense configuration changes, restarts, flow activation, or GitHub Actions.
+- [x] Historical evidence (2026-10-18): Netgate 1100 ~1 GiB RAM, no swap, `free+inactive` ~226.8 MiB, Unbound PID 75160 RSS ~122.7 MiB, pfBlockerNG cron absent during sample; kernel previously killed Unbound and PHP processes with `failed to reclaim memory`.
+- [ ] Obtain **fresh** logs with event timestamps and Unbound PID/start-time changes, pfBlockerNG scheduling, FreeBSD VM counters and process RSS. Prior `dmesg` entries are historical, not new OOM evidence. Determine whether Unbound was killed by kernel memory pressure, restarted intentionally by pfSense/pfBlockerNG, or exited due to its own error.
+- [ ] Compare with Prometheus `pfsense_system_memory_usage_ratio`, scraper health, DNS response checks, and timeline; this ratio does not directly equal FreeBSD free+inactive. Establish event-based trends and OOM deltas before modifying thresholds.
+- [ ] Mitigation only after evidence: reduce concurrent memory pressure and unnecessary DNSBL rebuilds, assess pfBlockerNG/Snort/PHP-FPM allocations and Unbound cache usage; retain required DNS/security functionality. Explicit rollback and stability window of at least 24 hours.
+- [ ] Defer pflow activation while memory incidents remain unclassified; avoid a pfSense reboot, automatic Unbound restart, unreviewed DNSBL regeneration, and configuration mutations.
+
 ## P0 — Reprise Site #236 / Compose #263 : artefacts ZAP et frontière privée (19 octobre 2026)
 
 ## P1 — FastAPI staging → TrueNAS LiteLLM → workstation Qwen (2026-10-20)
