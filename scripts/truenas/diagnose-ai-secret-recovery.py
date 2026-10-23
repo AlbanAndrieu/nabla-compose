@@ -100,8 +100,10 @@ def query_app(app: str) -> dict[str, Any]:
         rows = json.loads(output)
         if not isinstance(rows, list):
             return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
-        if len(rows) != 1:
+        if not rows:
             return {"state": "ABSENT", "legacyScrutinyEnvFile": "unknown"}
+        if len(rows) != 1:
+            return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
         row = rows[0]
         if not isinstance(row, dict):
             return {"state": "UNVERIFIED", "legacyScrutinyEnvFile": "unknown"}
