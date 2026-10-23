@@ -147,6 +147,53 @@ class AuditSummaryTests(unittest.TestCase):
         self.assertEqual(summary["plaintext"]["unknown"], 1)
         self.assertEqual(summary["legacy"]["unknown"], 1)
 
+    def test_owner_breakdown_is_bounded_and_redacted(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        rows = [
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/agents/main/agent/openclaw-agent.sqlite",
+             "provider": "SECRET"},
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/agents/cron/agent/openclaw-agent.sqlite"},
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/state.db"},
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/agents/main/agent/models.json"},
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/agents/cron/agent/models.json"},
+            {"code": "LEGACY_RESIDUE", "file": "/PRIVATE/agents/main/agent/auth.json",
+             "jsonPath": "<root>"},
+            {"code": "LEGACY_RESIDUE", "file": "/PRIVATE/auth.json",
+             "jsonPath": "<root>"},
+        ]
+        v2 = {"categories": {
+            "plaintext": 5, "legacy_residue": 2, "unresolved": 0,
+            "shadowed": 0, "store_residue": 0,
+        }}
+        result = module.audit_owner_breakdown({"findings": rows}, v2)
+        self.assertEqual(result["auth_store"], {
+            "main": 1, "cron": 1, "other_or_shared": 1})
+        self.assertEqual(result["generated_models"], {
+            "main": 1, "cron": 1, "other_or_shared": 0})
+        self.assertEqual(result["legacy_file"], {
+            "main": 1, "cron": 0, "other_or_shared": 1})
+        with redirect_stdout(StringIO()) as printed:
+            self.assertTrue(module.print_audit_owner_breakdown({"findings": rows}, v2))
+        self.assertIn("secret_audit_owner_counts_match=true", printed.getvalue())
+        for value in ("PRIVATE", "SECRET", "/agents", "auth.json"):
+            self.assertNotIn(value, printed.getvalue())
+
+    def test_owner_breakdown_refuses_mismatch_and_unknown_schema(self):
+        data = {"findings": [
+            {"code": "PLAINTEXT_FOUND", "file": "/PRIVATE/other.sqlite"},
+        ]}
+        v2 = {"categories": {
+            "plaintext": 1, "legacy_residue": 0, "unresolved": 0,
+            "shadowed": 0, "store_residue": 0,
+        }}
+        self.assertEqual(module.audit_owner_breakdown(data, v2)["auth_store"][
+            "other_or_shared"], 1)
+        bad = {"categories": {**v2["categories"], "plaintext": 2}}
+        self.assertIsNone(module.audit_owner_breakdown(data, bad))
+        self.assertIsNone(module.audit_owner_breakdown(
+            {"findings": [{"code": "UNKNOWN", "file": "/PRIVATE"}]}, v2))
+
     def test_invalid_or_boolean_counts_not_accepted(self):
         result = module.audit_summary({"plaintext": True})
         self.assertEqual(result["schema"], "unknown")
