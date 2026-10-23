@@ -292,7 +292,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
         body = script.read_text()
         self.assertIn("rc82 > 1", body)
-        self.assertIn("Slot (82|0x82) is empty", body)
+        self.assertIn("RETIRED1", body)
         self.assertIn("PIV82 unverified", body)
         self.assertIn("no provisioning permitted", body)
         self.assertNotIn("printf '%s\\n' \"${slot82}\"", body)
