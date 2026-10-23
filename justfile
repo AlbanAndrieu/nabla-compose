@@ -100,6 +100,14 @@ fast-maintenance-test:
     python3 -m py_compile scripts/talos/fast-batch-upgrade.py scripts/truenas/fast-bulk-redeploy-apps.py
     python3 -m pytest -q tests/test_fast_batch_talos_upgrade.py tests/test_fast_bulk_truenas_redeploy.py
 
+# Read-only, redacted AI service recovery: no secret values, no deployments.
+truenas-ai-recovery-check:
+    sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check
+
+truenas-ai-recovery-test:
+    python3 -m py_compile scripts/truenas/diagnose-ai-secret-recovery.py
+    python3 -m pytest -q tests/test_ai_secret_recovery_diagnostic.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
