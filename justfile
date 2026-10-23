@@ -119,7 +119,11 @@ truenas-readiness-report:
 
 truenas-readiness-test:
     python3 -m py_compile scripts/truenas/diagnose-service-readiness.py
-    python3 -m pytest -q tests/test_service_readiness_diagnostic.py tests/test_compact_ops_diagnostics.py
+    python3 -m pytest -q tests/test_service_readiness_diagnostic.py tests/test_compact_ops_diagnostics.py tests/test_gatus_api_diagnostic.py tests/test_prometheus_config_access_repair.py
+
+# Read-only host preflight; --apply remains a separate, explicit operator action.
+truenas-prometheus-config-check:
+    sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
 
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
