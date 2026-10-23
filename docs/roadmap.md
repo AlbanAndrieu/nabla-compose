@@ -28,6 +28,14 @@
 
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### pflow packet proof and Prometheus failure (2026-10-23 19:46 CEST)
+
+- [x] After per-rule **Always Track Flow Data**, pfSense LAN capture at 19:46:15 captured **one UDP datagram, payload length 120 bytes**, from `172.17.0.1:38341` to `172.17.0.24:2055`. NetFlow v5 module/exporter and actual emission now verified. `Track by Default` remains OFF; do not widen scope. Memory free+inactive **219.8 MiB**, Unbound PID **39281**, DNS `NOERROR`, no new OOM observed in displayed log.
+- [ ] Confirm TrueNAS `br0` packet reception and Akvorado inlet UDP/2055 listener, protocol configuration and successful decode. A pfSense source-side packet is **not** proof of ingestion. Run captures while creating new routed PF states and allow for flow export delay.
+- [x] TrueNAS `prometheus` App reports RUNNING but service container **named `prometheus`** is `Restarting (2)`; Compose `container_name: prometheus` confirms it is **not** `ix-prometheus-prometheus-1`. Other exporter/alertmanager containers running. HTTP 9090 unavailable; inspect with `sudo docker logs --tail 120 prometheus` and read-only `docker inspect` exit status; do not infer root cause from status 2 or restart the whole App.
+
+
+
 ### Memory and pflow validation — 2026-10-23 19:00–19:08 CEST
 
 - [x] Full 10-sample memory-pressure CSV (30-second intervals): free+inactive **min 168.7, mean 189.6, max 206.4 MiB**; final 196.1 MiB. No monotonic deterioration over the five-minute window. Unbound PID **39281** stable, RSS **139860–140788 KiB**; pfBlockerNG cron count 0 throughout. PHP-FPM summed RSS **317360 KiB**, not unique resident memory.
