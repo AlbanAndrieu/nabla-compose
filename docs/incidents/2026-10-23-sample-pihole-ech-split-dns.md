@@ -241,6 +241,27 @@ depuis une session distante** ; identifier d'abord ce qui injecte
 Quad9. Ne jamais corriger DHCP Kea ni les règles `TEST-PFLOW`
 pour résoudre ce profil utilisateur.
 
+### Validation locale du suivi post-merge
+
+Le 23 octobre, les deux fichiers `scripts/ingress/diagnose-sample-dns.sh`
+et `tests/test_sample_dns_diagnostic.py` ont été reconstitués dans
+l'environnement local de l'agent depuis les contenus GitHub, avec
+**identité vérifiée par git hash-object** (empreintes de blobs
+correspondant à la branche post-merge). Résultats :
+
+- `bash -n scripts/ingress/diagnose-sample-dns.sh` : **PASS** ;
+- `python3 -m py_compile tests/test_sample_dns_diagnostic.py` : **PASS** ;
+- `python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v` :
+  **11/11 PASS, 0,420 s**, DNS, Docker et NetworkManager mockés ;
+- le test du branchement vers `diagnose-fastapi-sample.sh` utilise
+  un substitut local contenant sept sections ; il **ne prouve pas**
+  l'intégration complète ni l'exécution du diagnostic TrueNAS réel ;
+- `shellcheck` non installé dans l'environnement agent. La quality
+  gate du dépôt entier et le test après reboot ne sont **pas exécutés**.
+
+Aucun appel GitHub Actions, merge, déploiement ou modification réseau
+n'a été effectué dans le suivi post-merge.
+
 Le diagnostic `--workstation` relève désormais séparément le DNS
 du **profil NetworkManager** (statique/ignore DHCP), le DNS effectif
 dans **systemd-resolved**, le DHCP reçu et la résolution réelle des
