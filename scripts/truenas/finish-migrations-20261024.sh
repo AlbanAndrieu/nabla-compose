@@ -278,6 +278,9 @@ check_section() {
       plan_wave deferred || true
       ;;
     services)
+      # Three independent layers: TrueNAS lifecycle, Docker health, semantic HTTP.
+      # No arbitrary credentials, response bodies or raw logs on stdout.
+      run_check functional-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
       run_check gatus bash scripts/truenas/diagnose-gatus.sh
       run_check sentry bash scripts/truenas/diagnose-sentry.sh --check
       run_check defectdojo bash scripts/truenas/diagnose-defectdojo.sh --check
