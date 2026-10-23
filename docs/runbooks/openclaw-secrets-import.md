@@ -76,6 +76,54 @@ A `LEGACY_RESIDUE` referring to an OAuth profile is expected to be
 for token refresh. An archived/retired auth source is a distinct recovery
 case. Neither should be deleted solely to make the audit return zero.
 
+### Evidence received — 2026-10-23, no writes
+
+The operator executed `--audit-locations` against OpenClaw 2026.9.5:
+**10/10 tests passed**, `secret_audit_location_counts_match=true`,
+`resolvabilityComplete=true`. Exactly 16 plaintext findings are grouped as
+**5 config**, **3 dotenv**, **5 auth-profile SQLite**, and **3 generated
+models.json**, with 0 unknown. Both legacy residues are **legacy files**,
+not active OAuth-profile findings. The team-shared secret store has zero
+entries. This does not imply 16 independent secret values: generated
+`models.json` entries can duplicate configured providers.
+
+Migration order, without modifying the Gateway:
+
+1. Review the five `openclaw.json` and three `.env` consumers **locally**;
+   prefer separate file-backed providers for isolated chat/embedding/service
+   keys and explicit auth targets. Keep backup and rollback owner-private.
+2. Review the five SQLite auth findings by explicit agent; use
+   `secrets configure --agent` to prepare one plan per agent, then native
+   `secrets apply --from ... --dry-run`. Do not alter SQLite directly.
+3. Recheck the three generated `models.json` findings **after** the source
+   and consumer migration, using vendor-supported regeneration. Generated
+   files are materialized output and may reappear if the source remains
+   plaintext. Do not hand-edit or delete them as a first fix.
+4. Review the two retired/archived auth sources for recovery importance,
+   using the local paths inside the native audit only. **Never run
+   `doctor --fix` or delete these files automatically**; a pending Slack
+   plugin state migration is a separate issue.
+
+The additive read-only `--audit-locations` now also emits fixed owner
+counts for `auth_store`, `generated_models` and `legacy_file`:
+`main`, `cron` and `other_or_shared`. This is a deliberately conservative
+classification from canonical `/agents/<id>/agent/` paths; custom or shared
+paths remain in `other_or_shared`. No raw paths, provider names, profile
+IDs, tokens or filenames are printed. Both the category totals and
+owner-scoped totals must reconcile against the upstream summary.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_secret_audit.py' -v
+python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit-locations
+```
+
+This diagnostic may exit `2` due to existing findings while
+`secret_audit_location_counts_match=true` and
+`secret_audit_owner_counts_match=true`. That is expected until the
+credential migration is complete.
+
 ## Phase 2 — optional shared-store import, staged file only
 
 Only for entries intentionally shared at **team scope**. Do not import a
