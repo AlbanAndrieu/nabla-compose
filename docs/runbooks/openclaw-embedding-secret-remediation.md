@@ -551,9 +551,13 @@ switch embeddings models, or blindly raise retry budgets.
 
 Next operator checks:
 ```bash
-# Query only a harmless, non-sensitive test phrase; inspect result locally.
-openclaw memory search --help
-openclaw memory search --query "deployment" --max-results 5
+# Explicit agent ownership is mandatory with multiple configured agents.
+# A search with no --agent is rejected before the provider is queried.
+# Inspect results locally; snippets can contain private memory content.
+openclaw memory search --agent main --query "deployment" --max-results 5
+echo "main_search_exit=$?"
+openclaw memory search --agent cron --query "deployment" --max-results 5
+echo "cron_search_exit=$?"
 
 # Check disk and runtime health without changing index state.
 openclaw gateway status
@@ -572,3 +576,16 @@ or interactive search. Preserve separate per-service keys and budgets
 plus diagnosis/reduction of repeated embedding retries; no further reindex
 or forced reset is justified by the current status. Keep `fallback=none`
 unless both systems use a provably identical vector space.
+
+
+## 2026-10-23 — follow-up: search CLI requires explicit agent
+
+The operator's bare `openclaw memory search --query "deployment"` returned
+`Multiple agents are configured, but this operation has no explicit owner`.
+This is a *routing/ownership* refusal, not a failed semantic retrieval, a
+LiteLLM HTTP error, or evidence of a broken SQLite index. The corrected
+smoke checks above explicitly pass `--agent main` and `--agent cron`.
+No retrieval results have yet been observed. Treat nonzero exit status,
+empty results and irrelevant results as distinct outcomes. The Gateway
+remained active with connectivity OK, and free space was still ~18 GiB.
+Do not force reindex or rotate keys in response to this ownership message.
