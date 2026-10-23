@@ -2446,7 +2446,7 @@ Pour limiter les petites itérations, deux bancs de tests **hors matériel** ont
 - **test-age-yubikey-piv-aes256-handshake-offline.py** : appelle les véritables parseurs PivmanData, PivmanProtectedData, get_pivman_data et get_pivman_protected_data dans une **session factice en mémoire**. Vérifie l'ordre PIN synthétique → lecture de la clé AES256 fictive → authentification simulée → vérification finale du PIN. Couvre six refus sans nouvelle tentative après échec : PIN incorrect, compteur trop bas/bloqué, management key non protégée, clé absente, longueur incorrecte. Le seuil simulé de trois tentatives est volontairement conservateur ; il ne constitue pas une autorisation matérielle.
 - **test-age-yubikey-piv82-inventory-fake-offline.py** : intercepte tous les appels ykman avec un exécutable factice prioritaire dans PATH ; vérifie sept scénarios (slot vide, occupé, réponse ambiguë, erreur transport, mauvais numéro de série, algorithme non AES256, métadonnées PIV9A absentes). Aucun vrai périphérique n'est interrogé et tous les appels passent par une liste blanche lecture seule.
 
-Les deux contrats sont intégrés à tests/test_yubikey_keepassxc_diagnostic_contract.py : **38 tests attendus** après revalidation workstation.
+Les deux contrats sont intégrés à tests/test_yubikey_keepassxc_diagnostic_contract.py : **39 tests attendus** après revalidation workstation. La quality gate compile désormais explicitement les scripts Python et contrôle la syntaxe Bash avant d'exécuter les tests de comportement, afin de détecter les régressions de fichier tronqué ou mal échappé.
 
 ```bash
 bash scripts/workstation/verify-age-yubikey-offline.sh
