@@ -1,5 +1,5 @@
 {
-  "key_alias": "hermes-poc",
+  "key_alias": "hermes",
   "models": [
     "hermes-opus-5-5",
     "hermes-opus-5",
@@ -11,7 +11,7 @@
   "max_parallel_requests": 1,
   "metadata": {
     "workload": "hermes",
-    "environment": "poc",
+    "environment": "homelab",
     "managed_by": "nabla-compose",
     "identity": "service",
     "routing_policy": "anthropic_opus_first_openai_last",

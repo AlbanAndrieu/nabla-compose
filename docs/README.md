@@ -13,7 +13,8 @@ for each kind of information. Prefer links over duplicated procedures.
 | Platform migration architecture | [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md) |
 | Security tooling architecture | [`security-tooling-control-architecture.md`](./security-tooling-control-architecture.md) |
 | Hermes Secure by Design | [`security/hermes-secure-by-design.md`](./security/hermes-secure-by-design.md) |
-| Hermes DevSecOps POC (isolation, LiteLLM cost, MCP) | [`../poc/hermes/README.md`](../poc/hermes/README.md) |
+| Hermes gateway (isolation, LiteLLM cost, MCP) | [`../apps/hermes/README.md`](../apps/hermes/README.md) |
+| Hermes on Talos (broker/sandbox migration ADR) | [`security/hermes-talos-migration.md`](./security/hermes-talos-migration.md) |
 | Service catalog / graph architecture | [`service-catalog-security-graph.md`](./service-catalog-security-graph.md) |
 
 ## Incidents and historical evidence

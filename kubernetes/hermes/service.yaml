@@ -1,0 +1,10 @@
+# Headless Service for the StatefulSet identity only. No port is exposed:
+# the API server stays off in phase 2 (see compose.api.yml for the opt-in).
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-headless
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: hermes

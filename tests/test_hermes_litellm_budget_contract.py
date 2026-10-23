@@ -1,4 +1,4 @@
-"""Ensure Hermes POC uses a bounded LiteLLM virtual key policy."""
+"""Ensure Hermes uses a bounded LiteLLM virtual key policy."""
 from __future__ import annotations
 
 import json
@@ -8,10 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "config/hermes/litellm-key-policy.json"
 
 
-def test_hermes_poc_budget_and_model_allowlist_are_bounded() -> None:
+def test_hermes_budget_and_model_allowlist_are_bounded() -> None:
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    assert policy["key_alias"] == "hermes-poc"
-    assert policy["metadata"]["environment"] == "poc"
+    assert policy["key_alias"] == "hermes"
+    assert policy["metadata"]["environment"] == "homelab"
     assert policy["metadata"]["managed_by"] == "nabla-compose"
     assert policy["models"] == [
         "hermes-opus-5-5", "hermes-opus-5", "hermes-opus-4-8", "hermes-openai",

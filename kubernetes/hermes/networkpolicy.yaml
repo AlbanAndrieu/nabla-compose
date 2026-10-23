@@ -1,0 +1,58 @@
+# Default deny for the whole namespace, then the minimal egress the read-only
+# gateway needs. Effective only once scripts/talos/smoke-networkpolicy-enforcement.sh
+# is green (gate B1). Kubernetes NetworkPolicy has no FQDN rules: Telegram and
+# Discord are reached through public HTTPS with every private, link-local and
+# CGNAT range excluded; tighter FQDN control needs a CNI such as Cilium.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hermes-gateway-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hermes
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # LiteLLM (Hermes virtual key only) and Prometheus read API on TrueNAS.
+    - to:
+        - ipBlock:
+            cidr: 172.17.0.24/32
+      ports:
+        - protocol: TCP
+          port: 4000
+        - protocol: TCP
+          port: 9090
+    # Telegram/Discord bot APIs over public HTTPS only.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+              - 127.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 443

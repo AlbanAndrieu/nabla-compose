@@ -1,18 +1,18 @@
 groups:
-  - name: hermes-poc-cost
+  - name: hermes-cost
     interval: 60s
     rules:
       # Series absent until real Hermes traffic. Do NOT coerce absent to zero.
-      - record: hermes_poc:litellm_spend_usd
-        expr: sum(litellm_spend_metric{job="litellm_hermes",api_key_alias="hermes-poc"})
-      - record: hermes_poc:litellm_tokens_total
-        expr: sum(litellm_total_tokens_metric{job="litellm_hermes",api_key_alias="hermes-poc"})
-      - alert: HermesPocSpendReview
-        expr: hermes_poc:litellm_spend_usd > 1.5
+      - record: hermes:litellm_spend_usd
+        expr: sum(litellm_spend_metric{job="litellm_hermes",api_key_alias="hermes"})
+      - record: hermes:litellm_tokens_total
+        expr: sum(litellm_total_tokens_metric{job="litellm_hermes",api_key_alias="hermes"})
+      - alert: HermesSpendReview
+        expr: hermes:litellm_spend_usd > 1.5
         for: 5m
         labels:
           severity: warning
           owner: nabla-platform
         annotations:
-          summary: Hermes POC spent more than USD 1.50 (review LiteLLM key budget)
+          summary: Hermes spent more than USD 1.50 (review LiteLLM key budget)
           description: Review only; verify cumulative metric and rolling key budget before changing it.

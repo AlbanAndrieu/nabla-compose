@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:3abacd845aed8620adc7054a6c2b979f4704f09f839131aacf228837b9b689d8",
+  "catalogRevision": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -1469,6 +1469,40 @@
       "sourcePath": "apps/nginx/catalog-info.yaml",
       "spec": {
         "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/hermes",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/hermes/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "hermes",
+        "tags": [
+          "ai",
+          "agent",
+          "devsecops"
+        ],
+        "title": "Hermes Agent"
+      },
+      "sourcePath": "apps/hermes/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/litellm",
+          "component:default/prometheus"
+        ],
+        "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"

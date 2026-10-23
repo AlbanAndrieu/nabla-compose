@@ -64,7 +64,7 @@ quality-contracts-test:
 # No upstream LLM call, TrueNAS restart, API key or Actions minutes.
 hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
-    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_poc_contract.py tests/test_hermes_poc_preflight.py tests/test_hermes_cloud_credential_preflight.py
+    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
 # Temporary 24 October migration runbook checks; mocks midclt and App changes.
 # No actual TrueNAS, Kubernetes, cloud model request or paid GitHub CI.

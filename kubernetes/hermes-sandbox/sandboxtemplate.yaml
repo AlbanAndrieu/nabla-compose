@@ -1,0 +1,60 @@
+# First approved template: offline homelab checks (git on a provided
+# workspace, just, pre-commit, docker compose config --quiet
+# --no-interpolate --no-env-resolution). Air-gapped: no ingress, no egress,
+# not even cluster DNS. A GitHub PR template (HTTPS to the forge only, token
+# fine-grained and PR-scoped) is a separate, later review.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: hermes-homelab-offline
+spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    ingress: []
+    egress: []
+  podTemplate:
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sandbox
+          image: hermes-homelab-sandbox
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          workingDir: /workspace
+          env:
+            - name: HOME
+              value: /workspace
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 4Gi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi

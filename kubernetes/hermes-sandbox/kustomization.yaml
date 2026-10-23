@@ -1,0 +1,28 @@
+# Hermes sandbox namespace — phase 4 of docs/security/hermes-talos-migration.md.
+# NOT applied. Requires the upstream kubernetes-sigs/agent-sandbox controller
+# (CRDs agents.x-k8s.io and extensions.agents.x-k8s.io, v1beta1), installed
+# separately by the operator from a pinned release.
+#   kubectl kustomize kubernetes/hermes-sandbox
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: hermes-sandbox
+
+resources:
+  - namespace.yaml
+  - quota.yaml
+  - networkpolicy.yaml
+  - sandboxtemplate.yaml
+  - broker-rbac.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hermes
+      app.kubernetes.io/managed-by: nabla-compose
+    includeSelectors: false
+
+images:
+  # Fail closed: replace with the verified digest of the reviewed homelab
+  # sandbox image before any apply (image not built yet).
+  - name: hermes-homelab-sandbox
+    newName: ghcr.io/albanandrieu/hermes-homelab-sandbox
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

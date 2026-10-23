@@ -32,6 +32,7 @@ class DiagnosticOutputContractTest(unittest.TestCase):
         "scripts/talos/preflight-kubara.sh",
         "scripts/talos/smoke-fastapi-sample.sh",
         "scripts/talos/smoke-kubernetes-network.sh",
+        "scripts/talos/smoke-networkpolicy-enforcement.sh",
         "scripts/talos/validate-csi-prereqs.sh",
         "scripts/infra/preflight-truenas-talos.sh",
         "scripts/infra/probe-garage-backend.sh",

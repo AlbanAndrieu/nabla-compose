@@ -932,6 +932,24 @@
       }
     },
     {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "kind": "ai-agent-gateway",
+      "category": "ai",
+      "sourcePath": "apps/hermes/compose.yml",
+      "description": "Read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "hermes",
+        "networks": [
+          "hermes"
+        ]
+      }
+    },
+    {
       "id": "homarr",
       "name": "Homarr",
       "kind": "dashboard",
@@ -3550,6 +3568,37 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/nginx/compose.yml:nginx.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "hermes",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/hermes/compose.yml:hermes.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "hermes",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Hermes sends model requests to LiteLLM with its dedicated hermes virtual key.",
+      "evidence": [
+        "config/hermes/config.yaml:model.base_url",
+        "config/hermes/litellm-key-policy.json:key_alias"
+      ]
+    },
+    {
+      "source": "hermes",
+      "target": "prometheus",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The read-only nabla_observe MCP queries allowlisted Prometheus aggregates and Hermes LiteLLM cost.",
+      "evidence": [
+        "scripts/hermes/readonly_mcp.py:PROMETHEUS_URL"
       ]
     },
     {

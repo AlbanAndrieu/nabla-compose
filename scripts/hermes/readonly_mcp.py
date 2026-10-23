@@ -35,7 +35,7 @@ JOBS = {
 }
 PROMETHEUS_URL = os.environ.get("HERMES_OBS_PROMETHEUS_URL", "http://172.17.0.24:9090")
 ALLOWED_HOSTS = frozenset({"172.17.0.24", "prometheus"})
-HERMES_COST_ALIAS = "hermes-poc"
+HERMES_COST_ALIAS = "hermes"
 
 
 class RejectRedirects(HTTPRedirectHandler):

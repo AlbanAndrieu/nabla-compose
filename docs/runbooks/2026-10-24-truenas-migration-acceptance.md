@@ -121,7 +121,9 @@ orchestrée en masse :
   `sudo python3 scripts/truenas/check-litellm-hermes-credentials.py --check`.
   Tant que `ANTHROPIC_API_KEY` n'est pas fournie et que les quatre modèles,
   les budgets et le logging ne sont pas validés, garder la bascule bloquée.
-  Le profil expérimental `poc/hermes` n'est pas l'App native installée.
+  Le service `apps/hermes` (profil `hermes`, statut `planned`) remplace
+  l'App native `hermes-agent`, à retirer manuellement (voir
+  `apps/hermes/README.md`).
 
 ## 3. Redémarrer uniquement une vague approuvée
 

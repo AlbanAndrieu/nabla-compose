@@ -1,12 +1,42 @@
-# Experimental Hermes service. NOT the existing TrueNAS hermes-agent app.
-# IMPORTANT: stop the old gateway before reusing its Telegram/Discord bot tokens.
-# Run ONLY with --profile hermes-poc after a runtime security preflight.
-name: hermes-poc
+# Hermes gateway (read-only DevSecOps profile). Replaces the native TrueNAS
+# App hermes-agent, which is to be removed: never run both with the same
+# Telegram/Discord bot tokens.
+# Run ONLY with --profile hermes after a runtime security preflight
+# (scripts/hermes/preflight.py --check).
+name: hermes
 services:
   hermes:
-    profiles: [hermes-poc]
+    profiles: [hermes]
     image: ${HERMES_IMAGE_REF:-nousresearch/hermes-agent:stable}
-    container_name: hermes-poc
+    container_name: hermes
+    x-nabla:
+      id: hermes
+      name: Hermes Agent
+      kind: ai-agent-gateway
+      category: ai
+      presentationRole: service
+      criticality: low
+      status: planned
+      description: Read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.
+      runtime:
+        provider: truenas-app
+        containerService: hermes
+      relations:
+        - target: litellm
+          type: consumesApi
+          strength: required
+          description: Hermes sends model requests to LiteLLM with its dedicated hermes virtual key.
+          evidence:
+            - config/hermes/config.yaml:model.base_url
+            - config/hermes/litellm-key-policy.json:key_alias
+        - target: prometheus
+          type: consumesApi
+          strength: optional
+          description: The read-only nabla_observe MCP queries allowlisted Prometheus aggregates and Hermes LiteLLM cost.
+          evidence:
+            - scripts/hermes/readonly_mcp.py:PROMETHEUS_URL
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/hermes
     restart: unless-stopped
     command: ["gateway", "run"]
     # The official image starts an s6 supervisor and drops gateway execution to
@@ -32,13 +62,16 @@ services:
       - path: /mnt/cpool/secrets/runtime/hermes/.env.secrets
         required: true
     volumes:
+      # Host state lives in /mnt/cpool/hermes/data (UID 10000, mode 0700),
+      # mounted at the image's HERMES_HOME. Create it explicitly; never point
+      # this at /mnt/cpool/hermes itself, which still holds legacy files.
       - type: bind
-        source: /mnt/cpool/hermes/poc
+        source: /mnt/cpool/hermes/data
         target: /opt/data
         bind:
           create_host_path: false
       - type: bind
-        source: /mnt/cpool/compose/nabla-compose/config/hermes/poc-config.yaml
+        source: /mnt/cpool/compose/nabla-compose/config/hermes/config.yaml
         target: /opt/data/config.yaml
         read_only: true
         bind:
@@ -52,12 +85,12 @@ services:
     # No host ports / dashboard / admin API. Outgoing Telegram/Discord and
     # LiteLLM/Prometheus need an explicit host firewall egress policy at cutover.
     # An ordinary Docker bridge does NOT enforce deny-by-default egress.
-    networks: [hermes_poc]
+    networks: [hermes]
     logging:
       driver: json-file
       options:
         max-size: "5m"
         max-file: "2"
 networks:
-  hermes_poc:
+  hermes:
     driver: bridge

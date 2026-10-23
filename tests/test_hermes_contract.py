@@ -1,4 +1,4 @@
-"""POC Hermes: offline assurance for tool, execution and telemetry boundaries."""
+"""Hermes: offline assurance for tool, execution and telemetry boundaries."""
 
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -19,8 +19,8 @@ def load_mcp():
     return module
 
 
-def test_poc_only_exposes_allowlisted_mcp_tools():
-    cfg = yaml.safe_load((ROOT / "config/hermes/poc-config.yaml").read_text())
+def test_only_exposes_allowlisted_mcp_tools():
+    cfg = yaml.safe_load((ROOT / "config/hermes/config.yaml").read_text())
     for platform in ("telegram", "discord", "api_server", "cli"):
         assert cfg["platform_toolsets"][platform] == ["mcp-nabla_observe"]
     assert "terminal" in cfg["agent"]["disabled_toolsets"]
@@ -43,10 +43,13 @@ def test_poc_only_exposes_allowlisted_mcp_tools():
     assert cfg["mcp_servers"]["nabla_observe"]["tools"]["resources"] is False
 
 
-def test_poc_compose_has_no_host_root_or_public_ports():
-    cfg = yaml.safe_load((ROOT / "poc/hermes/compose.yml").read_text())
+def test_compose_has_no_host_root_or_public_ports():
+    cfg = yaml.safe_load((ROOT / "apps/hermes/compose.yml").read_text())
     app = cfg["services"]["hermes"]
-    assert "hermes-poc" in app["profiles"]
+    state = next(m for m in app["volumes"] if m["target"] == "/opt/data")
+    assert state["source"] == "/mnt/cpool/hermes/data"
+    assert app["x-nabla"]["status"] == "planned"
+    assert "hermes" in app["profiles"]
     assert app["cap_drop"] == ["ALL"]
     assert "no-new-privileges:true" in app["security_opt"]
     assert not app.get("ports")
@@ -115,6 +118,6 @@ def test_prometheus_only_saves_hermes_key_metrics_without_pii_labels():
     job = next(c for c in prom["scrape_configs"] if c["job_name"] == "litellm_hermes")
     assert job["scrape_interval"] == "60s"
     config = job["metric_relabel_configs"]
-    assert config[1]["regex"] == "hermes-poc"
+    assert config[1]["regex"] == "hermes"
     for sensitive in ("hashed_api_key", "user_email", "client_ip"):
         assert sensitive in config[2]["regex"]

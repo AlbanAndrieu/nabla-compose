@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4ceb9d41857986bf51d9eeac6b2053cb551e9537f38c63f9d795a03f64b01d5e",
+  "catalogRevision": "sha256:0d7508046e52f9101322af3d734abd39e93323e964d69a8bab251d016473c35c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -875,6 +875,25 @@
         "containerService": "nginx",
         "networks": [
           "traefik_network"
+        ]
+      }
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "kind": "ai-agent-gateway",
+      "category": "ai",
+      "sourcePath": "apps/hermes/compose.yml",
+      "composeService": "hermes",
+      "description": "Read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "hermes",
+        "networks": [
+          "hermes"
         ]
       }
     },

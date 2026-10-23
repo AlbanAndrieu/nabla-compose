@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hermes TrueNAS POC preflight: read-only, never prints credential values."""
+"""Hermes TrueNAS preflight: read-only, never prints credential values."""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 DEFAULT_ENV = Path("/mnt/cpool/secrets/runtime/hermes/.env.secrets")
-DEFAULT_STATE = Path("/mnt/cpool/hermes/poc")
+DEFAULT_STATE = Path("/mnt/cpool/hermes/data")
 REQUIRED = {"HERMES_LITELLM_API_KEY"}
 BOTS = {
     "TELEGRAM_BOT_TOKEN": "TELEGRAM_ALLOWED_USERS",
@@ -52,26 +52,26 @@ def validate(env: Path, state: Path, image: str, api: bool) -> list[str]:
         secret_available = env.is_file() and not env.is_symlink()
         state_available = state.is_dir() and not state.is_symlink()
     except PermissionError:
-        errors.append("Cannot inspect Hermes POC paths: run read-only check with sudo")
+        errors.append("Cannot inspect Hermes paths: run read-only check with sudo")
         return errors
     if not secret_available:
         errors.append("Dedicated runtime secret file missing or unsafe symlink")
         return errors
     if not state_available:
-        errors.append("Dedicated isolated POC state directory missing or unsafe symlink")
+        errors.append("Dedicated isolated Hermes state directory missing or unsafe symlink")
         return errors
     try:
         e_stat = env.stat()
         s_stat = state.stat()
     except PermissionError:
-        errors.append("Cannot stat Hermes POC paths: run read-only check with sudo")
+        errors.append("Cannot stat Hermes paths: run read-only check with sudo")
         return errors
     if stat.S_IMODE(e_stat.st_mode) != 0o600 or e_stat.st_uid != 0:
         errors.append("Runtime secret file must be root-owned mode 0600")
     if stat.S_IMODE(s_stat.st_mode) & 0o077:
-        errors.append("POC state directory must not be accessible to group/others")
+        errors.append("Hermes state directory must not be accessible to group/others")
     if s_stat.st_uid != 10000:
-        errors.append("POC state must be owned by Hermes UID 10000")
+        errors.append("Hermes state must be owned by Hermes UID 10000")
     try:
         data = parse_names(env)
     except (OSError, UnicodeError, ValueError):
@@ -94,7 +94,7 @@ def validate(env: Path, state: Path, image: str, api: bool) -> list[str]:
     for name in ("GATEWAY_ALLOWED_USERS", "DISCORD_ALLOWED_CHANNELS",
                  "DISCORD_ALLOWED_ROLES"):
         if data.get(name):
-            errors.append("Non-owner identity surface forbidden in PoC: " + name)
+            errors.append("Non-owner identity surface forbidden for Hermes: " + name)
     if any(data.get(k, "").strip("\"' ").lower() in ("true", "1", "yes", "on") for k in UNSAFE_TRUE):
         errors.append("Unsafe allow-all or YOLO setting enabled")
     if api and (not data.get("API_SERVER_KEY") or len(data["API_SERVER_KEY"]) < 32):
@@ -111,17 +111,17 @@ def main() -> int:
     parser.add_argument("--api", action="store_true", help="validate optional interservice API credential")
     args = parser.parse_args()
     problems = validate(
-        Path(os.environ.get("HERMES_POC_SECRET_FILE", DEFAULT_ENV)),
-        Path(os.environ.get("HERMES_POC_STATE_DIR", DEFAULT_STATE)),
+        Path(os.environ.get("HERMES_SECRET_FILE", DEFAULT_ENV)),
+        Path(os.environ.get("HERMES_STATE_DIR", DEFAULT_STATE)),
         os.environ.get("HERMES_IMAGE_REF", ""),
         args.api,
     )
     if problems:
         for msg in problems:
             print("FAIL: " + msg, file=sys.stderr)
-        print("hermes_poc_preflight=blocked")
+        print("hermes_preflight=blocked")
         return 1
-    print("hermes_poc_preflight=ready_metadata_only")
+    print("hermes_preflight=ready_metadata_only")
     print("WARNING: egress firewall/TrueNAS container UID and unique bot session require live verification.")
     return 0
 
