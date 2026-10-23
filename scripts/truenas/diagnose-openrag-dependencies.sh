@@ -56,7 +56,7 @@ read -r search_state search_health _ <<< "$opensearch"
 # merely running, without a healthy Docker healthcheck, cannot start frontend.
 if [[ "$backend_state" != running || "$backend_health" != healthy ]]; then
   printf 'BLOCKED: backend not running+healthy, frontend dependency unsatisfied\n' >&2
-  printf 'NEXT: check backend health and OpenSearch/Langflow dependencies before any app.redeploy\n' >&2
+  printf 'NEXT: check backend health and OpenSearch/Langflow dependencies before any reviewed reconciliation\n' >&2
   exit 1
 fi
 if [[ "$frontend_state" == created ]]; then
