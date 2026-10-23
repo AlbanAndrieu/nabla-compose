@@ -186,15 +186,18 @@ if [[ "${runtime_status}" != running ]]; then
       awk '{
           t=tolower($0); lines++;
           if (t ~ /permission denied|operation not permitted/) permissions++;
-          if (t ~ /prometheus[.]yml/ && t ~ /permission denied/) config_unreadable++;
+          if (t ~ /open[[:space:]]+\/etc\/prometheus\/prometheus[.]yml/ && t ~ /permission denied/) config_unreadable++;
+          if (t ~ /\/etc\/prometheus\/rules\// && t ~ /permission denied/) rules_unreadable++;
           if (t ~ /yaml|parse error|invalid config|unknown field/) configuration++;
           if (t ~ /tsdb|corrupt|wal|storage/) storage++;
           if (t ~ /out of memory|oom/) memory++;
         } END {
-          printf "  recent log categories: sample=%d permissions=%d config=%d storage=%d oom=%d\n",
+          printf "  recent log categories: sample=%d permissions=%d parse=%d storage=%d oom=%d\n",
             lines,permissions,configuration,storage,memory;
           if (config_unreadable > 0)
-            print "  root_cause=prometheus_config_permission_denied (check 568:568, parent traversal and ZFS ACL)"
+            print "  root_cause=prometheus_config_permission_denied (check 568:568, parent traversal and ZFS ACL)";
+          else if (rules_unreadable > 0)
+            print "  root_cause=prometheus_rules_permission_denied (check rules directory and per-file 568:568 access)"
         }' >&2 || true
   fi
   printf '  Review privately: docker inspect %s --format "status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}"\n' "${CONTAINER}" >&2
