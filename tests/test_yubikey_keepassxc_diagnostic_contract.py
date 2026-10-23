@@ -439,6 +439,36 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PASS: SDK AES256", result.stdout)
 
+    def test_pivman_aes256_mock_handshake_fails_closed(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv-aes256-handshake-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        for required in ("class FakeSession:", "get_pivman_protected_data",
+                         "MANAGEMENT_KEY_TYPE.AES256", "Insufficient PIN retry budget",
+                         "wrong PIN", "missing AES key", "incorrect key length"):
+            self.assertIn(required, body)
+        for forbidden in ("PivSession(", "SmartCardConnection(", "piv keys generate",
+                          "put_certificate(", "set_management_key("):
+            self.assertNotIn(forbidden, body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("six fail-closed scenarios", result.stdout)
+
+    def test_piv82_inventory_seven_fake_hardware_outcomes(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        content = script.read_text()
+        self.assertIn("FAKE_YKMAN", content)
+        self.assertIn('"ambiguous"', content)
+        self.assertIn('"wrong-serial"', content)
+        self.assertIn('"missing-9a"', content)
+        self.assertNotIn("PivSession(", content)
+        result = subprocess.run(["python3", str(script)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("seven fake-ykman hardware inventory paths", result.stdout)
+
     def test_piv_python_sdk_capability_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-yubikey-piv-python-sdk.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
