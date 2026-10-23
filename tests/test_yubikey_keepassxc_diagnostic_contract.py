@@ -288,6 +288,19 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv82_certificate_adversarial_fixtures(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-certificate-negative-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        self.assertIn("wrong signing private key", body)
+        self.assertIn("wrong PIN/touch", body)
+        self.assertIn("expired certificate", body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("7 malformed certificates rejected", result.stdout)
+
     def test_piv82_certificate_verifier_strict_offline(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-piv82-certificate.py"
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
