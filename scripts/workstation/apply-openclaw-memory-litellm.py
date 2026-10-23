@@ -29,31 +29,37 @@ def candidate(config):
 
 
 def verify_schema(config):
-    proc = subprocess.run(["openclaw", "config", "schema", "--json"],
-                          capture_output=True, timeout=30, check=False)
-    if proc.returncode:
-        raise ValueError("schema unavailable")
-    schema = json.loads(proc.stdout)
-    root = schema["properties"]
-    memory = root["memory"]["properties"]["search"]["properties"]
-    api_key = memory["remote"]["properties"]["apiKey"]
-    if "openai-compatible" not in json.dumps(memory["provider"]):
-        raise ValueError("provider not in schema")
-    if not all(k in memory for k in ("model", "remote", "fallback", "enabled")):
-        raise ValueError("memory schema missing fields")
-    if '"file"' not in json.dumps(api_key):
-        raise ValueError("file SecretRef unsupported")
-    if "providers" not in root["secrets"]["properties"]:
-        raise ValueError("secret providers unsupported")
-    # Keep the schema validator optional for discovery, mandatory for apply.
-    # Do not auto-install into the global mise/system Python environment.
+    """Validate only through OpenClaw's native non-mutating patch endpoint.
+
+    Never print CLI output: it may contain parsed configuration/secret metadata.
+    """
+    patch = {
+        "secrets": {"providers": {
+            "openclaw-embeddings": config["secrets"]["providers"]["openclaw-embeddings"]
+        }},
+        "memory": {"search": {
+            key: config["memory"]["search"][key]
+            for key in ("enabled", "provider", "model", "remote", "fallback")
+        }},
+    }
+    payload = json.dumps(patch).encode("utf-8")
+    proc = subprocess.run(
+        ["openclaw", "config", "patch", "--stdin", "--dry-run", "--json"],
+        input=payload, capture_output=True, timeout=60, check=False,
+    )
+    if proc.returncode != 0:
+        raise ValueError("native_patch_rejected")
     try:
-        import jsonschema
-    except ImportError as exc:
-        raise ModuleNotFoundError("jsonschema") from exc
-    validator_cls = jsonschema.validators.validator_for(schema)
-    validator_cls.check_schema(schema)
-    validator_cls(schema).validate(config)
+        result = json.loads(proc.stdout)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("native_patch_output_invalid") from exc
+    if not isinstance(result, dict):
+        raise ValueError("native_patch_output_invalid")
+    # Only accept a confirmed native validation outcome, not arbitrary JSON.
+    # Different OpenClaw releases may use different result contracts.
+    if result.get("valid") is True or result.get("ok") is True:
+        return
+    raise ValueError("native_patch_result_unrecognized")
 
 
 def private_file(path):
@@ -78,7 +84,7 @@ def main():
         original = json.loads(old_bytes)
         stage = "candidate"
         updated, state = candidate(original)
-        stage = "schema_validation"
+        stage = "native_patch_validation"
         verify_schema(updated)
         if state == "already_configured":
             print("configuration=already_configured")
@@ -131,50 +137,9 @@ def main():
         print("gateway_restart=not_performed")
         print("memory_reindex=not_performed")
         return 0
-    except ModuleNotFoundError as exc:
-        if exc.name == "jsonschema" or str(exc) == "jsonschema":
-            print("migration=blocked")
-            print("blocked_stage=schema_validation")
-            print("blocked_reason=python_jsonschema_missing")
-            print("remediation=use_project_venv_with_jsonschema")
-            print("configuration_changed=false")
-            return 2
+    except Exception:
+        # Never echo CLI errors, config paths or SecretRef values.
         print("migration=blocked")
-        print("blocked_stage=" + stage)
-        print("configuration_changed=not_confirmed")
-        return 2
-    except Exception as exc:
-        # Fixed-category diagnostics only. Never print exception text,
-        # schema paths, instance paths, or invalid values.
-        print("migration=blocked")
-        if stage == "schema_validation":
-            kind = "unknown_schema_failure"
-            if isinstance(exc, ModuleNotFoundError):
-                kind = "python_dependency_missing"
-            else:
-                try:
-                    from jsonschema.exceptions import SchemaError, ValidationError
-                    if isinstance(exc, SchemaError):
-                        kind = "schema_definition_invalid"
-                        # Only report the meta-schema keyword, not schema or
-                        # instance paths that may include private plugin data.
-                        keyword = str(exc.validator or "")
-                        if keyword in ("type", "required", "items", "additionalProperties",
-                                       "properties", "patternProperties", "anyOf", "oneOf",
-                                       "allOf", "enum", "const", "format", "$ref",
-                                       "uniqueItems", "minimum", "maximum"):
-                            print("schema_meta_keyword=" + keyword)
-                    elif isinstance(exc, ValidationError):
-                        kind = "candidate_rejected_by_schema"
-                    elif isinstance(exc, (KeyError, TypeError)):
-                        kind = "schema_shape_unexpected"
-                    elif isinstance(exc, ValueError):
-                        kind = "schema_contract_unsupported"
-                    elif isinstance(exc, subprocess.TimeoutExpired):
-                        kind = "schema_cli_timeout"
-                except ImportError:
-                    kind = "python_dependency_missing"
-            print("schema_validation_reason=" + kind)
         print("blocked_stage=" + stage)
         print("configuration_changed=not_confirmed")
         return 2
