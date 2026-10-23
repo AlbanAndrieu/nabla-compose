@@ -2941,9 +2941,17 @@ Prochain ordre de travail :
   file SecretRef. `--audit-locations` now also reports fixed
   `main/cron/other_or_shared` owner counts for auth SQLite, generated
   models and retired files, without identifiers, paths or credentials.
-  Source categories and per-agent counts must reconcile. Review config
-  and dotenv consumers, then auth stores, then generated copies, and
-  retain legacy files pending local recovery assessment. Added private
+  Workstation 2026-10-23 evidence: 12/12 offline tests passed and both
+  audit reconciliation gates are true. SQLite auth findings:
+  main=0, cron=1, other_or_shared=4 (ownership **not proven shared**).
+  Generated models.json findings: main=3, cron=0; legacy files:
+  main=2, cron=0. Review config and dotenv consumers first, resolve
+  other-or-shared ownership locally, then prepare one native
+  `secrets configure --agent cron --plan-out` plan, explicitly selecting
+  **No** on the default-Yes apply prompt. Verify with
+  `secrets apply --from ... --dry-run`; do not build/apply competing
+  plans simultaneously. Recheck generated copies after source migrations
+  and retain legacy files pending recovery assessment. Added private
   staged dotenv **read-only native import preflight**
   `scripts/workstation/preflight-openclaw-secrets-import.py`,
   six locally verified synthetic tests, and
