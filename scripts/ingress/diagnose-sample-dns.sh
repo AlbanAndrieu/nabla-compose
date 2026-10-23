@@ -199,5 +199,13 @@ if [[ "$MODE" == --workstation ]]; then
   fi
 fi
 
+if [[ "$pihole_public" == *"$TRUENAS_IP"* ]]; then
+  echo "ACTION: Pi-hole v6 Local DNS: remove only '$TRUENAS_IP $PUBLIC_HOST'; preserve '$PRIVATE_HOST'"
+  echo "ACTION: rerun the diagnostic after Pi-hole's managed DNS configuration is updated"
+fi
+if [[ "$MODE" == --workstation && -n "${active_dns:-}" ]] &&
+   ! grep -Fqw "$PFSENSE_DNS" <<<"$active_dns"; then
+  echo "ACTION: inspect active NetworkManager profile DNS settings; do not alter pfSense DHCP ($PFSENSE_DNS)"
+fi
 printf 'sample_dns_summary failures=%d warnings=%d\n' "$failures" "$warnings"
 ((failures == 0))
