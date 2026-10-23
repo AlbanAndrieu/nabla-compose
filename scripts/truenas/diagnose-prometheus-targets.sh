@@ -92,6 +92,25 @@ if [[ "${runtime_status}" != running ]]; then
   else
     printf '  container_identity=unexpected_or_unverified\n' >&2
   fi
+  # A user namespace can remap container UID 568 to a different host UID.
+  # Inspect only non-secret Docker security selectors (no Env or full JSON).
+  userns_mode="$(docker inspect "${CONTAINER}" --format \
+    '{{.HostConfig.UsernsMode}}' 2>/dev/null || true)"
+  case "${userns_mode}" in
+    host) printf '  docker_userns=host\n' >&2 ;;
+    "") printf '  docker_userns=daemon_default_or_disabled\n' >&2 ;;
+    *) printf '  docker_userns=custom\n' >&2 ;;
+  esac
+  if command -v docker >/dev/null 2>&1; then
+    daemon_security="$(docker info --format '{{json .SecurityOptions}}' 2>/dev/null || true)"
+    if [[ "${daemon_security}" == *userns* ]]; then
+      printf '  daemon_userns=enabled\n' >&2
+    elif [[ -n "${daemon_security}" ]]; then
+      printf '  daemon_userns=not_advertised\n' >&2
+    else
+      printf '  daemon_userns=unverified\n' >&2
+    fi
+  fi
   if (( EUID == 0 )) && command -v setpriv >/dev/null 2>&1; then
     if setpriv --reuid 568 --regid 568 --clear-groups \
       /usr/bin/test -r "${CONFIG}"; then
@@ -113,8 +132,8 @@ if [[ "${runtime_status}" != running ]]; then
           awk '{
               t=tolower($0); count++;
               if (t ~ /permission denied|operation not permitted/) permissions++;
-              if (t ~ /prometheus[.]yml/ && t ~ /permission denied/) config++;
-              if (t ~ /rules.*permission denied/) rules++;
+              if (t ~ /\/etc\/prometheus\/prometheus[.]yml/ && t ~ /permission denied/) config++;
+              if (t ~ /\/etc\/prometheus\/rules\// && t ~ /permission denied/) rules++;
               if (t ~ /wal.*permission denied|tsdb.*permission denied|storage.*permission denied/) storage++;
             } END {
               printf "  since_config_change: sample=%d permissions=%d config=%d rules=%d storage=%d\n",
