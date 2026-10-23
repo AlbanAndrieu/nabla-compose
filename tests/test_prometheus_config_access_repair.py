@@ -66,7 +66,7 @@ def sandbox(tmp_path: Path, *, runtime_user: str = "568:568",
 
 
 @pytest.mark.parametrize("runtime_user,mount_ok,symlink,reason", [
-    ("568:568", True, False, "group cannot read"),
+    ("568:568", True, False, "config group mismatch"),
     ("999:999", True, False, "runtime user differs"),
     ("568:568", False, False, "mount differs"),
     ("568:568", True, True, "unsafe prometheus.yml"),
