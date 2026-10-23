@@ -61,6 +61,24 @@ file_mode="$(stat -c '%a' -- "${CONFIG}")"
 printf 'config file uid=%s gid=%s mode=%s; runtime=%s; expected_gID=%s\n' \
   "${file_uid}" "${file_gid}" "${file_mode}" "${runtime_user}" "${EXPECTED_GID}"
 
+# File mode and group ownership alone cannot prove permission on ZFS ACLs.
+# Check effective UID/GID 568:568 from a host process. No contents are read.
+effective_read_probe() {
+  if (( EUID != 0 )); then
+    printf '⚠️ Effective UID access not attested (rerun --check with sudo)\n' >&2
+    return 0
+  fi
+  if ! command -v setpriv >/dev/null 2>&1; then
+    printf '⚠️ setpriv unavailable; effective UID 568 access not attested\n' >&2
+    return 0
+  fi
+  if setpriv --reuid 568 --regid 568 --clear-groups /usr/bin/test -r "$CONFIG"; then
+    printf '✅ Effective UID:GID 568:568 can read configuration on the host\n'
+  else
+    fail 'effective UID:GID 568:568 cannot read prometheus.yml; check ZFS ACLs/ancestor traversal, no recursive chmod'
+  fi
+}
+
 if [[ "${MODE}" == --check ]]; then
   [[ "${file_gid}" == "${EXPECTED_GID}" ]] ||
     fail 'config group mismatch; use scoped --apply only after reviewing mount'
@@ -68,6 +86,7 @@ if [[ "${MODE}" == --check ]]; then
     fail 'group cannot read prometheus.yml; use scoped --apply'
   (( (8#${file_mode} & 8#0004) == 0 )) ||
     fail 'config is world-readable; use scoped --apply to restore 0640'
+  effective_read_probe
   printf '✅ Prometheus config group-read contract satisfied (ACL and runtime still to verify)\n'
   exit 0
 fi
@@ -78,6 +97,7 @@ chgrp -- "${EXPECTED_GID}" "${CONFIG}"
 chmod 0640 -- "${CONFIG}"
 [[ "$(stat -c '%g:%a' -- "${CONFIG}")" == '568:640' ]] ||
   fail 'post-repair group/mode verification failed'
+effective_read_probe
 printf '✅ Prometheus config repaired: group=568 mode=0640, file owner preserved\n'
 printf 'ℹ️ No restart performed; Docker restart policy may recover Prometheus automatically.\n'
 printf 'ℹ️ Check ZFS ACL if permission errors persist; preserve /mnt/cpool/prometheus/data.\n'
