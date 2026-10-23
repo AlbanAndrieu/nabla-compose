@@ -829,6 +829,31 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Migration accélérée Talos / Kubernetes / Apps (23 octobre 2026)
+
+- [x] Créer les workflows opérateur à faible latence, sans CI payante :
+  `scripts/talos/fast-batch-upgrade.py` (3 nœuds Talos en parallèle) et
+  `scripts/truenas/fast-bulk-redeploy-apps.py` (Apps RUNNING par lots concurrents,
+  et non pas redémarrage séquentiel service par service).
+- [x] Retirer **de ce nouveau chemin d'exécution** la sauvegarde etcd obligatoire,
+  conformément à la demande opérateur, avec acquittement spécifique
+  `I_ACCEPT_FULL_CLUSTER_OUTAGE_WITHOUT_ETCD_BACKUP`, validation hash,
+  et arrêt si la reprise cluster échoue. Aucun `--force`, `reset` ou
+  `bootstrap` Talos. Le risque de perte des objets etcd est accepté
+  explicitement, non pas masqué.
+- [x] Conserver un point de dépendance incompressible : `upgrade-k8s` uniquement
+  après récupération des trois nœuds Talos. Kubernetes est ensuite orchestré
+  par sa commande Talos native, pas par des commandes de composants simultanées.
+- [x] Ajouter `just fast-maintenance-test`, les tests mockés offline, et le
+  runbook `docs/runbooks/2026-10-23-fast-batch-migration.md`.
+- [ ] Exécuter les tests locaux sur clone complet, faire un `--check` live,
+  puis valider fenêtre d'indisponibilité et plan hash exact.
+- [ ] Effectuer les `--apply` après merge de la PR : Talos/K8s sur
+  workstation, Apps TrueNAS sur hôte TrueNAS, validation CSI/NFS/Gatus/Prometheus.
+- [ ] Compléter les upgrades d'images applicatives/charts figés restants :
+  `app.redeploy` rafraîchit les images mais ne modifie ni tag versionné
+  ni chart version ; qualifier les migrations de schéma et dépendances.
+
 ## Upgrade des versions maintenues — Talos / Kubernetes / PHP / Python (2026-10-23)
 
 - [x] Définir la **cible GitOps, non encore appliquée au runtime** : Talos `v1.14.4` (et CLI mise 1.14.4), Kubernetes `v1.37.1`, PHP `8.5.12` (correction critique du 21 octobre 2026), Python `3.14.9` ; distinguer support officiel et terme « LTS » impropre pour Kubernetes/Python. Voir `config/upgrades/supported-runtime-targets.json`.
