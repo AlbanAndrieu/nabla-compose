@@ -40,7 +40,7 @@ HTTP = {
     "scrutiny": ("http://172.17.0.24:31054/api/health", "scrutiny"),
     "influxdb": ("http://127.0.0.1:31055/health", "influxdb"),
     "prometheus": ("http://127.0.0.1:9090/-/ready", "prometheus"),
-    "sentry": ("http://127.0.0.1:9005/_health/", "sentry"),
+    "sentry": ("http://172.17.0.24:9005/_health/", "sentry"),
     "sample": ("http://127.0.0.1:8091/health", "sample"),
 }
 SEVERITY = {"HEALTHY": 0, "WARN": 1, "DEGRADED": 2, "BLOCKED": 3, "UNKNOWN": 4}
@@ -140,8 +140,10 @@ def http_check(service: str, timeout: int = 5) -> dict:
             if isinstance(data, list):
                 count = len(data)
             elif isinstance(data, dict):
-                count = len(data.get("endpoints", [])) if isinstance(
-                    data.get("endpoints"), list) else len(data)
+                collection = data.get("endpoints", data.get("statuses"))
+                if not isinstance(collection, (list, dict)):
+                    return {"status": "unknown", "detail": "Gatus monitor list unverified"}
+                count = len(collection)
             else:
                 return {"status": "unknown", "detail": "unexpected API shape"}
             return {"status": "ok" if count else "warning",
@@ -169,6 +171,25 @@ def http_check(service: str, timeout: int = 5) -> dict:
     except (OSError, ValueError, urllib.error.HTTPError,
             urllib.error.URLError, TimeoutError):
         return {"status": "fail", "detail": "HTTP probe unavailable"}
+
+
+def fastapi_provenance() -> str | None:
+    """A running image can be healthy without any Git SHA attestation."""
+    req = urllib.request.Request("http://127.0.0.1:8091/v2/version",
+                                 headers={"Accept": "application/json"})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(req, timeout=5) as response:
+            if response.status != 200:
+                return "Git provenance endpoint unavailable"
+            raw = response.read(4096)
+        data = json.loads(raw)
+        value = data.get("build_revision") if isinstance(data, dict) else None
+        if not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{40}", value):
+            return "running Git SHA not attested (build_revision missing)"
+        return None
+    except (OSError, ValueError, TypeError):
+        return "running Git SHA not attested (version endpoint unavailable)"
 
 
 def gatus_access() -> str | None:
@@ -256,6 +277,12 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
         notes.append("liveliness passes but Docker healthcheck fails")
     if service == "openrag" and docker["openrag-backend"]["health"] == "healthy":
         notes.append("backend ready; frontend must also be running")
+    if service == "sample" and http and http["status"] == "ok":
+        provenance_issue = fastapi_provenance()
+        if provenance_issue:
+            if sev == "HEALTHY":
+                sev = "WARN"
+            notes.append(provenance_issue)
     return {"service": service, "state": app, "status": sev,
             "notes": notes, "containers": docker, "http": http}
 
