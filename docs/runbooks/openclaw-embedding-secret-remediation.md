@@ -233,3 +233,19 @@ memory; only after runtime SecretRef resolution succeeds should the
 incompatible old vector indexes be reindexed under controlled acceptance.
 Never copy the embedding-only key into a chat model provider or OpenRAG's
 combined chat credential.
+
+
+## 2026-10-23 — apply preflight failed safely (PR #271)
+
+Operator confirmed all three `test_openclaw_memory_litellm_apply.py` synthetic tests pass, but `python3 scripts/workstation/apply-openclaw-memory-litellm.py` returned `migration=blocked` and `configuration_changed=not_confirmed`. This is **not** permission to execute `--apply`. The earlier planner and real `embedding` API probe both passed; the specific preflight blocker is still unproven.
+
+A follow-up commit adds a fixed, sanitized `blocked_stage` field, chosen from: `file_permissions`, `read_config`, `parse_config`, `candidate`, `schema_validation`, `gateway_state`, `concurrent_change`, `backup`, `atomic_write`. No exception text or config value is ever printed. A `schema_validation` blocker can arise from a missing Python `jsonschema` dependency or failed candidate validation; do not presume which without further locally redacted inspection. `gateway_state` is only checked with an actual `--apply`; the normal preflight does not demand downtime.
+
+Next operator-only commands (read-only):
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+python3 -c 'import importlib.util; print("jsonschema_installed=" + str(importlib.util.find_spec("jsonschema") is not None).lower())'
+```
+Do not run `--apply`, alter the Gateway, install packages globally or rebuild indexes until the blocker is identified and the candidate is validated.
