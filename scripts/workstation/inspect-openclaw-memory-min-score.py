@@ -75,7 +75,10 @@ def agent_entry(root, agent):
 
 def inspect(path, agent=None):
     """Return a bounded status/value; never print or return private config."""
-    root = load_private_config(path)
+    try:
+        root = load_private_config(path)
+    except ValueError:
+        return "blocked", None
     status, score = read_explicit_score(root)
     if status == "invalid" or agent is None:
         return status, score
