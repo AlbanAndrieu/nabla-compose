@@ -2389,3 +2389,16 @@ Rester **NO-GO matériel** : validation 30/30 n'autorise aucune inscription ni i
 ### Validation opérateur 30/30 — 23 octobre 2026
 
 Après synchronisation sur le HEAD `f6480a5b`, l'opérateur a exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **30/30 tests PASS en 0,859 s**, notamment `test_piv82_certificate_adversarial_fixtures`. La gate reste exclusivement hors matériel. Le message `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified` est attendu. Le jalon tests positifs/négatifs des certificats est accepté ; les prochaines vérifications doivent porter sur les interfaces de session PIV AES256 et l'interopérabilité matérielle, sans demander de PIN ni écrire sur la carte tant que le chemin n'est pas approuvé.
+
+### 23 octobre 2026 — Préflight matériel AES256 en lecture seule (PR #271)
+
+Script ajouté : `scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048|23501671`. Limité aux deux numéros de série inventoriés, exige **exactement une** YubiKey connectée ; vérifie via `ykman` le stockage de la management key **AES256 protégée par PIN**, l'absence de clé dans PIV82 et la présence de métadonnées clé en PIV9A. N'effectue **aucun** essai PIN, authentification, signature, génération ou import. En cas de doute ou d'erreur d'accès, termine en **NO-GO (exit 3)**. Le contrôle de PIV9A porte sur les métadonnées de clé, **pas sur son certificat** ou une comparaison de fingerprint historique. OTP2 reste intact mais n'est pas vérifié cryptographiquement par cet inventaire. Le résultat ne démontre pas l'authentification PIN-protected AES256.
+
+Nouveau contrat unittest correspondant : **31 tests attendus** lors de la prochaine gate. Validation précédente **30/30 PASS** au commit `f6480a5b` et enregistrée dans PR #271. Commandes à exécuter uniquement lorsque la carte secondaire peut être connectée en exclusivité :
+
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+bash scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048
+```
+
+**NO-GO provisionnement maintenu** jusqu'à validation du mécanisme d'authentification matérielle AES256 et de l'inscription/certification PIV82, suivie d'un déchiffrement age réel. Aucun merge automatique ni CI facturée.
