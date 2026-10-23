@@ -108,6 +108,14 @@ truenas-ai-recovery-test:
     python3 -m py_compile scripts/truenas/diagnose-ai-secret-recovery.py
     python3 -m pytest -q tests/test_ai_secret_recovery_diagnostic.py
 
+# Functional readiness: TrueNAS state + Docker health + semantic HTTP.
+truenas-readiness-check:
+    sudo python3 scripts/truenas/diagnose-service-readiness.py --check
+
+truenas-readiness-test:
+    python3 -m py_compile scripts/truenas/diagnose-service-readiness.py
+    python3 -m pytest -q tests/test_service_readiness_diagnostic.py
+
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
 truenas-catalog-v2-test:
