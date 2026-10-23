@@ -12,7 +12,7 @@ ENDPOINTS = {
     "inlet": "http://172.17.0.24:31057/api/v0/metrics",
     "outlet": "http://172.17.0.24:31058/api/v0/metrics",
 }
-METRIC = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\\{([^}]*)\\})?\\s+([-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?)")
+METRIC = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
 LABEL = re.compile(r'([a-zA-Z_][a-zA-Z0-9_]*)="([^"]*)"')
 FAMILIES = (
     "akvorado_inlet_flow_input_udp_",
