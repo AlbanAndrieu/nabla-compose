@@ -37,6 +37,7 @@ CONTAINERS = {
 HTTP = {
     "gatus": ("http://127.0.0.1:8085/api/v1/endpoints/statuses", "gatus"),
     "litellm": ("http://127.0.0.1:4000/health/liveliness", "litellm"),
+    "openrag": ("http://127.0.0.1:31060/health/collective_health", "openrag"),
     "scrutiny": ("http://172.17.0.24:31054/api/health", "scrutiny"),
     "influxdb": ("http://127.0.0.1:31055/health", "influxdb"),
     "prometheus": ("http://127.0.0.1:9090/-/ready", "prometheus"),
@@ -99,14 +100,105 @@ def health_reason(logs: list[dict]) -> str:
     return "healthcheck nonzero/unknown"
 
 
+def startup_reason(name: str) -> str:
+    """Read a bounded tail only when startup fails; return static safe categories.
+
+    Raw Docker output is deliberately never returned, printed or serialized.
+    The service names are allowlisted by CONTAINERS in assess().
+    """
+    if name not in (item for group in CONTAINERS.values() for item in group):
+        return "startup reason unverified"
+    try:
+        result = subprocess.run(
+            ["docker", "logs", "--tail", "20", name],
+            capture_output=True, text=True, check=False, timeout=8
+        )
+        sample = (result.stdout + result.stderr)[-32768:].lower()
+    except (OSError, UnicodeError, subprocess.TimeoutExpired):
+        return "startup reason unavailable"
+    if name == "prometheus" and "permission denied" in sample and (
+            "prometheus.yml" in sample or "--config.file" in sample):
+        return "Prometheus config permission denied"
+    if "permission denied" in sample or "operation not permitted" in sample:
+        return "startup permissions"
+    if any(token in sample for token in
+           ("yaml:", "parsing error", "invalid configuration", "unknown field")):
+        return "startup config invalid"
+    if "no such file or directory" in sample:
+        return "startup file/path missing"
+    if "address already in use" in sample:
+        return "startup port conflict"
+    if "out of memory" in sample or "oomkilled" in sample:
+        return "startup memory exhaustion"
+    return "startup reason unverified"
+
+
+def prometheus_config_access() -> str | None:
+    """POSIX mode preflight for Compose user 568:568; ACLs need independent review."""
+    config = ROOT / "apps/prometheus/prometheus.yml"
+    try:
+        for item in (config, *config.parents):
+            metadata = item.stat()
+            is_config = item == config
+            if is_config and not stat.S_ISREG(metadata.st_mode):
+                return "Prometheus config path is not a regular file"
+            if not is_config and not stat.S_ISDIR(metadata.st_mode):
+                return "Prometheus config parent not a directory"
+            # Docker Compose specifies user: "568:568"; root's os.access()
+            # would give a false positive for a non-root container.
+            if metadata.st_uid == 568:
+                required = stat.S_IRUSR if is_config else stat.S_IXUSR
+            elif metadata.st_gid == 568:
+                required = stat.S_IRGRP if is_config else stat.S_IXGRP
+            else:
+                required = stat.S_IROTH if is_config else stat.S_IXOTH
+            if not (stat.S_IMODE(metadata.st_mode) & required):
+                if is_config:
+                    return "Prometheus config POSIX read permission missing for UID/GID 568 (verify ZFS ACL)"
+                return "Prometheus config directory traversal denied for UID/GID 568 (verify ZFS ACL)"
+    except OSError:
+        return "Prometheus config file or directory metadata unavailable"
+    return None
+
+
+def prometheus_query_check(opener, timeout: int) -> dict:
+    """Prove PromQL API and TSDB query work, not merely the ready HTTP handler."""
+    request = urllib.request.Request(
+        "http://127.0.0.1:9090/api/v1/query?query=count%28up%29",
+        headers={"Accept": "application/json"}
+    )
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            if response.status != 200:
+                return {"status": "fail", "detail": "PromQL API non-200"}
+            payload = response.read(65537)
+        if len(payload) > 65536:
+            return {"status": "unknown", "detail": "PromQL response exceeds limit"}
+        data = json.loads(payload)
+        result = data.get("data") if isinstance(data, dict) else None
+        if data.get("status") != "success" or not isinstance(result, dict):
+            return {"status": "fail", "detail": "PromQL execution failed"}
+        if result.get("resultType") != "vector" or not isinstance(result.get("result"), list):
+            return {"status": "fail", "detail": "PromQL response contract invalid"}
+        if not result["result"]:
+            return {"status": "warning", "detail": "PromQL works but no up series"}
+        return {"status": "ok", "detail": "Prometheus ready; PromQL count(up) succeeded"}
+    except (OSError, TypeError, ValueError, urllib.error.HTTPError,
+            urllib.error.URLError, TimeoutError):
+        return {"status": "fail", "detail": "PromQL API unavailable"}
+
+
 def docker_state(name: str) -> dict:
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}", name):
         raise ValueError("invalid container name")
-    raw = run(["docker", "inspect", "--format", "{{json .State}}", name])
+    raw = run(["docker", "inspect", "--format",
+               "{{json .State}}|{{.RestartCount}}", name])
     if raw is None:
         return {"status": "unknown", "health": "unknown"}
     try:
-        obj = json.loads(raw)
+        state_raw, separator, restart_raw = raw.strip().rpartition("|")
+        obj = json.loads(state_raw if separator else raw)
+        restarts = int(restart_raw) if separator and restart_raw.isdecimal() else None
         if not isinstance(obj, dict):
             raise ValueError("invalid Docker state")
         health = obj.get("Health") or {}
@@ -116,6 +208,7 @@ def docker_state(name: str) -> dict:
                 "health": str(health.get("Status", "none")),
                 "healthReason": safe_reason,
                 "exit": obj.get("ExitCode"),
+                "restarts": restarts,
                 "oom": bool(obj.get("OOMKilled", False))}
     except (TypeError, ValueError, AttributeError):
         return {"status": "unknown", "health": "unknown"}
@@ -133,8 +226,12 @@ def http_check(service: str, timeout: int = 5) -> dict:
             body = resp.read(65537)
         if len(body) > 65536:
             return {"status": "unknown", "detail": "response exceeds limit"}
-        if kind in ("litellm", "prometheus", "sentry"):
+        if kind == "prometheus":
+            return prometheus_query_check(opener, timeout)
+        if kind in ("litellm", "sentry"):
             return {"status": "ok", "detail": "HTTP 200; semantics limited"}
+        if kind == "openrag":
+            return {"status": "ok", "detail": "OpenRAG frontend HTTP responds; Docker backend/frontend health also required"}
         data = json.loads(body)
         if kind == "gatus":
             if isinstance(data, list):
@@ -238,7 +335,16 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
         status, health = item["status"], item["health"]
         if status in ("created", "restarting", "exited", "dead"):
             sev = "BLOCKED"
-            notes.append(name + " " + status)
+            detail = name + " " + status
+            if status in ("restarting", "exited", "dead"):
+                exit_code = item.get("exit")
+                restarts = item.get("restarts")
+                if isinstance(exit_code, int) and not isinstance(exit_code, bool):
+                    detail += f" exit={exit_code}"
+                if isinstance(restarts, int) and not isinstance(restarts, bool):
+                    detail += f" restarts={restarts}"
+                detail += " (" + startup_reason(name) + ")"
+            notes.append(detail)
         elif status == "unknown":
             if sev == "HEALTHY":
                 sev = "UNKNOWN"
@@ -255,7 +361,20 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
         elif status == "running" and health == "none":
             notes.append(name + " no Docker healthcheck")
 
-    http = http_check(service) if service in HTTP else None
+    if service == "prometheus" and docker["prometheus"]["status"] != "running":
+        issue = prometheus_config_access()
+        if issue:
+            notes.append(issue)
+
+    # Keep probes read-only, but skip avoidable connection attempts to
+    # services which Docker already proves are not running.
+    any_not_running = any(item["status"] in
+                          ("created", "restarting", "exited", "dead")
+                          for item in docker.values())
+    http = (http_check(service) if service in HTTP and not any_not_running
+            else None)
+    if service in HTTP and any_not_running:
+        notes.append("HTTP probe skipped: required container not running")
     if http is not None:
         if http["status"] == "fail":
             sev = "BLOCKED"
