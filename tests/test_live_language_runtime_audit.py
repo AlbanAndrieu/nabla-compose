@@ -75,6 +75,15 @@ def test_refuses_malformed_image_identity(monkeypatch):
         audit["inventory"](policy, timeout=1, limit=2)
 
 
+def test_global_inventory_timeout_is_fail_closed(monkeypatch):
+    monkeypatch.setitem(audit["inventory"].__globals__, "_execute",
+                        lambda *args, **kwargs: (0, "abcdef123456\\n"))
+    monkeypatch.setattr(audit["inventory"].__globals__["time"], "monotonic",
+                        lambda: 1000.0)
+    with pytest.raises(RuntimeError, match="deadline"):
+        audit["inventory"](policy, timeout=1, limit=2, max_duration=0)
+
+
 def test_refuses_truncated_container_list(monkeypatch):
     monkeypatch.setitem(audit["inventory"].__globals__, "_execute",
                         lambda *args, **kwargs: (0, "a" * 65536))
