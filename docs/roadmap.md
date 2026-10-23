@@ -2905,9 +2905,14 @@ Prochain ordre de travail :
   in 5875 ms. Failure class unknown (transient, not evidence of a persistent
   scoring error). Use local-only `--score-summary` for bounded score,
   latency and 429/5xx/timeout/auth/network categories. New owner-private
-  `inspect-openclaw-memory-min-score.py` reports explicit vs absent
-  `memory.search.query.minScore` without contacting LiteLLM or printing
-  config/secrets. Verify known-phrase relevance before a persisted change.
+  `inspect-openclaw-memory-min-score.py` confirms global
+  `memory.search.query.minScore` was not explicit on Oct 23.
+  Exact OpenClaw `v2026.9.5` source uses default `0.35` and precedence
+  per-agent → global → default. Extended read-only inspector now checks
+  `--agent main` and `--agent cron` separately; nine local offline
+  tests passed. Confirm effective per-agent inheritance and known-phrase
+  relevance before a persisted change. No new embedding requests required
+  for the config inspection.
 - [ ] **P1 LiteLLM reliability:** investigate 60-second embedding retries
   with sanitized, bounded per-key LiteLLM/Workstation telemetry; ensure
   isolated keys/budgets and no cross-vector-space fallback. No further
