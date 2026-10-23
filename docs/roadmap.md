@@ -2889,12 +2889,14 @@ Prochain ordre de travail :
   on Oct 23 both `main` and `cron` returned five matches for
   `deployment` at temporary `--min-score 0`; snippets remain private.
 - [ ] **P1 OpenClaw relevance calibration:** observed 5/5 hits at score
-  thresholds 0.00 and 0.20 for both agents. At 0.35, main returned no
-  matches but cron failed at the CLI (cause still unknown). New local-only
-  `--score-summary` diagnostics classify 429/5xx/timeout/auth/network,
-  report bounded latency and aggregate scores without printing snippets.
-  Verify the cron failure category and known-phrase relevance before any
-  persistent minScore change.
+  thresholds 0.00 and 0.20 for both agents. At 0.35, main returned 0;
+  cron failed once, then a targeted repeat returned `no_matches`, exit 0,
+  in 5875 ms. Failure class unknown (transient, not evidence of a persistent
+  scoring error). Use local-only `--score-summary` for bounded score,
+  latency and 429/5xx/timeout/auth/network categories. New owner-private
+  `inspect-openclaw-memory-min-score.py` reports explicit vs absent
+  `memory.search.query.minScore` without contacting LiteLLM or printing
+  config/secrets. Verify known-phrase relevance before a persisted change.
 - [ ] **P1 LiteLLM reliability:** investigate 60-second embedding retries
   with sanitized, bounded per-key LiteLLM/Workstation telemetry; ensure
   isolated keys/budgets and no cross-vector-space fallback. No further
