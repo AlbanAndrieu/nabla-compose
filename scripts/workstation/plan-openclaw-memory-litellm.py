@@ -22,12 +22,31 @@ def plan(config):
     search = memory.get("search", {})
     if not isinstance(search, dict):
         raise ValueError("search invalid")
-    providers = config.get("secrets", {}).get("providers", {})
+    secrets = config.get("secrets", {})
+    if not isinstance(secrets, dict):
+        raise ValueError("secrets invalid")
+    providers = secrets.get("providers", {})
     if not isinstance(providers, dict):
         raise ValueError("providers invalid")
     alias = providers.get("openclaw-embeddings")
     if alias is not None and alias != {"source": "file", "path": str(KEY), "mode": "singleValue"}:
         raise ValueError("provider alias exists with incompatible definition")
+    agents = config.get("agents", {})
+    if not isinstance(agents, dict):
+        raise ValueError("agents invalid")
+    defaults = agents.get("defaults", {})
+    if not isinstance(defaults, dict):
+        raise ValueError("agent defaults invalid")
+    if "memorySearch" in defaults:
+        raise ValueError("legacy memorySearch requires manual review")
+    entries = agents.get("list", [])
+    if not isinstance(entries, list):
+        raise ValueError("agent list invalid")
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("agent entry invalid")
+        if entry.get("id") in AGENTS and "memorySearch" in entry:
+            raise ValueError("agent-specific memorySearch requires manual review")
     ref = {"source": "file", "provider": "openclaw-embeddings", "id": "value"}
     target = {
         "enabled": True,
@@ -36,6 +55,8 @@ def plan(config):
         "remote": {"baseUrl": "http://127.0.0.1:4000/v1", "apiKey": ref},
         "fallback": "none",
     }
+    if any(key in search and search[key] != value for key, value in target.items()):
+        return target, "pending_review_existing_memory_settings"
     return target, "already_configured" if all(search.get(k) == v for k, v in target.items()) and alias else "pending"
 
 
@@ -74,6 +95,7 @@ def main():
     print("target_endpoint=loopback")
     print("fallback=none_until_equivalence_validated")
     print("plan=" + status)
+    print("existing_memory_settings_review=" + ("required" if status == "pending_review_existing_memory_settings" else "not_required"))
     print("runtime_secret_resolution=unverified")
     print("configuration_changed=false")
     return 0
