@@ -2921,6 +2921,20 @@ Prochain ordre de travail :
   isolated keys/budgets and no cross-vector-space fallback. No further
   reindex or paid GitHub Actions required for diagnostics.
 
+- [ ] **P1 OpenClaw remaining secret imports and migration**: the
+  dedicated embedding `file` SecretRef is installed and functional;
+  global secrets migration is **not complete**. Last known audit had 16
+  plaintext and 2 legacy residues (re-audit required). Added private
+  staged dotenv **read-only native import preflight**
+  `scripts/workstation/preflight-openclaw-secrets-import.py`,
+  six locally verified synthetic tests, and
+  [migration runbook](./runbooks/openclaw-secrets-import.md).
+  Optional `store import` uses shared `team` scope; do not import
+  isolated chat/embedding credentials without explicit sharing review.
+  Validate name collisions, per-agent consumers, owner resolution and audit
+  cleanliness before an operator-approved `store import` or `secrets apply`.
+  No secret values, automatic writes or paid Actions in this step.
+
 See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
 
 ## OpenClaw personal assistant — workstation stabilization
