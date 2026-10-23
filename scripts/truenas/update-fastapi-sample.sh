@@ -70,8 +70,7 @@ quiet_step() {
     # Ordinary errors sometimes contain bearer values or internal URLs.
     # Only an explicit private diagnostic session should retain raw output.
     # Do not dump the arbitrary subprocess log to interactive stdout.
-    summary_warn 'Check private operator diagnostics; command output suppressed.'
-    rm -f -- "${log}"
+    diag_info "Private failure evidence: ${log} (0600; may contain credentials)"
     return "${rc}"
 }
 
@@ -278,11 +277,8 @@ build_fastapi_sample() {
         fi
     fi
 
-    printf 'ERROR: FastAPI Sample image build failed; existing runtime was not replaced.\n' >&2
-    printf '%s\n' "--- last ${BUILD_LOG_TAIL} Docker build log lines ---" >&2
-    tail -n "${BUILD_LOG_TAIL}" "${log}" >&2 || true
-    run_docker version >&2 2>/dev/null || true
-    rm -f "${log}"
+    diag_fail 'FastAPI Sample image build failed; existing runtime was preserved.'
+    diag_info "Private Docker build evidence: ${log} (0600; may contain secrets)"
     return "${rc}"
 }
 
@@ -309,9 +305,8 @@ run_midclt_job_quiet() {
         rc="$?"
     fi
 
-    printf 'ERROR: %s failed.\n' "${label}" >&2
-    tail -n "${DEPLOY_LOG_TAIL}" "${log}" >&2 || true
-    rm -f "${log}"
+    diag_fail "${label} failed"
+    diag_info "Private lifecycle job evidence: ${log} (0600)"
     return "${rc}"
 }
 
