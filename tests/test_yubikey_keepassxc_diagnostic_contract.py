@@ -481,6 +481,20 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key", "ykman piv reset"):
             self.assertNotIn(forbidden, body)
 
+    def test_offline_quality_gate_catches_syntax_errors_first(self):
+        script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        content = script.read_text()
+        self.assertIn("for python_source in", content)
+        self.assertIn("for bash_source in", content)
+        for expected in ("test-age-yubikey-piv-aes256-handshake-offline.py",
+                         "test-age-yubikey-piv82-inventory-fake-offline.py",
+                         "inspect-age-yubikey-aes256-hardware.sh",
+                         "verify-age-yubikey-piv82-certificate.py"):
+            self.assertIn(expected, content)
+        self.assertLess(content.index('python3 -m py_compile "$python_source"'),
+                        content.index("python3 -m unittest discover"))
+
     def test_offline_quality_gate_contract(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
