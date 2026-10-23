@@ -18,6 +18,13 @@ FAMILIES = (
     "akvorado_inlet_flow_input_udp_",
     "akvorado_inlet_kafka_",
     "akvorado_outlet_kafka_",
+    "akvorado_outlet_kafkainput_",
+    "akvorado_outlet_flow_decoder_netflow_",
+    "akvorado_outlet_core_received_",
+    "akvorado_outlet_core_forwarded_",
+    "akvorado_outlet_core_flows_errors_total",
+    "akvorado_outlet_metadata_provider_errors_total",
+    "akvorado_outlet_metadata_provider_snmp_poller_error_requests_total",
     "akvorado_outlet_clickhouse_",
 )
 MAX_BYTES = 2 * 1024 * 1024
@@ -44,6 +51,33 @@ def summarize_metrics(data: str, component: str) -> list[str]:
     return [f"{key}={val:g}" for key, val in sorted(results.items())]
 
 
+def classify_outlet(data: str) -> str:
+    """Classify only from observed evidence; a reachable endpoint is not success."""
+    values: dict[str, float] = {}
+    for line in data.splitlines():
+        match = METRIC.match(line)
+        if match and match.group(1) in (
+            "akvorado_outlet_core_received_flows_total",
+            "akvorado_outlet_core_flows_errors_total",
+            "akvorado_outlet_clickhouse_flow_per_batch_count",
+            "akvorado_outlet_kafkainput_received_messages_total",
+        ):
+            name, labels, value = match.groups()
+            if name == "akvorado_outlet_core_flows_errors_total":
+                if dict(LABEL.findall(labels or "")).get("error") != "metadata missing":
+                    continue
+            values[name] = values.get(name, 0) + float(value)
+    received = values.get("akvorado_outlet_core_received_flows_total", 0)
+    missing = values.get("akvorado_outlet_core_flows_errors_total", 0)
+    if received > 0 and missing >= received and values.get("akvorado_outlet_clickhouse_flow_per_batch_count", 0) == 0:
+        return "BLOCKED_METADATA_MISSING"
+    if values.get("akvorado_outlet_clickhouse_flow_per_batch_count", 0) > 0:
+        return "INSERT_ACTIVITY_OBSERVED_ROWS_UNVERIFIED"
+    if values.get("akvorado_outlet_kafkainput_received_messages_total", 0) > 0:
+        return "KAFKA_CONSUMPTION_OBSERVED_INSERTS_UNVERIFIED"
+    return "NO_END_TO_END_EVIDENCE"
+
+
 def fetch(url: str) -> str:
     with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310 local fixed endpoints
         data = response.read(MAX_BYTES + 1)
@@ -59,10 +93,13 @@ def main() -> int:
     failures = 0
     for component, url in ENDPOINTS.items():
         try:
-            lines = summarize_metrics(fetch(url), component)
+            data = fetch(url)
+            lines = summarize_metrics(data, component)
             print(f"[{component}] metrics_reachable=yes")
             for line in lines:
                 print(line)
+            if component == "outlet":
+                print(f"[outlet] pipeline_status={classify_outlet(data)}")
             if not lines:
                 print(f"[{component}] expected_counter_families=missing")
         except (OSError, urllib.error.URLError, ValueError) as exc:
