@@ -1,5 +1,14 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Native pflow activated — operator evidence (2026-10-23)
+
+- [x] Operator clicked **Apply** on `firewall_pflow.php`; module now loaded (`pflow.ko`, `kldstat` ID 5) and `pflowctl -l` shows `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055`. This confirms exporter configuration, **not** collector receipt or actual traffic.
+- [x] Unbound PID 39281 remained healthy, uptime 20630 seconds. Free+inactive memory was 197.3 MiB before UI change, 190.7 MiB after Save but before Apply, **161.0 MiB after Apply**; 36.3 MiB total decline is temporally correlated, not causally proven. Historical repeated OOM makes margin critical.
+- [ ] Keep global Track by Default disabled. Confirm a selected PF rule explicitly enables pflow tracking and generates new states; verify Akvorado inlet metrics/counter deltas for NetFlow v5 UDP/2055, then compare before/after pfSense CPU/memory, Unbound DNS, kernel OOM.
+- [ ] If memory free+inactive <128 MiB, DNS fails or fresh OOM occurs, immediately disable pflow in native pfSense UI and Apply; confirm module/exporter no longer active and service recovery. Avoid reboot, direct config edits and forced kernel unload.
+
+
+
 ### Operator update — 2026-10-23: pfSense native pflow exporter and Unbound evidence
 
 - [x] Operator reports an exporter **added** via native pfSense UI `https://172.17.0.1:10443/firewall_pflow.php`. This confirms UI configuration only; runtime `pflowctl -l`, kernel module, Akvorado UDP/2055 receipt, protocol, source address, observation domain, PF rules and reboot persistence remain **unverified**. Do not claim pflow traffic is flowing.
