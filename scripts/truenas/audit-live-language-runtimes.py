@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/upgrades/supported-runtime-targets.json"
@@ -62,7 +63,9 @@ def probe(container: str, family: str, timeout: int) -> str | None:
     return ".".join(match.groups()) if match else None
 
 
-def inventory(policy: dict, timeout: int, limit: int) -> list[dict[str, str]]:
+def inventory(policy: dict, timeout: int, limit: int,
+              *, max_duration: int = 300) -> list[dict[str, str]]:
+    deadline = time.monotonic() + max_duration
     code, data = _execute(["docker", "ps", "-q"], timeout=timeout,
                           output_limit=65536)
     if code != 0 or len(data) >= 65536:
@@ -73,6 +76,8 @@ def inventory(policy: dict, timeout: int, limit: int) -> list[dict[str, str]]:
         raise RuntimeError("running container count exceeds explicit inventory limit")
     rows: list[dict[str, str]] = []
     for container in names:
+        if time.monotonic() >= deadline:
+            raise RuntimeError("global runtime inventory deadline exceeded")
         if not re.fullmatch(r"[a-f0-9]{12,64}", container):
             raise RuntimeError("unexpected Docker container identifier")
         code, line = _execute(
@@ -101,12 +106,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--max-containers", type=int, default=200)
     parser.add_argument("--timeout-seconds", type=int, default=5)
+    parser.add_argument("--max-duration-seconds", type=int, default=300)
     args = parser.parse_args(argv)
-    if not 1 <= args.max_containers <= 500 or not 1 <= args.timeout_seconds <= 30:
+    if (not 1 <= args.max_containers <= 500 or
+            not 1 <= args.timeout_seconds <= 30 or
+            not 30 <= args.max_duration_seconds <= 1200):
         parser.error("container and timeout limits must stay bounded")
     try:
         policy = json.loads(POLICY.read_text(encoding="utf-8"))
-        rows = inventory(policy, args.timeout_seconds, args.max_containers)
+        rows = inventory(policy, args.timeout_seconds, args.max_containers,
+                         max_duration=args.max_duration_seconds)
     except (OSError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
         print("BLOCKED: live language inventory unavailable (" +
               type(exc).__name__ + ")", file=sys.stderr)
