@@ -23,9 +23,9 @@ By default, ANSI color is enabled only on a terminal. With a tee pipe use
 --color always and strip ANSI from the archived log, or use --color never.
 NO_COLOR disables ANSI color even when --color always is requested.
 
-Read-only: check Git/TrueNAS version, host-vs-container public HTTP timing,
+Read-only: check Git/TrueNAS version, public DNS/Pi-hole override and HTTPS timing,
 Docker resolver, bounded health-board samples, and Gatus/Prometheus telemetry.
-No environment values, credentials, HTTP bodies from public sites, response
+Run scripts/ingress/diagnose-sample-dns.sh --workstation from a Linux\nworkstation to compare active resolvectl DNS, NetworkManager and DHCP lease.\nNo environment values, credentials, HTTP bodies from public sites, response
 headers, or container logs are printed. HTTP 302/403 is not origin proof.
 HELP
 }
@@ -89,7 +89,7 @@ else
 fi
 run_docker() { "${DOCKER[@]}" "$@"; }
 
-section '1/6' 'Version, code et contexte'
+section '1/7' 'Version, code et contexte'
 if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
     cd /mnt/cpool/compose/nabla-compose || exit 1
     owner="$(stat -c '%U' . 2>/dev/null || true)"
@@ -190,7 +190,7 @@ else
     warn 'Version API unavailable; no runtime revision attestation'
 fi
 
-section '2/6' 'HTTP public : comparaison hôte / conteneur'
+section '2/7' 'HTTP public : comparaison hôte / conteneur'
 for host in garage.albandrieu.com garage-admin.albandrieu.com fastapi-sample.fastapicloud.dev; do
     printf '%-12s %-39s ' HOST "${host}"
     curl -sS -o /dev/null --connect-timeout 5 --max-time 12 \
@@ -204,12 +204,26 @@ for host in garage.albandrieu.com garage-admin.albandrieu.com fastapi-sample.fas
 done
 diag_info "HTTP 302/403 : route Cloudflare Access, pas preuve de santé ou d'accès anonyme à l'origine."
 
-section '3/6' 'Résolution DNS du conteneur (sans secrets)'
+section '3/7' 'DNS Sample : public Cloudflare, Pi-hole et overrides'
+# Shared read-only probe also supports workstation --workstation mode.
+# A Pi-hole 172.17.0.24 answer for sample.albandrieu.com makes Chrome's
+# Cloudflare ECH unusable despite a healthy application at localhost:8091.
+if command -v dig >/dev/null 2>&1; then
+    if bash "${SCRIPT_DIR}/../ingress/diagnose-sample-dns.sh" --check; then
+        ok 'Public/private DNS routes and Pi-hole configuration are coherent'
+    else
+        warn 'DNS Sample divergent : public hostname redirected, stale local override, or unavailable DNS evidence'
+    fi
+else
+    unknown 'dig absent : diagnostic Sample split-DNS non exécuté'
+fi
+
+section '4/7' 'Résolution DNS du conteneur (sans secrets)'
 run_docker exec "${CONTAINER}" sh -c \
     'grep -E "^(nameserver |search |options |# ExtServers:)" /etc/resolv.conf' 2>/dev/null ||
     warn 'Cannot read resolver metadata'
 
-section '4/6' 'Health-board : trois cycles bornés'
+section '5/7' 'Health-board : trois cycles bornés'
 for ((i=1; i<=CYCLES; i++)); do
     payload="$(curl -fsS --connect-timeout 3 --max-time 30 \
         "${API}/api/health-board" 2>/dev/null || true)"
@@ -247,7 +261,7 @@ for ((i=1; i<=CYCLES; i++)); do
     if ((i<CYCLES)); then sleep "${INTERVAL}"; fi
 done
 
-section '5/6' 'Contrat Prometheus / Gatus'
+section '6/7' 'Contrat Prometheus / Gatus'
 # shellcheck disable=SC2016 # expansion happens inside the container
 if run_docker exec "${CONTAINER}" sh -c \
     'test "${HOMELAB_PROMETHEUS_URL:-}" = "http://172.17.0.24:9090"' 2>/dev/null; then
@@ -283,7 +297,7 @@ else
     warn 'Prometheus query failed (missing rules or connection error)'
 fi
 
-section '6/6' 'Ressources Docker : instantané passif'
+section '7/7' 'Ressources Docker : instantané passif'
 run_docker stats --no-stream --format \
     'container={{.Name}} CPU={{.CPUPerc}} MEM={{.MemUsage}} PIDs={{.PIDs}}' \
     "${CONTAINER}" 2>/dev/null || warn 'Docker stats unavailable'
