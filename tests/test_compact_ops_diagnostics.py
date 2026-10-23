@@ -81,7 +81,7 @@ def test_fastapi_image_identity_does_not_claim_build_sha():
     assert 'build_revision=null' in script
 
 
-def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
+def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path, noexec_safe_bash_mocks):
     """Fail fast with safe categories while the container is restarting."""
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
@@ -110,6 +110,7 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
     env = os.environ.copy()
     env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
                 "PROMETHEUS_CONFIG": str(config)})
+    env = noexec_safe_bash_mocks(env, "docker", "curl")
     result = subprocess.run(
         ["bash", str(ROOT / "scripts/truenas/diagnose-prometheus-targets.sh"),
          "--check"],
@@ -126,7 +127,7 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
     assert "HTTP should not run" not in result.stderr
 
 
-def test_prometheus_running_target_summary_is_redacted(tmp_path):
+def test_prometheus_running_target_summary_is_redacted(tmp_path, noexec_safe_bash_mocks):
     """Read-only live-target diagnostics must not echo URL/error credentials."""
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
@@ -158,6 +159,7 @@ def test_prometheus_running_target_summary_is_redacted(tmp_path):
     env = os.environ.copy()
     env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
                 "PROMETHEUS_CONFIG": str(config)})
+    env = noexec_safe_bash_mocks(env, "docker", "curl")
     result = subprocess.run(
         ["bash", str(ROOT / "scripts/truenas/diagnose-prometheus-targets.sh"),
          "--check"], cwd=ROOT, env=env, capture_output=True,
