@@ -183,7 +183,7 @@ if [[ "${runtime_status}" != running ]]; then
   fi
   if docker inspect "${CONTAINER}" >/dev/null 2>&1; then
     docker logs --tail 80 "${CONTAINER}" 2>&1 |
-      awk '{
+      awk -v denied_rules="${rule_denied:-0}" '{
           t=tolower($0); lines++;
           if (t ~ /permission denied|operation not permitted/) permissions++;
           if (t ~ /open[[:space:]]+\/etc\/prometheus\/prometheus[.]yml/ && t ~ /permission denied/) config_unreadable++;
@@ -194,7 +194,9 @@ if [[ "${runtime_status}" != running ]]; then
         } END {
           printf "  recent log categories: sample=%d permissions=%d parse=%d storage=%d oom=%d\n",
             lines,permissions,configuration,storage,memory;
-          if (config_unreadable > 0)
+          if (denied_rules > 0)
+            printf "  root_cause=prometheus_rules_permission_denied (unreadable_host_rules=%d; scoped repair only)\n", denied_rules;
+          else if (config_unreadable > 0)
             print "  root_cause=prometheus_config_permission_denied (check 568:568, parent traversal and ZFS ACL)";
           else if (rules_unreadable > 0)
             print "  root_cause=prometheus_rules_permission_denied (check rules directory and per-file 568:568 access)"
