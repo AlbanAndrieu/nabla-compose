@@ -7,6 +7,8 @@ This is NOT a hardware enrolment utility.
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
+import runpy
 import sys
 
 
@@ -19,7 +21,7 @@ def main() -> int:
         return 2
 
     from cryptography import x509
-    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import NameOID, ObjectIdentifier
     from ykman.piv import sign_certificate_builder
@@ -63,6 +65,34 @@ def main() -> int:
     assert ext.critical is False and ext.value.value == policy_bytes
     assert cert.subject == cert.issuer == subject
     assert cert.public_key().public_numbers() == key.public_key().public_numbers()
+    # Cross-check the EXACT result returned by the Yubico SDK with the same
+    # fail-closed validator intended for public PIV82 certificates.
+    validate = runpy.run_path(
+        str(Path(__file__).with_name("verify-age-yubikey-piv82-certificate.py"))
+    )["validate"]
+    cert_pem = cert.public_bytes(serialization.Encoding.PEM)
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    validate(cert_pem, public_pem)
+    wrong_key = ec.generate_private_key(ec.SECP256R1())
+    wrong_public_pem = wrong_key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    try:
+        validate(cert_pem, wrong_public_pem)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Verifier accepted a different public key")
+    forged_cert = builder.sign(wrong_key, hashes.SHA256())
+    try:
+        validate(forged_cert.public_bytes(serialization.Encoding.PEM), public_pem)
+    except Exception:
+        pass
+    else:
+        raise AssertionError("Verifier accepted a signature from a different key")
+    print("PASS: SDK-signed cert passed strict validator; mismatched SPKI and forged signature rejected")
     print("PASS: real Yubico certificate builder + mock PIV signature + P-256 verification + 03:02 extension")
     print("NO-GO: mock session does not validate AES256 card auth, PIV82 import or age decryption")
     return 0
