@@ -21,6 +21,7 @@ def main() -> int:
         return 2
 
     from cryptography import x509
+    from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import NameOID, ObjectIdentifier
@@ -88,7 +89,7 @@ def main() -> int:
     forged_cert = builder.sign(wrong_key, hashes.SHA256())
     try:
         validate(forged_cert.public_bytes(serialization.Encoding.PEM), public_pem)
-    except Exception:
+    except InvalidSignature:
         pass
     else:
         raise AssertionError("Verifier accepted a signature from a different key")
