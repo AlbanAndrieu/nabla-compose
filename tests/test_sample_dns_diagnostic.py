@@ -64,6 +64,10 @@ esac
 case "$*" in
   *DHCP4.OPTION*) echo 'DHCP4.OPTION[5]: domain_name_servers = 172.17.0.1' ;;
   *"-g GENERAL.CONNECTION"*) echo 'Wired connection' ;;
+  *"-g ipv4.dns connection show Wired connection"*)
+    echo "${MOCK_PROFILE_DNS:-172.17.0.24}" ;;
+  *"-g ipv4.ignore-auto-dns connection show Wired connection"*)
+    echo "${MOCK_PROFILE_IGNORE:-yes}" ;;
   *"connection show Wired connection"*)
     if [ "${MOCK_EMPTY_NM_FIELDS:-0}" != 1 ]; then
       echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
@@ -125,7 +129,9 @@ esac
         self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
         self.assertIn("Quad9/public DNS alone is not sufficient", outcome.stdout)
         self.assertIn("DNS differs from pfSense", outcome.stdout)
-        self.assertIn("sample_dns_summary failures=0 warnings=2", outcome.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=4", outcome.stdout)
+        self.assertIn("NetworkManager profile ignores DHCP DNS", outcome.stdout)
+        self.assertIn("differs from NetworkManager profile DNS", outcome.stdout)
 
     def test_check_mode_never_attempts_local_truenas_docker(self) -> None:
         result = self.run_dns("--check", MOCK_MISSING_PIHOLE="1")
@@ -144,7 +150,26 @@ esac
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("active_nm_profile=Wired connection", result.stdout)
         self.assertIn("NetworkManager active profile DNS properties returned no data", result.stdout)
-        self.assertIn("sample_dns_summary failures=0 warnings=1", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=3", result.stdout)
+
+    def test_restored_dhcp_dns_profile_no_longer_warns(self) -> None:
+        result = self.run_dns(
+            "--workstation", MOCK_PROFILE_DNS="172.17.0.1",
+            MOCK_PROFILE_IGNORE="no", MOCK_ACTIVE_DNS="172.17.0.1",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sample_dns_summary failures=0 warnings=0", result.stdout)
+        self.assertNotIn("ignores DHCP DNS", result.stdout)
+
+    def test_static_pihole_profile_is_warned_even_with_healthy_system_dns(self) -> None:
+        result = self.run_dns(
+            "--workstation", MOCK_PROFILE_DNS="172.17.0.24",
+            MOCK_PROFILE_IGNORE="yes", MOCK_ACTIVE_DNS="172.17.0.1",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("NetworkManager profile ignores DHCP DNS", result.stdout)
+        self.assertIn("systemd-resolved DNS on eno1 differs from NetworkManager", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=2", result.stdout)
 
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
