@@ -367,3 +367,54 @@ python3 scripts/workstation/apply-openclaw-memory-litellm.py
 ```
 No `jsonschema` installation is required by this updated path. No `--apply`
 before native validation, Gateway stop coordination, and rollback review.
+
+
+## 2026-10-23 — operator applied OpenClaw embedding config
+
+Operator stopped the systemd user gateway (observed `inactive`), ran
+`apply-openclaw-memory-litellm.py --apply`, and received
+`candidate=ready`, `configuration_changed=true`, `backup=private_local`,
+`gateway_restart=not_performed`, `memory_reindex=not_performed`. Gateway
+subsequently reported `active`.
+
+A subsequent `openclaw memory status --json` initially warned the Gateway
+WebSocket was unreachable (`ECONNREFUSED`) and resolved secrets locally;
+this can be a startup race, **not evidence of Gateway-side SecretRef resolution
+or availability**. Both agents nevertheless report
+`provider=openai-compatible`, `model=embedding`, `dirty=true` and
+`providerState.mode=pending`.
+
+- `main`: 15 indexed files/57 chunks, 107 eligible source files;
+  vector dimensions 768, vector-index state `unverified`; provenance
+  `mismatched` (code `provenance_version`). **Do not reuse these legacy
+  embeddings as the new model's vectors.**
+- `cron`: 0 indexed files/chunks, 63 eligible files; vector state `empty`,
+  provenance `missing` (`metadata_missing`).
+- Both agents have FTS available and no scan issues. No reindex was performed
+  during the config cutover.
+- Existing Slack plugin state migration warning is unrelated; defer.
+
+Acceptance sequence, keeping credentials and local transcripts private:
+
+1. Confirm `systemctl --user is-active openclaw-gateway.service` is
+   `active`; check readiness with `openclaw gateway status` and rerun a
+   **sanitized** `openclaw memory status --json` summary once WebSocket
+   connectivity is established. Do not paste raw future memory output with
+   source paths or personal corpus metadata.
+2. Check actual OpenClaw memory provider resolution via
+   `openclaw memory status --deep` with on-device review only. Investigate
+   401/auth/connection errors if any; a locally successful separate LiteLLM
+   probe is insufficient proof of OpenClaw memory routing.
+3. Confirm root filesystem free space and an explicit memory-index rollback
+   path. Session SQLite history recovery is operator-deferred; the **agent
+   vector SQLite databases must not be treated as expendable sessions**.
+4. Inspect `openclaw memory --help` and `openclaw memory index --help`
+   locally before scheduling targeted reindex for both agents. Prefer
+   supported CLI operations rather than deleting SQLite files. Recheck
+   provenance, provider ready, vector indexing and search retrieval.
+5. Preserve `fallback=none` until OpenRAG and OpenClaw backend-equivalence
+   checks prove identical embedding space. No automatic fallback to a
+   different TrueNAS model.
+
+No index rebuild, secret rotation, host-level restart or GitHub CI was
+performed by this documentation update.
