@@ -103,7 +103,7 @@ class FakeResponse:
     ("scrutiny", {"status": "ok"}, "ok"),
     ("influxdb", {"status": "pass", "checks": []}, "ok"),
     ("influxdb", {"status": "fail"}, "fail"),
-    ("gatus", [], "warning"),
+    ("gatus", [], "degraded"),
     ("gatus", [{"name": "service", "results": [{"success": True}]}], "ok"),
 ])
 def test_http_requires_semantic_structure_not_only_200(monkeypatch, service,
@@ -345,3 +345,31 @@ def test_monitoring_process_without_targets_fails_strict_readiness(
     stub(monkeypatch, {}, {service: {"status": "warning", "detail": reason}})
     row = assess(service, {service: "RUNNING"})
     assert row["status"] == "DEGRADED"
+
+def test_gatus_failed_monitored_target_warns_without_failing_app_readiness(
+        monkeypatch):
+    stub(monkeypatch, {}, {"gatus": {"status": "warning",
+                                    "detail": "monitors=85 up=59 down=26 pending=0 unknown=0"}})
+    row = assess("gatus", {"gatus": "RUNNING"})
+    assert row["status"] == "WARN"
+    assert any("down=26" in note for note in row["notes"])
+
+
+def test_gatus_zero_monitors_is_degraded(monkeypatch):
+    stub(monkeypatch, {}, {"gatus": {"status": "degraded",
+                                    "detail": "monitors=0 up=0 down=0 pending=0 unknown=0"}})
+    row = assess("gatus", {"gatus": "RUNNING"})
+    assert row["status"] == "DEGRADED"
+
+
+def test_gatus_probe_successful_monitor_history(monkeypatch):
+    body = json.dumps([{"results": [{"success": True}]}]).encode()
+    opener = type("FakeOpener", (), {
+        "open": lambda self, req, timeout: FakeResponse(body)
+    })()
+    monkeypatch.setattr(http_check.__globals__["urllib"].request,
+                        "build_opener", lambda *args: opener)
+    result = http_check("gatus")
+    assert result == {"status": "ok",
+                      "detail": "monitors=1 up=1 down=0 pending=0 unknown=0"}
+
