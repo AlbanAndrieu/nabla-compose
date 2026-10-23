@@ -124,3 +124,48 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
     assert "PRIVATE-TOKEN" not in result.stdout + result.stderr
     assert "should not run promtool" not in result.stderr
     assert "HTTP should not run" not in result.stderr
+
+
+def test_prometheus_running_target_summary_is_redacted(tmp_path):
+    """Read-only live-target diagnostics must not echo URL/error credentials."""
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    docker = fakebin / "docker"
+    docker.write_text(
+        '#!/usr/bin/env bash\n'
+        'case "$1" in\n'
+        '  inspect) echo running ;;\n'
+        '  exec)\n'
+        '    if [[ "$*" == *"sh -c cat"* ]]; then cat "$PROMETHEUS_CONFIG";\n'
+        '    else exit 0; fi ;;\n'
+        '  *) exit 99 ;;\n'
+        'esac\n'
+    )
+    docker.chmod(0o755)
+    curl = fakebin / "curl"
+    curl.write_text(
+        '#!/usr/bin/env bash\n'
+        'printf \'%s\\n\' \'{"data":{"activeTargets":[{"labels":{"job":"private"},'
+        '"health":"down","scrapeUrl":"http://token:secret@localhost/metrics",'
+        '"lastError":"PRIVATE-TOKEN-DO-NOT-PRINT"}]}}\'\n'
+    )
+    curl.chmod(0o755)
+    config = tmp_path / "prometheus.yml"
+    config.write_text(
+        "global:\n  scrape_interval: 15s\nscrape_configs:\n"
+        "  - job_name: private\n"
+    )
+    env = os.environ.copy()
+    env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
+                "PROMETHEUS_CONFIG": str(config)})
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/truenas/diagnose-prometheus-targets.sh"),
+         "--check"], cwd=ROOT, env=env, capture_output=True,
+        text=True, check=False, timeout=15
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1  # real DOWN target: strict alert only
+    assert "private targets=1 up=0 not_up=1" in output
+    assert "token:secret" not in output
+    assert "PRIVATE-TOKEN-DO-NOT-PRINT" not in output
+    assert "job and health only" in output
