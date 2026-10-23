@@ -288,6 +288,22 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv82_certificate_verifier_strict_offline(self):
+        script = ROOT / "scripts/workstation/verify-age-yubikey-piv82-certificate.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        for expected in ("public.verify(", "ext.value.value != bytes((3, 2))",
+                         "cert.subject != cert.issuer", "public_numbers()",
+                         "Unknown critical extension", "path.is_symlink()"):
+            self.assertIn(expected, body)
+        for forbidden in ("PivSession(", "generate_key(", "put_certificate(", "verify_pin("):
+            self.assertNotIn(forbidden, body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script), "--help"],
+                                    capture_output=True, text=True, check=True)
+            self.assertIn("--public-key", result.stdout)
+
     def test_piv_sdk_signing_builder_mock_only(self):
         script = ROOT / "scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py"
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
