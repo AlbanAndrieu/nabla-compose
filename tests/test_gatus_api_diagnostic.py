@@ -25,7 +25,8 @@ SCRIPT = ROOT / "scripts/truenas/diagnose-gatus.sh"
      "structurally invalid", 2),
 ])
 def test_gatus_api_reports_only_aggregate_latest_status(
-    tmp_path: Path, entries, expected: str, exit_code: int
+    tmp_path: Path, entries, expected: str, exit_code: int,
+    noexec_safe_bash_mocks
 ) -> None:
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
@@ -55,6 +56,7 @@ def test_gatus_api_reports_only_aggregate_latest_status(
     env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
                 "GATUS_FAKE_JSON": str(data), "DIAG_COLOR": "never",
                 "DIAG_ICONS": "never", "NO_COLOR": "1"})
+    env = noexec_safe_bash_mocks(env, "docker", "curl")
     proc = subprocess.run(
         ["bash", str(SCRIPT), "--check"], cwd=ROOT, env=env,
         capture_output=True, text=True, timeout=15, check=False
