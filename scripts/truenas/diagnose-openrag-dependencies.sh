@@ -68,7 +68,7 @@ docling="$(get_state docling docling)"
 
 # Safe TrueNAS middleware signal to distinguish DEPLOYING App from an
 # absent/misnamed Docker project; never print app.query configuration.
-if command -v midclt >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+if [[ "${NABLA_DIAGNOSTIC_OFFLINE:-0}" != 1 ]] && command -v midclt >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   if command -v timeout >/dev/null 2>&1; then
     states="$(timeout 15 midclt call app.query 2>/dev/null | jq -er \
       '[.[] | select(.id == "openrag" or .id == "opensearch") |
