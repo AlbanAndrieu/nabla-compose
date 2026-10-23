@@ -71,8 +71,8 @@ docling="$(get_state docling docling)"
 if command -v midclt >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   if command -v timeout >/dev/null 2>&1; then
     states="$(timeout 15 midclt call app.query 2>/dev/null | jq -er \
-      '[.[] | select(.id == "openrag" or .id == "opensearch") | \
-       "\\(.id)=\\(.state // \"UNKNOWN\")"] | sort | join(" ")' 2>/dev/null)" || states=""
+      '[.[] | select(.id == "openrag" or .id == "opensearch") |
+       (.id + "=" + (.state // "UNKNOWN"))] | sort | join(" ")' 2>/dev/null)" || states=""
     if [[ -n "$states" ]]; then
       printf 'TrueNAS Apps: %s\n' "$states"
     else
