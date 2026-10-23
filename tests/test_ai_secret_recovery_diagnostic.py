@@ -5,8 +5,6 @@ import json
 import runpy
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 mod = runpy.run_path(str(ROOT / "scripts/truenas/diagnose-ai-secret-recovery.py"))
 check_secret = mod["check_secret"]
