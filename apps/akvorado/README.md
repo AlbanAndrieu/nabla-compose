@@ -292,3 +292,48 @@ persisted rows using a separately authorized read-only identity.
 References:
 - https://demo.akvorado.net/docs/troubleshooting
 - https://demo.akvorado.net/docs/configuration
+
+### Read-only investigation of missing exporter interface metadata
+
+The operator confirmed another clean Inlet→Kafka→Outlet→NetFlow v5 pass:
+174 UDP messages and 2649 records decoded, but 2649 `metadata missing`
+errors, 86 SNMP GET errors, 5297 metadata-provider errors, and zero
+ClickHouse batches. Six isolated unit tests passed on TrueNAS. **These
+are cumulative counters, not six independent proofs of recent failures.**
+A future recovery should compare counter *deltas* across two scrapes:
+historical errors remain nonzero after a successful fix.
+
+Use the following order, without rebooting or touching pfSense flow tracking:
+
+1. Inspect the deployed Outlet configuration and compare it to
+   `apps/akvorado/config/akvorado.yaml`; confirm which metadata providers
+   are active. Never print an entire container environment or SNMP credentials.
+2. Determine actual NetFlow v5 input/output **ifIndex** values from a bounded,
+   privately retained packet capture, or approved existing pfSense interface
+   inventory. Network-interface names (e.g. physical VLAN device names) are
+   not guaranteed to equal NetFlow ifIndex. Do not guess the mapping.
+3. Prefer a single-exporter `outlet.metadata.providers: [type: static]`
+   mapping keyed to `172.17.0.1/32` once all active ifIndex values are
+   established. The upstream static provider supports `name`, `ifindexes`
+   and a per-interface `name`, `description`, and `speed`.
+   Do not configure a generic `default` interface to conceal unknown indexes.
+   Evaluate disabling the fallback SNMP provider only after verifying the
+   desired metadata policy and any other exporters.
+4. Validate intended config syntax *offline* against the pinned image
+   before any operator-controlled rollout. Then verify newly observed
+   flow-forward counters and ClickHouse insert batches by their **deltas**.
+   Confirm recent database rows with a restricted read-only SQL identity and
+   check the Console. No automatic redeploy and no broad exporter changes.
+
+A short, bounded passive capture (if required) should stay on TrueNAS,
+not in public issue comments or pull requests. For example:
+
+```bash
+umask 077
+sudo timeout 20 tcpdump -ni br0 -c 3 -s 1500 -w /tmp/akvorado-netflow-private.pcap \
+  'src host 172.17.0.1 and udp dst port 2055'
+# Analyze locally only, then securely delete the file when no longer needed.
+```
+
+Do not interpret `--strict` as an end-to-end health gate: it currently
+fails on endpoint unavailability, not a metadata-processing block.
