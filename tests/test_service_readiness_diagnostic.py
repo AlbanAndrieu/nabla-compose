@@ -334,3 +334,14 @@ def test_gatus_monitor_current_result_uses_last_not_first(monkeypatch):
     result = http_check("gatus")
     assert result["status"] == "warning"
     assert result["detail"] == "monitors=3 up=1 down=0 pending=1 unknown=1"
+
+
+@pytest.mark.parametrize("service,reason", [
+    ("prometheus", "PromQL works but no up series"),
+    ("gatus", "monitor entries=0"),
+])
+def test_monitoring_process_without_targets_fails_strict_readiness(
+        monkeypatch, service, reason):
+    stub(monkeypatch, {}, {service: {"status": "warning", "detail": reason}})
+    row = assess(service, {service: "RUNNING"})
+    assert row["status"] == "DEGRADED"
