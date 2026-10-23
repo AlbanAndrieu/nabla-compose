@@ -51,7 +51,8 @@ esac
 """,
             "docker": """#!/bin/sh
 case "$1" in
-  info|inspect) exit 0 ;;
+  info) exit 0 ;;
+  inspect) [ "$MOCK_MISSING_PIHOLE" != 1 ] ;;
   exec) [ "$MOCK_OVERRIDE" = 1 ] && echo /etc/pihole/pihole.toml; exit 0 ;;
 esac
 """,
@@ -64,8 +65,10 @@ case "$*" in
   *DHCP4.OPTION*) echo 'DHCP4.OPTION[5]: domain_name_servers = 172.17.0.1' ;;
   *"-g GENERAL.CONNECTION"*) echo 'Wired connection' ;;
   *"connection show Wired connection"*)
-    echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
-    echo 'ipv4.ignore-auto-dns: yes' ;;
+    if [ "${MOCK_EMPTY_NM_FIELDS:-0}" != 1 ]; then
+      echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
+      echo 'ipv4.ignore-auto-dns: yes'
+    fi ;;
   *) echo 'GENERAL.CONNECTION: Wired connection' ;;
 esac
 """,
@@ -93,7 +96,7 @@ esac
 
     def test_wrong_pihole_record_detected_without_exposing_secrets(self) -> None:
         outcome = self.run_dns(
-            "--check", MOCK_BAD_PIHOLE="1", MOCK_OVERRIDE="1",
+            "--truenas", MOCK_BAD_PIHOLE="1", MOCK_OVERRIDE="1",
             MOCK_SYSTEM_IP="172.17.0.24",
         )
         self.assertEqual(outcome.returncode, 1)
@@ -111,7 +114,7 @@ esac
         self.assertIn("DNS differs from pfSense", outcome.stdout)
         self.assertIn("NetworkManager", outcome.stdout)
         self.assertIn("ipv4.ignore-auto-dns: yes", outcome.stdout)
-        self.assertIn("SKIP: Pi-hole container configuration is only inspected", outcome.stdout)
+        self.assertIn("SKIP: Pi-hole container configuration requires --truenas", outcome.stdout)
         self.assertNotIn("Pi-hole container", outcome.stdout.split("SKIP:")[0])
 
     def test_quad9_only_does_not_prove_private_int_resolution(self) -> None:
@@ -123,6 +126,25 @@ esac
         self.assertIn("Quad9/public DNS alone is not sufficient", outcome.stdout)
         self.assertIn("DNS differs from pfSense", outcome.stdout)
         self.assertIn("sample_dns_summary failures=0 warnings=2", outcome.stdout)
+
+    def test_check_mode_never_attempts_local_truenas_docker(self) -> None:
+        result = self.run_dns("--check", MOCK_MISSING_PIHOLE="1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("SKIP: Pi-hole container configuration requires --truenas", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=0", result.stdout)
+
+    def test_truenas_mode_reports_unavailable_local_pihole(self) -> None:
+        result = self.run_dns("--truenas", MOCK_MISSING_PIHOLE="1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Pi-hole container 'pihole' unavailable", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=1", result.stdout)
+
+    def test_empty_nmcli_dns_fields_are_reported_not_silenced(self) -> None:
+        result = self.run_dns("--workstation", MOCK_EMPTY_NM_FIELDS="1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("active_nm_profile=Wired connection", result.stdout)
+        self.assertIn("NetworkManager active profile DNS properties returned no data", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=1", result.stdout)
 
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
