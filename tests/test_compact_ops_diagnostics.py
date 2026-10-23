@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
     "scripts/truenas/diagnose-influxdb.sh",
     "scripts/truenas/diagnose-stuck-apps.sh",
     "scripts/truenas/deploy-scrutiny.sh",
+    "scripts/truenas/deploy-gatus.sh",
+    "scripts/truenas/diagnose-prometheus-targets.sh",
     "scripts/run-diagnostic.sh",
     "scripts/lib/diagnostic-ui.sh",
 ])
@@ -77,3 +79,44 @@ def test_fastapi_image_identity_does_not_claim_build_sha():
     assert 'selected_image_id=' in script
     assert 'running_image_id=' in script
     assert 'build_revision=null' in script
+
+
+def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
+    """Fail fast with safe categories while the container is restarting."""
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    fake_docker = fakebin / "docker"
+    fake_docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "case \"$1\" in\n"
+        "  inspect)\n"
+        "    if [[ \"$2\" == \"--format\" || \"$3\" == \"--format\" ]]; then\n"
+        "      echo restarting\n"
+        "    fi\n"
+        "    ;;\n"
+        "  logs) echo 'error: permission denied PRIVATE-TOKEN-DO-NOT-PRINT' ;;\n"
+        "  exec) echo 'should not run promtool' >&2; exit 99 ;;\n"
+        "  *) exit 99 ;;\n"
+        "esac\n"
+    )
+    fake_docker.chmod(0o755)
+    fake_curl = fakebin / "curl"
+    fake_curl.write_text("#!/usr/bin/env bash\necho 'HTTP should not run' >&2; exit 99\n")
+    fake_curl.chmod(0o755)
+    config = tmp_path / "prometheus.yml"
+    config.write_text("global:\n  scrape_interval: 15s\n")
+    env = os.environ.copy()
+    env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
+                "PROMETHEUS_CONFIG": str(config)})
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/truenas/diagnose-prometheus-targets.sh"),
+         "--check"],
+        cwd=ROOT, env=env, capture_output=True, text=True, check=False,
+        timeout=15
+    )
+    assert result.returncode == 1
+    assert "runtime=restarting" in result.stderr
+    assert "permissions=1" in result.stderr
+    assert "PRIVATE-TOKEN" not in result.stdout + result.stderr
+    assert "should not run promtool" not in result.stderr
+    assert "HTTP should not run" not in result.stderr
