@@ -146,7 +146,7 @@ if [[ "$MODE" == --workstation ]]; then
     if active_dns="$(resolvectl dns "$IFACE" 2>/dev/null)"; then
       printf '%s\n' "$active_dns"
       # DHCP may correctly announce pfSense while a local profile selects Quad9.
-      if ! grep -Eq "(^|[[:space:]])${PFSENSE_DNS//./\.}([[:space:]]|$)" <<<"$active_dns"; then
+      if ! grep -Fqw "$PFSENSE_DNS" <<<"$active_dns"; then
         warn "interface $IFACE DNS differs from pfSense; inspect NetworkManager profile/resolved, not DHCP blindly"
       fi
     else
