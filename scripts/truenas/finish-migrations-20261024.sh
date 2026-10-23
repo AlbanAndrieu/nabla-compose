@@ -133,7 +133,7 @@ if [[ -L "${REPORT_ROOT}" || ! "${REPORT_ROOT}" = /* ]]; then
   echo 'Unsafe report root (must be absolute directory, not symlink)' >&2; exit 2
 fi
 mkdir -p -- "${REPORT_ROOT}"
-chmod 0700 -- "${REPORT_ROOT}"
+chmod -- 0700 "${REPORT_ROOT}"
 [[ -d "${REPORT_ROOT}" && ! -L "${REPORT_ROOT}" ]] || exit 2
 SESSION_DIR="$(mktemp -d "${REPORT_ROOT}/session-XXXXXXXX")"
 chmod 0700 "${SESSION_DIR}"
