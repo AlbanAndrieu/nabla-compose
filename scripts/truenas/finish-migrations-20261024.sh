@@ -217,6 +217,7 @@ check_section() {
       run_check shared-data bash scripts/truenas/diagnose-shared-data-services.sh
       ;;
     migrations)
+      run_check supported-runtime-audit python3 scripts/quality/audit-supported-runtimes.py --strict-eol
       run_check migration-manifest python3 scripts/security/check-migration-readiness.py --check
       run_check secrets-runtime bash scripts/truenas/bootstrap-repository-runtime.sh --check
       run_check sentry-system-secret bash scripts/truenas/reconcile-sentry-system-secret.sh --check
@@ -245,6 +246,7 @@ check_section() {
     talos)
       if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
         run_check talos-cluster bash scripts/talos/validate-cluster.sh
+        run_check talos-supported-upgrade python3 scripts/talos/preflight-supported-upgrade.py --check
         run_check truenas-csi bash scripts/talos/smoke-truenas-csi-nfs.sh --check
       else
         record talos-cluster SKIP "kubectl/talosctl unavailable on TrueNAS; use an authorized workstation"
