@@ -122,14 +122,16 @@ echo '=== Active scrape targets ==='
 TARGETS_JSON="${TMP_DIR}/targets.json"
 if ! curl --fail --silent --show-error --max-time 10 \
   "${PROMETHEUS_URL}/api/v1/targets?state=active" >"${TARGETS_JSON}"; then
-  warn_or_fail "cannot query ${PROMETHEUS_URL}/api/v1/targets?state=active"
+  warn_or_fail "Prometheus active-target API unavailable"
 else
+  # Compact and redacted: scrapeUrl and lastError may include tokens,
+  # private IPs, credentials or server messages. Never print these fields.
   jq -r '
-    .data.activeTargets[]?
-    | [(.labels.job // "<missing-job>"), (.health // "unknown"), (.scrapeUrl // ""), (.lastError // ""), (.lastScrape // "")]
-    | @tsv
-  ' "${TARGETS_JSON}" |
-    sort
+    [.data.activeTargets[]? | {job: (.labels.job // "<missing-job>"),
+                               health: (.health // "unknown")}] |
+    group_by(.job)[] |
+    "\(.[0].job) targets=\(length) up=\(map(select(.health == "up")) | length) not_up=\(map(select(.health != "up")) | length)"
+  ' "${TARGETS_JSON}" | sort
 
   grep -E '^[[:space:]]*-[[:space:]]+job_name:[[:space:]]*' "${CONFIG}" |
     sed -E "s/.*job_name:[[:space:]]*['\"]?([^'\"[:space:]]+)['\"]?.*/\\1/" |
@@ -149,11 +151,11 @@ else
   jq -r '
     .data.activeTargets[]?
     | select((.health // "unknown") != "up")
-    | [(.labels.job // "<missing-job>"), (.health // "unknown"), (.scrapeUrl // ""), (.lastError // "")]
+    | [(.labels.job // "<missing-job>"), (.health // "unknown")]
     | @tsv
   ' "${TARGETS_JSON}" >"${TMP_DIR}/unhealthy-targets.tsv"
   if [[ -s "${TMP_DIR}/unhealthy-targets.tsv" ]]; then
-    printf 'Unhealthy targets:\n' >&2
+    printf 'Unhealthy targets (job and health only):\n' >&2
     sed 's/^/  /' "${TMP_DIR}/unhealthy-targets.tsv" >&2
     warn_or_fail 'one or more Prometheus targets are not UP'
   else
