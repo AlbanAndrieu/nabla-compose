@@ -72,6 +72,8 @@ def main():
     result = preflight_import(args.file.expanduser())
     print("secret_import_native_dry_run=" + result)
     print("secret_import_store_scope=shared_team")
+    print("secret_import_existing_name_collision_check=not_performed")
+    print("secret_import_target_consumers_migrated=false")
     print("secret_import_config_refs_migrated=false")
     print("secret_import_changed=false")
     return 0 if result == "native_accepted" else 2
