@@ -1,5 +1,15 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Latest pflow capture and diagnostics (2026-10-23)
+
+- [x] Native exporter `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055` persists.
+- [x] pfSense LAN `tcpdump` 30s: **0 packets captured**, `14962 packets received by filter`, 0 dropped. Do **not** interpret the received-by-filter counter as exported NetFlow packets. TrueNAS `br0` 30s capture: **0 packets captured**, 0 received by filter, 0 dropped. No collector delivery demonstrated.
+- [x] Enhance `diagnose-pflow-activation.sh --check [--capture]` to inspect module/exporter, DNS, OOM and perform optional bounded 30s capture with correct counter interpretation; enhance `diagnose-unbound-crash-memory.sh` with native pfBlockerNG log markers and WireGuard ACL correlation.
+- [ ] Verify explicit pflow tracking on a narrowly scoped PF rule while global Track by Default stays off; generate new matching states; repeat captures on pfSense and TrueNAS and inspect Akvorado inlet. Validate source interface and protocol. No global tracking until memory stability.
+- [ ] Run local `bash -n` and optional shellcheck; agent GitHub connector writes do not execute a local checkout or quality gate.
+
+
+
 ### Runtime check — 2026-10-23 19:00 CEST
 
 - [x] Operator started `diagnose-memory-pressure.sh --check --samples 10 --interval 30`; only **2/10** CSV samples provided (19:00:07 and 19:00:37), so full trend not yet available. Free+inactive 168.7→185.6 MiB; Unbound PID 39281 stable, RSS 140068→140664 KiB; no pfBlockerNG cron in samples; PHP-FPM summed RSS 317360 KiB (shared pages may be double counted).
