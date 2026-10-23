@@ -490,6 +490,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         for expected in ("test-age-yubikey-piv-aes256-handshake-offline.py",
                          "test-age-yubikey-piv82-inventory-fake-offline.py",
                          "inspect-age-yubikey-aes256-hardware.sh",
+                         "plan-age-yubikey-piv82-enrollment.sh",
                          "verify-age-yubikey-piv82-certificate.py"):
             self.assertIn(expected, content)
         self.assertLess(content.index('python3 -m py_compile "$python_source"'),
