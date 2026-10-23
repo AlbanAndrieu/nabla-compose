@@ -222,6 +222,68 @@ def print_audit_location_breakdown(data, v2):
     return result["counts_match"]
 
 
+OWNER_CATEGORIES = ("main", "cron", "other_or_shared")
+
+
+def fixed_agent_owner(file_name):
+    """Recognize only known, canonical agent directories; print no paths."""
+    if not isinstance(file_name, str):
+        return "other_or_shared"
+    fields = file_name.replace("\\", "/").split("/")
+    if (len(fields) >= 4 and fields[-4] == "agents"
+            and fields[-3] in ("main", "cron") and fields[-2] == "agent"):
+        return fields[-3]
+    return "other_or_shared"
+
+
+def audit_owner_breakdown(data, v2):
+    """Aggregate fixed-bucket ownership, cross-checking the audited totals."""
+    primary = audit_location_breakdown(data, v2)
+    if primary is None or not primary["counts_match"]:
+        return None
+    buckets = {
+        kind: {owner: 0 for owner in OWNER_CATEGORIES}
+        for kind in ("auth_store", "generated_models", "legacy_file")
+    }
+    for item in data["findings"]:
+        code = item["code"]
+        file_name = item.get("file")
+        base = (file_name.replace("\\", "/").rsplit("/", 1)[-1]
+                if isinstance(file_name, str) else "")
+        if code == "PLAINTEXT_FOUND" and base.endswith((".sqlite", ".sqlite3", ".db")):
+            kind = "auth_store"
+        elif code == "PLAINTEXT_FOUND" and base == "models.json":
+            kind = "generated_models"
+        elif (code == "LEGACY_RESIDUE" and isinstance(item.get("jsonPath"), str)
+              and not item["jsonPath"].startswith("profiles.")):
+            kind = "legacy_file"
+        else:
+            kind = None
+        if kind is not None:
+            buckets[kind][fixed_agent_owner(file_name)] += 1
+    if (sum(buckets["auth_store"].values()) != primary["plaintext"]["auth_store"]
+            or sum(buckets["generated_models"].values())
+            != primary["plaintext"]["generated_models"]
+            or sum(buckets["legacy_file"].values()) != primary["legacy"]["legacy_file"]):
+        return None
+    return buckets
+
+
+def print_audit_owner_breakdown(data, v2):
+    """Emit only fixed owner/source labels and non-sensitive integer counts."""
+    buckets = audit_owner_breakdown(data, v2)
+    if buckets is None:
+        print("secret_audit_owner_breakdown=unavailable")
+        return False
+    print("secret_audit_owner_breakdown=complete")
+    for kind in ("auth_store", "generated_models", "legacy_file"):
+        for owner in OWNER_CATEGORIES:
+            print(f"secret_audit_{kind}_owner_{owner}={buckets[kind][owner]}")
+    print("secret_audit_owner_counts_match=true")
+    return True
+
+
+
 def audit_shape(data):
     """Emit only type distribution; arbitrary JSON property names and values stay private."""
     if not isinstance(data, dict):
@@ -307,9 +369,10 @@ def audit(include_locations=False):
         print("secret_audit_" + category + "_count=" + str(count))
     print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
     location_ok = print_audit_location_breakdown(data, v2) if include_locations else True
+    owner_ok = print_audit_owner_breakdown(data, v2) if include_locations else True
     clean = (v2 is not None and process.returncode == 0 and v2["status"] == "clean"
              and v2["complete"] and all(value == 0 for value in v2["categories"].values())
-             and location_ok)
+             and location_ok and owner_ok)
     print("secret_audit=" + ("clean" if clean else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
     print("secret_audit_strict_check=true")
