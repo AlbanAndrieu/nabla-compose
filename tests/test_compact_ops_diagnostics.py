@@ -171,3 +171,47 @@ def test_prometheus_running_target_summary_is_redacted(tmp_path, noexec_safe_bas
     assert "token:secret" not in output
     assert "PRIVATE-TOKEN-DO-NOT-PRINT" not in output
     assert "job and health only" in output
+
+
+def test_prometheus_rule_permission_is_not_falsely_counted_as_yaml(
+    tmp_path, noexec_safe_bash_mocks
+):
+    """A rules open error mentioning --config.file is NOT a YAML read error."""
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    docker = fakebin / "docker"
+    docker.write_text(
+        chr(10).join((
+            "#!/usr/bin/env bash",
+            'case "$1" in',
+            '  inspect)',
+            '    if [[ "$*" == *"{{.State.Status}}"* ]]; then',
+            '      echo restarting',
+            '    elif [[ "$*" == *"exit={{.State.ExitCode}}"* ]]; then',
+            '      echo "exit=2 oom=false restarts=9"',
+            '    fi ;;',
+            '  logs)',
+            "    echo 'opening /etc/prometheus/rules/demo.rules.yml: permission denied (--config.file=/etc/prometheus/prometheus.yml) PRIVATE-SECRET';;",
+            '  info) echo "[]" ;;',
+            '  *) exit 99 ;;',
+            'esac',
+            "",
+        )),
+        encoding="utf-8",
+    )
+    docker.chmod(0o600)
+    config = tmp_path / "prometheus.yml"
+    config.write_text("global:\\n  scrape_interval: 15s\\n")
+    env = os.environ.copy()
+    env.update({"PATH": str(fakebin) + os.pathsep + env["PATH"],
+                "PROMETHEUS_CONFIG": str(config)})
+    env = noexec_safe_bash_mocks(env, "docker")
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/truenas/diagnose-prometheus-targets.sh"),
+         "--check"], cwd=ROOT, env=env, capture_output=True,
+        text=True, check=False, timeout=15
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode == 1
+    assert "since_config_change: sample=1 permissions=1 config=0 rules=1 storage=0" in output
+    assert "PRIVATE-SECRET" not in output
