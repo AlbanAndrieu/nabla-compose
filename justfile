@@ -108,8 +108,13 @@ truenas-ai-recovery-test:
     python3 -m py_compile scripts/truenas/diagnose-ai-secret-recovery.py
     python3 -m pytest -q tests/test_ai_secret_recovery_diagnostic.py
 
-# Functional readiness: TrueNAS state + Docker health + semantic HTTP.
+# Functional acceptance: TrueNAS state + Docker health + semantic HTTP/PromQL.
+# Fail nonzero if an App is BLOCKED, DEGRADED or UNKNOWN, even when TrueNAS
+# app.query returns RUNNING. Use the nonblocking report for status-only review.
 truenas-readiness-check:
+    sudo python3 scripts/truenas/diagnose-service-readiness.py --check --strict
+
+truenas-readiness-report:
     sudo python3 scripts/truenas/diagnose-service-readiness.py --check
 
 truenas-readiness-test:
