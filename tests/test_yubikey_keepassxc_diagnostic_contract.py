@@ -288,6 +288,16 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_aes256_inventory_handles_empty_slot_exit_one_fail_closed(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        body = script.read_text()
+        self.assertIn("rc82 > 1", body)
+        self.assertIn("Slot (82|0x82) is empty", body)
+        self.assertIn("PIV82 unverified", body)
+        self.assertIn("no provisioning permitted", body)
+        self.assertNotIn("printf '%s\\n' \"${slot82}\"", body)
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
     def test_aes256_hardware_inventory_read_only(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
