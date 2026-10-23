@@ -171,6 +171,16 @@ esac
         self.assertIn("systemd-resolved DNS on eno1 differs from NetworkManager", result.stdout)
         self.assertIn("sample_dns_summary failures=0 warnings=2", result.stdout)
 
+    def test_multiple_profile_dns_entries_match_any_active_server(self) -> None:
+        result = self.run_dns(
+            "--workstation", MOCK_PROFILE_DNS="172.17.0.24,9.9.9.9",
+            MOCK_PROFILE_IGNORE="yes", MOCK_ACTIVE_DNS="9.9.9.9",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("NetworkManager profile ignores DHCP DNS", result.stdout)
+        self.assertNotIn("differs from NetworkManager profile DNS", result.stdout)
+        self.assertIn("sample_dns_summary failures=0 warnings=2", result.stdout)
+
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         truenas = TRUENAS_DIAG.read_text(encoding="utf-8")
