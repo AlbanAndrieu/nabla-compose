@@ -337,3 +337,27 @@ sudo timeout 20 tcpdump -ni br0 -c 3 -s 1500 -w /tmp/akvorado-netflow-private.pc
 
 Do not interpret `--strict` as an end-to-end health gate: it currently
 fails on endpoint unavailability, not a metadata-processing block.
+
+### Identify NetFlow v5 ifIndexes safely (operator on TrueNAS)
+
+The exporter emits only interface *numbers*, not interface names. Historical
+metrics prove decoding but cannot reveal individual indexes. Use the
+repo's read-only parser on a short, privately stored classic Ethernet PCAP:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 -m unittest discover -s tests -p test_netflow_v5_ifindex.py
+CAPTURE="$(mktemp /tmp/akvorado-ifindex.XXXXXX.pcap)"
+chmod 600 "$CAPTURE"
+sudo timeout 45 tcpdump -ni br0 -s 1500 -c 8 -w "$CAPTURE" \
+  'src host 172.17.0.1 and dst host 172.17.0.24 and udp dst port 2055'
+sudo python3 scripts/truenas/inspect-netflow-v5-ifindex.py --pcap "$CAPTURE"
+sudo rm -f -- "$CAPTURE"
+```
+
+Review the numeric summary locally. The parser does not display flow IP
+addresses, ports or payloads, and limits input to 16 MiB. When output is
+empty, repeat only if selective pfSense traffic naturally creates new flow
+records; do **not** enable global pflow tracking. Treat ifIndex 0 as unknown.
+Match numerical indexes to verified pfSense interface metadata *before*
+preparing the static provider. No config change or redeployment is implied.
