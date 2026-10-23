@@ -297,8 +297,13 @@ if [[ "${MODE}" == "--check" ]]; then
     MISSING)
       printf '✅ Scrutiny cutover preflight: InfluxDB=RUNNING SMART=VISIBLE target=MISSING ready=APPLY\n'
       ;;
+    STOPPED)
+      # Historical App is deliberately preserved. Its stale env_file is
+      # repairable with app.update + explicit app.start after review.
+      printf '⚠️  Scrutiny is STOPPED: prerequisites pass; reviewed App reconfiguration/start required.\n'
+      ;;
     *)
-      fail "Scrutiny TrueNAS state is ${scrutiny_state}; expected RUNNING or MISSING"
+      fail "Scrutiny TrueNAS state is ${scrutiny_state}; expected RUNNING, STOPPED or MISSING"
       ;;
   esac
   exit 0
@@ -335,6 +340,14 @@ if ! reconcile_app_string "${SCRUTINY_APP_ID}" "${scrutiny_compose}"; then
     DIAGNOSTIC_FULL_OUTPUT=1 bash scripts/truenas/diagnose-scrutiny.sh --check >&2 || true
   fi
   fail "Scrutiny TrueNAS app reconcile failed"
+fi
+
+# app.update of a STOPPED custom App may leave it STOPPED even though
+# the Compose definition has been reconciled. Start it only in --apply mode.
+scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
+if [[ "${scrutiny_state}" == STOPPED ]]; then
+  printf 'Starting reconciled Scrutiny Custom App (previously STOPPED)...\n'
+  truenas_job_compact app.start "${SCRUTINY_APP_ID}"
 fi
 
 if ! wait_http "Scrutiny" "http://172.17.0.24:31054/api/health" >/dev/null; then
