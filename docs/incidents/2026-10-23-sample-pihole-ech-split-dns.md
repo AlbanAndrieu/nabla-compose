@@ -1,7 +1,11 @@
 # 2026-10-23 — Sample / Chrome ECH : override public Pi-hole vers TrueNAS
 
 ## Statut
-Cause racine **prouvée** ; correction Pi-hole **non exécutée** par l'agent.
+Cause racine **prouvée**. Pi-hole public override **supprimé par l'opérateur**
+le 23 octobre dans l'interface Pi-hole, DNS public réparé. La restauration
+**persistante du DNS workstation** n'est pas encore validée ; un profil
+NetworkManager incorrect reste présent. Aucune correction réseau n'a été
+appliquée automatiquement par l'agent.
 L'accès Web est temporairement restauré sur la workstation via un choix
 explicite de pfSense/Unbound. Aucun redémarrage, changement DNS/pare-feu
 ou déploiement applicatif n'a été effectué lors du diagnostic.
@@ -168,3 +172,78 @@ par le diagnostic complet FastAPI. Le mode workstation avertit maintenant
 si les champs DNS du profil NetworkManager sont **vides** (même si `nmcli`
 retourne le statut succès) ; ce silence avait été observé pour `Wired eno1`.
 Les 8 contrats mockés sont à exécuter sur le nouveau HEAD.
+
+## État actualisé après correction Pi-hole — 23 octobre 2026
+
+L'opérateur a supprimé dans Pi-hole WebUI l'enregistrement
+`172.17.0.24 sample.albandrieu.com`. Les vérifications ont confirmé
+`just sample-dns` **failures=0 warnings=0** :
+
+- `sample.albandrieu.com` via pfSense et Pi-hole : IPv4 publiques
+  Cloudflare (adresses variant selon le resolver/la région) ;
+- `sample.int.albandrieu.com` via Pi-hole et pfSense :
+  `172.17.0.24` ;
+- résolution NSS du nom public : Cloudflare et non TrueNAS ;
+- `just sample-dns-test` : **8/8 PASS sur workstation**.
+
+**Ne pas réintroduire l'enregistrement public dans Pi-hole.** Le
+redirect Cloudflare Access HTTP 302 demeure attendu sans authentification.
+La validation navigateur après renouvellement DHCP/reboot reste à faire.
+
+### Problème subsistant : override NetworkManager vs Quad9
+
+L'opérateur a identifié la configuration persistée **exacte** du profil
+`Wired eno1` :
+
+```text
+ipv4.method: auto
+ipv4.dns: 172.17.0.24
+ipv4.ignore-auto-dns: yes
+ipv4.dns-search: albandrieu.com
+```
+
+Alors que le **DHCP pfSense est correct** (`172.17.0.1`), le
+profil ignore volontairement le DNS DHCP et conserve Pi-hole comme
+DNS général. Dans un instantané distinct, `resolvectl dns eno1`
+montrait pourtant `9.9.9.9 149.112.112.112` (Quad9) et
+`getent ahostsv4 sample.int.albandrieu.com` ne donnait pas
+`172.17.0.24` : rechercher un résolveur supplémentaire
+(VPN, global resolved, override link, état NM non reappliqué).
+**Ne pas attribuer l'origine de Quad9 au profil `Wired eno1` sans preuve.**
+
+Pour retrouver le contrat de résilience du 27 septembre, la
+configuration cible du **profil Wired** est :
+`ipv4.method=auto`, `ipv4.ignore-auto-dns=no`, `ipv4.dns` vide ;
+le DNS reçu sera celui de pfSense. Ne pas remplacer
+`172.17.0.24` par un autre résolveur public : Quad9 ne fournit
+pas le split-DNS `*.int.albandrieu.com`.
+
+Sur la workstation **physiquement accessible et non via SSH**,
+l'opérateur peut après sauvegarde locale du profil et en
+connaissance du risque de brève coupure réseau :
+
+```bash
+# Configuration déclarée uniquement ; ne modifie pas la politique firewall.
+sudo nmcli connection modify 'Wired eno1' ipv4.ignore-auto-dns no ipv4.dns ''
+# Réappliquer sur le lien en cours ; peut affecter brièvement le réseau.
+sudo nmcli device reapply eno1
+
+# Validations à renouveler après reconnect / reboot :
+nmcli -g ipv4.dns,ipv4.ignore-auto-dns connection show 'Wired eno1'
+nmcli -f DHCP4.OPTION device show eno1 | grep domain_name_servers
+resolvectl dns eno1
+getent ahostsv4 sample.int.albandrieu.com
+getent ahostsv4 sample.albandrieu.com
+```
+
+Si `reapply` échoue, **ne pas forcer `connection down/up`
+depuis une session distante** ; identifier d'abord ce qui injecte
+Quad9. Ne jamais corriger DHCP Kea ni les règles `TEST-PFLOW`
+pour résoudre ce profil utilisateur.
+
+Le diagnostic `--workstation` relève désormais séparément le DNS
+du **profil NetworkManager** (statique/ignore DHCP), le DNS effectif
+dans **systemd-resolved**, le DHCP reçu et la résolution réelle des
+noms public et privé. Une divergence profile↔resolved et le
+contournement DHCP sont des avertissements distincts. Tests de ces
+nouveaux contrats ajoutés au dépôt ; exécution à confirmer.
