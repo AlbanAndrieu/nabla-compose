@@ -118,7 +118,7 @@ skip_count="$(count_matches '^[[:space:]]*(SKIP:|⏭️)')"
 printf '📋 %s: exit=%d ok=%s failed=%s warnings=%s skipped=%s\n' \
   "${name}" "${status}" "${ok_count}" "${fail_count}" "${warn_count}" "${skip_count}"
 
-if ((status != 0 || fail_count > 0 || warn_count > 0)); then
+if [[ "${name}" != diagnose-stuck-apps ]] && ((status != 0 || fail_count > 0 || warn_count > 0)); then
   printf '%s\n' 'Key findings:'
   grep -E '^[[:space:]]*(❌|ERROR:|FAIL:|⚠️|WARN:|WARNING:)' "${log_file}" 2>/dev/null |
     tail -n "${summary_lines}" |
