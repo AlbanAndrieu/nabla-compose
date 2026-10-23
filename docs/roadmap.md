@@ -2888,10 +2888,17 @@ Prochain ordre de travail :
 - [x] Verify vector retrieval can return candidates with an explicit agent:
   on Oct 23 both `main` and `cron` returned five matches for
   `deployment` at temporary `--min-score 0`; snippets remain private.
-- [ ] Calibrate per-agent relevance and persisted minScore from known
-  non-sensitive phrases; diagnose repeated 60-second embedding retries
-  via redacted LiteLLM/OpenClaw metrics. Do not reindex or lower the
-  persisted threshold without evidence.
+- [ ] **P1 OpenClaw relevance calibration:** observed 5/5 hits at score
+  thresholds 0.00 and 0.20 for both agents. At 0.35, main returned no
+  matches but cron failed at the CLI (cause still unknown). New local-only
+  `--score-summary` diagnostics classify 429/5xx/timeout/auth/network,
+  report bounded latency and aggregate scores without printing snippets.
+  Verify the cron failure category and known-phrase relevance before any
+  persistent minScore change.
+- [ ] **P1 LiteLLM reliability:** investigate 60-second embedding retries
+  with sanitized, bounded per-key LiteLLM/Workstation telemetry; ensure
+  isolated keys/budgets and no cross-vector-space fallback. No further
+  reindex or paid GitHub Actions required for diagnostics.
 
 See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
 
