@@ -164,12 +164,15 @@ def assess() -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="read-only")
-    parser.parse_args(argv)
+    parser.add_argument("--strict", action="store_true",
+                        help="return failure on required secret or runtime blockers")
+    args = parser.parse_args(argv)
     if os.geteuid() != 0:
         print("Run via sudo for root-only metadata inspection", file=sys.stderr)
         return 2
-    print(json.dumps(assess(), indent=2, sort_keys=True))
-    return 0  # audit is diagnostic: findings are data, never auto-mutate
+    report = assess()
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 1 if args.strict and report["blockers"] else 0
 
 
 if __name__ == "__main__":
