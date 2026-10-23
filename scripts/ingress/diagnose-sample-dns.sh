@@ -93,38 +93,50 @@ else
   warn 'getent unavailable; system DNS unchecked'
 fi
 
-echo '==> Sample Pi-hole local DNS record provenance (content redacted)'
-DOCKER_CMD=()
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  DOCKER_CMD=(docker)
-elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
-  DOCKER_CMD=(sudo -n docker)
-fi
-if (("${#DOCKER_CMD[@]}" > 0)); then
-  if "${DOCKER_CMD[@]}" inspect "$PIHOLE_CONTAINER" >/dev/null 2>&1; then
-    if sources="$("${DOCKER_CMD[@]}" exec "$PIHOLE_CONTAINER" sh -c '
-      name="$1"
-      for source in /etc/pihole/pihole.toml /etc/pihole/custom.list /etc/hosts /etc/dnsmasq.d/*.conf; do
-        [ -f "$source" ] || continue
-        if grep -Fq -- "$name" "$source"; then printf "%s\n" "$source"; fi
-      done
-    ' _ "$PUBLIC_HOST" 2>/dev/null)"; then
-      if [[ -n "$sources" ]]; then
-        while IFS= read -r source; do
-          printf 'pihole_override_source=%s\n' "$source"
-        done <<<"$sources"
-        fail 'Pi-hole references the PUBLIC hostname; remove the reviewed DNS record, preserve the .int hostname'
+if [[ "$MODE" == --workstation ]]; then
+  # A workstation may have Docker installed but cannot inspect TrueNAS Pi-hole
+  # locally. Remote Pi-hole DNS is still checked above; skip misleading
+  # "container unavailable" warnings.
+  echo 'SKIP: Pi-hole container configuration is only inspected from TrueNAS (--check)'
+else
+  echo '==> Sample Pi-hole local DNS record provenance (content redacted)'
+  DOCKER_CMD=()
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
+  elif command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(sudo -n docker)
+  fi
+  if (("${#DOCKER_CMD[@]}" > 0)); then
+    if "${DOCKER_CMD[@]}" inspect "$PIHOLE_CONTAINER" >/dev/null 2>&1; then
+      if sources="$("${DOCKER_CMD[@]}" exec "$PIHOLE_CONTAINER" sh -c '
+        name="$1"
+        for source in /etc/pihole/pihole.toml /etc/pihole/custom.list /etc/hosts /etc/dnsmasq.d/*.conf; do
+          [ -f "$source" ] || continue
+          if grep -Fq -- "$name" "$source"; then printf "%s\n" "$source"; fi
+        done
+      ' _ "$PUBLIC_HOST" 2>/dev/null)"; then
+        if [[ -n "$sources" ]]; then
+          while IFS= read -r source; do
+            printf 'pihole_override_source=%s\n' "$source"
+          done <<<"$sources"
+          if [[ "$pihole_public" == *"$TRUENAS_IP"* ]]; then
+            echo 'EVIDENCE: Pi-hole local record explains the previously reported public DNS FAIL'
+          else
+            warn 'Pi-hole configuration references PUBLIC hostname: review record ownership even if live DNS is currently public'
+          fi
+        else
+          ok 'no matching public DNS record in reviewed Pi-hole files'
+        fi
       else
-        ok 'no matching public DNS record in reviewed Pi-hole files'
+        warn 'Pi-hole local-file inspection failed'
       fi
     else
-      warn 'Pi-hole local-file inspection failed'
+      warn "Pi-hole container '$PIHOLE_CONTAINER' unavailable"
     fi
   else
-    warn "Pi-hole container '$PIHOLE_CONTAINER' unavailable"
+    echo 'SKIP: local Docker access unavailable; Pi-hole file inspection not attempted'
   fi
-else
-  echo 'SKIP: local Docker access unavailable; Pi-hole file inspection not attempted'
+
 fi
 
 if [[ "$MODE" == --workstation ]]; then
@@ -137,6 +149,17 @@ if [[ "$MODE" == --workstation ]]; then
   if command -v nmcli >/dev/null 2>&1; then
     nmcli -f GENERAL.CONNECTION,IP4.DNS,IP6.DNS device show "$IFACE" 2>/dev/null ||
       warn "NetworkManager interface $IFACE unavailable"
+    # Do not reveal the full connection configuration (VPN identity/secrets).
+    # Only DNS-specific profile fields are needed to explain Quad9.
+    profile="$(nmcli -g GENERAL.CONNECTION device show "$IFACE" 2>/dev/null || true)"
+    if [[ -n "$profile" && "$profile" != "--" ]]; then
+      echo '==> NetworkManager active connection DNS settings'
+      nmcli -f ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv4.dns-priority,ipv4.dns-search \
+        connection show "$profile" 2>/dev/null ||
+        warn 'Cannot inspect active NetworkManager DNS profile properties'
+    else
+      warn "NetworkManager active connection profile for $IFACE unavailable"
+    fi
     nmcli -f DHCP4.OPTION device show "$IFACE" 2>/dev/null |
       grep -Ei 'domain_name_servers|dhcp_server_identifier' || true
   else
