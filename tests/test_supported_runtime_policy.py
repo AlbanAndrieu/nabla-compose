@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import runpy
+import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,29 @@ audit = mod["audit"]
 status = mod["_image_status"]
 normalize = mod["normalized_image"]
 policy = mod["load_policy"]
+
+
+def test_mise_lock_has_verified_new_platform_assets():
+    """Never point new CLI or CPython versions at stale platform checksums."""
+    mise = tomllib.loads((ROOT / "mise.toml").read_text(encoding="utf-8"))
+    locked = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
+    talos = locked["tools"]["aqua:siderolabs/talos"][0]
+    python = locked["tools"]["python"][0]
+    assert mise["tools"]["aqua:siderolabs/talos"] == "1.14.4"
+    assert talos["version"] == "1.14.4"
+    assert talos["specifiers"] == ["1.14.4"]
+    assert python["version"] == "3.14.9"
+    assert python["specifiers"] == ["3.14.9"]
+    for platform in ("linux-arm64", "linux-arm64-musl", "linux-x64",
+                     "linux-x64-musl", "macos-arm64", "macos-x64", "windows-x64"):
+        t = talos["platforms"][platform]
+        p = python["platforms"][platform]
+        assert re.fullmatch(r"sha256:[a-f0-9]{64}", t["checksum"])
+        assert re.fullmatch(r"sha256:[a-f0-9]{64}", p["checksum"])
+        assert "/v1.14.4/" in t["url"]
+        assert "/20261021/cpython-3.14.9+20261021-" in p["url"]
+    assert not any("v1.13.9" in str(x) for x in talos["platforms"].values())
+    assert not any("3.14.8" in str(x) for x in python["platforms"].values())
 
 
 def test_platform_versions_match_mise_and_talos_pins():
