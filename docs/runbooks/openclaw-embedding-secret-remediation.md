@@ -194,3 +194,42 @@ python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
 ```
 
 Review any `pending_review_existing_memory_settings` locally without sharing raw JSON or secrets. Automatic fallback is **disabled** until vector-space/model identity is validated for workstation and TrueNAS; 768 dimensions are not sufficient. Check root filesystem headroom (previously 95% full) before index rebuild.
+
+
+## 2026-10-23 — guarded local config cutover prepared in PR #271
+
+The operator's latest workstation run passed **all 6 planner unit tests**.
+`check-openclaw-litellm-memory-config.py --check` reports schema-compatible,
+private virtual key; the one-shot LiteLLM `embedding` request succeeds with
+768 dimensions. The planner reports `plan=pending`,
+`existing_memory_settings_review=not_required`,
+`runtime_secret_resolution=unverified`, `configuration_changed=false`.
+
+A separate **operator-only** script is now committed:
+`scripts/workstation/apply-openclaw-memory-litellm.py`.
+It builds a configuration candidate preserving other providers/secrets and
+existing unrelated memory-search settings; refuses conflicting memory settings,
+checks owner/private modes, validates the **complete** candidate with OpenClaw's
+local JSON schema through the Python `jsonschema` package, and refuses an
+apply unless the systemd Gateway is explicitly `inactive`. On apply it creates
+one private rollback copy and atomically swaps the config file; it does **not**
+restart the Gateway, resolve the secret at runtime, or reindex embeddings.
+No CLI, secret or model changes were applied by GitHub commits.
+
+Read-only acceptance first:
+```bash
+cd ~/w/nabla-compose
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+**Do not run `--apply` merely because the dry-run passes**. Separate
+pre-application checks must confirm the intended `SecretRef.id` semantics for
+a `singleValue` provider in the installed OpenClaw version, enough disk
+headroom, and a planned outage. If approved, operator stops the Gateway,
+confirms it is inactive, invokes `--apply`, checks the private rollback and
+config validation, then starts and validates Gateway and `main`/`cron`
+memory; only after runtime SecretRef resolution succeeds should the
+incompatible old vector indexes be reindexed under controlled acceptance.
+Never copy the embedding-only key into a chat model provider or OpenRAG's
+combined chat credential.
