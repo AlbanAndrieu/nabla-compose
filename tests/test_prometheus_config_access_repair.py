@@ -127,3 +127,26 @@ def test_apply_without_root_never_modifies_prometheus_config(tmp_path):
     assert result.returncode == 1
     assert "--apply requires sudo" in result.stderr
     assert before == after
+
+
+def test_noexec_safe_bash_mock_runs_readable_nonexecutable_stub(
+    tmp_path, noexec_safe_bash_mocks
+):
+    """Simulate TrueNAS noexec: stub cannot be execve'd, only read by bash."""
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    docker = fakebin / "docker"
+    docker.write_text(
+        '#!/usr/bin/env bash\\necho mock-docker-safe\\n'.replace("\\\\n", "\\n"),
+        encoding="utf-8",
+    )
+    docker.chmod(0o600)
+    env = os.environ.copy()
+    env["PATH"] = str(fakebin) + os.pathsep + env["PATH"]
+    env = noexec_safe_bash_mocks(env, "docker")
+    result = subprocess.run(
+        ["/bin/bash", "-c", "docker inspect prometheus"],
+        capture_output=True, text=True, check=False, env=env, timeout=10
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "mock-docker-safe"
