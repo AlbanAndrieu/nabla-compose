@@ -7,7 +7,8 @@
 - [x] Add privacy-bounded, read-only metric diagnostic `scripts/truenas/diagnose-akvorado-flow.py` and offline parser tests; **full local quality gate not yet executed**.
 - [x] Outlet consumes Kafka topic `akvorado-flows-v5`: 164 received messages, 164 NetFlow v5 packets decoded and 2511 PDU records; topic suffix is interoperable, no rename required.
 - [x] Root cause isolated: all 2511 received flows rejected as `metadata missing`; 81 SNMP `get` failures, 5021 metadata-provider errors (different metric units, not additive). ClickHouse batch and insert counters remain zero.
-- [x] Extend diagnostic script with Outlet NetFlow v5, Kafka input, core metadata, SNMP and ClickHouse counters, plus classification (`BLOCKED_METADATA_MISSING`); add targeted offline tests, execution still pending.
+- [x] Extend diagnostic script with Outlet NetFlow v5, Kafka input, core metadata, SNMP and ClickHouse counters, plus classification (`BLOCKED_METADATA_MISSING`); add targeted offline tests, **6/6 passed on TrueNAS operator checkout (2026-10-23)**; full quality gate pending.
+- [x] Operator repeat confirms 174 Inlet/Outlet Kafka messages, 2649 decoded PDU flows, 2649 `metadata missing` errors, 86 SNMP GET errors, 5297 provider errors, and 0 ClickHouse batches; six diagnostic unit tests green.
 - [ ] Confirm missing exporter interface metadata: safely identify ifIndex values using local private flow telemetry, inspect Outlet SNMP network reachability/credentials, and choose narrowly scoped static metadata or read-only SNMPv3. No global pfSense flow expansion.
 - [ ] Resolve metadata enrichment without increasing pfSense pflow load, then verify ClickHouse insert counters and recent persisted rows with approved read-only SQL; confirm Console results.
 - [ ] Execute offline tests and scoped pre-commit / local quality gate on a full PR checkout, without GitHub Actions.
