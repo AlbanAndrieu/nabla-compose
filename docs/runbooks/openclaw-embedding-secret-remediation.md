@@ -308,3 +308,32 @@ git pull --ff-only
 
 Do not apply, restart, edit auth settings or reindex until the candidate
 validates cleanly. Keep the no-cross-vector-space fallback gate.
+
+
+## 2026-10-23 — generated schema fails external JSON Schema meta-validation
+
+Operator confirmed `jsonschema` present, 4 synthetic cutover tests passing,
+but read-only `apply-openclaw-memory-litellm.py` returns
+`schema_validation_reason=schema_definition_invalid`. **This is a failure of
+the generated OpenClaw schema against the Python JSON Schema validator's
+meta-schema**, not proof that the proposed `memory.search` configuration is
+invalid. Do not suppress this failure or mistake it for an invalid embedding
+key.
+
+A follow-up adds `schema_meta_keyword` (strict allowlist only) to distinguish
+the type of unsupported/invalid schema construct without printing raw schema,
+paths, plugin definitions or credentials.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+If external meta-schema validation remains impossible for this OpenClaw version,
+investigate OpenClaw's own **read-only config patch dry-run validator** against
+a temporary private candidate, only after confirming support with
+`openclaw config patch --help` on the installed 2026.9.5 CLI. Never replace
+strict candidate validation with unchecked JSON edits. No `--apply`,
+Gateway restart, index rebuild or secret migration is authorized by this
+diagnostic.
