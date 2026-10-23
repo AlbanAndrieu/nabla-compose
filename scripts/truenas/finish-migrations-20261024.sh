@@ -21,6 +21,11 @@ ALLOW_DRIFT=false
 usage() {
   cat <<'EOF'
 Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
+  # FAST PARALLEL IMAGE REFRESH (after review/merge, separate from waves):
+  # python3 scripts/truenas/fast-bulk-redeploy-apps.py --check --scope all --parallel 8
+  # For the concurrent Talos/Kubernetes operator flow see
+  # docs/runbooks/2026-10-23-fast-batch-migration.md
+
   sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
