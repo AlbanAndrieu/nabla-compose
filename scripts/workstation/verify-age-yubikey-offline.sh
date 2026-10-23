@@ -31,6 +31,8 @@ for python_source in \
   "$script_dir/test-age-yubikey-certificate-negative-offline.py" \
   "$script_dir/verify-age-yubikey-piv82-certificate.py" \
   "$script_dir/plan-age-yubikey-piv82-transaction.py" \
+  "$script_dir/verify-age-yubikey-piv82-attestation.py" \
+  "$script_dir/test-age-yubikey-piv82-attestation-offline.py" \
   "$repo_root/tests/test_yubikey_piv82_transaction.py"
 do
   python3 -m py_compile "$python_source"
@@ -45,5 +47,15 @@ do
   bash -n "$bash_source"
 done
 python3 -m unittest discover -s "$repo_root/tests" -p 'test_yubikey*.py' -v
+# The cryptographic attestation fixture requires cryptography, not a live reader.
+sdk_python="$HOME/.local/share/nabla/piv-sdk-venv/bin/python"
+if [[ ! -x "$sdk_python" ]]; then
+  sdk_python=python3
+fi
+if ! "$sdk_python" -c 'import cryptography.x509' >/dev/null 2>&1; then
+  nabla_status error 'Missing local cryptography SDK: attestation crypto gate cannot pass'
+  exit 3
+fi
+"$sdk_python" "$script_dir/test-age-yubikey-piv82-attestation-offline.py"
 nabla_status ok 'Offline test suite passed'
 nabla_status warn 'Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified'

@@ -107,6 +107,8 @@ def build_plan(serial: str) -> dict:
             "aes_management_key_provisioning": "BLOCKED; use reviewed external Yubico SDK path only",
             "list_all": "read-only discovery only after on-card validation",
             "attestation": "independent Yubico/F9 trust-chain evidence required; never trust policy OID alone",
+            "attestation_verifier": "scripts/workstation/verify-age-yubikey-piv82-attestation.py",
+            "root_fingerprint": "must be independently approved; never derive trust from supplied PEM",
         },
         "completion": "Hardware provisioning requires separate operator authorization; planning is never GO.",
     }

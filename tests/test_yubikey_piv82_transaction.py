@@ -63,6 +63,31 @@ class Piv82TransactionContract(unittest.TestCase):
         self.assertIn("age-plugin-yubikey --generate", " ".join(plan["rules"]))
         self.assertIn("Do not use a self-signed", " ".join(plan["rules"]))
 
+    def test_attestation_verifier_accepts_only_public_offline_inputs(self):
+        source = ROOT / "scripts/workstation/verify-age-yubikey-piv82-attestation.py"
+        body = source.read_text()
+        for expected in ("--root-sha256", "--public-key", "--serial", "--attestation", "--f9",
+                         "hmac.compare_digest"):
+            # The validator must require an approved trust anchor and key binding.
+            self.assertIn(expected, body)
+        for forbidden in ("import yubikit", "import ykman", "import smartcard",
+                          "subprocess.run(", "os.system(", "getpass(", "piv reset"):
+            self.assertNotIn(forbidden, body)
+        compiled = subprocess.run([sys.executable, "-m", "py_compile", str(source)],
+                                  capture_output=True, text=True)
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+
+    def test_attestation_adversarial_fixture_is_wired_to_gate(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv82-attestation-offline.py"
+        gate = (ROOT / "scripts/workstation/verify-age-yubikey-offline.sh").read_text()
+        self.assertIn("test-age-yubikey-piv82-attestation-offline.py", gate)
+        self.assertIn("verify-age-yubikey-piv82-attestation.py", gate)
+        body = script.read_text()
+        for marker in ("missing intermediate", "wrong serial", "wrong issuer signature",
+                       "bad policy", "untrusted root", "wrong public key"):
+            self.assertIn(marker, body)
+        self.assertNotIn("import yubikit", body)
+
     def test_machine_readable_output_is_no_go(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "--serial", module.BACKUP,
                                  "--json"], capture_output=True, text=True, check=True)

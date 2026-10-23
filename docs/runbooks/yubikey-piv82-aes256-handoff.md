@@ -73,3 +73,32 @@ Validation opérateur après synchronisation : **47/47 tests PASS en 2,566 s** a
 **La présence d'un OID `1.3.6.1.4.1.41482.3.8` = `03 02` sur un certificat X.509 autosigné n'atteste pas des politiques matérielles.** Après génération PIV82 et avant signature/import applicatif, une **phase d'attestation distincte** est exigée : certificat d'attestation issu du slot F9, vérification de la chaîne vers une racine Yubico approuvée (ne jamais accepter une racine F9 remplacée), SPKI identique à PIV82 et politiques PIN/touch ALWAYS/ALWAYS dans l'attestation. Référence : [Yubico PIV Attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html). En l'absence de chaîne fiable, **NO-GO** ; ne pas remplacer une preuve d'attestation par le seul fichier de certificat age.
 
 Le plan `plan-age-yubikey-piv82-transaction.py` comporte maintenant **7 jalons** : inventaire, authentification, génération, **attestation**, signature du certificat, import, interopérabilité. La gate locale couvre **8 tests transactionnels PASS** (6 existants + 2 nouveaux) dans l'environnement isolé de l'agent. La suite complète est **49 tests attendus** sur workstation sous réserve d'absence d'autres modifications concurrentes. Aucun PIN, authentification, attestation réelle, écriture PIV ou modification SOPS effectués. **NO-GO matériel maintenu.**
+
+
+### 23 octobre 2026 — Gate 49/49 validée, attestation hors matériel et synchronisation Git
+
+Retour opérateur sur le checkout `/tmp/nabla-yubikey-pr259` : **49/49 tests PASS en 2,426 s** ; le PoC `sign_certificate_builder` du SDK a validé une signature synthétique et rejeté signature forgée/SPKI différente. Il n'y a toujours **aucune preuve de signature PIV82 réelle**. Un `git fetch` par SSH a échoué sur `github.com:22` (timeout) ; la commande suivante `git switch --detach origin/...` a seulement utilisé **la référence déjà en cache**, et son succès ne prouve pas une récupération distante réussie.
+
+**Récupération ponctuelle via HTTPS, sans modification de remote, sans force/reset ni CI :**
+```bash
+cd /tmp/nabla-yubikey-pr259
+git status --short
+git -c 'url.https://github.com/.insteadOf=git@github.com:' \
+  fetch --no-tags origin feat/fast-batch-talos-k8s-services-20261023
+git rev-parse HEAD FETCH_HEAD
+# Vérifier que l'arbre de travail est propre AVANT de changer de commit.
+git switch --detach FETCH_HEAD
+bash scripts/workstation/verify-age-yubikey-offline.sh
+```
+Si HTTPS est également inaccessible, **arrêter sans supposer que `origin/...` est à jour**. Conserver la révision du checkout et comparer son SHA au HEAD de la PR via GitHub. Ne pas modifier de configuration SSH globale pour contourner l'incident.
+
+**Nouveau vérificateur d'attestation publique :** `scripts/workstation/verify-age-yubikey-piv82-attestation.py`. Entrées uniquement PEM publics (sans PC/SC) : certificat d'attestation slot 82, certificat signataire F9, autorité racine approuvée, intermédiaires facultatifs (dont bundles PEM officiels), SPKI PIV82 lue séparément, numéro de série prévu et **empreinte SHA256 de racine vérifiée indépendamment du fichier PEM**. Vérifie la chaîne et les signatures, l'absence d'expiration, une autorité racine véritablement ancrée, le sujet du slot 82, la liaison SPKI, l'OID de politique `03 02` et l'OID du numéro de série. Renvoie **NO-GO** au premier écart. N'interprète **jamais** le certificat applicatif autosigné comme une attestation matérielle.
+
+Sans fichiers d'attestation réels, exécuter seulement la **simulation** :
+```bash
+~/.local/share/nabla/piv-sdk-venv/bin/python \
+  scripts/workstation/test-age-yubikey-piv82-attestation-offline.py
+```
+L'outil de validation des vrais PEM exige `--attestation --f9 --root --public-key --serial --root-sha256`, et permet de fournir les intermédiaires via `--intermediate`. Pour ne pas accepter une fausse autorité, **ne jamais recopier l'empreinte SHA256 calculée depuis le PEM reçu comme valeur approuvée** : comparer avec une empreinte de racine Yubico authentifiée par une source séparée. La chaîne diffère pour les appareils **5.7.4+** (nouvelle racine et intermédiaires) et les firmwares antérieurs. Source : [Yubico PIV Attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html), [procédure de vérification](https://developers.yubico.com/yubico-piv-tool/Attestation.html).
+
+Nouvelle gate : **2 tests de contrat supplémentaires**, soit **51 tests attendus** d'après le dernier 49/49 (sous réserve de commits concurrents) + un test cryptographique synthétique indépendant couvrant **8 cas négatifs** et un bundle intermédiaire. Les **10 tests transactionnels** et le banc cryptographique d'attestation ont été exécutés avec succès sur la copie isolée des fichiers modifiés de l'agent ; cela ne remplace ni le checkout complet de la workstation ni une opération matérielle. Aucun provisioning, aucune authentification PIN, aucune modification F9/PIV9A/OTP2/SOPS. **NO-GO matériel maintenu.**
