@@ -8,8 +8,9 @@ FastAPI Cloud or Cloudflare policies. The stage endpoint is
 
 Le [dossier d'incident](../incidents/2026-10-23-sample-pihole-ech-split-dns.md)
 compare les incidents du 27 septembre (DHCP vers Pi-hole), du 10 octobre
-(Vaultwarden Unbound public override), et l'incident actuel : **Pi-hole v6**
-a une entrée `172.17.0.24 sample.albandrieu.com` dans `pihole.toml`.
+(Vaultwarden Unbound public override), et l'incident Sample : **Pi-hole v6**
+avait une entrée `172.17.0.24 sample.albandrieu.com` dans `pihole.toml`,
+**supprimée par l'opérateur le 23 octobre** (DNS validé après suppression).
 Le DHCP LAN pfSense annonce déjà **172.17.0.1**, donc ne pas le modifier.
 
 Sur TrueNAS, `diagnose-fastapi-sample.sh` ajoute une septième étape
@@ -62,6 +63,34 @@ pour éviter qu'un DNS Quad9 public cache une régression sur la zone
 privée. Les cas mockés ont été portés à **8 tests**, incluant une réponse DNS NetworkManager vide (code de sortie zéro) et les modes TrueNAS/workstation (exécution du
 nouveau HEAD : `NOT_RUN`). Voir le dossier d'incident pour les
 étapes de remédiation sous Pi-hole v6.
+
+**Retour de validation du 23 octobre** : `just sample-dns` est
+`failures=0 warnings=0` après suppression de l'override Pi-hole,
+et `just sample-dns-test` a réussi **8/8** sur la workstation.
+`just sample-dns-workstation` affiche toutefois `warnings=2` :
+le profil `Wired eno1` a `ipv4.dns=172.17.0.24` et
+`ipv4.ignore-auto-dns=yes` malgré DHCP `172.17.0.1`, tandis que
+`systemd-resolved` utilisait Quad9, sans résolution de
+`sample.int.albandrieu.com`. Les DNS public/privé des serveurs
+étant sains, **ne pas modifier pfSense/DHCP/Tunnel**.
+
+Le diagnostic de follow-up recoupe les DNS persistés dans
+NetworkManager et les DNS effectifs de `systemd-resolved`. Pour
+rétablir le comportement DHCP sur un poste accessible localement
+(après sauvegarde du profil) :
+
+```bash
+sudo nmcli connection modify 'Wired eno1' ipv4.ignore-auto-dns no ipv4.dns ''
+sudo nmcli device reapply eno1
+resolvectl dns eno1
+getent ahostsv4 sample.int.albandrieu.com
+getent ahostsv4 sample.albandrieu.com
+```
+
+Ne pas réinitialiser une connexion active en SSH ou pendant une
+intervention critique. Si Quad9 persiste après `reapply`, inspecter
+les DNS globaux de resolved ou une configuration VPN au lieu de
+revenir au DNS général Pi-hole.
 
 Une réponse **HTTP 302** vers Cloudflare Access sans session est attendue
 après correction DNS ; elle ne prouve pas la santé du backend ni un échec TLS.
