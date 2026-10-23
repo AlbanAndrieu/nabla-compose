@@ -278,3 +278,33 @@ control (confirm `git status --short --untracked-files=normal` does not expose
 the directory). Only a successful read-only `candidate=ready` and separate
 verification of the installed OpenClaw `singleValue` provider SecretRef ID
 contract authorize planning any explicit stopped-gateway `--apply` run.
+
+
+## 2026-10-23 — schema validation still blocked after isolated jsonschema install
+
+Operator verified `jsonschema==4.26.0` exists in the Python 3.14
+`.venv-openclaw-memory` environment; the read-only cutover preflight still
+reported `blocked_stage=schema_validation`. **Missing dependency is no longer
+the explanation for this invocation.** Full candidate validation against the
+actual OpenClaw schema has not been demonstrated.
+
+The validator now selects the correct draft from the installed CLI's JSON
+Schema using `jsonschema.validators.validator_for(schema)`, checks the schema
+and validates the candidate. On failure it emits only a fixed
+`schema_validation_reason` category such as
+`schema_definition_invalid`, `candidate_rejected_by_schema`,
+`schema_shape_unexpected`, `schema_contract_unsupported`,
+`schema_cli_timeout`, or `unknown_schema_failure`. Raw exceptions,
+schema paths and invalid values are deliberately suppressed to avoid leaking
+OpenClaw secrets.
+
+Run read-only:
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+.venv-openclaw-memory/bin/python -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+Do not apply, restart, edit auth settings or reindex until the candidate
+validates cleanly. Keep the no-cross-vector-space fallback gate.
