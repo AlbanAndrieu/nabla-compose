@@ -364,3 +364,33 @@ Match numerical indexes to verified pfSense interface metadata *before*
 preparing the static provider. No config change or redeployment is implied.
 
 **TrueNAS capture permissions (2026-10-23):** both direct `-w "$CAPTURE"` and `-Z "$(id -un)"` failed with `Permission denied` on the operator-owned `0600` file. Use `-w -` and shell stdout redirection so the non-root shell opens the private file before tcpdump writes packet bytes to stdout. Never `chmod 666` a PCAP, expose raw packets, or alter pfSense tracking. A `timeout` exit 124 is possible after capturing fewer than eight packets; parse any nonempty capture.
+
+### Confirmed ifIndex 11 — staged GitOps change, not yet deployed (2026-10-23)
+
+The operator captured one private NetFlow v5 datagram containing ten records.
+All ten had **input_ifindex=11** and **output_ifindex=11**; the capture was
+deleted and the three offline PCAP parser tests passed. This identifies a
+numeric flow-interface index, **not** the corresponding physical/VLAN
+interface on pfSense and not its speed.
+
+`config/akvorado.yaml` now stages a single-exporter static metadata provider:
+`172.17.0.1/32` → `ifindexes[11]` with the explicitly provisional
+`pflow-ifindex-11` name. No default interface is configured. The
+metadata provider is intentionally static-only to avoid repeatedly failing
+SNMP GETs against the memory-constrained Netgate 1100. A future observation
+of additional indexes requires independent verification before expanding
+the list. This is **declarative only**; no runtime action has been performed.
+
+Prior to any operator-controlled deployment, validate the pinned image's
+configuration schema (not merely YAML syntax), then run locally:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_akvorado_*'
+docker compose -f apps/akvorado/compose.yml config --quiet --no-interpolate --no-env-resolution
+```
+
+After review and deployment, require a new increase in decoded records with
+no corresponding increase in `metadata missing` errors and actual ClickHouse
+insertions and persisted rows. Do not confuse historical nonzero error
+counters with continuing failure or empty historical data with new failure.
+No global pfSense tracking, SNMP authorization, or automatic redeploy.
