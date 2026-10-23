@@ -169,7 +169,7 @@ def audit_location_breakdown(data, v2):
         if not isinstance(item, dict):
             return None
         code = item.get("code")
-        if code not in codes:
+        if not isinstance(code, str) or code not in codes:
             return None
         codes[code] += 1
         if code == "PLAINTEXT_FOUND":
@@ -306,12 +306,12 @@ def audit(include_locations=False):
     for category, count in summary["categories"].items():
         print("secret_audit_" + category + "_count=" + str(count))
     print("secret_audit_unclassified=" + str(summary["unclassified"]).lower())
+    location_ok = print_audit_location_breakdown(data, v2) if include_locations else True
     clean = (v2 is not None and process.returncode == 0 and v2["status"] == "clean"
-             and v2["complete"] and all(value == 0 for value in v2["categories"].values()))
+             and v2["complete"] and all(value == 0 for value in v2["categories"].values())
+             and location_ok)
     print("secret_audit=" + ("clean" if clean else "findings_or_error"))
     print("secret_audit_raw_output=suppressed")
-    if include_locations:
-        print_audit_location_breakdown(data, v2)
     print("secret_audit_strict_check=true")
     print("file_secret_resolution=unverified")
     print("configuration_changed=false")
