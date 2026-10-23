@@ -249,3 +249,32 @@ python3 scripts/workstation/apply-openclaw-memory-litellm.py
 python3 -c 'import importlib.util; print("jsonschema_installed=" + str(importlib.util.find_spec("jsonschema") is not None).lower())'
 ```
 Do not run `--apply`, alter the Gateway, install packages globally or rebuild indexes until the blocker is identified and the candidate is validated.
+
+
+## 2026-10-23 confirmed preflight blocker: Python dependency missing
+
+Operator reproduced `migration=blocked`, `blocked_stage=schema_validation`,
+`configuration_changed=not_confirmed` with
+`jsonschema_installed=false`. The *missing dependency* is thus confirmed; it
+does not establish whether the full candidate passes schema validation.
+
+The cutover script now reports `blocked_reason=python_jsonschema_missing`
+without logging Python exception text or config. Do not weaken or bypass
+schema validation, install packages into the workstation-wide Python, or
+apply the candidate yet.
+
+Use a repo-scoped isolated virtual environment, with package versions governed
+by the local workstation's trusted Python/package mirror policy:
+
+```bash
+cd ~/w/nabla-compose
+python3 -m venv .venv-openclaw-memory
+.venv-openclaw-memory/bin/python -m pip install 'jsonschema>=4.23,<5'
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+No secrets should appear in the output. The venv must remain outside version
+control (confirm `git status --short --untracked-files=normal` does not expose
+the directory). Only a successful read-only `candidate=ready` and separate
+verification of the installed OpenClaw `singleValue` provider SecretRef ID
+contract authorize planning any explicit stopped-gateway `--apply` run.
