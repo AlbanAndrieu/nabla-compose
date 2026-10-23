@@ -25,11 +25,11 @@ def stub(monkeypatch, rows, checks=None):
     monkeypatch.setitem(g, "prometheus_config_access", lambda: None)
 
 
-def test_litellm_liveliness_does_not_override_docker_unhealthy(monkeypatch):
+def test_litellm_readiness_does_not_override_docker_unhealthy(monkeypatch):
     stub(monkeypatch, {"litellm": {"status": "running", "health": "unhealthy"}})
     row = assess("litellm", {"litellm": "DEPLOYING"})
     assert row["status"] == "DEGRADED"
-    assert any("liveliness passes" in x for x in row["notes"])
+    assert any("readiness passes" in x for x in row["notes"])
 
 
 def test_openrag_healthy_backend_created_frontend_is_blocked(monkeypatch):
@@ -94,6 +94,13 @@ class FakeResponse:
         "api": {"status": "healthy"}, "sensor": {"status": "healthy"}}}, "ok"),
     ("sample", {"status": "healthy", "components": {
         "api": {"status": "unhealthy"}}}, "fail"),
+    ("litellm", {"status": "healthy", "db": "connected"}, "ok"),
+    ("litellm", {"status": "connected", "db": "connected"}, "ok"),
+    ("litellm", {"status": "healthy", "db": "disconnected"}, "fail"),
+    ("litellm", {"status": "degraded", "db": "connected"}, "fail"),
+    ("litellm", {}, "fail"),
+    ("scrutiny", {"status": "fail"}, "fail"),
+    ("scrutiny", {"status": "ok"}, "ok"),
     ("influxdb", {"status": "pass", "checks": []}, "ok"),
     ("influxdb", {"status": "fail"}, "fail"),
     ("gatus", [], "warning"),
@@ -176,6 +183,12 @@ def test_fastapi_provenance_warning_does_not_erase_healthy_components(monkeypatc
     row = assess("sample", {"sample": "RUNNING"})
     assert row["status"] == "WARN"
     assert any("SHA" in note for note in row["notes"])
+
+
+def test_litellm_uses_readiness_instead_of_liveliness():
+    url, kind = module["HTTP"]["litellm"]
+    assert url == "http://127.0.0.1:4000/health/readiness"
+    assert kind == "litellm"
 
 
 def test_sentry_probe_uses_declared_lan_bound_port():
