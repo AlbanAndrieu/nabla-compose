@@ -271,6 +271,10 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertIn("yubikey-5-nabla backup", content)
         self.assertIn("yubikey-5-nabla principal", content)
         self.assertNotIn("piv keys info 82", content)
+        self.assertEqual(content.count("Read-only gate passed"), 1)
+        self.assertEqual(content.count("inspect-age-yubikey-aes256-hardware.sh"), 1)
+        self.assertNotIn("slot_info=", content)
+        self.assertTrue(content.rstrip().endswith("exit 0"))
         for command in ("--force", "change-management-key -a TDES",
                         'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
