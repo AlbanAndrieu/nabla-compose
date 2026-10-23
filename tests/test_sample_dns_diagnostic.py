@@ -70,8 +70,8 @@ case "$*" in
     echo "${MOCK_PROFILE_IGNORE:-yes}" ;;
   *"connection show Wired connection"*)
     if [ "${MOCK_EMPTY_NM_FIELDS:-0}" != 1 ]; then
-      echo 'ipv4.dns: 9.9.9.9,149.112.112.112'
-      echo 'ipv4.ignore-auto-dns: yes'
+      echo "ipv4.dns: ${MOCK_PROFILE_DNS:-172.17.0.24}"
+      echo "ipv4.ignore-auto-dns: ${MOCK_PROFILE_IGNORE:-yes}"
     fi ;;
   *) echo 'GENERAL.CONNECTION: Wired connection' ;;
 esac
