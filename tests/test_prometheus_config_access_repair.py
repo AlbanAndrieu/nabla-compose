@@ -25,6 +25,9 @@ def sandbox(tmp_path: Path, *, runtime_user: str = "568:568",
     shutil.copyfile(SCRIPT, script)
     config_dir = root / "apps" / "prometheus"
     config_dir.mkdir(parents=True)
+    # TrueNAS/pytest may use umask 077. Keep synthetic directory
+    # traversable to isolate the specific file GID/mode contract.
+    config_dir.chmod(0o755)
     config = config_dir / "prometheus.yml"
     if symlink:
         private = tmp_path / "private.yml"
