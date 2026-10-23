@@ -31,6 +31,20 @@ inlet:
         receive-buffer: 212992
 
 outlet:
+  # NetFlow v5 capture on 2026-10-23: both input/output ifIndex=11 (10/10 records).
+  # Actual pfSense interface name and link speed remain unverified.
+  # Static provider avoids repeated failed SNMP GETs against memory-limited Netgate 1100.
+  # Unknown ifIndexes deliberately remain unresolved; do not invent a default.
+  metadata:
+    providers:
+      - type: static
+        exporters:
+          172.17.0.1/32:
+            name: pfsense-netgate1100
+            ifindexes:
+              11:
+                name: pflow-ifindex-11
+                description: Observed NetFlow v5 ifIndex 11; pfSense interface unverified
   geoip:
     optional: true
   networks:
