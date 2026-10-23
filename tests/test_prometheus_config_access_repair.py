@@ -137,7 +137,7 @@ def test_noexec_safe_bash_mock_runs_readable_nonexecutable_stub(
     fakebin.mkdir()
     docker = fakebin / "docker"
     docker.write_text(
-        '#!/usr/bin/env bash\\necho mock-docker-safe\\n'.replace("\\\\n", "\\n"),
+        chr(10).join(("#!/usr/bin/env bash", "echo mock-docker-safe", "")),
         encoding="utf-8",
     )
     docker.chmod(0o600)
