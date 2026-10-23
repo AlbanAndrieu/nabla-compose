@@ -43,6 +43,35 @@ done
   exit 1
 }
 
+# A RUNNING TrueNAS App can still contain a restarting Prometheus
+# container. In that state, docker exec/promtool and target HTTP cannot
+# provide useful evidence; summarize crash categories instead of repeating
+# network failures or dumping secrets from raw logs.
+runtime_status="$(docker inspect "${CONTAINER}" --format '{{.State.Status}}' 2>/dev/null || true)"
+if [[ "${runtime_status}" != running ]]; then
+  case "${runtime_status}" in
+    restarting|exited|dead|created) ;;
+    *) runtime_status='unknown' ;;
+  esac
+  printf '❌ Prometheus runtime=%s (config, permissions or startup error)\n' "${runtime_status}" >&2
+  if docker inspect "${CONTAINER}" >/dev/null 2>&1; then
+    docker logs --tail 80 "${CONTAINER}" 2>&1 |
+      awk '{
+          t=tolower($0); lines++;
+          if (t ~ /permission denied|operation not permitted/) permissions++;
+          if (t ~ /yaml|parse error|invalid config|unknown field/) configuration++;
+          if (t ~ /tsdb|corrupt|wal|storage/) storage++;
+          if (t ~ /out of memory|oom/) memory++;
+        } END {
+          printf "  recent log categories: sample=%d permissions=%d config=%d storage=%d oom=%d\n",
+            lines,permissions,configuration,storage,memory
+        }' >&2 || true
+  fi
+  printf '  Review privately: docker inspect %s --format "{{json .State}}"\n' "${CONTAINER}" >&2
+  printf '  Preserve /mnt/cpool/prometheus/data; do not redeploy until crash cause is known.\n' >&2
+  exit 1
+fi
+
 echo '=== Prometheus config drift ==='
 host_hash="$(sha256sum "${CONFIG}" | awk '{print $1}')"
 if container_config="$(docker exec "${CONTAINER}" sh -c 'cat /etc/prometheus/prometheus.yml' 2>/dev/null)"; then
