@@ -1,3 +1,14 @@
+## CURRENT — pfSense NetFlow v5 → Akvorado validation (2026-10-23)
+
+- [x] Keep pfSense Netgate 1100 selective tracking only: `Track by Default` OFF, LAN rule `Always Track Flow Data`; no global pflow change.
+- [x] Confirm TrueNAS `br0` receives pfSense `172.17.0.1 → 172.17.0.24:2055/udp`: 504-byte packet observed at 20:50 local.
+- [x] Confirm Docker host publication and Inlet application-level receipt: 139 packets / 105768 bytes; zero receive errors and kernel drops in reported metrics.
+- [x] Confirm Inlet Kafka send counter: 139 messages; observed topic `akvorado-flows-v5` versus `akvorado-flows` in GitOps (validate version suffix before any change).
+- [x] Add privacy-bounded, read-only metric diagnostic `scripts/truenas/diagnose-akvorado-flow.py` and offline parser tests; **full local quality gate not yet executed**.
+- [ ] Verify Outlet consumption and errors, then Kafka topic agreement; no topic rename before observing Outlet.
+- [ ] Verify ClickHouse inserts and recent persisted flow rows using approved read-only SQL; confirm Console results.
+- [ ] Execute offline tests and scoped pre-commit / local quality gate on a full PR checkout, without GitHub Actions.
+
 ## Santé fonctionnelle et diagnostics lisibles — 23 octobre 2026
 
 - [x] Ajouter une matrice de diagnostic **lecture seule** croisant TrueNAS
