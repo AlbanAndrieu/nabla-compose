@@ -24,7 +24,7 @@ TARGET_K8S = (ROOT / "config/talos/KUBERNETES_VERSION").read_text().strip()
 NODES = ("172.17.0.50", "172.17.0.51", "172.17.0.52")
 ACK = "I_ACCEPT_FULL_CLUSTER_OUTAGE_WITHOUT_ETCD_BACKUP"
 IMAGE = re.compile(r"^factory\.talos\.dev/metal-installer/[a-f0-9]{64}:v1\.14\.4$")
-REQUIRED_VERSION = re.compile(r"\bv1\.14\.4\b")
+REQUIRED_SERVER_VERSION = re.compile(r"(?m)^\s*Tag:\s*v1\.14\.4\s*$")
 
 
 def plan(image: str) -> dict:
@@ -66,7 +66,9 @@ def wait_node(ip: str, timeout: int) -> None:
     while time.monotonic() < deadline:
         try:
             output = run(["talosctl", "--nodes", ip, "version"], timeout=20)
-            if REQUIRED_VERSION.search(output):
+            # A new CLIENT version does not prove remote node recovery.
+            server = output.partition("Server:")[2]
+            if server and REQUIRED_SERVER_VERSION.search(server):
                 return
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
             pass
