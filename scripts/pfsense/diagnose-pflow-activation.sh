@@ -3,7 +3,7 @@
 set -euo pipefail
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 case "${1:---check}" in --check) ;; *) echo 'Usage: diagnose-pflow-activation.sh --check' >&2; exit 2;; esac
-ssh -o BatchMode=yes -o ConnectTimeout=10 "$target" '/bin/sh -s' <<'REMOTE'
+ssh -o BatchMode=yes -o ConnectTimeout=10 "${target}" '/bin/sh -s' <<'REMOTE'
 set -u
 echo '=== Current clock, memory and OOM ==='
 date; uptime

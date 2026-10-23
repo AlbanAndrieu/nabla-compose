@@ -6,8 +6,8 @@ target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
 case "${1:---check}" in --check) ;; *) echo "Usage: $0 --check" >&2; exit 2;; esac
 args=(-o BatchMode=yes -o ConnectTimeout=10)
-[[ -z "$port" ]] || args+=(-p "$port")
-ssh "${args[@]}" "$target" '/bin/sh -s' <<'REMOTE'
+[[ -z "${port}" ]] || args+=(-p "${port}")
+ssh "${args[@]}" "${target}" '/bin/sh -s' <<'REMOTE'
 set -u
 echo '=== UTC/local time, uptime, Unbound identity ==='
 date; uptime
