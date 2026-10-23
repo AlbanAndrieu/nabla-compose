@@ -427,13 +427,15 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
         result = subprocess.run(["python3", str(script)], capture_output=True,
                                 text=True, check=True)
-        self.assertIn("3 negative paths", result.stdout)
-        text = script.read_text()
-        self.assertIn('["verify_pin", "authenticate", "verify_pin"]', text)
-        self.assertIn("len(protected_key) != 32", text)
+        self.assertIn("10 negative paths", result.stdout)
+        body = script.read_text()
+        for token in ('"get_pin_attempts", "verify_pin", "get_protected_key"',
+                      "len(protected_key) != 32", "Insufficient synthetic PIN retry budget",
+                      "final PIN reverify rejected", "Unexpected management-key mode"):
+            self.assertIn(token, body)
         for forbidden in ("PivSession(", "ykman ", "get_pivman_protected_data(",
                           "put_certificate(", "generate_key(", "getpass("):
-            self.assertNotIn(forbidden, text)
+            self.assertNotIn(forbidden, body)
 
     def test_aes256_sdk_api_inspection_never_opens_hardware(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py"
