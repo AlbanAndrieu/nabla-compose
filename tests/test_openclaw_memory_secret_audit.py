@@ -75,6 +75,78 @@ class AuditSummaryTests(unittest.TestCase):
                 "resolution": {"resolvabilityComplete": True}}
         self.assertIsNone(module.audit_v2_summary(data))
 
+    def test_location_breakdown_matches_upstream_codes_only(self):
+        findings = [
+            {"code": "PLAINTEXT_FOUND", "file": "/private/openclaw.json",
+             "jsonPath": "providers.SECRET", "provider": "PRIVATE"},
+            {"code": "PLAINTEXT_FOUND", "file": "/private/.env",
+             "jsonPath": "$env.TOKEN_NAME", "message": "SECRET"},
+            {"code": "PLAINTEXT_FOUND", "file": "/private/agents/main/agent/openclaw-agent.sqlite",
+             "jsonPath": "profiles.PRIVATE.key"},
+            {"code": "PLAINTEXT_FOUND", "file": "/private/agents/main/models.json",
+             "jsonPath": "providers.PRIVATE.apiKey"},
+            {"code": "PLAINTEXT_FOUND", "file": "/private/other-file",
+             "jsonPath": "SECRET_VALUE"},
+            {"code": "LEGACY_RESIDUE", "file": "/private/agents/main/agent/openclaw-agent.sqlite",
+             "jsonPath": "profiles.PRIVATE"},
+            {"code": "LEGACY_RESIDUE", "file": "/private/auth.json",
+             "jsonPath": "<root>"},
+        ]
+        data = {"findings": findings}
+        v2 = {"categories": {"plaintext": 5, "legacy_residue": 2, "unresolved": 0,
+                             "shadowed": 0, "store_residue": 0}}
+        summary = module.audit_location_breakdown(data, v2)
+        self.assertEqual(summary["plaintext"], {
+            "config": 1, "dotenv": 1, "auth_store": 1,
+            "generated_models": 1, "unknown": 1,
+        })
+        self.assertEqual(summary["legacy"], {
+            "oauth_profile": 1, "legacy_file": 1, "unknown": 0,
+        })
+        self.assertTrue(summary["counts_match"])
+        from contextlib import redirect_stdout
+        from io import StringIO
+        with redirect_stdout(StringIO()) as output:
+            self.assertTrue(module.print_audit_location_breakdown(data, v2))
+        rendered = output.getvalue()
+        self.assertIn("secret_audit_plaintext_location_auth_store=1", rendered)
+        self.assertIn("secret_audit_legacy_location_oauth_profile=1", rendered)
+        for secret in ("PRIVATE", "SECRET", "TOKEN_NAME", "/private",
+                       "openclaw.json"):
+            self.assertNotIn(secret, rendered)
+
+    def test_location_mismatch_and_unrecognized_are_fail_closed(self):
+        known = {"findings": [
+            {"code": "PLAINTEXT_FOUND", "file": "/private/.env",
+             "message": "DO_NOT_PRINT"},
+        ]}
+        v2 = {"categories": {
+            "plaintext": 16, "unresolved": 0, "shadowed": 0,
+            "store_residue": 0, "legacy_residue": 2,
+        }}
+        result = module.audit_location_breakdown(known, v2)
+        self.assertFalse(result["counts_match"])
+        self.assertIsNone(module.audit_location_breakdown(
+            {"findings": [{"code": "SECRET_NEW_CODE", "file": "/private"}]}, v2))
+        self.assertIsNone(module.audit_location_breakdown(
+            {"findings": ["/private"]}, v2))
+        self.assertIsNone(module.audit_location_breakdown(
+            {"findings": "SECRET"}, v2))
+        self.assertIsNone(module.audit_location_breakdown(
+            {"findings": [{}] * 10001}, v2))
+
+    def test_location_categories_with_no_path_are_unknown(self):
+        data = {"findings": [
+            {"code": "PLAINTEXT_FOUND", "file": None},
+            {"code": "LEGACY_RESIDUE", "file": "/private/key"},
+        ]}
+        v2 = {"categories": {"plaintext": 1, "legacy_residue": 1,
+                             "unresolved": 0, "shadowed": 0,
+                             "store_residue": 0}}
+        summary = module.audit_location_breakdown(data, v2)
+        self.assertEqual(summary["plaintext"]["unknown"], 1)
+        self.assertEqual(summary["legacy"]["unknown"], 1)
+
     def test_invalid_or_boolean_counts_not_accepted(self):
         result = module.audit_summary({"plaintext": True})
         self.assertEqual(result["schema"], "unknown")
