@@ -26,49 +26,26 @@ class CutoverTest(unittest.TestCase):
         self.assertEqual(updated["memory"]["search"]["remote"]["apiKey"]["source"], "file")
         self.assertNotIn("openclaw-embeddings", cfg["secrets"]["providers"])
 
-    def test_schema_draft_selected_from_schema(self):
-        try:
-            import jsonschema
-        except ImportError:
-            self.skipTest("jsonschema not installed in local test environment")
-        schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "properties": {
-                "memory": {
-                    "type": "object",
-                    "properties": {"search": {
-                        "type": "object",
-                        "properties": {
-                            "provider": {"enum": ["openai-compatible"]},
-                            "model": {"type": "string"},
-                            "remote": {"type": "object", "properties": {
-                                "apiKey": {"anyOf": [{"type": "string"}, {
-                                    "type": "object", "properties": {
-                                        "source": {"const": "file"}
-                                    }
-                                }]}
-                            }},
-                            "fallback": {"type": "string"},
-                            "enabled": {"type": "boolean"}
-                        }
-                    }}
-                },
-                "secrets": {"type": "object", "properties": {
-                    "providers": {"type": "object"}
-                }}
-            }
-        }
+    def test_native_patch_validation_success(self):
         from subprocess import CompletedProcess
-        proc = CompletedProcess(["openclaw"], 0, stdout=json.dumps(schema).encode())
-        with patch.object(module.subprocess, "run", return_value=proc):
-            module.verify_schema({"memory": {"search": {
-                "provider": "openai-compatible", "model": "embedding",
-                "remote": {"apiKey": {"source": "file"}}, "fallback": "none",
-                "enabled": True}}, "secrets": {"providers": {}}})
-            with self.assertRaises(jsonschema.exceptions.ValidationError):
-                module.verify_schema({"memory": {"search": {"provider": "invalid"}},
-                                      "secrets": {"providers": {}}})
+        candidate, _ = module.candidate({"memory": {"search": {}}, "secrets": {"providers": {}}})
+        proc = CompletedProcess(["openclaw"], 0, stdout=b'{"valid":true}')
+        with patch.object(module.subprocess, "run", return_value=proc) as run:
+            module.verify_schema(candidate)
+            args, kwargs = run.call_args
+            self.assertEqual(args[0], ["openclaw", "config", "patch", "--stdin", "--dry-run", "--json"])
+            self.assertNotIn(b"DO_NOT_TOUCH", kwargs["input"])
+            self.assertEqual(kwargs["capture_output"], True)
+
+    def test_native_patch_fails_closed(self):
+        from subprocess import CompletedProcess
+        candidate, _ = module.candidate({"memory": {"search": {}}, "secrets": {"providers": {}}})
+        for code, result in ((1, b'{"valid":false}'), (0, b'{"status":"unknown"}'), (0, b'not-json')):
+            with self.subTest(code=code, result=result):
+                proc = CompletedProcess(["openclaw"], code, stdout=result)
+                with patch.object(module.subprocess, "run", return_value=proc):
+                    with self.assertRaises(ValueError):
+                        module.verify_schema(candidate)
 
     def test_fails_closed_when_existing_provider_differs(self):
         with self.assertRaises(ValueError):
