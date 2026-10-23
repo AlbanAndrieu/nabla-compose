@@ -276,3 +276,86 @@ de recherche/ingestion Bababou et Docling réalisés séparément.
 `admin` ; le bootstrap GitOps/Vaultwarden `nabla` ne correspond
 pas à l'identité existante. Consulter
 `docs/runbooks/defectdojo-admin-access-recovery.md` avant toute rotation.
+
+
+## État observé à 20:58 le 23 octobre — relance ciblée
+
+Les quality gates opérateur **postérieures aux nouveaux scripts** ont passé
+sans GitHub Actions : 78 tests de readiness, 6 tests du diagnostic
+OpenRAG, 37 tests de planification rapide.
+
+### Prometheus : lire le blocage réel avant de réparer
+
+État live observé : `restarting`, exit=2, 925 restarts,
+`config_bind=match`, `container_identity=expected_568:568`,
+`effective_host_config_read=ok`. **41 erreurs de permission** sont
+apparues depuis la modification de `prometheus.yml`. Le compteur
+`config=41 rules=41` était issu de catégories qui pouvaient se recouvrir :
+il ne prouve pas à lui seul que le YAML principal et les règles sont
+deux causes indépendantes.
+
+Le diagnostic renforcé distingue maintenant :
+- `rule_tree_access: files/denied/dirs/untraversable`, accès hôte
+  effectif des fichiers YAML et dossiers sous `apps/prometheus/rules`;
+- `since_config_change: config/rules/storage`, erreurs après le dernier
+  changement de métadonnées du fichier principal, sans afficher les logs ;
+- `docker_userns` et `daemon_userns` pour évaluer un mapping UID
+  différent du contexte de test hôte.
+
+```bash
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+Si les règles sont refusées en UID 568, ne corriger que les fichiers
+identifiés par revue privée des ACL et de leur provenance. Si l'hôte
+les autorise mais Docker refuse encore, ne pas conclure à une panne
+TSDB : comparer user namespaces, politiques MAC/AppArmor/SELinux et
+filesystem réellement visible au processus. Aucun `chmod -R`,
+reset WAL, suppression de bloc ni `app.redeploy` automatique.
+
+### OpenRAG : absence de nom canonique ≠ absence d'App
+
+Le contrôle initial signalait :
+`openrag-backend=missing`, `openrag-frontend=missing`,
+`opensearch=missing`, alors que `langflow=running healthy`.
+Le contrôle vérifie maintenant d'abord les noms canoniques puis les
+labels Compose `com.docker.compose.project=ix-openrag` /
+`com.docker.compose.service=openrag-backend|openrag-frontend` et
+équivalents OpenSearch, ainsi que l'état middleware `app.query`.
+Il refuse les correspondances ambiguës plutôt que de choisir au hasard.
+
+```bash
+just truenas-openrag-dependencies-check
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+Si aucun conteneur OpenRAG n'est présent même par ses labels, vérifier
+les jobs/l'état `app.query`, le contenu Compose stocké dans TrueNAS et
+la présence des dépendances. **Ne pas redéployer** tant que ces preuves
+ne justifient pas une opération limitée. Préserver
+`/mnt/cpool/bababou`, l'index OpenSearch et les clés OpenRAG.
+
+### Migrations : résultats exacts du préflight
+
+`migrations` : PASS=6 FAIL=3 — échecs
+`live-language-patches`, `secrets-runtime`,
+`openwebui-pra`.
+
+`ai` : PASS=1 FAIL=3 — échecs
+`openrag-dependencies`, `hermes-native`,
+`ai-runtime-recovery`.
+
+Les journaux d'acceptation restent privés, dans les dossiers de session
+que le script annonce. Le libellé `see private report` ne démontre
+aucune cause particulière : examiner localement les fichiers de
+chaque gate avant une remédiation. **Ne pas utiliser `--allow-reviewed-drift`
+pour contourner un défaut inexpliqué**, ni lancer les vagues Talos,
+CSI ou bulk TrueNAS avant stabilisation du socle.
+
+### DefectDojo
+
+La tentative `python manage.py changepassword admin` s'est arrêtée
+sur `CommandError: aborted` ; il n'y a pas de preuve de rotation.
+La reprendre uniquement dans un vrai terminal interactif autorisé,
+en saisissant et confirmant le mot de passe sans l'imprimer.
+Ne pas relancer l'initializer ni modifier la base PostgreSQL.
