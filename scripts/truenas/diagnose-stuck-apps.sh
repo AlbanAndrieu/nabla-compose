@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Default to private 0600 logs + compact triage, even when stdout is piped.
+# --verbose deliberately restores the full diagnostic for local operator use.
+STUCK_VERBOSE=false
+for arg in "$@"; do
+  [[ "${arg}" == --verbose ]] && STUCK_VERBOSE=true
+done
+if [[ "${NABLA_DIAGNOSTIC_WRAPPED:-0}" != 1 && "${STUCK_VERBOSE}" != true ]]; then
+  script_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+  exec bash "${script_root}/run-diagnostic.sh" "${BASH_SOURCE[0]}" "$@"
+fi
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 COMMON_LIB="${SCRIPT_DIR}/../lib/common.sh"
 if [[ ! -r "${COMMON_LIB}" ]]; then
@@ -29,7 +40,7 @@ APP_FILTERS=()
 usage() {
   cat <<'EOF'
 usage:
-  sudo bash scripts/truenas/diagnose-stuck-apps.sh --check [--app APP ...]
+  sudo bash scripts/truenas/diagnose-stuck-apps.sh --check [--app APP ...] [--verbose]
 
 Read-only post-reboot diagnostic for TrueNAS Apps that are CRASHED, ERROR,
 DEPLOYING or STOPPED. It correlates:
@@ -65,6 +76,7 @@ while (($#)); do
       APP_FILTERS+=("$2")
       shift 2
       ;;
+    --verbose) shift ;;
     *)
       fail "unknown argument: $1"
       ;;
