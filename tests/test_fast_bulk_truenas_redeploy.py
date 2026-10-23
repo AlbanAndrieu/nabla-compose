@@ -166,3 +166,38 @@ def test_empty_fleet_does_not_call_midclt(monkeypatch):
     monkeypatch.setitem(module["execute"].__globals__, "redeploy",
                         lambda *_: pytest.fail("no app should run"))
     assert module["execute"](make_plan([], "all", 8)) == 0
+
+
+def test_bulk_guard_rejects_prometheus_runtime_restarting(monkeypatch):
+    """Middleware RUNNING cannot hide a Docker crash-loop in an apply wave."""
+    checker = module["selected_runtime_blockers"]
+    report = make_plan(apps() + [{"id": "prometheus", "state": "RUNNING"}],
+                       "all", 4)
+    commands = []
+    def fake_shell(command, timeout=10):
+        commands.append(command)
+        assert command[0:4] == ["docker", "inspect", "--type", "container"]
+        assert ".Config.Env" not in " ".join(command)
+        assert command[-1] in {"prometheus", "gatus"}
+        return "restarting|none" if command[-1] == "prometheus" else "running|none"
+    monkeypatch.setitem(checker.__globals__, "shell", fake_shell)
+    assert checker(report) == ["prometheus"]
+    assert commands  # gate actually checked the selected running App
+
+
+def test_bulk_guard_accepts_healthy_selected_runtime(monkeypatch):
+    checker = module["selected_runtime_blockers"]
+    report = make_plan(apps() + [{"id": "prometheus", "state": "RUNNING"}],
+                       "all", 4)
+    monkeypatch.setitem(checker.__globals__, "shell",
+                        lambda *_a, **_kw: "running|healthy")
+    assert checker(report) == []
+
+
+def test_bulk_guard_does_not_inspect_unselected_stopped_app(monkeypatch):
+    checker = module["selected_runtime_blockers"]
+    report = make_plan([{"id": "prometheus", "state": "STOPPED"}],
+                       "all", 4)
+    monkeypatch.setitem(checker.__globals__, "shell",
+                        lambda *_a, **_kw: pytest.fail("no stopped-app probe"))
+    assert checker(report) == []
