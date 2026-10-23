@@ -51,6 +51,29 @@ class SearchDiagnosticTests(unittest.TestCase):
             self.assertEqual(kwargs["capture_output"], True)
             self.assertEqual(kwargs["timeout"], 30)
 
+    def test_calibration_is_bounded_and_sanitized(self):
+        with patch("sys.argv", ["diagnose", "--agent", "both",
+                                "--query", "deployment", "--calibrate"]):
+            with patch.object(diag, "probe", return_value=("matches", 5)) as p:
+                with redirect_stdout(io.StringIO()) as captured:
+                    self.assertEqual(diag.main(), 0)
+        self.assertEqual(p.call_count, 6)
+        thresholds = [call.args[2] for call in p.call_args_list]
+        self.assertEqual(thresholds, [0.0, 0.20, 0.35] * 2)
+        out = captured.getvalue()
+        self.assertIn("memory_search_main_threshold_0_35_results=5", out)
+        self.assertIn("memory_search_cron_threshold_0_20_results=5", out)
+        self.assertNotIn("deployment", out)
+
+    def test_calibration_stops_on_failure_per_agent(self):
+        def fail_main(agent, query, minimum, timeout):
+            return ("timeout", None) if agent == "main" else ("no_matches", 0)
+        with patch("sys.argv", ["diagnose", "--calibrate"]):
+            with patch.object(diag, "probe", side_effect=fail_main) as p:
+                with redirect_stdout(io.StringIO()):
+                    self.assertEqual(diag.main(), 2)
+        self.assertEqual(p.call_count, 4)  # main: 1; cron: 3
+
     def test_cli_errors_fail_closed(self):
         with patch.object(diag.subprocess, "run",
                           return_value=CompletedProcess([], 1, stdout="SECRET")):
