@@ -121,6 +121,39 @@ if [[ "${runtime_status}" != running ]]; then
   else
     printf '  effective_host_config_read=unverified (sudo/setpriv required)\n' >&2
   fi
+  # Config loading can fail on rules while mentioning --config.file in logs.
+  # Read-only metadata and UID/GID 568 effective tests; no YAML contents.
+  if (( EUID == 0 )) && command -v find >/dev/null 2>&1 \
+      && command -v setpriv >/dev/null 2>&1; then
+    rule_total=0
+    rule_denied=0
+    rule_dirs=0
+    rule_dirs_denied=0
+    if [[ -d "${expected_source}/rules" ]]; then
+      while IFS= read -r -d '' rules_file; do
+        rule_total=$((rule_total + 1))
+        if ! setpriv --reuid 568 --regid 568 --clear-groups \
+            /usr/bin/test -r "$rules_file"; then
+          rule_denied=$((rule_denied + 1))
+        fi
+      done < <(find "${expected_source}/rules" -type f \
+        \( -name '*.yml' -o -name '*.yaml' \) -print0 2>/dev/null || true)
+      while IFS= read -r -d '' rules_dir; do
+        rule_dirs=$((rule_dirs + 1))
+        if ! setpriv --reuid 568 --regid 568 --clear-groups \
+            /usr/bin/test -x "$rules_dir"; then
+          rule_dirs_denied=$((rule_dirs_denied + 1))
+        fi
+      done < <(find "${expected_source}/rules" -type d -print0 2>/dev/null || true)
+    fi
+    printf '  rule_tree_access: files=%d denied=%d dirs=%d untraversable=%d\n' \
+      "$rule_total" "$rule_denied" "$rule_dirs" "$rule_dirs_denied" >&2
+    if ((rule_denied > 0 || rule_dirs_denied > 0)); then
+      printf '  evidence=secondary_rules_access_denied_on_host\n' >&2
+    fi
+  else
+    printf '  rule_tree_access=unverified (sudo/find/setpriv required)\n' >&2
+  fi
   # chmod/chgrp update ctime, not mtime. Separate new log evidence from
   # stale errors in the historical 80-line Docker restart-loop tail.
   if command -v date >/dev/null 2>&1; then
@@ -132,7 +165,7 @@ if [[ "${runtime_status}" != running ]]; then
           awk '{
               t=tolower($0); count++;
               if (t ~ /permission denied|operation not permitted/) permissions++;
-              if (t ~ /\/etc\/prometheus\/prometheus[.]yml/ && t ~ /permission denied/) config++;
+              if (t ~ /open[[:space:]]+\/etc\/prometheus\/prometheus[.]yml/ && t ~ /permission denied/) config++;
               if (t ~ /\/etc\/prometheus\/rules\// && t ~ /permission denied/) rules++;
               if (t ~ /wal.*permission denied|tsdb.*permission denied|storage.*permission denied/) storage++;
             } END {
