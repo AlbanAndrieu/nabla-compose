@@ -16,6 +16,8 @@ import os
 import shutil
 import tempfile
 
+import pytest
+
 _REPOSITORY_ENV = (
     "GIT_DIR",
     "GIT_INDEX_FILE",
@@ -32,9 +34,6 @@ for _name in _REPOSITORY_ENV:
 _TEMPLATE_DIR = tempfile.mkdtemp(prefix="nabla-empty-git-template-")
 os.environ["GIT_TEMPLATE_DIR"] = _TEMPLATE_DIR
 atexit.register(shutil.rmtree, _TEMPLATE_DIR, ignore_errors=True)
-
-
-import pytest
 
 
 @pytest.fixture
