@@ -67,6 +67,68 @@ provenance de l'enregistrement est affichée sous forme de **chemin seul**
 En mode workstation, elles indiquent NetworkManager, DHCP, DNS actif
 et systemd-networkd sans modifier le profil.
 
+## Contrôle opérateur du 23 octobre — tests du diagnostic
+
+Résultats observés :
+- `just sample-dns-test` : 4/4 tests initiaux **PASS**.
+- `just sample-dns-workstation` : le hostname public résout correctement
+  depuis pfSense, Cloudflare et le resolver système ; **Pi-hole répond
+  toujours 172.17.0.24**, donc FAIL voulu et sortie 1.
+- La workstation utilise `resolvectl dns eno1 = 9.9.9.9 149.112.112.112`
+  alors que le bail DHCP porte `domain_name_servers=172.17.0.1`.
+  NetworkManager actif, systemd-networkd inactif ; ce n'est pas une
+  raison pour modifier DHCP.
+- `just sample-dns` exécuté sur TrueNAS rapporte la même mauvaise
+  réponse Pi-hole et sa provenance `/etc/pihole/pihole.toml`.
+  Les échecs `just` sont **attendus tant que la mauvaise entrée persiste**.
+
+Améliorations de non-régression : la version workstation évite désormais
+l'inspection Docker du Pi-hole distant (SKIP, plutôt qu'un WARN trompeur).
+Le rapport TrueNAS conserve le chemin de l'entrée mais ne double plus
+le même incident DNS en deux échecs. Le profil NetworkManager actif est
+lu uniquement pour ses champs IPv4 DNS (sans mot de passe ni secrets).
+Le mode workstation contrôle aussi `getent` pour `sample.int.albandrieu.com`,
+car un resolver exclusivement public comme Quad9 ne garantit pas
+l'accessibilité des services privés.
+
+### Pi-hole v6 : correction ciblée à appliquer hors du diagnostic
+
+Pi-hole documente `dns.hosts` comme la liste des enregistrements locaux
+de `/etc/pihole/pihole.toml`. **Préférer l'interface Web Pi-hole
+Local DNS → DNS Records** ou l'API configurée : supprimer uniquement
+`172.17.0.24 sample.albandrieu.com`, garder tous les autres noms,
+notamment les noms `.int`. La commande `pihole-FTL --config dns.hosts`
+sans filtre retourne potentiellement des noms privés ; ne pas publier sa
+sortie intégrale. Un éventuel `--config dns.hosts '[...]'` remplacerait
+la liste complète : ne jamais l'utiliser avec une liste tronquée.
+
+Après correction de l'entrée, exiger :
+```bash
+dig +short @172.17.0.24 sample.albandrieu.com A
+dig +short @172.17.0.24 sample.int.albandrieu.com A
+dig +short @172.17.0.1 sample.albandrieu.com A
+```
+Le hostname public ne doit jamais pointer vers `172.17.0.24`.
+Le nom `.int` doit conserver cette adresse.
+
+### Workstation : déterminer la provenance de Quad9
+
+Sur le poste (lecture seule) :
+```bash
+nmcli -g GENERAL.CONNECTION device show eno1
+nmcli -f GENERAL.CONNECTION,IP4.DNS,IP6.DNS device show eno1
+nmcli -f DHCP4.OPTION device show eno1 |
+  grep -Ei 'domain_name_servers|dhcp_server_identifier'
+resolvectl dns eno1
+getent ahostsv4 sample.int.albandrieu.com
+```
+Puis inspecter **uniquement les champs DNS** du profil NetworkManager
+affiché. `ipv4.ignore-auto-dns=yes` ou un `ipv4.dns` statique Quad9
+peut expliquer la priorité donnée à un autre resolver malgré DHCP.
+Si ces champs sont vides, examiner les paramètres globaux NetworkManager,
+les profils VPN et les substitutions dans systemd-resolved. Ne pas
+réinitialiser le réseau sans fenêtre de maintenance.
+
 ## Remédiation et critères d'acceptation
 
 1. Identifier l'entrée DNS locale **exacte** dans Pi-hole v6 et la
