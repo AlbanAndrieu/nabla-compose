@@ -47,6 +47,25 @@ python3 scripts/quality/audit-supported-runtimes.py --json > /tmp/nabla-runtime-
 python3 scripts/quality/audit-supported-runtimes.py --strict-eol
 ```
 
+On TrueNAS, the following **separate bounded read-only audit** also probes
+running container interpreters (`php -v` / `python3 --version`) instead of
+trusting opaque OCI tags. It limits the fleet to 200 containers and the scan
+to 300 seconds by default; timeout or incomplete inventory returns nonzero
+rather than being reported as successful. The command never outputs environment
+variables, secrets, raw Docker configs or image pulls:
+
+```bash
+sudo python3 scripts/truenas/audit-live-language-runtimes.py --check
+# Review in private, not public CI logs:
+sudo python3 scripts/truenas/audit-live-language-runtimes.py --check --json \
+  > /mnt/cpool/var/nabla/migration-20261024/language-runtime-observed.json
+```
+
+`unknown`/undetected interpreters are **not a passing runtime health
+claim**. Use a vendor-compatible runtime command or SBOM for distroless
+containers or those without `php`/`python3`. Inventory reports are
+runtime evidence only, **not authorization to upgrade**.
+
 Prioritize `eol`, then `security-only`, then `floating` and `unknown`,
 against **runtime** digests from `docker inspect`. Do not mass-replace image
 tags: application schemas, ABI dependencies and upstream support policies differ.
