@@ -32,3 +32,33 @@ for _name in _REPOSITORY_ENV:
 _TEMPLATE_DIR = tempfile.mkdtemp(prefix="nabla-empty-git-template-")
 os.environ["GIT_TEMPLATE_DIR"] = _TEMPLATE_DIR
 atexit.register(shutil.rmtree, _TEMPLATE_DIR, ignore_errors=True)
+
+
+import pytest
+
+
+@pytest.fixture
+def noexec_safe_bash_mocks(tmp_path):
+    """Execute test command stubs via Bash even on TrueNAS /tmp with noexec.
+
+    The tested script still invokes docker/curl/getent normally. BASH_ENV
+    defines shell functions forwarding to fixture stubs through /bin/bash,
+    which reads a regular file without trying to execute it from /tmp.
+    """
+    def activate(env: dict[str, str], *commands: str) -> dict[str, str]:
+        allowed = {"docker", "curl", "getent"}
+        if not commands or any(command not in allowed for command in commands):
+            raise ValueError("invalid Bash mock command")
+        envfile = tmp_path / "nabla-bash-mock-env.sh"
+        envfile.write_text(
+            "".join(
+                f'{command}() {{ BASH_ENV= /bin/bash "$NABLA_MOCK_BIN/{command}" "$@"; }}\\n'
+                for command in commands
+            ).replace("\\\\n", "\\n"),
+            encoding="utf-8",
+        )
+        env["NABLA_MOCK_BIN"] = str(tmp_path / "bin")
+        env["BASH_ENV"] = str(envfile)
+        return env
+
+    return activate
