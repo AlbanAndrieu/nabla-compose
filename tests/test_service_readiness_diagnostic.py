@@ -104,7 +104,7 @@ class FakeResponse:
     ("influxdb", {"status": "pass", "checks": []}, "ok"),
     ("influxdb", {"status": "fail"}, "fail"),
     ("gatus", [], "warning"),
-    ("gatus", [{"name": "service"}], "ok"),
+    ("gatus", [{"name": "service", "results": [{"success": True}]}], "ok"),
 ])
 def test_http_requires_semantic_structure_not_only_200(monkeypatch, service,
                                                            payload, expected):
@@ -292,3 +292,45 @@ def test_openrag_frontend_http_probed_only_with_running_containers(
     row = assess("openrag", {"openrag": "RUNNING"})
     assert seen == ["openrag"]
     assert row["status"] == "BLOCKED"
+
+
+def test_gatus_large_monitor_payload_is_bounded_but_not_false_unknown(monkeypatch):
+    """85 monitors with histories >64 KiB must not mark Gatus UNKNOWN."""
+    payload = ([{"name": "private-token-DO-NOT-PRINT", "results": [
+        {"success": index < 59, "details": "PRIVATE-SECRET-" + "x" * 1200}
+    ]} for index in range(85)])
+    body = json.dumps(payload).encode()
+    assert len(body) > 65536
+    opener = type("FakeOpener", (), {"open": lambda self, req, timeout:
+                   FakeResponse(body)})()
+    monkeypatch.setattr(http_check.__globals__["urllib"].request,
+                        "build_opener", lambda *args: opener)
+    result = http_check("gatus")
+    assert result["status"] == "warning"
+    assert result["detail"] == "monitors=85 up=59 down=26 pending=0 unknown=0"
+    assert "PRIVATE" not in str(result)
+
+
+def test_gatus_oversized_response_stays_warning_not_false_outage(monkeypatch):
+    body = b"PRIVATE-SECRET-" + b"x" * (4 * 1024 * 1024)
+    opener = type("FakeOpener", (), {"open": lambda self, req, timeout:
+                   FakeResponse(body)})()
+    monkeypatch.setattr(http_check.__globals__["urllib"].request,
+                        "build_opener", lambda *args: opener)
+    result = http_check("gatus")
+    assert result["status"] == "warning"
+    assert "exceeds 4 MiB" in result["detail"]
+    assert "PRIVATE" not in str(result)
+
+
+def test_gatus_monitor_current_result_uses_last_not_first(monkeypatch):
+    body = json.dumps([{"results": [{"success": False}, {"success": True}]},
+                       {"results": []},
+                       {"results": [{"success": "false"}]}]).encode()
+    opener = type("FakeOpener", (), {"open": lambda self, req, timeout:
+                   FakeResponse(body)})()
+    monkeypatch.setattr(http_check.__globals__["urllib"].request,
+                        "build_opener", lambda *args: opener)
+    result = http_check("gatus")
+    assert result["status"] == "warning"
+    assert result["detail"] == "monitors=3 up=1 down=0 pending=1 unknown=1"
