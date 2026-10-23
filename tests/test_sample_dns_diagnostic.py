@@ -1,0 +1,121 @@
+"""Local-first Sample DNS regression: no real DNS, Docker or firewall calls."""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/ingress/diagnose-sample-dns.sh"
+TRUENAS_DIAG = ROOT / "scripts/truenas/diagnose-fastapi-sample.sh"
+
+
+class SampleDnsDiagnosticsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="sample-dns-test-")
+        self.addCleanup(self.temp.cleanup)
+        self.bin = Path(self.temp.name)
+        programs = {
+            "dig": """#!/bin/sh
+host=''; server=''; type=''
+for arg in "$@"; do
+  case "$arg" in
+    @*) server="$(echo "$arg" | cut -c2-)" ;;
+    sample.*) host="$arg" ;;
+    A|AAAA|HTTPS) type="$arg" ;;
+  esac
+done
+[ "$type" = A ] || exit 0
+case "$host" in
+  sample.int.albandrieu.com) echo 172.17.0.24 ;;
+  sample.albandrieu.com)
+    if [ "$server" = 172.17.0.24 ] && [ "$MOCK_BAD_PIHOLE" = 1 ]; then
+      echo 172.17.0.24
+    else
+      echo 188.114.96.2
+    fi ;;
+esac
+""",
+            "getent": """#!/bin/sh
+[ "$2" = sample.albandrieu.com ] || exit 0
+printf '%s STREAM sample.albandrieu.com\\n' "${MOCK_SYSTEM_IP:-188.114.96.2}"
+""",
+            "docker": """#!/bin/sh
+case "$1" in
+  info|inspect) exit 0 ;;
+  exec) [ "$MOCK_OVERRIDE" = 1 ] && echo /etc/pihole/pihole.toml; exit 0 ;;
+esac
+""",
+            "sudo": "#!/bin/sh\nexit 1\n",
+            "systemctl": """#!/bin/sh
+[ "$2" = NetworkManager ] && echo active || echo inactive
+""",
+            "nmcli": """#!/bin/sh
+case "$*" in
+  *DHCP4.OPTION*) echo 'DHCP4.OPTION[5]: domain_name_servers = 172.17.0.1' ;;
+  *) echo 'GENERAL.CONNECTION: Wired connection' ;;
+esac
+""",
+            "resolvectl": """#!/bin/sh
+[ "$1" = dns ] && echo "Link 2 (eno1): ${MOCK_ACTIVE_DNS:-172.17.0.1}"
+""",
+        }
+        for program, text in programs.items():
+            path = self.bin / program
+            path.write_text(text, encoding="utf-8")
+            path.chmod(0o755)
+
+    def run_dns(self, *args: str, **changes: str) -> subprocess.CompletedProcess[str]:
+        env = {**os.environ, "PATH": f"{self.bin}:{os.environ['PATH']}"}
+        env.update(changes)
+        return subprocess.run(
+            ["bash", str(SCRIPT), *args],
+            capture_output=True, text=True, env=env, timeout=10, check=False,
+        )
+
+    def test_clean_external_and_internal_views(self) -> None:
+        outcome = self.run_dns("--check")
+        self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
+        self.assertIn("sample_dns_summary failures=0", outcome.stdout)
+
+    def test_wrong_pihole_record_detected_without_exposing_secrets(self) -> None:
+        outcome = self.run_dns(
+            "--check", MOCK_BAD_PIHOLE="1", MOCK_OVERRIDE="1",
+            MOCK_SYSTEM_IP="172.17.0.24",
+        )
+        self.assertEqual(outcome.returncode, 1)
+        self.assertIn("pihole_override_source=/etc/pihole/pihole.toml", outcome.stdout)
+        self.assertIn("bypasses Cloudflare/ECH", outcome.stdout)
+        self.assertIn("sample_dns_summary failures=3", outcome.stdout)
+
+    def test_dhcp_correct_but_workstation_active_dns_is_quad9(self) -> None:
+        outcome = self.run_dns(
+            "--workstation", MOCK_ACTIVE_DNS="9.9.9.9 149.112.112.112",
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
+        self.assertIn("domain_name_servers = 172.17.0.1", outcome.stdout)
+        self.assertIn("DNS differs from pfSense", outcome.stdout)
+        self.assertIn("NetworkManager", outcome.stdout)
+
+    def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        truenas = TRUENAS_DIAG.read_text(encoding="utf-8")
+        for banned in ("docker restart", "docker stop", "docker rm",
+                       "resolvectl dns eno1", "nmcli connection modify",
+                       "pihole restart"):
+            self.assertNotIn(banned, source)
+        self.assertIn("ingress/diagnose-sample-dns.sh", truenas)
+        self.assertEqual(truenas.count("section '"), 7)
+        for target in (SCRIPT, TRUENAS_DIAG):
+            outcome = subprocess.run(
+                ["bash", "-n", str(target)], capture_output=True,
+                text=True, check=False,
+            )
+            self.assertEqual(outcome.returncode, 0, outcome.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
