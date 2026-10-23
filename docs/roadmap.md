@@ -1,5 +1,14 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Follow-up — operator checks at 09:06 CEST
+
+- [x] Native pfSense pflow integration confirmed in `/etc/inc/filter.inc`: exporter functions at lines 6777–6906 use `pflowctl -c` and `pflowctl -s`; kernel module remains unloaded, no exporter configured. Configure via pfSense-supported UI/API rather than ad hoc boot edits.
+- [x] Free+inactive memory 188.5 MiB at 09:06, versus ~206.5 MiB at 08:48; two samples do not establish a leak. Unbound PID 93348 remained stable, DNS answered, no pfBlockerNG cron process observed at 09:06.
+- [x] `sockstat -46 -l` shows only Unbound PID 93348 listening on TCP/UDP 53 IPv4/IPv6 at check time. Historical `address already in use` still requires timestamped competing-listener/restart correlation.
+- [x] `/etc/crontab`: pfBlockerNG `cron` hourly at minute 00; `dcc` daily 22:00; `bl ut1` Sundays 04:00. Correlate recurring 02:10 OOM with 02:00 cron duration and logs before attributing cause.
+- [ ] Before enabling pflow, identify pfSense UI/API exporter configuration and supported protocol (NetFlow/IPFIX), confirm Akvorado collector protocol and UDP 2055, export scope and rollback; avoid adding memory load while recurring OOM remains unmitigated.
+- [ ] Compare pfBlockerNG log around 02:00–02:15 against kernel OOM timestamps, memory trend, Unbound PID and cron completion; prefer targeted resource mitigation and 24h verification.
+
 ### Fresh evidence — 2026-10-23 08:48 CEST
 
 - [x] Operator ran `diagnose-unbound-crash-memory.sh --check`: shell syntax passed silently; runtime collection successful.
