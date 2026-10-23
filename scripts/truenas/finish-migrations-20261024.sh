@@ -247,7 +247,15 @@ check_section() {
       ;;
     ai)
       run_check hermes-native bash scripts/truenas/diagnose-hermes-agent.sh --check
-      run_check litellm-provider-keys python3 scripts/truenas/check-litellm-hermes-credentials.py --check
+      # Required runtime secrets and actual failed Apps are blocking.
+      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+      # Anthropic and OpenAI are opt-in cloud upstreams, not prerequisites
+      # for the existing local LiteLLM service. Report lack as WARN only.
+      if python3 scripts/truenas/check-litellm-hermes-credentials.py --check >"${SESSION_DIR}/litellm-provider-keys.log" 2>&1; then
+        record litellm-provider-keys PASS "${SESSION_DIR}/litellm-provider-keys.log"
+      else
+        record litellm-provider-keys WARN "${SESSION_DIR}/litellm-provider-keys.log"
+      fi
       ;;
     talos)
       if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
