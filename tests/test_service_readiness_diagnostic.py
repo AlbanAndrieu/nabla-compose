@@ -1,11 +1,9 @@
 """Read-only functional readiness matrix contracts; no live Docker or HTTP."""
 from __future__ import annotations
 
-import io
 import json
 import runpy
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -112,8 +110,6 @@ def test_renderer_defaults_to_plain_non_ansi(monkeypatch, capsys):
     render = module["render"]
     rows = [{"service": "litellm", "state": "DEPLOYING",
              "status": "DEGRADED", "notes": ["Docker unhealthy"]}]
-    monkeypatch.setattr(render.__globals__["sys"].stdout, "isatty",
-                        lambda: False, raising=False)
     render(rows, color="never", icons="never")
     output = capsys.readouterr().out
     assert "\x1b[" not in output
@@ -138,3 +134,25 @@ def test_no_unbounded_log_or_environment_access():
     assert "docker logs" not in source
     assert '".Config.Env"' not in source
     assert "app.redeploy" not in source
+
+
+def test_health_reason_does_not_echo_private_health_output():
+    reason = module["health_reason"]([
+        {"Output": "URL=PRIVATE_TOKEN&foo=1; Connection refused"}
+    ])
+    assert reason == "healthcheck connectivity"
+    assert "PRIVATE_TOKEN" not in reason
+
+
+def test_gatus_requires_effective_runtime_group_even_when_config_exists(
+        monkeypatch, tmp_path):
+    config = tmp_path / "config.yml"
+    config.write_text("endpoints: []")
+    check = module["gatus_access"]
+    g = check.__globals__
+    monkeypatch.setitem(g, "GATUS_CONFIG", config)
+    monkeypatch.setitem(g, "run",
+                        lambda *args, **kwargs: json.dumps(["999"]))
+    # file ownership on synthetic filesystem is unknown: either metadata
+    # or missing runtime group must be safely reported, never false PASS.
+    assert check() is not None
