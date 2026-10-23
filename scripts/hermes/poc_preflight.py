@@ -99,7 +99,8 @@ def validate(env: Path, state: Path, image: str, api: bool) -> list[str]:
         errors.append("Unsafe allow-all or YOLO setting enabled")
     if api and (not data.get("API_SERVER_KEY") or len(data["API_SERVER_KEY"]) < 32):
         errors.append("API option requires dedicated 32+ character API_SERVER_KEY")
-    if set(data).intersection({"LITELLM_MASTER_KEY", "BW_SESSION", "BW_CLIENTSECRET", "TRUENAS_API_KEY"}):
+    if set(data).intersection({"LITELLM_MASTER_KEY", "BW_SESSION", "BW_CLIENTSECRET", "TRUENAS_API_KEY",
+                               "ANTHROPIC_API_KEY", "OPENAI_API_KEY"}):
         errors.append("Privileged master/vault/host secret key names forbidden in Hermes")
     return errors
 

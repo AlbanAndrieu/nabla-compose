@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14.9-slim-bookworm
 
 ARG DSOMM_BASELINE_REF=3255561bc9162e335d2c79b72e12b1478075e610
 

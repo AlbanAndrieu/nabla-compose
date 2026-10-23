@@ -829,6 +829,38 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Upgrade des versions maintenues — Talos / Kubernetes / PHP / Python (2026-10-23)
+
+- [x] Définir la **cible GitOps, non encore appliquée au runtime** : Talos `v1.14.4` (et CLI mise 1.14.4), Kubernetes `v1.37.1`, PHP `8.5.12` (correction critique du 21 octobre 2026), Python `3.14.9` ; distinguer support officiel et terme « LTS » impropre pour Kubernetes/Python. Voir `config/upgrades/supported-runtime-targets.json`.
+- [x] Préparer `scripts/talos/preflight-supported-upgrade.py --check` et `scripts/quality/audit-supported-runtimes.py` : inventaire des Apps Compose, tags flottants, versions PHP/Python EOL, support sécurité seul et runtimes embarqués non attestés.
+- [x] Stage `apps/dsomm/baseline/Dockerfile` sur Python 3.14.9-slim-bookworm (image officielle publiée) et `mise.toml` sur Python 3.14.9. Aucune compilation OCI ou validation des dépendances effectuée en production.
+- [x] Documenter le runbook `docs/runbooks/2026-10-23-supported-versions-upgrade.md` et brancher les contrôles en lecture seule dans le runner de migration du 24 octobre. Commandes : `just upgrade-runtime-audit`, `just upgrade-runtime-test`, `just talos-upgrade-preflight`.
+- [x] Régénérer le `mise.lock` de façon vérifiable pour Talos 1.14.4 et Python 3.14.9 : SHA-256 officiels confirmés pour 7 plateformes chacun depuis les releases GitHub; contrôler les URL et empreintes par un contrat dédié.
+- [x] Préparer l'audit **runtime réel** `scripts/truenas/audit-live-language-runtimes.py --check` en plus de l'inventaire déclaratif des 75 Apps : PHP/Python `--version` en conteneur, délai global borné, code retour non-zéro si branche EOL ou correctif critique absent, secrets jamais affichés. Nouveau `just truenas-live-language-audit`.
+- [x] Placer le `homarr-sync` à base Python standard-library sur `python:3.14.9-alpine3.24` (staging, pas appliqué), et le baseline DSOMM sur `python:3.14.9-slim-bookworm`. Les images tierces opaques restent bloquées en attente d'une migration upstream validée.
+- [ ] **P0 Talos/K8s runtime** : vérification état réel/digests, sauvegarde etcd hors nœud avec restauration vérifiable, CSI/NFS, PDB et fenêtre d'indisponibilité du control-plane singleton ; upgrade un worker à la fois, control-plane enfin, Kubernetes ensuite. Aucun `talosctl upgrade`/ `upgrade-k8s` exécuté par un agent.
+- [ ] **P0-CVE** : analyser les versions réellement embarquées dans 2FAuth / WordPress et toute App PHP. Correctifs requis contre CVE-2026-109618/CVE-2026-109619 : PHP 8.5.12, 8.4.27, 8.3.36 ou 8.2.35 minimum ; `--strict-eol` échoue pour tout tag explicitement vulnérable. Aucun remplacement automatique sans test de l'App et de sa base.
+- [ ] **P0 PHP/Python Apps** : analyser les résultats complets de l'audit en les confrontant à `docker inspect` live ; corriger les images EOL, puis support-sécurité seulement, puis flottantes et opaques. En particulier WordPress PG4WP doit être migré vers une distribution/driver PHP 8.5 maintenue **sans substituer aveuglément l'image officielle MySQL**.
+- [ ] **P1** : qualifier les releases complètes et digests de LiteLLM, Docling, OpenRAG/Langflow, Sentry, DefectDojo, WordPress, OpenClaw et autres applications ; smokes, compatibilité des schémas, SBOM/Trivy, sauvegarde/rollback avant les changements d'images. Pas de « tout latest » ni de redémarrage massif.
+- [ ] **Acceptation** : version live de chaque nœud et service, Kubernetes Ready/CSI passing, probe Gatus/Prometheus, aucun runtime EOL détecté, exceptions justifiées dans la roadmap et revue de qualité locale complète.
+
+## Fenêtre opérateur TrueNAS — reprise des migrations, 24 octobre 2026
+
+- [x] Préparer le script **temporaire** `scripts/truenas/finish-migrations-20261024.sh` avec préflight read-only, sections indépendantes, preuves root/0700, redémarrage séquentiel via `planHash` vérifié et vague explicitement approuvée ; aucune action destructive implicite.
+- [x] Ajouter les réparations ciblées Sentry système/migrator, OpenRAG secret et Gatus config avec double contrôle `--check` et acceptation explicite, ainsi qu'un smoke CSI opt-in ; tests de garde-fous via `just migration-20261024-test`.
+- [x] Documenter l'ordre d'exécution et la remise en état dans `docs/runbooks/2026-10-24-truenas-migration-acceptance.md`, y compris les contres-indications du checkout TrueNAS et la différence worktree read-only / checkout canonique.
+- [ ] **Bloquant avant exécution** : contrôle humain de `git status`, HEAD de la branche et catalogue live, preuve de sauvegarde/rollback, secrets manquants, plan `selectedWaveReady=true`, hash exact et fenêtre d'indisponibilité explicitement acceptée.
+- [ ] **À vérifier au runtime le 24/10** : Sentry/DefectDojo/Gatus/Prometheus/TrueNAS, Docling/OpenRAG `cpool/bababou`, Talos/CSI et RPO OpenWebUI ; les échecs/skips restent ouverts dans la roadmap.
+- [ ] **Nettoyage** : retirer ce script, ses tests temporaires et le runbook d'opération transitoire après acceptation et archivage d'un constat expurgé ; conserver uniquement les invariants pérennes dans les scripts canoniques. Pas de redémarrage hôte automatique.
+
+## Hermes / TrueNAS LiteLLM — Anthropic Opus d'abord, OpenAI secours (2026-10-23)
+
+- [x] Déclarer `hermes-opus-5-5`, `hermes-opus-5`, `hermes-opus-4-8`, puis `hermes-openai` dans le gateway TrueNAS LiteLLM et le profil Hermes POC ; utiliser uniquement la virtual key Hermes, jamais les secrets upstream dans le conteneur.
+- [x] Enregistrer les **noms** `ANTHROPIC_API_KEY` et `OPENAI_API_KEY` dans le manifeste Vaultwarden `nabla/prod/litellm`, tous deux facultatifs jusqu'à provisioning effectif ; ajouter la prévalidation metadata-only et ses contrats offline (`just hermes-opus-routing-test`).
+- [ ] **P0 activation bloquée** : attente de la vraie clé Anthropic, disponibilité de la clé OpenAI de secours, rendu Vaultwarden root/0600, compatibilité de la version LiteLLM installée avec Opus 5.5/5/4.8 et examen du runtime native `hermes-agent`. Pas de redémarrage automatique ni d'appel facturable.
+- [ ] **P0 gouvernance coût/confidentialité** : provisionner la clé virtuelle `hermes-poc` avec les quatre alias uniquement, 5 RPM, 10k TPM, concurrence 1, montant de 20 EUR converti en `max_budget` USD avec reset ; vérifier le logging des prompts, cache Redis, Langfuse, egress, PII et mesures Prometheus réelles avant tout routage cloud.
+- [ ] **P1 apply supervisé** : vérifier config native Hermes et version exacte (le profil POC n'est pas l'App native), puis déployer uniquement après les gates P0 ; tests de modèle et de fallback facturables soumis à approbation.
+
 ## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
 
 - [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.

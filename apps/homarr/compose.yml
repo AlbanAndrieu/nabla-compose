@@ -80,7 +80,10 @@ services:
       - no-new-privileges:true
 
   homarr-sync:
-    image: docker.io/library/python:3.13-alpine
+    # CPython 3.14.9 security patch, Alpine 3.24. Reconciler imports only
+    # stdlib modules; full Homarr auth/API staging smoke is required before
+    # redeploying this custom App. Never replace base image at runtime.
+    image: docker.io/library/python:3.14.9-alpine3.24
     container_name: homarr-sync
     labels:
       com.albandrieu.nabla.entity-ref: component:default/homarr-sync

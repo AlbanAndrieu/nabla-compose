@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-10-23",
+  "mode": "reviewed_target_not_runtime_acceptance",
+  "platform": {
+    "talos": {
+      "target": "v1.14.4",
+      "declaredPrevious": "v1.13.9",
+      "release": "https://github.com/siderolabs/talos/releases/tag/v1.14.4"
+    },
+    "kubernetes": {
+      "target": "v1.37.1",
+      "declaredPrevious": "v1.36.3",
+      "release": "https://github.com/kubernetes/kubernetes/releases/tag/v1.37.1"
+    }
+  },
+  "languageRuntimes": {
+    "php": {
+      "preferred": "8.5.12",
+      "allowedSupported": [
+        "8.4",
+        "8.5"
+      ],
+      "securityOnly": [
+        "8.2",
+        "8.3"
+      ],
+      "eolAtDate": [
+        "8.1",
+        "8.0",
+        "7.4",
+        "7.3",
+        "7.2",
+        "7.1",
+        "7.0",
+        "5.6"
+      ],
+      "reference": "https://www.php.net/supported-versions.php",
+      "minimumPatched": {
+        "8.2": "8.2.35",
+        "8.3": "8.3.36",
+        "8.4": "8.4.27",
+        "8.5": "8.5.12"
+      },
+      "emergencySecurityAdvisory": "CVE-2026-109618,CVE-2026-109619"
+    },
+    "python": {
+      "preferred": "3.14.9",
+      "allowedSupported": [
+        "3.14",
+        "3.15"
+      ],
+      "securityOnly": [
+        "3.11",
+        "3.12",
+        "3.13"
+      ],
+      "eolAtDate": [
+        "3.10",
+        "3.9",
+        "3.8",
+        "3.7",
+        "3.6"
+      ],
+      "reference": "https://devguide.python.org/versions/",
+      "minimumPatched": {
+        "3.13": "3.13.17",
+        "3.14": "3.14.9",
+        "3.15": "3.15.1"
+      }
+    }
+  },
+  "exceptions": {
+    "wordpress": "PG4WP community image ntninja/wordpress-postgresql:latest does not prove PHP 8.5 compatibility; migration to maintained DB driver/app is required; no blind image substitution",
+    "openclaw": "Debian bookworm Python package remains distribution-managed; changing runtime means changing OS base image and integration tests",
+    "litellm": "main-stable is mutable; stage immutable compatible image after verifying budget, database migrations and Anthropic Opus routes",
+    "defectdojo": "Image digest and Python dependencies come from upstream; migrate as a whole tested release, never replace system Python inside container",
+    "sentry": "Multiple coupled images, Postgres, Kafka and ClickHouse; review upstream release and schema migrations together"
+  },
+  "gates": [
+    "critical PHP patch floor: 8.5.12/8.4.27/8.3.36/8.2.35, including CVE-2026-109618 and CVE-2026-109619",
+    "authoritative runtime version and digest inventory on TrueNAS",
+    "maintained upstream OCI tag and immutable digest verification",
+    "SBOM and vulnerability scan with no critical regressions",
+    "application database/schema compatibility and rollback",
+    "backups, snapshots and no credential disclosure",
+    "staging smoke for HTTP/TCP/Prometheus, Gatus, persistent data",
+    "rolling Talos worker upgrades then singleton control-plane maintenance window",
+    "Talos etcd snapshot/recovery readiness before OS and Kubernetes change",
+    "separate explicitly approved apply: never run unattended from draft PR"
+  ]
+}

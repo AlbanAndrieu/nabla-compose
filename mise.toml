@@ -3,12 +3,12 @@ min_version = "2024.9.5"
 [tools]
 # Required for vendored Cloudflare security-audit validators (fail closed if missing).
 node = "24.18.1"
-python = "{{ get_env(name='PYTHON_VERSION', default='3.14') }}"
+python = "{{ get_env(name='PYTHON_VERSION', default='3.14.9') }}"
 ruff = "latest"
 awscli = { version = "latest", symlink_bins = "true" }
 k9s = "latest"
 kubectl = "latest"
-"aqua:siderolabs/talos" = "1.13.9"
+"aqua:siderolabs/talos" = "1.14.4"
 helm = "latest"
 argocd = "latest"
 trivy = "latest"
