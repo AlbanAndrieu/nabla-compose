@@ -2436,3 +2436,22 @@ bash scripts/workstation/verify-age-yubikey-offline.sh
 ```
 
 **NO-GO provisionnement maintenu.** Le succès SDK ne valide ni l'authentification AES256 réelle, ni la signature/certificat depuis une clé privée PIV82, ni le déchiffrement `age-plugin-yubikey`. Prochaine étape : prévoir une session opérateur explicitement approuvée, contrôler le budget d'essais PIN, puis préparer les validations matérielles sans écriture avant toute génération de clé.
+
+### 23 octobre 2026 — 36 PASS et lot de tests comportementaux AES256/PIV82 (PR #271)
+
+Résultat opérateur au HEAD ce9801f0 : **36/36 tests PASS en 1,066 s** ; le script inspect-age-yubikey-piv-aes256-sdk-api.py confirme les API du SDK Yubico 5.8.0, la management key AES256 (32 octets), le Pivman protégé, le slot PIV82 et PIN/touch ALWAYS. Ceci **ne démontre pas une authentification réelle sur la carte**. Le préflight réel précédent sur la secondaire 22916048 a déjà prouvé AES256 PIN-protected, PIV82 vide et métadonnées PIV9A présentes.
+
+Pour limiter les petites itérations, deux bancs de tests **hors matériel** ont été ajoutés ensemble dans la PR #271 :
+
+- **test-age-yubikey-piv-aes256-handshake-offline.py** : appelle les véritables parseurs PivmanData, PivmanProtectedData, get_pivman_data et get_pivman_protected_data dans une **session factice en mémoire**. Vérifie l'ordre PIN synthétique → lecture de la clé AES256 fictive → authentification simulée → vérification finale du PIN. Couvre six refus sans nouvelle tentative après échec : PIN incorrect, compteur trop bas/bloqué, management key non protégée, clé absente, longueur incorrecte. Le seuil simulé de trois tentatives est volontairement conservateur ; il ne constitue pas une autorisation matérielle.
+- **test-age-yubikey-piv82-inventory-fake-offline.py** : intercepte tous les appels ykman avec un exécutable factice prioritaire dans PATH ; vérifie sept scénarios (slot vide, occupé, réponse ambiguë, erreur transport, mauvais numéro de série, algorithme non AES256, métadonnées PIV9A absentes). Aucun vrai périphérique n'est interrogé et tous les appels passent par une liste blanche lecture seule.
+
+Les deux contrats sont intégrés à tests/test_yubikey_keepassxc_diagnostic_contract.py : **38 tests attendus** après revalidation workstation.
+
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/test-age-yubikey-piv-aes256-handshake-offline.py
+python3 scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py
+```
+
+**NO-GO matériel maintenu :** aucune lecture de PIN réel ni authentification effective ; signature PIV82, import de certificat et déchiffrement age matériel restent à valider. Préserver management key AES256, OTP2 KeePassXC, PIV9A et destinataires SOPS de production.
