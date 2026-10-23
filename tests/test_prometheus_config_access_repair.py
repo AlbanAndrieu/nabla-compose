@@ -16,7 +16,8 @@ SCRIPT = ROOT / "scripts/truenas/repair-prometheus-config-access.sh"
 
 
 def sandbox(tmp_path: Path, *, runtime_user: str = "568:568",
-            mount_ok: bool = True, symlink: bool = False):
+            mount_ok: bool = True, symlink: bool = False,
+            noexec_safe_bash_mocks=None):
     root = tmp_path / "repo"
     script_dir = root / "scripts" / "truenas"
     script_dir.mkdir(parents=True)
@@ -62,6 +63,8 @@ def sandbox(tmp_path: Path, *, runtime_user: str = "568:568",
         "TEST_RUNTIME_USER": runtime_user,
         "TEST_MOUNT": str(config_dir if mount_ok else tmp_path / "foreign"),
     })
+    if noexec_safe_bash_mocks is not None:
+        env = noexec_safe_bash_mocks(env, "docker", "getent")
     return script, config, env
 
 
@@ -72,11 +75,12 @@ def sandbox(tmp_path: Path, *, runtime_user: str = "568:568",
     ("568:568", True, True, "unsafe prometheus.yml"),
 ])
 def test_repair_preflight_fails_closed(
-    tmp_path, runtime_user, mount_ok, symlink, reason
+    tmp_path, runtime_user, mount_ok, symlink, reason,
+    noexec_safe_bash_mocks
 ):
     script, config, env = sandbox(
         tmp_path, runtime_user=runtime_user, mount_ok=mount_ok,
-        symlink=symlink
+        symlink=symlink, noexec_safe_bash_mocks=noexec_safe_bash_mocks
     )
     before = config.lstat().st_mode
     result = subprocess.run(
