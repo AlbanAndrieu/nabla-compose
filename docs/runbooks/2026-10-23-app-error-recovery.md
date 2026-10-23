@@ -323,3 +323,37 @@ pour contourner le problème ni exécuter un script PR sous `master`
 sans revue. Laisser les migrations --apply désactivées tant que
 les nouveaux tests locaux ne peuvent pas être exécutés.
 
+
+
+### Confirmations du 23 octobre, 19h — tests et résolution Gatus
+
+- `just truenas-readiness-test` : **32 tests réussis en 0,15 s** depuis
+  le checkout opérateur, aucun GitHub Actions. Le script de readiness
+  indique HEALTHY=2 (LiteLLM, InfluxDB), WARN=1 (Sample), DEGRADED=1
+  (Sentry), BLOCKED=4 (Gatus, OpenRAG, Scrutiny, Prometheus).
+- `repair-gatus-config-access.sh --check` révèle exactement
+  `config_dir gid=568 mode=750; config_file gid=568 mode=600`.
+  Docker compte 766 redémarrages Gatus, `exit=2` et erreurs
+  `permission denied`. Le stockage SQLite `gatus.db` existe et
+  **doit conserver son identité**.
+- **Correction opérateur immédiate** (sur checkout actuel) :
+  `sudo bash scripts/truenas/repair-gatus-config-access.sh --apply`
+  puis `--check`. Cela ne change que la configuration générée (640),
+  pas les données, pas le réseau, pas les secrets. Observer ensuite
+  `docker inspect gatus` et `midclt app.query`. Si l'App reste
+  STOPPED, `sudo midclt call -j app.start gatus` est un choix explicite.
+- **Correctif dans la PR #271** : `deploy-gatus.sh --apply` vérifie et
+  répare maintenant les permissions **avant** `app.update/redeploy`,
+  puis préfère `app.start` si l'App réconciliée est STOPPED. Le
+  `--check` affiche la cause de permissions en premier. Toute mutation
+  reste explicite ; le script n'altère pas `gatus.db`.
+- **Prometheus** : App RUNNING mais conteneur `restarting` et API
+  :9090 indisponible. Le nouveau `diagnose-prometheus-targets.sh
+  --check` s'arrête rapidement dans cet état et classe les erreurs
+  des 80 dernières lignes (permission, config, stockage, OOM) sans
+  afficher les logs. **Cause précise encore non prouvée**.
+- **GitHub** : `getent ahostsv4 github.com` résout et
+  `curl -4 -I https://github.com` retourne HTTP/2 200 : l'accès
+  HTTPS depuis TrueNAS est revenu pour ce test. Retenter un
+  `git fetch` sur le repo **sans forcer un reset** ; cela ne prouve
+  pas à soi seul l'authentification du remote Git.
