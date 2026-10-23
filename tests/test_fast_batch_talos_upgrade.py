@@ -99,7 +99,7 @@ def test_talos_server_version_required_even_if_client_is_new(monkeypatch):
     wait = m["wait_node"]
     g = wait.__globals__
     monkeypatch.setitem(g, "run", lambda *a, **kw:
-                        "Client:\\n  Tag: v1.14.4\\nServer:\\n  Tag: v1.13.9\\n")
+                        "Client:\n  Tag: v1.14.4\nServer:\n  Tag: v1.13.9\n")
     ticks = iter([0.0, 1.0, 20.0])
     monkeypatch.setitem(g, "time", SimpleNamespace(
         monotonic=lambda: next(ticks),
@@ -113,7 +113,7 @@ def test_talos_server_version_unlocks_recovery(monkeypatch):
     wait = m["wait_node"]
     g = wait.__globals__
     monkeypatch.setitem(g, "run", lambda *a, **kw:
-                        "Client:\\n  Tag: v1.14.4\\nServer:\\n  NODE: 172.17.0.50\\n  Tag: v1.14.4\\n")
+                        "Client:\n  Tag: v1.14.4\nServer:\n  NODE: 172.17.0.50\n  Tag: v1.14.4\n")
     wait("172.17.0.50", timeout=10)
 
 
