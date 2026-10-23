@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/upgrades/supported-runtime-targets.json"
 IMAGE_RE = re.compile(r"^\s*image:\s*(?P<image>[^\s#]+)", re.MULTILINE)
 FROM_RE = re.compile(r"^FROM\s+(?P<image>[^\s]+)", re.MULTILINE | re.IGNORECASE)
-EXPLICIT_RE = re.compile(r"(?:^|[/:])(?P<runtime>python|php):(?P<version>[0-9]+\.[0-9]+)(?:\.[0-9]+)?(?:[-@]|$)")
+EXPLICIT_RE = re.compile(r"(?:^|[/:])(?P<runtime>python|php):(?P<version>[0-9]+\.[0-9]+)(?:\.(?P<patch>[0-9]+))?(?:[-@]|$)")
 TEMPLATED_TAG_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-([^}]+)\}")
 FLOATING = {"latest", "stable", "main-stable", "main-latest", "edge", "nightly"}
 OPAQUE_PYTHON = {"litellm", "defectdojo", "docling", "langflow", "openrag", "sentry", "cyberbro", "dsomm", "netbox", "cartography"}
@@ -46,6 +46,15 @@ def _image_status(image: str, policy: dict[str, Any]) -> tuple[str, str]:
         cfg = policy["languageRuntimes"][runtime]
         if version in cfg["eolAtDate"]:
             return "eol", runtime + " " + version
+        minimum = cfg.get("minimumPatched", {}).get(version)
+        if minimum:
+            patch = match.group("patch")
+            if patch is None:
+                return "unverified-patch", runtime + " " + version + " patch not pinned"
+            selected = tuple(int(part) for part in (version + "." + patch).split("."))
+            required = tuple(int(part) for part in minimum.split("."))
+            if selected < required:
+                return "critical-patch-missing", runtime + " needs >= " + minimum
         if version in cfg["securityOnly"]:
             return "security-only", runtime + " " + version
         if version in cfg["allowedSupported"]:
@@ -101,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--policy", type=Path, default=POLICY)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--strict-eol", action="store_true",
-                        help="fail on explicitly identified unsupported PHP/Python images")
+                        help="fail on EOL or known critically unpatched PHP/Python image tags")
     args = parser.parse_args(argv)
     try:
         policy = load_policy(args.policy)
@@ -132,9 +141,9 @@ def main(argv: list[str] | None = None) -> int:
         for status, count in counts.items():
             print(f"{status}: {count}")
         for row in rows:
-            if row["status"] in {"eol", "security-only", "floating", "unknown"}:
+            if row["status"] in {"eol", "critical-patch-missing", "unverified-patch", "security-only", "floating", "unknown"}:
                 print(f"[{row['status']}] {row['app']} {row['image']}: {row['note']}")
-    return 1 if args.strict_eol and counts.get("eol", 0) else 0
+    return 1 if args.strict_eol and (counts.get("eol", 0) or counts.get("critical-patch-missing", 0)) else 0
 
 
 if __name__ == "__main__":
