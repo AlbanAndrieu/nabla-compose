@@ -457,3 +457,43 @@ After each operation, verify dirty flag, provenance/index identity,
 vector dimensions and actual search quality. Re-check free space between
 agents. Keep `fallback=none` until workstation/TrueNAS model vector-space
 equivalence is proven.
+
+
+## 2026-10-23 — embedding provider ready; staged reindex approved for operator execution
+
+Operator observed `openclaw memory status --deep` for **both** agents:
+`provider=openai-compatible`, `model=embedding`, `Embeddings: ready`,
+`Vector store: ready`, FTS ready, and dirty indexes. No authentication failure
+reported. This verifies OpenClaw's actual provider readiness, not merely the
+earlier standalone LiteLLM probe.
+
+- `main`: 15/107 indexed, 57 old chunks, 29 MiB SQLite; vector search
+  **paused** due to provenance classifier change (`provenance_version`).
+- `cron`: 0/63 indexed, 0 chunks, 1.7 MiB SQLite; vector search **paused**
+  due to missing index identity metadata (`metadata_missing`).
+- Root filesystem 18 GiB available, 96% used; inodes 32% used.
+- Installed CLI specifically recommends `openclaw memory status --index
+  --agent <id>`. This is an index-mutating action that can call the model
+  and incur usage costs.
+
+Staged operator run, **one agent at a time**:
+
+```bash
+# Begin only if Gateway connectivity and embedding readiness are still green.
+openclaw memory status --index --agent cron
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+
+# Proceed to main only if cron completed without backend errors, with
+# index provenance accepted and disk headroom still adequate.
+openclaw memory status --index --agent main
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+```
+
+Do not automatically chain these commands in a script: inspect the exit code,
+`dirty`, provenance/index identity, vector search state, and actual search
+response between agents. Do not run `--force` or delete cache/SQLite
+manually as a first response. Keep `fallback=none` until OpenRAG and
+OpenClaw embedding-model equivalence is established. Avoid dumping entire
+status JSON or document content into tickets.
