@@ -66,12 +66,17 @@ def main():
                         help="write config only when gateway is stopped and review passed")
     args = parser.parse_args()
     cfg = planner.CONFIG
+    stage = "file_permissions"
     try:
         if not private_file(cfg) or not private_file(planner.KEY):
             raise ValueError("unsafe owner or permissions")
+        stage = "read_config"
         old_bytes = cfg.read_bytes()
+        stage = "parse_config"
         original = json.loads(old_bytes)
+        stage = "candidate"
         updated, state = candidate(original)
+        stage = "schema_validation"
         verify_schema(updated)
         if state == "already_configured":
             print("configuration=already_configured")
@@ -82,14 +87,17 @@ def main():
         if not args.apply:
             print("configuration_changed=false")
             return 0
+        stage = "gateway_state"
         active = subprocess.run(
             ["systemctl", "--user", "is-active", "openclaw-gateway.service"],
             capture_output=True, timeout=10, check=False)
         if active.returncode == 0 or active.stdout.strip() != b"inactive":
             raise ValueError("gateway not explicitly inactive")
         # Never overwrite a config concurrently updated since preflight.
+        stage = "concurrent_change"
         if cfg.read_bytes() != old_bytes:
             raise ValueError("concurrent config change")
+        stage = "backup"
         backup_root = Path.home() / ".local/share/nabla-compose/openclaw-config-rollback"
         if backup_root.is_symlink():
             raise ValueError("unsafe backup directory")
@@ -104,6 +112,7 @@ def main():
             stream.write(old_bytes)
             stream.flush()
             os.fsync(stream.fileno())
+        stage = "atomic_write"
         fd, name = tempfile.mkstemp(prefix=".openclaw-embedding-", dir=str(cfg.parent))
         try:
             os.fchmod(fd, 0o600)
@@ -120,9 +129,10 @@ def main():
         print("gateway_restart=not_performed")
         print("memory_reindex=not_performed")
         return 0
-    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired, Exception) as exc:
-        # No exception message: it may contain configuration or credential details.
+    except Exception:
+        # Stage names are fixed literals; do not expose arbitrary exception text.
         print("migration=blocked")
+        print("blocked_stage=" + stage)
         print("configuration_changed=not_confirmed")
         return 2
 
