@@ -4,8 +4,8 @@ set -uo pipefail
 
 MODE="${1:---check}"
 case "$MODE" in
-  --check|--workstation) (( $# <= 1 )) || exit 2 ;;
-  *) echo "Usage: $0 [--check|--workstation]" >&2; exit 2 ;;
+  --check|--workstation|--truenas) (( $# <= 1 )) || exit 2 ;;
+  *) echo "Usage: $0 [--check|--truenas|--workstation]" >&2; exit 2 ;;
 esac
 PUBLIC_HOST="${SAMPLE_DNS_PUBLIC_HOST:-sample.albandrieu.com}"
 PRIVATE_HOST="${SAMPLE_DNS_PRIVATE_HOST:-sample.int.albandrieu.com}"
@@ -93,11 +93,10 @@ else
   warn 'getent unavailable; system DNS unchecked'
 fi
 
-if [[ "$MODE" == --workstation ]]; then
-  # A workstation may have Docker installed but cannot inspect TrueNAS Pi-hole
-  # locally. Remote Pi-hole DNS is still checked above; skip misleading
-  # "container unavailable" warnings.
-  echo 'SKIP: Pi-hole container configuration is only inspected from TrueNAS (--check)'
+if [[ "$MODE" != --truenas ]]; then
+  # Read-only DNS check works on any host; local Docker/TrueNAS provenance
+  # needs explicit --truenas to avoid a false warning on workstations.
+  echo 'SKIP: Pi-hole container configuration requires --truenas on TrueNAS'
 else
   echo '==> Sample Pi-hole local DNS record provenance (content redacted)'
   DOCKER_CMD=()
@@ -162,14 +161,23 @@ if [[ "$MODE" == --workstation ]]; then
   if command -v nmcli >/dev/null 2>&1; then
     nmcli -f GENERAL.CONNECTION,IP4.DNS,IP6.DNS device show "$IFACE" 2>/dev/null ||
       warn "NetworkManager interface $IFACE unavailable"
-    # Do not reveal the full connection configuration (VPN identity/secrets).
-    # Only DNS-specific profile fields are needed to explain Quad9.
+    # Do not reveal full NetworkManager profiles (identities or secrets).
+    # Read ONLY the active profile's DNS fields; an empty result is UNKNOWN.
     profile="$(nmcli -g GENERAL.CONNECTION device show "$IFACE" 2>/dev/null || true)"
     if [[ -n "$profile" && "$profile" != "--" ]]; then
+      printf 'active_nm_profile=%s\n' "$profile"
       echo '==> NetworkManager active connection DNS settings'
-      nmcli -f ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv4.dns-priority,ipv4.dns-search \
-        connection show "$profile" 2>/dev/null ||
-        warn 'Cannot inspect active NetworkManager DNS profile properties'
+      nm_fields='ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv4.dns-priority,ipv4.dns-search'
+      if nm_dns="$(nmcli -f "$nm_fields" connection show "$profile" 2>/dev/null)" &&
+         [[ -n "$nm_dns" ]]; then
+        printf '%s\n' "$nm_dns"
+      elif nm_dns="$(nmcli -g ipv4.dns,ipv4.ignore-auto-dns connection show "$profile" 2>/dev/null)" &&
+           [[ -n "$nm_dns" ]]; then
+        printf 'nmcli_dns_values=%s\n' "$nm_dns"
+        warn 'NetworkManager formatted DNS fields unavailable; displaying raw DNS values instead'
+      else
+        warn 'NetworkManager active profile DNS properties returned no data; inspect nmcli manually'
+      fi
     else
       warn "NetworkManager active connection profile for $IFACE unavailable"
     fi
