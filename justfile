@@ -64,7 +64,7 @@ quality-contracts-test:
 # No upstream LLM call, TrueNAS restart, API key or Actions minutes.
 hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
-    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_poc_contract.py tests/test_hermes_poc_preflight.py tests/test_hermes_cloud_credential_preflight.py
+    python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
 # Temporary 24 October migration runbook checks; mocks midclt and App changes.
 # No actual TrueNAS, Kubernetes, cloud model request or paid GitHub CI.
@@ -88,6 +88,57 @@ truenas-live-language-audit:
 # Requires authenticated Talos and Kubernetes CLI; this does not upgrade nodes.
 talos-upgrade-preflight:
     python3 scripts/talos/preflight-supported-upgrade.py --check
+
+# Fast operator-acknowledged upgrade paths; check prints immutable hashes only.
+fast-talos-plan image:
+    python3 scripts/talos/fast-batch-upgrade.py --check --installer-image "{{image}}"
+
+fast-truenas-plan scope="applications" parallel="6":
+    python3 scripts/truenas/fast-bulk-redeploy-apps.py --check --scope "{{scope}}" --parallel "{{parallel}}"
+
+fast-maintenance-test:
+    python3 -m py_compile scripts/talos/fast-batch-upgrade.py scripts/truenas/fast-bulk-redeploy-apps.py
+    python3 -m pytest -q tests/test_fast_batch_talos_upgrade.py tests/test_fast_bulk_truenas_redeploy.py
+
+# Read-only, redacted AI service recovery: no secret values, no deployments.
+truenas-ai-recovery-check:
+    sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check
+
+truenas-ai-recovery-test:
+    python3 -m py_compile scripts/truenas/diagnose-ai-secret-recovery.py
+    python3 -m pytest -q tests/test_ai_secret_recovery_diagnostic.py
+
+# Functional acceptance: TrueNAS state + Docker health + semantic HTTP/PromQL.
+# Fail nonzero if an App is BLOCKED, DEGRADED or UNKNOWN, even when TrueNAS
+# app.query returns RUNNING. Use the nonblocking report for status-only review.
+truenas-readiness-check:
+    sudo python3 scripts/truenas/diagnose-service-readiness.py --check --strict
+
+truenas-readiness-report:
+    sudo python3 scripts/truenas/diagnose-service-readiness.py --check
+
+truenas-readiness-test:
+    python3 -m py_compile scripts/truenas/diagnose-service-readiness.py
+    python3 -m pytest -q tests/test_service_readiness_diagnostic.py tests/test_compact_ops_diagnostics.py tests/test_gatus_api_diagnostic.py tests/test_prometheus_config_access_repair.py tests/test_openrag_dependencies_diagnostic.py tests/test_prometheus_rules_access_repair.py
+
+# Read-only OpenRAG backend/frontend/Langflow/OpenSearch dependency diagnosis.
+truenas-openrag-dependencies-check:
+    sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
+
+truenas-openrag-dependencies-test:
+    python3 -m pytest -q tests/test_openrag_dependencies_diagnostic.py
+
+# Read-only host preflight; --apply remains a separate, explicit operator action.
+truenas-prometheus-config-check:
+    sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+
+# Rule-tree check is read-only; repair demands explicit approval and unchanged count.
+truenas-prometheus-rules-check:
+    sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+
+truenas-prometheus-rules-test:
+    bash -n scripts/truenas/repair-prometheus-rules-access.sh
+    python3 -m pytest -q tests/test_prometheus_rules_access_repair.py
 
 # Offline TrueNAS restart planning tests. Never contacts TrueNAS or invokes Actions.
 # Requires a locally installed pytest; no package install, runner, or deployment.
@@ -151,3 +202,19 @@ sos-generate:
 # Validate the deterministic SOS generator contract without network probes.
 sos-test:
     python -m pytest -q tests/test_synthetic_open_schema_generation.py
+
+# Read-only public/private DNS check on any host (no local Docker inspection).
+sample-dns:
+    bash scripts/ingress/diagnose-sample-dns.sh --check
+
+# TrueNAS variant: inspect local Pi-hole container configuration, read-only.
+sample-dns-truenas:
+    bash scripts/ingress/diagnose-sample-dns.sh --truenas
+
+# Run from the workstation (NetworkManager + active DNS/DHCP evidence).
+sample-dns-workstation:
+    bash scripts/ingress/diagnose-sample-dns.sh --workstation
+
+# Offline mock-contracts, no real DNS or Docker requests.
+sample-dns-test:
+    python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v

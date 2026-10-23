@@ -53,20 +53,45 @@ for endpoint in / /api/v1/endpoints/statuses; do
 done
 printf '%s\n' 'HTTP 200 is transport evidence only; API contract and monitored endpoint status require separate acceptance.'
 
-diag_section '' 'Gatus API structural evidence (counts only, no endpoint URLs)'
-# API response is not printed: endpoints can contain tokens/secret query strings.
-api_summary="$(curl --silent --show-error --fail --max-time 8 "${GATUS_URL}/api/v1/endpoints/statuses" |
+diag_section '' 'Gatus API monitor evidence (aggregate counts, no URLs or identities)'
+# The API reports each monitor with a result history; only the LAST result
+# establishes its current state. A populated list alone does not prove health.
+# Do not expose names, endpoint URLs, probe response bodies or credentials.
+api_counts="$(curl --silent --show-error --fail --max-time 8 \
+  "${GATUS_URL}/api/v1/endpoints/statuses" |
   jq -er '
-    if type == "array" then
-      "shape=array entries=\(length)"
-    elif type == "object" then
-      "shape=object top_level_entries=\(keys | length)"
-    else
-      error("unexpected API payload shape")
+    if type != "array" then error("unexpected API payload") else
+      [ .[] |
+        if type != "object" then "unknown"
+        elif (.results | type) != "array" then "unknown"
+        elif (.results | length) == 0 then "pending"
+        elif (.results[-1] | type) != "object" then "unknown"
+        elif (.results[-1].success | type) != "boolean" then "unknown"
+        elif .results[-1].success then "up"
+        else "down" end
+      ] as $states
+      | [($states | length),
+         ($states | map(select(. == "up")) | length),
+         ($states | map(select(. == "down")) | length),
+         ($states | map(select(. == "pending")) | length),
+         ($states | map(select(. == "unknown")) | length)]
+      | map(tostring) | join(" ")
     end
   ' 2>/dev/null)" || {
-  echo 'WARN Gatus API evidence cannot be parsed; availability is not functional completeness'
+  echo 'WARN Gatus API monitor status unavailable or structurally invalid'
   exit 2
 }
-printf '%s\n' "${api_summary}"
-diag_info 'Compare expected monitor IDs to actual API identities separately; counts alone cannot prove parity.'
+read -r monitors up down pending unknown <<< "${api_counts}"
+printf 'monitors=%s up=%s down=%s pending=%s unknown=%s\n' \
+  "${monitors}" "${up}" "${down}" "${pending}" "${unknown}"
+if ((monitors == 0)); then
+  echo 'WARN Gatus API contains no monitors; cannot confirm monitoring coverage'
+  exit 2
+fi
+if ((down > 0 || pending > 0 || unknown > 0)); then
+  echo 'WARN Some configured targets are DOWN, have no samples or have unrecognized results'
+  echo 'INFO Target health does not imply Gatus itself is unavailable'
+else
+  echo 'OK Gatus monitor results are present and currently UP'
+fi
+diag_info 'Monitor identity parity with the generated catalog requires a separate inventory comparison.'

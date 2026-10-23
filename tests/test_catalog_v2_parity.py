@@ -749,7 +749,9 @@ class CatalogV2ParityTests(unittest.TestCase):
             report["summary"]["backstageMaterializationDebt"],
             len(report["backstageMaterializationDebt"]),
         )
-        self.assertGreater(
+        # Since the Backstage v2 cut-over (#265) every active service must be
+        # materialized; new active debt is a regression, not progress.
+        self.assertEqual(
             report["summary"]["backstageMaterializationDebtByState"].get(
                 "active",
                 0,
@@ -818,12 +820,23 @@ class CatalogV2ParityTests(unittest.TestCase):
             )
             if isinstance(entity, dict)
         ]
-        self.assertEqual(len(entities), 1)
-        wordpress_entity = entities[0]
+        # The init container is bound to its own entity-ref in Compose and is
+        # modelled as a subcomponent of the WordPress application.
+        by_ref = {backstage_entity_ref(entity): entity for entity in entities}
         self.assertEqual(
-            backstage_entity_ref(wordpress_entity),
+            set(by_ref),
+            {
+                "component:default/wordpress",
+                "component:default/wordpress-wordpress-initdb",
+            },
+        )
+        self.assertEqual(
+            by_ref["component:default/wordpress-wordpress-initdb"]["spec"][
+                "subcomponentOf"
+            ],
             "component:default/wordpress",
         )
+        wordpress_entity = by_ref["component:default/wordpress"]
         self.assertEqual(
             wordpress_entity["spec"]["dependsOn"],
             ["resource:default/postgresql"],

@@ -267,10 +267,14 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                                      capture_output=True, text=True, check=True)
         self.assertIn("--serial", help_result.stdout)
         content = script.read_text()
-        self.assertIn("Management key algorithm:", content)
+        self.assertIn("inspect-age-yubikey-aes256-hardware.sh", content)
         self.assertIn("yubikey-5-nabla backup", content)
         self.assertIn("yubikey-5-nabla principal", content)
-        self.assertIn("piv keys info 82", content)
+        self.assertNotIn("piv keys info 82", content)
+        self.assertEqual(content.count("Read-only gate passed"), 1)
+        self.assertEqual(content.count("inspect-age-yubikey-aes256-hardware.sh"), 1)
+        self.assertNotIn("slot_info=", content)
+        self.assertTrue(content.rstrip().endswith("exit 0"))
         for command in ("--force", "change-management-key -a TDES",
                         'ykman --device "$serial" piv keys generate'):
             self.assertNotIn(command, content)
@@ -288,12 +292,112 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key"):
             self.assertNotIn(forbidden, body)
 
+    def test_piv82_response_diagnostic_is_read_only(self):
+        script = ROOT / "scripts/workstation/diagnose-age-yubikey-piv82-response.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        help_result = subprocess.run(["bash", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("--serial", help_result.stdout)
+        body = script.read_text()
+        self.assertIn("piv keys info 82", body)
+        self.assertIn("ykman exit code:", body)
+        for forbidden in ("piv keys generate", "piv certificates import",
+                          "piv reset", "verify-pin", "change-management-key", "--force"):
+            self.assertNotIn(forbidden, body)
+
+    def test_aes256_inventory_handles_empty_slot_exit_one_fail_closed(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        body = script.read_text()
+        self.assertIn("rc82 > 1", body)
+        self.assertIn("RETIRED1", body)
+        self.assertIn("PIV82 unverified", body)
+        self.assertIn("no provisioning permitted", body)
+        self.assertNotIn("printf '%s\\n' \"${slot82}\"", body)
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
+    def test_observed_retired1_response_pattern(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        line = next(line for line in script.read_text().splitlines()
+                    if line.startswith("empty_slot_pattern="))
+        pattern = line.split("=", 1)[1].strip("'")
+        for message in ("ERROR: No key stored in slot 82 (RETIRED1).",
+                        "No key stored in slot 82 (RETIRED1)."):
+            self.assertEqual(subprocess.run(
+                ["grep", "-Eiq", pattern], input=message, text=True
+            ).returncode, 0)
+        for message in ("ERROR: No key stored in slot 82 (RETIRED1). transport failure",
+                        "ERROR: No key stored in slot 83 (RETIRED2).",
+                        "PCSC device unavailable"):
+            self.assertNotEqual(subprocess.run(
+                ["grep", "-Eiq", pattern], input=message, text=True
+            ).returncode, 0)
+
+    def test_aes256_inventory_single_complete_guard(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        body = script.read_text()
+        self.assertEqual(body.count("empty_slot_pattern="), 1)
+        self.assertEqual(body.count("if (( rc82 > 1 ))"), 1)
+        self.assertEqual(body.count("slot9a="), 1)
+        self.assertEqual(body.count("Read-only inventory:"), 1)
+        pattern_line = next(line for line in body.splitlines()
+                            if line.startswith("empty_slot_pattern="))
+        self.assertTrue(pattern_line.endswith("$'"))
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
+    def test_aes256_hardware_inventory_read_only(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        result = subprocess.run(["bash", str(script), "--help"],
+                                capture_output=True, text=True, check=True)
+        self.assertIn("read-only, no PIN", result.stdout)
+        body = script.read_text()
+        self.assertIn("piv keys info 82", body)
+        self.assertIn("piv keys info 9a", body)
+        self.assertIn("Management key algorithm:", body)
+        for forbidden in ("piv keys generate", "piv certificates import",
+                          "piv reset", "verify-pin", "change-management-key",
+                          "ykman piv access", "--force"):
+            self.assertNotIn(forbidden, body)
+
+    def test_piv82_certificate_adversarial_fixtures(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-certificate-negative-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        self.assertIn("wrong signing private key", body)
+        self.assertIn("wrong PIN/touch", body)
+        self.assertIn("expired certificate", body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("7 malformed certificates rejected", result.stdout)
+
+    def test_piv82_certificate_verifier_strict_offline(self):
+        script = ROOT / "scripts/workstation/verify-age-yubikey-piv82-certificate.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        for expected in ("public.verify(", "ext.value.value != bytes((3, 2))",
+                         "cert.subject != cert.issuer", "public_numbers()",
+                         "Unknown critical extension", "path.is_symlink()"):
+            self.assertIn(expected, body)
+        for forbidden in ("PivSession(", "generate_key(", "put_certificate(", "verify_pin("):
+            self.assertNotIn(forbidden, body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script), "--help"],
+                                    capture_output=True, text=True, check=True)
+            self.assertIn("--public-key", result.stdout)
+
     def test_piv_sdk_signing_builder_mock_only(self):
         script = ROOT / "scripts/workstation/test-age-yubikey-piv-signing-sdk-offline.py"
         subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
         content = script.read_text()
         self.assertIn("InMemoryPivSession", content)
         self.assertIn("sign_certificate_builder", content)
+        for required in ("runpy.run_path(", "verify-age-yubikey-piv82-certificate.py",
+                         "wrong_public_pem", "InvalidSignature",
+                         "forged_cert", "Verifier accepted a different public key"):
+            self.assertIn(required, content)
         self.assertIn("critical=False", content)
         self.assertIn("policy_bytes = bytes((3, 2))", content)
         for forbidden in ("SmartCardConnection", "PivSession(", "generate_key(",
@@ -322,6 +426,72 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key", "otp delete"):
             self.assertNotIn(forbidden, body)
 
+    def test_protected_aes256_mock_authentication_contract(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-aes256-auth-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        result = subprocess.run(["python3", str(script)], capture_output=True,
+                                text=True, check=True)
+        self.assertIn("10 negative paths", result.stdout)
+        body = script.read_text()
+        for token in ('"get_pin_attempts", "verify_pin", "get_protected_key"',
+                      "len(protected_key) != 32", "Insufficient synthetic PIN retry budget",
+                      "final PIN reverify rejected", "Unexpected management-key mode"):
+            self.assertIn(token, body)
+        for forbidden in ("PivSession(", "ykman ", "get_pivman_protected_data(",
+                          "put_certificate(", "generate_key(", "getpass("):
+            self.assertNotIn(forbidden, body)
+
+    def test_aes256_sdk_api_inspection_never_opens_hardware(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        help_result = subprocess.run(["python3", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("no hardware", help_result.stdout)
+        body = script.read_text()
+        for expected in ("MANAGEMENT_KEY_TYPE.AES256.key_len", "PivmanData.has_stored_key",
+                         "get_pivman_protected_data", "PIN_POLICY.ALWAYS",
+                         "TOUCH_POLICY.ALWAYS", "SLOT.RETIRED1"):
+            self.assertIn(expected, body)
+        for forbidden in ("PivSession(", "verify_pin(", "authenticate(",
+                          "get_pivman_protected_data(", "generate_key(",
+                          "put_certificate("):
+            self.assertNotIn(forbidden, body)
+        sdk_python = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk_python):
+            result = subprocess.run([sdk_python, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("PASS: SDK AES256", result.stdout)
+
+    def test_pivman_aes256_mock_handshake_fails_closed(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv-aes256-handshake-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        body = script.read_text()
+        for required in ("class FakeSession:", "get_pivman_protected_data",
+                         "MANAGEMENT_KEY_TYPE.AES256", "Insufficient PIN retry budget",
+                         "wrong PIN", "missing AES key", "incorrect key length"):
+            self.assertIn(required, body)
+        for forbidden in ("PivSession(", "SmartCardConnection(", "piv keys generate",
+                          "put_certificate(", "set_management_key("):
+            self.assertNotIn(forbidden, body)
+        sdk = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk):
+            result = subprocess.run([sdk, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("six fail-closed scenarios", result.stdout)
+
+    def test_piv82_inventory_seven_fake_hardware_outcomes(self):
+        script = ROOT / "scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        content = script.read_text()
+        self.assertIn("FAKE_YKMAN", content)
+        self.assertIn('"ambiguous"', content)
+        self.assertIn('"wrong-serial"', content)
+        self.assertIn('"missing-9a"', content)
+        self.assertNotIn("PivSession(", content)
+        result = subprocess.run(["python3", str(script)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("seven scenarios each for inventory and enrollment plan", result.stdout)
+
     def test_piv_python_sdk_capability_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-yubikey-piv-python-sdk.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
@@ -333,6 +503,21 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         for forbidden in ("piv keys generate", "piv certificates import",
                           "change-management-key", "ykman piv reset"):
             self.assertNotIn(forbidden, body)
+
+    def test_offline_quality_gate_catches_syntax_errors_first(self):
+        script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"
+        subprocess.run(["bash", "-n", str(script)], check=True)
+        content = script.read_text()
+        self.assertIn("for python_source in", content)
+        self.assertIn("for bash_source in", content)
+        for expected in ("test-age-yubikey-piv-aes256-handshake-offline.py",
+                         "test-age-yubikey-piv82-inventory-fake-offline.py",
+                         "inspect-age-yubikey-aes256-hardware.sh",
+                         "plan-age-yubikey-piv82-enrollment.sh",
+                         "verify-age-yubikey-piv82-certificate.py"):
+            self.assertIn(expected, content)
+        self.assertLess(content.index('python3 -m py_compile "$python_source"'),
+                        content.index("python3 -m unittest discover"))
 
     def test_offline_quality_gate_contract(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"

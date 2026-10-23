@@ -1,13 +1,29 @@
 {
-  "catalogRevision": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4",
+  "catalogRevision": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/2fauth",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "2fauth-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -214,6 +230,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/grafana",
         "system": "system:default/nabla-homelab",
         "type": "telemetry-collector"
       }
@@ -318,8 +335,24 @@
       "entityRef": "component:default/bichon",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "bichon-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1266,8 +1299,24 @@
       "entityRef": "component:default/grafana",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "grafana-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1296,8 +1345,24 @@
       "entityRef": "component:default/graylog",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "graylog-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1315,6 +1380,10 @@
       },
       "sourcePath": "apps/graylog/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "component:default/opensearch-security",
+          "resource:default/mongo"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
@@ -1326,8 +1395,24 @@
       "entityRef": "component:default/haproxy-exporter",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "haproxy-exporter-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1384,6 +1469,40 @@
       "sourcePath": "apps/nginx/catalog-info.yaml",
       "spec": {
         "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/hermes",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/hermes/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "hermes",
+        "tags": [
+          "ai",
+          "agent",
+          "devsecops"
+        ],
+        "title": "Hermes Agent"
+      },
+      "sourcePath": "apps/hermes/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/litellm",
+          "component:default/prometheus"
+        ],
+        "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
@@ -1623,8 +1742,24 @@
       "entityRef": "component:default/kibana",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "kibana-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1653,8 +1788,24 @@
       "entityRef": "component:default/langflow",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "langflow-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -1672,6 +1823,9 @@
       },
       "sourcePath": "apps/langflow/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "resource:default/opensearch"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
@@ -1702,6 +1856,9 @@
       },
       "sourcePath": "apps/langfuse/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "resource:default/minio"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
@@ -1726,8 +1883,12 @@
       },
       "sourcePath": "apps/langfuse/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "resource:default/minio"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/langfuse-web",
         "system": "system:default/nabla-homelab",
         "type": "worker"
       }
@@ -2159,8 +2320,24 @@
       "entityRef": "component:default/obsidian",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "obsidian-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -2189,8 +2366,24 @@
       "entityRef": "component:default/ollama",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "ollama-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -2483,6 +2676,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/opensearch-security",
         "system": "system:default/nabla-homelab",
         "type": "application"
       }
@@ -2492,8 +2686,24 @@
       "entityRef": "component:default/opensearch-exporter",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "opensearch-exporter-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -2553,8 +2763,12 @@
       },
       "sourcePath": "apps/opensearch-exporter/catalog-info.yaml",
       "spec": {
+        "dependsOn": [
+          "component:default/opensearch-security"
+        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/opensearch-exporter",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
       }
@@ -2675,6 +2889,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
       }
@@ -2950,8 +3165,24 @@
       "entityRef": "component:default/prometheus",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "prometheus-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -2995,6 +3226,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "alerting"
       }
@@ -3022,6 +3254,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3077,10 +3310,24 @@
       "kind": "Component",
       "metadata": {
         "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "redis-redis-exporter-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
           "albandrieu.com/migration-provenance": "legacy-homarr-compose"
         },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -3355,6 +3602,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3412,6 +3660,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3439,6 +3688,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3466,6 +3716,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3493,6 +3744,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3520,6 +3772,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3579,6 +3832,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3606,6 +3860,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3633,6 +3888,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3660,6 +3916,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3687,6 +3944,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3714,6 +3972,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3741,6 +4000,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -3803,8 +4063,24 @@
       "entityRef": "component:default/sonarqube",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "sonarqube-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -3878,8 +4154,24 @@
       "entityRef": "component:default/suricata",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "suricata-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -3902,8 +4194,24 @@
       "entityRef": "component:default/sybase-exporter",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "sybase-exporter-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-10-23",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
-          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
           "albandrieu.com/operational-state": "active"
         },
@@ -3988,6 +4296,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/traefik",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -4015,6 +4324,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/traefik",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -4042,6 +4352,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/traefik",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }
@@ -4167,6 +4478,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "application"
       }
@@ -4191,6 +4503,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "telemetry-forwarder"
       }
@@ -4215,6 +4528,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "search"
       }
@@ -4314,6 +4628,7 @@
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/wordpress",
         "system": "system:default/nabla-homelab",
         "type": "service"
       }

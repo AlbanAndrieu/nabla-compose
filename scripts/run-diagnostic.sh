@@ -118,12 +118,37 @@ skip_count="$(count_matches '^[[:space:]]*(SKIP:|⏭️)')"
 printf '📋 %s: exit=%d ok=%s failed=%s warnings=%s skipped=%s\n' \
   "${name}" "${status}" "${ok_count}" "${fail_count}" "${warn_count}" "${skip_count}"
 
-if ((status != 0 || fail_count > 0 || warn_count > 0)); then
+if [[ "${name}" != diagnose-stuck-apps ]] && ((status != 0 || fail_count > 0 || warn_count > 0)); then
   printf '%s\n' 'Key findings:'
   grep -E '^[[:space:]]*(❌|ERROR:|FAIL:|⚠️|WARN:|WARNING:)' "${log_file}" 2>/dev/null |
     tail -n "${summary_lines}" |
     sed 's/^/  /' || true
 fi
 
+if [[ "${name}" == diagnose-stuck-apps ]]; then
+  # Classify private output by fixed category; never echo Docker log lines.
+  source "$(dirname -- "${BASH_SOURCE[0]}")/lib/diagnostic-ui.sh"
+  diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
+  diag_section '' 'Actionable Apps'
+  awk '
+    function emit() {
+      if (app == "") return
+      if (state=="STOPPED" && context=="intentional-stopped") {deferred++; return}
+      if (reason=="") reason="review private report"
+      printf "%s %s %s\n", app,state,reason
+      found++
+    }
+    /^=== APP / {emit(); app=$3; state=$4; sub(/^state=/,"",state); context=""; reason=""; next}
+    /^reboot_context=/ {context=$1; sub(/^reboot_context=/,"",context)}
+    /permission denied/ {reason="permissions"}
+    /health=unhealthy/ {if(reason=="") reason="healthcheck"}
+    /status=created/ {if(reason=="") reason="not-started"}
+    /SESSTMOUT|session timed out/ {reason="kafka-timeout"}
+    END {emit(); printf "DEFERRED %d intentional-stopped\n", deferred}
+  ' "${log_file}" | while read -r app state reason; do
+    if [[ "${app}" == DEFERRED ]]; then diag_info "${app}: ${state} ${reason}"
+    else diag_warn "${app}: ${state} ${reason}"; fi
+  done
+fi
 printf 'Detailed report: %s\n' "${log_file}"
 exit "${status}"

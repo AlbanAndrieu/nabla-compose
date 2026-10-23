@@ -155,7 +155,10 @@ NetworkPolicy engine. Treat the layers separately.
 
 - [ ] First make Kubernetes `NetworkPolicy` enforcement real on the current
   Talos/Flannel cluster and prove it with positive and negative connectivity
-  tests before applying default-deny policies broadly.
+  tests before applying default-deny policies broadly. Proof gate:
+  `bash scripts/talos/smoke-networkpolicy-enforcement.sh` (disposable
+  restricted namespace, cross-node ingress and egress allow/deny probes;
+  fails closed when the CNI accepts but does not enforce policies).
 - [ ] Introduce namespace/workload default-deny ingress and egress policies,
   then explicitly allow DNS, ingress-controller, observability and required
   service-to-service flows.

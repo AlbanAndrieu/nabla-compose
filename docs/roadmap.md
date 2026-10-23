@@ -1,3 +1,157 @@
+## CURRENT — pfSense NetFlow v5 → Akvorado validation (2026-10-23)
+
+- [x] Keep pfSense Netgate 1100 selective tracking only: `Track by Default` OFF, LAN rule `Always Track Flow Data`; no global pflow change.
+- [x] Confirm TrueNAS `br0` receives pfSense `172.17.0.1 → 172.17.0.24:2055/udp`: 504-byte packet observed at 20:50 local.
+- [x] Confirm Docker host publication and Inlet application-level receipt: 139 packets / 105768 bytes; zero receive errors and kernel drops in reported metrics.
+- [x] Confirm Inlet Kafka send counter: 139 messages; observed topic `akvorado-flows-v5` versus `akvorado-flows` in GitOps (validate version suffix before any change).
+- [x] Add privacy-bounded, read-only metric diagnostic `scripts/truenas/diagnose-akvorado-flow.py` and offline parser tests; **full local quality gate not yet executed**.
+- [x] Outlet consumes Kafka topic `akvorado-flows-v5`: 164 received messages, 164 NetFlow v5 packets decoded and 2511 PDU records; topic suffix is interoperable, no rename required.
+- [x] Root cause isolated: all 2511 received flows rejected as `metadata missing`; 81 SNMP `get` failures, 5021 metadata-provider errors (different metric units, not additive). ClickHouse batch and insert counters remain zero.
+- [x] Extend diagnostic script with Outlet NetFlow v5, Kafka input, core metadata, SNMP and ClickHouse counters, plus classification (`BLOCKED_METADATA_MISSING`); add targeted offline tests, **6/6 passed on TrueNAS operator checkout (2026-10-23)**; full quality gate pending.
+- [x] Operator repeat confirms 174 Inlet/Outlet Kafka messages, 2649 decoded PDU flows, 2649 `metadata missing` errors, 86 SNMP GET errors, 5297 provider errors, and 0 ClickHouse batches; six diagnostic unit tests green.
+- [x] Add private offline NetFlow v5 PCAP ifIndex extractor and synthetic tests (`scripts/truenas/inspect-netflow-v5-ifindex.py`, `tests/test_netflow_v5_ifindex.py`); 3 matching synthetic cases passed in a local prototype, repository tests not yet run.
+- [x] Private TrueNAS capture on 2026-10-23: 1 NetFlow v5 datagram / 10 records; input ifIndex=11 and output ifIndex=11 for all 10. PCAP deleted locally; operator tests 3/3 passed. Physical pfSense interface name and speed remain unverified.
+- [x] Stage strictly scoped static metadata for exporter `172.17.0.1/32`, ifIndex `11`, provisional name `pflow-ifindex-11` (no guessed link speed, no default interface, no SNMP provider); add offline configuration contract tests. GitOps only, not deployed.
+- [ ] Validate pinned Akvorado 2026.8.0 config schema offline and run new tests / local quality gate before controlled operator redeploy; compare counter *deltas*, then verify ClickHouse and Console.
+- [ ] Confirm missing exporter interface metadata: safely identify ifIndex values using local private flow telemetry, inspect Outlet SNMP network reachability/credentials, and choose narrowly scoped static metadata or read-only SNMPv3. No global pfSense flow expansion.
+- [ ] Resolve metadata enrichment without increasing pfSense pflow load, then verify ClickHouse insert counters and recent persisted rows with approved read-only SQL; confirm Console results.
+- [ ] Execute offline tests and scoped pre-commit / local quality gate on a full PR checkout, without GitHub Actions.
+
+## Santé fonctionnelle et diagnostics lisibles — 23 octobre 2026
+
+- [x] Ajouter une matrice de diagnostic **lecture seule** croisant TrueNAS
+  `app.query`, état/healthcheck Docker, réponse HTTP et validation sémantique
+  des APIs Gatus, LiteLLM, InfluxDB, FastAPI, Prometheus et Sentry :
+  `scripts/truenas/diagnose-service-readiness.py`, avec `--strict`,
+  `--json`, `--color`, `--icons` et filtres `--service`.
+- [x] Raccourcir les sorties des scripts de migration/upgrade FastAPI,
+  d'InfluxDB et des Apps bloquées, conserver les détails privés `0600`,
+  classer les causes sans afficher logs bruts ni secrets.
+- [x] Rendre le preflight Scrutiny STOPPED compatible avec une
+  **réconciliation explicite** de la Custom App et son démarrage ensuite,
+  sans toucher aux historiques InfluxDB ni à Scrutiny SQLite par défaut.
+- [x] Distinguer un backend OpenRAG healthy d'un frontend encore `created`,
+  et un LiteLLM liveliness HTTP 200 de son healthcheck Docker unhealthy.
+- [x] Préserver l'attestation exacte du build FastAPI : l'image exécutée
+  correspond à l'image sélectionnée, mais un `build_revision=null`
+  n'atteste toujours pas un commit Git précis (WARN).
+- [x] Ajouter tests mocks et checks Bash hors réseau via
+  `just truenas-readiness-test` ; ne pas prétendre leur exécution
+  complète tant que TrueNAS ne peut pas `git fetch`.
+- [ ] Réparer en runtime Gatus (GID 568/0640), Scrutiny (ancienne source
+  secrets), OpenRAG frontend, LiteLLM Docker healthcheck, consommateurs
+  Kafka de Sentry et scraper InfluxDB `:30115/metrics`, puis refaire les
+  validations métier et les smoke tests.
+- [ ] Restaurer `git fetch`/HTTPS vers GitHub sur TrueNAS avant de
+  reprendre les tests du HEAD PR, sans Actions payantes.
+
+## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
+
+### Readiness diagnostics — runtime follow-up (2026-10-23, operator evidence)
+
+- [x] **Prometheus root cause confirmed**: `namei`/`stat` show `apps/prometheus/prometheus.yml` mode `0600` owner `1000:568`; the Compose container uses `568:568` and cannot read the bind-mounted file. Container exited with code `2` and reached **882 restarts** despite TrueNAS App `RUNNING`. Parent `apps/prometheus` is traversable; do not attribute this incident to networking or corrupt TSDB.
+- [x] Added and tested read-only readiness categorization: Docker exit/restart metadata, bounded logs with redacted causes, PromQL success, Gatus 4 MiB bounded JSON monitor-history aggregation, and dual-component OpenRAG. Offline targeted tests: **11 passed** in an isolated local environment (six Prometheus repair guard tests, including rejection of non-root changes, and five Gatus aggregation parity cases); `bash -n` passed for the scoped repair script. These targeted tests mirror the relevant logic but do **not** replace running the complete repository quality gate against a checkout of the PR HEAD.
+- [x] Aligned Gatus outcome semantics: `RUNNING` with DOWN monitored endpoints is `WARN` (report targets, not Gatus service down); **0 configured monitors** is `DEGRADED`; oversized results are a bounded `WARN` rather than a misleading `UNKNOWN`. All output excludes monitor names, URLs and response bodies.
+- [x] Fixed the Prometheus crash-loop diagnostic test fake-`docker inspect` matching the actual command signature. The operator's earlier `42 passed, 1 failed` belongs to an older checkout; verify against the updated PR HEAD with `just truenas-readiness-test`.
+- [ ] **TrueNAS operator-only safe repair**: `sudo bash scripts/truenas/repair-prometheus-config-access.sh --check`; review detected UID/GID and bind mount; then explicit `--apply` for **only** `prometheus.yml` (`0640`, group 568, preserve owner), followed by `--check` and HTTP/PromQL acceptance. This is not an automatic operation and may still require examining a restrictive ZFS ACL. Do not change the TSDB directory or restart the entire TrueNAS App.
+- [ ] Complete strict readiness after repair. Track OpenRAG frontend `created`, Scrutiny `STOPPED`, Sentry unhealthy consumers, Gatus monitoring warnings and Sample Git SHA warning separately; do not mask the failures by disabling the gate.
+
+### Readiness diagnostic hardening — 2026-10-23
+
+- [x] Functional acceptance now considers the independent TrueNAS App state, every required Docker container's status/health/exit/restart count, and each declared application's HTTP response contract; a `RUNNING` App cannot mask `restarting` container(s). OpenRAG checks both backend and frontend and additionally probes frontend HTTP when containers run.
+- [x] Prometheus failure diagnosed from repeated Docker logs: container named `prometheus`, exit **2**, restart count **843**, cannot read `/etc/prometheus/prometheus.yml` (`permission denied`); Compose runtime UID/GID `568:568`. TrueNAS App `RUNNING` is **not** functional. Read-only diagnostics categorize bounded startup logs without exposing raw text, evaluate POSIX modes and ancestor traversability (ZFS ACL still requires explicit check), and verify `/-/ready` plus bounded PromQL `count(up)`. `Prometheus` read-only standalone diagnostics classify this error and surface redacted restart/exit metadata.
+- [x] LiteLLM validation now queries `/health/readiness` (instead of liveness) and validates JSON readiness/database state without LLM calls or credentials. Scrutiny rejects explicit error JSON. InfluxDB check no longer claims read/write execution from a health-only response.
+- [x] `just truenas-readiness-check` is a blocking/strict operational gate; `just truenas-readiness-report` remains non-blocking. Added offline coverage for restarting Prometheus, 843 restarts, safe log redaction, POSIX UID/GID, PromQL empty/malformed results and OpenRAG HTTP.
+- [ ] **Operator action now actionable**: POSIX owner/group/mode are proven. Use the scoped `repair-prometheus-config-access.sh` script described above; inspect ZFS ACL only if the group-read correction does not restore service. Preserve Prometheus TSDB data.
+- [ ] Validate Gatus, Scrutiny, OpenRAG, Sentry, InfluxDB, LiteLLM and Sample against current TrueNAS runtime in the same strict gate; local tests cannot substitute for runtime evidence.
+
+### pflow packet proof and Prometheus failure (2026-10-23 19:46 CEST)
+
+- [x] After per-rule **Always Track Flow Data**, pfSense LAN capture at 19:46:15 captured **one UDP datagram, payload length 120 bytes**, from `172.17.0.1:38341` to `172.17.0.24:2055`. NetFlow v5 module/exporter and actual emission now verified. `Track by Default` remains OFF; do not widen scope. Memory free+inactive **219.8 MiB**, Unbound PID **39281**, DNS `NOERROR`, no new OOM observed in displayed log.
+- [ ] Confirm TrueNAS `br0` packet reception and Akvorado inlet UDP/2055 listener, protocol configuration and successful decode. A pfSense source-side packet is **not** proof of ingestion. Run captures while creating new routed PF states and allow for flow export delay.
+- [x] TrueNAS `prometheus` App reports RUNNING but service container **named `prometheus`** is `Restarting (2)`; Compose `container_name: prometheus` confirms it is **not** `ix-prometheus-prometheus-1`. Other exporter/alertmanager containers running. HTTP 9090 unavailable; inspect with `sudo docker logs --tail 120 prometheus` and read-only `docker inspect` exit status; do not infer root cause from status 2 or restart the whole App.
+
+
+
+### Memory and pflow validation — 2026-10-23 19:00–19:08 CEST
+
+- [x] Full 10-sample memory-pressure CSV (30-second intervals): free+inactive **min 168.7, mean 189.6, max 206.4 MiB**; final 196.1 MiB. No monotonic deterioration over the five-minute window. Unbound PID **39281** stable, RSS **139860–140788 KiB**; pfBlockerNG cron count 0 throughout. PHP-FPM summed RSS **317360 KiB**, not unique resident memory.
+- [x] At 19:07, `diagnose-pflow-activation.sh --check --capture`: free+inactive **216.9 MiB**, `pflow.ko` loaded, `pflow0` NetFlow v5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055, Unbound PID 39281 running, local DNS NOERROR. pfSense LAN 30-second tcpdump **0 captured**, **34043 received by filter** (not NetFlow export count), 0 dropped. TrueNAS br0 earlier captured 0. Akvorado receipt **not validated**.
+- [x] `diagnose-unbound-crash-memory.sh` confirms historical OOM Oct 22 22:03 (Unbound/netstat/php_pfb), Oct 23 02:10 (php/netstat), and earlier incidents. No later OOM in displayed system log, but no 24-hour stability proof. New resolver stop/restart sequence at **12:16** ending Unbound PID 39281; cause still unknown. WireGuard ACL changes at 06:11–06:12 are temporally aligned with earlier resolver restarts.
+- [x] pfBlockerNG daily updates ended around **00:07–00:08**, including Oct 23 00:07:50; these completion times do not establish that hourly 02:00 cron caused 02:10 OOM. Investigate hourly cron details and PHP-FPM memory independently.
+- [ ] Confirm global Track by Default remains OFF and identify one explicit per-rule flow-tracking configuration; create a new matching state, repeat pfSense/TrueNAS captures, then validate Akvorado inlet counters. Do not interpret zero captures as collector failure without rule-state evidence.
+- [ ] Repeat memory and OOM checks across overnight 02:00–02:15 window; consider PHP-FPM worker concurrency and pfBlockerNG job pressure before altering Unbound caches. Roll back pflow if <128 MiB free+inactive, DNS regression or fresh OOM.
+
+
+
+### Latest pflow capture and diagnostics (2026-10-23)
+
+- [x] Native exporter `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055` persists.
+- [x] pfSense LAN `tcpdump` 30s: **0 packets captured**, `14962 packets received by filter`, 0 dropped. Do **not** interpret the received-by-filter counter as exported NetFlow packets. TrueNAS `br0` 30s capture: **0 packets captured**, 0 received by filter, 0 dropped. No collector delivery demonstrated.
+- [x] Enhance `diagnose-pflow-activation.sh --check [--capture]` to inspect module/exporter, DNS, OOM and perform optional bounded 30s capture with correct counter interpretation; enhance `diagnose-unbound-crash-memory.sh` with native pfBlockerNG log markers and WireGuard ACL correlation.
+- [ ] Verify explicit pflow tracking on a narrowly scoped PF rule while global Track by Default stays off; generate new matching states; repeat captures on pfSense and TrueNAS and inspect Akvorado inlet. Validate source interface and protocol. No global tracking until memory stability.
+- [ ] Run local `bash -n` and optional shellcheck; agent GitHub connector writes do not execute a local checkout or quality gate.
+
+
+
+### Runtime check — 2026-10-23 19:00 CEST
+
+- [x] Operator started `diagnose-memory-pressure.sh --check --samples 10 --interval 30`; only **2/10** CSV samples provided (19:00:07 and 19:00:37), so full trend not yet available. Free+inactive 168.7→185.6 MiB; Unbound PID 39281 stable, RSS 140068→140664 KiB; no pfBlockerNG cron in samples; PHP-FPM summed RSS 317360 KiB (shared pages may be double counted).
+- [x] TrueNAS `tcpdump -ni br0 'udp and src host 172.17.0.1 and dst port 2055' -c 10` captured **zero packets in 30s**. This does not prove Akvorado is broken: global Track by Default was deliberately left off, PF rules may not be marked for pflow, new qualifying states may be absent, or capture interface/source may differ.
+- [ ] Inspect native pfSense firewall rule **Packet Flow** per-rule setting and enable only on one narrow approved LAN rule; Apply and generate new matching traffic. Confirm via `pflowctl -l`, pfSense-side `tcpdump` on LAN interface for UDP/2055, TrueNAS ingress interface packet capture, then Akvorado collector counters. Avoid globally tracking all rules while OOM is unresolved.
+- [ ] Obtain remaining 8 memory samples and check for fresh kernel OOM; stop exporter via native UI if free+inactive <128 MiB, DNS fails, or new OOM occurs.
+
+
+
+### Native pflow activated — operator evidence (2026-10-23)
+
+- [x] Operator clicked **Apply** on `firewall_pflow.php`; module now loaded (`pflow.ko`, `kldstat` ID 5) and `pflowctl -l` shows `pflow0: version 5 domain 1 src 172.17.0.1 dst 172.17.0.24:2055`. This confirms exporter configuration, **not** collector receipt or actual traffic.
+- [x] Unbound PID 39281 remained healthy, uptime 20630 seconds. Free+inactive memory was 197.3 MiB before UI change, 190.7 MiB after Save but before Apply, **161.0 MiB after Apply**; 36.3 MiB total decline is temporally correlated, not causally proven. Historical repeated OOM makes margin critical.
+- [ ] Keep global Track by Default disabled. Confirm a selected PF rule explicitly enables pflow tracking and generates new states; verify Akvorado inlet metrics/counter deltas for NetFlow v5 UDP/2055, then compare before/after pfSense CPU/memory, Unbound DNS, kernel OOM.
+- [ ] If memory free+inactive <128 MiB, DNS fails or fresh OOM occurs, immediately disable pflow in native pfSense UI and Apply; confirm module/exporter no longer active and service recovery. Avoid reboot, direct config edits and forced kernel unload.
+
+
+
+### Operator update — 2026-10-23: pfSense native pflow exporter and Unbound evidence
+
+- [x] Operator reports an exporter **added** via native pfSense UI `https://172.17.0.1:10443/firewall_pflow.php`. This confirms UI configuration only; runtime `pflowctl -l`, kernel module, Akvorado UDP/2055 receipt, protocol, source address, observation domain, PF rules and reboot persistence remain **unverified**. Do not claim pflow traffic is flowing.
+- [ ] Verify read-only on pfSense: `kldstat | grep pflow`, `pflowctl -l`, `ifconfig -l`, and on TrueNAS the Akvorado inlet packet/flow counter *deltas*; monitor pfSense memory, DNS, OOM and CPU after enabling. If free+inactive falls below 128 MiB, new OOM or DNS failure occurs, disable exporter in the same native UI and validate recovery. Do not dump config.xml or secrets.
+- [x] System log confirms OOM at Oct 22 22:03 (Unbound, netstat, php_pfb) and Oct 23 02:10 (php, netstat). `/var/log/pfblockerng/pfblockerng.log` grep with ISO timestamp yielded no matches: log format/rotation unknown, **not proof of absent cron**.
+- [x] At Oct 23 06:11:42 and 06:12:31, WireGuard package logs show Unbound ACL group de-install/re-install. These events align with resolver stop/start at 06:11–06:12, suggesting configuration-driven restarts; correlation, not proven causation.
+- [ ] Examine pfBlockerNG logs with `tail` and timestamp format, rotated logs and actual cron duration around 02:00–02:15; correlate OOM with PHP/PF memory pressure. Separately inspect WireGuard package configuration events and DNS reload sequencing, avoiding service restarts.
+- [ ] Confirm `firewall_pflow.php` exporter protocol and Akvorado inlet support, then retain only if live counters increase and the firewall remains stable.
+
+
+
+### Follow-up — operator checks at 09:06 CEST
+
+- [x] Native pfSense pflow integration confirmed in `/etc/inc/filter.inc`: exporter functions at lines 6777–6906 use `pflowctl -c` and `pflowctl -s`; kernel module remains unloaded, no exporter configured. Configure via pfSense-supported UI/API rather than ad hoc boot edits.
+- [x] Free+inactive memory 188.5 MiB at 09:06, versus ~206.5 MiB at 08:48; two samples do not establish a leak. Unbound PID 93348 remained stable, DNS answered, no pfBlockerNG cron process observed at 09:06.
+- [x] `sockstat -46 -l` shows only Unbound PID 93348 listening on TCP/UDP 53 IPv4/IPv6 at check time. Historical `address already in use` still requires timestamped competing-listener/restart correlation.
+- [x] `/etc/crontab`: pfBlockerNG `cron` hourly at minute 00; `dcc` daily 22:00; `bl ut1` Sundays 04:00. Correlate recurring 02:10 OOM with 02:00 cron duration and logs before attributing cause.
+- [ ] Before enabling pflow, identify pfSense UI/API exporter configuration and supported protocol (NetFlow/IPFIX), confirm Akvorado collector protocol and UDP 2055, export scope and rollback; avoid adding memory load while recurring OOM remains unmitigated.
+- [ ] Compare pfBlockerNG log around 02:00–02:15 against kernel OOM timestamps, memory trend, Unbound PID and cron completion; prefer targeted resource mitigation and 24h verification.
+
+### Fresh evidence — 2026-10-23 08:48 CEST
+
+- [x] Operator ran `diagnose-unbound-crash-memory.sh --check`: shell syntax passed silently; runtime collection successful.
+- [x] `/var/log/system.log` confirms kernel `failed to reclaim memory`: Oct 21 02:12 (php_pfb), Oct 22 02:11 (php/netstat), Oct 22 22:03 (unbound/netstat/php_pfb), Oct 23 02:10 (php/netstat). Earlier Oct 17 also killed Unbound. This is a real recurrent OOM, not just exporter semantics.
+- [x] Oct 22 14:05 and 21:42: concurrent Unbound start attempt fails `bind: address already in use`, with socket send-buffer warning; investigate conflicting listeners and restart sequencing separately from OOM. Do not increase `kern.ipc.maxsockbuf` based on the warning alone.
+- [x] Resolver log: Oct 22 21:41–21:42 repeated in-process restarts; Oct 23 06:11–06:12 stop/start sequences. `pfb_unbound.py script exiting` coincides with Unbound stops but does not alone prove pfBlockerNG triggered them.
+- [x] Oct 23 08:48 uptime 22 min (recent reboot), Unbound PID 93348 started 08:28:52, DNS smoke PASS, RAM free+inactive ~206.5 MiB; process RSS Unbound ~106 MiB, CrowdSec ~72 MiB, Snort ~51 MiB, php_pfb ~43 MiB, several PHP-FPM workers. `vmstat -z` shows cumulative allocation failures; compare across samples rather than treating as new incidents.
+- [ ] Inspect pfBlockerNG cron/scheduled tasks around 02:10, correlate reboot reasons, Unbound bind listener ownership (53/853, IPv4/IPv6), pfSense service restarts, memory and UMA failures; identify event cause before mitigation.
+- [x] Add read-only pflow activation preflight `scripts/pfsense/diagnose-pflow-activation.sh --check` to this PR.
+- [ ] Operator wants pflow enabled for Akvorado `172.17.0.24:2055/udp`, but module was previously unloaded. Require verified native pfSense integration, export configuration, rollback and memory gate before enabling; **do not** load it blindly while OOM events recur.
+
+
+
+- [x] Add read-only `scripts/pfsense/diagnose-unbound-crash-memory.sh --check` to PR #271; no pfSense configuration changes, restarts, flow activation, or GitHub Actions.
+- [x] Historical evidence (2026-10-18): Netgate 1100 ~1 GiB RAM, no swap, `free+inactive` ~226.8 MiB, Unbound PID 75160 RSS ~122.7 MiB, pfBlockerNG cron absent during sample; kernel previously killed Unbound and PHP processes with `failed to reclaim memory`.
+- [ ] Obtain **fresh** logs with event timestamps and Unbound PID/start-time changes, pfBlockerNG scheduling, FreeBSD VM counters and process RSS. Prior `dmesg` entries are historical, not new OOM evidence. Determine whether Unbound was killed by kernel memory pressure, restarted intentionally by pfSense/pfBlockerNG, or exited due to its own error.
+- [ ] Compare with Prometheus `pfsense_system_memory_usage_ratio`, scraper health, DNS response checks, and timeline; this ratio does not directly equal FreeBSD free+inactive. Establish event-based trends and OOM deltas before modifying thresholds.
+- [ ] Mitigation only after evidence: reduce concurrent memory pressure and unnecessary DNSBL rebuilds, assess pfBlockerNG/Snort/PHP-FPM allocations and Unbound cache usage; retain required DNS/security functionality. Explicit rollback and stability window of at least 24 hours.
+- [ ] Defer pflow activation while memory incidents remain unclassified; avoid a pfSense reboot, automatic Unbound restart, unreviewed DNSBL regeneration, and configuration mutations.
+
 ## P0 — Reprise Site #236 / Compose #263 : artefacts ZAP et frontière privée (19 octobre 2026)
 
 ## P1 — FastAPI staging → TrueNAS LiteLLM → workstation Qwen (2026-10-20)
@@ -829,6 +983,31 @@ socles et secrets; inventaire/SBOM/DefectDojo P2 seulement après
 acceptation DSOMM/DefectDojo. Publication CTID authentifiée P3 après
 privacy review; ne pas déployer automatiquement par cette PR.
 
+## Migration accélérée Talos / Kubernetes / Apps (23 octobre 2026)
+
+- [x] Créer les workflows opérateur à faible latence, sans CI payante :
+  `scripts/talos/fast-batch-upgrade.py` (3 nœuds Talos en parallèle) et
+  `scripts/truenas/fast-bulk-redeploy-apps.py` (Apps RUNNING par lots concurrents,
+  et non pas redémarrage séquentiel service par service).
+- [x] Retirer **de ce nouveau chemin d'exécution** la sauvegarde etcd obligatoire,
+  conformément à la demande opérateur, avec acquittement spécifique
+  `I_ACCEPT_FULL_CLUSTER_OUTAGE_WITHOUT_ETCD_BACKUP`, validation hash,
+  et arrêt si la reprise cluster échoue. Aucun `--force`, `reset` ou
+  `bootstrap` Talos. Le risque de perte des objets etcd est accepté
+  explicitement, non pas masqué.
+- [x] Conserver un point de dépendance incompressible : `upgrade-k8s` uniquement
+  après récupération des trois nœuds Talos. Kubernetes est ensuite orchestré
+  par sa commande Talos native, pas par des commandes de composants simultanées.
+- [x] Ajouter `just fast-maintenance-test`, les tests mockés offline, et le
+  runbook `docs/runbooks/2026-10-23-fast-batch-migration.md`.
+- [ ] Exécuter les tests locaux sur clone complet, faire un `--check` live,
+  puis valider fenêtre d'indisponibilité et plan hash exact.
+- [ ] Effectuer les `--apply` après merge de la PR : Talos/K8s sur
+  workstation, Apps TrueNAS sur hôte TrueNAS, validation CSI/NFS/Gatus/Prometheus.
+- [ ] Compléter les upgrades d'images applicatives/charts figés restants :
+  `app.redeploy` rafraîchit les images mais ne modifie ni tag versionné
+  ni chart version ; qualifier les migrations de schéma et dépendances.
+
 ## Upgrade des versions maintenues — Talos / Kubernetes / PHP / Python (2026-10-23)
 
 - [x] Définir la **cible GitOps, non encore appliquée au runtime** : Talos `v1.14.4` (et CLI mise 1.14.4), Kubernetes `v1.37.1`, PHP `8.5.12` (correction critique du 21 octobre 2026), Python `3.14.9` ; distinguer support officiel et terme « LTS » impropre pour Kubernetes/Python. Voir `config/upgrades/supported-runtime-targets.json`.
@@ -855,19 +1034,21 @@ privacy review; ne pas déployer automatiquement par cette PR.
 
 ## Hermes / TrueNAS LiteLLM — Anthropic Opus d'abord, OpenAI secours (2026-10-23)
 
-- [x] Déclarer `hermes-opus-5-5`, `hermes-opus-5`, `hermes-opus-4-8`, puis `hermes-openai` dans le gateway TrueNAS LiteLLM et le profil Hermes POC ; utiliser uniquement la virtual key Hermes, jamais les secrets upstream dans le conteneur.
+- [x] Déclarer `hermes-opus-5-5`, `hermes-opus-5`, `hermes-opus-4-8`, puis `hermes-openai` dans le gateway TrueNAS LiteLLM et le profil Hermes ; utiliser uniquement la virtual key Hermes, jamais les secrets upstream dans le conteneur.
 - [x] Enregistrer les **noms** `ANTHROPIC_API_KEY` et `OPENAI_API_KEY` dans le manifeste Vaultwarden `nabla/prod/litellm`, tous deux facultatifs jusqu'à provisioning effectif ; ajouter la prévalidation metadata-only et ses contrats offline (`just hermes-opus-routing-test`).
 - [ ] **P0 activation bloquée** : attente de la vraie clé Anthropic, disponibilité de la clé OpenAI de secours, rendu Vaultwarden root/0600, compatibilité de la version LiteLLM installée avec Opus 5.5/5/4.8 et examen du runtime native `hermes-agent`. Pas de redémarrage automatique ni d'appel facturable.
-- [ ] **P0 gouvernance coût/confidentialité** : provisionner la clé virtuelle `hermes-poc` avec les quatre alias uniquement, 5 RPM, 10k TPM, concurrence 1, montant de 20 EUR converti en `max_budget` USD avec reset ; vérifier le logging des prompts, cache Redis, Langfuse, egress, PII et mesures Prometheus réelles avant tout routage cloud.
-- [ ] **P1 apply supervisé** : vérifier config native Hermes et version exacte (le profil POC n'est pas l'App native), puis déployer uniquement après les gates P0 ; tests de modèle et de fallback facturables soumis à approbation.
+- [ ] **P0 gouvernance coût/confidentialité** : provisionner la clé virtuelle `hermes` avec les quatre alias uniquement, 5 RPM, 10k TPM, concurrence 1, montant de 20 EUR converti en `max_budget` USD avec reset ; vérifier le logging des prompts, cache Redis, Langfuse, egress, PII et mesures Prometheus réelles avant tout routage cloud.
+- [ ] **P1 apply supervisé** : vérifier config native Hermes et version exacte (l App native est à retirer), puis déployer uniquement après les gates P0 ; tests de modèle et de fallback facturables soumis à approbation.
 
-## POC Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
+## Hermes DevSecOps Zero Trust — implémentation isolée (2026-10-11)
 
-- [x] **POC source publié, pas de déploiement** : [Compose profil `hermes-poc`](../poc/hermes/compose.yml), [config readonly](../config/hermes/poc-config.yaml) et [runbook](../poc/hermes/README.md). Distinct de l'App TrueNAS native `hermes-agent` ; aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
+- [x] **Source publiée, pas de déploiement** : [Compose profil `hermes`](../apps/hermes/compose.yml), [config readonly](../config/hermes/config.yaml) et [runbook](../apps/hermes/README.md). Aucun port hôte, dashboard, socket Docker, root shell ni API administrative.
+- [x] **Service canonique `apps/hermes` (2026-10-23)** : déplacé depuis `poc/hermes`, catalogue `x-nabla` (`status: planned`) + `catalog-info.yaml`, item secrets `nabla/prod/hermes` dans le manifest, état hôte `/mnt/cpool/hermes/data` → `/opt/data`. L'App native `hermes-agent` est retirée de `restore-optional-apps.txt`.
+- [ ] **Retirer l'App native `hermes-agent`** (opérateur) : audit `--check`, export `app.config`, snapshot ZFS, arrêt, révocation des bot tokens, suppression sans effacer `/mnt/cpool/hermes` (procédure dans `apps/hermes/README.md`).
 - [x] **MCP observation read-only codé** : `scripts/hermes/readonly_mcp.py` via stdio, seulement `up` Prometheus pour jobs connus, vue globale et coût LiteLLM par alias. Pas de logs bruts ni HTTP/PromQL arbitraire ; SSRF/redirect rejetés, erreurs non détaillées, aucune valeur de secret renvoyée. Tests offline ajoutés.
-- [x] **LiteLLM coût** : politique key `hermes-poc`, modèle `qwen`, budget souhaité **2 USD / 30 jours**, 5 RPM, 1 requête parallèle et 10k TPM ; job `litellm_hermes` 60 s et règles de coûts dans Prometheus. Les métriques réelles et la création de la virtual key sont **non vérifiées/non effectuées**.
-- [x] **Interopérabilité contrôlée préparée** : overlay privé `poc/hermes/compose.api.yml` pour OpenWebUI/FastAPI/n8n via `intranet`, clé API dédiée. **Désactivé par défaut** ; aucune exposition Internet, modèle ou permission ajoutée aux consommateurs existants.
-- [x] **Préflight fail closed codé** : `scripts/hermes/poc_preflight.py` bloque digest non épinglé, secrets trop permissifs, UID/dataset incohérent, `ALLOW_ALL`, manque d'allowlist, clé maître et API sans secret. Ne remplace pas un contrôle effectif des droits Unix/egress.
+- [x] **LiteLLM coût** : politique key `hermes`, modèle `qwen`, budget **20 EUR par mois calendaire** (tranché le 2026-10-23, converti en plafond USD au provisionnement), 5 RPM, 1 requête parallèle et 10k TPM ; job `litellm_hermes` 60 s et règles de coûts dans Prometheus. Les métriques réelles et la création de la virtual key sont **non vérifiées/non effectuées**.
+- [x] **Interopérabilité contrôlée préparée** : overlay privé `apps/hermes/compose.api.yml` pour OpenWebUI/FastAPI/n8n via `intranet`, clé API dédiée. **Désactivé par défaut** ; aucune exposition Internet, modèle ou permission ajoutée aux consommateurs existants.
+- [x] **Préflight fail closed codé** : `scripts/hermes/preflight.py` bloque digest non épinglé, secrets trop permissifs, UID/dataset incohérent, `ALLOW_ALL`, manque d'allowlist, clé maître et API sans secret. Ne remplace pas un contrôle effectif des droits Unix/egress.
 - [ ] **P0 runtime/security** : inspecter le TrueNAS App et l'image/digest réels ; installer seulement après test de conformité YAML Hermes, s6 UID10000/CapEff, snapshot/rollback, bot tokens exclusifs et véritable filtrage egress DNS/IPv4/IPv6. Ne pas supposer la protection d'un simple Docker bridge.
 - [ ] **P0 confidentialité LiteLLM** : protéger les contenus Hermes contre le `store_prompts_in_spend_logs`, le `turn_off_message_logging: false`, Langfuse et le cache Redis du proxy partagé. Activer guardrails/PII et vérifier le fail-closed avant incidents/logs sensibles, sans casser OpenWebUI/OpenRAG.
 - [ ] **P1 intégrations** : tester SearXNG derrière proxy de recherche, connecteurs Loki agrégés, Gatus, Docker states limités et GitHub PR avec identité propre ; ne pas connecter directement l'OpenTerminal existant sans worker non privilégié et API fortement limitée.
@@ -884,6 +1065,10 @@ privacy review; ne pas déployer automatiquement par cette PR.
 - [ ] **P1 : SearXNG et web** : vérifier runtime JSON, requêtes publiquement admissibles, proxy de redaction, extraction isolée, aucun appel implicite vers fournisseurs gratuits tiers, SSRF/redirect/DNS rebinding bloqués.
 - [ ] **P1 : skills/MCP/mémoire** : source privée revue/signée/épinglée, `skills.guard_agent_created`, `skills.write_approval`, `memory.write_approval`, pas d'installation depuis messages ni auto-update, least-privileged tools.
 - [ ] **P2 : preuves d'exploitation** : exercices non autorisé/PII/secrets/prompt injection via Docker/Loki/SearXNG/README, fail-closed d'un guardrail indisponible, coupure des permissions, alertes Loki/Prometheus et continuité après reboot.
+- [ ] **P2 : migration Talos broker/sandbox** ([ADR](./security/hermes-talos-migration.md)) : bloquée par l'enforcement `NetworkPolicy` Flannel non prouvé (preuve : `scripts/talos/smoke-networkpolicy-enforcement.sh`, non encore exécuté sur le cluster) et la StorageClass NFS `Delete` inadaptée à `state.db`.
+- [x] **Phase 2 préparée, non appliquée** : bundle Kustomize `kubernetes/hermes/` (PSA baseline, StorageClass `Retain`, sans token SA, aucun port, default-deny + egress DNS/LiteLLM/Prometheus/HTTPS public), politique partagée avec le service Compose, contrat `tests/test_kubernetes_hermes_contract.py`. Restent : digest vérifié, Secret opérateur, preuves runtime UID/CapEff et `state.db` sur NFS.
+- [x] **Phase 4 : frontière sandbox préparée, non appliquée** : bundle `kubernetes/hermes-sandbox/` (PSA restricted, quota 0 PVC/0 Service, default-deny, `SandboxTemplate` `hermes-homelab-offline` isolé du réseau, RBAC broker namespacé sans accès aux Secrets), contrat `tests/test_kubernetes_hermes_sandbox_contract.py`.
+- [ ] **P2 phase 4 suite** : contrôleur agent-sandbox épinglé, image `hermes-homelab-sandbox` signée, broker typé + plugin Hermes, tests d'évasion.
 - [ ] Pas de nouveau service/port/exposition/secret/déploiement Hermes, LiteLLM ou SearXNG tant que ces gates ne sont pas fermés. Préserver la priorité stabilité/Gatus/pfSense du chemin critique et ne pas merger automatiquement.
 
 ## P1/P2 — Hermes TrueNAS : agent DevSecOps via Telegram/Discord (2026-10-11)
@@ -2722,7 +2907,62 @@ Prochain ordre de travail :
 - [x] Add a CLI-only read-only entry point for the failing main skill review: `bash scripts/workstation/openclaw-ops.sh --skill-review`.
 - [ ] Resolve actual `openclaw-main` key-budget exhaustion (10.046146 / 10.0): inspect LiteLLM usage/reset period and reduce job usage, do not override budget or treat shared-key model fallback as recovery.
 - [ ] Verify main `skill-collection-review` actually succeeds after budget resets; one retained run failed after 272541 ms, five consecutive failures reported by the job status.
-- [ ] Separately resolve embedding provider 401 and paused main/cron vector indexes, preserving backup and secret isolation.
+- [x] Resolve embedding provider 401 and paused main/cron vector indexes: Oct 23
+  OpenClaw local LiteLLM file-backed SecretRef applied, `main` 107/107 and
+  `cron` 63/63 clean, vector search ready, 768 dims; fallback remains off.
+- [x] Verify vector retrieval can return candidates with an explicit agent:
+  on Oct 23 both `main` and `cron` returned five matches for
+  `deployment` at temporary `--min-score 0`; snippets remain private.
+- [ ] **P1 OpenClaw relevance calibration:** observed 5/5 hits at score
+  thresholds 0.00 and 0.20 for both agents. At 0.35, main returned 0;
+  cron failed once, then a targeted repeat returned `no_matches`, exit 0,
+  in 5875 ms. Failure class unknown (transient, not evidence of a persistent
+  scoring error). Use local-only `--score-summary` for bounded score,
+  latency and 429/5xx/timeout/auth/network categories. New owner-private
+  `inspect-openclaw-memory-min-score.py` confirms global
+  `memory.search.query.minScore` was not explicit on Oct 23.
+  Exact OpenClaw `v2026.9.5` source uses default `0.35` and precedence
+  per-agent → global → default. Extended read-only inspector now checks
+  `--agent main` and `--agent cron` separately; nine local offline
+  tests passed. Confirm effective per-agent inheritance and known-phrase
+  relevance before a persisted change. No new embedding requests required
+  for the config inspection.
+- [ ] **P1 LiteLLM reliability:** investigate 60-second embedding retries
+  with sanitized, bounded per-key LiteLLM/Workstation telemetry; ensure
+  isolated keys/budgets and no cross-vector-space fallback. No further
+  reindex or paid GitHub Actions required for diagnostics.
+
+- [ ] **P1 OpenClaw remaining secret imports and migration**: the
+  dedicated embedding `file` SecretRef is installed and functional;
+  global secrets migration is **not complete**. 2026-10-23 re-audit
+  confirms **16 plaintext + 2 legacy-file** findings,
+  0 unresolved/shadowed/store residues and full static ref resolvability.
+  The 16 findings break down into 5 config, 3 dotenv, 5 auth SQLite and
+  3 generated models.json; the 2 legacy files are **not** OAuth profile
+  findings. The shared team store is empty; embedding uses its separate
+  file SecretRef. `--audit-locations` now also reports fixed
+  `main/cron/other_or_shared` owner counts for auth SQLite, generated
+  models and retired files, without identifiers, paths or credentials.
+  Workstation 2026-10-23 evidence: 12/12 offline tests passed and both
+  audit reconciliation gates are true. SQLite auth findings:
+  main=0, cron=1, other_or_shared=4 (ownership **not proven shared**).
+  Generated models.json findings: main=3, cron=0; legacy files:
+  main=2, cron=0. Review config and dotenv consumers first, resolve
+  other-or-shared ownership locally, then prepare one native
+  `secrets configure --agent cron --plan-out` plan, explicitly selecting
+  **No** on the default-Yes apply prompt. Verify with
+  `secrets apply --from ... --dry-run`; do not build/apply competing
+  plans simultaneously. Recheck generated copies after source migrations
+  and retain legacy files pending recovery assessment. Added private
+  staged dotenv **read-only native import preflight**
+  `scripts/workstation/preflight-openclaw-secrets-import.py`,
+  six locally verified synthetic tests, and
+  [migration runbook](./runbooks/openclaw-secrets-import.md).
+  Optional `store import` uses shared `team` scope; do not import
+  isolated chat/embedding credentials without explicit sharing review.
+  Validate name collisions, per-agent consumers, owner resolution and audit
+  cleanliness before an operator-approved `store import` or `secrets apply`.
+  No secret values, automatic writes or paid Actions in this step.
 
 See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
 

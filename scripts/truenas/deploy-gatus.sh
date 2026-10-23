@@ -93,8 +93,18 @@ if [[ -n "${container_id}" ]]; then
 fi
 
 if [[ "${MODE}" == '--check' ]]; then
-  "${DIAGNOSE}"
-  "${REPAIR}" --check
+  # Permissions are the leading cause of the crash loop; report their
+  # actionable failure before the expected HTTP-unavailable symptom.
+  gatus_check_failures=0
+  if ! "${REPAIR}" --check; then
+    printf '%s\n' 'NEXT: scoped config repair is required; run repair-gatus-config-access.sh --apply after reviewing its metadata.' >&2
+    gatus_check_failures=$((gatus_check_failures + 1))
+  fi
+  "${DIAGNOSE}" || gatus_check_failures=$((gatus_check_failures + 1))
+  if ((gatus_check_failures > 0)); then
+    printf 'Gatus preflight failed: %d scoped check(s); no App or SQLite modification.\n' "${gatus_check_failures}" >&2
+    exit 1
+  fi
   curl -fsS --connect-timeout 3 --max-time 8 -o /dev/null "${URL}" ||
     fail "Gatus HTTP health failed: ${URL}"
   printf 'OK: Gatus source, config access and HTTP health are accepted\n'
@@ -103,21 +113,36 @@ fi
 
 ((EUID == 0)) || fail '--apply requires root on TrueNAS'
 
-printf '\n==> Reconcile only the Gatus TrueNAS Custom App\n'
-lifecycle_mark="$(truenas_lifecycle_mark)"
-truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
-# app.update may succeed without recreating an existing restarting container.
-# The explicit --apply transaction must reinstantiate the app to receive GroupAdd.
-truenas_job_compact app.redeploy "${APP_ID}"
-
-# The generated config may be 0600, unreadable by Gatus even with apps GID.
-# Repair ONLY the config dir/file before waiting for the App to become RUNNING.
-# In particular, never alter /mnt/cpool/gatus/gatus.db.
-printf '\n==> Repair generated config access before readiness wait\n'
+# A tracked/generated YAML may be 0600 after a Git checkout or
+# regeneration. Gatus immediately exits 2 on read permission errors. Repair
+# its narrowly validated /config bind source *before* app.update/redeploy:
+# doing this afterward can leave TrueNAS STOPPED even though Docker restarts.
+# The repair refuses an unexpected mount/GID; never chmod the SQLite dataset.
+printf '\n==> Preflight generated Gatus config permissions\n'
 if ! "${REPAIR}" --check; then
   "${REPAIR}" --apply
 fi
 "${REPAIR}" --check
+
+printf '\n==> Reconcile only the Gatus TrueNAS Custom App\n'
+lifecycle_mark="$(truenas_lifecycle_mark)"
+truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"
+# An initially STOPPED TrueNAS App must be started, not redeployed as if
+# RUNNING. Reconciliation may itself start it; inspect the *fresh* state.
+gatus_after_reconcile="$(truenas_app_state "${APP_ID}")"
+case "${gatus_after_reconcile}" in
+  RUNNING|DEPLOYING)
+    # app.update can preserve an old restarting container. Reinstantiate it
+    # to apply current Compose group_add, but only after config is readable.
+    truenas_job_compact app.redeploy "${APP_ID}"
+    ;;
+  STOPPED)
+    truenas_job_compact app.start "${APP_ID}"
+    ;;
+  *)
+    fail "Gatus app state after config reconciliation is ${gatus_after_reconcile}; no restart attempted"
+    ;;
+esac
 
 truenas_wait_app_running "${APP_ID}" "${WAIT_SECONDS}" 3
 truenas_lifecycle_errors_since "${APP_ID}" "${lifecycle_mark}" 30 || true

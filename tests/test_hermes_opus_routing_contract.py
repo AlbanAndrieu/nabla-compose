@@ -24,7 +24,7 @@ PROVIDERS = [
 def configs():
     return (
         yaml.safe_load((ROOT / "apps/litellm/config.yaml").read_text()),
-        yaml.safe_load((ROOT / "config/hermes/poc-config.yaml").read_text()),
+        yaml.safe_load((ROOT / "config/hermes/config.yaml").read_text()),
         json.loads((ROOT / "config/hermes/litellm-key-policy.json").read_text()),
         json.loads((ROOT / "config/secrets/manifest.json").read_text()),
     )

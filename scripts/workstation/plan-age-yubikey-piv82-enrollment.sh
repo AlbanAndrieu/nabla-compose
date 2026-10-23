@@ -22,20 +22,12 @@ esac
 for command in ykman age-plugin-yubikey; do
   command -v "$command" >/dev/null || { nabla_status error "Missing dependency: $command"; exit 1; }
 done
-mapfile -t attached < <(ykman list --serials | grep -E '^[[:space:]]*[0-9]+[[:space:]]*$' | tr -d '[:space:]' || true)
-if (( ${#attached[@]} != 1 )) || [[ "${attached[0]:-}" != "$serial" ]]; then
-  nabla_status error 'Connect only the explicitly selected YubiKey'; exit 2
-fi
-piv="$(ykman --device "$serial" piv info)" || { nabla_status error 'Unable to read PIV status'; exit 1; }
-grep -Eq 'Management key algorithm:[[:space:]]*AES256' <<< "$piv" || {
-  nabla_status error 'PIV management key is not confirmed AES256'; exit 2;
-}
-if ! grep -Fq 'Management key is stored on the YubiKey, protected by PIN.' <<< "$piv"; then
-  nabla_status error 'Protected management-key configuration not confirmed'; exit 2
-fi
-slot_info="$(ykman --device "$serial" piv keys info 82 2>&1)" && code=0 || code=$?
-if (( code == 0 )) || ! grep -Eiq 'No key stored in slot 82|No key in slot 82' <<< "$slot_info"; then
-  nabla_status error 'Slot PIV 82 is occupied or its empty state cannot be proven'; exit 2
+# Reuse the single verified, fail-closed hardware inventory. It checks AES256,
+# the exact empty RETIRED1 response AND the presence of PIV9A key metadata.
+# Never maintain a second copy of the PIV82 parser in the enrollment plan.
+if ! bash "$(dirname -- "${BASH_SOURCE[0]}")/inspect-age-yubikey-aes256-hardware.sh" --serial "$serial"; then
+  nabla_status error 'Hardware inventory did not pass; enrollment plan blocked'
+  exit 3
 fi
 nabla_status ok "Read-only gate passed for selected serial $serial; PIV82 is empty, AES256 management key preserved"
 nabla_status info "PIV PIN vault label: LastPass '$label' (never disclose the value)"

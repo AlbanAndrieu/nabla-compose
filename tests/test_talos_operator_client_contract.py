@@ -121,6 +121,7 @@ class TalosOperatorClientContractTest(unittest.TestCase):
             "validate-cluster.sh",
             "diagnose-security-posture.sh",
             "smoke-kubernetes-network.sh",
+            "smoke-networkpolicy-enforcement.sh",
             "validate-csi-prereqs.sh",
             "install-truenas-csi-nfs.sh",
             "smoke-truenas-csi-nfs.sh",

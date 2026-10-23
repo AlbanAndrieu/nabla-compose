@@ -9,12 +9,13 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - security
+    - security
 spec:
   type: application
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/wazuh-manager
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -26,12 +27,13 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - security
+    - security
 spec:
   type: telemetry-forwarder
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/wazuh-manager
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -43,12 +45,13 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - security
+    - security
 spec:
   type: search
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/wazuh-manager
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -60,7 +63,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - security
+    - security
 spec:
   type: security-manager
   lifecycle: production

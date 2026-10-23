@@ -87,7 +87,7 @@ case "${mode}" in
     command -v flock >/dev/null 2>&1 || { echo 'ERROR: flock required for smoke cooldown' >&2; exit 2; }
     state_root="${XDG_STATE_HOME:-${HOME}/.local/state}/nabla-compose"
     mkdir -p -- "${state_root}"
-    chmod 700 -- "${state_root}"
+    chmod -- 700 "${state_root}"
     marker="${state_root}/openclaw-main-smoke-last-attempt"
     exec 9>"${state_root}/openclaw-main-smoke.lock"
     flock -n 9 || { echo 'WARN: model smoke already running'; exit 3; }
@@ -100,7 +100,7 @@ case "${mode}" in
       fi
     fi
     printf '%s\n' "${now}" > "${marker}"
-    chmod 600 -- "${marker}"
+    chmod -- 600 "${marker}"
     echo '==> One explicitly requested billable model smoke (24h cooldown)'
     # Fixed tiny prompt, deterministic daily session key, constrained execution.
     # Capture output and emit only success/failure; prevent model or tool data leaks.

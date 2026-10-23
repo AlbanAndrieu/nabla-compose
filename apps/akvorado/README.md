@@ -229,3 +229,168 @@ The validated dual-export architecture, Cloudflare Network Flow dashboard,
 pfBlockerNG feed changes, PHP memory limit, Snort HTTP Inspect memcap and
 Netgate 1100 OOM incident are documented in
 [`docs/pfsense-flow-observability-memory.md`](../../docs/pfsense-flow-observability-memory.md).
+
+## pfSense NetFlow v5 → Akvorado: evidence (2026-10-23, operator)
+
+The current pfSense flow exporter is **NetFlow v5**, not the historic IPFIX v10
+configuration shown above. Keep `Track by Default` **OFF** and scope sampling
+exclusively with the LAN rule `Always Track Flow Data` because the Netgate 1100
+has suffered OOM. Do not enable additional exporters or increase collection scope.
+
+Evidence recorded without packet payloads:
+
+- TrueNAS `br0`: UDP `172.17.0.1:38341 → 172.17.0.24:2055`, 504-byte datagram.
+- Docker host: `docker-proxy` socket bound to `172.17.0.24:2055/udp`.
+- Inlet application (not merely host socket): 139 packets, 105768 bytes for
+  exporter `172.17.0.1`; zero UDP receive errors and zero receive-queue drops.
+- Inlet Kafka producer: 139 sent messages; observed internal topic
+  `akvorado-flows-v5` (configuration declares `akvorado-flows`). Verify the
+  version suffix and Outlet subscription before changing the GitOps topic.
+- Outlet consumption, ClickHouse persisted rows, and Console flow visibility
+  remain **unverified**. Cumulative metrics do not prove rates or end-to-end delivery.
+
+Read-only bounded, redacted counters (both Inlet and Outlet):
+
+```bash
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict
+python3 -m unittest discover -s tests -p test_akvorado_flow_diagnostic.py
+```
+
+For a final runtime acceptance, verify an increasing Outlet Kafka consumption
+counter, increasing ClickHouse insertion counters, and nonzero recent rows in
+`akvorado` via an authorized **read-only**, database-scoped SQL identity.
+Confirm that recent records are displayed in Console. Keep raw captures,
+flow addresses and SQL result samples private. Do not infer success from HTTP
+200, container RUNNING, or UDP packet receipt alone.
+
+### Outlet findings — 2026-10-23 (later operator metrics)
+
+- Kafka Outlet `received_messages_total=164`; matching internal topic
+  `akvorado-flows-v5`. The suffix does not currently indicate a mismatch.
+- Decoder: 164 NetFlow **v5** packets and 2511 PDU records.
+- Core: 2511 flows received and 2511 `metadata missing` errors.
+- Metadata provider: 5021 errors; SNMP poller `get` failures: 81.
+  These counters count different events; they must **not** be added together.
+- ClickHouse batch/insert histogram counts: **zero**. Persistence and Console
+  display remain unverified; do not present the app as functioning end-to-end.
+
+Run `python3 scripts/truenas/diagnose-akvorado-flow.py --strict` to get
+bounded metrics and a classified pipeline status. This is read-only, does
+not print raw labels or flow details, and uses short network timeouts.
+Cumulative counter values need successive measurements to establish activity.
+
+Per upstream Akvorado troubleshooting, `metadata missing` means unavailable
+exporter interface information, commonly because SNMP requests fail.
+Investigate SNMP reachability and exporter metadata configuration **without**
+enabling pfSense `Track by Default`, increasing capture or globally
+changing `pflow`. Prefer a narrowly scoped, documented static metadata
+provider if SNMP from the Outlet cannot be safely enabled. Validate interface
+indexes and actual metadata before specifying a static mapping; never guess
+interfaces or credentials. Even after resolving metadata, verify ClickHouse
+persisted rows using a separately authorized read-only identity.
+
+References:
+- https://demo.akvorado.net/docs/troubleshooting
+- https://demo.akvorado.net/docs/configuration
+
+### Read-only investigation of missing exporter interface metadata
+
+The operator confirmed another clean Inlet→Kafka→Outlet→NetFlow v5 pass:
+174 UDP messages and 2649 records decoded, but 2649 `metadata missing`
+errors, 86 SNMP GET errors, 5297 metadata-provider errors, and zero
+ClickHouse batches. Six isolated unit tests passed on TrueNAS. **These
+are cumulative counters, not six independent proofs of recent failures.**
+A future recovery should compare counter *deltas* across two scrapes:
+historical errors remain nonzero after a successful fix.
+
+Use the following order, without rebooting or touching pfSense flow tracking:
+
+1. Inspect the deployed Outlet configuration and compare it to
+   `apps/akvorado/config/akvorado.yaml`; confirm which metadata providers
+   are active. Never print an entire container environment or SNMP credentials.
+2. Determine actual NetFlow v5 input/output **ifIndex** values from a bounded,
+   privately retained packet capture, or approved existing pfSense interface
+   inventory. Network-interface names (e.g. physical VLAN device names) are
+   not guaranteed to equal NetFlow ifIndex. Do not guess the mapping.
+3. Prefer a single-exporter `outlet.metadata.providers: [type: static]`
+   mapping keyed to `172.17.0.1/32` once all active ifIndex values are
+   established. The upstream static provider supports `name`, `ifindexes`
+   and a per-interface `name`, `description`, and `speed`.
+   Do not configure a generic `default` interface to conceal unknown indexes.
+   Evaluate disabling the fallback SNMP provider only after verifying the
+   desired metadata policy and any other exporters.
+4. Validate intended config syntax *offline* against the pinned image
+   before any operator-controlled rollout. Then verify newly observed
+   flow-forward counters and ClickHouse insert batches by their **deltas**.
+   Confirm recent database rows with a restricted read-only SQL identity and
+   check the Console. No automatic redeploy and no broad exporter changes.
+
+A short, bounded passive capture (if required) should stay on TrueNAS,
+not in public issue comments or pull requests. For example:
+
+```bash
+umask 077
+sudo timeout 20 tcpdump -ni br0 -c 3 -s 1500 -w /tmp/akvorado-netflow-private.pcap \
+  'src host 172.17.0.1 and udp dst port 2055'
+# Analyze locally only, then securely delete the file when no longer needed.
+```
+
+Do not interpret `--strict` as an end-to-end health gate: it currently
+fails on endpoint unavailability, not a metadata-processing block.
+
+### Identify NetFlow v5 ifIndexes safely (operator on TrueNAS)
+
+The exporter emits only interface *numbers*, not interface names. Historical
+metrics prove decoding but cannot reveal individual indexes. Use the
+repo's read-only parser on a short, privately stored classic Ethernet PCAP:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 -m unittest discover -s tests -p test_netflow_v5_ifindex.py
+CAPTURE="$(mktemp /tmp/akvorado-ifindex.XXXXXX.pcap)"
+chmod 600 "$CAPTURE"
+sudo timeout 45 tcpdump -ni br0 -s 1500 -c 8 -w - \
+  'src host 172.17.0.1 and dst host 172.17.0.24 and udp dst port 2055' \
+  > "$CAPTURE"
+python3 scripts/truenas/inspect-netflow-v5-ifindex.py --pcap "$CAPTURE"
+rm -f -- "$CAPTURE"
+```
+
+Review the numeric summary locally. The parser does not display flow IP
+addresses, ports or payloads, and limits input to 16 MiB. When output is
+empty, repeat only if selective pfSense traffic naturally creates new flow
+records; do **not** enable global pflow tracking. Treat ifIndex 0 as unknown.
+Match numerical indexes to verified pfSense interface metadata *before*
+preparing the static provider. No config change or redeployment is implied.
+
+**TrueNAS capture permissions (2026-10-23):** both direct `-w "$CAPTURE"` and `-Z "$(id -un)"` failed with `Permission denied` on the operator-owned `0600` file. Use `-w -` and shell stdout redirection so the non-root shell opens the private file before tcpdump writes packet bytes to stdout. Never `chmod 666` a PCAP, expose raw packets, or alter pfSense tracking. A `timeout` exit 124 is possible after capturing fewer than eight packets; parse any nonempty capture.
+
+### Confirmed ifIndex 11 — staged GitOps change, not yet deployed (2026-10-23)
+
+The operator captured one private NetFlow v5 datagram containing ten records.
+All ten had **input_ifindex=11** and **output_ifindex=11**; the capture was
+deleted and the three offline PCAP parser tests passed. This identifies a
+numeric flow-interface index, **not** the corresponding physical/VLAN
+interface on pfSense and not its speed.
+
+`config/akvorado.yaml` now stages a single-exporter static metadata provider:
+`172.17.0.1/32` → `ifindexes[11]` with the explicitly provisional
+`pflow-ifindex-11` name. No default interface is configured. The
+metadata provider is intentionally static-only to avoid repeatedly failing
+SNMP GETs against the memory-constrained Netgate 1100. A future observation
+of additional indexes requires independent verification before expanding
+the list. This is **declarative only**; no runtime action has been performed.
+
+Prior to any operator-controlled deployment, validate the pinned image's
+configuration schema (not merely YAML syntax), then run locally:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_akvorado_*'
+docker compose -f apps/akvorado/compose.yml config --quiet --no-interpolate --no-env-resolution
+```
+
+After review and deployment, require a new increase in decoded records with
+no corresponding increase in `metadata missing` errors and actual ClickHouse
+insertions and persisted rows. Do not confuse historical nonzero error
+counters with continuing failure or empty historical data with new failure.
+No global pfSense tracking, SNMP authorization, or automatic redeploy.

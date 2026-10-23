@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Git hooks export GIT_DIR: with it, --show-toplevel returns the current
+# directory (scripts/quality) in a worktree. Rediscover the repository.
+unset GIT_DIR GIT_WORK_TREE
 # Resolve exactly one root path: the previous 'cmd || cd && pwd' printed
 # both Git's root and pwd on success due to shell operator precedence.
 if ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then

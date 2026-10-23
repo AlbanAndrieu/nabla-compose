@@ -1,5 +1,14 @@
 # Migration Talos / Kubernetes / PHP / Python — 23 octobre 2026
 
+> **Mise à jour de stratégie du 23 octobre** : l'opérateur demande un cycle
+> accéléré sans snapshot etcd obligatoire et sans upgrade Talos séquentiel.
+> Le chemin actuel est `docs/runbooks/2026-10-23-fast-batch-migration.md`
+> (PR #271) : trois nœuds Talos en parallèle, puis Kubernetes, puis Apps
+> TrueNAS par lots parallèles. Le plan ci-dessous reste un **historique
+> conservateur non choisi pour cette fenêtre** ; ne pas fusionner les
+> commandes des deux stratégies.
+
+
 **Status: code targets staged, live cluster and TrueNAS Apps NOT upgraded.**
 No GitHub Actions, deployments, VM reboots, schema changes or billable cloud
 calls were performed. The current declarative Talos pin *before this PR* was

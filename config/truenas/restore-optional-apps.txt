@@ -13,7 +13,6 @@ domain-watchdog
 emby
 glances
 graylog
-hermes-agent
 i2p
 kasm-workspaces
 lidarr

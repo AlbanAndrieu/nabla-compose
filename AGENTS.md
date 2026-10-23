@@ -3,7 +3,6 @@
 ## GitHub Actions credit-saving PR lifecycle
 
 - Agents should create and retain pull requests as **Draft** while iterating, and run the targeted local `just`/quality-gate checks before requesting review.
-- Do **not** put `[skip ci]`, `[ci skip]`, or `skip-checks: true` in commits: these can leave required checks pending, and can suppress the authoritative review gate.
 - `ready_for_review` must start the required CI; subsequent non-draft pushes run it again. Do not weaken SAST, SCA, DAST, secret scanning, or required branch protection to save minutes.
 - Never mark a PR Ready automatically merely to burn credits. Only do so after explicit user direction or the repository's documented publication gate, and never merge without authorization.
 - Keep generated PDFs (when uploaded) for at most **1 day**. Prefer no uploads on successful routine PR jobs and short-lived failure diagnostics.
@@ -21,7 +20,6 @@
   Checkov, formatter or executor-mode failures to save time.
 - Distinguish static preparedness, CI success at exact HEAD and actual
   TrueNAS/Vaultwarden/DefectDojo runtime acceptance.
-
 
 Keep context small and changes scoped.
 

@@ -1,0 +1,12 @@
+# Namespace-wide default deny, independent of the policy the agent-sandbox
+# controller manages from each SandboxTemplate. NetworkPolicies only add
+# allowances, so a template can never be wider than its own rules, and any
+# pod created outside a template stays fully isolated. The broker reaches
+# sandboxes through the Kubernetes API (exec), not the pod network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]

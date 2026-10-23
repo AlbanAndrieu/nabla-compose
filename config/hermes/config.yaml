@@ -1,8 +1,9 @@
-# POC Hermes profile: NEVER mount it in production before runtime schema validation.
-# Hermes uses this config through a read-only bind in the POC Compose.
+# Hermes profile: NEVER mount it before runtime schema validation.
+# Hermes uses this config through a read-only bind (apps/hermes Compose
+# service, kubernetes/hermes ConfigMap).
 # Anthropic Opus first, OpenAI only after all Anthropic attempts fail.
 # Hermes MUST NOT receive ANTHROPIC_API_KEY or OPENAI_API_KEY: it uses only
-# the budget-scoped LiteLLM virtual key. This file is a non-deployed POC.
+# the budget-scoped LiteLLM virtual key. Not deployed yet (catalog: planned).
 model:
   provider: custom
   default: hermes-opus-5-5

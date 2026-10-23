@@ -6,6 +6,13 @@ umask 077
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "${ROOT}"
+# Reuse the shared terminal-aware colors/icons across operator diagnostics.
+# ANSI is never written to the TSV report or private child logs.
+# shellcheck source=../lib/diagnostic-ui.sh
+source "${ROOT}/scripts/lib/diagnostic-ui.sh"
+COLOR_MODE=auto
+ICON_MODE=auto
+VERBOSE=false
 REPORT_ROOT="${NABLA_MIGRATION_REPORT_ROOT:-/mnt/cpool/var/nabla/migration-20261024}"
 ACK_RESTART="I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION="I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
@@ -21,7 +28,12 @@ ALLOW_DRIFT=false
 usage() {
   cat <<'EOF'
 Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos]
+  # FAST PARALLEL IMAGE REFRESH (after review/merge, separate from waves):
+  # python3 scripts/truenas/fast-bulk-redeploy-apps.py --check --scope all --parallel 8
+  # For the concurrent Talos/Kubernetes operator flow see
+  # docs/runbooks/2026-10-23-fast-batch-migration.md
+
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -53,11 +65,17 @@ while (($#)); do
     --expected-plan-hash) [[ $# -ge 2 ]] || exit 2; HASH="$2"; shift 2 ;;
     --acknowledge) [[ $# -ge 2 ]] || exit 2; ACK="$2"; shift 2 ;;
     --allow-reviewed-drift) ALLOW_DRIFT=true; shift ;;
+    --color) [[ $# -ge 2 ]] || exit 2; COLOR_MODE="$2"; shift 2 ;;
+    --color=*) COLOR_MODE="${1#*=}"; shift ;;
+    --icons) [[ $# -ge 2 ]] || exit 2; ICON_MODE="$2"; shift 2 ;;
+    --icons=*) ICON_MODE="${1#*=}"; shift ;;
+    --verbose) VERBOSE=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'ERROR: unknown argument (see --help): %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 
+diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
 case "${SECTION}" in all|platform|migrations|catalog|services|ai|talos) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
@@ -128,29 +146,54 @@ if [[ -L "${REPORT_ROOT}" || ! "${REPORT_ROOT}" = /* ]]; then
   echo 'Unsafe report root (must be absolute directory, not symlink)' >&2; exit 2
 fi
 mkdir -p -- "${REPORT_ROOT}"
-chmod 0700 -- "${REPORT_ROOT}"
+chmod -- 0700 "${REPORT_ROOT}"
 [[ -d "${REPORT_ROOT}" && ! -L "${REPORT_ROOT}" ]] || exit 2
 SESSION_DIR="$(mktemp -d "${REPORT_ROOT}/session-XXXXXXXX")"
 chmod 0700 "${SESSION_DIR}"
 SUMMARY="${SESSION_DIR}/summary.tsv"
 : >"${SUMMARY}"
 chmod 0600 "${SUMMARY}"
-echo "Private report directory: ${SESSION_DIR}"
+if [[ "${VERBOSE}" == true ]]; then diag_info "Private evidence: ${SESSION_DIR}"; fi
 printf 'phase\tresult\tlog\n' >"${SUMMARY}"
 
 PASS=0
 FAILED=0
 SKIPPED=0
 WARNINGS=0
+safe_failure_hint() {
+  # Classify without exposing credential values, environment or raw logs.
+  # Categories are fixed constants, not untrusted log fragments.
+  local log="$1"
+  [[ -f "${log}" ]] || { printf '%s' 'missing report'; return; }
+  if grep -Eqi 'permission denied|operation not permitted' "${log}"; then
+    printf '%s' 'permissions'
+  elif grep -Eqi 'connect.timeout|timed out|connection refused' "${log}"; then
+    printf '%s' 'connectivity/timeout'
+  elif grep -Eqi 'unhealthy|health.?check' "${log}"; then
+    printf '%s' 'healthcheck'
+  elif grep -Eqi 'env file.*not found|missing.*secret|materialization.*missing' "${log}"; then
+    printf '%s' 'runtime secrets'
+  elif grep -Eqi 'no such file|file not found|cannot stat' "${log}"; then
+    printf '%s' 'missing file'
+  else
+    printf '%s' 'see private report'
+  fi
+}
 record() {
   local name="$1" state="$2" logfile="$3"
   printf '%s\t%s\t%s\n' "${name}" "${state}" "${logfile}" >>"${SUMMARY}"
   case "${state}" in
-    PASS) PASS=$((PASS+1)); printf '✅ %s\n' "${name}" ;;
-    FAIL) FAILED=$((FAILED+1)); printf '❌ %s (private log: %s)\n' "${name}" "${logfile}" >&2 ;;
-    SKIP) SKIPPED=$((SKIPPED+1)); printf '⚠️  %s skipped\n' "${name}" ;;
-    WARN) WARNINGS=$((WARNINGS+1)); printf '⚠️  %s has operator-reviewed drift (private log: %s)\n' "${name}" "${logfile}" ;;
+    PASS) PASS=$((PASS+1)); diag_ok "${name}" ;;
+    FAIL)
+      FAILED=$((FAILED+1))
+      diag_fail "${name} — $(safe_failure_hint "${logfile}")"
+      ;;
+    SKIP) SKIPPED=$((SKIPPED+1)); diag_info "${name} — not checked" ;;
+    WARN) WARNINGS=$((WARNINGS+1)); diag_warn "${name} — review required" ;;
   esac
+  if [[ "${VERBOSE}" == true && "${state}" != PASS ]]; then
+    diag_info "evidence: ${logfile}"
+  fi
 }
 run_check() {
   local name="$1"; shift
@@ -199,10 +242,12 @@ plan_wave() {
   ready="$(jq -r .selectedWaveReady "${report}")"
   if [[ "${ready}" == true ]]; then
     record "catalog-${wave}" PASS "${report}"
-    printf '   selectedWaveReady=true; --expected-plan-hash %s\n' "${hash}"
+    if [[ "${VERBOSE}" == true ]]; then
+      diag_info "catalog ${wave}: plan hash ${hash}"
+    fi
   else
     record "catalog-${wave}" FAIL "${report}"
-    printf '   selectedWaveBlocker: %s\n' "$(jq -r '.selectedWaveBlocker // "unknown"' "${report}")" >&2
+    diag_warn "catalog ${wave}: $(jq -r '.selectedWaveBlocker // "unknown"' "${report}")"
   fi
   printf '%s\n' "${hash}" >"${SESSION_DIR}/catalog-${wave}.sha256"
   [[ "${ready}" == true ]]
@@ -233,6 +278,9 @@ check_section() {
       plan_wave deferred || true
       ;;
     services)
+      # Three independent layers: TrueNAS lifecycle, Docker health, semantic HTTP.
+      # No arbitrary credentials, response bodies or raw logs on stdout.
+      run_check functional-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
       run_check gatus bash scripts/truenas/diagnose-gatus.sh
       run_check sentry bash scripts/truenas/diagnose-sentry.sh --check
       run_check defectdojo bash scripts/truenas/diagnose-defectdojo.sh --check
@@ -241,8 +289,19 @@ check_section() {
       run_check app-states bash scripts/truenas/triage-post-reboot-apps.sh
       ;;
     ai)
+      # Dependency readiness is a separate gate from Langflow/Docling ingestion.
+      # A frontend stuck CREATED is a functional blocker, not an App outage.
+      run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
       run_check hermes-native bash scripts/truenas/diagnose-hermes-agent.sh --check
-      run_check litellm-provider-keys python3 scripts/truenas/check-litellm-hermes-credentials.py --check
+      # Required runtime secrets and actual failed Apps are blocking.
+      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+      # Anthropic and OpenAI are opt-in cloud upstreams, not prerequisites
+      # for the existing local LiteLLM service. Report lack as WARN only.
+      if python3 scripts/truenas/check-litellm-hermes-credentials.py --check >"${SESSION_DIR}/litellm-provider-keys.log" 2>&1; then
+        record litellm-provider-keys PASS "${SESSION_DIR}/litellm-provider-keys.log"
+      else
+        record litellm-provider-keys WARN "${SESSION_DIR}/litellm-provider-keys.log"
+      fi
       ;;
     talos)
       if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
@@ -257,13 +316,22 @@ check_section() {
   esac
 }
 print_summary() {
-  printf '\nResult: PASS=%d FAIL=%d WARN=%d SKIP=%d; private logs=%s\n' "${PASS}" "${FAILED}" "${WARNINGS}" "${SKIPPED}" "${SESSION_DIR}"
+  printf '\n'
+  if (( FAILED > 0 )); then
+    diag_fail "Read-only acceptance incomplete: ${FAILED} failing checks"
+  elif (( WARNINGS > 0 || SKIPPED > 0 )); then
+    diag_warn "Acceptance has unverified/optional checks"
+  else
+    diag_ok "All selected checks passed"
+  fi
+  printf 'Results: PASS=%d FAIL=%d WARN=%d SKIP=%d\n' "${PASS}" "${FAILED}" "${WARNINGS}" "${SKIPPED}"
+  printf 'Private evidence: %s\n' "${SESSION_DIR}"
   printf 'Review: sudo cat %q\n' "${SUMMARY}"
 }
 if [[ "${ACTION}" == check ]]; then
   if [[ "${SECTION}" == all ]]; then
     for part in platform migrations catalog services ai talos; do
-      printf '\n-- %s --\n' "${part}"
+      diag_section "" "${part}"
       check_section "${part}"
     done
   else

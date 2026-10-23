@@ -24,6 +24,21 @@ class MemoryPlanTest(unittest.TestCase):
                 "openclaw-embeddings": {"source": "env", "id": "X"}
             }}})
 
+    def test_existing_memory_configuration_requires_review(self):
+        target, state = m.plan({"memory": {"search": {"provider": "openai"}}})
+        self.assertEqual(state, "pending_review_existing_memory_settings")
+        self.assertEqual(target["model"], "embedding")
+
+    def test_agent_memory_override_fails_closed(self):
+        with self.assertRaises(ValueError):
+            m.plan({"agents": {"defaults": {"memorySearch": {"provider": "openai"}}}})
+        with self.assertRaises(ValueError):
+            m.plan({"agents": {"list": [{"id": "cron", "memorySearch": {}}]}})
+
+    def test_malformed_secrets_fails_closed(self):
+        with self.assertRaises(ValueError):
+            m.plan({"secrets": None})
+
     def test_invalid_config_fails_closed(self):
         with self.assertRaises(ValueError):
             m.plan({"memory": {"search": "invalid"}})

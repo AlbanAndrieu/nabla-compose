@@ -48,7 +48,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - wordpress
+    - wordpress
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -56,3 +56,4 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/wordpress

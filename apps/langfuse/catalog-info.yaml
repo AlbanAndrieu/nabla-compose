@@ -9,15 +9,17 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - ai
+    - ai
   links:
-  - url: http://172.17.0.24:3000
-    title: Application
+    - url: http://172.17.0.24:3000
+      title: Application
 spec:
   type: application
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/minio
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -29,9 +31,12 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - ai
+    - ai
 spec:
   type: worker
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/langfuse-web
+  dependsOn:
+    - resource:default/minio

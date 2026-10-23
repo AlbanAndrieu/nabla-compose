@@ -9,12 +9,13 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - observability
+    - observability
 spec:
   type: telemetry-collector
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/grafana
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -24,12 +25,27 @@ metadata:
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
-    albandrieu.com/bia-scope: inherited
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
   tags:
-  - observability
+    - observability
   links:
-  - url: http://172.17.0.24:30037
-    title: Application
+    - url: http://172.17.0.24:30037
+      title: Application
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: grafana-restored-best-effort
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-10-23"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
 spec:
   type: observability-ui
   lifecycle: production
@@ -46,7 +62,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - observability
+    - observability
 spec:
   type: log-store
   owner: group:default/nabla-platform
@@ -62,7 +78,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - observability
+    - observability
 spec:
   type: metrics-store
   owner: group:default/nabla-platform
@@ -78,7 +94,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - observability
+    - observability
 spec:
   type: trace-store
   owner: group:default/nabla-platform

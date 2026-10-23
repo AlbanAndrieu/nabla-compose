@@ -482,8 +482,13 @@ def effective_dependency_criticality_inventory(
 def business_continuity_coverage_errors(
     entities: list[Mapping[str, Any]],
     policy: Mapping[str, Any],
+    compose_dependencies: list[Mapping[str, Any]] | None = None,
 ) -> list[str]:
-    """Require BIA coverage for active catalog entities in policy scope."""
+    """Require BIA coverage for active catalog entities in policy scope.
+
+    Same-project Compose depends_on edges count as declared dependents: the
+    catalog forbids duplicating them as Backstage dependsOn.
+    """
 
     annotation_keys, label_keys = _policy_keys(policy)
     coverage = policy.get("coverage")
@@ -552,6 +557,11 @@ def business_continuity_coverage_errors(
                 target.strip().lower(),
                 set(),
             ).add(source_ref)
+    for dependency in compose_dependencies or []:
+        source_ref = str(dependency.get("sourceEntityRef") or "").strip().lower()
+        target_ref = str(dependency.get("targetEntityRef") or "").strip().lower()
+        if source_ref and target_ref and source_ref != target_ref:
+            incoming_dependents.setdefault(target_ref, set()).add(source_ref)
 
     errors: list[str] = []
     for entity in entities:
@@ -662,4 +672,3 @@ def business_continuity_coverage_errors(
             )
 
     return sorted(errors)
-

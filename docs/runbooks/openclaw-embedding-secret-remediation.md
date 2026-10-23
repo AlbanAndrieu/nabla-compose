@@ -1,5 +1,157 @@
 # OpenClaw embedding secrets — remediation gate (2026-10-18)
 
+## Related secret import workflow
+
+The **embedding-only file SecretRef has already been applied**, but that is
+not an import of all OpenClaw secrets. For other credentials (plaintext in
+config, `.env`, per-agent auth profile SQLite stores, and generated-model
+residues) use the separate
+[OpenClaw staged secret import and migration runbook](./openclaw-secrets-import.md).
+It explicitly distinguishes optional team-shared store imports from
+per-agent consumer `SecretRef` migration and mandates a fresh post-migration
+audit. No other secret values were imported automatically.
+
+## Current state — 2026-10-23
+
+- **Done:** OpenClaw 2026.9.5 memory configuration switched to the private
+  file-backed OpenClaw-only LiteLLM SecretRef, model alias `embedding`,
+  `fallback=none`; Gateway operational.
+- **Done:** `main` index 107/107 files (199 chunks), `cron` index 63/63
+  files (73 chunks); both clean, 768-dimensional vectors and semantic backend
+  ready.
+- **Verified (2026-10-23):** default CLI searches for `deployment`
+  returned no hits on both agents, exit 0; explicit `--min-score 0`
+  returned **5 hits each**, using the redacted local diagnostic. Four
+  diagnostic unit tests passed on workstation. This confirms retrieval of
+  candidates, **not** their semantic relevance or the precise configured
+  threshold.
+- **Observed calibration (2026-10-23):** six diagnostic unit tests passed
+  on the workstation. At `min-score=0.00` and `0.20`, both agents returned
+  5 hits for `deployment`; at `0.35`, `main` returned 0 and `cron`
+  returned a **CLI error** (not zero matches). The error class is still
+  unknown; do not misattribute it to the relevance threshold.
+- **Follow-up (2026-10-23):** a single `cron` search at `--min-score
+  0.35 --score-summary` completed as `no_matches`, results=0, latency
+  **5875 ms**, with no CLI error. The earlier error is **not reproducible
+  in this sample**, but its class and root cause remain unknown.
+- **Verified global config (2026-10-23):** the workstation's
+  `memory.search.query.minScore` is **not explicitly set**; five
+  local diagnostic unit tests passed. OpenClaw's exact tag `v2026.9.5`
+  source defines `DEFAULT_MIN_SCORE=0.35` and precedence agent
+  override → global config → upstream default.
+- **Open:** verify `main` and `cron` per-agent search overrides
+  (new `--agent` option below), benchmark known-relevant, non-sensitive
+  phrases, investigate intermittent CLI failures and 60-second embedding
+  retries. Workstation disk remains ~18 GiB free (96% used).
+  Do not lower thresholds, reindex or activate cross-model fallback
+  without evidence.
+
+The chronological evidence below preserves original time-of-observation
+statements. Earlier `no configuration update` and `index pending`
+descriptions are historical and are superseded by this section.
+
+### Operator-only, provider-free threshold inspection
+
+The next diagnostic reads **only the local owner-private** OpenClaw config
+and reports whether `memory.search.query.minScore` is explicitly declared.
+It does not contact LiteLLM, trigger recalls, modify configuration or print
+other keys/values. A missing value is reported as `not_explicit`:
+**the effective vendor default remains unverified**.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_min_score.py' -v
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py --agent main
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py --agent cron
+```
+
+The source of the expected `0.35` fallback is the exact release
+[OpenClaw v2026.9.5 memory search implementation](https://github.com/openclaw/openclaw/blob/v2026.9.5/src/agents/memory-search.ts).
+The script reports this as a pinned **source reference**, not an
+attestation of the installed runtime version. For each agent it distinguishes
+`agent_explicit`, `inherited_global`, `upstream_default` and
+`agent_unresolved`, supporting OpenClaw's keyed `agents.entries` and
+legacy `agents.list` roster forms. If no matching agent can be found,
+the diagnostic fails closed rather than claiming the default.
+No provider calls, config changes or Gateway restart occur.
+
+Inspect output `memory_min_score_status=explicit` with a bounded numeric
+value or `not_explicit`. A `blocked` / `invalid` result is fail-closed:
+do not weaken config file permissions to bypass the check. The diagnostic
+requires a regular, single-linked file, owned by the current user and not
+accessible by group or others; it rejects symlinks and oversized files.
+If the value is not explicit, assess the actual CLI version's default
+separately before making decisions.
+
+### Optional score-threshold calibration (not a config change)
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+# Up to 3 provider search calls per agent (6 total); stop per agent on errors.
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --calibrate --query deployment
+```
+
+The diagnostic prints only the status and top-five count at thresholds
+`0.00`, `0.20` and `0.35`. It hides snippets, paths, tokens and errors.
+OpenClaw documents `memory.search.query.minScore` default `0.35`, but
+the **installed value is not yet verified**. The score filter operates
+on pre-recency relevance; final returned scores may be lower. Counts at
+different thresholds suggest sensitivity but cannot measure relevance
+or establish the current configured default. Avoid lowering the persisted
+threshold based solely on `deployment`; use known, non-sensitive
+corpus phrases and privately inspect relevance. Repeated queries may
+record short-term recall metrics in Dreaming and incur LiteLLM usage.
+
+
+### Bounded, redacted score/error telemetry (agent-local execution only)
+
+The diagnostic now supports `--score-summary`: it extracts only numeric
+aggregate scores (min / median / max over up to five returned candidates),
+bounded wall-clock latency and a fixed error category. It does **not** print
+snippets, paths, credentials, full stdout/stderr or raw OpenClaw errors.
+
+Run the cheapest targeted failure check first (one CLI call):
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent cron --min-score 0.35 --score-summary --query deployment
+```
+
+If that isolated check is healthy and the LiteLLM backend is stable,
+optionally compare the three bounded thresholds on **main only**:
+
+```bash
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent main --calibrate --score-summary --query deployment
+```
+
+Results with `error_category=rate_limit` require checking LiteLLM virtual-key
+budget/429 evidence; `timeout` and `network` require backend connectivity
+and latency checks; `upstream_5xx` requires upstream service health;
+`auth` requires resolving credentials locally without displaying keys;
+`unknown` means evidence is insufficient. Never infer the category from
+`cli_error` alone. The presence of `--score-summary` does not authorize
+retry storms or automatic remediations.
+
+Numeric returned scores can be transformed by OpenClaw after thresholding;
+do not treat the displayed aggregates as the raw pre-filter similarity.
+Zero results at 0.35 for this particular word do not justify changing the
+persistent `memory.search.query.minScore`. First test a non-sensitive phrase
+known to occur in a memory file and inspect relevance locally. This
+validation is read-only for the indexes, but searches may create recall
+metadata and invoke billable embeddings.
+
+---
+
+
 ## Evidence (read-only workstation checks)
 - OpenClaw strict audit: status=findings, exit=1, resolvabilityComplete=true.
 - Counts: plaintextCount=16, legacyResidueCount=2; unresolvedRefCount=0, shadowedRefCount=0, storeResidueCount=0.
@@ -177,3 +329,464 @@ python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
 The planner checks only local permissions, validates schema field presence, and checks that the intended provider alias is not already configured differently. It proposes `memory.search` globally for both agents, file-backed SecretRef, loopback LiteLLM endpoint, model `embedding` and no fallback unless vector identity is proven. **It does not write the config**; running gateway is allowed during preflight. Runtime field semantics and actual OpenClaw SecretRef resolution require a dedicated acceptance step before a write/apply/restart.
 
 OpenRAG already points to the shared `embedding` LiteLLM alias. Policy is identical for both applications, but key identities and budgets must be separated when OpenRAG's combined chat/embeddings authentication permits. Fallback to another model must fail closed to avoid mixed vector indexes.
+
+
+## 2026-10-23 — embeddings preflight verified; PR #271 continuation
+
+Workstation evidence: 3 original planner tests PASS; file provider and memory schema compatible; dedicated key private; LiteLLM `embedding` probe succeeds with 768 dimensions; `plan=pending` and no runtime config mutation. SecretRef runtime resolution is still **unverified**.
+
+Operator requested continuation in **Draft PR #271**, branch `feat/fast-batch-talos-k8s-services-20261023`. Do not trigger CI, merge, or Talos/TrueNAS maintenance from this embedding change.
+
+The updated read-only planner rejects malformed provider/agent trees and active `memorySearch` agent overrides. Existing global `memory.search` values that conflict with the proposed endpoint/provider/key produce `pending_review_existing_memory_settings`, not an automatic overwrite. No gateway restart, secret application, or reindex performed.
+
+Validate locally:
+```bash
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_plan.py' -v
+python3 scripts/workstation/plan-openclaw-memory-litellm.py --check
+```
+
+Review any `pending_review_existing_memory_settings` locally without sharing raw JSON or secrets. Automatic fallback is **disabled** until vector-space/model identity is validated for workstation and TrueNAS; 768 dimensions are not sufficient. Check root filesystem headroom (previously 95% full) before index rebuild.
+
+
+## 2026-10-23 — guarded local config cutover prepared in PR #271
+
+The operator's latest workstation run passed **all 6 planner unit tests**.
+`check-openclaw-litellm-memory-config.py --check` reports schema-compatible,
+private virtual key; the one-shot LiteLLM `embedding` request succeeds with
+768 dimensions. The planner reports `plan=pending`,
+`existing_memory_settings_review=not_required`,
+`runtime_secret_resolution=unverified`, `configuration_changed=false`.
+
+A separate **operator-only** script is now committed:
+`scripts/workstation/apply-openclaw-memory-litellm.py`.
+It builds a configuration candidate preserving other providers/secrets and
+existing unrelated memory-search settings; refuses conflicting memory settings,
+checks owner/private modes, validates the **complete** candidate with OpenClaw's
+local JSON schema through the Python `jsonschema` package, and refuses an
+apply unless the systemd Gateway is explicitly `inactive`. On apply it creates
+one private rollback copy and atomically swaps the config file; it does **not**
+restart the Gateway, resolve the secret at runtime, or reindex embeddings.
+No CLI, secret or model changes were applied by GitHub commits.
+
+Read-only acceptance first:
+```bash
+cd ~/w/nabla-compose
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+**Do not run `--apply` merely because the dry-run passes**. Separate
+pre-application checks must confirm the intended `SecretRef.id` semantics for
+a `singleValue` provider in the installed OpenClaw version, enough disk
+headroom, and a planned outage. If approved, operator stops the Gateway,
+confirms it is inactive, invokes `--apply`, checks the private rollback and
+config validation, then starts and validates Gateway and `main`/`cron`
+memory; only after runtime SecretRef resolution succeeds should the
+incompatible old vector indexes be reindexed under controlled acceptance.
+Never copy the embedding-only key into a chat model provider or OpenRAG's
+combined chat credential.
+
+
+## 2026-10-23 — apply preflight failed safely (PR #271)
+
+Operator confirmed all three `test_openclaw_memory_litellm_apply.py` synthetic tests pass, but `python3 scripts/workstation/apply-openclaw-memory-litellm.py` returned `migration=blocked` and `configuration_changed=not_confirmed`. This is **not** permission to execute `--apply`. The earlier planner and real `embedding` API probe both passed; the specific preflight blocker is still unproven.
+
+A follow-up commit adds a fixed, sanitized `blocked_stage` field, chosen from: `file_permissions`, `read_config`, `parse_config`, `candidate`, `schema_validation`, `gateway_state`, `concurrent_change`, `backup`, `atomic_write`. No exception text or config value is ever printed. A `schema_validation` blocker can arise from a missing Python `jsonschema` dependency or failed candidate validation; do not presume which without further locally redacted inspection. `gateway_state` is only checked with an actual `--apply`; the normal preflight does not demand downtime.
+
+Next operator-only commands (read-only):
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+python3 -c 'import importlib.util; print("jsonschema_installed=" + str(importlib.util.find_spec("jsonschema") is not None).lower())'
+```
+Do not run `--apply`, alter the Gateway, install packages globally or rebuild indexes until the blocker is identified and the candidate is validated.
+
+
+## 2026-10-23 confirmed preflight blocker: Python dependency missing
+
+Operator reproduced `migration=blocked`, `blocked_stage=schema_validation`,
+`configuration_changed=not_confirmed` with
+`jsonschema_installed=false`. The *missing dependency* is thus confirmed; it
+does not establish whether the full candidate passes schema validation.
+
+The cutover script now reports `blocked_reason=python_jsonschema_missing`
+without logging Python exception text or config. Do not weaken or bypass
+schema validation, install packages into the workstation-wide Python, or
+apply the candidate yet.
+
+Use a repo-scoped isolated virtual environment, with package versions governed
+by the local workstation's trusted Python/package mirror policy:
+
+```bash
+cd ~/w/nabla-compose
+python3 -m venv .venv-openclaw-memory
+.venv-openclaw-memory/bin/python -m pip install 'jsonschema>=4.23,<5'
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+No secrets should appear in the output. The venv must remain outside version
+control (confirm `git status --short --untracked-files=normal` does not expose
+the directory). Only a successful read-only `candidate=ready` and separate
+verification of the installed OpenClaw `singleValue` provider SecretRef ID
+contract authorize planning any explicit stopped-gateway `--apply` run.
+
+
+## 2026-10-23 — schema validation still blocked after isolated jsonschema install
+
+Operator verified `jsonschema==4.26.0` exists in the Python 3.14
+`.venv-openclaw-memory` environment; the read-only cutover preflight still
+reported `blocked_stage=schema_validation`. **Missing dependency is no longer
+the explanation for this invocation.** Full candidate validation against the
+actual OpenClaw schema has not been demonstrated.
+
+The validator now selects the correct draft from the installed CLI's JSON
+Schema using `jsonschema.validators.validator_for(schema)`, checks the schema
+and validates the candidate. On failure it emits only a fixed
+`schema_validation_reason` category such as
+`schema_definition_invalid`, `candidate_rejected_by_schema`,
+`schema_shape_unexpected`, `schema_contract_unsupported`,
+`schema_cli_timeout`, or `unknown_schema_failure`. Raw exceptions,
+schema paths and invalid values are deliberately suppressed to avoid leaking
+OpenClaw secrets.
+
+Run read-only:
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+.venv-openclaw-memory/bin/python -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+Do not apply, restart, edit auth settings or reindex until the candidate
+validates cleanly. Keep the no-cross-vector-space fallback gate.
+
+
+## 2026-10-23 — generated schema fails external JSON Schema meta-validation
+
+Operator confirmed `jsonschema` present, 4 synthetic cutover tests passing,
+but read-only `apply-openclaw-memory-litellm.py` returns
+`schema_validation_reason=schema_definition_invalid`. **This is a failure of
+the generated OpenClaw schema against the Python JSON Schema validator's
+meta-schema**, not proof that the proposed `memory.search` configuration is
+invalid. Do not suppress this failure or mistake it for an invalid embedding
+key.
+
+A follow-up adds `schema_meta_keyword` (strict allowlist only) to distinguish
+the type of unsupported/invalid schema construct without printing raw schema,
+paths, plugin definitions or credentials.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+.venv-openclaw-memory/bin/python scripts/workstation/apply-openclaw-memory-litellm.py
+```
+
+If external meta-schema validation remains impossible for this OpenClaw version,
+investigate OpenClaw's own **read-only config patch dry-run validator** against
+a temporary private candidate, only after confirming support with
+`openclaw config patch --help` on the installed 2026.9.5 CLI. Never replace
+strict candidate validation with unchecked JSON edits. No `--apply`,
+Gateway restart, index rebuild or secret migration is authorized by this
+diagnostic.
+
+
+## 2026-10-23 — switch to native OpenClaw patch validation
+
+Operator demonstrated generated schema meta-validation fails on keyword `anyOf`, while
+`openclaw config patch --help` on installed OpenClaw 2026.9.5 confirms
+`--stdin --dry-run --json` performs native schema and SecretRef
+resolvability checks without writing `openclaw.json`. Do not try to
+"repair" the upstream generated schema by deleting `anyOf` or disabling
+validation.
+
+The guarded cutover script now submits a **narrow, in-memory JSON patch**
+through stdin: only `secrets.providers.openclaw-embeddings` and
+`memory.search` target fields. No candidate/keys are printed or written
+during preflight. The script fails closed unless native JSON says
+`ok=true`, `checks.schema=true`, `checks.resolvability=true`,
+`checks.resolvabilityComplete=true`, `refsChecked>=1`,
+`skippedExecRefs=0`, and contains no errors. Other existing `exec`
+references may force a deliberately conservative block; do not pass
+`--allow-exec` to bypass that policy.
+
+Operator preflight:
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_litellm_apply.py' -v
+python3 scripts/workstation/apply-openclaw-memory-litellm.py
+```
+No `jsonschema` installation is required by this updated path. No `--apply`
+before native validation, Gateway stop coordination, and rollback review.
+
+
+## 2026-10-23 — operator applied OpenClaw embedding config
+
+Operator stopped the systemd user gateway (observed `inactive`), ran
+`apply-openclaw-memory-litellm.py --apply`, and received
+`candidate=ready`, `configuration_changed=true`, `backup=private_local`,
+`gateway_restart=not_performed`, `memory_reindex=not_performed`. Gateway
+subsequently reported `active`.
+
+A subsequent `openclaw memory status --json` initially warned the Gateway
+WebSocket was unreachable (`ECONNREFUSED`) and resolved secrets locally;
+this can be a startup race, **not evidence of Gateway-side SecretRef resolution
+or availability**. Both agents nevertheless report
+`provider=openai-compatible`, `model=embedding`, `dirty=true` and
+`providerState.mode=pending`.
+
+- `main`: 15 indexed files/57 chunks, 107 eligible source files;
+  vector dimensions 768, vector-index state `unverified`; provenance
+  `mismatched` (code `provenance_version`). **Do not reuse these legacy
+  embeddings as the new model's vectors.**
+- `cron`: 0 indexed files/chunks, 63 eligible files; vector state `empty`,
+  provenance `missing` (`metadata_missing`).
+- Both agents have FTS available and no scan issues. No reindex was performed
+  during the config cutover.
+- Existing Slack plugin state migration warning is unrelated; defer.
+
+Acceptance sequence, keeping credentials and local transcripts private:
+
+1. Confirm `systemctl --user is-active openclaw-gateway.service` is
+   `active`; check readiness with `openclaw gateway status` and rerun a
+   **sanitized** `openclaw memory status --json` summary once WebSocket
+   connectivity is established. Do not paste raw future memory output with
+   source paths or personal corpus metadata.
+2. Check actual OpenClaw memory provider resolution via
+   `openclaw memory status --deep` with on-device review only. Investigate
+   401/auth/connection errors if any; a locally successful separate LiteLLM
+   probe is insufficient proof of OpenClaw memory routing.
+3. Confirm root filesystem free space and an explicit memory-index rollback
+   path. Session SQLite history recovery is operator-deferred; the **agent
+   vector SQLite databases must not be treated as expendable sessions**.
+4. Inspect `openclaw memory --help` and `openclaw memory index --help`
+   locally before scheduling targeted reindex for both agents. Prefer
+   supported CLI operations rather than deleting SQLite files. Recheck
+   provenance, provider ready, vector indexing and search retrieval.
+5. Preserve `fallback=none` until OpenRAG and OpenClaw backend-equivalence
+   checks prove identical embedding space. No automatic fallback to a
+   different TrueNAS model.
+
+No index rebuild, secret rotation, host-level restart or GitHub CI was
+performed by this documentation update.
+
+
+## 2026-10-23 — Gateway ready, targeted index CLI discovered, disk pressure
+
+Operator confirmed `openclaw gateway status`: systemd active, WebSocket
+connectivity probe OK, CLI and Gateway both `2026.9.5`, listener bound to
+loopback. One official plugin has a version drift; investigate separately
+without coupling it to the embedding index cutover.
+
+Installed CLI `openclaw memory index --help` supports `--agent <id>`
+(default all agents) and `--force` (full rebuild). This establishes a
+supported **per-agent** indexing operation, but *not* the memory provider's
+readiness. Do not run either forced rebuild until the provider passes a
+`memory status --deep` check and the existing vector provenance mismatch
+for `main` is explicitly handled by the native indexing process.
+
+Free root filesystem fell from ~24 GB to 18 GB; now **96% used**. Check
+space/inodes and size of the main and cron agent index files before index
+rebuild. Prefer staged, bounded operations and stop on disk growth/errors.
+Do not remove session transcript JSONL, OpenClaw agent files or old indexes
+with ad hoc `rm`; the operator's acceptance of losing historic sessions
+does not authorize deleting unrelated index/agent state.
+
+Safe next operator commands:
+```bash
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+df -i "$HOME/.openclaw"
+du -h "$HOME/.openclaw/agents/main/agent/openclaw-agent.sqlite" \
+      "$HOME/.openclaw/agents/cron/agent/openclaw-agent.sqlite"
+```
+The deep status can contain workspace and source metadata; inspect locally
+or share a redacted provider/readiness summary. If provider is ready and disk
+headroom acceptable, use native **targeted** indexing one agent at a time,
+beginning with `cron` (empty index), then `main` (legacy 57 chunks).
+After each operation, verify dirty flag, provenance/index identity,
+vector dimensions and actual search quality. Re-check free space between
+agents. Keep `fallback=none` until workstation/TrueNAS model vector-space
+equivalence is proven.
+
+
+## 2026-10-23 — embedding provider ready; staged reindex approved for operator execution
+
+Operator observed `openclaw memory status --deep` for **both** agents:
+`provider=openai-compatible`, `model=embedding`, `Embeddings: ready`,
+`Vector store: ready`, FTS ready, and dirty indexes. No authentication failure
+reported. This verifies OpenClaw's actual provider readiness, not merely the
+earlier standalone LiteLLM probe.
+
+- `main`: 15/107 indexed, 57 old chunks, 29 MiB SQLite; vector search
+  **paused** due to provenance classifier change (`provenance_version`).
+- `cron`: 0/63 indexed, 0 chunks, 1.7 MiB SQLite; vector search **paused**
+  due to missing index identity metadata (`metadata_missing`).
+- Root filesystem 18 GiB available, 96% used; inodes 32% used.
+- Installed CLI specifically recommends `openclaw memory status --index
+  --agent <id>`. This is an index-mutating action that can call the model
+  and incur usage costs.
+
+Staged operator run, **one agent at a time**:
+
+```bash
+# Begin only if Gateway connectivity and embedding readiness are still green.
+openclaw memory status --index --agent cron
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+
+# Proceed to main only if cron completed without backend errors, with
+# index provenance accepted and disk headroom still adequate.
+openclaw memory status --index --agent main
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+```
+
+Do not automatically chain these commands in a script: inspect the exit code,
+`dirty`, provenance/index identity, vector search state, and actual search
+response between agents. Do not run `--force` or delete cache/SQLite
+manually as a first response. Keep `fallback=none` until OpenRAG and
+OpenClaw embedding-model equivalence is established. Avoid dumping entire
+status JSON or document content into tickets.
+
+
+## 2026-10-23 — cron embedding reindex succeeded after transient retries
+
+Operator executed `openclaw memory status --index --agent cron` and observed
+`cron_index_exit=0`, 63/63 files, 73 chunks, `dirty=no`, 768 dimensions
+and `Embeddings: ready`. Subsequent `openclaw memory status --deep`
+confirmed `Semantic vectors: ready`, `Vector store: ready`, FTS ready.
+No forced reset or SQLite deletion was needed.
+
+During the run, repeated `embeddings retryable error; retrying in 60000ms`
+messages appeared before success. The cause has **not** been established:
+potential timeout, 429 or backend unavailability should be diagnosed through
+bounded, sanitized LiteLLM telemetry only if the issue repeats. Do not assert
+these messages are harmless, nor turn on alternative embedding models to
+mask them.
+
+Main remains `15/107 files`, `57 chunks`, `dirty=yes`, vector search
+paused because `provenance_version` remains outdated. Free root filesystem
+still ~18 GiB (96% used).
+
+**Next**: run the native incremental rebuilding command
+`openclaw memory status --index --agent main` under operator supervision;
+inspect result and exit status before any force/retry. Afterward compare
+`dirty`, index provenance, `Semantic vectors`, number of files and
+retrieval quality for both agents. No `--force` yet, no fallback to an
+incompatible embedding model, and no coupling to TrueNAS/Talos operations.
+
+
+## 2026-10-23 — main reindex completed, both agent indexes healthy
+
+Operator reported `openclaw memory status --index --agent main` completed with
+`main_index_exit=0`, 107/107 files and 199 chunks. Subsequent
+`openclaw memory status --deep` confirmed:
+
+| Agent | Indexed files | Chunks | Dirty | Embeddings | Semantic vectors | Vector dims |
+| --- | --- | --- | --- | --- | --- | --- |
+| main | 107/107 | 199 | no | ready | ready | 768 |
+| cron | 63/63 | 73 | no | ready | ready | 768 |
+
+The earlier `provenance_version` mismatch (main) and
+`metadata_missing` (cron) no longer appear. SQLite WAL returned to zero
+in the status after indexing. Disk headroom remained ~18 GiB free (96%
+used); continue monitoring before any other storage-heavy operation.
+
+**Reliability debt:** main indexing logged repeated
+`embeddings retryable error; retrying in 60000ms` for ~10 minutes
+(19:29–19:39), and `memory status --deep` logged another retry at
+19:40. This is not a clean latency/error-quality result even though both
+indexes succeeded. Do not guess the HTTP error class from this message,
+switch embeddings models, or blindly raise retry budgets.
+
+Next operator checks:
+```bash
+# Explicit agent ownership is mandatory with multiple configured agents.
+# A search with no --agent is rejected before the provider is queried.
+# Inspect results locally; snippets can contain private memory content.
+openclaw memory search --agent main --query "deployment" --max-results 5
+echo "main_search_exit=$?"
+openclaw memory search --agent cron --query "deployment" --max-results 5
+echo "cron_search_exit=$?"
+
+# Check disk and runtime health without changing index state.
+openclaw gateway status
+df -h "$HOME/.openclaw"
+```
+
+If retries continue, correlate bounded log timestamps with *sanitized* local
+LiteLLM request metadata (status, provider, latency, retries, upstream model
+and concurrency); suppress request/response bodies, tokens and API keys.
+Review HTTP 429, 5xx, timeouts and LiteLLM backend readiness separately.
+Classify whether the retry occurs during indexing, deep provider probing,
+or interactive search. Preserve separate per-service keys and budgets
+(OpenClaw embedding-only; OpenRAG combined chat/embedding).
+
+**Acceptance still pending:** actual semantic retrieval test for each agent,
+plus diagnosis/reduction of repeated embedding retries; no further reindex
+or forced reset is justified by the current status. Keep `fallback=none`
+unless both systems use a provably identical vector space.
+
+
+## 2026-10-23 — follow-up: search CLI requires explicit agent
+
+The operator's bare `openclaw memory search --query "deployment"` returned
+`Multiple agents are configured, but this operation has no explicit owner`.
+This is a *routing/ownership* refusal, not a failed semantic retrieval, a
+LiteLLM HTTP error, or evidence of a broken SQLite index. The corrected
+smoke checks above explicitly pass `--agent main` and `--agent cron`.
+No retrieval results have yet been observed. Treat nonzero exit status,
+empty results and irrelevant results as distinct outcomes. The Gateway
+remained active with connectivity OK, and free space was still ~18 GiB.
+Do not force reindex or rotate keys in response to this ownership message.
+
+
+## 2026-10-23 — both search commands exit 0 but return no matches
+
+Operator explicitly ran:
+
+- `openclaw memory search --agent main --query "deployment" --max-results 5`:
+  `No matches.`, exit 0.
+- The same for `--agent cron`: `No matches.`, exit 0.
+
+This **does not prove semantic retrieval succeeds**, but it is not a
+transport/ownership error either. Both indexes were previously clean and
+ready. The term may be absent, filtered by the configured relevance
+threshold, or retrieval may return empty for another reason. A single
+English query is not a corpus-specific relevance benchmark.
+
+Bounded, per-agent diagnostic (read-only with respect to indexes; CLI search
+can nevertheless record recall metadata used by Dreaming):
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests -p 'test_openclaw_memory_search_diagnostic.py' -v
+
+# Diagnostic override: zero score threshold only for this command, not config.
+# Only count/outcome is printed; no snippets, paths, token values or raw errors.
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --query 'deployment' --min-score 0
+
+# Prefer a short, non-sensitive phrase *known to exist* in one local
+# memory document when assessing recall correctness:
+python3 scripts/workstation/diagnose-openclaw-memory-search.py \
+  --agent main --query 'KNOWN_NON_SENSITIVE_PHRASE' --min-score 0
+```
+
+The diagnostic distinguishes `matches`, `no_matches`, `stale`,
+`backend_error`, `disabled`, malformed JSON, CLI failure and timeout.
+It intentionally suppresses results content and all stderr. A count
+greater than zero proves returned candidates, **not semantic relevance**:
+evaluate relevance privately using ordinary CLI search on a known phrase.
+
+OpenClaw documents a JSON `{"results":[]}` as valid enabled/no-hits
+response and notes `stale=true` changes the interpretation. The
+configured default `memory.search.query.minScore` can filter semantic
+hits; `--min-score 0` is a temporary diagnostic override. Search routes
+via the Gateway and can record recall metadata; no index reset or
+rebuild is needed. Repeated 60-second embedding retries remain a
+separate reliability investigation. Do not change secrets or fallback
+models solely due to an empty result.

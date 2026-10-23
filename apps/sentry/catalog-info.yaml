@@ -152,7 +152,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -160,6 +160,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -171,7 +172,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -179,6 +180,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -190,7 +192,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -198,6 +200,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -209,7 +212,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -217,6 +220,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -228,7 +232,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -236,6 +240,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -247,7 +252,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -255,6 +260,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -266,7 +272,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -274,6 +280,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -285,7 +292,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -293,6 +300,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -304,7 +312,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -312,6 +320,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -323,7 +332,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -331,6 +340,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -342,7 +352,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -350,6 +360,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -361,7 +372,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -369,6 +380,7 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -380,7 +392,7 @@ metadata:
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
-  - sentry
+    - sentry
   annotations:
     albandrieu.com/migration-provenance: legacy-homarr-compose
 spec:
@@ -388,3 +400,4 @@ spec:
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/sentry

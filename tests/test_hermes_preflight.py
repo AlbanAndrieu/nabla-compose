@@ -1,4 +1,4 @@
-"""Offline tests for Hermes POC deployment preflight; synthetic secrets only."""
+"""Offline tests for Hermes deployment preflight; synthetic secrets only."""
 
 import importlib.util
 import os
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts/hermes/poc_preflight.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts/hermes/preflight.py"
 
 
 def load_module():
@@ -20,7 +20,7 @@ def load_module():
 @pytest.fixture
 def fixture_paths(tmp_path):
     env = tmp_path / "creds.env"
-    state = tmp_path / "poc"
+    state = tmp_path / "data"
     state.mkdir()
     os.chmod(state, 0o700)
     image = "nousresearch/hermes-agent@sha256:" + ("a" * 64)

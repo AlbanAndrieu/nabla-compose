@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:cba7413c010a9b6b5d5af984ec71324c8dcaddca2efbc79f18c406d0baefd1a4",
+  "catalogRevision": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -239,6 +239,12 @@
       "entityRef": "component:default/haproxy-exporter",
       "evidence": "apps/haproxy-exporter/compose.yml:services.haproxy-exporter.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/haproxy-exporter/compose.yml#services/haproxy-exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/hermes",
+      "evidence": "apps/hermes/compose.yml:services.hermes.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/hermes/compose.yml#services/hermes",
       "sourceType": "compose"
     },
     {

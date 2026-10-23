@@ -1,0 +1,11 @@
+# The official image starts s6 as root before dropping to UID 10000, so the
+# gateway cannot meet PSA restricted: enforce baseline, keep restricted as
+# audit/warn signal. Sandboxes (phase 4) live in a separate restricted namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hermes
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,0 +1,42 @@
+# The sandbox broker (not built yet) is the ONLY identity allowed to act in
+# this namespace; Hermes and its plugin get no Kubernetes permission at all.
+# It may claim sandboxes from approved templates, observe them, exec and read
+# logs. It may NOT create or edit templates/warm pools (GitOps-owned), read
+# Secrets/ConfigMaps, create pods directly, or touch any other namespace.
+# The broker itself will run in its own namespace, hermes-broker.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hermes-sandbox-broker
+rules:
+  - apiGroups: ["extensions.agents.x-k8s.io"]
+    resources: ["sandboxclaims"]
+    verbs: ["create", "get", "list", "watch", "patch", "delete"]
+  - apiGroups: ["extensions.agents.x-k8s.io"]
+    resources: ["sandboxtemplates"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["agents.x-k8s.io"]
+    resources: ["sandboxes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hermes-sandbox-broker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hermes-sandbox-broker
+subjects:
+  - kind: ServiceAccount
+    name: hermes-sandbox-broker
+    namespace: hermes-broker

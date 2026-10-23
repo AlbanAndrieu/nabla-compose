@@ -2364,3 +2364,108 @@ bash scripts/workstation/verify-age-yubikey-offline.sh
 ```
 
 **Restent NO-GO :** authentification AES256 on-card, import du certificat en PIV82 et vérification de l'identité/du déchiffrement du vrai plugin. Le test par session simulée prouve la structure du certificat et l'API de substitution de signature, **pas** la compatibilité matérielle. Refuser tout script `--apply` sur les deux clés jusqu'à validation séparée et autorisation explicite.
+
+### Reprise dans PR #271 — 23 octobre 2026
+
+La PR #259 étant fermée, la suite est menée **uniquement** dans [PR #271](https://github.com/AlbanAndrieu/nabla-compose/pull/271), branche `feat/fast-batch-talos-k8s-services-20261023`, sans nouvelle PR ni CI payante. Le dernier rapport opérateur a validé **28/28** tests du lot précédent, y compris le SDK de signature avec session PIV simulée.
+
+Ajout de `scripts/workstation/verify-age-yubikey-piv82-certificate.py`, outil **strictement hors matériel** : exige un certificat PEM et une clé publique SPKI PEM obtenus séparément ; refuse les liens symboliques, valide la courbe P-256, la concordance exacte clé/certificat, la signature ECDSA SHA-256 autosignée, le sujet `O=age-plugin-yubikey, OU=0.5.1`, les dates, et l'extension non critique OID `1.3.6.1.4.1.41482.3.8` de valeur **03 02**. En cas d'échec, code 3 (NO-GO). Succès **n'autorise pas** l'installation du certificat. Nouveau contrat dans `tests/test_yubikey_keepassxc_diagnostic_contract.py` ; **29 tests attendus** lors de la prochaine exécution locale.
+
+Exemple futur, uniquement après génération de fichiers **publics** dans une procédure vérifiée :
+```bash
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/verify-age-yubikey-piv82-certificate.py \
+  --certificate /chemin/public/piv82.crt.pem \
+  --public-key /chemin/public/piv82.spki.pem
+```
+
+**Restent bloqués :** authentification réelle AES256 protégée par PIN, preuve de liaison de la clé matérielle PIV82, import du certificat et round-trip `age-plugin-yubikey` sur YubiKey secondaire. Ne jamais modifier AES256, OTP2, PIV9A ni destinataires SOPS à ce stade.
+
+### Validation 29/29 et tests négatifs du certificat — 23 octobre 2026
+
+Retour opérateur : `bash scripts/workstation/verify-age-yubikey-offline.sh` **29/29 PASS en 0,913 s** au HEAD `44e1253d`. Le validateur PIV82 est maintenant couvert par le contrat statique. Dans PR #271, ajout d'un banc d'essai hors matériel `scripts/workstation/test-age-yubikey-certificate-negative-offline.py` : un certificat valide signé par une clé P-256 éphémère doit être accepté ; sept variations (mauvaise clé publique, PIN/touch différents de 03:02, extension critique, certificat expiré, mauvaise organisation, issuer différent, signature réalisée avec une autre clé) doivent être refusées. Le test est branché sur la quality gate en utilisant le Python SDK isolé s'il existe. **30 tests attendus à confirmer sur workstation.**
+
+Rester **NO-GO matériel** : validation 30/30 n'autorise aucune inscription ni import. Priorités non résolues : session YubiKey réelle AES256 PIN-protected, import PIV82, découverte `age-plugin-yubikey` et round-trip de déchiffrement avec présence/toucher. La PR #271 reste ouverte sans CI facturée.
+
+### Validation opérateur 30/30 — 23 octobre 2026
+
+Après synchronisation sur le HEAD `f6480a5b`, l'opérateur a exécuté `bash scripts/workstation/verify-age-yubikey-offline.sh` : **30/30 tests PASS en 0,859 s**, notamment `test_piv82_certificate_adversarial_fixtures`. La gate reste exclusivement hors matériel. Le message `Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified` est attendu. Le jalon tests positifs/négatifs des certificats est accepté ; les prochaines vérifications doivent porter sur les interfaces de session PIV AES256 et l'interopérabilité matérielle, sans demander de PIN ni écrire sur la carte tant que le chemin n'est pas approuvé.
+
+### 23 octobre 2026 — Préflight matériel AES256 en lecture seule (PR #271)
+
+Script ajouté : `scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048|23501671`. Limité aux deux numéros de série inventoriés, exige **exactement une** YubiKey connectée ; vérifie via `ykman` le stockage de la management key **AES256 protégée par PIN**, l'absence de clé dans PIV82 et la présence de métadonnées clé en PIV9A. N'effectue **aucun** essai PIN, authentification, signature, génération ou import. En cas de doute ou d'erreur d'accès, termine en **NO-GO (exit 3)**. Le contrôle de PIV9A porte sur les métadonnées de clé, **pas sur son certificat** ou une comparaison de fingerprint historique. OTP2 reste intact mais n'est pas vérifié cryptographiquement par cet inventaire. Le résultat ne démontre pas l'authentification PIN-protected AES256.
+
+Nouveau contrat unittest correspondant : **31 tests attendus** lors de la prochaine gate. Validation précédente **30/30 PASS** au commit `f6480a5b` et enregistrée dans PR #271. Commandes à exécuter uniquement lorsque la carte secondaire peut être connectée en exclusivité :
+
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+bash scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048
+```
+
+**NO-GO provisionnement maintenu** jusqu'à validation du mécanisme d'authentification matérielle AES256 et de l'inscription/certification PIV82, suivie d'un déchiffrement age réel. Aucun merge automatique ni CI facturée.
+
+### Diagnostic PIV82 indéterminé — 23 octobre 2026 (PR #271)
+
+L'opérateur a validé **31/31 tests PASS (0,945 s)** sur HEAD `4f5a95d7`, mais le préflight matériel sur la secondaire série `22916048` s'est arrêté avec `PIV82 is occupied or its empty state is not provable`. **Ce message ne prouve pas que PIV82 contient une clé.** Le code exigeait à tort un status `ykman piv keys info 82` égal à zéro même si certaines versions signalent explicitement un slot vide avec exit 1. La correction accepte désormais uniquement un message d'absence **explicite et reconnu** et un exit status 0 ou 1 ; toute erreur transport, message ambigu ou statut différent reste NO-GO. Un diagnostic catégorisé est imprimé sans exposer la sortie brute. Nouveau contrat : **32 tests attendus**, non encore validés sur la workstation.
+
+Reprise en lecture seule : synchroniser la branche PR #271, lancer `bash scripts/workstation/verify-age-yubikey-offline.sh`, puis `bash scripts/workstation/inspect-age-yubikey-aes256-hardware.sh --serial 22916048` avec uniquement la secondaire branchée. Si résultat toujours indéterminé, examiner séparément la sortie `ykman` sans publier les secrets. **Aucun PIN, aucune écriture matérielle, aucune modification AES256/OTP2/PIV9A**.
+
+### Retour opérateur 32/32 — réponse PIV82 ykman (23 octobre 2026)
+
+Au HEAD `c97c35f3`, gate locale **32/32 PASS en 0,949 s**. L'inventaire matériel secondaire série `22916048` a donné `ykman exit=1`, catégorie `unsupported or unrecognized ykman response` : **état PIV82 inconnu**, pas occupé confirmé. La source `Yubico/yubikey-manager` tag `5.8.0`, `ykman/_cli/piv.py`, commande `piv keys info`, produit `CliFail(f"No key stored in slot {slot}.")` si le code APDU vaut `REFERENCE_DATA_NOT_FOUND`. Notre ancienne regex n'acceptait ni l'éventuel préfixe CLI `Error:` ni le nom symbolique `RETIRED1` du slot 82. Regex resserrée sur la réponse **complète** et les désignations explicites `RETIRED1`/`SLOT.RETIRED1` ou `82`/`0x82`, sans accepter d'erreur transport. Le contrat existant est ajusté. **32/32 de nouveau attendus**, pas encore confirmés après changement. L'absence de métadonnées PIV9A n'a pas été réévaluée lorsque PIV82 bloque ; une nouvelle exécution lecture seule est nécessaire. La réussite du préflight n'est pas une preuve de signature matérielle ni de déchiffrement age ; **NO-GO provisionnement** inchangé.
+
+### 23 octobre 2026 — Capturer la réponse exacte de `ykman`
+
+Retour opérateur : **32/32 tests PASS en 1,003 s** sur HEAD `25ece6fb`, mais le préflight série `22916048` reste `PIV82 unverified (ykman exit=1)` / `unsupported or unrecognized ykman response`. Plusieurs tentatives de correction par expressions régulières ont provoqué des erreurs Bash ; ne pas continuer à supposer la sortie CLI. Nouveau diagnostic en lecture seule `scripts/workstation/diagnose-age-yubikey-piv82-response.sh --serial 22916048` : vérifie qu'une seule carte attendue est connectée, exécute uniquement `ykman --device SERIAL piv keys info 82`, affiche le code de retour et **la réponse réelle** (métadonnées publiques ; à relire avant partage), puis affiche NO-GO. Aucun PIN et aucune écriture. Nouveau test de contrat : **33 tests attendus**. Le résultat du diagnostic conditionnera la correction suivante ; ne pas autoriser le provisionnement sur la seule interprétation d'un code de sortie `1`.
+
+### Preuve matérielle PIV82 (23 octobre 2026)
+
+Retour opérateur sur secondaire `22916048` : **33/33 tests PASS (0,995 s)** ; `ykman --device 22916048 piv keys info 82` retourne code **1** avec texte exact `ERROR: No key stored in slot 82 (RETIRED1).`. Cela **confirme PIV82 vide** dans le contexte de cette commande ; il n'est pas nécessaire de poursuivre les hypothèses sur la sortie CLI. L'inventaire préflight utilisait une regex qui exigeait un point immédiatement après `82` et rejetait les parenthèses `(RETIRED1)` : correction désormais fondée sur cette preuve exacte. Nouveau test vérifie acceptation de cette réponse et rejet des mauvaises désignations et messages composites. **34 tests attendus** après changement, à vérifier localement. La lecture de PIV9A via l'inventaire n'a pas encore été confirmée après cette correction ; l'authentification AES256 et le déchiffrement matériel ne sont pas validés. **NO-GO provisionnement** maintenu ; aucune mutation, aucun PIN, aucun merge et aucune CI payante.
+
+### 23 octobre 2026 — 35 PASS et contrôle SDK AES256 sans matériel (PR #271)
+
+Résultat opérateur : `python3 -m py_compile tests/test_yubikey_keepassxc_diagnostic_contract.py` OK et `bash scripts/workstation/verify-age-yubikey-offline.sh` **35/35 PASS en 0,928 s**, HEAD `bd146ceb`. Le préflight matériel précédent a confirmé sur la secondaire série `22916048` : management key **AES256 protégée par PIN**, PIV82 vide et métadonnées de clé en PIV9A présentes. Aucune authentification PIN/management key ni déchiffrement age n'a été tenté.
+
+**Analyse source SDK Yubico Manager 5.8.0 :** dans `ykman/_cli/piv.py`, `_ensure_authenticated` suit le chemin `_verify_pin` quand `pivman.has_protected_key`; `_verify_pin` effectue `session.verify_pin(pin)`, récupère l'objet `get_pivman_protected_data(session)` si `has_stored_key`, puis `session.authenticate(pivman_prot.key)`. Dans `ykman/piv.py`, le type `MANAGEMENT_KEY_TYPE.AES256` possède une longueur de clé de **32 octets**. Ces faits décrivent **un chemin technique documenté**, mais ne sont pas une validation sur l'appareil. Éviter la voie historique de dérivation TDES ; ne jamais publier la clé ou le PIN et ne jamais automatiser les tentatives de PIN.
+
+Ajout de `scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py` : contrôle **strictement hors matériel** des imports, interfaces et constantes (AES256 32 octets, objets Pivman, PIV82, ECCP256, PIN/touch ALWAYS). Ne construit aucune session PIV, n'appelle aucune fonction d'authentification et ne lit aucun octet secret. La nouvelle gate doit compter **36 tests**, à revalider sur workstation.
+
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+~/.local/share/nabla/piv-sdk-venv/bin/python \
+  scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py
+```
+
+**NO-GO provisionnement maintenu.** Le succès SDK ne valide ni l'authentification AES256 réelle, ni la signature/certificat depuis une clé privée PIV82, ni le déchiffrement `age-plugin-yubikey`. Prochaine étape : prévoir une session opérateur explicitement approuvée, contrôler le budget d'essais PIN, puis préparer les validations matérielles sans écriture avant toute génération de clé.
+
+### 23 octobre 2026 — 36 PASS et lot de tests comportementaux AES256/PIV82 (PR #271)
+
+Résultat opérateur au HEAD ce9801f0 : **36/36 tests PASS en 1,066 s** ; le script inspect-age-yubikey-piv-aes256-sdk-api.py confirme les API du SDK Yubico 5.8.0, la management key AES256 (32 octets), le Pivman protégé, le slot PIV82 et PIN/touch ALWAYS. Ceci **ne démontre pas une authentification réelle sur la carte**. Le préflight réel précédent sur la secondaire 22916048 a déjà prouvé AES256 PIN-protected, PIV82 vide et métadonnées PIV9A présentes.
+
+Pour limiter les petites itérations, deux bancs de tests **hors matériel** ont été ajoutés ensemble dans la PR #271 :
+
+- **test-age-yubikey-piv-aes256-handshake-offline.py** : appelle les véritables parseurs PivmanData, PivmanProtectedData, get_pivman_data et get_pivman_protected_data dans une **session factice en mémoire**. Vérifie l'ordre PIN synthétique → lecture de la clé AES256 fictive → authentification simulée → vérification finale du PIN. Couvre six refus sans nouvelle tentative après échec : PIN incorrect, compteur trop bas/bloqué, management key non protégée, clé absente, longueur incorrecte. Le seuil simulé de trois tentatives est volontairement conservateur ; il ne constitue pas une autorisation matérielle.
+- **test-age-yubikey-piv82-inventory-fake-offline.py** : intercepte tous les appels ykman avec un exécutable factice prioritaire dans PATH ; vérifie sept scénarios (slot vide, occupé, réponse ambiguë, erreur transport, mauvais numéro de série, algorithme non AES256, métadonnées PIV9A absentes). Aucun vrai périphérique n'est interrogé et tous les appels passent par une liste blanche lecture seule.
+
+Les deux contrats sont intégrés à tests/test_yubikey_keepassxc_diagnostic_contract.py : **39 tests attendus** après revalidation workstation. La quality gate compile désormais explicitement les scripts Python et contrôle la syntaxe Bash avant d'exécuter les tests de comportement, afin de détecter les régressions de fichier tronqué ou mal échappé.
+
+```bash
+bash scripts/workstation/verify-age-yubikey-offline.sh
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/test-age-yubikey-piv-aes256-handshake-offline.py
+python3 scripts/workstation/test-age-yubikey-piv82-inventory-fake-offline.py
+```
+
+**NO-GO matériel maintenu :** aucune lecture de PIN réel ni authentification effective ; signature PIV82, import de certificat et déchiffrement age matériel restent à valider. Préserver management key AES256, OTP2 KeePassXC, PIV9A et destinataires SOPS de production.
+
+### 23 octobre 2026 — Convergence du plan de provisionnement et de l'inventaire
+
+Le planificateur de PIV82 avait lui aussi conservé une interprétation obsolète du code de sortie 1 de Yubico Manager. Il délègue maintenant **tous** les précontrôles matériels au script de référence inspect-age-yubikey-aes256-hardware.sh : série exacte, carte unique, management key AES256 PIN-protected, PIV82 vide et métadonnées PIV9A présentes. Plus de seconde regex ni de seconde logique d'authentification dans le planificateur.
+
+Le faux exécutable ykman couvre désormais **les deux scripts** (inventaire et planificateur), soit **14 exécutions simulées** pour sept scénarios, avec refus systématique des erreurs. Une commande age-plugin-yubikey factice couvre la vérification de présence de l'outil ; aucune vraie carte n'est utilisée. La quality gate lance également bash -n sur le planificateur avant les tests. **39 tests unittest attendus**, validation réelle sur workstation encore en attente après ce lot. NO-GO pour toute écriture PIV82.
+
+### 23 octobre 2026 — Lot groupé de contrôles AES256 hors matériel
+
+La workstation a confirmé `36/36 PASS` sur HEAD `ce9801f0`. Le script `inspect-age-yubikey-piv-aes256-sdk-api.py` rapporte `PASS: SDK AES256 (32-byte), protected Pivman data, PIV82 and PIN/touch ALWAYS APIs`, sans authentification réelle. Ajout de `scripts/workstation/test-age-yubikey-aes256-auth-offline.py` : session **entièrement simulée**, clé fictive de 32 octets, séquence `verify_pin → authenticate → verify_pin` et trois rejets (PIN factice erroné, authentification factice rejetée, longueur AES256 incorrecte). Aucun périphérique PC/SC, secret ni fonction d'écriture. Contrat unittest ajouté.
+
+**Limite de preuve :** ce test reproduit le chemin du SDK documenté, sans exercer l'API authentifiée sur matériel et sans vérifier la lecture de Pivman protégé. La première authentification réelle devra être une opération séparée avec contrôle des tentatives PIN, approbation opérateur et absence de retry automatique. Les slots 82 et 9A, OTP2, la management key AES256 et les identités SOPS restent inchangés. **Aucun GO pour le provisionnement.**
+
+Dans la branche PR #271, le nombre de tests peut varier avec les commits concurrents : prendre `python3 -m unittest discover` comme source de vérité et ne pas présumer du décompte avant exécution.

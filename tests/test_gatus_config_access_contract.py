@@ -7,6 +7,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/repair-gatus-config-access.sh"
+DEPLOY = ROOT / "scripts/truenas/deploy-gatus.sh"
 COMPOSE = ROOT / "apps/gatus/compose.yml"
 
 
@@ -36,3 +37,20 @@ def test_gatus_compose_retains_group_read_without_world_exposure() -> None:
     assert "./config:/config:ro" in service["volumes"]
     assert "/mnt/cpool/gatus:/data" in service["volumes"]
     assert "ALL" in service["cap_drop"]
+
+
+def test_gatus_deploy_repairs_before_any_runtime_mutation() -> None:
+    source = DEPLOY.read_text(encoding="utf-8")
+    repair_call = source.index('"${REPAIR}" --apply')
+    reconcile_call = source.index('truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE}"')
+    redeploy_call = source.index('truenas_job_compact app.redeploy "${APP_ID}"')
+    assert repair_call < reconcile_call < redeploy_call
+    assert 'gatus_after_reconcile="$(truenas_app_state "${APP_ID}")"' in source
+    assert 'truenas_job_compact app.start "${APP_ID}"' in source
+    assert "gatus.db" not in source[source.index('Preflight generated Gatus'):]
+
+
+def test_gatus_deploy_script_syntax() -> None:
+    check = subprocess.run(["bash", "-n", str(DEPLOY)], check=False,
+                           capture_output=True, text=True)
+    assert check.returncode == 0, check.stderr

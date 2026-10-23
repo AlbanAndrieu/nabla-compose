@@ -121,7 +121,9 @@ orchestrée en masse :
   `sudo python3 scripts/truenas/check-litellm-hermes-credentials.py --check`.
   Tant que `ANTHROPIC_API_KEY` n'est pas fournie et que les quatre modèles,
   les budgets et le logging ne sont pas validés, garder la bascule bloquée.
-  Le profil expérimental `poc/hermes` n'est pas l'App native installée.
+  Le service `apps/hermes` (profil `hermes`, statut `planned`) remplace
+  l'App native `hermes-agent`, à retirer manuellement (voir
+  `apps/hermes/README.md`).
 
 ## 3. Redémarrer uniquement une vague approuvée
 
@@ -193,3 +195,167 @@ Sentry et secrets acceptées, aucune dépendance core bloquée, CSI validé si
 testé, RPO OpenWebUI documenté. Inscrire tout FAIL/SKIP restant dans la
 roadmap avant fermeture, conserver une preuve expurgée, puis retirer le
 **script temporaire** dans une PR distincte après acceptation opérateur.
+
+
+## Suivi opérateur du 23 octobre — quality gates et reprise Prometheus/OpenRAG
+
+**Preuves exécutées par l'opérateur sur TrueNAS** : la gate de readiness
+renvoie **72 passed**, celle des versions supportées **68 passed**.
+Ces preuves valident les scripts et mocks du checkout testé, **pas** le
+retour à la santé des Apps et pas l'ensemble du cluster Kubernetes.
+
+### 1. Prometheus — redémarrages après réparation POSIX
+
+Les permissions du fichier YAML sont passées à **uid 1000, gid 568,
+mode 0640**. Le test effectif sous **UID:GID 568:568** avec
+`setpriv ... /usr/bin/test -r` réussit sur l'hôte.
+Mais le conteneur était encore `restarting` (exit 2, 884 restarts)
+lors du dernier diagnostic live. Ne pas réappliquer le chmod,
+effacer la TSDB ni redéployer toute la fondation.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+La seconde commande compare maintenant **la source montée sur
+`/etc/prometheus`** au dossier source attendu, vérifie l'identité
+`568:568`, classe l'accès effectif hôte et analyse séparément les logs
+depuis le **ctime** du YAML (afin de ne pas attribuer des erreurs
+antérieures à la réparation). Les chemins sources, secrets et logs bruts
+ne sont pas imprimés.
+
+**Condition de sortie** : Docker `running`, `/-/ready` HTTP 200,
+PromQL `count(up)` exécutable, targets vérifiables. En cas de
+`config_bind=mismatch`, confronter les sources de la TrueNAS Custom App
+avant une éventuelle **réconciliation unique, revue et approuvée** ;
+aucun automatisme ne la lance.
+
+### 2. OpenRAG — frontend CREATED / Langflow partagé
+
+La définition `apps/openrag/compose.yml` conditionne le démarrage du
+frontend à `openrag-backend: service_healthy`. Il faut donc séparer
+les états Docker backend/frontend de ceux de `langflow`, `opensearch`
+et de l'optionnel `docling`.
+
+```bash
+just truenas-openrag-dependencies-check
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check
+```
+
+Aucune clé, ni mot de passe, ni document
+`cpool/bababou` ne doit être affiché. Ne pas indexer à nouveau ni
+redéployer OpenRAG tant que les dépendances et la définition TrueNAS
+effective ne sont pas confirmées.
+
+**Condition de sortie** : backend **et** frontend
+`running+healthy`, Langflow et OpenSearch fonctionnels, puis tests
+de recherche/ingestion Bababou et Docling réalisés séparément.
+
+### 3. Ordre des migrations après récupération
+
+1. Stabiliser Prometheus puis OpenRAG sans casser Gatus (85 moniteurs :
+   59 UP, 26 DOWN lors du dernier contrôle), LiteLLM et InfluxDB.
+2. Réconcilier **Scrutiny STOPPED** avec le chemin secret canonique
+   `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`, après
+   `sudo bash scripts/truenas/deploy-scrutiny.sh --check` et vérification
+   du token InfluxDB 2.9.1 ; préserver ses données existantes.
+3. Examiner Sentry (web healthy mais consumers unhealthy), sans
+   réinitialiser Kafka, offsets Snuba ou ClickHouse.
+4. Exécuter `sudo bash scripts/truenas/finish-migrations-20261024.sh
+   --check --section migrations`, puis `--section services`, `--section ai`
+   et `--plan-wave core` **sans appliquer**.
+5. Ne passer aux rafraîchissements d'images par lots et aux upgrades
+   Talos/K8s qu'une fois toutes les gates fonctionnelles requises
+   vertes et les risques d'indisponibilité explicitement acceptés.
+   Aucun `--apply` n'est autorisé par ce constat seul.
+
+**DefectDojo** : l'inventaire live PostgreSQL/Django rapporte uniquement
+`admin` ; le bootstrap GitOps/Vaultwarden `nabla` ne correspond
+pas à l'identité existante. Consulter
+`docs/runbooks/defectdojo-admin-access-recovery.md` avant toute rotation.
+
+
+## État observé à 20:58 le 23 octobre — relance ciblée
+
+Les quality gates opérateur **postérieures aux nouveaux scripts** ont passé
+sans GitHub Actions : 78 tests de readiness, 6 tests du diagnostic
+OpenRAG, 37 tests de planification rapide.
+
+### Prometheus : lire le blocage réel avant de réparer
+
+État live observé : `restarting`, exit=2, 925 restarts,
+`config_bind=match`, `container_identity=expected_568:568`,
+`effective_host_config_read=ok`. **41 erreurs de permission** sont
+apparues depuis la modification de `prometheus.yml`. Le compteur
+`config=41 rules=41` était issu de catégories qui pouvaient se recouvrir :
+il ne prouve pas à lui seul que le YAML principal et les règles sont
+deux causes indépendantes.
+
+Le diagnostic renforcé distingue maintenant :
+- `rule_tree_access: files/denied/dirs/untraversable`, accès hôte
+  effectif des fichiers YAML et dossiers sous `apps/prometheus/rules`;
+- `since_config_change: config/rules/storage`, erreurs après le dernier
+  changement de métadonnées du fichier principal, sans afficher les logs ;
+- `docker_userns` et `daemon_userns` pour évaluer un mapping UID
+  différent du contexte de test hôte.
+
+```bash
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+Si les règles sont refusées en UID 568, ne corriger que les fichiers
+identifiés par revue privée des ACL et de leur provenance. Si l'hôte
+les autorise mais Docker refuse encore, ne pas conclure à une panne
+TSDB : comparer user namespaces, politiques MAC/AppArmor/SELinux et
+filesystem réellement visible au processus. Aucun `chmod -R`,
+reset WAL, suppression de bloc ni `app.redeploy` automatique.
+
+### OpenRAG : absence de nom canonique ≠ absence d'App
+
+Le contrôle initial signalait :
+`openrag-backend=missing`, `openrag-frontend=missing`,
+`opensearch=missing`, alors que `langflow=running healthy`.
+Le contrôle vérifie maintenant d'abord les noms canoniques puis les
+labels Compose `com.docker.compose.project=ix-openrag` /
+`com.docker.compose.service=openrag-backend|openrag-frontend` et
+équivalents OpenSearch, ainsi que l'état middleware `app.query`.
+Il refuse les correspondances ambiguës plutôt que de choisir au hasard.
+
+```bash
+just truenas-openrag-dependencies-check
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+Si aucun conteneur OpenRAG n'est présent même par ses labels, vérifier
+les jobs/l'état `app.query`, le contenu Compose stocké dans TrueNAS et
+la présence des dépendances. **Ne pas redéployer** tant que ces preuves
+ne justifient pas une opération limitée. Préserver
+`/mnt/cpool/bababou`, l'index OpenSearch et les clés OpenRAG.
+
+### Migrations : résultats exacts du préflight
+
+`migrations` : PASS=6 FAIL=3 — échecs
+`live-language-patches`, `secrets-runtime`,
+`openwebui-pra`.
+
+`ai` : PASS=1 FAIL=3 — échecs
+`openrag-dependencies`, `hermes-native`,
+`ai-runtime-recovery`.
+
+Les journaux d'acceptation restent privés, dans les dossiers de session
+que le script annonce. Le libellé `see private report` ne démontre
+aucune cause particulière : examiner localement les fichiers de
+chaque gate avant une remédiation. **Ne pas utiliser `--allow-reviewed-drift`
+pour contourner un défaut inexpliqué**, ni lancer les vagues Talos,
+CSI ou bulk TrueNAS avant stabilisation du socle.
+
+### DefectDojo
+
+La tentative `python manage.py changepassword admin` s'est arrêtée
+sur `CommandError: aborted` ; il n'y a pas de preuve de rotation.
+La reprendre uniquement dans un vrai terminal interactif autorisé,
+en saisissant et confirmant le mot de passe sans l'imprimer.
+Ne pas relancer l'initializer ni modifier la base PostgreSQL.

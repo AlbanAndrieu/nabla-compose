@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import unittest
 
 import yaml
@@ -107,7 +108,10 @@ class DsommContractTests(unittest.TestCase):
     def test_baseline_image_and_runner_fail_closed(self) -> None:
         dockerfile = DOCKERFILE.read_text(encoding="utf-8")
         runner = RUNNER.read_text(encoding="utf-8")
-        self.assertIn("python:3.13-slim", dockerfile)
+        # Exact supported Python patch on a slim base; Renovate bumps the pin.
+        self.assertRegex(
+            dockerfile, re.compile(r"^FROM python:3\.\d+\.\d+-slim\S*$", re.M)
+        )
         self.assertIn(
             "apt-get install -y --no-install-recommends ca-certificates git gh",
             dockerfile,

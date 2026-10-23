@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import stat
 import tempfile
@@ -172,11 +173,19 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('if [[ -f "${file}" ]]; then', collect)
         self.assertNotIn('[[ -f "${file}" ]] && printf', collect)
 
+        # Under a git hook, GIT_INDEX_FILE/GIT_DIR point at the caller's
+        # repository: the fixture must never write the real index. Ignore the
+        # operator's global/system config (templates, hooksPath) as well.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True, env=env)
             (repo / "README.md").write_text("baseline\n", encoding="utf-8")
-            subprocess.run(["git", "-C", str(repo), "add", "README.md"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "add", "README.md"], check=True, env=env
+            )
             subprocess.run(
                 [
                     "git", "-C", str(repo), "-c", "user.name=Quality",
@@ -184,9 +193,10 @@ class AgentQualityGateContractTests(unittest.TestCase):
                     "-qm", "baseline",
                 ],
                 check=True,
+                env=env,
             )
             sha = subprocess.check_output(
-                ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+                ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True, env=env
             ).strip()
             subprocess.run(
                 [
@@ -194,6 +204,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
                     "--cacheinfo", f"160000,{sha},fastapi-sample",
                 ],
                 check=True,
+                env=env,
             )
             (repo / "fastapi-sample").mkdir()
             run = subprocess.run(
@@ -206,6 +217,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
+                env=env,
             )
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertEqual(run.stdout, "")
@@ -218,6 +230,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             subprocess.run(
                 ["git", "-C", str(repo), "add", "-f", "--", "script.sh"],
                 check=True,
+                env=env,
             )
             rerun = subprocess.run(
                 [
@@ -229,6 +242,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
+                env=env,
             )
             self.assertEqual(rerun.returncode, 0, rerun.stderr)
             self.assertEqual(rerun.stdout.splitlines(), ["script.sh"])

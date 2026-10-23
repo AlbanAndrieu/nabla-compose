@@ -1,0 +1,25 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hermes
+  title: Hermes Agent
+  description: Planned read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - ai
+    - agent
+    - devsecops
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/hermes/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/litellm
+    - component:default/prometheus
