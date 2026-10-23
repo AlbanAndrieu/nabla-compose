@@ -424,7 +424,9 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
         if http["status"] == "fail":
             sev = "BLOCKED"
         elif http["status"] == "warning" and sev == "HEALTHY":
-            sev = "WARN"
+            # A monitoring system with no monitored targets is not
+            # functionally ready, even if its HTTP process is alive.
+            sev = "DEGRADED" if service in ("prometheus", "gatus") else "WARN"
         elif http["status"] == "unknown" and sev == "HEALTHY":
             sev = "UNKNOWN"
         notes.append(http["detail"])
