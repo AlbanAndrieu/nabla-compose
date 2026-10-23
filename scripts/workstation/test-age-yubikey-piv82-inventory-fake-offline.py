@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 
 SCRIPT = Path(__file__).with_name("inspect-age-yubikey-aes256-hardware.sh")
+PLAN = Path(__file__).with_name("plan-age-yubikey-piv82-enrollment.sh")
 FAKE_YKMAN = r'''#!/usr/bin/env python3
 import os
 import sys
@@ -45,41 +46,46 @@ else:
 
 
 def main() -> None:
-    if not SCRIPT.is_file():
-        raise RuntimeError("Missing inventory script")
+    if not SCRIPT.is_file() or not PLAN.is_file():
+        raise RuntimeError("Missing inventory or enrollment plan script")
     with tempfile.TemporaryDirectory(prefix="nabla-fake-ykman-") as dirname:
         directory = Path(dirname)
         shim = directory / "ykman"
         shim.write_text(FAKE_YKMAN, encoding="utf-8")
         shim.chmod(0o700)
+        fake_plugin = directory / "age-plugin-yubikey"
+        fake_plugin.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+        fake_plugin.chmod(0o700)
         for mode, expected_code in (
             ("empty", 0), ("occupied", 3), ("ambiguous", 3),
             ("transport", 3), ("wrong-serial", 3), ("wrong-aes", 3),
             ("missing-9a", 3),
         ):
-            log = directory / "calls.log"
-            log.write_text("", encoding="utf-8")
-            env = {**os.environ,
-                   "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
-                   "FAKE_MODE": mode,
-                   "FAKE_COMMAND_LOG": str(log), "NO_COLOR": "1"}
-            result = subprocess.run(
-                ["bash", str(SCRIPT), "--serial", "22916048"],
-                env=env, text=True, capture_output=True, check=False,
-            )
-            if result.returncode != expected_code:
-                raise AssertionError(f"{mode}: exit {result.returncode}, expected {expected_code}: {result.stderr} {result.stdout}")
-            calls = log.read_text(encoding="utf-8").splitlines()
-            whitelist = {"list --serials", "--device 22916048 piv info",
-                         "--device 22916048 piv keys info 82",
-                         "--device 22916048 piv keys info 9a"}
-            if not calls or not set(calls).issubset(whitelist):
-                raise AssertionError(f"Unexpected ykman commands in {mode}: {calls}")
-            if mode == "empty" and "PIV82 empty" not in result.stdout:
-                raise AssertionError("Empty PIV82 did not pass inventory")
-            if mode != "empty" and "Read-only inventory:" in result.stdout:
-                raise AssertionError(f"Unsafe PASS for mode {mode}")
-    print("PASS: seven fake-ykman hardware inventory paths, strict deny on ambiguous/error cases")
+            for script in (SCRIPT, PLAN):
+                log = directory / "calls.log"
+                log.write_text("", encoding="utf-8")
+                env = {**os.environ,
+                       "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
+                       "FAKE_MODE": mode,
+                       "FAKE_COMMAND_LOG": str(log), "NO_COLOR": "1"}
+                result = subprocess.run(
+                    ["bash", str(script), "--serial", "22916048"],
+                    env=env, text=True, capture_output=True, check=False,
+                )
+                if result.returncode != expected_code:
+                    raise AssertionError(f"{script.name}, {mode}: exit {result.returncode}, expected {expected_code}: {result.stderr} {result.stdout}")
+                calls = log.read_text(encoding="utf-8").splitlines()
+                whitelist = {"list --serials", "--device 22916048 piv info",
+                             "--device 22916048 piv keys info 82",
+                             "--device 22916048 piv keys info 9a"}
+                if not calls or not set(calls).issubset(whitelist):
+                    raise AssertionError(f"Unexpected ykman commands in {mode}: {calls}")
+                if mode == "empty" and "PIV82 empty" not in result.stdout:
+                    raise AssertionError(f"Empty PIV82 did not pass {script.name}")
+                if mode != "empty" and "Read-only inventory:" in result.stdout:
+                    raise AssertionError(f"Unsafe PASS for mode {mode}")
+
+    print("PASS: seven scenarios each for inventory and enrollment plan, fail-closed on errors")
     print("NO-GO hardware: all invocations were intercepted by a fake ykman executable")
 
 
