@@ -83,6 +83,22 @@ def apps_state() -> dict[str, str] | None:
         return None
 
 
+def health_reason(logs: list[dict]) -> str:
+    """Return bounded static categories; never expose Docker health log Output."""
+    for entry in reversed(logs[-3:]):
+        message = str(entry.get("Output", "")).lower()
+        if any(s in message for s in ("permission denied", "operation not permitted")):
+            return "healthcheck permissions"
+        if any(s in message for s in ("executable file not found", "command not found",
+                                      "no such file or directory")):
+            return "healthcheck binary/path missing"
+        if any(s in message for s in ("connection refused", "timed out", "urlerror")):
+            return "healthcheck connectivity"
+        if "http error" in message or "status code" in message:
+            return "healthcheck HTTP response"
+    return "healthcheck nonzero/unknown"
+
+
 def docker_state(name: str) -> dict:
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}", name):
         raise ValueError("invalid container name")
@@ -94,10 +110,13 @@ def docker_state(name: str) -> dict:
         if not isinstance(obj, dict):
             raise ValueError("invalid Docker state")
         health = obj.get("Health") or {}
+        safe_reason = health_reason(health.get("Log") or []) if (
+            health.get("Status") == "unhealthy") else None
         return {"status": str(obj.get("Status", "unknown")),
                 "health": str(health.get("Status", "none")),
+                "healthReason": safe_reason,
                 "exit": obj.get("ExitCode"),
-                "restarts": None, "oom": bool(obj.get("OOMKilled", False))}
+                "oom": bool(obj.get("OOMKilled", False))}
     except (TypeError, ValueError, AttributeError):
         return {"status": "unknown", "health": "unknown"}
 
@@ -164,7 +183,15 @@ def gatus_access() -> str | None:
         directory = path.parent.stat()
         if not (stat.S_IMODE(directory.st_mode) & stat.S_IXGRP):
             return "generated config directory traversal missing"
-    except OSError:
+        groups_raw = run(["docker", "inspect", "--format",
+                          "{{json .HostConfig.GroupAdd}}", "gatus"])
+        if groups_raw is None:
+            return "Gatus runtime group membership unverified"
+        groups = json.loads(groups_raw)
+        if not isinstance(groups, list) or "568" not in [
+                str(group) for group in groups]:
+            return "running Gatus lacks supplemental apps GID 568"
+    except (OSError, TypeError, ValueError):
         return "generated config unavailable"
     return None
 
@@ -198,7 +225,8 @@ def assess(service: str, states: dict[str, str] | None) -> dict:
         elif status == "running" and health == "unhealthy":
             if sev == "HEALTHY":
                 sev = "DEGRADED"
-            notes.append(name + " Docker unhealthy")
+            notes.append(name + " Docker unhealthy (" +
+                         str(item.get("healthReason") or "reason unverified") + ")")
         elif status == "running" and health == "starting":
             if sev == "HEALTHY":
                 sev = "DEGRADED"
