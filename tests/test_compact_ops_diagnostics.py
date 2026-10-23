@@ -90,8 +90,10 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
         "#!/usr/bin/env bash\n"
         "case \"$1\" in\n"
         "  inspect)\n"
-        "    if [[ \"$2\" == \"--format\" || \"$3\" == \"--format\" ]]; then\n"
+        "    if [[ \"$*\" == *'{{.State.Status}}'* ]]; then\n"
         "      echo restarting\n"
+        "    elif [[ \"$*\" == *'exit={{.State.ExitCode}}'* ]]; then\n"
+        "      echo 'exit=2 oom=false restarts=855'\n"
         "    fi\n"
         "    ;;\n"
         "  logs) echo 'error: open /etc/prometheus/prometheus.yml: permission denied PRIVATE-TOKEN-DO-NOT-PRINT' ;;\n"
@@ -116,6 +118,7 @@ def test_prometheus_restarting_skips_noisy_promtool_and_http(tmp_path):
     )
     assert result.returncode == 1
     assert "runtime=restarting" in result.stderr
+    assert "runtime exit=2 oom=false restarts=855" in result.stderr
     assert "permissions=1" in result.stderr
     assert "root_cause=prometheus_config_permission_denied" in result.stderr
     assert "PRIVATE-TOKEN" not in result.stdout + result.stderr
