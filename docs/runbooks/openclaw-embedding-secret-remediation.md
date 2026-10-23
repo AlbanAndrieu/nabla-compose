@@ -23,11 +23,17 @@
   0.35 --score-summary` completed as `no_matches`, results=0, latency
   **5875 ms**, with no CLI error. The earlier error is **not reproducible
   in this sample**, but its class and root cause remain unknown.
-- **Open:** determine whether a `minScore` is explicitly configured,
-  benchmark known-relevant non-sensitive phrases, and investigate the earlier
-  transient CLI failure and 60-second embedding retries. Workstation disk
-  remains ~18 GiB free (96% used). Do not lower persistent thresholds,
-  reindex or activate cross-model fallback without evidence.
+- **Verified global config (2026-10-23):** the workstation's
+  `memory.search.query.minScore` is **not explicitly set**; five
+  local diagnostic unit tests passed. OpenClaw's exact tag `v2026.9.5`
+  source defines `DEFAULT_MIN_SCORE=0.35` and precedence agent
+  override → global config → upstream default.
+- **Open:** verify `main` and `cron` per-agent search overrides
+  (new `--agent` option below), benchmark known-relevant, non-sensitive
+  phrases, investigate intermittent CLI failures and 60-second embedding
+  retries. Workstation disk remains ~18 GiB free (96% used).
+  Do not lower thresholds, reindex or activate cross-model fallback
+  without evidence.
 
 The chronological evidence below preserves original time-of-observation
 statements. Earlier `no configuration update` and `index pending`
@@ -46,7 +52,19 @@ cd ~/w/nabla-compose
 git pull --ff-only
 python3 -m unittest discover -s tests -p 'test_openclaw_memory_min_score.py' -v
 python3 scripts/workstation/inspect-openclaw-memory-min-score.py
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py --agent main
+python3 scripts/workstation/inspect-openclaw-memory-min-score.py --agent cron
 ```
+
+The source of the expected `0.35` fallback is the exact release
+[OpenClaw v2026.9.5 memory search implementation](https://github.com/openclaw/openclaw/blob/v2026.9.5/src/agents/memory-search.ts).
+The script reports this as a pinned **source reference**, not an
+attestation of the installed runtime version. For each agent it distinguishes
+`agent_explicit`, `inherited_global`, `upstream_default` and
+`agent_unresolved`, supporting OpenClaw's keyed `agents.entries` and
+legacy `agents.list` roster forms. If no matching agent can be found,
+the diagnostic fails closed rather than claiming the default.
+No provider calls, config changes or Gateway restart occur.
 
 Inspect output `memory_min_score_status=explicit` with a bounded numeric
 value or `not_explicit`. A `blocked` / `invalid` result is fail-closed:
