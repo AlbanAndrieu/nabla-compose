@@ -13,7 +13,7 @@ while (($#)); do
     *) nabla_status error 'Unexpected option'; exit 2 ;;
   esac
 done
-case "$serial" in
+case "${serial}" in
   22916048) label='backup' ;;
   23501671) label='principal' ;;
   *) nabla_status error 'Only inventoried serials are allowed'; exit 2 ;;
@@ -23,31 +23,31 @@ command -v ykman >/dev/null || { nabla_status error 'Missing ykman'; exit 1; }
 if ! inventory="$(ykman list --serials)"; then
   nabla_status error 'Unable to list YubiKeys'; exit 3
 fi
-mapfile -t attached < <(printf '%s\n' "$inventory" | grep -E '^[[:space:]]*[0-9]+[[:space:]]*$' | tr -d '[:space:]' || true)
-if (( ${#attached[@]} != 1 )) || [[ "${attached[0]:-}" != "$serial" ]]; then
+mapfile -t attached < <(printf '%s\n' "${inventory}" | grep -E '^[[:space:]]*[0-9]+[[:space:]]*$' | tr -d '[:space:]' || true)
+if (( ${#attached[@]} != 1 )) || [[ "${attached[0]:-}" != "${serial}" ]]; then
   nabla_status error 'Exactly one matching YubiKey must be connected'; exit 3
 fi
-if ! piv="$(ykman --device "$serial" piv info)"; then
+if ! piv="$(ykman --device "${serial}" piv info)"; then
   nabla_status error 'Unable to inspect PIV status'; exit 3
 fi
-if ! grep -Eq 'Management key algorithm:[[:space:]]*AES256' <<<"$piv"; then
+if ! grep -Eq 'Management key algorithm:[[:space:]]*AES256' <<<"${piv}"; then
   nabla_status error 'AES256 management-key algorithm not confirmed'; exit 3
 fi
-if ! grep -Fq 'Management key is stored on the YubiKey, protected by PIN.' <<<"$piv"; then
+if ! grep -Fq 'Management key is stored on the YubiKey, protected by PIN.' <<<"${piv}"; then
   nabla_status error 'PIN-protected management-key storage not confirmed'; exit 3
 fi
 # ykman piv keys info may exit nonzero on an empty slot. Never mistake errors
 # such as transport failures or permission denial for proof of emptiness.
-slot82="$(ykman --device "$serial" piv keys info 82 2>&1)" && rc82=0 || rc82=$?
-if (( rc82 != 0 )) || ! grep -Eiq 'No key stored in slot 82|No key in slot 82' <<<"$slot82"; then
+slot82="$(ykman --device "${serial}" piv keys info 82 2>&1)" && rc82=0 || rc82=$?
+if (( rc82 != 0 )) || ! grep -Eiq 'No key stored in slot 82|No key in slot 82' <<<"${slot82}"; then
   nabla_status warn 'PIV82 is occupied or its empty state is not provable'; exit 3
 fi
 # Check only public metadata. Do not attempt to read private keys or PIN retries.
-slot9a="$(ykman --device "$serial" piv keys info 9a 2>&1)" || {
+slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
   nabla_status error 'Cannot read PIV9A key metadata'; exit 3;
 }
-if grep -Eiq 'No key stored|No key in slot' <<<"$slot9a"; then
+if grep -Eiq 'No key stored|No key in slot' <<<"${slot9a}"; then
   nabla_status error 'Previously populated PIV9A appears missing'; exit 3
 fi
-nabla_status ok "Read-only inventory: $label ($serial), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
+nabla_status ok "Read-only inventory: ${label} (${serial}), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
 nabla_status warn 'No PIN entered; AES256 authentication and age decrypt are NOT validated. Hardware writes remain NO-GO.'
