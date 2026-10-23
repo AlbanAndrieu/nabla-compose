@@ -449,22 +449,22 @@ just upgrade-runtime-test
 
 ### Suivi du 23 octobre : Prometheus toujours restarting après chmod 0640
 
-Retour opérateur : le fichier \`apps/prometheus/prometheus.yml\` est maintenant
-\`uid=1000 gid=568 mode=0640\`, mais Prometheus reste \`restarting\`, exit 2,
+Retour opérateur : le fichier `apps/prometheus/prometheus.yml` est maintenant
+`uid=1000 gid=568 mode=0640`, mais Prometheus reste `restarting`, exit 2,
 884 redémarrages. Les dernières lignes de logs indiquent toujours
-\`permission denied\` sur \`prometheus.yml\`; la TSDB
-\`/mnt/cpool/prometheus/data\` est restée en \`568:568 mode=0770\`.
+`permission denied` sur `prometheus.yml`; la TSDB
+`/mnt/cpool/prometheus/data` est restée en `568:568 mode=0770`.
 Aucune suppression de WAL/TSDB ni relance massive n'est indiquée.
 
-Le précontrôle \`repair-prometheus-config-access.sh --check\` vérifie désormais
+Le précontrôle `repair-prometheus-config-access.sh --check` vérifie désormais
 aussi la lecture **effective** du fichier sur le système hôte en UID/GID
-\`568:568\` via \`setpriv\` (si disponible), sans lire ni afficher son contenu.
+`568:568` via `setpriv` (si disponible), sans lire ni afficher son contenu.
 Si cet accès échoue, examiner les ACL ZFS et l'accès aux répertoires parents.
 S'il réussit mais que Docker échoue encore, examiner le bind mount
-\`/etc/prometheus\`, les erreurs de démarrage récentes et les différences
-d'accès au conteneur plutôt que refaire \`chmod\`.
+`/etc/prometheus`, les erreurs de démarrage récentes et les différences
+d'accès au conteneur plutôt que refaire `chmod`.
 
-\`\`\`bash
+```bash
 sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
 sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
 # Métadonnées uniquement, jamais .State.Health.Log :
@@ -472,19 +472,19 @@ sudo docker inspect prometheus --format \
   'user={{.Config.User}} state={{.State.Status}} restarts={{.RestartCount}}'
 sudo docker inspect prometheus --format \
   '{{range .Mounts}}{{if eq .Destination "/etc/prometheus"}}{{println .Source .Destination .RW}}{{end}}{{end}}'
-\`\`\`
+```
 
 Les neuf échecs sur 67 tests concernent les stubs Docker/cURL/getent
-créés sous \`/tmp/pytest-...\` : un \`/tmp\` monté en \`noexec\` est plausible,
+créés sous `/tmp/pytest-...` : un `/tmp` monté en `noexec` est plausible,
 mais non confirmé. Les mocks ont été rendus exécutables **via Bash**,
-indépendamment des droits d'exécution de \`/tmp\`, et cette régression est
+indépendamment des droits d'exécution de `/tmp`, et cette régression est
 ajoutée à la gate locale. Pour identifier cette cause :
 
-\`\`\`bash
+```bash
 findmnt -no OPTIONS --target /tmp
 just truenas-readiness-test
 just upgrade-runtime-test
-\`\`\`
+```
 
 Gatus RUNNING / API 200, 85 moniteurs, 59 UP et 26 DOWN : traiter ces
 cibles séparément, sans redémarrer Gatus.
