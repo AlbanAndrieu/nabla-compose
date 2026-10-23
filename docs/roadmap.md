@@ -1,5 +1,18 @@
 ## CURRENT — pfSense Unbound crashes and memory pressure (2026-10-23)
 
+### Fresh evidence — 2026-10-23 08:48 CEST
+
+- [x] Operator ran `diagnose-unbound-crash-memory.sh --check`: shell syntax passed silently; runtime collection successful.
+- [x] `/var/log/system.log` confirms kernel `failed to reclaim memory`: Oct 21 02:12 (php_pfb), Oct 22 02:11 (php/netstat), Oct 22 22:03 (unbound/netstat/php_pfb), Oct 23 02:10 (php/netstat). Earlier Oct 17 also killed Unbound. This is a real recurrent OOM, not just exporter semantics.
+- [x] Oct 22 14:05 and 21:42: concurrent Unbound start attempt fails `bind: address already in use`, with socket send-buffer warning; investigate conflicting listeners and restart sequencing separately from OOM. Do not increase `kern.ipc.maxsockbuf` based on the warning alone.
+- [x] Resolver log: Oct 22 21:41–21:42 repeated in-process restarts; Oct 23 06:11–06:12 stop/start sequences. `pfb_unbound.py script exiting` coincides with Unbound stops but does not alone prove pfBlockerNG triggered them.
+- [x] Oct 23 08:48 uptime 22 min (recent reboot), Unbound PID 93348 started 08:28:52, DNS smoke PASS, RAM free+inactive ~206.5 MiB; process RSS Unbound ~106 MiB, CrowdSec ~72 MiB, Snort ~51 MiB, php_pfb ~43 MiB, several PHP-FPM workers. `vmstat -z` shows cumulative allocation failures; compare across samples rather than treating as new incidents.
+- [ ] Inspect pfBlockerNG cron/scheduled tasks around 02:10, correlate reboot reasons, Unbound bind listener ownership (53/853, IPv4/IPv6), pfSense service restarts, memory and UMA failures; identify event cause before mitigation.
+- [x] Add read-only pflow activation preflight `scripts/pfsense/diagnose-pflow-activation.sh --check` to this PR.
+- [ ] Operator wants pflow enabled for Akvorado `172.17.0.24:2055/udp`, but module was previously unloaded. Require verified native pfSense integration, export configuration, rollback and memory gate before enabling; **do not** load it blindly while OOM events recur.
+
+
+
 - [x] Add read-only `scripts/pfsense/diagnose-unbound-crash-memory.sh --check` to PR #271; no pfSense configuration changes, restarts, flow activation, or GitHub Actions.
 - [x] Historical evidence (2026-10-18): Netgate 1100 ~1 GiB RAM, no swap, `free+inactive` ~226.8 MiB, Unbound PID 75160 RSS ~122.7 MiB, pfBlockerNG cron absent during sample; kernel previously killed Unbound and PHP processes with `failed to reclaim memory`.
 - [ ] Obtain **fresh** logs with event timestamps and Unbound PID/start-time changes, pfBlockerNG scheduling, FreeBSD VM counters and process RSS. Prior `dmesg` entries are historical, not new OOM evidence. Determine whether Unbound was killed by kernel memory pressure, restarted intentionally by pfSense/pfBlockerNG, or exited due to its own error.
