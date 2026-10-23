@@ -2364,3 +2364,18 @@ bash scripts/workstation/verify-age-yubikey-offline.sh
 ```
 
 **Restent NO-GO :** authentification AES256 on-card, import du certificat en PIV82 et vérification de l'identité/du déchiffrement du vrai plugin. Le test par session simulée prouve la structure du certificat et l'API de substitution de signature, **pas** la compatibilité matérielle. Refuser tout script `--apply` sur les deux clés jusqu'à validation séparée et autorisation explicite.
+
+### Reprise dans PR #271 — 23 octobre 2026
+
+La PR #259 étant fermée, la suite est menée **uniquement** dans [PR #271](https://github.com/AlbanAndrieu/nabla-compose/pull/271), branche `feat/fast-batch-talos-k8s-services-20261023`, sans nouvelle PR ni CI payante. Le dernier rapport opérateur a validé **28/28** tests du lot précédent, y compris le SDK de signature avec session PIV simulée.
+
+Ajout de `scripts/workstation/verify-age-yubikey-piv82-certificate.py`, outil **strictement hors matériel** : exige un certificat PEM et une clé publique SPKI PEM obtenus séparément ; refuse les liens symboliques, valide la courbe P-256, la concordance exacte clé/certificat, la signature ECDSA SHA-256 autosignée, le sujet `O=age-plugin-yubikey, OU=0.5.1`, les dates, et l'extension non critique OID `1.3.6.1.4.1.41482.3.8` de valeur **03 02**. En cas d'échec, code 3 (NO-GO). Succès **n'autorise pas** l'installation du certificat. Nouveau contrat dans `tests/test_yubikey_keepassxc_diagnostic_contract.py` ; **29 tests attendus** lors de la prochaine exécution locale.
+
+Exemple futur, uniquement après génération de fichiers **publics** dans une procédure vérifiée :
+```bash
+~/.local/share/nabla/piv-sdk-venv/bin/python scripts/workstation/verify-age-yubikey-piv82-certificate.py \
+  --certificate /chemin/public/piv82.crt.pem \
+  --public-key /chemin/public/piv82.spki.pem
+```
+
+**Restent bloqués :** authentification réelle AES256 protégée par PIN, preuve de liaison de la clé matérielle PIV82, import du certificat et round-trip `age-plugin-yubikey` sur YubiKey secondaire. Ne jamais modifier AES256, OTP2, PIV9A ni destinataires SOPS à ce stade.
