@@ -209,7 +209,7 @@ section '3/7' 'DNS Sample : public Cloudflare, Pi-hole et overrides'
 # A Pi-hole 172.17.0.24 answer for sample.albandrieu.com makes Chrome's
 # Cloudflare ECH unusable despite a healthy application at localhost:8091.
 if command -v dig >/dev/null 2>&1; then
-    if bash "${SCRIPT_DIR}/../ingress/diagnose-sample-dns.sh" --check; then
+    if bash "${SCRIPT_DIR}/../ingress/diagnose-sample-dns.sh" --truenas; then
         ok 'Public/private DNS routes and Pi-hole configuration are coherent'
     else
         warn 'DNS Sample divergent : public hostname redirected, stale local override, or unavailable DNS evidence'
