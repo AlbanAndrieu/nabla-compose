@@ -41,7 +41,30 @@ fi
 slot82="$(ykman --device "${serial}" piv keys info 82 2>&1)" && rc82=0 || rc82=$?
 # Some ykman versions report an empty slot with exit status 1.
 # Accept only explicit empty-slot messages with rc 0 or 1.
-if (( rc82 > 1 )) || ! grep -Eiq '^[[:space:]]*(No key stored in slot (82|0x82)|No key in slot (82|0x82)|Slot (82|0x82) is empty)[[:space:].]*$' <<<"${slot82}"; then
+# Yubico Manager 5.8.0 raises CliFail("No key stored in slot {slot}.")
+# Click may prefix its single error line with "Error: "; PIV slot 82 is RETIRED1.
+# Match the WHOLE response to avoid trusting a transport error with incidental text.
+if (( rc82 > 1 )) || ! grep -Eiq '^[[:space:]]*(Error:[[:space:]]*)?(No key stored in slot (82|0x82|RETIRED1|SLOT.RETIRED1)|No key in slot (82|0x82|RETIRED1)|Slot (82|0x82|RETIRED1) is empty)[[:space:].]*[.]?[[:space:]]*
+  nabla_status warn "PIV82 unverified (ykman exit=${rc82}); no provisioning permitted"
+  if grep -Eiq 'permission|access denied|pcsc|smart.card|connection|timeout' <<<"${slot82}"; then
+    nabla_status info 'Category: reader / access / transport error'
+  elif grep -Eiq 'key type|algorithm|pin policy|touch policy|public key' <<<"${slot82}"; then
+    nabla_status info 'Category: key metadata reported; inspect slot separately'
+  else
+    nabla_status info 'Category: unsupported or unrecognized ykman response'
+  fi
+  exit 3
+fi
+# Read public metadata only; no PIN or private-key access.
+slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
+  nabla_status error 'Cannot read PIV9A key metadata'; exit 3;
+}
+if grep -Eiq 'No key stored|No key in slot' <<<"${slot9a}"; then
+  nabla_status error 'Previously populated PIV9A appears missing'; exit 3
+fi
+nabla_status ok "Read-only inventory: ${label} (${serial}), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
+nabla_status warn 'No PIN entered; AES256 authentication and age decrypt are NOT validated. Hardware writes remain NO-GO.'
+ <<<"${slot82}"; then
   nabla_status warn "PIV82 unverified (ykman exit=${rc82}); no provisioning permitted"
   if grep -Eiq 'permission|access denied|pcsc|smart.card|connection|timeout' <<<"${slot82}"; then
     nabla_status info 'Category: reader / access / transport error'
