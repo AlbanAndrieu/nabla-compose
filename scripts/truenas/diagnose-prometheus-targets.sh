@@ -32,7 +32,7 @@ warn_or_fail() {
   fi
 }
 
-for command in curl docker grep jq sha256sum sort comm awk sed; do
+for command in curl docker grep jq sha256sum sort comm awk sed stat; do
   command -v "${command}" >/dev/null 2>&1 || {
     printf 'ERROR: %s is required\n' "${command}" >&2
     exit 1
@@ -54,6 +54,25 @@ if [[ "${runtime_status}" != running ]]; then
     *) runtime_status='unknown' ;;
   esac
   printf '❌ Prometheus runtime=%s (config, permissions or startup error)\n' "${runtime_status}" >&2
+  # Allowlisted metadata only: .State JSON can include sensitive Health.Log.Output.
+  runtime_meta="$(docker inspect "${CONTAINER}" --format \
+    'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' \
+    2>/dev/null || true)"
+  if [[ "${runtime_meta}" =~ ^exit=[0-9]+[[:space:]]oom=(true|false)[[:space:]]restarts=[0-9]+$ ]]; then
+    printf '  runtime %s\n' "${runtime_meta}" >&2
+    if [[ "${runtime_meta}" == *'oom=true'* ]]; then
+      printf '  likely cause: container OOMKilled; check resource limits privately\n' >&2
+    fi
+  fi
+  # Metadata only; never read or modify TSDB blocks or the WAL.
+  for storage_path in "${CONFIG}" /mnt/cpool/prometheus/data; do
+    if [[ -e "${storage_path}" ]]; then
+      stat -c '  host metadata: mode=%a uid=%u gid=%g type=%F' -- \
+        "${storage_path}" >&2 || true
+    else
+      printf '  host metadata: expected path absent\n' >&2
+    fi
+  done
   if docker inspect "${CONTAINER}" >/dev/null 2>&1; then
     docker logs --tail 80 "${CONTAINER}" 2>&1 |
       awk '{
@@ -67,7 +86,7 @@ if [[ "${runtime_status}" != running ]]; then
             lines,permissions,configuration,storage,memory
         }' >&2 || true
   fi
-  printf '  Review privately: docker inspect %s --format "{{json .State}}"\n' "${CONTAINER}" >&2
+  printf '  Review privately: docker inspect %s --format "status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}"\n' "${CONTAINER}" >&2
   printf '  Preserve /mnt/cpool/prometheus/data; do not redeploy until crash cause is known.\n' >&2
   exit 1
 fi
