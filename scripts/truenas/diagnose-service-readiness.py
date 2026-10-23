@@ -176,12 +176,22 @@ def prometheus_query_check(opener, timeout: int) -> dict:
             return {"status": "unknown", "detail": "PromQL response exceeds limit"}
         data = json.loads(payload)
         result = data.get("data") if isinstance(data, dict) else None
-        if data.get("status") != "success" or not isinstance(result, dict):
+        if not isinstance(data, dict) or data.get("status") != "success" or (
+                not isinstance(result, dict)):
             return {"status": "fail", "detail": "PromQL execution failed"}
         if result.get("resultType") != "vector" or not isinstance(result.get("result"), list):
             return {"status": "fail", "detail": "PromQL response contract invalid"}
         if not result["result"]:
             return {"status": "warning", "detail": "PromQL works but no up series"}
+        first = result["result"][0]
+        sample = first.get("value") if isinstance(first, dict) else None
+        try:
+            count = float(sample[1]) if isinstance(sample, list) and (
+                len(sample) == 2) else -1
+        except (TypeError, ValueError):
+            count = -1
+        if not 0 < count < float("inf"):
+            return {"status": "warning", "detail": "PromQL up series count unavailable"}
         return {"status": "ok", "detail": "Prometheus ready; PromQL count(up) succeeded"}
     except (OSError, TypeError, ValueError, urllib.error.HTTPError,
             urllib.error.URLError, TimeoutError):
