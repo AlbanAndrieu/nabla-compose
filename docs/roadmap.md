@@ -2864,7 +2864,16 @@ Prochain ordre de travail :
 - [x] Add a CLI-only read-only entry point for the failing main skill review: `bash scripts/workstation/openclaw-ops.sh --skill-review`.
 - [ ] Resolve actual `openclaw-main` key-budget exhaustion (10.046146 / 10.0): inspect LiteLLM usage/reset period and reduce job usage, do not override budget or treat shared-key model fallback as recovery.
 - [ ] Verify main `skill-collection-review` actually succeeds after budget resets; one retained run failed after 272541 ms, five consecutive failures reported by the job status.
-- [ ] Separately resolve embedding provider 401 and paused main/cron vector indexes, preserving backup and secret isolation.
+- [x] Resolve embedding provider 401 and paused main/cron vector indexes: Oct 23
+  OpenClaw local LiteLLM file-backed SecretRef applied, `main` 107/107 and
+  `cron` 63/63 clean, vector search ready, 768 dims; fallback remains off.
+- [x] Verify vector retrieval can return candidates with an explicit agent:
+  on Oct 23 both `main` and `cron` returned five matches for
+  `deployment` at temporary `--min-score 0`; snippets remain private.
+- [ ] Calibrate per-agent relevance and persisted minScore from known
+  non-sensitive phrases; diagnose repeated 60-second embedding retries
+  via redacted LiteLLM/OpenClaw metrics. Do not reindex or lower the
+  persisted threshold without evidence.
 
 See [the OpenClaw remediation runbook](./runbooks/2026-10-10-openclaw-workstation-remediation.md) for source evidence, commands, acceptance and rollback.
 
