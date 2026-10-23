@@ -220,3 +220,106 @@ depuis la workstation.
 En cas de nouvel échec d'App, relever seulement :
 nom d'App, état TrueNAS, statut santé, code sortie, horodatage, type
 d'erreur expurgé. Mettre à jour le diagnostic avant un nouveau restart.
+
+
+## Addendum — diagnostic fonctionnel et sorties compactes (23 octobre, soir)
+
+Les nouveaux journaux permettent un tri **sur les symptômes actuels**, sans
+transformer les 13 Apps volontairement STOPPED en incidents :
+
+| Service | Runtime observé | Cause / preuve manquante |
+| --- | --- | --- |
+| Gatus | STOPPED, conteneur restarting (centaines de relances) | `config/config.yml: permission denied` ; vérifier le GID apps 568 **dans le conteneur** ET le fichier `0640` / dossier traversable |
+| LiteLLM | conteneur running mais Docker `unhealthy` | `/health/liveliness` HTTP répond ; inspecter le vrai échec de healthcheck Docker, ne pas conclure à une indisponibilité complète sur le seul état TrueNAS |
+| OpenRAG | App DEPLOYING | backend running/**healthy**, frontend **created** ; le backend n'est plus le bloqueur constaté, vérifier le frontend et le `depends_on` avant tout restart |
+| Scrutiny | App STOPPED ; token InfluxDB v2 valide | InfluxDB `2.9.1` running/healthy HTTP 200 ; la configuration déployée fait encore référence à l'ancien chemin env |
+| Sentry | App DEPLOYING, web healthy | consommateurs Kafka/Snuba unhealthy ; messages `SESSTMOUT` et changement d'assignation, diagnostic Kafka avant toute reprise massive |
+| FastAPI Sample | HTTP healthy, observer RBAC PASS | `build_revision=null` et Prometheus/Gatus shadow-only ; image runtime désormais comparée à l'image choisie, sans fausse preuve SHA |
+
+Sur TrueNAS, après intégration du code de la PR #271 dans le checkout
+canonique, utiliser les **vues courtes, sans logs bruts ni secrets** :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+just truenas-readiness-check
+sudo python3 scripts/truenas/diagnose-service-readiness.py \
+  --check --strict --service gatus --service litellm --service openrag
+sudo bash scripts/truenas/diagnose-stuck-apps.sh --check
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check \
+  --section services --color auto --icons auto
+```
+
+Les modes `--json` (rapport structuré) et `--color never --icons never`
+facilitent l'archivage. Le mode `--strict` émet un code retour non-zéro
+pour BLOCKED, DEGRADED ou UNKNOWN ; WARN ne suffit pas à déclarer l'App
+totalement opérationnelle.
+
+### Gatus — réparer la configuration sans toucher SQLite
+
+```bash
+sudo bash scripts/truenas/repair-gatus-config-access.sh --check
+sudo bash scripts/truenas/deploy-gatus.sh --check
+```
+
+La commande `repair-gatus-config-access.sh --apply` est **limitée**
+à `apps/gatus/config` : groupe `apps`, dossier `0750`, fichier `0640`.
+Si `docker inspect gatus` n'inclut pas le GID 568, il faut d'abord faire
+passer la **définition déployée** à la version Compose du dépôt ; le script
+`deploy-gatus.sh --apply` réalise cette réconciliation et la réparation
+conditionnelle, après validation opérateur. Ne jamais utiliser `chmod -R
+777` ni modifier `/mnt/cpool/gatus/gatus.db`. Une fois l'API en ligne,
+vérifier `/api/v1/endpoints/statuses` et la présence des moniteurs,
+pas seulement le HTTP 200.
+
+### LiteLLM — fichier déplacé et healthcheck Docker
+
+Le fichier source `.env` était un **mélange de secrets et paramètres**.
+Le déplacement manuel de `/mnt/cpool/secrets/runtime/litellm/.env` vers
+`.env.secrets` a permis le chargement Compose, mais ne prouve ni
+l'alignement avec l'item Vaultwarden `nabla/prod/litellm`, ni la
+matérialisation attendue de `.env.compose`. Éviter de recopier
+aveuglément ces valeurs ou d'afficher le contenu. Rapprocher uniquement
+les **noms de clés**, modes et source d'autorité puis traiter la séparation
+déclarative ; aucune copie automatique de valeurs entre dossiers.
+La clé Anthropic non encore fournie reste optionnelle.
+
+Une réponse `"I'm alive!"` ne suffit pas si Docker signale `unhealthy`.
+Lire uniquement les catégories expurgées via
+`diagnose-service-readiness.py --service litellm`, ou examiner en privé
+`docker inspect litellm` (section Health uniquement). L'application doit
+ensuite être testée avec un modèle local **autorisé**, via la clé proxy
+de l'opérateur ; ne pas exposer la clé dans un `curl` collé au chat.
+
+### OpenRAG, Sentry et InfluxDB : vérification des dépendances
+
+Pour OpenRAG, la clé OpenSearch est déjà cohérente et le backend s'exécute
+sans OOM. Le frontend resté CREATED doit faire l'objet d'une reprise
+de son cycle Compose/TrueNAS **après** validation des services `langflow`
+et `opensearch`. L'absence de Docling est un blocage fonctionnel pour
+l'ingestion, pas nécessairement un échec du healthcheck du frontend.
+
+Pour Sentry, distinguer la disponibilité du web de la santé des consommateurs.
+Les messages `SESSTMOUT` demandent d'inspecter la stabilité du broker Kafka,
+des groupes de consommation, des topics et des sessions avant tout
+`app.redeploy`. Ne pas réinitialiser Kafka, ClickHouse ni les offsets.
+
+InfluxDB v2.9.1 est healthy, mais son **scraper configuré** essaie
+`172.17.0.24:30115/metrics` et reçoit `connection refused` :
+la base est prête, le job de scraping ne fonctionne pas. La définition
+Compose actuelle expose la base sur `127.0.0.1:31055` ; le dépôt contient
+aussi d'anciens endpoints `:30115` dans `config/telegraf.conf`.
+**Ne pas remplacer aveuglément** `/metrics` par `/health` ni transférer
+un endpoint host-only vers un conteneur : identifier la source du scraper
+et l'exporter attendu, puis supprimer/mettre à jour ce seul job si obsolète.
+
+### Fetch GitHub bloqué depuis TrueNAS
+
+Le code corrigé du test `mise.lock` est dans la PR, pas dans l'ancien
+checkout ayant encore `talos["platforms"][platform]`. Si
+`git fetch` ne peut pas joindre github.com:443, vérifier d'abord
+`getent ahostsv4 github.com` puis `curl -4 -I --connect-timeout 5
+--max-time 12 https://github.com`. Ne pas faire de `git reset --hard`
+pour contourner le problème ni exécuter un script PR sous `master`
+sans revue. Laisser les migrations --apply désactivées tant que
+les nouveaux tests locaux ne peuvent pas être exécutés.
+
