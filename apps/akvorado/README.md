@@ -262,3 +262,33 @@ counter, increasing ClickHouse insertion counters, and nonzero recent rows in
 Confirm that recent records are displayed in Console. Keep raw captures,
 flow addresses and SQL result samples private. Do not infer success from HTTP
 200, container RUNNING, or UDP packet receipt alone.
+
+### Outlet findings — 2026-10-23 (later operator metrics)
+
+- Kafka Outlet `received_messages_total=164`; matching internal topic
+  `akvorado-flows-v5`. The suffix does not currently indicate a mismatch.
+- Decoder: 164 NetFlow **v5** packets and 2511 PDU records.
+- Core: 2511 flows received and 2511 `metadata missing` errors.
+- Metadata provider: 5021 errors; SNMP poller `get` failures: 81.
+  These counters count different events; they must **not** be added together.
+- ClickHouse batch/insert histogram counts: **zero**. Persistence and Console
+  display remain unverified; do not present the app as functioning end-to-end.
+
+Run `python3 scripts/truenas/diagnose-akvorado-flow.py --strict` to get
+bounded metrics and a classified pipeline status. This is read-only, does
+not print raw labels or flow details, and uses short network timeouts.
+Cumulative counter values need successive measurements to establish activity.
+
+Per upstream Akvorado troubleshooting, `metadata missing` means unavailable
+exporter interface information, commonly because SNMP requests fail.
+Investigate SNMP reachability and exporter metadata configuration **without**
+enabling pfSense `Track by Default`, increasing capture or globally
+changing `pflow`. Prefer a narrowly scoped, documented static metadata
+provider if SNMP from the Outlet cannot be safely enabled. Validate interface
+indexes and actual metadata before specifying a static mapping; never guess
+interfaces or credentials. Even after resolving metadata, verify ClickHouse
+persisted rows using a separately authorized read-only identity.
+
+References:
+- https://demo.akvorado.net/docs/troubleshooting
+- https://demo.akvorado.net/docs/configuration
