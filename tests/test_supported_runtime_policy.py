@@ -21,6 +21,7 @@ def test_platform_versions_match_mise_and_talos_pins():
     assert (ROOT / "config/talos/KUBERNETES_VERSION").read_text().strip() == "v1.37.1"
     assert cfg["platform"]["talos"]["target"] == "v1.14.4"
     assert cfg["platform"]["kubernetes"]["target"] == "v1.37.1"
+    assert cfg["languageRuntimes"]["php"]["preferred"] == "8.5.12"
     mise = (ROOT / "mise.toml").read_text()
     assert '"aqua:siderolabs/talos" = "1.14.4"' in mise
     assert "default='3.14.9'" in mise
@@ -34,8 +35,17 @@ def test_platform_versions_match_mise_and_talos_pins():
     ("php:8.1-apache", "eol"),
     ("php:8.2-fpm", "security-only"),
     ("php:8.3-cli", "security-only"),
-    ("php:8.4-fpm", "supported"),
-    ("php:8.5-fpm", "supported"),
+    ("php:8.4-fpm", "unverified-patch"),
+    ("php:8.4.26-fpm", "critical-patch-missing"),
+    ("php:8.4.27-fpm", "supported"),
+    ("php:8.5-fpm", "unverified-patch"),
+    ("php:8.5.11-fpm", "critical-patch-missing"),
+    ("php:8.5.12-fpm", "supported"),
+    ("php:8.2.34-cli", "critical-patch-missing"),
+    ("php:8.2.35-cli", "security-only"),
+    ("php:8.3.35-cli", "critical-patch-missing"),
+    ("php:8.3.36-cli", "security-only"),
+    ("python:3.14.8-slim", "critical-patch-missing"),
     ("wordpress:latest", "unknown"),
     ("docker.io/2fauth/2fauth:8.0.1", "unknown"),
     ("docker.io/netboxcommunity/netbox:v4.7-5.1.1", "unknown"),
@@ -89,6 +99,17 @@ def test_homarr_python_reconciler_is_maintained():
     assert "docker.io/library/python:3.14.9-alpine3.24" in image
     reconciler = (ROOT / "apps/homarr/sync.py").read_text()
     assert "from urllib.request import" in reconciler
+
+
+def test_vulnerable_php_is_blocking_in_strict_mode(tmp_path, capsys):
+    (tmp_path / "apps/unsafe").mkdir(parents=True)
+    (tmp_path / "apps/unsafe/compose.yml").write_text(
+        "services:\\n  unsafe:\\n    image: php:8.5.11-fpm\\n"
+    )
+    assert mod["main"](["--root", str(tmp_path), "--strict-eol"]) == 1
+    output = capsys.readouterr().out
+    assert "critical-patch-missing" in output
+    assert "8.5.12" in output
 
 
 def test_runtime_policy_is_not_a_deployment_authorization():
