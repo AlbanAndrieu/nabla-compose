@@ -357,3 +357,32 @@ les nouveaux tests locaux ne peuvent pas être exécutés.
   HTTPS depuis TrueNAS est revenu pour ce test. Retenter un
   `git fetch` sur le repo **sans forcer un reset** ; cela ne prouve
   pas à soi seul l'authentification du remote Git.
+
+
+### Contrôles post-réparation Gatus et diagnostic Prometheus (23 octobre)
+
+Le retour opérateur confirme désormais **Gatus RUNNING** après correction du
+fichier généré en GID 568 et mode 0640, avec base SQLite conservée. Cela
+**ne confirme pas encore** que tous les moniteurs sont présents ou à jour.
+Exécuter en lecture seule :
+
+```bash
+sudo bash scripts/truenas/diagnose-gatus.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+Le diagnostic Gatus résume exclusivement le **dernier résultat** de chaque
+moniteur (`monitors/up/down/pending/unknown`), sans afficher les noms, URL,
+tokens ni réponses. Les cibles DOWN sont un **WARN de monitoring** et
+n'indiquent pas à elles seules un incident du service Gatus. Une liste vide
+ou un JSON de format inattendu bloque la confirmation de couverture.
+Rapprocher ensuite le nombre observé de l'inventaire déclaratif.
+
+Pour Prometheus, si le conteneur reste `restarting`, le diagnostic affiche
+maintenant le code de sortie, `OOMKilled`, le compteur de redémarrages et les
+métadonnées Unix des chemins configuration/TSDB, uniquement lorsqu'elles sont
+disponibles. Il conserve la classification expurgée des dernières erreurs.
+**Ne pas utiliser** `docker inspect --format '{{json .State}}'` dans un
+rapport partageable : les journaux Health peuvent contenir des informations
+sensibles. La cause précise n'est pas encore attestée. Conserver
+`/mnt/cpool/prometheus/data` et éviter `app.redeploy` avant diagnostic.
