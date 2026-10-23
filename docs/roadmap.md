@@ -5,8 +5,11 @@
 - [x] Confirm Docker host publication and Inlet application-level receipt: 139 packets / 105768 bytes; zero receive errors and kernel drops in reported metrics.
 - [x] Confirm Inlet Kafka send counter: 139 messages; observed topic `akvorado-flows-v5` versus `akvorado-flows` in GitOps (validate version suffix before any change).
 - [x] Add privacy-bounded, read-only metric diagnostic `scripts/truenas/diagnose-akvorado-flow.py` and offline parser tests; **full local quality gate not yet executed**.
-- [ ] Verify Outlet consumption and errors, then Kafka topic agreement; no topic rename before observing Outlet.
-- [ ] Verify ClickHouse inserts and recent persisted flow rows using approved read-only SQL; confirm Console results.
+- [x] Outlet consumes Kafka topic `akvorado-flows-v5`: 164 received messages, 164 NetFlow v5 packets decoded and 2511 PDU records; topic suffix is interoperable, no rename required.
+- [x] Root cause isolated: all 2511 received flows rejected as `metadata missing`; 81 SNMP `get` failures, 5021 metadata-provider errors (different metric units, not additive). ClickHouse batch and insert counters remain zero.
+- [x] Extend diagnostic script with Outlet NetFlow v5, Kafka input, core metadata, SNMP and ClickHouse counters, plus classification (`BLOCKED_METADATA_MISSING`); add targeted offline tests, execution still pending.
+- [ ] Confirm missing exporter interface metadata: safely identify ifIndex values using local private flow telemetry, inspect Outlet SNMP network reachability/credentials, and choose narrowly scoped static metadata or read-only SNMPv3. No global pfSense flow expansion.
+- [ ] Resolve metadata enrichment without increasing pfSense pflow load, then verify ClickHouse insert counters and recent persisted rows with approved read-only SQL; confirm Console results.
 - [ ] Execute offline tests and scoped pre-commit / local quality gate on a full PR checkout, without GitHub Actions.
 
 ## Santé fonctionnelle et diagnostics lisibles — 23 octobre 2026
