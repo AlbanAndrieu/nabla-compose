@@ -337,7 +337,10 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertEqual(body.count("Read-only inventory:"), 1)
         pattern_line = next(line for line in body.splitlines()
                             if line.startswith("empty_slot_pattern="))
-        self.assertTrue(pattern_line.endswith("
+        self.assertTrue(pattern_line.endswith("$'"))
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
+    def test_aes256_hardware_inventory_read_only(self):
         script = ROOT / "scripts/workstation/inspect-age-yubikey-aes256-hardware.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
         result = subprocess.run(["bash", str(script), "--help"],
