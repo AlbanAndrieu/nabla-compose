@@ -20,6 +20,11 @@ declare **targets**, never evidence that the cluster was upgraded.
 `apps/dsomm/baseline/Dockerfile` now selects `python:3.14.9-slim-bookworm`
 (official published image tag), but its full rebuild and dependent Python
 wheels/packages must be tested in staging before deploying.
+The `homarr-sync` one-shot reconciler has also been staged on the published
+`python:3.14.9-alpine3.24` image; its `sync.py` imports only the Python
+standard library, but **API authentication, retries and idempotency** must
+be verified with `HOMARR_SYNC_DRY_RUN=true` before deployment. Do not run
+live Homarr reconciliation as part of an OS/runtime version audit.
 
 **Urgent PHP vulnerability response (21 October 2026):** the PHP team
 published critical fixes for CVE-2026-109618 and CVE-2026-109619
