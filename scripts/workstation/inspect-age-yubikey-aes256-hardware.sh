@@ -39,8 +39,29 @@ fi
 # ykman piv keys info may exit nonzero on an empty slot. Never mistake errors
 # such as transport failures or permission denial for proof of emptiness.
 slot82="$(ykman --device "${serial}" piv keys info 82 2>&1)" && rc82=0 || rc82=$?
-if (( rc82 != 0 )) || ! grep -Eiq 'No key stored in slot 82|No key in slot 82' <<<"${slot82}"; then
-  nabla_status warn 'PIV82 is occupied or its empty state is not provable'; exit 3
+# Some ykman versions report an empty slot with exit status 1.
+# Accept ONLY an explicitly recognized empty-slot message, never an arbitrary error.
+if (( rc82 > 1 )) || ! grep -Eiq '^[[:space:]]*(No key stored in slot (82|0x82)|No key in slot (82|0x82)|Slot (82|0x82) is empty)[[:space:].]*
+# Check only public metadata. Do not attempt to read private keys or PIN retries.
+slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
+  nabla_status error 'Cannot read PIV9A key metadata'; exit 3;
+}
+if grep -Eiq 'No key stored|No key in slot' <<<"${slot9a}"; then
+  nabla_status error 'Previously populated PIV9A appears missing'; exit 3
+fi
+nabla_status ok "Read-only inventory: ${label} (${serial}), AES256/PIN-protected management key, PIV82 empty, PIV9A key metadata present"
+nabla_status warn 'No PIN entered; AES256 authentication and age decrypt are NOT validated. Hardware writes remain NO-GO.'
+ <<<"${slot82}"; then
+  nabla_status warn "PIV82 unverified (ykman exit=${rc82}); no provisioning permitted"
+  # Only safe diagnostic categories: never print potentially sensitive raw command output.
+  if grep -Eiq 'permission|access denied|pcsc|smart.card|connection|timeout' <<<"${slot82}"; then
+    nabla_status info 'Category: reader / access / transport error'
+  elif grep -Eiq 'key type|algorithm|pin policy|touch policy|public key' <<<"${slot82}"; then
+    nabla_status info 'Category: key metadata reported; inspect slot separately'
+  else
+    nabla_status info 'Category: unsupported or unrecognized ykman response'
+  fi
+  exit 3
 fi
 # Check only public metadata. Do not attempt to read private keys or PIN retries.
 slot9a="$(ykman --device "${serial}" piv keys info 9a 2>&1)" || {
