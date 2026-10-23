@@ -467,7 +467,7 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
         self.assertNotIn("PivSession(", content)
         result = subprocess.run(["python3", str(script)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("seven fake-ykman hardware inventory paths", result.stdout)
+        self.assertIn("seven scenarios each for inventory and enrollment plan", result.stdout)
 
     def test_piv_python_sdk_capability_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-yubikey-piv-python-sdk.sh"
