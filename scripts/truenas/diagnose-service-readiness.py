@@ -233,8 +233,15 @@ def http_check(service: str, timeout: int = 5) -> dict:
         with opener.open(req, timeout=timeout) as resp:
             if resp.status != 200:
                 return {"status": "fail", "detail": "non-200 HTTP"}
-            body = resp.read(65537)
-        if len(body) > 65536:
+            # Gatus includes result history for every monitor (85 in the
+            # 23 October operator snapshot), so the default 64 KiB JSON bound
+            # is too small. Keep a strict 4 MiB limit rather than read all.
+            limit = 4 * 1024 * 1024 if kind == "gatus" else 65536
+            body = resp.read(limit + 1)
+        if len(body) > limit:
+            if kind == "gatus":
+                return {"status": "warning",
+                        "detail": "Gatus API payload exceeds 4 MiB; monitors unverified"}
             return {"status": "unknown", "detail": "response exceeds limit"}
         if kind == "prometheus":
             return prometheus_query_check(opener, timeout)
@@ -244,17 +251,34 @@ def http_check(service: str, timeout: int = 5) -> dict:
             return {"status": "ok", "detail": "OpenRAG frontend HTTP responds; Docker backend/frontend health also required"}
         data = json.loads(body)
         if kind == "gatus":
-            if isinstance(data, list):
-                count = len(data)
-            elif isinstance(data, dict):
-                collection = data.get("endpoints", data.get("statuses"))
-                if not isinstance(collection, (list, dict)):
-                    return {"status": "unknown", "detail": "Gatus monitor list unverified"}
-                count = len(collection)
-            else:
-                return {"status": "unknown", "detail": "unexpected API shape"}
-            return {"status": "ok" if count else "warning",
-                    "detail": f"monitor entries={count}"}
+            # Aggregates only: never output endpoint names, URLs or result bodies.
+            if not isinstance(data, list):
+                return {"status": "warning", "detail": "Gatus API monitor list unverified"}
+            counts = {"up": 0, "down": 0, "pending": 0, "unknown": 0}
+            for monitor in data:
+                if not isinstance(monitor, dict) or not isinstance(
+                        monitor.get("results"), list):
+                    counts["unknown"] += 1
+                    continue
+                results = monitor["results"]
+                if not results:
+                    counts["pending"] += 1
+                    continue
+                last = results[-1]
+                if not isinstance(last, dict) or not isinstance(
+                        last.get("success"), bool):
+                    counts["unknown"] += 1
+                elif last["success"]:
+                    counts["up"] += 1
+                else:
+                    counts["down"] += 1
+            total = len(data)
+            details = (f"monitors={total} up={counts['up']} down={counts['down']} "
+                       f"pending={counts['pending']} unknown={counts['unknown']}")
+            # DOWN target is NOT Gatus outage; it is observability coverage WARN.
+            if not total or counts["down"] or counts["pending"] or counts["unknown"]:
+                return {"status": "warning", "detail": details}
+            return {"status": "ok", "detail": details}
         if kind == "influxdb":
             if not isinstance(data, dict) or data.get("status") not in (
                     "pass", "ok", "ready"):
