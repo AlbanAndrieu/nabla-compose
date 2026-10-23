@@ -418,3 +418,42 @@ Acceptance sequence, keeping credentials and local transcripts private:
 
 No index rebuild, secret rotation, host-level restart or GitHub CI was
 performed by this documentation update.
+
+
+## 2026-10-23 — Gateway ready, targeted index CLI discovered, disk pressure
+
+Operator confirmed `openclaw gateway status`: systemd active, WebSocket
+connectivity probe OK, CLI and Gateway both `2026.9.5`, listener bound to
+loopback. One official plugin has a version drift; investigate separately
+without coupling it to the embedding index cutover.
+
+Installed CLI `openclaw memory index --help` supports `--agent <id>`
+(default all agents) and `--force` (full rebuild). This establishes a
+supported **per-agent** indexing operation, but *not* the memory provider's
+readiness. Do not run either forced rebuild until the provider passes a
+`memory status --deep` check and the existing vector provenance mismatch
+for `main` is explicitly handled by the native indexing process.
+
+Free root filesystem fell from ~24 GB to 18 GB; now **96% used**. Check
+space/inodes and size of the main and cron agent index files before index
+rebuild. Prefer staged, bounded operations and stop on disk growth/errors.
+Do not remove session transcript JSONL, OpenClaw agent files or old indexes
+with ad hoc `rm`; the operator's acceptance of losing historic sessions
+does not authorize deleting unrelated index/agent state.
+
+Safe next operator commands:
+```bash
+openclaw memory status --deep
+df -h "$HOME/.openclaw"
+df -i "$HOME/.openclaw"
+du -h "$HOME/.openclaw/agents/main/agent/openclaw-agent.sqlite" \
+      "$HOME/.openclaw/agents/cron/agent/openclaw-agent.sqlite"
+```
+The deep status can contain workspace and source metadata; inspect locally
+or share a redacted provider/readiness summary. If provider is ready and disk
+headroom acceptable, use native **targeted** indexing one agent at a time,
+beginning with `cron` (empty index), then `main` (legacy 57 chunks).
+After each operation, verify dirty flag, provenance/index identity,
+vector dimensions and actual search quality. Re-check free space between
+agents. Keep `fallback=none` until workstation/TrueNAS model vector-space
+equivalence is proven.
