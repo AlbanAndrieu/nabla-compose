@@ -218,6 +218,7 @@ check_section() {
       ;;
     migrations)
       run_check supported-runtime-audit python3 scripts/quality/audit-supported-runtimes.py --strict-eol
+      run_check live-language-patches python3 scripts/truenas/audit-live-language-runtimes.py --check
       run_check migration-manifest python3 scripts/security/check-migration-readiness.py --check
       run_check secrets-runtime bash scripts/truenas/bootstrap-repository-runtime.sh --check
       run_check sentry-system-secret bash scripts/truenas/reconcile-sentry-system-secret.sh --check
