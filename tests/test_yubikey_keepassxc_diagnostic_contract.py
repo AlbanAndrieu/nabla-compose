@@ -418,6 +418,27 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                           "change-management-key", "otp delete"):
             self.assertNotIn(forbidden, body)
 
+    def test_aes256_sdk_api_inspection_never_opens_hardware(self):
+        script = ROOT / "scripts/workstation/inspect-age-yubikey-piv-aes256-sdk-api.py"
+        subprocess.run(["python3", "-m", "py_compile", str(script)], check=True)
+        help_result = subprocess.run(["python3", str(script), "--help"],
+                                     capture_output=True, text=True, check=True)
+        self.assertIn("no hardware", help_result.stdout)
+        body = script.read_text()
+        for expected in ("MANAGEMENT_KEY_TYPE.AES256.key_len", "PivmanData.has_stored_key",
+                         "get_pivman_protected_data", "PIN_POLICY.ALWAYS",
+                         "TOUCH_POLICY.ALWAYS", "SLOT.RETIRED1"):
+            self.assertIn(expected, body)
+        for forbidden in ("PivSession(", "verify_pin(", "authenticate(",
+                          "get_pivman_protected_data(", "generate_key(",
+                          "put_certificate("):
+            self.assertNotIn(forbidden, body)
+        sdk_python = os.path.expanduser("~/.local/share/nabla/piv-sdk-venv/bin/python")
+        if os.path.isfile(sdk_python):
+            result = subprocess.run([sdk_python, str(script)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("PASS: SDK AES256", result.stdout)
+
     def test_piv_python_sdk_capability_gate_is_read_only(self):
         script = ROOT / "scripts/workstation/check-yubikey-piv-python-sdk.sh"
         subprocess.run(["bash", "-n", str(script)], check=True)
