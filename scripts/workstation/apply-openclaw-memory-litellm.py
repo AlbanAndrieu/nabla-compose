@@ -45,8 +45,13 @@ def verify_schema(config):
         raise ValueError("file SecretRef unsupported")
     if "providers" not in root["secrets"]["properties"]:
         raise ValueError("secret providers unsupported")
-    # OpenClaw CLI schema is the authority for structure; full validation is
-    # performed by openclaw config validate against the candidate before apply.
+    # Fail closed if local schema validation is unavailable. Never run a CLI
+    # config validate against live state in lieu of validating the candidate.
+    try:
+        import jsonschema
+    except ImportError as exc:
+        raise ValueError("jsonschema unavailable for candidate validation") from exc
+    jsonschema.validate(config, schema)
 
 
 def private_file(path):
@@ -115,7 +120,8 @@ def main():
         print("gateway_restart=not_performed")
         print("memory_reindex=not_performed")
         return 0
-    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired, Exception) as exc:
+        # No exception message: it may contain configuration or credential details.
         print("migration=blocked")
         print("configuration_changed=not_confirmed")
         return 2
