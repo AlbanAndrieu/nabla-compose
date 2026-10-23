@@ -55,6 +55,18 @@ def test_unsafe_app_inventory_fails_closed(bad):
         make_plan(bad, "all", 4)
 
 
+def test_chart_and_image_upgrades_are_reported_but_not_assumed_applied():
+    rows = apps()
+    rows[0]["upgrade_available"] = True
+    rows[2]["image_updates_available"] = True
+    plan = make_plan(rows, "all", 8)
+    assert plan["chartUpgradesPending"] == ["postgres"]
+    assert plan["imageUpdatesAvailable"] == ["gatus"]
+    assert plan["upgradesChartOrPinnedTag"] is False
+    base = make_plan(apps(), "all", 8)
+    assert plan["planHash"] != base["planHash"]
+
+
 def test_plan_hash_catches_stopped_or_running_drift():
     old = make_plan(apps(), "all", 8)["planHash"]
     changed = apps()
