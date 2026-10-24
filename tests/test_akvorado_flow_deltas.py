@@ -70,6 +70,17 @@ class AkvoradoDeltaTest(unittest.TestCase):
         status, _ = MODULE.assess_deltas(metrics(10, 0, 0), metrics(12, 0, 0))
         self.assertEqual(status, "NEW_FLOWS_INSERTS_UNVERIFIED")
 
+    def test_old_snmp_error_counter_with_no_new_flows_is_not_new_failure(self):
+        original = metrics(38190, 38190, 0, kafka=3190)
+        original += (
+            "akvorado_outlet_metadata_provider_snmp_poller_error_requests_total 1315\\n"
+            "akvorado_outlet_metadata_provider_errors_total 75860\\n"
+        )
+        state, delta = MODULE.assess_deltas(original, original)
+        self.assertEqual(state, "NO_NEW_FLOW_EVIDENCE")
+        self.assertEqual(delta["snmp_poller_errors"], 0)
+        self.assertEqual(delta["metadata_provider_errors"], 0)
+
     def test_no_events_is_neither_success_nor_failure(self):
         status, delta = MODULE.assess_deltas(metrics(10, 0, 0), metrics(10, 0, 0))
         self.assertEqual(status, "NO_NEW_FLOW_EVIDENCE")
