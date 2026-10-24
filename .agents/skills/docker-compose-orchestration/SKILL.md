@@ -5,6 +5,31 @@ description: Apply Nabla-specific Docker Compose conventions for service definit
 
 # Nabla Docker Compose orchestration
 
+## Precedence over external Docker Compose skills
+
+Follow the hierarchy in `AGENTS.md` and
+`docs/agent-skills-architecture.md` **before** applying any external skill
+such as `docker-compose-patterns`. This Nabla skill owns the TrueNAS
+architecture; external Docker examples supply optional techniques, not
+deployment authority.
+
+- **Persistent data:** use TrueNAS-managed ZFS datasets mounted through
+  explicit `/mnt/cpool/<service>/...` bind paths; do not switch to the
+  external recommendation to use Docker named volumes by default.
+- **Secrets:** use `homelab-secrets`, Vaultwarden, and
+  `/mnt/cpool/secrets/runtime/<service>/`; do not create tracked or live
+  `apps/<service>/.env` files from a generic Compose template.
+- **Networks and dependencies:** preserve reviewed shared networks and
+  reuse compatible shared services instead of adding bundled copies of
+  Postgres, Redis, Kafka or a proxy.
+- **Operation:** never treat `docker compose up/down/restart`, `down -v`,
+  `prune` or a TrueNAS middleware action as a configuration check.
+  Start with a read-only `--check`, then request explicit runtime approval.
+
+When advice conflicts, follow these Nabla rules and document the conflict.
+Neither skill installation nor a generic deployment example can override
+`AGENTS.md` or authorize a production change.
+
 Use this skill whenever a task creates, migrates, removes, or materially modifies a Docker Compose service in this repository. A service edit includes changing its image, `environment`, `env_file`, volumes, ports, networks, runtime placement, dependencies, healthcheck, or `x-nabla` metadata.
 
 Read `AGENTS.md` first. Inspect the target Compose file and directly referenced files before widening the search.
