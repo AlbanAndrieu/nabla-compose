@@ -53,7 +53,7 @@
       "probePriority": 1
     },
     {
-      "name": "Bichon",
+      "name": "Bichon UI",
       "external": false,
       "tunnelSecure": false,
       "cloudflareAccessRequired": false,
