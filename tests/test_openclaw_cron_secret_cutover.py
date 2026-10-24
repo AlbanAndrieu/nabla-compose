@@ -129,7 +129,7 @@ class CronCutoverTests(unittest.TestCase):
         import sqlite3
         self.env.write_text("LITELLM_OPENCLAW_CRON_API_KEY=" +
                             chr(36) + "{SECRET_FROM_STORE}\n")
-        with sqlite3.connect(self.db) as connection:
+        with contextlib.closing(sqlite3.connect(self.db)) as connection, connection:
             connection.execute("CREATE TABLE credentials (identity TEXT)")
         self.db.chmod(0o600)
         def native_execution(path, dry_run=True):
@@ -202,7 +202,7 @@ class CronCutoverTests(unittest.TestCase):
 
     def test_apply_creates_private_backup_and_file_ref_not_dotenv_cleanup(self):
         import sqlite3
-        with sqlite3.connect(self.db) as connection:
+        with contextlib.closing(sqlite3.connect(self.db)) as connection, connection:
             connection.execute("CREATE TABLE credentials (identity TEXT)")
             connection.execute("INSERT INTO credentials VALUES ('demo')")
         self.db.chmod(0o600)
@@ -236,7 +236,7 @@ class CronCutoverTests(unittest.TestCase):
 
     def test_apply_blocks_native_candidate_drift_before_write(self):
         import sqlite3
-        with sqlite3.connect(self.db) as connection:
+        with contextlib.closing(sqlite3.connect(self.db)) as connection, connection:
             connection.execute("CREATE TABLE credentials (identity TEXT)")
         self.db.chmod(0o600)
         def native_execution(path, dry_run=True):
@@ -261,7 +261,7 @@ class CronCutoverTests(unittest.TestCase):
 
     def test_gateway_reload_failure_preserves_written_state_report(self):
         import sqlite3
-        with sqlite3.connect(self.db) as connection:
+        with contextlib.closing(sqlite3.connect(self.db)) as connection, connection:
             connection.execute("CREATE TABLE credentials (identity TEXT)")
         self.db.chmod(0o600)
         def native_execution(path, dry_run=True):
