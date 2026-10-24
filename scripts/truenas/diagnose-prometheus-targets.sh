@@ -237,6 +237,18 @@ if ! curl --fail --silent --show-error --max-time 10 \
   "${PROMETHEUS_URL}/api/v1/targets?state=active" >"${TARGETS_JSON}"; then
   warn_or_fail "Prometheus active-target API unavailable"
 else
+  # Service health and target health are separate signals: a reachable
+  # Prometheus API with validated configuration can have failing exporters.
+  read -r total_up total_not_up < <(jq -r '
+    [(.data.activeTargets // [])[]?.health // "unknown"] as $states
+    | "\($states | map(select(. == "up")) | length) \($states | map(select(. != "up")) | length)"
+  ' "${TARGETS_JSON}")
+  printf 'prometheus_runtime=running config_validation=passed target_up=%s target_not_up=%s\n' \
+    "$total_up" "$total_not_up"
+  if ((total_not_up > 0)); then
+    printf 'evidence=collector_targets_degraded_not_prometheus_startup\n'
+  fi
+
   # Compact and redacted: scrapeUrl and lastError may include tokens,
   # private IPs, credentials or server messages. Never print these fields.
   jq -r '
