@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 # Sourced read-only check registry for finish-migrations-20261024.sh.
 # Requires run_check, record, plan_wave, SESSION_DIR from the guarded caller.
 # No CLI parser, apply/restart implementation or standalone entrypoint.
