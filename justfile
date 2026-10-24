@@ -191,8 +191,9 @@ migration-20261024-local-gates:
 migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
     bash -n scripts/truenas/diagnose-sentry-consumers.sh
+    bash -n scripts/truenas/diagnose-akvorado-config.sh
     bash -n scripts/truenas/verify-fastapi-lan-probes.sh
-    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_openrag_secret_migration_metadata.py
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_akvorado_config_bind_diagnostic.py tests/test_openrag_secret_migration_metadata.py
 
 # Maintained runtime/version review is read-only, no registry or paid Actions.
 upgrade-runtime-audit:
