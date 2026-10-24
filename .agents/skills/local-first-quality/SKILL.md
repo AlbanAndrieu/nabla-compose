@@ -72,6 +72,12 @@ preuve sur le matériel réel.
   bare privé et télécharger le SHA de la PR, puis lancer les tests.
   Ne pas demander un clonage manuel. Fournir **un seul bloc Bash**
   indépendant du répertoire courant pour amorcer le script versionné.
+- **Limiter un pin SHA opérateur au bootstrap.** Après avoir comparé
+  le SHA distant au commit attendu, ne pas transmettre
+  `NABLA_PR274_EXPECTED_SHA` aux tests imbriqués : leurs dépôts Git
+  synthétiques possèdent leurs propres SHA. Supprimer aussi ce pin de
+  l'environnement copié par leurs fixtures. Conserver un test explicite
+  de rejet de SHA incorrect avant toute opération.
 - Échouer immédiatement et clairement à la première étape bloquante ;
   ne jamais poursuivre vers le matériel après un test en erreur.
   Réutiliser les preuves publiques cryptographiquement validées ;
