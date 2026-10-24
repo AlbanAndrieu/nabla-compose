@@ -19,7 +19,8 @@ relationships. An external Kubernetes manifest may propose RBAC, security
 contexts, probes or PVCs, but it must not silently replace existing
 democratic-csi/TrueNAS NFS storage, ingress or policies. TrueNAS runtime,
 FastAPI observed health and the website's presentation are different
-domains. A declared `RUNNING` App is not proof of a successful probe.
+domains. An ambiguous or absent observation remains `unknown` in the
+SERVICE DTO. A declared `RUNNING` App is not proof of a successful probe.
 
 For a conflict, preserve the existing decision and record the proposed
 change for explicit review. Keep `x-nabla` only for the documented
