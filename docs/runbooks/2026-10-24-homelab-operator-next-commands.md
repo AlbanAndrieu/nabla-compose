@@ -60,6 +60,46 @@ Exécuter sur un worktree de développement isolé avec `just`, `mise` et
 les outils de qualité disponibles. Une sortie `LOCAL_GATES_COMPLETE=5`
 ne valide **pas** l'état des Apps.
 
+## Étape P0 — diagnostic groupé des quatre services bloquants
+
+**Commande opérateur TrueNAS, uniquement sur un checkout contenant les scripts
+revus de la PR #274, sans migration ni relance d'Apps :**
+
+```bash
+sudo bash scripts/truenas/finish-migrations-20261024.sh \
+  --check --section critical
+```
+
+Ce mode accepte explicitement les sections `critical` et `sentry`.
+Il lance **quatre familles de preuves indépendantes**, même si la première
+échoue : Prometheus (UID/GID 568, YAML principal, règles, boucle de crash),
+OpenRAG (état App et backend/frontend, Langflow, OpenSearch, secret canonique),
+Sentry (consommateurs Kafka, credentials, préflight sans redéploiement) et
+Akvorado (inlet/outlet, deux scrapes à 20 secondes, erreurs de métadonnées
+et frais batches ClickHouse).
+
+Le résultat terminal fournit les comptes `PASS/FAIL` et le chemin du rapport
+privé. Le propriétaire doit inspecter les journaux correspondant aux gates
+en échec **sur TrueNAS**, sans copier les secrets ni les logs bruts dans une PR.
+
+| Service | Dernière preuve connue | Gate d'acceptation |
+| --- | --- | --- |
+| Prometheus | `restarting` exit 2 ; 1 règle YAML illisible par `568:568` | règles `unreadable=0`, processus `running`, `/-/ready` HTTP 200 et targets |
+| OpenRAG | `STOPPED` dans le dernier relevé détaillé ; nouvel état `DEPLOYING` signalé, non daté par un `app.query` | App `RUNNING`, backend/frontend `running+healthy`, secret/stockage/ingestion validés |
+| Sentry | `DEPLOYING`, 2 consommateurs Kafka `unhealthy` | préflights PASS, consumers healthy, Sentry edge et smoke E2E après accord |
+| Akvorado | ingestion NetFlow/ClickHouse toujours signalée en anomalie | flux entrants récents, **nouvelles insertions et lignes SQL** attestées, erreurs metadata résolues |
+
+Pour Prometheus, **ne pas appliquer `--expected-unreadable 2`** sur la base
+de l'ancien inventaire. Vérifier le nombre actuel en `--check`; une
+correction de règles nécessite son propre acquittement `--apply`.
+Ne pas modifier TSDB/WAL, Kafka offsets, corpus OpenRAG ni secrets.
+
+La commande groupée ne constitue **ni** un feu vert de redéploiement, **ni**
+une preuve d'acceptation applicative si des gates échouent. Sur le TrueNAS
+canonique resté sur un `master` plus ancien, utiliser les scripts `--check`
+individuels déjà présents ; ne pas recopier la PR Draft dans un bind en cours
+d'exécution pour obtenir cette commande.
+
 ## Étape P0 — preuves de runtime fournies le 24 octobre
 
 **Prometheus** : App TrueNAS `RUNNING`, conteneur `restarting`,
