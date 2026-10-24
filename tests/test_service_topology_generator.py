@@ -17,6 +17,92 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_generator_drift_summary_redacts_payload_values(self) -> None:
+        import json
+
+        old = {
+            "nodes": [{"id": "prometheus", "description": "old PRIVATE-SECRET",
+                       "internalUrl": "http://172.17.0.24"}],
+            "relations": [],
+        }
+        new = {
+            "nodes": [{"id": "prometheus", "description": "new PRIVATE-SECRET",
+                       "internalUrl": "http://172.17.0.57"},
+                      {"id": "openrag", "description": "PRIVATE-SECRET"}],
+            "relations": [],
+        }
+        lines = MODULE._drift_categories(json.dumps(old), json.dumps(new))
+        output = " ".join(lines)
+        self.assertIn("nodes: recorded=1 expected=2", output)
+        self.assertIn("nodes.added_ids=openrag", output)
+        self.assertIn("nodes.changed_ids=prometheus", output)
+        self.assertNotIn("PRIVATE-SECRET", output)
+        self.assertNotIn("172.17.", output)
+
+    def test_generator_drift_summary_reports_invalid_json_without_contents(self) -> None:
+        output = " ".join(MODULE._drift_categories(
+            "NOT-JSON SECRET-PRIVATE", '{"nodes":[]}'
+        ))
+        self.assertIn("not valid JSON", output)
+        self.assertNotIn("SECRET-PRIVATE", output)
+
+    def test_check_output_is_strict_and_reports_entity_ids(self) -> None:
+        import io
+        import json
+        from contextlib import redirect_stderr
+
+        with tempfile.TemporaryDirectory() as temp:
+            output_path = Path(temp) / "service-topology.json"
+            output_path.write_text(json.dumps({
+                "nodes": [{"id": "service-one", "name": "Before"}],
+                "relations": [],
+            }), encoding="utf-8")
+            expected = json.dumps({
+                "nodes": [{"id": "service-one", "name": "After"}],
+                "relations": [],
+            })
+            with patch.object(MODULE, "ROOT", Path(temp)):
+                stream = io.StringIO()
+                with redirect_stderr(stream):
+                    self.assertFalse(MODULE.check_output(output_path, expected))
+            self.assertIn("nodes.changed_ids=service-one", stream.getvalue())
+            self.assertEqual(output_path.read_text(encoding="utf-8"),
+                             json.dumps({"nodes": [
+                                 {"id": "service-one", "name": "Before"}
+                             ], "relations": []}))
+
+    def test_topology_refresh_recipe_is_opt_in_and_never_runs_on_truenas(self) -> None:
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertIn("topology-drift-check:", justfile)
+        self.assertIn("topology-artifacts-refresh:", justfile)
+        recipe = justfile.split("topology-artifacts-refresh:", 1)[1].split(
+            "# Read-only Backstage", 1
+        )[0]
+        self.assertIn("$(id -u)", recipe)
+        self.assertIn("$(pwd -P)", recipe)
+        self.assertIn("/mnt/cpool/compose/nabla-compose", recipe)
+        self.assertIn("git diff --quiet", recipe)
+        self.assertIn("git branch --show-current", recipe)
+        self.assertIn("scripts/generate-service-topology.py --check", recipe)
+        self.assertIn("scripts/generate-service-consumers.py --check", recipe)
+        self.assertIn("scripts/generate-catalog-v2-artifacts.py --check", recipe)
+        self.assertNotIn("midclt ", recipe)
+        self.assertNotIn("docker ", recipe)
+
+    def test_generator_checks_both_artifacts_when_first_is_stale(self) -> None:
+        import sys
+        fake_topology = {"nodes": [], "relations": []}
+        fake_services = {"services": []}
+        with patch.object(MODULE, "generate_catalog", return_value=(
+            fake_topology, fake_services
+        )), patch.object(MODULE, "check_output", side_effect=[
+            False, False
+        ]) as check_mock, patch.object(sys, "argv", [
+            "generate-service-topology.py", "--check"
+        ]):
+            self.assertEqual(MODULE.main(), 1)
+        self.assertEqual(check_mock.call_count, 2)
+
     def test_gatus_config_permission_contract(self) -> None:
         # Generated Gatus config is not world-readable and the container
         # belongs to its owning TrueNAS apps group without DAC_OVERRIDE.

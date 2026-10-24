@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
+# Workstation presentation, not remote pfSense code.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../pfsense" && pwd)/console.sh"
 
 MODE="--accept"
 EXPECTED_LAPI_URL="${CROWDSEC_EXPECTED_LAPI_URL:-http://172.17.0.24:8084}"
@@ -79,6 +82,7 @@ if [[ -n "${SSH_PORT}" ]]; then
   ssh_args+=(-p "${SSH_PORT}")
 fi
 
+pfsense_ui_banner "CrowdSec Small · read-only"
 remote_output="$(
   ssh "${ssh_args[@]}" "${SSH_TARGET}" sh -s --     "${MODE}" "${EXPECTED_LAPI_URL}" "${EXPECTED_LAPI_HOST}"     "${EXPECTED_LAPI_PORT}" "${LEGACY_LAPI_URL}" "${REQUIRE_NONEMPTY}" <<'REMOTE'
 set -eu
@@ -187,9 +191,9 @@ REMOTE
 )" || {
   status=$?
   printf '%s\n' "${remote_output:-}" |
-    sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'
+    sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I' | pfsense_ui_render
   exit "${status}"
 }
 
 printf '%s\n' "${remote_output}" |
-  sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I'
+  sed -E 's/(api_key[[:space:]]*:[[:space:]]*).*/\1<redacted>/I' | pfsense_ui_render

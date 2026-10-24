@@ -38,11 +38,22 @@ if docker inspect --type container defectdojo >/dev/null 2>&1; then
   printf 'defectdojo_port=%s\n' "${ports:-absent}"
   [[ "${ports}" == "172.17.0.24:31085" ]] || diag_fail "unexpected DefectDojo host port binding"
 fi
+# Distinguish public-facing Nginx from the uWSGI application server.
+if docker inspect --type container defectdojo-uwsgi >/dev/null 2>&1; then
+  uwsgi_state="$(docker inspect --type container --format '{{.State.Status}}' defectdojo-uwsgi 2>/dev/null || true)"
+  case "$uwsgi_state" in
+    running) diag_ok 'DefectDojo uWSGI backend running (Django readiness not yet verified)' ;;
+    *) diag_fail "DefectDojo uWSGI state=${uwsgi_state:-unknown}" ;;
+  esac
+else
+  diag_fail 'DefectDojo uWSGI backend absent'
+fi
+
 diag_section '2/4' 'Private HTTP API (no credentials)'
 http="$(curl --noproxy '*' --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 3 --max-time 8 "http://${APP_HOST}:${PORT}/api/v2/" 2>/dev/null)" || http="000"
 printf 'api_http=%s\n' "${http}"
 if [[ "${http}" != 000 ]]; then
-  diag_ok "LAN HTTP endpoint reachable"
+  diag_ok "LAN API HTTP transport reachable; not a UI readiness proof"
 else
   diag_fail "LAN HTTP endpoint unreachable"
 fi
@@ -50,6 +61,22 @@ if [[ "${http}" == 403 || "${http}" == 401 ]]; then
   diag_ok "unauthenticated API access rejected"
 else
   diag_warn "unauthenticated API status=${http}; review access policy"
+fi
+# /api/v2/ returning 403 only proves that the API is reachable.
+# The UI must independently return HTML or an expected login redirect.
+ui_http="$(curl --noproxy '*' --silent --show-error --output /dev/null \
+  --write-out '%{http_code}' --connect-timeout 3 --max-time 8 \
+  "http://${APP_HOST}:${PORT}/" 2>/dev/null)" || ui_http="000"
+printf 'ui_origin_http=%s\n' "${ui_http}"
+case "${ui_http}" in
+  200|301|302|303|307|308) diag_ok 'DefectDojo HTML origin responds' ;;
+  401|403) diag_warn "HTML origin requires authorization (HTTP ${ui_http})" ;;
+  000) diag_fail 'DefectDojo HTML origin unreachable' ;;
+  404|5??) diag_fail "DefectDojo HTML origin returns HTTP ${ui_http}" ;;
+  *) diag_warn "Unexpected HTML origin HTTP ${ui_http}" ;;
+esac
+if [[ "$http" != 000 && "$ui_http" == 000 ]]; then
+  printf 'evidence=api_reachable_but_ui_origin_unavailable\n'
 fi
 diag_section '3/4' 'Split DNS A records'
 for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do

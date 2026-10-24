@@ -10,6 +10,7 @@ def test_promtool_gate_validates_runtime_paths() -> None:
     source = (ROOT / "scripts" / "prometheus" / "check-config.sh").read_text(encoding="utf-8")
 
     assert "docker run --rm" in source
+    assert "--user 568:568" in source
     assert "prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}" in source
     assert "${PROMETHEUS_DIR}:/etc/prometheus:ro" in source
     assert "check config /etc/prometheus/prometheus.yml" in source
@@ -76,3 +77,17 @@ def test_fastapi_observability_recording_rules_match_consumer_contract() -> None
     assert 'pg_up{job="postgres_exporter"}' in records["nabla:service:postgres_up"]
     assert 'redis_up{job="redis_exporter"}' in records["nabla:service:redis_up"]
     assert 'max by (job)' in records["nabla:telemetry:service_exporter_up"]
+
+
+def test_akvorado_scrapes_have_bounded_exporter_recordings() -> None:
+    source = (ROOT / "apps/prometheus/rules/nabla-core.rules.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'akvorado_inlet|akvorado_outlet' in source
+    config = (ROOT / "apps/prometheus/prometheus.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "job_name: akvorado_inlet" in config
+    assert "job_name: akvorado_outlet" in config
+    assert "31057" in config
+    assert "31058" in config

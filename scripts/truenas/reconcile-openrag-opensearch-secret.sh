@@ -1,73 +1,90 @@
 #!/usr/bin/env bash
+# Metadata-only, read-only equality check. Never reconcile secrets automatically.
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-MODE="${1:---check}"
-OPENRAG_SECRET_FILE="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
-OPENSEARCH_ENV_FILE="${OPENSEARCH_ENV_FILE:-/mnt/cpool/compose/nabla-compose/apps/opensearch/.env}"
-
-case "${MODE}" in
-  --check | --apply) ;;
-  -h | --help)
-    printf 'usage: sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh [--check|--apply]\n'
-    exit 0
-    ;;
-  *)
-    fail "unknown mode: ${MODE}"
-    ;;
+case "${1:---check}" in
+  --check) ;;
+  --apply)
+    fail 'Legacy --apply disabled. Review canonical Vaultwarden materialization and staged env migration; do not overwrite an existing OpenRAG key.' ;;
+  -h|--help)
+    printf 'usage: sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check\n'
+    exit 0 ;;
+  *) fail 'only --check is supported' ;;
 esac
+(($# <= 1)) || fail 'unexpected arguments'
+require_root 'run as root on TrueNAS to read protected credentials'
+require_commands awk stat grep
+legacy="/mnt/cpool/compose/nabla-compose/apps/opensearch/.env"
+canonical="/mnt/cpool/secrets/runtime/opensearch/.env"
+canonical_secret="/mnt/cpool/secrets/runtime/opensearch/.env.secrets"
+openrag="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
 
-require_root "run as root on TrueNAS"
-require_commands awk install mktemp stat grep
+# Override exists for a privately reviewed staged source; no automatic rewrite.
+if [[ -n "${OPENSEARCH_ENV_FILE:-}" ]]; then
+  sources=("${OPENSEARCH_ENV_FILE}")
+  source_kind='operator_selected'
+else
+  sources=("$canonical" "$canonical_secret" "$legacy")
+  source_kind='declarative_candidates'
+fi
 
-[[ -f "${OPENSEARCH_ENV_FILE}" ]] ||
-  fail "OpenSearch env authority missing: ${OPENSEARCH_ENV_FILE}"
-[[ -f "${OPENRAG_SECRET_FILE}" ]] ||
-  fail "OpenRAG secret file missing: ${OPENRAG_SECRET_FILE}"
-
-read_key() {
-  local file="$1" key="$2"
-  awk -F= -v key="${key}" '
-    $1 == key {
-      sub(/^[^=]*=/, "")
-      print
-      exit
-    }
-  ' "${file}"
+is_private() {
+  local path="$1" mode uid
+  [[ -f "$path" && -r "$path" ]] || return 1
+  mode="$(stat -Lc '%a' -- "$path" 2>/dev/null)" || return 1
+  uid="$(stat -Lc '%u' -- "$path" 2>/dev/null)" || return 1
+  [[ "$uid" == 0 && ( "$mode" == 600 || "$mode" == 400 || "$mode" == 640 ) ]]
 }
+read_key() {
+  local file="$1" name="$2"
+  awk -F= -v name="$name" '
+    $1 == name {
+      count++
+      sub(/^[^=]*=/, "")
+      if (length($0)) value=$0
+    }
+    END {
+      if (count == 1 && length(value)) print value
+      else exit 1
+    }
+  ' "$file"
+}
+[[ -f "$openrag" && -r "$openrag" ]] || fail 'OpenRAG runtime secret unavailable'
+if ! is_private "$openrag"; then fail 'OpenRAG runtime secret has unsafe ownership or mode'; fi
+openrag_pass="$(read_key "$openrag" OPENSEARCH_PASSWORD)" ||
+  fail 'OpenRAG OPENSEARCH_PASSWORD absent, empty or duplicated'
 
-authority_password="$(read_key "${OPENSEARCH_ENV_FILE}" OPENSEARCH_PASSWORD)"
-openrag_password="$(read_key "${OPENRAG_SECRET_FILE}" OPENSEARCH_PASSWORD)"
-
-[[ -n "${authority_password}" ]] ||
-  fail "OpenSearch authority has empty/missing OPENSEARCH_PASSWORD"
-
-if [[ -n "${openrag_password}" && "${openrag_password}" == "${authority_password}" ]]; then
-  ok "OpenRAG OPENSEARCH_PASSWORD matches the OpenSearch runtime authority"
-  exit 0
-fi
-
-if [[ "${MODE}" == "--check" ]]; then
-  if [[ -z "${openrag_password}" ]]; then
-    fail "OpenRAG OPENSEARCH_PASSWORD is missing/empty"
+resolved=0
+matching=0
+authority=''
+for item in "${sources[@]}"; do
+  [[ -e "$item" ]] || continue
+  resolved=$((resolved + 1))
+  if ! is_private "$item"; then
+    fail 'OpenSearch secret candidate has unsafe ownership or mode; no value read'
   fi
-  fail "OpenRAG OPENSEARCH_PASSWORD differs from the OpenSearch runtime authority"
+  candidate="$(read_key "$item" OPENSEARCH_PASSWORD)" ||
+    fail 'OpenSearch candidate has missing, empty or duplicate OPENSEARCH_PASSWORD'
+  if [[ -n "$authority" && "$authority" != "$candidate" ]]; then
+    fail 'OpenSearch canonical and legacy secret candidates disagree; do not rotate or restart'
+  fi
+  authority="$candidate"
+  if [[ "$candidate" == "$openrag_pass" ]]; then matching=$((matching + 1)); fi
+  unset candidate
+done
+if ((resolved == 0)); then
+  printf 'opensearch_authority=UNAVAILABLE checked_sources=%s\n' "$source_kind"
+  fail 'No reviewed OpenSearch credential file exists in the canonical runtime or legacy paths'
 fi
-
-tmp="$(mktemp /mnt/cpool/openrag/.env.secrets.tmp.XXXXXX)"
-trap 'rm -f "${tmp}"' EXIT
-
-awk -F= '
-  $1 != "OPENSEARCH_PASSWORD" { print }
-' "${OPENRAG_SECRET_FILE}" >"${tmp}"
-printf 'OPENSEARCH_PASSWORD=%s\n' "${authority_password}" >>"${tmp}"
-
-install -o root -g root -m 600 "${tmp}" "${OPENRAG_SECRET_FILE}"
-rm -f "${tmp}"
-trap - EXIT
-
-unset authority_password openrag_password
-ok "OpenRAG OPENSEARCH_PASSWORD reconciled without printing it"
+printf 'opensearch_credential_candidates=%d source_selection=%s\n' "$resolved" "$source_kind"
+if ((matching != resolved)); then
+  fail 'OpenRAG OPENSEARCH_PASSWORD differs from available OpenSearch credential candidates'
+fi
+printf 'OK: OpenRAG OPENSEARCH_PASSWORD equals the existing file candidate(s)\n'
+printf 'WARNING: runtime OpenSearch password still unverified; stored TrueNAS Compose / effective credential must be separately attested\n'
+unset authority openrag_pass

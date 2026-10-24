@@ -33,6 +33,43 @@ agent-skills-check:
     python3 -m unittest discover -s tests -p 'test_agent_skill_precedence_contract.py' -v
     python3 scripts/quality/check-agent-skill-precedence.py
 
+# Read-only, detailed generator drift report (no secrets or runtime calls).
+topology-drift-check:
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check
+
+# All three generated contracts checked with the same existing worktree Python.
+topology-generators-check:
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py --check
+
+topology-generator-test:
+    bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_service_topology_generator.py tests/test_service_consumer_drift_diagnostic.py
+
+
+# Single-command QA from an isolated worktree: pinned Python, read-only
+# generators, unit tests, then canonical local quality gate. Stop on failure.
+topology-qa:
+    bash scripts/quality/with-worktree-python.sh bash scripts/quality/check-topology-worktree.sh
+
+# Explicit source-of-truth regeneration. Development worktree ONLY.
+# Never overwrite TrueNAS bind mounts or unpublished generated artifacts.
+topology-artifacts-refresh:
+    @test "$(id -u)" -ne 0 || { echo 'BLOCKED: do not regenerate as root' >&2; exit 2; }
+    @test "$(pwd -P)" != /mnt/cpool/compose/nabla-compose || { echo 'BLOCKED: canonical TrueNAS checkout' >&2; exit 2; }
+    @branch="$(git branch --show-current)"; test -n "$branch" && test "$branch" != master || { echo 'BLOCKED: use isolated feature worktree' >&2; exit 2; }
+    @git diff --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve local generated edits' >&2; exit 2; }
+    @git diff --cached --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve staged generated edits' >&2; exit 2; }
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py
+    just topology-generators-check
+
+# Offline terminal-safety contracts; does not call Github or TrueNAS.
+pr274-local-quality-test:
+    bash -n scripts/workstation/run-pr274-local-quality.sh
+    python3 -m unittest discover -s tests -p 'test_pr274_local_quality_runner_contract.py' -v
+
 # Read-only Backstage v2 / icon parity check. Pass --site-generated separately
 # when the sibling website checkout is available (no network fetch).
 catalog-convergence-check:
@@ -40,9 +77,10 @@ catalog-convergence-check:
     python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
     python3 scripts/quality/check-site-catalog-convergence.py
 
-# Full local quality gate without publishing.
+# Full local quality gate without publishing. Invoke the canonical checker
+# directly to avoid outdated TrueNAS mise auto-lock/download side effects.
 quality:
-    mise run agent-quality
+    bash scripts/quality/with-worktree-python.sh bash scripts/agent-quality-gate.sh
 
 # Apply deterministic local fixes and generated artifacts.
 fix:
@@ -80,16 +118,131 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
+# Offline model alias contract and optional authenticated TrueNAS inventory.
+openclaw-truenas-model-keys-test:
+    python3 -m py_compile scripts/workstation/preflight-truenas-litellm-openclaw.py scripts/workstation/openclaw-route-metadata.py tests/test_truenas_litellm_openclaw_preflight.py tests/test_openclaw_route_metadata.py
+    python3 -m unittest discover -s tests -p 'test_truenas_litellm_openclaw_preflight.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
+
+# Always safe and offline: compare intended model names to git-declared TrueNAS routing.
+openclaw-truenas-model-keys-check:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py
+
+# Opt-in: requires existing SSH tunnel 127.0.0.1:14000 to TrueNAS LiteLLM.
+# Never transmit an admin key over plaintext LAN: only local encrypted transport.
+openclaw-truenas-model-keys-tunnel:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel
+
+# One-time hidden TTY input, no exported master credential; requires pre-existing SSH tunnel.
+openclaw-truenas-model-keys-tunnel-prompt:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --prompt-admin
+
+# Credential-free listener check; SSH transport identity still needs operator verification.
+openclaw-truenas-tunnel-check:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --check-tunnel
+
+# Explicitly choose the existing named variable, never expose its contents.
+# The operator must first confirm LITELLM_MASTER_KEY belongs to TrueNAS.
+openclaw-truenas-model-keys-tunnel-existing-master:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_MASTER_KEY
+
+# Dedicated TrueNAS environment name is preferred when available.
+openclaw-truenas-model-keys-tunnel-dedicated:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY
+
+
+# Read-only 429 attribution. No chat, embeddings, resets or key mutations.
+openclaw-429-triage-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
+
+# The --admin flag only queries hashed virtual key metadata on LiteLLM loopback.
+openclaw-429-triage:
+    python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
+    python3 scripts/workstation/openclaw-route-metadata.py
+
+# OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
+openclaw-cron-secret-plan-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_cron_env_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_secret_cutover.py' -v
+
+# Plan-only verification for importing the existing cron dotenv secret to a file.
+openclaw-cron-file-cutover-check:
+    python3 scripts/workstation/cutover-openclaw-cron-secret.py --check
+
+# Explicitly authorized mutation: key file, private backups, native SecretRef apply.
+# No Gateway restart, no deletion from dotenv, no paid Actions.
+openclaw-cron-file-cutover:
+    python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
+
+# Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
+# Pure offline regressions: no pfSense access or GitHub Actions.
+pfsense-console-test:
+    bash -n scripts/pfsense/console.sh
+    bash -n scripts/workstation/verify-crowdsec-pfsense.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
+
+pfsense-unbound-wifi-test:
+    bash -n scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh
+    bash -n scripts/pfsense/audit-posture.sh
+    bash -n scripts/workstation/diagnose-whatsapp-web-path.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
+    bash -n scripts/workstation/run-pr274-after-reboot.sh
+    python3 -m unittest discover -s tests -p 'test_pr274_worktree_recovery.py' -v
+
+# Read-only Akvorado static metadata preflight. Runtime load remains unverified.
+akvorado-metadata-test:
+    bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_akvorado_metadata_config.py tests/test_akvorado_static_ifindex_contract.py
+
+akvorado-metadata-check:
+    bash scripts/quality/python-with-repo-deps.sh scripts/truenas/check-akvorado-metadata-config.py --check
+
+# Read-only probes run on a workstation that can reach pfSense via SSH.
+pfsense-unbound-check:
+    bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check
+
+# Read-only WhatsApp Web IPv4/IPv6 edge path, with no browser-session access.
+whatsapp-web-path-check:
+    bash scripts/workstation/diagnose-whatsapp-web-path.sh --check
+
+# Operator-only: requires private cron-plan.json on the Ubuntu workstation.
+openclaw-cron-secret-plan-check:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py
+
+# Compare two native dry-runs, with ephemeral owner-private no-scrub plan.
+# Read-only for OpenClaw runtime; exit 2 is expected while scrub remains unsafe.
+openclaw-cron-secret-plan-compare:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub
+
+# Opt-in read-only presence hints from the projected dotenv and current Gateway PID.
+# Never proves a restart-safe source; intended exit code is 2.
+openclaw-cron-secret-plan-provenance:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub --inspect-gateway-env
+
 # Print operator commands only. Does not contact TrueNAS or start migrations.
 migration-20261024-commands:
     bash scripts/truenas/finish-migrations-20261024.sh --next-commands
+
+# Explicit local-only consolidation of the five review gates.
+# The script stops on first failed recipe; no GitHub Actions or TrueNAS apply.
+migration-20261024-local-gates:
+    bash scripts/truenas/finish-migrations-20261024.sh --local-gates
 
 # Offline migration, FastAPI LAN collector and Akvorado regressions.
 # No TrueNAS mutation or GitHub Actions.
 migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
+    bash -n scripts/truenas/diagnose-sentry-consumers.sh
+    bash -n scripts/truenas/diagnose-defectdojo.sh
+    bash -n scripts/truenas/reconcile-openrag-opensearch-secret.sh
+    bash -n scripts/truenas/diagnose-akvorado-config.sh
+    bash -n scripts/truenas/diagnose-openrag-startup.sh
     bash -n scripts/truenas/verify-fastapi-lan-probes.sh
-    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_openrag_secret_migration_metadata.py
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_akvorado_config_bind_diagnostic.py tests/test_openrag_secret_migration_metadata.py tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py tests/test_defectdojo_diagnostic_contract.py
 
 # Maintained runtime/version review is read-only, no registry or paid Actions.
 upgrade-runtime-audit:
@@ -145,7 +298,16 @@ truenas-openrag-dependencies-check:
     sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
 
 truenas-openrag-dependencies-test:
-    python3 -m pytest -q tests/test_openrag_dependencies_diagnostic.py
+    python3 -m pytest -q tests/test_openrag_dependencies_diagnostic.py tests/test_openrag_startup_preflight.py
+
+# Read-only prerequisites: App lifecycle, root-owned secrets, ZFS corpus and shared endpoints.
+truenas-openrag-startup-check:
+    sudo bash scripts/truenas/diagnose-openrag-startup.sh --check
+
+truenas-openrag-startup-test:
+    bash -n scripts/truenas/diagnose-openrag-startup.sh
+    bash -n scripts/truenas/reconcile-openrag-opensearch-secret.sh
+    python3 -m pytest -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py
 
 # Read-only host preflight; --apply remains a separate, explicit operator action.
 truenas-prometheus-config-check:

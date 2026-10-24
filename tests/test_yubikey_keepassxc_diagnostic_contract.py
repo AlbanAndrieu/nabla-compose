@@ -516,8 +516,10 @@ class YubiKeyKeepassDiagnosticContract(unittest.TestCase):
                          "plan-age-yubikey-piv82-enrollment.sh",
                          "verify-age-yubikey-piv82-certificate.py"):
             self.assertIn(expected, content)
-        self.assertLess(content.index('python3 -m py_compile "$python_source"'),
-                        content.index("python3 -m unittest discover"))
+        # Both Bash variable forms are equivalent; preserve the ordering check.
+        normalized = content.replace('"${python_source}"', '"$python_source"')
+        self.assertLess(normalized.index('python3 -m py_compile "$python_source"'),
+                        normalized.index("python3 -m unittest discover"))
 
     def test_offline_quality_gate_contract(self):
         script = ROOT / "scripts/workstation/verify-age-yubikey-offline.sh"

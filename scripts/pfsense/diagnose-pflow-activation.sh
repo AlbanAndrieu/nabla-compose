@@ -2,6 +2,9 @@
 # Read-only pfSense pflow/Unbound health and optional bounded packet capture.
 # Does not load modules, change PF rules, or restart services.
 set -euo pipefail
+# Workstation presentation only; remote /bin/sh stays plain.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
 capture=false
@@ -15,7 +18,8 @@ while (($#)); do
 done
 args=(-o BatchMode=yes -o ConnectTimeout=10)
 [[ -z "$port" ]] || args+=(-p "$port")
-ssh "${args[@]}" "$target" '/bin/sh -s' -- "$capture" <<'REMOTE'
+pfsense_ui_banner "pflow activation · read-only"
+ssh "${args[@]}" "$target" '/bin/sh -s' -- "$capture" <<'REMOTE' | pfsense_ui_render
 set -u
 capture="$1"
 echo '=== Clock and uptime ==='

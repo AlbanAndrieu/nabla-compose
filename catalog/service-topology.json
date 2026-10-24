@@ -217,7 +217,7 @@
     },
     {
       "id": "bichon",
-      "name": "Bichon",
+      "name": "Bichon UI",
       "kind": "application",
       "category": "productivity",
       "sourcePath": "apps/bichon/compose.yml",
@@ -833,7 +833,7 @@
     },
     {
       "id": "gatus",
-      "name": "Gatus",
+      "name": "Gatus UI",
       "kind": "status-monitor",
       "category": "observability",
       "sourcePath": "apps/gatus/compose.yml",
@@ -984,7 +984,7 @@
     },
     {
       "id": "homeassistant",
-      "name": "Home Assistant",
+      "name": "Home Assistant UI",
       "kind": "home-automation",
       "category": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
@@ -1777,7 +1777,7 @@
       "runtime": {
         "provider": "truenas-app",
         "appId": "openwebui",
-        "containerService": "open-webui"
+        "containerService": "openwebui"
       },
       "icon": "💬"
     },
@@ -4544,7 +4544,7 @@
       "target": "cloudflared",
       "type": "exposedBy",
       "strength": "required",
-      "description": "Cloudflare Tunnel forwards open-webui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.",
+      "description": "Cloudflare Tunnel is planned to forward openwebui.albandrieu.com through cloudflared directly to the published :31028 origin; Traefik is not in this path.",
       "evidence": [
         "apps/openwebui/compose.yml:ports"
       ]
@@ -4556,7 +4556,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/openwebui/compose.yml:open-webui.x-nabla.runtime.containerService"
+        "apps/openwebui/compose.yml:openwebui.x-nabla.runtime.containerService"
       ]
     },
     {

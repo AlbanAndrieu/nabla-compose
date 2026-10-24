@@ -16,6 +16,185 @@ faits observés, les mesures non vérifiées et les actions proposées.
 Cette règle s'inspire de l'ASD-STE100. Elle ne prétend pas établir une
 conformité formelle à la norme.
 
+## Workflow IA — chemin court
+
+**Décision en six actions, avant toute modification :**
+
+1. **Périmètre :** lire la PR choisie par l'utilisateur, sa branche et
+   son HEAD exact. Refuser toute écriture si elle est fusionnée ou fermée.
+2. **Contexte minimal :** lire seulement les fichiers utiles et le premier
+   test en erreur. Ne pas explorer toute la roadmap ou les logs CI PASS.
+3. **Isolation :** travailler sur un worktree unique par agent ; garder
+   le dépôt Git canonique et les preuves hors des répertoires éphémères.
+4. **Preuve :** reproduire d'abord l'échec, corriger puis exécuter le test
+   concerné avec au moins un cas négatif. Élargir à la gate locale après PASS.
+5. **Publication :** revérifier le HEAD GitHub puis mettre à jour la **même
+   PR** avec un fast-forward et une comparaison du SHA attendu. Utiliser
+   [skip ci] si la CI payante est explicitement suspendue.
+   Utiliser une **optimistic file update** (SHA attendu) pour toute édition
+   via GitHub : ne pas écraser le contenu modifié par un autre agent.
+
+6. **Rapport :** HEAD, fichiers, L0/L1/L2/L3 réellement atteints,
+   validations NOT_RUN, risques restants et **un seul bloc opérateur**
+   pour les contrôles impossibles côté agent.
+
+**Optimiser le coût d'exécution :** privilégier les outils déjà installés,
+un appel groupé aux fichiers liés et un seul lot de commits cohérent.
+Après un échec déterministe, ne pas relancer des commandes identiques.
+Ne pas confondre compilation syntaxique, tests ciblés, gate complète et
+preuve sur le matériel réel.
+
+## Shell parent et isolation uv entre worktrees (P0)
+
+**Ne jamais appliquer set -euo pipefail au shell interactif du client.**
+Ce shell peut être Bash ou zsh. Un échec ou une variable non définie peut
+fermer le terminal. Tout bloc multi-commandes doit s'exécuter dans un
+**Bash enfant** (heredoc bash avec marqueur entre apostrophes, ou script
+versionné lancé avec bash). Un script exécutable doit d'abord refuser
+d'être sourcé ; appliquer set -Eeuo pipefail uniquement ensuite.
+Tester un échec intermédiaire : les commandes suivantes ne doivent pas
+tourner, le code de sortie doit être non nul et **le shell parent doit
+rester utilisable**. Ne pas donner un bloc opérateur qui suppose un cwd
+particulier, un repo sous /tmp ou une branche déjà active.
+
+**Contrat Python multi-agent approuvé :**
+- Lire les versions depuis mise.toml/.python-version et les dépendances
+  depuis pyproject.toml + uv.lock, sans changer le lockfile pour un test.
+- Utiliser uv sync --locked dans chaque worktree de développement.
+  Conserver **une .venv dédiée à chaque worktree** ; ne jamais partager
+  une .venv ou VIRTUAL_ENV entre agents.
+- Partager **seulement le cache de téléchargement uv**
+  (typiquement $HOME/.cache/uv). Le cache est réutilisable, les paquets
+  installés et les fichiers du worktree ne le sont pas.
+- Exécuter explicitement le Python de la .venv sélectionnée. Un python3
+  dans PATH avec pytest/PyYAML manquants est un prérequis BLOCKED,
+  **pas** une régression du générateur.
+- Ne pas sourcer .envrc ni activer direnv automatiquement, car cela peut
+  installer des outils ou charger des secrets. Ne pas installer dans
+  le Python global ni lancer mise install global.
+- Vérifier les dépendances avant les tests ; exécuter les générateurs
+  en mode --check et les tests ciblés avant la gate large. Ne jamais
+  interpréter un échec d'environnement comme un PASS de quality gate.
+
+## Exécution opérateur : reprise et persistance
+
+- Le répertoire **/tmp est éphémère** : ne jamais le considérer comme un
+  checkout permanent après un redémarrage. Le chemin
+  /tmp/nabla-yubikey-pr259 est uniquement une référence historique.
+- Stocker la base Git durable sous
+  \`$HOME/.local/share/nabla/git/nabla-compose.git\` (dépôt bare), ou
+  dans \`$NABLA_AGENT_STATE_DIR/git/nabla-compose.git\` si un volume
+  persistant explicite est nécessaire. Documenter si HOME n'est pas durable.
+- Exécuter \`git ls-remote\` pour identifier le HEAD exact de la PR.
+  Ne lancer \`git fetch\` que si l'objet Git n'est pas présent dans le
+  dépôt bare ; ne jamais se fier au \`FETCH_HEAD\` partagé.
+- Créer un worktree **détaché**, privé et unique (\`mktemp -d\`, mode
+  0700), associé à un SHA précis. Verrouiller les opérations sur les
+  métadonnées Git avec \`flock\`. Un worktree n'isole pas la base
+  d'objets Git commune ; ne pas y faire de rebase/GC/force-push concurrents.
+- Garder le checkout original intact, même s'il est sale ou en detached
+  HEAD. Ne jamais tenter \`git pull\` automatiquement dans cet état.
+  Ne jamais utiliser \`reset --hard\`, \`clean -fd\`, \`switch -f\` ou
+  \`worktree prune\` pour supprimer des modifications d'autrui.
+- Supprimer seulement le worktree temporaire propre créé par
+  **l'exécution courante**. Préserver et signaler un worktree modifié
+  ou un nettoyage impossible. Ne jamais supprimer les fichiers publics
+  ou les sauvegardes sans demande explicite.
+- En cas de premier démarrage sans dépôt, le script doit créer un dépôt
+  bare privé et télécharger le SHA de la PR, puis lancer les tests.
+  Ne pas demander un clonage manuel. Fournir **un seul bloc Bash**
+  indépendant du répertoire courant pour amorcer le script versionné.
+- **Ne pas confondre dérive fast-forward et réécriture d'historique.**
+  Si la PR avance entre deux lectures pendant un bootstrap, exécuter les
+  tests sur le SHA initial épinglé **sans le remplacer**. Vérifier avec
+  `git merge-base --is-ancestor SHA_PINNÉ SHA_OBSERVÉ` que la branche
+  n'a avancé que par fast-forward. Bloquer si l'objet n'est pas disponible,
+  si la branche diverge ou si l'historique a été forcé. Indiquer le SHA
+  réellement testé et le HEAD plus récent dans le rapport ; ne jamais
+  déclarer la gate verte pour un HEAD différent.
+- **Limiter un pin SHA opérateur au bootstrap.** Après avoir comparé
+  le SHA distant au commit attendu, ne pas transmettre
+  `NABLA_PR274_EXPECTED_SHA` aux tests imbriqués : leurs dépôts Git
+  synthétiques possèdent leurs propres SHA. Supprimer aussi ce pin de
+  l'environnement copié par leurs fixtures. Conserver un test explicite
+  de rejet de SHA incorrect avant toute opération.
+- **Toute commande opérateur proposée en un bloc est exécutée d'un coup.**
+  Ne jamais laisser un `set -euo pipefail` isolé dans le shell interactif,
+  ni une série de commandes dont les suivantes seraient lancées après un
+  échec. Placer les actions dans un processus enfant `bash <<'TAG'`,
+  ou dans un script versionné exécuté avec `bash`. Rendre le code de
+  retour, le premier échec, le chemin des journaux privés et le chemin
+  du worktree préservé. Valider au moins un scénario négatif qui
+  **laisse le shell parent vivant**.
+- Pour la qualité de la PR #274, utiliser le [bootstrap en une étape]
+  (../../../docs/runbooks/2026-10-24-pr274-local-quality-one-shot.md)
+  et le lanceur `scripts/workstation/run-pr274-local-quality.sh`.
+  Le launcher utilise `QUALITY_BASE_REF` égal au vrai `master` épinglé,
+  jamais `HEAD~1` sur un worktree détaché. La régénération locale
+  des projections ne permet pas de passer `--publish` automatiquement.
+- Échouer immédiatement et clairement à la première étape bloquante ;
+  ne jamais poursuivre vers le matériel après un test en erreur.
+  Réutiliser les preuves publiques cryptographiquement validées ;
+  pas de PIN, de génération PIV82 ou de mutation SOPS implicite.
+
+La référence d'implémentation est
+\`scripts/workstation/run-age-yubikey-pr274-readonly.sh\`.
+Lire \`docs/runbooks/yubikey-piv82-postmerge-diagnostics.md\` pour le
+bootstrap Git **sans dépendance à /tmp**.
+
+## Worktree Python : dépendances verrouillées avant la gate
+
+**Détecter d'abord l'environnement** : un worktree Git est un checkout
+de fichiers, pas une copie de .venv, des caches ou de l'autorisation
+direnv/mise. Évaluer les prérequis **avant** d'interpréter les erreurs
+PyYAML/pytest comme une régression applicative.
+
+Séquence obligatoire pour une tâche Python/topologie :
+
+1. L0 : vérifier pyproject.toml, uv.lock, .python-version, la branche,
+   l'emplacement du checkout et les exécutables Python/uv disponibles.
+   Préférer just preflight (Git-only) avant une installation.
+2. Préparer **uniquement** l'environnement Python du worktree :
+   scripts/quality/with-worktree-python.sh installe le groupe dev
+   (incluant test et pre-commit) du uv.lock avec uv sync --locked --no-install-project.
+   N'autoriser aucun changement de uv.lock, de pyproject.toml ou de
+   configuration globale pour contourner un prérequis.
+3. Le lanceur utilise .venv propre au worktree et le cache partagé de
+   téléchargements uv. Il contrôle un marqueur de hash uv.lock +
+   pyproject.toml + version du Python ; il évite la resynchronisation à chaque commande
+   quand la preuve de dépendances reste valide.
+4. L1 : exécuter les 3 générateurs en mode --check, puis les tests
+   ciblés. Ne jamais régénérer automatiquement Homarr/Gatus/AutoKuma
+   pendant un contrôle. Si un générateur échoue, lire son premier
+   diagnostic ; distinguer MISSING_DEPS, TOOL_MISSING et DRIFT.
+5. L2/L3 : lancer la gate complète seulement après un préflight
+   Python PASS. Si elle détecte une dérive réelle, préserver le diff
+   et ne lancer la régénération qu'avec une décision explicite.
+
+**Commande canonique (une seule, dans un worktree)** : just topology-qa.
+Cette recette prépare la .venv puis enchaîne les contrôles et
+just quality ; elle s'arrête au premier échec. La commande
+just quality prépare également son environnement Python avant
+d'exécuter le gate existant. Utiliser --check pour l'audit, et
+topology-artifacts-refresh uniquement pour un changement intentionnel
+des projections.
+
+**Choix d'outils** : uv est l'autorité des dépendances Python versionnées
+(pyproject.toml + uv.lock). mise.toml sélectionne les exécutables
+(python, uv, just) déjà installés ; ne pas effectuer un mise install global
+ni modifier mise.lock pour un contrôle de topologie. .envrc peut exécuter
+des commandes de mise en place et charger des fichiers secrets :
+ne jamais déclencher direnv allow, de source .envrc, de curl | bash ou
+une activation automatique dans un agent sans revue explicite.
+Si uv manque, afficher BLOCKED et la dépendance précise, sans installer
+de binaire depuis une source non revue. Ne pas utiliser pip install
+dans le Python global ou le --break-system-packages.
+
+Un défaut de prérequis ne prouve **jamais** que le générateur a produit
+des fichiers erronés. Après un échec, n'élargir ni les tests ni la CI
+avant d'avoir rétabli l'environnement et reproduit le premier défaut
+sur le SHA exact.
+
 ## Skills externes : contrôle local avant installation
 
 `AGENTS.md` et `docs/agent-skills-architecture.md` définissent la
@@ -178,317 +357,24 @@ For the October 2026 TrueNAS/Git permission anomalies, duplicated Bash functions
 failed mocked executables and local-first troubleshooting, see
 [`docs/incidents/2026-10-10-local-first-quality-truenas-git-permissions.md`](../../../docs/incidents/2026-10-10-local-first-quality-truenas-git-permissions.md).
 
-## Git executable contract versus filesystem permissions
+## Annexes : chargement à la demande
 
-Git records executable files as `100755` regardless of actual checkout
-permissions, including `0700` on a locked-down TrueNAS dataset. In portable
-tests, assert `S_IXUSR` for operator execution and `git ls-files --stage`
-`100755` for repository distribution. Do **not** insist on `S_IXGRP` or
-`S_IXOTH` merely because the Git mode is `100755`. Never `chmod 755`
-private operator scripts to make a CI test pass. Verify the effective ACL and
-the operator identity separately if runtime execution is denied.
+Le skill principal reste court. Les règles détaillées et les précédentes
+preuves opérateur sont conservées intégralement dans
+[references/advanced-diagnostics.md](references/advanced-diagnostics.md).
 
-If a local checkout has `core.fileMode=false` or ACL/chmod policies diverge
-from the Git index, distinguish **index**, **stat**, **getfacl**, and
-**shebang** evidence. A staged mode fix uses `git add --chmod=+x`; changing
-the filesystem execute bit for the owning operator uses `chmod u+x` (only
-when actually needed). Do not use `git reset --hard` to reconcile modes.
-Never treat a permission-mode mismatch as permission to skip pre-commit.
+Lire la section concernée **seulement après avoir classé l'incident** :
 
-The `agent-quality-gate.sh --preflight` checks **all tracked shebang files**
-against Git index mode `100755`, including files not changed by this PR.
-This prevents old `100644` executable scripts escaping changed-file checks.
-In fix mode, `git add --chmod=+x` corrects the index; if needed, only
-`chmod u+x` corrects the owner's filesystem execute bit. Never silently
-normalize a private `0700` TrueNAS file to `0755`. Examine the staged diff
-before committing; the publication gate must refuse dirty staged changes.
+- Permissions Git, mode 100755, ACL et /tmp noexec : « Git executable »
+  et « TrueNAS noexec ».
+- Environnement Node, Python, pre-commit ou source indisponible :
+  « Node.js », « Mandatory reproduction », « Mandatory executable »
+  et « Exact-HEAD source recovery ».
+- DNS, réseau, GitHub API, absence de dépendances : « Disconnected »,
+  « API-only fallback » et « Tooling choice ».
+- Dagger, ergonomie shell : sections correspondantes de l'annexe.
 
+L'annexe n'est pas une liste d'étapes obligatoires pour chaque PR.
+Ne pas en charger la totalité par défaut. La reproduction et
+l'interdiction de mutations non autorisées restent obligatoires.
 
-## Node.js dependency for security audit contracts
-
-The vendored Cloudflare `security-audit` validation is an **enforced** Node.js
-quality gate: `tests/test_security_audit_skill_contract.py` invokes both
-`validate-findings.cjs` and `validate-coverage-ledger.cjs`. TrueNAS may have
-Python, Pre-commit and hook-isolated JavaScript tooling but **no `node` on
-the operator's effective PATH**. A passing Biome/Pre-commit hook is not proof
-that a system Node runtime is available to the Python subprocess.
-
-Node is pinned in `mise.toml`. From the TrueNAS operator checkout use
-`mise install node`, then verify `mise exec -- node --version` and run the
-targeted security-audit contract under `mise exec -- python -m pytest ...`.
-If the Python dev venv is needed, invoke its interpreter through `mise exec`
-or activate the venv first. Do not skip the assertion requiring Node, and do
-not translate a missing runtime into a passing audit validation.
-
-## Mandatory reproduction before GitHub writes
-
-When a failure log names a deterministic pytest module, test function, or
-standalone shell helper, reproduce it in the **agent's own environment before
-editing or asking the operator to rerun it**. Prefer an exact-HEAD isolated
-checkout with the unchanged source, dependency fixtures and targeted pytest.
-If network access prevents that checkout, fetch files through the GitHub
-connector and reconstruct the exact test and helper in a disposable directory.
-First observe the failure on the original behavior, then run the corrected
-behavior, including a negative regression. Merely evaluating a string
-assertion in memory is **L1 partial reproduction**, not an executed pytest
-module, and must be reported as such.
-
-Before publishing a Python/test patch, compile or AST-parse the **entire
-modified file** and execute the affected test where dependencies are available.
-Avoid repeated connector edits that have not received even syntax validation.
-If the full test cannot be run locally, state the missing prerequisite and
-do not claim it was validated. Request operator validation only for behavior
-that genuinely depends on their TrueNAS/workstation runtime.
-
-For tests that mock external executables, especially on TrueNAS with
-`/tmp noexec`, do not assume a `chmod(0o755)` shim on `tmp_path` will
-be executed. Prefer Bash functions injected with `BASH_ENV` when invoking a
-Bash script, or a verified exec-capable fixture location. Confirm that the
-mock intercepts the intended command, so an unexpected success cannot
-silently bypass the negative test. Preserve the fail-closed assertion.
-
-## TrueNAS noexec fixtures and branch divergence
-
-TrueNAS may mount `/tmp` as `tmpfs rw,nosuid,nodev,noexec` (confirmed
-2026-10-10). A fixture placed there can have POSIX `0700` and Git index
-`100755` but still fail Bash `[[ -x file ]]` due to the mount. **Do not**
-remount `/tmp` with `exec`, run as root, force `chmod 755`, or weaken the
-production executable-bit gate to make tests green.
-
-Before a test needs an executable fixture, inspect
-`findmnt -T "${TMPDIR:-/tmp}" -o TARGET,FSTYPE,OPTIONS`. Prefer an
-exec-capable isolated directory on the repository dataset (or an explicitly
-verified scratch mount), create it with `0700`, and clean it afterwards.
-For index-only semantics, use `git update-index --chmod=+x` and inspect
-`git ls-files --stage` without trying to execute a file. If a test
-intentionally exercises effective execution on `noexec`, assert the denied
-case separately; any skip must name the unmet environmental prerequisite and
-must not hide a failing negative security test.
-
-Regression fixtures must execute against the **same filesystem semantics**
-as the production assertion. `chmod(0o700)` alone is not proof that
-`[[ -x file ]]` succeeds. When a fixture is simulated with a temporary Git
-repo, check both the index mode and Bash's effective `-x` result. Validate
-Python syntax and the exact generated file before publishing, avoiding
-literal `\\n` text accidentally injected into Python source.
-
-When a local permission-only commit is created while the remote PR HEAD has
-advanced, `git pull --ff-only` will legitimately fail. Never reset, force-push,
-or drop the commit. Use `git status --short`, `git log --oneline
---left-right HEAD...@{upstream}` and then, if the working tree is clean,
-`git merge --no-ff @{upstream}` (or a reviewed rebase). Retest on the
-resulting HEAD before pushing. Outputs from `git pull` and pytest are not
-shell commands and must never be pasted back as executable input.
-
-## Disconnected development and token budget
-
-When `github.com`, PyPI or hook repositories are unavailable, do not retry
-network operations in a loop. Use `just offline` for a **syntax-only L1**
-check (Bash syntax, Python AST and whitespace). Without a cached comparison
-ref, it checks the entire local tracked/untracked source set. It does not stop
-at an arbitrary 200-file limit; `AGENT_OFFLINE_MAX_PATHS` remains an optional
-explicit resource bound, default `0` (unlimited). A limited scan refuses to
-claim success if its bound is exceeded.
-
-Keep `agent-pre-push` authoritative for L3. Missing tools or dependencies
-are not interpreted as passing quality. Resume cached Pre-commit, Betterleaks,
-full Pytest and generated contracts when the environment permits.
-
-For smaller agents, run `mise run agent-context` first and show only the
-first failing test or job, its path, a bounded error excerpt and exact HEAD.
-Never send successful full logs or complete generated catalogs into context.
-Escalate from a concise failure to full logs only when required.
-
-## Mandatory executable validation in the agent environment
-
-For every Bash or Python patch, **execute the affected source locally before
-publishing through GitHub**. A GitHub connector supplies file bytes, not an
-excuse to stop at static inspection. In a network-isolated agent environment:
-
-1. Pin the PR HEAD; fetch the exact changed files with the GitHub connector.
-   Reconstruct them under a clean temporary working directory, including any
-   imports and minimal fixtures needed by the targeted test. Mark unavailable
-   dependencies explicitly. Do not modify the operator's live TrueNAS paths.
-2. Run `bash -n path.sh` on every changed Bash file and execute the matching
-   ShellCheck/shfmt versions if installed; **syntax-only does not equal lint**.
-   For Python run `python -m py_compile path.py` (or AST parsing when imports
-   are unavailable), then the smallest matching `pytest`/unittest module.
-   For scripts invoked in live mode, never run mutating `--apply` remotely:
-   exercise read-only checks and hermetic mocks/contracts instead.
-   For subprocess/diagnostic tests, explicitly isolate inherited control flags
-   (`NABLA_DIAGNOSTIC_WRAPPED`, `DIAGNOSTIC_FULL_OUTPUT`,
-   `DIAGNOSTIC_COMPACT_OUTPUT`) when the fixture intends a fresh invocation.
-   Reproduce with those flags injected as well as absent so the test does not
-   accidentally depend on how an operator entered their shell.
-   For mocked executable tools (e.g. fake `docker` in Python tests), do not
-   assume `/tmp` permits execution on TrueNAS. Create executable fixtures on
-   the writable repository filesystem or an explicitly verified exec-capable
-   temporary directory, prepend that directory to `PATH`, and scrub exported
-   `BASH_FUNC_*` overrides and `BASH_ENV`. Verify the mock was invoked rather
-   than accidentally calling the real tool. Never relax the production check
-   because of an invalid test fixture.
-3. When a failure depends on Git semantics (submodules, missing paths,
-   detached HEAD, origin refs or index modes), create a **temporary Git
-   repository** and execute the exact helper/function against the failing
-   fixture. Cover the observed failure **and** a passing ordinary-file case.
-4. Report precisely what ran and where: "L1 exact-file local execution"
-   versus "L1 partial reproduction". Do not describe an isolated snippet
-   as proof that the full original file passed. If exact-file materialization
-   is impossible, say why and supply a reproducible operator command.
-5. Publish only after available L1 tests pass. Run pre-commit and the complete
-   repository gate when the checkout/dependencies exist; never claim L2/L3
-   based on L1, and never ask the operator to run checks that the agent can
-   execute itself. Preserve security hooks and avoid shell/CI bypasses.
-
-Do not use network failures as a reason to stop at L0: use fetched file
-contents to construct small reproducible tests, but **validate the actual
-changed behavior**, not unrelated illustrative code. If the user later
-provides full TrueNAS output, compare it with the L1 claim and correct gaps.
-
-## Exact-HEAD source recovery when shell DNS is blocked
-
-Use the GitHub connector as a **control plane** when a local shell cannot
-resolve `github.com`, `codeload.github.com`, or `raw.githubusercontent.com`:
-
-1. Inspect PR metadata once and pin its `head_sha`. Read check status for
-   that SHA; do not infer a green run from an earlier SHA.
-2. Check *existing* workflow artifacts for a source snapshot of exactly that
-   SHA. `nabla-site-alban` uses
-   `source-snapshot-<HEAD_SHA>`, produced with `git archive` and short
-   retention. This repository does **not** yet guarantee such an artifact.
-3. If an exact-HEAD artifact already exists, download it through the GitHub
-   connector, check artifact/run provenance, and extract into a clean isolated
-   source tree. Treat the archive as source-only; it has **no .git** and cannot
-   validate merge ancestry, hooks, or the exact publication proof.
-4. Otherwise use narrow connector `fetch_file` / per-file PR patches with
-   file SHA leases. For a reproducible local test, reconstruct only the
-   affected files and their required fixtures. Label that proof **L1 targeted
-   reproduction**, not L3 or a full repository checkout.
-5. Do not repeatedly `git clone`, `curl`, or `pip install` against a
-   known-blocked host. Missing dependencies remain unverified; never use
-   `SKIP`, `--no-verify`, or empty file selections to claim green.
-6. Preserve failing command exit codes. Show only the first actionable
-   failure and a bounded excerpt in agent context. Retain detailed evidence
-   separately when policy permits, without exposing credentials.
-
-This fallback is inspired by the `nabla-maintenance` and `nabla-quality`
-skills in `nabla-site-alban`. It must not silently create an expensive new
-GitHub Actions run just to transport sources.
-
-## API-only fallback / source archives
-
-When the execution environment cannot obtain a complete Git checkout:
-
-1. pin every read/write to the exact PR branch/HEAD SHA and use optimistic file
-   SHA updates so concurrent edits cannot be overwritten silently;
-2. batch the smallest logical patch on the dedicated branch;
-3. run source-tree-safe contracts when available. Generators should reuse
-   archive-aware discovery such as `nabla_ops.compose_paths` instead of
-   requiring `.git` merely to enumerate Compose files;
-4. reproduce the narrowest deterministic checks possible and classify the
-   evidence as L0 or L1, never L2/L3;
-5. compare branch freshness and inspect existing workflow/check state without
-   rerunning CI;
-6. if the HEAD moves while working, refetch the touched file and reconcile
-   instead of retrying a stale write;
-7. disclose which complete local gates could not be executed and never label
-   the PR locally green from static inspection alone.
-
-This fallback is for continuity, not a substitute for the publication gate.
-
-## Experimental Dagger PoC
-
-Dagger remains an optional parity experiment. It does not replace the canonical
-publication gate and must never bypass Pre-commit or `agent-pre-push`.
-
-Use this sequence:
-
-```bash
-just dagger-sync            # resolve/refresh dagger.lock, then review it
-just dagger-list            # refuses to run without dagger.lock
-just dagger-native-parity   # official ShellCheck + pinned non-mutating Biome
-just dagger-poc             # refuses to run without dagger.lock
-just dagger-bench           # warm-cache comparison with Hyperfine
-```
-
-Reproducibility comes before performance:
-
-- `@biomejs/biome` is an exact `2.4.12` dev dependency and package-lock
-  entry, matching the existing Pre-commit Biome toolchain;
-- the Dagger Biome module is pinned to an official 2026-10-05 commit, uses an
-  explicit digest-pinned Node image, forces npm and installs with
-  `--ignore-scripts`;
-- the native ShellCheck reference uses the official
-  `koalaman/shellcheck-precommit` hook at `v0.11.0`, replacing the legacy
-  wrapper that depended on an unpinned system binary;
-- ShellCheck exclusions mirror the relevant native `.sh` exclusions;
-- the official ShellCheck module currently references a mutable
-  `koalaman/shellcheck-alpine` image internally, so the generated
-  `dagger.lock` must prove that Dagger resolved that image to immutable state
-  before ShellCheck parity can be accepted;
-- `DAGGER_WORKSPACE_RELEASE` is the single repository value for the beta
-  workspace surface; do not repeat the beta version in individual task commands;
-- `dagger-list`, `dagger-poc` and `dagger-bench` fail closed when the
-  reviewed lockfile is absent.
-
-The native Biome reference is `node_modules/.bin/biome check`, never the
-Pre-commit `biome-check` hook because that hook uses `--write`. Run
-`npm ci --ignore-scripts` before parity work; the task fails closed when the pinned local
-Biome binary is absent.
-
-Hyperfine is the benchmark runner; do not add a repository-specific timer.
-`just dagger-bench` benchmarks `just dagger-native-parity` against
-`just dagger-poc` with three runs and one warmup. Do not delete Docker/Dagger/shared caches merely to manufacture a
-"cold" number. Record cold-start behavior only from a naturally cold/fresh
-environment and label it separately.
-
-Treat successful Dagger checks as **L1 targeted evidence** until native parity is
-demonstrated and the full `agent-pre-push` gate passes on the exact HEAD.
-Dagger benchmark success is performance evidence, not publication evidence.
-
-The PoC intentionally excludes Pytest until the repository has a clean root
-Python project marker compatible with the official Dagger Pytest discovery
-contract. Ruff remains native because adding a local Dagger wrapper would
-duplicate an already-working tool.
-
-Keep secrets and live homelab mutation out of this workspace:
-`defaults_from_dotenv=false`, no Vaultwarden/TrueNAS credentials, and no
-appliance deployment/recovery checks. Mise may load repository operator
-`.env*` files for other tasks, but this PoC never uses them as Dagger module
-settings or constructor defaults; any future credential must be an explicit Dagger `Secret` input and must trigger a separate security review.
-
-## Tooling choice
-
-Prefer existing widely adopted tooling over new repository-specific code:
-
-- Pre-commit for changed-file hook selection and hook environments;
-- Ruff/Biome/Prettier/shfmt/ShellCheck for formatting and linting;
-- pytest for Python contracts;
-- Betterleaks for secret scanning;
-- JSON Schema/check-jsonschema for declarative JSON/YAML structure where it
-  replaces repetitive validation code;
-- Just/Mise as thin command entry points.
-- Context7 via `context7-docs` for current external-library documentation only; use anonymous/free access first and keep repository/runtime evidence authoritative.
-
-Do not add another task runner, formatter or test selector if the existing stack
-already expresses the required contract.
-
-## Shell operator experience and refactoring
-
-When creating or refactoring operator-facing Shell scripts, source
-`scripts/lib/common.sh` and use `ok` / `warn` / `fail` / `info` / `section`
-for consistent ✅/⚠️/❌/ℹ️ statuses and green/yellow/red/cyan terminal colors
-(`nabla_ui_init` exposes `NABLA_UI_*` colors for custom lines). Read-only
-diagnostics with warning/failure counters use `scripts/lib/diagnostic-ui.sh`.
-Never redefine `fail()` locally after sourcing `common.sh`.
-Preserve plain, stable text in CI, logs and redirected output; respect
-`NO_COLOR`, `TERM=dumb`, and `NABLA_UI_ASCII=1`. Never color JSON, probes,
-machine-readable records or secrets. Do not pipe errors through a coloring
-filter that changes exit status.
-
-Prefer reuse of existing `scripts/lib/truenas.sh` job/provenance/lifecycle
-helpers, `scripts/lib/diagnostic.sh` wrapper, and `scripts/lib/probe.sh`
-network primitives over another local copy. Before moving a widely used
-function, search call sites and record signatures/error codes; preserve
-public CLI switches and outputs and test them locally. Refactor in small
-batches with ShellCheck, shfmt and targeted contracts before widening scope.

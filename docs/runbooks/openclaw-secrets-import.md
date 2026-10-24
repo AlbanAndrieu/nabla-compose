@@ -252,6 +252,22 @@ A future explicit operator-approved application should use the native
 `openclaw doctor --fix` may mutate/restart the Gateway; handle its Slack
 state migration separately, with approval.
 
+## P0 — cron plan would also rewrite dotenv (24 October 2026)
+
+The workstation proved **one cron auth SQLite write plus one dotenv write**
+with a native `--dry-run --json`. This is a migration blocker despite
+successful SecretRef resolution in the current shell. In OpenClaw 2026.9.5,
+`scrubEnv` defaults to true and may remove a value that the Gateway must
+read again on restart.
+
+The fail-closed diagnostic is now owned by
+[the OpenClaw cron plan runbook](./openclaw-secrets-plan-diagnostic.md)
+and the `just openclaw-cron-secret-plan-test` /
+`just openclaw-cron-secret-plan-check` recipes. Do not run a native
+write until Gateway environment persistence, the exact planned dotenv
+removal, and rollback are reviewed privately. Never paste raw environment
+or secret-bearing plan output. **No live migration is authorized.**
+
 ## Acceptance conditions
 
 - Re-audit reports zero plaintext/unresolved/shadowed/store-residue

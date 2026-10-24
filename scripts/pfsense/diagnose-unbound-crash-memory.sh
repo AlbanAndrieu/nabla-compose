@@ -2,12 +2,16 @@
 # Read-only pfSense/FreeBSD Unbound crash and memory incident evidence.
 # Execute from a workstation with SSH access. No restart, configuration write or secrets.
 set -euo pipefail
+# Workstation presentation; remote shell never sources workstation helpers.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
 case "${1:---check}" in --check) ;; *) echo "Usage: $0 --check" >&2; exit 2;; esac
 args=(-o BatchMode=yes -o ConnectTimeout=10)
 [[ -z "${port}" ]] || args+=(-p "${port}")
-ssh "${args[@]}" "${target}" '/bin/sh -s' <<'REMOTE'
+pfsense_ui_banner "unbound crash memory · read-only"
+ssh "${args[@]}" "${target}" '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
 set -u
 echo '=== UTC/local time, uptime, Unbound identity ==='
 date; uptime

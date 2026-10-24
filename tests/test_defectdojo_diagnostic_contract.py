@@ -23,6 +23,11 @@ esac
 """,
     "curl": """case "$*" in
   *api/v2*) printf '403' ;;
+  *31085/*) if [[ "${FAKE_UI_DOWN:-0}" == 1 ]]; then
+               printf '000'; exit 7
+             else
+               printf '302'
+             fi ;;
   *) printf '302' ;;
 esac
 """,
@@ -59,6 +64,8 @@ def test_private_ingress_acceptance_passes() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert "== 1/4 · TrueNAS identity and Docker network (metadata only) ==" in result.stdout
     assert "OK: unauthenticated API access rejected" in result.stdout
+    assert "ui_origin_http=302" in result.stdout
+    assert "OK: DefectDojo HTML origin responds" in result.stdout
     assert "OK: no public A record" in result.stdout
     assert "OK: HTTPS router responds with HTTP 302" in result.stdout
     assert "checks: warnings=0 failures=0 unknown=0" in result.stdout
@@ -68,6 +75,15 @@ def test_public_dns_record_fails_acceptance() -> None:
     result = _run({"FAKE_PUBLIC_DNS": "1"})
     assert result.returncode == 1
     assert "FAIL: public A record present" in result.stdout
+
+
+def test_api_403_does_not_mask_broken_html_ui() -> None:
+    result = _run({"FAKE_UI_DOWN": "1"})
+    assert result.returncode == 1
+    assert "api_http=403" in result.stdout
+    assert "ui_origin_http=000" in result.stdout
+    assert "evidence=api_reachable_but_ui_origin_unavailable" in result.stdout
+    assert "FAIL: DefectDojo HTML origin unreachable" in result.stdout
 
 
 def test_usage_and_preflight_syntax() -> None:

@@ -115,13 +115,15 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     assert not marker.exists()
 
 
-def test_next_commands_print_runbook_without_runtime_access(fake_operator):
+def test_next_commands_print_only_runbook_location_without_runtime_access(fake_operator):
     _, _, report, marker = fake_operator
     result = invoke(fake_operator, "--next-commands")
     assert result.returncode == 0, result.stdout + result.stderr
-    for name in ("Akvorado", "Prometheus", "OpenRAG", "Vaultwarden", "Talos"):
-        assert name in result.stdout
+    assert result.stdout == (
+        "RUNBOOK=docs/runbooks/2026-10-24-homelab-operator-next-commands.md\n"
+    )
     assert "NEVER-LOG" not in result.stdout
+    assert len(result.stdout) < 100
     assert not marker.exists()
     assert not report.exists()
 
@@ -141,7 +143,10 @@ def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
 
 def test_new_read_only_sections_are_documented():
     script = SOURCE.read_text(encoding="utf-8")
-    for section in ("observability", "secrets", "convergence", "lan"):
+    for section in (
+        "observability", "prometheus", "openrag", "akvorado",
+        "secrets", "convergence", "lan",
+    ):
         assert f"    {section})" in script
     assert f" --check --section {section}" in (
         SOURCE.parents[2]
@@ -149,6 +154,61 @@ def test_new_read_only_sections_are_documented():
     ).read_text(encoding="utf-8")
     assert "--require-inserts --observe-seconds" in script
     assert "verify-fastapi-lan-probes.sh" in script
+
+
+def test_critical_read_only_section_combines_five_independent_gates(
+    fake_operator,
+):
+    """Missing synthetic check tools are reported without aborting the others."""
+    target, _, report, marker = fake_operator
+    source = SOURCE.read_text(encoding="utf-8")
+    assert 'all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo' in source
+    assert 'for service in prometheus openrag sentry akvorado defectdojo; do' in source
+    assert 'run_check sentry-consumers bash scripts/truenas/diagnose-sentry-consumers.sh --check' in source
+    result = invoke(fake_operator, "--check", "--section", "critical")
+    # Missing fixture-specific read-only probes cause a controlled FAIL,
+    # not "Invalid section" and never a mutation.
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Invalid section" not in result.stderr
+    assert not marker.exists()
+    sessions = list(report.glob("session-*"))
+    assert len(sessions) == 1
+    names = {path.name for path in sessions[0].glob("*.log")}
+    for expected in (
+        "prometheus-targets.log",
+        "openrag-dependencies.log",
+        "sentry-consumers.log",
+        "akvorado-blocked.log",
+        "akvorado-fresh-inserts.log",
+        "defectdojo-preflight.log",
+        "defectdojo-private-ingress.log",
+    ):
+        assert expected in names
+
+
+def test_legacy_openrag_secret_apply_is_rejected(fake_operator):
+    """Legacy OpenRAG secret source must not be a mutable migration step."""
+    result = invoke(
+        fake_operator, "--apply-step", "openrag-secret",
+        "--acknowledge", ACK_MIGRATION,
+    )
+    assert result.returncode == 2
+    assert "Invalid migration step" in result.stderr
+    script = SOURCE.read_text(encoding="utf-8")
+    assert 'openrag-secret) SCRIPT=' not in script
+
+
+def test_operator_runbook_mentions_merged_site_and_api_prs(fake_operator):
+    runbook = (
+        SOURCE.parents[2]
+        / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+    ).read_text(encoding="utf-8")
+    assert "PR site #254 et FastAPI" in runbook
+    assert "ont été fusionnées" in runbook
+    assert "--check --section prometheus" in runbook
+    assert "--check --section openrag" in runbook
+    assert "--check --section akvorado" in runbook
+    assert "Ne pas lancer l'ancien reconciler en" in runbook
 
 
 @pytest.mark.parametrize("args", [
@@ -260,3 +320,96 @@ def test_apply_forbidden_on_unreviewed_feature_branch(fake_operator):
     assert result.returncode == 2
     assert "never a Draft PR/worktree" in result.stderr
     assert not marker.exists()
+
+
+def test_local_gate_mode_and_sentry_section_contract():
+    source = SOURCE.read_text(encoding="utf-8")
+    assert '--local-gates) ACTION="local-gates"' in source
+    assert '(( EUID != 0 ))' in source
+    assert ("run_check sentry-consumers bash "
+            "scripts/truenas/diagnose-sentry-consumers.sh --check") in source
+    assert ("run_check sentry-recovery-preflight bash "
+            "scripts/truenas/recover-sentry-deploying.sh --check") in source
+    assert 'case "${SECTION}" in' in source
+    assert "|sentry|" in source
+    assert "for part in platform migrations catalog services ai sentry" in source
+
+
+def test_local_gates_reject_mixed_mutation_flags(fake_operator):
+    for args in (
+        ("--local-gates", "--apply-step", "sentry-system"),
+        ("--local-gates", "--section", "sentry"),
+        ("--local-gates", "--acknowledge", ACK_MIGRATION),
+    ):
+        assert invoke(fake_operator, *args).returncode != 0
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="local gate requires non-root")
+@pytest.mark.parametrize("failing,expected", [
+    ("", 5),
+    ("catalog-convergence-check", 3),
+])
+def test_local_gates_run_in_order_and_fail_closed(
+    fake_operator, tmp_path, noexec_safe_bash_mocks, failing, expected
+):
+    _, base_env, report, marker = fake_operator
+    fake_just = tmp_path / "bin" / "just"
+    fake_just.write_text(chr(10).join((
+        "#!/usr/bin/env bash",
+        'echo "$1" >> "$MOCK_GATE_LOG"',
+        '[[ "$1" != "$MOCK_GATE_FAIL" ]]',
+        "",
+    )), encoding="utf-8")
+    fake_just.chmod(0o600)
+    log = tmp_path / "gate-calls"
+    env = dict(base_env)
+    env["MOCK_GATE_LOG"] = str(log)
+    env["MOCK_GATE_FAIL"] = failing
+    env = noexec_safe_bash_mocks(env, "just")
+    result = invoke(fake_operator, "--local-gates", env_overrides=env)
+    expected_order = [
+        "migration-20261024-commands",
+        "migration-20261024-test",
+        "catalog-convergence-check",
+        "agent-skills-check",
+        "quality",
+    ]
+    assert log.read_text(encoding="utf-8").splitlines() == expected_order[:expected]
+    assert result.returncode == (1 if failing else 0)
+    assert not marker.exists()
+    assert not report.exists()
+
+
+def test_full_quality_recipe_invokes_same_canonical_gate_without_mise():
+    """TrueNAS local gate must not auto-install the mise.lock tool matrix."""
+    root = SOURCE.parents[2]
+    justfile = (root / "justfile").read_text(encoding="utf-8")
+    assert "\nquality:\n    bash scripts/agent-quality-gate.sh\n" in justfile
+    assert "migration-20261024-local-gates:" in justfile
+    assert "bash scripts/truenas/finish-migrations-20261024.sh --local-gates" in justfile
+    assert (root / "scripts/agent-quality-gate.sh").is_file()
+
+
+def test_roadmap_critical_policy_not_removed_by_migration_consolidation():
+    """The real policy checker must continue to see the historical roadmap."""
+    root = SOURCE.parents[2]
+    roadmap = (root / "docs/roadmap.md").read_text(encoding="utf-8")
+    heading = (
+        "## P0 — Agent skill precedence and Compose/FastAPI/Site "
+        "convergence (2026-10-24)"
+    )
+    assert heading in roadmap
+    assert len(roadmap.splitlines()) > 3000
+    assert "Ask the user" in roadmap
+    assert "democratic-csi" in roadmap
+    assert "catalogRevision" in roadmap
+    assert "entityRef" in roadmap
+
+
+def test_mise_lock_is_not_rewritten_by_local_quality_runner():
+    """The tracked lock remains version 2; do not regenerate it on TrueNAS."""
+    lockfile = (SOURCE.parents[2] / "mise.lock").read_text(encoding="utf-8")
+    assert "lockfile_version = 2" in lockfile
+    runner = SOURCE.read_text(encoding="utf-8")
+    assert "mise lock" not in runner
+    assert "mise install" not in runner

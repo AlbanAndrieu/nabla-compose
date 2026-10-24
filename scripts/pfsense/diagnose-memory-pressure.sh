@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Read-only FreeBSD/pfSense memory-pressure sampler. Runs from workstation.
 set -euo pipefail
+# Workstation console; redirected stdout stays machine-readable CSV.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 target="home.albandrieu.com"
 samples=10
 interval=30
@@ -16,7 +19,8 @@ while (($#)); do
 done
 [[ "$samples" =~ ^[0-9]+$ && "$samples" -gt 0 && "$samples" -le 120 ]] || { echo 'samples must be 1..120' >&2; exit 2; }
 [[ "$interval" =~ ^[0-9]+$ && "$interval" -le 3600 ]] || { echo 'interval must be 0..3600 seconds' >&2; exit 2; }
-ssh -o BatchMode=yes -o ConnectTimeout=10 "$target" /bin/sh -s -- "$samples" "$interval" <<'REMOTE'
+pfsense_ui_banner "memory samples · read-only"
+ssh -o BatchMode=yes -o ConnectTimeout=10 "$target" /bin/sh -s -- "$samples" "$interval" <<'REMOTE' | pfsense_ui_render
 samples="$1"; interval="$2"; n=0
 echo 'timestamp,available_mib,free_mib,inactive_mib,wired_mib,active_mib,unbound_pid,unbound_rss_kib,pfblocker_cron_count,php_fpm_rss_kib'
 while [ "$n" -lt "$samples" ]; do
