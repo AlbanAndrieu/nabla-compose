@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import socket
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -51,9 +52,19 @@ def fetch_local(path, credential):
         return 0, None
 
 
+def loopback_listener():
+    """Check a local listener only; cannot attest that SSH encrypts it."""
+    try:
+        with socket.create_connection(("127.0.0.1", 14000), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 def inspect(tunnel=False, *, config=CONFIG, credentials=None):
     print("truenas_openclaw_preflight=read_only")
-    print("truenas_admin_transport=" + ("encrypted_ssh_tunnel" if tunnel else "offline"))
+    print("truenas_admin_transport=" + ("ssh_tunnel_requested" if tunnel else "offline"))
+    print("truenas_ssh_encryption=operator_attestation_required")
     try:
         source = config.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
@@ -71,6 +82,10 @@ def inspect(tunnel=False, *, config=CONFIG, credentials=None):
         print("truenas_admin_auth=missing")
         return 2
     print("truenas_admin_auth=provided")
+    if not loopback_listener():
+        print("truenas_tunnel_local_listener=unavailable")
+        return 2
+    print("truenas_tunnel_local_listener=present_not_ssh_verified")
     models_status, models = fetch_local("/v1/models", master)
     models_set = None
     if isinstance(models, dict) and isinstance(models.get("data"), list):
