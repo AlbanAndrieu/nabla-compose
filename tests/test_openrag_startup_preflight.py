@@ -73,6 +73,19 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
     assert "OPENRAG_STARTUP_PREFLIGHT" in output
 
 
+def test_preflight_is_wired_into_local_first_and_both_migration_sections() -> None:
+    wrapper = (ROOT / "scripts/truenas/finish-migrations-20261024.sh").read_text(
+        encoding="utf-8"
+    )
+    just = (ROOT / "justfile").read_text(encoding="utf-8")
+    gate = ("run_check openrag-startup bash "
+            "scripts/truenas/diagnose-openrag-startup.sh --check")
+    assert wrapper.count(gate) == 2  # `ai` and `openrag` sections
+    assert "truenas-openrag-startup-check:" in just
+    assert "truenas-openrag-startup-test:" in just
+    assert "tests/test_openrag_startup_preflight.py" in just
+
+
 def test_preflight_fails_closed_for_mutating_flags() -> None:
     run = subprocess.run(
         ["bash", str(SCRIPT), "--apply"], capture_output=True, text=True,
