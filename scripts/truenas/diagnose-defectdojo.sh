@@ -94,8 +94,16 @@ if [[ "$http" != 000 && "$ui_http" == 000 ]]; then
 fi
 diag_section '3/4' 'Split DNS A records'
 for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
-  response="$(dig +time=2 +tries=1 +noall +answer @"${resolver}" "${FQDN}" A 2>/dev/null | awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)" || response=""
-  printf 'dns_server=%s A=%s\n' "${resolver}" "${response:-none}"
+  # DNS command failure is UNKNOWN, never evidence that a private hostname
+  # has no public A record. Preserve dig's exit status across the pipeline.
+  if response="$(dig +time=2 +tries=1 +noall +answer @"${resolver}" "${FQDN}" A 2>/dev/null |
+      awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)"; then
+    printf 'dns_server=%s A=%s\n' "${resolver}" "${response:-none}"
+  else
+    printf 'dns_server=%s query=failed\n' "${resolver}"
+    diag_fail "DNS resolver ${resolver} unavailable; no assertion about public exposure"
+    continue
+  fi
   if [[ "${resolver}" == 1.1.1.1 ]]; then
     if [[ -z "${response}" ]]; then
       diag_ok "no public A record"
