@@ -90,6 +90,8 @@ IFS=$'\t' read -r head seen_ref <<< "$ref_output"
 if [[ -n "${NABLA_PR274_EXPECTED_SHA:-}" && "$head" != "$NABLA_PR274_EXPECTED_SHA" ]]; then
   stop 'remote PR HEAD changed after the bootstrap; rerun a fresh pinned invocation'
 fi
+# A parent pin applies only to this top-level bootstrap, not nested test fixtures.
+unset NABLA_PR274_EXPECTED_SHA
 if ! git --git-dir="$cache" cat-file -e "$head^{commit}" 2>/dev/null; then
   git --git-dir="$cache" fetch --no-tags --no-write-fetch-head "$remote" "$ref" >/dev/null 2>&1 || stop 'fetch of pinned PR SHA failed'
 fi
