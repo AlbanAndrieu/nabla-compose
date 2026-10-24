@@ -8,13 +8,23 @@ set -euo pipefail
 umask 077
 
 usage() {
-  printf 'Usage: bash scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048|23501671\n'
-  printf 'Read-only: exports public F9 certificate to a private temporary directory.\n'
+  printf 'Usage: bash scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048|23501671 [--save-public-f9 PATH]\n'
+  printf 'Read-only: exports public F9 certificate to private temporary storage.\n'
+  printf 'Optional save writes public PEM to a NEW path; never overwrites an existing file.\n'
 }
 if [[ "${1:-}" == '--help' || "${1:-}" == '-h' ]]; then usage; exit 0; fi
-if [[ $# -ne 2 || "$1" != '--serial' ]]; then usage >&2; exit 2; fi
+if [[ $# -ne 2 && $# -ne 4 ]] || [[ "${1:-}" != '--serial' ]]; then usage >&2; exit 2; fi
 serial="$2"
 case "$serial" in 22916048|23501671) ;; *) printf 'NO-GO: unknown serial\n' >&2; exit 2 ;; esac
+save_public=""
+if [[ $# -eq 4 ]]; then
+  if [[ "$3" != '--save-public-f9' || -z "$4" ]]; then usage >&2; exit 2; fi
+  save_public="$4"
+  if [[ -e "$save_public" || -L "$save_public" ]]; then
+    printf 'NO-GO: public F9 output already exists; refusing overwrite\n' >&2
+    exit 3
+  fi
+fi
 for cmd in ykman openssl mktemp; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     printf 'NO-GO: required tool missing: %s\n' "$cmd" >&2
@@ -56,6 +66,16 @@ fingerprint="$(openssl x509 -in "$cert" -noout -fingerprint -sha256 2>/dev/null)
 case "$fingerprint" in *SHA256\ Fingerprint=*|*sha256\ Fingerprint=*) ;; *)
   printf 'NO-GO: F9 fingerprint unavailable\n' >&2; exit 3;;
 esac
+if [[ -n "$save_public" ]]; then
+  # noclobber uses an exclusive create and refuses symlinks/existing files.
+  set -C
+  if ! cat "$cert" >"$save_public"; then
+    printf 'NO-GO: unable to create new F9 public PEM; no overwrite permitted\n' >&2
+    exit 3
+  fi
+  set +C
+  printf 'INFO: F9 public certificate saved (mode 0600, no overwrite)\n'
+fi
 printf 'PASS: read-only F9 certificate inspection on YubiKey %s\n' "$serial"
 printf 'INFO: firmware %s\n' "$firmware"
 printf '%s\n' "$fingerprint"

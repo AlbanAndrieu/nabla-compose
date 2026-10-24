@@ -133,3 +133,12 @@ Contrats : `tests/test_yubikey_f9_inventory.py`, **8/8 tests hermétiques PASS**
 Le slot PIV82 est encore vide selon le dernier inventaire. L'attestation PIV82 n'est possible qu'après une **génération de clé sur la YubiKey**, qui reste soumise à une autorisation explicite distincte. La lecture F9 ne constitue jamais un GO pour générer, signer, importer, modifier AES256/PIV9A/OTP2 ou migrer SOPS. Conserver la récupération logicielle et les deux copies indépendantes de l'escrow.
 
 Documentation officielle : https://developers.yubico.com/yubico-piv-tool/Attestation.html ; https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
+
+
+### 24 octobre 2026 — Préparation de la vérification de la chaîne F9 ancienne
+
+Résultat workstation : 66/66 PASS et 12 refus crypto PASS au HEAD 4f076aa5 ; secondaire 22916048, firmware 5.4.3, empreinte F9 SHA256 6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:62:39:2F:61:F1:78:54:90:34:DF. Cela ne prouve pas encore la confiance Yubico.
+
+Pour les firmwares antérieurs à 5.7.4, la racine officielle est Yubico PIV Root CA Serial 263751 (https://developers.yubico.com/PKI/yubico-piv-ca-1.pem), SHA-256 DER 63:EC:E9:14:E5:4D:D8:79:15:F3:40:33:C8:5A:F4:C0:69:6B:A1:51:2F:8A:DD:66:CE:D7:38:33:12:07:B5:46. Elle est épinglée dans le vérificateur F9 hors matériel. La nouvelle option --save-public-f9 conserve uniquement une copie publique sans écrasement. Procédure : docs/runbooks/yubikey-piv82-postmerge-diagnostics.md section 5.
+
+Contrats L1 isolés avant publication : 5/5 sauvegarde F9, 13/13 vérification X.509 synthétique. Suite complète du nouveau HEAD attendue sur workstation (71 tests unittest + deux fixtures autonomes). Pas de PIN, pas de modification PIV82, F9, OTP2, PIV9A, AES256 ou SOPS. **NO-GO matériel maintenu.**

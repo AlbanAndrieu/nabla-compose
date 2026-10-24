@@ -33,9 +33,12 @@ for python_source in \
   "$script_dir/plan-age-yubikey-piv82-transaction.py" \
   "$script_dir/verify-age-yubikey-piv82-attestation.py" \
   "$script_dir/test-age-yubikey-piv82-attestation-offline.py" \
+  "$script_dir/verify-age-yubikey-f9-root-offline.py" \
+  "$script_dir/test-age-yubikey-f9-root-offline.py" \
   "$repo_root/tests/test_yubikey_piv82_transaction.py" \
   "$repo_root/tests/test_yubikey_f9_inventory.py" \
-  "$repo_root/tests/test_yubikey_git_checkout_diagnostic.py"
+  "$repo_root/tests/test_yubikey_git_checkout_diagnostic.py" \
+  "$repo_root/tests/test_yubikey_f9_export.py"
 do
   python3 -m py_compile "$python_source"
 done
@@ -61,5 +64,6 @@ if ! "$sdk_python" -c 'import cryptography.x509' >/dev/null 2>&1; then
   exit 3
 fi
 "$sdk_python" "$script_dir/test-age-yubikey-piv82-attestation-offline.py"
+"$sdk_python" "$script_dir/test-age-yubikey-f9-root-offline.py"
 nabla_status ok 'Offline test suite passed'
 nabla_status warn 'Not a hardware GO: AES256 compatible certificate install and real decrypt remain unverified'
