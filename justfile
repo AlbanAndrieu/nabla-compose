@@ -120,9 +120,9 @@ hermes-opus-routing-test:
 
 # Offline model alias contract and optional authenticated TrueNAS inventory.
 openclaw-truenas-model-keys-test:
-    python3 -m py_compile scripts/workstation/preflight-truenas-litellm-openclaw.py tests/test_truenas_litellm_openclaw_preflight.py
+    python3 -m py_compile scripts/workstation/preflight-truenas-litellm-openclaw.py scripts/workstation/openclaw-route-metadata.py tests/test_truenas_litellm_openclaw_preflight.py tests/test_openclaw_route_metadata.py
     python3 -m unittest discover -s tests -p 'test_truenas_litellm_openclaw_preflight.py' -v
-    python3 -m pytest -q tests/test_openclaw_route_metadata.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
 
 # Always safe and offline: compare intended model names to git-declared TrueNAS routing.
 openclaw-truenas-model-keys-check:
