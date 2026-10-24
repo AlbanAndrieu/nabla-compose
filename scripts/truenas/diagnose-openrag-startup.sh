@@ -58,8 +58,9 @@ fi
 # Scope to the one approved dataset, never walk its file tree.
 dataset="${OPENRAG_ZFS_DATASET:-cpool/bababou}"
 source="${OPENRAG_BABABOU_SOURCE:-/mnt/cpool/bababou}"
-if [[ "$source" != /mnt/cpool/* || -L "$source" ]]; then
-  fail_gate 'corpus mountpoint is outside cpool or is symlinked'
+if [[ "$source" != /* || -L "$source" ||
+      ( "$dataset" == cpool/bababou && "$source" != /mnt/cpool/* ) ]]; then
+  fail_gate 'corpus mountpoint is non-absolute, symlinked or outside the expected cpool prefix'
 else
   metadata="$(zfs list -H -o mountpoint,mounted "$dataset" 2>/dev/null)" || metadata=''
   IFS=$'\t' read -r actual mounted <<<"$metadata"
