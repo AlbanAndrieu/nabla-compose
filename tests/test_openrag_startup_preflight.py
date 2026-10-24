@@ -86,6 +86,25 @@ def test_preflight_is_wired_into_local_first_and_both_migration_sections() -> No
     assert "tests/test_openrag_startup_preflight.py" in just
 
 
+def test_non_truenas_context_is_not_misreported_as_openrag_failure(
+    tmp_path: Path,
+) -> None:
+    # No middleware executable on PATH: the script must not read host secrets
+    # or attempt any remote TrueNAS or Docker operation.
+    empty_path = tmp_path / "bin"
+    empty_path.mkdir()
+    result = subprocess.run(
+        ["/bin/bash", str(SCRIPT), "--check"],
+        capture_output=True, text=True, check=False,
+        env=os.environ | {"PATH": str(empty_path)},
+        timeout=8,
+    )
+    assert result.returncode == 2
+    assert "host_context=NOT_TRUENAS_OR_MIDCLT_NOT_IN_PATH" in result.stderr
+    assert "OPENRAG_STARTUP_PREFLIGHT=NOT_RUN" in result.stderr
+    assert "secret_" not in result.stdout
+
+
 def test_preflight_fails_closed_for_mutating_flags() -> None:
     run = subprocess.run(
         ["bash", str(SCRIPT), "--apply"], capture_output=True, text=True,
