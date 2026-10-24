@@ -5,6 +5,31 @@ description: Converge formatter, lint, generated artifacts, targeted contracts a
 
 # Local-first quality
 
+## Consignes de rédaction (inspirées de l'ASD-STE100)
+
+Explique les diagnostics et les procédures en français clair. Utilise
+des phrases simples et directes. Décris **une seule action par étape de
+procédure**. Évite les synonymes inutiles et conserve les noms exacts
+des commandes, paramètres, chemins, services et états. Distingue les
+faits observés, les mesures non vérifiées et les actions proposées.
+
+Cette règle s'inspire de l'ASD-STE100. Elle ne prétend pas établir une
+conformité formelle à la norme.
+
+## Skills externes : contrôle local avant installation
+
+`AGENTS.md` et `docs/agent-skills-architecture.md` définissent la
+priorité des instructions. Avant de proposer l'installation d'un skill
+externe, lire le `SKILL.md` et ses scripts, vérifier les autorisations,
+les accès réseau et les alertes de sécurité. Demander **l'accord explicite**
+de l'utilisateur pour chaque skill, même si la roadmap le prévoit.
+
+Préférer une installation **limitée au projet de développement**, jamais
+directement sur TrueNAS/Talos. Ne jamais lancer de mutation, de
+redéploiement ou de CI payante pour valider une documentation de skill.
+Exécuter `just agent-skills-check` pour détecter une dérive des règles
+du dépôt avant une PR Ready, puis les contrôles locaux applicables.
+
 ## Efficiency for multi-repository security changes
 
 - Inspect the exact selected PR head and only relevant files and failed checks.
