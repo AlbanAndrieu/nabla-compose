@@ -119,6 +119,9 @@ if [[ -n "$expected" && "$sha" != "$expected" ]]; then
   echo 'ERROR: tracked PR head changed; fetch and retry the bootstrap' >&2
   exit 2
 fi
+# The pin is only for this bootstrap. Nested hermetic Git test fixtures
+# have their own synthetic HEAD: never propagate the operator's PR SHA.
+unset NABLA_PR274_EXPECTED_SHA
 worktree="$(mktemp -d "$root_dir/pr274-XXXXXXXX")"
 # Git accepts a freshly created empty directory as the worktree destination.
 git -C "$repo" -c submodule.recurse=false worktree add --detach "$worktree" "$sha"
