@@ -1157,3 +1157,34 @@ bash scripts/truenas/check-fastapi-health-board.sh \
 
 The helper triggers a refresh, polls until `.homelab != null`, then emits the
 sanitized TrueNAS API/path stages and pfSense authentication/security evidence.
+
+### Contrôle effectif des sondes LAN (lecture seule)
+
+Le fichier `apps/sample/compose.yml` prévoit déjà
+`HOMELAB_INTERNAL_PROBES_ENABLED: "true"`. Cette déclaration ne prouve pas
+que le conteneur actuellement exécuté applique cette valeur. Le 24 octobre,
+l'instance **FastAPI Cloud** observée renvoyait `internal_probes_enabled=false`
+et 0 sonde LAN sur 86 services éligibles. Il ne faut jamais corriger cette
+observation en activant les sondes LAN dans l'instance publique.
+
+Sur le TrueNAS autorisé, exécuter une seule commande :
+
+```sh
+bash scripts/truenas/verify-fastapi-lan-probes.sh
+```
+
+Le script lit les deux variables de posture et une unique réponse
+`http://127.0.0.1:8080/api/homelab/health` **depuis le conteneur**
+`fastapi-sample`. Il n'imprime ni secrets, ni noms de cibles LAN, ni corps
+de réponse complet. Il distingue configuration de Compose et variable
+effective, mesure non exécutée et résultat d'une sonde. Il ne modifie
+aucune variable, ne redémarre pas le conteneur et ne déploie rien.
+
+Un résultat `lan_probes_environment=enabled` et
+`lan_probes_payload=enabled` prouve uniquement que le collecteur interne
+a cette capacité activée. Vérifier `sampled` et `completed` pour confirmer
+qu'un cycle a exécuté des sondes, sans confondre `Docker RUNNING` et
+`TCP reachable`. Le site Vercel ne doit lire ces preuves qu'à travers
+un canal OWNER authentifié, avec un contrôle d'origine ; il ne doit pas
+établir de connexion directe vers `172.17.0.0/24`.
+
