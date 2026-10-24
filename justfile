@@ -106,6 +106,11 @@ whatsapp-web-path-check:
 openclaw-cron-secret-plan-check:
     python3 scripts/workstation/diagnose-openclaw-secrets-plan.py
 
+# Compare two native dry-runs, with ephemeral owner-private no-scrub plan.
+# Read-only for OpenClaw runtime; exit 2 is expected while scrub remains unsafe.
+openclaw-cron-secret-plan-compare:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub
+
 # Print operator commands only. Does not contact TrueNAS or start migrations.
 migration-20261024-commands:
     bash scripts/truenas/finish-migrations-20261024.sh --next-commands
