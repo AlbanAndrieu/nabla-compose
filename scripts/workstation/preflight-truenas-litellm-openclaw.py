@@ -120,6 +120,9 @@ def main(argv=None):
     if not sys.stdin.isatty():
         print("truenas_admin_prompt=requires_interactive_terminal")
         return 2
+    if not loopback_listener():
+        print("truenas_tunnel_local_listener=unavailable")
+        return 2
     try:
         credential = getpass("TrueNAS LiteLLM master key (input hidden): ")
     except (EOFError, KeyboardInterrupt, OSError):
