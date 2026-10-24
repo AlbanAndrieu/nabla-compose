@@ -72,6 +72,37 @@ class RecoveryReadOnlyContracts(unittest.TestCase):
         })
         self.assertEqual(state, "UNKNOWN")
 
+    def test_otp_info_error_text_blocks_false_programmed_result(self):
+        state, _ = self.otp({
+            ("--device", "22916048", "otp", "info"):
+                (0, "Slot 2: programmed\nError: USB transport failed\n")
+        })
+        self.assertEqual(state, "UNKNOWN")
+
+    def test_stderr_diagnostic_refuses_successful_otp_command(self):
+        with patch.object(
+            module.subprocess, "run",
+            return_value=subprocess.CompletedProcess(
+                [], 0, "Slot 2: programmed\n", "Warning: cannot verify device"
+            ),
+        ):
+            self.assertEqual(
+                module.public_command("--device", "22916048", "otp", "info"),
+                (1, ""),
+            )
+
+    def test_escrow_only_never_calls_ykman(self):
+        with patch.object(sys, "argv", ["read-only", "--escrow-a", "/a.age",
+                                         "--escrow-b", "/b.age"]), \
+             patch.object(module, "otp2_inventory") as read_otp, \
+             patch.object(
+                 module, "escrow_inventory",
+                 return_value="TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED",
+             ), patch("builtins.print") as printed:
+            self.assertEqual(module.main(), 0)
+        read_otp.assert_not_called()
+        self.assertFalse(json.loads(printed.call_args.args[0])["escrow_restoration_verified"])
+
     def test_only_approved_public_commands_no_stdin(self):
         with patch.object(module.subprocess, "run",
                           return_value=subprocess.CompletedProcess([], 0, "22916048\n", "")) as run:
