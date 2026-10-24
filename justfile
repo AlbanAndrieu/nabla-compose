@@ -33,6 +33,13 @@ agent-skills-check:
     python3 -m unittest discover -s tests -p 'test_agent_skill_precedence_contract.py' -v
     python3 scripts/quality/check-agent-skill-precedence.py
 
+# Read-only Backstage v2 / icon parity check. Pass --site-generated separately
+# when the sibling website checkout is available (no network fetch).
+catalog-convergence-check:
+    python3 -m py_compile scripts/quality/check-site-catalog-convergence.py tests/test_site_catalog_convergence_contract.py
+    python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
+    python3 scripts/quality/check-site-catalog-convergence.py
+
 # Full local quality gate without publishing.
 quality:
     mise run agent-quality
