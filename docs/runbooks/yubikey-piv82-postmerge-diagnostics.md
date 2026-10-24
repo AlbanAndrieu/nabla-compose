@@ -336,3 +336,45 @@ PASS est **spécifique au commit testé**, pas à un HEAD ultérieur.
 
 **Statut : NO-GO matériel et SOPS.** La validation de l'inventaire
 ne vaut pas preuve de récupération ou de déchiffrement réel.
+
+
+## 11. Préservation OTP2 et escrow — métadonnées uniquement
+
+Le nouveau diagnostic scripts/workstation/inspect-yubikey-recovery-readonly.py
+est accessible dans le lanceur de la PR #274 derrière des options
+facultatives. Le comportement habituel du lanceur ne change pas.
+
+- --otp2-secondary : exige une seule YubiKey 22916048, le firmware
+  5.4.3, puis appelle uniquement ykman otp info. Une réponse
+  Slot 2: programmed confirme la présence d'une configuration ;
+  elle **ne prouve pas le type HMAC-SHA1 ni la compatibilité KeePassXC**.
+  Aucun challenge OTP, aucune saisie PIN et aucune écriture.
+- --escrow-a /chemin/absolu/copie1.age et
+  --escrow-b /chemin/absolu/copie2.age : exige deux chemins fournis
+  ensemble. Contrôle seulement l'existence, le type de fichier,
+  la taille non nulle, les liens symboliques et le système de fichiers.
+  Ne lit aucun octet des sauvegardes et ne divulgue aucun chemin.
+- Une paire de fichiers sur le même système de fichiers, un même
+  inode, un lien symbolique ou une copie absente donne un contrôle
+  incomplet ; aucun diagnostic n'autorise une opération matérielle.
+- Deux fichiers sur deux systèmes de fichiers différents ne
+  constituent **pas** une preuve de supports physiques indépendants,
+  de chiffrement correct ou de capacité de restauration.
+
+Le JSON déclare toujours status=NO-GO, otp2_hmac_sha1_verified=false,
+keepassxc_verified=false, escrow_restoration_verified=false,
+independent_physical_media_verified=false et
+hardware_mutation_authorized=false. Un code retour 0 signifie
+seulement que les observations demandées ont abouti. Les erreurs
+de lecteur, les états ambigus et les chemins incomplets bloquent.
+
+Ne pas lancer de restauration, de challenge-response, de
+PIN, de génération PIV82, de changement OTP2/PIV9A/AES256,
+ni de modification SOPS sans autorisation supplémentaire.
+Éviter de refaire les contrôles F9 et PIV82 déjà validés si
+leur reprise n'est pas nécessaire.
+
+Valider d'abord les tests du nouveau script et du lanceur dans
+la gate hors matériel de la PR. Cette étape n'exige aucune YubiKey.
+Les observations OTP2 ou escrow réelles demeurent NOT_RUN tant
+que l'opérateur n'a pas choisi d'options et fourni les chemins.
