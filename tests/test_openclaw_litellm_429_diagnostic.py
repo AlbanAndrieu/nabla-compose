@@ -47,7 +47,11 @@ class LiteLLM429Tests(unittest.TestCase):
         os.link(self.path, other)
         self.assertEqual(check.private_key(self.path), ("unsafe_file", None))
         other.unlink()
+        # Small files are rejected by the size gate before the value parser.
         self.path.write_text("short\n")
+        self.assertEqual(check.private_key(self.path), ("unsafe_file", None))
+        # A sufficiently long malformed value reaches the value parser.
+        self.path.write_text("invalid credential with spaces\n")
         self.assertEqual(check.private_key(self.path), ("invalid_key", None))
 
     def test_secret_comparison_never_returns_token(self):
