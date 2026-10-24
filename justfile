@@ -26,6 +26,13 @@ offline:
 loop:
     mise run agent-loop
 
+# Read-only repository policy check for external skills and TrueNAS/Talos decisions.
+# No dependency installation, networking, containers or GitHub Actions.
+agent-skills-check:
+    python3 -m py_compile scripts/quality/check-agent-skill-precedence.py tests/test_agent_skill_precedence_contract.py
+    python3 -m unittest discover -s tests -p 'test_agent_skill_precedence_contract.py' -v
+    python3 scripts/quality/check-agent-skill-precedence.py
+
 # Full local quality gate without publishing.
 quality:
     mise run agent-quality
