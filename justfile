@@ -33,6 +33,24 @@ agent-skills-check:
     python3 -m unittest discover -s tests -p 'test_agent_skill_precedence_contract.py' -v
     python3 scripts/quality/check-agent-skill-precedence.py
 
+# Read-only, detailed generator drift report (no secrets or runtime calls).
+topology-drift-check:
+    python3 scripts/generate-service-topology.py --check
+
+# Explicit source-of-truth regeneration. Development worktree ONLY.
+# Never overwrite TrueNAS bind mounts or unpublished generated artifacts.
+topology-artifacts-refresh:
+    @test "$(id -u)" -ne 0 || { echo 'BLOCKED: do not regenerate as root' >&2; exit 2; }
+    @test "$(pwd -P)" != /mnt/cpool/compose/nabla-compose || { echo 'BLOCKED: canonical TrueNAS checkout' >&2; exit 2; }
+    @branch="$(git branch --show-current)"; test -n "$branch" && test "$branch" != master || { echo 'BLOCKED: use isolated feature worktree' >&2; exit 2; }
+    @git diff --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve local generated edits' >&2; exit 2; }
+    python3 scripts/generate-service-topology.py
+    python3 scripts/generate-service-consumers.py
+    python3 scripts/generate-catalog-v2-artifacts.py
+    python3 scripts/generate-service-topology.py --check
+    python3 scripts/generate-service-consumers.py --check
+    python3 scripts/generate-catalog-v2-artifacts.py --check
+
 # Read-only Backstage v2 / icon parity check. Pass --site-generated separately
 # when the sibling website checkout is available (no network fetch).
 catalog-convergence-check:
