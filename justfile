@@ -83,8 +83,9 @@ hermes-opus-routing-test:
 
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py tests/test_openclaw_secrets_plan_diagnostic.py
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py
     python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_cron_env_contract.py' -v
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Pure offline regressions: no pfSense access or GitHub Actions.
@@ -111,6 +112,11 @@ openclaw-cron-secret-plan-check:
 # Read-only for OpenClaw runtime; exit 2 is expected while scrub remains unsafe.
 openclaw-cron-secret-plan-compare:
     python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub
+
+# Opt-in read-only presence hints from the projected dotenv and current Gateway PID.
+# Never proves a restart-safe source; intended exit code is 2.
+openclaw-cron-secret-plan-provenance:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py --compare-no-scrub --inspect-gateway-env
 
 # Print operator commands only. Does not contact TrueNAS or start migrations.
 migration-20261024-commands:
