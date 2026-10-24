@@ -17,7 +17,11 @@ EXPECTED_SECRET = "/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets"
 def test_exporter_uses_dedicated_materialized_secret_without_interpolation() -> None:
     config = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
     service = config["services"]["postgres_exporter"]
-    assert service["env_file"] == [EXPECTED_SECRET]
+    assert service["env_file"] == [{
+        "path": EXPECTED_SECRET,
+        "required": True,
+        "format": "raw",
+    }]
     assert "environment" not in service
     assert "POSTGRES_EXPORTER_DSN" not in COMPOSE.read_text(encoding="utf-8")
     assert service["ports"][0]["host_ip"] == "172.17.0.24"
