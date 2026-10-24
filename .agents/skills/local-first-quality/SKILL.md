@@ -38,6 +38,19 @@ qu'un agent peut exécuter lui-même.
   mutable entre agents. Tester dans ce worktree isolé ; verrouiller les
   écritures Git entre instances (flock) et utiliser un SHA exact, jamais
   FETCH_HEAD après qu'un autre agent a pu le modifier.
+- **Ne jamais coller `set -e` / `set -Eeuo pipefail` comme commande autonome
+  dans le terminal interactif** : un chemin supprimé après reboot peut
+  alors fermer le terminal. Exécuter le lot dans un enfant
+  `bash -euo pipefail -c '…'`, avec un gestionnaire de code retour
+  dans le shell appelant (`|| printf ...` ou `if ...; then ...; fi`).
+  Tester explicitement l'échec du premier `git -C`.
+- **Ne pas supposer qu'un chemin sous `/tmp` existe après reboot.**
+  Vérifier le checkout Git source connu avant le premier `git -C`;
+  créer un worktree privé persistant sous `~/.local/share/nabla/worktrees/`
+  ou `XDG_DATA_HOME`, en conservant un suffixe unique par agent/exécution.
+  Ne pas purger les worktrees absents de `/tmp` automatiquement : cela
+  pourrait effacer des informations d'autres agents. Laisser la
+  maintenance des métadonnées `git worktree` à une opération distincte.
 - **Ne pas lancer git pull automatiquement** dans un checkout détaché,
   divergent ou sale. Dans une branche propre avec suivi explicite,
   git pull --ff-only est possible si réellement nécessaire. Ne jamais
