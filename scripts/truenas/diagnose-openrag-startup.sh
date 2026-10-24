@@ -37,6 +37,27 @@ case "$app_state" in
   *) echo 'openrag_app=UNKNOWN'; fail_gate 'cannot confirm TrueNAS App lifecycle' ;;
 esac
 
+# When the App is RUNNING, inspect both declared Compose components. Docker
+# healthchecks cover the backend /health and frontend /health/collective_health.
+# Metadata only: never print Docker environment, healthcheck output or logs.
+# For a STOPPED App, component absence does not change the start authorization.
+if [[ "$app_state" == RUNNING ]]; then
+  if ! command -v docker >/dev/null 2>&1; then
+    fail_gate 'Docker unavailable on TrueNAS; backend/frontend health unknown'
+  else
+    for service in openrag-backend openrag-frontend; do
+      health_record="$(timeout 10 docker inspect --type container --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$service" 2>/dev/null)" || health_record='unknown|unknown'
+      IFS='|' read -r container_state container_health <<<"$health_record"
+      case "$container_state" in running|exited|restarting|created|dead) ;; *) container_state=unknown ;; esac
+      case "$container_health" in healthy|unhealthy|starting|none) ;; *) container_health=unknown ;; esac
+      printf 'openrag_component=%s state=%s health=%s\n' "$service" "$container_state" "$container_health"
+      if [[ "$container_state" != running || "$container_health" != healthy ]]; then
+        fail_gate 'OpenRAG backend/frontend container not running+healthy'
+      fi
+    done
+  fi
+fi
+
 # Required secrets must exist as root-owned 0600 or 0400 files.
 # Only emit required KEY names and status, never content or line values.
 secret="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
