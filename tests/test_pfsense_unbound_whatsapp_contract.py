@@ -83,9 +83,9 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertIsNotNone(match)
         sample = (
             "9 2,14 * * * root /usr/local/bin/php -f "
-            "/usr/local/pkg/snort/snort_check_for_rule_updates.inc\\n"
+            "/usr/local/pkg/snort/snort_check_for_rule_updates.inc\n"
             "*/5 * * * * root /usr/bin/nice -n20 "
-            "/usr/local/pkg/snort/snort_check_cron_misc.inc\\n"
+            "/usr/local/pkg/snort/snort_check_cron_misc.inc\n"
         )
         result = subprocess.run(
             ["awk", match.group(1)], input=sample, text=True,
