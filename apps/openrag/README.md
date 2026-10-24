@@ -10,6 +10,50 @@ The global service still uses the upstream OpenRAG-compatible Langflow image
 detail: the runtime service/container and Docker DNS identity are both
 `langflow`.
 
+## Reprise prioritaire OpenRAG (24 octobre 2026)
+
+**Dernière preuve réelle TrueNAS :** `openrag=STOPPED`, les conteneurs
+`openrag-backend` et `openrag-frontend` sont absents. Les conteneurs
+partagés `langflow` et `opensearch` sont `running+healthy`. Docling est
+absent. Le diagnostic `diagnose-stuck-apps` a signalé une App
+`intentional-stopped` différée, **sans établir à lui seul que cette App
+est OpenRAG**. Un arrêt `STOPPED` n'est pas un état `DEPLOYING`.
+
+Avant toute approbation d'un démarrage, exécuter les préflights en lecture
+seule **depuis un worktree revu** contenant la PR #274 :
+
+```bash
+sudo bash scripts/truenas/diagnose-openrag-startup.sh --check
+sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+Le nouveau préflight `diagnose-openrag-startup.sh` vérifie uniquement :
+
+- l'état du cycle de vie TrueNAS (`STOPPED` exige une décision explicite) ;
+- les clés `OPENSEARCH_PASSWORD`, `LANGFLOW_KEY`,
+  `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY` dans le fichier
+  privé `/mnt/cpool/openrag/.env.secrets` (présence, sans valeurs) ;
+- le mode du fichier de secret (0600/0400) et son propriétaire root ;
+- le mountpoint et l'état ZFS `cpool/bababou`, sans parcourir les données ;
+- la readiness du Langflow partagé ;
+- la connectivité HTTP LiteLLM de la workstation **sans clé**
+  (HTTP 401/403 valide seulement le transport, pas l'authentification) ;
+- la readiness Docling **séparément**, nécessaire à l'ingestion mais non
+  au simple démarrage du backend/frontend.
+
+Le comparateur OpenSearch ci-dessus établit séparément la concordance
+de mot de passe sans le divulguer. Le script `--check` ne lance ni
+`app.start`, ni `app.update`, ni `app.redeploy` ; il n'initialise pas
+d'index, ne régénère pas de clé et ne change aucune permission.
+
+Un résultat `READY_FOR_OPERATOR_REVIEW` ne constitue **pas** une
+autorisation implicite de démarrage ni une preuve de fonctionnement
+OpenRAG : vérifier ensuite les jobs TrueNAS, la définition Compose
+stockée et obtenir l'accord opérateur avant la moindre mutation.
+L'ingestion privée doit rester désactivée jusqu'à validation Docling,
+embeddings LiteLLM et index isolé sur un document **synthétique**.
+
 ## Runtime topology
 
 ```text
