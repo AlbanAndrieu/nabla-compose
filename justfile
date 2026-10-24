@@ -80,6 +80,16 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
+# OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
+openclaw-cron-secret-plan-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py tests/test_openclaw_secrets_plan_diagnostic.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
+
+# Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
+# Operator-only: requires private cron-plan.json on the Ubuntu workstation.
+openclaw-cron-secret-plan-check:
+    python3 scripts/workstation/diagnose-openclaw-secrets-plan.py
+
 # Print operator commands only. Does not contact TrueNAS or start migrations.
 migration-20261024-commands:
     bash scripts/truenas/finish-migrations-20261024.sh --next-commands
