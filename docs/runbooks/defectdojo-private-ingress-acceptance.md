@@ -25,7 +25,7 @@ Le diagnostic est strictement en lecture seule et sépare :
 | --- | --- | --- |
 | Docker | `defectdojo`, `defectdojo-uwsgi`, `traefik` en cours d'exécution | Présence, sans garantir la réponse Django |
 | TCP/HTTP LAN | `http://172.17.0.24:31085/api/v2/` | HTTP 403 attendu pour API anonyme |
-| UI locale | `http://172.17.0.24:31085/` | HTTP 200 ou redirection 30x = frontend accessible ; 000/404/5xx = panne |
+| UI locale | `http://172.17.0.24:31085/` | HTTP 200 **avec `Content-Type: text/html`** ou redirection 30x = frontend accessible ; 000/401/403/404/5xx, 200 non-HTML = échec |
 | DNS interne | Pi-hole `172.17.0.24` et pfSense `172.17.0.1` | doivent résoudre la cible privée |
 | DNS public | `1.1.1.1` | aucune publication publique voulue |
 | HTTPS privé | `curl --resolve` avec vérification TLS/SNI | doit joindre le routeur Traefik correspondant |
