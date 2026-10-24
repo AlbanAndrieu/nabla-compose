@@ -12,7 +12,7 @@ Aucune commande ici ne démarre, redéploie ou efface un service.
 sudo python3 scripts/truenas/diagnose-service-bundle.py --check --section observability
 # Pour le résultat détaillé de chaque vérification :
 python3 scripts/prometheus/diagnose-failed-scrapes.py --check
-sudo python3 scripts/truenas/diagnose-gatus-monitors.py --check
+python3 scripts/truenas/diagnose-gatus-monitors.py --check
 sudo bash scripts/truenas/diagnose-observability-post-repair.sh --check
 sudo bash scripts/truenas/diagnose-postgres-exporter.sh
 python3 scripts/prometheus/audit-telemetry-coverage.py \
