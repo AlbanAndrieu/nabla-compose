@@ -347,3 +347,98 @@ de sélection d'environnement et de présence du port ont
 été ajoutés en PR mais **pas encore exécutés sur la Workstation**.
 Tous les scripts restent read-only.
 
+
+
+## Tunnel LiteLLM TrueNAS automatisé et master key exportée — 25 octobre 2026
+
+### Constats opérateur
+
+- `ss -ltnp` confirme une écoute `ssh` sur
+  `127.0.0.1:14000` ; `0.0.0.0:4000` appartient au
+  service LiteLLM Workstation. L'erreur de doublon SSH est
+  donc évitable sans tuer un processus ni déplacer le port 4000.
+- Les **14 tests de préflight TrueNAS** et les **3 tests de route**
+  précédents ont réussi sur Workstation.
+- `export LITELLM_TRUENAS_MASTER_KEY` **ne charge pas une valeur** :
+  si la variable était inexistante, elle est maintenant exportée
+  mais vide. Le script `--prompt-admin` demande une valeur
+  au clavier ; il ne lit jamais cette variable automatiquement.
+- `master_exported=false` concernait **`LITELLM_MASTER_KEY`**,
+  une autre variable. La recette `tunnel-existing-master` était
+  donc incompatible avec l'environnement déclaré.
+
+### Script idempotent — SSH alias TrueNAS :9922
+
+```bash
+cd ~/w/nabla-compose
+just openclaw-truenas-tunnel-check
+just openclaw-truenas-tunnel-ensure
+```
+
+Le helper `ensure-openclaw-truenas-litellm-tunnel.py` :
+1. Contrôle un seul listener sur `127.0.0.1:14000`.
+2. Vérifie propriétaire, nom du processus `ssh` et argument
+   `-L 127.0.0.1:14000:127.0.0.1:4000` via `/proc`
+   **sans imprimer le PID ni les arguments**.
+3. Réutilise un listener SSH conforme ; refuse de toucher à un
+   port occupé par une autre application ou à un transfert non prouvé.
+4. Si le port est libre, vérifie `ssh -G truenas` :
+   `hostname 172.17.0.24`, `user albandrieu`,
+   `port 9922` (configuration fournie par l'opérateur).
+5. Ouvre si nécessaire un tunnel `ssh -f -N -S none` avec
+   `ExitOnForwardFailure=yes`, `BatchMode=yes`,
+   `ForwardAgent=no`, `StrictHostKeyChecking=yes`.
+   Il **ne ferme jamais** de session SSH existante.
+
+Le préflight administrateur exige désormais ce transfert SSH
+**identifié**, pas seulement un listener TCP générique. La vérification
+des clés d'hôte SSH par l'opérateur reste requise.
+
+### Contrôler la variable sans dévoiler la valeur
+
+```bash
+python3 -c 'import os; n="LITELLM_TRUENAS_MASTER_KEY"; v=os.environ.get(n); print("truenas_master_state=" + ("not_exported" if v is None else "empty" if not v else "present"))'
+```
+
+- `not_exported` : la variable n'est pas visible du processus Python.
+- `empty` : `export` seul n'a défini aucune clé.
+- `present` : la variable contient une valeur non vide, mais **pas
+  nécessairement la bonne clé master TrueNAS**.
+
+Si elle est absente, obtenir la clé master TrueNAS dans son
+gestionnaire de secrets autorisé, sans l'imprimer. En terminal
+Bash interactif, une saisie privée ponctuelle peut utiliser :
+
+```bash
+read -rsp 'LiteLLM TrueNAS master key: ' LITELLM_TRUENAS_MASTER_KEY
+printf '\n'
+export LITELLM_TRUENAS_MASTER_KEY
+```
+
+Lorsque le tunnel est identifié et que la variable dédiée possède
+sa vraie valeur :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-dedicated
+```
+
+Le script distingue désormais
+`truenas_admin_env_state=not_exported|empty|present|unexpected_format`
+et `truenas_admin_prompt=empty_value`, sans contenu de secret.
+Il évite les proxys HTTP externes lors des appels au tunnel local.
+
+**Vérification locale du nouveau lot :**
+
+```bash
+just openclaw-truenas-model-keys-test
+```
+
+Cette recette inclut 18 tests TrueNAS, 3 tests de routes et 8 contrats
+du helper SSH, soit **29 tests déclarés**. Ils restent
+**NOT_RUN sur Workstation au HEAD de cette amélioration**.
+
+Ne pas dupliquer les clés virtuelles de LiteLLM Workstation sur
+TrueNAS avant inventaire des modèles, de l'authentification et de
+la persistance PostgreSQL. Pas de mutation des credentials,
+pas de restart Gateway, pas d'import de clé sans autorisation.
+
