@@ -28,19 +28,22 @@ def test_akvorado_config_mount_attestation_is_read_only(
         '  ps) if [[ "$*" == *"project=ix-akvorado"* ]]; then',
         '        echo aaaaaaaaaaaa; fi ;;',
         '  inspect) echo running ;;',
-        '  exec) if [[ "$AKV_TEST_DRIFT" == 1 ]]; then',
-        '          echo "0000000000000000000000000000000000000000000000000000000000000000  ignored";',
-        '        else sha256sum "$AKV_TEST_CONFIG"; fi ;;',
+        '  cp) tar -cf - -C "$(dirname "$AKV_TEST_RUNTIME_CONFIG")" "akvorado.yaml" ;;',
         '  *) exit 99 ;;',
         'esac',
         "",
     ]), encoding="utf-8")
     docker.chmod(0o600)
+    runtime_config = CONFIG
+    if drift == "1":
+        fake_config_dir = tmp_path / "drift"
+        fake_config_dir.mkdir()
+        runtime_config = fake_config_dir / "akvorado.yaml"
+        runtime_config.write_text("altered: true\\n", encoding="utf-8")
     env = dict(os.environ)
     env.update({
         "PATH": str(fakebin) + os.pathsep + env["PATH"],
-        "AKV_TEST_CONFIG": str(CONFIG),
-        "AKV_TEST_DRIFT": drift,
+        "AKV_TEST_RUNTIME_CONFIG": str(runtime_config),
     })
     env = noexec_safe_bash_mocks(env, "docker")
     result = subprocess.run(
