@@ -191,12 +191,12 @@ for command in python3 jq midclt; do
   }
 done
 # Guard against missing/symlinked extensions before any report or runtime action.
-# shellcheck source=scripts/truenas/migration-diagnostic-sections.sh
 READONLY_REGISTRY="${ROOT}/scripts/truenas/migration-diagnostic-sections.sh"
 if [[ ! -f "${READONLY_REGISTRY}" || -L "${READONLY_REGISTRY}" ]]; then
   echo 'BLOCKED: read-only diagnostic registry missing or symlinked' >&2
   exit 2
 fi
+# shellcheck source=scripts/truenas/migration-diagnostic-sections.sh
 source "${READONLY_REGISTRY}"
 if [[ -L "${REPORT_ROOT}" || ! "${REPORT_ROOT}" = /* ]]; then
   echo 'Unsafe report root (must be absolute directory, not symlink)' >&2; exit 2
