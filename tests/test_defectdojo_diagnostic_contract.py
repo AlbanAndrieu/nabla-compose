@@ -43,6 +43,7 @@ esac
 """,
     "dig": """resolver=""
 for arg in "$@"; do [[ "${arg}" == @* ]] && resolver="${arg#@}"; done
+if [[ "${FAKE_DNS_FAIL:-}" == "${resolver}" ]]; then exit 9; fi
 if [[ "${resolver}" != 1.1.1.1 || "${FAKE_PUBLIC_DNS:-0}" == 1 ]]; then
   printf 'defectdojo.int.albandrieu.com. 300 IN A 172.17.0.24\\n'
 fi
@@ -85,6 +86,16 @@ def test_public_dns_record_fails_acceptance() -> None:
     result = _run({"FAKE_PUBLIC_DNS": "1"})
     assert result.returncode == 1
     assert "FAIL: public A record present" in result.stdout
+
+
+def test_dns_timeout_never_looks_like_private_dns_or_public_privacy() -> None:
+    for address in ("172.17.0.24", "172.17.0.1", "1.1.1.1"):
+        result = _run({"FAKE_DNS_FAIL": address})
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert f"dns_server={address} query=failed" in result.stdout
+        assert f"FAIL: DNS resolver {address} unavailable" in result.stdout
+        if address == "1.1.1.1":
+            assert "OK: no public A record" not in result.stdout
 
 
 def test_api_403_does_not_mask_broken_html_ui() -> None:
