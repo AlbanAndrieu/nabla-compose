@@ -189,3 +189,60 @@ tests, `pytest` ciblé 5/5 PASS et `bash -n` PASS. La quality gate
 complète du HEAD GitHub, les tests contre TrueNAS et la validation HTTP
 effective sont `NOT_RUN` par l'agent.
 
+## 6. Audit après reprise : Akvorado UP, autres exporters à diagnostiquer
+
+Relevé transmis par l'opérateur après retour de Prometheus et Pyroscope :
+- `akvorado_inlet` et `akvorado_outlet` : `scrape_up`, 1/1, `metric_present=true`.
+- `gatus`, `redis_exporter`, `crowdsec` : `scrape_up`.
+- `fastapi_sample` : `scrape_down` (1 cible sur `172.17.0.24:8091/metrics`).
+- `postgres_exporter` : `scrape_down` (1 cible sur `172.17.0.24:9187/metrics`).
+- `pfsense_exporter` : `no_up_series` (0/0 séries observées), sans conclure
+  à la santé de pfSense. Le scrape est **toutes les 300 secondes** ;
+  Prometheus vient de redémarrer. Vérifier l'inventaire des cibles après
+  au moins un cycle, sans augmenter la fréquence sur Netgate 1100.
+- `cloudflare_exporter` : `not_declared`. C'est une absence de job
+  attendue, pas un signal d'indisponibilité Cloudflare.
+
+Sur TrueNAS, depuis le checkout Compose #274 :
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check
+```
+
+Cette commande effectue une requête bornée, fixe et **lecture seule** sur
+`http://172.17.0.24:9090/api/v1/targets?state=active`. Elle ne publie
+que les trois jobs en défaut, leurs compteurs UP/total et des catégories
+d'erreurs. Elle ne publie ni `lastError`, ni labels complets, ni URL de
+scrape, ni secrets. `no_active_target` signifie que le job n'a pas de
+cible active dans l'inventaire ; `scrape_down` signifie qu'une cible
+active existe mais est non UP.
+
+Vérifier ensuite la présence des ports LAN **sans redémarrer les Apps** :
+
+```bash
+sudo ss -ltn '( sport = :8091 or sport = :9187 or sport = :9945 )'
+for port in 8091 9187 9945; do
+  curl -sS -o /dev/null --connect-timeout 2 --max-time 5 \
+    -w "port=$port http=%{http_code} tcp_remote=%{remote_ip}\\n" \
+    "http://172.17.0.24:$port/metrics" || true
+done
+```
+
+La requête locale `:9945/metrics` sans paramètre `target` ne doit
+**pas** être utilisée comme test fonctionnel pfSense : l'exporter
+est paramétré via `__param_target`. Éviter les rafales de scrapes
+manuels vers l'API pfSense. Prioriser `/api/v1/targets`.
+
+Si `fastapi_sample` est DOWN, contrôler l'App staging TrueNAS et
+son endpoint `/metrics` ; une application HTTP UP sans métriques
+répondantes ne constitue pas un scrape réussi. Pour `postgres_exporter`,
+distinguer l'absence de listener, une erreur HTTP d'exporter et une
+erreur de connexion PostgreSQL : l'état de Postgres lui-même reste
+indépendant.
+
+Le vérificateur `scripts/verify-prometheus-cloud-projection.py`
+appartient à **fastapi-sample** PR #374. Il n'existe pas dans
+`nabla-compose`. Un passage `UP` dans Prometheus n'atteste pas de la
+projection dans l'UI FastAPI Cloud tant que le nouveau code et le
+chemin Cloudflare Access ne sont pas déployés et autorisés.
+
