@@ -12,15 +12,18 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/diagnose-openrag-startup.sh"
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="jq required by TrueNAS preflight")
-@pytest.mark.parametrize("state,valid_secret,symlink,expected_exit,expected", [
-    ("STOPPED", True, False, 1, "start_authorization=REQUIRED"),
-    ("RUNNING", True, False, 0, "OPENRAG_STARTUP_PREFLIGHT=READY_FOR_OPERATOR_REVIEW"),
-    ("RUNNING", False, False, 1, "secret_OPENSEARCH_PASSWORD=missing"),
-    ("RUNNING", True, True, 1, "OpenRAG secret symlink is not the reviewed canonical migration target"),
+@pytest.mark.parametrize("state,valid_secret,symlink,docker_health,expected_exit,expected", [
+    ("STOPPED", True, False, "healthy", 1, "start_authorization=REQUIRED"),
+    ("RUNNING", True, False, "healthy", 0, "OPENRAG_STARTUP_PREFLIGHT=READY_FOR_OPERATOR_REVIEW"),
+    ("RUNNING", False, False, "healthy", 1, "secret_OPENSEARCH_PASSWORD=missing"),
+    ("RUNNING", True, True, "healthy", 1, "OpenRAG secret symlink is not the reviewed canonical migration target"),
+    ("RUNNING", True, False, "unhealthy", 1, "health=unhealthy"),
+    ("RUNNING", True, False, "starting", 1, "health=starting"),
+    ("RUNNING", True, False, "missing", 1, "state=unknown health=unknown"),
 ])
 def test_startup_preflight_does_not_mutate_or_reveal_secrets(
     tmp_path: Path, state: str, valid_secret: bool, symlink: bool,
-    expected_exit: int, expected: str
+    docker_health: str, expected_exit: int, expected: str
 ) -> None:
     corpus = tmp_path / "private-corpus"
     corpus.mkdir()
@@ -48,12 +51,17 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
         '    *5001*) printf "000" ;;\n'
         '    *) return 99 ;;\n'
         '  esac\n'
+        '}\n'
+        'docker() {\n'
+        '  [[ "$MOCK_DOCKER_HEALTH" != missing ]] || return 1\n'
+        '  printf "running|%s\\n" "$MOCK_DOCKER_HEALTH"\n'
         '}\n',
         encoding="utf-8",
     )
     env = dict(os.environ)
     env.update({
         "MOCK_APP_STATE": state,
+        "MOCK_DOCKER_HEALTH": docker_health,
         "OPENRAG_SECRET_FILE": str(secret_used),
         "OPENRAG_BABABOU_SOURCE": str(corpus),
         "OPENRAG_ZFS_DATASET": "synthetic/bababou",
@@ -66,6 +74,9 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
     output = result.stdout + result.stderr
     assert result.returncode == expected_exit, output
     assert expected in output
+    if state == "RUNNING":
+        assert "openrag_component=openrag-backend" in output
+        assert "openrag_component=openrag-frontend" in output
     assert "docling_ingestion_prerequisite=unavailable" in output
     assert "litellm_transport=reachable models_auth=required_not_verified" in output
     assert sentinel not in output
