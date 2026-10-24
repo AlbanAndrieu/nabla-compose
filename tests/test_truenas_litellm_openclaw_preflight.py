@@ -90,6 +90,28 @@ class TrueNASInventoryTests(unittest.TestCase):
         self.assertIn("truenas_ssh_encryption=operator_attestation_required",
                       output.getvalue())
 
+    def test_prompt_admin_passes_secret_only_in_memory(self):
+        with patch.object(module.sys.stdin, "isatty", return_value=True), \
+             patch.object(module, "getpass", return_value="sk-NONREAL_ADMIN_ONLY") as prompted, \
+             patch.object(module, "inspect", return_value=0) as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                rc = module.main(["--tunnel", "--prompt-admin"])
+        self.assertEqual(rc, 0)
+        prompted.assert_called_once()
+        inspected.assert_called_once_with(True, credentials="sk-NONREAL_ADMIN_ONLY")
+        self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
+
+    def test_prompt_admin_requires_terminal_and_never_reads_secret(self):
+        with patch.object(module.sys.stdin, "isatty", return_value=False), \
+             patch.object(module, "getpass") as prompted, \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                rc = module.main(["--tunnel", "--prompt-admin"])
+        self.assertEqual(rc, 2)
+        prompted.assert_not_called()
+        inspected.assert_not_called()
+        self.assertIn("requires_interactive_terminal", output.getvalue())
+
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             module.filtered_result("x", 200, {"embedding", "private-model-secret"})
