@@ -176,6 +176,66 @@ class CronPlanTests(unittest.TestCase):
         for fragment in ("/PRIVATE", "TOKEN_IN_STDERR", "LITELLM_OPENCLAW_CRON_API_KEY"):
             self.assertNotIn(fragment, rendered)
 
+
+    def test_compare_no_scrub_isolates_dotenv_without_real_write(self):
+        original = {"categories": {key: 0 for key in module.CATEGORIES},
+                    "refs_checked": 1, "skipped_exec_refs": 0,
+                    "warning_count": 0, "resolvability_complete": True}
+        original["categories"].update(cron_auth_sqlite=1, dotenv=1)
+        with patch.object(module, "native_dry_run", return_value=(
+            {"categories": {**original["categories"], "dotenv": 0},
+             "changed_files": 1, "refs_checked": 1, "skipped_exec_refs": 0,
+             "warning_count": 0, "resolvability_complete": True}, "native_verified")) as mocked:
+            outcome, compared = module.compare_without_dotenv_scrub(plan(), self.root, original)
+            self.assertEqual(outcome, "dotenv_projection_attributed_to_scrub")
+            self.assertEqual(compared["changed_files"], 1)
+            candidate = Path(mocked.call_args.args[0])
+            self.assertFalse(candidate.exists())
+            self.assertEqual(json.loads(self.path.read_text()), plan())
+
+    def test_compare_no_scrub_divergence_and_native_errors(self):
+        original = {"categories": {key: 0 for key in module.CATEGORIES},
+                    "refs_checked": 1, "skipped_exec_refs": 0,
+                    "warning_count": 0, "resolvability_complete": True}
+        original["categories"].update(cron_auth_sqlite=1, dotenv=1)
+        with patch.object(module, "native_dry_run", return_value=(None, "native_rejected")):
+            self.assertEqual(module.compare_without_dotenv_scrub(plan(), self.root, original),
+                             ("native_comparison_failed", None))
+        candidate = {"categories": {**original["categories"], "dotenv": 0,
+                                    "main_auth_sqlite": 1},
+                     "changed_files": 2, "refs_checked": 1, "skipped_exec_refs": 0,
+                     "warning_count": 0, "resolvability_complete": True}
+        with patch.object(module, "native_dry_run", return_value=(candidate, "native_verified")):
+            outcome, _ = module.compare_without_dotenv_scrub(plan(), self.root, original)
+        self.assertEqual(outcome, "comparison_does_not_isolate_scrub")
+        already_disabled = {**plan(), "options": {"scrubEnv": False}}
+        with patch.object(module, "native_dry_run") as called:
+            self.assertEqual(module.compare_without_dotenv_scrub(
+                already_disabled, self.root, original), ("not_applicable", None))
+            called.assert_not_called()
+
+    def test_compare_flag_never_unblocks_original_plan(self):
+        base = native(["/PRIVATE/agents/cron/agent/openclaw-agent.sqlite", "/PRIVATE/.env"])
+        alternative = native(["/PRIVATE/agents/cron/agent/openclaw-agent.sqlite"])
+        def projected(cmd, **_):
+            filename = Path(cmd[cmd.index("--from") + 1])
+            raw = json.loads(filename.read_text())
+            chosen = alternative if raw.get("options", {}).get("scrubEnv") is False else base
+            return CompletedProcess(cmd, 0, json.dumps(chosen).encode(), b"PRIVATE_VALUE")
+        with patch.object(module.subprocess, "run", side_effect=projected) as called:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                exitcode = module.main(["--compare-no-scrub"], home=self.home)
+        out = output.getvalue()
+        self.assertEqual(exitcode, 2)
+        self.assertEqual(called.call_count, 2)
+        self.assertIn("secret_plan_scrub_comparison=dotenv_projection_attributed_to_scrub", out)
+        self.assertIn("secret_plan_no_scrub_changed_total=1", out)
+        self.assertIn("secret_plan_status=blocked_dotenv_scrub_risk", out)
+        self.assertIn("secret_plan_apply_authorized=false", out)
+        self.assertNotIn("PRIVATE_VALUE", out)
+        self.assertEqual(json.loads(self.path.read_text()), plan())
+        self.assertEqual(list(self.root.glob(".cron-no-scrub-*")), [])
+
     def test_invalid_plan_never_invokes_native_cli(self):
         broken = plan()
         broken["targets"][0]["agentId"] = "main"
