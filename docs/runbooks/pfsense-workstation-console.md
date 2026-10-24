@@ -81,3 +81,35 @@ Aucune différence de PID, de journal ou d'horodatage ne prouve que Snort ou
 CrowdSec a provoqué un OOM. Ne pas modifier Snort, DNSBL, CrowdSec ni
 relancer Unbound avant une corrélation mesurée.
 
+
+## Relevé du 25 octobre à 00:12 CEST — P0 Unbound
+
+Onze tests de console passent dans le checkout opérateur. Unbound a
+changé de PID entre 23:38:57 (24 octobre) et 00:04:56 (25 octobre).
+À 00:12, le PID observé est 2135. Cela atteste un nouveau démarrage,
+mais **pas** un nouveau OOM. Ne pas attribuer le démarrage à Snort
+ou à pfBlockerNG sans preuve de l'action réellement déclenchante.
+
+Le relevé indique free+inactive = 119,4 Mio, load average
+4,56 / 4,47 / 3,48, CrowdSec engine ~75 772 Kio RSS,
+et un helper php_pfb ~42 832 Kio RSS. Ces observations ne sont
+ni simultanées aux OOM nocturnes ni des mesures de mémoire exclusive.
+Les compteurs Unbound ont été réinitialisés par le nouveau processus :
+ne pas interpréter leurs valeurs cumulées comme une série continue.
+
+La console compacte regroupe maintenant les OOM historiques par minute,
+en distinguant le nombre de processus tués du nombre d'incidents.
+La vue verbose conserve les horodatages distincts (sans doublons).
+Les événements pfBlockerNG incluent désormais la date locale uniquement
+si le préfixe du journal est reconnu ; sinon timestamp=unknown.
+Les domaines privés, téléchargements et tokens ne sont pas affichés.
+
+### Transition de l'heure locale, 25 octobre 2026
+
+Le 25 octobre, 03:00 CEST est suivi de 02:00 CET : il existe
+deux 02:09 locaux (02:09+02:00 et 02:09+01:00).
+FreeBSD cron peut appliquer un traitement dédié de ce changement
+selon les options du daemon, dont -s. Une double exécution Snort
+n'est **pas démontrée** : vérifier les exécutions réelles, en
+lecture seule, à 00:09Z et 01:09Z puis les journaux Snort.
+Les démarrages Unbound à 23:38 et 00:04 précèdent la transition.

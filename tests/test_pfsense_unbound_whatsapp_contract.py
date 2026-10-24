@@ -314,6 +314,36 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertNotIn("PID RSS", result.stdout)
         self.assertNotIn("SECRET", result.stdout)
 
+    def test_pfblockerng_events_keep_only_recognized_timestamp_prefix(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split(
+            "echo '=== pfBlockerNG process overlap", 1
+        )[1].split("echo '=== Resolver failures", 1)[0]
+        blocks = re.findall(r"awk '(.*?)'", section, re.DOTALL)
+        self.assertEqual(len(blocks), 2)
+        fixture = (
+            "10/25/2026 00:04:54: Restarting DNSBL Service token=PRIVATE\n"
+            "2026-10-24T22:03:11 DNSBL update PASSED private.example\n"
+            "no timestamp UPDATE PROCESS ENDED password=SECRET\n"
+        )
+        result = subprocess.run(
+            ["awk", blocks[1]], input=fixture, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "pfblocker_event=dnsbl_restart line=1 timestamp=10/25/2026 00:04:54",
+            result.stdout,
+        )
+        self.assertIn(
+            "pfblocker_event=dnsbl_passed line=2 timestamp=2026-10-24T22:03:11",
+            result.stdout,
+        )
+        self.assertIn("pfblocker_event=update_ended line=3 timestamp=unknown", result.stdout)
+        self.assertNotIn("PRIVATE", result.stdout)
+        self.assertNotIn("private.example", result.stdout)
+        self.assertNotIn("SECRET", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -168,13 +168,20 @@ for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockern
     # Deliberately omit arbitrary domain lists, URLs, block reports and secrets.
     # Log lines can contain feed URLs, private domains or credentials.
     awk '
+      function event_time(line, candidate) {
+        # Accept timestamps only at beginning; never copy feeds, domains, keys.
+        candidate=substr(line,1,19)
+        if(candidate ~ /^[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return candidate
+        if(candidate ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return candidate
+        return "unknown"
+      }
       /UPDATE PROCESS ENDED/ {kind="update_ended"}
       /DNSBL.*PASSED/ {kind="dnsbl_passed"}
       /DNSBL.*FAILED/ {kind="dnsbl_failed"}
       /Restarting DNSBL Service/ {kind="dnsbl_restart"}
       /Downloading.*IPinfo/ {kind="ipinfo_attempt"}
       /pfb.*out of memory/ {kind="oom_reported"}
-      kind != "" {printf "pfblocker_event=%s line=%d\n", kind, NR}
+      kind != "" {printf "pfblocker_event=%s line=%d timestamp=%s\n", kind, NR, event_time($0)}
       {kind=""}
     ' "$file" | tail -18 || true
   fi
