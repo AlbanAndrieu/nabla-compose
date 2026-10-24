@@ -214,8 +214,9 @@ migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
     bash -n scripts/truenas/diagnose-sentry-consumers.sh
     bash -n scripts/truenas/diagnose-akvorado-config.sh
+    bash -n scripts/truenas/diagnose-openrag-startup.sh
     bash -n scripts/truenas/verify-fastapi-lan-probes.sh
-    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_akvorado_config_bind_diagnostic.py tests/test_openrag_secret_migration_metadata.py
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_akvorado_config_bind_diagnostic.py tests/test_openrag_secret_migration_metadata.py tests/test_openrag_startup_preflight.py
 
 # Maintained runtime/version review is read-only, no registry or paid Actions.
 upgrade-runtime-audit:
@@ -271,7 +272,15 @@ truenas-openrag-dependencies-check:
     sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
 
 truenas-openrag-dependencies-test:
-    python3 -m pytest -q tests/test_openrag_dependencies_diagnostic.py
+    python3 -m pytest -q tests/test_openrag_dependencies_diagnostic.py tests/test_openrag_startup_preflight.py
+
+# Read-only prerequisites: App lifecycle, root-owned secrets, ZFS corpus and shared endpoints.
+truenas-openrag-startup-check:
+    sudo bash scripts/truenas/diagnose-openrag-startup.sh --check
+
+truenas-openrag-startup-test:
+    bash -n scripts/truenas/diagnose-openrag-startup.sh
+    python3 -m pytest -q tests/test_openrag_startup_preflight.py
 
 # Read-only host preflight; --apply remains a separate, explicit operator action.
 truenas-prometheus-config-check:
