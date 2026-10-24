@@ -2,6 +2,9 @@
 # Netgate 1100: bounded, read-only Unbound / pfBlockerNG / WhatsApp triage.
 # Run on operator workstation. Does not reload DNSBL or change the firewall.
 set -euo pipefail
+# Workstation-only console; the pfSense /bin/sh collector stays plain.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
@@ -23,7 +26,8 @@ done
 [[ "${target}" =~ ^[a-zA-Z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
 ssh_opts=(-o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes)
 [[ -z "${port}" ]] || ssh_opts+=(-p "${port}")
-ssh "${ssh_opts[@]}" "${target}" '/bin/sh -s' <<'REMOTE'
+pfsense_ui_banner "Unbound, Snort and CrowdSec · read-only"
+ssh "${ssh_opts[@]}" "${target}" '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
 set -u
 # Never dump config.xml, full resolver configuration, pfBlockerNG lists or user queries.
 echo '=== pfSense UTC/local time and uptime ==='
