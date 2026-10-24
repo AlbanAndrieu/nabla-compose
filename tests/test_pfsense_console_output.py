@@ -160,6 +160,22 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("Unbound process pid=2135 started=Oct 25 00:04:56", out.stdout)
         self.assertIn("restart cause UNKNOWN", out.stdout)
 
+    def test_dst_repeated_local_minute_keeps_utc_offsets(self):
+        events = (
+            "=== DST OOM chronology ===\n"
+            "source=system event=kernel_oom timestamp=2026-10-25T02:10:30+02:00\n"
+            "source=system event=kernel_oom timestamp=2026-10-25T02:10:31+01:00\n"
+            "source=system event=kernel_oom timestamp=2026-10-25T02:10:33+02:00\n"
+        )
+        result = render(events)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Historical OOM minute=2026-10-25T02:10 +02:00", result.stdout)
+        self.assertIn("Historical OOM minute=2026-10-25T02:10 +01:00", result.stdout)
+        self.assertEqual(result.stdout.count("Historical OOM minute="), 2)
+        self.assertIn("3 distinct historical OOM records", result.stdout)
+        self.assertIn("2 OOM minutes", result.stdout)
+        self.assertIn("kernel kills=2", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

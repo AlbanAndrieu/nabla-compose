@@ -113,3 +113,8 @@ selon les options du daemon, dont -s. Une double exécution Snort
 n'est **pas démontrée** : vérifier les exécutions réelles, en
 lecture seule, à 00:09Z et 01:09Z puis les journaux Snort.
 Les démarrages Unbound à 23:38 et 00:04 précèdent la transition.
+
+Note DST : pour le regroupement console, la clé de minute conserve maintenant
+le décalage UTC (`02:10 +02:00` et `02:10 +01:00` restent deux minutes
+réelles distinctes). Un journal sans décalage est affiché avec
+`(offset unknown)` : aucun fuseau n'est inventé.

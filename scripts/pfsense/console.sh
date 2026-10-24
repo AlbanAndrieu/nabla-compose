@@ -59,16 +59,22 @@ pfsense_ui_render() {
 
     # The same kernel kill is printed by both the chronology and resolver logs.
     # Deduplicate by complete event timestamp, not minute, PID or service name.
+    function oom_minute(ts, minute) {
+      if(ts=="unknown") return "unknown"
+      minute=substr(ts,1,16)
+      # DST fallback produces two distinct 02:10 minutes: keep UTC offsets.
+      if(ts ~ /[+-][0-9][0-9]:[0-9][0-9]$/)
+        return minute" "substr(ts,length(ts)-5,6)
+      if(ts ~ /Z$/) return minute" Z"
+      return minute" (offset unknown)"
+    }
     function historic_oom(ts, id, minute) {
       id=(ts=="unknown" ? "unknown-" ++unknown_id : ts)
       if(seen_oom[id]++) {oom_duplicates++; return}
       oom_unique++
-      if(ts!="unknown") {
-        minute=substr(ts,1,16)
-        if(!seen_minute[minute]++) oom_minutes++
-      }
+      minute=oom_minute(ts)
+      if(ts!="unknown" && !seen_minute[minute]++) oom_minutes++
       if(mode=="compact") {
-        minute=(ts=="unknown" ? "unknown" : substr(ts,1,16))
         if(!(minute in pending)) {pending_order[++pending_count]=minute;pending[minute]=0}
         pending[minute]++
       } else {
