@@ -11,7 +11,8 @@ Compose `depends_on` remains authoritative for same-project startup dependencies
 `catalog/service-icons.json` owns two distinct *presentation projections*:
 `icons` (legacy graph emoji) and `webAssets` (per-service bundled file names).
 Neither is a runtime-health authority. A child service may inherit a parent
-application icon. All new Backstage Components and legacy homelab service IDs
+application icon. Product-specific original pictograms are permitted when an
+upstream logo is unavailable; record attribution at the website asset. All new Backstage Components/Resources, legacy graph icon names and homelab service IDs
 must resolve to a specific `webAssets` entry (or to a parent entry).
 `tests/test_service_icon_web_assets.py` enforces this contract.
 
