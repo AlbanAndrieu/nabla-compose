@@ -49,7 +49,7 @@ def otp2_inventory() -> str:
         rc, info = public_command("--device", SERIAL, "otp", "info")
         if rc != 0:
             return "UNKNOWN"
-        if re.search(r"(?im)^\\s*(?:error|failed|traceback)\\b", info):
+        if re.search(r"(?im)^\s*(?:error|failed|traceback)\b", info):
             return "UNKNOWN"
         states = OTP2.findall(info)
         if len(states) != 1:
