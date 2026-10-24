@@ -54,6 +54,20 @@ set -euo pipefail
 printf 'MOCK PUBLIC CERTIFICATE\\n' > "$4"
 printf 'PASS: simulated read-only public export\\n'
 ''')
+        self.readiness = self.source / 'scripts/workstation/report-age-yubikey-piv82-readiness.py'
+        self.readiness.write_text('''#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+if os.getenv("TEST_READINESS_FAIL") == "1":
+    sys.exit(46)
+assert "--f9" in sys.argv and "--root" in sys.argv and "--json" in sys.argv
+assert Path(sys.argv[sys.argv.index("--f9") + 1]).is_file()
+Path(os.environ["TEST_READINESS_TRACE"]).write_text("NO-GO")
+print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
+''')
+        self.readiness_trace = self.base / 'readiness-trace'
         git(self.source, 'add', '.')
         git(self.source, 'commit', '-qm', 'initial fixture')
         self.original = git(self.source, 'rev-parse', 'HEAD')
@@ -70,7 +84,8 @@ printf 'PASS: simulated read-only public export\\n'
         self.env = dict(os.environ, HOME=str(self.home), NABLA_YUBIKEY_TEST_MODE='1',
                         NABLA_YUBIKEY_TEST_REMOTE=str(self.remote),
                         NABLA_YUBIKEY_TEST_PYTHON=sys.executable,
-                        TEST_VERIFIER_TRACE=str(self.trace))
+                        TEST_VERIFIER_TRACE=str(self.trace),
+                        TEST_READINESS_TRACE=str(self.readiness_trace))
 
     def run_script(self, *args, **env):
         e = dict(self.env, **{k: str(v) for k, v in env.items()})
@@ -90,6 +105,7 @@ printf 'PASS: simulated read-only public export\\n'
         self.assertIn('PASS: snapshot', result.stdout)
         self.assertIn('git pull skipped', result.stdout)
         self.assertTrue(self.trace.exists())
+        self.assertTrue(self.readiness_trace.exists())
         self.assert_untouched()
 
     def test_preexisting_uncommitted_file_is_preserved(self):
@@ -168,6 +184,14 @@ printf 'PASS: simulated read-only public export\\n'
             if 'isolated PR snapshot' in line
         }
         self.assertEqual(len(snapshots), 2)
+        self.assert_untouched()
+
+    def test_readiness_failure_stops_after_valid_f9(self):
+        result = self.run_script(TEST_READINESS_FAIL='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('readiness report failed closed', result.stderr)
+        self.assertTrue(self.trace.exists())
+        self.assertFalse(self.readiness_trace.exists())
         self.assert_untouched()
 
     def test_help_does_not_contact_git_or_hardware(self):

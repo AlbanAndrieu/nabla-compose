@@ -154,5 +154,10 @@ fi
   --serial 22916048 --firmware 5.4.3 \
   --f9 "${f9}" --root "${root}" --expected-f9-sha256 "${observed_f9}" || \
   die 'Public F9 certificate failed pinned legacy-root validation'
+[[ -f "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" ]] ||
+  die 'PIV82 readiness report missing at pinned SHA'
+"$python_bin" "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" \
+  --f9 "$f9" --root "$root" --json ||
+  die 'Public F9 readiness report failed closed'
 printf 'PASS: snapshot %.12s, offline gate and observed secondary F9 public trust\n' "${sha}"
 printf 'NO-GO: no PIN, AES256 authentication, PIV82 generation or SOPS mutation was authorized\n'
