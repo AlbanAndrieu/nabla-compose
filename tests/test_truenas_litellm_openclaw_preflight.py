@@ -172,6 +172,50 @@ class TrueNASInventoryTests(unittest.TestCase):
         request.assert_not_called()
         self.assertIn("truenas_admin_auth=missing", output.getvalue())
 
+    def test_missing_master_env_reports_unset_without_request(self):
+        with patch.dict(module.os.environ, {"LITELLM_TRUENAS_MASTER_KEY": ""}), \
+             patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main(["--tunnel", "--master-env", "LITELLM_TRUENAS_MASTER_KEY"])
+        self.assertEqual(status, 2)
+        inspected.assert_not_called()
+        self.assertIn("truenas_admin_env_state=empty", output.getvalue())
+
+    def test_preloaded_true_nas_master_is_used_without_prompt(self):
+        with patch.dict(module.os.environ, {"LITELLM_TRUENAS_MASTER_KEY": "sk-NONREAL_ADMIN_ONLY"}), \
+             patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "inspect", return_value=0) as inspected, \
+             patch.object(module, "getpass") as prompted:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main(["--tunnel", "--master-env", "LITELLM_TRUENAS_MASTER_KEY"])
+        self.assertEqual(status, 0)
+        inspected.assert_called_once_with(True, credentials="sk-NONREAL_ADMIN_ONLY")
+        prompted.assert_not_called()
+        self.assertIn("truenas_admin_env_state=present", output.getvalue())
+        self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
+
+    def test_prompt_empty_value_does_not_claim_bad_master(self):
+        with patch.object(module.sys.stdin, "isatty", return_value=True), \
+             patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "getpass", return_value=""), \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main(["--tunnel", "--prompt-admin"])
+        self.assertEqual(status, 2)
+        inspected.assert_not_called()
+        self.assertIn("truenas_admin_prompt=empty_value", output.getvalue())
+
+    def test_loopback_listener_requires_verified_ssh_helper(self):
+        with patch.object(module.importlib.util, "module_from_spec") as mk:
+            helper = mk.return_value
+            helper.listener_status.return_value = "occupied_unverified"
+            with patch.object(module.importlib.util, "spec_from_file_location"):
+                self.assertFalse(module.loopback_listener())
+            helper.listener_status.return_value = "verified_ssh"
+            with patch.object(module.importlib.util, "spec_from_file_location"):
+                self.assertTrue(module.loopback_listener())
+
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             module.filtered_result("x", 200, {"embedding", "private-model-secret"})
