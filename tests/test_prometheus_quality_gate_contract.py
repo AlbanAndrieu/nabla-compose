@@ -10,6 +10,7 @@ def test_promtool_gate_validates_runtime_paths() -> None:
     source = (ROOT / "scripts" / "prometheus" / "check-config.sh").read_text(encoding="utf-8")
 
     assert "docker run --rm" in source
+    assert "--user 568:568" in source
     assert "prom/prometheus:${PROMETHEUS_IMG:-v3.13.2}" in source
     assert "${PROMETHEUS_DIR}:/etc/prometheus:ro" in source
     assert "check config /etc/prometheus/prometheus.yml" in source

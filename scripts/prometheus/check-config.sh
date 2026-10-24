@@ -16,7 +16,9 @@ command -v docker >/dev/null 2>&1 || fail "docker is required for runtime-equiva
 [[ -f "${CONFIG}" ]] || fail "Prometheus config not found: ${CONFIG}"
 [[ -d "${RULES_DIR}" ]] || fail "Prometheus rules directory not found: ${RULES_DIR}"
 
+# Validate exactly as the TrueNAS App identity, not as Docker root.
 docker run --rm \
+  --user 568:568 \
   --volume "${PROMETHEUS_DIR}:/etc/prometheus:ro" \
   --entrypoint promtool \
   "${IMAGE}" \
