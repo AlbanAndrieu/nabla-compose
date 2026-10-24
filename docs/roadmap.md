@@ -1,3 +1,11 @@
+## P0 — Reprise opérateur PR #274 après reboot (24 octobre 2026)
+
+- [x] Corriger la procédure qui supposait `/tmp/nabla-pr274` persistant et utilisait `set -e` dans un terminal interactif. L'échec initial de `git -C` interrompait toute la session sans lancer les diagnostics.
+- [x] Versionner `scripts/workstation/run-pr274-after-reboot.sh` : récupération du HEAD distant dans un dépôt connu, contrôle de l'origine et du SHA, `flock`, création d'un worktree détaché unique et privé sous `~/.local/share/nabla/worktrees/` ou `XDG_DATA_HOME`, sans reset ni changement de branche du dépôt source. L'option `--with-pfsense` déclenche uniquement un diagnostic SSH en lecture seule.
+- [x] Ajouter la commande bootstrap à [l'incident pfSense](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md) et compléter `.agents/skills/local-first-quality/SKILL.md` pour interdire `set -e` directement dans le shell de l'opérateur.
+- [x] Tester localement hors réseau le scénario reboot / worktree effacé, la conservation d'un fichier non suivi et la reprise sur SHA épinglé : **7 tests réussis** dans un dépôt Git local simulé, `bash -n` réussi.
+- [ ] Exécuter `just pfsense-unbound-wifi-test` et le diagnostic pfSense sur la PR #274 à la révision exacte courante, puis la quality gate complète. Les preuves antérieures sur `da07b8a7` ne prouvent pas la qualité du nouveau HEAD.
+
 ## Suivi PR #274 — acceptance runtime et qualité du 24 octobre 2026
 
 - [x] Restaurer **la roadmap historique entière de master**. La PR avait réduit le document de ~3 721 à 122 lignes et supprimé la section de politique des skills, faisant échouer `QG_LARGE_DELETION` et `agent-skills-check`. Ne pas activer `QUALITY_ALLOW_LARGE_DELETION`.
