@@ -115,13 +115,13 @@ Séquence obligatoire pour une tâche Python/topologie :
    l'emplacement du checkout et les exécutables Python/uv disponibles.
    Préférer just preflight (Git-only) avant une installation.
 2. Préparer **uniquement** l'environnement Python du worktree :
-   scripts/quality/with-worktree-python.sh installe le groupe test du
-   uv.lock avec uv sync --frozen --only-group test --no-install-project.
+   scripts/quality/with-worktree-python.sh installe le groupe dev
+   (incluant test et pre-commit) du uv.lock avec uv sync --locked --no-install-project.
    N'autoriser aucun changement de uv.lock, de pyproject.toml ou de
    configuration globale pour contourner un prérequis.
 3. Le lanceur utilise .venv propre au worktree et le cache partagé de
    téléchargements uv. Il contrôle un marqueur de hash uv.lock +
-   pyproject.toml ; il évite la resynchronisation à chaque commande
+   pyproject.toml + version du Python ; il évite la resynchronisation à chaque commande
    quand la preuve de dépendances reste valide.
 4. L1 : exécuter les 3 générateurs en mode --check, puis les tests
    ciblés. Ne jamais régénérer automatiquement Homarr/Gatus/AutoKuma

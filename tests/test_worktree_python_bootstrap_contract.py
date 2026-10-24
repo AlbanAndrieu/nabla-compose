@@ -29,8 +29,7 @@ class WorktreePythonBootstrapContract(unittest.TestCase):
         uv = self.bin / "uv"
         uv.write_text('''#!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == sync && "$2" == --frozen && "$3" == --only-group &&
-   "$4" == test && "$5" == --no-install-project && "$6" == --python ]]
+[[ "$1" == sync && "$2" == --locked && "$3" == --no-install-project && "$4" == --python ]]
 printf 'sync\\n' >> "$MOCK_UV_TRACE"
 mkdir -p .venv/bin
 printf '#!/bin/sh\\nexit 0\\n' > .venv/bin/python

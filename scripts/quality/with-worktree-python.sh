@@ -25,7 +25,7 @@ fi
 [[ -n "$uv_cmd" ]] || { printf 'BLOCKED: uv not installed; review mise.toml, then run mise install uv only\n' >&2; exit 3; }
 venv="$root/.venv"
 marker="$venv/.nabla-test-deps-sha256"
-lock_sha="$(sha256sum "$root/pyproject.toml" "$root/uv.lock" | sha256sum | cut -d' ' -f1)"
+lock_sha="$( { sha256sum "$root/pyproject.toml" "$root/uv.lock"; python3 -c 'import sys; print(sys.version)'; } | sha256sum | cut -d' ' -f1)"
 lock_file="${TMPDIR:-/tmp}/nabla-worktree-python-$(printf '%s' "$root" | sha256sum | cut -c1-24).lock"
 exec 9>"$lock_file"
 flock -w 60 9 || { printf 'BLOCKED: local Python setup lock busy\n' >&2; exit 3; }
@@ -37,7 +37,7 @@ if [[ -x "$venv/bin/python" && -f "$marker" ]] &&
 fi
 if [[ "$needs_sync" == true ]]; then
   printf 'INFO: syncing locked test dependencies into worktree .venv\n'
-  (cd -- "$root" && UV_PYTHON_DOWNLOADS=never "$uv_cmd" sync --frozen --only-group test --no-install-project --python "$(command -v python3)") || {
+  (cd -- "$root" && UV_PYTHON_DOWNLOADS=never "$uv_cmd" sync --locked --no-install-project --python "$(command -v python3)") || {
     printf 'BLOCKED: uv sync failed; no quality checks were run\n' >&2
     exit 3
   }
