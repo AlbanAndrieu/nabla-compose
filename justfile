@@ -133,6 +133,10 @@ openclaw-truenas-model-keys-check:
 openclaw-truenas-model-keys-tunnel:
     python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel
 
+# One-time hidden TTY input, no exported master credential; requires pre-existing SSH tunnel.
+openclaw-truenas-model-keys-tunnel-prompt:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --prompt-admin
+
 # Read-only 429 attribution. No chat, embeddings, resets or key mutations.
 openclaw-429-triage-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
