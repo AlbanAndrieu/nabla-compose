@@ -253,3 +253,9 @@ Le mode --save-public-f9 crée un **nouveau** fichier PEM public (permissions 06
 **Interprétation stricte :** un PASS atteste la signature du fichier F9 public par la racine approuvée et la correspondance avec l'empreinte observée. Il ne prouve pas une opération live avec la clé privée F9, une clé PIV82 générée, une authentification AES256 ou un déchiffrement age. **NO-GO matériel et SOPS inchangé.**
 
 Documentation officielle : https://developers.yubico.com/yubico-piv-tool/Attestation.html et https://developers.yubico.com/PIV/Introduction/PIV_attestation.html.
+
+## 6. Régression de contrat sur l'ordre de la gate offline (24 octobre 2026)
+
+La reprise automatisée au SHA `3504d6bd` a exécuté **80 tests** : 79 réussis et un test en erreur. Le contrat recherchait littéralement `python3 -m py_compile "$python_source"` alors que le script emploie la forme Bash équivalente `python3 -m py_compile "${python_source}"`. La gate n'a pas été modifiée : son contrôle de syntaxe précède toujours `unittest`.
+
+Le contrat accepte désormais **les deux formes citées** et refuse une compilation absente, déplacée après `unittest` ou ciblant une autre variable. La reproduction isolée des 6 cas a réussi. **81 tests unittest attendus** après le correctif, à valider sur la workstation. Le lanceur a correctement arrêté l'exécution avant F9 ; aucune opération PIV, PIN ou SOPS n'a eu lieu.
