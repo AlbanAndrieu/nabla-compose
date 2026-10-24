@@ -46,6 +46,11 @@ class RecoveryContract(unittest.TestCase):
             'git@github.com:AlbanAndrieu/nabla-compose.git')
         (self.repo / 'scratch-local.txt').write_text('do not remove me\n')
         self.env = os.environ.copy()
+        # The actual operator bootstrap pins the real PR SHA in the
+        # environment of "just". These hermetic Git fixtures have their
+        # own synthetic commit SHA; never inherit the operator's pin.
+        # The dedicated test below still checks explicit pin enforcement.
+        self.env.pop('NABLA_PR274_EXPECTED_SHA', None)
         self.env.update({
             'NABLA_COMPOSE_REPO': str(self.repo),
             'NABLA_WORKTREES_ROOT': str(self.store),
@@ -53,7 +58,8 @@ class RecoveryContract(unittest.TestCase):
 
     def run_script(self, *args, env=None):
         return subprocess.run(['bash', str(SCRIPT), *args],
-            text=True, capture_output=True, env=env or self.env,
+            text=True, capture_output=True,
+            env=self.env if env is None else env,
             timeout=25, check=False)
 
     def test_help_and_invalid_options_do_not_touch_checkout(self):
@@ -95,6 +101,27 @@ class RecoveryContract(unittest.TestCase):
         self.assertFalse(old.exists())
         self.assertTrue(new.exists())
         self.assertTrue((self.repo / 'scratch-local.txt').exists())
+
+    def test_operator_sha_environment_isolated_from_fake_git_fixture(self):
+        # Reproduce just being launched by the SHA-pinned operator bootstrap.
+        pinned_real_pr_sha = 'e' * 40
+        self.assertNotEqual(
+            git('-C', str(self.repo), 'rev-parse', 'HEAD'),
+            pinned_real_pr_sha,
+        )
+        from unittest.mock import patch
+        with patch.dict(os.environ, {'NABLA_PR274_EXPECTED_SHA': pinned_real_pr_sha}):
+            # Simulate the next test's setup: copy the real operator environment,
+            # then clear the pin specifically for this synthetic repository.
+            nested_env = os.environ.copy()
+            nested_env.pop('NABLA_PR274_EXPECTED_SHA', None)
+            nested_env.update({
+                'NABLA_COMPOSE_REPO': str(self.repo),
+                'NABLA_WORKTREES_ROOT': str(self.store),
+            })
+            result = self.run_script('--prepare-only', env=nested_env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('RESULT=PREPARED', result.stdout)
 
     def test_pinned_sha_does_not_refetch_and_fails_on_drift(self):
         correct = git('-C', str(self.repo), 'rev-parse', 'HEAD')
