@@ -62,7 +62,9 @@ class CronCutoverTests(unittest.TestCase):
         self.db = self.state / "agents/cron/agent/credentials.sqlite"
         self.db.parent.mkdir(parents=True, mode=0o700)
         self.key = self.root / "openclaw-cron.key"
+        # Tests must never inherit the operator's real preloaded credential.
         self.patches = [
+            patch.dict(os.environ, {cutover.ENV_ID: "sk-SECRET_NEVER_PRINT"}),
             patch.object(cutover, "HOME", self.home),
             patch.object(cutover, "ROOT", self.root),
             patch.object(cutover, "STAGING", self.stage),
@@ -84,6 +86,69 @@ class CronCutoverTests(unittest.TestCase):
         self.assertIn("cron_cutover_key=would_create", output.getvalue())
         self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
         self.assertFalse(self.key.exists())
+
+    def test_preloaded_environment_overrides_indirect_dotenv(self):
+        self.env.write_text("LITELLM_OPENCLAW_CRON_API_KEY=" + chr(36) + "{ANOTHER_KEY}\n")
+        with patch.object(cutover, "invoke", return_value=result(
+                [str(self.db), str(self.env)])):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = cutover.main(["--check"])
+        self.assertEqual(status, 0)
+        self.assertIn("cron_cutover_credential_source=preloaded_environment",
+                      output.getvalue())
+        self.assertIn("cron_cutover_key=would_create", output.getvalue())
+        self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
+        self.assertFalse(self.key.exists())
+
+    def test_absent_preloaded_env_falls_back_to_private_dotenv(self):
+        with patch.dict(os.environ, {cutover.ENV_ID: ""}):
+            self.assertIsNone(cutover.key_from_environment())
+            with patch.object(cutover, "invoke", return_value=result(
+                    [str(self.db), str(self.env)])):
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    status = cutover.main(["--check"])
+        self.assertEqual(status, 0)
+        self.assertIn("cron_cutover_credential_source=private_dotenv", output.getvalue())
+
+    def test_invalid_preloaded_env_is_rejected_without_fallback(self):
+        self.env.write_text("LITELLM_OPENCLAW_CRON_API_KEY=sk-safe_fallback_value\n")
+        for invalid in ("short", chr(36) + "{OTHER_KEY}", "sk-A VALUE",
+                        "sk-SECRET_NEVER_PRINT\n"):
+            with self.subTest(kind="invalid_environment"):
+                with patch.dict(os.environ, {cutover.ENV_ID: invalid}):
+                    with patch.object(cutover, "invoke", return_value=result(
+                            [str(self.db), str(self.env)])):
+                        with contextlib.redirect_stdout(io.StringIO()) as output:
+                            status = cutover.main(["--check"])
+                self.assertEqual(status, 2)
+                self.assertIn("cron_cutover_reason=invalid_preloaded_credential",
+                              output.getvalue())
+                self.assertNotIn(invalid, output.getvalue())
+
+    def test_preloaded_key_is_staged_without_exposing_or_rewriting_dotenv(self):
+        import sqlite3
+        self.env.write_text("LITELLM_OPENCLAW_CRON_API_KEY=" +
+                            chr(36) + "{SECRET_FROM_STORE}\n")
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("CREATE TABLE credentials (identity TEXT)")
+        self.db.chmod(0o600)
+        def native_execution(path, dry_run=True):
+            if Path(path) == self.source:
+                return result([str(self.db), str(self.env)])
+            return result([str(self.db), str(self.config)],
+                          "dry-run" if dry_run else "write")
+        with patch.object(cutover, "invoke", side_effect=native_execution), \
+             patch.dict(os.environ, {"OPENCLAW_CONFIG_PATH": str(self.config)}):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = cutover.main(["--apply"])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.key.read_bytes(), b"sk-SECRET_NEVER_PRINT\n")
+        self.assertEqual(self.env.read_text(),
+                         "LITELLM_OPENCLAW_CRON_API_KEY=" +
+                         chr(36) + "{SECRET_FROM_STORE}\n")
+        self.assertIn("cron_cutover_credential_source=preloaded_environment",
+                      output.getvalue())
+        self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
 
     def test_rejects_duplicate_indirect_and_short_keys(self):
         for value in (
