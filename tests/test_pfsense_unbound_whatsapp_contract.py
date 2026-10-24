@@ -36,6 +36,16 @@ class UnboundWifiContract(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
 
+    def test_scheduled_oom_correlations_are_redacted(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("cron_minute=", script)
+        self.assertIn("crowdsec_engine_pid=", script)
+        self.assertIn("crowdsec_bouncer_pid=", script)
+        self.assertIn("crowdsec_stuck_lines=", script)
+        self.assertIn("2026-10-24", str(ROOT / "docs/runbooks"))
+        self.assertNotIn("cat /conf/config.xml", script)
+        self.assertNotIn("service crowdsec restart", script)
+
     def test_uses_strict_batch_ssh_with_no_mutation(self):
         text = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("StrictHostKeyChecking=yes", text)
