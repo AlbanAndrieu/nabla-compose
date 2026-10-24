@@ -380,6 +380,9 @@ check_section() {
       run_check sentry-recovery-preflight bash scripts/truenas/recover-sentry-deploying.sh --check
       ;;
     akvorado)
+      # Read-only proof that the orchestrator sees the reviewed static provider
+      # file; SHA equality does not mean the running process reloaded it.
+      run_check akvorado-config bash scripts/truenas/diagnose-akvorado-config.sh --check
       # Counter snapshots only. A fresh ClickHouse batch is not a SQL-row proof.
       run_check akvorado-blocked python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 20
       run_check akvorado-fresh-inserts python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 20
