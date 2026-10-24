@@ -7,7 +7,7 @@ set -euo pipefail
 }
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 CONFIG="$ROOT/apps/akvorado/config/akvorado.yaml"
-[[ -f "$CONFIG" && ! -L "$CONFIG" ]] || { echo 'BLOCKED: unsafe or missing Akvorado config'; exit 1; }
+[[ -f "$CONFIG" && -s "$CONFIG" && ! -L "$CONFIG" ]] || { echo 'BLOCKED: unsafe or missing Akvorado config'; exit 1; }
 for cmd in docker sha256sum awk sort tar; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "BLOCKED: missing $cmd"; exit 2; }
 done
@@ -33,8 +33,11 @@ fi
 host_hash="$(sha256sum "$CONFIG" | awk '{print $1}')"
 # docker cp streams TAR from Docker even for minimal/distroless images.
 # tar -xO writes only to stdout, not disk; hash calculation runs on host.
-runtime_digest="$(docker cp "$id:/etc/akvorado/akvorado.yaml" - 2>/dev/null |
-  tar -xOf - 2>/dev/null | sha256sum 2>/dev/null || true)"
+if ! runtime_digest="$(docker cp "$id:/etc/akvorado/akvorado.yaml" - 2>/dev/null |
+  tar -xOf - 2>/dev/null | sha256sum 2>/dev/null)"; then
+  echo 'BLOCKED: orchestrator config stream unavailable'
+  exit 1
+fi
 runtime_hash="${runtime_digest%% *}"
 [[ "$host_hash" =~ ^[a-f0-9]{64}$ ]] || { echo 'BLOCKED: host hash unavailable'; exit 1; }
 if [[ ! "$runtime_hash" =~ ^[a-f0-9]{64}$ ]]; then
