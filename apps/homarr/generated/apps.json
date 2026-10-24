@@ -978,7 +978,7 @@
       "name": "Open WebUI",
       "group": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
-      "composeService": "open-webui",
+      "composeService": "openwebui",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31028",
       "syncEligible": true,

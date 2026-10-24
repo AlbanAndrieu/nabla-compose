@@ -169,7 +169,8 @@ print_compact_log() {
       next
     }
     /^FAILED tests\// || /^ERROR tests\// || /^FAIL: / || /^ERROR: / ||
-    /^❌ QG_/ || /^- hook id:/ {
+    /^❌ QG_/ || /^- hook id:/ ||
+    /^  consumer_drift[.:]/ || /^  topology_drift[.:]/ {
       if (count++ < limit) print "  " $0
     }
     END { if (count > limit) printf "  ... %d additional findings (see log)\n", count-limit }

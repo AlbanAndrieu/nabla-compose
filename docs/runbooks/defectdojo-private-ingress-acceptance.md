@@ -2,6 +2,47 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Priorité runtime — interface privée indisponible (24 octobre 2026)
+
+L'opérateur constate que `https://defectdojo.int.albandrieu.com/`
+ne répond pas. La cause n'est **pas encore établie** : navigateur/DNS privé,
+TLS de Traefik, service Nginx, Django/uWSGI ou PostgreSQL.
+Le dernier HTTP 403 observé historiquement sur `/api/v2/` prouve
+uniquement que l'API refusait une requête anonyme ; cela ne garantit pas
+la page HTML de connexion.
+
+Sur un shell **TrueNAS**, depuis le checkout canonique contenant le
+diagnostic actuel (ou après revue de la PR Draft #274) :
+
+```bash
+sudo bash scripts/truenas/preflight-defectdojo.sh
+sudo bash scripts/truenas/diagnose-defectdojo.sh --check
+```
+
+Le diagnostic est strictement en lecture seule et sépare :
+
+| Couche | Observation | Interprétation |
+| --- | --- | --- |
+| Docker | `defectdojo`, `defectdojo-uwsgi`, `traefik` en cours d'exécution | Présence, sans garantir la réponse Django |
+| TCP/HTTP LAN | `http://172.17.0.24:31085/api/v2/` | HTTP 403 attendu pour API anonyme |
+| UI locale | `http://172.17.0.24:31085/` | HTTP 200 **avec `Content-Type: text/html`** ou redirection 30x = frontend accessible ; 000/401/403/404/5xx, 200 non-HTML = échec |
+| DNS interne | Pi-hole `172.17.0.24` et pfSense `172.17.0.1` | doivent résoudre la cible privée |
+| DNS public | `1.1.1.1` | aucune publication publique voulue |
+| HTTPS privé | `curl --resolve` avec vérification TLS/SNI | doit joindre le routeur Traefik correspondant |
+
+Un résultat `ui_origin_http=000` avec `api_http=403` signale
+`api_reachable_but_ui_origin_unavailable`. Si l'UI LAN fonctionne mais
+`https_http=000`, vérifier DNS/SNI et le certificat Traefik plutôt que
+de modifier Django. Un 404 sur Traefik peut indiquer un routeur absent.
+Aucune hypothèse ne justifie un reset de la base.
+
+La route privée ne doit pas être exposée publiquement. Conserver
+PostgreSQL, Redis, les données d'audit et les secrets de chiffrement.
+Le compte Django `admin` était le seul utilisateur observé dans
+l'inventaire du 23 octobre ; la rotation de son mot de passe est un
+**chantier séparé**, à effectuer uniquement en mode TTY interactif
+et avec synchronisation Vaultwarden, une fois l'interface joignable.
+
 ## Execution order
 
 1. Ensure the branch is based on the current `master`. Preserve any dirty working tree; do not reset unrelated changes.

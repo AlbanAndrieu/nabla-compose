@@ -171,6 +171,7 @@ def test_prometheus_running_target_summary_is_redacted(tmp_path, noexec_safe_bas
     assert "token:secret" not in output
     assert "PRIVATE-TOKEN-DO-NOT-PRINT" not in output
     assert "job and health only" in output
+    assert "private\tdown\tother_redacted" in output
 
 
 def test_prometheus_rule_permission_is_not_falsely_counted_as_yaml(

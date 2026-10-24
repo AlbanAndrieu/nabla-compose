@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:0d7508046e52f9101322af3d734abd39e93323e964d69a8bab251d016473c35c",
+  "catalogRevision": "sha256:343a3b697203c88151f948d2ebe4ffef8293be7130a919d33155b413c379d8c1",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -212,7 +212,7 @@
     },
     {
       "id": "bichon",
-      "name": "Bichon",
+      "name": "Bichon UI",
       "kind": "application",
       "category": "productivity",
       "sourcePath": "apps/bichon/compose.yml",
@@ -786,7 +786,7 @@
     },
     {
       "id": "gatus",
-      "name": "Gatus",
+      "name": "Gatus UI",
       "kind": "status-monitor",
       "category": "observability",
       "sourcePath": "apps/gatus/compose.yml",
@@ -934,7 +934,7 @@
     },
     {
       "id": "homeassistant",
-      "name": "Home Assistant",
+      "name": "Home Assistant UI",
       "kind": "home-automation",
       "category": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
@@ -1736,11 +1736,11 @@
       "kind": "application",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
-      "composeService": "open-webui",
+      "composeService": "openwebui",
       "runtime": {
         "provider": "truenas-app",
         "appId": "openwebui",
-        "containerService": "open-webui"
+        "containerService": "openwebui"
       },
       "icon": "💬"
     },

@@ -53,6 +53,31 @@ def summarize_metrics(data: str, component: str) -> list[str]:
     return [f"{key}={val:g}" for key, val in sorted(results.items())]
 
 
+def exporter_metadata_evidence(data: str) -> dict[str, float]:
+    """Historical metadata errors partitioned by expected exporter, no IP leakage.
+
+    This never reports a private exporter address or raw Prometheus labels.
+    It helps distinguish stale/wrong exporter identity from missing ifIndex.
+    """
+    totals = {"configured": 0.0, "other": 0.0, "unidentified": 0.0}
+    for line in data.splitlines():
+        match = METRIC.match(line)
+        if not match or match.group(1) != "akvorado_outlet_core_flows_errors_total":
+            continue
+        labels = dict(LABEL.findall(match.group(2) or ""))
+        if labels.get("error") != "metadata missing":
+            continue
+        value = float(match.group(3))
+        if not math.isfinite(value):
+            continue
+        exporter = labels.get("exporter")
+        key = "configured" if exporter == "172.17.0.1" else (
+            "other" if exporter else "unidentified"
+        )
+        totals[key] += value
+    return totals
+
+
 def classify_outlet(data: str) -> str:
     """Classify only from observed evidence; a reachable endpoint is not success."""
     values: dict[str, float] = {}
@@ -88,6 +113,8 @@ def outlet_counters(data: str) -> dict[str, float]:
         "akvorado_outlet_core_flows_errors_total": "metadata_missing",
         "akvorado_outlet_kafkainput_received_messages_total": "kafka_messages",
         "akvorado_outlet_clickhouse_flow_per_batch_count": "clickhouse_batches",
+        "akvorado_outlet_metadata_provider_snmp_poller_error_requests_total": "snmp_poller_errors",
+        "akvorado_outlet_metadata_provider_errors_total": "metadata_provider_errors",
     }
     values: dict[str, float] = {}
     for line in data.splitlines():
@@ -176,6 +203,12 @@ def main() -> int:
             if component == "outlet":
                 initial_outlet = data
                 print(f"[outlet] pipeline_status={classify_outlet(data)}")
+                evidence = exporter_metadata_evidence(data)
+                for label, count in sorted(evidence.items()):
+                    print(f"[outlet] historical_metadata_missing_{label}_exporter={count:g}")
+                if evidence["other"] > 0 or evidence["unidentified"] > 0:
+                    print("[outlet] evidence=metadata_errors_not_all_matched_to_static_exporter")
+                print("[outlet] note=historical_counters_not_proof_of_current_failure")
             if not lines:
                 print(f"[{component}] expected_counter_families=missing")
         except (OSError, urllib.error.URLError, ValueError) as exc:
@@ -189,6 +222,8 @@ def main() -> int:
                 initial_outlet, fetch(ENDPOINTS["outlet"])
             )
             print(f"[outlet] observed_status={observed_status}")
+            if observed_status == "NO_NEW_FLOW_EVIDENCE":
+                print("[outlet] evidence=no_new_packets_or_inserts_in_observation_window")
             for key, value in sorted(delta.items()):
                 print(f"[outlet] delta_{key}={value:g}")
         except (OSError, urllib.error.URLError, ValueError) as exc:

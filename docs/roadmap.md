@@ -1,3 +1,53 @@
+## P0 — OpenRAG : reprise sûre et contrôlée (24 octobre 2026)
+
+- [x] Prouver l'état runtime : TrueNAS `openrag=STOPPED`, backend/frontend Docker absents. Langflow et OpenSearch `running+healthy`; Docling absent. Ne pas confondre avec `DEPLOYING` ou déduire sans preuve que l'arrêt est intentionnel.
+- [x] Ajouter `scripts/truenas/diagnose-openrag-startup.sh --check`, préflight **lecture seule** : cycle de vie, clés attendues sans valeurs, secret root-only, montage ZFS `cpool/bababou`, readiness Langflow et transport LiteLLM ; Docling est signalé séparément pour l'ingestion.
+- [x] Intégrer le préflight aux contrôles `--section openrag` et `--section ai` et ajouter des tests synthétiques pour `STOPPED`, mot de passe absent, refus de mutation et absence de divulgation.
+- [ ] Relever le **résultat TrueNAS actuel** du nouveau préflight et les contrôles existants `diagnose-openrag-dependencies.sh --check`, `reconcile-openrag-opensearch-secret.sh --check` avant toute commande `app.start`.
+- [ ] Comparer la définition Custom App stockée dans TrueNAS au Compose canonique (services, volumes RO et endpoint global Langflow) ; corriger uniquement les écarts constatés, après approbation et plan de rollback.
+- [ ] Obtenir l'approbation explicite de l'opérateur pour un éventuel démarrage unique. **Aucun `app.start` ni `app.redeploy` automatique dans le préflight**.
+- [ ] Après démarrage approuvé : backend et frontend `running+healthy`, authenticités OpenSearch/Langflow, GPU LiteLLM chat + embeddings. Docling `/ready` puis ingestion/récupération sur **document synthétique**, et seulement ensuite petit corpus privé approuvé.
+- [ ] Vérifier `just truenas-openrag-startup-test`, `just truenas-openrag-dependencies-test` et `just quality` sur le HEAD exact, sans Actions payantes.
+
+[Runbook et preuves OpenRAG](../apps/openrag/README.md) · [Contrats d'ingestion privée](runbooks/openrag-babou-ingestion-diagnostics.md).
+
+## P0 — Corrections pfSense à décider après les OOM nocturnes (24 octobre 2026)
+
+- [x] **Cause technique prouvée :** Unbound a été tué par le noyau (`failed to reclaim memory`), avec `php`, `netstat`, `php_pfb`. Les récurrences `02:10` et l'incident du 22/10 à `22:03` indiquent plusieurs fenêtres de saturation.
+- [x] **Corréler les horaires :** Snort `snort_rules_update` à 02:09 et 14:09, pfBlockerNG à 00:00 / 04:00 / 22:00. La fin DNSBL à 00:09 ne correspond pas au crash à 02:10. Les tâches restent **suspectes**, pas prouvées responsables.
+- [x] Étendre le diagnostic read-only avec le nombre de workers PHP-FPM, leur RSS agrégé (non-additif à la RAM physique) et les métadonnées d'occupation de `/tmp` et `/var`. Contrat synthétique ajouté au test `test_pfsense_unbound_whatsapp_contract.py`.
+- [ ] **P0 Snort :** confirmer les opérations réelles autour de 02:09 / 14:09 et leur pic de RAM. Si confirmé, décider après sauvegarde d'un horaire supervisé / fréquence quotidienne temporaire depuis l'interface Snort ; attention à la fraîcheur des signatures.
+- [ ] **P0 CrowdSec :** déterminer pourquoi le moteur a été réactivé (~77 Mio RSS, bouncer ~9 Mio) ; décider d'un arrêt maîtrisé ou déplacement du moteur hors pfSense seulement après validation de la source des décisions de sécurité et rollback.
+- [ ] **P0 pfBlockerNG :** corréler le job de 22:00 avec l'OOM de 22:03, mesurer la reconstruction DNSBL et vérifier le statut effectif ASN/IPinfo. Les archives `.orig` ne prouvent pas que les feeds sont actifs : ne rien supprimer sans validation.
+- [ ] **P1 :** vérifier PHP-FPM et les RAM disks, garder PHP `128M`, Unbound `4m/8m`, DNSBL Python et absence de watchdog ; éviter les rechargements/reboots répétés.
+- [ ] **Recette :** sauvegarde `config.xml`, une modification contrôlée par fois, rollback défini ; observer les fenêtres 02:09, 14:09 et 22:00, la santé DNS et l'absence d'OOM sur plusieurs cycles.
+- [ ] Contrôler `just pfsense-unbound-wifi-test` puis la quality gate complète sur le nouveau HEAD. Aucun changement pfSense en production n'a été appliqué depuis cette PR.
+
+[Décisions et preuves horodatées](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+
+## P0 — Reprise opérateur PR #274 après reboot (24 octobre 2026)
+
+- [x] Corriger la procédure qui supposait `/tmp/nabla-pr274` persistant et utilisait `set -e` dans un terminal interactif. L'échec initial de `git -C` interrompait toute la session sans lancer les diagnostics.
+- [x] Versionner `scripts/workstation/run-pr274-after-reboot.sh` : récupération du HEAD distant dans un dépôt connu, contrôle de l'origine et du SHA, `flock`, création d'un worktree détaché unique et privé sous `~/.local/share/nabla/worktrees/` ou `XDG_DATA_HOME`, sans reset ni changement de branche du dépôt source. L'option `--with-pfsense` déclenche uniquement un diagnostic SSH en lecture seule.
+- [x] Ajouter la commande bootstrap à [l'incident pfSense](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md) et compléter `.agents/skills/local-first-quality/SKILL.md` pour interdire `set -e` directement dans le shell de l'opérateur.
+- [x] Tester localement hors réseau le scénario reboot / worktree effacé, la conservation d'un fichier non suivi et la reprise sur SHA épinglé : **9 tests réussis** dans un dépôt Git local simulé, en reproduisant `NABLA_PR274_EXPECTED_SHA` hérité du bootstrap, `bash -n` réussi. La variable de pin est supprimée après la validation du commit et n'est jamais transmise aux tests Git imbriqués.
+- [x] Corriger l'échec opérateur au SHA `efa16afc` : les tests Git factices héritaient du pin SHA du vrai dépôt et refusaient trois préparations. Supprimer cette variable dans les fixtures, conserver son test explicite de refus d'un mauvais SHA, et ajouter un test vérifiant qu'elle n'est pas propagée aux deux tâches `just`.
+- [ ] Exécuter `just pfsense-unbound-wifi-test` et le diagnostic pfSense sur la PR #274 à la révision exacte courante, puis la quality gate complète. Les preuves antérieures sur `da07b8a7` ne prouvent pas la qualité du nouveau HEAD.
+
+## Suivi PR #274 — acceptance runtime et qualité du 24 octobre 2026
+
+- [x] Restaurer **la roadmap historique entière de master**. La PR avait réduit le document de ~3 721 à 122 lignes et supprimé la section de politique des skills, faisant échouer `QG_LARGE_DELETION` et `agent-skills-check`. Ne pas activer `QUALITY_ALLOW_LARGE_DELETION`.
+- [x] `finish-migrations-20261024.sh` orchestre les diagnostics ; procédures et ordres d'opérations sont documentés dans le [runbook opérateur canonique](runbooks/2026-10-24-homelab-operator-next-commands.md), pas affichés en entier par un script.
+- [x] Preuves TrueNAS avant la présente correction : 59 tests `migration-20261024-test` passent (6 ignorés), convergence catalogue validée (154 entités, 151 services), et 8 tests unitaires de précédence des skills passent. L'audit de politique puis `just quality` ont échoué sur la roadmap tronquée.
+- [ ] **P0 Prometheus** : `restarting` (exit 2), `prometheus.yml` en `0644` et 1 règle sur 15 inaccessible à 568:568 ; corriger séparément, sur approbation, sans TSDB/WAL, puis vérifier `/-/ready` et les targets.
+- [ ] **P0 OpenRAG** : TrueNAS `STOPPED`, backend/frontend absents, Langflow et OpenSearch healthy ; confirmer les jobs TrueNAS et la source des secrets avant un démarrage approuvé.
+- [ ] **P0 Sentry** : TrueNAS `DEPLOYING`, deux consommateurs Kafka unhealthy ; préflight de la nouvelle section Sentry avant toute remédiation, préserver offsets et ClickHouse.
+- [x] **Preuves workstation (`da07b8a7`) :** `just pfsense-unbound-wifi-test` 15/15 PASS ; réponses DNS `NOERROR` et 1 A via pfSense/Quad9 pour `web.whatsapp.com` et `static.whatsapp.net`; HTTPS IPv4 OK, IPv6 indisponible depuis la workstation. Aucun statut du mobile n'en découle.
+- [x] Séparer dans le diagnostic pfSense les crons `snort_rules_update` et `snort_housekeeping`, avec métadonnées de journaux seulement, sans lire les règles ; nouveaux tests de classification. Changements non exécutés sur le nouveau HEAD.
+- [ ] Corréler le cron 02:09 **et** sa seconde occurrence 14:09 avec les horodatages des mises à jour Snort, les processus PHP temporaires et les OOM ; ne pas déplacer/désactiver ce cron sans preuve de causalité et approbation.
+- [ ] **P0 pfSense / Akvorado** : investigations OOM 02:10 et NetFlow v5 vers Akvorado, sans imputer les lenteurs WhatsApp au DNSBL avant confirmation. Voir le [runbook pfSense](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+- [ ] **Qualité locale** : exécuter `just agent-skills-check` puis `just quality` sur la **révision exacte de la PR #274** ; les derniers résultats restent ceux du checkout utilisateur antérieur à ces commits.
+
 ## P0 — pfBlockerNG / Unbound / WhatsApp Wi-Fi — incident du 24 octobre 2026
 
 - [x] L'opérateur a exécuté **22/22 tests Akvorado PASS** le 24 octobre ; les tests ne prouvent aucune insertion en base ni disponibilité Akvorado.

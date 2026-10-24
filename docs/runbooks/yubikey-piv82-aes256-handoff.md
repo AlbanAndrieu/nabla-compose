@@ -102,3 +102,43 @@ Sans fichiers d'attestation réels, exécuter seulement la **simulation** :
 L'outil de validation des vrais PEM exige `--attestation --f9 --root --public-key --serial --root-sha256`, et permet de fournir les intermédiaires via `--intermediate`. Pour ne pas accepter une fausse autorité, **ne jamais recopier l'empreinte SHA256 calculée depuis le PEM reçu comme valeur approuvée** : comparer avec une empreinte de racine Yubico authentifiée par une source séparée. La chaîne diffère pour les appareils **5.7.4+** (nouvelle racine et intermédiaires) et les firmwares antérieurs. Source : [Yubico PIV Attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html), [procédure de vérification](https://developers.yubico.com/yubico-piv-tool/Attestation.html).
 
 Nouvelle gate : **2 tests de contrat supplémentaires**, soit **51 tests attendus** d'après le dernier 49/49 (sous réserve de commits concurrents) + un test cryptographique synthétique indépendant couvrant **8 cas négatifs** et un bundle intermédiaire. Les **10 tests transactionnels** et le banc cryptographique d'attestation ont été exécutés avec succès sur la copie isolée des fichiers modifiés de l'agent ; cela ne remplace ni le checkout complet de la workstation ni une opération matérielle. Aucun provisioning, aucune authentification PIN, aucune modification F9/PIV9A/OTP2/SOPS. **NO-GO matériel maintenu.**
+
+### 24 octobre 2026 — Précontrôle F9 avant attestation PIV82
+
+**Jalon réellement accessible avant provisionnement** : la secondaire `22916048` a un PIV82 vide. D'après la [documentation officielle Yubico](https://developers.yubico.com/yubico-piv-tool/Attestation.html), la commande d'attestation de PIV82 ne peut produire de certificat **avant génération sur la carte** d'une clé dans ce slot. Une tentative immédiate ne constituerait pas une preuve et ne doit pas déclencher de génération automatique.
+
+Le script `scripts/workstation/inspect-age-yubikey-f9-chain.sh` inspecte **uniquement les métadonnées publiques** : exactement une YubiKey avec numéro de série attendu, firmware et certificat F9 exporté en PEM dans un répertoire temporaire privé, puis supprimé. Il ne sollicite aucun PIN, ne lance aucun `piv keys attest`, ne modifie aucun certificat, PIV9A, OTP2, clé AES256 ou destinataire SOPS. Le SHA-256 imprimé est **l'empreinte du certificat F9**, **pas** celle de la racine Yubico ; il n'autorise aucun GO.
+
+```bash
+# Ne connecter que la YubiKey secondaire.
+bash scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048
+# Réexécuter la suite hors matériel sans CI payante.
+bash scripts/workstation/verify-age-yubikey-offline.sh
+```
+
+L'attestation réelle PIV82 demeure **bloquée** jusqu'à approbation distincte d'une génération ECC P-256 avec PIN/touch ALWAYS, suivi d'une chaîne de confiance Yubico vérifiée contre une empreinte de racine approuvée **indépendamment**. Les firmwares 5.7.4+ utilisent la nouvelle racine 2025 et des intermédiaires, les versions antérieures une autre chaîne : [Yubico PIV attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html).
+
+Contrats : `tests/test_yubikey_f9_inventory.py`, **8/8 tests hermétiques PASS** dans l'environnement isolé de l'agent, avec fausses commandes `ykman` et `openssl` seulement. Ils ont été exécutés sur la source du script intégrée à la PR ; ils ne prouvent pas l'état réel de F9. **NO-GO matériel et SOPS maintenu.**
+
+
+### 24 octobre 2026 — PR #274 : reprise Git et F9
+
+- Ancienne PR #271 fusionnée, suivi uniquement dans PR Draft #274 ; ne pas créer d'autre PR ni déclencher de CI GitHub payante.
+- Nouveau diagnostic Git local : scripts/workstation/diagnose-age-yubikey-git-checkout.sh. Détecte detached HEAD, le retard sur une référence origin/master en cache, les modifications locales, l'absence du fichier de test attestation. Le résultat ne prouve pas la fraîcheur du serveur.
+- Nouveau préflight F9 en lecture seule : scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048. Une seule clé sélectionnée, firmware reconnu, export du certificat public F9 en temporaire privé puis suppression ; aucune commande PIN ou écriture sur carte. L'empreinte imprimée concerne F9, pas une autorité racine Yubico approuvée.
+- Durcissement X.509 : interdiction de certificat PIV82 CA, vérification du key usage du signataire F9, pathLen des autorités CA, limite de taille des PEM ; 12 variantes adversariales synthétiques.
+- Tests locaux isolés : 7/7 diagnostics Git PASS et 8/8 préflights F9 PASS. L'ensemble du dépôt doit être revérifié au HEAD de la PR sur la workstation ; **66 tests attendus** si aucun commit concurrent.
+- Procédure pas à pas : docs/runbooks/yubikey-piv82-postmerge-diagnostics.md
+
+Le slot PIV82 est encore vide selon le dernier inventaire. L'attestation PIV82 n'est possible qu'après une **génération de clé sur la YubiKey**, qui reste soumise à une autorisation explicite distincte. La lecture F9 ne constitue jamais un GO pour générer, signer, importer, modifier AES256/PIV9A/OTP2 ou migrer SOPS. Conserver la récupération logicielle et les deux copies indépendantes de l'escrow.
+
+Documentation officielle : https://developers.yubico.com/yubico-piv-tool/Attestation.html ; https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
+
+
+### 24 octobre 2026 — Préparation de la vérification de la chaîne F9 ancienne
+
+Résultat workstation : 66/66 PASS et 12 refus crypto PASS au HEAD 4f076aa5 ; secondaire 22916048, firmware 5.4.3, empreinte F9 SHA256 6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:62:39:2F:61:F1:78:54:90:34:DF. Cela ne prouve pas encore la confiance Yubico.
+
+Pour les firmwares antérieurs à 5.7.4, la racine officielle est Yubico PIV Root CA Serial 263751 (https://developers.yubico.com/PKI/yubico-piv-ca-1.pem), SHA-256 DER 63:EC:E9:14:E5:4D:D8:79:15:F3:40:33:C8:5A:F4:C0:69:6B:A1:51:2F:8A:DD:66:CE:D7:38:33:12:07:B5:46. Elle est épinglée dans le vérificateur F9 hors matériel. La nouvelle option --save-public-f9 conserve uniquement une copie publique sans écrasement. Procédure : docs/runbooks/yubikey-piv82-postmerge-diagnostics.md section 5.
+
+Contrats L1 isolés avant publication : 5/5 sauvegarde F9, 13/13 vérification X.509 synthétique. Suite complète du nouveau HEAD attendue sur workstation (71 tests unittest + deux fixtures autonomes). Pas de PIN, pas de modification PIV82, F9, OTP2, PIV9A, AES256 ou SOPS. **NO-GO matériel maintenu.**

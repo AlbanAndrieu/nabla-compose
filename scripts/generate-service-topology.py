@@ -746,6 +746,55 @@ def render_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
 
+def _identity(item: dict[str, Any], key: str) -> str:
+    """Safe diagnostic identity; never display URLs, credentials or payloads."""
+    if key == "relations":
+        return " -> ".join(str(item.get(part, "?")) for part in ("source", "target", "type"))
+    return str(item.get("id", "?"))
+
+
+def _drift_categories(current: str, expected: str) -> list[str]:
+    """Explain generated artifact drift using only counts and public entity IDs."""
+    try:
+        recorded = json.loads(current)
+        generated = json.loads(expected)
+    except (json.JSONDecodeError, TypeError):
+        return ["tracked generated file is absent or not valid JSON"]
+
+    if not isinstance(recorded, dict) or not isinstance(generated, dict):
+        return ["tracked generated file root is not a JSON object"]
+
+    findings: list[str] = []
+    if recorded.get("catalogRevision") != generated.get("catalogRevision"):
+        if "catalogRevision" in generated:
+            findings.append("catalogRevision changed")
+    for key in ("nodes", "relations", "services"):
+        old, new = recorded.get(key), generated.get(key)
+        if not isinstance(old, list) or not isinstance(new, list):
+            continue
+        old_index = {_identity(v, key): v for v in old if isinstance(v, dict)}
+        new_index = {_identity(v, key): v for v in new if isinstance(v, dict)}
+        added = sorted(new_index.keys() - old_index.keys())
+        removed = sorted(old_index.keys() - new_index.keys())
+        changed = sorted(
+            name for name in old_index.keys() & new_index.keys()
+            if old_index[name] != new_index[name]
+        )
+        if old != new:
+            findings.append(
+                f"{key}: recorded={len(old)} expected={len(new)} "
+                f"added={len(added)} removed={len(removed)} changed={len(changed)}"
+            )
+            # Names/IDs only; never show any service value or its URL.
+            for label, values in (("added", added), ("removed", removed), ("changed", changed)):
+                if values:
+                    findings.append(f"{key}.{label}_ids={','.join(values[:5])}"
+                                    + (" (more omitted)" if len(values) > 5 else ""))
+    if not findings:
+        findings.append("metadata or deterministic serialization differs")
+    return findings
+
+
 def check_output(path: Path, expected: str) -> bool:
     current = path.read_text(encoding="utf-8") if path.exists() else ""
     if current == expected:
@@ -754,6 +803,8 @@ def check_output(path: Path, expected: str) -> bool:
         f"{path.relative_to(ROOT)} is stale; run python scripts/generate-service-topology.py",
         file=sys.stderr,
     )
+    for detail in _drift_categories(current, expected):
+        print(f"  topology_drift: {detail}", file=sys.stderr)
     return False
 
 
@@ -773,9 +824,9 @@ def main() -> int:
         print(f"service catalog generation failed: {exc}", file=sys.stderr)
         return 1
     if args.check:
-        if not check_output(OUTPUT_TOPOLOGY, expected_topology) or not check_output(
-            OUTPUT_SERVICES, expected_services
-        ):
+        topology_ok = check_output(OUTPUT_TOPOLOGY, expected_topology)
+        services_ok = check_output(OUTPUT_SERVICES, expected_services)
+        if not topology_ok or not services_ok:
             return 1
         print("declared service catalog and topology are synchronized")
         return 0

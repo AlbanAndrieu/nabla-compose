@@ -1,5 +1,8 @@
 # Réparer les Apps TrueNAS en erreur — séance du 23 octobre 2026
 
+**Statut documentaire : runbook spécialisé historique.** Pour la séquence opérateur actuelle, les résultats des gates et les points d'entrée, utiliser le [runbook de migration canonique](2026-10-24-homelab-operator-next-commands.md). Conserver ici les détails techniques de récupération propres à cette séance ; les états et PR cités sont des instantanés, non une preuve du runtime actuel.
+
+
 **Objectif :** remettre LiteLLM puis Scrutiny et OpenRAG en service sans
 masquer les causes avec un redéploiement massif. Les diagnostics sont
 en lecture seule ; chaque commande de mutation est isolée et soumise à

@@ -103,7 +103,7 @@ if ykman "${args[@]}" openpgp info; then ok 'OpenPGP disponible'; else warn 'Ope
 heading 'OATH'
 if ykman "${args[@]}" oath info; then ok 'OATH disponible'; else warn 'OATH non accessible'; fi
 heading 'Inventaire attendu : usage vs emplacement'
-printf '%s\n' '✅ Confirmé : OTP slot 2 HMAC-SHA1 partagé entre YubiKeys pour KeePassXC (sans exporter la réponse)'
+printf '%s\n' '⚠️ Historique déclaré : OTP slot 2 HMAC-SHA1 prévu pour KeePassXC ; configuration réelle NON VÉRIFIÉE par cet audit (aucun challenge exécuté)'
 printf '%s\n' '✅ Confirmé : clé GPG logicielle RSA4096 [SC], sous-clé RSA4096 [E] ; signature et chiffrement/déchiffrement de test validés'
 printf '%s\n' 'ℹ️ OpenPGP slots are separate from PIV and must be verified on the selected device.'
 printf '%s\n' '⚠️ Non validé : clés SSH stockées sur YubiKey, FIDO2 discoverable credentials, slots PIV SSH, ssh-agent ou PIV comme backend de SSH.'

@@ -38,11 +38,22 @@ if docker inspect --type container defectdojo >/dev/null 2>&1; then
   printf 'defectdojo_port=%s\n' "${ports:-absent}"
   [[ "${ports}" == "172.17.0.24:31085" ]] || diag_fail "unexpected DefectDojo host port binding"
 fi
+# Distinguish public-facing Nginx from the uWSGI application server.
+if docker inspect --type container defectdojo-uwsgi >/dev/null 2>&1; then
+  uwsgi_state="$(docker inspect --type container --format '{{.State.Status}}' defectdojo-uwsgi 2>/dev/null || true)"
+  case "$uwsgi_state" in
+    running) diag_ok 'DefectDojo uWSGI backend running (Django readiness not yet verified)' ;;
+    *) diag_fail "DefectDojo uWSGI state=${uwsgi_state:-unknown}" ;;
+  esac
+else
+  diag_fail 'DefectDojo uWSGI backend absent'
+fi
+
 diag_section '2/4' 'Private HTTP API (no credentials)'
 http="$(curl --noproxy '*' --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 3 --max-time 8 "http://${APP_HOST}:${PORT}/api/v2/" 2>/dev/null)" || http="000"
 printf 'api_http=%s\n' "${http}"
 if [[ "${http}" != 000 ]]; then
-  diag_ok "LAN HTTP endpoint reachable"
+  diag_ok "LAN API HTTP transport reachable; not a UI readiness proof"
 else
   diag_fail "LAN HTTP endpoint unreachable"
 fi
@@ -50,6 +61,36 @@ if [[ "${http}" == 403 || "${http}" == 401 ]]; then
   diag_ok "unauthenticated API access rejected"
 else
   diag_warn "unauthenticated API status=${http}; review access policy"
+fi
+# /api/v2/ returning 403 only proves that the API is reachable.
+# The UI must independently return HTML or an expected login redirect.
+ui_probe="$(curl --noproxy '*' --silent --show-error --output /dev/null \
+  --write-out '%{http_code}|%{content_type}' --connect-timeout 3 --max-time 8 \
+  "http://${APP_HOST}:${PORT}/" 2>/dev/null)" || ui_probe="000|"
+IFS='|' read -r ui_http ui_content_type <<<"${ui_probe}"
+[[ "${ui_http}" =~ ^[0-9]{3}$ ]] || ui_http=000
+# Do not print untrusted Content-Type header values to operator logs.
+case "${ui_content_type,,}" in
+  text/html|text/html\;*) ui_mime=html ;;
+  '') ui_mime=missing ;;
+  *) ui_mime=other ;;
+esac
+printf 'ui_origin_http=%s ui_mime=%s\n' "${ui_http}" "${ui_mime}"
+case "${ui_http}" in
+  200)
+    if [[ "${ui_mime}" == html ]]; then
+      diag_ok 'DefectDojo HTML origin responds'
+    else
+      diag_fail 'DefectDojo origin returned HTTP 200 without HTML Content-Type'
+    fi ;;
+  301|302|303|307|308) diag_ok 'DefectDojo HTML origin responds with redirect (destination not verified)' ;;
+  401|403) diag_fail "HTML origin access denied (HTTP ${ui_http})" ;;
+  000) diag_fail 'DefectDojo HTML origin unreachable' ;;
+  404|5??) diag_fail "DefectDojo HTML origin returns HTTP ${ui_http}" ;;
+  *) diag_warn "Unexpected HTML origin HTTP ${ui_http}" ;;
+esac
+if [[ "$http" != 000 && "$ui_http" == 000 ]]; then
+  printf 'evidence=api_reachable_but_ui_origin_unavailable\n'
 fi
 diag_section '3/4' 'Split DNS A records'
 for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
@@ -70,12 +111,26 @@ done
 diag_section '4/4' 'Traefik HTTPS with SNI (no TLS bypass)'
 headers="$(mktemp)"
 trap 'rm -f "$headers"' EXIT
-code="$(curl --noproxy '*' --silent --show-error --output /dev/null --dump-header "${headers}" --write-out '%{http_code}' --connect-timeout 3 --max-time 10 --resolve "${FQDN}:443:${APP_HOST}" "https://${FQDN}/" 2>/dev/null)" || code="000"
-printf 'https_http=%s\n' "${code}"
+https_probe="$(curl --noproxy '*' --silent --show-error --output /dev/null --dump-header "${headers}" --write-out '%{http_code}|%{content_type}' --connect-timeout 3 --max-time 10 --resolve "${FQDN}:443:${APP_HOST}" "https://${FQDN}/" 2>/dev/null)" || https_probe="000|"
+IFS='|' read -r code https_content_type <<<"${https_probe}"
+[[ "${code}" =~ ^[0-9]{3}$ ]] || code=000
+case "${https_content_type,,}" in
+  text/html|text/html\;*) https_mime=html ;;
+  '') https_mime=missing ;;
+  *) https_mime=other ;;
+esac
+printf 'https_http=%s https_mime=%s\n' "${code}" "${https_mime}"
 case "${code}" in
   000) diag_fail "HTTPS transport or TLS verification failed" ;;
   404) diag_fail "Traefik route returned 404 (router may be absent)" ;;
-  200|301|302|303|307|308|401|403) diag_ok "HTTPS router responds with HTTP ${code}" ;;
+  200)
+    if [[ "${https_mime}" == html ]]; then
+      diag_ok 'HTTPS router serves HTML'
+    else
+      diag_fail 'HTTPS router returned HTTP 200 without HTML Content-Type'
+    fi ;;
+  301|302|303|307|308) diag_ok "HTTPS router redirects with HTTP ${code} (destination not verified)" ;;
+  401|403) diag_fail "HTTPS browser access denied (HTTP ${code})" ;;
   *) diag_warn "HTTPS returned HTTP ${code}" ;;
 esac
 diag_summary

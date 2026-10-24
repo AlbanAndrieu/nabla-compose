@@ -58,7 +58,7 @@ groups:
       - record: nabla:telemetry:service_exporter_up
         expr: |
           max by (job) (
-            up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|pfsense_exporter|crowdsec|cloudflare_exporter|truenas_node|kafka_exporter|clickhouse|opensearch|opensearch-security|grafana|alloy|loki|mimir|tempo|alertmanager|pyroscope|keycloak|pihole_exporter|haproxy|n8n|docling"}
+            up{job=~"gatus|fastapi_sample|postgres_exporter|redis_exporter|pfsense_exporter|crowdsec|cloudflare_exporter|truenas_node|kafka_exporter|clickhouse|opensearch|opensearch-security|grafana|alloy|loki|mimir|tempo|alertmanager|pyroscope|keycloak|pihole_exporter|haproxy|n8n|docling|akvorado_inlet|akvorado_outlet"}
           )
 
       # Compatibility metrics are recorded once in NablaCoreSignals above.

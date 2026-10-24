@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Read-only pfSense Unbound split-zone and memory incident evidence, via SSH.
 set -euo pipefail
+# Workstation presentation; remote shell never sources workstation helpers.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
 usage() { echo "usage: $0 --check [--target SSH_ALIAS] [--port PORT]" >&2; }
@@ -17,7 +20,8 @@ args=(-o BatchMode=yes -o ConnectTimeout=8)
 [[ -z "$port" ]] || args+=(-p "$port")
 echo "==> SSH read-only Unbound audit target=$target port=${port:-ssh-config/default}"
 # No secrets/config.xml dumps; remote shell is pfSense tcsh, invoke sh explicitly.
-ssh "${args[@]}" "$target" '/bin/sh -s' <<'REMOTE'
+pfsense_ui_banner "unbound split dns · read-only"
+ssh "${args[@]}" "$target" '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
 set -u
 echo '==> Unbound status'
 unbound-control -c /var/unbound/unbound.conf status 2>&1 || true

@@ -63,6 +63,12 @@ def validate(attestation_pem: bytes, f9_pem: bytes, root_pem: bytes,
         raise ValueError("Root is not the independently approved trust anchor")
     now = dt.datetime.now(dt.timezone.utc)
     for index, cert in enumerate(chain):
+        if index == 0:
+            try:
+                if cert.extensions.get_extension_for_oid(ExtensionOID.BASIC_CONSTRAINTS).value.ca:
+                    raise ValueError("PIV82 attestation unexpectedly asserts CA authority")
+            except x509.ExtensionNotFound:
+                pass
         if not cert.not_valid_before_utc <= now <= cert.not_valid_after_utc:
             raise ValueError("Attestation chain contains expired or not-yet-valid certificate")
         if not isinstance(cert.signature_hash_algorithm, (hashes.SHA256, hashes.SHA384, hashes.SHA512)):
@@ -70,12 +76,31 @@ def validate(attestation_pem: bytes, f9_pem: bytes, root_pem: bytes,
         for extension in cert.extensions:
             if extension.critical and isinstance(extension.value, x509.UnrecognizedExtension):
                 raise ValueError("Unknown critical attestation extension")
+        if index == 1:
+            try:
+                usage = cert.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE).value
+                if not usage.digital_signature and not usage.key_cert_sign:
+                    raise ValueError("F9 certificate prohibits attestation signing")
+            except x509.ExtensionNotFound:
+                pass
         if index > 1:
             # Slot F9 attestation signer is a hardware credential, not necessarily
             # a general CA (some firmware certs do not have CA:true).
             constraints = cert.extensions.get_extension_for_oid(ExtensionOID.BASIC_CONSTRAINTS).value
             if not constraints.ca:
                 raise ValueError("Intermediate/root is not a CA")
+            if constraints.path_length is not None:
+                subordinate_ca_count = 0
+                for subordinate in chain[1:index]:
+                    if subordinate.subject == subordinate.issuer:
+                        continue
+                    try:
+                        subordinate_ca_count += int(subordinate.extensions.get_extension_for_oid(
+                            ExtensionOID.BASIC_CONSTRAINTS).value.ca)
+                    except x509.ExtensionNotFound:
+                        pass
+                if subordinate_ca_count > constraints.path_length:
+                    raise ValueError("Attestation CA path-length restriction violated")
             try:
                 usage = cert.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE).value
                 if not usage.key_cert_sign:
@@ -127,6 +152,8 @@ def validate(attestation_pem: bytes, f9_pem: bytes, root_pem: bytes,
 def read_regular(path: Path) -> bytes:
     if path.is_symlink() or not path.is_file():
         raise ValueError("Expected a regular public PEM file, not a symlink")
+    if path.stat().st_size > 1024 * 1024:
+        raise ValueError("Unreasonable public certificate input size")
     return path.read_bytes()
 
 

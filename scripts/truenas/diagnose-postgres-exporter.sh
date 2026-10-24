@@ -4,27 +4,24 @@ set -euo pipefail
 
 HOST="${POSTGRES_EXPORTER_HOST:-172.17.0.24}"
 PORT="${POSTGRES_EXPORTER_PORT:-9187}"
-# Prefer an existing centrally materialized runtime secret; never print values.
-SECRET_FILE="${POSTGRES_EXPORTER_SECRET_FILE:-}"
-if [[ -z "${SECRET_FILE}" ]]; then
-  for candidate in \
-    /mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets \
-    /mnt/cpool/secrets/runtime/postgres/.env.secrets \
-    /mnt/cpool/postgres/.env.secrets; do
-    if [[ -s "${candidate}" ]]; then SECRET_FILE="${candidate}"; break; fi
-  done
-fi
-SECRET_FILE="${SECRET_FILE:-/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets}"
+# Only use the dedicated Vaultwarden materialization for this exporter.
+# Do not fall back to the database's privileged application secrets.
+SECRET_FILE="${POSTGRES_EXPORTER_SECRET_FILE:-/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets}"
 printf 'PostgreSQL exporter runtime check host=%s port=%s\n' "${HOST}" "${PORT}"
 
-if [[ -s "${SECRET_FILE}" ]]; then
-  if grep -Eq '^[[:space:]]*(export[[:space:]]+)?POSTGRES_EXPORTER_DSN=' "${SECRET_FILE}"; then
-    printf 'PASS exporter DSN key is materialized at %s (value hidden)\n' "${SECRET_FILE}"
+if [[ -s "${SECRET_FILE}" && ! -L "${SECRET_FILE}" ]]; then
+  if grep -Eq '^[[:space:]]*DATA_SOURCE_NAME=[^[:space:]]' "${SECRET_FILE}"; then
+    echo 'PASS exporter DATA_SOURCE_NAME present (value hidden)'
   else
-    echo 'WARN runtime file exists but POSTGRES_EXPORTER_DSN is not declared'
+    echo 'WARN exporter file is missing DATA_SOURCE_NAME'
+  fi
+  if [[ "$(stat -c '%u:%g:%a' -- "${SECRET_FILE}")" == '0:0:600' ]]; then
+    echo 'PASS runtime secret metadata root:root mode 600'
+  else
+    echo 'WARN runtime secret owner/mode is not root:root 600'
   fi
 else
-  echo 'WARN exporter secret file absent or empty; do not deploy until provisioned'
+  echo 'WARN exporter secret absent/empty/invalid; provision before deployment'
 fi
 
 if ! command -v docker >/dev/null; then
