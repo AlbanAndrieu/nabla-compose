@@ -12,6 +12,7 @@ from pathlib import Path
 import stat
 import subprocess
 import sys
+import tempfile
 
 MAX_PLAN_BYTES = 16 * 1024 * 1024
 MAX_NATIVE_OUTPUT_BYTES = 1024 * 1024
@@ -181,9 +182,57 @@ def evaluate(result, plan):
     return "review_gateway_environment"
 
 
+
+def compare_without_dotenv_scrub(plan, root, original):
+    """Compare a temporary, never-applied no-scrub plan using native dry-run.
+
+    This diagnoses whether scrubEnv explains the projected dotenv write.
+    It does not identify scrubbed variable names, attest Gateway persistence,
+    mutate the original plan, or authorize an application.
+    """
+    if plan.get("options", {}).get("scrubEnv", True) is False:
+        return "not_applicable", None
+    comparison = dict(plan)
+    comparison["options"] = {**plan.get("options", {}), "scrubEnv": False}
+    temp_path = None
+    try:
+        fd, name = tempfile.mkstemp(prefix=".cron-no-scrub-", suffix=".json", dir=root)
+        temp_path = Path(name)
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            os.fchmod(output.fileno(), 0o600)
+            json.dump(comparison, output, separators=(",", ":"))
+            output.flush()
+        result, native_status = native_dry_run(temp_path)
+        if native_status != "native_verified" or result is None:
+            return "native_comparison_failed", None
+        # Comparison is meaningful only when all other projected mutations,
+        # references and warnings are unchanged and exactly one dotenv edit
+        # disappears. The file paths remain undisclosed and are not compared.
+        o = original["categories"]
+        c = result["categories"]
+        equal_rest = all(c[key] == o[key] for key in CATEGORIES if key != "dotenv")
+        equal_checks = (result["refs_checked"] == original["refs_checked"]
+                        and result["skipped_exec_refs"] == original["skipped_exec_refs"]
+                        and result["warning_count"] == original["warning_count"]
+                        and result["resolvability_complete"] == original["resolvability_complete"])
+        if (o["dotenv"] > 0 and c["dotenv"] == 0 and equal_rest and equal_checks):
+            return "dotenv_projection_attributed_to_scrub", result
+        return "comparison_does_not_isolate_scrub", result
+    except OSError:
+        return "temporary_comparison_failed", None
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def main(argv=None, home=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, default=None)
+    parser.add_argument("--compare-no-scrub", action="store_true",
+                        help="Compare native dry-runs using a private temporary scrubEnv=false plan")
     args = parser.parse_args(argv)
     home = Path.home() if home is None else Path(home)
     root = home / ".local/share/nabla-compose/openclaw-import"
@@ -220,6 +269,15 @@ def main(argv=None, home=None):
     print("secret_plan_warning_count=" + str(result["warning_count"]))
     print("secret_plan_resolvability_complete=" + str(result["resolvability_complete"]).lower())
     state = evaluate(result, plan)
+    if args.compare_no_scrub:
+        comparison, compared = compare_without_dotenv_scrub(plan, root, result)
+        print("secret_plan_scrub_comparison=" + comparison)
+        if compared is not None:
+            print("secret_plan_no_scrub_changed_dotenv=" +
+                  str(compared["categories"]["dotenv"]))
+            print("secret_plan_no_scrub_changed_total=" +
+                  str(compared["changed_files"]))
+        print("secret_plan_scrub_comparison_apply_authorized=false")
     print("secret_plan_status=" + state)
     print("secret_plan_gateway_env_attested=false")
     print("secret_plan_apply_authorized=false")
