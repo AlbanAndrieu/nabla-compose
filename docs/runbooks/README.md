@@ -13,6 +13,8 @@
   priorités, risques ouverts et conditions de clôture.
 - **[Skill local-first](../../.agents/skills/local-first-quality/SKILL.md)** —
   worktrees privés, tests, formatage, gate qualité et publication Draft.
+- **[Registre des refactorings risqués](homelab-refactoring-risk-register.md)** —
+  niveaux de risque, tests négatifs et seuils de publication.
 - **[Sécurité/architecture des skills](../agent-skills-architecture.md)** —
   préséance des instructions ; installation des skills externes sur accord.
 
