@@ -2,6 +2,20 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Mise à jour de sécurité du diagnostic DNS (25 octobre 2026)
+
+La PR #276 corrige les faux positifs de `diagnose-defectdojo.sh --check` :
+une réponse DNS vide ne prouve **pas** que le nom privé reste confidentiel
+si le serveur a expiré, retourne `SERVFAIL` ou `REFUSED`, ou réutilise
+une réponse périmée `EDE: 3 (Stale Answer)`. Les seules réponses de DNS
+acceptables pour qualifier un résultat A sont `NOERROR` et `NXDOMAIN`
+avec un transport valide. Les tests utilisent des réponses DNS factices
+et n'exécutent **aucune mutation du serveur**.
+
+Cette validation du DNS ne constitue pas une garantie de confidentialité
+sur toutes les familles d'enregistrements ou les chemins WAN. La
+configuration DNS et HTTPS privée doit encore être attestée sur TrueNAS.
+
 ## Priorité runtime — interface privée indisponible (24 octobre 2026)
 
 L'opérateur constate que `https://defectdojo.int.albandrieu.com/`
