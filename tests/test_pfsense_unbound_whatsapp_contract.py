@@ -1,6 +1,7 @@
 """Offline contract for bounded pfSense DNS incident diagnostics."""
 from pathlib import Path
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -36,11 +37,11 @@ class UnboundWifiContract(unittest.TestCase):
             "echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='",
             1,
         )[1].split("echo '=== Recent CrowdSec pressure signatures", 1)[0]
-        match = __import__("re").search(r"awk '([\\s\\S]*?)'", block)
+        match = re.search(r"awk '(.*?)'", block, re.DOTALL)
         self.assertIsNotNone(match)
         sample = (
-            "12 81000 4.0 /usr/local/bin/crowdsec -c /tmp/config.yaml\\n"
-            "13 9000 0.2 /usr/local/bin/crowdsec-firewall-bouncer -c /tmp/bouncer.yaml\\n"
+            "12 81000 4.0 /usr/local/bin/crowdsec -c /tmp/config.yaml\n"
+            "13 9000 0.2 /usr/local/bin/crowdsec-firewall-bouncer -c /tmp/bouncer.yaml\n"
         )
         result = subprocess.run(
             ["awk", match.group(1)], input=sample, text=True,
@@ -52,10 +53,10 @@ class UnboundWifiContract(unittest.TestCase):
 
     def test_awk_and_feed_lines_use_real_newline_escapes(self):
         shell = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn(r'task=%s\\n",', shell)
-        self.assertNotIn(r'task=%s\\\\n",', shell)
-        self.assertIn(r"printf '%s %s\\n'", shell)
-        self.assertNotIn(r"printf '%s %s\\\\n'", shell)
+        self.assertIn(r'task=%s\n",', shell)
+        self.assertNotIn(r'task=%s\\n",', shell)
+        self.assertIn(r"printf '%s %s\n'", shell)
+        self.assertNotIn(r"printf '%s %s\\n'", shell)
 
     def test_requires_explicit_read_only_mode(self):
         for args in ([], ["--apply"], ["--check", "--apply"]):
