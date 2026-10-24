@@ -16,6 +16,55 @@ faits observés, les mesures non vérifiées et les actions proposées.
 Cette règle s'inspire de l'ASD-STE100. Elle ne prétend pas établir une
 conformité formelle à la norme.
 
+## Exécution opérateur en une seule commande (obligatoire)
+
+Lorsqu'une validation nécessite réellement la workstation, TrueNAS ou un accès
+matériel, fournir à l'opérateur **un seul bloc Bash prêt à coller**. Il doit
+fonctionner **depuis n'importe quel répertoire de travail** et indiquer un
+chemin absolu de checkout déjà connu (par exemple
+/tmp/nabla-yubikey-pr259), sans supposer un cd, un HEAD à jour ou une
+branche active. Ne pas demander à l'opérateur de répéter des contrôles
+qu'un agent peut exécuter lui-même.
+
+- Mettre la séquence dans un **script versionné** du dépôt dès qu'elle comporte
+  plusieurs étapes : détection, préflight, git status --short, vérification
+  de branche/PR/SHA, fetch seulement si nécessaire, qualité locale, preuves
+  runtime en lecture seule et résultat PASS/NO-GO.
+- Pour le premier lancement, si le script n'est pas dans le checkout local,
+  proposer un seul bootstrap qui extrait le script depuis un commit distant
+  vérifié, puis l'exécute sans modifier le HEAD existant.
+- Préférer git worktree add --detach avec un répertoire privé **unique pour
+  chaque agent/run** (mktemp -d, umask 077). Ne jamais partager un checkout
+  mutable entre agents. Tester dans ce worktree isolé ; verrouiller les
+  écritures Git entre instances (flock) et utiliser un SHA exact, jamais
+  FETCH_HEAD après qu'un autre agent a pu le modifier.
+- **Ne pas lancer git pull automatiquement** dans un checkout détaché,
+  divergent ou sale. Dans une branche propre avec suivi explicite,
+  git pull --ff-only est possible si réellement nécessaire. Ne jamais
+  utiliser reset --hard, clean -fd, checkout -f, suppression forcée
+  du worktree ou force-push pour « synchroniser ».
+- Toute opération doit être placée après les validations bloquantes :
+  set -Eeuo pipefail, contrôles de chemins et dépendances, pinning des
+  commits et certificats, arrêt au premier échec. Nettoyer uniquement
+  **le worktree temporaire créé par le même script et demeuré propre**.
+- Ne pas répéter une opération de lecture de carte si les preuves publiques
+  locales déjà validées restent présentes : réutiliser les fichiers et
+  confirmer leurs empreintes. Ne pas recréer de secrets ni écraser
+  des certificats. Les opérations matérielles mutantes exigent
+  une approbation distincte et explicite.
+- Dans la réponse, donner au maximum **une commande/un bloc opérateur**,
+  placé après les résultats agent. Il doit inclure le chemin absolu de
+  référence, la synchronisation Git nécessaire, les contrôles enchaînés
+  et l'arrêt automatique. Éviter les commandes fractionnées et les
+  questions de routine ; demander l'exécution uniquement pour un accès
+  matériel/runtime que l'agent ne possède pas.
+
+Exemple : scripts/workstation/run-age-yubikey-pr274-readonly.sh découvre la
+branche PR #274, crée un worktree privé, lance les tests offline puis
+vérifie la preuve publique F9. Il n'effectue aucun git pull sur
+/tmp/nabla-yubikey-pr259, n'y change pas de branche et
+n'authentifie aucune YubiKey.
+
 ## Skills externes : contrôle local avant installation
 
 `AGENTS.md` et `docs/agent-skills-architecture.md` définissent la

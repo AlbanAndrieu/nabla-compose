@@ -1,0 +1,155 @@
+"""Hermetic one-command PR-274 operator verification contract. No real network or YubiKey."""
+from pathlib import Path
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/workstation/run-age-yubikey-pr274-readonly.sh'
+BRANCH = 'fix/homelab-operator-diagnostics-followup-20261024'
+
+
+def git(cwd, *args):
+    return subprocess.run(['git', '-C', str(cwd), *args], capture_output=True,
+                          text=True, check=True).stdout.strip()
+
+
+class IsolatedPRRunner(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix='nabla-pr274-fixture-')
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name)
+        self.home = self.base / 'home'
+        self.home.mkdir(mode=0o700)
+        self.source = self.base / 'source'
+        self.source.mkdir()
+        git(self.source, 'init', '-q')
+        git(self.source, 'config', 'user.name', 'Operator Fixture')
+        git(self.source, 'config', 'user.email', 'operator@example.invalid')
+        self.gate = self.source / 'scripts/workstation/verify-age-yubikey-offline.sh'
+        self.gate.parent.mkdir(parents=True)
+        self.gate.write_text('#!/usr/bin/env bash\n'
+                             '[[ "${TEST_GATE_FAIL:-0}" == 0 ]] || exit 57\n'
+                             'echo "PASS: mock offline gate"\n')
+        self.verify = self.source / 'scripts/workstation/verify-age-yubikey-f9-root-offline.py'
+        self.verify.write_text('''#!/usr/bin/env python3
+import os
+import pathlib
+import sys
+if os.getenv('TEST_VERIFIER_FAIL') == '1':
+    sys.exit(44)
+assert '--expected-f9-sha256' in sys.argv
+assert pathlib.Path(sys.argv[sys.argv.index('--f9') + 1]).is_file()
+assert pathlib.Path(sys.argv[sys.argv.index('--root') + 1]).is_file()
+pathlib.Path(os.environ['TEST_VERIFIER_TRACE']).write_text('executed')
+print('PASS: synthetic offline F9 verifier invoked')
+''')
+        self.inspect = self.source / 'scripts/workstation/inspect-age-yubikey-f9-chain.sh'
+        self.inspect.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+[[ "${TEST_F9_EXPORT_FAIL:-0}" == 0 ]] || exit 55
+[[ "$1" == '--serial' && "$2" == 22916048 && "$3" == '--save-public-f9' ]]
+printf 'MOCK PUBLIC CERTIFICATE\\n' > "$4"
+printf 'PASS: simulated read-only public export\\n'
+''')
+        git(self.source, 'add', '.')
+        git(self.source, 'commit', '-qm', 'initial fixture')
+        self.original = git(self.source, 'rev-parse', 'HEAD')
+        self.remote = self.base / 'remote.git'
+        git(self.source, 'init', '--bare', '-q', str(self.remote))
+        git(self.source, 'branch', BRANCH)
+        git(self.source, 'push', '-q', str(self.remote), f'{BRANCH}:{BRANCH}')
+        git(self.source, 'switch', '-q', '--detach', self.original)
+        self.evidence = self.base / 'evidence'
+        self.evidence.mkdir()
+        (self.evidence / 'f9-22916048.pem').write_text('PUBLIC MOCK\n')
+        (self.evidence / 'yubico-piv-ca-1.pem').write_text('PUBLIC MOCK ROOT\n')
+        self.trace = self.base / 'trace'
+        self.env = dict(os.environ, HOME=str(self.home), NABLA_YUBIKEY_TEST_MODE='1',
+                        NABLA_YUBIKEY_TEST_REMOTE=str(self.remote),
+                        NABLA_YUBIKEY_TEST_PYTHON=sys.executable,
+                        TEST_VERIFIER_TRACE=str(self.trace))
+
+    def run_script(self, *args, **env):
+        e = dict(self.env, **{k: str(v) for k, v in env.items()})
+        return subprocess.run(['bash', str(SCRIPT), '--repo', str(self.source),
+                               '--evidence-dir', str(self.evidence), *args],
+                              env=e, capture_output=True, text=True, timeout=20,
+                              cwd=str(self.base))
+
+    def assert_untouched(self):
+        self.assertEqual(git(self.source, 'rev-parse', 'HEAD'), self.original)
+        worktrees = git(self.source, 'worktree', 'list', '--porcelain')
+        self.assertEqual(worktrees.count('worktree '), 1, worktrees)
+
+    def test_one_call_from_arbitrary_directory_keeps_source_detached(self):
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PASS: snapshot', result.stdout)
+        self.assertIn('git pull skipped', result.stdout)
+        self.assertTrue(self.trace.exists())
+        self.assert_untouched()
+
+    def test_preexisting_uncommitted_file_is_preserved(self):
+        extra = self.source / 'user-local-note.txt'
+        extra.write_text('must remain')
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(extra.read_text(), 'must remain')
+        self.assertIn('original checkout has changes', result.stdout)
+        self.assert_untouched()
+
+    def test_failed_gate_blocks_verifier_and_preserves_original(self):
+        result = self.run_script(TEST_GATE_FAIL='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Offline gate failed', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
+    def test_invalid_remote_does_not_switch_checkout(self):
+        result = self.run_script(NABLA_YUBIKEY_TEST_REMOTE=str(self.base / 'absent'))
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Remote branch lookup failed', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
+    def test_missing_public_f9_uses_only_public_export(self):
+        (self.evidence / 'f9-22916048.pem').unlink()
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('read-only export', result.stdout)
+        self.assertTrue((self.evidence / 'f9-22916048.pem').exists())
+        self.assert_untouched()
+
+    def test_failed_public_export_stops_without_verifier(self):
+        (self.evidence / 'f9-22916048.pem').unlink()
+        result = self.run_script(TEST_F9_EXPORT_FAIL='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Read-only F9 export failed', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
+    def test_verification_failure_returns_no_go(self):
+        result = self.run_script(TEST_VERIFIER_FAIL='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('F9 certificate failed', result.stderr)
+        self.assert_untouched()
+
+    def test_invalid_source_path_fails_before_remote(self):
+        invalid = self.base / 'unknown'
+        result = subprocess.run(['bash', str(SCRIPT), '--repo', str(invalid)],
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Repository missing', result.stderr)
+
+    def test_help_does_not_contact_git_or_hardware(self):
+        result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('/tmp/nabla-yubikey-pr259', result.stdout)
+        self.assertFalse(self.trace.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()
