@@ -11,8 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/reconcile-openrag-opensearch-secret.sh"
 
 
-def _test_with_synthetic_root(tmp_path: Path, credential: str, authority: str, 
-                              *, apply: bool = False) -> subprocess.CompletedProcess[str]:
+def _test_with_synthetic_root(
+    tmp_path: Path, credential: str, authority: str, *, apply: bool = False
+) -> subprocess.CompletedProcess[str]:
     script_root = tmp_path / "scripts"
     (script_root / "truenas").mkdir(parents=True)
     (script_root / "lib").mkdir()
@@ -51,8 +52,9 @@ def _test_with_synthetic_root(tmp_path: Path, credential: str, authority: str,
     (True, 0),
     (False, 1),
 ])
-def test_equality_is_read_only_and_no_secret_leak(tmp_path: Path, same: bool,
-                                                     expected: int) -> None:
+def test_equality_is_read_only_and_no_secret_leak(
+    tmp_path: Path, same: bool, expected: int
+) -> None:
     secret = "never-disclose-the-password"
     candidate = secret if same else "different-never-disclose"
     result = _test_with_synthetic_root(tmp_path, secret, candidate)
@@ -60,11 +62,16 @@ def test_equality_is_read_only_and_no_secret_leak(tmp_path: Path, same: bool,
     assert result.returncode == expected, out
     assert secret not in out
     assert candidate not in out
-    assert "source_selection=operator_selected" in out if same else "differs" in out
+    if same:
+        assert "source_selection=operator_selected" in out
+    else:
+        assert "differs" in out
 
 
 def test_legacy_apply_cannot_mutate_existing_file(tmp_path: Path) -> None:
-    result = _test_with_synthetic_root(tmp_path, "do-not-replace", "other-secret", apply=True)
+    result = _test_with_synthetic_root(
+        tmp_path, "do-not-replace", "other-secret", apply=True
+    )
     assert result.returncode != 0
     assert "disabled" in result.stderr
 
