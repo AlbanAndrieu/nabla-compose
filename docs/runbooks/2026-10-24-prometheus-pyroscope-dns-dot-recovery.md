@@ -132,3 +132,60 @@ Keep fallback to plaintext a separately documented, explicit choice.
 - Workstation Ansible: NetworkManager profile and systemd-resolved routing.
 - FastAPI PR #374: read-only DNS source evidence and service health cards.
 - No deployment or runtime repair has been executed by the agent.
+
+## 5. Résultats des réparations du 24 octobre (opérateur)
+
+Les commandes de réparation ont effectivement été exécutées **sur TrueNAS par
+l'opérateur**. Ne plus les présenter comme simplement planifiées :
+
+- `repair-prometheus-rules-access.sh --check` : 15 fichiers, 1 illisible,
+  identité `568:568`. Fichier concerné : UID 1000, GID 568, mode 0600.
+- `--apply --expected-unreadable 1` : correction vérifiée, GID 568 et mode
+  0640, `effective_read=ok`. **Aucune** modification TSDB, mais la requête
+  HTTP immédiate `http://172.17.0.24:9090/-/ready` a échoué par refus
+  TCP (curl 7). La permission d'un fichier de règles n'explique donc pas
+  encore l'état actuel de lancement.
+- `recover-pyroscope-metastore.sh --check` : le montage et UID/GID
+  `568:568` correspondent ; exactement **1** répertoire d'état détecté.
+- `--apply RESET_PYROSCOPE_HISTORY` : sauvegarde créée sous
+  `/mnt/cpool/pyroscope/data/.metastore-backup-20261024T210505Z` ;
+  `docker start` demandé. La requête HTTP immédiate
+  `http://172.17.0.24:4040/metrics` a également échoué (curl 7).
+  La sauvegarde est **conservée**. Aucun autre reset ni suppression avant
+  diagnostic. Le script refuse maintenant une seconde réinitialisation
+  tant qu'une sauvegarde antérieure existe.
+
+### Postflight : deux contrôles distincts
+
+Sur TrueNAS, depuis le checkout de PR #274 :
+
+```bash
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+```
+
+Attendu : `unreadable=0`. Cette commande **ne** prouve **pas** que le
+processus Prometheus est lancé.
+
+```bash
+sudo bash scripts/truenas/diagnose-observability-post-repair.sh --check
+```
+
+Ce second script est en lecture seule : il vérifie les états des conteneurs,
+codes de sortie, compteurs de redémarrage, absence de kill OOM, erreurs
+allowlistées dans 40 lignes de logs et les réponses de readiness.
+Les logs bruts **ne sont pas affichés** et aucune configuration n'est
+modifiée. Le script échoue si Docker indique `restarting` ou `exited`,
+même si le proxy répond HTTP 200.
+
+En cas d'échec persistant, relever séparément les messages récents et
+les métadonnées du conteneur dans une session privée, puis résoudre le
+nouveau défaut documenté. Ne **pas** relancer aveuglément
+`recover-pyroscope-metastore.sh --apply`; ne **pas** nettoyer TSDB/WAL
+Prometheus. Un conteneur `running` et un `docker start` réussi ne prouvent
+pas la readiness.
+
+**Qualité locale :** sur une copie équivalente du nouveau script et de ses
+tests, `pytest` ciblé 5/5 PASS et `bash -n` PASS. La quality gate
+complète du HEAD GitHub, les tests contre TrueNAS et la validation HTTP
+effective sont `NOT_RUN` par l'agent.
+
