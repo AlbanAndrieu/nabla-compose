@@ -66,8 +66,8 @@ for service in "${SERVICES[@]}"; do
       } END {
         printf "  recent_log_categories: sample=%d kafka_coordination=%d kafka_transport=%d redis=%d clickhouse=%d fatal=%d\n",
           n,kafka,transport,redis,clickhouse,errors;
+        if (n == 0) print "  evidence=empty_recent_logs_do_not_prove_kafka_timeout";
       }' || true
-    printf '  evidence=empty_recent_logs_do_not_prove_kafka_timeout (inspect healthcheck metadata and private App jobs)\n'
   fi
 done
 
