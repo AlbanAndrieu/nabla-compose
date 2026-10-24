@@ -391,19 +391,23 @@ def test_full_quality_recipe_invokes_same_canonical_gate_without_mise():
 
 
 def test_roadmap_critical_policy_not_removed_by_migration_consolidation():
-    """The real policy checker must continue to see the historical roadmap."""
+    """Current roadmap must link to preserved historical policy and evidence."""
     root = SOURCE.parents[2]
     roadmap = (root / "docs/roadmap.md").read_text(encoding="utf-8")
+    archive = (root / "docs/archive/roadmap-through-2026-10-24.md").read_text(
+        encoding="utf-8"
+    )
     heading = (
         "## P0 — Agent skill precedence and Compose/FastAPI/Site "
         "convergence (2026-10-24)"
     )
-    assert heading in roadmap
-    assert len(roadmap.splitlines()) > 3000
-    assert "Ask the user" in roadmap
-    assert "democratic-csi" in roadmap
-    assert "catalogRevision" in roadmap
-    assert "entityRef" in roadmap
+    assert heading in archive
+    assert len(archive.splitlines()) > 3000
+    assert len(roadmap.splitlines()) < 300
+    assert "archive/roadmap-through-2026-10-24.md" in roadmap
+    for marker in ("Ask the user", "democratic-csi", "catalogRevision", "entityRef"):
+        assert marker in archive
+        assert marker in roadmap
 
 
 def test_mise_lock_is_not_rewritten_by_local_quality_runner():
