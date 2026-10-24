@@ -111,11 +111,11 @@ if [[ "${ACTION}" == local-gates ]]; then
   # Explicit local-only runner; does not use midclt, Docker or GitHub Actions.
   for recipe in migration-20261024-commands migration-20261024-test \
                 catalog-convergence-check agent-skills-check quality; do
-    printf 'LOCAL_GATE_START=%s\n' "$recipe"
-    if just "$recipe"; then
-      printf 'LOCAL_GATE_PASS=%s\n' "$recipe"
+    printf 'LOCAL_GATE_START=%s\n' "${recipe}"
+    if just "${recipe}"; then
+      printf 'LOCAL_GATE_PASS=%s\n' "${recipe}"
     else
-      printf 'LOCAL_GATE_FAIL=%s; later gates skipped\n' "$recipe" >&2
+      printf 'LOCAL_GATE_FAIL=%s; later gates skipped\n' "${recipe}" >&2
       exit 1
     fi
   done

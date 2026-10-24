@@ -20,10 +20,10 @@ while (($#)); do
     *) usage; exit 2 ;;
   esac
 done
-[[ "$target" =~ ^[a-zA-Z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
+[[ "${target}" =~ ^[a-zA-Z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
 ssh_opts=(-o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes)
-[[ -z "$port" ]] || ssh_opts+=(-p "$port")
-ssh "${ssh_opts[@]}" "$target" '/bin/sh -s' <<'REMOTE'
+[[ -z "${port}" ]] || ssh_opts+=(-p "${port}")
+ssh "${ssh_opts[@]}" "${target}" '/bin/sh -s' <<'REMOTE'
 set -u
 # Never dump config.xml, full resolver configuration, pfBlockerNG lists or user queries.
 echo '=== pfSense UTC/local time and uptime ==='

@@ -22,25 +22,25 @@ for service in "${SERVICES[@]}"; do
     --format '{{.ID}}' 2>/dev/null || true)
   if (("${#ids[@]}" != 1)) || [[ ! "${ids[0]}" =~ ^[a-f0-9]{12,64}$ ]]; then
     printf 'BLOCKED service=%s container_count=%d (missing or ambiguous)\n' \
-      "$service" "${#ids[@]}" >&2
+      "${service}" "${#ids[@]}" >&2
     failed=$((failed + 1))
     continue
   fi
   id="${ids[0]}"
   state="$(docker inspect --type container --format \
     '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|{{.State.ExitCode}}|{{.RestartCount}}' \
-    "$id" 2>/dev/null || true)"
-  IFS='|' read -r status health exit_code restarts <<<"$state"
-  case "$status" in running|restarting|exited|created|dead) ;; *) status=unknown ;; esac
-  case "$health" in healthy|unhealthy|starting|none) ;; *) health=unknown ;; esac
-  [[ "$exit_code" =~ ^[0-9]+$ ]] || exit_code='-'
-  [[ "$restarts" =~ ^[0-9]+$ ]] || restarts='-'
+    "${id}" 2>/dev/null || true)"
+  IFS='|' read -r status health exit_code restarts <<<"${state}"
+  case "${status}" in running|restarting|exited|created|dead) ;; *) status=unknown ;; esac
+  case "${health}" in healthy|unhealthy|starting|none) ;; *) health=unknown ;; esac
+  [[ "${exit_code}" =~ ^[0-9]+$ ]] || exit_code='-'
+  [[ "${restarts}" =~ ^[0-9]+$ ]] || restarts='-'
   printf 'consumer=%s state=%s health=%s exit=%s restarts=%s\n' \
-    "$service" "$status" "$health" "$exit_code" "$restarts"
-  if [[ "$status" != running || "$health" != healthy ]]; then
+    "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
+  if [[ "${status}" != running || "${health}" != healthy ]]; then
     failed=$((failed + 1))
     # Never show Docker output: messages sometimes include DSNs/tokens.
-    docker logs --since 15m --tail 80 "$id" 2>&1 |
+    docker logs --since 15m --tail 80 "${id}" 2>&1 |
       awk '{
         t=tolower($0); n++;
         if (t ~ /sesstmout|session timed out|group coordinator|rebalance/) kafka++;
@@ -56,7 +56,7 @@ for service in "${SERVICES[@]}"; do
 done
 
 if ((failed)); then
-  printf 'BLOCKED: unhealthy_or_missing_consumers=%d; inspect bounded private diagnostic before any scoped recovery\n' "$failed" >&2
+  printf 'BLOCKED: unhealthy_or_missing_consumers=%d; inspect bounded private diagnostic before any scoped recovery\n' "${failed}" >&2
   exit 1
 fi
 printf 'OK: both critical Sentry consumers running+healthy; separate E2E ingestion smoke still required\n'
