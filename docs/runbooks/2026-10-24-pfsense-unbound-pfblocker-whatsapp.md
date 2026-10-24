@@ -243,6 +243,100 @@ certaines réponses négatives peuvent être normales selon le nom testé.
 Une requête `@1.1.1.1` qui échoue n'est pas une preuve de blocage : le WAN
 peut interdire le DNS externe.
 
+## Décisions correctives proposées après le relevé de 22:30 — 24 octobre 2026
+
+**Preuve opérateur, pas reproduction en laboratoire :** le noyau a tué
+Unbound, PHP et `php_pfb` avec `failed to reclaim memory` plusieurs
+nuits. Les pannes sont proches de `02:10` les 17, 21, 22, 23 et 24
+octobre ; une autre s'est produite le **22 octobre à 22:03**.
+Le cron existant prévoit :
+
+| Tâche déclarée | Horaire | Correspondance aux incidents |
+| --- | --- | --- |
+| Snort `snort_rules_update` | 02:09 et 14:09 | Cinq événements autour de 02:10 : **forte corrélation temporelle**, pas causalité prouvée |
+| pfBlockerNG | 00:00, 04:00 et 22:00 | OOM du 22/10 à 22:03 : seconde corrélation à confirmer |
+| pfBlockerNG mise à jour terminée | 24/10 00:09:08 | Pas de chevauchement direct avec l'OOM de 02:10 |
+
+Le fichier `snort_rules_update.log` était modifié à **14:09:09** le
+24 octobre, cohérent avec le passage de la tâche à 14:09. Cela
+ne démontre pas son pic RSS à 02:09.
+
+**Photographie mémoire à 22:30, KiB RSS** : Unbound 132 708,
+CrowdSec engine 77 368, Snort 59 692 ; bouncer CrowdSec 9 300.
+Au moins sept workers `php-fpm: pool nginx` étaient visibles
+(29 936 à 43 576 KiB chacun). Leur RSS ne doit pas être additionné
+comme de la RAM physique unique : les pages peuvent être partagées.
+L'échantillon affichait `v_free_count=51316` et
+`v_inactive_count=7707` (pages de 4096 octets, environ 230 Mio
+libres + inactifs). Il ne représente pas le creux de 02:09.
+
+**pfBlockerNG** : DNSBL Python chargé, TLD désactivé, test DNS
+WhatsApp `NOERROR`. Le marqueur DNSBL `225631 | PASSED` et
+`pfb_unbound.py` environ 11,8 Mo sont des faits historiques du
+24 octobre. Les fichiers `Gambling.orig` ou `EasyList.orig` présents
+sur disque **ne prouvent pas qu'un feed est activé**.
+Ne supprimer aucun fichier de cache sur la seule base de sa taille.
+
+### Plan d'atténuation ordonné, sans mutation automatique
+
+1. **P0 — Enquêter sur la mise à jour Snort à 02:09.**
+   Comparer les horodatages de début/fin de mise à jour, les
+   ressources de processus enfants, les erreurs et les éventuels
+   rechargements de règles au moment exact de l'OOM.
+   L'interface pfSense classique expose le réglage dans
+   `Services > Snort > Global Settings > Rules Update Settings`
+   (Update Interval / Update Start Time). Après sauvegarde, et
+   **seulement sur autorisation**, proposer une fenêtre supervisée
+   ou un passage temporaire à une mise à jour quotidienne. Cela
+   modifie la fraîcheur des signatures et ne garantit pas
+   qu'un pic mémoire sera résolu.
+
+2. **P0 — Revoir CrowdSec engine séparément du bouncer.**
+   Vérifier pourquoi le moteur s'est réactivé et le coût de son
+   traitement. L'arrêt ou le déplacement du moteur pourrait
+   libérer une partie du RSS observé, mais peut interrompre la
+   production de nouvelles décisions. Vérifier d'abord la source
+   des décisions du bouncer et les protections de remplacement.
+   Ne pas arrêter les deux services ensemble, ni créer une règle
+   firewall large pour compenser.
+
+3. **P0 — Vérifier la tâche pfBlockerNG de 22:00.**
+   Corréler le `22:03` du 22 octobre, contrôler durée et taille de
+   chaque reconstruction, et confirmer la configuration
+   `DNSBL Python`, `TLD OFF`, et l'état réel `ASN/IPinfo`
+   (un champ absent dans le diagnostic n'est pas une confirmation
+   de désactivation). Préserver les protections utiles.
+   Replanifier ou espacer les jobs coûteux **après** les observations
+   et avec approbation. Ne pas lancer un `Force Reload` pendant
+   l'investigation.
+
+4. **P1 — Contrôler la concurrence PHP-FPM et la mémoire temporaire.**
+   Lire les compteurs agrégés `php_fpm_workers`,
+   `php_fpm_max_worker_rss_kb`, `df -k /tmp /var`,
+   la configuration actuelle du pool et les événements PHP
+   autour de 02:09. Conserver le `memory_limit=128M` déjà
+   défini : l'augmenter risquerait d'aggraver le manque de RAM.
+   Ne pas redimensionner les RAM disks sans mesure et budget.
+
+5. **P1 — Conserver Unbound stable.**
+   Les caches `msg-cache-size: 4m` et `rrset-cache-size: 8m`
+   sont déjà bornés. Ne pas augmenter `kern.ipc.maxsockbuf` sur
+   la base d'un avertissement isolé, ni démarrer plusieurs Unbound
+   en parallèle à cause de `address already in use`.
+   Conserver `Service Watchdog` absent, sans redémarrage
+   automatique pendant la collecte de preuves.
+
+**Conditions d'acceptation :** une sauvegarde `config.xml` validée,
+une seule modification à la fois, possibilité de rollback et suivi des
+prochaines exécutions aux mêmes horaires. Le succès nécessite l'absence
+de nouveaux `failed to reclaim memory`, la disponibilité d'Unbound
+et les protections Snort/pfBlockerNG toujours effectives.
+
+Références Netgate :
+[Snort Global Settings](https://docs.netgate.com/pfsense/en/latest/packages/snort/interfaces-global.html),
+[PHP Memory Limit et RAM disks](https://docs.netgate.com/pfsense/en/latest/config/advanced-misc.html),
+[Memory Management](https://docs.netgate.com/pfsense/en/latest/hardware/memory.html).
+
 ## P0 — Optimisations pfBlockerNG conditionnelles
 
 1. Mesurer le nombre d'entrées DNSBL réellement chargées et les plus grosses
