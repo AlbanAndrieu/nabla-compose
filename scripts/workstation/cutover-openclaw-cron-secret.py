@@ -164,7 +164,11 @@ def main(argv=None):
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--apply", action="store_true")
+    parser.add_argument("--reload-gateway", action="store_true",
+                        help="reload secrets after a successful native write, no systemctl restart")
     args = parser.parse_args(argv)
+    if args.reload_gateway and not args.apply:
+        parser.error("--reload-gateway requires --apply")
     os.umask(0o077)
     stage = "source"
     print("cron_cutover_method=dedicated_file_secretref")
@@ -229,8 +233,23 @@ def main(argv=None):
         if {str(p) for p in written} != {str(p) for p in proposed}:
             reject("native_wrote_unexpected_files")
         print("cron_cutover_applied=true")
-        print("cron_cutover_gateway_restart=not_performed")
         print("cron_cutover_plaintext_residue=retained")
+        if args.reload_gateway:
+            stage = "gateway_secrets_reload"
+            try:
+                reloaded = subprocess.run(
+                    ["openclaw", "secrets", "reload"], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    timeout=45, check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                reject("gateway_secrets_reload_unavailable")
+            if reloaded.returncode != 0:
+                reject("gateway_secrets_reload_failed")
+            print("cron_cutover_gateway_secrets_reload=completed")
+        else:
+            print("cron_cutover_gateway_secrets_reload=not_requested")
+        print("cron_cutover_gateway_restart=not_performed")
         return 0
     except (CutoverError, checks.UnsafePlan, ValueError, OSError, KeyError, TypeError) as exc:
         code = str(exc) if isinstance(exc, CutoverError) else "invalid_or_insecure_input"
