@@ -137,6 +137,20 @@ openclaw-truenas-model-keys-tunnel:
 openclaw-truenas-model-keys-tunnel-prompt:
     python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --prompt-admin
 
+# Credential-free listener check; SSH transport identity still needs operator verification.
+openclaw-truenas-tunnel-check:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --check-tunnel
+
+# Explicitly choose the existing named variable, never expose its contents.
+# The operator must first confirm LITELLM_MASTER_KEY belongs to TrueNAS.
+openclaw-truenas-model-keys-tunnel-existing-master:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_MASTER_KEY
+
+# Dedicated TrueNAS environment name is preferred when available.
+openclaw-truenas-model-keys-tunnel-dedicated:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY
+
+
 # Read-only 429 attribution. No chat, embeddings, resets or key mutations.
 openclaw-429-triage-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
