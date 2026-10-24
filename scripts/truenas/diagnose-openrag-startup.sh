@@ -11,7 +11,7 @@ fail_gate() {
   printf 'BLOCKED: %s\n' "$1"
   blocked=$((blocked + 1))
 }
-for tool in midclt timeout jq zfs stat grep curl; do
+for tool in midclt timeout jq zfs stat grep curl readlink; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "BLOCKED: missing diagnostic binary: $tool" >&2
     exit 2
