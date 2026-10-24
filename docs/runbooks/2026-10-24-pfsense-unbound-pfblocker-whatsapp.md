@@ -44,6 +44,33 @@ Il n'installe rien. Pour uniquement préparer le worktree, utiliser
 bootstrap. Les tests Git simulés du script n'atteignent ni pfSense
 ni GitHub.
 
+## Reprise validée : le pin SHA ne doit pas contaminer les tests
+
+L'opérateur a exécuté le bootstrap depuis la workstation après reboot.
+Il a créé un worktree privé sur le HEAD `efa16afc`, puis les contrôles
+Unbound/pfBlockerNG ont réussi (**11/11**) et les tests pflow/WhatsApp
+ont réussi (**6/6**).
+
+Les trois échecs de `test_pr274_worktree_recovery.py` provenaient
+de l'environnement du bootstrap : `NABLA_PR274_EXPECTED_SHA` était
+hérité dans les faux dépôts Git créés par les tests, dont les SHA sont
+nécessairement différents. Le garde-fou refusait à juste titre ces SHA.
+
+Le correctif comporte deux protections complémentaires :
+
+1. Le script `run-pr274-after-reboot.sh` vérifie d'abord
+   `NABLA_PR274_EXPECTED_SHA` face au HEAD de la PR, puis supprime
+   cette variable de l'environnement **avant** d'exécuter `just`.
+2. Les tests de récupération suppriment tout pin réel hérité dans
+   l'environnement de leurs dépôts simulés. Les tests dédiés à la
+   validation du pin restent actifs ; un mauvais SHA continue à
+   déclencher `exit 2`.
+
+**Validation locale :** 9/9 tests hors réseau réussis, même avec
+`NABLA_PR274_EXPECTED_SHA` défini comme dans la session opérateur,
+et `bash -n` réussi. La quality gate complète et le dernier
+diagnostic sur pfSense restent à exécuter depuis la workstation.
+
 ## Risques et précédents
 
 Le Netgate 1100 est limité en mémoire. L'incident du 8 octobre
