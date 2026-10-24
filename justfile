@@ -86,6 +86,22 @@ openclaw-cron-secret-plan-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
+# Pure offline regressions: no pfSense access or GitHub Actions.
+pfsense-unbound-wifi-test:
+    bash -n scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh
+    bash -n scripts/pfsense/audit-posture.sh
+    bash -n scripts/workstation/diagnose-whatsapp-web-path.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
+
+# Read-only probes run on a workstation that can reach pfSense via SSH.
+pfsense-unbound-check:
+    bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check
+
+# Read-only WhatsApp Web IPv4/IPv6 edge path, with no browser-session access.
+whatsapp-web-path-check:
+    bash scripts/workstation/diagnose-whatsapp-web-path.sh --check
+
 # Operator-only: requires private cron-plan.json on the Ubuntu workstation.
 openclaw-cron-secret-plan-check:
     python3 scripts/workstation/diagnose-openclaw-secrets-plan.py
