@@ -221,14 +221,14 @@ Vérifier ensuite la présence des ports LAN **sans redémarrer les Apps** :
 
 ```bash
 sudo ss -ltn '( sport = :8091 or sport = :9187 or sport = :9945 )'
-for port in 8091 9187 9945; do
+for port in 8091 9187; do
   curl -sS -o /dev/null --connect-timeout 2 --max-time 5 \
     -w "port=$port http=%{http_code} tcp_remote=%{remote_ip}\\n" \
     "http://172.17.0.24:$port/metrics" || true
 done
 ```
 
-La requête locale `:9945/metrics` sans paramètre `target` ne doit
+Ne pas interroger `:9945/metrics` comme un exporteur standard : sans paramètre\n`target`, la requête ne doit
 **pas** être utilisée comme test fonctionnel pfSense : l'exporter
 est paramétré via `__param_target`. Éviter les rafales de scrapes
 manuels vers l'API pfSense. Prioriser `/api/v1/targets`.
