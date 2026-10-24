@@ -29,7 +29,17 @@ pfsense_ui_render() {
   fi
   LC_ALL=C awk -v mode="$mode" -v cyan="$c" -v green="$g" -v yellow="$y" \
     -v red="$r" -v dim="$d" -v reset="$z" '
-    function flush() {
+    function flush( i, bucket) {
+      # Collapse historical OOM kills by minute in compact mode.
+      if(mode=="compact") {
+        for(i=1;i<=pending_count;i++) {
+          bucket=pending_order[i]
+          emit("Historical OOM minute="bucket" · kernel kills="pending[bucket],"warn",1)
+          delete pending[bucket]
+          delete pending_order[i]
+        }
+        pending_count=0
+      }
       if(hidden) {printf "%s  ... %d lines omitted (PFSENSE_OUTPUT=verbose)%s\n",dim,hidden,reset;total_hidden+=hidden}
       hidden=0;visible=0
     }
@@ -57,7 +67,13 @@ pfsense_ui_render() {
         minute=substr(ts,1,16)
         if(!seen_minute[minute]++) oom_minutes++
       }
-      emit("Historical kernel OOM timestamp="ts,"warn",1)
+      if(mode=="compact") {
+        minute=(ts=="unknown" ? "unknown" : substr(ts,1,16))
+        if(!(minute in pending)) {pending_order[++pending_count]=minute;pending[minute]=0}
+        pending[minute]++
+      } else {
+        emit("Historical kernel OOM timestamp="ts,"warn",1)
+      }
     }
     function syslog_kind(line) {
       if(line ~ /address already in use|could not open ports/) return "unbound_bind_conflict"
@@ -93,7 +109,7 @@ pfsense_ui_render() {
       next
     }
     # Current process start time is observable; the restart cause is not.
-    /^[0-9]+ [A-Z][a-z][a-z] [A-Z][a-z][a-z] [ 0-9][0-9] / && /unbound -c \/var\/unbound\/unbound[.]conf/ {
+    /^[[:space:]]*[0-9]+[[:space:]]+[A-Z][a-z][a-z][[:space:]]+[A-Z][a-z][a-z][[:space:]]+[ 0-9][0-9][[:space:]]/ && /unbound -c \/var\/unbound\/unbound[.]conf/ {
       if($7 ~ /^[0-9]+$/ && $1 ~ /^[0-9]+$/) {
         emit("Unbound process pid="$1" started="$3" "$4" "$5" rss_kib="$7" · restart cause UNKNOWN","",1)
         next

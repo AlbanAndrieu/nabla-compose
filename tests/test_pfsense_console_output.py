@@ -131,6 +131,35 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("resolver_event=dnsbl_python_exit", result.stdout)
         self.assertNotIn("SECRET", result.stdout)
 
+    def test_compact_oom_groups_kernel_kills_by_minute(self):
+        events = (
+            "=== Incident history ===\n"
+            "source=system event=kernel_oom timestamp=2026-10-24T02:10:47.469850+02:00\n"
+            "source=system event=kernel_oom timestamp=2026-10-24T02:10:50.474019+02:00\n"
+            "source=system event=kernel_oom timestamp=2026-10-22T22:03:33.361041+02:00\n"
+            "=== Resolver archives ===\n"
+            "<3>1 2026-10-24T02:10:47.469850+02:00 fw kernel failed to reclaim memory SECRET\n"
+        )
+        out = render(events)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("Historical OOM minute=2026-10-24T02:10", out.stdout)
+        self.assertIn("kernel kills=2", out.stdout)
+        self.assertEqual(out.stdout.count("Historical OOM minute="), 2)
+        self.assertIn("3 distinct historical OOM records", out.stdout)
+        self.assertIn("1 duplicate lines suppressed", out.stdout)
+        self.assertNotIn("SECRET", out.stdout)
+
+    def test_unbound_ps_freebsd_leading_space(self):
+        process = (
+            "=== Unbound daemon and readiness ===\n"
+            " 2135 Sun Oct 25 00:04:56 2026 124572 5.1 "
+            "/usr/local/sbin/unbound -c /var/unbound/unbound.conf\n"
+        )
+        out = render(process)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("Unbound process pid=2135 started=Oct 25 00:04:56", out.stdout)
+        self.assertIn("restart cause UNKNOWN", out.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
