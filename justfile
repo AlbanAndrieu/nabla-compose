@@ -120,9 +120,10 @@ hermes-opus-routing-test:
 
 # Offline model alias contract and optional authenticated TrueNAS inventory.
 openclaw-truenas-model-keys-test:
-    python3 -m py_compile scripts/workstation/preflight-truenas-litellm-openclaw.py scripts/workstation/openclaw-route-metadata.py tests/test_truenas_litellm_openclaw_preflight.py tests/test_openclaw_route_metadata.py
+    python3 -m py_compile scripts/workstation/ensure-openclaw-truenas-litellm-tunnel.py scripts/workstation/preflight-truenas-litellm-openclaw.py scripts/workstation/openclaw-route-metadata.py tests/test_openclaw_truenas_ssh_tunnel.py tests/test_truenas_litellm_openclaw_preflight.py tests/test_openclaw_route_metadata.py
     python3 -m unittest discover -s tests -p 'test_truenas_litellm_openclaw_preflight.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_truenas_ssh_tunnel.py' -v
 
 # Always safe and offline: compare intended model names to git-declared TrueNAS routing.
 openclaw-truenas-model-keys-check:
@@ -137,9 +138,14 @@ openclaw-truenas-model-keys-tunnel:
 openclaw-truenas-model-keys-tunnel-prompt:
     python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --prompt-admin
 
-# Credential-free listener check; SSH transport identity still needs operator verification.
+# Owner-only verified SSH forward; never starts a duplicate or kills a process.
 openclaw-truenas-tunnel-check:
-    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --check-tunnel
+    python3 scripts/workstation/ensure-openclaw-truenas-litellm-tunnel.py --check
+
+# Create a tunnel only when 14000 is free and the SSH alias targets TrueNAS:9922.
+# Reuse a verifiable existing ssh -L and never expose a credential.
+openclaw-truenas-tunnel-ensure:
+    python3 scripts/workstation/ensure-openclaw-truenas-litellm-tunnel.py --ensure
 
 # Explicitly choose the existing named variable, never expose its contents.
 # The operator must first confirm LITELLM_MASTER_KEY belongs to TrueNAS.
