@@ -7,7 +7,7 @@ services:
       com.albandrieu.nabla.entity-ref: component:default/gatus
     x-nabla:
       id: gatus
-      name: Gatus
+      name: Gatus UI
       kind: status-monitor
       category: observability
       url: http://172.17.0.24:8085
