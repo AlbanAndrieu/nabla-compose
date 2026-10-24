@@ -236,6 +236,32 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertIn("status=%s", section)
         self.assertNotIn("sysrc crowdsec_enable=", section)
 
+    def test_oom_window_expurgates_cron_and_oom_log_contents(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("=== Snort/pfBlockerNG/kernel OOM chronology", script)
+        section = script.split(
+            "echo '=== Snort/pfBlockerNG/kernel OOM chronology", 1
+        )[1].split("echo '=== CrowdSec engine vs firewall bouncer", 1)[0]
+        match = re.search(r"awk -v source=\"\$source\" '(.*?)'", section, re.DOTALL)
+        self.assertIsNotNone(match)
+        fixture = (
+            "Oct 24 02:09:00 fw CRON snort_check_for_rule_updates token=sensitive\n"
+            "Oct 24 02:10:50 kernel: unbound killed: failed to reclaim memory private.local\n"
+        )
+        for source, expected in (("cron", "snort_cron"), ("system", "kernel_oom")):
+            with self.subTest(source=source):
+                result = subprocess.run(
+                    ["awk", "-v", f"source={source}", match.group(1)],
+                    input=fixture, text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"event={expected}", result.stdout)
+                self.assertNotIn("sensitive", result.stdout)
+                self.assertNotIn("private.local", result.stdout)
+        self.assertIn("tail -n 5000", section)
+        for forbidden in ("service snort restart", "service crowdsec stop", "configctl unbound restart"):
+            self.assertNotIn(forbidden, section)
+
 
 if __name__ == "__main__":
     unittest.main()

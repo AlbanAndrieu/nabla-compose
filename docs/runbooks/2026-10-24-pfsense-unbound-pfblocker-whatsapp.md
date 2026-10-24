@@ -214,6 +214,29 @@ La corrélation des crons Snort 02:09/14:09 et pfBlockerNG 22:00
 avec les OOM nécessite les horodatages des logs originaux en privé.
 Ces catégories expurgées ne prouvent pas la responsabilité des jobs.
 
+## Chronologie Snort/CrowdSec et préflight Akvorado — diagnostic ajouté
+
+`diagnose-pfblocker-unbound-whatsapp.sh --check` produit des catégories
+et horodatages expurgés des tâches Snort, pfBlockerNG, des OOM noyau
+et des messages de cycle de vie CrowdSec. La collecte est bornée aux
+5000 dernières lignes des journaux disponibles ; l'absence d'un événement
+ne démontre pas qu'il ne s'est pas produit. Un cron observé ne prouve
+ni le pic RSS ni la causalité. Ne pas publier les journaux bruts.
+
+```bash
+just akvorado-metadata-check
+```
+
+Ce contrôle exige le mapping statique déclaratif `172.17.0.1/32`
+et `ifIndex=11`. Il accepte l'option `--exporter` pour vérifier
+l'adresse réellement présente **dans le message NetFlow**.
+L'option `--effective-file` permet de vérifier une copie locale du fichier
+effectivement monté ; elle ne relit pas l'Orchestrator ni sa mémoire.
+`RUNTIME_PROOF_REQUIRED` signifie précisément : mapping présent,
+**chargement Outlet et insertion ClickHouse non vérifiés**. Ne pas
+modifier pfSense, les index, les règles ou le tracking NetFlow
+sur la seule base d'un mapping déclaratif.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :

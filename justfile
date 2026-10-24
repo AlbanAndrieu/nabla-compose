@@ -151,9 +151,14 @@ pfsense-unbound-wifi-test:
     bash -n scripts/pfsense/audit-posture.sh
     bash -n scripts/workstation/diagnose-whatsapp-web-path.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_akvorado_metadata_config.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
     bash -n scripts/workstation/run-pr274-after-reboot.sh
     python3 -m unittest discover -s tests -p 'test_pr274_worktree_recovery.py' -v
+
+# Read-only Akvorado static metadata preflight. Runtime load remains unverified.
+akvorado-metadata-check:
+    bash scripts/quality/python-with-repo-deps.sh scripts/truenas/check-akvorado-metadata-config.py --check
 
 # Read-only probes run on a workstation that can reach pfSense via SSH.
 pfsense-unbound-check:

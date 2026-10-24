@@ -55,6 +55,37 @@ for f in /var/log/snort/snort_updates.log /var/log/snort/snort_updates.log.0 \
   stat -f 'snort_log_file=%N modified=%Sm size_bytes=%z' \
     -t '%Y-%m-%dT%H:%M:%S%z' "$f" 2>/dev/null || true
 done
+
+echo '=== Snort/pfBlockerNG/kernel OOM chronology (redacted, bounded) ==='
+# Log entries show temporal proximity, not proof of process RSS or causation.
+for file in /var/log/cron.log /var/log/cron.log.0 /var/log/system.log /var/log/system.log.0 /var/log/snort/snort_rules_update.log; do
+  [ -r "$file" ] || continue
+  case "$file" in *cron*) source=cron ;; *snort*) source=snort ;; *) source=system ;; esac
+  printf 'log_source=%s readable=yes\n' "$source"
+  tail -n 5000 "$file" | awk -v source="$source" '
+    function stamp(line, s) {
+      s=substr(line,1,15)
+      if (s ~ /^[A-Z][a-z][a-z] [ 0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return s
+      s=substr(line,1,19)
+      if (s ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][T ][0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return s
+      return "unknown"
+    }
+    {
+      kind=""
+      if (source=="cron") {
+        if ($0 ~ /snort_check_for_rule_updates/) kind="snort_cron"
+        else if ($0 ~ /pfblockerng[.]php/) kind="pfblocker_cron"
+      } else if (source=="system") {
+        if ($0 ~ /failed to reclaim memory|out of swap|waited too long to allocate a page/) kind="kernel_oom"
+        else if ($0 ~ /[Cc]rowd[Ss]ec/ && $0 ~ /[Ss]tart|[Rr]estart|[Ss]top/) kind="crowdsec_lifecycle_log"
+      } else if (source=="snort") {
+        if ($0 ~ /[Ss]tart|[Bb]egin|[Cc]hecking/) kind="snort_update_start"
+        else if ($0 ~ /[Cc]omplet|[Ff]inish|[Ff]ail|[Ee]rror/) kind="snort_update_end_or_error"
+      }
+      if (kind!="") printf "source=%s event=%s timestamp=%s\n", source, kind, stamp($0)
+    }
+  ' | tail -24 || true
+done
 echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='
 ps axo pid,rss,pcpu,command |
   awk '
