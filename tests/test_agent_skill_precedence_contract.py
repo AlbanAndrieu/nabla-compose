@@ -39,7 +39,7 @@ class SkillPrecedenceContractTest(unittest.TestCase):
             self.assertTrue(any(
                 "AGENTS.md" in issue and "Nabla project skills" in issue
                 for issue in issues
-            )))
+            ))
             self.assertEqual(MODULE.main(["--root", str(root)]), 1)
 
     def test_external_skills_installation_approval_cannot_be_removed(self):
