@@ -61,7 +61,8 @@ pfsense_ui_render() {
       oom++;emit("kernel OOM timestamp="logstamp($0)" (raw message omitted)","error",1);next
     }
     /^<[0-9]+>[0-9]+ / {emit("syslog timestamp="logstamp($0)" (raw message omitted)","",0);next}
-    /^(WARN(ING)?:|WARN |ERROR:|FAIL:|BLOCKED:|NOT ACTIVE:|.*status=unknown|.*=NOT_VERIFIED)/ {emit($0,"warn",1);next}
+    /^(ERROR:|FAIL:|FAIL |BLOCKED:|.*status=BLOCKED)/ {emit($0,"error",1);next}
+    /^(WARN(ING)?:|WARN |NOT ACTIVE:|.*status=unknown|.*=NOT_VERIFIED|.*transport=unavailable)/ {emit($0,"warn",1);next}
     /^(PASS:|PASS |OK:)/ {emit($0,"ok",0);next}
     {s=$0;if(mode=="compact" && length(s)>220)s=substr(s,1,217)"...";emit(s,"",0)}
     END {
