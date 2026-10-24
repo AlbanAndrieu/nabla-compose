@@ -17,8 +17,8 @@ L'ordre des responsabilités reste :
 ## Étape A — checkout opérateur TrueNAS et réseau Git (pré-requis)
 
 Le 24 octobre, un checkout TrueNAS a été observé en retard sur GitHub, avec
-`fastapi-sample` modifié comme sous-module. Les PR #273, site #254 et FastAPI
-#373 restent Draft. **Ne pas appliquer une branche Draft à TrueNAS.**
+`fastapi-sample` modifié comme sous-module. La PR Compose #273 reste Draft. Les PR site #254 et FastAPI
+#373 ont été fusionnées le 24 octobre 2026 à 16:27 et 16:28 UTC. **Ne pas appliquer une branche Draft à TrueNAS.**
 
 Exécuter depuis `/mnt/cpool/compose/nabla-compose` :
 
@@ -64,6 +64,37 @@ sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave deferred
 Les sections peuvent échouer tant que les migrations ne sont pas terminées.
 C'est un résultat de diagnostic, **pas** une autorisation de `--apply`.
 Les rapports sont privés. Ne pas les publier sur GitHub ou dans un chat.
+
+## Étape B.1 — diagnostics P0 individuels (une commande par incident)
+
+Après installation des scripts de la PR Compose #273 sur le checkout opérateur
+**par fusion revue dans master**, sélectionner une seule section selon le chantier.
+Chaque commande collecte un rapport privé sous
+`/mnt/cpool/var/nabla/migration-20261024`. Aucune ne lance un redeploy.
+
+```bash
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section prometheus
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section openrag
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section akvorado
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section secrets
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section convergence
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section lan
+```
+
+L'exécution **individuelle** permet de collecter une seule preuve à la fois.
+`--section akvorado` compare deux intervalles de compteurs, dont les
+insertions ClickHouse : prévoir un trafic réel pendant la fenêtre de mesure.
+`--section prometheus` sépare la preuve Docker des cibles réseau.
+`--section openrag` n'exécute que des comparateurs de secrets en mode
+`--check`. **Le mode `--apply-step openrag-secret` a été retiré** :
+l'ancien script `reconcile-openrag-opensearch-secret.sh --apply`
+écrit dans `/mnt/cpool/openrag/.env.secrets` au lieu du chemin Vaultwarden
+canonique. Ne pas le lancer, y compris avec `--allow-reviewed-drift`.
+
+Pour retrouver uniquement les noms des rapports produits par un diagnostic,
+consulter son récapitulatif `summary.tsv` dans le répertoire privé indiqué.
+Ne jamais coller de fichiers `.env`, de réponses OWNER brutes ou de journaux
+contenant des tokens dans GitHub.
 
 ## Étape C — Prometheus : réparer la cause, pas uniquement l'icône RUNNING
 
@@ -210,9 +241,9 @@ just quality
 ```
 
 Ne pas annoncer la quality gate complète comme validée tant qu'elle n'a
-pas été réellement exécutée sur le HEAD exact. Les PR Compose #273,
-FastAPI #373 et Site #254 restent Draft jusqu'à validation et décision
-de mise en production. Les skills externes ne s'installent qu'après
+pas été réellement exécutée sur le HEAD exact. La PR Compose #273 reste Draft. Les PR FastAPI #373 et Site #254 sont
+fusionnées, mais leurs déploiements et la collecte OWNER/LAN demandent encore
+une validation indépendante. Les skills externes ne s'installent qu'après
 accord explicite demandé à l'utilisateur.
 
 ## Opérations mutantes : hors exécution automatisée
@@ -229,3 +260,161 @@ d'un service ni une réparation des permissions.
 Prometheus avec conteneur principal et scrape validés, OpenRAG/Docling
 fonctionnels, Akvorado avec nouvelles lignes ClickHouse observées,
 sondes LAN réelles et rendus OWNER/SERVICE conformes.
+
+## Étape J — demandes de données nécessaires pour continuer les trois projets
+
+Ces commandes fournissent les **preuves manquantes**, sans rendre publiques
+les données privées de TrueNAS. Elles ne supposent pas que le site et FastAPI
+sont à la même version que le catalogue Compose.
+
+### J.1 — État des PR et révisions
+
+Sur une workstation autorisée (ou TrueNAS si HTTPS GitHub fonctionne) :
+
+```bash
+git -c submodule.recurse=false fetch origin master
+git log -1 --format='%h %s' origin/master
+git status --short --ignore-submodules=none
+```
+
+**Ne pas** exécuter `merge` lorsque le checkout a des changements locaux
+non revus. La PR #273 est encore Draft ; les scripts de cette branche ne sont
+pas tous disponibles sur `master`. Le résultat `git status` peut contenir
+un sous-module modifié : préserver cet état et documenter sa cause.
+
+### J.2 — Vérification de la convergence des catalogues
+
+Dans `nabla-compose`, sans informations sensibles :
+
+```bash
+just agent-skills-check
+just catalog-convergence-check
+python3 scripts/generate-catalog-v2-artifacts.py --check
+python3 scripts/generate-service-topology.py --check
+python3 scripts/generate-service-consumers.py --check
+```
+
+Sur la workstation qui possède **les deux checkouts** sur des révisions
+connues et compatibles :
+
+```bash
+python3 scripts/quality/check-site-catalog-convergence.py \
+  --site-generated ../nabla-site-alban/lib/homelabCatalogIcons.generated.ts
+```
+
+Un digest identique ne confirme pas la disponibilité HTTP des services.
+La vérification de l'accès OWNER doit utiliser
+`/api/homelab-access?diagnose=1` et les routes protégées du site en Wi-Fi
+autorisé. La vérification SERVICE doit être faite sur un réseau externe.
+Ne pas contourner 401/403. Ne pas recopier de payload OWNER dans des tests.
+
+### J.3 — Diagnostic Prometheus principal et exporter
+
+```bash
+sudo midclt call app.query | jq -r '.[] | select((.id // .name)=="prometheus") | [.id,.state] | @tsv'
+sudo docker inspect prometheus --format '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}'
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+```
+
+Le nom de conteneur `prometheus` est le **nom attendu**, pas une identité
+garantie. Si `docker inspect` ne le trouve pas, examiner l'inventaire
+Docker avec le filtre du projet Compose ; ne jamais choisir un sidecar au
+hasard. Un échec n'autorise pas à changer UID 568 ou supprimer le WAL.
+
+### J.4 — OpenRAG, LiteLLM, Docling, Langflow et secret canonique
+
+```bash
+sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check akvorado
+python3 scripts/check-service-migration-bundle.py --app openrag
+```
+
+Inventorier la présence et les permissions des fichiers **sans en lire
+le contenu** :
+
+```bash
+sudo stat -c '%a %u:%g %n' /mnt/cpool/secrets/runtime/openrag/.env.secrets
+sudo stat -c '%a %u:%g %n' /mnt/cpool/secrets/runtime/akvorado/.env.secrets
+```
+
+Si les fichiers sont absents, conserver `NOT_RUN` pour le contrôle de
+matérialisation. Lire `config/secrets/manifest.json` et vérifier la présence
+des noms requis dans Vaultwarden. Ne pas lancer l'ancien reconciler en
+`--apply`. Tester l'indexation de **documents de test non sensibles**
+après validation des dépendances ; OpenRAG `running` ne prouve pas l'ingestion.
+
+### J.5 — Akvorado, NetFlow v5, ClickHouse et pfSense
+
+```bash
+python3 -m unittest discover -s tests -p 'test_akvorado*' -v
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 30
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 30
+docker compose -f apps/akvorado/compose.yml config --quiet --no-interpolate --no-env-resolution
+```
+
+Le code doit être au **HEAD fusionné** avant l'observation. Confirmer
+le provider statique `172.17.0.1/32`, `ifIndex=11`, dans la configuration
+chargée par Akvorado Outlet. Les compteurs de batch indiquent une activité,
+pas nécessairement une ligne stockée. Lire les lignes datées ClickHouse
+avec une requête limitée et une identité **lecture seule**, après avoir
+identifié la table et les colonnes effectivement exposées par Akvorado.
+Ne pas inventer de SQL ni modifier le volume de trafic pfSense.
+
+### J.6 — Sondes LAN et couverture Gatus / Prometheus
+
+```bash
+sudo bash scripts/truenas/verify-fastapi-lan-probes.sh --check
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section lan
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section observability
+```
+
+`HOMELAB_INTERNAL_PROBES_ENABLED` ne doit être activée **que dans le
+collecteur LAN autorisé**, après contrôle SSRF. Une liste de 85 endpoints LAN
+déclarés n'est pas une preuve : il faut `eligible`, `sampled` et
+`completed` strictement positifs, avec horodatage. Le DTO OWNER publie
+la provenance et la fraîcheur de chaque sonde ; le DTO SERVICE exclut
+les adresses et informations sensibles.
+
+### J.7 — Secrets première vague et migration unitaire
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
+python3 scripts/secrets/inventory_vaultwarden.py --json
+```
+
+Le dernier contrôle nécessite une session `bw` autorisée ; la sortie
+complète peut contenir de la métadonnée privée et reste locale.
+Vérifier successivement `scanopy`, `joplin`, `autokuma` et `code`.
+Les transitions `--stage` et `--accept <service>` sont **mutantes**
+et restent réservées à une intervention distincte après sauvegarde,
+contrat Backstage, validation de secret et plan de rollback.
+Ne pas lancer `--accept all`.
+
+### J.8 — Talos/Kubernetes et qualité de la PR
+
+Depuis la workstation avec `talosctl` et `kubectl` installés :
+
+```bash
+bash scripts/talos/validate-cluster.sh
+python3 scripts/talos/preflight-supported-upgrade.py --check
+bash scripts/talos/smoke-truenas-csi-nfs.sh --check
+```
+
+Depuis le checkout **de la PR #273**, sans publication ni déploiement :
+
+```bash
+just agent-skills-check
+just catalog-convergence-check
+just migration-20261024-test
+python3 -m unittest discover -s tests -p 'test_akvorado*' -v
+just quality
+```
+
+Aucune preuve de production ne doit être conclue sur un test local seul.
+Le passage hors Draft et la fusion restent des décisions distinctes.
+
