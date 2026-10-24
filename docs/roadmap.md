@@ -18,6 +18,11 @@ Les pages Next.js, icônes et cache du navigateur appartiennent à
 - [x] **Prometheus** : règle illisible corrigée sous UID 568, HTTP readiness 200.
   **Pyroscope** : metastore réinitialisé après sauvegarde horodatée,
   HTTP 200. Ne pas recommencer les resets sans preuve de nouvelle panne.
+- [ ] **Gatus** : vérifier la parité entre les sondes déclarées et les
+  statuts réellement observés (dernière mesure et fraîcheur), corriger
+  les chemins HTTP, DNS et l'identité des cibles uniquement après
+  confirmation. Une sonde en échec ne doit jamais être forcée au vert
+  pour obtenir une couverture artificielle.
 - [x] **Akvorado** : scrapes Inlet/Outlet UP, métriques présentes ;
   **Gatus**, **Redis**, **CrowdSec**, **pfSense exporter** UP au dernier
   inventaire opérateur. La santé d'un scrape ne prouve pas l'ingestion
