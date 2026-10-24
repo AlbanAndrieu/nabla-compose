@@ -24,6 +24,10 @@ def fake_operator(tmp_path):
     truenas.mkdir(parents=True)
     target = truenas / SOURCE.name
     shutil.copyfile(SOURCE, target)
+    # Operator commands are a tracked, non-executable runbook.
+    runbook = root / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+    runbook.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(SOURCE.parents[2] / "docs/runbooks" / runbook.name, runbook)
     binary = tmp_path / "bin"
     binary.mkdir()
     midclt = binary / "midclt"
@@ -93,6 +97,42 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     assert result.returncode == 0
     assert "--plan-wave" in result.stdout
     assert not marker.exists()
+
+
+def test_next_commands_print_runbook_without_runtime_access(fake_operator):
+    _, _, report, marker = fake_operator
+    result = invoke(fake_operator, "--next-commands")
+    assert result.returncode == 0, result.stdout + result.stderr
+    for name in ("Akvorado", "Prometheus", "OpenRAG", "Vaultwarden", "Talos"):
+        assert name in result.stdout
+    assert "NEVER-LOG" not in result.stdout
+    assert not marker.exists()
+    assert not report.exists()
+
+
+@pytest.mark.parametrize("args", [
+    ("--next-commands", "--apply-step", "openrag-secret"),
+    ("--next-commands", "--section", "secrets"),
+    ("--next-commands", "--acknowledge", ACK_MIGRATION),
+])
+def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
+    _, _, report, marker = fake_operator
+    result = invoke(fake_operator, *args)
+    assert result.returncode != 0
+    assert not marker.exists()
+    assert not report.exists()
+
+
+def test_new_read_only_sections_are_documented():
+    script = SOURCE.read_text(encoding="utf-8")
+    for section in ("observability", "secrets", "convergence", "lan"):
+        assert f"    {section})" in script
+    assert f" --check --section {section}" in (
+        SOURCE.parents[2]
+        / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+    ).read_text(encoding="utf-8")
+    assert "--require-inserts --observe-seconds" in script
+    assert "verify-fastapi-lan-probes.sh" in script
 
 
 @pytest.mark.parametrize("args", [
