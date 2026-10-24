@@ -6,6 +6,9 @@
 - [ ] **P0 Prometheus** : `restarting` (exit 2), `prometheus.yml` en `0644` et 1 règle sur 15 inaccessible à 568:568 ; corriger séparément, sur approbation, sans TSDB/WAL, puis vérifier `/-/ready` et les targets.
 - [ ] **P0 OpenRAG** : TrueNAS `STOPPED`, backend/frontend absents, Langflow et OpenSearch healthy ; confirmer les jobs TrueNAS et la source des secrets avant un démarrage approuvé.
 - [ ] **P0 Sentry** : TrueNAS `DEPLOYING`, deux consommateurs Kafka unhealthy ; préflight de la nouvelle section Sentry avant toute remédiation, préserver offsets et ClickHouse.
+- [x] **Preuves workstation (`da07b8a7`) :** `just pfsense-unbound-wifi-test` 15/15 PASS ; réponses DNS `NOERROR` et 1 A via pfSense/Quad9 pour `web.whatsapp.com` et `static.whatsapp.net`; HTTPS IPv4 OK, IPv6 indisponible depuis la workstation. Aucun statut du mobile n'en découle.
+- [x] Séparer dans le diagnostic pfSense les crons `snort_rules_update` et `snort_housekeeping`, avec métadonnées de journaux seulement, sans lire les règles ; nouveaux tests de classification. Changements non exécutés sur le nouveau HEAD.
+- [ ] Corréler le cron 02:09 **et** sa seconde occurrence 14:09 avec les horodatages des mises à jour Snort, les processus PHP temporaires et les OOM ; ne pas déplacer/désactiver ce cron sans preuve de causalité et approbation.
 - [ ] **P0 pfSense / Akvorado** : investigations OOM 02:10 et NetFlow v5 vers Akvorado, sans imputer les lenteurs WhatsApp au DNSBL avant confirmation. Voir le [runbook pfSense](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
 - [ ] **Qualité locale** : exécuter `just agent-skills-check` puis `just quality` sur la **révision exacte de la PR #274** ; les derniers résultats restent ceux du checkout utilisateur antérieur à ces commits.
 
