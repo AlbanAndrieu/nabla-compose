@@ -46,6 +46,14 @@ esac
     "dig": """resolver=""
 for arg in "$@"; do [[ "${arg}" == @* ]] && resolver="${arg#@}"; done
 if [[ "${FAKE_DNS_FAIL:-}" == "${resolver}" ]]; then exit 9; fi
+status="${FAKE_DNS_RCODE:-NOERROR}"
+if [[ "${resolver}" == 1.1.1.1 && "${FAKE_PUBLIC_DNS:-0}" != 1 && -z "${FAKE_DNS_RCODE:-}" ]]; then
+  status=NXDOMAIN
+fi
+printf ';; ->>HEADER<<- opcode: QUERY, status: %s, id: 41\\n' "$status"
+if [[ "${FAKE_DNS_STALE:-}" == "${resolver}" ]]; then
+  printf ';; EDE: 3 (Stale Answer)\\n'
+fi
 if [[ "${resolver}" != 1.1.1.1 || "${FAKE_PUBLIC_DNS:-0}" == 1 ]]; then
   printf 'defectdojo.int.albandrieu.com. 300 IN A 172.17.0.24\\n'
 fi
@@ -98,6 +106,22 @@ def test_dns_timeout_never_looks_like_private_dns_or_public_privacy() -> None:
         assert f"FAIL: DNS resolver {address} unavailable" in result.stdout
         if address == "1.1.1.1":
             assert "OK: no public A record" not in result.stdout
+
+
+
+def test_servfail_or_refused_dns_status_is_not_a_private_dns_proof() -> None:
+    for rcode in ("SERVFAIL", "REFUSED"):
+        result = _run({"FAKE_DNS_RCODE": rcode})
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "dns_server=1.1.1.1 query=invalid_response" in result.stdout
+        assert "OK: no public A record" not in result.stdout
+
+
+def test_stale_private_dns_is_not_accepted() -> None:
+    result = _run({"FAKE_DNS_STALE": "172.17.0.24"})
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "dns_server=172.17.0.24 query=stale_answer" in result.stdout
+    assert "no current DNS acceptance" in result.stdout
 
 
 def test_api_403_does_not_mask_broken_html_ui() -> None:
