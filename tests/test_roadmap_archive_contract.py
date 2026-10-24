@@ -22,7 +22,7 @@ CHECK_LINKS = (
 def test_archive_is_byte_for_byte_identical_to_reviewed_source() -> None:
     data = ARCHIVE.read_bytes()
     header = f"blob {len(data)}\0".encode("ascii")
-    git_blob = hashlib.sha1(header + data).hexdigest()
+    git_blob = hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
     assert git_blob == ORIGINAL_GIT_BLOB_SHA
     assert len(data.splitlines()) > 3000
 
