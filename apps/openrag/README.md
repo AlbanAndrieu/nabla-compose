@@ -28,6 +28,13 @@ sudo bash scripts/truenas/diagnose-openrag-dependencies.sh --check
 sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
 ```
 
+**Hôte d'exécution :** ces scripts interrogent le middleware local
+`midclt`. Les exécuter dans le shell de **TrueNAS** et non dans le
+terminal Linux de la workstation. Le résultat
+`host_context=NOT_TRUENAS_OR_MIDCLT_NOT_IN_PATH` signifie
+`NOT_RUN`, et non une panne OpenRAG. Ne pas essayer d'installer `midclt`
+sur la workstation.
+
 Le nouveau préflight `diagnose-openrag-startup.sh` vérifie uniquement :
 
 - l'état du cycle de vie TrueNAS (`STOPPED` exige une décision explicite) ;
@@ -342,15 +349,21 @@ OpenSearch authority without printing either value:
 sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
 ```
 
-If the helper reports a missing or mismatched value, reconcile only that key:
+The comparator now checks the canonical materializations
+`/mnt/cpool/secrets/runtime/opensearch/.env` and
+`/mnt/cpool/secrets/runtime/opensearch/.env.secrets`, alongside the
+legacy `apps/opensearch/.env` if it still exists. It reports only the
+number of candidate files, whether the keys match, and whether it could
+verify the authority. It does **not** attest that a running container uses
+one of these candidates.
 
-```bash
-sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --apply
-```
-
-Then recreate the OpenRAG containers through the TrueNAS lifecycle so the
-updated env file is loaded. Do not copy the whole OpenSearch env file into the
-OpenRAG runtime.
+If no trusted source exists, or the values differ, stop. Inspect the
+Vaultwarden `nabla/prod/opensearch` item and the saved TrueNAS Custom App
+configuration privately. The old `--apply` operation is **disabled**:
+never rewrite `OPENSEARCH_PASSWORD` or restart OpenSearch as a side
+effect of a diagnostic. Stage and review the canonical materialization
+under the migration workflow; keep the current working service unchanged
+until the owner approves a cutover and a rollback.
 
 ## Read-only diagnostic
 
