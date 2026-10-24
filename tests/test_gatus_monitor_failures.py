@@ -72,6 +72,22 @@ def test_all_observed_up_is_required_for_full_success() -> None:
     assert report["up"] == 3
 
 
+def test_failure_categories_are_sanitized_and_actionable() -> None:
+    for raw, category in (
+        ("status code 401 Authorization: TOKEN", "authentication_401"),
+        ("HTTP 403 private-service", "authorization_403"),
+        ("lookup private.example: no such host", "dns_failure"),
+        ("x509 certificate invalid", "tls_failure"),
+        ("connect: connection refused", "tcp_refused"),
+        ("context deadline exceeded", "timeout"),
+        ("PRIVATE_TOKEN_UNKNOWN", "condition_or_endpoint_failed"),
+    ):
+        result = module.failure_category({"error": raw})
+        assert result == category
+        assert "TOKEN" not in result
+        assert "private.example" not in result
+
+
 def test_script_avoids_printing_source_url_and_raw_error() -> None:
     source = FILE.read_text(encoding="utf-8")
     for forbidden in (
