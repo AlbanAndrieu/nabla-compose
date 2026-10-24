@@ -574,6 +574,66 @@ def render_yaml(payload: object) -> str:
     )
 
 
+def _safe_id(value: object) -> str:
+    """Only show well-formed declarative IDs, never user-provided values."""
+    text = str(value)
+    return text if re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", text) else "<invalid-id>"
+
+
+def _stale_consumer_details(path: Path, current: str, expected: str) -> list[str]:
+    """Identify drift without disclosing routes, tokens or endpoint payloads."""
+    try:
+        if path == GATUS_OUTPUT:
+            old, new = yaml.safe_load(current), yaml.safe_load(expected)
+            old_rows, new_rows = old["endpoints"], new["endpoints"]
+            identity = lambda item: (item.get("extra-labels") or {}).get("nabla_monitor_id")
+        else:
+            old, new = json.loads(current), json.loads(expected)
+            if path == HOMARR_OUTPUT:
+                old_rows, new_rows = old["applications"], new["applications"]
+            else:
+                old_rows, new_rows = old, new
+            identity = lambda item: item.get("id")
+        if not isinstance(old_rows, list) or not isinstance(new_rows, list):
+            raise ValueError("invalid consumer collection")
+        original = {identity(item): item for item in old_rows if isinstance(item, dict)}
+        target = {identity(item): item for item in new_rows if isinstance(item, dict)}
+        added = sorted(set(target) - set(original), key=str)
+        removed = sorted(set(original) - set(target), key=str)
+        changed = sorted(
+            (key for key in target.keys() & original.keys()
+             if target[key] != original[key]), key=str
+        )
+        details = [
+            f"  consumer_drift: recorded={len(old_rows)} expected={len(new_rows)} "
+            f"added={len(added)} removed={len(removed)} changed={len(changed)}"
+        ]
+        for name, entries in (("added", added), ("removed", removed), ("changed", changed)):
+            if entries:
+                details.append(
+                    f"  consumer_drift.{name}_ids="
+                    + ",".join(_safe_id(item) for item in entries[:8])
+                    + (" (more omitted)" if len(entries) > 8 else "")
+                )
+        if changed:
+            example = changed[0]
+            old_item, new_item = original[example], target[example]
+            if isinstance(old_item, dict) and isinstance(new_item, dict):
+                columns = sorted(
+                    key for key in (old_item.keys() | new_item.keys())
+                    if old_item.get(key) != new_item.get(key)
+                )
+                details.append(
+                    "  consumer_drift.first_changed_fields="
+                    + ",".join(columns[:8])
+                )
+        if not (added or removed or changed):
+            details.append("  consumer_drift: top-level metadata or serialization differs")
+        return details
+    except (KeyError, TypeError, AttributeError, ValueError, yaml.YAMLError):
+        return ["  consumer_drift: missing, malformed or unsupported generated document"]
+
+
 def write_or_check(path: Path, content: str, check: bool) -> bool:
     current = path.read_text(encoding="utf-8") if path.exists() else ""
     if check:
@@ -584,6 +644,8 @@ def write_or_check(path: Path, content: str, check: bool) -> bool:
             "run python scripts/generate-service-consumers.py",
             file=sys.stderr,
         )
+        for finding in _stale_consumer_details(path, current, content):
+            print(finding, file=sys.stderr)
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -612,10 +674,10 @@ def main() -> int:
             GATUS_OUTPUT: render_yaml(gatus_payload(monitors)),
             AUTOKUMA_OUTPUT: render_json(autokuma_payload(monitors)),
         }
-        ok = all(
-            write_or_check(path, content, args.check)
-            for path, content in outputs.items()
-        )
+        ok = True
+        for path, content in outputs.items():
+            if not write_or_check(path, content, args.check):
+                ok = False
     except (OSError, subprocess.CalledProcessError, ValueError, yaml.YAMLError) as exc:
         print(f"service consumer generation failed: {exc}", file=sys.stderr)
         return 1
