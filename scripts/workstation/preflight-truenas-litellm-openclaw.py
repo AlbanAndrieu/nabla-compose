@@ -6,15 +6,15 @@ Default checks repo model names offline. --tunnel reads only /v1/models and
 Do not forward credentials to the LAN HTTP endpoint.
 """
 import argparse
+import importlib.util
 from getpass import getpass
 import json
 import os
 from pathlib import Path
 import re
-import socket
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request, ProxyHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "apps/litellm/config.yaml"
@@ -41,7 +41,8 @@ def fetch_local(path, credential):
     request = Request(TUNNEL + path, headers={
         "Authorization": "Bearer " + credential, "Accept": "application/json"})
     try:
-        with urlopen(request, timeout=6) as res:
+        # Bypass shell HTTP_PROXY; the master key must never reach an intermediary.
+        with build_opener(ProxyHandler({})).open(request, timeout=6) as res:
             if res.status != 200:
                 return res.status, None
             data = res.read(512 * 1024 + 1)
@@ -55,12 +56,12 @@ def fetch_local(path, credential):
 
 
 def loopback_listener():
-    """Check a local listener only; cannot attest that SSH encrypts it."""
-    try:
-        with socket.create_connection(("127.0.0.1", 14000), timeout=1):
-            return True
-    except OSError:
-        return False
+    """Require a local ssh process with the *exact* reviewed -L mapping."""
+    helper_path = Path(__file__).with_name("ensure-openclaw-truenas-litellm-tunnel.py")
+    spec = importlib.util.spec_from_file_location("truenas_ssh_tunnel_helper", helper_path)
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    return helper.listener_status() == "verified_ssh"
 
 
 def inspect(tunnel=False, *, config=CONFIG, credentials=None):
@@ -87,7 +88,7 @@ def inspect(tunnel=False, *, config=CONFIG, credentials=None):
     if not loopback_listener():
         print("truenas_tunnel_local_listener=unavailable")
         return 2
-    print("truenas_tunnel_local_listener=present_not_ssh_verified")
+    print("truenas_tunnel_local_listener=verified_ssh_forward")
     models_status, models = fetch_local("/v1/models", master)
     models_set = None
     if isinstance(models, dict) and isinstance(models.get("data"), list):
@@ -124,7 +125,7 @@ def main(argv=None):
     if args.check_tunnel:
         available = loopback_listener()
         print("truenas_tunnel_local_listener=" +
-              ("present_not_ssh_verified" if available else "unavailable"))
+              ("verified_ssh_forward" if available else "unavailable"))
         print("truenas_ssh_encryption=operator_attestation_required")
         print("truenas_admin_auth=not_read")
         return 0 if available else 2
@@ -137,14 +138,29 @@ def main(argv=None):
         print("truenas_admin_source=" + (
             "dedicated_truenas_environment" if args.master_env == "LITELLM_TRUENAS_MASTER_KEY"
             else "explicit_shared_name_operator_must_confirm_truenas_identity"))
-        return inspect(True, credentials=os.environ.get(args.master_env))
+        present = args.master_env in os.environ
+        value = os.environ.get(args.master_env)
+        state = ("not_exported" if not present else
+                 "empty" if not value else
+                 "present" if value.startswith("sk-") and len(value) >= 12
+                 else "unexpected_format")
+        print("truenas_admin_env_state=" + state)
+        if state != "present":
+            print("truenas_admin_auth=missing")
+            return 2
+        return inspect(True, credentials=value)
     if not sys.stdin.isatty():
         print("truenas_admin_prompt=requires_interactive_terminal")
         return 2
+    print("truenas_admin_source=interactive_hidden_input")
     try:
         credential = getpass("TrueNAS LiteLLM master key (input hidden): ")
     except (EOFError, KeyboardInterrupt, OSError):
         print("truenas_admin_prompt=unavailable")
+        return 2
+    if not credential:
+        print("truenas_admin_prompt=empty_value")
+        print("truenas_admin_auth=missing")
         return 2
     return inspect(True, credentials=credential)
 
