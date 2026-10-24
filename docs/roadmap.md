@@ -1,3 +1,18 @@
+## P0 — Unbound OOM récurrent 02:10, CrowdSec et pfBlockerNG (24/10/2026)
+
+- [x] **Preuve opérateur :** Unbound tué par OOM le 24/10 à 02:10:50, `php` 02:10:47, `netstat` 02:10:49 et `php_pfb` 02:10:51 ; incidents comparables à 02:10 les 17/21/22/23. Unbound 1.26.1 a redémarré à 09:36, RSS ~129 Mio à 19:31.
+- [x] **Corriger le faux négatif pflow :** l'exporteur actuel est **NetFlow v5 domaine 1 vers TrueNAS** ; ne plus le juger absent sous prétexte que l'audit attendait IPFIX v10 et deux exporteurs. La destination Cloudflare reste facultative tant que pfSense est sous contrainte mémoire.
+- [x] Transférer le diagnostic `diagnose-pfblocker-unbound-whatsapp.sh` de la PR #275 vers **la PR #274**, ajouter corrélation cron à 02:10, moteur CrowdSec distinct du bouncer, compteurs Unbound sans reset, tailles de feeds et comparaison DNS ciblée.
+- [x] Ajouter `diagnose-whatsapp-web-path.sh` côté workstation (IPv4/IPv6, TLS/HTTPS, pas d'accès aux cookies/messages) et tests hors réseau ; `just pfsense-unbound-wifi-test`.
+- [ ] **P0 : rechercher quel cron est actif vers 02:10** (Snort, scripts pfBlockerNG, tâches personnalisées). La mise à jour DNSBL est terminée vers 00:09 ; ne pas attribuer l'OOM au reload de minuit sans autre preuve.
+- [ ] **P0 : CrowdSec moteur réactivé**, RSS 79 676 KiB dans le nouveau relevé alors que le plan de stabilisation le maintenait arrêté. Vérifier origine du redémarrage et `pf-scan-multi_ports` ; isoler le moteur seulement après accord explicite, ne pas stopper automatiquement le bouncer.
+- [ ] Vérifier mode DNSBL Python, ASN/IPinfo toujours désactivé, catégories limitées, `servicewatchdog.unbound=absent`, et erreurs `bind: address already in use` signalées le 22/10 ; proposer une correction ciblée après preuve. Aucun rechargement DNSBL pendant la capture.
+- [ ] Comparer WhatsApp Web depuis la workstation sur Wi-Fi affecté et second réseau. Ne pas attribuer aux DNSBL les lenteurs tant que domaines, IPv6, TCP/TLS et messages WebSocket ne sont pas corrélés.
+- [ ] **Akvorado bloqué confirmé** pendant le relevé : 6 nouveaux flux, 6 nouveaux `metadata missing`, 0 nouveau batch ClickHouse. Vérifier le provider de métadonnées effectivement chargé et l'ifIndex réel avant toute intervention sur Akvorado ; ne pas toucher le tracking pfSense dans un épisode OOM.
+- [ ] Lancer `just pfsense-unbound-wifi-test`, `just quality` en local sur le HEAD exact et fournir les résultats. **Aucun diagnostic ne vaut redéploiement ni modification pfSense.**
+
+[Diagnostic opérateur](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md) — **PR #274 Draft : code non déployé**.
+
 ## Consolidation des migrations — 24 octobre 2026 (PR #274)
 
 - [x] Conserver `finish-migrations-20261024.sh --next-commands` comme affichage sans effet de bord du runbook opérateur.
