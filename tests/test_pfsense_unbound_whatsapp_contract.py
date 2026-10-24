@@ -42,7 +42,11 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertIn("crowdsec_engine_pid=", script)
         self.assertIn("crowdsec_bouncer_pid=", script)
         self.assertIn("crowdsec_stuck_lines=", script)
-        self.assertIn("2026-10-24", str(ROOT / "docs/runbooks"))
+        runbook = (
+            ROOT / "docs/runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md"
+        )
+        self.assertTrue(runbook.is_file())
+        self.assertIn("02:10", runbook.read_text(encoding="utf-8"))
         self.assertNotIn("cat /conf/config.xml", script)
         self.assertNotIn("service crowdsec restart", script)
 
