@@ -1,0 +1,129 @@
+```bash
+git submodule add -f https://github.com/AlbanAndrieu/my-temporal-dockercompose.git temporal
+git submodule add -f https://github.com/AlbanAndrieu/pgwatch pgwatch
+# git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
+git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive
+git submodule add -f https://github.com/AlbanAndrieu/cyberbro
+# https://github.com/getsentry/self-hosted.git
+# git submodule add -f https://github.com/AlbanAndrieu/sentry.git
+git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
+git submodule add -f https://github.com/AlbanAndrieu/litellm.git
+git submodule add -f https://github.com/AlbanAndrieu/n8n-hosting.git n8n
+git submodule add -f https://github.com/AlbanAndrieu/anything-llm
+git submodule add -f https://github.com/AlbanAndrieu/langfuse
+git submodule add -f https://github.com/AlbanAndrieu/fastapi-sample
+
+git pull origin master --allow-unrelated-histories
+git pull && git submodule init && git submodule update && git submodule status
+```
+
+```bash
+docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+
+sudo systemctl disable prometheus
+sudo systemctl disable ntopng
+
+docker compose --env-file .env --env-file .env.secrets -f  docker-compose.yml up -d
+```
+
+```bash
+cd temporal
+
+docker volume create portainer_data
+docker network create temporal-network
+docker network create proxy
+docker compose --env-file .env --env-file .env.secrets -f compose-postgres.yml -f compose-services.yml up --detach
+```
+
+```bash
+cd pgwatch/docker
+docker compose -f compose.postgres.yml up --build  --force-recreate
+
+cd pgwatch
+docker compose -f ./docker/docker-compose.yml up
+
+# as root
+docker compose -f ./docker-compose.yml up -d
+```
+
+portainer : http://localhost:9001/#!/init/admin
+grafana : http://localhost:30037/
+
+```bash
+cd openvas
+
+docker compose --env-file .env --env-file .env.secrets -f docker-compose-openvas.yml up -d
+```
+
+```bash
+cd open-resume
+
+docker build -t open-resume .
+docker run -p 3006:3000 open-resume
+```
+
+```bash
+cd reactive
+
+ln -s /home/albandrieu/.reactive/.env .env
+
+# Start all services
+# docker compose up -d
+
+sudo systemctl restart reactive.service
+sudo journalctl -xeu  reactive
+
+# Access the app
+open http://localhost:3007
+```
+
+```bash
+cd litellm
+
+ln -s /home/albandrieu/.litellm/litellm_config.yaml config.yaml
+
+sudo systemctl restart litellm.service
+sudo journalctl -xeu  litellm
+
+docker logs litellm-litellm-1
+```
+
+```bash
+cd n8n/docker-compose/withPostgresAndWorker/
+
+# https://docs.n8n.io/hosting/installation/server-setups/docker-compose/#5-create-local-files-directory
+docker compose up -d
+```
+
+```bash
+cd cyberbro
+cp secrets-sample.json secrets.json
+
+docker compose up
+```
+
+# See https://develop.sentry.dev/self-hosted/
+
+```bash
+VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/getsentry/self-hosted/releases/latest)
+VERSION=${VERSION##*/}
+cd sentry
+
+git checkout ${VERSION}
+
+docker buildx rm local-builder || true
+docker network rm build || true
+docker network create --subnet $V4_PREFIX.0/24 --gateway $V4_PREFIX.1 --ip-range $V4_PREFIX.128/25 build
+docker buildx create --name local-builder --driver docker-container --driver-opt network=build --use
+
+./install.sh
+# After installation, run the following to start Sentry:
+docker compose up --wait
+```
+
+# See https://getplumber.io/docs/installation/docker-compose-local
+
+```bash
+cd plumber-platform
+docker compose -f compose.local.yml up -d
+```
