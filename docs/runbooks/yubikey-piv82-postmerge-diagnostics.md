@@ -183,3 +183,44 @@ mutantes demandent des approbations séparées par phase.
 Les scripts Bash opérateur doivent être exécutés dans un
 processus enfant, jamais sourcés. Les worktrees partagent
 les téléchargements uv mais gardent une .venv distincte.
+
+
+## 7. Inventaire matériel PIV82 frais — secondaire seulement (option explicite)
+
+Après F9 PASS, exécuter **le même lanceur** avec
+`--inventory-secondary`. Cette option demande une lecture
+fraîche sur la seule YubiKey secondaire **22916048**, firmware **5.4.3**.
+La vérification hors matériel s'effectue avant l'accès au lecteur.
+Elle ne reconfigure **aucun** slot et n'essaie pas de PIN.
+
+La commande versionnée
+`scripts/workstation/inspect-age-yubikey-piv82-secondary.py`
+exécute uniquement les opérations publiques ci-dessous, avec un
+délai maximum et une entrée standard fermée :
+
+- `ykman list --serials` : une seule carte 22916048 ;
+- `ykman --device 22916048 info` : firmware 5.4.3 ;
+- `ykman --device 22916048 piv info` : gestion AES256 protégée par PIN ;
+- `ykman --device 22916048 piv keys info 82` : présence du slot ;
+- `ykman --device 22916048 piv keys info 9a` : présence des métadonnées de la clé existante.
+
+Résultats JSON : `EMPTY_CONFIRMED` uniquement pour
+le message exact « No key stored in slot 82 (RETIRED1) » et les
+contrôles AES256/PIV9A confirmés ; `OCCUPIED` pour
+des métadonnées de clé reconnues ; sinon `UNKNOWN`.
+Codes de sortie : 0 pour l'inventaire vide observé (mais état
+global `NO-GO`), 4 pour un slot occupé, 3
+pour les erreurs de matériel, lecture, politique ou transport.
+Ne jamais écraser un slot occupé, ni assimiler une erreur PC/SC
+à une absence de clé. La validation F9 ne vaut pas preuve PIV82.
+
+**Ne pas sourcer les scripts dans le terminal interactif.**
+Utiliser le bloc de bootstrap en Bash enfant de la section 0, en
+transmettant `--inventory-secondary` au lanceur
+final, ou un worktree PR #274 déjà initialisé et validé.
+
+Le mode par défaut du lanceur **n'accède à aucun slot PIV82**.
+Les 10 contrats d'inventaire synthétique et les 3 tests
+d'intégration du lanceur sont distincts d'une exécution réelle
+sur la secondary. Les opérations PIV82 mutantes, la PIN
+et SOPS restent **NO-GO**, quel que soit ce résultat.

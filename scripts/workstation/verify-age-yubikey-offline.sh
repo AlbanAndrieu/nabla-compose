@@ -35,6 +35,8 @@ for python_source in \
   "${script_dir}/test-age-yubikey-piv82-attestation-offline.py" \
   "${script_dir}/verify-age-yubikey-f9-root-offline.py" \
   "${script_dir}/report-age-yubikey-piv82-readiness.py" \
+  "${script_dir}/inspect-age-yubikey-piv82-secondary.py" \
+  "${repo_root}/tests/test_yubikey_piv82_secondary_inventory.py" \
   "${repo_root}/tests/test_yubikey_piv82_readiness_report.py" \
   "${script_dir}/test-age-yubikey-f9-root-offline.py" \
   "${repo_root}/tests/test_yubikey_piv82_transaction.py" \

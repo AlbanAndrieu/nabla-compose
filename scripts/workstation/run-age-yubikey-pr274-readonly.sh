@@ -11,6 +11,7 @@ umask 077
 repo='/tmp/nabla-yubikey-pr259'
 state_dir="${NABLA_AGENT_STATE_DIR:-${HOME:-/nonexistent}/.local/share/nabla}"
 evidence_dir="${state_dir}/yubikey-f9-public"
+inventory_secondary=false
 remote='https://github.com/AlbanAndrieu/nabla-compose.git'
 branch='fix/homelab-operator-diagnostics-followup-20261024'
 observed_f9='6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:62:39:2F:61:F1:78:54:90:34:DF'
@@ -19,6 +20,7 @@ root_url='https://developers.yubico.com/PKI/yubico-piv-ca-1.pem'
 usage() {
   printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo /tmp/nabla-yubikey-pr259] [--evidence-dir PATH]\n'
   printf 'No pre-existing checkout required. Persistent bare Git cache under HOME; isolated worktree per run.\n'
+  printf 'Use --inventory-secondary for fresh public metadata on secondary 22916048 (never writes the card).\n'
   printf 'Does not git pull, switch operator checkout, write PIV, request PIN or change SOPS.\n'
 }
 while (($#)); do
@@ -26,6 +28,7 @@ while (($#)); do
     --repo)
       (($# >= 2)) || { usage >&2; exit 2; }
       repo="$2"; shift 2 ;;
+    --inventory-secondary) inventory_secondary=true; shift ;;
     --evidence-dir)
       (($# >= 2)) || { usage >&2; exit 2; }
       evidence_dir="$2"; shift 2 ;;
@@ -159,5 +162,12 @@ fi
 "$python_bin" "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" \
   --f9 "$f9" --root "$root" --json ||
   die 'Public F9 readiness report failed closed'
+if [[ "${inventory_secondary}" == true ]]; then
+  [[ -f "${worktree}/scripts/workstation/inspect-age-yubikey-piv82-secondary.py" ]] ||
+    die 'Read-only PIV82 inventory script missing at pinned SHA'
+  "${python_bin}" "${worktree}/scripts/workstation/inspect-age-yubikey-piv82-secondary.py" \
+    --serial 22916048 --json ||
+    die 'Fresh PIV82 secondary inventory not confirmed; NO-GO for provisioning'
+fi
 printf 'PASS: snapshot %.12s, offline gate and observed secondary F9 public trust\n' "${sha}"
 printf 'NO-GO: no PIN, AES256 authentication, PIV82 generation or SOPS mutation was authorized\n'

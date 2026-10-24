@@ -68,6 +68,20 @@ Path(os.environ["TEST_READINESS_TRACE"]).write_text("NO-GO")
 print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
 ''')
         self.readiness_trace = self.base / 'readiness-trace'
+        self.inventory = self.source / 'scripts/workstation/inspect-age-yubikey-piv82-secondary.py'
+        self.inventory.write_text('''#!/usr/bin/env python3
+import json
+import os
+import sys
+assert sys.argv[1:] == ["--serial", "22916048", "--json"]
+from pathlib import Path
+Path(os.environ["TEST_INVENTORY_TRACE"]).write_text("inspected public metadata")
+state = "OCCUPIED" if os.getenv("TEST_INVENTORY_OCCUPIED") == "1" else "EMPTY_CONFIRMED"
+print(json.dumps({"slot82": state, "status": "NO-GO", "hardware_mutation_authorized": False}))
+if state == "OCCUPIED":
+    sys.exit(4)
+''')
+        self.inventory_trace = self.base / 'inventory-trace'
         git(self.source, 'add', '.')
         git(self.source, 'commit', '-qm', 'initial fixture')
         self.original = git(self.source, 'rev-parse', 'HEAD')
@@ -85,7 +99,8 @@ print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
                         NABLA_YUBIKEY_TEST_REMOTE=str(self.remote),
                         NABLA_YUBIKEY_TEST_PYTHON=sys.executable,
                         TEST_VERIFIER_TRACE=str(self.trace),
-                        TEST_READINESS_TRACE=str(self.readiness_trace))
+                        TEST_READINESS_TRACE=str(self.readiness_trace),
+                        TEST_INVENTORY_TRACE=str(self.inventory_trace))
 
     def run_script(self, *args, **env):
         e = dict(self.env, **{k: str(v) for k, v in env.items()})
@@ -192,6 +207,26 @@ print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
         self.assertIn('readiness report failed closed', result.stderr)
         self.assertTrue(self.trace.exists())
         self.assertFalse(self.readiness_trace.exists())
+        self.assert_untouched()
+
+    def test_default_never_uses_piv82_hardware(self):
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.inventory_trace.exists())
+        self.assert_untouched()
+
+    def test_explicit_inventory_reads_public_metadata_only(self):
+        result = self.run_script('--inventory-secondary')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('"slot82": "EMPTY_CONFIRMED"', result.stdout)
+        self.assertTrue(self.inventory_trace.exists())
+        self.assert_untouched()
+
+    def test_explicit_inventory_occupied_stops_fail_closed(self):
+        result = self.run_script('--inventory-secondary', TEST_INVENTORY_OCCUPIED='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('"slot82": "OCCUPIED"', result.stdout)
+        self.assertIn('NO-GO for provisioning', result.stderr)
         self.assert_untouched()
 
     def test_help_does_not_contact_git_or_hardware(self):
