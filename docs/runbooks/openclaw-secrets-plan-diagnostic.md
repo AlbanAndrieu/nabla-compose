@@ -78,6 +78,51 @@ d'impact sur les autres services. L'état du plan original reste
 `secret_plan_apply_authorized=false` : le code de sortie `2`
 demeure intentionnel. Aucune option `--apply` n'est fournie.
 
+## Renforcement du diagnostic — preuves opérateur et intégrité
+
+**Résultat observé sur la Workstation (24 octobre 2026)** :
+`just openclaw-cron-secret-plan-test` a exécuté **15/15 tests OK**.
+`just openclaw-cron-secret-plan-compare` confirme
+`dotenv_projection_attributed_to_scrub`, avec **une SQLite cron**
+et **zéro .env** projetés lorsque `scrubEnv=false`. Le plan original
+reste **bloqué** et la commande retourne intentionnellement `2`.
+
+La PR #274 renforce ensuite le diagnostic avec trois protections :
+
+- Le premier dry-run lit désormais une **copie temporaire 0600**
+  des octets déjà contrôlés du plan. Le CLI n'ouvre donc pas un fichier
+  original susceptible d'être remplacé entre validation et appel natif.
+- Le comparateur vérifie l'identité des fichiers projetés (HMAC
+  en mémoire, clé aléatoire par exécution) pour toutes les catégories
+  hors dotenv. Deux fichiers différents classés `cron_auth_sqlite`
+  ne sont plus considérés identiques.
+- Un changement du plan original pendant l'analyse renvoie
+  `blocked_concurrent_plan_change`. Même sans modification dotenv,
+  l'environnement Gateway n'étant pas attesté, le diagnostic
+  retourne **2**, jamais 0.
+
+Trois tests supplémentaires ont été ajoutés à ce contrat : **18 tests
+déclarés**, encore à exécuter sur la Workstation au HEAD de la PR.
+
+```bash
+just openclaw-cron-secret-plan-test
+just openclaw-cron-secret-plan-compare
+```
+
+Un `exit code 2` est attendu pour la seconde commande : il ne signifie
+pas que la suite de tests a échoué.
+
+**Source OpenClaw 2026.9.5 vérifiée** :
+`src/secrets/apply.ts` n'efface pas arbitrairement tous les noms du
+dotenv. Le nettoyage compare les valeurs de credentials migrés avec les
+affectations dont le nom figure dans
+`listKnownSecretEnvVarNames()` (`src/secrets/provider-env-vars.ts`).
+Cette liste peut dépendre des providers/plugins. Le diagnostic prouve
+la disparition de la **catégorie** dotenv, mais ne prouve toujours pas
+quelle affectation serait retirée ni si elle est nécessaire au Gateway.
+Ne pas inférer que la variable `LITELLM_OPENCLAW_CRON_API_KEY` serait
+supprimée sur la seule base de ce compteur.
+
 ## P0 : risque de nettoyage du dotenv
 
 Dans OpenClaw 2026.9.5, `scrubEnv=true` est le comportement natif
