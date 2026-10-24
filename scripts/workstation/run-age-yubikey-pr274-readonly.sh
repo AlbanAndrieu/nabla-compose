@@ -12,6 +12,9 @@ repo='/tmp/nabla-yubikey-pr259'
 state_dir="${NABLA_AGENT_STATE_DIR:-${HOME:-/nonexistent}/.local/share/nabla}"
 evidence_dir="${state_dir}/yubikey-f9-public"
 inventory_secondary=false
+recovery_otp2=false
+escrow_a=''
+escrow_b=''
 pinned_sha=''
 remote='https://github.com/AlbanAndrieu/nabla-compose.git'
 branch='fix/homelab-operator-diagnostics-followup-20261024'
@@ -19,7 +22,7 @@ observed_f9='6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:6
 expected_root='63ece914e54dd87915f34033c85af4c0696ba1512f8add66ced738331207b546'
 root_url='https://developers.yubico.com/PKI/yubico-piv-ca-1.pem'
 usage() {
-  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo PATH] [--evidence-dir PATH] [--pinned-sha SHA] [--inventory-secondary]\n'
+  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo PATH] [--evidence-dir PATH] [--pinned-sha SHA] [--inventory-secondary] [--otp2-secondary] [--escrow-a PATH --escrow-b PATH]\n'
   printf 'No pre-existing checkout required. Persistent bare Git cache under HOME; isolated worktree per run.\n'
   printf 'Use --inventory-secondary for fresh public metadata on secondary 22916048 (never writes the card).\n'
   printf 'Use --pinned-sha SHA after a verified git ls-remote bootstrap to avoid duplicate Git network calls.\n'
@@ -31,6 +34,13 @@ while (($#)); do
       (($# >= 2)) || { usage >&2; exit 2; }
       repo="$2"; shift 2 ;;
     --inventory-secondary) inventory_secondary=true; shift ;;
+    --otp2-secondary) recovery_otp2=true; shift ;;
+    --escrow-a)
+      (($# >= 2)) || { usage >&2; exit 2; }
+      escrow_a="$2"; shift 2 ;;
+    --escrow-b)
+      (($# >= 2)) || { usage >&2; exit 2; }
+      escrow_b="$2"; shift 2 ;;
     --pinned-sha)
       (($# >= 2)) || { usage >&2; exit 2; }
       pinned_sha="$2"; shift 2 ;;
@@ -41,6 +51,12 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
+if [[ -n "$escrow_a" || -n "$escrow_b" ]]; then
+  [[ -n "$escrow_a" && -n "$escrow_b" ]] || {
+    printf 'NO-GO: escrow requires BOTH existing backup paths\n' >&2
+    exit 2
+  }
+fi
 # Test harness may substitute a local bare repo, never on a production invocation.
 if [[ "${NABLA_YUBIKEY_TEST_MODE:-0}" == 1 && -n "${NABLA_YUBIKEY_TEST_REMOTE:-}" ]]; then
   remote="${NABLA_YUBIKEY_TEST_REMOTE}"
@@ -180,6 +196,17 @@ fi
 "$python_bin" "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" \
   --f9 "$f9" --root "$root" --json ||
   die 'Public F9 readiness report failed closed'
+if [[ "$recovery_otp2" == true || -n "$escrow_a" ]]; then
+  recovery_script="$worktree/scripts/workstation/inspect-yubikey-recovery-readonly.py"
+  [[ -f "$recovery_script" ]] || die 'Read-only recovery inspector missing at pinned SHA'
+  recovery_args=()
+  if [[ "$recovery_otp2" == true ]]; then recovery_args+=(--otp2-secondary); fi
+  if [[ -n "$escrow_a" ]]; then
+    recovery_args+=(--escrow-a "$escrow_a" --escrow-b "$escrow_b")
+  fi
+  "$python_bin" "$recovery_script" "${recovery_args[@]}" ||
+    die 'Public OTP2/escrow recovery evidence incomplete; NO-GO remains'
+fi
 if [[ "${inventory_secondary}" == true ]]; then
   [[ -f "${worktree}/scripts/workstation/inspect-age-yubikey-piv82-secondary.py" ]] ||
     die 'Read-only PIV82 inventory script missing at pinned SHA'
