@@ -292,3 +292,47 @@ génération de clé, modification AES256 ou migration SOPS.
 La prochaine preuve demandée est la validation de la gate complète
 sur la workstation au SHA de cette PR, pas une répétition d'actions
 matérielles déjà prouvées.
+
+
+## 10. Revalidation workstation — 106 tests hors matériel au SHA 56dc5230b4fd
+
+Journal réel de l'opérateur, le 24 octobre 2026 :
+
+- Worktree Git isolé sous HOME, sans prérequis sur le checkout /tmp après reboot ;
+- SHA exact exécuté : **56dc5230b4fd**, branche de PR #274 ;
+- **106/106 tests unittest PASS** en **28,009 secondes** ;
+- Certificat F9 public : **PASS** avec empreinte observée et racine Yubico ancienne épinglée ;
+- Fixture cryptographique synthétique PIV82 + **12 cas négatifs** : PASS ;
+- Suite synthétique F9 : **13/13 PASS** ;
+- Rapport public de préparation : `f9_trust=PASS`,
+  `piv82=NOT_VERIFIED`,
+  `age_decrypt=NOT_VERIFIED`,
+  `hardware_mutation_authorized=false` ;
+- Aucune nouvelle lecture PIV82 durant ce lancement, aucune demande de PIN,
+  aucune écriture ou modification SOPS.
+
+La preuve antérieure **PIV82 EMPTY_CONFIRMED** reste documentée en section 8.
+Le rapport JSON du lancement hors matériel continue à dire
+`piv82=NOT_VERIFIED` : c'est correct car le lanceur n'a pas
+réexécuté l'inventaire matériel avec l'option dédiée. Ne pas confondre
+ce champ avec la preuve historique d'inventaire.
+
+Le SHA actuel de la PR peut avancer indépendamment des agents ; ce
+PASS est **spécifique au commit testé**, pas à un HEAD ultérieur.
+
+### Contrôles de récupération encore requis
+
+1. Inventorier la présence et les supports des **deux copies
+   indépendantes** d'escrow sans afficher, copier ou ouvrir une clé privée.
+2. Confirmer l'état **OTP2** sur la secondaire par une preuve adaptée et
+   non secrète, sans challenge ni écriture : l'audit général ne prouve
+   pas sa configuration et ne doit plus afficher `✅ Confirmé`
+   sur la seule base de l'historique.
+3. Ne pas exécuter les scripts de déchiffrement ou d'authentification
+   AES256 avant une décision opérateur séparée sur le périmètre, la
+   conservation des secrets et les tentatives PIN restantes.
+4. Ne pas générer ou occuper PIV82, ne pas toucher PIV9A/OTP2,
+   ne pas changer de clé de gestion ni de destinataires SOPS.
+
+**Statut : NO-GO matériel et SOPS.** La validation de l'inventaire
+ne vaut pas preuve de récupération ou de déchiffrement réel.
