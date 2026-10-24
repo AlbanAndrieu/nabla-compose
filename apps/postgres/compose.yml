@@ -33,7 +33,10 @@ services:
     # Scoped runtime secret materialized from Vaultwarden by the operator.
     # Do not inherit all application DB secrets or interpolate a missing DSN.
     env_file:
-      - /mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets
+      # Requires Docker Compose >=2.30.0; preserves dollar signs in passwords.
+      - path: /mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets
+        required: true
+        format: raw
     ports:
       - name: metrics
         target: 9187
