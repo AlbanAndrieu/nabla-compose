@@ -36,7 +36,8 @@ if [ -r /etc/crontab ]; then
     {
       task = ""
       for (i=7; i<=NF; i++) {
-        if ($i ~ /snort_check_for_rule_updates|snort_check_cron_misc/) task="snort"
+        if ($i ~ /snort_check_for_rule_updates/) task="snort_rules_update"
+        else if ($i ~ /snort_check_cron_misc/) task="snort_housekeeping"
         if ($i ~ /pfblockerng.php/) task="pfblockerng"
         if ($i ~ /servicewatchdog_cron/) task="servicewatchdog"
         if ($i ~ /crowdsec/) task="crowdsec"
@@ -45,6 +46,15 @@ if [ -r /etc/crontab ]; then
     }
   ' /etc/crontab | head -20
 fi
+echo '=== Snort updater evidence: log file timestamps only, no rule contents ==='
+# Snort rules updates may cause a resource-intensive rebuild. File timestamps
+# indicate possible activity but are NOT proof of Snort causing an OOM.
+for f in /var/log/snort/snort_updates.log /var/log/snort/snort_updates.log.0 \
+         /var/log/snort/snort_rules_update.log; do
+  [ -f "$f" ] || continue
+  stat -f 'snort_log_file=%N modified=%Sm size_bytes=%z' \
+    -t '%Y-%m-%dT%H:%M:%S%z' "$f" 2>/dev/null || true
+done
 echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='
 ps axo pid,rss,pcpu,command |
   awk '
