@@ -42,6 +42,17 @@ class AkvoradoMetadataConfigTest(unittest.TestCase):
             self.assertNotIn("private.yaml", result.stdout)
             self.assertNotIn("secret", result.stdout)
 
+    def test_invalid_exporter_map_is_inconclusive_not_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "bad.yaml"
+            file.write_text(yaml.safe_dump({"outlet": {"metadata": {
+                "providers": [{"type": "static", "exporters": "not-a-map"}]
+            }}}))
+            self.assertEqual(
+                module.mapping_status(file, ipaddress.IPv4Address("172.17.0.1"), 11),
+                "EXPORTER_NOT_MAPPED",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
