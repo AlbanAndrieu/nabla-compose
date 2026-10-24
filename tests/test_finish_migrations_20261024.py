@@ -12,6 +12,7 @@ import subprocess
 import pytest
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts/truenas/finish-migrations-20261024.sh"
+SECTIONS = SOURCE.with_name("migration-diagnostic-sections.sh")
 HASH = "a" * 64
 ACK_RESTART = "I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION = "I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
@@ -24,6 +25,7 @@ def fake_operator(tmp_path):
     truenas.mkdir(parents=True)
     target = truenas / SOURCE.name
     shutil.copyfile(SOURCE, target)
+    shutil.copyfile(SECTIONS, truenas / SECTIONS.name)
     # Fake the terminal interface used by the production runner. No TrueNAS.
     lib = root / "scripts/lib/diagnostic-ui.sh"
     lib.parent.mkdir(parents=True, exist_ok=True)
@@ -115,6 +117,40 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     assert not marker.exists()
 
 
+def test_readonly_registry_is_required_and_rejects_symlinks(fake_operator):
+    target, _, report, marker = fake_operator
+    registry = target.with_name("migration-diagnostic-sections.sh")
+    original = registry.read_bytes()
+    registry.unlink()
+    missing = invoke(fake_operator, "--check", "--section", "critical")
+    assert missing.returncode == 2
+    assert "read-only diagnostic registry missing or symlinked" in missing.stderr
+    assert not marker.exists()
+    assert not report.exists()
+    registry.symlink_to(target.with_name("diagnose-gatus.sh"))
+    linked = invoke(fake_operator, "--check", "--section", "critical")
+    assert linked.returncode == 2
+    assert "read-only diagnostic registry missing or symlinked" in linked.stderr
+    assert not marker.exists()
+    registry.unlink()
+    registry.write_bytes(original)
+
+
+def test_readonly_registry_parses_and_preserves_guarded_apply_surface():
+    caller = SOURCE.read_text(encoding="utf-8")
+    module = SECTIONS.read_text(encoding="utf-8")
+    assert subprocess.run(["bash", "-n", str(SECTIONS)], check=False).returncode == 0
+    assert 'source "${READONLY_REGISTRY}"' in caller
+    assert caller.index("Apply denied: only the canonical") < caller.index(
+        'source "${READONLY_REGISTRY}"'
+    )
+    assert '    critical)' in module
+    assert 'for service in prometheus openrag sentry akvorado defectdojo; do' in module
+    assert "check_section()" not in caller
+    for forbidden in ("--apply", "docker restart", "midclt call app.", "zfs destroy"):
+        assert forbidden not in module
+
+
 def test_next_commands_print_only_runbook_location_without_runtime_access(fake_operator):
     _, _, report, marker = fake_operator
     result = invoke(fake_operator, "--next-commands")
@@ -142,7 +178,7 @@ def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
 
 
 def test_new_read_only_sections_are_documented():
-    script = SOURCE.read_text(encoding="utf-8")
+    script = SECTIONS.read_text(encoding="utf-8")
     for section in (
         "observability", "prometheus", "openrag", "akvorado",
         "secrets", "convergence", "lan",
@@ -161,7 +197,7 @@ def test_critical_read_only_section_combines_five_independent_gates(
 ):
     """Missing synthetic check tools are reported without aborting the others."""
     target, _, report, marker = fake_operator
-    source = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="utf-8") + SECTIONS.read_text(encoding="utf-8")
     assert 'all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo' in source
     assert 'for service in prometheus openrag sentry akvorado defectdojo; do' in source
     assert 'run_check sentry-consumers bash scripts/truenas/diagnose-sentry-consumers.sh --check' in source
@@ -323,7 +359,7 @@ def test_apply_forbidden_on_unreviewed_feature_branch(fake_operator):
 
 
 def test_local_gate_mode_and_sentry_section_contract():
-    source = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="utf-8") + SECTIONS.read_text(encoding="utf-8")
     assert '--local-gates) ACTION="local-gates"' in source
     assert '(( EUID != 0 ))' in source
     assert ("run_check sentry-consumers bash "
