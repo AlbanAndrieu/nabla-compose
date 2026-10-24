@@ -148,6 +148,20 @@ just openclaw-truenas-model-keys-tunnel
 
 Cette commande ne fait que deux GET de métadonnées : `/v1/models` et `/key/list`. Elle ne sort ni les clés ni leurs hashes, ni les modèles hors allowlist, et ne crée aucun token. Sans tunnel ou authentification elle s'arrête sans hypothèse de vacuité.
 
+### Persistance des clés sur TrueNAS
+
+Le compose TrueNAS `apps/litellm/compose.yml` monte
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` comme
+`env_file`, avec `DATABASE_URL` seulement **commentée** dans
+la section `environment`. La vraie connexion PostgreSQL peut
+venir du fichier de secrets privé : **son état runtime n'est pas
+établi à partir de Git**. Avant de générer une seule clé, vérifier
+dans le conteneur TrueNAS **la présence de DATABASE_URL, sans
+imprimer sa valeur**, et le succès de la connexion PostgreSQL.
+Une UI sans clés n'est pas une preuve de l'absence de base ou
+de l'impossibilité de les persister. Une mauvaise persistance
+produirait une migration non durable au prochain redéploiement.
+
 ### Plan de migration réelle — phases indépendantes
 
 1. Confirmer l'hôte réel de `litellm-main`/`litellm-cron` et les alias `gpt-4.1`, `gpt-4.1-mini` exposés **dans le runtime TrueNAS** ; si absents, rétablir d'abord les routes de modèles par configuration déclarative et secrets upstream distincts, sans réutiliser la clé master.
