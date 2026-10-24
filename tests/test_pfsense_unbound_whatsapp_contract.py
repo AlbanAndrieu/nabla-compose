@@ -73,6 +73,42 @@ class UnboundWifiContract(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
 
+    def test_snort_cron_classifies_update_and_housekeeping_separately(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        cron = script.split(
+            "echo '=== Jobs scheduled near repeated 02:10 OOM (schedule + type only) ==='",
+            1,
+        )[1].split("echo '=== Snort updater evidence:", 1)[0]
+        match = re.search(r"awk '(.*?)' /etc/crontab", cron, re.DOTALL)
+        self.assertIsNotNone(match)
+        sample = (
+            "9 2,14 * * * root /usr/local/bin/php -f "
+            "/usr/local/pkg/snort/snort_check_for_rule_updates.inc\\n"
+            "*/5 * * * * root /usr/bin/nice -n20 "
+            "/usr/local/pkg/snort/snort_check_cron_misc.inc\\n"
+        )
+        result = subprocess.run(
+            ["awk", match.group(1)], input=sample, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cron_minute=9 cron_hour=2,14", result.stdout)
+        self.assertIn("task=snort_rules_update", result.stdout)
+        self.assertIn("task=snort_housekeeping", result.stdout)
+        self.assertNotIn("/usr/local/pkg/snort/", result.stdout)
+
+    def test_snort_logs_expose_metadata_not_rule_downloads(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        evidence = script.split(
+            "echo '=== Snort updater evidence:", 1
+        )[1].split(
+            "echo '=== CrowdSec engine vs firewall bouncer", 1
+        )[0]
+        self.assertIn("stat -f", evidence)
+        self.assertIn("modified=%Sm size_bytes=%z", evidence)
+        self.assertNotIn("cat \"$f\"", evidence)
+        self.assertNotIn("grep -i snort", evidence)
+
     def test_scheduled_oom_correlations_are_redacted(self):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("cron_minute=", script)
