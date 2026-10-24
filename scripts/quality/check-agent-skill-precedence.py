@@ -95,6 +95,11 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
             "catalogRevision",
         ),
     ),
+    # Keep all supported agent entry files routed through the same policy.
+    "CLAUDE.md": (None, ("AGENTS.md",)),
+    ".claude/CLAUDE.md": (None, ("AGENTS.md",)),
+    ".github/copilot-instructions.md": (None, ("AGENTS.md",)),
+    "agent.md": (None, ("AGENTS.md",)),
     "justfile": (
         None,
         ("agent-skills-check:", "check-agent-skill-precedence.py"),
