@@ -17,6 +17,60 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ServiceTopologyGeneratorTest(unittest.TestCase):
+    def test_generator_drift_summary_redacts_payload_values(self) -> None:
+        import json
+
+        old = {
+            "nodes": [{"id": "prometheus", "description": "old PRIVATE-SECRET",
+                       "internalUrl": "http://172.17.0.24"}],
+            "relations": [],
+        }
+        new = {
+            "nodes": [{"id": "prometheus", "description": "new PRIVATE-SECRET",
+                       "internalUrl": "http://172.17.0.57"},
+                      {"id": "openrag", "description": "PRIVATE-SECRET"}],
+            "relations": [],
+        }
+        lines = MODULE._drift_categories(json.dumps(old), json.dumps(new))
+        output = " ".join(lines)
+        self.assertIn("nodes: recorded=1 expected=2", output)
+        self.assertIn("nodes.added_ids=openrag", output)
+        self.assertIn("nodes.changed_ids=prometheus", output)
+        self.assertNotIn("PRIVATE-SECRET", output)
+        self.assertNotIn("172.17.", output)
+
+    def test_generator_drift_summary_reports_invalid_json_without_contents(self) -> None:
+        output = " ".join(MODULE._drift_categories(
+            "NOT-JSON SECRET-PRIVATE", '{"nodes":[]}'
+        ))
+        self.assertIn("not valid JSON", output)
+        self.assertNotIn("SECRET-PRIVATE", output)
+
+    def test_check_output_is_strict_and_reports_entity_ids(self) -> None:
+        import io
+        import json
+        from contextlib import redirect_stderr
+
+        with tempfile.TemporaryDirectory() as temp:
+            output_path = Path(temp) / "service-topology.json"
+            output_path.write_text(json.dumps({
+                "nodes": [{"id": "service-one", "name": "Before"}],
+                "relations": [],
+            }), encoding="utf-8")
+            expected = json.dumps({
+                "nodes": [{"id": "service-one", "name": "After"}],
+                "relations": [],
+            })
+            with patch.object(MODULE, "ROOT", Path(temp)):
+                stream = io.StringIO()
+                with redirect_stderr(stream):
+                    self.assertFalse(MODULE.check_output(output_path, expected))
+            self.assertIn("nodes.changed_ids=service-one", stream.getvalue())
+            self.assertEqual(output_path.read_text(encoding="utf-8"),
+                             json.dumps({"nodes": [
+                                 {"id": "service-one", "name": "Before"}
+                             ], "relations": []}))
+
     def test_gatus_config_permission_contract(self) -> None:
         # Generated Gatus config is not world-readable and the container
         # belongs to its owning TrueNAS apps group without DAC_OVERRIDE.
