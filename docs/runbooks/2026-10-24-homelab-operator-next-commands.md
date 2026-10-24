@@ -100,6 +100,67 @@ canonique resté sur un `master` plus ancien, utiliser les scripts `--check`
 individuels déjà présents ; ne pas recopier la PR Draft dans un bind en cours
 d'exécution pour obtenir cette commande.
 
+## Relevé opérateur du 24 octobre, 23 h 09 — triage stabilisé
+
+Ce bloc remplace les hypothèses plus anciennes de crash Prometheus ou
+d'OpenRAG `DEPLOYING`. Il s'agit de **six gates individuelles,
+dont cinq bloquantes**, et non de cinq applications cassées.
+
+| Gate | Preuve | Action suivante |
+| --- | --- | --- |
+| Prometheus | conteneur `running`, SHA du YAML monté égal à l'hôte ; `promtool` PASS avec 15 règles ; job `prometheus` UP | distinguer serveur sain et **8 scrape targets non UP** |
+| Prometheus rules | 15/15 fichiers lisibles par `568:568` | **ne pas répéter les réparations de modes** |
+| OpenRAG | TrueNAS `STOPPED`, backend/frontend `missing`, Langflow/OpenSearch Docker healthy ; lifecycle = 1 intentional-stopped différé | vérification d'intention + préflight secret avant tout `app.start` |
+| Sentry | TrueNAS `DEPLOYING`, classe `kafka-timeout` ; 2 consumers `running/unhealthy`, restarts=0, logs récents `sample=0` | inspecter les codes numériques des healthchecks, le heartbeat et les préflights Kafka, sans reset d'offsets |
+| Akvorado | inlet 3 190 paquets, Kafka 3 190 messages, outlet 38 190 flux reçus et 38 190 erreurs, batch ClickHouse=0 | comparer la config statique présente dans orchestrator, exporter et ifIndexes, puis **nouvelles** métriques après trafic |
+| Cycle de vie Apps | `sentry=DEPLOYING`, une App intentional-stopped | préserver les reports privés et ne pas traiter tous les STOPPED comme crash |
+
+Les cibles non UP de Prometheus sont :
+`docling`, `fastapi_sample`, `haproxy`, `litellm_hermes`,
+`opensearch`, `opensearch-security`, `pfsense_exporter`
+(`unknown`) et `postgres_exporter`.
+**Un scrape OpenSearch DOWN ne signifie pas que le conteneur OpenSearch
+est arrêté** : son healthcheck Docker est `healthy`.
+
+Le compteur `akvorado_outlet_metadata_provider_errors_total=75860`
+et le compteur SNMP `=1315` sont **cumulatifs**. Les deux scrapes à
+20 secondes ont mesuré `delta_received_flows=0`,
+`delta_metadata_missing=0`, `delta_kafka_messages=0` et
+`delta_clickhouse_batches=0`.
+Cela prouve une chaîne historiquement bloquée par le metadata provider ;
+cela **ne prouve pas** qu'un nouveau flux est encore rejeté maintenant.
+
+Le dépôt déclare seulement un metadata provider statique
+`172.17.0.1/32` avec l'interface `ifIndex=11`.
+L'étape de diagnostic ajoutée à la PR #274 vérifie par hash le fichier
+`/etc/akvorado/akvorado.yaml` dans le conteneur orchestrator,
+puis affiche les erreurs cumulées pour l'exportateur attendu et les
+autres, **sans afficher les adresses du flux**.
+
+```bash
+# Diagnostics exclusivement en lecture seule, depuis un checkout revu
+# de la PR #274 (ou après son intégration sur master).
+sudo bash scripts/truenas/diagnose-akvorado-config.sh --check
+sudo python3 scripts/truenas/diagnose-akvorado-flow.py \
+  --strict --observe-seconds 20 --fail-on-blocked --require-inserts
+sudo bash scripts/truenas/diagnose-sentry-consumers.sh --check
+sudo bash scripts/truenas/recover-sentry-deploying.sh --check
+```
+
+Ne pas interpréter les erreurs SNMP passées comme la preuve que SNMP est
+encore actif. Si la configuration host/conteneur diffère, examiner la
+Custom App stockée dans TrueNAS avant toute nouvelle réconciliation.
+Si les SHA concordent, cela atteste le montage, **pas** la configuration
+déjà chargée en mémoire ni les ifIndexes envoyés aujourd'hui par pfSense.
+
+La documentation upstream Akvorado précise que les flux sans
+métadonnées d'interface sont rejetés et que le provider statique
+doit associer l'adresse exporter et les ifIndexes observés :
+https://github.com/akvorado/akvorado/blob/main/console/data/docs/02-configuration.md
+
+Aucun effacement ClickHouse, TSDB/WAL, flux historiques, offset Kafka,
+corpus OpenRAG ni restart massif n'est autorisé sur cette preuve.
+
 ## Étape P0 — preuves de runtime fournies le 24 octobre
 
 **Prometheus** : App TrueNAS `RUNNING`, conteneur `restarting`,
