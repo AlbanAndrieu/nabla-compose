@@ -68,6 +68,17 @@ class SkillPrecedenceContractTest(unittest.TestCase):
             (root / "docs/agent-skills-architecture.md").unlink()
             self.assertTrue(any("missing or unreadable" in issue for issue in MODULE.audit(root)))
 
+    def test_agent_adapter_must_point_to_agents_md(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            path = root / ".github/copilot-instructions.md"
+            path.write_text("A separate unreviewed policy")
+            issues = MODULE.audit(root)
+            self.assertTrue(any(
+                ".github/copilot-instructions.md" in issue for issue in issues
+            ))
+
     def test_is_read_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
