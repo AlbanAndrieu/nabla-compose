@@ -1,129 +1,74 @@
-```bash
-git submodule add -f https://github.com/AlbanAndrieu/my-temporal-dockercompose.git temporal
-git submodule add -f https://github.com/AlbanAndrieu/pgwatch pgwatch
-# git submodule add -f https://github.com/xitanggg/open-resume.git open-resume
-git submodule add -f https://github.com/AlbanAndrieu/reactive-resume.git reactive
-git submodule add -f https://github.com/AlbanAndrieu/cyberbro
-# https://github.com/getsentry/self-hosted.git
-# git submodule add -f https://github.com/AlbanAndrieu/sentry.git
-git submodule add -f https://github.com/AlbanAndrieu/platform.git plumber-platform
-git submodule add -f https://github.com/AlbanAndrieu/litellm.git
-git submodule add -f https://github.com/AlbanAndrieu/n8n-hosting.git n8n
-git submodule add -f https://github.com/AlbanAndrieu/anything-llm
-git submodule add -f https://github.com/AlbanAndrieu/langfuse
-git submodule add -f https://github.com/AlbanAndrieu/fastapi-sample
+# Nabla Compose — Services Homelab
 
-git pull origin master --allow-unrelated-histories
-git pull && git submodule init && git submodule update && git submodule status
-```
+Infrastructure déclarative pour les applications TrueNAS SCALE, le cluster
+Talos/Kubernetes et les services de sécurité, d'observabilité et d'IA.
 
-```bash
-docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+> Ce dépôt contient des configurations et scripts capables de changer
+> l'état d'une infrastructure privée. **Ne pas exécuter un
+> `docker compose up`, une migration de secret, un reset d'index ou un
+> redémarrage global depuis ce README.** Les opérations mutantes
+> exigent une validation explicite, une sauvegarde et un rollback.
 
-sudo systemctl disable prometheus
-sudo systemctl disable ntopng
+## Démarrage : lecture seule
 
-docker compose --env-file .env --env-file .env.secrets -f  docker-compose.yml up -d
-```
+1. Lire [`AGENTS.md`](AGENTS.md) pour les règles de contribution, les
+   instructions locales et les limites d'accès à TrueNAS.
+2. Consulter la [roadmap active](docs/roadmap.md) pour les priorités et
+   les critères d'acceptation.
+3. Utiliser l'[index des runbooks](docs/runbooks/README.md)
+   pour sélectionner une procédure ciblée.
+4. Se référer au
+   [skill local-first](.agents/skills/local-first-quality/SKILL.md)
+   avant un changement de code.
 
-```bash
-cd temporal
+## Architecture et responsabilités
 
-docker volume create portainer_data
-docker network create temporal-network
-docker network create proxy
-docker compose --env-file .env --env-file .env.secrets -f compose-postgres.yml -f compose-services.yml up --detach
-```
+| Source | Responsabilité |
+| --- | --- |
+| `apps/<service>/compose.yml` et `x-nabla` | Service, dépendances et exposition souhaitées |
+| `catalog/` et `catalog-info.yaml` | Identités Backstage et projections générées |
+| `scripts/truenas/` | Diagnostics et opérations contrôlées sur TrueNAS |
+| `scripts/talos/` | Déploiement et contrôles Talos/Kubernetes |
+| `scripts/pfsense/` | Diagnostics et politique réseau pfSense |
+| `docs/roadmap.md` | Actions non terminées, priorités, gates runtime |
+| `docs/runbooks/` | Procédures ciblées et preuves opérateur |
 
-```bash
-cd pgwatch/docker
-docker compose -f compose.postgres.yml up --build  --force-recreate
+Données : les datasets `/mnt/cpool/` et les secrets
+`/mnt/cpool/secrets/runtime/` ne sont pas recréés ni modifiés
+implicitement par les contrôles read-only. Le catalogue déclaratif ne
+représente pas un relevé de l'état réel des services.
 
-cd pgwatch
-docker compose -f ./docker/docker-compose.yml up
+La collecte runtime relève de `fastapi-sample` ;
+la présentation des services relève de `nabla-site-alban`.
+Ne pas copier leurs responsabilités dans ce dépôt.
 
-# as root
-docker compose -f ./docker-compose.yml up -d
-```
+## Contribution et qualité
 
-portainer : http://localhost:9001/#!/init/admin
-grafana : http://localhost:30037/
-
-```bash
-cd openvas
-
-docker compose --env-file .env --env-file .env.secrets -f docker-compose-openvas.yml up -d
-```
+Sur une branche de travail **non protégée**, utiliser un worktree isolé
+et une `.venv` verrouillée par worktree. Le cache `uv` peut être partagé.
+Ne pas charger automatiquement `.envrc` ni installer de dépendances
+dans le Python de TrueNAS.
 
 ```bash
-cd open-resume
-
-docker build -t open-resume .
-docker run -p 3006:3000 open-resume
+just agent-skills-check
 ```
+
+Puis, dans la même révision après les tests ciblés :
 
 ```bash
-cd reactive
-
-ln -s /home/albandrieu/.reactive/.env .env
-
-# Start all services
-# docker compose up -d
-
-sudo systemctl restart reactive.service
-sudo journalctl -xeu  reactive
-
-# Access the app
-open http://localhost:3007
+just quality
 ```
 
-```bash
-cd litellm
+Ces commandes s'exécutent **séparément** sur un worktree de développement,
+et non dans le checkout canonique TrueNAS. Préférer une PR Draft,
+des commits `[skip ci]` et les gates locales avant toute CI distante.
+La gate complète doit être exécutée sur le **HEAD exact** publié.
 
-ln -s /home/albandrieu/.litellm/litellm_config.yaml config.yaml
+## Historique
 
-sudo systemctl restart litellm.service
-sudo journalctl -xeu  litellm
-
-docker logs litellm-litellm-1
-```
-
-```bash
-cd n8n/docker-compose/withPostgresAndWorker/
-
-# https://docs.n8n.io/hosting/installation/server-setups/docker-compose/#5-create-local-files-directory
-docker compose up -d
-```
-
-```bash
-cd cyberbro
-cp secrets-sample.json secrets.json
-
-docker compose up
-```
-
-# See https://develop.sentry.dev/self-hosted/
-
-```bash
-VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/getsentry/self-hosted/releases/latest)
-VERSION=${VERSION##*/}
-cd sentry
-
-git checkout ${VERSION}
-
-docker buildx rm local-builder || true
-docker network rm build || true
-docker network create --subnet $V4_PREFIX.0/24 --gateway $V4_PREFIX.1 --ip-range $V4_PREFIX.128/25 build
-docker buildx create --name local-builder --driver docker-container --driver-opt network=build --use
-
-./install.sh
-# After installation, run the following to start Sentry:
-docker compose up --wait
-```
-
-# See https://getplumber.io/docs/installation/docker-compose-local
-
-```bash
-cd plumber-platform
-docker compose -f compose.local.yml up -d
-```
+L'ancien README comportait des commandes manuelles de création de
+sous-modules, `docker compose up`, arrêt de services systemd et
+installation Sentry qui ne sont **pas** adaptées à une reprise sécurisée
+de cette infrastructure. Son contenu est conservé **à l'identique**
+dans l'[archive historique](docs/archive/README-legacy-compose-notes.md)
+pour traçabilité et n'est pas un runbook actif.
