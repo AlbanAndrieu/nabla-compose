@@ -681,7 +681,7 @@ for row in rows:
 print(json.dumps({"schema": "nabla.pfsense.posture.v1", "counts": counts, "checks": rows}, indent=2, sort_keys=True))
 PY
 else
-  if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb && "${PFSENSE_COLOR:-auto}" != never ]]; then
     color_pass=$'\033[32m'
     color_warn=$'\033[33m'
     color_fail=$'\033[31m'
@@ -713,6 +713,11 @@ fi
 
 failures="$(awk -F '\t' '$1 == "FAIL" {count++} END {print count + 0}' "${tmp}")"
 warnings="$(awk -F '\t' '$1 == "WARN" {count++} END {print count + 0}' "${tmp}")"
+
+if [[ "${output_format}" == text && -t 1 ]]; then
+  passed="$(awk -F '\t' '$1 == "PASS" {count++} END {print count + 0}' "${tmp}")"
+  printf '\n📊 pfSense posture · ✅ %s PASS · ⚠️ %s WARN · ❌ %s FAIL\n' "${passed}" "${warnings}" "${failures}"
+fi
 
 if ((failures > 0)); then
   exit 1

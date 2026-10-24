@@ -21,7 +21,7 @@ IDENTITY_TARGET="all"
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
 COLOR_ENABLED=false
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
+if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" && "${PFSENSE_COLOR:-auto}" != "never" ]]; then
   COLOR_ENABLED=true
 fi
 
