@@ -334,3 +334,68 @@ Conserver les modifications locales de pré-commit via `git stash`
 avant de changer de branche dans FastAPI, sans réappliquer
 automatiquement les anciens fichiers formatés après le merge.
 
+## 8. Exporter PostgreSQL : contrat de secret dédié
+
+Constat TrueNAS : `scripts/truenas/diagnose-postgres-exporter.sh` indique
+**secret absent** et **conteneur non déployé**. La base PostgreSQL ne doit
+pas être redémarrée pour corriger cet exporter optionnel.
+
+### Contrat déclaratif préparé (non déployé)
+
+`apps/postgres/compose.yml` n'interpole plus
+`POSTGRES_EXPORTER_DSN` depuis le shell de rendu Compose. Une variable
+définie dans `env_file` ne fournit pas par elle-même les interpolations
+`${...}` du YAML ; cela pouvait lancer un conteneur sans DSN.
+Le conteneur lit exclusivement :
+
+```text
+/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets
+```
+
+Le fichier doit contenir une clé `DATA_SOURCE_NAME` avec un DSN
+PostgreSQL valide, propre à un utilisateur d'observabilité dédié
+(au minimum `CONNECT` au bon catalogue et `pg_monitor`).
+La valeur du DSN et le mot de passe ne doivent apparaître ni dans
+Git, ni dans un rapport d'agent, ni dans les logs. Préférer le transport
+TLS avec validation du certificat si disponible.
+
+Le rôle de l'utilisateur `postgres_exporter` doit rester sans
+`SUPERUSER`, `CREATEDB`, `CREATEROLE` et `BYPASSRLS`.
+
+Utiliser le flux existant Vaultwarden → fichier `0600` :
+
+```bash
+# Le fichier source doit déjà être matérialisé localement avec mode 0600.
+sudo bash scripts/truenas/install-runtime-secret.sh \
+  --install postgres-exporter /CHEMIN/LOCAL/PRIVE/DU/RENDU
+sudo bash scripts/truenas/install-runtime-secret.sh \
+  --verify postgres-exporter /CHEMIN/LOCAL/PRIVE/DU/RENDU
+```
+
+Les chemins `/CHEMIN/...` sont des **emplacements locaux à renseigner**,
+pas des fichiers créés par cette PR. Ne pas transmettre leur contenu.
+
+Ensuite, vérifier depuis TrueNAS :
+
+```bash
+sudo bash scripts/truenas/diagnose-postgres-exporter.sh
+```
+
+Le contrôle vérifie l'existence de `DATA_SOURCE_NAME` sans en afficher
+la valeur, le propriétaire/mode `root:root 0600`, l'état du conteneur
+et `http://172.17.0.24:9187/metrics`. Un fichier présent ne prouve
+pas qu'un serveur PostgreSQL accepte le login.
+
+Le port publié par Compose est limité à `172.17.0.24:9187`.
+Aucun nouveau port WAN, tunnel Cloudflare ou endpoint ouvert n'est
+nécessaire. L'App/exporter ne doit être créée/activée qu'après
+provisionnement du secret, audit des autorisations de rôle, contrôle
+de la version de l'image et vérification des conflits de ports.
+L'absence du fichier doit empêcher le déploiement, pas entraîner un
+redémarrage en boucle.
+
+Après un déploiement approuvé, vérifier dans Prometheus :
+`up{job="postgres_exporter"} == 1` **ET** `pg_up == 1`.
+Un scrape UP sans `pg_up` ne prouve pas que l'exporter se connecte à
+PostgreSQL. Les deux états doivent apparaître distinctement dans FastAPI.
+
