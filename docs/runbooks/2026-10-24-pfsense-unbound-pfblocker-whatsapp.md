@@ -22,6 +22,47 @@ engine non redémarré sans justification, aucune opération de collecte
 lourde sur Netgate. Conserver pfSense/Unbound comme DNS principal Talos ;
 Pi-hole est une dépendance optionnelle.
 
+## Preuves réelles du 24 octobre — diagnostic opérateur à 19:31 CEST
+
+Le noyau a tué `php` à **02:10:47**, `netstat` à **02:10:49**,
+`unbound` à **02:10:50** et `php_pfb` à **02:10:51** :
+`failed to reclaim memory`. La récurrence autour de 02:10
+est documentée les 17, 21, 22, 23 et 24 octobre. La dernière mise à jour
+pfBlockerNG était terminée vers **00:09** : elle ne coïncide pas directement
+avec l'OOM de 02:10. Corréler d'abord les tâches cron (Snort, pfBlockerNG,
+autres scripts) à **02:10**, avant d'accuser le reload DNSBL de minuit.
+
+Le moteur **CrowdSec est de nouveau actif** (RSS environ 79 676 KiB), en
+contradiction avec la politique de stabilisation du 08/10. Le bouncer est
+distinct. Examiner qui a redémarré le moteur et si ses événements
+`pf-scan-multi_ports` présentent encore une boucle CPU ; arrêter
+le moteur uniquement après revue et autorisation, sans arrêter le bouncer
+par association automatique.
+
+État lors du diagnostic : Unbound **1.26.1**, RSS ~129 Mio,
+fonctionne depuis 09:36 ; l'appliance dispose d'environ 234 Mio libres +
+inactifs dans l'échantillon. Ces mesures ne démontrent pas une marge
+suffisante lors des jobs nocturnes. L'historique inclut aussi des
+`bind: address already in use` le 22 octobre, qui peuvent signaler
+des redémarrages concurrents.
+
+**pflow :** `pflowctl` a confirmé `version 5 domain 1 src
+172.17.0.1 dst 172.17.0.24:2055`. L'audit exigeait à tort v10 et
+un deuxième exporteur Cloudflare. Il accepte à présent la configuration
+v5 unique pendant la stabilisation. Cela ne prouve pas de lignes Akvorado.
+
+**Akvorado :** relevé 30 s : `delta_received_flows=6`,
+`delta_metadata_missing=6`, `delta_clickhouse_batches=0` ;
+le pipeline est `BLOCKED_METADATA_MISSING`.
+Corriger les métadonnées de l'exporteur dans la configuration Akvorado
+effective après stabilisation pfSense, puis vérifier les insertions SQL.
+
+**WhatsApp :** lenteur sur Wi-Fi rapportée, mais **aucune preuve de
+DNSBL WhatsApp bloqué** à ce stade. Utiliser
+`scripts/workstation/diagnose-whatsapp-web-path.sh --check` sur
+la workstation affectée ; comparer avec un second réseau. Ce script
+n'extrait ni cookies, ni contenu WhatsApp, ni HAR authentifié.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :
