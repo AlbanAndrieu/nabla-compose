@@ -11,7 +11,15 @@ fail_gate() {
   printf 'BLOCKED: %s\n' "$1"
   blocked=$((blocked + 1))
 }
-for tool in midclt timeout jq zfs stat grep curl readlink; do
+# TrueNAS middleware CLI is only installed on the appliance. Do not
+# assume that a workstation with this Git checkout is a TrueNAS runtime.
+if ! command -v midclt >/dev/null 2>&1; then
+  printf 'host_context=NOT_TRUENAS_OR_MIDCLT_NOT_IN_PATH\n' >&2
+  printf 'OPENRAG_STARTUP_PREFLIGHT=NOT_RUN\n' >&2
+  printf 'NEXT: run from a TrueNAS shell with midclt; do not install appliance tools on the workstation\n' >&2
+  exit 2
+fi
+for tool in timeout jq zfs stat grep curl readlink; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "BLOCKED: missing diagnostic binary: $tool" >&2
     exit 2
