@@ -148,9 +148,9 @@ esac
 
     def test_nested_shell_uses_literal_script_and_targeted_shellcheck_exception(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("# shellcheck disable=SC2016\\n      if sources=", source)
-        self.assertIn("exec \"\u0024{PIHOLE_CONTAINER}\" sh -c '", source)
-        self.assertIn("' _ \"\u0024{PUBLIC_HOST}\"", source)
+        self.assertIn("# shellcheck disable=SC2016\n      if sources=", source)
+        self.assertIn("exec \"${PIHOLE_CONTAINER}\" sh -c '", source)
+        self.assertIn("' _ \"${PUBLIC_HOST}\"", source)
 
     def test_script_is_read_only_and_hooked_into_main_diagnostic(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
