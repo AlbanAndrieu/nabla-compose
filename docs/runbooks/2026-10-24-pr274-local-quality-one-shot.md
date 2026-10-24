@@ -60,12 +60,16 @@ NABLA_PR274_EXPECTED_SHA="$sha" bash "$launcher"
 PR274_QUALITY
 ~~~
 
-Si le réseau ou le SHA a changé pendant l'opération, le bootstrap ou le
-lanceur échoue sans mutation du checkout original.
+Si un autre agent ajoute un commit pendant le bootstrap, le lanceur
+conserve le **SHA initial épinglé**. Il accepte uniquement une avancée
+fast-forward vérifiée par `git merge-base --is-ancestor` et n'utilise
+jamais le commit plus récent dans cette exécution. Un force-push, une
+branche divergente ou un objet SHA initial indisponible déclenche `BLOCKED`.
+En cas de coupure réseau, la copie opérateur reste inchangée.
 
 ## Actions du lanceur
 
-1. Lit le SHA distant et valide `master` comme base exacte.
+1. Vérifie le SHA du bootstrap et n'accepte que les fast-forwards ultérieurs ; valide `master` comme base exacte.
 2. Réutilise le cache Git bare sans télécharger les objets déjà présents.
 3. Crée un worktree temporaire privé unique sous un répertoire persistant.
 4. Utilise un Python déjà équipé ou effectue un `uv sync --frozen --group dev`
