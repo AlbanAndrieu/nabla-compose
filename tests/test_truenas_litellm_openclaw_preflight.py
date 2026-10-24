@@ -58,7 +58,8 @@ class TrueNASInventoryTests(unittest.TestCase):
             if path == "/key/list":
                 return 200, {"keys": []}
             raise AssertionError("wrong endpoint")
-        with patch.object(module, "fetch_local", side_effect=returned):
+        with patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "fetch_local", side_effect=returned):
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 status = module.inspect(True, config=self.config,
                                         credentials="sk-NONREAL_ADMIN_ONLY")
@@ -69,12 +70,25 @@ class TrueNASInventoryTests(unittest.TestCase):
         self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
 
     def test_tunnel_failure_does_not_assume_empty_key_list(self):
-        with patch.object(module, "fetch_local", return_value=(403, None)):
+        with patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "fetch_local", return_value=(403, None)):
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 status = module.inspect(True, config=self.config,
                                         credentials="sk-NONREAL_ADMIN_ONLY")
         self.assertEqual(status, 2)
         self.assertIn("truenas_virtual_key_count=unverified", output.getvalue())
+
+    def test_tunnel_listener_unavailable_blocks_all_admin_requests(self):
+        with patch.object(module, "loopback_listener", return_value=False), \
+             patch.object(module, "fetch_local") as network:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.inspect(True, config=self.config,
+                                        credentials="sk-NONREAL_ADMIN_ONLY")
+        self.assertEqual(status, 2)
+        network.assert_not_called()
+        self.assertIn("truenas_tunnel_local_listener=unavailable", output.getvalue())
+        self.assertIn("truenas_ssh_encryption=operator_attestation_required",
+                      output.getvalue())
 
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
