@@ -126,6 +126,33 @@ Equivalent processed-list inventory:
 /bin/sh -c 'for f in /var/db/pfblockerng/dnsbl/*; do [ -f "$f" ] || continue; lines=$(wc -l < "$f"); bytes=$(stat -f %z "$f"); printf "%10d lines %10d bytes  %s\n" "$lines" "$bytes" "$(basename "$f")"; done'
 ```
 
+## Sorties des scripts pfSense depuis la workstation
+
+Pour chaque nouveau diagnostic Bash pfSense exécuté depuis Ubuntu :
+
+- Charger `scripts/pfsense/console.sh` **uniquement dans le Bash local**
+  après `set -euo pipefail`.
+- Ajouter `pfsense_ui_banner` avant l'appel et envoyer la sortie
+  collectée par `ssh ... <<'REMOTE' | pfsense_ui_render`.
+  Le code distant reste POSIX `/bin/sh`, sans dépendance ni ANSI.
+- Préserver le code de retour grâce à `pipefail`.
+  Ne jamais présenter « PASS » si l'exécution SSH a échoué.
+- En TTY, privilégier les sections courtes et un résumé borné :
+  ✅ succès vérifié, ⚠️ état inconclusif, ❌ erreur observée.
+  Une donnée historique OOM ne doit pas être promue en panne actuelle.
+- En pipe, fichier, JSON/CSV ou CI, conserver **exactement** la sortie
+  machine. Respecter `NO_COLOR`, `TERM=dumb`,
+  `PFSENSE_COLOR=never` et les niveaux
+  `PFSENSE_OUTPUT=raw|compact|verbose`.
+- Ne pas sourcer de fonctions Bash dans les scripts natifs exécutés
+  sur pfSense (`check-central-crowdsec-bouncer.sh`,
+  `manage-api-identities.php`). Conserver les rapports privés
+  et les règles de masquage déjà en place. Le rendu humain n'est
+  pas un mécanisme de suppression de secrets.
+- Avant publication, exécuter localement
+  `just pfsense-console-test` et les contrats spécifiques,
+  sans déclencher d'Actions payantes sur une PR Draft.
+
 ## Netgate 1100 memory and service-safety contract
 
 The current edge appliance is a memory-constrained Netgate 1100 with roughly
