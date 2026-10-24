@@ -151,6 +151,27 @@ class RecoveryContract(unittest.TestCase):
         self.assertIn('whatsapp-web-path-check', entries[1])
         self.assertIn('RESULT=PASS', run.stdout)
 
+    def test_pinned_operator_sha_not_propagated_to_nested_checks(self):
+        # The real bootstrap passes its PR SHA to the runner. This pin must
+        # protect the initial checkout, not contaminate tests nested in just.
+        correct = git('-C', str(self.repo), 'rev-parse', 'HEAD')
+        executable = self.bin / 'just'
+        executable.write_text(
+            '#!/bin/sh\n'
+            'printf "%s\\n" "${NABLA_PR274_EXPECTED_SHA-unset}" >> "$CHECK_LOG"\n'
+        )
+        executable.chmod(0o755)
+        checklog = self.root / 'nested-environment.txt'
+        env = self.env | {
+            'NABLA_PR274_EXPECTED_SHA': correct,
+            'PATH': str(self.bin) + os.pathsep + self.env['PATH'],
+            'CHECK_LOG': str(checklog),
+        }
+        run = self.run_script('--check', env=env)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(checklog.read_text().splitlines(), ['unset', 'unset'])
+        self.assertIn('pr274_head=' + correct, run.stdout)
+
     def test_no_root_or_repo_does_not_delete_data(self):
         env = self.env | {'NABLA_COMPOSE_REPO': str(self.root / 'missing')}
         run = self.run_script('--prepare-only', env=env)
