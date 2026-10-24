@@ -40,9 +40,10 @@ catalog-convergence-check:
     python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
     python3 scripts/quality/check-site-catalog-convergence.py
 
-# Full local quality gate without publishing.
+# Full local quality gate without publishing. Invoke the canonical checker
+# directly to avoid outdated TrueNAS mise auto-lock/download side effects.
 quality:
-    mise run agent-quality
+    bash scripts/agent-quality-gate.sh
 
 # Apply deterministic local fixes and generated artifacts.
 fix:
