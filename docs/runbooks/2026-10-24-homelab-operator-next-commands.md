@@ -1,3 +1,40 @@
+## P0 — Incident pfSense OOM et WhatsApp Wi-Fi (24 octobre 2026)
+
+L'opérateur a confirmé des kills mémoire le 24 octobre à **02:10**
+(`php`, `netstat`, `unbound`, `php_pfb`). La dernière mise à jour
+pfBlockerNG était terminée vers 00:09. Le moteur CrowdSec, à nouveau
+actif (~80 Mio RSS), doit être audité ; la récurrence autour de 02:10
+impose de vérifier les jobs Snort/pfBlockerNG. Ne pas attribuer le problème
+à WhatsApp, ni bloquer/débloquer des domaines sans preuve.
+
+Depuis la **workstation** dont l'alias SSH pfSense est configuré,
+exécuter chaque étape séparément :
+
+```bash
+bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check
+```
+
+```bash
+just pfsense-unbound-wifi-test
+```
+
+```bash
+bash scripts/workstation/diagnose-whatsapp-web-path.sh --check
+```
+
+Le dernier test compare IPv4/IPv6, TLS et HTTP côté workstation, sans
+accès à la session WhatsApp Web. Un code 403/405 ne prouve pas
+un échec de messagerie. Comparer au besoin avec un second réseau.
+
+**pflow :** l'audit accepte désormais l'exportateur natif NetFlow v5
+`172.17.0.1 → 172.17.0.24:2055`, domaine 1. Le deuxième export
+Cloudflare est facultatif en période OOM ; cela ne change pas le
+blocage Akvorado `metadata missing`. La validation SQL reste requise.
+
+Le diagnostic et les tests sont en PR #274 ; ne pas les exécuter
+depuis un checkout qui ne contient pas encore ces fichiers.
+Aucun redémarrage pfSense, CrowdSec, Unbound ou reload DNSBL automatique.
+
 # Homelab — commandes opérateur restantes (2026-10-24)
 
 Ce document appartient à `nabla-compose`. Il complète
