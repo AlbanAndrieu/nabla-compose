@@ -224,7 +224,9 @@ fi
 
 echo
 echo '=== promtool on running container ==='
+prom_config_status=invalid_or_unverified
 if docker exec "${CONTAINER}" promtool check config /etc/prometheus/prometheus.yml; then
+  prom_config_status=passed
   echo '✅ running-container Prometheus config is syntactically valid'
 else
   warn_or_fail 'promtool rejected the config visible inside the running container'
@@ -243,8 +245,8 @@ else
     [(.data.activeTargets // [])[]?.health // "unknown"] as $states
     | "\($states | map(select(. == "up")) | length) \($states | map(select(. != "up")) | length)"
   ' "${TARGETS_JSON}")
-  printf 'prometheus_runtime=running config_validation=passed target_up=%s target_not_up=%s\n' \
-    "$total_up" "$total_not_up"
+  printf 'prometheus_runtime=running config_validation=%s target_up=%s target_not_up=%s\n' \
+    "$prom_config_status" "$total_up" "$total_not_up"
   if ((total_not_up > 0)); then
     printf 'evidence=collector_targets_degraded_not_prometheus_startup\n'
   fi
