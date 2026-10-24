@@ -36,7 +36,10 @@ class SkillPrecedenceContractTest(unittest.TestCase):
             path = root / "AGENTS.md"
             path.write_text(path.read_text().replace("Nabla project skills", ""))
             issues = MODULE.audit(root)
-            self.assertTrue(any("AGENTS.md" in issue and "Nabla project skills" in issue for issue in issues))
+            self.assertTrue(any(
+                "AGENTS.md" in issue and "Nabla project skills" in issue
+                for issue in issues
+            )))
             self.assertEqual(MODULE.main(["--root", str(root)]), 1)
 
     def test_external_skills_installation_approval_cannot_be_removed(self):
@@ -53,7 +56,8 @@ class SkillPrecedenceContractTest(unittest.TestCase):
             fixture(root)
             path = root / "AGENTS.md"
             text = path.read_text()
-            text = text.replace("democratic-csi", "", 1) + "\n## Different section\n\ndemocratic-csi\n"
+            text = (text.replace("democratic-csi", "", 1)
+                    + "\n## Different section\n\ndemocratic-csi\n")
             path.write_text(text)
             self.assertTrue(any("democratic-csi" in issue for issue in MODULE.audit(root)))
 
@@ -68,9 +72,15 @@ class SkillPrecedenceContractTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             fixture(root)
-            before = {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            before = {
+                str(p.relative_to(root)): p.read_bytes()
+                for p in root.rglob("*") if p.is_file()
+            }
             self.assertEqual(MODULE.audit(root), [])
-            after = {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            after = {
+                str(p.relative_to(root)): p.read_bytes()
+                for p in root.rglob("*") if p.is_file()
+            }
             self.assertEqual(before, after)
 
 
