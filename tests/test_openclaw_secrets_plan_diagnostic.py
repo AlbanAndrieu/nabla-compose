@@ -294,6 +294,19 @@ class CronPlanTests(unittest.TestCase):
         self.assertIn("secret_plan_apply_authorized=false", output.getvalue())
         self.assertEqual(list(self.root.glob(".cron-preflight-*")), [])
 
+
+    def test_no_scrub_still_cannot_attest_gateway_or_return_green(self):
+        no_dotenv = native(["/private/agents/cron/agent/openclaw-agent.sqlite"])
+        fake = CompletedProcess([], 0, json.dumps(no_dotenv).encode(), b"")
+        with patch.object(module.subprocess, "run", return_value=fake):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main([], home=self.home)
+        self.assertEqual(status, 2)
+        self.assertIn("secret_plan_gateway_env_attested=false", output.getvalue())
+        self.assertIn("secret_plan_apply_authorized=false", output.getvalue())
+        self.assertIn("secret_plan_status=review_scrub_and_gateway_environment",
+                      output.getvalue())
+
     def test_invalid_plan_never_invokes_native_cli(self):
         broken = plan()
         broken["targets"][0]["agentId"] = "main"
