@@ -63,6 +63,41 @@ DNSBL WhatsApp bloqué** à ce stade. Utiliser
 la workstation affectée ; comparer avec un second réseau. Ce script
 n'extrait ni cookies, ni contenu WhatsApp, ni HAR authentifié.
 
+## Preuves complémentaires du 24 octobre à 20:01
+
+Le diagnostic opérateur montre une tâche cron **Snort à la minute 09
+des heures 02 et 14** (`cron_minute=9 cron_hour=2,14`). Le premier
+processus tué par manque de mémoire le 24/10 apparaît à **02:10:47**.
+Cette proximité temporelle rend la tâche Snort prioritaire pour l'enquête,
+mais ne prouve ni la consommation mémoire de ce processus ni la
+responsabilité de Snort. Vérifier ses journaux et sa commande exacte
+en privé avant toute désactivation ou modification de l'horaire.
+
+La dernière mise à jour pfBlockerNG s'est terminée à 00:09:08, environ
+deux heures avant le nouveau groupe OOM. DNSBL Python fonctionne et
+`pfb_unbound.py` est chargé. Les entrées DNSBL affichées sont 225631
+sur le marqueur `PASSED`. La sortie précédente
+`pfb_py_count=0` ne démontre pas que la base DNSBL est vide.
+
+Le diagnostic CrowdSec comportait une erreur de syntaxe `awk`,
+à présent corrigée dans la branche. Le relevé des processus
+montre néanmoins **CrowdSec engine RSS 81872 KiB**, tandis que
+le bouncer utilise environ 9316 KiB. Ces deux services ne doivent
+pas être confondus.
+
+Le premier script imprimait aussi les caractères littéraux `\\n`
+au lieu de séparateurs de lignes pour les crons et les feeds, et
+imprimait `\\1` pour `python-script:`. Ces problèmes de
+présentation sont corrigés. La liste des feeds enregistrée avant
+correction ne doit pas être considérée comme un classement `top 10`.
+
+**WhatsApp DNS :** `whatsapp.com`, `web.whatsapp.com`,
+`static.whatsapp.net` et `mmg.whatsapp.net` produisent des
+réponses `NOERROR` sur Unbound et sur le résolveur de contrôle.
+Leurs adresses peuvent varier selon le CDN. Cela n'exclut pas
+un blocage d'un autre domaine, un problème IPv6 ou UDP, ni
+la saturation transitoire d'Unbound à 02:10.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :
