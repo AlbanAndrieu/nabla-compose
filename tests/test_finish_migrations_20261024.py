@@ -288,3 +288,61 @@ def test_apply_forbidden_on_unreviewed_feature_branch(fake_operator):
     assert result.returncode == 2
     assert "never a Draft PR/worktree" in result.stderr
     assert not marker.exists()
+
+
+def test_local_gate_mode_and_sentry_section_contract():
+    source = SOURCE.read_text(encoding="utf-8")
+    assert '--local-gates) ACTION="local-gates"' in source
+    assert '(( EUID != 0 ))' in source
+    assert ("run_check sentry-consumers bash "
+            "scripts/truenas/diagnose-sentry-consumers.sh --check") in source
+    assert ("run_check sentry-recovery-preflight bash "
+            "scripts/truenas/recover-sentry-deploying.sh --check") in source
+    assert 'case "${SECTION}" in' in source
+    assert "|sentry|" in source
+    assert "for part in platform migrations catalog services ai sentry" in source
+
+
+def test_local_gates_reject_mixed_mutation_flags(fake_operator):
+    for args in (
+        ("--local-gates", "--apply-step", "sentry-system"),
+        ("--local-gates", "--section", "sentry"),
+        ("--local-gates", "--acknowledge", ACK_MIGRATION),
+    ):
+        assert invoke(fake_operator, *args).returncode != 0
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="local gate requires non-root")
+@pytest.mark.parametrize("failing,expected", [
+    ("", 5),
+    ("catalog-convergence-check", 3),
+])
+def test_local_gates_run_in_order_and_fail_closed(
+    fake_operator, tmp_path, noexec_safe_bash_mocks, failing, expected
+):
+    _, base_env, report, marker = fake_operator
+    fake_just = tmp_path / "bin" / "just"
+    fake_just.write_text(chr(10).join((
+        "#!/usr/bin/env bash",
+        'echo "$1" >> "$MOCK_GATE_LOG"',
+        '[[ "$1" != "$MOCK_GATE_FAIL" ]]',
+        "",
+    )), encoding="utf-8")
+    fake_just.chmod(0o600)
+    log = tmp_path / "gate-calls"
+    env = dict(base_env)
+    env["MOCK_GATE_LOG"] = str(log)
+    env["MOCK_GATE_FAIL"] = failing
+    env = noexec_safe_bash_mocks(env, "just")
+    result = invoke(fake_operator, "--local-gates", env_overrides=env)
+    expected_order = [
+        "migration-20261024-commands",
+        "migration-20261024-test",
+        "catalog-convergence-check",
+        "agent-skills-check",
+        "quality",
+    ]
+    assert log.read_text(encoding="utf-8").splitlines() == expected_order[:expected]
+    assert result.returncode == (1 if failing else 0)
+    assert not marker.exists()
+    assert not report.exists()
