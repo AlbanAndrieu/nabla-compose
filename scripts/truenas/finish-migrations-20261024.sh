@@ -51,7 +51,7 @@ All modes write PRIVATE metadata/diagnostic logs under
 proceeding. --check and --plan-wave never stop/start/redeploy Apps.
 --apply-step runs its matching --check first; if drift makes the check fail,
 review its report and repeat with --allow-reviewed-drift (explicit override).
---next-commands prints the ordered operator runbook without connecting to TrueNAS.
+--next-commands prints only the canonical runbook path; no document dump, no TrueNAS call.
 The legacy OpenRAG/OpenSearch password reconciliation --apply is DISABLED
 in this runner. Use Vaultwarden-backed canonical staging after a separate review.
 No automatic remediation for DefectDojo, Docling, Hermes, OpenRAG ingestion,
@@ -93,7 +93,7 @@ if [[ "${ACTION}" == commands ]]; then
     echo 'Operator runbook unavailable; no commands executed' >&2
     exit 2
   }
-  cat -- "${RUNBOOK}"
+  printf 'RUNBOOK=%s\n' "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
   exit 0
 fi
 
