@@ -40,6 +40,8 @@ class Pr274LocalQualityRunnerContracts(unittest.TestCase):
         self.assertIn("worktree add --detach", body)
         self.assertIn('git --git-dir="$cache" merge-base --is-ancestor', body)
         self.assertIn('QUALITY_BASE_REF="$base_sha"', body)
+        self.assertIn("unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE", body)
+        self.assertIn('UV_PROJECT_ENVIRONMENT="$workspace/.venv"', body)
         self.assertIn('flock -w 20 9', body)
         self.assertIn("git --git-dir=\"$cache\" worktree remove", body)
         self.assertIn("status --porcelain --untracked-files=normal", body)
