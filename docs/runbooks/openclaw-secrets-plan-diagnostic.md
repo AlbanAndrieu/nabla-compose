@@ -11,7 +11,7 @@
   `cron` a produit un plan avec targets=1, providerUpserts=0,
   providerDeletes=0, warnings=0. L'opérateur a répondu **No**.
 - Le dry-run natif annonçait deux fichiers modifiés.
-- Le diagnostic local (10/10 tests) a identifié précisément :
+- Le diagnostic local (12/12 tests) a identifié précisément :
   cron_auth_sqlite=1, dotenv=1, other=0, refs_checked=1,
   skipped_exec_refs=0, warnings=0, resolvability_complete=true.
 - Aucune migration appliquée ; aucune preuve que la variable restera
@@ -45,6 +45,38 @@ La cible attendue est `profiles.litellm:default.key`,
 type natif `auth-profiles.api_key.key`, agent `cron`, référence
 `env:default:LITELLM_OPENCLAW_CRON_API_KEY`. Les clés main et embeddings,
 dont la clé fichier `openclaw-embeddings.key`, restent isolées.
+
+## Comparaison native optionnelle — aucun secret appliqué
+
+L'exécution précédente de `just openclaw-cron-secret-plan-check` sur
+Workstation a réussi les **12 tests**, puis s'est arrêtée avec le code
+`2`. C'est le comportement **attendu** : `blocked_dotenv_scrub_risk`
+correspond au second fichier `.env` projeté et non à une erreur Python.
+
+Pour qualifier ce deuxième fichier sans afficher le plan ou les secrets :
+
+```bash
+just openclaw-cron-secret-plan-test
+just openclaw-cron-secret-plan-compare
+```
+
+Cette nouvelle recette effectue **deux dry-runs natifs** :
+le plan d'origine, puis une copie JSON temporaire privée `0600` avec
+uniquement `options.scrubEnv=false`. Elle détruit la copie en fin de
+comparaison. Aucun plan existant ni runtime OpenClaw n'est modifié.
+Le second dry-run peut afficher seulement les compteurs
+`secret_plan_no_scrub_changed_dotenv` et
+`secret_plan_no_scrub_changed_total`.
+
+Si la sortie contient
+`secret_plan_scrub_comparison=dotenv_projection_attributed_to_scrub`,
+cela prouve uniquement que **l'option de nettoyage explique le changement
+de catégorie `.env`**. Elle ne prouve ni le nom de la variable supprimée,
+ni la disponibilité persistante des clés du Gateway, ni l'absence
+d'impact sur les autres services. L'état du plan original reste
+`blocked_dotenv_scrub_risk` et
+`secret_plan_apply_authorized=false` : le code de sortie `2`
+demeure intentionnel. Aucune option `--apply` n'est fournie.
 
 ## P0 : risque de nettoyage du dotenv
 
