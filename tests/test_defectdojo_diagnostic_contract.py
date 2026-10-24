@@ -25,10 +25,20 @@ esac
   *api/v2*) printf '403' ;;
   *31085/*) if [[ "${FAKE_UI_DOWN:-0}" == 1 ]]; then
                printf '000'; exit 7
+             elif [[ "${FAKE_UI_JSON:-0}" == 1 ]]; then
+               printf '200|application/json'
+             elif [[ "${FAKE_UI_HTML:-0}" == 1 ]]; then
+               printf '200|text/html; charset=utf-8'
              else
                printf '302'
              fi ;;
-  *) printf '302' ;;
+  *) if [[ "${FAKE_HTTPS_DENIED:-0}" == 1 ]]; then
+       printf '403'
+     elif [[ "${FAKE_HTTPS_JSON:-0}" == 1 ]]; then
+       printf '200|application/json'
+     else
+       printf '302'
+     fi ;;
 esac
 """,
     "dig": """resolver=""
@@ -67,7 +77,7 @@ def test_private_ingress_acceptance_passes() -> None:
     assert "ui_origin_http=302" in result.stdout
     assert "OK: DefectDojo HTML origin responds" in result.stdout
     assert "OK: no public A record" in result.stdout
-    assert "OK: HTTPS router responds with HTTP 302" in result.stdout
+    assert "OK: HTTPS router redirects with HTTP 302" in result.stdout
     assert "checks: warnings=0 failures=0 unknown=0" in result.stdout
 
 
@@ -84,6 +94,26 @@ def test_api_403_does_not_mask_broken_html_ui() -> None:
     assert "ui_origin_http=000" in result.stdout
     assert "evidence=api_reachable_but_ui_origin_unavailable" in result.stdout
     assert "FAIL: DefectDojo HTML origin unreachable" in result.stdout
+
+
+def test_origin_200_requires_html_content_type() -> None:
+    html = _run({"FAKE_UI_HTML": "1"})
+    assert html.returncode == 0, html.stdout + html.stderr
+    assert "ui_origin_http=200 ui_mime=html" in html.stdout
+    bad = _run({"FAKE_UI_JSON": "1"})
+    assert bad.returncode == 1
+    assert "ui_origin_http=200 ui_mime=other" in bad.stdout
+    assert "FAIL: DefectDojo origin returned HTTP 200 without HTML Content-Type" in bad.stdout
+
+
+def test_https_forbidden_and_json_are_not_ui_acceptance() -> None:
+    for env_var, expected in (
+        ("FAKE_HTTPS_DENIED", "FAIL: HTTPS browser access denied (HTTP 403)"),
+        ("FAKE_HTTPS_JSON", "FAIL: HTTPS router returned HTTP 200 without HTML Content-Type"),
+    ):
+        result = _run({env_var: "1"})
+        assert result.returncode == 1
+        assert expected in result.stdout
 
 
 def test_usage_and_preflight_syntax() -> None:
