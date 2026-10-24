@@ -110,6 +110,38 @@ production changes or override local skills. If a skill requires elevated
 permissions or incompatible commands, decline that step and escalate the conflict.
 The roadmap reminder is not a scheduled notification.
 
+## Offline checks (do not touch the runtime)
+
+Run these commands from the `nabla-compose` checkout:
+
+```bash
+just agent-skills-check
+just catalog-convergence-check
+```
+
+The first command checks that `AGENTS.md`, all agent entrypoints, local
+specialist skills and the roadmap still contain the approved precedence and
+security decisions. The second checks the Backstage source digest, canonical
+service identity and the web icon mappings. Both are read-only and use
+Python's standard library.
+
+When a **local** checkout of `nabla-site-alban` is available, additionally run:
+
+```bash
+python3 scripts/quality/check-site-catalog-convergence.py \
+  --site-generated ../nabla-site-alban/lib/homelabCatalogIcons.generated.ts
+```
+
+This optional comparison fails on a divergent generated icon map. It does
+not fetch a website, read browser secrets or verify a deployed frontend.
+It does **not** prove that a TrueNAS app is running or that a Talos
+PVC/Ingress has passed a smoke test.
+
+A successful offline check is one verification layer, not a substitute
+for `just quality`, CI security checks, runtime acceptance or Preview
+exact-SHA. If a referenced upstream skill changes, re-review it before
+installation and repeat the local controls.
+
 ## Minimal offline acceptance examples
 
 For a Compose service: inspect `apps/<service>/compose.yml`, confirm ZFS and
