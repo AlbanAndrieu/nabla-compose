@@ -79,6 +79,17 @@ class SkillPrecedenceContractTest(unittest.TestCase):
                 ".github/copilot-instructions.md" in issue for issue in issues
             ))
 
+    def test_main_quality_gate_must_run_policy_audit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            gate = root / "scripts/agent-quality-gate.sh"
+            gate.write_text("run_compact skips-all-policy-checks")
+            self.assertTrue(any(
+                "scripts/agent-quality-gate.sh" in issue
+                for issue in MODULE.audit(root)
+            ))
+
     def test_is_read_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
