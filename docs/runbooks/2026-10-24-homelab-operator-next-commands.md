@@ -161,7 +161,13 @@ https://github.com/akvorado/akvorado/blob/main/console/data/docs/02-configuratio
 Aucun effacement ClickHouse, TSDB/WAL, flux historiques, offset Kafka,
 corpus OpenRAG ni restart massif n'est autorisé sur cette preuve.
 
-## Étape P0 — preuves de runtime fournies le 24 octobre
+## Archives P0 — preuves antérieures, remplacées par le relevé de 23 h 09
+
+**À ne pas utiliser comme consignes de réparation actuelles :**
+les commandes `--apply` ci-dessous documentent des états de permissions
+anciens. Les 15 règles Prometheus sont désormais lisibles ; ne pas répéter
+une réparation de fichiers. Ne jamais redémarrer les services cités sur
+la base d'un état archivé.
 
 **Prometheus** : App TrueNAS `RUNNING`, conteneur `restarting`,
 exit 2, **2221 redémarrages**. Montage `/etc/prometheus` correct,
