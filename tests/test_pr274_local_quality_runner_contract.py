@@ -36,6 +36,7 @@ class Pr274LocalQualityRunnerContracts(unittest.TestCase):
         body = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("git ls-remote --exit-code", body)
         self.assertIn('NABLA_PR274_EXPECTED_SHA', body)
+        self.assertIn("unset NABLA_PR274_EXPECTED_SHA", body)
         self.assertIn("worktree add --detach", body)
         self.assertIn('git --git-dir="$cache" merge-base --is-ancestor', body)
         self.assertIn('QUALITY_BASE_REF="$base_sha"', body)
