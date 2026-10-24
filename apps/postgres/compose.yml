@@ -30,14 +30,15 @@ services:
           evidence:
             - apps/postgres/compose.yml:DATA_SOURCE_NAME
     restart: unless-stopped
+    # Scoped runtime secret materialized from Vaultwarden by the operator.
+    # Do not inherit all application DB secrets or interpolate a missing DSN.
     env_file:
-      - /mnt/cpool/postgres/.env.secrets
-    environment:
-      DATA_SOURCE_NAME: "${POSTGRES_EXPORTER_DSN}"
+      - /mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets
     ports:
       - name: metrics
         target: 9187
         published: "9187"
+        host_ip: 172.17.0.24
         protocol: tcp
         app_protocol: http
     networks:
