@@ -49,7 +49,7 @@ class ConsoleContract(unittest.TestCase):
         output = render(log)
         self.assertEqual(output.returncode, 0, output.stderr)
         self.assertIn("02:10:50.474019+02:00", output.stdout)
-        self.assertIn("1 OOM mentions", output.stdout)
+        self.assertIn("1 distinct historical OOM records", output.stdout)
         self.assertNotIn("PRIVATE", output.stdout)
 
     def test_snort_unknown_collapse_and_verbose(self):
@@ -71,6 +71,65 @@ class ConsoleContract(unittest.TestCase):
             capture_output=True, env=env, check=False,
         )
         self.assertEqual(result.returncode, 17)
+
+    def test_oom_records_are_deduplicated_across_log_sections(self):
+        stamps = (
+            "2026-10-24T02:10:50.474019+02:00",
+            "2026-10-24T02:10:51.881022+02:00",
+            "2026-10-22T22:03:33.361041+02:00",
+        )
+        events = "=== historical chronology ===\n"
+        events += "".join(f"source=system event=kernel_oom timestamp={ts}\n" for ts in stamps)
+        events += "=== resolver archives ===\n"
+        events += "".join(
+            f"<3>1 {ts} host kernel - - - failed to reclaim memory token=PRIVATE\n"
+            for ts in stamps
+        )
+        result = render(events, mode="verbose")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("Historical kernel OOM timestamp="), 3)
+        self.assertIn("3 distinct historical OOM records", result.stdout)
+        self.assertIn("3 duplicate lines suppressed", result.stdout)
+        self.assertIn("2 OOM minutes", result.stdout)
+        self.assertNotIn("PRIVATE", result.stdout)
+        self.assertNotIn("❌ 3 error signals", result.stdout)
+
+    def test_unbound_start_is_not_attributed_to_oom(self):
+        process = (
+            "=== Unbound daemon and readiness ===\n"
+            "12710 Sat Oct 24 23:38:57 2026 124624 6.9 "
+            "/usr/local/sbin/unbound -c /var/unbound/unbound.conf\n"
+        )
+        result = render(process)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("pid=12710 started=Oct 24 23:38:57", result.stdout)
+        self.assertIn("restart cause UNKNOWN", result.stdout)
+
+    def test_free_inactive_memory_snapshot_is_explicit(self):
+        metrics = (
+            "=== Memory budget and OOM evidence ===\n"
+            "vm.stats.vm.v_free_count: 28172\n"
+            "vm.stats.vm.v_inactive_count: 8568\n"
+            "vm.stats.vm.v_page_size: 4096\n"
+        )
+        result = render(metrics)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("143.5 MiB", result.stdout)
+        self.assertIn("not nocturnal headroom", result.stdout)
+
+    def test_syslog_categories_hide_sensitive_contents(self):
+        data = (
+            "=== Resolver failures ===\n"
+            "<29>1 2026-10-22T21:42:08.401695+02:00 host "
+            "address already in use password=SECRET\n"
+            "<30>1 2026-10-24T23:39:23.470342+02:00 host "
+            "pfb_unbound.py script exiting token=SECRET\n"
+        )
+        result = render(data, mode="verbose")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("resolver_event=unbound_bind_conflict", result.stdout)
+        self.assertIn("resolver_event=dnsbl_python_exit", result.stdout)
+        self.assertNotIn("SECRET", result.stdout)
 
 
 if __name__ == "__main__":
