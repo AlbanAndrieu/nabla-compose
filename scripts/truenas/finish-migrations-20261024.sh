@@ -334,6 +334,9 @@ check_section() {
       # Metadata and filesystem checks only; never print raw env or BW_SESSION.
       run_check canonical-secret-files bash scripts/truenas/bootstrap-repository-runtime.sh --check
       run_check first-wave-env bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
+      run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+      run_check akvorado-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check akvorado
+      run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
       run_check openrag-opensearch-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
       if command -v bw >/dev/null 2>&1 && [[ -n "${BW_SESSION:-}" ]]; then
         run_check vaultwarden-inventory python3 scripts/secrets/inventory_vaultwarden.py --json
