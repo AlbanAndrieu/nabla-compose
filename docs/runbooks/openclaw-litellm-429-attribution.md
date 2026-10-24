@@ -260,3 +260,90 @@ Workstation réellement utilisée et une requête échouée attribuée à
 `main` ou `cron`. Les clés `main` et `cron` ne doivent
 pas partager automatiquement la même identité virtuelle `openclaw`.
 
+
+
+## Retour SSH : port 14000 occupé et master key déjà exportée (24 octobre 2026)
+
+**Preuves opérateur** : la commande `ssh -N -L
+127.0.0.1:14000:127.0.0.1:4000 ...` n'affiche rien,
+ce qui est **normal** tant que le tunnel SSH reste actif.
+Une seconde tentative en `14000` échoue avec
+`Address already in use`. Cela peut être la première
+session SSH ou un autre programme : **ne pas lancer un troisième
+tunnel** sans inspection du listener. `4000` en local
+est le LiteLLM Workstation et doit rester réservé.
+
+Dans `~/.ssh/config`, l'alias `truenas` et
+`172.17.0.24` utilisent `albandrieu` et le port SSH
+**9922** ; préférer `ssh truenas` à une adresse qui supposerait
+le port SSH 22.
+
+Le port `14000` n'est **pas un port à ouvrir sur TrueNAS** :
+c'est un port local disponible sur Workstation pour transférer
+`127.0.0.1:14000` vers `127.0.0.1:4000` côté TrueNAS.
+
+### Vérifier le listener et le tunnel sans secret
+
+```bash
+ss -ltnp '( sport = :14000 or sport = :4000 )'
+ssh -O check truenas
+just openclaw-truenas-tunnel-check
+```
+
+- `ss` indique quel programme possède les ports locaux ;
+  rechercher `ssh` sur 14000, et LiteLLM Workstation sur 4000.
+- `ssh -O check truenas` contrôle un éventuel ControlMaster SSH,
+  mais **ne prouve pas, à lui seul, le port forward ni la destination**.
+- `just ...-tunnel-check` vérifie un listener local, mais
+  affiche `operator_attestation_required` : un port TCP qui répond
+  n'est **pas** une preuve cryptographique qu'il s'agit de SSH.
+
+Si aucun tunnel n'est actif et que 14000 est libre, ouvrir la
+session dans un autre terminal avec :
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+  -L 127.0.0.1:14000:127.0.0.1:4000 truenas
+```
+
+### Master key préchargée
+
+La commande `echo $LITELLM_MASTER_KEY` révèle un secret :
+ne pas l'utiliser pour diagnostiquer sa présence. Le script
+exigeait jusqu'ici la variable dédiée
+`LITELLM_TRUENAS_MASTER_KEY` ou la saisie interactive masquée ;
+la seule présence de `LITELLM_MASTER_KEY` n'était pas détectée
+par le mode `--prompt-admin`. Ce mode ne lit **jamais** une
+variable exportée à ta place. `truenas_admin_auth=missing`
+indique seulement que la valeur saisie n'a pas satisfait le
+contrat attendu.
+
+Après vérification du tunnel, le nouveau mode permet de choisir
+**explicitement** la variable préchargée :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-existing-master
+```
+
+Cette recette utilise `LITELLM_MASTER_KEY` seulement après
+validation par l'opérateur qu'il s'agit de **la master key
+LiteLLM TrueNAS**, pas de celle de la Workstation. Sinon
+utiliser une variable dédiée `LITELLM_TRUENAS_MASTER_KEY`
+et la recette `just openclaw-truenas-model-keys-tunnel-dedicated`,
+ou la saisie masquée
+`just openclaw-truenas-model-keys-tunnel-prompt`.
+
+Le script ne place jamais la valeur de la clé en argument,
+ne l'imprime pas et la transmet uniquement au service
+écoutant sur la boucle locale 14000. Vérifier avant cela
+que ce listener correspond réellement au tunnel SSH attendu.
+Une erreur HTTP 401/403 signifie que la clé ne permet pas
+l'administration de cette instance ; ne pas migrer les clés
+tant que cette identité n'est pas confirmée.
+
+**Résultats de qualité :** les 10 tests TrueNAS et 3 tests
+de routage ont réussi sur la Workstation. Quatre tests
+de sélection d'environnement et de présence du port ont
+été ajoutés en PR mais **pas encore exécutés sur la Workstation**.
+Tous les scripts restent read-only.
+
