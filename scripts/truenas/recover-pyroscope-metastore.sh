@@ -50,6 +50,13 @@ if [[ "${MODE}" == --check ]]; then
   exit 0
 fi
 (( "${#state_paths[@]}" > 0 )) || fail 'no known historical state to reset'
+# A second reset would hide the failure discovered after the first recovery.
+# A previous backup must be reviewed by the operator before another reset.
+for previous in "${DATA_ROOT}"/.metastore-backup-*; do
+  if [[ -e "${previous}" || -L "${previous}" ]]; then
+    fail 'previous recovery backup exists; diagnose the current startup first'
+  fi
+done
 backup="${DATA_ROOT}/.metastore-backup-$(date -u +%Y%m%dT%H%M%SZ)"
 [[ ! -e "${backup}" ]] || fail 'backup path already exists'
 # Do not touch storage if Docker cannot stop the exact container.

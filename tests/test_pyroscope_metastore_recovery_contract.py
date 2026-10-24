@@ -29,6 +29,7 @@ def test_only_pyroscope_data_is_moved_and_backup_is_preserved():
     assert "docker start" in source
     assert "mv --" in source
     assert ".metastore-backup-" in source
+    assert "previous recovery backup exists" in source
     assert "v1 v2 data" in source
     assert "568:568" in source
     assert "READ_ONLY: no stop" in source
