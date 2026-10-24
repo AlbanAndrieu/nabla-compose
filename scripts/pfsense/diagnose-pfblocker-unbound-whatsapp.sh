@@ -28,6 +28,36 @@ set -u
 # Never dump config.xml, full resolver configuration, pfBlockerNG lists or user queries.
 echo '=== pfSense UTC/local time and uptime ==='
 date; uptime
+echo '=== Jobs scheduled near repeated 02:10 OOM (schedule + type only) ==='
+# Restrict output to hour/minute/type; do not print raw crontab arguments.
+if [ -r /etc/crontab ]; then
+  awk '
+    /^[[:space:]]*#/ || NF < 7 { next }
+    {
+      task = ""
+      for (i=7; i<=NF; i++) {
+        if ($i ~ /snort_check_for_rule_updates|snort_check_cron_misc/) task="snort"
+        if ($i ~ /pfblockerng.php/) task="pfblockerng"
+        if ($i ~ /servicewatchdog_cron/) task="servicewatchdog"
+        if ($i ~ /crowdsec/) task="crowdsec"
+      }
+      if (task != "") printf "cron_minute=%s cron_hour=%s cron_day=%s task=%s\\n", $1, $2, $3, task
+    }
+  ' /etc/crontab | head -20
+fi
+echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='
+ps axo pid,rss,pcpu,command |
+  awk '
+    /[\\/]crowdsec -c / {print "crowdsec_engine_pid="$1, "rss_kb="$2, "cpu_pct="$3; found=1}
+    /[\\/]crowdsec-firewall-bouncer -c / {print "crowdsec_bouncer_pid="$1, "rss_kb="$2, "cpu_pct="$3}
+    END {if (!found) print "crowdsec_engine=not_observed"}
+  ' | head -5
+echo '=== Recent CrowdSec pressure signatures (counts only) ==='
+for file in /var/log/crowdsec/crowdsec.log /var/log/crowdsec.log; do
+  [ -r "$file" ] || continue
+  grep -Ec 'pf-scan-multi_ports.*(stuck|failed_sent|attempts)' "$file" 2>/dev/null |
+    awk '{print "crowdsec_stuck_lines="$1}'
+done
 echo '=== Unbound daemon and readiness ==='
 ps axo pid,lstart,rss,pcpu,command | grep '[u]nbound -c /var/unbound/unbound.conf' | head -3 || true
 unbound-control -c /var/unbound/unbound.conf status 2>/dev/null | head -8 || true
