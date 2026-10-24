@@ -109,9 +109,19 @@ hermes-opus-routing-test:
 
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
     python3 -m unittest discover -s tests -p 'test_openclaw_secrets_plan_diagnostic.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_cron_env_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_secret_cutover.py' -v
+
+# Plan-only verification for importing the existing cron dotenv secret to a file.
+openclaw-cron-file-cutover-check:
+    python3 scripts/workstation/cutover-openclaw-cron-secret.py --check
+
+# Explicitly authorized mutation: key file, private backups, native SecretRef apply.
+# No Gateway restart, no deletion from dotenv, no paid Actions.
+openclaw-cron-file-cutover:
+    python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Pure offline regressions: no pfSense access or GitHub Actions.
