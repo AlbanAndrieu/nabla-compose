@@ -8,9 +8,9 @@ MODE="${1:---check}"
 ACK="${2:-}"
 DATA_ROOT=/mnt/cpool/pyroscope/data
 CONTAINER=pyroscope
-fail() { printf 'BLOCKED Pyroscope recovery: %s\n' "$*" >&2; exit 1; }
+fail() { printf 'BLOCKED Pyroscope recovery: %s\n' "${*}" >&2; exit 1; }
 usage() {
-  printf 'Usage: sudo bash %s --check | --apply RESET_PYROSCOPE_HISTORY\n' "$0" >&2
+  printf 'Usage: sudo bash %s --check | --apply RESET_PYROSCOPE_HISTORY\n' "${0}" >&2
 }
 [[ "${MODE}" == --check || "${MODE}" == --apply ]] || { usage; exit 2; }
 if [[ "${MODE}" == --apply ]]; then
@@ -32,11 +32,14 @@ mount="$(docker inspect "${CONTAINER}" --format '{{range .Mounts}}{{if eq .Desti
 [[ "${mount}" == "${DATA_ROOT}" ]] || fail 'unexpected data mount; refusing recovery'
 [[ "$(stat -c '%u:%g' -- "${DATA_ROOT}")" == '568:568' ]] ||
   fail 'data root not owned by expected UID/GID 568:568'
+root_device="$(stat -c '%d' -- "${DATA_ROOT}")"
 declare -a state_paths=()
 for relative in v1 v2 data; do
   path="${DATA_ROOT}/${relative}"
   if [[ -e "${path}" || -L "${path}" ]]; then
     [[ -d "${path}" && ! -L "${path}" ]] || fail 'unexpected state path type'
+    [[ "$(stat -c '%d' -- "${path}")" == "${root_device}" ]] ||
+      fail 'nested filesystem; refusing cross-device metastore move'
     state_paths+=("${path}")
   fi
 done
