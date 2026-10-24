@@ -14,10 +14,114 @@ L'ordre des responsabilités reste :
 `fastapi-sample` = observations et DTO OWNER/SERVICE ;
 `nabla-site-alban` = rendu, icônes locales et cache SERVICE expurgé.
 
+## Étape 0 — quality gates locales consolidées
+
+Le runner `finish-migrations-20261024.sh` propose deux modes distincts :
+
+- `--next-commands` **imprime seulement** ce runbook, sans exécuter de
+  commande, sans root et sans accéder à TrueNAS ;
+- `--local-gates` exécute **séquentiellement** les cinq recettes ci-dessous,
+  sur un checkout de développement **non-root**, et s'arrête au premier échec.
+
+```bash
+# Consultation sans exécution :
+bash scripts/truenas/finish-migrations-20261024.sh --next-commands
+just migration-20261024-commands
+
+# Option manuelle : exactement cinq commandes, dans cet ordre :
+just migration-20261024-commands
+just migration-20261024-test
+just catalog-convergence-check
+just agent-skills-check
+just quality
+
+# Option consolidée (mêmes cinq recettes) :
+bash scripts/truenas/finish-migrations-20261024.sh --local-gates
+# Ou :
+just migration-20261024-local-gates
+```
+
+La qualité locale peut vérifier ou modifier des fichiers du checkout selon
+la définition actuelle de `mise run agent-quality`. Elle ne déploie pas
+TrueNAS et ne lance pas de CI GitHub. Ne pas exécuter `--local-gates`
+en root ou dans le répertoire GitOps TrueNAS monté dans les conteneurs.
+Exécuter sur un worktree de développement isolé avec `just`, `mise` et
+les outils de qualité disponibles. Une sortie `LOCAL_GATES_COMPLETE=5`
+ne valide **pas** l'état des Apps.
+
+## Étape P0 — preuves de runtime fournies le 24 octobre
+
+**Prometheus** : App TrueNAS `RUNNING`, conteneur `restarting`,
+exit 2, **2221 redémarrages**. Montage `/etc/prometheus` correct,
+UID/GID `568:568` et lecture hôte du YAML principal OK, mais
+`prometheus.yml` est maintenant en **0644** (world-readable).
+Les 15 règles sont inventoriées et **une seule** reste illisible
+(`uid=1000 gid=568 mode=0600`). La tentative d'appliquer
+`--expected-unreadable 2` a **été refusée à juste titre** par la
+protection anti-dérive. Aucune réparation ne s'est produite.
+
+```bash
+# Vérifications non mutantes, avant chaque intervention :
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+
+# Si le YAML principal reste 0644 et le chemin/montage sont vérifiés,
+# réparation séparée UNIQUEMENT du fichier principal après revue :
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --apply
+
+# Si le préflight des règles constate toujours exactement UN fichier
+# inaccessible, réparation explicite UNIQUEMENT de celui-ci :
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh \
+  --apply --expected-unreadable 1 \
+  --acknowledge I_ACCEPT_PROMETHEUS_RULES_PERMISSION_REPAIR
+
+# Preuves de sortie :
+sudo bash scripts/truenas/repair-prometheus-rules-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+```
+
+Ne pas copier les deux `--apply` sans consulter les préflights et
+l'état courant : chaque correction nécessite sa propre validation et
+son autorisation opérateur. Ne pas modifier les ACL en masse, effacer la
+TSDB/WAL ou redéployer toute l'App.
+
+**OpenRAG** : App `STOPPED`, aucun backend/frontend Docker, mais
+Langflow `running+healthy` et OpenSearch `running+healthy`.
+Ce n'est **pas** un simple healthcheck frontend `created` ; vérifier
+la cause de l'arrêt, le secret canonical et les dernières tâches
+middleware avant tout `app.start`.
+
+```bash
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section openrag
+sudo bash scripts/truenas/diagnose-stuck-apps.sh --check --app openrag
+```
+
+**Sentry** : TrueNAS `DEPLOYING`, deux consommateurs Kafka
+`sentry-events-consumer` et
+`sentry-post-process-forwarder-errors` `unhealthy`. Ne pas
+redémarrer Kafka, réinitialiser ses consumer offsets ni redéployer
+Sentry avant le diagnostic des consommateurs et la preuve de santé
+du runtime ClickHouse et des credentials.
+
+```bash
+sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section sentry
+sudo bash scripts/truenas/diagnose-sentry-consumers.sh --check
+sudo bash scripts/truenas/recover-sentry-deploying.sh --check
+```
+
+Ce mode `--check` collecte les preuves détaillées dans des journaux
+privés. Il ne lance ni `--apply`, ni `--finalize`, ni smoke mutante.
+Un diagnostic `SESSTMOUT` oriente vers le groupe Kafka et la
+coordination, pas automatiquement vers une corruption des offsets.
+
+**Gate bloquante** : tant que Prometheus, OpenRAG, Scrutiny et Sentry
+n'ont pas de validation runtime, ne pas déclencher les migrations
+TrueNAS groupées, Talos/Kubernetes ou la suppression de secrets legacy.
+
 ## Étape A — checkout opérateur TrueNAS et réseau Git (pré-requis)
 
 Le 24 octobre, un checkout TrueNAS a été observé en retard sur GitHub, avec
-`fastapi-sample` modifié comme sous-module. La PR Compose #273 reste Draft. Les PR site #254 et FastAPI
+`fastapi-sample` modifié comme sous-module. La PR Compose #273 est fusionnée ; la reprise active est la PR Draft #274. Les PR site #254 et FastAPI
 #373 ont été fusionnées le 24 octobre 2026 à 16:27 et 16:28 UTC. **Ne pas appliquer une branche Draft à TrueNAS.**
 
 Exécuter depuis `/mnt/cpool/compose/nabla-compose` :
@@ -67,7 +171,7 @@ Les rapports sont privés. Ne pas les publier sur GitHub ou dans un chat.
 
 ## Étape B.1 — diagnostics P0 individuels (une commande par incident)
 
-Après installation des scripts de la PR Compose #273 sur le checkout opérateur
+Après revue des scripts de la PR Compose #274 sur le checkout opérateur
 **par fusion revue dans master**, sélectionner une seule section selon le chantier.
 Chaque commande collecte un rapport privé sous
 `/mnt/cpool/var/nabla/migration-20261024`. Aucune ne lance un redeploy.
@@ -241,7 +345,7 @@ just quality
 ```
 
 Ne pas annoncer la quality gate complète comme validée tant qu'elle n'a
-pas été réellement exécutée sur le HEAD exact. La PR Compose #273 reste Draft. Les PR FastAPI #373 et Site #254 sont
+pas été réellement exécutée sur le HEAD exact. La PR Compose #273 est fusionnée ; la reprise active est la PR Draft #274. Les PR FastAPI #373 et Site #254 sont
 fusionnées, mais leurs déploiements et la collecte OWNER/LAN demandent encore
 une validation indépendante. Les skills externes ne s'installent qu'après
 accord explicite demandé à l'utilisateur.
@@ -405,7 +509,7 @@ python3 scripts/talos/preflight-supported-upgrade.py --check
 bash scripts/talos/smoke-truenas-csi-nfs.sh --check
 ```
 
-Depuis le checkout **de la PR #273**, sans publication ni déploiement :
+Depuis le checkout **de la PR #274**, sans publication ni déploiement :
 
 ```bash
 just agent-skills-check
