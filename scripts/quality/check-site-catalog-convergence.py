@@ -36,25 +36,41 @@ def audit(root: Path, site_generated: Path | None = None) -> tuple[list[str], di
     errors: list[str] = []
     stats: dict[str, int] = {}
     try:
-        canonical = json.loads((root / "catalog/generated/entities.json").read_text(encoding="utf-8"))
+        canonical = json.loads(
+            (root / "catalog/generated/entities.json").read_text(encoding="utf-8")
+        )
         catalog = json.loads((root / "catalog/service-icons.json").read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as exc:
         return [f"unreadable or invalid catalog source: {type(exc).__name__}"], stats
-    if not isinstance(canonical, dict) or canonical.get("schemaVersion") != 2 or canonical.get("model") != "backstage":
+    if (
+        not isinstance(canonical, dict)
+        or canonical.get("schemaVersion") != 2
+        or canonical.get("model") != "backstage"
+    ):
         return ["expected Backstage v2 catalog"], stats
     entities = canonical.get("entities")
     revision = canonical.get("catalogRevision")
-    if not isinstance(entities, list) or not entities or not all(isinstance(e, dict) for e in entities):
+    if (
+        not isinstance(entities, list)
+        or not entities
+        or not all(isinstance(e, dict) for e in entities)
+    ):
         return ["missing or malformed Backstage entities"], stats
     if not isinstance(revision, str) or not REVISION.fullmatch(revision):
         errors.append("invalid catalogRevision format")
     else:
         ordered = sorted(entities, key=lambda entity: str(entity.get("entityRef") or ""))
-        serialized = json.dumps(ordered, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        serialized = json.dumps(
+            ordered, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
         expected = "sha256:" + hashlib.sha256(serialized).hexdigest()
         if expected != revision:
             errors.append("catalogRevision does not match the canonical Backstage graph")
-    if not isinstance(catalog, dict) or catalog.get("version") != 1 or not isinstance(catalog.get("webAssets"), dict):
+    if (
+        not isinstance(catalog, dict)
+        or catalog.get("version") != 1
+        or not isinstance(catalog.get("webAssets"), dict)
+    ):
         return errors + ["invalid webAssets mapping"], stats
     mapping = catalog["webAssets"]
     for key, value in mapping.items():
