@@ -27,59 +27,59 @@ Ne pas augmenter les budgets ni les limites, ne pas redémarrer les agents, ne p
 
 ## Diagnostic après cutover cron — 24 octobre 2026
 
-Le cutover du credential \`cron\` a réellement réussi sur Workstation
-(\`cron_cutover_applied=true\`, \`cron_cutover_gateway_secrets_reload=completed\`).
+Le cutover du credential `cron` a réellement réussi sur Workstation
+(`cron_cutover_applied=true`, `cron_cutover_gateway_secrets_reload=completed`).
 Ce changement remplace uniquement la **source de résolution** de sa clé ;
 il ne crée pas de clé virtuelle LiteLLM, ne modifie pas les budgets/RPM/TPM
-et ne migre pas l'agent \`main\`. La phrase UI OpenClaw
+et ne migre pas l'agent `main`. La phrase UI OpenClaw
 « API rate limit reached » **ne contient pas assez de preuves** pour
 attribuer le 429 à LiteLLM ou au fournisseur upstream.
 
 La capture LiteLLM v1.104.2 fournie montre cinq alias :
-\`openclaw-embeddings\` (0 $ / 1 $), \`n8n\`, \`openclaw-main\`
-(0,0292 $ / 10 $, dernière activité 20 octobre), \`ide\` et
-\`openclaw\` (0,3263 $ / 2 $, dernière activité 24 octobre).
+`openclaw-embeddings` (0 $ / 1 $), `n8n`, `openclaw-main`
+(0,0292 $ / 10 $, dernière activité 20 octobre), `ide` et
+`openclaw` (0,3263 $ / 2 $, dernière activité 24 octobre).
 Ce sont des observations d'interface à cet instant : aucune clé alias
-\`openclaw-cron\` n'est visible, **ce qui ne prouve pas** que le
-credential \`cron\` est inexistant ou qu'il est valide.
+`openclaw-cron` n'est visible, **ce qui ne prouve pas** que le
+credential `cron` est inexistant ou qu'il est valide.
 Les budgets visibles ne sont pas épuisés. Les limites RPM/TPM,
 user/team/model et provider sont distinctes.
 
 ### Lire les preuves sans générer de consommation
 
-\`\`\`bash
+```bash
 cd ~/w/nabla-compose
 just openclaw-429-triage-test
 just openclaw-429-triage
-\`\`\`
+```
 
 La recette exécute uniquement :
-1. une vérification privée du fichier \`openclaw-cron.key\` et de
+1. une vérification privée du fichier `openclaw-cron.key` et de
    son éventuelle identité avec l'environnement préchargé ;
 2. une comparaison en mémoire des identifiants SHA-256 LiteLLM avec
-   ceux **déjà documentés** dans \`openclaw-litellm-audit.py\`.
-   Aucun hash, préfixe, token ou valeur n'est affiché. \`not_in_known_set\`
+   ceux **déjà documentés** dans `openclaw-litellm-audit.py`.
+   Aucun hash, préfixe, token ou valeur n'est affiché. `not_in_known_set`
    veut dire « pas dans les identifiants connus du script »,
    **pas** « clé inexistante dans LiteLLM » ;
-3. lorsque \`LITELLM_MASTER_KEY\` est exportée, deux lectures
-   \`GET /key/info\` par **identifiant haché uniquement**,
-   **exclusivement** sur \`localhost:4000\` ou
-   \`127.0.0.1:4000\` (et IPv6 loopback). Les réponses et erreurs
+3. lorsque `LITELLM_MASTER_KEY` est exportée, deux lectures
+   `GET /key/info` par **identifiant haché uniquement**,
+   **exclusivement** sur `localhost:4000` ou
+   `127.0.0.1:4000` (et IPv6 loopback). Les réponses et erreurs
    brutes sont masquées. Le diagnostic affiche seulement les
    métriques de budget, RPM, TPM et concurrence documentées.
 4. les métadonnées de routage de la configuration OpenClaw existante
    (noms de fournisseurs connus uniquement, sans montrer les clés).
 
 Le script retourne toujours
-\`http_429_origin=unverified_requires_failed_request_metadata\`
+`http_429_origin=unverified_requires_failed_request_metadata`
 tant qu'aucun échec corrélé n'a été examiné. Il **n'envoie aucune requête
 de modèle**, ne touche ni aux budgets ni aux secrets du Gateway.
 
 ### Identifier la source exacte du 429
 
 Depuis **LiteLLM Admin UI → Logs**, filtrer l'heure du dernier message
-OpenClaw, l'alias de clé, le modèle, le code \`429\` et le statut d'échec.
-Conserver localement le détail du \`x-litellm-call-id\` s'il existe.
+OpenClaw, l'alias de clé, le modèle, le code `429` et le statut d'échec.
+Conserver localement le détail du `x-litellm-call-id` s'il existe.
 Ne pas activer l'enregistrement des prompts (désactivé par défaut).
 Ne pas copier les corps de requête/réponse ni les headers d'autorisation.
 
@@ -87,11 +87,11 @@ Interpréter les métadonnées filtrées :
 
 | Signal | Hypothèse de panne |
 | --- | --- |
-| \`error.type=budget_exceeded\` | Budget key/user/team/per-model |
-| \`retry-after\`, \`rate_limit_type\` ou \`reset_at\` | Limiteur LiteLLM ou cooldown |
+| `error.type=budget_exceeded` | Budget key/user/team/per-model |
+| `retry-after`, `rate_limit_type` ou `reset_at` | Limiteur LiteLLM ou cooldown |
 | 429 sans ces marqueurs, erreur fournisseur dans le détail | Limite upstream |
-| \`No deployments available for selected model\` | Tous les déploiements du groupe en cooldown |
-| \`rate_limit_type=concurrent_requests\` | Limite de parallélisme |
+| `No deployments available for selected model` | Tous les déploiements du groupe en cooldown |
+| `rate_limit_type=concurrent_requests` | Limite de parallélisme |
 
 Un refus **401/403** pointe vers l'authentification ou l'autorisation,
 pas vers un quota atteint. La preuve UI actuelle ne permet pas de
@@ -99,7 +99,7 @@ trancher entre ces catégories.
 
 ### Historique à ne pas confondre avec l'état actuel
 
-Le journal d'octobre a déjà constaté \`openclaw-main\`
+Le journal d'octobre a déjà constaté `openclaw-main`
 au-delà de **10 $ / 10 $** et des heartbeats en échec avec
 chevauchement temporel de 429. La capture actuelle montre une
 période budgétaire différente (0,0292 $ / 10 $) : ne pas
