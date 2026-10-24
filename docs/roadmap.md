@@ -1,3 +1,15 @@
+## P0 — pfBlockerNG / Unbound / WhatsApp Wi-Fi — incident du 24 octobre 2026
+
+- [x] L'opérateur a exécuté **22/22 tests Akvorado PASS** le 24 octobre ; les tests ne prouvent aucune insertion en base ni disponibilité Akvorado.
+- [x] Ajouter un diagnostic pfSense en SSH strict, **lecture seule**, pour mémoire/OOM, concurrence pfBlockerNG DNSBL, ASN/IPinfo, état Unbound, tailles de feeds et DNS WhatsApp. Runbook : [triage Unbound/pfBlockerNG/WhatsApp](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+- [ ] **Priorité P0 :** exécuter `bash scripts/pfsense/diagnose-unbound-crash-memory.sh --check`, `bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check`, `bash scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com --strict` depuis la workstation autorisée ; comparer au dernier OOM du 08/10 et relever l'heure exacte du crash nocturne.
+- [ ] Vérifier DNSBL Python, TLD et ASN/IPinfo désactivés, la réduction des listes, la fin du job de mise à jour, le budget RSS Unbound et l'absence de watchdog. Modifier **un seul feed ou une seule option** après preuve et approbation ; ne pas imposer une reconstruction DNSBL lourde.
+- [ ] Différencier les problèmes WhatsApp simples messages vs médias/appels, DNS local vs résolveur de contrôle, Wi-Fi vs 4G/5G et comportement IPv4/IPv6. Ne pas ouvrir un port ni autoriser tous les domaines sans preuve d'un blocage.
+- [ ] Après stabilité de pfSense, reprendre Akvorado : métriques Inlet→Kafka→Outlet, `--fail-on-blocked` et `--require-inserts` avec deux scrapes, validation de mapping `ifIndex=11`, lignes récentes ClickHouse et Console. Conserver `Track by Default=OFF`.
+- [ ] Exécuter tests et quality gate **locale** du dépôt au HEAD de cette PR Draft, sans CI payante. Aucune mutation TrueNAS/pfSense n'est autorisée par la rédaction de cette roadmap.
+
+**État :** nouveaux correctifs en PR Draft, pas exécutés sur pfSense ; le crash de cette nuit n'a **pas encore de cause prouvée**.
+
 ## CURRENT — Rattrapage des migrations et convergence OWNER/SERVICE (2026-10-24)
 
 - [x] Mettre à jour le script opérateur `scripts/truenas/finish-migrations-20261024.sh` avec `--next-commands`, et les diagnostics `observability`, `secrets`, `convergence` et `lan`. Consulter [le runbook des commandes](runbooks/2026-10-24-homelab-operator-next-commands.md). Ces contrôles n'appliquent ni déploiement ni mutation.
