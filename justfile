@@ -35,7 +35,16 @@ agent-skills-check:
 
 # Read-only, detailed generator drift report (no secrets or runtime calls).
 topology-drift-check:
-    python3 scripts/generate-service-topology.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check
+
+# All three generated contracts checked with the same existing worktree Python.
+topology-generators-check:
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py --check
+
+topology-generator-test:
+    bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_service_topology_generator.py
 
 # Explicit source-of-truth regeneration. Development worktree ONLY.
 # Never overwrite TrueNAS bind mounts or unpublished generated artifacts.
@@ -45,12 +54,10 @@ topology-artifacts-refresh:
     @branch="$(git branch --show-current)"; test -n "$branch" && test "$branch" != master || { echo 'BLOCKED: use isolated feature worktree' >&2; exit 2; }
     @git diff --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve local generated edits' >&2; exit 2; }
     @git diff --cached --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve staged generated edits' >&2; exit 2; }
-    python3 scripts/generate-service-topology.py
-    python3 scripts/generate-service-consumers.py
-    python3 scripts/generate-catalog-v2-artifacts.py
-    python3 scripts/generate-service-topology.py --check
-    python3 scripts/generate-service-consumers.py --check
-    python3 scripts/generate-catalog-v2-artifacts.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py
+    just topology-generators-check
 
 # Read-only Backstage v2 / icon parity check. Pass --site-generated separately
 # when the sibling website checkout is available (no network fetch).
