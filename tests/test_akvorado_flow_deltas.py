@@ -1,5 +1,8 @@
 """Offline Akvorado regression tests; counters are synthetic, not packet captures."""
 import importlib.util
+import io
+from contextlib import redirect_stdout
+from unittest.mock import patch
 from pathlib import Path
 import unittest
 
@@ -71,6 +74,50 @@ class AkvoradoDeltaTest(unittest.TestCase):
         status, delta = MODULE.assess_deltas(metrics(10, 0, 0), metrics(10, 0, 0))
         self.assertEqual(status, "NO_NEW_FLOW_EVIDENCE")
         self.assertEqual(delta["received_flows"], 0)
+
+    def test_cli_requires_observation_for_blocking_acceptance(self):
+        with patch.object(MODULE.sys, "argv", [
+            "diagnose-akvorado-flow.py", "--require-inserts"
+        ]):
+            with self.assertRaises(SystemExit) as error:
+                MODULE.main()
+        self.assertEqual(error.exception.code, 2)
+
+    def test_cli_fails_when_new_metadata_errors_continue(self):
+        observed = [
+            metrics(10, 10, 0),
+            metrics(20, 20, 0),
+        ]
+        output = io.StringIO()
+        with (
+            patch.object(MODULE, "fetch", side_effect=["", *observed]),
+            patch.object(MODULE.time, "sleep"),
+            patch.object(MODULE.sys, "argv", [
+                "diagnose-akvorado-flow.py",
+                "--strict", "--fail-on-blocked", "--observe-seconds", "1",
+            ]),
+            redirect_stdout(output),
+        ):
+            result = MODULE.main()
+        self.assertEqual(result, 1)
+        self.assertIn("BLOCKED_METADATA_MISSING", output.getvalue())
+
+    def test_cli_requires_new_insertions(self):
+        output = io.StringIO()
+        with (
+            patch.object(MODULE, "fetch", side_effect=[
+                "", metrics(10, 10, 0), metrics(20, 10, 2)
+            ]),
+            patch.object(MODULE.time, "sleep"),
+            patch.object(MODULE.sys, "argv", [
+                "diagnose-akvorado-flow.py",
+                "--strict", "--require-inserts", "--observe-seconds", "1",
+            ]),
+            redirect_stdout(output),
+        ):
+            result = MODULE.main()
+        self.assertEqual(result, 0)
+        self.assertIn("NEW_INSERT_BATCHES_ROWS_UNVERIFIED", output.getvalue())
 
     def test_sensitive_labels_are_not_returned(self):
         text = metrics(1, 1, 0).replace(
