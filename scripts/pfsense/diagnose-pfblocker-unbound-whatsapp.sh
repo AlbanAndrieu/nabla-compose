@@ -62,6 +62,19 @@ ps axo pid,rss,pcpu,command |
     /crowdsec-firewall-bouncer -c / {print "crowdsec_bouncer_pid="$1, "rss_kb="$2, "cpu_pct="$3}
     END {if (!found) print "crowdsec_engine=not_observed"}
   ' | head -5
+echo '=== CrowdSec rc startup flags (policy hint, not proven start cause) ==='
+if command -v sysrc >/dev/null 2>&1; then
+  for key in crowdsec_enable crowdsec_firewall_bouncer_enable; do
+    # Read-only getter. Never print the raw rc configuration.
+    value=$(sysrc -n "$key" 2>/dev/null || true)
+    case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
+      yes|true|on|1) state=enabled ;;
+      no|false|off|0) state=disabled ;;
+      *) state=unknown ;;
+    esac
+    printf 'rc_setting=%s status=%s\n' "$key" "$state"
+  done
+fi
 echo '=== Recent CrowdSec pressure signatures (counts only) ==='
 for file in /var/log/crowdsec/crowdsec.log /var/log/crowdsec.log; do
   [ -r "$file" ] || continue
@@ -75,7 +88,9 @@ sockstat -4 -l 2>/dev/null | grep -E '([.:]53[[:space:]]|[.]53[[:space:]])' | he
 echo '=== Memory budget and OOM evidence (check timestamps) ==='
 sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_size 2>/dev/null || true
 swapinfo -h 2>/dev/null || true
-ps axo pid,rss,pcpu,command | sort -nr -k2 | head -15 || true
+# Exclude arguments that may contain credentials.
+printf 'pid rss_kb cpu_pct executable\n'
+ps axo pid=,rss=,pcpu=,comm= 2>/dev/null | sort -nr -k2 | head -15 || true
 dmesg -a 2>/dev/null | grep -Ei 'failed to reclaim|out of swap|killed.*(unbound|php|netstat)|memory allocation failure' | tail -22 || true
 echo '=== PHP-FPM worker footprint (RSS KiB, not additive physical RAM) ==='
 # Names and counts only: do not publish worker command-line parameters or
@@ -93,12 +108,32 @@ ps axo rss,command 2>/dev/null | awk '
 echo '=== RAM-backed /tmp and /var capacity (filesystem metadata only) ==='
 df -k /tmp /var 2>/dev/null | head -4 || true
 echo '=== pfBlockerNG process overlap and historical DNSBL update markers ==='
-ps axo pid,rss,pcpu,command | grep -E '[p]fblockerng.php|[p]hp_pfb|[p]fb_unbound' | head -10 || true
+# Classify helpers without exposing process arguments.
+ps axo pid,rss,pcpu,command | awk '
+  /pfblockerng[.]php/ && !/awk/ {kind="pfblockerng"}
+  /php_pfb/ && !/awk/ {kind="php_pfb"}
+  /pfb_unbound/ && !/awk/ {kind="pfb_unbound"}
+  kind != "" {
+    printf "process_class=%s pid=%s rss_kb=%s cpu_pct=%s\n",
+      kind, $1, $2, $3
+  }
+  {kind=""}
+' | head -10 || true
 for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockerng.log.0; do
   if [ -r "$file" ]; then
     echo 'pfblockerng_log_present=yes'
     # Deliberately omit arbitrary domain lists, URLs, block reports and secrets.
-    grep -Ei 'UPDATE PROCESS ENDED|DNSBL.*PASSED|DNSBL.*FAILED|Restarting DNSBL Service|Downloading.*IPinfo|pfb.*out of memory' "$file" 2>/dev/null | tail -18 || true
+    # Log lines can contain feed URLs, private domains or credentials.
+    awk '
+      /UPDATE PROCESS ENDED/ {kind="update_ended"}
+      /DNSBL.*PASSED/ {kind="dnsbl_passed"}
+      /DNSBL.*FAILED/ {kind="dnsbl_failed"}
+      /Restarting DNSBL Service/ {kind="dnsbl_restart"}
+      /Downloading.*IPinfo/ {kind="ipinfo_attempt"}
+      /pfb.*out of memory/ {kind="oom_reported"}
+      kind != "" {printf "pfblocker_event=%s line=%d\n", kind, NR}
+      {kind=""}
+    ' "$file" | tail -18 || true
   fi
 done
 echo '=== Resolver failures, including archived logs (limited messages) ==='

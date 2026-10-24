@@ -185,6 +185,57 @@ class UnboundWifiContract(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertFalse(marker.exists())
 
+    def test_process_and_pfblocker_logs_redact_sensitive_arguments(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("ps axo pid=,rss=,pcpu=,comm=", script)
+        self.assertNotIn("ps axo pid,rss,pcpu,command | sort -nr -k2", script)
+        section = script.split(
+            "echo '=== pfBlockerNG process overlap", 1
+        )[1].split("echo '=== Resolver failures", 1)[0]
+        blocks = re.findall(r"awk '(.*?)'", section, re.DOTALL)
+        self.assertEqual(len(blocks), 2)
+
+        processes = (
+            "21 65000 3.5 /usr/local/bin/php -f "
+            "/usr/local/pkg/pfblockerng.php --token secret_value\n"
+            "22 33000 2.0 /usr/local/sbin/php_pfb --password private_value\n"
+            "23 50000 1.0 /usr/bin/awk pfblockerng.php\n"
+        )
+        result = subprocess.run(
+            ["awk", blocks[0]], input=processes, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("process_class=pfblockerng pid=21", result.stdout)
+        self.assertIn("process_class=php_pfb pid=22", result.stdout)
+        self.assertNotIn("pid=23", result.stdout)
+        self.assertNotIn("secret_value", result.stdout)
+        self.assertNotIn("private_value", result.stdout)
+
+        logs = (
+            "10/24/2026 22:00:09: Downloading IPinfo token=super_secret\n"
+            "10/24/2026 22:03:11: DNSBL update PASSED private.domain\n"
+        )
+        result = subprocess.run(
+            ["awk", blocks[1]], input=logs, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("pfblocker_event=ipinfo_attempt line=1", result.stdout)
+        self.assertIn("pfblocker_event=dnsbl_passed line=2", result.stdout)
+        self.assertNotIn("super_secret", result.stdout)
+        self.assertNotIn("private.domain", result.stdout)
+
+    def test_crowdsec_rc_probe_is_read_only(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split(
+            "echo '=== CrowdSec rc startup flags", 1
+        )[1].split("echo '=== Recent CrowdSec pressure signatures", 1)[0]
+        self.assertIn('sysrc -n "$key"', section)
+        self.assertIn("crowdsec_firewall_bouncer_enable", section)
+        self.assertIn("status=%s", section)
+        self.assertNotIn("sysrc crowdsec_enable=", section)
+
 
 if __name__ == "__main__":
     unittest.main()

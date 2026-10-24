@@ -198,6 +198,22 @@ d'une minute ne suffit pas à établir le processus responsable.
 Ne pas lancer une mise à jour Snort en direct comme test sur ce Netgate
 contraint en mémoire.
 
+## Sorties expurgées et provenance CrowdSec (24 octobre)
+
+Le classement RSS affiche le nom exécutable sans arguments.
+Les processus pfBlockerNG sont classés par type avec PID/RSS/CPU.
+Les journaux pfBlockerNG affichent des catégories et numéros de ligne,
+pas le texte pouvant contenir URLs, domaines privés et tokens.
+
+Les indicateurs `sysrc -n` CrowdSec sont des indices de configuration
+de démarrage, pas une preuve de provenance. Un statut `unknown` ne
+signifie pas que le moteur est arrêté. Vérifier les logs de démarrage
+dans un emplacement privé, pas sur la PR publique.
+
+La corrélation des crons Snort 02:09/14:09 et pfBlockerNG 22:00
+avec les OOM nécessite les horodatages des logs originaux en privé.
+Ces catégories expurgées ne prouvent pas la responsabilité des jobs.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :
