@@ -1,7 +1,7 @@
 """Contract for the one authored web icon mapping in the Nabla catalog.
 
 The website vendors the images; this catalog owns the service -> filename identity.
-A new Backstage Component must not silently render a generic icon.
+A new Backstage Component or Resource must not silently render a generic icon.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ ICON_FILE = re.compile(r"[A-Za-z0-9._-]+\.(?:svg|png|jpg)\Z")
 
 
 class ServiceIconWebAssetsContract(unittest.TestCase):
-    def test_web_assets_cover_declared_components_and_legacy_services(self) -> None:
+    def test_web_assets_cover_declared_services_and_resources(self) -> None:
         icons = json.loads((ROOT / "catalog/service-icons.json").read_text(encoding="utf-8"))
         self.assertEqual(icons["version"], 1)
         self.assertIsInstance(icons["icons"], dict)  # Historical graph emoji interface.
@@ -36,8 +36,9 @@ class ServiceIconWebAssetsContract(unittest.TestCase):
         legacy = json.loads(
             (ROOT / "catalog/homelab-services.json").read_text(encoding="utf-8")
         )["services"]
-        names = {item["metadata"]["name"] for item in entities if item["kind"] == "Component"}
+        names = {item["metadata"]["name"] for item in entities if item["kind"] in {"Component", "Resource"}}
         names.update(item["id"] for item in legacy)
+        names.update(icons["icons"].keys())
         missing = sorted(
             name for name in names
             if name not in mapping and not any(name.startswith(parent + "-") for parent in mapping)
