@@ -32,8 +32,21 @@ esac
 # Required secrets must exist as root-owned 0600 or 0400 files.
 # Only emit required KEY names and status, never content or line values.
 secret="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
-if [[ ! -f "$secret" || -L "$secret" || ! -r "$secret" ]]; then
-  fail_gate 'OpenRAG secret file missing, symlinked or unreadable (run with sudo)'
+# The reviewed migrations may finalize the legacy path as a compatibility
+# symlink. Accept ONLY its exact canonical destination; reject other links.
+if [[ -L "$secret" ]]; then
+  resolved="$(readlink -f -- "$secret" 2>/dev/null || true)"
+  if [[ "$secret" == /mnt/cpool/openrag/.env.secrets &&
+        "$resolved" == /mnt/cpool/secrets/runtime/openrag/.env.secrets ]]; then
+    echo 'secret_path=accepted_canonical_compatibility_symlink'
+    secret="$resolved"
+  else
+    fail_gate 'OpenRAG secret symlink is not the reviewed canonical migration target'
+    secret=''
+  fi
+fi
+if [[ ! -f "$secret" || ! -r "$secret" ]]; then
+  fail_gate 'OpenRAG secret file missing or unreadable (run with sudo)'
 else
   mode="$(stat -c '%a' -- "$secret" 2>/dev/null || true)"
   owner="$(stat -c '%u' -- "$secret" 2>/dev/null || true)"
