@@ -33,8 +33,9 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
   # For the concurrent Talos/Kubernetes operator flow see
   # docs/runbooks/2026-10-23-fast-batch-migration.md
 
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --next-commands
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|prometheus|openrag|akvorado|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  bash scripts/truenas/finish-migrations-20261024.sh --next-commands
+  bash scripts/truenas/finish-migrations-20261024.sh --local-gates
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|prometheus|openrag|sentry|akvorado|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -62,6 +63,7 @@ while (($#)); do
   case "$1" in
     --check) ACTION="check"; shift ;;
     --next-commands) ACTION="commands"; shift ;;
+    --local-gates) ACTION="local-gates"; shift ;;
     --section) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; SECTION="$2"; shift 2 ;;
     --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; WAVE="$2"; shift 2 ;;
     --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; WAVE="$2"; shift 2 ;;
@@ -92,6 +94,32 @@ if [[ "${ACTION}" == commands ]]; then
     exit 2
   }
   cat -- "${RUNBOOK}"
+  exit 0
+fi
+
+if [[ "${ACTION}" == local-gates ]]; then
+  [[ "${SECTION}" == all && -z "${WAVE}" && -z "${STEP}" &&
+     -z "${HASH}" && -z "${ACK}" && "${ALLOW_DRIFT}" == false ]] || {
+    echo '--local-gates accepts no apply, wave or section flags' >&2
+    exit 2
+  }
+  (( EUID != 0 )) || { echo '--local-gates must run as non-root' >&2; exit 2; }
+  command -v just >/dev/null 2>&1 || {
+    echo 'just is required; no quality gate executed' >&2
+    exit 2
+  }
+  # Explicit local-only runner; does not use midclt, Docker or GitHub Actions.
+  for recipe in migration-20261024-commands migration-20261024-test \
+                catalog-convergence-check agent-skills-check quality; do
+    printf 'LOCAL_GATE_START=%s\n' "$recipe"
+    if just "$recipe"; then
+      printf 'LOCAL_GATE_PASS=%s\n' "$recipe"
+    else
+      printf 'LOCAL_GATE_FAIL=%s; later gates skipped\n' "$recipe" >&2
+      exit 1
+    fi
+  done
+  printf 'LOCAL_GATES_COMPLETE=5 (TrueNAS runtime not attested)\n'
   exit 0
 fi
 
@@ -339,6 +367,11 @@ check_section() {
       run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
       run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
       ;;
+    sentry)
+      # Read-only consumer state plus guarded Sentry recovery preflight.
+      run_check sentry-consumers bash scripts/truenas/diagnose-sentry-consumers.sh --check
+      run_check sentry-recovery-preflight bash scripts/truenas/recover-sentry-deploying.sh --check
+      ;;
     akvorado)
       # Counter snapshots only. A fresh ClickHouse batch is not a SQL-row proof.
       run_check akvorado-blocked python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 20
@@ -408,7 +441,7 @@ print_summary() {
 }
 if [[ "${ACTION}" == check ]]; then
   if [[ "${SECTION}" == all ]]; then
-    for part in platform migrations catalog services ai observability secrets convergence lan talos; do
+    for part in platform migrations catalog services ai sentry observability secrets convergence lan talos; do
       diag_section "" "${part}"
       check_section "${part}"
     done
