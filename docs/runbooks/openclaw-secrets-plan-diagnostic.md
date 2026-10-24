@@ -238,6 +238,49 @@ et l'origine persistante du Gateway. Le contrôle `--dry-run` ne
 prouve pas qu'un redémarrage fonctionnerait. Pas d'application réelle
 ni de restart sans validation et accord séparé.
 
+## Source de clé préchargée — correction après retour Workstation (24 octobre 2026)
+
+Le dernier lot sur Ubuntu a validé **36 tests** (18 + 7 + 11),
+mais `just openclaw-cron-file-cutover-check` a renvoyé
+`cron_cutover_reason=invalid_or_indirect_credential`, au stade
+`source`. Ce message vient de l'analyse de la valeur du dotenv :
+cela ne prouve **pas** l'absence de la clé dans le shell ni son rejet
+par LiteLLM.
+
+Le cutover privilégie désormais **la variable d'environnement déjà
+exportée**, `LITELLM_OPENCLAW_CRON_API_KEY`, sur le contenu du dotenv.
+Il conserve un fallback vers une valeur littérale du dotenv lorsqu'elle
+est absente de l'environnement Python. Il refuse les valeurs préchargées
+vides, trop courtes, contenant des espaces, des retours à la ligne ou
+une expansion non résolue. Il imprime uniquement
+`cron_cutover_credential_source=preloaded_environment|private_dotenv`
+sans jamais afficher le credential.
+
+**Vérification sans fuite de clé :**
+
+```bash
+cd ~/w/nabla-compose
+python3 -c 'import os; print("cron_key_exported=" + str(bool(os.environ.get("LITELLM_OPENCLAW_CRON_API_KEY"))).lower())'
+```
+
+Si `cron_key_exported=false` alors que la variable existe dans Bash,
+l'exporter **sans recopier sa valeur** :
+
+```bash
+export LITELLM_OPENCLAW_CRON_API_KEY
+```
+
+Synchroniser ensuite la PR, puis relancer
+`just openclaw-cron-secret-plan-test` et
+`just openclaw-cron-file-cutover-check`. Ne passer à
+`just openclaw-cron-file-cutover` (écriture native et reload des
+secrets Gateway) **que si** `cron_cutover_status=ready`.
+
+Quatre tests nouveaux couvrent les variables préchargées, la référence
+indirecte dans le dotenv, le fallback sans export et le refus de
+placeholder. **Ces tests ne sont pas encore exécutés sur Workstation** :
+36 tests validés auparavant, 40 cas désormais présents dans cette PR.
+
 ## Cutover rapide autorisé — clé cron vers fournisseur `file`
 
 **Décision opérateur du 24 octobre :** une interruption temporaire d'OpenClaw
