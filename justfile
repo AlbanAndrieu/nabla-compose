@@ -118,6 +118,16 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
+# Read-only 429 attribution. No chat, embeddings, resets or key mutations.
+openclaw-429-triage-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
+
+# The --admin flag only queries hashed virtual key metadata on LiteLLM loopback.
+openclaw-429-triage:
+    python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
+    python3 scripts/workstation/openclaw-route-metadata.py
+
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
