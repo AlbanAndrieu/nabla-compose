@@ -2,11 +2,16 @@
 # Read-only workstation HTTPS/DNS comparison for a Wi-Fi WhatsApp incident.
 # Never reads browser cookies, WhatsApp messages, session keys or browser storage.
 set -euo pipefail
+# Workstation pfSense diagnostic output only.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../pfsense" && pwd)/console.sh"
 case "${1:-}" in
   --check) [[ $# -eq 1 ]] || exit 2 ;;
   --help|-h) echo "Usage: $0 --check"; exit 0 ;;
   *) echo "Usage: $0 --check" >&2; exit 2 ;;
 esac
+pfsense_ui_banner "WhatsApp DNS and HTTPS · read-only"
+pfsense_whatsapp_main() {
 echo '=== Workstation resolver (public destination only) ==='
 if command -v resolvectl >/dev/null 2>&1; then
   resolvectl dns 2>/dev/null | head -8 || true
@@ -52,3 +57,5 @@ echo '=== Diagnostic boundaries ==='
 echo 'HTTP 403/405 may be a normal edge response; this does not prove WhatsApp messaging.'
 echo 'Compare this output when connected to the affected Wi-Fi and a second trusted network.'
 echo 'Browser DevTools Network can identify failing wss/HTTPS calls but do not export HAR with cookies/tokens.'
+}
+pfsense_whatsapp_main | pfsense_ui_render
