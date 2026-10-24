@@ -87,7 +87,7 @@ ps axo rss,command 2>/dev/null | awk '
     if ($1 > max_rss) max_rss = $1
   }
   END {
-    printf "php_fpm_workers=%d php_fpm_rss_sum_kb=%.0f php_fpm_max_worker_rss_kb=%.0f\\n", workers + 0, rss_sum + 0, max_rss + 0
+    printf "php_fpm_workers=%d php_fpm_rss_sum_kb=%.0f php_fpm_max_worker_rss_kb=%.0f\n", workers + 0, rss_sum + 0, max_rss + 0
   }
 '
 echo '=== RAM-backed /tmp and /var capacity (filesystem metadata only) ==='
