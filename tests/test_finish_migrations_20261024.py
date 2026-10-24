@@ -141,7 +141,10 @@ def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
 
 def test_new_read_only_sections_are_documented():
     script = SOURCE.read_text(encoding="utf-8")
-    for section in ("observability", "secrets", "convergence", "lan"):
+    for section in (
+        "observability", "prometheus", "openrag", "akvorado",
+        "secrets", "convergence", "lan",
+    ):
         assert f"    {section})" in script
     assert f" --check --section {section}" in (
         SOURCE.parents[2]
@@ -149,6 +152,31 @@ def test_new_read_only_sections_are_documented():
     ).read_text(encoding="utf-8")
     assert "--require-inserts --observe-seconds" in script
     assert "verify-fastapi-lan-probes.sh" in script
+
+
+def test_legacy_openrag_secret_apply_is_rejected(fake_operator):
+    """Legacy OpenRAG secret source must not be a mutable migration step."""
+    result = invoke(
+        fake_operator, "--apply-step", "openrag-secret",
+        "--acknowledge", ACK_MIGRATION,
+    )
+    assert result.returncode == 2
+    assert "Invalid migration step" in result.stderr
+    script = SOURCE.read_text(encoding="utf-8")
+    assert 'openrag-secret) SCRIPT=' not in script
+
+
+def test_operator_runbook_mentions_merged_site_and_api_prs(fake_operator):
+    runbook = (
+        SOURCE.parents[2]
+        / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+    ).read_text(encoding="utf-8")
+    assert "PR site #254 et FastAPI" in runbook
+    assert "ont été fusionnées" in runbook
+    assert "--check --section prometheus" in runbook
+    assert "--check --section openrag" in runbook
+    assert "--check --section akvorado" in runbook
+    assert "Ne pas lancer l'ancien reconciler en" in runbook
 
 
 @pytest.mark.parametrize("args", [
