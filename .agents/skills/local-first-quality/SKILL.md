@@ -88,6 +88,59 @@ La référence d'implémentation est
 Lire \`docs/runbooks/yubikey-piv82-postmerge-diagnostics.md\` pour le
 bootstrap Git **sans dépendance à /tmp**.
 
+## Worktree Python : dépendances verrouillées avant la gate
+
+**Détecter d'abord l'environnement** : un worktree Git est un checkout
+de fichiers, pas une copie de .venv, des caches ou de l'autorisation
+direnv/mise. Évaluer les prérequis **avant** d'interpréter les erreurs
+PyYAML/pytest comme une régression applicative.
+
+Séquence obligatoire pour une tâche Python/topologie :
+
+1. L0 : vérifier pyproject.toml, uv.lock, .python-version, la branche,
+   l'emplacement du checkout et les exécutables Python/uv disponibles.
+   Préférer just preflight (Git-only) avant une installation.
+2. Préparer **uniquement** l'environnement Python du worktree :
+   scripts/quality/with-worktree-python.sh installe le groupe test du
+   uv.lock avec uv sync --frozen --only-group test --no-install-project.
+   N'autoriser aucun changement de uv.lock, de pyproject.toml ou de
+   configuration globale pour contourner un prérequis.
+3. Le lanceur utilise .venv propre au worktree et le cache partagé de
+   téléchargements uv. Il contrôle un marqueur de hash uv.lock +
+   pyproject.toml ; il évite la resynchronisation à chaque commande
+   quand la preuve de dépendances reste valide.
+4. L1 : exécuter les 3 générateurs en mode --check, puis les tests
+   ciblés. Ne jamais régénérer automatiquement Homarr/Gatus/AutoKuma
+   pendant un contrôle. Si un générateur échoue, lire son premier
+   diagnostic ; distinguer MISSING_DEPS, TOOL_MISSING et DRIFT.
+5. L2/L3 : lancer la gate complète seulement après un préflight
+   Python PASS. Si elle détecte une dérive réelle, préserver le diff
+   et ne lancer la régénération qu'avec une décision explicite.
+
+**Commande canonique (une seule, dans un worktree)** : just topology-qa.
+Cette recette prépare la .venv puis enchaîne les contrôles et
+just quality ; elle s'arrête au premier échec. La commande
+just quality prépare également son environnement Python avant
+d'exécuter le gate existant. Utiliser --check pour l'audit, et
+topology-artifacts-refresh uniquement pour un changement intentionnel
+des projections.
+
+**Choix d'outils** : uv est l'autorité des dépendances Python versionnées
+(pyproject.toml + uv.lock). mise.toml sélectionne les exécutables
+(python, uv, just) déjà installés ; ne pas effectuer un mise install global
+ni modifier mise.lock pour un contrôle de topologie. .envrc peut exécuter
+des commandes de mise en place et charger des fichiers secrets :
+ne jamais déclencher direnv allow, de source .envrc, de curl | bash ou
+une activation automatique dans un agent sans revue explicite.
+Si uv manque, afficher BLOCKED et la dépendance précise, sans installer
+de binaire depuis une source non revue. Ne pas utiliser pip install
+dans le Python global ou le --break-system-packages.
+
+Un défaut de prérequis ne prouve **jamais** que le générateur a produit
+des fichiers erronés. Après un échec, n'élargir ni les tests ni la CI
+avant d'avoir rétabli l'environnement et reproduit le premier défaut
+sur le SHA exact.
+
 ## Skills externes : contrôle local avant installation
 
 `AGENTS.md` et `docs/agent-skills-architecture.md` définissent la

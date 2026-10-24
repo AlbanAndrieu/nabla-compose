@@ -46,6 +46,12 @@ topology-generators-check:
 topology-generator-test:
     bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_service_topology_generator.py tests/test_service_consumer_drift_diagnostic.py
 
+
+# Single-command QA from an isolated worktree: pinned Python, read-only
+# generators, unit tests, then canonical local quality gate. Stop on failure.
+topology-qa:
+    bash scripts/quality/with-worktree-python.sh bash scripts/quality/check-topology-worktree.sh
+
 # Explicit source-of-truth regeneration. Development worktree ONLY.
 # Never overwrite TrueNAS bind mounts or unpublished generated artifacts.
 topology-artifacts-refresh:
@@ -74,7 +80,7 @@ catalog-convergence-check:
 # Full local quality gate without publishing. Invoke the canonical checker
 # directly to avoid outdated TrueNAS mise auto-lock/download side effects.
 quality:
-    bash scripts/agent-quality-gate.sh
+    bash scripts/quality/with-worktree-python.sh bash scripts/agent-quality-gate.sh
 
 # Apply deterministic local fixes and generated artifacts.
 fix:

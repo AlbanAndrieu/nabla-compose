@@ -13,8 +13,8 @@ fi
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
 DEFAULT_VENV="${HOME}/.cache/nabla-compose/dev-venv"
 CANDIDATES=(
-  "${NABLA_TRUENAS_DEV_VENV:-${DEFAULT_VENV}}/bin/python"
   "${ROOT}/.venv/bin/python"
+  "${NABLA_TRUENAS_DEV_VENV:-${DEFAULT_VENV}}/bin/python"
 )
 if [[ -n "${VIRTUAL_ENV:-}" ]]; then
   CANDIDATES+=("${VIRTUAL_ENV}/bin/python")
@@ -35,6 +35,10 @@ PY
     exec "$candidate" "$@"
   fi
 done
+# Bootstrap only in a linked worktree: avoid mutating the TrueNAS canonical checkout.
+if [[ -f "${ROOT}/.git" && "${NABLA_WORKTREE_AUTO_SETUP:-1}" == 1 ]]; then
+  exec bash "${ROOT}/scripts/quality/with-worktree-python.sh" "$@"
+fi
 printf 'BLOCKED: no Python with %s installed in existing repo environments.\n' \
   "${REQUIRED_MODULES[*]}" >&2
 printf 'Development worktree only: initialize dependencies via your reviewed uv.lock/pyproject setup; no packages were installed.\n' >&2
