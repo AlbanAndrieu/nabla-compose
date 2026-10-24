@@ -5,6 +5,45 @@ Leur résultat ne prouve pas que les flux NetFlow sont écrits dans ClickHouse.
 La nuit précédente, Unbound aurait de nouveau cessé de fonctionner. Le
 diagnostic actuel n'a pas encore été exécuté sur le pare-feu.
 
+## Worktree après redémarrage workstation
+
+Le chemin `/tmp/nabla-pr274` est temporaire et peut disparaître après reboot.
+Un `git -C /tmp/nabla-pr274 fetch` échoue alors immédiatement.
+Ne pas coller `set -e` seul dans un terminal interactif : si Git retourne
+une erreur, cette option peut fermer le shell courant.
+
+Utiliser **une seule procédure encapsulée dans un enfant Bash**. Elle
+récupère le script au SHA exact depuis la branche PR #274 ; le script
+vérifie le commit, crée un worktree détaché unique sous
+`~/.local/share/nabla/worktrees/pr274-XXXXXXXX`, exécute les tests locaux,
+le diagnostic WhatsApp, puis le diagnostic pfSense en lecture seule.
+Elle ne change ni le HEAD ni les fichiers locaux `n8n`, `sentry`
+ou OpenClaw du checkout principal. La commande fonctionne depuis
+n'importe quel répertoire, si `$HOME/w/nabla-compose` existe.
+
+```bash
+bash -euo pipefail -c '
+  repo="${NABLA_COMPOSE_REPO:-$HOME/w/nabla-compose}"
+  branch="fix/homelab-operator-diagnostics-followup-20261024"
+  git -C "$repo" -c submodule.recurse=false fetch \
+    --no-tags --no-recurse-submodules origin \
+    "+refs/heads/$branch:refs/remotes/origin/$branch"
+  sha="$(git -C "$repo" rev-parse --verify "refs/remotes/origin/$branch^{commit}")"
+  git -C "$repo" show "$sha:scripts/workstation/run-pr274-after-reboot.sh" |
+    NABLA_COMPOSE_REPO="$repo" NABLA_PR274_EXPECTED_SHA="$sha" \
+      bash -s -- --check --with-pfsense
+' || printf '%s\n' 'Échec de diagnostic : terminal conservé, aucun déploiement.'
+```
+
+Ne jamais effectuer `git reset --hard`, `git clean`, `git pull` dans
+le checkout principal ou de suppression forcée d'un worktree modifié
+pour résoudre une erreur `/tmp`. Le script utilise `flock` et un
+SHA épinglé ; chaque exécution crée un worktree persistant distinct.
+Il n'installe rien. Pour uniquement préparer le worktree, utiliser
+`--prepare-only` à la place de `--check --with-pfsense` après le
+bootstrap. Les tests Git simulés du script n'atteignent ni pfSense
+ni GitHub.
+
 ## Risques et précédents
 
 Le Netgate 1100 est limité en mémoire. L'incident du 8 octobre
