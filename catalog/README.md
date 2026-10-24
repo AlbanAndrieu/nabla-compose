@@ -6,6 +6,30 @@ The v2 target is Backstage-native: `catalog-info.yaml` owns entity identity and 
 
 Compose `depends_on` remains authoritative for same-project startup dependencies. Backstage `spec.dependsOn` becomes authoritative for cross-entity functional dependencies. Do not repeat either relation in x-nabla.
 
+## Web icon source of truth
+
+`catalog/service-icons.json` owns two distinct *presentation projections*:
+`icons` (legacy graph emoji) and `webAssets` (per-service bundled file names).
+Neither is a runtime-health authority. A child service may inherit a parent
+application icon. Product-specific original pictograms are permitted when an
+upstream logo is unavailable; record attribution at the website asset. All new Backstage Components/Resources, legacy graph icon names and homelab service IDs
+must resolve to a specific `webAssets` entry (or to a parent entry).
+`tests/test_service_icon_web_assets.py` enforces this contract.
+
+The website owns the actual licensed SVG/PNG files, **not** the service-to-icon
+mapping. Synchronize its checked-in generated TypeScript snapshot offline:
+
+```sh
+cd ../nabla-site-alban
+node scripts/sync-homelab-icons.mjs --source ../nabla-compose/catalog/service-icons.json
+node scripts/sync-homelab-icons.mjs --source ../nabla-compose/catalog/service-icons.json --check
+```
+
+No Next.js build-time GitHub download, runtime icon CDN, or separate hand-edited
+site catalog is required. The older `catalog/homelab-services.json.iconSrc`
+fields are deprecated legacy v1 output; do not add new icon ownership there.
+Retire them after the last v1 consumer migrates.
+
 ## Ownership
 
 ### Current v1
