@@ -165,10 +165,16 @@ openclaw-cron-file-cutover:
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Pure offline regressions: no pfSense access or GitHub Actions.
+pfsense-console-test:
+    bash -n scripts/pfsense/console.sh
+    bash -n scripts/workstation/verify-crowdsec-pfsense.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
+
 pfsense-unbound-wifi-test:
     bash -n scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh
     bash -n scripts/pfsense/audit-posture.sh
     bash -n scripts/workstation/diagnose-whatsapp-web-path.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
     bash -n scripts/workstation/run-pr274-after-reboot.sh
