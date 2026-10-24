@@ -1,5 +1,13 @@
 # Homelab — commandes opérateur restantes (2026-10-24)
 
+> **Historique — état observé en octobre 2026.** Ce fichier conserve
+> ses commandes et preuves à titre de traçabilité ; il n'est pas le point
+> d'entrée pour un nouveau diagnostic. Lire d'abord
+> [l'acceptation runtime courante](homelab-runtime-acceptance.md) et
+> [la roadmap active](../roadmap.md). Aucune commande mutante ci-dessous
+> n'est autorisée par cet archivage. La PR #274 est fusionnée.
+
+
 **Document opérateur canonique** pour les contrôles de migrations TrueNAS
 du 24 octobre. Les scripts ne doivent pas afficher son contenu, seulement
 le chemin de cette documentation. Ce runbook contient les commandes à exécuter,
