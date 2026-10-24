@@ -123,6 +123,57 @@ quelle affectation serait retirée ni si elle est nécessaire au Gateway.
 Ne pas inférer que la variable `LITELLM_OPENCLAW_CRON_API_KEY` serait
 supprimée sur la seule base de ce compteur.
 
+## Provenance limitée de la clé cron — 25 octobre 2026 (code, non exécuté sur Workstation)
+
+Les 18/18 tests du précédent lot ont **PASS** sur la Workstation.
+La comparaison native y confirme que `scrubEnv` explique **exactement**
+le deuxième fichier projeté (`cron SQLite=1`, `.env=1` initial,
+puis `.env=0` avec un plan temporaire `scrubEnv=false`).
+
+La PR #274 ajoute une vérification **en lecture seule**, sans valeurs,
+des sources possibles de `LITELLM_OPENCLAW_CRON_API_KEY` :
+
+```bash
+just openclaw-cron-secret-plan-test
+just openclaw-cron-secret-plan-provenance
+```
+
+La recette `provenance` produit les champs suivants, avec une valeur
+expurgée :
+
+- `secret_plan_cron_key_in_projected_dotenv=present|absent|duplicate|unsafe_permissions|unavailable|not_single_dotenv`.
+  Il s'agit **uniquement de la présence du nom de la variable** dans
+  le fichier .env effectivement projeté par OpenClaw. `present`
+  **ne prouve pas** que cette ligne est celle qu'OpenClaw supprimerait.
+  `unsafe_permissions` indique que le diagnostic a refusé de lire
+  un dotenv trop accessible ; ne pas assouplir les permissions par
+  commodité.
+- `secret_plan_gateway_initial_env_cron_key=present_in_initial_process_env|not_in_initial_process_env|not_running|unavailable`.
+  Le script interroge `MainPID` du seul service utilisateur
+  `openclaw-gateway.service` et lit **en mémoire** son environnement
+  initial sous `/proc/<pid>/environ`, après contrôle du propriétaire.
+  Aucun PID, chemin, nom de compte ou valeur n'est imprimé.
+  Une variable chargée *après* le lancement peut ne pas apparaître
+  dans cet environnement initial.
+- `secret_plan_gateway_restart_persistence=unverified` et
+  `secret_plan_gateway_env_attested=false` restent toujours affichés.
+  Le processus courant ne prouve pas qu'une source survivra à un
+  redémarrage. Un mécanisme systemd `EnvironmentFile`, un autre
+  magasin de secrets ou un chargement à l'exécution doit être
+  vérifié séparément et **en privé** avant autorisation.
+
+Ces nouveaux contrôles ne font **aucun** appel LiteLLM, n'exportent
+aucun environnement, ne modifient pas le plan, ne redémarrent pas
+le Gateway et ne lancent aucune opération d'écriture OpenClaw.
+Le code de sortie **2 reste intentionnel** même si le nom de la clé
+existe dans les deux emplacements. Ne jamais recopier la sortie
+native JSON, le contenu .env ou `/proc/<pid>/environ`.
+
+La nouvelle suite contient **18 tests du plan + 7 tests
+de provenance = 25 cas déclarés**. Ils restent **à confirmer sur la
+Workstation**, les 18 tests précédents étant les derniers
+effectivement exécutés par l'opérateur.
+
 ## P0 : risque de nettoyage du dotenv
 
 Dans OpenClaw 2026.9.5, `scrubEnv=true` est le comportement natif
