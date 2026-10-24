@@ -494,13 +494,13 @@ fi
 pflow_output="$(pflowctl -v -l 2>/dev/null || true)"
 # Current low-memory interim design is one NetFlow v5 LAN exporter.
 # Do not force IPFIX v10 or a second Cloudflare exporter during OOM.
-if printf '%s\n' "$pflow_output" | grep -Eq 'version (5|10) domain 1 src 172\\.17\\.0\\.1 dst 172\\.17\\.0\\.24:2055'; then
-  version="$(printf '%s\n' "$pflow_output" | sed -nE 's/.*version (5|10) domain 1 src 172\\.17\\.0\\.1 dst 172\\.17\\.0\\.24:2055.*/\\1/p' | head -1)"
+if printf '%s\n' "$pflow_output" | grep -Eq 'version (5|10) domain 1 src 172[.]17[.]0[.]1 dst 172[.]17[.]0[.]24:2055'; then
+  version="$(printf '%s\n' "$pflow_output" | sed -nE 's/.*version (5|10) domain 1 src 172[.]17[.]0[.]1 dst 172[.]17[.]0[.]24:2055.*/\1/p' | head -1)"
   emit PASS pflow.truenas configured "current v${version} domain 1 exports to TrueNAS; verify Akvorado downstream independently"
 else
   emit WARN pflow.truenas unconfirmed "no matching current domain-1 exporter; inspect pflowctl and TrueNAS inlet"
 fi
-if printf '%s\n' "$pflow_output" | grep -Eq 'version 10 domain 2 .*dst 162\\.159\\.65\\.1:2055'; then
+if printf '%s\n' "$pflow_output" | grep -Eq 'version 10 domain 2 .*dst 162[.]159[.]65[.]1:2055'; then
   emit PASS pflow.cloudflare configured "optional IPFIX v10 Cloudflare exporter observed"
 else
   emit INFO pflow.cloudflare not_configured "optional cloud exporter not required during Netgate 1100 OOM recovery"
