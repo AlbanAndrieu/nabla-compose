@@ -156,6 +156,34 @@ def test_new_read_only_sections_are_documented():
     assert "verify-fastapi-lan-probes.sh" in script
 
 
+def test_critical_read_only_section_combines_four_independent_gates(
+    fake_operator,
+):
+    """Missing synthetic check tools are reported without aborting the others."""
+    target, _, report, marker = fake_operator
+    source = SOURCE.read_text(encoding="utf-8")
+    assert 'all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado' in source
+    assert 'for service in prometheus openrag sentry akvorado; do' in source
+    assert 'run_check sentry-consumers bash scripts/truenas/diagnose-sentry-consumers.sh --check' in source
+    result = invoke(fake_operator, "--check", "--section", "critical")
+    # Missing fixture-specific read-only probes cause a controlled FAIL,
+    # not "Invalid section" and never a mutation.
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Invalid section" not in result.stderr
+    assert not marker.exists()
+    sessions = list(report.glob("session-*"))
+    assert len(sessions) == 1
+    names = {path.name for path in sessions[0].glob("*.log")}
+    for expected in (
+        "prometheus-targets.log",
+        "openrag-dependencies.log",
+        "sentry-consumers.log",
+        "akvorado-blocked.log",
+        "akvorado-fresh-inserts.log",
+    ):
+        assert expected in names
+
+
 def test_legacy_openrag_secret_apply_is_rejected(fake_operator):
     """Legacy OpenRAG secret source must not be a mutable migration step."""
     result = invoke(
