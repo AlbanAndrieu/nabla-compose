@@ -112,3 +112,48 @@ Références : <https://docs.litellm.ai/docs/proxy/error_reference>,
 <https://docs.litellm.ai/docs/proxy/virtual_keys>,
 <https://docs.litellm.ai/docs/proxy/ui_logs>.
 
+
+
+## Diagnostic TrueNAS distinct de l'erreur 429 — 24 octobre 2026
+
+### Preuves : HTTP auth failure, pas une réponse 429
+
+La capture de l'opérateur sur **LiteLLM TrueNAS 1.106.2**, trace `889ddeb8-fc31-44ae-8733-63992bec19e5`, affiche `No api key passed in.` ; endpoint `GET /v1/models` ; `user_api_key=null`, aucun modèle/provider, aucun token et coût nul. L'adresse signalée `172.17.0.24` et le champ `user_agent=litellm/1.106.2` sont compatibles avec le contexte TrueNAS, mais **ne prouvent pas l'identité réelle de l'appelant** (proxy, sonde, interface, NAT). Ce log est **une absence de header d'authentification**, pas une limitation de débit et ne suffit pas à établir la cause du message UI OpenClaw `API rate limit reached`.
+
+### Architecture cible déjà décidée
+
+Le runbook historique `2026-10-10-openclaw-workstation-remediation.md` impose un **LiteLLM central TrueNAS** à `172.17.0.24:4000/v1`. Son inventaire antérieur comptait **0 clé virtuelle** alors que Workstation possédait 5 clés. Le cutover récent de la SecretRef cron a déplacé la **même clé virtuelle Workstation** vers `openclaw-cron.key` (le diagnostic identifie son hash comme alias `openclaw`) : il ne crée pas de credential TrueNAS. Il ne migre pas `main` non plus.
+
+La sortie de l'opérateur `openclaw-route-metadata.py` atteste que les providers `litellm-main` et `litellm-cron` ont une URL non-loopback, mais **n'identifie pas encore formellement l'hôte**. Le script a été renforcé avec `route_owner=truenas_litellm|workstation_litellm|workstation_lan_litellm|other_or_unverified` et `key_representation=literal_or_unresolved|env_reference|secretref_object|missing`, sans jamais publier l'URL ni le secret. Refaire ce contrôle après synchronisation.
+
+### Bloqueur modèle : gpt-4.1 et gpt-4.1-mini non déclarés
+
+`apps/litellm/config.yaml` contient `workstation-qwen`, `embedding`, `embedding-local`, des routes Hermes, etc., mais **aucun `model_name` actif exactement `gpt-4.1` ou `gpt-4.1-mini`**. Ces alias sont les modèles OpenClaw `main` et `cron` documentés. La présence de fallbacks textuels vers ces noms ne déclare pas les modèles dans `model_list`. L'état runtime peut diverger du Git : le vérifier avant de modifier les modèles ou provisionner les clés.
+
+### Préflight chiffré en lecture seule
+
+```bash
+cd ~/w/nabla-compose
+just openclaw-429-triage-test
+just openclaw-truenas-model-keys-test
+just openclaw-429-triage
+just openclaw-truenas-model-keys-check
+```
+
+Le dernier check compare uniquement les `model_name` **déclarés dans Git**. Pour lire l'état runtime, créer **manuellement** un forward SSH chiffré `127.0.0.1:14000 -> TrueNAS:127.0.0.1:4000` avec une session authentifiée existante, sans exposer l'admin à HTTP LAN, et exporter `LITELLM_TRUENAS_MASTER_KEY` **privément**, puis :
+
+```bash
+just openclaw-truenas-model-keys-tunnel
+```
+
+Cette commande ne fait que deux GET de métadonnées : `/v1/models` et `/key/list`. Elle ne sort ni les clés ni leurs hashes, ni les modèles hors allowlist, et ne crée aucun token. Sans tunnel ou authentification elle s'arrête sans hypothèse de vacuité.
+
+### Plan de migration réelle — phases indépendantes
+
+1. Confirmer l'hôte réel de `litellm-main`/`litellm-cron` et les alias `gpt-4.1`, `gpt-4.1-mini` exposés **dans le runtime TrueNAS** ; si absents, rétablir d'abord les routes de modèles par configuration déclarative et secrets upstream distincts, sans réutiliser la clé master.
+2. Créer via **l'Admin UI TrueNAS** (ou API `/key/generate` sur transport chiffré) deux **nouvelles clés virtuelles** `openclaw-main` et `openclaw-cron`, avec allowlists de modèles, budgets et limites RPM/TPM. Éviter de dupliquer arbitrairement les clés Workstation. L'API LiteLLM garantit des identités propres par proxy.
+3. Importer chaque nouvelle valeur dans son fichier `0600` spécifique sur la Workstation, revoir les `SecretRef` main/cron et la route `172.17.0.24:4000/v1`, puis valider `openclaw secrets reload` et une requête de modèle contrôlée seulement si autorisée.
+4. Une fois la bascule validée, nettoyer les credentials Workstation historiques et les modèles générés ; préserver les originaux en sauvegarde privée le temps du rollback. Traiter séparément les quatre credentials du magasin auth partagé. Ne jamais transférer un master key dans OpenClaw.
+
+**Pas d'auto-réplique des valeurs de clés**, pas d'augmentation de quota pour masquer une erreur, pas de `GET /v1/models` sans header d'authentification pour « tester » un proxy protégé, et pas de déploiement TrueNAS tant que son active `config.yaml`/DB ne sont pas attestés.
+
