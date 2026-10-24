@@ -264,6 +264,8 @@ indépendant :
   est archivé dans ce même dossier.
 - Après : aucun restart Gateway automatique, aucune suppression
   `.env`, aucune modification `main`, ni migration du magasin partagé.
+  La recette de cutover déclenche ensuite `openclaw secrets reload` pour
+  activer la nouvelle référence sans redémarrage systemd.
 
 Lancer **sur la Workstation**, depuis le checkout à jour de #274 :
 
@@ -274,9 +276,10 @@ just openclaw-cron-file-cutover-check
 just openclaw-cron-file-cutover
 ```
 
-`--check` ne crée pas de fichier. Le `--apply` appelé par le dernier
-`just` écrit volontairement le nouveau fichier, la sauvegarde et
-la nouvelle configuration. Il est **autorisé ici** par l'acceptation
+`--check` ne crée pas de fichier. Le `--apply --reload-gateway` appelé
+par le dernier `just` écrit volontairement le nouveau fichier, la
+sauvegarde et la nouvelle configuration, puis déclenche un reload des
+secrets Gateway (pas un restart systemd). Il est **autorisé ici** par l'acceptation
 explicite d'une possible interruption de service. Il peut néanmoins
 échouer si la clé n'est pas une valeur littérale, si les fichiers sont
 trop permissifs, si l'identité du provider existe déjà avec un autre
@@ -289,8 +292,14 @@ du Gateway.** Ne pas redémarrer automatiquement les services. Pour
 diagnostiquer sans dévoiler de secret après migration, relancer
 le contrôle de la mémoire et l'audit redacted existants.
 
-En cas d'échec après mutation, le script indique
-`cron_cutover_applied=not_confirmed`; **ne pas relancer en boucle**.
+En cas d'échec avant confirmation native, le script indique
+`cron_cutover_applied=not_confirmed`. Si seule l'activation Gateway
+échoue, il indique au contraire `cron_cutover_applied=true` et
+`cron_cutover_reason=gateway_secrets_reload_failed`.
+**Ne pas relancer le cutover en boucle** : une écriture déjà confirmée
+pourrait sinon réintroduire la référence `env` à partir du plan original.
+Traiter l'activation séparément avec `openclaw secrets reload`
+après revue de l'erreur locale, sans exposer de secret.
 Analyser en privé le dossier de sauvegarde, le plan archivé, les
 permissions et l'état du Gateway. Les backups ne sont **jamais
 restaurés automatiquement**, car cela écraserait potentiellement des
