@@ -111,9 +111,11 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
                         state, reason = "down", failure_category(last)
                     else:
                         reason = "invalid_success_value"
+        protocol = str(endpoint.get("url") or "").split(":", 1)[0].lower()
+        if protocol not in {"http", "https", "tcp", "udp", "icmp", "dns"}:
+            protocol = "unknown"
         checks.append({"service_id": service_id, "state": state,
-                       "reason": reason,
-                       "protocol": str(endpoint.get("url") or "").split(":", 1)[0]})
+                       "reason": reason, "protocol": protocol})
         counts[state] += 1
 
     return {
