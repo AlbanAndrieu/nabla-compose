@@ -104,6 +104,14 @@ particulier, un repo sous /tmp ou une branche déjà active.
   bare privé et télécharger le SHA de la PR, puis lancer les tests.
   Ne pas demander un clonage manuel. Fournir **un seul bloc Bash**
   indépendant du répertoire courant pour amorcer le script versionné.
+- **Ne pas confondre dérive fast-forward et réécriture d'historique.**
+  Si la PR avance entre deux lectures pendant un bootstrap, exécuter les
+  tests sur le SHA initial épinglé **sans le remplacer**. Vérifier avec
+  `git merge-base --is-ancestor SHA_PINNÉ SHA_OBSERVÉ` que la branche
+  n'a avancé que par fast-forward. Bloquer si l'objet n'est pas disponible,
+  si la branche diverge ou si l'historique a été forcé. Indiquer le SHA
+  réellement testé et le HEAD plus récent dans le rapport ; ne jamais
+  déclarer la gate verte pour un HEAD différent.
 - **Limiter un pin SHA opérateur au bootstrap.** Après avoir comparé
   le SHA distant au commit attendu, ne pas transmettre
   `NABLA_PR274_EXPECTED_SHA` aux tests imbriqués : leurs dépôts Git
