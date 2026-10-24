@@ -92,6 +92,7 @@ class TrueNASInventoryTests(unittest.TestCase):
 
     def test_prompt_admin_passes_secret_only_in_memory(self):
         with patch.object(module.sys.stdin, "isatty", return_value=True), \
+             patch.object(module, "loopback_listener", return_value=True), \
              patch.object(module, "getpass", return_value="sk-NONREAL_ADMIN_ONLY") as prompted, \
              patch.object(module, "inspect", return_value=0) as inspected:
             with contextlib.redirect_stdout(io.StringIO()) as output:
@@ -111,6 +112,18 @@ class TrueNASInventoryTests(unittest.TestCase):
         prompted.assert_not_called()
         inspected.assert_not_called()
         self.assertIn("requires_interactive_terminal", output.getvalue())
+
+    def test_no_tunnel_does_not_prompt_for_master(self):
+        with patch.object(module.sys.stdin, "isatty", return_value=True), \
+             patch.object(module, "loopback_listener", return_value=False), \
+             patch.object(module, "getpass") as prompted, \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = module.main(["--tunnel", "--prompt-admin"])
+        self.assertEqual(code, 2)
+        prompted.assert_not_called()
+        inspected.assert_not_called()
+        self.assertIn("truenas_tunnel_local_listener=unavailable", output.getvalue())
 
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
