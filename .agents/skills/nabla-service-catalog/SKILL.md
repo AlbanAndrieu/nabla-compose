@@ -5,6 +5,27 @@ description: Keep Docker Compose applications synchronized with the Nabla servic
 
 # Nabla service catalog
 
+## Backstage catalog authority with external skills
+
+Read `AGENTS.md` and `docs/agent-skills-architecture.md` before
+applying generic `docker-compose-patterns` or `kubernetes-specialist`
+examples. The **Nabla catalog remains authoritative** for stable
+`entityRef`, `catalogRevision`, declared relationships, desired
+exposure and service icon filenames. Do not create a second inventory,
+guess DNS/ports from names, or copy unrelated dependencies into Compose.
+
+The future Talos/Kubernetes target consumes these identities and
+relationships. An external Kubernetes manifest may propose RBAC, security
+contexts, probes or PVCs, but it must not silently replace existing
+democratic-csi/TrueNAS NFS storage, ingress or policies. TrueNAS runtime,
+FastAPI observed health and the website's presentation are different
+domains. A declared `RUNNING` App is not proof of a successful probe.
+
+For a conflict, preserve the existing decision and record the proposed
+change for explicit review. Keep `x-nabla` only for the documented
+transitional compatibility contract; do not promote it into an extra
+Backstage catalog.
+
 Use this skill whenever adding, renaming, removing, materially reconnecting a
 service in an `apps/**/compose.yml` file, or migrating its runtime
 `.env/.env.secrets` contract.
