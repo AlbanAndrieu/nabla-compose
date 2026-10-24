@@ -238,6 +238,72 @@ et l'origine persistante du Gateway. Le contrôle `--dry-run` ne
 prouve pas qu'un redémarrage fonctionnerait. Pas d'application réelle
 ni de restart sans validation et accord séparé.
 
+## Cutover rapide autorisé — clé cron vers fournisseur `file`
+
+**Décision opérateur du 24 octobre :** une interruption temporaire d'OpenClaw
+est acceptée afin d'accélérer la migration. Ne pas assimiler cette
+tolérance à une autorisation de publier des clés ou d'effacer les
+sauvegardes.
+
+Le script `scripts/workstation/cutover-openclaw-cron-secret.py`
+remplace le plan `env` de `cron` par un plan natif `file`
+indépendant :
+
+- Source : valeur littérale de `LITELLM_OPENCLAW_CRON_API_KEY`
+  lue en mémoire dans le dotenv identifié par le dry-run natif.
+- Destination : `~/.local/share/nabla-compose/openclaw-cron.key`
+  (`0600`) — **jamais** `openclaw-embeddings.key`.
+- Provider : `openclaw-cron`, `source=file`, `mode=singleValue`.
+- SecretRef : `source=file`, `provider=openclaw-cron`, `id=value`.
+- Application : native `openclaw secrets apply` avec
+  `options.scrubEnv=false` pour ne pas supprimer simultanément
+  des credentials potentiellement utilisés par d'autres services.
+- Avant toute application : copie privée de la configuration, du dotenv
+  et **backup SQLite transactionnel** de `cron`, dans un dossier
+  privé `cron-cutover-<horodatage>-<aléa>`. Le plan privé appliqué
+  est archivé dans ce même dossier.
+- Après : aucun restart Gateway automatique, aucune suppression
+  `.env`, aucune modification `main`, ni migration du magasin partagé.
+
+Lancer **sur la Workstation**, depuis le checkout à jour de #274 :
+
+```bash
+cd ~/w/nabla-compose
+just openclaw-cron-secret-plan-test
+just openclaw-cron-file-cutover-check
+just openclaw-cron-file-cutover
+```
+
+`--check` ne crée pas de fichier. Le `--apply` appelé par le dernier
+`just` écrit volontairement le nouveau fichier, la sauvegarde et
+la nouvelle configuration. Il est **autorisé ici** par l'acceptation
+explicite d'une possible interruption de service. Il peut néanmoins
+échouer si la clé n'est pas une valeur littérale, si les fichiers sont
+trop permissifs, si l'identité du provider existe déjà avec un autre
+contenu ou si le CLI refuse le plan.
+
+Une sortie `cron_cutover_applied=true` prouve seulement que l'appel
+natif d'écriture a déclaré les destinations attendues. **Elle ne
+prouve ni la validité de la clé auprès de LiteLLM ni la bonne santé
+du Gateway.** Ne pas redémarrer automatiquement les services. Pour
+diagnostiquer sans dévoiler de secret après migration, relancer
+le contrôle de la mémoire et l'audit redacted existants.
+
+En cas d'échec après mutation, le script indique
+`cron_cutover_applied=not_confirmed`; **ne pas relancer en boucle**.
+Analyser en privé le dossier de sauvegarde, le plan archivé, les
+permissions et l'état du Gateway. Les backups ne sont **jamais
+restaurés automatiquement**, car cela écraserait potentiellement des
+écritures intervenues entre-temps. Préserver le SQLite et ses journaux
+pour récupération.
+
+**Dettes restantes à migrer :** secret `main` distinct,
+4 credentials de l'auth-store partagé, cinq occurrences config,
+trois du dotenv, trois dans le cache modèles, deux résidus legacy.
+Les comptes sont des *occurrences* et ne démontrent pas le nombre
+de secrets réellement distincts. Le scrub du dotenv doit faire
+l'objet d'une passe ultérieure, après qualification des consommateurs.
+
 ## P0 : risque de nettoyage du dotenv
 
 Dans OpenClaw 2026.9.5, `scrubEnv=true` est le comportement natif
