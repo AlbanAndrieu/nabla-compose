@@ -1,3 +1,16 @@
+## P0 — OpenRAG : reprise sûre et contrôlée (24 octobre 2026)
+
+- [x] Prouver l'état runtime : TrueNAS `openrag=STOPPED`, backend/frontend Docker absents. Langflow et OpenSearch `running+healthy`; Docling absent. Ne pas confondre avec `DEPLOYING` ou déduire sans preuve que l'arrêt est intentionnel.
+- [x] Ajouter `scripts/truenas/diagnose-openrag-startup.sh --check`, préflight **lecture seule** : cycle de vie, clés attendues sans valeurs, secret root-only, montage ZFS `cpool/bababou`, readiness Langflow et transport LiteLLM ; Docling est signalé séparément pour l'ingestion.
+- [x] Intégrer le préflight aux contrôles `--section openrag` et `--section ai` et ajouter des tests synthétiques pour `STOPPED`, mot de passe absent, refus de mutation et absence de divulgation.
+- [ ] Relever le **résultat TrueNAS actuel** du nouveau préflight et les contrôles existants `diagnose-openrag-dependencies.sh --check`, `reconcile-openrag-opensearch-secret.sh --check` avant toute commande `app.start`.
+- [ ] Comparer la définition Custom App stockée dans TrueNAS au Compose canonique (services, volumes RO et endpoint global Langflow) ; corriger uniquement les écarts constatés, après approbation et plan de rollback.
+- [ ] Obtenir l'approbation explicite de l'opérateur pour un éventuel démarrage unique. **Aucun `app.start` ni `app.redeploy` automatique dans le préflight**.
+- [ ] Après démarrage approuvé : backend et frontend `running+healthy`, authenticités OpenSearch/Langflow, GPU LiteLLM chat + embeddings. Docling `/ready` puis ingestion/récupération sur **document synthétique**, et seulement ensuite petit corpus privé approuvé.
+- [ ] Vérifier `just truenas-openrag-startup-test`, `just truenas-openrag-dependencies-test` et `just quality` sur le HEAD exact, sans Actions payantes.
+
+[Runbook et preuves OpenRAG](../apps/openrag/README.md) · [Contrats d'ingestion privée](runbooks/openrag-babou-ingestion-diagnostics.md).
+
 ## P0 — Corrections pfSense à décider après les OOM nocturnes (24 octobre 2026)
 
 - [x] **Cause technique prouvée :** Unbound a été tué par le noyau (`failed to reclaim memory`), avec `php`, `netstat`, `php_pfb`. Les récurrences `02:10` et l'incident du 22/10 à `22:03` indiquent plusieurs fenêtres de saturation.
