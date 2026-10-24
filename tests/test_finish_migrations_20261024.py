@@ -115,13 +115,15 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     assert not marker.exists()
 
 
-def test_next_commands_print_runbook_without_runtime_access(fake_operator):
+def test_next_commands_print_only_runbook_location_without_runtime_access(fake_operator):
     _, _, report, marker = fake_operator
     result = invoke(fake_operator, "--next-commands")
     assert result.returncode == 0, result.stdout + result.stderr
-    for name in ("Akvorado", "Prometheus", "OpenRAG", "Vaultwarden", "Talos"):
-        assert name in result.stdout
+    assert result.stdout == (
+        "RUNBOOK=docs/runbooks/2026-10-24-homelab-operator-next-commands.md\n"
+    )
     assert "NEVER-LOG" not in result.stdout
+    assert len(result.stdout) < 100
     assert not marker.exists()
     assert not report.exists()
 
