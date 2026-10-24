@@ -171,6 +171,7 @@ def main(argv=None):
         parser.error("--reload-gateway requires --apply")
     os.umask(0o077)
     stage = "source"
+    applied = False
     print("cron_cutover_method=dedicated_file_secretref")
     print("cron_cutover_dotenv_cleanup=deferred")
     print("cron_cutover_gateway_restart=false")
@@ -232,7 +233,7 @@ def main(argv=None):
             ["cron_auth_sqlite", "openclaw_config"], strict=False)
         if {str(p) for p in written} != {str(p) for p in proposed}:
             reject("native_wrote_unexpected_files")
-        print("cron_cutover_applied=true")
+        applied = True
         print("cron_cutover_plaintext_residue=retained")
         if args.reload_gateway:
             stage = "gateway_secrets_reload"
@@ -250,6 +251,7 @@ def main(argv=None):
         else:
             print("cron_cutover_gateway_secrets_reload=not_requested")
         print("cron_cutover_gateway_restart=not_performed")
+        print("cron_cutover_applied=true")
         return 0
     except (CutoverError, checks.UnsafePlan, ValueError, OSError, KeyError, TypeError) as exc:
         code = str(exc) if isinstance(exc, CutoverError) else "invalid_or_insecure_input"
@@ -258,7 +260,7 @@ def main(argv=None):
         print("cron_cutover_stage=" + stage)
         print("cron_cutover_status=blocked")
         print("cron_cutover_reason=" + code)
-        print("cron_cutover_applied=not_confirmed")
+        print("cron_cutover_applied=" + ("true" if applied else "not_confirmed"))
         return 2
 
 
