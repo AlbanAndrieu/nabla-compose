@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 CONFIG="$ROOT/apps/akvorado/config/akvorado.yaml"
 [[ -f "$CONFIG" && ! -L "$CONFIG" ]] || { echo 'BLOCKED: unsafe or missing Akvorado config'; exit 1; }
-for cmd in docker sha256sum awk; do
+for cmd in docker sha256sum awk sort; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "BLOCKED: missing $cmd"; exit 2; }
 done
 
@@ -18,7 +18,7 @@ mapfile -t ids < <(
     docker ps -a --filter "label=com.docker.compose.project=$project" \
       --filter 'label=com.docker.compose.service=akvorado-orchestrator' \
       --format '{{.ID}}' 2>/dev/null || true
-  done | awk '/^[a-f0-9]{12,64}$/ {print}' | sort -u
+  done | awk 'length($0)>=12 && length($0)<=64 && $0 !~ /[^a-f0-9]/' | sort -u
 )
 if (("${#ids[@]}" != 1)); then
   printf 'BLOCKED: akvorado_orchestrator_container_matches=%d (expected exactly 1)\n' "${#ids[@]}"
