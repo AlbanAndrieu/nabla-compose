@@ -102,3 +102,20 @@ Sans fichiers d'attestation réels, exécuter seulement la **simulation** :
 L'outil de validation des vrais PEM exige `--attestation --f9 --root --public-key --serial --root-sha256`, et permet de fournir les intermédiaires via `--intermediate`. Pour ne pas accepter une fausse autorité, **ne jamais recopier l'empreinte SHA256 calculée depuis le PEM reçu comme valeur approuvée** : comparer avec une empreinte de racine Yubico authentifiée par une source séparée. La chaîne diffère pour les appareils **5.7.4+** (nouvelle racine et intermédiaires) et les firmwares antérieurs. Source : [Yubico PIV Attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html), [procédure de vérification](https://developers.yubico.com/yubico-piv-tool/Attestation.html).
 
 Nouvelle gate : **2 tests de contrat supplémentaires**, soit **51 tests attendus** d'après le dernier 49/49 (sous réserve de commits concurrents) + un test cryptographique synthétique indépendant couvrant **8 cas négatifs** et un bundle intermédiaire. Les **10 tests transactionnels** et le banc cryptographique d'attestation ont été exécutés avec succès sur la copie isolée des fichiers modifiés de l'agent ; cela ne remplace ni le checkout complet de la workstation ni une opération matérielle. Aucun provisioning, aucune authentification PIN, aucune modification F9/PIV9A/OTP2/SOPS. **NO-GO matériel maintenu.**
+
+### 24 octobre 2026 — Précontrôle F9 avant attestation PIV82
+
+**Jalon réellement accessible avant provisionnement** : la secondaire `22916048` a un PIV82 vide. D'après la [documentation officielle Yubico](https://developers.yubico.com/yubico-piv-tool/Attestation.html), la commande d'attestation de PIV82 ne peut produire de certificat **avant génération sur la carte** d'une clé dans ce slot. Une tentative immédiate ne constituerait pas une preuve et ne doit pas déclencher de génération automatique.
+
+Le script `scripts/workstation/inspect-age-yubikey-f9-chain.sh` inspecte **uniquement les métadonnées publiques** : exactement une YubiKey avec numéro de série attendu, firmware et certificat F9 exporté en PEM dans un répertoire temporaire privé, puis supprimé. Il ne sollicite aucun PIN, ne lance aucun `piv keys attest`, ne modifie aucun certificat, PIV9A, OTP2, clé AES256 ou destinataire SOPS. Le SHA-256 imprimé est **l'empreinte du certificat F9**, **pas** celle de la racine Yubico ; il n'autorise aucun GO.
+
+```bash
+# Ne connecter que la YubiKey secondaire.
+bash scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048
+# Réexécuter la suite hors matériel sans CI payante.
+bash scripts/workstation/verify-age-yubikey-offline.sh
+```
+
+L'attestation réelle PIV82 demeure **bloquée** jusqu'à approbation distincte d'une génération ECC P-256 avec PIN/touch ALWAYS, suivi d'une chaîne de confiance Yubico vérifiée contre une empreinte de racine approuvée **indépendamment**. Les firmwares 5.7.4+ utilisent la nouvelle racine 2025 et des intermédiaires, les versions antérieures une autre chaîne : [Yubico PIV attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html).
+
+Contrats : `tests/test_yubikey_f9_inventory.py`, **8/8 tests hermétiques PASS** dans l'environnement isolé de l'agent, avec fausses commandes `ykman` et `openssl` seulement. Ils ont été exécutés sur la source du script intégrée à la PR ; ils ne prouvent pas l'état réel de F9. **NO-GO matériel et SOPS maintenu.**
