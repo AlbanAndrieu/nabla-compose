@@ -84,6 +84,20 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
         ),
     ),
     "docs/roadmap.md": (
+        None,
+        (
+            "## P0 — Terminer la stabilisation réelle",
+            "## P1 — Dette de code et de documentation",
+            "archive/roadmap-through-2026-10-24.md",
+            "Ask the user",
+            "democratic-csi",
+            "entityRef",
+            "catalogRevision",
+        ),
+    ),
+    # The historical skill-policy decision moved verbatim with the roadmap
+    # archive. Require both the current index and the original scoped policy.
+    "docs/archive/roadmap-through-2026-10-24.md": (
         "## P0 — Agent skill precedence and Compose/FastAPI/Site convergence (2026-10-24)",
         (
             "Ask the user",
