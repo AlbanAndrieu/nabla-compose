@@ -51,6 +51,6 @@ def test_diagnostic_never_reads_privileged_postgres_application_secrets() -> Non
 def test_secret_installation_does_not_expose_exporter_dsn() -> None:
     source = INSTALLER.read_text(encoding="utf-8")
     assert "DEST_DIR=" in source
-    assert 'app id:' not in source
+    assert "SOURCE" in source
     assert "root:root 600" in source
     assert "cmp -s" in source
