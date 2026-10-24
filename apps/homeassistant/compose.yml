@@ -6,7 +6,7 @@ services:
     image: ghcr.io/home-assistant/home-assistant:stable
     x-nabla:
       id: homeassistant
-      name: Home Assistant
+      name: Home Assistant UI
       kind: home-automation
       category: automation
       presentationRole: service
