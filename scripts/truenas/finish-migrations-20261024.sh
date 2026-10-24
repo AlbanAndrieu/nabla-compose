@@ -35,7 +35,7 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
 
   bash scripts/truenas/finish-migrations-20261024.sh --next-commands
   bash scripts/truenas/finish-migrations-20261024.sh --local-gates
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -125,7 +125,7 @@ fi
 
 diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
-case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
+case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
   case "${WAVE}" in core|gatus|deferred) ;; *) echo 'Invalid wave' >&2; exit 2 ;; esac
 fi
@@ -354,9 +354,9 @@ check_section() {
       fi
       ;;
     critical)
-      # Four independent read-only diagnostics; do not stop at first failure.
+      # Five independent read-only diagnostics; do not stop at first failure.
       # run_check writes private 0600 evidence and the summary remains bounded.
-      for service in prometheus openrag sentry akvorado; do
+      for service in prometheus openrag sentry akvorado defectdojo; do
         check_section "$service"
       done
       ;;
@@ -375,6 +375,12 @@ check_section() {
       run_check openrag-opensearch-legacy-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
       run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
       run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
+      ;;
+    defectdojo)
+      # Observe Django/uWSGI + Nginx HTML origin, internal DNS and Traefik SNI.
+      # Never initialize Django or alter PostgreSQL while diagnosing UI.
+      run_check defectdojo-preflight bash scripts/truenas/preflight-defectdojo.sh
+      run_check defectdojo-private-ingress bash scripts/truenas/diagnose-defectdojo.sh --check
       ;;
     sentry)
       # Read-only consumer state plus guarded Sentry recovery preflight.
