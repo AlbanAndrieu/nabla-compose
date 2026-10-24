@@ -23,7 +23,9 @@ esac
 """,
     "curl": """case "$*" in
   *api/v2*) printf '403' ;;
-  *31085/*) if [[ "${FAKE_UI_DOWN:-0}" == 1 ]]; then
+  *31085/*) if [[ "${FAKE_UI_BAD_CODE:-0}" == 1 ]]; then
+               printf 'BAD|text/html'
+             elif [[ "${FAKE_UI_DOWN:-0}" == 1 ]]; then
                printf '000'; exit 7
              elif [[ "${FAKE_UI_JSON:-0}" == 1 ]]; then
                printf '200|application/json'
@@ -115,6 +117,14 @@ def test_origin_200_requires_html_content_type() -> None:
     assert bad.returncode == 1
     assert "ui_origin_http=200 ui_mime=other" in bad.stdout
     assert "FAIL: DefectDojo origin returned HTTP 200 without HTML Content-Type" in bad.stdout
+
+
+def test_invalid_http_metadata_is_redacted_and_fails_closed() -> None:
+    result = _run({"FAKE_UI_BAD_CODE": "1"})
+    assert result.returncode == 1
+    assert "ui_origin_http=000 ui_mime=html" in result.stdout
+    assert "FAIL: DefectDojo HTML origin unreachable" in result.stdout
+    assert "BAD|text/html" not in result.stdout + result.stderr
 
 
 def test_https_forbidden_and_json_are_not_ui_acceptance() -> None:
