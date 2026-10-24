@@ -78,6 +78,20 @@ preuve sur le matériel réel.
   synthétiques possèdent leurs propres SHA. Supprimer aussi ce pin de
   l'environnement copié par leurs fixtures. Conserver un test explicite
   de rejet de SHA incorrect avant toute opération.
+- **Toute commande opérateur proposée en un bloc est exécutée d'un coup.**
+  Ne jamais laisser un `set -euo pipefail` isolé dans le shell interactif,
+  ni une série de commandes dont les suivantes seraient lancées après un
+  échec. Placer les actions dans un processus enfant `bash <<'TAG'`,
+  ou dans un script versionné exécuté avec `bash`. Rendre le code de
+  retour, le premier échec, le chemin des journaux privés et le chemin
+  du worktree préservé. Valider au moins un scénario négatif qui
+  **laisse le shell parent vivant**.
+- Pour la qualité de la PR #274, utiliser le [bootstrap en une étape]
+  (../../../docs/runbooks/2026-10-24-pr274-local-quality-one-shot.md)
+  et le lanceur `scripts/workstation/run-pr274-local-quality.sh`.
+  Le launcher utilise `QUALITY_BASE_REF` égal au vrai `master` épinglé,
+  jamais `HEAD~1` sur un worktree détaché. La régénération locale
+  des projections ne permet pas de passer `--publish` automatiquement.
 - Échouer immédiatement et clairement à la première étape bloquante ;
   ne jamais poursuivre vers le matériel après un test en erreur.
   Réutiliser les preuves publiques cryptographiquement validées ;
