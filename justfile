@@ -44,7 +44,7 @@ topology-generators-check:
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py --check
 
 topology-generator-test:
-    bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_service_topology_generator.py
+    bash scripts/quality/python-with-repo-deps.sh -m pytest -q tests/test_service_topology_generator.py tests/test_service_consumer_drift_diagnostic.py
 
 # Explicit source-of-truth regeneration. Development worktree ONLY.
 # Never overwrite TrueNAS bind mounts or unpublished generated artifacts.
