@@ -16,6 +16,26 @@ fi
 if ! command -v curl >/dev/null 2>&1; then
   echo 'FAIL curl=missing'; exit 2
 fi
+echo '=== DNS answers: pfSense vs Quad9 (public domains only) ==='
+# This checks resolver consistency; it does not prove the mobile uses either.
+if command -v dig >/dev/null 2>&1; then
+  for domain in web.whatsapp.com static.whatsapp.net; do
+    for resolver in 172.17.0.1 9.9.9.9; do
+      # +time=2 +tries=1 bounds DNS queries. Never inspect client DNS logs.
+      response="$(dig +time=2 +tries=1 +noall +comments +answer A "$domain" "@$resolver" 2>/dev/null || true)"
+      rcode="$(printf '%s\n' "$response" | sed -nE 's/.*status: ([A-Z]+),.*/\1/p' | head -1)"
+      count="$(printf '%s\n' "$response" | awk '$4 == "A" {count++} END {print count + 0}')"
+      case "$resolver" in
+        172.17.0.1) source=unbound ;;
+        *) source=quad9 ;;
+      esac
+      printf 'dns_host=%s source=%s rcode=%s a_records=%s\n' \
+        "$domain" "$source" "${rcode:-unknown}" "$count"
+    done
+  done
+else
+  echo 'dns_comparison=NOT_RUN (dig unavailable)'
+fi
 echo '=== WhatsApp Web TLS/HTTPS path; unauthenticated headers only ==='
 for domain in web.whatsapp.com static.whatsapp.net; do
   # HEAD response codes (including 403/405) only prove the reachable edge.
