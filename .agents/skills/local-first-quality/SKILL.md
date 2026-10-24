@@ -44,6 +44,38 @@ Après un échec déterministe, ne pas relancer des commandes identiques.
 Ne pas confondre compilation syntaxique, tests ciblés, gate complète et
 preuve sur le matériel réel.
 
+## Shell parent et isolation uv entre worktrees (P0)
+
+**Ne jamais appliquer set -euo pipefail au shell interactif du client.**
+Ce shell peut être Bash ou zsh. Un échec ou une variable non définie peut
+fermer le terminal. Tout bloc multi-commandes doit s'exécuter dans un
+**Bash enfant** (heredoc bash avec marqueur entre apostrophes, ou script
+versionné lancé avec bash). Un script exécutable doit d'abord refuser
+d'être sourcé ; appliquer set -Eeuo pipefail uniquement ensuite.
+Tester un échec intermédiaire : les commandes suivantes ne doivent pas
+tourner, le code de sortie doit être non nul et **le shell parent doit
+rester utilisable**. Ne pas donner un bloc opérateur qui suppose un cwd
+particulier, un repo sous /tmp ou une branche déjà active.
+
+**Contrat Python multi-agent approuvé :**
+- Lire les versions depuis mise.toml/.python-version et les dépendances
+  depuis pyproject.toml + uv.lock, sans changer le lockfile pour un test.
+- Utiliser uv sync --locked dans chaque worktree de développement.
+  Conserver **une .venv dédiée à chaque worktree** ; ne jamais partager
+  une .venv ou VIRTUAL_ENV entre agents.
+- Partager **seulement le cache de téléchargement uv**
+  (typiquement $HOME/.cache/uv). Le cache est réutilisable, les paquets
+  installés et les fichiers du worktree ne le sont pas.
+- Exécuter explicitement le Python de la .venv sélectionnée. Un python3
+  dans PATH avec pytest/PyYAML manquants est un prérequis BLOCKED,
+  **pas** une régression du générateur.
+- Ne pas sourcer .envrc ni activer direnv automatiquement, car cela peut
+  installer des outils ou charger des secrets. Ne pas installer dans
+  le Python global ni lancer mise install global.
+- Vérifier les dépendances avant les tests ; exécuter les générateurs
+  en mode --check et les tests ciblés avant la gate large. Ne jamais
+  interpréter un échec d'environnement comme un PASS de quality gate.
+
 ## Exécution opérateur : reprise et persistance
 
 - Le répertoire **/tmp est éphémère** : ne jamais le considérer comme un

@@ -165,3 +165,21 @@ Documentation officielle : https://developers.yubico.com/yubico-piv-tool/Attesta
 La reprise automatisée au SHA `3504d6bd` a exécuté **80 tests** : 79 réussis et un test en erreur. Le contrat recherchait littéralement `python3 -m py_compile "$python_source"` alors que le script emploie la forme Bash équivalente `python3 -m py_compile "${python_source}"`. La gate n'a pas été modifiée : son contrôle de syntaxe précède toujours `unittest`.
 
 Le contrat accepte désormais **les deux formes citées** et refuse une compilation absente, déplacée après `unittest` ou ciblant une autre variable. La reproduction ciblée des 5 cas a réussi. **80 tests unittest attendus** : le correctif final adapte une assertion existante, sans ajouter de test. À valider sur la workstation. Le lanceur a correctement arrêté l'exécution avant F9 ; aucune opération PIV, PIN ou SOPS n'a eu lieu.
+
+
+## Suite YubiKey — preuve publique F9 et absence de GO matériel
+
+La chaîne publique F9 de la secondaire 22916048 (firmware 5.4.3)
+a été validée avec la racine historique Yubico épinglée. Cette
+preuve ne démontre PAS qu'une clé PIV82 existe ni que le
+décryptage age fonctionne. Le nouveau rapport hors matériel
+scripts/workstation/report-age-yubikey-piv82-readiness.py
+réutilise les PEM publics et retourne NO-GO, même pour F9 PASS.
+Aucun lecteur, PIN, secret, réseau ou écriture sur la carte n'est
+autorisé par ce rapport. Un inventaire PIV82 en lecture seule
+est la prochaine preuve matérielle ; toutes les opérations
+mutantes demandent des approbations séparées par phase.
+
+Les scripts Bash opérateur doivent être exécutés dans un
+processus enfant, jamais sourcés. Les worktrees partagent
+les téléchargements uv mais gardent une .venv distincte.
