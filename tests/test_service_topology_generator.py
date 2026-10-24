@@ -101,10 +101,10 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
         relation = MODULE.runtime_placement_relation(
             {
                 "id": "openwebui",
-                "composeService": "open-webui",
+                "composeService": "openwebui",
                 "runtime": {
                     "provider": "truenas-app",
-                    "containerService": "open-webui",
+                    "containerService": "openwebui",
                 },
             },
             "apps/openwebui/compose.yml",
@@ -121,7 +121,7 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
             relation["evidence"],
             [
                 "apps/openwebui/compose.yml:"
-                "open-webui.x-nabla.runtime.containerService"
+                "openwebui.x-nabla.runtime.containerService"
             ],
         )
 
