@@ -229,6 +229,34 @@ if state == "OCCUPIED":
         self.assertIn('NO-GO for provisioning', result.stderr)
         self.assert_untouched()
 
+    def test_bootstrap_pinned_sha_skips_remote_lookup_and_fetch(self):
+        # A verified caller can pass the exact commit without fetching twice.
+        original = self.env["NABLA_YUBIKEY_TEST_REMOTE"]
+        pinned = self.original
+        result = self.run_script("--pinned-sha", pinned,
+                                 NABLA_YUBIKEY_TEST_REMOTE=str(self.base / 'nonexistent'))
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Pinned commit missing in persistent cache', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
+    def test_pinned_sha_uses_existing_cache_offline(self):
+        # Prime the isolated bare Git cache, then remove the remote.
+        self.assertEqual(self.run_script().returncode, 0)
+        result = self.run_script("--pinned-sha", self.original,
+                                 NABLA_YUBIKEY_TEST_REMOTE=str(self.base / 'nonexistent'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('no second remote lookup', result.stdout)
+        self.assert_untouched()
+
+    def test_invalid_pinned_sha_never_uses_network_or_hardware(self):
+        result = self.run_script("--pinned-sha", "not-a-commit",
+                                 NABLA_YUBIKEY_TEST_REMOTE=str(self.base / 'nonexistent'))
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('must be a full 40-hex SHA', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
     def test_help_does_not_contact_git_or_hardware(self):
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
                                 env=self.env, capture_output=True, text=True)

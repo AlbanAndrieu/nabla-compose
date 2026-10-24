@@ -50,7 +50,7 @@ launcher="$(mktemp)"
 trap 'rm -f -- "$launcher"' EXIT
 git --git-dir="$cache" show "$sha:scripts/workstation/run-age-yubikey-pr274-readonly.sh" > "$launcher"
 flock -u 9
-bash "$launcher"
+bash "$launcher" --pinned-sha "$sha"
 PR274_READONLY
 ~~~
 
@@ -224,3 +224,40 @@ Les 10 contrats d'inventaire synthétique et les 3 tests
 d'intégration du lanceur sont distincts d'une exécution réelle
 sur la secondary. Les opérations PIV82 mutantes, la PIN
 et SOPS restent **NO-GO**, quel que soit ce résultat.
+
+## 8. Résultat réel de l'inventaire secondaire et optimisation Git
+
+**Observation workstation transmise le 24 octobre 2026** : le lanceur a
+validé le commit `56a42f8f04c5` sur la branche PR #274, **100/100 tests
+unittest PASS**, la fixture PIV82 (12 scénarios négatifs) PASS et
+**13/13 tests de chaîne F9 PASS**. La vérification publique du
+certificat F9 a réussi, sans PIN.
+
+Le contrôle matériel **sur la YubiKey secondaire 22916048 uniquement**
+a répondu :
+
+- firmware : `5.4.3` ;
+- clé de gestion : `AES256_PIN_PROTECTED` ;
+- PIV82 : **`EMPTY_CONFIRMED`** ;
+- PIV9A : `PRESENT_METADATA` ;
+- OTP2 : `NOT_VERIFIED` ;
+- statut global : **`NO-GO`**, sans autorisation d'écriture.
+
+Il s'agit d'un inventaire réel, mais pas d'une validation des copies
+d'escrow, de la présence de OTP2, des essais PIN restants ou d'un
+roundtrip age. L'étape d'authentification AES256 **n'est pas autorisée**.
+
+**Optimisation du bootstrap** : la première exécution effectuait
+deux recherches/fetch Git (dans le bootstrap puis dans le lanceur).
+Le bootstrap transmet désormais le SHA déjà validé au lanceur
+via `--pinned-sha "$sha"`. Celui-ci vérifie que le commit est présent
+dans le cache bare, puis crée son worktree propre sans seconde requête
+distante. Ce mode n'est une preuve de fraîcheur que si l'appelant
+a d'abord vérifié le SHA distant ; en usage autonome le lanceur
+continue à faire `ls-remote` et `fetch` si nécessaire.
+La reprise n'exige toujours aucun checkout dans `/tmp`.
+
+**Prochain verrou** : preuve indépendante du maintien OTP2/PIV9A,
+des deux copies d'escrow logiciel et des conditions d'une future
+authentification AES256 en séance supervisée. Aucune écriture PIV82,
+PIN automatique ni mise à jour SOPS.
