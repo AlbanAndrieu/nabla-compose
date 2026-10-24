@@ -169,6 +169,32 @@ preuves. Si le service reste indisponible, prévoir une intervention séparée
 avec sauvegarde de `config.xml`, seuil mémoire, approbation et rollback.
 Ne pas modifier les fichiers générés à la main.
 
+## Workstation WhatsApp Web : comparaison Quad9 / pfSense (24 octobre)
+
+L'opérateur a constaté depuis la workstation :
+- DNS système : Quad9 `9.9.9.9` / `149.112.112.112`, et non Unbound sur l'interface observée.
+- `web.whatsapp.com` : IPv4 HTTP 200, TLS ~16 ms, réponse totale ~168 ms.
+- `static.whatsapp.net` : IPv4 HTTP 404 sur `/` ; transport TLS accessible.
+- IPv6 : `000`/échec immédiat sur les deux domaines. Ne pas en conclure
+  un dysfonctionnement WhatsApp : vérifier l'IPv6 réellement déployé.
+
+**Le script workstation compare désormais les réponses DNS** sur
+`172.17.0.1` et `9.9.9.9` pour les deux hôtes Web.
+Il imprime seulement le code DNS et le nombre d'adresses IPv4.
+La comparaison est en lecture seule, bornée et facultative quand `dig`
+n'est pas disponible. Elle ne change pas le DNS de la workstation.
+
+```bash
+just whatsapp-web-path-check
+```
+
+Les essais HTTPS réussis ne valident pas l'envoi des messages, la
+connexion WebSocket authentifiée, ni le DNS configuré sur le mobile.
+Comparer Wi-Fi / données mobiles sans exporter de HAR contenant
+cookies ou tokens. Si la comparaison DNS est `unknown` uniquement
+avec pfSense, vérifier le chemin DNS et la politique de firewall
+avant de modifier une liste pfBlockerNG.
+
 ## Vérifications côté téléphone
 
 - Vérifier si **le même message WhatsApp** part rapidement en 4G/5G et
