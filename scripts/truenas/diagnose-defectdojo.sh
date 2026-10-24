@@ -100,16 +100,30 @@ if [[ "$http" != 000 && "$ui_http" == 000 ]]; then
 fi
 diag_section '3/4' 'Split DNS A records'
 for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
-  # DNS command failure is UNKNOWN, never evidence that a private hostname
-  # has no public A record. Preserve dig's exit status across the pipeline.
-  if response="$(dig +time=2 +tries=1 +noall +answer @"${resolver}" "${FQDN}" A 2>/dev/null |
-      awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)"; then
-    printf 'dns_server=%s A=%s\n' "${resolver}" "${response:-none}"
-  else
+  # An empty answer is NOT evidence of private DNS when the DNS RCODE
+  # is SERVFAIL/REFUSED, or the resolver serves stale cached data.
+  if ! dns_packet="$(dig +time=2 +tries=1 +noall +comments +answer @"${resolver}" "${FQDN}" A 2>/dev/null)"; then
     printf 'dns_server=%s query=failed\n' "${resolver}"
     diag_fail "DNS resolver ${resolver} unavailable; no assertion about public exposure"
     continue
   fi
+  dns_status="$(printf '%s\n' "${dns_packet}" |
+    sed -nE 's/^;; .*status: ([A-Z]+),.*/\1/p' | head -n 1)"
+  case "${dns_status}" in
+    NOERROR|NXDOMAIN) ;;
+    *)
+      printf 'dns_server=%s query=invalid_response\n' "${resolver}"
+      diag_fail "DNS resolver ${resolver} returned an unverified response status"
+      continue ;;
+  esac
+  if printf '%s\n' "${dns_packet}" | grep -Eq '^;; EDE: 3([[:space:]]|$)'; then
+    printf 'dns_server=%s query=stale_answer\n' "${resolver}"
+    diag_fail "DNS resolver ${resolver} served stale data; no current DNS acceptance"
+    continue
+  fi
+  response="$(printf '%s\n' "${dns_packet}" |
+    awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)"
+  printf 'dns_server=%s A=%s\n' "${resolver}" "${response:-none}"
   if [[ "${resolver}" == 1.1.1.1 ]]; then
     if [[ -z "${response}" ]]; then
       diag_ok "no public A record"
