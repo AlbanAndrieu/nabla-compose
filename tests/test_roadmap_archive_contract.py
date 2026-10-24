@@ -16,6 +16,7 @@ CHECK_LINKS = (
     "docs/roadmap.md",
     "docs/runbooks/README.md",
     "docs/runbooks/homelab-runtime-acceptance.md",
+    "docs/runbooks/homelab-refactoring-risk-register.md",
 )
 
 
