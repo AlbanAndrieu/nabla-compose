@@ -83,11 +83,14 @@ Actions :
   sans supprimer l'historique ni contourner le contrôle de diff destructif.
 - [x] **D-02 :** créer un index des runbooks avec statut `actif` ou
   `historique` ; une seule procédure d'acceptation courante.
-- [ ] **D-03 :** découper `finish-migrations-20261024.sh` (≈ 26 KiB)
-  en CLI, plan de vagues et registre de diagnostics. Préserver les garde-fous
-  explicites des modes `--apply-*` et les tests d'injection.
-- [ ] **D-04 :** factoriser les sondes HTTP/HTTPS de DefectDojo et leurs
-  classifications sans considérer un `HTTP 200` JSON comme UI saine.
+- [ ] **D-03 :** le registre read-only a été extrait de
+  `finish-migrations-20261024.sh` vers
+  `scripts/truenas/migration-diagnostic-sections.sh` et les tests négatifs
+  ont été ajoutés ; **quality gate complète à exécuter**. Conserver les modes
+  `--apply-*` dans la CLI protégée ; toute extraction de mutation reste différée.
+- [ ] **D-04 :** parseur HTTP/MIME DefectDojo factorisé et contrôle DNS
+  fail-closed ajouté ; tests négatifs versionnés mais **non exécutés**.
+  Valider 200 HTML / 200 JSON / 403 / 000 / DNS timeout.
 - [ ] **D-05 :** extraire les primitives redondantes de diagnostics Docker
   (état, health, compteurs, expurgation) uniquement avec tests négatifs.
 - [ ] **D-06 :** remplacer les noms de lanceurs temporaires datés
@@ -96,6 +99,9 @@ Actions :
 - [ ] **D-07 :** réduire la duplication de preuves datées entre les runbooks
   d'incident et la roadmap ; publier les observations futures dans
   l'incident correspondant, puis ne garder ici que l'état et le lien.
+
+[Registre des risques des refactorings](runbooks/homelab-refactoring-risk-register.md) :
+R-01 à R-07, avec conditions de rollback et seuils L1/L3.
 
 **Conditions de clôture documentaire :** liens relatifs valides, archivage
 intègre, conformité `agent-skills-check`, tests ciblés et quality gate
