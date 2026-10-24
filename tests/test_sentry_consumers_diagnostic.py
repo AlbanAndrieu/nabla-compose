@@ -30,7 +30,9 @@ def test_sentry_diagnostic_classifies_both_consumers_and_redacts_logs(
         '    echo bbbbbbbbbbbb;',
         '  fi',
         'elif [[ "$1" == inspect ]]; then',
-        '  echo "$MOCK_SENTRY_STATE"',
+        '  if [[ "$*" == *"FailingStreak"* ]]; then',
+        '    echo "3|1 1 2 "',
+        '  else echo "$MOCK_SENTRY_STATE"; fi',
         'elif [[ "$1" == logs ]]; then',
         "  echo 'SESSTMOUT kafka coordinator rebalance PRIVATE-TOKEN-NEVER-SHOW'",
         'else exit 99; fi',
@@ -51,6 +53,8 @@ def test_sentry_diagnostic_classifies_both_consumers_and_redacts_logs(
     assert "PRIVATE-TOKEN" not in output
     if expected_exit:
         assert "kafka_coordination=1" in output
+        assert "healthcheck_failing_streak=3 last_probe_exit=2" in output
+        assert "evidence=empty_recent_logs_do_not_prove_kafka_timeout" in output
 
 
 def test_sentry_diagnostic_is_read_only_and_bash_valid():
