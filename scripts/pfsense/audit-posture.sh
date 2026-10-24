@@ -492,21 +492,24 @@ else
 fi
 
 pflow_output="$(pflowctl -v -l 2>/dev/null || true)"
-if printf '%s\n' "$pflow_output" | grep -q 'version 10 domain 1 src 172\.17\.0\.1 dst 172\.17\.0\.24:2055'; then
-  emit PASS pflow.truenas configured "IPFIX domain 1 exports to TrueNAS/Akvorado"
+# Current low-memory interim design is one NetFlow v5 LAN exporter.
+# Do not force IPFIX v10 or a second Cloudflare exporter during OOM.
+if printf '%s\n' "$pflow_output" | grep -Eq 'version (5|10) domain 1 src 172\\.17\\.0\\.1 dst 172\\.17\\.0\\.24:2055'; then
+  version="$(printf '%s\n' "$pflow_output" | sed -nE 's/.*version (5|10) domain 1 src 172\\.17\\.0\\.1 dst 172\\.17\\.0\\.24:2055.*/\\1/p' | head -1)"
+  emit PASS pflow.truenas configured "current v${version} domain 1 exports to TrueNAS; verify Akvorado downstream independently"
 else
-  emit FAIL pflow.truenas missing "expected domain 1 to 172.17.0.24:2055"
+  emit WARN pflow.truenas unconfirmed "no matching current domain-1 exporter; inspect pflowctl and TrueNAS inlet"
 fi
-if printf '%s\n' "$pflow_output" | grep -q 'version 10 domain 2 .*dst 162\.159\.65\.1:2055'; then
-  emit PASS pflow.cloudflare configured "IPFIX domain 2 exports to Cloudflare Network Flow"
+if printf '%s\n' "$pflow_output" | grep -Eq 'version 10 domain 2 .*dst 162\\.159\\.65\\.1:2055'; then
+  emit PASS pflow.cloudflare configured "optional IPFIX v10 Cloudflare exporter observed"
 else
-  emit FAIL pflow.cloudflare missing "expected domain 2 to 162.159.65.1:2055"
+  emit INFO pflow.cloudflare not_configured "optional cloud exporter not required during Netgate 1100 OOM recovery"
 fi
 connected_count="$(number_or_zero "$(printf '%s\n' "$pflow_output" | grep -c 'socket: connected' || true)")"
-if [ "$connected_count" -ge 2 ]; then
-  emit PASS pflow.connected_exporters "$connected_count" "both expected exporters report connected sockets"
+if [ "$connected_count" -ge 1 ]; then
+  emit INFO pflow.connected_exporters "$connected_count" "socket reporting is diagnostic; UDP connected state does not prove ingestion"
 else
-  emit WARN pflow.connected_exporters "$connected_count" "fewer than two exporters report connected"
+  emit WARN pflow.connected_exporters "$connected_count" "check actual Inlet counters before declaring packet loss"
 fi
 
 if pgrep -x kea-dhcp4 >/dev/null 2>&1; then
