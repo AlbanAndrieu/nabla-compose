@@ -246,3 +246,91 @@ appartient à **fastapi-sample** PR #374. Il n'existe pas dans
 projection dans l'UI FastAPI Cloud tant que le nouveau code et le
 chemin Cloudflare Access ne sont pas déployés et autorisés.
 
+## 7. Exporters FastAPI et PostgreSQL : sécurité des scrapes
+
+Audit opérateur validé : `akvorado_inlet`, `akvorado_outlet`, Gatus,
+Redis et CrowdSec sont `scrape_up`, tandis que `fastapi_sample`
+est `scrape_down` avec erreur **HTTP 401**, et
+`postgres_exporter` est `scrape_down` avec **TCP connection refused**.
+Le scrape `pfsense_exporter` est maintenant `scrape_up`, 1/1.
+Les tests ciblés du diagnostic retournent **24 PASS**. Le contrôle Git
+de `scripts/pfsense/console.sh` signalait `100644`; le mode est
+corrigé en `100755` dans la PR Compose. Gate complète à relancer.
+
+### FastAPI : un 401 est une authentification refusée, pas une panne d'API
+
+Le `/metrics` de FastAPI est classé `INTERNAL` et demande
+actuellement `DIAGNOSTICS_ACCESS_KEY`. Le job Prometheus n'envoie
+aucun secret. **Ne jamais ouvrir /metrics publiquement.**
+
+La [PR FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376)
+introduit une identité limitée au scrape : `METRICS_SCRAPE_KEY`.
+Elle remplace le partage du jeton diagnostics avec le collecteur par
+un jeton utilisable uniquement sur `GET/HEAD /metrics`.
+
+**Migration contrôlée (pas exécutée par l'agent) :**
+
+1. Fusionner et déployer la PR FastAPI #376 sur l'App TrueNAS
+   correspondant à `172.17.0.24:8091`. Le code seul ne suffit pas.
+2. Créer un secret aléatoire dédié `METRICS_SCRAPE_KEY` dans le
+   gestionnaire de secrets existant. Ne jamais le placer dans Git.
+3. Injecter la même valeur dans l'environnement FastAPI staging et
+   dans un fichier root:568 `0640` sur TrueNAS, par exemple
+   `/mnt/cpool/prometheus/secrets/fastapi-scrape.token`. Le fichier ne
+   doit contenir **que** le jeton brut, pas `KEY=value`.
+4. Avant tout reload de Prometheus, vérifier que le conteneur Prometheus
+   peut lire ce fichier via un **bind mount read_only**, que la clé
+   côté FastAPI est bien active et que `promtool check config` réussit.
+5. Adapter **uniquement** le job `fastapi_sample` avec les options
+   natives Prometheus `authorization.type=Bearer` et
+   `authorization.credentials_file=/etc/prometheus/secrets/fastapi-scrape.token`.
+   Déclarer le bind mount fichier correspondant dans
+   `apps/prometheus/compose.yml` en
+   `create_host_path=false` : un fichier absent doit provoquer un
+   échec explicite, jamais la création automatique d'un répertoire.
+6. Relire une nouvelle collecte après validation ; le job doit être
+   `scrape_up` **et** exposer une métrique du service. Un succès sur
+   `/health` n'atteste pas de l'accès `/metrics`.
+
+**Garde-fou de disponibilité :** ne **pas** committer les
+`authorization.credentials_file` et bind mounts dans la
+configuration déployée **avant** d'avoir provisionné le fichier,
+vérifié son accès par UID 568, déployé FastAPI #376 et validé
+`promtool`. Un fichier de token absent ferait échouer la lecture de
+configuration Prometheus au prochain redémarrage. Le runbook consigne
+la migration sans modifier la configuration active en avance.
+
+### PostgreSQL : listener exporteur absent/refusé
+
+Le job `postgres_exporter` cible `172.17.0.24:9187/metrics`.
+`tcp_refused` ne prouve pas un défaut de PostgreSQL (port 5432).
+Depuis TrueNAS :
+
+```bash
+sudo bash scripts/truenas/diagnose-postgres-exporter.sh
+sudo docker ps -a --filter name=postgres_exporter \
+  --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'
+sudo ss -ltn '( sport = :9187 )'
+```
+
+Ne pas afficher `DATA_SOURCE_NAME` ni `POSTGRES_EXPORTER_DSN`.
+Vérifier l'existence du conteneur et le secret séparément. Le
+`apps/postgres/compose.yml` déclare un exporter optionnel avec
+`DATA_SOURCE_NAME` interpolé depuis `POSTGRES_EXPORTER_DSN` :
+**Compose n'utilise pas automatiquement `env_file` pour l'interpolation
+des variables du YAML**. Il faut donc garantir le secret dans
+l'environnement de rendu Compose, ou modifier la déclaration et les
+secrets ensemble avant un redéploiement contrôlé. Ne pas inférer sa
+présence à partir de PostgreSQL seul.
+
+### Dépôts et qualité
+
+Les commandes `just test-runtime-evidence` et
+`scripts/verify-prometheus-cloud-projection.py` appartiennent au
+dépôt `fastapi-sample`, sur `master` depuis la fusion de #374.
+La gate `just quality` du checkout `nabla-compose` est une autre
+recette et doit être relancée seulement après synchronisation du HEAD.
+Conserver les modifications locales de pré-commit via `git stash`
+avant de changer de branche dans FastAPI, sans réappliquer
+automatiquement les anciens fichiers formatés après le merge.
+
