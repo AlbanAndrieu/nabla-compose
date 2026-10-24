@@ -237,6 +237,24 @@ effectivement monté ; elle ne relit pas l'Orchestrator ni sa mémoire.
 modifier pfSense, les index, les règles ou le tracking NetFlow
 sur la seule base d'un mapping déclaratif.
 
+## Correctif FreeBSD : horodatage OOM et classement RSS (24 octobre)
+
+Le retour opérateur à 23 h 29 montre neuf événements OOM avec `timestamp=unknown`,
+alors que les lignes système sont au format syslog RFC 5424 :
+`<PRI>1 2026-10-24T02:10:50.474019+02:00 ...`. Le parseur prend désormais
+en charge ce préfixe et conserve la date ISO 8601, ses fractions de seconde
+et son décalage horaire, sans copier les messages des journaux.
+
+Le même retour affiche un classement RSS corrompu sous FreeBSD avec
+`ps axo pid=,rss=,pcpu=,comm=`. Le contrôle utilise désormais
+`ps axo pid,rss,pcpu,comm`, supprime l'en-tête, valide PID/RSS numériques et
+ne publie aucun argument de processus. Une absence de trace de lancement
+Snort dans `cron.log` **ne prouve pas l'absence d'exécution** : vérifier la
+rétention des journaux et distinguer ordonnanceur, déclenchement effectif,
+charge RSS et victime OOM. CrowdSec engine mesuré à 85 108 Kio RSS et 11,4 %
+CPU à 23 h 29 ; le bouncer est séparé. Ces mesures ne prouvent aucune
+causalité nocturne.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :

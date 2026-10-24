@@ -187,7 +187,7 @@ class UnboundWifiContract(unittest.TestCase):
 
     def test_process_and_pfblocker_logs_redact_sensitive_arguments(self):
         script = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("ps axo pid=,rss=,pcpu=,comm=", script)
+        self.assertIn("ps axo pid,rss,pcpu,comm", script)
         self.assertNotIn("ps axo pid,rss,pcpu,command | sort -nr -k2", script)
         section = script.split(
             "echo '=== pfBlockerNG process overlap", 1
@@ -261,6 +261,58 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertIn("tail -n 5000", section)
         for forbidden in ("service snort restart", "service crowdsec stop", "configctl unbound restart"):
             self.assertNotIn(forbidden, section)
+
+    def test_freebsd_syslog_rfc5424_oom_timestamp_and_redaction(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split(
+            "echo '=== Snort/pfBlockerNG/kernel OOM chronology", 1
+        )[1].split("echo '=== CrowdSec engine vs firewall bouncer", 1)[0]
+        match = re.search(r'awk -v source="\$source" \'(.*?)\'', section, re.DOTALL)
+        self.assertIsNotNone(match)
+        entries = (
+            "<3>1 2026-10-24T02:10:50.474019+02:00 pfsense kernel - - - "
+            "unbound was killed: failed to reclaim memory password=SECRET\n"
+            "<29>1 2026-10-22T22:03:33.361041+02:00 pfsense kernel - - - "
+            "unbound killed: failed to reclaim memory token=PRIVATE\n"
+            "message containing 2026-10-24T01:02:03+02:00 and "
+            "failed to reclaim memory\n"
+        )
+        result = subprocess.run(
+            ["awk", "-v", "source=system", match.group(1)],
+            input=entries, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("timestamp=2026-10-24T02:10:50.474019+02:00", result.stdout)
+        self.assertIn("timestamp=2026-10-22T22:03:33.361041+02:00", result.stdout)
+        self.assertIn("timestamp=unknown", result.stdout)
+        self.assertEqual(result.stdout.count("event=kernel_oom"), 3)
+        self.assertNotIn("SECRET", result.stdout)
+        self.assertNotIn("PRIVATE", result.stdout)
+
+    def test_freebsd_ps_rss_columns_are_sanitized_and_numeric(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("ps axo pid=,rss=,pcpu=,comm=", script)
+        section = script.split("printf 'pid rss_kb cpu_pct executable", 1)[1]
+        section = section.split("dmesg -a", 1)[0]
+        self.assertIn("ps axo pid,rss,pcpu,comm", section)
+        awk = re.search(r"awk '(.*?)'", section, re.DOTALL)
+        self.assertIsNotNone(awk)
+        sample = (
+            "PID RSS %CPU COMMAND\n"
+            "21619 133112 6.1 unbound\n"
+            "56397 85108 11.4 crowdsec\n"
+            "junk invalid --password=SECRET php\n"
+            "87266 8824 0.0 crowdsec-bouncer\n"
+        )
+        result = subprocess.run(
+            ["awk", awk.group(1)], input=sample,
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("21619 133112 6.1 unbound", result.stdout)
+        self.assertIn("56397 85108 11.4 crowdsec", result.stdout)
+        self.assertNotIn("PID RSS", result.stdout)
+        self.assertNotIn("SECRET", result.stdout)
 
 
 if __name__ == "__main__":

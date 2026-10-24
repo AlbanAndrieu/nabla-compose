@@ -64,10 +64,14 @@ for file in /var/log/cron.log /var/log/cron.log.0 /var/log/system.log /var/log/s
   printf 'log_source=%s readable=yes\n' "$source"
   tail -n 5000 "$file" | awk -v source="$source" '
     function stamp(line, s) {
-      s=substr(line,1,15)
-      if (s ~ /^[A-Z][a-z][a-z] [ 0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return s
-      s=substr(line,1,19)
-      if (s ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][T ][0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/) return s
+      s=line
+      # pfSense/FreeBSD syslog RFC5424: <PRI>VERSION ISO8601 HOST ...
+      # Do not log arbitrary messages or extract timestamps from arguments.
+      sub(/^<[0-9]+>[0-9]+[[:space:]]+/, "", s)
+      if (match(s, /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?([+-][0-9][0-9]:[0-9][0-9]|Z)?/)) return substr(s,RSTART,RLENGTH)
+      if (match(s, /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]/)) return substr(s,RSTART,RLENGTH)
+      if (match(s, /^[A-Z][a-z][a-z] [ 0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]/)) return substr(s,RSTART,RLENGTH)
+      if (match(s, /^[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9][0-9][0-9][[:space:]]+[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/)) return substr(s,RSTART,RLENGTH)
       return "unknown"
     }
     {
@@ -119,9 +123,13 @@ sockstat -4 -l 2>/dev/null | grep -E '([.:]53[[:space:]]|[.]53[[:space:]])' | he
 echo '=== Memory budget and OOM evidence (check timestamps) ==='
 sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_size 2>/dev/null || true
 swapinfo -h 2>/dev/null || true
-# Exclude arguments that may contain credentials.
+# FreeBSD ps does not support GNU multi-column header suppression (pid=,rss=,...).
+# Use its native column headers; filter numeric PID/RSS, omit all arguments.
 printf 'pid rss_kb cpu_pct executable\n'
-ps axo pid=,rss=,pcpu=,comm= 2>/dev/null | sort -nr -k2 | head -15 || true
+ps axo pid,rss,pcpu,comm 2>/dev/null |
+  awk 'NR > 1 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ {
+    printf "%s %s %s %s\n", $1, $2, $3, $4
+  }' | sort -nr -k2 | head -15 || true
 dmesg -a 2>/dev/null | grep -Ei 'failed to reclaim|out of swap|killed.*(unbound|php|netstat)|memory allocation failure' | tail -22 || true
 echo '=== PHP-FPM worker footprint (RSS KiB, not additive physical RAM) ==='
 # Names and counts only: do not publish worker command-line parameters or
