@@ -22,11 +22,15 @@ def fixtures(root: Path):
         {"apiVersion": "backstage.io/v1alpha1", "kind": "Component",
          "entityRef": "component:default/gatus", "metadata": {"name": "gatus"}, "spec": {}},
         {"apiVersion": "backstage.io/v1alpha1", "kind": "Resource",
-         "entityRef": "resource:default/postgres-reader", "metadata": {"name": "postgres-reader"}, "spec": {}},
+         "entityRef": "resource:default/postgres-reader",
+         "metadata": {"name": "postgres-reader"}, "spec": {}},
     ]
     def write(entities):
         ordered = sorted(entities, key=lambda item: item["entityRef"])
-        digest = hashlib.sha256(json.dumps(ordered, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        serialized = json.dumps(
+            ordered, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode()
+        digest = hashlib.sha256(serialized).hexdigest()
         (catalog / "generated/entities.json").write_text(json.dumps({
             "model": "backstage", "schemaVersion": 2, "catalogRevision": "sha256:" + digest,
             "entities": entities,
