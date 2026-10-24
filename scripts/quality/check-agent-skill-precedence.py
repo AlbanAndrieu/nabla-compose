@@ -100,6 +100,14 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
     ".claude/CLAUDE.md": (None, ("AGENTS.md",)),
     ".github/copilot-instructions.md": (None, ("AGENTS.md",)),
     "agent.md": (None, ("AGENTS.md",)),
+    "scripts/agent-quality-gate.sh": (
+        None,
+        (
+            "Nabla agent skill precedence is intact",
+            "scripts/quality/check-agent-skill-precedence.py",
+            "scripts/quality/check-site-catalog-convergence.py",
+        ),
+    ),
     "justfile": (
         None,
         ("agent-skills-check:", "check-agent-skill-precedence.py"),
