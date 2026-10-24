@@ -110,18 +110,36 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tunnel", action="store_true",
                         help="Use an existing operator-confirmed SSH tunnel on localhost:14000")
-    parser.add_argument("--prompt-admin", action="store_true",
-                        help="Read admin credential once from hidden TTY input (requires --tunnel)")
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--prompt-admin", action="store_true",
+                         help="Read admin credential once from hidden TTY input")
+    sources.add_argument("--master-env", choices=(
+        "LITELLM_TRUENAS_MASTER_KEY", "LITELLM_MASTER_KEY"),
+        help="Explicitly select the already-exported TrueNAS master credential name")
+    sources.add_argument("--check-tunnel", action="store_true",
+                         help="Inspect only localhost listener, never read any credential")
     args = parser.parse_args(argv)
-    if args.prompt_admin and not args.tunnel:
-        parser.error("--prompt-admin requires --tunnel")
-    if not args.prompt_admin:
+    if (args.prompt_admin or args.master_env or args.check_tunnel) and not args.tunnel:
+        parser.error("admin source or --check-tunnel requires --tunnel")
+    if args.check_tunnel:
+        available = loopback_listener()
+        print("truenas_tunnel_local_listener=" +
+              ("present_not_ssh_verified" if available else "unavailable"))
+        print("truenas_ssh_encryption=operator_attestation_required")
+        print("truenas_admin_auth=not_read")
+        return 0 if available else 2
+    if not args.prompt_admin and not args.master_env:
         return inspect(args.tunnel)
-    if not sys.stdin.isatty():
-        print("truenas_admin_prompt=requires_interactive_terminal")
-        return 2
     if not loopback_listener():
         print("truenas_tunnel_local_listener=unavailable")
+        return 2
+    if args.master_env:
+        print("truenas_admin_source=" + (
+            "dedicated_truenas_environment" if args.master_env == "LITELLM_TRUENAS_MASTER_KEY"
+            else "explicit_shared_name_operator_must_confirm_truenas_identity"))
+        return inspect(True, credentials=os.environ.get(args.master_env))
+    if not sys.stdin.isatty():
+        print("truenas_admin_prompt=requires_interactive_terminal")
         return 2
     try:
         credential = getpass("TrueNAS LiteLLM master key (input hidden): ")
