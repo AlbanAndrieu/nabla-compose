@@ -73,8 +73,10 @@ def listener_status():
     try:
         if os.stat(f"/proc/{pid}").st_uid != os.geteuid():
             return "occupied_unverified"
-        argv = [part.decode("utf-8", "replace") for part in
-                open(f"/proc/{pid}/cmdline", "rb").read(16384).split(b"\x00") if part]
+        with open(f"/proc/{pid}/cmdline", "rb") as command_file:
+            raw = command_file.read(16384)
+        argv = [part.decode("utf-8", "replace")
+                for part in raw.split(b"\x00") if part]
         if not argv or os.path.basename(argv[0]) != "ssh":
             return "occupied_unverified"
         return "verified_ssh" if expected_forward(argv) else "occupied_unverified"
