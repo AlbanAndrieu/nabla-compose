@@ -119,3 +119,17 @@ bash scripts/workstation/verify-age-yubikey-offline.sh
 L'attestation réelle PIV82 demeure **bloquée** jusqu'à approbation distincte d'une génération ECC P-256 avec PIN/touch ALWAYS, suivi d'une chaîne de confiance Yubico vérifiée contre une empreinte de racine approuvée **indépendamment**. Les firmwares 5.7.4+ utilisent la nouvelle racine 2025 et des intermédiaires, les versions antérieures une autre chaîne : [Yubico PIV attestation](https://developers.yubico.com/PIV/Introduction/PIV_attestation.html).
 
 Contrats : `tests/test_yubikey_f9_inventory.py`, **8/8 tests hermétiques PASS** dans l'environnement isolé de l'agent, avec fausses commandes `ykman` et `openssl` seulement. Ils ont été exécutés sur la source du script intégrée à la PR ; ils ne prouvent pas l'état réel de F9. **NO-GO matériel et SOPS maintenu.**
+
+
+### 24 octobre 2026 — PR #274 : reprise Git et F9
+
+- Ancienne PR #271 fusionnée, suivi uniquement dans PR Draft #274 ; ne pas créer d'autre PR ni déclencher de CI GitHub payante.
+- Nouveau diagnostic Git local : scripts/workstation/diagnose-age-yubikey-git-checkout.sh. Détecte detached HEAD, le retard sur une référence origin/master en cache, les modifications locales, l'absence du fichier de test attestation. Le résultat ne prouve pas la fraîcheur du serveur.
+- Nouveau préflight F9 en lecture seule : scripts/workstation/inspect-age-yubikey-f9-chain.sh --serial 22916048. Une seule clé sélectionnée, firmware reconnu, export du certificat public F9 en temporaire privé puis suppression ; aucune commande PIN ou écriture sur carte. L'empreinte imprimée concerne F9, pas une autorité racine Yubico approuvée.
+- Durcissement X.509 : interdiction de certificat PIV82 CA, vérification du key usage du signataire F9, pathLen des autorités CA, limite de taille des PEM ; 12 variantes adversariales synthétiques.
+- Tests locaux isolés : 7/7 diagnostics Git PASS et 8/8 préflights F9 PASS. L'ensemble du dépôt doit être revérifié au HEAD de la PR sur la workstation ; **66 tests attendus** si aucun commit concurrent.
+- Procédure pas à pas : docs/runbooks/yubikey-piv82-postmerge-diagnostics.md
+
+Le slot PIV82 est encore vide selon le dernier inventaire. L'attestation PIV82 n'est possible qu'après une **génération de clé sur la YubiKey**, qui reste soumise à une autorisation explicite distincte. La lecture F9 ne constitue jamais un GO pour générer, signer, importer, modifier AES256/PIV9A/OTP2 ou migrer SOPS. Conserver la récupération logicielle et les deux copies indépendantes de l'escrow.
+
+Documentation officielle : https://developers.yubico.com/yubico-piv-tool/Attestation.html ; https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
