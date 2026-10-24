@@ -129,6 +129,42 @@ coordination, pas automatiquement vers une corruption des offsets.
 n'ont pas de validation runtime, ne pas déclencher les migrations
 TrueNAS groupées, Talos/Kubernetes ou la suppression de secrets legacy.
 
+## Qualité locale : anomalies corrigées après le retour opérateur
+
+La séquence de développement a établi : `59 passed, 6 skipped` pour
+les contrats migrations/Sentry, `8 passed` pour les tests du catalogue,
+`8 passed` pour les tests unitaires de politique des skills ; le contrôle
+réel `agent-skills-check` échouait car la section réglementaire avait
+disparu de `docs/roadmap.md`. Le contrôle global a ensuite bloqué sur
+`QG_LARGE_DELETION` (environ 97 % du document supprimé).
+
+**Correctif dans la PR #274 :** restaurer la roadmap entière depuis la
+révision `master` contrôlée, puis conserver seulement le suivi de la PR.
+Ne jamais utiliser `QUALITY_ALLOW_LARGE_DELETION=1` pour un écrasement
+accidentel de documentation.
+
+`just quality` appelle maintenant directement
+`bash scripts/agent-quality-gate.sh`, sans phase
+`mise run agent-quality` qui tentait de réécrire les verrous et télécharger
+plusieurs outils depuis TrueNAS. Les contrôles de qualité restent
+bloquants : pré-commit/Python/outils manquants ne deviennent pas `PASS`.
+
+**Écart mise sur TrueNAS :** la branche GitHub vérifiée contient
+`lockfile_version = 2`, mais l'opérateur a obtenu
+`unsupported lockfile version 3` sur son fichier local. Avant toute
+régénération ou modification du lockfile :
+
+```bash
+git status --short -- docs/roadmap.md mise.lock
+git show HEAD:mise.lock | sed -n '1,6p'
+sed -n '1,6p' mise.lock
+mise --version
+```
+
+Cette comparaison doit rester **en lecture seule** ; ne pas exécuter
+`mise lock`, `git reset --hard`, `git clean` ou télécharger de nouveaux
+artéfacts pour masquer le décalage.
+
 ## Étape A — checkout opérateur TrueNAS et réseau Git (pré-requis)
 
 Le 24 octobre, un checkout TrueNAS a été observé en retard sur GitHub, avec
