@@ -109,6 +109,33 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertNotIn("cat \"$f\"", evidence)
         self.assertNotIn("grep -i snort", evidence)
 
+    def test_php_fpm_memory_footprint_is_aggregate_and_non_secret(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split(
+            "echo '=== PHP-FPM worker footprint", 1
+        )[1].split(
+            "echo '=== RAM-backed /tmp and /var capacity", 1
+        )[0]
+        match = re.search(r"awk '(.*?)'", section, re.DOTALL)
+        self.assertIsNotNone(match)
+        sample = (
+            "43576 php-fpm: pool nginx (php-fpm)\n"
+            "41300 php-fpm: pool nginx (php-fpm)\n"
+            "77000 /usr/local/bin/crowdsec -c /private/config\n"
+        )
+        result = subprocess.run(
+            ["awk", match.group(1)],
+            input=sample, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("php_fpm_workers=2", result.stdout)
+        self.assertIn("php_fpm_rss_sum_kb=84876", result.stdout)
+        self.assertIn("php_fpm_max_worker_rss_kb=43576", result.stdout)
+        self.assertNotIn("private", result.stdout)
+        self.assertEqual(len(result.stdout.splitlines()), 1)
+        self.assertIn("df -k /tmp /var", script)
+        self.assertNotIn("sysctl kern.ipc.maxsockbuf=", script)
+
     def test_scheduled_oom_correlations_are_redacted(self):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("cron_minute=", script)
