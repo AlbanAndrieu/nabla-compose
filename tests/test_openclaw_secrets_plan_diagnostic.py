@@ -40,6 +40,16 @@ def native(paths, warning_count=0, complete=True):
     }
 
 
+
+def opaque_path_tags(paths):
+    """Match production's private path identity without revealing raw paths."""
+    tags = {category: set() for category in module.CATEGORIES}
+    for path in paths:
+        category = module.classify_changed_file(path)
+        tags[category].add(
+            module.hmac.digest(module._PATH_TAG_KEY, path.encode(), "sha256"))
+    return tags
+
 class CronPlanTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -182,8 +192,12 @@ class CronPlanTests(unittest.TestCase):
                     "refs_checked": 1, "skipped_exec_refs": 0,
                     "warning_count": 0, "resolvability_complete": True}
         original["categories"].update(cron_auth_sqlite=1, dotenv=1)
+        original["opaque_paths"] = opaque_path_tags([
+            "/private/agents/cron/agent/credential.sqlite", "/private/.env"
+        ])
         with patch.object(module, "native_dry_run", return_value=(
             {"categories": {**original["categories"], "dotenv": 0},
+             "opaque_paths": opaque_path_tags(["/private/agents/cron/agent/credential.sqlite"]),
              "changed_files": 1, "refs_checked": 1, "skipped_exec_refs": 0,
              "warning_count": 0, "resolvability_complete": True}, "native_verified")) as mocked:
             outcome, compared = module.compare_without_dotenv_scrub(plan(), self.root, original)
@@ -198,11 +212,18 @@ class CronPlanTests(unittest.TestCase):
                     "refs_checked": 1, "skipped_exec_refs": 0,
                     "warning_count": 0, "resolvability_complete": True}
         original["categories"].update(cron_auth_sqlite=1, dotenv=1)
+        original["opaque_paths"] = opaque_path_tags([
+            "/private/agents/cron/agent/credential.sqlite", "/private/.env"
+        ])
         with patch.object(module, "native_dry_run", return_value=(None, "native_rejected")):
             self.assertEqual(module.compare_without_dotenv_scrub(plan(), self.root, original),
                              ("native_comparison_failed", None))
         candidate = {"categories": {**original["categories"], "dotenv": 0,
                                     "main_auth_sqlite": 1},
+                     "opaque_paths": opaque_path_tags([
+                         "/private/agents/cron/agent/credential.sqlite",
+                         "/private/agents/main/agent/credential.sqlite"
+                     ]),
                      "changed_files": 2, "refs_checked": 1, "skipped_exec_refs": 0,
                      "warning_count": 0, "resolvability_complete": True}
         with patch.object(module, "native_dry_run", return_value=(candidate, "native_verified")):
@@ -235,6 +256,43 @@ class CronPlanTests(unittest.TestCase):
         self.assertNotIn("PRIVATE_VALUE", out)
         self.assertEqual(json.loads(self.path.read_text()), plan())
         self.assertEqual(list(self.root.glob(".cron-no-scrub-*")), [])
+
+
+    def test_same_category_changed_path_cannot_fake_scrub_isolation(self):
+        raw_path = "/private/agents/cron/agent/original.sqlite"
+        other_path = "/private/agents/cron/agent/different.sqlite"
+        baseline = native([raw_path, "/private/.env"])
+        alternative = native([other_path])
+        def projected(cmd, **_):
+            target = json.loads(Path(cmd[cmd.index("--from") + 1]).read_text())
+            chosen = alternative if target.get("options", {}).get("scrubEnv") is False else baseline
+            return CompletedProcess(cmd, 0, json.dumps(chosen).encode(), b"")
+        with patch.object(module.subprocess, "run", side_effect=projected):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                exitcode = module.main(["--compare-no-scrub"], home=self.home)
+        self.assertEqual(exitcode, 2)
+        self.assertIn("secret_plan_scrub_comparison=comparison_does_not_isolate_scrub",
+                      output.getvalue())
+        self.assertIn("secret_plan_apply_authorized=false", output.getvalue())
+
+    def test_original_plan_changes_during_native_run_blocks_result(self):
+        projected = native(["/private/agents/cron/agent/credential.sqlite", "/private/.env"])
+        def change_original_and_respond(cmd, **_):
+            opened = Path(cmd[cmd.index("--from") + 1])
+            self.assertNotEqual(opened, self.path)
+            self.assertEqual(json.loads(opened.read_text()), plan())
+            altered = plan()
+            altered["targets"][0]["agentId"] = "main"
+            self.path.write_text(json.dumps(altered))
+            return CompletedProcess(cmd, 0, json.dumps(projected).encode(), b"")
+        with patch.object(module.subprocess, "run", side_effect=change_original_and_respond):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = module.main([], home=self.home)
+        self.assertEqual(code, 2)
+        self.assertIn("secret_plan_status=blocked_concurrent_plan_change",
+                      output.getvalue())
+        self.assertIn("secret_plan_apply_authorized=false", output.getvalue())
+        self.assertEqual(list(self.root.glob(".cron-preflight-*")), [])
 
     def test_invalid_plan_never_invokes_native_cli(self):
         broken = plan()
