@@ -63,7 +63,7 @@ if command -v php >/dev/null 2>&1; then
     );
     foreach ($configs as $label => $cfg) {
       if ($cfg === null) { echo $label, "=missing\n"; continue; }
-      foreach (array("enable_cb", "pfb_dnsbl", "pfb_python", "pfb_tld",
+      foreach (array("enable_cb", "pfb_dnsbl", "pfb_tld",
         "asn_reporting", "pfb_interval", "pfb_dailystart") as $key) {
         if (isset($cfg->$key)) {
           $value = strtolower(trim((string)$cfg->$key));
@@ -80,6 +80,21 @@ if command -v php >/dev/null 2>&1; then
       }
     }
   ' 2>/dev/null || true
+fi
+echo '=== Resolver mode (generated config markers only) ==='
+if [ -r /var/unbound/unbound.conf ]; then
+  grep -E 'module-config:|python-script:|msg-cache-size:|rrset-cache-size:' /var/unbound/unbound.conf |
+    sed -E 's#(python-script:).*#\\1 [configured]#' | head -12 || true
+fi
+echo '=== pfBlockerNG DNSBL input size (top 10 feed files only) ==='
+if [ -d /var/db/pfblockerng/dnsblorig ]; then
+  # Use file metadata; never read or print filter entries.
+  for f in /var/db/pfblockerng/dnsblorig/*; do
+    [ -f "$f" ] || continue
+    case "$f" in *.md5|*.raw|*.sha*) continue ;; esac
+    size=$(stat -f %z "$f" 2>/dev/null || echo 0)
+    printf '%s %s\\n' "$size" "$(basename "$f")"
+  done | sort -nr | head -10 || true
 fi
 echo '=== Unbound metrics (no counter reset) ==='
 unbound-control -c /var/unbound/unbound.conf stats_noreset 2>/dev/null |
