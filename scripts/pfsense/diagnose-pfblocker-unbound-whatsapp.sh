@@ -6,17 +6,17 @@ set -euo pipefail
 target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 port="${PFSENSE_SSH_PORT:-}"
 usage() {
-  printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT]\n' "$0" >&2
+  printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT]\n' "$0"
 }
 case "${1:-}" in
   --check) shift ;;
   -h|--help) usage; exit 0 ;;
-  *) usage; exit 2 ;;
+  *) usage >&2; exit 2 ;;
 esac
 while (($#)); do
   case "$1" in
-    --target) [[ $# -ge 2 ]] || { usage; exit 2; }; target="$2"; shift 2 ;;
-    --port) [[ $# -ge 2 && "$2" =~ ^[0-9]{1,5}$ ]] || { usage; exit 2; }; port="$2"; shift 2 ;;
+    --target) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; target="$2"; shift 2 ;;
+    --port) [[ $# -ge 2 && "$2" =~ ^[0-9]{1,5}$ ]] || { usage >&2; exit 2; }; port="$2"; shift 2 ;;
     *) usage; exit 2 ;;
   esac
 done
@@ -41,15 +41,15 @@ if [ -r /etc/crontab ]; then
         if ($i ~ /servicewatchdog_cron/) task="servicewatchdog"
         if ($i ~ /crowdsec/) task="crowdsec"
       }
-      if (task != "") printf "cron_minute=%s cron_hour=%s cron_day=%s task=%s\\n", $1, $2, $3, task
+      if (task != "") printf "cron_minute=%s cron_hour=%s cron_day=%s task=%s\n", $1, $2, $3, task
     }
   ' /etc/crontab | head -20
 fi
 echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='
 ps axo pid,rss,pcpu,command |
   awk '
-    /[\\/]crowdsec -c / {print "crowdsec_engine_pid="$1, "rss_kb="$2, "cpu_pct="$3; found=1}
-    /[\\/]crowdsec-firewall-bouncer -c / {print "crowdsec_bouncer_pid="$1, "rss_kb="$2, "cpu_pct="$3}
+    /crowdsec -c / {print "crowdsec_engine_pid="$1, "rss_kb="$2, "cpu_pct="$3; found=1}
+    /crowdsec-firewall-bouncer -c / {print "crowdsec_bouncer_pid="$1, "rss_kb="$2, "cpu_pct="$3}
     END {if (!found) print "crowdsec_engine=not_observed"}
   ' | head -5
 echo '=== Recent CrowdSec pressure signatures (counts only) ==='
@@ -114,16 +114,17 @@ fi
 echo '=== Resolver mode (generated config markers only) ==='
 if [ -r /var/unbound/unbound.conf ]; then
   grep -E 'module-config:|python-script:|msg-cache-size:|rrset-cache-size:' /var/unbound/unbound.conf |
-    sed -E 's#(python-script:).*#\\1 [configured]#' | head -12 || true
+    sed -E 's#(python-script:).*#\1 [configured]#' | head -12 || true
 fi
-echo '=== pfBlockerNG DNSBL input size (top 10 feed files only) ==='
+echo '=== pfBlockerNG DNSBL largest inputs (file metadata only) ==='
 if [ -d /var/db/pfblockerng/dnsblorig ]; then
-  # Use file metadata; never read or print filter entries.
+  # Avoid a pipeline in a shell loop that prints all feeds when newline
+  # escapes are wrong. Keep bounded output without exposing feed contents.
   for f in /var/db/pfblockerng/dnsblorig/*; do
     [ -f "$f" ] || continue
     case "$f" in *.md5|*.raw|*.sha*) continue ;; esac
     size=$(stat -f %z "$f" 2>/dev/null || echo 0)
-    printf '%s %s\\n' "$size" "$(basename "$f")"
+    printf '%s %s\n' "$size" "$(basename "$f")"
   done | sort -nr | head -10 || true
 fi
 echo '=== Unbound metrics (no counter reset) ==='
