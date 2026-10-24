@@ -483,8 +483,8 @@
     },
     {
       "entityRef": "component:default/openwebui",
-      "evidence": "apps/openwebui/compose.yml:services.open-webui.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/openwebui/compose.yml#services/open-webui",
+      "evidence": "apps/openwebui/compose.yml:services.openwebui.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/openwebui/compose.yml#services/openwebui",
       "sourceType": "compose"
     },
     {
