@@ -30,7 +30,7 @@ set -Eeuo pipefail
 umask 077
 remote=https://github.com/AlbanAndrieu/nabla-compose.git
 branch=fix/homelab-operator-diagnostics-followup-20261024
-state="\${NABLA_AGENT_STATE_DIR:-$HOME/.local/share/nabla}"
+state="${NABLA_AGENT_STATE_DIR:-$HOME/.local/share/nabla}"
 cache="$state/git/nabla-compose.git"
 [[ -d "$HOME" && ! -L "$state" && ! -L "$state/git" && ! -L "$cache" ]] || exit 3
 mkdir -p -m 0700 "$state/git"
