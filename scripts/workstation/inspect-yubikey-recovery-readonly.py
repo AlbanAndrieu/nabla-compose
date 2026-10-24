@@ -32,6 +32,9 @@ def public_command(*args: str) -> tuple[int, str]:
         ["ykman", *args], capture_output=True, text=True, stdin=subprocess.DEVNULL,
         check=False, timeout=12,
     )
+    # Treat unexpected diagnostic text as an unknown state, even with exit code zero.
+    if done.stderr.strip():
+        return 1, ""
     return done.returncode, done.stdout
 
 
@@ -45,6 +48,8 @@ def otp2_inventory() -> str:
             return "UNKNOWN"
         rc, info = public_command("--device", SERIAL, "otp", "info")
         if rc != 0:
+            return "UNKNOWN"
+        if re.search(r"(?im)^\\s*(?:error|failed|traceback)\\b", info):
             return "UNKNOWN"
         states = OTP2.findall(info)
         if len(states) != 1:
