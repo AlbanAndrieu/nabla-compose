@@ -9,6 +9,8 @@ Aucune commande ici ne démarre, redéploie ou efface un service.
 ## 1. Services observabilité (TrueNAS)
 
 ```bash
+sudo python3 scripts/truenas/diagnose-service-bundle.py --check --section observability
+# Pour le résultat détaillé de chaque vérification :
 python3 scripts/prometheus/diagnose-failed-scrapes.py --check
 sudo bash scripts/truenas/diagnose-observability-post-repair.sh --check
 sudo bash scripts/truenas/diagnose-postgres-exporter.sh
@@ -17,7 +19,7 @@ python3 scripts/prometheus/audit-telemetry-coverage.py \
 ```
 
 La procédure globale peut être lancée par le script
-`scripts/truenas/diagnose-service-bundle.sh --check --section observability`
+`scripts/truenas/diagnose-service-bundle.py --check --section observability`
 après revue du HEAD ; une panne n'interrompt pas les autres vérifications.
 Pour les critères de clôture, consulter
 [runbook observabilité](2026-10-24-prometheus-pyroscope-dns-dot-recovery.md).

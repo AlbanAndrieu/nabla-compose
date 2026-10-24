@@ -33,6 +33,11 @@ place for current priorities.
 
 ## Current runbooks and diagnostics
 
+- [Entrée opérateur consolidée (lecture seule)](runbooks/2026-10-24-homelab-operator-next-commands.md)
+- [Observabilité : Prometheus, Pyroscope, Akvorado, PostgreSQL exporter et FastAPI](runbooks/2026-10-24-prometheus-pyroscope-dns-dot-recovery.md)
+- [Archive des roadmaps et preuves opérateur jusqu'au 24 octobre](archive/2026-10-24/roadmap.md)
+
+
 - [Hermes TrueNAS via Telegram/Discord — feasibility, trust boundaries, read-only audit](./runbooks/hermes-homelab-gateway-feasibility.md)
 
 
