@@ -334,7 +334,8 @@ def main(argv=None, home=None):
     print("secret_plan_status=" + state)
     print("secret_plan_gateway_env_attested=false")
     print("secret_plan_apply_authorized=false")
-    return 0 if state.startswith("review_") else 2
+    # Gateway persistence has not been attested by this diagnostic. Fail closed.
+    return 2
 
 
 if __name__ == "__main__":
