@@ -348,3 +348,38 @@ def test_local_gates_run_in_order_and_fail_closed(
     assert result.returncode == (1 if failing else 0)
     assert not marker.exists()
     assert not report.exists()
+
+
+def test_full_quality_recipe_invokes_same_canonical_gate_without_mise():
+    """TrueNAS local gate must not auto-install the mise.lock tool matrix."""
+    root = SOURCE.parents[2]
+    justfile = (root / "justfile").read_text(encoding="utf-8")
+    assert "\nquality:\n    bash scripts/agent-quality-gate.sh\n" in justfile
+    assert "migration-20261024-local-gates:" in justfile
+    assert "bash scripts/truenas/finish-migrations-20261024.sh --local-gates" in justfile
+    assert (root / "scripts/agent-quality-gate.sh").is_file()
+
+
+def test_roadmap_critical_policy_not_removed_by_migration_consolidation():
+    """The real policy checker must continue to see the historical roadmap."""
+    root = SOURCE.parents[2]
+    roadmap = (root / "docs/roadmap.md").read_text(encoding="utf-8")
+    heading = (
+        "## P0 — Agent skill precedence and Compose/FastAPI/Site "
+        "convergence (2026-10-24)"
+    )
+    assert heading in roadmap
+    assert len(roadmap.splitlines()) > 3000
+    assert "Ask the user" in roadmap
+    assert "democratic-csi" in roadmap
+    assert "catalogRevision" in roadmap
+    assert "entityRef" in roadmap
+
+
+def test_mise_lock_is_not_rewritten_by_local_quality_runner():
+    """The tracked lock remains version 2; do not regenerate it on TrueNAS."""
+    lockfile = (SOURCE.parents[2] / "mise.lock").read_text(encoding="utf-8")
+    assert "lockfile_version = 2" in lockfile
+    runner = SOURCE.read_text(encoding="utf-8")
+    assert "mise lock" not in runner
+    assert "mise install" not in runner
