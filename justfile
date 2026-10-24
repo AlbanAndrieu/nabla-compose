@@ -59,6 +59,11 @@ topology-artifacts-refresh:
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py
     just topology-generators-check
 
+# Offline terminal-safety contracts; does not call Github or TrueNAS.
+pr274-local-quality-test:
+    bash -n scripts/workstation/run-pr274-local-quality.sh
+    python3 -m unittest discover -s tests -p 'test_pr274_local_quality_runner_contract.py' -v
+
 # Read-only Backstage v2 / icon parity check. Pass --site-generated separately
 # when the sibling website checkout is available (no network fetch).
 catalog-convergence-check:
