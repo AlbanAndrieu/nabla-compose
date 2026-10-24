@@ -24,6 +24,18 @@ def fake_operator(tmp_path):
     truenas.mkdir(parents=True)
     target = truenas / SOURCE.name
     shutil.copyfile(SOURCE, target)
+    # Fake the terminal interface used by the production runner. No TrueNAS.
+    lib = root / "scripts/lib/diagnostic-ui.sh"
+    lib.parent.mkdir(parents=True, exist_ok=True)
+    lib.write_text(
+        "diag_ui_init() { return 0; }\n"
+        "diag_ok() { printf 'OK: %s\\n' \"$*\"; }\n"
+        "diag_warn() { printf 'WARN: %s\\n' \"$*\"; }\n"
+        "diag_fail() { printf 'FAIL: %s\\n' \"$*\"; }\n"
+        "diag_info() { printf 'INFO: %s\\n' \"$*\"; }\n"
+        "diag_section() { printf 'SECTION: %s\\n' \"$*\"; }\n",
+        encoding="utf-8",
+    )
     # Operator commands are a tracked, non-executable runbook.
     runbook = root / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
     runbook.parent.mkdir(parents=True, exist_ok=True)
@@ -49,6 +61,10 @@ def fake_operator(tmp_path):
         "'selectedWave':wave, 'selectedWaveReady':True,"
         "'planHash':'" + HASH + "'}))\n",
         encoding="utf-8",
+    )
+    # A successful mock wave must be followed by a successful health check.
+    (truenas / "diagnose-service-readiness.py").write_text(
+        "raise SystemExit(0)\n", encoding="utf-8",
     )
     for name in (
         "diagnose-gatus.sh", "diagnose-sentry.sh", "diagnose-defectdojo.sh",
