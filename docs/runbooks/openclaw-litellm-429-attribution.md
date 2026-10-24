@@ -171,3 +171,92 @@ produirait une migration non durable au prochain redéploiement.
 
 **Pas d'auto-réplique des valeurs de clés**, pas d'augmentation de quota pour masquer une erreur, pas de `GET /v1/models` sans header d'authentification pour « tester » un proxy protégé, et pas de déploiement TrueNAS tant que son active `config.yaml`/DB ne sont pas attestés.
 
+
+
+## Retour opérateur : routes Workstation et préflight TrueNAS bloqué (24 octobre 2026)
+
+### Faits nouveaux
+
+Le script mis à jour `openclaw-route-metadata.py` retourne :
+
+- `litellm-main route_owner=workstation_lan_litellm` ;
+- `litellm-cron route_owner=workstation_lan_litellm` ;
+- `litellm route_owner=workstation_litellm`, sans API key déclarée.
+
+Les deux routes des agents sont **172.17.0.57:4000/v1**.
+La migration des valeurs vers des fichiers `SecretRef` n'a donc
+pas modifié la destination des requêtes : **aucune bascule vers TrueNAS
+n'est prouvée**, et la trace TrueNAS `GET /v1/models` sans clé
+ne doit pas être qualifiée de cause du 429 OpenClaw.
+
+Le préflight déclaratif TrueNAS confirme l'absence de `gpt-4.1`
+et `gpt-4.1-mini` dans `apps/litellm/config.yaml`. Les
+groupes `workstation-qwen` et `embedding` y sont présents.
+L'inventaire du **runtime** n'a pas encore été réalisé.
+
+### Corrections de la PR
+
+- `just openclaw-429-triage-test` : **10 tests OK** sur Workstation.
+- `just openclaw-truenas-model-keys-test` : 6 contrats OK,
+  mais son ancienne recette essayait ensuite `python3 -m pytest`.
+  Le Python géré par mise ne possède pas `pytest`.
+  Cette recette utilise désormais exclusivement `unittest`, sans
+  installation globale et sans altérer les environnements des autres
+  worktrees. Trois tests de confidentialité du routage sont disponibles.
+- Le préflight `--tunnel` refuse les requêtes d'administration si
+  aucun port local n'écoute sur `127.0.0.1:14000`. Un listener
+  local n'atteste **pas** l'identité d'un tunnel SSH ; cette identité
+  reste à vérifier par l'opérateur.
+- `LITELLM_TRUENAS_MASTER_KEY` manquait dans le shell de la
+  commande précédente. Un mode `--prompt-admin` accepte une saisie
+  unique et **masquée sur terminal interactif** et garde la valeur
+  seulement dans la mémoire du processus Python.
+  Il n'est pas nécessaire de l'exporter durablement.
+
+### Séquence opérateur — lecture seule
+
+Synchroniser d'abord le HEAD de la PR, puis :
+
+```bash
+just openclaw-429-triage-test
+just openclaw-truenas-model-keys-test
+just openclaw-429-triage
+just openclaw-truenas-model-keys-check
+```
+
+Avant de demander les inventaires runtime, préparer séparément un
+tunnel SSH local existant vers TrueNAS. Exemple depuis la Workstation,
+avec le compte SSH réellement autorisé, dans un terminal réservé :
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes \
+  -L 127.0.0.1:14000:127.0.0.1:4000 \
+  <ssh-user>@172.17.0.24
+```
+
+Ne pas saisir le signe `<` littéralement : substituer le vrai
+nom d'utilisateur SSH. Confirmer l'empreinte du serveur lors de la
+première connexion ; ne jamais contourner cette vérification.
+
+Puis dans un **deuxième terminal interactif** :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-prompt
+```
+
+Cette recette vérifie les modèles et le nombre de clés TrueNAS
+sans en créer ni envoyer de chat. La clé demandée est la clé
+**administrateur LiteLLM TrueNAS**, pas la clé `openclaw-cron`
+Workstation ni le mot de passe de l'interface. Le script refuse la
+lecture si la console n'est pas interactive.
+
+### Condition de migration
+
+Le chantier TrueNAS reste **NO-GO** tant que les alias requis ne sont
+pas confirmés, les clés virtuelles ne sont pas provisionnées avec leurs
+permissions propres, et la persistance PostgreSQL n'est pas vérifiée.
+Pour la panne courante OpenClaw, diagnostiquer **d'abord** la route
+Workstation réellement utilisée et une requête échouée attribuée à
+`main` ou `cron`. Les clés `main` et `cron` ne doivent
+pas partager automatiquement la même identité virtuelle `openclaw`.
+
