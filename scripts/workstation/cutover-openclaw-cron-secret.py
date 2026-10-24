@@ -65,6 +65,25 @@ def private_bytes(path, maximum=32 * 1024 * 1024):
         reject("missing_private_file")
 
 
+def key_from_environment(environment=None):
+    """Prefer the credential already exported to this process.
+
+    No subprocess arguments, stdout, logs or repository files contain its
+    value. A placeholder in dotenv cannot override an exported real key.
+    """
+    environment = os.environ if environment is None else environment
+    value = environment.get(ENV_ID)
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        reject("invalid_preloaded_credential")
+    if not (8 <= len(value) <= 4096 and value.isascii()
+            and all(33 <= ord(char) <= 126 for char in value)
+            and chr(36) + "{" not in value):
+        reject("invalid_preloaded_credential")
+    return value.encode("ascii")
+
+
 def key_from_dotenv(raw):
     values = []
     for line in raw.decode("utf-8").splitlines():
@@ -185,7 +204,15 @@ def main(argv=None):
         old_files = paths_checked(
             invoke(SOURCE_PLAN), ["cron_auth_sqlite", "dotenv"])
         dotenv = next(p for p in old_files if p.name == ".env")
-        key = key_from_dotenv(private_bytes(dotenv, 1024 * 1024))
+        # Native dry-run identifies the dotenv path for backup, but does
+        # not require its value to equal the already exported credential.
+        key = key_from_environment()
+        if key is None:
+            key = key_from_dotenv(private_bytes(dotenv, 1024 * 1024))
+            source_kind = "private_dotenv"
+        else:
+            source_kind = "preloaded_environment"
+        print("cron_cutover_credential_source=" + source_kind)
         if KEY_FILE.exists() or KEY_FILE.is_symlink():
             if not secrets.compare_digest(private_bytes(KEY_FILE, 8192).rstrip(b"\r\n"), key):
                 reject("existing_cron_file_key_mismatch")
