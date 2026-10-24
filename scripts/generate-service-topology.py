@@ -761,6 +761,9 @@ def _drift_categories(current: str, expected: str) -> list[str]:
     except (json.JSONDecodeError, TypeError):
         return ["tracked generated file is absent or not valid JSON"]
 
+    if not isinstance(recorded, dict) or not isinstance(generated, dict):
+        return ["tracked generated file root is not a JSON object"]
+
     findings: list[str] = []
     if recorded.get("catalogRevision") != generated.get("catalogRevision"):
         if "catalogRevision" in generated:
