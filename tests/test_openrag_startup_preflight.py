@@ -12,13 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/diagnose-openrag-startup.sh"
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="jq required by TrueNAS preflight")
-@pytest.mark.parametrize("state,valid_secret,expected_exit,expected", [
-    ("STOPPED", True, 1, "start_authorization=REQUIRED"),
-    ("RUNNING", True, 0, "OPENRAG_STARTUP_PREFLIGHT=READY_FOR_OPERATOR_REVIEW"),
-    ("RUNNING", False, 1, "secret_OPENSEARCH_PASSWORD=missing"),
+@pytest.mark.parametrize("state,valid_secret,symlink,expected_exit,expected", [
+    ("STOPPED", True, False, 1, "start_authorization=REQUIRED"),
+    ("RUNNING", True, False, 0, "OPENRAG_STARTUP_PREFLIGHT=READY_FOR_OPERATOR_REVIEW"),
+    ("RUNNING", False, False, 1, "secret_OPENSEARCH_PASSWORD=missing"),
+    ("RUNNING", True, True, 1, "OpenRAG secret symlink is not the reviewed canonical migration target"),
 ])
 def test_startup_preflight_does_not_mutate_or_reveal_secrets(
-    tmp_path: Path, state: str, valid_secret: bool, expected_exit: int, expected: str
+    tmp_path: Path, state: str, valid_secret: bool, symlink: bool,
+    expected_exit: int, expected: str
 ) -> None:
     corpus = tmp_path / "private-corpus"
     corpus.mkdir()
@@ -30,6 +32,10 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
     secret.write_text("".join(f"{key}={sentinel}\n" for key in keys),
                       encoding="utf-8")
     secret.chmod(0o600)
+    secret_used = secret
+    if symlink:
+        secret_used = tmp_path / ".env.link"
+        secret_used.symlink_to(secret)
     mocks = tmp_path / "bash-env"
     mocks.write_text(
         'midclt() { printf \'[{"id":"openrag","state":"%s"}]\' "$MOCK_APP_STATE"; }\n'
@@ -48,7 +54,7 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
     env = dict(os.environ)
     env.update({
         "MOCK_APP_STATE": state,
-        "OPENRAG_SECRET_FILE": str(secret),
+        "OPENRAG_SECRET_FILE": str(secret_used),
         "OPENRAG_BABABOU_SOURCE": str(corpus),
         "OPENRAG_ZFS_DATASET": "synthetic/bababou",
         "BASH_ENV": str(mocks),
