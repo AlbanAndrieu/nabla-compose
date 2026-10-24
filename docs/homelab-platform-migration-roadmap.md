@@ -28,6 +28,14 @@ Ordre bloquant après la migration du moteur CrowdSec central en `v1.8.1` :
 Incident associé :
 [`incidents/2026-10-10-vaultwarden-public-split-dns.md`](./incidents/2026-10-10-vaultwarden-public-split-dns.md).
 
+> **Reprise opérateur du 24/10/2026 :** la liste de commandes en lecture seule
+> et les critères de fermeture Prometheus, OpenRAG, Akvorado, FastAPI LAN,
+> catalogue et Talos sont regroupés dans
+> [le runbook de migration](runbooks/2026-10-24-homelab-operator-next-commands.md).
+> Le script `scripts/truenas/finish-migrations-20261024.sh --next-commands`
+> imprime ce plan. Les correctifs sont en PR Draft #273, non déployés :
+> n'en déduire aucune réparation effective sur TrueNAS.
+>
 # Homelab platform migration roadmap
 
 This document owns the **platform migration architecture and service cutover
