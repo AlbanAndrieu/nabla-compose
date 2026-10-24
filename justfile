@@ -118,6 +118,21 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
+# Offline model alias contract and optional authenticated TrueNAS inventory.
+openclaw-truenas-model-keys-test:
+    python3 -m py_compile scripts/workstation/preflight-truenas-litellm-openclaw.py tests/test_truenas_litellm_openclaw_preflight.py
+    python3 -m unittest discover -s tests -p 'test_truenas_litellm_openclaw_preflight.py' -v
+    python3 -m pytest -q tests/test_openclaw_route_metadata.py
+
+# Always safe and offline: compare intended model names to git-declared TrueNAS routing.
+openclaw-truenas-model-keys-check:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py
+
+# Opt-in: requires existing SSH tunnel 127.0.0.1:14000 to TrueNAS LiteLLM.
+# Never transmit an admin key over plaintext LAN: only local encrypted transport.
+openclaw-truenas-model-keys-tunnel:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel
+
 # Read-only 429 attribution. No chat, embeddings, resets or key mutations.
 openclaw-429-triage-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
