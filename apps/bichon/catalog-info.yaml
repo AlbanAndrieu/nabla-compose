@@ -3,7 +3,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: bichon
-  title: Bichon
+  title: Bichon UI
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium

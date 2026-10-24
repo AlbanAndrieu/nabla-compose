@@ -193,9 +193,14 @@ published publicly. Only the S3 root endpoint retains the temporary direct
 so public `*.s3.int.albandrieu.com` bucket DNS is not required. Remove the S3
 exception once every state writer uses a trusted LAN/VPN/WARP path.
 
-OpenWebUI is another tunnel-origin example:
-`open-webui.albandrieu.com -> Cloudflare Tunnel -> cloudflared ->
-172.17.0.24:31028`. It does not traverse Traefik.
+OpenWebUI uses an outbound Cloudflare Tunnel without Traefik. Desired
+canonical route in PR #273:
+`openwebui.albandrieu.com -> Cloudflare Tunnel + Access -> cloudflared ->
+172.17.0.24:31028`. The previously deployed
+`open-webui.albandrieu.com` is a **legacy hostname**, to be retained until
+the new DNS record, Tunnel public hostname, Access policy and browser flow
+are proven. Changing Compose metadata does not change Cloudflare remotely.
+See [the migration runbook](runbooks/openwebui-homeassistant-canonical-rename.md).
 
 ### Anti-pattern: hostname public tunnelé réécrit vers le LAN
 

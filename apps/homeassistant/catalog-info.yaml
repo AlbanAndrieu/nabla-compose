@@ -3,7 +3,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: homeassistant
-  title: Home Assistant
+  title: Home Assistant UI
   description: Home automation control plane exposed through the dedicated IoT network.
   labels:
     albandrieu.com/operational-state: active

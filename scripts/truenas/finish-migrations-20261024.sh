@@ -33,7 +33,8 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
   # For the concurrent Talos/Kubernetes operator flow see
   # docs/runbooks/2026-10-23-fast-batch-migration.md
 
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --next-commands
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -49,6 +50,7 @@ All modes write PRIVATE metadata/diagnostic logs under
 proceeding. --check and --plan-wave never stop/start/redeploy Apps.
 --apply-step runs its matching --check first; if drift makes the check fail,
 review its report and repeat with --allow-reviewed-drift (explicit override).
+--next-commands prints the ordered operator runbook without connecting to TrueNAS.
 No automatic remediation for DefectDojo, Docling, Hermes, OpenRAG ingestion,
 Vaultwarden secret import or TrueNAS host reboot: see the runbook.
 EOF
@@ -57,6 +59,7 @@ EOF
 while (($#)); do
   case "$1" in
     --check) ACTION="check"; shift ;;
+    --next-commands) ACTION="commands"; shift ;;
     --section) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; SECTION="$2"; shift 2 ;;
     --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; WAVE="$2"; shift 2 ;;
     --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; WAVE="$2"; shift 2 ;;
@@ -75,9 +78,24 @@ while (($#)); do
   esac
 done
 
+if [[ "${ACTION}" == commands ]]; then
+  [[ "${SECTION}" == all && -z "${WAVE}" && -z "${STEP}" &&
+     -z "${HASH}" && -z "${ACK}" && "${ALLOW_DRIFT}" == false ]] || {
+    echo '--next-commands accepts no apply, wave or section flags' >&2
+    exit 2
+  }
+  RUNBOOK="${ROOT}/docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+  [[ -f "${RUNBOOK}" && ! -L "${RUNBOOK}" ]] || {
+    echo 'Operator runbook unavailable; no commands executed' >&2
+    exit 2
+  }
+  cat -- "${RUNBOOK}"
+  exit 0
+fi
+
 diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
-case "${SECTION}" in all|platform|migrations|catalog|services|ai|talos) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
+case "${SECTION}" in all|platform|migrations|catalog|services|ai|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
   case "${WAVE}" in core|gatus|deferred) ;; *) echo 'Invalid wave' >&2; exit 2 ;; esac
 fi
@@ -242,12 +260,13 @@ plan_wave() {
   ready="$(jq -r .selectedWaveReady "${report}")"
   if [[ "${ready}" == true ]]; then
     record "catalog-${wave}" PASS "${report}"
-    if [[ "${VERBOSE}" == true ]]; then
-      diag_info "catalog ${wave}: plan hash ${hash}"
-    fi
+    # Opaque plan hash is safe to publish; raw plan remains private.
+    # Required for exact plan acknowledgement. No credential or app config data.
+    printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=true\n' "${wave}" "${hash}"
   else
     record "catalog-${wave}" FAIL "${report}"
     diag_warn "catalog ${wave}: $(jq -r '.selectedWaveBlocker // "unknown"' "${report}")"
+    printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=false\n' "${wave}" "${hash}"
   fi
   printf '%s\n' "${hash}" >"${SESSION_DIR}/catalog-${wave}.sha256"
   [[ "${ready}" == true ]]
@@ -303,6 +322,43 @@ check_section() {
         record litellm-provider-keys WARN "${SESSION_DIR}/litellm-provider-keys.log"
       fi
       ;;
+    observability)
+      # Runtime truth requires fresh probes, not a TrueNAS App RUNNING flag.
+      run_check prometheus-targets bash scripts/truenas/diagnose-prometheus-targets.sh --check
+      run_check prometheus-config-access bash scripts/truenas/repair-prometheus-config-access.sh --check
+      run_check prometheus-rules-access bash scripts/truenas/repair-prometheus-rules-access.sh --check
+      run_check openrag-readiness bash scripts/truenas/diagnose-openrag-dependencies.sh --check
+      run_check akvorado-fresh-inserts python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 20
+      ;;
+    secrets)
+      # Metadata and filesystem checks only; never print raw env or BW_SESSION.
+      run_check canonical-secret-files bash scripts/truenas/bootstrap-repository-runtime.sh --check
+      run_check first-wave-env bash scripts/truenas/accept-runtime-env-first-wave.sh --check all
+      run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+      run_check akvorado-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check akvorado
+      run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
+      run_check openrag-opensearch-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+      if command -v bw >/dev/null 2>&1 && [[ -n "${BW_SESSION:-}" ]]; then
+        run_check vaultwarden-inventory python3 scripts/secrets/inventory_vaultwarden.py --json
+      else
+        record vaultwarden-inventory SKIP 'BW_SESSION or Bitwarden CLI unavailable on this host'
+      fi
+      ;;
+    convergence)
+      # No browser fetching or runtime mutation. Generators run in --check mode.
+      run_check canonical-service-icons python3 scripts/quality/check-site-catalog-convergence.py
+      run_check agent-skill-precedence python3 scripts/quality/check-agent-skill-precedence.py
+      run_check backstage-generated-contract python3 scripts/generate-catalog-v2-artifacts.py --check
+      run_check service-topology-generated-contract python3 scripts/generate-service-topology.py --check
+      ;;
+    lan)
+      # Verify only the LAN collector; never enable internal probes from Cloud.
+      if [[ -f scripts/truenas/verify-fastapi-lan-probes.sh ]]; then
+        run_check fastapi-lan-probes bash scripts/truenas/verify-fastapi-lan-probes.sh --check
+      else
+        record fastapi-lan-probes SKIP 'LAN verification script missing from this checkout'
+      fi
+      ;;
     talos)
       if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
         run_check talos-cluster bash scripts/talos/validate-cluster.sh
@@ -330,7 +386,7 @@ print_summary() {
 }
 if [[ "${ACTION}" == check ]]; then
   if [[ "${SECTION}" == all ]]; then
-    for part in platform migrations catalog services ai talos; do
+    for part in platform migrations catalog services ai observability secrets convergence lan talos; do
       diag_section "" "${part}"
       check_section "${part}"
     done

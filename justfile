@@ -26,6 +26,20 @@ offline:
 loop:
     mise run agent-loop
 
+# Read-only repository policy check for external skills and TrueNAS/Talos decisions.
+# No dependency installation, networking, containers or GitHub Actions.
+agent-skills-check:
+    python3 -m py_compile scripts/quality/check-agent-skill-precedence.py tests/test_agent_skill_precedence_contract.py
+    python3 -m unittest discover -s tests -p 'test_agent_skill_precedence_contract.py' -v
+    python3 scripts/quality/check-agent-skill-precedence.py
+
+# Read-only Backstage v2 / icon parity check. Pass --site-generated separately
+# when the sibling website checkout is available (no network fetch).
+catalog-convergence-check:
+    python3 -m py_compile scripts/quality/check-site-catalog-convergence.py tests/test_site_catalog_convergence_contract.py
+    python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
+    python3 scripts/quality/check-site-catalog-convergence.py
+
 # Full local quality gate without publishing.
 quality:
     mise run agent-quality
@@ -66,11 +80,16 @@ hermes-opus-routing-test:
     python3 -m py_compile scripts/truenas/check-litellm-hermes-credentials.py
     python3 -m pytest -q tests/test_hermes_opus_routing_contract.py tests/test_hermes_litellm_budget_contract.py tests/test_hermes_contract.py tests/test_hermes_preflight.py tests/test_hermes_cloud_credential_preflight.py
 
-# Temporary 24 October migration runbook checks; mocks midclt and App changes.
-# No actual TrueNAS, Kubernetes, cloud model request or paid GitHub CI.
+# Print operator commands only. Does not contact TrueNAS or start migrations.
+migration-20261024-commands:
+    bash scripts/truenas/finish-migrations-20261024.sh --next-commands
+
+# Offline migration, FastAPI LAN collector and Akvorado regressions.
+# No TrueNAS mutation or GitHub Actions.
 migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
-    python3 -m pytest -q tests/test_finish_migrations_20261024.py
+    bash -n scripts/truenas/verify-fastapi-lan-probes.sh
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_openrag_secret_migration_metadata.py
 
 # Maintained runtime/version review is read-only, no registry or paid Actions.
 upgrade-runtime-audit:

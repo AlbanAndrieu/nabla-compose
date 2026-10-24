@@ -80,7 +80,7 @@ class OpenWebUiPraContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("open-webui.albandrieu.com", compose)
+        self.assertIn("openwebui.albandrieu.com", compose)
         self.assertIn(
             "gatewayRef: resource:default/cloudflare-tunnel",
             compose,

@@ -3,7 +3,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: gatus
-  title: Gatus
+  title: Gatus UI
   description: Declarative endpoint and status monitoring for the Nabla homelab.
   labels:
     albandrieu.com/operational-state: active

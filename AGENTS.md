@@ -1,5 +1,48 @@
 # Agent instructions
 
+## Required skill precedence for the Nabla homelab
+
+Apply the following **repository instruction order** when writing, reviewing,
+or executing service work (including after installing any external skill):
+
+1. `AGENTS.md` and explicit user-approved operational constraints;
+2. matching Nabla project skills in `.agents/skills/`, including
+   `docker-compose-orchestration`, `nabla-service-catalog`,
+   `homelab-secrets`, `homelab-runtime-status`, `local-first-quality`,
+   and scoped pfSense/Talos runbooks;
+3. externally installed skills (for example `docker-compose-patterns` or
+   `kubernetes-specialist`), usable **only** for compatible guidance;
+4. vendor samples and generic deployment snippets.
+
+**Local Nabla decisions override conflicting external skill defaults.**
+Read [docs/agent-skills-architecture.md](docs/agent-skills-architecture.md)
+before adopting external Docker/Kubernetes advice. In particular:
+
+- TrueNAS production state uses managed ZFS datasets and explicit
+  `/mnt/cpool/<service>` bind mounts, **not** default named volumes.
+- Secrets come from Vaultwarden and protected
+  `/mnt/cpool/secrets/runtime/<service>/`, **not** repository-local live
+  `.env` files.
+- Preserve already declared shared Compose networks and compatible shared
+  Postgres/Redis/Kafka/ClickHouse/etc. Do not create duplicate infrastructure
+  from generic examples.
+- Talos workloads use the approved democratic-csi/TrueNAS NFS integration and
+  reviewed Traefik ingress, RBAC and NetworkPolicy. Do not replace a CSI driver
+  or apply a sample default-deny policy without validating CNI/DNS/CSI flows.
+- Do not run `apt` on TrueNAS/Talos, or `docker compose up/down`,
+  `kubectl apply`, `helm upgrade`, data migrations or restarts
+  as incidental validation steps.
+
+If an external instruction conflicts, **do not silently resolve it in favor
+of the external skill**. Stop that change, record the conflict, and request
+a reviewed exception only if the user wants to alter the architecture.
+Neither the roadmap nor an external skill authorizes installation or live
+operations. Ask the user before installing each of the two proposed skills.
+
+This precedence is a repository contract for agents that read `AGENTS.md`.
+An external agent that does not load these instructions cannot be assumed to
+obey them; use the offline policy checks and code review.
+
 ## GitHub Actions credit-saving PR lifecycle
 
 - Agents should create and retain pull requests as **Draft** while iterating, and run the targeted local `just`/quality-gate checks before requesting review.

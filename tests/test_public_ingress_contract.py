@@ -365,9 +365,9 @@ class PublicIngressContractTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("open-webui.albandrieu.com", compose)
+        self.assertIn("openwebui.albandrieu.com", compose)
         self.assertIn(
-            "CORS_ALLOW_ORIGIN=https://open-webui.albandrieu.com,",
+            "CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,",
             compose,
         )
         self.assertIn(

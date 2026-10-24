@@ -614,6 +614,18 @@ else
   printf 'ℹ️  %s mode: generated topology/consumer checks skipped because no generator input changed\n' "${TARGETED_LABEL}"
 fi
 
+# These checks protect architectural authority even in the targeted loop.
+# They read committed policy/catalog files only. They do not contact the runtime.
+run_compact "Nabla agent skill precedence is intact" \
+  "${PYTHON_CMD[@]}" scripts/quality/check-agent-skill-precedence.py
+
+if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == true ]]; then
+  run_compact "Backstage revision and service icon coverage are coherent" \
+    "${PYTHON_CMD[@]}" scripts/quality/check-site-catalog-convergence.py
+else
+  printf 'ℹ️  %s mode: full catalog icon parity skipped (no catalog input changed)\n' "${TARGETED_LABEL}"
+fi
+
 if [[ "${TARGETED_ONLY}" == true ]]; then
   printf 'ℹ️  %s mode: full repository unit/contract suite is deferred to the local pre-push publication gate\n' "${TARGETED_LABEL}"
 else
