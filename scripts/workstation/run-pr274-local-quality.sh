@@ -87,17 +87,113 @@ fi
 
 ref="refs/heads/$branch"
 ref_output="$(git ls-remote --exit-code "$remote" "$ref" 2>/dev/null)" || stop 'GitHub branch lookup failed'
-IFS=$'\t' read -r head seen_ref <<< "$ref_output"
-[[ "$head" =~ ^[0-9a-f]{40}$ && "$seen_ref" == "$ref" ]] || stop 'remote ref not a valid pinned SHA'
-if [[ -n "${NABLA_PR274_EXPECTED_SHA:-}" && "$head" != "$NABLA_PR274_EXPECTED_SHA" ]]; then
-  stop 'remote PR HEAD changed after the bootstrap; rerun a fresh pinned invocation'
+IFS=
+# Record the exact published base, not HEAD~1. Full-PR destructive and mode
+# contracts must be checked against master even in a detached worktree.
+base_ref='refs/heads/master'
+base_response="$(git ls-remote --exit-code "$remote" "$base_ref" 2>/dev/null)" || stop 'master ref lookup failed'
+IFS=$'\t' read -r base_sha base_seen <<< "$base_response"
+[[ "$base_sha" =~ ^[0-9a-f]{40}$ && "$base_seen" == "$base_ref" ]] || stop 'remote master ref invalid'
+if ! git --git-dir="$cache" cat-file -e "$base_sha^{commit}" 2>/dev/null; then
+  git --git-dir="$cache" fetch --no-tags --no-write-fetch-head "$remote" "$base_ref" >/dev/null 2>&1 || stop 'fetch of pinned master failed'
 fi
-# A parent pin applies only to this top-level bootstrap, not nested test fixtures.
+git --git-dir="$cache" cat-file -e "$base_sha^{commit}" || stop 'pinned master SHA unavailable'
+git --git-dir="$cache" merge-base --is-ancestor "$base_sha" "$head" || stop 'PR head does not contain current master'
+export QUALITY_BASE_REF="$base_sha"
+report="$(mktemp -d "$reports/pr274.XXXXXXXX")" || stop 'cannot create private report directory'
+parent="$(mktemp -d "$worktree_base/pr274.XXXXXXXX")" || stop 'cannot create private worktree directory'
+workspace="$parent/source"
+trap 'first_failure="interrupted"; exit 130' INT TERM
+if ! git --git-dir="$cache" worktree add --detach "$workspace" "$head" >"$report/worktree.log" 2>&1; then
+  stop 'isolated Git worktree creation failed'
+fi
+flock -u 9
+[[ "$(git -C "$workspace" rev-parse HEAD)" == "$head" ]] || stop 'snapshot SHA mismatch'
+[[ -f "$workspace/.agents/skills/local-first-quality/SKILL.md" &&
+   -f "$workspace/scripts/quality/python-with-repo-deps.sh" &&
+   -f "$workspace/scripts/agent-quality-gate.sh" ]] || stop 'required scripts missing at PR HEAD'
+# Reuse common status API once an exact pinned checkout exists.
+# shellcheck source=../lib/common.sh
+source "$workspace/scripts/lib/common.sh"
+info "Pinned PR274 HEAD ${head:0:12}; operator checkout untouched"
+
+step() {
+  local label="$1" rc
+  shift
+  phase="$label"
+  info "$label"
+  if (cd "$workspace" && "$@") >"$report/$label.log" 2>&1; then
+    pass_count=$((pass_count + 1))
+    ok "$label"
+    return 0
+  else
+    rc=$?
+    warn "$label failed (exit $rc); private log: $report/$label.log"
+    return "$rc"
+  fi
+}
+# Only use dependency sources already present. If unavailable, sync pinned uv.lock
+# in this ephemeral development worktree; never run mise lock / pip globally.
+check_python() {
+  local interpreter="$1"
+  [[ -x "$interpreter" ]] || return 1
+  "$interpreter" -c 'import yaml, pytest' >/dev/null 2>&1
+}
+python_env=''
+for candidate in "$workspace/.venv" "${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/nabla-compose/dev-venv}"; do
+  if check_python "$candidate/bin/python"; then python_env="$candidate"; break; fi
+done
+if [[ -z "$python_env" ]]; then
+  command -v uv >/dev/null 2>&1 || stop 'no Python with PyYAML/pytest and uv is unavailable'
+  export UV_PROJECT_ENVIRONMENT="$workspace/.venv"
+  step 'uv-sync-frozen' uv sync --frozen --group dev || stop 'uv sync failed; no quality gates attempted'
+  python_env="$workspace/.venv"
+  check_python "$python_env/bin/python" || stop 'uv sync completed without PyYAML/pytest'
+fi
+export NABLA_TRUENAS_DEV_VENV="$python_env"
+export UV_PROJECT_ENVIRONMENT="$workspace/.venv"
+export PATH="$python_env/bin:$PATH"
+step 'targeted-contracts' just topology-generator-test || stop 'targeted-contracts'
+if step 'generator-check-initial' just topology-generators-check; then
+  info 'All generated projections match declarative inputs'
+else
+  [[ -z "$(git -C "$workspace" status --porcelain --untracked-files=normal)" ]] || stop 'cannot regenerate: workspace changed before generation'
+  # The detached snapshot is privately owned by this run. We do not call the
+  # branch-only just refresh target; its guard correctly rejects detached HEAD.
+  step 'generate-topology' bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py || stop 'generate-topology'
+  step 'generate-consumers' bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py || stop 'generate-consumers'
+  step 'generate-backstage' bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py || stop 'generate-backstage'
+  refresh_count=1
+  step 'generator-check-after-fix' just topology-generators-check || stop 'generator-check-after-fix'
+  # Refuse generated churn outside reviewed projection paths.
+  while IFS= read -r file; do
+    case "$file" in
+      catalog/service-topology.json|catalog/services.json|catalog/generated/*|apps/homarr/generated/apps.json|apps/gatus/config/config.yml|apps/autokuma/static/generated-monitors.json) ;;
+      *) stop "unexpected generated file: $file" ;;
+    esac
+  done < <(git -C "$workspace" status --porcelain --untracked-files=normal | cut -c4-)
+fi
+step 'agent-skills' just agent-skills-check || stop 'agent-skills'
+step 'quality' just quality || stop 'quality'
+info "Quality validation complete; generated batches=$refresh_count; no publication gate claimed"
+\t' read -r observed_head seen_ref <<< "$ref_output"
+[[ "$observed_head" =~ ^[0-9a-f]{40}$ && "$seen_ref" == "$ref" ]] || stop 'remote ref not a valid pinned SHA'
+# The bootstrap pinned a SHA before the runner was downloaded. Preserve it
+# even when another agent fast-forwards the branch during startup.
+head="${NABLA_PR274_EXPECTED_SHA:-$observed_head}"
+[[ "$head" =~ ^[0-9a-f]{40}$ ]] || stop 'invalid pinned PR commit'
 unset NABLA_PR274_EXPECTED_SHA
-if ! git --git-dir="$cache" cat-file -e "$head^{commit}" 2>/dev/null; then
-  git --git-dir="$cache" fetch --no-tags --no-write-fetch-head "$remote" "$ref" >/dev/null 2>&1 || stop 'fetch of pinned PR SHA failed'
+if ! git --git-dir="$cache" cat-file -e "$observed_head^{commit}" 2>/dev/null ||
+   ! git --git-dir="$cache" cat-file -e "$head^{commit}" 2>/dev/null; then
+  git --git-dir="$cache" fetch --no-tags --no-write-fetch-head "$remote" "$ref" >/dev/null 2>&1 || stop 'fetch of pinned PR history failed'
 fi
-git --git-dir="$cache" cat-file -e "$head^{commit}" || stop 'pinned SHA not present in cache'
+git --git-dir="$cache" cat-file -e "$observed_head^{commit}" || stop 'observed PR SHA not present in cache'
+git --git-dir="$cache" cat-file -e "$head^{commit}" || stop 'bootstrap-pinned SHA not reachable on current branch'
+if [[ "$head" != "$observed_head" ]]; then
+  git --git-dir="$cache" merge-base --is-ancestor "$head" "$observed_head" ||
+    stop 'PR branch diverged or force-pushed after bootstrap'
+  printf 'INFO: PR advanced since bootstrap; testing immutable pinned SHA %.12s, latest observed %.12s\n' "$head" "$observed_head"
+fi
 # Record the exact published base, not HEAD~1. Full-PR destructive and mode
 # contracts must be checked against master even in a detached worktree.
 base_ref='refs/heads/master'
