@@ -434,8 +434,9 @@ git status --short --ignore-submodules=none
 ```
 
 **Ne pas** exécuter `merge` lorsque le checkout a des changements locaux
-non revus. La PR #273 est encore Draft ; les scripts de cette branche ne sont
-pas tous disponibles sur `master`. Le résultat `git status` peut contenir
+non revus. La PR #273 est fusionnée ; la PR #274 est Draft, donc ses
+nouveaux scripts ne sont pas nécessairement disponibles sur `master`.
+Le résultat `git status` peut contenir
 un sous-module modifié : préserver cet état et documenter sa cause.
 
 ### J.2 — Vérification de la convergence des catalogues
