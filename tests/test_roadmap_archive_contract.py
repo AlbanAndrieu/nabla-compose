@@ -21,7 +21,7 @@ CHECK_LINKS = (
 
 def test_archive_is_byte_for_byte_identical_to_reviewed_source() -> None:
     data = ARCHIVE.read_bytes()
-    header = f"blob {len(data)}\\0".encode("ascii")
+    header = f"blob {len(data)}\0".encode("ascii")
     git_blob = hashlib.sha1(header + data).hexdigest()
     assert git_blob == ORIGINAL_GIT_BLOB_SHA
     assert len(data.splitlines()) > 3000
@@ -38,7 +38,7 @@ def test_active_roadmap_has_a_bounded_current_scope() -> None:
 
 
 def test_documentation_relative_links_resolve_inside_repository() -> None:
-    markdown_link = re.compile(r"(?<!!)\\[[^]]+\\]\\(([^)]+)\\)")
+    markdown_link = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
     for relative in CHECK_LINKS:
         page = ROOT / relative
         source = page.read_text(encoding="utf-8")
