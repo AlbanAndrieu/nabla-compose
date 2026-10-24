@@ -7,6 +7,8 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
 fi
 set -Eeuo pipefail
 umask 077
+# Git hook environments can leak into an operator session. Ignore them here.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
 
 remote='https://github.com/AlbanAndrieu/nabla-compose.git'
 branch='fix/homelab-operator-diagnostics-followup-20261024'
@@ -153,11 +155,13 @@ for candidate in "$workspace/.venv" "${NABLA_TRUENAS_DEV_VENV:-${HOME}/.cache/na
 done
 if [[ -z "$python_env" ]]; then
   command -v uv >/dev/null 2>&1 || stop 'no Python with PyYAML/pytest and uv is unavailable'
+  export UV_PROJECT_ENVIRONMENT="$workspace/.venv"
   step 'uv-sync-frozen' uv sync --frozen --group dev || stop 'uv sync failed; no quality gates attempted'
   python_env="$workspace/.venv"
   check_python "$python_env/bin/python" || stop 'uv sync completed without PyYAML/pytest'
 fi
 export NABLA_TRUENAS_DEV_VENV="$python_env"
+export UV_PROJECT_ENVIRONMENT="$workspace/.venv"
 export PATH="$python_env/bin:$PATH"
 step 'targeted-contracts' just topology-generator-test || stop 'targeted-contracts'
 if step 'generator-check-initial' just topology-generators-check; then
