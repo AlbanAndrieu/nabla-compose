@@ -11,9 +11,8 @@ SCRIPT = ROOT / "scripts/workstation/diagnose-yubikey-keepassxc.sh"
 
 
 def _assert_offline_compile_precedes_tests(content: str) -> None:
-    """Require shell-safe Python syntax checking before unittest discovery."""
-    # "$python_source" and "${python_source}" are equivalent quoted Bash forms.
-    compile_pattern = re.compile(
+    """Require a quoted Python syntax check before unittest discovery."""
+    pattern = re.compile(
         r'(?m)^[ \t]*python3[ \t]+-m[ \t]+py_compile[ \t]+'
         r'"\$(?:python_source|\{python_source\})"[ \t]*(unittest.TestCase):
     def test_bash_parses(self):
@@ -535,9 +534,9 @@ def _assert_offline_compile_precedes_tests(content: str) -> None:
         braced = baseline.replace('"$python_source"', '"${python_source}"')
         _assert_offline_compile_precedes_tests(braced)
         missing = baseline.replace('  python3 -m py_compile "$python_source"\n', '')
-        incorrect_var = baseline.replace('"$python_source"', '"$unrelated"')
+        wrong_variable = baseline.replace('"$python_source"', '"$unrelated"')
         reordered = missing + 'python3 -m py_compile "$python_source"\n'
-        for invalid in (missing, incorrect_var, reordered):
+        for invalid in (missing, wrong_variable, reordered):
             with self.assertRaises(AssertionError):
                 _assert_offline_compile_precedes_tests(invalid)
 
@@ -689,7 +688,7 @@ if __name__ == "__main__":
     unittest.main()
 
     )
-    commands = list(compile_pattern.finditer(content))
+    commands = list(pattern.finditer(content))
     if len(commands) != 1:
         raise AssertionError("Exactly one quoted Python syntax-check command is required")
     tests_start = content.find("python3 -m unittest discover")
