@@ -107,6 +107,8 @@ else
   fi
   if (("${#DOCKER_CMD[@]}" > 0)); then
     if "${DOCKER_CMD[@]}" inspect "${PIHOLE_CONTAINER}" >/dev/null 2>&1; then
+      # The single-quoted script is expanded by the container's shell, not by Bash here.
+      # shellcheck disable=SC2016
       if sources="$("${DOCKER_CMD[@]}" exec "${PIHOLE_CONTAINER}" sh -c '
         name="$1"
         for source in /etc/pihole/pihole.toml /etc/pihole/custom.list /etc/hosts /etc/dnsmasq.d/*.conf; do
