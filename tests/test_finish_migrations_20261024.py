@@ -156,14 +156,14 @@ def test_new_read_only_sections_are_documented():
     assert "verify-fastapi-lan-probes.sh" in script
 
 
-def test_critical_read_only_section_combines_four_independent_gates(
+def test_critical_read_only_section_combines_five_independent_gates(
     fake_operator,
 ):
     """Missing synthetic check tools are reported without aborting the others."""
     target, _, report, marker = fake_operator
     source = SOURCE.read_text(encoding="utf-8")
-    assert 'all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado' in source
-    assert 'for service in prometheus openrag sentry akvorado; do' in source
+    assert 'all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo' in source
+    assert 'for service in prometheus openrag sentry akvorado defectdojo; do' in source
     assert 'run_check sentry-consumers bash scripts/truenas/diagnose-sentry-consumers.sh --check' in source
     result = invoke(fake_operator, "--check", "--section", "critical")
     # Missing fixture-specific read-only probes cause a controlled FAIL,
@@ -180,6 +180,8 @@ def test_critical_read_only_section_combines_four_independent_gates(
         "sentry-consumers.log",
         "akvorado-blocked.log",
         "akvorado-fresh-inserts.log",
+        "defectdojo-preflight.log",
+        "defectdojo-private-ingress.log",
     ):
         assert expected in names
 
