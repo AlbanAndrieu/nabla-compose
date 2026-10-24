@@ -38,6 +38,9 @@ sur la workstation.
 Le nouveau préflight `diagnose-openrag-startup.sh` vérifie uniquement :
 
 - l'état du cycle de vie TrueNAS (`STOPPED` exige une décision explicite) ;
+- lorsque l'App est `RUNNING`, l'état Docker `running+healthy` des deux
+  composants `openrag-backend` et `openrag-frontend` (métadonnées uniquement ;
+  aucun log ni secret ; `starting`/`unhealthy`/absent bloque l'acceptation) ;
 - les clés `OPENSEARCH_PASSWORD`, `LANGFLOW_KEY`,
   `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY` dans le fichier
   privé `/mnt/cpool/openrag/.env.secrets` (présence, sans valeurs) ;
