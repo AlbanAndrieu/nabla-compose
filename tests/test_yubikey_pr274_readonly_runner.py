@@ -82,6 +82,20 @@ if state == "OCCUPIED":
     sys.exit(4)
 ''')
         self.inventory_trace = self.base / 'inventory-trace'
+        self.recovery = self.source / 'scripts/workstation/inspect-yubikey-recovery-readonly.py'
+        self.recovery.write_text('''#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+if os.getenv("TEST_RECOVERY_FAIL") == "1":
+    sys.exit(3)
+args = sys.argv[1:]
+assert "--otp2-secondary" in args or ("--escrow-a" in args and "--escrow-b" in args)
+Path(os.environ["TEST_RECOVERY_TRACE"]).write_text("read-only recovery")
+print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
+''')
+        self.recovery_trace = self.base / 'recovery-trace'
         git(self.source, 'add', '.')
         git(self.source, 'commit', '-qm', 'initial fixture')
         self.original = git(self.source, 'rev-parse', 'HEAD')
@@ -100,7 +114,8 @@ if state == "OCCUPIED":
                         NABLA_YUBIKEY_TEST_PYTHON=sys.executable,
                         TEST_VERIFIER_TRACE=str(self.trace),
                         TEST_READINESS_TRACE=str(self.readiness_trace),
-                        TEST_INVENTORY_TRACE=str(self.inventory_trace))
+                        TEST_INVENTORY_TRACE=str(self.inventory_trace),
+                        TEST_RECOVERY_TRACE=str(self.recovery_trace))
 
     def run_script(self, *args, **env):
         e = dict(self.env, **{k: str(v) for k, v in env.items()})
@@ -295,6 +310,34 @@ if state == "OCCUPIED":
         indexes = [body.index(fragment) for fragment in stages]
         self.assertEqual(indexes, sorted(indexes))
         self.assertIn("hardware_mutation_authorized", self.readiness.read_text())
+
+    def test_recovery_mode_is_opt_in(self):
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.recovery_trace.exists())
+        self.assert_untouched()
+
+    def test_otp2_mode_produces_no_go_report(self):
+        result = self.run_script('--otp2-secondary')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.recovery_trace.exists())
+        self.assertIn('"status": "NO-GO"', result.stdout)
+        self.assert_untouched()
+
+    def test_single_escrow_path_is_rejected_before_git_or_hardware(self):
+        result = self.run_script('--escrow-a', '/tmp/one.age')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('escrow requires BOTH', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assertFalse(self.recovery_trace.exists())
+        self.assert_untouched()
+
+    def test_failed_recovery_diagnostic_stops_chain(self):
+        result = self.run_script('--otp2-secondary', TEST_RECOVERY_FAIL='1')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('recovery evidence incomplete', result.stderr)
+        self.assertNotIn('PASS: snapshot', result.stdout)
+        self.assert_untouched()
 
     def test_help_does_not_contact_git_or_hardware(self):
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
