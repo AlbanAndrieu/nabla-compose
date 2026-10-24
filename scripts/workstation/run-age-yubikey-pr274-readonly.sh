@@ -19,7 +19,7 @@ observed_f9='6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:6
 expected_root='63ece914e54dd87915f34033c85af4c0696ba1512f8add66ced738331207b546'
 root_url='https://developers.yubico.com/PKI/yubico-piv-ca-1.pem'
 usage() {
-  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo /tmp/nabla-yubikey-pr259] [--evidence-dir PATH]\n'
+  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo PATH] [--evidence-dir PATH] [--pinned-sha SHA] [--inventory-secondary]\n'
   printf 'No pre-existing checkout required. Persistent bare Git cache under HOME; isolated worktree per run.\n'
   printf 'Use --inventory-secondary for fresh public metadata on secondary 22916048 (never writes the card).\n'
   printf 'Use --pinned-sha SHA after a verified git ls-remote bootstrap to avoid duplicate Git network calls.\n'
@@ -89,99 +89,11 @@ if [[ -n "$pinned_sha" ]]; then
   # Standalone --pinned-sha is a cached snapshot, NOT proof of remote freshness.
   git --git-dir="$cache" cat-file -e "$sha^{commit}" ||
     die 'Pinned commit missing in persistent cache; refusing unverified fetch'
-  printf 'INFO: caller-pinned snapshot %.12s; no second remote lookup (freshness verified by caller)\n' "$sha"
+  printf 'INFO: cached caller-pinned snapshot %.12s; no remote lookup (caller verifies freshness)\n' "$sha"
 else
   response="$(git ls-remote --exit-code "$remote" "$ref")" ||
     die 'Remote branch lookup failed; Git state unchanged'
-  IFS=
-# Other agents cannot change the pinned SHA; FETCH_HEAD is never used.
-parent="$(mktemp -d "$worktree_base/pr274.XXXXXXXX")" || die 'Could not reserve a private worktree path'
-worktree="$parent/source"
-tmp_root=""
-cleanup() {
-  local status=$?
-  trap - EXIT
-  if [[ -n "${tmp_root:-}" && -f "$tmp_root" ]]; then rm -f -- "$tmp_root"; fi
-  if [[ -d "${worktree:-}" ]] && git -C "$worktree" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    if [[ -z "$(git -C "$worktree" status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
-      if flock -w 20 9; then
-        git --git-dir="$cache" worktree remove "$worktree" >/dev/null 2>&1 || \
-          printf 'WARN: clean worktree could not be removed: %s\n' "$worktree" >&2
-        flock -u 9
-      else
-        printf 'WARN: cannot acquire cleanup lock; worktree preserved: %s\n' "$worktree" >&2
-      fi
-    else
-      printf 'WARN: worktree changed during tests; preserved: %s\n' "$worktree" >&2
-    fi
-  fi
-  if [[ -d "${parent:-}" ]]; then rmdir "$parent" 2>/dev/null || true; fi
-  exit "$status"
-}
-trap cleanup EXIT
-git --git-dir="$cache" worktree add --detach "$worktree" "$sha" >/dev/null || die 'Could not create isolated worktree'
-flock -u 9
-[[ "$(git -C "$worktree" rev-parse HEAD)" == "$sha" ]] || die 'Snapshot SHA mismatch'
-printf 'INFO: isolated PR snapshot %.12s at %s\n' "$sha" "$worktree"
-[[ -f "$worktree/scripts/workstation/verify-age-yubikey-offline.sh" && \
-   -f "$worktree/scripts/workstation/verify-age-yubikey-f9-root-offline.py" ]] || \
-  die 'Verification scripts missing at pinned PR SHA'
-
-# The offline gate is already hardware-free; abort on any failure.
-(cd -- "${worktree}" && bash scripts/workstation/verify-age-yubikey-offline.sh) || die 'Offline gate failed; F9 validation not attempted'
-
-[[ ! -L "${evidence_dir}" ]] || die 'Evidence directory is a symlink'
-mkdir -p -m 0700 -- "${evidence_dir}"
-f9="${evidence_dir}/f9-22916048.pem"
-root="${evidence_dir}/yubico-piv-ca-1.pem"
-[[ ! -L "${f9}" && ! -L "${root}" ]] || die 'Refusing symlink evidence'
-if [[ ! -f "${f9}" ]]; then
-  # Explicitly read-only YubiKey export. Never overwrite existing certificates.
-  printf 'INFO: stored public F9 missing, attempting one read-only export of secondary 22916048\n'
-  bash "${worktree}/scripts/workstation/inspect-age-yubikey-f9-chain.sh" \
-    --serial 22916048 --save-public-f9 "${f9}" || die 'Read-only F9 export failed'
-fi
-if [[ ! -f "${root}" ]]; then
-  command -v curl >/dev/null || die 'curl unavailable to acquire public root'
-  command -v openssl >/dev/null || die 'openssl unavailable to fingerprint public root'
-  tmp_root="$(mktemp "${evidence_dir}/.yubico-root.XXXXXXXX")" || die 'Unable to stage public root'
-  # tmp is a public certificate downloaded over HTTPS, not an executable.
-  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
-    --connect-timeout 5 --max-time 20 --output "${tmp_root}" "${root_url}" || die 'Official Yubico root download failed'
-  actual_root="$(openssl x509 -in "${tmp_root}" -outform DER | sha256sum | cut -d' ' -f1)" || die 'Cannot fingerprint Yubico root'
-  if [[ "${actual_root}" != "${expected_root}" ]]; then
-    rm -f -- "${tmp_root}"
-    die 'Official root fingerprint mismatches pinned SHA256'
-  fi
-  (set -C; cat "${tmp_root}" >"${root}") || die 'Cannot save root without clobbering existing evidence'
-  rm -f -- "${tmp_root}"
-  tmp_root=""
-  printf 'INFO: pinned Yubico legacy public root downloaded and verified\n'
-fi
-python_bin="${HOME}/.local/share/nabla/piv-sdk-venv/bin/python"
-if [[ "${NABLA_YUBIKEY_TEST_MODE:-0}" == 1 && -n "${NABLA_YUBIKEY_TEST_PYTHON:-}" ]]; then
-  python_bin="${NABLA_YUBIKEY_TEST_PYTHON}"
-fi
-[[ -x "${python_bin}" ]] || die 'Isolated PIV SDK Python missing'
-"${python_bin}" "${worktree}/scripts/workstation/verify-age-yubikey-f9-root-offline.py" \
-  --serial 22916048 --firmware 5.4.3 \
-  --f9 "${f9}" --root "${root}" --expected-f9-sha256 "${observed_f9}" || \
-  die 'Public F9 certificate failed pinned legacy-root validation'
-[[ -f "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" ]] ||
-  die 'PIV82 readiness report missing at pinned SHA'
-"$python_bin" "$worktree/scripts/workstation/report-age-yubikey-piv82-readiness.py" \
-  --f9 "$f9" --root "$root" --json ||
-  die 'Public F9 readiness report failed closed'
-if [[ "${inventory_secondary}" == true ]]; then
-  [[ -f "${worktree}/scripts/workstation/inspect-age-yubikey-piv82-secondary.py" ]] ||
-    die 'Read-only PIV82 inventory script missing at pinned SHA'
-  "${python_bin}" "${worktree}/scripts/workstation/inspect-age-yubikey-piv82-secondary.py" \
-    --serial 22916048 --json ||
-    die 'Fresh PIV82 secondary inventory not confirmed; NO-GO for provisioning'
-fi
-printf 'PASS: snapshot %.12s, offline gate and observed secondary F9 public trust\n' "${sha}"
-printf 'NO-GO: no PIN, AES256 authentication, PIV82 generation or SOPS mutation was authorized\n'
-\t' read -r sha ref_name <<< "$response"
+  IFS=$'\t' read -r sha ref_name <<< "$response"
   [[ "$sha" =~ ^[0-9a-f]{40}$ && "$ref_name" == "$ref" ]] ||
     die 'Unexpected remote ref result'
   if ! git --git-dir="$cache" cat-file -e "$sha^{commit}" 2>/dev/null; then

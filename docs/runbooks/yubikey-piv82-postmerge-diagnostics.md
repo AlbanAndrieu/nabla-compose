@@ -261,3 +261,34 @@ La reprise n'exige toujours aucun checkout dans `/tmp`.
 des deux copies d'escrow logiciel et des conditions d'une future
 authentification AES256 en séance supervisée. Aucune écriture PIV82,
 PIN automatique ni mise à jour SOPS.
+
+
+## 9. Réparation et consolidation du lanceur Git/F9/PIV82
+
+Le journal opérateur du snapshot 56a42f8f04c5 contient 100 tests unittest
+réussis, 12 cas négatifs de certificat synthétique, 13 tests F9, et
+l'inventaire public secondaire : PIV82 EMPTY_CONFIRMED, PIV9A présent,
+gestion AES256 protégée par PIN, statut global NO-GO.
+Cette preuve **ne valide pas** le HEAD actuel de la PR.
+
+Le lanceur avait été corrompu par une fusion de texte :
+la commande `IFS=$'\t' read` était tronquée et les opérations
+de worktree, quality gate, F9 et inventaire apparaissaient deux fois.
+Le refactoring retire cette duplication, conserve un seul chemin
+d'exécution et corrige l'analyse de la sortie `git ls-remote`.
+Il maintient le cache bare persistant, le worktree unique par agent,
+le verrou `flock`, le SHA Git vérifié et le nettoyage
+uniquement des worktrees propres.
+
+Trois tests de non-régression couvrent :
+- la syntaxe Bash et **une seule** création de worktree ;
+- la survie du shell parent après un refus de `source` ;
+- l'ordre Git → gate hors matériel → signature F9 → rapport NO-GO
+  → inventaire secondaire facultatif → résultat.
+
+Le mode habituel n'effectue toujours aucune lecture PIV82.
+La phase PIV82 demeure **NO-GO** : aucune authentification PIN,
+génération de clé, modification AES256 ou migration SOPS.
+La prochaine preuve demandée est la validation de la gate complète
+sur la workstation au SHA de cette PR, pas une répétition d'actions
+matérielles déjà prouvées.

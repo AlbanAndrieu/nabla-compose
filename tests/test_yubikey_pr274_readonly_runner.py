@@ -257,6 +257,57 @@ if state == "OCCUPIED":
         self.assertFalse(self.trace.exists())
         self.assert_untouched()
 
+    def test_runner_single_execution_path_and_syntax(self):
+        # Detect duplicated or truncated blocks from concurrent edits.
+        result = subprocess.run(
+            ["bash", "-n", str(SCRIPT)], capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        script = SCRIPT.read_text()
+        for marker in (
+            'parent="$(mktemp -d',
+            'git --git-dir="$cache" worktree add --detach',
+            "printf 'PASS: snapshot",
+            r"IFS=
+        result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('/tmp/nabla-yubikey-pr259', result.stdout)
+        self.assertFalse(self.trace.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()
+\t' read -r sha ref_name",
+        ):
+            self.assertEqual(script.count(marker), 1, marker)
+        self.assertNotIn("IFS=\n", script)
+
+    def test_runner_cannot_be_sourced_into_parent_shell(self):
+        child = subprocess.run(
+            ["bash", "-c", 'source "$1" || :; echo PARENT_ALIVE',
+             "test", str(SCRIPT)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(child.returncode, 0, child.stderr)
+        self.assertIn("PARENT_ALIVE", child.stdout)
+        self.assertIn("never source", child.stderr.lower())
+
+    def test_fail_closed_stages_keep_correct_order(self):
+        script = SCRIPT.read_text()
+        stages = (
+            'git --git-dir="$cache" cat-file -e "$sha^{commit}"',
+            "worktree add --detach",
+            "Offline gate failed; F9 validation not attempted",
+            "Public F9 certificate failed pinned legacy-root validation",
+            "Public F9 readiness report failed closed",
+            'if [[ "${inventory_secondary}" == true ]]',
+            "printf 'PASS: snapshot",
+        )
+        positions = [script.index(stage) for stage in stages]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("hardware_mutation_authorized", self.readiness.read_text())
+
     def test_help_does_not_contact_git_or_hardware(self):
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
                                 env=self.env, capture_output=True, text=True)
