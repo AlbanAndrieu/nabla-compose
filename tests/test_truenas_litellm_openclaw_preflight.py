@@ -125,6 +125,53 @@ class TrueNASInventoryTests(unittest.TestCase):
         inspected.assert_not_called()
         self.assertIn("truenas_tunnel_local_listener=unavailable", output.getvalue())
 
+    def test_explicit_master_env_uses_existing_variable_without_echo(self):
+        with patch.dict(module.os.environ, {"LITELLM_MASTER_KEY": "sk-NONREAL_ADMIN_ONLY"}), \
+             patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "getpass") as prompted, \
+             patch.object(module, "inspect", return_value=0) as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main(["--tunnel", "--master-env", "LITELLM_MASTER_KEY"])
+        self.assertEqual(status, 0)
+        prompted.assert_not_called()
+        inspected.assert_called_once_with(True, credentials="sk-NONREAL_ADMIN_ONLY")
+        self.assertIn("explicit_shared_name_operator_must_confirm_truenas_identity",
+                      output.getvalue())
+        self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
+
+    def test_no_listener_prevents_exported_master_from_reaching_http(self):
+        with patch.dict(module.os.environ, {"LITELLM_MASTER_KEY": "sk-NONREAL_ADMIN_ONLY"}), \
+             patch.object(module, "loopback_listener", return_value=False), \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                status = module.main(["--tunnel", "--master-env", "LITELLM_MASTER_KEY"])
+        self.assertEqual(status, 2)
+        inspected.assert_not_called()
+        self.assertIn("truenas_tunnel_local_listener=unavailable", output.getvalue())
+        self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
+
+    def test_tunnel_check_never_reads_credentials(self):
+        with patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "getpass") as prompted, \
+             patch.object(module, "inspect") as inspected:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = module.main(["--tunnel", "--check-tunnel"])
+        self.assertEqual(code, 0)
+        prompted.assert_not_called()
+        inspected.assert_not_called()
+        self.assertIn("truenas_admin_auth=not_read", output.getvalue())
+        self.assertIn("operator_attestation_required", output.getvalue())
+
+    def test_dedicated_master_environment_missing_fails_closed(self):
+        with patch.dict(module.os.environ, {"LITELLM_TRUENAS_MASTER_KEY": ""}), \
+             patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "fetch_local") as request:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = module.main(["--tunnel", "--master-env", "LITELLM_TRUENAS_MASTER_KEY"])
+        self.assertEqual(code, 2)
+        request.assert_not_called()
+        self.assertIn("truenas_admin_auth=missing", output.getvalue())
+
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             module.filtered_result("x", 200, {"embedding", "private-model-secret"})
