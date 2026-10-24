@@ -27,7 +27,10 @@ def mapping_status(path: Path, exporter: ipaddress.IPv4Address, ifindex: int) ->
     for provider in metadata["providers"]:
         if not isinstance(provider, dict) or provider.get("type") != "static":
             continue
-        for subnet, settings in (provider.get("exporters") or {}).items():
+        exporters = provider.get("exporters")
+        if not isinstance(exporters, dict):
+            continue
+        for subnet, settings in exporters.items():
             try:
                 network = ipaddress.ip_network(str(subnet), strict=False)
             except ValueError:
