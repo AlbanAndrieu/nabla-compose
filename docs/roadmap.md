@@ -1,3 +1,15 @@
+## Consolidation des migrations — 24 octobre 2026 (PR #274)
+
+- [x] Conserver `finish-migrations-20261024.sh --next-commands` comme affichage sans effet de bord du runbook opérateur.
+- [x] Ajouter `--local-gates` (non-root, sans mutation TrueNAS) pour lancer dans l'ordre et s'arrêter au premier échec : `just migration-20261024-commands`, `just migration-20261024-test`, `just catalog-convergence-check`, `just agent-skills-check`, `just quality`.
+- [x] Ajouter `--check --section sentry` : état des deux consommateurs Kafka et préflight de `recover-sentry-deploying.sh --check`, preuves privées et logs catégorisés sans contenu sensible.
+- [x] Ajouter une régression hors réseau Sentry et les contrats du mode `--local-gates` dans la quality gate locale.
+- [x] Constater les quality gates fournies par l'opérateur : règles Prometheus 4/4, readiness 84/84 ; la gate de maintenance rapide précédente 37/37. Ces chiffres datent des **révisions exécutées** et ne valent pas validation des nouveaux commits de la PR #274.
+- [ ] **P0 Prometheus** : retour opérateur : 2221 redémarrages, `prometheus.yml=0644` (exposition non voulue), une seule règle `0600` encore illisible sur 15. L'échec du `--expected-unreadable 2` est correct. Revalider `--check`, approuver séparément le YAML en `0640` et l'unique règle en `0640`, puis obtenir `running`, `/-/ready`, targets et PromQL sans toucher aux données.
+- [ ] **P0 OpenRAG** : App TrueNAS `STOPPED`, backend/frontend absents ; Langflow et OpenSearch sont `running+healthy`. Vérifier les jobs TrueNAS, le contrat Vaultwarden canonique et le stockage avant un démarrage explicitement approuvé.
+- [ ] **P0 Sentry** : TrueNAS `DEPLOYING`, `sentry-events-consumer` et `sentry-post-process-forwarder-errors` unhealthy. Collecter les catégories Kafka/Redis/ClickHouse, les préflights et les preuves privées, puis cibler la cause sans réinitialiser les consumer offsets.
+- [ ] **P1 migrations** : corriger séparément `live-language-patches`, `secrets-runtime`, `openwebui-pra` et les erreurs Hermes/AI. Ne pas lancer de vague Talos/TrueNAS ou de migration massive tant que les P0 ne sont pas acceptés.
+
 # Roadmap opérationnelle — nabla-compose
 
 **Réconciliation inter-dépôts du 24 octobre 2026.** Ce fichier contient uniquement les actions exécutées dans **nabla-compose** : inventaire déclaratif, GitOps, infrastructure TrueNAS/pfSense/Talos, réseau, secrets et exploitation. Les contrats/collecteurs de données sont propriétaires de [FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md), et les vues Next.js/Vercel de [Site Alban](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-roadmap.md).
