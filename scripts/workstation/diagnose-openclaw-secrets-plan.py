@@ -6,6 +6,8 @@ Designed to assess the cron LiteLLM migration without changing any state.
 """
 
 import argparse
+import hmac
+import secrets
 import json
 import os
 from pathlib import Path
@@ -16,6 +18,8 @@ import tempfile
 
 MAX_PLAN_BYTES = 16 * 1024 * 1024
 MAX_NATIVE_OUTPUT_BYTES = 1024 * 1024
+# Random per-process HMAC key: native paths are never stored or printed.
+_PATH_TAG_KEY = secrets.token_bytes(32)
 CATEGORIES = (
     "cron_auth_sqlite", "main_auth_sqlite", "other_auth_sqlite", "dotenv",
     "openclaw_config", "models_json", "other",
@@ -152,10 +156,17 @@ def native_dry_run(path):
             or result["changed"] != bool(changed)):
         return None, "native_unexpected_response"
     categories = {key: 0 for key in CATEGORIES}
+    opaque_paths = {key: set() for key in CATEGORIES}
     for item in changed:
-        categories[classify_changed_file(item)] += 1
+        category = classify_changed_file(item)
+        categories[category] += 1
+        opaque_paths[category].add(
+            hmac.digest(_PATH_TAG_KEY, item.encode("utf-8", "surrogatepass"), "sha256")
+        )
     return {
         "categories": categories,
+        # Memory-only, keyed path equality checks: no path names escape.
+        "opaque_paths": opaque_paths,
         "changed_files": len(changed),
         "refs_checked": result["refsChecked"],
         "skipped_exec_refs": result["skippedExecRefs"],
@@ -211,11 +222,18 @@ def compare_without_dotenv_scrub(plan, root, original):
         o = original["categories"]
         c = result["categories"]
         equal_rest = all(c[key] == o[key] for key in CATEGORIES if key != "dotenv")
+        # Counts alone cannot detect a replacement with another path in the
+        # same category. Require exact opaque identities, not only counts.
+        original_paths = original.get("opaque_paths")
+        compared_paths = result.get("opaque_paths")
+        same_files = (isinstance(original_paths, dict) and isinstance(compared_paths, dict)
+                      and all(compared_paths.get(key) == original_paths.get(key)
+                              for key in CATEGORIES if key != "dotenv"))
         equal_checks = (result["refs_checked"] == original["refs_checked"]
                         and result["skipped_exec_refs"] == original["skipped_exec_refs"]
                         and result["warning_count"] == original["warning_count"]
                         and result["resolvability_complete"] == original["resolvability_complete"])
-        if (o["dotenv"] > 0 and c["dotenv"] == 0 and equal_rest and equal_checks):
+        if (o["dotenv"] > 0 and c["dotenv"] == 0 and equal_rest and same_files and equal_checks):
             return "dotenv_projection_attributed_to_scrub", result
         return "comparison_does_not_isolate_scrub", result
     except OSError:
@@ -226,6 +244,36 @@ def compare_without_dotenv_scrub(plan, root, original):
                 temp_path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+
+def snapshot_native_dry_run(root, raw):
+    """Run native preflight on an immutable, private copy of validated bytes."""
+    temp_path = None
+    try:
+        fd, name = tempfile.mkstemp(prefix=".cron-preflight-", suffix=".json", dir=root)
+        temp_path = Path(name)
+        with os.fdopen(fd, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(raw)
+            stream.flush()
+        return native_dry_run(temp_path)
+    except OSError:
+        return None, "private_snapshot_failed"
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def source_plan_unchanged(path, root, initial_bytes):
+    """Do not use projections if the original file changed meanwhile."""
+    try:
+        return hmac.compare_digest(initial_bytes, private_plan_bytes(path, root))
+    except UnsafePlan:
+        return False
 
 
 def main(argv=None, home=None):
@@ -256,7 +304,7 @@ def main(argv=None, home=None):
     if plan_status != "expected_cron_env_ref":
         print("secret_plan_status=blocked")
         return 2
-    result, native_status = native_dry_run(plan_path)
+    result, native_status = snapshot_native_dry_run(root, raw)
     print("secret_plan_native_status=" + native_status)
     if result is None:
         print("secret_plan_status=blocked")
@@ -278,6 +326,11 @@ def main(argv=None, home=None):
             print("secret_plan_no_scrub_changed_total=" +
                   str(compared["changed_files"]))
         print("secret_plan_scrub_comparison_apply_authorized=false")
+    if not source_plan_unchanged(plan_path, root, raw):
+        print("secret_plan_status=blocked_concurrent_plan_change")
+        print("secret_plan_gateway_env_attested=false")
+        print("secret_plan_apply_authorized=false")
+        return 2
     print("secret_plan_status=" + state)
     print("secret_plan_gateway_env_attested=false")
     print("secret_plan_apply_authorized=false")
