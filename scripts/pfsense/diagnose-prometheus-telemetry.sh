@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Read-only Prometheus correlation for pfSense, TrueNAS and FastAPI Sample.
 set -euo pipefail
+# Workstation formatting; JSON remains unchanged in pipes/CI.
+# shellcheck source=scripts/pfsense/console.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 prom="${PROMETHEUS_URL:-http://172.17.0.24:9090}"
 case "${1:---check}" in --check) ;; *) echo "Usage: PROMETHEUS_URL=http://host:9090 $0 --check" >&2; exit 2;; esac
 command -v jq >/dev/null || { echo "jq required" >&2; exit 2; }
@@ -9,6 +12,8 @@ query() {
   curl -fsS --max-time 15 -G --data-urlencode "query=$expression" "$prom/api/v1/query" |
     jq -er --arg q "$expression" '{query:$q,status,series:[.data.result[]? | {labels:.metric,value:.value[1]}]}'
 }
+pfsense_ui_banner "Prometheus telemetry · read-only"
+pfsense_metrics_main() {
 echo '==> Exporter and probe availability (up=1 means scrape succeeded, not service health)'
 query 'up{job=~"pfsense_exporter|truenas_node|fastapi_sample|akvorado_inlet|akvorado_outlet"}'
 echo '==> pfSense memory ratio (metric may be absent; never treat absence as zero)'
@@ -24,3 +29,5 @@ query 'nabla:core:truenas_memory_available_ratio'
 echo '==> Scrape duration and timeout budget'
 query 'scrape_duration_seconds{job=~"pfsense_exporter|truenas_node|fastapi_sample"}'
 query 'scrape_timeout_seconds{job=~"pfsense_exporter|truenas_node|fastapi_sample"}'
+}
+pfsense_metrics_main | pfsense_ui_render
