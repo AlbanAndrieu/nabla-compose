@@ -260,12 +260,13 @@ plan_wave() {
   ready="$(jq -r .selectedWaveReady "${report}")"
   if [[ "${ready}" == true ]]; then
     record "catalog-${wave}" PASS "${report}"
-    if [[ "${VERBOSE}" == true ]]; then
-      diag_info "catalog ${wave}: plan hash ${hash}"
-    fi
+    # Opaque plan hash is safe to publish; raw plan remains private.
+    # Required for exact plan acknowledgement. No credential or app config data.
+    printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=true\n' "${wave}" "${hash}"
   else
     record "catalog-${wave}" FAIL "${report}"
     diag_warn "catalog ${wave}: $(jq -r '.selectedWaveBlocker // "unknown"' "${report}")"
+    printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=false\n' "${wave}" "${hash}"
   fi
   printf '%s\n' "${hash}" >"${SESSION_DIR}/catalog-${wave}.sha256"
   [[ "${ready}" == true ]]
