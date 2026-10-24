@@ -6,11 +6,13 @@ Default checks repo model names offline. --tunnel reads only /v1/models and
 Do not forward credentials to the LAN HTTP endpoint.
 """
 import argparse
+from getpass import getpass
 import json
 import os
 from pathlib import Path
 import re
 import socket
+import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -104,12 +106,26 @@ def inspect(tunnel=False, *, config=CONFIG, credentials=None):
     return 0 if models_set is not None and isinstance(keys, dict) and isinstance(keys.get("keys"), list) else 2
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tunnel", action="store_true",
-                        help="Use existing encrypted SSH tunnel on localhost:14000")
-    args = parser.parse_args()
-    return inspect(args.tunnel)
+                        help="Use an existing operator-confirmed SSH tunnel on localhost:14000")
+    parser.add_argument("--prompt-admin", action="store_true",
+                        help="Read admin credential once from hidden TTY input (requires --tunnel)")
+    args = parser.parse_args(argv)
+    if args.prompt_admin and not args.tunnel:
+        parser.error("--prompt-admin requires --tunnel")
+    if not args.prompt_admin:
+        return inspect(args.tunnel)
+    if not sys.stdin.isatty():
+        print("truenas_admin_prompt=requires_interactive_terminal")
+        return 2
+    try:
+        credential = getpass("TrueNAS LiteLLM master key (input hidden): ")
+    except (EOFError, KeyboardInterrupt, OSError):
+        print("truenas_admin_prompt=unavailable")
+        return 2
+    return inspect(True, credentials=credential)
 
 
 if __name__ == "__main__":
