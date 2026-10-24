@@ -44,6 +44,7 @@ topology-artifacts-refresh:
     @test "$(pwd -P)" != /mnt/cpool/compose/nabla-compose || { echo 'BLOCKED: canonical TrueNAS checkout' >&2; exit 2; }
     @branch="$(git branch --show-current)"; test -n "$branch" && test "$branch" != master || { echo 'BLOCKED: use isolated feature worktree' >&2; exit 2; }
     @git diff --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve local generated edits' >&2; exit 2; }
+    @git diff --cached --quiet -- catalog/service-topology.json catalog/services.json catalog/generated apps/homarr/generated apps/autokuma/static/generated-monitors.json apps/gatus/config/config.yml || { echo 'BLOCKED: preserve staged generated edits' >&2; exit 2; }
     python3 scripts/generate-service-topology.py
     python3 scripts/generate-service-consumers.py
     python3 scripts/generate-catalog-v2-artifacts.py
