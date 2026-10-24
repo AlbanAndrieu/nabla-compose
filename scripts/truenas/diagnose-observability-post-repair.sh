@@ -17,7 +17,7 @@ failures=0
 
 check_container() {
   local name="${1}" url="${2}" meta logs status exit_code oom restarts
-  local http_code curl_exit category
+  local http_code curl_exit category service_failed=0
   if ! meta="$(timeout 8 docker inspect --format \
     '{{.State.Status}}|{{.State.ExitCode}}|{{.State.OOMKilled}}|{{.RestartCount}}' \
     "${name}" 2>/dev/null)"; then
@@ -33,6 +33,9 @@ check_container() {
   IFS='|' read -r status exit_code oom restarts <<< "${meta}"
   printf '%s: state=%s exit=%s oom=%s restarts=%s\n' \
     "${name}" "${status}" "${exit_code}" "${oom}" "${restarts}"
+  if [[ "${status}" != running ]]; then
+    service_failed=1
+  fi
 
   # Logs are classified in memory. Never emit raw Docker log content.
   logs="$(timeout 8 docker logs --tail 40 "${name}" 2>&1)" || logs=''
@@ -74,6 +77,9 @@ check_container() {
   else
     printf '%s: http=%s curl_exit=%s readiness=unverified\n' \
       "${name}" "${http_code:-000}" "${curl_exit}"
+    service_failed=1
+  fi
+  if (( service_failed > 0 )); then
     failures=$((failures + 1))
   fi
 }

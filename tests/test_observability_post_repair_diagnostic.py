@@ -11,15 +11,21 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/truenas/diagnose-observability-post-repair.sh'
 
 
-def _run_with_mock_commands(tmp_path: Path, *, healthy: bool) -> subprocess.CompletedProcess[str]:
+def _run_with_mock_commands(
+    tmp_path: Path, *, healthy: bool, restarting: bool = False
+) -> subprocess.CompletedProcess[str]:
     binaries = tmp_path / "bin"
     binaries.mkdir()
     docker = binaries / "docker"
+    prometheus_state = (
+        "restarting|2|false|12" if restarting or not healthy
+        else "running|0|false|12"
+    )
     docker.write_text(
         "#!/usr/bin/env bash\n"
         "if [[ \"$1\" == inspect ]]; then\n"
         "  if [[ \"$*\" == *prometheus* ]]; then\n"
-        "    echo 'restarting|2|false|12'; else echo 'running|0|false|1'; fi\n"
+        f"    echo '{prometheus_state}'; else echo 'running|0|false|1'; fi\n"
         "elif [[ \"$1\" == logs ]]; then\n"
         "  if [[ \"$*\" == *prometheus* ]]; then\n"
         "    echo 'secret=DO_NOT_PRINT rules permission denied'; else\n"
@@ -51,7 +57,7 @@ def test_triage_only_emits_allowlisted_metadata(tmp_path: Path, healthy: bool) -
     assert "rule_read_permission" in result.stdout
     assert "raft_non_monotonic" in result.stdout
     assert "DO_NOT_PRINT" not in result.stdout + result.stderr
-    assert "exit=2" in result.stdout
+    assert ("exit=0" if healthy else "exit=2") in result.stdout
     assert "oom=false" in result.stdout
 
 
@@ -81,3 +87,9 @@ def test_no_mutation_or_raw_log_output() -> None:
         check=False,
     )
     assert bash_syntax.returncode == 0, bash_syntax.stderr
+
+def test_http_success_does_not_override_container_restart(tmp_path: Path) -> None:
+    result = _run_with_mock_commands(tmp_path, healthy=True, restarting=True)
+    assert result.returncode == 1
+    assert "prometheus: state=restarting" in result.stdout
+    assert "prometheus: http=200" in result.stdout
