@@ -34,7 +34,8 @@ for python_source in \
   "$script_dir/verify-age-yubikey-piv82-attestation.py" \
   "$script_dir/test-age-yubikey-piv82-attestation-offline.py" \
   "$repo_root/tests/test_yubikey_piv82_transaction.py" \
-  "$repo_root/tests/test_yubikey_f9_inventory.py"
+  "$repo_root/tests/test_yubikey_f9_inventory.py" \
+  "$repo_root/tests/test_yubikey_git_checkout_diagnostic.py"
 do
   python3 -m py_compile "$python_source"
 done
@@ -44,7 +45,8 @@ for bash_source in \
   "$script_dir/check-yubikey-piv-python-sdk.sh" \
   "$script_dir/bootstrap-yubikey-piv-python-sdk.sh" \
   "$script_dir/verify-age-yubikey-offline.sh" \
-  "$script_dir/inspect-age-yubikey-f9-chain.sh"
+  "$script_dir/inspect-age-yubikey-f9-chain.sh" \
+  "$script_dir/diagnose-age-yubikey-git-checkout.sh"
 do
   bash -n "$bash_source"
 done
