@@ -246,7 +246,10 @@ if state == "OCCUPIED":
         result = self.run_script("--pinned-sha", self.original,
                                  NABLA_YUBIKEY_TEST_REMOTE=str(self.base / 'nonexistent'))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('no second remote lookup', result.stdout)
+        # The remote is deliberately unavailable: a successful run proves
+        # that --pinned-sha reuses cached objects without a second lookup.
+        self.assertIn('PASS: snapshot', result.stdout)
+        self.assertTrue(self.trace.exists())
         self.assert_untouched()
 
     def test_invalid_pinned_sha_never_uses_network_or_hardware(self):
@@ -297,7 +300,10 @@ if state == "OCCUPIED":
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
                                 env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        self.assertIn('/tmp/nabla-yubikey-pr259', result.stdout)
+        # Help describes the supported interface, not a deprecated /tmp checkout.
+        self.assertIn('--pinned-sha SHA', result.stdout)
+        self.assertIn('--inventory-secondary', result.stdout)
+        self.assertNotIn('/tmp/nabla-yubikey-pr259', result.stdout)
         self.assertFalse(self.trace.exists())
 
 
