@@ -31,6 +31,9 @@ conformité formelle à la norme.
 5. **Publication :** revérifier le HEAD GitHub puis mettre à jour la **même
    PR** avec un fast-forward et une comparaison du SHA attendu. Utiliser
    [skip ci] si la CI payante est explicitement suspendue.
+   Utiliser une **optimistic file update** (SHA attendu) pour toute édition
+   via GitHub : ne pas écraser le contenu modifié par un autre agent.
+
 6. **Rapport :** HEAD, fichiers, L0/L1/L2/L3 réellement atteints,
    validations NOT_RUN, risques restants et **un seul bloc opérateur**
    pour les contrôles impossibles côté agent.
