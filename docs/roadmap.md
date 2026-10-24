@@ -1,3 +1,13 @@
+## P0 — Agent skill precedence and Compose/FastAPI/Site convergence (2026-10-24)
+
+- [x] **Architecture decision**: `docs/agent-skills-architecture.md` records `AGENTS.md` → Nabla skills → external skills → generic examples. TrueNAS ZFS binds, Vaultwarden runtime secrets, approved networks/shared dependencies, Talos democratic-csi/NFS/Traefik and explicit deployment approval remain binding.
+- [x] Bring that priority into `AGENTS.md`, `docker-compose-orchestration`, `nabla-service-catalog`, and `local-first-quality` so external installation cannot silently change the architecture. Keep French procedure writing ASD-STE100-inspired.
+- [ ] **Ask the user at the next available session** for separate permission to install `docker/skills:docker-compose-patterns` and `jeffallan/claude-skills:kubernetes-specialist`. Inspect both upstream skill files, scripts, permissions, and security advisories first; install only in the project development environment. Do **not** install automatically or on the TrueNAS/Talos appliance.
+- [ ] Run offline `just agent-skills-check` and policy regression tests on the exact PR HEAD. Confirm a conflicting external recommendation (named Docker volume / project-local live `.env` / default Talos CSI replacement) cannot replace a Nabla decision without explicit review.
+- [ ] Keep one service authority: `nabla-compose` Backstage v2 and `catalog/service-icons.json:webAssets`; `fastapi-sample` owns observed service/probe/metric data and SERVICE/OWNER DTOs; `nabla-site-alban` owns cards, ReactFlow and safe browser cache. Correlate by `entityRef` and `catalogRevision`. Document measured coverage without confusing a declaration and a successful probe.
+- [ ] Validate the cross-repo catalog contract locally on matching revisions; preserve privacy (LAN URLs, runtime metadata and raw probes are OWNER-only). Compare with [site PR #254](https://github.com/AlbanAndrieu/nabla-site-alban/pull/254) and [FastAPI PR #373](https://github.com/AlbanAndrieu/fastapi-sample/pull/373).
+- [ ] Validate one non-deployed Compose example and one Talos manifest with the internal and external skills once separately approved. No GitHub CI, merge, live Kubernetes apply or TrueNAS redeploy from this PR.
+
 ## CURRENT — pfSense NetFlow v5 → Akvorado validation (2026-10-23)
 
 - [x] Keep pfSense Netgate 1100 selective tracking only: `Track by Default` OFF, LAN rule `Always Track Flow Data`; no global pflow change.
