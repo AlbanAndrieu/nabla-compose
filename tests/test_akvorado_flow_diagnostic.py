@@ -47,6 +47,24 @@ class AkvoradoFlowDiagnosticsTest(unittest.TestCase):
         self.assertEqual(module.classify_outlet(metrics), "BLOCKED_METADATA_MISSING")
         self.assertNotIn("172.17.0.1", "\n".join(output))
 
+    def test_historical_exporter_metadata_counts_do_not_disclose_private_labels(self):
+        metrics = (
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="metadata missing",exporter="172.17.0.1",secret="HIDE-ME"} 30\\n'
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="metadata missing",exporter="192.0.2.23"} 12\\n'
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="metadata missing"} 4\\n'
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="sampling rate missing",exporter="192.0.2.23"} 100\\n'
+        )
+        evidence = module.exporter_metadata_evidence(metrics)
+        self.assertEqual(evidence, {
+            "configured": 30, "other": 12, "unidentified": 4
+        })
+        self.assertNotIn("192.0.2.23", str(evidence))
+        self.assertNotIn("HIDE-ME", str(evidence))
+
     def test_outlet_insert_metric_is_not_persistence_proof(self):
         metrics = (
             'akvorado_outlet_kafkainput_received_messages_total{worker="0"} 9\n'
