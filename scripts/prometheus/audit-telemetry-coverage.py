@@ -23,6 +23,14 @@ JOBS = {
     "pfsense": ("pfsense_exporter", "pfsense_system_memory_usage_ratio"),
     "crowdsec": ("crowdsec", "cs_lokisource_hits_total"),
     "cloudflare": ("cloudflare_exporter", None),
+    "akvorado_inlet": (
+        "akvorado_inlet",
+        "akvorado_inlet_flow_input_udp_packets_total",
+    ),
+    "akvorado_outlet": (
+        "akvorado_outlet",
+        "akvorado_outlet_kafkainput_received_messages_total",
+    ),
 }
 
 

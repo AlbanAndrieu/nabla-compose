@@ -168,3 +168,23 @@ def test_core_metrics_not_recorded_twice_across_rule_groups() -> None:
                  "nabla:telemetry:alertmanager_up",
                  "nabla:service:postgres_up", "nabla:service:redis_up"):
         assert content.count("record: " + name + "\n") == 1, name
+
+
+def test_akvorado_target_scrape_does_not_prove_flow_metrics() -> None:
+    config = {"scrape_configs": [
+        {"job_name": "akvorado_inlet"},
+        {"job_name": "akvorado_outlet"},
+    ]}
+
+    def fake_query(_origin: str, expression: str, _timeout: float) -> list[dict]:
+        if expression.startswith("up{"):
+            return [{"value": [0, "1"]}]
+        return []
+
+    with patch.object(audit, "query", side_effect=fake_query):
+        report = audit.assess(config, "http://172.17.0.24:9090", 1)
+    jobs = {entry["service"]: entry for entry in report}
+    for name in ("akvorado_inlet", "akvorado_outlet"):
+        assert jobs[name]["state"] == "scrape_up"
+        assert jobs[name]["metric_present"] is False
+    assert len(report) == len(audit.JOBS)
