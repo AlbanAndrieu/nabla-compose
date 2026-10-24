@@ -1,5 +1,8 @@
 # TrueNAS / Homelab — reprise des migrations et validations du 24 octobre 2026
 
+**Statut documentaire : runbook spécialisé historique.** Pour la séquence opérateur actuelle, les résultats des gates et les points d'entrée, utiliser le [runbook de migration canonique](2026-10-24-homelab-operator-next-commands.md). Conserver ici les détails techniques de récupération propres à cette séance ; les états et PR cités sont des instantanés, non une preuve du runtime actuel.
+
+
 **Statut : plan opérateur temporaire, PAS un déploiement automatique.**
 Source : `scripts/truenas/finish-migrations-20261024.sh` (PR #270).
 Exécuter sur TrueNAS **seulement depuis la copie Git déclarative dont la
