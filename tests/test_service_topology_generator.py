@@ -89,6 +89,20 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
         self.assertNotIn("midclt ", recipe)
         self.assertNotIn("docker ", recipe)
 
+    def test_generator_checks_both_artifacts_when_first_is_stale(self) -> None:
+        import sys
+        fake_topology = {"nodes": [], "relations": []}
+        fake_services = {"services": []}
+        with patch.object(MODULE, "generate_catalog", return_value=(
+            fake_topology, fake_services
+        )), patch.object(MODULE, "check_output", side_effect=[
+            False, False
+        ]) as check_mock, patch.object(sys, "argv", [
+            "generate-service-topology.py", "--check"
+        ]):
+            self.assertEqual(MODULE.main(), 1)
+        self.assertEqual(check_mock.call_count, 2)
+
     def test_gatus_config_permission_contract(self) -> None:
         # Generated Gatus config is not world-readable and the container
         # belongs to its owning TrueNAS apps group without DAC_OVERRIDE.
