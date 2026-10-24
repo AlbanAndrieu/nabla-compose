@@ -275,14 +275,27 @@ else
     echo '✅ every declared Prometheus job has at least one active target'
   fi
 
+  # lastError can contain endpoints, credentials or exporter responses.
+  # Map it to a bounded error CATEGORY inside jq; never print raw details.
   jq -r '
+    def kind:
+      (.lastError // "" | ascii_downcase) as $e
+      | if ($e | test("no such host|server misbehaving|dns")) then "dns"
+        elif ($e | test("connection refused")) then "connection_refused"
+        elif ($e | test("timeout|timed out|deadline exceeded")) then "timeout"
+        elif ($e | test("certificate|tls|x509")) then "tls"
+        elif ($e | test("401|403|unauthorized|forbidden")) then "authorization"
+        elif ($e | test("404|not found")) then "http_404"
+        elif ($e | test("500|502|503|504|server error")) then "http_5xx"
+        elif ($e | length) == 0 then "no_error_reported"
+        else "other_redacted" end;
     .data.activeTargets[]?
     | select((.health // "unknown") != "up")
-    | [(.labels.job // "<missing-job>"), (.health // "unknown")]
+    | [(.labels.job // "<missing-job>"), (.health // "unknown"), kind]
     | @tsv
   ' "${TARGETS_JSON}" >"${TMP_DIR}/unhealthy-targets.tsv"
   if [[ -s "${TMP_DIR}/unhealthy-targets.tsv" ]]; then
-    printf 'Unhealthy targets (job and health only):\n' >&2
+    printf 'Unhealthy targets (job and health only; error category redacted):\n' >&2
     sed 's/^/  /' "${TMP_DIR}/unhealthy-targets.tsv" >&2
     warn_or_fail 'one or more Prometheus targets are not UP'
   else
