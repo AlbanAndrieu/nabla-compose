@@ -84,12 +84,18 @@ hermes-opus-routing-test:
 migration-20261024-commands:
     bash scripts/truenas/finish-migrations-20261024.sh --next-commands
 
+# Explicit local-only consolidation of the five review gates.
+# The script stops on first failed recipe; no GitHub Actions or TrueNAS apply.
+migration-20261024-local-gates:
+    bash scripts/truenas/finish-migrations-20261024.sh --local-gates
+
 # Offline migration, FastAPI LAN collector and Akvorado regressions.
 # No TrueNAS mutation or GitHub Actions.
 migration-20261024-test:
     bash -n scripts/truenas/finish-migrations-20261024.sh
+    bash -n scripts/truenas/diagnose-sentry-consumers.sh
     bash -n scripts/truenas/verify-fastapi-lan-probes.sh
-    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_openrag_secret_migration_metadata.py
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py tests/test_sentry_consumers_diagnostic.py tests/test_fastapi_lan_probe_contract.py tests/test_akvorado_flow_deltas.py tests/test_akvorado_flow_diagnostic.py tests/test_akvorado_static_ifindex_contract.py tests/test_openrag_secret_migration_metadata.py
 
 # Maintained runtime/version review is read-only, no registry or paid Actions.
 upgrade-runtime-audit:
