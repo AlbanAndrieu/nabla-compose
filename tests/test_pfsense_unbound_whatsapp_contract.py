@@ -21,6 +21,42 @@ class UnboundWifiContract(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("--check", result.stdout)
 
+    def test_usage_errors_use_stderr(self):
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "--invalid"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--check", result.stderr)
+
+    def test_awk_crowdsec_patterns_are_portable(self):
+        # Test the exact awk block from the remote read-only script.
+        shell = SCRIPT.read_text(encoding="utf-8")
+        block = shell.split(
+            "echo '=== CrowdSec engine vs firewall bouncer (separate processes) ==='",
+            1,
+        )[1].split("echo '=== Recent CrowdSec pressure signatures", 1)[0]
+        match = __import__("re").search(r"awk '([\\s\\S]*?)'", block)
+        self.assertIsNotNone(match)
+        sample = (
+            "12 81000 4.0 /usr/local/bin/crowdsec -c /tmp/config.yaml\\n"
+            "13 9000 0.2 /usr/local/bin/crowdsec-firewall-bouncer -c /tmp/bouncer.yaml\\n"
+        )
+        result = subprocess.run(
+            ["awk", match.group(1)], input=sample, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("crowdsec_engine_pid=12", result.stdout)
+        self.assertIn("crowdsec_bouncer_pid=13", result.stdout)
+
+    def test_awk_and_feed_lines_use_real_newline_escapes(self):
+        shell = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(r'task=%s\\n",', shell)
+        self.assertNotIn(r'task=%s\\\\n",', shell)
+        self.assertIn(r"printf '%s %s\\n'", shell)
+        self.assertNotIn(r"printf '%s %s\\\\n'", shell)
+
     def test_requires_explicit_read_only_mode(self):
         for args in ([], ["--apply"], ["--check", "--apply"]):
             result = subprocess.run(
