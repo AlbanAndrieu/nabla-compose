@@ -78,11 +78,11 @@ class Pr274LocalQualityRunnerContracts(unittest.TestCase):
                 if relative.endswith("run-pr274-local-quality.sh"):
                     shutil.copyfile(SCRIPT, dest)
                 else:
-                    dest.write_text("# fixture\\n", encoding="utf-8")
+                    dest.write_text("# fixture\n", encoding="utf-8")
             common = remote / "scripts/lib/common.sh"
             common.parent.mkdir(parents=True)
             common.write_text(
-                "info() { :; }\\nok() { :; }\\nwarn() { :; }\\n",
+                "info() { :; }\nok() { :; }\nwarn() { :; }\n",
                 encoding="utf-8"
             )
             def git(*args):
@@ -110,7 +110,7 @@ class Pr274LocalQualityRunnerContracts(unittest.TestCase):
             venv.mkdir(parents=True)
             (venv / "python").symlink_to(sys.executable)
             bash_env = root / "mock-bash-env"
-            bash_env.write_text("just() { return 0; }\\n", encoding="utf-8")
+            bash_env.write_text("just() { return 0; }\n", encoding="utf-8")
             env = dict(os.environ)
             env.update({
                 "HOME": str(root),
