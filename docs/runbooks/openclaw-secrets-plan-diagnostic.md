@@ -174,6 +174,70 @@ de provenance = 25 cas déclarés**. Ils restent **à confirmer sur la
 Workstation**, les 18 tests précédents étant les derniers
 effectivement exécutés par l'opérateur.
 
+## Identités et stratégie de remplacement — retour Workstation 25/25
+
+**Preuve confirmée :** les 18 tests de plan et les 7 tests de provenance
+passent sur la Workstation (25/25). Le plan natif original vise uniquement
+`profiles.litellm:default.key` pour `cron`, avec la SecretRef
+`env:default:LITELLM_OPENCLAW_CRON_API_KEY`. Le dry-run projette
+**SQLite cron=1, dotenv=1**. La variante de comparaison
+`scrubEnv=false` projette **SQLite cron=1, dotenv=0**.
+
+`secret_plan_cron_key_in_projected_dotenv=present` signifie seulement
+que **le nom de la variable figure dans le dotenv concerné**.
+`secret_plan_gateway_initial_env_cron_key=not_in_initial_process_env`
+signifie que ce nom ne figure pas dans l'environnement initial visible
+via /proc. **Cela ne prouve pas que la variable est absente dans le
+processus Node.js après son chargement du dotenv.**
+
+En effet, le code OpenClaw **v2026.9.5** :
+- `src/infra/dotenv.ts` charge le dotenv du répertoire de travail
+  et les fichiers dotenv globaux, sans écraser les variables déjà présentes ;
+- `src/infra/dotenv-global.ts` inclut `OPENCLAW_STATE_DIR/.env`
+  (ou le state dir par défaut), puis une possibilité de
+  `~/.config/openclaw/gateway.env` selon le state dir ;
+- `src/secrets/resolve.ts` résout une SecretRef `env`
+  à partir de l'environnement effectif fourni au résolveur ;
+- `src/secrets/apply.ts` peut nettoyer un dotenv lorsque sa valeur
+  correspond à un credential migré **et** que son nom appartient
+  à la liste `listKnownSecretEnvVarNames()`. Le compteur ne
+  permet pas d'identifier sans ambiguïté l'affectation supprimée.
+
+### Choix de migration, jamais appliqués automatiquement
+
+1. **P0 `cron` — option transitoire :** préparer un **nouveau plan
+   privé** avec seulement `options.scrubEnv=false`, puis vérifier
+   `--dry-run` et la persistance de la source. Une migration
+   approuvée pourrait retirer le doublon du SQLite, **mais garderait
+   les valeurs en clair du dotenv**. Ce n'est pas la fin de l'audit.
+2. **P0 `cron` — cible durable privilégiée :** créer un fichier de
+   clé distinct, protégé en `0600`, dans un répertoire `0700`,
+   accessible au même compte que le Gateway ; configurer
+   `secrets.providers.openclaw-cron` avec
+   `{"source":"file","path":"<chemin absolu privé>","mode":"singleValue"}`.
+   La ref cible devient
+   `{"source":"file","provider":"openclaw-cron","id":"value"}`.
+   Préparer ce fichier par import privé avec accord opérateur
+   (jamais de clé en argv, log, Git ni sortie stdout).
+   L'existant `openclaw-embeddings.key` ne doit jamais être réutilisé.
+3. **P1 `main` :** même modèle avec fichier, fournisseur et plan
+   distincts ; vérifier d'abord son identité de credential et la
+   résolution dans le Gateway, sans réutiliser la clé `cron`.
+4. **P1 autres résidus :** audit séparé des quatre credentials du
+   *magasin d'authentification partagé*, des cinq occurrences en
+   configuration, des trois occurrences dotenv, des trois credentials
+   matérialisés en `models.json` et des deux fichiers legacy.
+   Les chiffres décrivent des **occurrences**, pas nécessairement
+   autant de clés uniques. Le wizard `--agent cron` ne migre pas
+   le magasin partagé. Aucune suppression de legacy ni
+   `doctor --fix` avant acceptation.
+
+Avant toute mutation, établir en privé le chemin dotenv canonique
+réel, la valeur **par identité et non par affichage**, les consommateurs
+et l'origine persistante du Gateway. Le contrôle `--dry-run` ne
+prouve pas qu'un redémarrage fonctionnerait. Pas d'application réelle
+ni de restart sans validation et accord séparé.
+
 ## P0 : risque de nettoyage du dotenv
 
 Dans OpenClaw 2026.9.5, `scrubEnv=true` est le comportement natif
