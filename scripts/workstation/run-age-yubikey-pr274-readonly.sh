@@ -9,7 +9,8 @@ set -Eeuo pipefail
 umask 077
 
 repo='/tmp/nabla-yubikey-pr259'
-evidence_dir="${HOME}/.local/share/nabla/yubikey-f9-public"
+state_dir="${NABLA_AGENT_STATE_DIR:-${HOME:-/nonexistent}/.local/share/nabla}"
+evidence_dir="${state_dir}/yubikey-f9-public"
 remote='https://github.com/AlbanAndrieu/nabla-compose.git'
 branch='fix/homelab-operator-diagnostics-followup-20261024'
 observed_f9='6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:62:39:2F:61:F1:78:54:90:34:DF'
@@ -17,7 +18,7 @@ expected_root='63ece914e54dd87915f34033c85af4c0696ba1512f8add66ced738331207b546'
 root_url='https://developers.yubico.com/PKI/yubico-piv-ca-1.pem'
 usage() {
   printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo /tmp/nabla-yubikey-pr259] [--evidence-dir PATH]\n'
-  printf 'Fetch PR #274 and create isolated worktree; test offline, then check saved public F9 against pinned root.\n'
+  printf 'No pre-existing checkout required. Persistent bare Git cache under HOME; isolated worktree per run.\n'
   printf 'Does not git pull, switch operator checkout, write PIV, request PIN or change SOPS.\n'
 }
 while (($#)); do
@@ -38,70 +39,80 @@ if [[ "${NABLA_YUBIKEY_TEST_MODE:-0}" == 1 && -n "${NABLA_YUBIKEY_TEST_REMOTE:-}
 fi
 
 die() { printf 'NO-GO: %s\n' "$*" >&2; exit 3; }
-command -v git >/dev/null || die 'Git unavailable'
-command -v flock >/dev/null || die 'flock unavailable'
-[[ -d "${repo}" ]] || die "Repository missing: ${repo}"
-repo_root="$(git -C "${repo}" rev-parse --show-toplevel 2>/dev/null)" || die "Not a Git worktree: ${repo}"
-[[ "${repo_root}" == "$(cd -- "${repo}" && pwd -P)" ]] || die 'Repository path must be its worktree root'
-[[ -d "${HOME}" ]] || die 'HOME unavailable'
-worktree_base="${HOME}/.local/share/nabla/agent-worktrees"
-[[ ! -L "${worktree_base}" ]] || die 'Agent worktree directory must not be a symlink'
-mkdir -p -m 0700 -- "${worktree_base}"
-[[ -d "${worktree_base}" ]] || die 'Unable to create private agent worktree directory'
-
-# Advisory lock only protects this script's fetch/worktree metadata updates.
-exec 9>"${worktree_base}/.pr274-fetch.lock"
-flock -w 20 9 || die 'Another agent has the PR #274 fetch lock'
-original="$(git -C "${repo}" rev-parse --verify HEAD)" || die 'Cannot resolve source HEAD'
-if [[ -n "$(git -C "${repo}" status --porcelain --untracked-files=normal)" ]]; then
-  printf 'WARN: original checkout has changes; leaving all files untouched\n'
+command -v git >/dev/null || die 'Missing git'
+command -v flock >/dev/null || die 'Missing flock'
+[[ -n "${HOME:-}" && -d "${HOME}" ]] || die 'HOME unavailable'
+cache="$state_dir/git/nabla-compose.git"
+worktree_base="$state_dir/agent-worktrees"
+for path in "$state_dir" "$state_dir/git" "$cache" "$worktree_base"; do
+  [[ ! -L "$path" ]] || die "Refusing symlink in persistent Git state: $path"
+done
+mkdir -p -m 0700 -- "$state_dir" "$state_dir/git" "$worktree_base"
+[[ -d "$worktree_base" && -d "$state_dir/git" ]] || die 'Unable to create private state directories'
+# Lock only Git metadata operations, never the expensive security tests.
+exec 9>"$state_dir/.pr274-git.lock"
+flock -w 20 9 || die 'Git metadata lock busy'
+if [[ -e "$cache" ]]; then
+  [[ -d "$cache" ]] || die 'Git cache is not a directory'
+  [[ "$(git --git-dir="$cache" rev-parse --is-bare-repository 2>/dev/null)" == true ]] || die 'Git cache is not bare'
+else
+  git init --bare -q "$cache" || die 'Cannot initialize persistent Git cache'
 fi
-printf 'INFO: source checkout %s at %.12s (unchanged, even if detached)\n' "${repo}" "${original}"
-printf 'INFO: git pull skipped: explicit snapshot fetch is safe for detached HEAD\n'
-
-# Resolve exactly one branch tip from the server, then verify it exists locally.
-ref="refs/heads/${branch}"
-response="$(git ls-remote --exit-code "${remote}" "${ref}")" || die 'Remote branch lookup failed; no checkout changed'
-IFS=$'\t' read -r sha ref_name <<< "${response}"
-[[ "${sha}" =~ ^[0-9a-f]{40}$ && "${ref_name}" == "${ref}" ]] || die 'Unexpected remote branch response'
-if ! git -C "${repo}" cat-file -e "${sha}^{commit}" 2>/dev/null; then
-  git -C "${repo}" fetch --no-tags --no-write-fetch-head "${remote}" "${ref}" || die 'Fetch failed; no checkout changed'
+# /tmp is optional. Never checkout, pull or reset its old workspace.
+if [[ -e "$repo" ]]; then
+  if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    old_sha="$(git -C "$repo" rev-parse HEAD)"
+    printf 'INFO: source checkout %s at %.12s remains unchanged\n' "$repo" "$old_sha"
+    if [[ -n "$(git -C "$repo" status --porcelain --untracked-files=normal)" ]]; then
+      printf 'WARN: original checkout has changes; preserving them\n'
+    fi
+  else
+    printf 'WARN: legacy checkout path is not a Git worktree; ignored\n'
+  fi
+else
+  printf 'INFO: legacy checkout %s absent after reboot; persistent Git cache will be used\n' "$repo"
 fi
-git -C "${repo}" cat-file -e "${sha}^{commit}" || die 'Verified remote commit not present after fetch'
-# Never rely on FETCH_HEAD: other agents may fetch in parallel.
-
+printf 'INFO: git pull skipped: tracking exact remote SHA instead\n'
+ref="refs/heads/$branch"
+response="$(git ls-remote --exit-code "$remote" "$ref")" || die 'Remote branch lookup failed; Git state unchanged'
+IFS=$'\t' read -r sha ref_name <<< "$response"
+[[ "$sha" =~ ^[0-9a-f]{40}$ && "$ref_name" == "$ref" ]] || die 'Unexpected remote ref result'
+if ! git --git-dir="$cache" cat-file -e "$sha^{commit}" 2>/dev/null; then
+  git --git-dir="$cache" fetch --no-tags --no-write-fetch-head "$remote" "$ref" || die 'Fetch failed; no checkout changed'
+fi
+git --git-dir="$cache" cat-file -e "$sha^{commit}" || die 'Remote commit missing after fetch'
+# Other agents cannot change the pinned SHA; FETCH_HEAD is never used.
+parent="$(mktemp -d "$worktree_base/pr274.XXXXXXXX")" || die 'Could not reserve a private worktree path'
+worktree="$parent/source"
 tmp_root=""
-parent="$(mktemp -d "${worktree_base}/pr274.XXXXXXXX")" || die 'Unable to reserve isolated worktree'
-worktree="${parent}/source"
 cleanup() {
   local status=$?
   trap - EXIT
-  if [[ -n "${tmp_root:-}" && -f "${tmp_root}" ]]; then
-    rm -f -- "${tmp_root}"
-  fi
-  # Never force-delete a worktree. Preserve any unexpected file changes for inspection.
-  if [[ -d "${worktree:-}" ]] && git -C "${worktree}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    if [[ -z "$(git -C "${worktree}" status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
-      git -C "${repo}" worktree remove "${worktree}" >/dev/null 2>&1 || \
-        printf 'WARN: could not remove clean isolated worktree: %s\n' "${worktree}" >&2
+  if [[ -n "${tmp_root:-}" && -f "$tmp_root" ]]; then rm -f -- "$tmp_root"; fi
+  if [[ -d "${worktree:-}" ]] && git -C "$worktree" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [[ -z "$(git -C "$worktree" status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
+      if flock -w 20 9; then
+        git --git-dir="$cache" worktree remove "$worktree" >/dev/null 2>&1 || \
+          printf 'WARN: clean worktree could not be removed: %s\n' "$worktree" >&2
+        flock -u 9
+      else
+        printf 'WARN: cannot acquire cleanup lock; worktree preserved: %s\n' "$worktree" >&2
+      fi
     else
-      printf 'WARN: isolated worktree has changed; preserved at %s\n' "${worktree}" >&2
+      printf 'WARN: worktree changed during tests; preserved: %s\n' "$worktree" >&2
     fi
   fi
-  if [[ -d "${parent:-}" ]]; then
-    rmdir "${parent}" 2>/dev/null || true
-  fi
-  exit "${status}"
+  if [[ -d "${parent:-}" ]]; then rmdir "$parent" 2>/dev/null || true; fi
+  exit "$status"
 }
 trap cleanup EXIT
-
-git -C "${repo}" worktree add --detach "${worktree}" "${sha}" >/dev/null || die 'Failed to create isolated worktree'
+git --git-dir="$cache" worktree add --detach "$worktree" "$sha" >/dev/null || die 'Could not create isolated worktree'
 flock -u 9
-printf 'INFO: isolated PR snapshot %.12s at %s\n' "${sha}" "${worktree}"
-[[ "$(git -C "${worktree}" rev-parse HEAD)" == "${sha}" ]] || die 'Snapshot SHA differs from remote branch tip'
-[[ -f "${worktree}/scripts/workstation/verify-age-yubikey-offline.sh" && \
-   -f "${worktree}/scripts/workstation/verify-age-yubikey-f9-root-offline.py" ]] || \
-  die 'Required verification scripts missing from pinned PR SHA'
+[[ "$(git -C "$worktree" rev-parse HEAD)" == "$sha" ]] || die 'Snapshot SHA mismatch'
+printf 'INFO: isolated PR snapshot %.12s at %s\n' "$sha" "$worktree"
+[[ -f "$worktree/scripts/workstation/verify-age-yubikey-offline.sh" && \
+   -f "$worktree/scripts/workstation/verify-age-yubikey-f9-root-offline.py" ]] || \
+  die 'Verification scripts missing at pinned PR SHA'
 
 # The offline gate is already hardware-free; abort on any failure.
 (cd -- "${worktree}" && bash scripts/workstation/verify-age-yubikey-offline.sh) || die 'Offline gate failed; F9 validation not attempted'

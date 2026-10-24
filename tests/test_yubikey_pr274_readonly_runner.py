@@ -1,6 +1,7 @@
 """Hermetic one-command PR-274 operator verification contract. No real network or YubiKey."""
 from pathlib import Path
 import os
+from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import sys
 import tempfile
@@ -136,12 +137,38 @@ printf 'PASS: simulated read-only public export\\n'
         self.assertIn('F9 certificate failed', result.stderr)
         self.assert_untouched()
 
-    def test_invalid_source_path_fails_before_remote(self):
+    def test_missing_source_checkout_recovers_from_bare_cache(self):
+        # Reboot can remove /tmp; the Git remote fixture remains available.
         invalid = self.base / 'unknown'
-        result = subprocess.run(['bash', str(SCRIPT), '--repo', str(invalid)],
-                                env=self.env, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 3)
-        self.assertIn('Repository missing', result.stderr)
+        result = self.run_script('--repo', str(invalid))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('absent after reboot', result.stdout)
+        cache = self.home / '.local/share/nabla/git/nabla-compose.git'
+        self.assertTrue((cache / 'HEAD').exists())
+        self.assert_untouched()
+
+    def test_repeated_run_uses_same_durable_bare_cache(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        second = self.run_script()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        cache = self.home / '.local/share/nabla/git/nabla-compose.git'
+        registered = git(cache, 'worktree', 'list', '--porcelain')
+        self.assertEqual(registered.count('worktree '), 1, registered)
+        self.assert_untouched()
+
+    def test_parallel_agents_have_separate_worktree_paths(self):
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: self.run_script(), range(2)))
+        for result in results:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        snapshots = {
+            line.rsplit(' at ', 1)[-1]
+            for result in results
+            for line in result.stdout.splitlines()
+            if 'isolated PR snapshot' in line
+        }
+        self.assertEqual(len(snapshots), 2)
+        self.assert_untouched()
 
     def test_help_does_not_contact_git_or_hardware(self):
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
