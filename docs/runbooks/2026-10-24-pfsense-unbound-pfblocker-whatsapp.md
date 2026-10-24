@@ -98,6 +98,40 @@ Leurs adresses peuvent varier selon le CDN. Cela n'exclut pas
 un blocage d'un autre domaine, un problème IPv6 ou UDP, ni
 la saturation transitoire d'Unbound à 02:10.
 
+## Relevé workstation du 24 octobre — tests et comparaison réseau
+
+L'opérateur a exécuté `just pfsense-unbound-wifi-test` sur le
+checkout `da07b8a7` : **15/15 tests réussis**, et les trois validations
+`bash -n` sont passées. Ces résultats ne couvrent pas les modifications
+du HEAD suivantes.
+
+`just whatsapp-web-path-check` a fourni deux réponses DNS
+`NOERROR` avec `a_records=1` pour `web.whatsapp.com` et
+`static.whatsapp.net`, aussi bien sur **pfSense `172.17.0.1`**
+que sur **Quad9 `9.9.9.9`**. HTTPS fonctionne en IPv4
+(HTTP 200 sur WhatsApp Web, HTTP 404 sur la racine du site statique).
+L'IPv6 n'est pas utilisable depuis cette workstation.
+Le résolveur annoncé par la workstation est Quad9, pas pfSense.
+Ne pas attribuer automatiquement ces observations au téléphone : le
+mobile peut avoir un DNS, un VLAN, une adresse IPv6 et un trajet
+réseau distincts.
+
+Le diagnostic pfSense de la PR classe désormais les crons Snort
+**`snort_rules_update`** et **`snort_housekeeping`** séparément.
+Il ne publie que le type de tâche, l'heure planifiée et les
+métadonnées de fichiers journaux d'update. Il ne lit ni les règles
+Snort ni les paramètres de téléchargement. La documentation Netgate
+prévoit un horaire de vérification configurable des règles Snort :
+[Snort Global Settings](https://docs.netgate.com/pfsense/en/latest/packages/snort/setup.html).
+Contrôler si la tâche à 02:09 est une mise à jour de règles
+avant d'envisager un changement.
+
+Comparer, en lecture seule, les exécutions **02:09** et **14:09**
+aux horodatages de fin des mises à jour et aux OOM. Une proximité
+d'une minute ne suffit pas à établir le processus responsable.
+Ne pas lancer une mise à jour Snort en direct comme test sur ce Netgate
+contraint en mémoire.
+
 ## P0 — Collecter avant toute réparation
 
 Depuis la workstation autorisée et son alias SSH **déjà configuré** :
