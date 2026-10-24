@@ -34,13 +34,13 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
   # docs/runbooks/2026-10-23-fast-batch-migration.md
 
   sudo bash scripts/truenas/finish-migrations-20261024.sh --next-commands
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|prometheus|openrag|akvorado|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
     --acknowledge I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-step \
-    sentry-system|sentry-migrator|openrag-secret|gatus-config \
+    sentry-system|sentry-migrator|gatus-config \
     --acknowledge I_ACCEPT_REVIEWED_RUNTIME_MIGRATION
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-csi-smoke \
     --acknowledge I_ACCEPT_REVIEWED_RUNTIME_MIGRATION
@@ -51,6 +51,8 @@ proceeding. --check and --plan-wave never stop/start/redeploy Apps.
 --apply-step runs its matching --check first; if drift makes the check fail,
 review its report and repeat with --allow-reviewed-drift (explicit override).
 --next-commands prints the ordered operator runbook without connecting to TrueNAS.
+The legacy OpenRAG/OpenSearch password reconciliation --apply is DISABLED
+in this runner. Use Vaultwarden-backed canonical staging after a separate review.
 No automatic remediation for DefectDojo, Docling, Hermes, OpenRAG ingestion,
 Vaultwarden secret import or TrueNAS host reboot: see the runbook.
 EOF
@@ -95,12 +97,12 @@ fi
 
 diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
-case "${SECTION}" in all|platform|migrations|catalog|services|ai|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
+case "${SECTION}" in all|platform|migrations|catalog|services|ai|prometheus|openrag|akvorado|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
   case "${WAVE}" in core|gatus|deferred) ;; *) echo 'Invalid wave' >&2; exit 2 ;; esac
 fi
 if [[ "${ACTION}" == migrate ]]; then
-  case "${STEP}" in sentry-system|sentry-migrator|openrag-secret|gatus-config) ;; *) echo 'Invalid migration step' >&2; exit 2 ;; esac
+  case "${STEP}" in sentry-system|sentry-migrator|gatus-config) ;; *) echo 'Invalid migration step' >&2; exit 2 ;; esac
 fi
 if [[ "${ACTION}" != migrate && "${ALLOW_DRIFT}" == true ]]; then
   echo '--allow-reviewed-drift only applies to --apply-step' >&2
@@ -322,6 +324,26 @@ check_section() {
         record litellm-provider-keys WARN "${SESSION_DIR}/litellm-provider-keys.log"
       fi
       ;;
+    prometheus)
+      # A TrueNAS App RUNNING does not prove its main container is running.
+      run_check prometheus-targets bash scripts/truenas/diagnose-prometheus-targets.sh --check
+      run_check prometheus-config-access bash scripts/truenas/repair-prometheus-config-access.sh --check
+      run_check prometheus-rules-access bash scripts/truenas/repair-prometheus-rules-access.sh --check
+      ;;
+    openrag)
+      # Legacy secret comparator is strictly read-only here; it cannot
+      # determine whether the Vaultwarden materialization is ready.
+      run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
+      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+      run_check openrag-opensearch-legacy-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+      run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+      run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
+      ;;
+    akvorado)
+      # Counter snapshots only. A fresh ClickHouse batch is not a SQL-row proof.
+      run_check akvorado-blocked python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 20
+      run_check akvorado-fresh-inserts python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 20
+      ;;
     observability)
       # Runtime truth requires fresh probes, not a TrueNAS App RUNNING flag.
       run_check prometheus-targets bash scripts/truenas/diagnose-prometheus-targets.sh --check
@@ -431,7 +453,6 @@ if [[ "${ACTION}" == migrate ]]; then
   case "${STEP}" in
     sentry-system) SCRIPT="scripts/truenas/reconcile-sentry-system-secret.sh" ;;
     sentry-migrator) SCRIPT="scripts/truenas/reconcile-sentry-migrator-credential.sh" ;;
-    openrag-secret) SCRIPT="scripts/truenas/reconcile-openrag-opensearch-secret.sh" ;;
     gatus-config) SCRIPT="scripts/truenas/deploy-gatus.sh" ;;
   esac
   if bash "${SCRIPT}" --check >"${SESSION_DIR}/before-${STEP}.log" 2>&1; then
