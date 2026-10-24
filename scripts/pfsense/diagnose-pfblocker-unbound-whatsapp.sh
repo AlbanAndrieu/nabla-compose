@@ -77,6 +77,21 @@ sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_
 swapinfo -h 2>/dev/null || true
 ps axo pid,rss,pcpu,command | sort -nr -k2 | head -15 || true
 dmesg -a 2>/dev/null | grep -Ei 'failed to reclaim|out of swap|killed.*(unbound|php|netstat)|memory allocation failure' | tail -22 || true
+echo '=== PHP-FPM worker footprint (RSS KiB, not additive physical RAM) ==='
+# Names and counts only: do not publish worker command-line parameters or
+# full per-user process details. RSS can double-count shared library pages.
+ps axo rss,command 2>/dev/null | awk '
+  /php-fpm: pool nginx/ {
+    workers++
+    rss_sum += $1
+    if ($1 > max_rss) max_rss = $1
+  }
+  END {
+    printf "php_fpm_workers=%d php_fpm_rss_sum_kb=%.0f php_fpm_max_worker_rss_kb=%.0f\\n", workers + 0, rss_sum + 0, max_rss + 0
+  }
+'
+echo '=== RAM-backed /tmp and /var capacity (filesystem metadata only) ==='
+df -k /tmp /var 2>/dev/null | head -4 || true
 echo '=== pfBlockerNG process overlap and historical DNSBL update markers ==='
 ps axo pid,rss,pcpu,command | grep -E '[p]fblockerng.php|[p]hp_pfb|[p]fb_unbound' | head -10 || true
 for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockerng.log.0; do
