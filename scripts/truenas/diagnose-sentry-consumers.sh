@@ -39,6 +39,21 @@ for service in "${SERVICES[@]}"; do
     "${service}" "${status}" "${health}" "${exit_code}" "${restarts}"
   if [[ "${status}" != running || "${health}" != healthy ]]; then
     failed=$((failed + 1))
+    # A healthcheck may fail while application logs remain empty. Collect
+    # only the probe's numeric metadata, never .Health.Log.Output.
+    health_probes="$(docker inspect --type container --format \
+      '{{if .State.Health}}{{.State.Health.FailingStreak}}|{{range .State.Health.Log}}{{.ExitCode}} {{end}}{{else}}-|{{end}}' \
+      "$id" 2>/dev/null || true)"
+    probe_streak="${health_probes%%|*}"
+    case "$probe_streak" in ''|*[!0-9]*) probe_streak=unverified ;; esac
+    last_probe_exit="${health_probes##* }"
+    # Trim and validate the final numeric probe exit status.
+    if [[ "$health_probes" == *'|'* ]]; then
+      last_probe_exit="$(printf '%s' "${health_probes#*|}" | awk '{print $NF}')"
+    fi
+    [[ "$last_probe_exit" =~ ^[0-9]+$ ]] || last_probe_exit=unverified
+    printf '  healthcheck_failing_streak=%s last_probe_exit=%s\n' \
+      "$probe_streak" "$last_probe_exit"
     # Never show Docker output: messages sometimes include DSNs/tokens.
     docker logs --since 15m --tail 80 "${id}" 2>&1 |
       awk '{
@@ -52,6 +67,7 @@ for service in "${SERVICES[@]}"; do
         printf "  recent_log_categories: sample=%d kafka_coordination=%d kafka_transport=%d redis=%d clickhouse=%d fatal=%d\n",
           n,kafka,transport,redis,clickhouse,errors;
       }' || true
+    printf '  evidence=empty_recent_logs_do_not_prove_kafka_timeout (inspect healthcheck metadata and private App jobs)\n'
   fi
 done
 
