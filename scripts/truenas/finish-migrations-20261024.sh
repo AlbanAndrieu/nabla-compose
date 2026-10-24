@@ -340,6 +340,7 @@ check_section() {
     ai)
       # Dependency readiness is a separate gate from Langflow/Docling ingestion.
       # A frontend stuck CREATED is a functional blocker, not an App outage.
+      run_check openrag-startup bash scripts/truenas/diagnose-openrag-startup.sh --check
       run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
       run_check hermes-native bash scripts/truenas/diagnose-hermes-agent.sh --check
       # Required runtime secrets and actual failed Apps are blocking.
@@ -368,6 +369,7 @@ check_section() {
     openrag)
       # Legacy secret comparator is strictly read-only here; it cannot
       # determine whether the Vaultwarden materialization is ready.
+      run_check openrag-startup bash scripts/truenas/diagnose-openrag-startup.sh --check
       run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
       run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
       run_check openrag-opensearch-legacy-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
