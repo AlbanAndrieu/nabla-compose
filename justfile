@@ -121,7 +121,7 @@ openclaw-cron-file-cutover-check:
 # Explicitly authorized mutation: key file, private backups, native SecretRef apply.
 # No Gateway restart, no deletion from dotenv, no paid Actions.
 openclaw-cron-file-cutover:
-    python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply
+    python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Pure offline regressions: no pfSense access or GitHub Actions.
