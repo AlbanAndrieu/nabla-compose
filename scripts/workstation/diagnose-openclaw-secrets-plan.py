@@ -9,6 +9,7 @@ import argparse
 import hmac
 import secrets
 import json
+import re
 import os
 from pathlib import Path
 import stat
@@ -18,6 +19,9 @@ import tempfile
 
 MAX_PLAN_BYTES = 16 * 1024 * 1024
 MAX_NATIVE_OUTPUT_BYTES = 1024 * 1024
+MAX_DOTENV_BYTES = 1024 * 1024
+MAX_PROC_ENV_BYTES = 256 * 1024
+CRON_ENV_KEY = b"LITELLM_OPENCLAW_CRON_API_KEY"
 # Random per-process HMAC key: native paths are never stored or printed.
 _PATH_TAG_KEY = secrets.token_bytes(32)
 CATEGORIES = (
@@ -120,6 +124,84 @@ def classify_changed_file(path):
     return "other"
 
 
+
+def inspect_dotenv_cron_key(path):
+    """Check only the key *name* in a projected dotenv, never values.
+
+    Presence does not prove that OpenClaw would scrub that assignment.
+    """
+    if not isinstance(path, str) or not os.path.isabs(path):
+        return "unavailable"
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+        fd = os.open(path, flags)
+        try:
+            initial = os.fstat(fd)
+            if not stat.S_ISREG(initial.st_mode) or initial.st_uid != os.geteuid():
+                return "unavailable"
+            if initial.st_mode & 0o077:
+                return "unsafe_permissions"
+            if initial.st_nlink != 1 or initial.st_size > MAX_DOTENV_BYTES:
+                return "unavailable"
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                data = stream.read(MAX_DOTENV_BYTES + 1)
+            final = os.fstat(fd)
+            if (len(data) > MAX_DOTENV_BYTES or len(data) != initial.st_size
+                    or final.st_mtime_ns != initial.st_mtime_ns
+                    or final.st_size != initial.st_size):
+                return "unavailable"
+            count = 0
+            for line in data.splitlines():
+                lhs = line.partition(b"=")[0].strip()
+                if lhs.startswith(b"export "):
+                    lhs = lhs[len(b"export "):].strip()
+                if lhs == CRON_ENV_KEY:
+                    count += 1
+            return "duplicate" if count > 1 else ("present" if count else "absent")
+        finally:
+            os.close(fd)
+    except OSError:
+        return "unavailable"
+
+
+def inspect_gateway_process_env():
+    """Read gateway initial process env privately. It is *not* restart proof."""
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "show", "openclaw-gateway.service",
+             "--property=MainPID", "--value"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=6, check=False,
+        )
+        if result.returncode or len(result.stdout) > 24:
+            return "unavailable"
+        raw_pid = result.stdout.strip()
+        if not re.fullmatch(rb"[1-9][0-9]{0,7}", raw_pid):
+            return "not_running" if raw_pid == b"0" else "unavailable"
+        pid = int(raw_pid)
+        proc_dir = "/proc/" + str(pid)
+        if os.stat(proc_dir).st_uid != os.geteuid():
+            return "unavailable"
+        with open(proc_dir + "/environ", "rb") as stream:
+            initial_env = stream.read(MAX_PROC_ENV_BYTES + 1)
+        if len(initial_env) > MAX_PROC_ENV_BYTES:
+            return "unavailable"
+        after = subprocess.run(
+            ["systemctl", "--user", "show", "openclaw-gateway.service",
+             "--property=MainPID", "--value"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=6, check=False,
+        )
+        if after.returncode or after.stdout.strip() != raw_pid:
+            return "unavailable"
+        key = CRON_ENV_KEY + b"="
+        return ("present_in_initial_process_env"
+                if any(segment.startswith(key) for segment in initial_env.split(b"\\x00"))
+                else "not_in_initial_process_env")
+    except (OSError, subprocess.TimeoutExpired):
+        return "unavailable"
+
+
 def native_dry_run(path):
     """Invoke native dry-run once. Raw stdout/stderr must never escape."""
     try:
@@ -157,9 +239,12 @@ def native_dry_run(path):
         return None, "native_unexpected_response"
     categories = {key: 0 for key in CATEGORIES}
     opaque_paths = {key: set() for key in CATEGORIES}
+    dotenv_states = []
     for item in changed:
         category = classify_changed_file(item)
         categories[category] += 1
+        if category == "dotenv":
+            dotenv_states.append(inspect_dotenv_cron_key(item))
         opaque_paths[category].add(
             hmac.digest(_PATH_TAG_KEY, item.encode("utf-8", "surrogatepass"), "sha256")
         )
@@ -167,6 +252,9 @@ def native_dry_run(path):
         "categories": categories,
         # Memory-only, keyed path equality checks: no path names escape.
         "opaque_paths": opaque_paths,
+        "cron_key_in_projected_dotenv": (
+            dotenv_states[0] if len(dotenv_states) == 1 else "not_single_dotenv"
+        ),
         "changed_files": len(changed),
         "refs_checked": result["refsChecked"],
         "skipped_exec_refs": result["skippedExecRefs"],
@@ -281,6 +369,8 @@ def main(argv=None, home=None):
     parser.add_argument("--plan", type=Path, default=None)
     parser.add_argument("--compare-no-scrub", action="store_true",
                         help="Compare native dry-runs using a private temporary scrubEnv=false plan")
+    parser.add_argument("--inspect-gateway-env", action="store_true",
+                        help="Inspect only cron variable presence in the current Gateway process")
     args = parser.parse_args(argv)
     home = Path.home() if home is None else Path(home)
     root = home / ".local/share/nabla-compose/openclaw-import"
@@ -312,6 +402,8 @@ def main(argv=None, home=None):
     for cat in CATEGORIES:
         print(f"secret_plan_changed_{cat}={result['categories'][cat]}")
     print("secret_plan_changed_total=" + str(result["changed_files"]))
+    print("secret_plan_cron_key_in_projected_dotenv=" +
+          result["cron_key_in_projected_dotenv"])
     print("secret_plan_refs_checked=" + str(result["refs_checked"]))
     print("secret_plan_skipped_exec_refs=" + str(result["skipped_exec_refs"]))
     print("secret_plan_warning_count=" + str(result["warning_count"]))
@@ -331,6 +423,9 @@ def main(argv=None, home=None):
         print("secret_plan_gateway_env_attested=false")
         print("secret_plan_apply_authorized=false")
         return 2
+    if args.inspect_gateway_env:
+        print("secret_plan_gateway_initial_env_cron_key=" + inspect_gateway_process_env())
+        print("secret_plan_gateway_restart_persistence=unverified")
     print("secret_plan_status=" + state)
     print("secret_plan_gateway_env_attested=false")
     print("secret_plan_apply_authorized=false")
