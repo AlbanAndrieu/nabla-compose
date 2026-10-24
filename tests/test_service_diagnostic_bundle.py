@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,7 +17,6 @@ SCRIPT = (
 SPEC = importlib.util.spec_from_file_location("diagnose_service_bundle", SCRIPT)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
-import sys
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
@@ -39,9 +39,9 @@ def test_fixed_allowlist_no_shell_and_no_raw_output() -> None:
 
     def fake_runner(args, **kwargs):
         seen.append(tuple(args))
-        assert kwargs["stdin"] is subprocess.DEVNULL
-        assert kwargs["stdout"] is subprocess.DEVNULL
-        assert kwargs["stderr"] is subprocess.DEVNULL
+        assert kwargs["stdin"] == subprocess.DEVNULL
+        assert kwargs["stdout"] == subprocess.DEVNULL
+        assert kwargs["stderr"] == subprocess.DEVNULL
         assert kwargs["check"] is False
         assert kwargs["timeout"] <= 45
         assert "shell" not in kwargs
