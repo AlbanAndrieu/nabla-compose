@@ -47,6 +47,7 @@ class CronCutoverTests(unittest.TestCase):
         self.root = self.home / ".local/share/nabla-compose"
         self.stage = self.root / "openclaw-import"
         self.stage.mkdir(parents=True, mode=0o700)
+        self.root.chmod(0o700)
         self.state = self.home / ".openclaw"
         self.state.mkdir(mode=0o700)
         self.config = self.state / "openclaw.json"
@@ -132,6 +133,59 @@ class CronCutoverTests(unittest.TestCase):
         native.assert_not_called()
         self.assertIn("cron_cutover_status=blocked", output.getvalue())
         self.assertFalse(self.key.exists())
+
+
+    def test_apply_creates_private_backup_and_file_ref_not_dotenv_cleanup(self):
+        import sqlite3
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("CREATE TABLE credentials (identity TEXT)")
+            connection.execute("INSERT INTO credentials VALUES ('demo')")
+        self.db.chmod(0o600)
+        def native_execution(path, dry_run=True):
+            candidate = Path(path)
+            if candidate == self.source:
+                return result([str(self.db), str(self.env)])
+            saved = json.loads(candidate.read_text())
+            self.assertEqual(saved["targets"][0]["ref"]["source"], "file")
+            self.assertFalse(saved["options"]["scrubEnv"])
+            paths = [str(self.db), str(self.config)]
+            return result(paths, "dry-run" if dry_run else "write")
+        with patch.object(cutover, "invoke", side_effect=native_execution) as invoke, \
+             patch.dict(os.environ, {"OPENCLAW_CONFIG_PATH": str(self.config)}):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = cutover.main(["--apply"])
+        self.assertEqual(code, 0)
+        self.assertEqual(invoke.call_count, 3)
+        self.assertEqual(self.key.read_bytes(), b"sk-SECRET_NEVER_PRINT\n")
+        self.assertEqual(self.key.stat().st_mode & 0o777, 0o600)
+        bundles = list(self.stage.glob("cron-cutover-*"))
+        self.assertEqual(len(bundles), 1)
+        self.assertEqual(sorted(p.name for p in bundles[0].iterdir()),
+                         ["config.json", "cron-auth.sqlite", "original.env", "plan.json"])
+        self.assertEqual(bundles[0].stat().st_mode & 0o777, 0o700)
+        self.assertEqual(self.env.read_bytes(),
+                         b"LITELLM_OPENCLAW_CRON_API_KEY=sk-SECRET_NEVER_PRINT\n")
+        self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
+        self.assertIn("cron_cutover_applied=true", output.getvalue())
+        self.assertIn("cron_cutover_gateway_restart=not_performed", output.getvalue())
+
+    def test_apply_blocks_native_candidate_drift_before_write(self):
+        import sqlite3
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("CREATE TABLE credentials (identity TEXT)")
+        self.db.chmod(0o600)
+        def native_execution(path, dry_run=True):
+            if Path(path) == self.source:
+                return result([str(self.db), str(self.env)])
+            return result([str(self.db), str(self.env)])
+        with patch.object(cutover, "invoke", side_effect=native_execution) as native, \
+             patch.dict(os.environ, {"OPENCLAW_CONFIG_PATH": str(self.config)}):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = cutover.main(["--apply"])
+        self.assertEqual(code, 2)
+        self.assertEqual(native.call_count, 2)
+        self.assertIn("cron_cutover_status=blocked", output.getvalue())
+        self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
 
     def test_check_never_writes_key_or_calls_real_apply(self):
         native_paths = result([str(self.db), str(self.env)])
