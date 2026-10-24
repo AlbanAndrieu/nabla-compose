@@ -54,7 +54,7 @@ def test_sentry_diagnostic_classifies_both_consumers_and_redacts_logs(
     if expected_exit:
         assert "kafka_coordination=1" in output
         assert "healthcheck_failing_streak=3 last_probe_exit=2" in output
-        assert "evidence=empty_recent_logs_do_not_prove_kafka_timeout" in output
+        assert "evidence=empty_recent_logs_do_not_prove_kafka_timeout" not in output
 
 
 def test_sentry_diagnostic_is_read_only_and_bash_valid():
@@ -63,6 +63,7 @@ def test_sentry_diagnostic_is_read_only_and_bash_valid():
     assert proc.returncode == 0, proc.stderr
     contents = SCRIPT.read_text(encoding="utf-8")
     assert "com.docker.compose.project=" in contents
+    assert 'if (n == 0) print "  evidence=empty_recent_logs_do_not_prove_kafka_timeout"' in contents
     assert "sentry-events-consumer" in contents
     assert "sentry-post-process-forwarder-errors" in contents
     for forbidden in (
