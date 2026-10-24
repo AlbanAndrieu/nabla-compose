@@ -187,6 +187,35 @@ class CronCutoverTests(unittest.TestCase):
         self.assertIn("cron_cutover_status=blocked", output.getvalue())
         self.assertNotIn("sk-SECRET_NEVER_PRINT", output.getvalue())
 
+
+    def test_gateway_reload_requires_explicit_mutation(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                cutover.main(["--check", "--reload-gateway"])
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_gateway_reload_failure_preserves_written_state_report(self):
+        import sqlite3
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("CREATE TABLE credentials (identity TEXT)")
+        self.db.chmod(0o600)
+        def native_execution(path, dry_run=True):
+            if Path(path) == self.source:
+                return result([str(self.db), str(self.env)])
+            return result([str(self.db), str(self.config)],
+                          "dry-run" if dry_run else "write")
+        with patch.object(cutover, "invoke", side_effect=native_execution), \
+             patch.object(cutover.subprocess, "run",
+                          return_value=CompletedProcess([], 1, b"SECRET", b"SECRET")), \
+             patch.dict(os.environ, {"OPENCLAW_CONFIG_PATH": str(self.config)}):
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = cutover.main(["--apply", "--reload-gateway"])
+        self.assertEqual(code, 2)
+        self.assertTrue(self.key.is_file())
+        self.assertIn("cron_cutover_applied=true", output.getvalue())
+        self.assertIn("cron_cutover_reason=gateway_secrets_reload_failed", output.getvalue())
+        self.assertNotIn("SECRET", output.getvalue().replace("cron_cutover_method=dedicated_file_secretref", ""))
+
     def test_check_never_writes_key_or_calls_real_apply(self):
         native_paths = result([str(self.db), str(self.env)])
         with patch.object(cutover, "invoke", return_value=native_paths) as call:
