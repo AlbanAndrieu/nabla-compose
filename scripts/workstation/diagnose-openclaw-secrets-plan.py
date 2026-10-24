@@ -196,7 +196,7 @@ def inspect_gateway_process_env():
             return "unavailable"
         key = CRON_ENV_KEY + b"="
         return ("present_in_initial_process_env"
-                if any(segment.startswith(key) for segment in initial_env.split(b"\\x00"))
+                if any(segment.startswith(key) for segment in initial_env.split(bytes([0])))
                 else "not_in_initial_process_env")
     except (OSError, subprocess.TimeoutExpired):
         return "unavailable"
