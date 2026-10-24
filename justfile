@@ -121,6 +121,8 @@ pfsense-unbound-wifi-test:
     bash -n scripts/workstation/diagnose-whatsapp-web-path.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
+    bash -n scripts/workstation/run-pr274-after-reboot.sh
+    python3 -m unittest discover -s tests -p 'test_pr274_worktree_recovery.py' -v
 
 # Read-only probes run on a workstation that can reach pfSense via SSH.
 pfsense-unbound-check:
