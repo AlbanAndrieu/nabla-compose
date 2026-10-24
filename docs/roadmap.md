@@ -1,3 +1,17 @@
+## P0 — Corrections pfSense à décider après les OOM nocturnes (24 octobre 2026)
+
+- [x] **Cause technique prouvée :** Unbound a été tué par le noyau (`failed to reclaim memory`), avec `php`, `netstat`, `php_pfb`. Les récurrences `02:10` et l'incident du 22/10 à `22:03` indiquent plusieurs fenêtres de saturation.
+- [x] **Corréler les horaires :** Snort `snort_rules_update` à 02:09 et 14:09, pfBlockerNG à 00:00 / 04:00 / 22:00. La fin DNSBL à 00:09 ne correspond pas au crash à 02:10. Les tâches restent **suspectes**, pas prouvées responsables.
+- [x] Étendre le diagnostic read-only avec le nombre de workers PHP-FPM, leur RSS agrégé (non-additif à la RAM physique) et les métadonnées d'occupation de `/tmp` et `/var`. Contrat synthétique ajouté au test `test_pfsense_unbound_whatsapp_contract.py`.
+- [ ] **P0 Snort :** confirmer les opérations réelles autour de 02:09 / 14:09 et leur pic de RAM. Si confirmé, décider après sauvegarde d'un horaire supervisé / fréquence quotidienne temporaire depuis l'interface Snort ; attention à la fraîcheur des signatures.
+- [ ] **P0 CrowdSec :** déterminer pourquoi le moteur a été réactivé (~77 Mio RSS, bouncer ~9 Mio) ; décider d'un arrêt maîtrisé ou déplacement du moteur hors pfSense seulement après validation de la source des décisions de sécurité et rollback.
+- [ ] **P0 pfBlockerNG :** corréler le job de 22:00 avec l'OOM de 22:03, mesurer la reconstruction DNSBL et vérifier le statut effectif ASN/IPinfo. Les archives `.orig` ne prouvent pas que les feeds sont actifs : ne rien supprimer sans validation.
+- [ ] **P1 :** vérifier PHP-FPM et les RAM disks, garder PHP `128M`, Unbound `4m/8m`, DNSBL Python et absence de watchdog ; éviter les rechargements/reboots répétés.
+- [ ] **Recette :** sauvegarde `config.xml`, une modification contrôlée par fois, rollback défini ; observer les fenêtres 02:09, 14:09 et 22:00, la santé DNS et l'absence d'OOM sur plusieurs cycles.
+- [ ] Contrôler `just pfsense-unbound-wifi-test` puis la quality gate complète sur le nouveau HEAD. Aucun changement pfSense en production n'a été appliqué depuis cette PR.
+
+[Décisions et preuves horodatées](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+
 ## P0 — Reprise opérateur PR #274 après reboot (24 octobre 2026)
 
 - [x] Corriger la procédure qui supposait `/tmp/nabla-pr274` persistant et utilisait `set -e` dans un terminal interactif. L'échec initial de `git -C` interrompait toute la session sans lancer les diagnostics.
