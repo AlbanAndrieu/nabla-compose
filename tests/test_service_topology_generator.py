@@ -71,6 +71,24 @@ class ServiceTopologyGeneratorTest(unittest.TestCase):
                                  {"id": "service-one", "name": "Before"}
                              ], "relations": []}))
 
+    def test_topology_refresh_recipe_is_opt_in_and_never_runs_on_truenas(self) -> None:
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertIn("topology-drift-check:", justfile)
+        self.assertIn("topology-artifacts-refresh:", justfile)
+        recipe = justfile.split("topology-artifacts-refresh:", 1)[1].split(
+            "# Read-only Backstage", 1
+        )[0]
+        self.assertIn("$(id -u)", recipe)
+        self.assertIn("$(pwd -P)", recipe)
+        self.assertIn("/mnt/cpool/compose/nabla-compose", recipe)
+        self.assertIn("git diff --quiet", recipe)
+        self.assertIn("git branch --show-current", recipe)
+        self.assertIn("scripts/generate-service-topology.py --check", recipe)
+        self.assertIn("scripts/generate-service-consumers.py --check", recipe)
+        self.assertIn("scripts/generate-catalog-v2-artifacts.py --check", recipe)
+        self.assertNotIn("midclt ", recipe)
+        self.assertNotIn("docker ", recipe)
+
     def test_gatus_config_permission_contract(self) -> None:
         # Generated Gatus config is not world-readable and the container
         # belongs to its owning TrueNAS apps group without DAC_OVERRIDE.
