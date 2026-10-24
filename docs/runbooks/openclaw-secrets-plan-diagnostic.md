@@ -123,7 +123,7 @@ quelle affectation serait retirée ni si elle est nécessaire au Gateway.
 Ne pas inférer que la variable `LITELLM_OPENCLAW_CRON_API_KEY` serait
 supprimée sur la seule base de ce compteur.
 
-## Provenance limitée de la clé cron — 25 octobre 2026 (code, non exécuté sur Workstation)
+## Provenance limitée de la clé cron — 24 octobre 2026 (code, non exécuté sur Workstation)
 
 Les 18/18 tests du précédent lot ont **PASS** sur la Workstation.
 La comparaison native y confirme que `scrubEnv` explique **exactement**
