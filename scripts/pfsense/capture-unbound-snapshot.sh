@@ -25,8 +25,11 @@ mkdir -p -m 700 -- "$state_dir"
 chmod 700 -- "$state_dir"
 
 filename="$(mktemp "$state_dir/unbound-$(date +%Y%m%dT%H%M%S%z).XXXXXXXX.log")"
-cleanup() { rm -f -- "$filename"; }
-trap cleanup ERR INT TERM
+saved=no
+cleanup() { [[ "$saved" == yes ]] || rm -f -- "$filename"; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if ! PFSENSE_OUTPUT=verbose bash "$script_dir/diagnose-unbound-restart-cause.sh" --check > "$filename"; then
   echo 'ERROR: snapshot_collection_failed' >&2
@@ -44,7 +47,7 @@ if ((bytes > 524288)); then
   echo 'ERROR: snapshot_exceeds_512_KiB_limit' >&2
   exit 70
 fi
-trap - ERR INT TERM
+saved=yes
 printf 'snapshot_saved=%s\n' "$filename"
 echo 'snapshot_scope=WORKSTATION_ONLY_REDACTED_READONLY'
 echo 'snapshot_retention=MANUAL_DELETE_AFTER_COMPARISON'
