@@ -863,3 +863,67 @@ Les tests doivent être relancés sur le nouveau HEAD (aucun PASS inventé).
   seulement lorsqu'un diagnostic ou une mutation runtime le nécessite ;
 - aucun besoin de lancer la suite Python deux fois, ni d'utiliser un tunnel
   Workstation quand la commande tourne sur TrueNAS.
+
+
+## 25 octobre 2026 — 429 persistant après création des clés TrueNAS
+
+Nouvelle preuve Workstation :
+`just openclaw-truenas-virtual-keys-test` **9/9 PASS**,
+`just openclaw-truenas-virtual-keys-status` :
+`execution_target=workstation_ssh`,
+`models_allowlist=verified`, `existing_key_count=2`,
+`provisioning=inspection_only`.
+
+L'interface OpenClaw montre encore **« API rate limit reached. Please try
+again later. »**. **Cela ne signifie pas que le provisioning a échoué.**
+Il faut distinguer :
+- la route Workstation `172.17.0.57:4000/v1` historiquement utilisée
+  par `litellm-main` et `litellm-cron` ;
+- les clés nouvellement créées uniquement sur le proxy TrueNAS
+  `172.17.0.24:4000/v1` ;
+- les modèles `qwen` / `workstation-qwen` autorisés par ces clés, par
+  opposition aux anciens `gpt-4.1` / `gpt-4.1-mini` OpenClaw ;
+- le budget effectif, la limite RPM/TPM, les éventuels cooldowns
+  OpenClaw, et les limites appliquées par le proxy ou le fournisseur
+  en amont.
+
+**Audit nouveau, à lancer uniquement sur Workstation** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-attribution-test
+just openclaw-429-attribution
+```
+
+Le premier exécute des tests unitaires hors ligne. Le second examine :
+1. `openclaw.json` : routes et modèles principaux et `cron`,
+   sans afficher les URL complètes ni les valeurs de clé ;
+2. `agents/{main,cron}/agent/models.json` : overrides possibles
+   qui peuvent maintenir l'ancienne route ;
+3. sur TrueNAS, `/key/info` pour les deux clés connues, avec leur
+   **hash SHA-256 uniquement dans la requête locale**, afin de classifier
+   `spend`, `max_budget`, `rpm_limit`, `tpm_limit` et les scopes ;
+4. `openclaw models status --json` : agrégats non identifiants
+   d'authentifications inutilisables (cooldown/billing).
+
+Les diagnostics ne lancent aucune génération ni `openclaw models
+status --probe`. Si le schema OpenClaw évolue, l'audit doit retourner
+`unrecognized_schema`, pas déclarer zéro profil indisponible.
+
+Les verdicts possibles sont indépendants : `budget exhausted` sur la
+clé TrueNAS, route OpenClaw Workstation inchangée, modèle non attribué
+à la clé TrueNAS, ou cooldown au niveau OpenClaw. **Ne pas réexécuter
+`openclaw-truenas-virtual-keys-apply`** : deux entrées existent.
+Ne pas augmenter les budgets pour masquer un 429 non attribué.
+
+La vraie bascule vers TrueNAS exige une configuration cohérente des
+providers/modèles/SecretRefs et la vérification de l'identité de clé
+réellement présentée par chaque agent. Le routage effectif de sessions
+existantes et de l'auth SQLite reste non attesté par une simple lecture
+de `openclaw.json`.
+
+Documentation officielle :
+- https://docs.openclaw.ai/help/faq-models
+- https://docs.openclaw.ai/gateway/config-tools/custom-providers
+- https://docs.openclaw.ai/concepts/model-failover
