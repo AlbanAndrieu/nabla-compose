@@ -33,7 +33,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | 3 | Akvorado | +5 flux / +4 metadata missing / +0 lots ClickHouse ; statique ifIndex=11 à vérifier en mémoire | **Ingestion bloquée** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
-| Indépendant | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; DHCP annoncé `172.17.0.1`, profil NM `172.17.0.1`, résolveurs actifs Quad9 | **FAIL client constaté**, origine de la substitution à identifier |
+| Différé | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; 19 tests de diagnostic PASS opérateur | **Correction reportée par décision utilisateur ; ne pas modifier la workstation** |
 
 **Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
@@ -58,8 +58,13 @@ Actions :
   `diagnose-sentry-consumers.sh --check` et le smoke Sentry déjà versionné.
 - [ ] **H-03 :** isoler la panne par `diagnose-defectdojo.sh --check`,
   sans modifier PostgreSQL, l'initializer ou la route publique.
-- [ ] **H-04 :** étudier les traces OOM, les processus et les tâches planifiées
-  en lecture seule ; ne déplacer aucune tâche sur simple corrélation temporelle.
+- [ ] **H-04 :** séparer le **OOM Unbound confirmé** vers 02:10 des
+  redémarrages 23:38/00:04 non attribués ; exécuter
+  `just pfsense-unbound-restart-test` puis
+  `just pfsense-unbound-restart-check` en lecture seule, et rapprocher
+  les catégories kernel, DNSBL, cron, Watchdog et configd sans leur
+  attribuer une causalité implicite.
+  [Runbook causalité](runbooks/2026-10-25-pfsense-unbound-restart-causality.md).
 - [ ] **Workstation DNS :** valider le parseur DHCP et le chemin de la zone privée via
   `just pfsense-wifi-path-test` et `just pfsense-wifi-path` ; isoler le
   propriétaire de la divergence NetworkManager ↔ `systemd-resolved` sans
