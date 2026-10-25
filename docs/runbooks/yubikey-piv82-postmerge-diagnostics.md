@@ -610,3 +610,8 @@ par une procédure de restauration isolée et autorisée.
 
 **Toutes les opérations de configuration matérielle et de migration
 SOPS restent NO-GO.**
+
+
+## 18. Diagnostic consolidé en une commande — PR #280
+
+La cible `just yubikey-diagnostics-secondary-readonly` réunit les contrôles du poste et des applications PIV/FIDO2/OATH/OpenPGP sur la seule carte 22916048. Voir [le runbook](yubikey-readonly-batch.md) pour les modes host-only, tests synthétiques et principale séparée. Aucun PIN, OTP2, F9, PIV82, déchiffrement, modification PAM ou SOPS n'est exécuté. Résultat global NO-GO même en cas d'observations positives. Les validations opérateur précédentes ne couvrent pas cette nouvelle cible.

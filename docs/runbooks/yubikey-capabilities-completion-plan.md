@@ -122,3 +122,8 @@ n'interroge pas la carte. Les chemins et contenus ne sont pas imprimés.
 La présence d'une commande, d'un socket ou d'un fichier public n'est
 **jamais** une preuve d'authentification, de déchiffrement, ni de
 restauration de sauvegardes. Le JSON reste `status=NO-GO`.
+
+
+## Diagnostic agrégé du poste et des applications
+
+Exécuter `just yubikey-diagnostics-test` puis `just yubikey-diagnostics-secondary-readonly` pour une seule observation sans mutation. Les étapes GPG/scdaemon, escrow, PostgreSQL, PIV82, FIDO2/SSH et PAM conservent `NOT_VERIFIED`. L'OTP2 n'est pas revérifié par défaut. [Runbook](yubikey-readonly-batch.md).

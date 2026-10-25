@@ -83,6 +83,20 @@ catalog-convergence-check:
 yubikey-otp2-secondary-readonly:
     python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary
 
+# One-shot read-only snapshot. Never asks PIN, challenge, writes or decrypts.
+yubikey-diagnostics-test:
+    python3 -m py_compile scripts/workstation/diagnose-yubikey-readonly-batch.py tests/test_yubikey_readonly_batch.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_readonly_batch.py' -v
+
+yubikey-diagnostics-host-readonly:
+    python3 scripts/workstation/diagnose-yubikey-readonly-batch.py
+
+yubikey-diagnostics-secondary-readonly:
+    python3 scripts/workstation/diagnose-yubikey-readonly-batch.py --hardware --serial 22916048
+
+yubikey-diagnostics-primary-readonly:
+    python3 scripts/workstation/diagnose-yubikey-readonly-batch.py --hardware --serial 23501671
+
 # Public applet/PIV metadata only. Connect exactly one selected YubiKey.
 # These observations NEVER authorize provisioning, PIN input, OTP challenge or reset.
 yubikey-applications-secondary-readonly:
