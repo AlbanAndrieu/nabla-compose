@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 VM_NAMES = ("taloscp01", "taloswk01", "taloswk02")
 ACK = "I_ACCEPT_STARTING_EXISTING_TALOS_VMS"
