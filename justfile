@@ -252,6 +252,11 @@ pfsense-unbound-restart-test:
 pfsense-unbound-restart-check:
     bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
 
+# Fast operator entrypoint: includes categorized download failures and file-size warnings.
+# This deliberately reuses the single read-only Unbound/pfBlockerNG/Snort collector.
+pfsense-feed-pressure-check:
+    PFSENSE_OUTPUT=compact bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+
 pfsense-unbound-wifi-test:
     bash -n scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh
     bash -n scripts/pfsense/audit-posture.sh
