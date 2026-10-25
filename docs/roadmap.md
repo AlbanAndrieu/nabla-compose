@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | **Nouvelle régression signalée le 25/10 :** `https://defectdojo.int.albandrieu.com/` inaccessible dans le navigateur ; cause runtime actuelle **NOT_VERIFIED**. L'ancienne acceptation HTTP 302 ne constitue plus une preuve présente | Rejouer la chaîne Nginx/uWSGI → LAN :31085 → DNS Pi-hole/Unbound → HTTPS Traefik/SNI et valider la page de connexion |
-| H-04 | pfSense / Unbound | **48/48 diagnostic PASS** ; `26.07-RELEASE` et **profil PHP-FPM upstream `8/3600/2/7/5000` confirmé**, **7 vrais workers nginx** (25/10). Unbound arrêté puis redémarré manuellement ; CrowdSec firewall arrêté volontairement (moteur/bouncer à distinguer). Disponible **72,4–209,3 Mio** hors cron | **P0 :** restaurer le profil Nabla `4/30/1/2/500` via script de maintenance à confirmation explicite, hors mise à jour DNSBL, avec pré/post DNS et rollback ; ne pas désactiver de contrôles Snort/pfBlockerNG sans gain mesuré. **P1 :** confirmer bouncer et règles appliquées ; vérifier AC-BNFA Snort et mémoire/DNSBL ; **P2 :** capturer OOM de 02:09. |
+| H-04 | pfSense / Unbound | **PHP-FPM `4/30/1/2/500` appliqué et vérifié en production le 25/10 à ~23:41 CET** : 1 worker nginx, Unbound/DNS healthy, free+inactive **271,4 Mio** au premier relevé, Snort **ac-bnfa** + HTTP Inspect 32 Mio. **Nouvel OOM le 25/10 à 22:12 CET** (dont Unbound et `php_pfb`) **avant** le changement, après le cron pfBlockerNG de 22:00. CrowdSec engine actif, firewall bouncer arrêté ; `pfb_filter` absent. | **P0 :** confirmer HTTPS/pfREST, DNS privé depuis LAN et absence de nouvel OOM depuis ~23:40 ; stabiliser le profil après charge réelle. **P1 :** déterminer les causes de l'OOM 22:12 / `php_pfb`, vérification IPinfo/DNSBL et bouncer CrowdSec. **P2 :** comparer à 02:09 et 00:04, sans retirer AC-BNFA ni les protections encore utiles. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -74,30 +74,35 @@ Actions :
   les catégories kernel, DNSBL, cron, Watchdog et configd sans leur
   attribuer une causalité implicite.
   [Runbook causalité](runbooks/2026-10-25-pfsense-unbound-restart-causality.md).
-- [ ] **H-04 / PHP-FPM P0 — profil mémoire allégé :** `just pfsense-php-fpm-test`
-  et `just pfsense-security-capacity-audit` en lecture seule ; garder
-  l'accès SSH/console de secours. Le diagnostic opérateur confirme
-  `8/3600/2/7/5000` dans le générateur **et** la configuration
-  générée, ainsi que **7 workers nginx** (preuve de régression).
-  Après validation et hors des crons pfBlockerNG/Snort, appliquer
-  `PFSENSE_PHP_FPM_CHANGE_CONFIRM=APPLY_4_WORKERS just pfsense-php-fpm-apply`.
-  Le script sauvegarde le générateur, utilise les redémarrages natifs
-  de PHP-FPM/WebConfigurator et contrôle Unbound/DNS, socket et
-  workers (1–4). Rollback indépendant :
+- [x] **H-04 / PHP-FPM P0 — déploiement du profil mémoire allégé :**
+  commande appliquée par l'opérateur le **25 octobre 2026** ;
+  `just pfsense-security-capacity-test` **13/13 PASS** et
+  `just pfsense-unbound-restart-test` **48/48 PASS** (précédemment).
+  Avant : générateur + pool `8/3600/2/7/5000`, **7 workers nginx**.
+  Après : générateur + pool **`4/30/1/2/500`**, **1 worker nginx**,
+  socket PHP-FPM présente, DNS public localhost et contrôle Unbound HEALTHY.
+  Sauvegarde versionnée localement sur pfSense.
+  Les commandes ont indiqué un `[: NaN: bad number` **non fatal** au
+  redémarrage natif, d'origine **non déterminée** ; voir runbook.
+- [ ] **H-04 / PHP-FPM P0 — acceptation après changement :**
+  confirmer HTTPS WebConfigurator **:10443**, accès pfREST, résolution DNS
+  publique et privée depuis LAN, absence de nouvel OOM, et absence de
+  saturation des workers FastCGI. Le premier snapshot après changement
+  montre **277868 Kio de free+inactive = 271,4 Mio**, RSS agrégé
+  php_fpm **195792 Kio** sur **5 processus** (dont master), mais pas un
+  essai à charge strictement équivalente. Rejouer le sampler et comparer
+  une fenêtre équivalente. Ne pas réappliquer le changement déjà effectué.
+  Rollback uniquement en cas de régression avérée :
   `PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just pfsense-php-fpm-restore`.
-  **Acceptation :** pool `4/30/1/2/500`, HTTPS/10443 et pfREST disponibles,
-  DNS public/privé LAN fonctionnel, absence de nouveaux OOM et de
-  débordements FastCGI ; RSS et disponible avant/après comparés.
-  **La commande apply n'a pas été exécutée par l'agent.**
   [Runbook PHP-FPM](pfsense-php-fpm-hardening.md).
-- [ ] **H-04 / Snort P1 — optimiser sans réduire la détection :**
-  vérifier l'instance **WAN seule**, HTTP Inspect `memcap=33554432`
-  et la méthode de recherche **AC-BNFA** avec
-  `just pfsense-security-capacity-audit` ; utiliser la page
-  *Services > Snort > Interfaces > WAN > Detection Performance*
-  seulement si le champ n'est pas déjà correct. Ne pas toucher
-  aux règles ni au `snort.conf` généré avant comparaison RSS,
-  latence et incidents sur une fenêtre équivalente.
+- [x] **H-04 / Snort P1 — réglages basse mémoire confirmés :**
+  Snort **WAN en mode passif**, `search_method=ac-bnfa` et
+  HTTP Inspect `memcap=33554432` (**32 Mio**) dans l'audit opérateur ;
+  également confirmé dans l'interface Snort. Pas besoin de retirer
+  de règles à ce stade. Ne pas éditer le `snort.conf` généré.
+- [ ] **H-04 / Snort P2 — OOM des mises à jour :** mesurer la vraie
+  fenêtre **02:08:30–02:11:30** et déterminer si Snort ou un autre
+  processus déclenche la pression mémoire, sans modifier la couverture.
 - [ ] **H-04 / pfBlockerNG P1 — feeds et pression mémoire :**
   conserver UT1 Adult, catégories lourdes et TLD désactivés ;
   conserver `PHP memory_limit=128M`. Vérifier les feeds 403/404
@@ -107,17 +112,29 @@ Actions :
   supplémentaire que si elle est redondante/obsolète et si
   la couverture IP/DNSBL est documentée.
 - [ ] **H-04 / CrowdSec P1 — état de l'application firewall :**
-  distinguer **moteur CrowdSec** et **firewall bouncer** via
-  `just pfsense-security-capacity-audit`. Le composant « CrowdSec
-  firewall » a été arrêté manuellement : mesurer le gain et
-  documenter les décisions non appliquées avant une réactivation
-  contrôlée. Ne pas confondre bouncer arrêté et moteur inactif.
+  audit du 25/10 : `crowdsec.engine=running` et
+  `crowdsec.firewall_bouncer=stopped_or_unknown` ; arrêt volontaire
+  rapporté par l'opérateur. Les décisions de blocage peuvent ne plus
+  être appliquées localement. Ne pas réactiver le bouncer pendant la
+  mesure mémoire ; documenter le gain et restaurer la couverture lors
+  d'une fenêtre dédiée. Vérifier également
+  `service.pfb_filter=0` (helper filterlog absent).
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
   viser au moins **128 Mio free+inactive** en régime ordinaire,
   aucune chute prolongée sous 64 Mio, et zéro nouvel OOM Unbound.
   Capturer la vraie fenêtre **02:08:30–02:11:30** avec
   `just pfsense-memory-window`, corréler RSS PHP/CrowdSec/Snort,
   cron et logs noyau. Écarter les changements simultanés.
+- [ ] **H-04 / OOM 22:12 — pfBlockerNG :** le **25/10 à
+  22:12 CET**, nouvel OOM noyau avec kills **Unbound** et **php_pfb**,
+  après le cron pfBlockerNG planifié à **22:00** (proximité horaire,
+  causalité du traitement non prouvée). Le redémarrage manuel d'Unbound
+  a créé le PID `19252` à **22:46:18 CET**. Enquêter sur l'exécution
+  et la mémoire des traitements `php_pfb`/DNSBL à 22:00, puis
+  distinguer nouveaux kills **après 23:40** des OOM historiques.
+  `pfblocker.dnsbl_loaded_entries=0` signifie compteur **inconnu**,
+  pas preuve d'une liste réellement vide ; dernier marqueur `PASSED`
+  connu à **00:05:12**. Ne pas forcer de téléchargement/rebuild.
 - [ ] **H-04 feed-pressure :** exécuter `just pfsense-feed-pressure-check`
   en lecture seule lors des prochaines anomalies Unbound/Snort/pfBlockerNG.
   Examiner les erreurs HTTP 403/404/429/5xx, timeouts, retries IPinfo,
