@@ -124,32 +124,45 @@ Actions :
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
+**Tests opérateur :** `just migration-recovery-contracts` : **12 PASS**.
+`just node22-fast` : **5 PASS / 1 FAIL** car exécuté sous Node 24 ;
+la recette sélectionne désormais Node 22 via `mise` et doit être rejouée
+sur le HEAD exact. `just quality` reste NOT_RUN.
+
 ## P0 — Reprise Talos VM, secret modes et preuve PDF (25 octobre)
 
-**Source :** VM Talos `taloscp01`, `taloswk01`, `taloswk02`
-annoncees STOPPED par l'operateur. Aucune preuve de VM RUNNING,
-Talos API, etcd ou CSI actuelle. **Ne pas lancer fast-batch-upgrade**
-avant restauration et validation du cluster.
+**Nouvelle preuve :** les trois VM Talos `taloscp01`, `taloswk01`,
+`taloswk02` sont **RUNNING** côté middleware TrueNAS après reprise.
+La première commande `vm.start` a expiré mais le second inventaire
+confirme le démarrage du control-plane ; workers démarrés ensuite.
+**Talos API, etcd, nœuds Kubernetes et CSI restent NOT_VERIFIED.**
+Ne pas lancer fast-batch-upgrade avant validation du cluster.
 
 - [x] **Code :** `resume-stopped-talos-vms.py --check` et
   `--start --acknowledge I_ACCEPT_STARTING_EXISTING_TALOS_VMS` :
   liste de VM figée, refuse l'inventaire ambigu et confirme le middleware,
   aucun upgrade/etcd reset.
-- [ ] **Runtime :** demarrer les 3 VM existantes depuis TrueNAS, puis
-  `validate-cluster.sh` et smoke retained CSI depuis la workstation ;
-  VM RUNNING seule ne prouve pas Kubernetes Ready.
+- [x] **Runtime VM :** les trois VM sont RUNNING côté middleware ;
+  script amélioré pour gérer le timeout sans double `vm.start`.
+- [ ] **Runtime Kubernetes :** valider les nœuds, etcd et smoke retained CSI
+  depuis la workstation ; VM RUNNING ne prouve pas Kubernetes Ready.
 - [x] **Code :** `audit-runtime-secret-permissions.py --check` pour
   tous les fichiers reguliers et repertoires du root canonique ; `--apply` exige un
   acquittement, refuse symlinks/proprietaires non-root, conserve
   UID/GID ainsi que l'acces groupe necessaire. **Pas de chown/chmod -R**.
-- [ ] **Runtime :** audit puis revue avant correction globale des modes
-  sous `/mnt/cpool/secrets/runtime`; les legacy sont un chantier separe.
+- [x] **Runtime secrets canoniques :** audit `mode_changes=1 blockers=0`
+  puis correction de `openclaw/.env.secrets` `0644 → 0640` ;
+  UID/GID préservés. Réexécution de `--check` conseillée ; les legacy
+  hors du root canonique restent un chantier séparé.
 - [x] **Code :** `check-openrag-private-pdf.sh --check --file` pour
   la lecture du PDF depuis le dataset bind RO, la readiness Docling
   et la sante search, sans jamais envoyer ou indexer le PDF.
-- [ ] **Runtime :** verifier d'abord le PDF source en local, puis valider
-  Docling et un test E2E d'ingestion/retrieval avec PDF synthetique ;
-  **billet Mickey dans cpool/bababou NON TESTE par l'agent**.
+- [x] **Runtime montage :** PDF Mickey privé de 849129 octets valide
+  et lisible par `openrag-backend` selon le relevé opérateur.
+- [ ] **Runtime Docling :** `docling_not_ready` ; diagnostiquer App,
+  port hôte et résolution Docker via `diagnose-docling-readiness.py --check`.
+- [ ] **E2E OpenRAG :** conversion, ingestion et retrieval **NOT_TESTED** ;
+  commencer par un document synthétique, sans publier le billet.
   [Runbook cible](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·
   [Runbook ingestion de reference](runbooks/openrag-babou-ingestion-diagnostics.md).
 
