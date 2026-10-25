@@ -139,7 +139,7 @@ avant restauration et validation du cluster.
   `validate-cluster.sh` et smoke retained CSI depuis la workstation ;
   VM RUNNING seule ne prouve pas Kubernetes Ready.
 - [x] **Code :** `audit-runtime-secret-permissions.py --check` pour
-  tous les fichiers secrets canoniques ; `--apply` exige un
+  tous les fichiers reguliers et repertoires du root canonique ; `--apply` exige un
   acquittement, refuse symlinks/proprietaires non-root, conserve
   UID/GID ainsi que l'acces groupe necessaire. **Pas de chown/chmod -R**.
 - [ ] **Runtime :** audit puis revue avant correction globale des modes
