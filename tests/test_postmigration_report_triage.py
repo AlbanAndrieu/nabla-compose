@@ -85,6 +85,7 @@ def test_large_log_not_loaded(tmp_path):
     res=module.analyze(folder,root)
     assert res['checks'][0]['category'] in {'log_unavailable','catalog_check_failed'}
 
+
 def test_missing_pass_log_is_never_full_acceptance(tmp_path):
     root, folder = session(tmp_path,[('apisix-runtime','PASS','runtime=running')])
     (folder/'apisix-runtime.log').unlink()
