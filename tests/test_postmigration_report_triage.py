@@ -100,3 +100,65 @@ def test_partial_postmigration_summary_is_not_full_acceptance(tmp_path):
     assert report['complete'] is False
     assert 'postmigration-gatus' in report['missing_phases']
     assert report['unverified'] == 1
+
+
+def test_prometheus_section_header_does_not_indicate_drift(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-prometheus', 'FAIL',
+         '=== Prometheus config drift ===\n'
+         'host and mounted Prometheus config match\n'
+         'running-container Prometheus config is syntactically valid\n'
+         'prometheus_runtime=running config_validation=passed target_up=21 target_not_up=7\n'
+         'Unhealthy targets (job and health only; error category redacted):\n'
+         'FAILED: 1 Prometheus validation problem(s) TOKEN_SECRET')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'prometheus_scrape_degraded'
+    assert result['evidence']['target_up'] == 21
+    assert result['evidence']['target_not_up'] == 7
+    assert result['evidence']['signals'] == ['scrape_targets_degraded']
+    assert 'TOKEN_SECRET' not in json.dumps(result)
+
+
+def test_prometheus_real_config_mismatch_preserved(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-prometheus', 'FAIL',
+         '=== Prometheus config drift ===\n'
+         'host Prometheus config differs from the file visible inside the container\n'
+         'prometheus_runtime=running config_validation=passed target_up=20 target_not_up=8\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'prometheus_config_or_rules'
+    assert result['evidence']['signals'] == ['configuration_or_rules', 'scrape_targets_degraded']
+
+
+def test_catalog_stale_generator_contract_is_classified(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-catalog', 'FAIL',
+         'stale catalog-v2 artifacts:\n'
+         ' - catalog/generated/identity-map.json\n'
+         ' - catalog/generated/entities.json\n'
+         'run: python scripts/generate-catalog-v2-artifacts.py\nSECRET')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'generated_catalog_drift'
+    assert result['evidence']['stale_artifact_count'] == 2
+    assert 'identity-map' not in json.dumps(result)
+    assert 'SECRET' not in json.dumps(result)
+
+
+def test_readiness_flags_only_allowlisted_service_ids(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-service-readiness', 'FAIL',
+         'BLOCKED  scrutiny     TrueNAS=RUNNING\n'
+         'DEGRADED openrag     TrueNAS=RUNNING\n'
+         'BLOCKED  private-secret-url TrueNAS=RUNNING\n'
+         'Summary: HEALTHY=6 BLOCKED=1 DEGRADED=1\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['evidence']['affected_count'] == 2
+    assert result['evidence']['affected_services'] == [
+        {'service': 'scrutiny', 'status': 'BLOCKED'},
+        {'service': 'openrag', 'status': 'DEGRADED'},
+    ]
+    assert 'private-secret-url' not in json.dumps(result)
