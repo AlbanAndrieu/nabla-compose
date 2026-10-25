@@ -258,6 +258,45 @@ class UnboundRestartCauseContract(unittest.TestCase):
         )
         self.assertNotIn("$secret", run.stdout)
 
+    def test_pfblocker_prior_header_timestamp_is_context_not_event(self):
+        events = (
+            "Loading DNSBL [ 10/25/26 0:00:03 ]\n"
+            "Step prepared without raw credentials\n"
+            "Stopping Unbound Resolver... token=SECRET\n"
+            "Starting Unbound Resolver... token=SECRET\n"
+            "Next update [ 10/25/26 0:08:25 ]\n"
+            "Restarting DNSBL Service password=PRIVATE\n"
+        )
+        output = classify("pfblockerng", events)
+        self.assertIn(
+            "event=pfblocker_unbound_stop_marker timestamp=unknown "
+            "preceding_header_local=10/25/26 0:00:03 header_gap_lines=2",
+            output,
+        )
+        self.assertIn(
+            "event=pfblocker_unbound_start_marker timestamp=unknown "
+            "preceding_header_local=10/25/26 0:00:03 header_gap_lines=3",
+            output,
+        )
+        self.assertIn(
+            "event=dnsbl_service_restart_marker timestamp=unknown "
+            "preceding_header_local=10/25/26 0:08:25 header_gap_lines=1",
+            output,
+        )
+        self.assertNotIn("SECRET", output)
+        self.assertNotIn("PRIVATE", output)
+
+    def test_pfblocker_header_outside_80_lines_is_not_attributed(self):
+        events = (
+            "Loading DNSBL [ 10/25/26 0:00:03 ]\n"
+            + "unrelated long update\n" * 81
+            + "Starting Unbound Resolver... token=SECRET\n"
+        )
+        output = classify("pfblockerng", events)
+        self.assertIn("event=pfblocker_unbound_start_marker timestamp=unknown", output)
+        self.assertNotIn("preceding_header_local=", output)
+        self.assertNotIn("SECRET", output)
+
 
 if __name__ == "__main__":
     unittest.main()
