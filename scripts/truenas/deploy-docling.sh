@@ -15,7 +15,9 @@ case "${1:-}" in
 esac
 MODE="$1"
 
-APP_ID="${DOCLING_APP_ID:-docling}"
+APP_ID="docling"
+[[ "${DOCLING_APP_ID:-docling}" == "${APP_ID}" ]] ||
+  fail "only the docling Custom App may be created or changed by this script"
 CANONICAL_ROOT="${DOCLING_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
@@ -54,18 +56,23 @@ done
 if ! docker image inspect "${image}" >/dev/null 2>&1; then
   fail "Docling preflight: image ${image} is not cached locally; do not run a blind pull"
 fi
+app_json="$(truenas_app_query_by_id "${APP_ID}")"
+app_count="$(jq -r 'length' <<<"${app_json}")"
+[[ "${app_count}" =~ ^[01]$ ]] ||
+  fail "Docling preflight: unexpected or ambiguous existing App count"
+
 if [[ "${MODE}" == "--check" ]]; then
   printf '✅ Docling static Compose, cached image, and external networks present\n'
-  truenas_app_query_by_id "${APP_ID}" |
-    jq -r 'if length == 0 then "app=ABSENT (ready for deliberate --apply)"
-           elif length == 1 then "app=" + (.[0].state // "UNKNOWN")
-           else "BLOCKED: multiple matching Apps" end'
+  if [[ "${app_count}" == "0" ]]; then
+    printf 'app=ABSENT (ready for deliberate --apply)\n'
+  else
+    jq -r '.[0] | "app=" + (.state // "UNKNOWN")' <<<"${app_json}"
+  fi
   printf 'READ_ONLY: no app.create, app.update, app.redeploy, image pull or PDF processing\n'
   exit 0
 fi
 
-if truenas_app_query_by_id "${APP_ID}" |
-  jq -e 'length > 0' >/dev/null; then
+if [[ "${app_count}" == "1" ]]; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
   truenas_job_compact app.update "${APP_ID}" "$(
     jq -cn --arg include "${compose_path}" '{
