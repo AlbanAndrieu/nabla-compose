@@ -1457,3 +1457,124 @@ effectivement utilisé par le service.
 Documentation :
 https://docs.openclaw.ai/gateway/protocol/rpc-talk-config-and-agents
 https://docs.openclaw.ai/gateway/configuration/config-rpc
+
+
+## 2026-10-26 — récupération opérationnelle et upgrade rootless vers OpenClaw 2026.10.7
+
+Les **dernières** preuves opérateur montrent désormais
+`native_config_patch=applied` et `gateway_restart=managed_by_openclaw`.
+Le Gateway utilise `maxConcurrent=1` : le diagnostic local de deux
+heures trouve **zéro indicateur 429**, et un indicateur de timeout.
+Le collecteur n'avait pas la master key Workstation (API
+`/spend/logs/v2` non interrogée) : ceci ne prouve ni zéro requête
+refusée, ni une guérison complète du fournisseur GPT. Le modèle
+`litellm-main/gpt-4.1` et le secret embeddings restent inchangés.
+
+Le blocage d'upgrade reste séparé : `openclaw --version=2026.9.5`,
+Node actif `24.18.1`, Node `24.22.1` installé dans le préfixe
+`mise` mais non sélectionné partout. Le log npm original avait
+montré `runtime_engine`. Les avertissements de `mise.lock`
+concernant des outils globaux non verrouillés n'empêchent pas
+l'installation ciblée déjà prouvée de Node 24.22.1.
+
+**Source de version et de compatibilité (consultée 2026-10-26) :**
+OpenClaw stable 2026.10.7, Node 24.22.1 ou Node 26.12.1 minimum
+sur leurs branches respectives. Version épinglée **exactement**
+pour ne pas prendre un canal beta par erreur. Documents :
+- https://docs.openclaw.ai/install/updating
+- https://docs.openclaw.ai/install/update-troubleshooting
+- https://docs.openclaw.ai/install/node-compatibility
+- https://github.com/openclaw/openclaw/releases/tag/v2026.10.7
+
+### Pourquoi ne pas faire un simple `sudo npm i -g` ?
+
+Le service systemd user et le paquet OpenClaw appartiennent à un
+ancien préfixe `mise`. Une commande npm sur le nouveau PATH
+pourrait installer ailleurs et laisser le Gateway sur 2026.9.5.
+L'updater lui-même demande une vérification de propriétaire de
+service/paquet et du runtime. Le script de ce dépôt
+`scripts/workstation/upgrade-openclaw-mise.py` effectue une
+**migration côte à côte**, sans effacer le précédent paquet.
+
+La migration est volontairement fractionnée :
+
+1. **Test (offline)** — `just openclaw-upgrade-local-test`.
+   Tous les appels systemd, npm, HTTP et OpenClaw sont simulés.
+2. **Plan (lecture seule)** — `just openclaw-upgrade-local-plan`.
+   Vérifie `mise` Node, l'unique service
+   `openclaw-gateway.service` du compte courant, son
+   `ExecStart` attendu et le statut du paquet versionné.
+3. **Stage (mutation isolée)** — `just openclaw-upgrade-local-stage`.
+   Exécute npm avec le Node 24.22.1 **par chemin absolu** et le
+   préfixe npm du même Node ; installe uniquement le paquet
+   `openclaw@2026.10.7` depuis le registre npm officiel.
+   Vérifie `package.json` et la sortie de version.
+   **Le Gateway ancien continue à tourner** et aucune config,
+   identité de clé, mémoire ou service systemd n'est modifié.
+4. **Activation (maintenance explicite)** —
+   `just openclaw-upgrade-local-activate` :
+   arrête la seule unité systemd utilisateur connue ; sauvegarde
+   de manière cohérente `~/.openclaw` en tar.gz privé 0600 via
+   `backup-openclaw.sh` ; crée uniquement
+   `~/.config/systemd/user/openclaw-gateway.service.d/20-nabla-openclaw-upgrade.conf`
+   (0600), avec `ExecStart` sous Node 24.22.1 et paquet
+   2026.10.7. Le drop-in préserve les autres fichiers
+   `EnvironmentFile`, les variables de l'unité et le port 18789.
+   `daemon-reload`, `start`, puis sonde locale `/readyz`.
+   Le script refuse un drop-in concurrent ou un service inconnu.
+5. **Vérification sans modèle payant** —
+   `just openclaw-upgrade-local-verify` :
+   statut unité, version de paquet, owner Node, `/readyz`,
+   `doctor --lint --json` et `memory status` expurgés.
+   Vérifier ensuite les canaux et sessions de manière explicite.
+
+**Procédure Workstation** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Le CLI `openclaw` du shell peut encore désigner l'ancien préfixe
+après activation. Pour interroger explicitement la nouvelle version :
+
+```bash
+mise exec node@24.22.1 -- openclaw --version
+```
+
+ou en chemin absolu via la CLI du nouveau préfixe. Vérifier
+`openclaw --version` dans un nouveau shell avant de supprimer
+l'ancien paquet, en gardant le service stable d'abord.
+La CLI `openclaw update` ne doit plus être lancée avec l'ancien
+Node/prefix sur PATH.
+
+### Limites et retour arrière
+
+**Ne jamais effacer les données SQLite ni réindexer la mémoire.**
+Une activation 2026.10.7 peut migrer des schémas SQLite et plugins.
+L'ancien 2026.9.5 ne saurait pas forcément relire ces données.
+Si le nouveau Gateway ne démarre pas, le script **n'effectue aucun
+rollback automatique des bases** ; il garde l'ancien package et la
+sauvegarde cohérente dans `~/Backups/openclaw`. Examiner le code
+d'échec, récupérer les données depuis une sauvegarde compatible
+uniquement sous contrôle utilisateur, puis rétablir l'unité.
+Un échec pendant la **sauvegarde** (avant activation) relance
+l'ancien service automatiquement et ne crée aucun drop-in.
+
+Ne pas exécuter `doctor --fix`, ne pas réinstaller les plugins
+à l'aveugle et ne pas lancer un modèle facturable durant le
+cutover. Les warnings de migration Slack sont une dette distincte :
+`doctor --lint` et les diagnostics des canaux servent à décider
+de la correction après upgrade. Les jobs cron sans agent nommé
+ne deviennent pas un agent distinct lors de cette migration.
+
+Les actions du script sont strictement limitées à la Workstation ;
+aucune route professionnelle n'est copiée vers le TrueNAS et
+les clés virtuelles `openclaw-main`, `openclaw-cron`,
+`openclaw-embeddings` ne sont pas reprovisionnées.
