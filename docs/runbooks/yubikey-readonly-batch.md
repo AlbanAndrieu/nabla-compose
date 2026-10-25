@@ -183,3 +183,50 @@ ni restauration PostgreSQL. Les gates `GPG_OPENPGP_INTEROP_NOT_VERIFIED`,
 `POSTGRES_RESTORE_NOT_VERIFIED`, `ESCROW_RESTORE_NOT_VERIFIED` et
 `HARDWARE_AGE_ROUNDTRIP_NOT_VERIFIED` restent ouvertes. Aucun changement
 PIV82/9A, OTP2, PAM, SOPS ou escrow n'est autorisé par ce résultat.
+
+## Préparation simultanée — sans modification des cartes
+
+La recette `just yubikey-parallel-host-readonly` lance **en parallèle** les
+cinq familles de tests hermétiques déjà existantes (récupération,
+applications, workstation, coordinateur, GPG-agent). Après réussite de ces
+tests, elle exécute **en parallèle** deux contrôles du poste : métadonnées
+SOPS/SSH/PAM/GPG et protocole GPG-agent `GETINFO`. Elle produit un seul
+JSON synthétique sans restituer les sorties privées des sous-processus.
+
+`just yubikey-parallel-secondary-readonly` ajoute, uniquement sur option
+explicite, un inventaire public de la carte secondaire 22916048 **après la
+fin** des contrôles parallèles. L'accès au même périphérique n'est **jamais**
+parallélisé. Aucune lecture OTP2/F9/PIV82, aucun PIN, aucune signature,
+aucun déchiffrement, aucune écriture matérielle, aucune modification SOPS/PAM.
+
+```bash
+just yubikey-parallel-test
+just yubikey-parallel-host-readonly
+# Avec une seule YubiKey secondaire connectée :
+just yubikey-parallel-secondary-readonly
+```
+
+En cas d'échec ou d'expiration d'un seul contrôle, l'inventaire matériel
+est bloqué (exit 3). **`status=NO-GO` reste invariable**, même lorsque les
+contrôles réussissent et que le programme renvoie 0. Une suite de tests
+n'est jamais une validation des futures configurations.
+
+### Chantiers préparables en parallèle
+
+| Chantier | Travail possible immédiatement | Condition avant configuration réelle |
+| --- | --- | --- |
+| GPG/scdaemon/OpenPGP | Probe du transport Assuan, inventaire du chemin PC/SC et des dépendances | Ne pas redémarrer scdaemon, manipuler les sous-clés ni effectuer de signature sans validation séparée |
+| Sauvegardes GPG/PostgreSQL | Identifier les fichiers existants et préparer un environnement de restauration jetable | Autorisation explicite avant tout accès à une clé privée ou déchiffrement |
+| age/SOPS/escrow | Identifier deux supports distincts et préparer le plan de reprise | Vérification de restauration et accès aux secrets autorisés séparément |
+| FIDO2/SSH/KeePassXC | Cartographier les comptes, destinations et voies de secours, sans enregistrer de credential | Enrôlements et challenges approuvés individuellement |
+| PIV82/AES256, PKI/9A | Préparer le plan d'intégration age et inventorier les dépendances du certificat 9A | Escrow fonctionnel, approbation distincte de chaque opération matérielle |
+
+Une configuration réelle peut suivre plusieurs chantiers **indépendants** en
+parallèle, mais **pas** les écritures concurrentes sur une même YubiKey.
+La clé de gestion PIV AES256, OTP2, PIV9A, PAM et SOPS restent protégés
+par leurs gates respectives. Le statut général de récupération est NO-GO.
+
+**Validation du nouveau code :** tests hermétiques versionnés dans
+`tests/test_yubikey_parallel_readonly.py` ; **NOT_RUN sur la workstation**
+au moment de la publication de cette extension. Exécuter la recette
+`just yubikey-parallel-test` au SHA exact de la branche.
