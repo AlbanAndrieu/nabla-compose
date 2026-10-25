@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 FILE = (
     Path(__file__).resolve().parents[1]
     / "scripts/truenas/diagnose-protected-service-http.py"
@@ -55,3 +57,35 @@ def test_only_fixed_lan_endpoints_and_no_credentials() -> None:
     check = subprocess.run(["python3", str(FILE), "--help"],
                            capture_output=True, text=True, check=False)
     assert check.returncode == 0
+
+
+def test_gatus_and_docker_healthchecks_remain_independent() -> None:
+    root = Path(__file__).resolve().parents[1]
+    cfg = yaml.safe_load(
+        (root / "apps/gatus/config/config.yml").read_text(encoding="utf-8")
+    )
+    by_id = {
+        endpoint.get("extra-labels", {}).get("nabla_service_id"): endpoint
+        for endpoint in cfg["endpoints"]
+    }
+    assert by_id["garage"]["url"] == "tcp://172.17.0.24:3900"
+    assert by_id["litellm"]["url"] == "tcp://172.17.0.24:4000"
+    assert by_id["garage"]["conditions"] == ["[CONNECTED] == true"]
+    assert by_id["litellm"]["conditions"] == ["[CONNECTED] == true"]
+    compose = yaml.safe_load(
+        (root / "apps/litellm/compose.yml").read_text(encoding="utf-8")
+    )
+    health = compose["services"]["litellm"]["healthcheck"]
+    assert "/health/liveliness" in str(health["test"])
+
+
+def test_docker_health_is_only_metadata_and_never_fabricated(monkeypatch) -> None:
+    def fake_run(argv, **kwargs):
+        assert argv[:3] == ["docker", "inspect", "--format"]
+        assert kwargs["timeout"] == 3
+        assert kwargs["check"] is False
+        return subprocess.CompletedProcess(argv, 0, "healthy\\n", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert module.docker_health("litellm") == "healthy"
+    assert module.docker_health("not-allowed") == "not_observed"
