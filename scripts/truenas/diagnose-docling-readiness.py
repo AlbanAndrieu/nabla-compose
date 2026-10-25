@@ -30,15 +30,22 @@ def app_state(payload: object) -> str:
     return str(selected[0].get("state", "UNKNOWN"))
 
 
-def host_ready() -> str:
+def host_probe(path: str) -> str:
+    """Check fixed Docling health routes without reading response bodies."""
+    if path not in ("/health", "/ready"):
+        raise ValueError("unsupported health route")
     opener = build_opener(ProxyHandler({}))
     try:
-        with opener.open("http://172.17.0.24:5001/ready", timeout=6) as response:
+        with opener.open("http://172.17.0.24:5001" + path, timeout=6) as response:
             return "READY" if response.status == 200 else "HTTP_NON_200"
     except HTTPError as exc:
         return "HTTP_" + str(exc.code)
     except (URLError, TimeoutError, OSError):
         return "UNREACHABLE"
+
+
+def host_ready() -> str:
+    return host_probe("/ready")
 
 
 def diagnose() -> dict[str, str]:
@@ -67,6 +74,15 @@ def diagnose() -> dict[str, str]:
         "{{.RestartCount}}", "docling",
     )
     result["restartCount"] = count.strip() if has_restarts and count.strip().isdigit() else "UNVERIFIED"
+    checked, health_exit = command(
+        "docker", "inspect", "--type", "container", "--format",
+        "{{if .State.Health}}{{if .State.Health.Log}}{{(index .State.Health.Log 0).ExitCode}}{{else}}unavailable{{end}}{{else}}unavailable{{end}}",
+        "docling",
+    )
+    result["healthCheckExitCode"] = (health_exit.strip()
+                                     if checked and health_exit.strip() in ("0", "1", "2", "unavailable")
+                                     else "UNVERIFIED")
+    result["hostLiveness"] = host_probe("/health")
     result["hostReady"] = host_ready()
     valid, _ = command("docker", "exec", "openrag-backend", "curl", "-fsS",
                        "--max-time", "6", "http://docling:5001/ready")
@@ -77,7 +93,9 @@ def diagnose() -> dict[str, str]:
         result["next"] = "run_synthetic_pdf_conversion_before_ingestion"
     elif result["app"] == "DEPLOYING" and result["container"] == "running":
         result["status"] = "INITIALIZING"
-        result["next"] = "observe_docling_container_health_without_redeploy"
+        result["next"] = ("inspect_docling_startup_without_redeploy"
+                          if result["containerHealth"] == "unhealthy"
+                          else "observe_docling_container_health_without_redeploy")
     elif result["app"] in ("ABSENT", "STOPPED", "CRASHED", "FAILED"):
         result["status"] = "NOT_READY"
         result["next"] = "review_docling_custom_app_and_compose_before_targeted_deploy"
