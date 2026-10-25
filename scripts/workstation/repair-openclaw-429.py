@@ -129,7 +129,7 @@ def candidate(config, cron_secret, allowed):
     concurrency = defaults.get("maxConcurrent", 4)
     if type(concurrency) is not int or not 1 <= concurrency <= 64:
         raise ValueError("concurrency_invalid")
-    updated["agents"]["defaults"]["maxConcurrent"] = min(concurrency, 1)
+    updated["agents"].setdefault("defaults", {})["maxConcurrent"] = min(concurrency, 1)
     return updated
 
 
