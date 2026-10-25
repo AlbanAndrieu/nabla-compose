@@ -109,3 +109,45 @@ Références internes : [plan de finition](yubikey-capabilities-completion-plan.
 `just yubikey-gpg-agent-readonly` envoie uniquement `GETINFO version` à un agent GPG **déjà lancé**, par `gpg-connect-agent --no-autostart`. La réponse brute et le chemin du socket ne sont jamais imprimés. L'état `RESPONDS_GETINFO_ONLY` prouve uniquement la joignabilité du protocole Assuan, **pas** l'accès à une carte OpenPGP, une signature, un déchiffrement ni une restauration PostgreSQL. Une erreur indique `UNKNOWN` ou `TOOL_MISSING`, jamais un agent démarré implicitement. Voir la [documentation GnuPG](https://gnupg.org/documentation/manuals/gnupg-devel/Invoking-gpg_002dconnect_002dagent.html).
 
 `just yubikey-diagnostics-all-secondary` lance aussi `just yubikey-gpg-agent-test` puis active `--gpg-agent-probe` sur le coordinateur. Ce lot exécute **16 + 28 + 12 + 13 + 19 + 7 = 95 méthodes de tests ciblés** avant l'observation publique de la secondaire. Ce compteur indique les tests versionnés, **pas des tests déjà exécutés sur le nouveau HEAD**. Aucune nouvelle lecture OTP2, F9 ou PIV82.
+
+
+## Preuve du diagnostic GPG-agent par gpgconf (workstation)
+
+Journal opérateur au snapshot `9dca0d43` (le HEAD distant de cette
+PR peut avoir changé ensuite) :
+
+- `just yubikey-workstation-test` : **13/13 PASS** en 0,023 s ;
+  `py_compile` PASS ;
+- `just yubikey-workstation-readonly` :
+  `gpg_agent_socket_locator=GPGCONF`,
+  `gpg_agent_socket=PRESENT_UNVERIFIED` ;
+- identité SOPS logicielle : `PRESENT_PRIVATE_METADATA_ONLY` ;
+  mapping PAM : `PRESENT_UNVERIFIED` ; `pamu2fcfg=MISSING` ;
+  poignée SSH FIDO2 conventionnelle : `NOT_FOUND`.
+- `gpg_card_access_verified=false`, `postgres_restore_verified=false`,
+  `age_decrypt_verified=false`, `ssh_fido_auth_verified=false` et
+  `hardware_mutation_authorized=false`.
+
+**Interprétation :** le chemin de socket codé en dur était un faux
+négatif. `gpgconf` localise maintenant un socket Unix existant.
+Cela **ne prouve pas** que GPG-agent réponde, que scdaemon accède
+à l'applet OpenPGP, ni que les sauvegardes PostgreSQL soient
+déchiffrables.
+
+### Prochaine validation groupée (sans secrets)
+
+À partir du worktree actualisé de la PR #280, et avec **une seule
+YubiKey secondaire 22916048** connectée :
+
+`just yubikey-diagnostics-all-secondary`
+
+Cette recette réexécute les contrats hermétiques ciblés et produit
+un rapport agrégé des applications publiques ainsi qu'un contrôle
+GPG-agent **GETINFO version --no-autostart**. Elle ne déclenche
+ni OTP2/challenge, ni PIV82/F9, ni PIN, ni déchiffrement, ni écriture.
+Une réponse `RESPONDS_GETINFO_ONLY` ne vaut pas validation
+OpenPGP ou de récupération GPG/PostgreSQL. Un état `NO-GO`
+est attendu même si le programme retourne 0.
+
+Le journal des tests de la recette complète doit encore être
+fourni par l'opérateur avant toute affirmation de PASS au dernier HEAD.
