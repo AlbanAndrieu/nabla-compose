@@ -30,9 +30,6 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-if [[ "${MODE}" == "--apply" ]]; then
-  bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
-fi
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 compose_path="${CANONICAL_ROOT}/apps/docling/compose.yml"
@@ -71,6 +68,11 @@ if [[ "${MODE}" == "--check" ]]; then
   printf 'READ_ONLY: no app.create, app.update, app.redeploy, image pull or PDF processing\n'
   exit 0
 fi
+
+# Run any prerequisite materialization only after validating the image,
+# networks, Compose and App identity. Never mutate during --check.
+bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 if [[ "${app_count}" == "1" ]]; then
   printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
