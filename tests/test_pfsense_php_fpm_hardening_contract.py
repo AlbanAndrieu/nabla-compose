@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 import unittest
@@ -96,6 +97,71 @@ pm.max_spare_servers= 7
             self.assertIn("generated PHP-FPM profile: 8/3600/2/7/5000", result.stdout)
             self.assertIn("WARN: generator still uses pfSense high-memory profile", result.stdout)
             self.assertEqual(source.read_text(encoding="utf-8"), generator)
+            self.assertFalse(backup.exists())
+
+    def test_readonly_check_reports_runtime_profile_drift_and_workers(self) -> None:
+        generator = (
+            'elif [ "${REALMEM}" -gt 1000 ]; then\n'
+            '    PHPFPMMAX=4\n'
+            '    PHPFPMIDLE=30\n'
+            '    PHPFPMSTART=1\n'
+            '    PHPFPMSPARE=2\n'
+            '    PHPFPMREQ=500\n'
+            'fi\n'
+        )
+        generated = (
+            "pm.process_idle_timeout = 3600\n"
+            "pm.max_children = 8\n"
+            "pm.start_servers = 2\n"
+            "pm.max_spare_servers = 7\n"
+            "pm.max_requests = 5000\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            source = tmp / "rc.php_ini_setup"
+            config = tmp / "php-fpm.conf"
+            backup = tmp / "backup"
+            fake_ps = tmp / "ps"
+            source.write_text(generator, encoding="utf-8")
+            config.write_text(generated, encoding="utf-8")
+            fake_ps.write_text(
+                "#!/bin/sh\n"
+                "i=0\n"
+                "while [ \"$i\" -lt 8 ]; do\n"
+                "  echo 'php-fpm: pool nginx'\n"
+                "  i=$((i+1))\n"
+                "done\n",
+                encoding="utf-8",
+            )
+            fake_ps.chmod(0o755)
+            result = subprocess.run(
+                ["/bin/sh", str(SCRIPT), "--check"],
+                check=False, capture_output=True, text=True,
+                env={
+                    "PATH": str(tmp) + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
+                    "PFSENSE_PHP_FPM_GENERATOR": str(source),
+                    "PFSENSE_PHP_FPM_CONFIG": str(config),
+                    "PFSENSE_PHP_FPM_BACKUP": str(backup),
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(
+                "generator >1000 MiB profile: 4/30/1/2/500", result.stdout,
+            )
+            self.assertIn(
+                "WARN: generated PHP-FPM pool uses the high-memory profile",
+                result.stdout,
+            )
+            self.assertIn(
+                "generator and active generated profile differ", result.stdout,
+            )
+            self.assertIn("php_fpm_nginx_pool_workers=8", result.stdout)
+            self.assertIn(
+                "running nginx PHP-FPM workers exceed constrained target max=4",
+                result.stdout,
+            )
+            self.assertEqual(source.read_text(encoding="utf-8"), generator)
+            self.assertEqual(config.read_text(encoding="utf-8"), generated)
             self.assertFalse(backup.exists())
 
     def test_check_rejects_unknown_generator_shape(self) -> None:
