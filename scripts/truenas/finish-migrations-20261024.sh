@@ -268,6 +268,22 @@ run_check() {
     record "${name}" FAIL "${logfile}"
   fi
 }
+run_observation() {
+  # Exit 2 = missing / unverified data. Do not infer a service outage.
+  # Only explicitly selected post-migration checks use this classification.
+  local name="$1" logfile rc
+  shift
+  logfile="${SESSION_DIR}/${name}.log"
+  if "$@" >"${logfile}" 2>&1; then
+    record "${name}" PASS "${logfile}"
+  else
+    rc=$?
+    case "${rc}" in
+      2) record "${name}" WARN "${logfile}" ;;
+      *) record "${name}" FAIL "${logfile}" ;;
+    esac
+  fi
+}
 run_optional_tool() {
   local name="$1" tool="$2"; shift 2
   if ! command -v "${tool}" >/dev/null 2>&1; then
@@ -342,6 +358,12 @@ if [[ "${ACTION}" == check ]]; then
   fi
   print_summary
   ((FAILED==0)) || exit 1
+  # Optional/unverified status is never a successful *post-migration*
+  # acceptance. Keep existing historical --section critical semantics.
+  if [[ "${SECTION}" == postmigration || "${SECTION}" == apisix ]] &&
+     ((WARNINGS > 0 || SKIPPED > 0)); then
+    exit 2
+  fi
   exit 0
 fi
 
