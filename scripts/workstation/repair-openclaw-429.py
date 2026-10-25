@@ -80,15 +80,6 @@ def candidate(config, cron_secret, allowed):
     expected_routes = {"http://172.17.0.57:4000/v1", "http://127.0.0.1:4000/v1"}
     if main.get("baseUrl") not in expected_routes or cron.get("baseUrl") not in expected_routes:
         raise ValueError("routing_not_workstation")
-    main_key = main.get("apiKey")
-    cron_key = cron.get("apiKey")
-    if (not isinstance(cron_key, str) or not cron_secret
-            or not hmac.compare_digest(cron_key, cron_secret)
-            or (isinstance(main_key, str)
-                and hmac.compare_digest(main_key, cron_secret))):
-        raise ValueError("cron_key_not_verified_distinct")
-    if allowed is None or MODEL not in allowed:
-        raise ValueError("cron_model_not_authorized")
     agents = config.get("agents")
     if not isinstance(agents, dict):
         raise ValueError("agents_invalid")
@@ -112,6 +103,17 @@ def candidate(config, cron_secret, allowed):
         raise ValueError("defaults_invalid")
     updated = copy.deepcopy(config)
     if cron_index is not None:
+        # Only an explicitly declared cron agent needs this key/model probe.
+        # Scheduled cron jobs without an agent ID are not a new agent.
+        main_key = main.get("apiKey")
+        cron_key = cron.get("apiKey")
+        if (not isinstance(cron_key, str) or not cron_secret
+                or not hmac.compare_digest(cron_key, cron_secret)
+                or (isinstance(main_key, str)
+                    and hmac.compare_digest(main_key, cron_secret))):
+            raise ValueError("cron_key_not_verified_distinct")
+        if allowed is None or MODEL not in allowed:
+            raise ValueError("cron_model_not_authorized")
         current_model = entries[cron_index].get("model")
         if isinstance(current_model, dict):
             primary = current_model.get("primary")
@@ -308,14 +310,21 @@ def main(argv=None):
         print("repair=invalid_mode")
         return 2
     raw = private_read(CONFIG, 4 * 1024 * 1024)
-    key_raw = private_read(CRON_KEY, 4096)
-    if raw is None or key_raw is None:
-        print("repair=blocked_private_config_or_key")
+    if raw is None:
+        print("repair=blocked_private_config")
         return 2
     try:
-        key = key_raw.decode("ascii").strip()
         current = json.loads(raw)
-        allowed = scoped_models(key)
+        scope = repair_scope(current)
+        if scope == "cron_agent_and_concurrency":
+            key_raw = private_read(CRON_KEY, 4096)
+            if key_raw is None:
+                print("repair=blocked_private_config_or_key")
+                return 2
+            key = key_raw.decode("ascii").strip()
+            allowed = scoped_models(key)
+        else:
+            key, allowed = None, None
         updated = candidate(current, key, allowed)
     except (ValueError, UnicodeError, TypeError) as error:
         print("repair=blocked_preflight")
@@ -339,7 +348,8 @@ def main(argv=None):
     print("cron_route_change=" +
           ("configured_explicit_agent" if scope == "cron_agent_and_concurrency"
            else "not_applicable_no_named_agent"))
-    print("cron_key_access=verified")
+    print("cron_key_access=" +
+          ("verified" if scope == "cron_agent_and_concurrency" else "not_required"))
     print("global_concurrency=1")
     print("memory_embedding_changed=false")
     if updated == current:
