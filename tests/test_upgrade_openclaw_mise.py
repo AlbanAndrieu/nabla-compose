@@ -163,6 +163,49 @@ class UpgradeContracts(unittest.TestCase):
         root.parent.chmod(0o700)
         self.assertTrue(mod.isolated_prefix_safe())
 
+    def test_private_stage_creation_under_umask_0002(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def set_umask(mask):
+            original = __import__("os").umask(mask)
+            try:
+                yield
+            finally:
+                __import__("os").umask(original)
+
+        # A default Path.mkdir(parents=True) creates 0775 ancestors when the
+        # shell's umask is 0002. The isolated stage must always be 0700.
+        root = mod.isolated_stage_root()
+        with set_umask(0o002):
+            self.assertTrue(mod.ensure_isolated_prefix())
+        self.assertTrue(root.is_dir())
+        self.assertEqual(root.parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(root.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(mod.isolated_prefix_posture(), "safe")
+
+    def test_stage_does_not_chmod_unrelated_nabla_compose_storage(self):
+        shared = self.home / ".local/share/nabla-compose"
+        shared.chmod(0o775)
+        self.assertTrue(mod.ensure_isolated_prefix())
+        self.assertEqual(shared.stat().st_mode & 0o777, 0o775)
+        self.assertEqual(mod.isolated_prefix_posture(), "safe")
+
+    def test_unsafe_dedicated_stage_parent_is_not_modified(self):
+        root = mod.isolated_stage_root()
+        root.parent.mkdir(mode=0o700)
+        root.parent.chmod(0o770)
+        self.assertEqual(mod.isolated_prefix_posture(),
+                         "group_or_world_writable_stage_base")
+        self.assertFalse(mod.ensure_isolated_prefix())
+        self.assertEqual(root.parent.stat().st_mode & 0o777, 0o770)
+        self.assertFalse(root.exists())
+
+    def test_stage_reports_safe_reason_without_prefix_paths(self):
+        self.assertEqual(mod.isolated_prefix_posture(), "safe")
+        self.assertNotIn(str(self.home), mod.isolated_prefix_posture())
+        self.assertTrue(mod.ensure_isolated_prefix())
+
     def test_unit_exec_refuses_isolated_package_with_legacy_node(self):
         isolation = mod.isolated_stage_root()
         entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
