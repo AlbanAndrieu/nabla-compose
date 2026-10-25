@@ -158,6 +158,32 @@ class UpgradeContracts(unittest.TestCase):
         self.assertIn(str(self.new / "bin/node"), mod.unit_dropin().read_text())
         self.assertEqual(mod.unit_dropin().stat().st_mode & 0o777, 0o600)
 
+    def test_verify_refuses_partial_memory_even_if_ready(self):
+        with patch.object(mod, "unit_exec", return_value=self.new), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "package_version", return_value="2026.10.7"), \
+             patch.object(mod, "run", side_effect=[
+                 (0, b'{}', b''), (0, b'Memory Search (main)\\nDirty: yes', b'')]), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.verify()
+        self.assertEqual(result, 2)
+        self.assertIn("functional_contract=partial_or_unverified", output.getvalue())
+
+    def test_verify_refuses_doctor_failure_even_if_gateway_ready(self):
+        with patch.object(mod, "unit_exec", return_value=self.new), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "package_version", return_value="2026.10.7"), \
+             patch.object(mod, "run", side_effect=[
+                 (1, b'PRIVATE DOCTOR OUTPUT', b''), 
+                 (0, b'Memory Search (main)\\nDirty: no\\nMemory Search (cron)\\nDirty: no', b'')]), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.verify()
+        self.assertEqual(result, 2)
+        self.assertIn("doctor_lint=needs_review", output.getvalue())
+        self.assertNotIn("PRIVATE", output.getvalue())
+
     def test_verify_is_read_only_and_redacted(self):
         def run_check(command, **kwargs):
             if "doctor" in command:
