@@ -164,12 +164,20 @@ Actions :
   pfBlockerNG a bien entraîné un **changement de PID cohérent
   avec sa séquence stop/start** ; pas de preuve de durée
   d'indisponibilité DNS ni de condition de fallback exacte.
-- [ ] **H-04 / instrumentation réutilisable :** comparer à chaque
-  incident les deux relevés read-only (PID/uptime, hashes,
-  marqueurs pfBlockerNG, OOM horodatés), sans confondre OOM
-  **historique** et cause du **dernier** changement PID.
-  Une stabilité d'empreinte n'établit pas l'absence de reload
-  du module Python en mémoire.
+- [x] **H-04 / instrumentation réutilisable :** nouvel utilitaire
+  **`scripts/pfsense/compare-unbound-snapshots.py`**, sans SSH,
+  pour comparer deux relevés read-only : PID/uptime, hashes,
+  séquence pfBlockerNG/DNSBL et OOM visibles **après la baseline**,
+  en refusant d'attribuer un restart sur une fenêtre DST ambiguë.
+  Recette : `PFSENSE_BEFORE=... PFSENSE_AFTER=... just pfsense-unbound-compare`.
+  Il n'affiche ni lignes brutes ni feed URLs. Le match SHA-256
+  n'établit pas l'absence de changement en mémoire du module Python.
+- [ ] **H-04 / validation comparateur :** exécuter
+  `just pfsense-unbound-restart-test` sur le HEAD courant ;
+  **7 nouvelles régressions offline** ajoutées aux 49 tests
+  Unbound/console/sampler validés auparavant (**56 attendus**).
+  Vérifier également la disponibilité DNS pendant le prochain
+  cycle stop/start, sans provoquer de reload.
 - [ ] **H-04 feed-pressure :** exécuter `just pfsense-feed-pressure-check`
   en lecture seule lors des prochaines anomalies Unbound/Snort/pfBlockerNG.
   Examiner les erreurs HTTP 403/404/429/5xx, timeouts, retries IPinfo,
