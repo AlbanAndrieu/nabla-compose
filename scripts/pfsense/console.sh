@@ -184,8 +184,8 @@ pfsense_ui_render() {
       flush()
       if(snort_unknown)printf "%s⚠️ Snort: %d events with unknown timestamps%s\n",yellow,snort_unknown,reset
       if(sampler_run && sampler_samples>0) {
-        printf "\n%s📊 Memory window · %d samples · available min=%.1f MiB (%s) · max=%.1f MiB (%s) · below 128 MiB=%d · below 64 MiB=%d%s\n",
-          cyan,sampler_samples,sampler_min/1024,sampler_min_ts,sampler_max/1024,sampler_max_ts,
+        printf "\n%s📊 Memory window · %d %s · available min=%.1f MiB (%s) · max=%.1f MiB (%s) · below 128 MiB=%d · below 64 MiB=%d%s\n",
+          cyan,sampler_samples,(sampler_samples==1?"sample":"samples"),sampler_min/1024,sampler_min_ts,sampler_max/1024,sampler_max_ts,
           sampler_below_128,sampler_below_64,reset
       }
       if(collector_failed || sections==0 || (sampler_run && sampler_expected!=sampler_samples)) {
