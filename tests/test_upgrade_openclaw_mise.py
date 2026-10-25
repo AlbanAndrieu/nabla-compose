@@ -117,6 +117,8 @@ class UpgradeContracts(unittest.TestCase):
         isolation = mod.isolated_stage_root()
         package = isolation / "lib/node_modules/openclaw"
         package.mkdir(parents=True)
+        isolation.parent.chmod(0o700)
+        isolation.chmod(0o700)
         (package / "package.json").write_text(json.dumps({
             "name": "openclaw", "version": "2026.10.7",
             "bin": {"openclaw": "openclaw.mjs"},
