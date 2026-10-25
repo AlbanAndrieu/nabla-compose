@@ -241,3 +241,30 @@ Ne pas interpréter le code de sortie 0 d'un diagnostic comme une
 autorisation d'opération irréversible.
 
 [Runbook détaillé des cinq chantiers](yubikey-backup-five-execution.md).
+
+## Mise à jour : OTP2 secondaire programmé — KeePassXC en attente (26/10/2026)
+
+La commande opérateur `just yubikey-otp2-secondary-readonly` a confirmé
+`otp2=PROGRAMMED_TYPE_UNVERIFIED` pour la YubiKey de secours
+`22916048`. `keepassxc_verified=false`,
+`otp2_hmac_sha1_verified=false`, `escrow=NOT_CHECKED`,
+`status=NO-GO`. **Ne pas reprogrammer OTP2** : `ykman otp info`
+ne révèle pas le type ou le secret HMAC existant.
+
+**Jalon KeePassXC à exécuter localement** : ouvrir la même **copie
+chiffrée KDBX**, sans jamais enregistrer, une fois avec la principale
+`23501671` seule, puis une fois avec la secondaire `22916048`
+seule, en conservant les mêmes autres facteurs.
+Conditions de clôture : `PRIMARY_UNLOCK=PASS` et
+`SECONDARY_UNLOCK=PASS`, plus moyen de récupération disponible.
+Si aucune base existante n'utilise HMAC-SHA1 challenge-response,
+le jalon reste `NOT_CONFIGURED`, sans changer la protection
+de la base principale.
+
+[Procédure OTP2/KeePassXC](yubikey-backup-keepassxc-otp2-verification.md).
+
+**Autres chantiers à ne pas confondre** : signature SSH/FIDO2 locale
+déjà démontrée (SSHSIG), login SSH distant non testé ; OpenPGP
+répond publiquement mais pas de preuve de clé privée ; PIV82 non
+provisionné ; récupération SOPS/GPG/PostgreSQL réelle et escrows non
+vérifiés. Ces chantiers gardent leurs critères de validation propres.
