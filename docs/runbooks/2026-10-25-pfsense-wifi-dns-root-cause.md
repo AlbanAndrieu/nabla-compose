@@ -240,3 +240,68 @@ d'écarts. Les résultats de l'opérateur (**14 + 9 PASS**) portent sur
 la version **antérieure** à ces corrections ; les 15 contrats Wi-Fi
 mis à jour sont à exécuter au HEAD exact.
 
+
+
+### Source Ansible retrouvée — hypothèse de modification `resolvectl`
+
+Le 25 octobre, la recherche des sources `AlbanAndrieu/ansible-workstation`
+a identifié un mécanisme de **mutation DNS intentionnelle** :
+
+- `tasks/services.yml` configure `dns_new="9.9.9.9 149.112.112.112"`,
+  `dns_default="172.17.0.24"` et `net_interface="wlp0s20f3"`.
+- `templates/hide-location.sh-Ubuntu.j2` installe un script qui vérifie
+  si `resolvectl status` contient `dns_default`, puis appelle
+  `sudo resolvectl dns $net_interface $dns_new`.
+- `tasks/services.yml` installe `/opt/script/hide-location.sh`, la
+  **service systemd user** `hide-location.service` et le fichier
+  `hide-location.timer`, conditionnés par `macchanger_enabled`.
+  Le rôle active `hide-location.service` en mode utilisateur si les
+  conditions Ansible sont satisfaites.
+- Le template de timer prévoit `OnBootSec=1m` et
+  `OnUnitActiveSec=1m`. La création de son fichier **ne prouve pas son
+  activation** et la configuration effective doit être contrôlée sur
+  la workstation.
+
+**Limite décisive :** le modèle versionné cible **`wlp0s20f3`** alors
+que l'écart observé concerne **`eno1`**. De plus, le template déclenche
+l'override seulement si `dns_default` est trouvé. Les fichiers source
+sont compatibles avec le choix de Quad9 constaté, mais **ils ne prouvent
+pas que le script local a été généré avec ces paramètres, ni exécuté, ni
+qu'il a modifié `eno1`**. Ne pas désactiver le service à l'aveugle.
+
+Le diagnostic `just pfsense-wifi-path` inspecte maintenant le fichier
+rendu `/opt/script/hide-location.sh` s'il existe, sans le lancer, et
+la métadonnée systemd de `hide-location.service`. Il indique
+`hook_sets_quad9`, `hook_targets_current_interface`,
+`hook_contains_resolvectl_dns`, `unit_state` et
+`unit_has_start_timestamp`. Le statut `causality=NOT_PROVEN`
+reste volontairement explicite. Aucun identifiant, argument ni contenu
+de script n'est imprimé. Ces mesures ne remplacent pas la preuve du
+moment de la modification DNS.
+
+Contrôles complémentaires, **une seule commande à la fois**, en lecture seule :
+
+```bash
+systemctl --user show hide-location.service --property=LoadState,UnitFileState,ActiveState,ExecMainStartTimestamp --no-pager
+```
+
+```bash
+systemctl --user is-enabled hide-location.timer
+```
+
+```bash
+nmcli -g IP4.DNS device show eno1
+```
+
+```bash
+resolvectl dns eno1
+```
+
+Ne pas supprimer le script Ansible ni modifier le profil réseau depuis
+cette PR. Une remédiation **dans `ansible-workstation`** serait de rendre
+le changement DNS explicite et réversible, protéger les noms privés par
+split-DNS et s'assurer que les scripts de confidentialité ne remplacent
+pas le résolveur propriétaire du LAN. Elle reste conditionnée à la
+confirmation du service réellement exécuté et à l'intention de
+l'utilisateur de garder Quad9.
+
