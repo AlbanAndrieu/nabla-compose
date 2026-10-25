@@ -101,3 +101,17 @@ npm 10 et tout npm manquant, sans installer de dependance.
 
 Un test local isole a reussi avec un faux npm 12 prioritaire dans
 `PATH`, mais **la suite 6/6 du HEAD GitHub actuel reste a lancer**.
+
+## Dernier test opérateur : Node22/npm10 PASS, assertion à corriger
+
+Le relevé du 25 octobre montre que Node22/npm10 sont maintenant
+sélectionnés correctement : le premier test de compatibilité est
+**PASS**, ainsi que les tests APISIX et diagnostics shell. Le
+`just node22-fast` s'est arrêté à **5 PASS / 1 FAIL** uniquement sur
+l'assertion qui attendait l'ancien texte
+`npm --offline run test:fast:node22` dans `justfile`.
+La nouvelle recette exécute explicitement le chemin
+`npm-cli.js --offline run test:fast:node22`. Le test de contrat
+vérifie désormais **le CLI lié au Node22 installé, le mode offline
+et l'absence de commande d'installation**, sans exiger le texte
+obsolète. **6/6 au dernier HEAD reste NON EXÉCUTÉ**.
