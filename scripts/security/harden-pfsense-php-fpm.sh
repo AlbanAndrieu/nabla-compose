@@ -135,6 +135,25 @@ if [ "${MODE}" = "--check" ]; then
     "${upstream}") printf 'WARN: generator still uses pfSense high-memory profile %s\n' "${upstream}" ;;
     *) fail "unrecognized >1000 MiB generator profile; refuse to infer a safe patch" ;;
   esac
+  current_generated=$(generated_state)
+  case "$current_generated" in
+    "$expected") printf 'OK: generated PHP-FPM pool uses the constrained profile\n' ;;
+    "$upstream") printf 'WARN: generated PHP-FPM pool uses the high-memory profile\n' ;;
+    missing) printf 'WARN: generated PHP-FPM configuration unavailable\n' ;;
+    *) printf 'WARN: generated PHP-FPM profile is unexpected; inspect before mutation\n' ;;
+  esac
+  if [ "$current_source" != "$current_generated" ]; then
+    printf 'WARN: generator and active generated profile differ; reconcile before a service restart\n'
+  fi
+  workers=$(worker_count)
+  case "$workers" in
+    ''|*[!0-9]*) printf 'WARN: nginx PHP-FPM worker count unavailable\n' ;;
+    0) printf 'WARN: no nginx PHP-FPM workers observed; process state not confirmed\n' ;;
+    *) printf 'php_fpm_nginx_pool_workers=%s\n' "$workers"
+       if [ "$workers" -gt "$TARGET_MAX" ]; then
+         printf 'WARN: running nginx PHP-FPM workers exceed constrained target max=%s\n' "$TARGET_MAX"
+       fi ;;
+  esac
   exit 0
 fi
 
