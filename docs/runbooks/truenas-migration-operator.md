@@ -79,6 +79,11 @@ sudo bash scripts/truenas/migration-operator.sh --check --section postmigration
 sudo bash scripts/truenas/migration-operator.sh --check --section apisix
 ```
 
+Un diagnostic qui manque de preuves retourne **exit=2 (non vérifié)**,
+notamment si APISIX n'est pas déployé ou si Gatus ne dispose pas de résultats
+récents. **exit=1** signifie qu'au moins un contrôle a réellement échoué.
+Ces codes de sortie ne doivent pas être regroupés sous un unique statut DOWN.
+
 **Chaque commande est indépendante**. Ne pas les déclencher
 automatiquement après `--apply-wave` sans connaître les composants
 effectivement migrés : une absence volontaire reste non vérifiée.
