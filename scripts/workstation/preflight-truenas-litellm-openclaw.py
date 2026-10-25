@@ -156,8 +156,9 @@ def main(argv=None):
         parser.error("--check-master-env requires --master-env")
     if args.allow_nonstandard_master and not args.master_env:
         parser.error("--allow-nonstandard-master requires --master-env")
-    if (args.prompt_admin or args.master_env or args.check_tunnel) and not args.tunnel:
-        parser.error("admin source or --check-tunnel requires --tunnel")
+    if (args.prompt_admin or args.check_tunnel or
+            (args.master_env and not args.check_master_env)) and not args.tunnel:
+        parser.error("authenticated inspection or --check-tunnel requires --tunnel")
     if args.check_tunnel:
         available = loopback_listener()
         print("truenas_tunnel_local_listener=" +
@@ -165,6 +166,11 @@ def main(argv=None):
         print("truenas_ssh_encryption=operator_attestation_required")
         print("truenas_admin_auth=not_read")
         return 0 if available else 2
+    if args.check_master_env:
+        state = master_key_state(os.environ.get(args.master_env))
+        print("truenas_admin_env_state=" + state)
+        print("truenas_admin_auth=not_sent")
+        return 0 if state in ("present", "nonstandard_prefix") else 2
     if not args.prompt_admin and not args.master_env:
         return inspect(args.tunnel)
     if not loopback_listener():
@@ -177,9 +183,6 @@ def main(argv=None):
         value = os.environ.get(args.master_env)
         state = master_key_state(value)
         print("truenas_admin_env_state=" + state)
-        if args.check_master_env:
-            print("truenas_admin_auth=not_sent")
-            return 0 if state == "present" else 2
         if state != "present" and not (
                 args.allow_nonstandard_master and state == "nonstandard_prefix"):
             print("truenas_admin_auth=missing_or_format_blocked")
