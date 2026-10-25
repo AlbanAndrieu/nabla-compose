@@ -62,24 +62,44 @@ def multipart_request(pdf: bytes) -> Request:
     )
 
 
-def conversion_accepted(raw: bytes) -> bool:
-    """Require successful parsing and actual extraction of the sentinel."""
+def conversion_reason(raw: bytes) -> str:
+    """Return an allowlisted diagnosis; never print converted text/errors."""
     if len(raw) > MAX_RESPONSE_BYTES:
-        return False
+        return "CONVERSION_RESPONSE_TOO_LARGE"
     try:
         payload = json.loads(raw)
     except (UnicodeDecodeError, ValueError):
-        return False
-    if not isinstance(payload, dict) or payload.get("status") != "success":
-        return False
+        return "CONVERSION_INVALID_JSON"
+    if not isinstance(payload, dict):
+        return "CONVERSION_UNEXPECTED_SCHEMA"
+    # The API returns HTTP 200 even if its JSON status reports failure.
+    status = payload.get("status")
+    if status != "success":
+        return {
+            "partial_success": "CONVERSION_PARTIAL_SUCCESS",
+            "skipped": "CONVERSION_SKIPPED",
+            "failure": "CONVERSION_PROCESSING_FAILED",
+        }.get(status, "CONVERSION_UNKNOWN_STATUS") if isinstance(status, str) else "CONVERSION_UNKNOWN_STATUS"
     document = payload.get("document")
     if not isinstance(document, dict):
-        return False
-    return any(
-        SENTINEL in value
-        for name in ("md_content", "text_content")
-        if isinstance((value := document.get(name)), str)
+        return "CONVERSION_MISSING_DOCUMENT"
+    text_fields = tuple(
+        value for name in ("md_content", "text_content")
+        if isinstance((value := document.get(name)), str) and value
     )
+    if not text_fields:
+        return "CONVERSION_EMPTY_TEXT"
+    # Markdown may escape literal underscores; do not misclassify this
+    # as a failed PDF extraction when the source marker is preserved.
+    variants = (SENTINEL, SENTINEL.replace("_", r"\_"))
+    if any(marker in value for value in text_fields for marker in variants):
+        return "CONVERSION_PASS"
+    return "CONVERSION_SENTINEL_ABSENT"
+
+
+def conversion_accepted(raw: bytes) -> bool:
+    """Preserve the boolean contract used by existing offline tests."""
+    return conversion_reason(raw) == "CONVERSION_PASS"
 
 
 def apply_conversion() -> str:
@@ -97,7 +117,7 @@ def apply_conversion() -> str:
         return "HTTP_" + str(exc.code)
     except (URLError, TimeoutError, OSError):
         return "LAN_TRANSPORT_UNAVAILABLE"
-    return "CONVERSION_PASS" if conversion_accepted(raw) else "CONVERSION_UNVERIFIED"
+    return conversion_reason(raw)
 
 
 def main(argv: list[str] | None = None) -> int:

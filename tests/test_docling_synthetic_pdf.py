@@ -63,6 +63,36 @@ class DoclingSyntheticTest(unittest.TestCase):
         self.assertFalse(module.conversion_accepted(b"invalid json"))
         self.assertFalse(module.conversion_accepted(b"x" * (module.MAX_RESPONSE_BYTES + 1)))
 
+    def test_safe_diagnostics_disambiguate_http_200_without_content(self):
+        cases = {
+            "partial_success": "CONVERSION_PARTIAL_SUCCESS",
+            "skipped": "CONVERSION_SKIPPED",
+            "failure": "CONVERSION_PROCESSING_FAILED",
+        }
+        for status, expected in cases.items():
+            with self.subTest(status=status):
+                payload = {"status": status, "errors": ["do not echo errors"]}
+                self.assertEqual(module.conversion_reason(json.dumps(payload).encode()), expected)
+        self.assertEqual(
+            module.conversion_reason(json.dumps({"status": "success", "document": {}}).encode()),
+            "CONVERSION_EMPTY_TEXT",
+        )
+        self.assertEqual(
+            module.conversion_reason(
+                json.dumps({"status": "success", "document": {"md_content": "unrelated text"}}).encode()
+            ),
+            "CONVERSION_SENTINEL_ABSENT",
+        )
+        self.assertEqual(module.conversion_reason(b"invalid"), "CONVERSION_INVALID_JSON")
+        self.assertEqual(module.conversion_reason(b"[]" ), "CONVERSION_UNEXPECTED_SCHEMA")
+
+    def test_escaped_markdown_marker_counts_as_valid_extraction(self):
+        data = {
+            "status": "success",
+            "document": {"md_content": module.SENTINEL.replace("_", r"\_")},
+        }
+        self.assertEqual(module.conversion_reason(json.dumps(data).encode()), "CONVERSION_PASS")
+
     def test_check_does_not_contact_network(self):
         with patch.object(module, "build_opener", side_effect=AssertionError("network")):
             self.assertEqual(module.main(["--check"]), 0)

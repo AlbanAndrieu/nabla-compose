@@ -290,8 +290,12 @@ Ne pas lancer fast-batch-upgrade avant validation du cluster.
   État `READY_ONLY` ; reconfirmer avant le test réel.
 - [x] **Code :** test hermétique de conversion d'un PDF synthétique,
   `just docling-synthetic-test` (8 tests unitaires exécutés localement).
-- [ ] **Conversion réelle Docling :** `just docling-synthetic-apply` sur
-  TrueNAS, sans installer ou redéployer Docling. Runtime non testé depuis l'agent.
+- [ ] **Conversion réelle Docling :** résultat opérateur `/ready=READY` puis
+  HTTP 200 avec `CONVERSION_UNVERIFIED` (aucun marqueur accepté) ;
+  extraction E2E **non validée**. Le script classe maintenant les
+  statuts d'erreur, texte vide, marqueur absent et Markdown échappé
+  sans imprimer la réponse. Rejouer une seule fois sur TrueNAS après mise
+  à jour ; aucun redeploy Docling ni indexation automatique.
 
 - [ ] **E2E OpenRAG :** conversion, ingestion et retrieval **NOT_TESTED** ;
   commencer par un document synthétique, sans publier le billet.

@@ -112,6 +112,13 @@ python3 scripts/truenas/smoke-docling-synthetic-pdf.py --check
 python3 scripts/truenas/smoke-docling-synthetic-pdf.py --apply
 ```
 
+If `--apply` returns `CONVERSION_PROCESSING_FAILED`,
+`CONVERSION_PARTIAL_SUCCESS`, `CONVERSION_EMPTY_TEXT` or
+`CONVERSION_SENTINEL_ABSENT`, it means Docling replied in HTTP but the
+functional PDF extraction gate failed. The diagnostic intentionally does
+not print the document body or API error details. Run the diagnostic on
+this synthetic fixture only before changing any model or service.
+
 The smoke invokes `POST /v1/convert/file` with multipart/form-data.
 It requires `status=success` and an extracted sentinel in the returned
 Markdown. It prints only redacted status, not the API response body.
