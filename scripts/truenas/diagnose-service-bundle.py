@@ -44,6 +44,11 @@ CHECKS: dict[str, tuple[Check, ...]] = {
             ("bash", "scripts/truenas/diagnose-postgres-exporter.sh"),
             15,
         ),
+        Check(
+            "gatus_monitors",
+            ("python3", "scripts/truenas/diagnose-gatus-monitors.py", "--check"),
+            20,
+        ),
     ),
     "applications": (
         Check(
