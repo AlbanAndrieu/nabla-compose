@@ -188,3 +188,25 @@ espace de restauration isolé. Les deux copies d'escrow et les archives
 GPG/PostgreSQL restent non inventoriées ou non restaurées dans ces
 preuves : aucun changement du statut `NO-GO`.
 
+
+### Prochaine étape concrète : première preuve PostgreSQL fonctionnelle isolée
+
+- **Contexte validé (`32209b38`)** : 21/21 dépendances, 13/13 contrats
+  parallèle PASS sur la workstation. `GETINFO scd_running` reste
+  `NOT_CONFIRMED`; les clients PostgreSQL sont présents mais pas les
+  exécutables serveur locaux. Les anciennes sauvegardes restent intactes.
+- **Correctif GPG** : classifieur Assuan plus robuste pour un message
+  d'accueil et distinction explicite de `ERR`, sans requête `SCD`.
+  Les 3 nouveaux contrats GitHub attendent validation sur workstation.
+- **Récupération PostgreSQL sur fixture** : le nouveau script
+  `verify-postgres-fixture-recovery.sh` peut prouver le roundtrip
+  `pg_dump` → `pg_restore` **sans aucune sauvegarde personnelle**,
+  avec un conteneur local isolé, opt-in, SHA image imposé et cleanup.
+  **5/5 tests hermétiques PASS en local sur blobs exacts** ; test Docker
+  fonctionnel réel `NOT_RUN`. Un succès éventuel ne satisfait pas L3
+  avant une restauration d'archive réelle explicitement autorisée.
+- **En parallèle** : conserver l'inventaire des dépendances PKI/9A,
+  FIDO2/SSH, escrow age et GPG/OpenPGP. Ne pas déduire un `GO`
+  matériel du smoke PostgreSQL.
+
+Voir [runbook des diagnostics](yubikey-readonly-batch.md#diagnostic-gpg-renforcé-et-restauration-postgresql-synthétique--25102026).
