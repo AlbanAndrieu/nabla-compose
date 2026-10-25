@@ -230,3 +230,53 @@ par leurs gates respectives. Le statut général de récupération est NO-GO.
 `tests/test_yubikey_parallel_readonly.py` ; **NOT_RUN sur la workstation**
 au moment de la publication de cette extension. Exécuter la recette
 `just yubikey-parallel-test` au SHA exact de la branche.
+
+## Diagnostic complémentaire des dépendances (sans contact matériel)
+
+Commande indépendante :
+
+```bash
+just yubikey-dependencies-test
+just yubikey-dependencies-readonly
+```
+
+Le nouveau `inspect-yubikey-dependencies-readonly.py` observe uniquement :
+- l'existence de processus `scdaemon` **de l'utilisateur courant** et
+  `pcscd` (via `pgrep`, sans lire arguments, PID ou journaux) ;
+- le socket SSH-agent : refus des chemins relatifs, liens symboliques et
+  sockets dont le propriétaire ne correspond pas à l'utilisateur ; si
+  autorisé, `ssh-add -l` ne transmet que l'**état de présence d'identités
+  publiques**, stdout/stderr éliminés ;
+- la disponibilité des binaires `pg_restore`, `pg_dump`, `psql`,
+  `initdb`, `pg_ctl`, `age`, `sops`, `gpg`, `ssh-add` ;
+  la version, l'accès et la fonction ne sont pas démontrés.
+
+Aucun `gpg --card-status`, `SCD GETINFO`, démarrage ou arrêt de
+`scdaemon`/GPG-agent/PCSC, requête sur la YubiKey, PIN/PUK, extraction de
+clé, lecture de sauvegarde, signature, déchiffrement ou commande PAM/SOPS.
+**Un processus `scdaemon` présent ne prouve PAS le transport PC/SC ni
+l'accès à OpenPGP.** `ssh-add -l` ne prouve PAS une connexion SSH FIDO2.
+
+La recette `just yubikey-parallel-host-readonly` exécute désormais six
+familles de tests hermétiques **en parallèle**, dont les 11 tests du
+nouveau collecteur, puis trois contrôles indépendants du poste **en
+parallèle** (workstation, GPG-agent, dépendances). La variante
+`just yubikey-parallel-secondary-readonly` maintient l'inventaire
+matériel *après* ces contrôles et jamais en concurrence avec eux.
+Le coordinateur exige maintenant une réponse `PASS` de **chaque** job
+attendu ; aucune absence d'une clé JSON ne peut autoriser la suite.
+
+**Preuve locale hors matériel :** 11/11 tests hermétiques du nouveau
+collecteur PASS (Python 3.13), `py_compile` PASS. Correspondance des
+empreintes entre copie testée et GitHub :
+`inspect-yubikey-dependencies-readonly.py@eaf2d752` ;
+`test_yubikey_dependencies_readonly.py@bdcfd2bf`.
+Les 13 tests du coordinateur parallèle *modifié* et la recette complète
+sont encore **NOT_RUN sur la workstation**. Le résultat opérateur antérieur
+11/11 sur `5bd112f0` ne valide pas ce nouveau lot.
+
+**Interprétation :** `status=NO-GO` reste systématique ; présence des
+processus et binaires n'implique aucune preuve fonctionnelle de
+restauration, signature, SSH ou chiffrement. Les sauvegardes existantes
+sont à inventorier explicitement, sans découvrir ou publier leurs chemins
+dans les logs du dépôt.
