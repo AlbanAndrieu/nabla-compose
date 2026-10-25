@@ -513,3 +513,11 @@ migration-operator-contracts:
 openclaw-truenas-secret-provenance:
     python3 scripts/workstation/check-truenas-litellm-secret-provenance.py
 
+
+# Discover the existing TrueNAS Compose deployment without changing it.
+openclaw-truenas-litellm-recreate-plan:
+    ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/recreate-litellm-env.py
+
+# Explicit one-service recreation; no change to unrelated containers.
+openclaw-truenas-litellm-recreate-apply:
+    ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/recreate-litellm-env.py
