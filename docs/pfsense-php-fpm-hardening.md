@@ -243,3 +243,107 @@ have a different script layout and must fail closed.
 Do **not** disable Unbound, all DNSBL or all WAN Snort as the default
 memory optimization; do not raise PHP memory_limit from 128M as a
 workaround for a large DNSBL file.
+
+## 2026-10-25 operator evidence and guarded workstation change
+
+### The regression is now confirmed, not inferred from broad RSS groups
+
+Operator `just pfsense-php-fpm-test` **4/4 PASS**. Real Netgate
+`just pfsense-php-fpm-check` confirmed:
+
+```text
+pfSense release: 26.07-RELEASE
+generator >1000 MiB profile: 8/3600/2/7/5000
+generated PHP-FPM profile: 8/3600/2/7/5000
+php_fpm_nginx_pool_workers=7
+```
+
+These are genuine `php-fpm: pool nginx` workers, not the earlier
+8 broad `comm` processes. The pfSense high-memory profile has
+reappeared since the previous successful hardening. On 2026-10-25
+the operator manually restarted Unbound after finding it offline
+and stopped an entity described as 'CrowdSec firewall'. Determine
+whether the stopped component is the **firewall bouncer** or engine
+before counting security protections as active.
+
+### Prepared workstation workflow
+
+Scripts in PR #280 provide explicit, guarded commands:
+
+```bash
+just pfsense-php-fpm-test
+just pfsense-php-fpm-check
+just pfsense-security-capacity-audit
+```
+
+The new read-only audit detects generator/runtime drift and actual
+nginx workers, verifies local Unbound control and DNS `NOERROR`,
+and reports CrowdSec bouncer presence without restarting it.
+
+**Apply only in a separate maintenance window**, not during
+pfBlockerNG at 00:00, 04:00, 22:00 or Snort at 02:09/14:09.
+Have SSH/serial fallback and verify management-access restrictions.
+
+```bash
+PFSENSE_PHP_FPM_CHANGE_CONFIRM=APPLY_4_WORKERS just pfsense-php-fpm-apply
+```
+
+This requires explicit confirmation and a remote privileged
+non-interactive shell (root or passwordless `sudo -n`). It:
+
+1. Rejects invalid args, host or unauthorized change *before SSH*.
+2. Preflights running Unbound, its control socket and an actual
+   `NOERROR` DNS response from 127.0.0.1. **Apply refuses when
+   Unbound is unverified**, particularly after the recent outage.
+3. Uses the previously reviewed version-guarded backup + generator
+   hardening script with the **native pfSense** PHP-FPM and webGUI
+   restart sequences; no reboot and no CrowdSec/Snort reload.
+4. Checks Unbound/DNS, PHP-FPM socket, generated `pm.max_children=4`
+   and the actual nginx worker count (1..4). Reports success
+   only when the checks complete.
+
+**If maintenance fails**, inspect the failure before running other
+service changes. Restore the saved generator using:
+
+```bash
+PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just pfsense-php-fpm-restore
+```
+
+The restore is independently guarded and may proceed even when
+Unbound is unhealthy, so that DNS faults do not prevent recovery.
+The post-restoration DNS smoke can still fail if DNS remains down;
+that must not be confused with failure to restore the generator.
+The backup is the OS-local file
+`/conf/backup/rc.php_ini_setup.nabla-pre-phpfpm-hardening`.
+
+**After applying**, measure memory again with
+`just pfsense-memory-window`, validate the webConfigurator
+HTTPS, essential pfREST GET operations, localhost and LAN public
+and private DNS, then watch for new kernel OOM or php-fpm socket
+queue overflow. The improvement target is **at least 128 MiB**
+of free+inactive headroom under ordinary load (not an
+OOM-free guarantee). Do not increase PHP `memory_limit=128M`.
+
+**GUI distinction (Netgate docs):**
+`System > Advanced > Admin Access > webConfigurator > Max Processes`
+controls the **web server (nginx)** workers, not PHP-FPM pool
+workers. `System > Advanced > Miscellaneous > PHP Settings >
+Memory Limit` limits memory **per PHP process**. Neither exposes
+the five PHP-FPM sizing values this script reconciles.
+Sources:
+<https://docs.netgate.com/pfsense/en/latest/config/advanced-admin.html>
+<https://docs.netgate.com/pfsense/en/latest/config/advanced-misc.html>.
+
+**Snort performance UI (different component):**
+`Services > Snort > Interfaces > Edit WAN > Interface Settings >
+Detection Performance Settings > Search Method` should use
+**AC-BNFA** on a low-memory appliance; inspect the exact
+installed package UI first. Verify the WAN-only instance and
+HTTP Inspect memcap of 32 MiB, do not mutate generated
+`snort.conf` directly. Netgate docs:
+<https://docs.netgate.com/pfsense/en/latest/packages/snort/interface-settings.html>.
+
+**No GitHub Actions paid CI; no changes to pfSense have been
+performed by these commits.** New local SSH-mock tests cover
+confirmation, root/sudo privilege routing, and read-only
+pre/postchecks. They need validation on the PR HEAD.
