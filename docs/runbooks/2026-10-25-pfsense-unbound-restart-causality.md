@@ -942,3 +942,36 @@ fonctionnelle prioritaire à **mesurer** (requêtes DNS
 depuis un client LAN autorisé). Ne pas modifier
 pfBlockerNG avant d'avoir caractérisé le mécanisme
 et ses impacts sur la disponibilité.
+
+## Note de reprise — 26/10 : chemins exemples et hypothèses de régression
+
+Le comparateur a été validé par **56/56 tests offline PASS opérateur**
+mais une exécution réelle sur `/tmp/unbound-before.log` et
+`/tmp/unbound-after.log` a produit l'erreur générique
+`unbound_comparison_incomplete: ValueError`. Ces chemins de
+l'ancien exemple n'étaient **pas** créés automatiquement.
+L'erreur ne prouve pas une nouvelle panne Unbound.
+
+Le workflow à privilégier désormais est :
+
+1. Avant un prochain cron : `just pfsense-unbound-capture`.
+2. Après le cron : `just pfsense-unbound-capture` de nouveau.
+3. Récupérer les **deux chemins distincts** affichés sous
+   `snapshot_saved=...`. Ils sont créés sur la workstation
+   avec droits `0700` pour le dossier et `0600` pour le fichier.
+4. Passer les deux chemins à `just pfsense-unbound-compare` via
+   `PFSENSE_BEFORE` et `PFSENSE_AFTER`. En cas d'échec,
+   regarder `reason=` et `hint=` ; les fichiers manquants, vides,
+   incomplets ou de même horodatage sont maintenant distingués.
+
+Le **document canonique pour une reprise différée** est
+[2026-10-26-pfsense-memory-dnsbl-reprise.md]
+(2026-10-26-pfsense-memory-dnsbl-reprise.md). Il contient la
+chronologie des changements antérieurs et les règles
+d'attribution causale. Les OOM et cycles DNSBL préexistent
+au cutover PHP-FPM du 25/10, mais la plupart des autres
+modifications ne disposent pas d'un historique de diff suffisant.
+
+Ne pas rouvrir d'anciens rapports via des chemins fictifs.
+Une nouvelle capture ne permet pas de reconstituer rétroactivement
+le PID et le RSS de l'ancienne baseline.
