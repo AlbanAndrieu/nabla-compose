@@ -39,6 +39,7 @@ def evaluate(args: argparse.Namespace) -> tuple[dict, int]:
         "device": {"state": "NOT_CHECKED"},
         "otp2": "NOT_CHECKED",
         "escrow": "NOT_CHECKED",
+        "gpg_agent": "NOT_CHECKED",
         "completion": {
             "gpg_agent_functional": "NOT_VERIFIED",
             "openpgp_sign_decrypt": "NOT_VERIFIED",
@@ -76,6 +77,19 @@ def evaluate(args: argparse.Namespace) -> tuple[dict, int]:
         report["workstation"] = {"state": "UNKNOWN", "reason": "HOST_INSPECTION_ERROR"}
         report["blockers"].append("HOST_INSPECTION_ERROR")
         failures = True
+
+    if args.gpg_agent_probe:
+        try:
+            probe_module = load("inspect-gpg-agent-readonly.py")
+            status = probe_module.probe()
+            report["gpg_agent"] = status
+            if status != "RESPONDS_GETINFO_ONLY":
+                report["blockers"].append("GPG_AGENT_GETINFO_UNAVAILABLE")
+                failures = True
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError):
+            report["gpg_agent"] = "UNKNOWN"
+            report["blockers"].append("GPG_AGENT_PROBE_ERROR")
+            failures = True
 
     if args.hardware:
         try:
@@ -130,6 +144,8 @@ def evaluate(args: argparse.Namespace) -> tuple[dict, int]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--gpg-agent-probe", action="store_true",
+                        help="GETINFO version only, existing agent, --no-autostart")
     parser.add_argument("--hardware", action="store_true",
                         help="Read public applet and PIV metadata of one selected device")
     parser.add_argument("--serial", choices=[SECONDARY, PRIMARY],
