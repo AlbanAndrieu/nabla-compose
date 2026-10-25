@@ -317,6 +317,12 @@ pfsense-php-fpm-apply:
 pfsense-php-fpm-restore:
     bash scripts/pfsense/reconcile-php-fpm.sh --restore
 
+# Local-only, no SSH and no paid CI; validates PHP-FPM and Snort/CrowdSec posture.
+pfsense-security-capacity-test:
+    just pfsense-php-fpm-test
+    bash -n scripts/pfsense/audit-posture.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_capacity_posture_contract.py' -v
+
 # Read-only capacity + posture audit; review gates before reducing security coverage.
 pfsense-security-capacity-audit:
     bash scripts/pfsense/reconcile-php-fpm.sh --check
