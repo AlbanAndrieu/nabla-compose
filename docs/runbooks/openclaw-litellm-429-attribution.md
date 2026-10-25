@@ -713,3 +713,22 @@ de différence entre le fichier et le conteneur. **Un exit 2 signifie
 investigation nécessaire, pas incident HTTP.** Aucune valeur de secret
 n'est imprimée. Le résultat n'a pas encore été exécuté au nouveau HEAD
 sur la Workstation.
+
+
+## Acceptation runtime — recréation LiteLLM TrueNAS (25 octobre 2026)
+
+Preuve exécutée sur Workstation par l'opérateur :
+
+- `just openclaw-truenas-litellm-recreate-plan` : `compose_config=valid`, plan validé ;
+- `just openclaw-truenas-litellm-recreate-apply` : conteneur recréé, `running=true`, `secrets_loaded=yes`, `secrets_missing_count=0` ;
+- `just openclaw-truenas-secret-provenance` : `syntax_status=complete`, `runtime_status=complete`, `database_status=complete` ;
+- les sept variables contrôlées, y compris `LANGFUSE_PUBLIC_KEY`, sont présentes et concordantes entre le fichier canonique et le conteneur ;
+- `container_recreation_needed=false` et `DATABASE_URL=present`.
+
+**Résolu** : drift d'environnement entre
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` et le conteneur.
+**Non démontré** : accès PostgreSQL, conservation des clés en DB,
+provisionnement/budgets des clés virtuelles, alias `gpt-4.1*`,
+bonne santé applicative de tous les endpoints. Un `DATABASE_URL`
+présent n'est pas un test de connexion. La migration des agents reste
+indépendante de cette correction et n'est pas réputée effectuée.
