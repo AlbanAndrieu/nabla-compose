@@ -7,6 +7,8 @@ Reports issues to address *before* any mass redeploy.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import json
 import os
 from pathlib import Path
@@ -23,7 +25,8 @@ TARGETS = {
 }
 REQUIRED_KEYS = {
     "litellm": ("LITELLM_MASTER_KEY", "LITELLM_SALT_KEY",
-                "LITELLM_IDE_API_KEY", "REDIS_URL", "LANGFUSE_SECRET_KEY"),
+                "LITELLM_IDE_API_KEY", "REDIS_URL", "LANGFUSE_PUBLIC_KEY",
+                "LANGFUSE_SECRET_KEY"),
     "scrutiny": ("SCRUTINY_WEB_INFLUXDB_TOKEN",),
     "openrag": ("OPENSEARCH_PASSWORD", "LANGFLOW_KEY",
                 "LITELLM_IDE_API_KEY", "OPENRAG_ENCRYPTION_KEY"),
@@ -34,6 +37,32 @@ CONTAINERS = (
 )
 APP_IDS = ("litellm", "scrutiny", "openrag", "influxdb", "opensearch", "langflow")
 LEGACY_SCRUTINY = "/mnt/cpool/scrutiny/.env.secrets"
+
+
+def _parse_dotenv_value(value: str) -> tuple[str, bool]:
+    """Check dotenv quoting without returning or logging the underlying secret."""
+    raw = value.strip()
+    if raw.startswith(('"', "'")):
+        quote = raw[0]
+        closing = raw.rfind(quote)
+        if closing == 0:
+            return "", False
+        suffix = raw[closing + 1:].strip()
+        if suffix and not suffix.startswith("#"):
+            return "", False
+        return raw[1:closing], True
+    if raw.endswith(('"', "'")):
+        return "", False
+    return raw.split(" #", 1)[0].rstrip(), True
+
+
+def _valid_openrag_encryption_key(value: str) -> bool:
+    """OpenRAG requires 32 raw bytes of URL-safe or standard Base64."""
+    try:
+        decoded = base64.b64decode(value, altchars=b"-_", validate=True)
+    except (ValueError, binascii.Error):
+        return False
+    return len(decoded) == 32
 
 
 def check_secret(path: Path, required: tuple[str, ...],
@@ -66,8 +95,16 @@ def check_secret(path: Path, required: tuple[str, ...],
                 if name in keys:
                     result["issues"].append("duplicate dotenv key")
                 keys.add(name)
-                if name in required and not value.strip().strip('"').strip("'"):
+                parsed, valid = _parse_dotenv_value(value)
+                if not valid:
+                    result["issues"].append("malformed dotenv quoting: " + name)
+                elif name in required and not parsed:
                     result["issues"].append("required key has empty value: " + name)
+                if name == "OPENRAG_ENCRYPTION_KEY" and valid and parsed:
+                    if not _valid_openrag_encryption_key(parsed):
+                        result["issues"].append(
+                            "OPENRAG_ENCRYPTION_KEY must be 32 bytes encoded in Base64"
+                        )
                 if name == "SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION":
                     scope_v2 = value.strip().strip('"\'') == "2"
         result["missingKeys"] = [name for name in required if name not in keys]
