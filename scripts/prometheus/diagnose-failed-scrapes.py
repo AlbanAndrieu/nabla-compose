@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only classification of three previously failing Prometheus scrape jobs.
+"""Read-only classification of allowlisted Prometheus scrape jobs.
 
 Never emit raw lastError, target labels, scrape URLs, credentials or log bodies.
 Run from TrueNAS or a trusted LAN host. This script changes no runtime state.
@@ -16,6 +16,20 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 PROMETHEUS_URL = "http://172.17.0.24:9090/api/v1/targets?state=active"
 JOBS = ("fastapi_sample", "postgres_exporter", "pfsense_exporter")
+REMAINING_JOBS = (
+    "docling", "fastapi_sample", "haproxy", "litellm_hermes",
+    "opensearch", "opensearch-security", "postgres_exporter",
+)
+# Bounded remediation classes, not assertions about the target's actual state.
+NEXT_CHECK = {
+    "docling": "verify_optional_app_running_and_metrics_listener",
+    "fastapi_sample": "verify_scrape_token_scope_without_logging_value",
+    "haproxy": "verify_exporter_listener_and_pfSense_stats_upstream",
+    "litellm_hermes": "verify_metrics_endpoint_authorization",
+    "opensearch": "verify_exporter_running_and_port",
+    "opensearch-security": "verify_security_exporter_running_and_port",
+    "postgres_exporter": "verify_exporter_running_not_database_health",
+}
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_TARGETS = 512
 
@@ -48,7 +62,7 @@ def error_kind(raw: object) -> str:
     return "scrape_failure_unclassified"
 
 
-def assess_targets(payload: object) -> dict[str, dict[str, object]]:
+def assess_targets(payload: object, jobs: tuple[str, ...] = JOBS) -> dict[str, dict[str, object]]:
     """Summarize only allowlisted jobs and fail closed on conflicting targets."""
     if not isinstance(payload, dict) or payload.get("status") != "success":
         raise ValueError("Prometheus API response invalid")
@@ -60,7 +74,7 @@ def assess_targets(payload: object) -> dict[str, dict[str, object]]:
         raise ValueError("Prometheus target inventory invalid or too large")
 
     result: dict[str, dict[str, object]] = {}
-    for job in JOBS:
+    for job in jobs:
         selected = []
         for item in targets:
             if not isinstance(item, dict):
@@ -103,9 +117,12 @@ def assess_targets(payload: object) -> dict[str, dict[str, object]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--scope", choices=("baseline", "remaining"),
+                        default="baseline", help="select allowlisted scrape jobs")
     args = parser.parse_args()
     if not args.check:
         parser.error("--check required")
+    jobs = REMAINING_JOBS if args.scope == "remaining" else JOBS
     opener = build_opener(ProxyHandler({}), NoRedirect())
     try:
         request = Request(PROMETHEUS_URL, headers={"Accept": "application/json"})
@@ -113,7 +130,7 @@ def main() -> int:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
         if len(raw) > MAX_RESPONSE_BYTES:
             raise ValueError("response too large")
-        report = assess_targets(json.loads(raw))
+        report = assess_targets(json.loads(raw), jobs=jobs)
     except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as error:
         status = error.code if isinstance(error, HTTPError) else "unavailable"
         print(
@@ -122,7 +139,7 @@ def main() -> int:
         )
         return 1
 
-    for job in JOBS:
+    for job in jobs:
         record = report[job]
         print(
             f"{job}: state={record['state']} "
@@ -130,9 +147,11 @@ def main() -> int:
             f"targets_total={record['targets_total']} "
             f"errors={','.join(record['errors']) or 'none'}"
         )
-    healthy = all(report[job]["state"] == "scrape_up" for job in JOBS)
+        if record["state"] != "scrape_up" and job in NEXT_CHECK:
+            print(f"  next_check={NEXT_CHECK[job]}")
+    healthy = all(report[job]["state"] == "scrape_up" for job in jobs)
     print(
-        "PASS: all three scrapes UP"
+        "PASS: all selected scrapes UP"
         if healthy else "INCOMPLETE: inspect the failing collector only"
     )
     return 0 if healthy else 1
