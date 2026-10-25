@@ -30,7 +30,10 @@ class ApisixContract(unittest.TestCase):
             self.assertEqual(service["profiles"], ["apisix"])
             self.assertEqual(service["restart"], "no")
             self.assertNotIn("ports", service)
-            self.assertNotIn("traefik.enable", service.get("labels", {}))
+            self.assertFalse(any(
+                str(label).startswith("traefik.")
+                for label in service.get("labels", {})
+            ))
             self.assertEqual(service["networks"], ["isolated"])
         self.assertEqual(self.compose["name"], "apisix")
         apisix = self.compose["services"]["apisix"]
@@ -141,6 +144,30 @@ class ApisixRollbackContract(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("runtime=not_deployed_or_ambiguous", result.stdout)
             self.assertNotIn("runtime=failed", result.stdout)
+
+    def test_check_marks_unhealthy_container_failed(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
+        with tempfile.TemporaryDirectory() as workdir:
+            fake = Path(workdir) / "mock-docker-functions"
+            fake.write_text(
+                'docker() { '
+                'if [[ "$1" == inspect ]]; then '
+                'printf "running|unhealthy\\n"; '
+                'elif [[ "$*" == *"ps -q"* ]]; then '
+                'printf "abcdef123456\\n"; '
+                'fi; }\\n',
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("APISIX_KEY", None)
+            env["BASH_ENV"] = str(fake)
+            result = subprocess.run(
+                ["bash", str(script), "check"], env=env,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("runtime=failed http=not_checked", result.stdout)
+            self.assertNotIn("apisix-cleanup-placeholder", result.stdout)
 
     def test_mixed_cli_modes_are_invalid(self):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
