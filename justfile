@@ -785,3 +785,19 @@ openclaw-429-fix-all:
     python3 scripts/workstation/openclaw-route-metadata.py
     python3 scripts/workstation/diagnose-openclaw-429-auto.py --hours 2 || echo 'WARN: 429 evidence unavailable; runtime fix already processed'
 
+
+# Inspect the exact npm debug log from the failed 2026-10-25 OpenClaw update.
+# Read-only; output is limited to known error categories and version metadata.
+openclaw-update-npm-triage:
+    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log
+
+openclaw-update-npm-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-update-npm.py tests/test_openclaw_update_npm_diagnostic.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_update_npm_diagnostic.py' -v
+
+# Workstation-only recovery gate. No npm install, no GitHub CI, no LLM request.
+openclaw-update-recovery-local:
+    just openclaw-update-npm-test
+    just openclaw-429-fix-test
+    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log
+
