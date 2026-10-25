@@ -101,6 +101,18 @@ def installed_version(command):
     return "unavailable"
 
 
+def node_target_compatibility(version):
+    """Pinned OpenClaw 2026.10.7 Node engine floor; no npm/network access."""
+    if not isinstance(version, str) or not re.fullmatch(r"\\d+\\.\\d+\\.\\d+", version):
+        return "unverified"
+    major, minor, patch = map(int, version.split("."))
+    if major == 24:
+        return "compatible" if (minor, patch) >= (22, 1) else "below_floor"
+    if major == 26:
+        return "compatible" if (minor, patch) >= (12, 1) else "below_floor"
+    return "unsupported_line"
+
+
 def npm_prefix_posture(home):
     try:
         p = subprocess.run(["npm", "prefix", "-g"], stdout=subprocess.PIPE,
@@ -129,7 +141,11 @@ def main(argv=None):
     home = Path.home()
     selected = choose_log(home, args.log_name)
     print("openclaw_update_triage=read_only")
-    print("node_version=" + installed_version(["node", "--version"]))
+    node = installed_version(["node", "--version"])
+    print("node_version=" + node)
+    print("openclaw_target_version=2026.10.7")
+    print("target_node_floor=24.22.1_or_26.12.1")
+    print("target_node_compatibility=" + node_target_compatibility(node))
     print("npm_version=" + installed_version(["npm", "--version"]))
     print("openclaw_version=" + installed_version(["openclaw", "--version"]))
     location, writable = npm_prefix_posture(home)
