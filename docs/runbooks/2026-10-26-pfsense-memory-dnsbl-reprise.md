@@ -59,3 +59,54 @@ Il est **impossible de reconstituer** la baseline réelle du 25/10 à 23:56 en l
 État désiré : aucun nouvel OOM noyau d'Unbound sur des cycles documentés, interruption DNSBL mesurée et maîtrisée, marge RAM ordinaire ≥128 Mio (seuil opérationnel non garanti), profil PHP-FPM 4 workers, accès HTTPS/pfREST, DNS privé, Snort WAN et protections CrowdSec/pfBlockerNG vérifiées.
 
 Le rollback PHP-FPM existe : `PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just pfsense-php-fpm-restore`. **Ne pas l'exécuter pour tester l'hypothèse DNSBL** : les cycles minuit préexistent à la réduction des workers et revenir à huit workers peut accroître le risque d'OOM. Exiger preuve de régression PHP-FPM, console de secours et fenêtre de maintenance.
+
+
+## Validation réelle des captures — 26 octobre, 00:40 CET
+
+**Retour opérateur :** `just pfsense-unbound-restart-test`
+**64/64 PASS** : 21 Unbound, 23 console, 5 sampler,
+10 comparateur et 5 capture. Les deux appels
+`just pfsense-unbound-capture` ont également réussi :
+
+| Capture | Heure locale dans le nom | Identifiant du fichier |
+| --- | --- | --- |
+| Premier `snapshot_saved` | 00:40:15 CET | `unbound-20261026T004015+0100.2oWbKT4w.log` |
+| Second `snapshot_saved` | 00:40:22 CET | `unbound-20261026T004022+0100.C2Bxl2aQ.log` |
+
+Ces deux fichiers existent sur la **workstation de l'opérateur**
+dans `~/.local/state/nabla/pfsense-unbound/`.
+Le code vérifie leurs permissions et leur structure ;
+leur **comparaison n'a pas encore été fournie**.
+
+**Important :** les deux snapshots ont été pris à 7 secondes
+d'intervalle et **après** le cron DNSBL de 00:00 / restart
+Unbound de 00:04. Ils peuvent détecter un changement sur
+**00:40:15–00:40:22**, mais **ne mesurent pas une transition**
+avant/après le cycle DNSBL précédent. Même si les journaux
+retiennent les événements de 00:04, ce ne sont pas des
+preuves d'une continuité PID sur cet intervalle antérieur.
+
+L'erreur ultérieure `reason=before_file_missing` est **attendue**
+avec le placeholder littéral `/chemin/reel/avant.log` :
+le script refuse un chemin inexistant. Ce n'est pas une
+panne SSH, Unbound ou pfBlockerNG.
+
+### Comparaison des deux vrais rapports existants
+
+Depuis la workstation, **sans relancer le collecteur** :
+
+```bash
+PFSENSE_BEFORE="$HOME/.local/state/nabla/pfsense-unbound/unbound-20261026T004015+0100.2oWbKT4w.log" \
+PFSENSE_AFTER="$HOME/.local/state/nabla/pfsense-unbound/unbound-20261026T004022+0100.C2Bxl2aQ.log" \
+just pfsense-unbound-compare
+```
+
+Si `unbound_pid_changed=no`, cela signifie **uniquement** que
+le PID est inchangé pendant ces quelques secondes. Il ne
+réfute pas le restart antérieur observé à 00:04.
+
+**Prochaine vraie validation DNSBL :** enregistrer le
+premier snapshot **avant** un futur cron et le deuxième
+**après**, puis corréler les événements d'exécution
+avec un contrôle DNS depuis le LAN. Ne pas forcer un
+restart Unbound ou un rebuild DNSBL pour créer ce cas.
