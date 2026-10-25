@@ -635,3 +635,44 @@ La suite de diagnostic est strictement en lecture seule. Les sous-modules
 `n8n` et `sentry` signalés modifiés dans le worktree opérateur ne sont
 pas touchés par cette procédure. Les tests ont été exécutés sur Workstation ;
 le runtime et la DB n'ont pas été modifiés.
+
+
+## Vérification parallèle des secrets — 25 octobre 2026
+
+L'opérateur a indiqué avoir ajouté six noms de variables dans
+`/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets` :
+`LITELLM_OPENCLAW_CRON_API_KEY`, `LITELLM_OPENCLAW_MAIN_API_KEY`,
+`LITELLM_REACTIVE_API_KEY`, `LITELLM_IDE_API_KEY`,
+`LITELLM_API_KEY`, `LITELLM_N8N_API_KEY`.
+**Aucune valeur de clé n'est documentée.**
+
+Attention : `apps/litellm/compose.yml` référence l'autre chemin
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`. La présence de valeurs
+dans un fichier ne prouve pas leur injection dans le conteneur
+`litellm`, ni la création des clés virtuelles en base.
+
+La ligne `LITELLM_N8N_API_KEY=XXX"` communiquée présente un guillemet
+de fermeture isolé. Corriger la source réelle **si** elle a été
+copiée sous cette forme ; ne pas recopier les valeurs dans Git ou les logs.
+
+Diagnostic depuis la Workstation, en lecture seule, avec trois contrôles
+SSH concurrents (pas de restart, pas de requête LLM, pas de génération de clé) :
+
+```bash
+just openclaw-truenas-secret-provenance
+```
+
+Cette recette utilise `sudo -n python3` sur TrueNAS et `docker inspect`.
+Une absence de sudo non interactif donne `unverified`, pas un PASS fictif.
+Le résultat compare les variables du fichier OpenRAG avec l'environnement
+du conteneur **uniquement en mémoire** : aucune valeur ou empreinte n'est
+imprimée. La lecture est limitée à des indicateurs de présence, à la
+syntaxe et à la concordance. `database_url_in_container=present`
+ne teste **pas** la connexion PostgreSQL ou la persistance.
+
+L'inventaire authentifié des modèles et du nombre de virtual keys
+reste disponible via
+`just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard` :
+ne jamais considérer six variables présentes comme six clés
+provisionnées dans LiteLLM. Conserver le statut NO-GO de la migration
+tant que la persistance et les modèles ne sont pas vérifiés.
