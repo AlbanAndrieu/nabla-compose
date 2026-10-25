@@ -29,7 +29,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | Ordre | Domaine | Contrôle à valider | État |
 | --- | --- | --- | --- |
 | 1 | Prometheus | Configuration corrigée (0640), 21 targets UP, 7 DOWN | **Serveur sain, collecte dégradée** |
-| 2 | OpenRAG | Backend/frontend healthy ; deux clés requises absentes, validation secrets bloquée | **Runtime partiel, secrets incomplets** |
+| 2 | OpenRAG | Backend/frontend healthy ; `LITELLM_IDE_API_KEY` désormais présent, `OPENRAG_ENCRYPTION_KEY` encore absent | **Secret maître à restaurer ou générer une seule fois** |
 | 3 | Akvorado | +5 flux / +4 metadata missing / +0 lots ClickHouse ; statique ifIndex=11 à vérifier en mémoire | **Ingestion bloquée** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
@@ -100,7 +100,8 @@ Actions :
 - [ ] **H-08 :** migration des secrets **non terminée**.
   Préserver les secrets existants, vérifier la présence des clés
   `LITELLM_IDE_API_KEY` / `OPENRAG_ENCRYPTION_KEY` (OpenRAG)
-  et `LANGFUSE_SECRET_KEY` (LiteLLM), corriger uniquement le candidat
+  ainsi que `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (LiteLLM, même projet),
+  vérifier le chemin canonique LiteLLM et les guillemets dotenv, puis corriger le candidat
   OpenSearch identifié par métadonnées, puis valider son égalité. Ne pas
   finaliser le chemin historique OpenRAG avant un vrai runtime accepté.
   [Gates de clôture](runbooks/truenas-secret-migration-closure.md) · [preuves et commandes](runbooks/2026-10-25-critical-acceptance-followup.md).
@@ -182,6 +183,11 @@ Actions :
   `NO_COLOR`, `--no-color`), sans ANSI dans les preuves privées.
   Le comparateur OpenSearch indique désormais une **classe de fichier**
   incorrecte, sans afficher sa valeur.
+- [x] **D-14 (code) :** validation de la clé AES-256-GCM OpenRAG
+  (32 octets Base64), des guillemets dotenv et de la paire
+  `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` dans le secret
+  **LiteLLM canonique**. Tests synthétiques ajoutés, runtime
+  **NOT_VERIFIED**. [Procédure](runbooks/truenas-secret-migration-closure.md).
 - [ ] **D-13 (runtime) :** démontrer séparément l'accès au secret
   canonique, l'absence de chemin legacy, les identifiants authentifiés,
   la disponibilité des 7 exporters Prometheus et des lots ClickHouse
