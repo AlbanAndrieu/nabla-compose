@@ -19,9 +19,10 @@
 - **ACCEPTED (runtime)** : preuves datées issues de TrueNAS/pfSense, test
   fonctionnel et critère de rollback satisfaits.
 
-L'ordre de traitement est **P0 OpenRAG → Sentry → DefectDojo**,
-puis **P1 Prometheus → Akvorado**. La sécurité mémoire de pfSense reste
-un chantier P0 indépendant. Ne pas démarrer plusieurs remédiations à la fois.
+Sur la base du relevé opérateur du 25 octobre, l'ordre de diagnostic actif
+est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
+leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
+pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
 ## Dernière preuve opérateur — 25 octobre 2026
 
@@ -63,9 +64,9 @@ d'affirmer une couverture.
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
-| H-01 | OpenRAG | Le 24/10 : `STOPPED`, composants absents ; démarrage annoncé mais non revérifié | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
-| H-02 | Sentry | Le 24/10 : `DEPLOYING`, `sentry-events-consumer` et `sentry-post-process-forwarder-errors` `unhealthy` ; redémarrage non revérifié | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
-| H-03 | DefectDojo | L'accès HTTPS privé signalé indisponible ; pas de nouvelle preuve après diagnostic | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
+| H-01 | OpenRAG | Le 25/10 : startup, récupération IA, secret historique OpenSearch et bundle Backstage en FAIL ; dépendances et migration env PASS | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
+| H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
+| H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
 | H-04 | pfSense / Unbound | OOM du noyau observés ; causalité des tâches Snort/CrowdSec/pfBlockerNG **non démontrée** | Horaires et mémoire corrélés, plan de changement unique avec sauvegarde et rollback |
 
 Actions :
@@ -90,7 +91,7 @@ Les procédures spécialisées restent dans
 
 | ID | Domaine | Fait établi | Reste à prouver |
 | --- | --- | --- | --- |
-| H-05 | Prometheus | Serveur et 15 règles sains au dernier triage ; `pfsense_exporter` ultérieurement UP | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
+| H-05 | Prometheus | Le 25/10 : `prometheus-targets` et `prometheus-config-access` FAIL ; rules access PASS | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
 | H-06 | Akvorado | Flux Kafka historiques ; erreurs metadata provider cumulées ; aucune nouvelle insertion ClickHouse attestée | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
 | H-07 | Catalogue OWNER/SERVICE | Identités Backstage/`x-nabla` déclarées ; consommateurs FastAPI/Site distincts | Vérifier dérive catalogue, puis comportement runtime par provenance |
 | H-08 | Secrets et noms | Chemins canoniques, renommages `openwebui`/`homeassistant` préparés | Réconcilier chaque Custom App et chaque secret avec rollback indépendant |
@@ -136,8 +137,11 @@ Actions :
   TLS/JWKS, validation d'audience et tests `Host`/`Forwarded` falsifiés.
   APISIX reste interdit en production sans ADR de cutover spécifique.
 
-- [ ] Faire un runbook de rollback et une recette négative avant toute
-  migration de routes. Aucun cutover ni déploiement de gateway en production autorisé par ce document.
+- [x] Documenter le rollback isolé du POC APISIX ; la commande `down`
+  fonctionne sans conserver la clé POC. Tests synthétiques ajoutés,
+  **non encore exécutés sur le HEAD courant**.
+- [ ] Faire une recette négative runtime avant toute migration de routes.
+  Aucun cutover ni déploiement de gateway en production autorisé par ce document.
 
 - [x] Affecter le rendu C4 interactif au Site Alban avec React Flow existant, sans service supplémentaire ; source C4 dérivée du catalogue v2, pas un nouvel inventaire Compose.
 
@@ -147,7 +151,9 @@ Actions :
   sans supprimer l'historique ni contourner le contrôle de diff destructif.
 - [x] **D-02 :** créer un index des runbooks avec statut `actif` ou
   `historique` ; une seule procédure d'acceptation courante.
-- [ ] **D-03 :** le registre read-only a été extrait de
+- [ ] **D-03 :** la CLI refuse désormais les modes d'exécution mixtes et
+  expurge les motifs non maîtrisés du planificateur ; tests négatifs ajoutés
+  mais quality gate complète **NOT_RUN**. Le registre read-only a été extrait de
   `finish-migrations-20261024.sh` vers
   `scripts/truenas/migration-diagnostic-sections.sh` et les tests négatifs
   ont été ajoutés ; **quality gate complète à exécuter**. Conserver les modes
@@ -157,9 +163,10 @@ Actions :
   Valider 200 HTML / 200 JSON / 403 / 000 / DNS timeout.
 - [ ] **D-05 :** extraire les primitives redondantes de diagnostics Docker
   (état, health, compteurs, expurgation) uniquement avec tests négatifs.
-- [ ] **D-06 :** remplacer les noms de lanceurs temporaires datés
-  `pr274` seulement après publication d'un point d'entrée générique
-  testé, sans modifier les scripts historiques en exploitation.
+- [ ] **D-06 :** une CLI stable `scripts/truenas/migration-operator.sh`
+  délègue au runner historique dans un Bash enfant. Valider les contrats
+  et migrer progressivement les références `pr274` après la quality gate.
+  [Contrat opérateur](runbooks/truenas-migration-operator.md).
 - [ ] **D-07 :** réduire la duplication de preuves datées entre les runbooks
   d'incident et la roadmap ; publier les observations futures dans
   l'incident correspondant, puis ne garder ici que l'état et le lien.
