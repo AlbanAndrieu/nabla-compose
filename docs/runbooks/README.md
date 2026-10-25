@@ -17,6 +17,8 @@
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
   contrats statiques hors ligne et limitations de la preuve.
+- **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —
+  clés manquantes, permissions OpenSearch, validation du legacy avant finalize.
 - **[Reprise ciblée TrueNAS du 25/10](2026-10-25-critical-acceptance-followup.md)** —
   second relevé PASS=9/FAIL=7, sept contrôles read-only et réparations conditionnelles.
 - **[Relevé TrueNAS du 25/10](2026-10-25-critical-acceptance-evidence.md)** —
