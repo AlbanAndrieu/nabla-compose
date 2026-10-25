@@ -70,6 +70,27 @@ def ssh_agent_state() -> str:
     return "UNKNOWN"
 
 
+def classify_scdaemon_assuan(raw: str) -> str:
+    """Classify only a bounded Assuan answer; never return the raw reply.
+
+    A negative reply does not prove that every scdaemon process is stopped.
+    """
+    import re
+
+    if not isinstance(raw, str) or len(raw) > 4096 or "\\x00" in raw:
+        return "NOT_CONFIRMED"
+    lines = raw.strip().splitlines()
+    if len(lines) == 3 and lines[0] == "OK Pleased to meet you":
+        lines = lines[1:]
+    if len(lines) != 2 or lines[-1] != "OK closing connection":
+        return "NOT_CONFIRMED"
+    if lines[0] == "OK":
+        return "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED"
+    if re.fullmatch(r"ERR [0-9]+(?: [^\\r\\n]{0,200})?", lines[0]):
+        return "AGENT_SCD_STATUS_REJECTED_UNVERIFIED"
+    return "NOT_CONFIRMED"
+
+
 def scdaemon_agent_state() -> str:
     """Ask existing agent whether scdaemon already runs; never send SCD."""
     if not shutil.which("gpg-connect-agent"):
@@ -83,10 +104,7 @@ def scdaemon_agent_state() -> str:
         if (done.returncode != 0 or done.stderr.strip()
                 or len(done.stdout) > 4096 or "\x00" in done.stdout):
             return "UNKNOWN"
-        lines = done.stdout.strip().splitlines()
-        if lines == ["OK", "OK closing connection"]:
-            return "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED"
-        return "NOT_CONFIRMED"
+        return classify_scdaemon_assuan(done.stdout)
     except (OSError, UnicodeError, ValueError, subprocess.TimeoutExpired):
         return "UNKNOWN"
 
