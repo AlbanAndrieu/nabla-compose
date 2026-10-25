@@ -525,13 +525,46 @@ fonctionnel, DNSBL Python, TLD désactivé, DNSBL VIP
   `4/30/1/2/500`, les **deux** enfants nginx, le changement
   de profil et le rendu d'une seule mesure.
 
-Les **15 tests fournis par l'opérateur** passent sur l'ancienne
-révision. Les **nouveaux tests** ajoutés après ce relevé
-nécessitent une nouvelle exécution locale ; ne pas les
-déclarer validés par les 15 PASS antérieurs.
+**Validation locale confirmée après la dernière correction :**
+dans la sortie opérateur du **26/10/2026 vers 00:06 CET**,
+`just pfsense-security-capacity-test` est **16/16 PASS** :
+5 tests hardening PHP-FPM (dont la fixture à 2 workers),
+8 tests du driver SSH et 3 tests de posture. Aucun FAIL.
+Le rapport teste les contrats locaux ; il **ne remplace pas**
+un nouveau diagnostic runtime de pfSense après le cron DNSBL.
 
 **P0 encore ouvert :** valider depuis LAN la GUI
 `https://home.albandrieu.com:10443`, le pfREST authentifié,
 la zone DNS privée et la non-régression sous la prochaine
 charge DNSBL/Snort. Ne pas redémarrer Unbound ni réappliquer
 le patch PHP-FPM pour ces contrôles.
+
+### Validation locale supplémentaire — 26/10/2026 à 00:06 CET
+
+Le même relevé opérateur contient
+`just pfsense-unbound-restart-test` **49/49 PASS** :
+21 contrats Unbound, 23 tests console et 5 contrats d'échantillonnage.
+Au total, avec les **16/16** contrats capacité/PHP-FPM,
+ce sont **65/65 tests locaux validés** après la modification.
+Ces tests sont exécutés depuis la workstation, sans lancer
+de nouvelle mise à jour Snort ou pfBlockerNG et sans redémarrer
+les services.
+
+**Chronologie :** le dernier véritable relevé pfSense joint reste
+celui de **23:56 CET le 25/10** (profil 4 workers, 2 enfants
+actifs, 247,0 Mio disponibles, Unbound en service).
+La validation lancée à **00:06** le 26/10 est une **gate
+de tests**, pas un échantillon mémoire ou DNS après le cron
+pfBlockerNG programmé à 00:00. Le comportement du résolveur
+après ce cron reste **NOT_VERIFIED** jusqu'à une nouvelle
+exécution du collecteur read-only.
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+Comparer le PID, la date de lancement, les empreintes de
+configuration, les stop/start pfBlockerNG et les éventuels
+OOM postérieurs à 00:00 avec la baseline conservée dans
+`docs/runbooks/2026-10-25-pfsense-unbound-restart-causality.md`.
+**Ne pas réappliquer le profil PHP-FPM** pour cette vérification.
