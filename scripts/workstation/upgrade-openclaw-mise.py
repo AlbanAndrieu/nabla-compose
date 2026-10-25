@@ -158,6 +158,8 @@ def unit_exec():
     if not is_node_install and not is_isolated:
         return None
     if is_isolated:
+        if not isolated_prefix_safe():
+            return None
         # The package prefix is different from its Node runtime owner.
         # Require the exact pinned runtime, not the legacy /usr/bin/node.
         if nodes != {TARGET_NODE} or str(new_root() / "bin/node") not in text:
@@ -327,6 +329,10 @@ def stage():
         return 2
     destination = selected_stage_root()
     print("stage_prefix=" + stage_kind(destination))
+    if destination == isolated_stage_root() and not isolated_prefix_safe():
+        print("stage_security=" + isolated_prefix_posture())
+        print("upgrade_stage=unsafe_prefix")
+        return 2
     current = package_version(destination)
     if stage_valid(destination):
         print("upgrade_stage=already_verified")
