@@ -6,6 +6,8 @@
 
 ## Point d'entrée courant
 
+- **[Opérateur de migration TrueNAS](truenas-migration-operator.md)** —
+  entrée CLI stable, modes exclusifs, planHash et workflow de rollback.
 - **[Acceptation runtime Homelab](homelab-runtime-acceptance.md)** —
   ordre OpenRAG → Sentry → DefectDojo → Prometheus → Akvorado ;
   sondes en lecture seule, preuves minimales, interdictions et décisions.
