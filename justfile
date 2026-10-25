@@ -150,6 +150,20 @@ yubikey-backup-ssh-test:
 yubikey-backup-ssh-check:
     python3 scripts/workstation/enroll-yubikey-backup-ssh-fido2.py --check
 
+# Offline contracts for existing key only; never generate another SSH credential.
+yubikey-backup-ssh-signature-test:
+    python3 -m py_compile scripts/workstation/verify-yubikey-backup-ssh-fido2-signature.py tests/test_yubikey_backup_ssh_fido2_signature.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_backup_ssh_fido2_signature.py' -v
+
+# Public key fingerprint/permissions only. No USB, no signing.
+yubikey-backup-ssh-signature-check:
+    python3 scripts/workstation/verify-yubikey-backup-ssh-fido2-signature.py --check
+
+# Explicit local fixture sign + verify, supervised PIN/passphrase/touch.
+# Does not authenticate to any server or change existing SSH keys.
+yubikey-backup-ssh-signature-run:
+    python3 scripts/workstation/verify-yubikey-backup-ssh-fido2-signature.py --sign --acknowledge SIGN_EXISTING_FIDO2_BACKUP_22916048
+
 # Explicit interactive hardware enrollment; no auto-retry or overwrites.
 yubikey-backup-ssh-enroll:
     python3 scripts/workstation/enroll-yubikey-backup-ssh-fido2.py --enroll --acknowledge ENROLL_SSH_FIDO2_BACKUP_22916048
