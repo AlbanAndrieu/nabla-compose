@@ -380,6 +380,17 @@ def main(argv=None):
         print("repair=already_applied")
         return 0
     if not args.apply:
+        if scope == "concurrency_only":
+            # Catch inaccessible/wrong Gateway revisions before entering the
+            # explicit mutation path. Never print raw snapshots or hashes.
+            revision = gateway_snapshot_hash()
+            if revision is None:
+                print("gateway_snapshot=unavailable_or_wrong_owner")
+                return 2
+            if private_read(CONFIG, 4 * 1024 * 1024) != raw:
+                print("gateway_snapshot=concurrent_change")
+                return 2
+            print("gateway_snapshot=verified")
         print("configuration_changed=false")
         return 0
     active = service_active()
