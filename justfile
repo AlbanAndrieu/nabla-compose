@@ -107,6 +107,15 @@ yubikey-parallel-test:
     python3 -m py_compile scripts/workstation/run-yubikey-parallel-readonly.py tests/test_yubikey_parallel_readonly.py
     python3 -m unittest discover -s tests -p 'test_yubikey_parallel_readonly.py' -v
 
+# Host-only: GPG/scdaemon/PCSC process presence, SSH-agent public identities,
+# PostgreSQL recovery tool availability. No credentials, signing or hardware.
+yubikey-dependencies-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-dependencies-readonly.py tests/test_yubikey_dependencies_readonly.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_dependencies_readonly.py' -v
+
+yubikey-dependencies-readonly:
+    python3 scripts/workstation/inspect-yubikey-dependencies-readonly.py
+
 yubikey-parallel-host-readonly:
     python3 scripts/workstation/run-yubikey-parallel-readonly.py
 
