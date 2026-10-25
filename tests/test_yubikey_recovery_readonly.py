@@ -20,7 +20,7 @@ spec.loader.exec_module(module)
 class RecoveryReadOnlyContracts(unittest.TestCase):
     replies = {
         ("list", "--serials"): (0, "22916048\n"),
-        ("--device", "22916048", "info"): (0, "Firmware version: 5.4.3\n"),
+        ("--device", "22916048", "info"): (0, "Serial number: 22916048\nFirmware version: 5.4.3\n"),
         ("--device", "22916048", "otp", "info"): (
             0, "Slot 1: programmed\nSlot 2: programmed\n"
         ),
@@ -56,6 +56,29 @@ class RecoveryReadOnlyContracts(unittest.TestCase):
                 state, seen = self.otp({("list", "--serials"): (0, detected)})
                 self.assertEqual(state, "UNKNOWN")
                 self.assertEqual(len(seen), 1)
+
+    def test_device_info_wrong_missing_or_duplicate_serial_is_unknown(self):
+        info = ("--device", "22916048", "info")
+        for observation in (
+            "Serial number: 23501671\nFirmware version: 5.4.3\n",
+            "Firmware version: 5.4.3\n",
+            "Serial number: 22916048\nSerial number: 22916048\nFirmware version: 5.4.3\n",
+        ):
+            with self.subTest(observation=observation):
+                state, commands = self.otp({info: (0, observation)})
+                self.assertEqual(state, "UNKNOWN")
+                self.assertEqual(len(commands), 2)
+
+    def test_empty_or_wrong_extension_escrow_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            first = Path(temp) / "first.age"
+            second = Path(temp) / "second.txt"
+            first.write_bytes(b"public synthetic ciphertext")
+            second.write_bytes(b"public synthetic ciphertext")
+            self.assertEqual(module.escrow_inventory(first, second), "UNKNOWN")
+            second = second.rename(Path(temp) / "second.age")
+            second.write_bytes(b"")
+            self.assertEqual(module.escrow_inventory(first, second), "UNKNOWN")
 
     def test_reader_failure_and_changed_firmware_fail_closed(self):
         for change in (
@@ -122,7 +145,7 @@ class RecoveryReadOnlyContracts(unittest.TestCase):
             self.assertEqual(module.escrow_inventory(first, second), "SAME_FILESYSTEM")
             second.unlink()
             os.link(first, second)
-            self.assertEqual(module.escrow_inventory(first, second), "SAME_FILE")
+            self.assertEqual(module.escrow_inventory(first, second), "UNKNOWN")
 
     def test_invalid_file_and_symlink_are_unknown(self):
         with tempfile.TemporaryDirectory() as folder:
