@@ -1222,3 +1222,46 @@ Références officielles :
 - https://docs.openclaw.ai/install/update-troubleshooting
 - https://docs.openclaw.ai/install/updating
 - https://docs.openclaw.ai/cli/config
+
+
+### 25 octobre, 23:21 Europe/Paris — npm triage tests blocked by group umask
+
+New operator proof on Workstation:
+`just openclaw-update-recovery-local` exited during
+`just openclaw-update-npm-test`, with 4 tests PASS and two failures:
+`test_known_permission_failure_without_printing_path_or_token`
+and `test_valid_latest_log_selected_without_network`.
+`just openclaw-429-fix-all` was **not run** by the guarded shell.
+
+**Deterministic fixture bug**: `tests/test_openclaw_update_npm_diagnostic.py`
+created `.npm/` and `.npm/_logs/` using the operator's `umask`.
+On a default group-writable `umask 0002`, temporary fixture
+directories received mode `0775`. The production `safe_log()`
+intentionally refuses directories writable by group or others,
+making both expected-positive fixture reads return `None`.
+This was reproduced locally with `umask 0002`.
+
+**Fix committed**: after creating fixture directories, explicitly
+`chmod 0700` the `.npm` and `_logs` parents; preserve the
+production fail-closed rules, and add two negative contracts refusing
+group-writable parents. Offline permission behavior was checked,
+but all target repository tests remain **NOT_RUN in the agent runtime**
+until confirmed on Workstation.
+
+The recovery recipe keeps the npm log scan informational: if the
+specific log has been rotated or is unsafe, report `WARN` and
+allow the later independent 429 test/repair path; never claim a
+successful OpenClaw update from a missing npm diagnostic.
+
+Workstation command:
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+just openclaw-429-fix-all
+```
+
+If the exact error class is still `unknown`, use the sanitized
+update run status in `openclaw update status --json` privately
+rather than posting raw log contents.
