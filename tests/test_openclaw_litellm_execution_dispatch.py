@@ -67,6 +67,16 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(remote[-1], "sudo -n python3 - --quota-audit")
         self.assertNotIn("ssh", local)
 
+    def test_quota_audit_is_registered_in_argument_parser(self):
+        from types import SimpleNamespace
+        with patch.object(module, "execution_target", return_value="truenas_local"), \
+             patch.object(module.subprocess, "run",
+                          return_value=SimpleNamespace(returncode=0)) as runner, \
+             contextlib.redirect_stdout(io.StringIO()):
+            result = module.main(["--mode", "quota-audit"])
+        self.assertEqual(result, 0)
+        self.assertEqual(runner.call_args.args[0][-1], "--quota-audit")
+
     def test_bad_mode_never_runs_command(self):
         with patch.object(module.subprocess, "run") as runner, \
              contextlib.redirect_stderr(io.StringIO()):
