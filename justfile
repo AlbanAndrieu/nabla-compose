@@ -677,3 +677,21 @@ litellm-truenas-generic-alignment-test:
     python3 -m unittest discover -s tests -p 'test_litellm_truenas_generic_alignment.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
 
+
+# Workstation-only. Validate both policies and safe backup/install semantics offline.
+openclaw-morning-briefing-test:
+    python3 -m py_compile scripts/workstation/openclaw-heartbeat-gitops.py tests/test_openclaw_briefing_gitops.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_briefing_gitops.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
+
+# Compare source policy and briefing to the live OpenClaw workspace.
+openclaw-morning-briefing-check:
+    python3 scripts/workstation/openclaw-heartbeat-gitops.py --check
+    python3 scripts/workstation/openclaw-heartbeat-gitops.py --briefing-check
+
+# Deploy the reviewed heartbeat policy and daily briefing with local private backups.
+# No cron/automation created; no gateway restart or embedding rebuild.
+openclaw-morning-briefing-apply:
+    python3 scripts/workstation/openclaw-heartbeat-gitops.py --apply
+    python3 scripts/workstation/openclaw-heartbeat-gitops.py --briefing-apply
+
