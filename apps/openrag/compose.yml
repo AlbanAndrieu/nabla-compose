@@ -28,8 +28,10 @@ services:
           description: OpenRAG backend stores and retrieves indexed content through OpenSearch.
           evidence:
             - apps/openrag/compose.yml:OPENSEARCH_HOST
+    # Canonical Vaultwarden materialization. Stage and verify on TrueNAS
+    # before applying this Compose change; do not rotate the shared password.
     env_file:
-      - /mnt/cpool/openrag/.env.secrets
+      - /mnt/cpool/secrets/runtime/openrag/.env.secrets
     environment:
       OPENSEARCH_HOST: opensearch
       OPENSEARCH_PORT: "9200"
