@@ -44,7 +44,7 @@ class TriageTest(unittest.TestCase):
             'secret_value': 'never-export-me',
         }))])
         result = triage.analyze(self.session, self.root)
-        self.assertEqual(result['checks'][0]['category'], 'wave_blocked_runtime_secrets')
+        self.assertEqual(result['checks'][0]['category'], 'wave_blocked_secrets_and_dependencies')
         self.assertEqual(result['checks'][0]['blocker_counts']['missingRunningSecrets'], 1)
         for secret in ('private-app-secret', 'private-other', 'never-export-me', 'deadbeef'):
             self.assertNotIn(secret, json.dumps(result))
@@ -64,7 +64,7 @@ class TriageTest(unittest.TestCase):
         self.assertNotIn('SECRET-ABC', json.dumps(result))
 
     def test_multiple_sessions_phases(self):
-        self.save([('sentry-recovery-preflight', 'FAIL', 'container unhealthy PASSWORD=top-secret'),
+        self.save([('sentry-recovery-preflight', 'FAIL', 'ERROR: container unhealthy PASSWORD=top-secret'),
                    ('akvorado-blocked', 'FAIL', 'metadata missing, token foo')])
         result = triage.analyze(self.session, self.root)
         self.assertEqual([r['category'] for r in result['checks']],
