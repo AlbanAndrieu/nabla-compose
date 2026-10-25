@@ -200,7 +200,7 @@ class RepairContracts(unittest.TestCase):
 
     def test_gateway_snapshot_hash_fails_closed_on_missing_response(self):
         for document in (None, {}, {"hash": "short"},
-                         {"hash": "unsafe\\nrevision"},
+                         {"hash": "unsafe" + chr(10) + "revision"},
                          {"payload": {"hash": "a" * 64, "path": "/etc/passwd"}}):
             with self.subTest(document_type=type(document).__name__), \
                  patch.object(mod, "gateway_call", return_value=document):
