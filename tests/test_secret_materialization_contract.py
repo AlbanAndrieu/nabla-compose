@@ -40,7 +40,7 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn('[[ ! -L "${DEST_DIR}" ]]', installer)
         self.assertEqual(installer.count('install -d -o root -g root -m 700'), 1)
         self.assertIn(
-            'if [[ "${MODE}" == "--install" ]]; then\\n'
+            'if [[ "${MODE}" == "--install" ]]; then\n'
             '  install -d -o root -g root -m 700 "${DEST_DIR}"',
             installer,
         )
