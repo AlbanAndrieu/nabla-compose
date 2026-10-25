@@ -12,7 +12,8 @@ SCRIPT = ROOT / "scripts/truenas/reconcile-openrag-opensearch-secret.sh"
 
 
 def _test_with_synthetic_root(
-    tmp_path: Path, credential: str, authority: str, *, apply: bool = False
+    tmp_path: Path, credential: str, authority: str, *,
+    apply: bool = False, unsafe_candidate: bool = False
 ) -> subprocess.CompletedProcess[str]:
     script_root = tmp_path / "scripts"
     (script_root / "truenas").mkdir(parents=True)
@@ -36,7 +37,7 @@ def _test_with_synthetic_root(
     openrag.write_text("OPENSEARCH_PASSWORD=" + credential + "\n", encoding="utf-8")
     search.write_text("OPENSEARCH_PASSWORD=" + authority + "\n", encoding="utf-8")
     openrag.chmod(0o600)
-    search.chmod(0o600)
+    search.chmod(0o666 if unsafe_candidate else 0o600)
     env = os.environ | {
         "OPENRAG_SECRET_FILE": str(openrag),
         "OPENSEARCH_ENV_FILE": str(search),
@@ -72,8 +73,12 @@ def test_unsafe_candidate_reports_class_but_not_secret(tmp_path: Path) -> None:
     marker = "never-echo-this-credential"
     # The check runs on a synthetic copy without a TrueNAS root requirement.
     # The candidate class is fixed: never print paths or dotenv values.
-    result = _test_with_synthetic_root(tmp_path, marker, marker)
-    assert result.returncode == 0
+    result = _test_with_synthetic_root(
+        tmp_path, marker, marker, unsafe_candidate=True
+    )
+    assert result.returncode == 1
+    assert "source=operator_selected" in result.stderr
+    assert "unsafe ownership or mode" in result.stderr
     source = SCRIPT.read_text(encoding="utf-8")
     for category in (
         "canonical_env", "canonical_secret", "legacy_env",
