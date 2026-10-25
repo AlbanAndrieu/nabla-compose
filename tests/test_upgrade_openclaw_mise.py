@@ -26,6 +26,10 @@ class UpgradeContracts(unittest.TestCase):
         self.new = self.home / ".local/share/mise/installs/node/24.22.1"
         self.old.mkdir(parents=True)
         self.new.mkdir(parents=True)
+        old_entry = self.old / "lib/node_modules/openclaw/dist/index.js"
+        old_entry.parent.mkdir(parents=True)
+        old_entry.write_text("// Synthetic legacy installed entry\\n")
+        old_entry.chmod(0o600)
         state = self.home / ".openclaw"
         state.mkdir()
         state.joinpath("openclaw.json").write_text("{}")
@@ -33,6 +37,64 @@ class UpgradeContracts(unittest.TestCase):
         home_patch = patch.object(Path, "home", return_value=self.home)
         home_patch.start()
         self.addCleanup(home_patch.stop)
+
+    def test_official_npm_bin_manifest_and_cli_are_authoritative(self):
+        pkg = self.new / "lib/node_modules/openclaw"
+        pkg.mkdir(parents=True)
+        (pkg / "package.json").write_text(json.dumps({
+            "name": "openclaw", "version": "2026.10.7",
+            "bin": {"openclaw": "openclaw.mjs"},
+        }))
+        (pkg / "openclaw.mjs").write_text("// fixture")
+        with patch.object(mod, "run", return_value=(0, b"OpenClaw 2026.10.7 (test)", b"")) as proc:
+            self.assertTrue(mod.stage_valid(self.new))
+        self.assertEqual(mod.package_version(self.new), "2026.10.7")
+        self.assertEqual(mod.package_entry(self.new), pkg / "openclaw.mjs")
+        self.assertEqual(proc.call_args.args[0][1], str(pkg / "openclaw.mjs"))
+
+    def test_partial_package_lifecycle_marker_refuses_activation(self):
+        pkg = self.new / "lib/node_modules/openclaw"
+        pkg.mkdir(parents=True)
+        (pkg / "package.json").write_text(json.dumps({
+            "name": "openclaw", "version": "2026.10.7",
+            "bin": {"openclaw": "openclaw.mjs"},
+        }))
+        (pkg / "openclaw.mjs").write_text("// fixture")
+        (pkg / ".openclaw-lifecycle-pending").write_text("pending")
+        with patch.object(mod, "run") as proc:
+            self.assertFalse(mod.stage_valid(self.new))
+        proc.assert_not_called()
+
+    def test_stage_reuses_existing_verified_package_without_npm(self):
+        with patch.object(mod, "unit_exec", return_value=self.old), \
+             patch.object(mod, "node_ready", return_value=True), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "stage_valid", return_value=True), \
+             patch.object(mod, "run") as proc, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.stage()
+        self.assertEqual(code, 0)
+        self.assertIn("upgrade_stage=already_verified", output.getvalue())
+        proc.assert_not_called()
+
+    def test_stage_recovers_from_npm_nonzero_if_full_package_valid(self):
+        calls = []
+        def run_mock(args, **kwargs):
+            calls.append(args)
+            if args[-1] == "--version":
+                return 0, b"12.2.0", b""
+            return 1, b"non-disclosed failure", b""
+        with patch.object(mod, "unit_exec", return_value=self.old), \
+             patch.object(mod, "node_ready", return_value=True), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "stage_valid", side_effect=[False, True]), \
+             patch.object(mod, "package_version", return_value=None), \
+             patch.object(mod, "run", side_effect=run_mock), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.stage()
+        self.assertEqual(code, 0)
+        self.assertIn("npm_install_exit=nonzero_but_package_verified", output.getvalue())
+        self.assertIn("upgrade_stage=verified", output.getvalue())
 
     def test_npm_error_classification_does_not_echo_tokens(self):
         diagnostic = b"npm ERR! code EBADENGINE token sk-PRIVATE-DO-NOT-SHARE"
@@ -105,6 +167,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.old), \
              patch.object(mod, "node_ready", return_value=True), \
              patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "stage_valid", side_effect=[False, True]), \
              patch.object(mod, "package_version", side_effect=pack), \
              patch.object(mod, "run", side_effect=capture), \
              contextlib.redirect_stdout(io.StringIO()) as output:
@@ -120,6 +183,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.new), \
              patch.object(mod, "service_active", return_value=True), \
              patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", return_value="2026.10.7"), \
              patch.object(mod, "run") as runner, \
              contextlib.redirect_stdout(io.StringIO()) as output:
@@ -148,6 +212,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.old), \
              patch.object(mod, "node_ready", return_value=True), \
              patch.object(mod, "service_active", side_effect=[True, False]), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", side_effect=lambda root:
                           "2026.10.7" if root == self.new else "2026.9.5"), \
              patch.object(mod, "state_backup", return_value=False), \
@@ -174,8 +239,10 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", side_effect=owned), \
              patch.object(mod, "node_ready", return_value=True), \
              patch.object(mod, "service_active", side_effect=lambda: active[0]), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", side_effect=lambda root:
                           "2026.10.7" if root == self.new else "2026.9.5"), \
+             patch.object(mod, "package_entry", return_value=self.new / "lib/node_modules/openclaw/openclaw.mjs"), \
              patch.object(mod, "state_backup", return_value=True) as backup, \
              patch.object(mod, "ready", return_value=True), \
              patch.object(mod, "run", side_effect=proc), \
@@ -192,6 +259,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.new), \
              patch.object(mod, "service_active", return_value=True), \
              patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", return_value="2026.10.7"), \
              patch.object(mod, "run", side_effect=[
                  (0, b'{}', b''), (0, b'Memory Search (main)\\nDirty: yes', b'')]), \
@@ -204,6 +272,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.new), \
              patch.object(mod, "service_active", return_value=True), \
              patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", return_value="2026.10.7"), \
              patch.object(mod, "run", side_effect=[
                  (1, b'PRIVATE DOCTOR OUTPUT', b''), 
@@ -224,6 +293,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.new), \
              patch.object(mod, "service_active", return_value=True), \
              patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "stage_valid", return_value=True), \
              patch.object(mod, "package_version", return_value="2026.10.7"), \
              patch.object(mod, "run", side_effect=run_check), \
              contextlib.redirect_stdout(io.StringIO()) as output:
