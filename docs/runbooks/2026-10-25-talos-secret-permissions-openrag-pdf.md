@@ -130,9 +130,24 @@ mise exec -- kubectl -n truenas-csi get pods -o wide
 
 Le Deployment est 1/1 et le ReplicaSet actif est 1/1, même si
 un pod supplémentaire de **ce ReplicaSet actif** reste en phase Error.
-Vérifier son `ownerReference`, son `phase` et le contrôleur sain
-avant de demander sa suppression ciblée. **Ne supprimer ni Deployment,
-ni ReplicaSet, ni volumes CSI**. Pour le smoke `--apply`, le script exige
+Le Pod `truenas-csi-controller-6556bff5d6-qbk5n` porte
+**le même hash** que le Pod sain `-l9w9z` : ce n'est pas un ancien RS.
+
+Sur la workstation, inspecter en lecture seule :
+
+```bash
+mise exec -- python3 scripts/talos/diagnose-truenas-csi-controller-pods.py --check
+mise exec -- kubectl -n truenas-csi get pod \
+  truenas-csi-controller-6556bff5d6-qbk5n \
+  -o jsonpath='{.status.phase}{" owner="}{.metadata.ownerReferences[0].name}{" deleting="}{.metadata.deletionTimestamp}{"\\n"}'
+```
+
+Le diagnostic refuse de classer le contrôleur comme prêt sans
+**Deployment 1/1 + exactement un Pod Running avec les cinq conteneurs
+ready**. Il marque séparément les Pods terminés du RS actif, sans
+faire de suppression automatique. Vérifier le Pod `Error` et
+l'ownerReference **avant** de demander sa suppression ciblée.
+**Ne supprimer ni Deployment, ni ReplicaSet, ni volumes CSI**. Pour le smoke `--apply`, le script exige
 `kubectl`, `jq`, `midclt`, `zfs` et un kubeconfig valable lorsque
 `--keep` n'est pas selectionne. Le TrueNAS operator doit disposer
 de ces outils, sinon le reclaim ne peut pas etre prouve. Aucun
