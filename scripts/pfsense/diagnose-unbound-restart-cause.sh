@@ -144,7 +144,7 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
   esac
   printf '=== %s lifecycle events (bounded, redacted) ===\n' "$source"
   printf 'log_family=%s readable=yes\n' "$source"
-  tail -n 4000 "$file" | awk -v source="$source" '
+  if ! tail -n 4000 "$file" | awk -v source="$source" '
     function stamp(line, s) {
       s=line
       sub(/^<[0-9]+>[0-9]+[[:space:]]+/, "", s)
@@ -210,18 +210,25 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
       if(event!="") {
         level=(event=="kernel_oom_unbound" || event=="unbound_bind_conflict" ||
                event=="watchdog_unbound_restart" ? "WARN: " : "")
-        printf "%ssignal_source=%s event=%s timestamp=%s",
-          level,source,event,stamp($0)
-        # Do not misrepresent a block's header as the event's own timestamp.
+        record=sprintf("%ssignal_source=%s event=%s timestamp=%s",
+          level,source,event,stamp($0))
+        # The preceding header is context, never the event timestamp.
         if(source=="pfblockerng" && last_header_time!="" &&
            (NR-last_header_line)<=80) {
-          printf " preceding_header_local=%s header_gap_lines=%d",
-            last_header_time,NR-last_header_line
+          record=record sprintf(" preceding_header_local=%s header_gap_lines=%d",
+            last_header_time,NR-last_header_line)
         }
-        printf "\n"
+        saved[++record_count % 35]=record
       }
     }
-  ' | tail -35 || true
+    END {
+      first=record_count>35 ? record_count-34 : 1
+      for(i=first;i<=record_count;i++) print saved[i % 35]
+    }
+  '; then
+    printf 'ERROR: lifecycle_classifier_failed source=%s\n' "$source" >&2
+    exit 70
+  fi
 done
 echo '=== Memory context (sample only, not a nocturnal measurement) ==='
 sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_size 2>/dev/null || true
