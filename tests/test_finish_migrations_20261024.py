@@ -13,6 +13,7 @@ import pytest
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts/truenas/finish-migrations-20261024.sh"
 SECTIONS = SOURCE.with_name("migration-diagnostic-sections.sh")
+OPERATOR = SOURCE.with_name("migration-operator.sh")
 HASH = "a" * 64
 ACK_RESTART = "I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION = "I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
@@ -26,6 +27,7 @@ def fake_operator(tmp_path):
     target = truenas / SOURCE.name
     shutil.copyfile(SOURCE, target)
     shutil.copyfile(SECTIONS, truenas / SECTIONS.name)
+    shutil.copyfile(OPERATOR, truenas / OPERATOR.name)
     # Fake the terminal interface used by the production runner. No TrueNAS.
     lib = root / "scripts/lib/diagnostic-ui.sh"
     lib.parent.mkdir(parents=True, exist_ok=True)
@@ -116,6 +118,34 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     result = invoke(fake_operator, "--help")
     assert result.returncode == 0
     assert "--plan-wave" in result.stdout
+    assert not marker.exists()
+
+
+def test_stable_migration_operator_delegates_without_runtime_probing(fake_operator):
+    target, env, report, marker = fake_operator
+    wrapper = target.with_name(OPERATOR.name)
+    assert subprocess.run(["bash", "-n", str(wrapper)], check=False).returncode == 0
+    result = subprocess.run(
+        ["bash", str(wrapper), "--help"], env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--plan-wave" in result.stdout
+    assert not report.exists()
+    assert not marker.exists()
+
+
+def test_stable_operator_rejects_missing_legacy_target(fake_operator):
+    target, env, report, marker = fake_operator
+    wrapper = target.with_name(OPERATOR.name)
+    target.unlink()
+    result = subprocess.run(
+        ["bash", str(wrapper), "--check"], env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2
+    assert "canonical migration operator unavailable" in result.stderr
+    assert not report.exists()
     assert not marker.exists()
 
 
