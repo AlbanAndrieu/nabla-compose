@@ -24,43 +24,19 @@ est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
 leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
 pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
-## Dernière preuve opérateur — 25 octobre 2026
+## Priorités opérationnelles et preuves
 
-Le contrôle read-only `finish-migrations-20261024.sh --check --section critical`
-a retourné **PASS=8 FAIL=8 WARN=0 SKIP=0**. Les informations ci-dessous
-sont une **preuve datée**, pas une sonde permanente :
+| Ordre | Domaine | Contrôle à valider | État |
+| --- | --- | --- | --- |
+| 1 | Prometheus | Targets, accès config, rules | **FAIL historique**, cause à confirmer |
+| 2 | OpenRAG | Startup, secrets, dépendances et bundle | **FAIL historique**, récupération non attestée |
+| 3 | Akvorado | Ingestion / métadonnées / inserts récents | **FAIL historique**, aucun flux frais confirmé |
+| Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
+| Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
 
-- **Prometheus :** `prometheus-targets` et `prometheus-config-access`
-  échouent ; `prometheus-rules-access` réussit. Ne pas réappliquer
-  d'ancienne réparation POSIX sans consulter le rapport privé.
-- **OpenRAG :** `openrag-startup`, `ai-runtime-recovery`,
-  `openrag-opensearch-legacy-secret`, `openrag-backstage-bundle`
-  échouent. Les dépendances et le préflight `openrag-env-migration`
-  réussissent. Aucun restart ni changement de mot de passe implicite.
-- **Sentry :** consommateurs et préflight de récupération réussissent.
-  Cela ne remplace pas un événement E2E frais.
-- **Akvorado :** configuration réussie ; `akvorado-blocked` et
-  `akvorado-fresh-inserts` échouent. Les compteurs historiques ne
-  valent pas une nouvelle insertion ClickHouse.
-- **DefectDojo :** préflight et accès privé réussissent ; ne pas
-  ouvrir davantage le service.
+**Preuve datée :** [rapport opérateur du 25 octobre](runbooks/2026-10-25-critical-acceptance-evidence.md) — `PASS=8 FAIL=8 WARN=0 SKIP=0` ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
-**Séquence de diagnostic recommandée :** Prometheus → OpenRAG → Akvorado,
-sans intervention globale sur Sentry ou DefectDojo.
-Rapport privé sur TrueNAS : `/mnt/cpool/var/nabla/migration-20261024/session-uPAiEbSW`.
-Ne pas copier les secrets ou les logs bruts dans Git.
-
-**Gatus (catalogue/observabilité) :** 85 sondes déclarées dans le
-dernier relevé de la PR #277, pas 85 services fonctionnellement attestés.
-Les nouveaux scripts `diagnose-gatus-monitors.py --check` et
-`diagnose-service-bundle.py --plan|--check` séparent `down`,
-`unverified`, observation périmée, disponibilité réseau et intention
-de déploiement. Refaire la comparaison sur l'API Gatus LAN avant
-d'affirmer une couverture.
-[Entrée diagnostique](runbooks/2026-10-25-homelab-operator-diagnostics.md) ·
-[Observabilité spécialisée](runbooks/2026-10-25-observability-triage.md).
-
-## P0 — Terminer la stabilisation réelle
+## P0 — Accepter les services critiques
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
@@ -87,7 +63,7 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
-## P1 — Corriger les causes instrumentées, sans panne induite
+## P1 — Corriger les causes instrumentées
 
 | ID | Domaine | Fait établi | Reste à prouver |
 | --- | --- | --- | --- |
@@ -114,7 +90,7 @@ Actions :
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
-## P1 — API gateway OSS et corrélation des causes (25 octobre 2026)
+## P1 — API gateway APISIX (ADR-0001)
 
 **Décision et backlog canoniques :** [ADR-0001 Apache APISIX](adr/0001-apisix-api-gateway-poc.md), [choix APISIX](api-gateway-selection.md), [gouvernance du dispatch](architecture-governance.md) et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md). L'ADR-0001 est accepté pour un POC en staging, non déployé ; Traefik reste la gateway/ingress existante.
 - [x] Comparer APISIX, Traefik ForwardAuth, Envoy Gateway et Kong OSS ;
@@ -123,7 +99,10 @@ Actions :
   avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
 - [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
   OWNER/INTERNAL avant tout changement de dataplane.
-- [x] Fournir le service **`apisix`** dans `apps/apisix/` avec projet Compose et profil `apisix`, route `/health`, clé `APISIX_KEY` et recettes `just apisix-*`. Réseau isolé, sans port hôte. **Tests du HEAD actuel NOT_RUN**, aucun déploiement prouvé.
+- [x] **APISIX code livré :** `apps/apisix/`, identité `apisix`,
+  `x-nabla.id=apisix`, route `/health`, clé `APISIX_KEY`, réseau isolé,
+  sans exposition hôte. Les commandes `just apisix-*` sont opt-in.
+  **Déploiement et smoke réseau NOT_VERIFIED**.
 - [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
@@ -145,35 +124,31 @@ Actions :
 
 - [x] Affecter le rendu C4 interactif au Site Alban avec React Flow existant, sans service supplémentaire ; source C4 dérivée du catalogue v2, pas un nouvel inventaire Compose.
 
-## P1 — Dette de code et de documentation
+## P1 — Fiabilité des scripts et documentation
 
 - [x] **D-01 :** séparer la roadmap active de ses 3 770 lignes historiques
   sans supprimer l'historique ni contourner le contrôle de diff destructif.
 - [x] **D-02 :** créer un index des runbooks avec statut `actif` ou
   `historique` ; une seule procédure d'acceptation courante.
-- [ ] **D-03 :** la CLI refuse désormais les modes d'exécution mixtes et
-  expurge les motifs non maîtrisés du planificateur ; tests négatifs ajoutés
-  mais quality gate complète **NOT_RUN**. Le registre read-only a été extrait de
-  `finish-migrations-20261024.sh` vers
-  `scripts/truenas/migration-diagnostic-sections.sh` et les tests négatifs
-  ont été ajoutés ; **quality gate complète à exécuter**. Conserver les modes
-  `--apply-*` dans la CLI protégée ; toute extraction de mutation reste différée.
+- [ ] **D-03 :** conserver le registre read-only séparé de la CLI protégée,
+  le refus des modes mutateurs mixtes et l'expurgation des plans.
+  **Qualité locale complète : non attestée.** Toute extraction du code mutateur
+  reste différée jusqu'aux tests négatifs et à la preuve du HEAD exact.
 - [ ] **D-04 :** parseur HTTP/MIME DefectDojo factorisé et contrôle DNS
   fail-closed ajouté ; tests négatifs versionnés mais **non exécutés**.
   Valider 200 HTML / 200 JSON / 403 / 000 / DNS timeout.
-- [x] **D-08 :** ajouter deux sections opt-in au registre de migration :
-  `--section postmigration` (catalogue, readiness, Gatus, Prometheus) et
-  `--section apisix` (métadonnées Docker, absent = non vérifié).
-  Tests de contrat versionnés, acceptation runtime **NOT_VERIFIED**.
+- [x] **D-08 (code) :** sections read-only `postmigration` et `apisix` ;
+  états PASS/FAIL/UNVERIFIED et tests synthétiques ajoutés.
+  Acceptation sur TrueNAS **NOT_VERIFIED**.
 - [ ] **D-05 :** extraire les primitives redondantes de diagnostics Docker
   (état, health, compteurs, expurgation) uniquement avec tests négatifs.
 - [ ] **D-06 :** une CLI stable `scripts/truenas/migration-operator.sh`
   délègue au runner historique dans un Bash enfant. Valider les contrats
   et migrer progressivement les références `pr274` après la quality gate.
   [Contrat opérateur](runbooks/truenas-migration-operator.md).
-- [ ] **D-07 :** réduire la duplication de preuves datées entre les runbooks
-  d'incident et la roadmap ; publier les observations futures dans
-  l'incident correspondant, puis ne garder ici que l'état et le lien.
+- [x] **D-07 :** preuve `critical` du 25/10 externalisée dans un
+  [runbook daté](runbooks/2026-10-25-critical-acceptance-evidence.md).
+  Les observations futures doivent aller dans un rapport daté distinct.
 
 [Registre des risques des refactorings](runbooks/homelab-refactoring-risk-register.md) :
 R-01 à R-07, avec conditions de rollback et seuils L1/L3.
@@ -181,6 +156,17 @@ R-01 à R-07, avec conditions de rollback et seuils L1/L3.
 **Conditions de clôture documentaire :** liens relatifs valides, archivage
 intègre, conformité `agent-skills-check`, tests ciblés et quality gate
 complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
+
+## Quality gate locale et compatibilité Node
+
+- **Version principale du dépôt :** Node 24 (`.nvmrc`, `mise.toml`) ; ne pas
+  modifier l'environnement de production pour lancer les tests.
+- **Mode rapide de compatibilité :** Node 22 + npm 10, préflight explicite,
+  tests Node natifs sans `npm install`, `npx`, réseau ni GitHub Actions.
+- **Portée :** contrats statiques des chemins/commandes APISIX et migrations,
+  distincts des tests Python, ShellCheck, du smoke Docker et de `just quality`.
+- **Reste à valider :** `just node22-fast`, `just migration-operator-contracts`,
+  `just agent-skills-check`, puis `just quality` sur **le HEAD exact**.
 
 ## Autorités, sécurité et séquence opérateur
 
