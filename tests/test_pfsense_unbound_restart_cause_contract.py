@@ -10,6 +10,21 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/pfsense/diagnose-unbound-restart-cause.sh"
 
 
+def extract_remote_shell(source: str) -> str:
+    """Extract the SSH heredoc body with or without a trailing renderer pipe.
+
+    Example: ssh host '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
+    """
+    match = re.search(
+        r"(?m)^ssh[^\n]*<<'REMOTE'[^\n]*\n"
+        r"(?P<body>.*?)\nREMOTE(?=\n|\Z)",
+        source, re.DOTALL,
+    )
+    if not match:
+        raise AssertionError("SSH REMOTE heredoc not found or unterminated")
+    return match.group("body")
+
+
 def remote_awk() -> str:
     source = SCRIPT.read_text(encoding="utf-8")
     match = re.search(
@@ -300,14 +315,31 @@ class UnboundRestartCauseContract(unittest.TestCase):
 
     def test_posix_remote_shell_parses_including_nested_awk(self):
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("<<'REMOTE'\n", src)
-        remote = src.split("<<'REMOTE'\n", 1)[1].rsplit("\nREMOTE", 1)[0]
+        remote = extract_remote_shell(src)
+        self.assertIn("set -u", remote)
+        self.assertIn("=== Bounded lifecycle and kernel signals", remote)
         result = subprocess.run(
             ["/bin/sh", "-n"], input=remote, text=True,
             capture_output=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("block's header", remote)
+
+    def test_remote_shell_extraction_accepts_renderer_and_rejects_truncation(self):
+        example = (
+            "ssh host '/bin/sh -s' <<'REMOTE' | pfsense_ui_render\n"
+            "set -u\n"
+            "echo safe\n"
+            "REMOTE\n"
+        )
+        self.assertEqual(extract_remote_shell(example), "set -u\necho safe")
+        for malformed in (
+            "ssh host sh -s <<'REMOTE' | renderer\nset -u\n",
+            "ssh host sh -s <<'OTHER' | renderer\nset -u\nOTHER\n",
+        ):
+            with self.subTest(malformed=malformed):
+                with self.assertRaisesRegex(AssertionError, "SSH REMOTE heredoc"):
+                    extract_remote_shell(malformed)
 
     def test_collector_does_not_swallow_awk_failures(self):
         code = SCRIPT.read_text(encoding="utf-8")
@@ -367,7 +399,7 @@ class UnboundRestartCauseContract(unittest.TestCase):
     def test_full_remote_shell_executes_classifier_with_fixture(self):
         # The old tests invoked AWK alone and missed a shell-quoting defect.
         source = SCRIPT.read_text(encoding="utf-8")
-        remote = source.split("<<'REMOTE'\n", 1)[1].rsplit("\nREMOTE", 1)[0]
+        remote = extract_remote_shell(source)
         begin = remote.index("for file in /var/log/system.log")
         end = remote.index("echo '=== Feed download errors", begin)
         loop = remote[begin:end]
