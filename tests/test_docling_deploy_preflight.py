@@ -28,6 +28,11 @@ class DoclingDeployPreflightTest(unittest.TestCase):
         verify = source.index('if [[ "${MODE}" == "--check" ]]; then')
         execute = source.index('if [[ "${app_count}" == "1" ]]; then')
         self.assertLess(verify, execute)
+        prepare = source.index(
+            'bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"'
+        )
+        self.assertLess(verify, prepare)
+        self.assertLess(prepare, execute)
         self.assertIn('docker image inspect "${image}"', source)
         self.assertIn('docker network inspect "${network}"', source)
 
