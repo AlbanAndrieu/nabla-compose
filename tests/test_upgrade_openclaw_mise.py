@@ -34,6 +34,13 @@ class UpgradeContracts(unittest.TestCase):
         home_patch.start()
         self.addCleanup(home_patch.stop)
 
+    def test_npm_error_classification_does_not_echo_tokens(self):
+        diagnostic = b"npm ERR! code EBADENGINE token sk-PRIVATE-DO-NOT-SHARE"
+        self.assertEqual(mod.npm_failure_category(diagnostic), "runtime_engine")
+        self.assertEqual(mod.npm_failure_category(b"npm ERR! code EACCES"), "permission")
+        self.assertEqual(mod.npm_failure_category(b"private prompt text"), "unknown")
+        self.assertNotIn("PRIVATE", mod.npm_failure_category(diagnostic))
+
     def test_service_package_owner_requires_known_user_prefix(self):
         fixture = ("{ path=/usr/bin/node ; argv[]= "
                    + str(self.old / "bin/node")
