@@ -54,7 +54,7 @@ def assess(deploy: object, replicas: object, pods: object) -> dict:
         name = meta.get("name", "UNKNOWN")
         statuses = pod.get("status", {}).get("containerStatuses") or []
         ready = phase == "Running" and len(statuses) == 5 and all(
-            c.get("ready") is True for c in statuses if isinstance(c, dict)
+            isinstance(c, dict) and c.get("ready") is True for c in statuses
         )
         if ready:
             running.append(name)
