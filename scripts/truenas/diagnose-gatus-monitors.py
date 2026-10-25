@@ -157,19 +157,34 @@ def verdict_exit_code(report: dict) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--snapshot", type=Path,
+        help="Use a recent, private saved Gatus status JSON file without network I/O",
+    )
     args = parser.parse_args()
     if not args.check:
         parser.error("only --check is supported")
     try:
         config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-        request = Request(STATUS_URL, headers={"Accept": "application/json"})
-        opener = build_opener(ProxyHandler({}), NoRedirect())
-        with opener.open(request, timeout=8) as response:
-            payload = response.read(MAX_BYTES + 1)
-        if len(payload) > MAX_BYTES:
-            raise ValueError("gatus_response_too_large")
-        statuses = json.loads(payload)
+        if args.snapshot is not None:
+            # Never follow an operator-provided symlink or open oversized
+            # evidence. Saved samples must still pass the 180-second TTL.
+            if args.snapshot.is_symlink() or not args.snapshot.is_file():
+                raise ValueError("invalid_snapshot_file")
+            if args.snapshot.stat().st_size > MAX_BYTES:
+                raise ValueError("gatus_response_too_large")
+            statuses = json.loads(args.snapshot.read_bytes())
+        else:
+            request = Request(STATUS_URL, headers={"Accept": "application/json"})
+            opener = build_opener(ProxyHandler({}), NoRedirect())
+            with opener.open(request, timeout=8) as response:
+                payload = response.read(MAX_BYTES + 1)
+            if len(payload) > MAX_BYTES:
+                raise ValueError("gatus_response_too_large")
+            statuses = json.loads(payload)
         report = audit(config, statuses, datetime.now(UTC))
+        if args.snapshot is not None:
+            report["source"] = "gatus_saved_snapshot"
     except (HTTPError, URLError, OSError, ValueError, yaml.YAMLError) as exc:
         status = exc.code if isinstance(exc, HTTPError) else "unverified"
         print(f"INCOMPLETE: Gatus evidence unavailable status={status} error={type(exc).__name__}")
