@@ -676,3 +676,40 @@ reste disponible via
 ne jamais considérer six variables présentes comme six clés
 provisionnées dans LiteLLM. Conserver le statut NO-GO de la migration
 tant que la persistance et les modèles ne sont pas vérifiés.
+
+
+### Correction du chemin canonique et Langfuse — retour opérateur
+
+Le chemin `/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets`
+avait été communiqué par erreur. **Le fichier réellement modifié** est
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`, déjà utilisé dans
+`apps/litellm/compose.yml`. La variable `LANGFUSE_PUBLIC_KEY`
+a été ajoutée en plus des six noms mentionnés ci-dessus.
+
+La recette `just openclaw-truenas-secret-provenance` examine désormais
+**sept noms** dans le fichier canonique et les compare aux variables
+injectées du conteneur `litellm`. Le résultat
+`env_file_semantics=loaded_at_container_creation_not_bind_mount` rappelle
+qu'un `env_file` Docker Compose n'est pas un bind mount.
+Un fichier correct, mais des variables absentes dans le conteneur déjà
+lancé, signifient un **drift runtime** (recréation à planifier), pas une
+erreur de chemin. `container_recreation_needed=true` indique ce drift
+sans déclencher de changement.
+
+Le relevé précédent `DATABASE_URL=present` ne prouve ni l'accès à
+PostgreSQL ni la persistance. Ne pas lancer `docker compose up`,
+`restart`, `--force-recreate` ni de migration automatique avant de
+valider la syntaxe, le contenu des secrets nécessaires et un rollback.
+
+Commande de validation depuis le checkout PR actualisé :
+
+```bash
+python3 -m py_compile scripts/workstation/check-truenas-litellm-secret-provenance.py
+just openclaw-truenas-secret-provenance
+```
+
+La commande sort avec code 2 si la source n'est pas vérifiée ou en cas
+de différence entre le fichier et le conteneur. **Un exit 2 signifie
+investigation nécessaire, pas incident HTTP.** Aucune valeur de secret
+n'est imprimée. Le résultat n'a pas encore été exécuté au nouveau HEAD
+sur la Workstation.
