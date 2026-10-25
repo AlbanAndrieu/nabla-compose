@@ -43,6 +43,17 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "run", return_value=(0, fixture.encode(), b"")):
             self.assertEqual(mod.unit_exec(), self.old)
 
+    def test_legacy_system_node_allowed_only_for_old_package(self):
+        def fixture(package):
+            return ("{ path=/usr/bin/node ; argv[]=/usr/bin/node "
+                    "--max-old-space-size=16053 "
+                    + str(package / "lib/node_modules/openclaw/dist/index.js")
+                    + " gateway --port 18789 ; ignore_errors=no }").encode()
+        with patch.object(mod, "run", return_value=(0, fixture(self.old), b"")):
+            self.assertEqual(mod.unit_exec(), self.old)
+        with patch.object(mod, "run", return_value=(0, fixture(self.new), b"")):
+            self.assertIsNone(mod.unit_exec())
+
     def test_foreign_or_unknown_unit_blocks_stage(self):
         with patch.object(mod, "unit_exec", return_value=None), \
              patch.object(mod, "run") as runner, \
