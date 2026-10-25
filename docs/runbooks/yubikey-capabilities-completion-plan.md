@@ -171,3 +171,20 @@ sur copie locale strictement identique à GitHub ; la recette parallèle
 sur la workstation. Les étapes mutantes restent soumises à des accords
 séparés ; aucune vérification GPG/OpenPGP, escrow ou restauration PostgreSQL
 ne peut être déclarée terminée par simple présence d'un daemon.
+
+### Validation suivante — agent scdaemon et récupération PostgreSQL
+
+La workstation au SHA `aa2bdedd` confirme les processus
+`scdaemon`/`pcscd` et les identités publiques SSH, mais pas l'accès
+OpenPGP. `initdb` et `pg_ctl` sont absents du `PATH` seulement.
+
+Le collecteur de dépendances étendu teste désormais, sans démarrage :
+`GETINFO scd_running` via GPG-agent existant `--no-autostart`, puis
+les métadonnées des binaires PostgreSQL versionnés standards. **17/17
+contrats PASS en local sur blobs Git exacts** ; lecture sur workstation
+du nouvel état encore `NOT_RUN`. Éviter d'installer un nouveau serveur
+PostgreSQL avant d'avoir qualifié l'installation actuelle et défini un
+espace de restauration isolé. Les deux copies d'escrow et les archives
+GPG/PostgreSQL restent non inventoriées ou non restaurées dans ces
+preuves : aucun changement du statut `NO-GO`.
+
