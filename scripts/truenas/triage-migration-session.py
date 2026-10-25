@@ -59,7 +59,7 @@ def classify_text(phase: str, value: str) -> str:
     # failure lines over matches in instructional text or success messages.
     failures = '\n'.join(
         line.lower() for line in value.splitlines()
-        if re.search(r'(?i)(?:❌|^\s*(?:error|fail|blocked):|migration conflict:)', line)
+        if re.search(r'(?i)(?:❌|^\s*(?:error|fail|blocked)(?::|\s+missing\b)|migration conflict:)', line)
     )[:8192]
     if phase == 'postmigration-catalog':
         if 'stale catalog-v2 artifacts:' in low:
