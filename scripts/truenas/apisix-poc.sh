@@ -3,11 +3,29 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 file="$root/apps/apisix/compose.yml"
-: "${APISIX_POC_KEY:?provide APISIX_POC_KEY only in the calling shell}"
-if [ "${#APISIX_POC_KEY}" -lt 24 ]; then
-  echo "BLOCKED: APISIX_POC_KEY must be at least 24 characters" >&2
+# Rollback must work even when the POC key was lost or revoked.
+# Compose requires a nonempty interpolation value for *down* as well;
+# the fixed placeholder is not a credential and never starts a service.
+if [[ "${#}" -ne 1 ]]; then
+  echo "Usage: $0 {up|smoke|down}" >&2
   exit 2
 fi
+case "${1}" in
+  up|smoke)
+    if [[ -z "${APISIX_POC_KEY:-}" || "${#APISIX_POC_KEY}" -lt 24 ]]; then
+      echo "BLOCKED: APISIX_POC_KEY of at least 24 characters is required" >&2
+      exit 2
+    fi
+    ;;
+  down)
+    : "${APISIX_POC_KEY:=poc-cleanup-placeholder-not-a-live-key}"
+    export APISIX_POC_KEY
+    ;;
+  *)
+    echo "Usage: $0 {up|smoke|down}" >&2
+    exit 2
+    ;;
+esac
 case "${1:-}" in
   up)
     docker compose -f "$file" --profile poc config --quiet
