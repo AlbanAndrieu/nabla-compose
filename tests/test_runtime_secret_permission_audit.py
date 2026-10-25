@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -49,11 +50,12 @@ class SecretModeAuditTest(unittest.TestCase):
             (path / ".env.secrets").write_text("FAKE=offline\n")
             (path / "outside").symlink_to("/tmp", target_is_directory=True)
             changes, issues = MODULE.plan(path)
-            self.assertFalse(changes)
             self.assertTrue(any("SYMLINK" in issue for issue in issues))
-            # The current user owns synthetic files, and the script must
-            # refuse to chown them blindly.
-            self.assertTrue(any("NON_ROOT_OWNER" in issue for issue in issues))
+            # Fixtures may be written by a root CI runner. Non-root owners
+            # must be refused rather than silently chowned.
+            if os.geteuid() != 0:
+                self.assertTrue(any("NON_ROOT_OWNER" in issue for issue in issues))
+                self.assertFalse(changes)
 
     def test_never_read_or_echo_secret_values(self):
         source = SCRIPT.read_text(encoding="utf-8")
