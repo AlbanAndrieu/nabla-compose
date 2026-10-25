@@ -74,7 +74,7 @@ class ApisixRollbackContract(unittest.TestCase):
             log = root / "docker-calls"
             envfile = root / "mock-docker-functions"
             envfile.write_text(
-                'docker() { printf "%s\\n" "$*" >> "$MOCK_DOCKER_LOG"; }\\n',
+                'docker() { printf "%s\\n" "$*" >> "$MOCK_DOCKER_LOG"; }\n',
                 encoding="utf-8",
             )
             env = os.environ.copy()
@@ -113,7 +113,7 @@ class ApisixRollbackContract(unittest.TestCase):
                 'printf "running|none\\n"; '
                 'elif [[ "$*" == *"ps -q"* ]]; then '
                 'printf "abcdef123456\\n"; '
-                'fi; }\\n',
+                'fi; }\n',
                 encoding="utf-8",
             )
             env = os.environ.copy()
@@ -133,7 +133,7 @@ class ApisixRollbackContract(unittest.TestCase):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
         with tempfile.TemporaryDirectory() as workdir:
             fake = Path(workdir) / "mock-docker-functions"
-            fake.write_text('docker() { return 0; }\\n', encoding="utf-8")
+            fake.write_text('docker() { return 0; }\n', encoding="utf-8")
             env = os.environ.copy()
             env.pop("APISIX_KEY", None)
             env["BASH_ENV"] = str(fake)
@@ -155,7 +155,7 @@ class ApisixRollbackContract(unittest.TestCase):
                 'printf "running|unhealthy\\n"; '
                 'elif [[ "$*" == *"ps -q"* ]]; then '
                 'printf "abcdef123456\\n"; '
-                'fi; }\\n',
+                'fi; }\n',
                 encoding="utf-8",
             )
             env = os.environ.copy()
