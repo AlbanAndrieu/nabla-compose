@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, ProxyHandler, build_opener
+from urllib.request import HTTPRedirectHandler, Request, ProxyHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "apps/litellm/config.yaml"
@@ -37,12 +37,19 @@ def filtered_result(label, status, names):
               "=" + ("present" if alias in names else "absent"))
 
 
+class RejectRedirects(HTTPRedirectHandler):
+    """Do not follow HTTP redirects with a LiteLLM admin credential."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def fetch_local(path, credential):
     request = Request(TUNNEL + path, headers={
         "Authorization": "Bearer " + credential, "Accept": "application/json"})
     try:
         # Bypass shell HTTP_PROXY; the master key must never reach an intermediary.
-        with build_opener(ProxyHandler({})).open(request, timeout=6) as res:
+        with build_opener(ProxyHandler({}), RejectRedirects()).open(request, timeout=6) as res:
             if res.status != 200:
                 return res.status, None
             data = res.read(512 * 1024 + 1)
