@@ -131,7 +131,11 @@ def service_active():
     return result.returncode == 0 and result.stdout.strip() == b"active"
 
 
-def apply_config(old, new, path=CONFIG):
+def apply_config(old, new, path=None):
+    # Never bind a production home path at import time: tests and callers
+    # must honor the current CONFIG target after patches/overrides.
+    if path is None:
+        path = CONFIG
     """Never expose old JSON; durable and private backup before replacing."""
     backup_dir = Path.home() / ".local/share/nabla-compose/openclaw-config-rollback"
     if backup_dir.is_symlink():
