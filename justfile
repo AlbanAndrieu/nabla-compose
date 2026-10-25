@@ -902,3 +902,29 @@ openclaw-node24-runtime-install:
     mise install --locked node@24.22.1
     mise exec node@24.22.1 -- node --version
 
+
+# Rootless OpenClaw 2026.10.7 recovery on the existing Ubuntu Workstation.
+# No CI, no model calls, and no edits to TrueNAS LiteLLM or memory embeddings.
+openclaw-upgrade-local-test:
+    python3 -m py_compile scripts/workstation/upgrade-openclaw-mise.py tests/test_upgrade_openclaw_mise.py
+    python3 -m unittest discover -s tests -p 'test_upgrade_openclaw_mise.py' -v
+
+# Read-only service and package owner inspection.
+openclaw-upgrade-local-plan:
+    python3 scripts/workstation/upgrade-openclaw-mise.py --plan
+
+# Side-by-side npm install under the NEW mise Node prefix; old Gateway stays up.
+openclaw-upgrade-local-stage:
+    python3 scripts/workstation/upgrade-openclaw-mise.py --stage
+
+# Explicit maintenance action: stop Gateway, create consistent state backup,
+# install dedicated systemd override and start new OpenClaw version.
+# On migration failure, retain backup for manual recovery.
+openclaw-upgrade-local-activate:
+    python3 scripts/workstation/upgrade-openclaw-mise.py --activate
+
+# No billable request; check installed package, systemd owner, /readyz,
+# Doctor lint and main/cron memory statuses.
+openclaw-upgrade-local-verify:
+    python3 scripts/workstation/upgrade-openclaw-mise.py --verify
+
