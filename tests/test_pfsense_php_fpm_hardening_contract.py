@@ -156,6 +156,8 @@ pm.max_spare_servers= 7
                 "generator and active generated profile differ", result.stdout,
             )
             self.assertIn("php_fpm_nginx_pool_workers=8", result.stdout)
+            self.assertIn("php_fpm_profile_contract=UPSTREAM_OR_DRIFT", result.stdout)
+            self.assertIn("php_fpm_worker_contract=EXCEEDS_TARGET", result.stdout)
             self.assertIn(
                 "running nginx PHP-FPM workers exceed constrained target max=4",
                 result.stdout,
@@ -163,6 +165,56 @@ pm.max_spare_servers= 7
             self.assertEqual(source.read_text(encoding="utf-8"), generator)
             self.assertEqual(config.read_text(encoding="utf-8"), generated)
             self.assertFalse(backup.exists())
+
+    def test_constrained_profile_two_workers_matches_postcutover_receipt(self) -> None:
+        generator = (
+            'elif [ "${REALMEM}" -gt 1000 ]; then\n'
+            '    PHPFPMMAX=4\n'
+            '    PHPFPMIDLE=30\n'
+            '    PHPFPMSTART=1\n'
+            '    PHPFPMSPARE=2\n'
+            '    PHPFPMREQ=500\n'
+            'fi\n'
+        )
+        generated = (
+            "pm.process_idle_timeout = 30\n"
+            "pm.max_children = 4\n"
+            "pm.start_servers = 1\n"
+            "pm.max_spare_servers = 2\n"
+            "pm.max_requests = 500\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            source = tmp / "rc.php_ini_setup"
+            config = tmp / "php-fpm.conf"
+            fake_ps = tmp / "ps"
+            source.write_text(generator, encoding="utf-8")
+            config.write_text(generated, encoding="utf-8")
+            fake_ps.write_text(
+                "#!/bin/sh\n"
+                "echo 'php-fpm: pool nginx'\n"
+                "echo 'php-fpm: pool nginx'\n",
+                encoding="utf-8",
+            )
+            fake_ps.chmod(0o755)
+            result = subprocess.run(
+                ["/bin/sh", str(SCRIPT), "--check"],
+                capture_output=True, text=True, check=False,
+                env={
+                    "PATH": str(tmp) + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
+                    "PFSENSE_PHP_FPM_GENERATOR": str(source),
+                    "PFSENSE_PHP_FPM_CONFIG": str(config),
+                    "PFSENSE_PHP_FPM_BACKUP": str(tmp / "backup"),
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("php_fpm_profile_contract=CONSTRAINED_MATCH", result.stdout)
+            self.assertIn("php_fpm_nginx_pool_workers=2", result.stdout)
+            self.assertIn("php_fpm_worker_contract=WITHIN_TARGET", result.stdout)
+            self.assertIn("php_fpm_reconciliation_is_readonly=yes", result.stdout)
+            self.assertEqual(source.read_text(encoding="utf-8"), generator)
+            self.assertEqual(config.read_text(encoding="utf-8"), generated)
+            self.assertFalse((tmp / "backup").exists())
 
     def test_check_rejects_unknown_generator_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
