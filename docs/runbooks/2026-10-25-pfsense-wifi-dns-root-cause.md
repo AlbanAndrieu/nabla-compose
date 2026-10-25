@@ -110,3 +110,87 @@ La PR de correction reste en Draft, commits `[skip ci]`. Vérifier
 `just pfsense-console-test`, `just pfsense-unbound-wifi-test` et
 `just pfsense-wifi-path-test` dans un worktree SHA-épinglé avant
 Ready/merge. Ne pas lancer volontairement de CI GitHub payante.
+
+
+## Validation workstation du 25 octobre — défaut confirmé de split-DNS local
+
+**Preuve fournie par l'opérateur** : `just pfsense-console-test` **14/14
+PASS**, `just pfsense-wifi-path-test` **9/9 PASS** sur le checkout testé
+avant ce correctif. Il s'agit de tests de contrat ; ils ne mesurent pas
+la disponibilité continue du Wi-Fi.
+
+Le diagnostic `pfsense-wifi-path` sur `eno1` (Ethernet, pas Wi-Fi) a
+confirmé la connectivité IPv4, TCP/53 pfSense, TCP/443 public et les
+résolutions publiques pfSense/Quad9/système. Le diagnostic séparé
+`sample-dns-workstation` a confirmé les deux serveurs pour la zone
+privée, mais **pas la résolution NSS système** de
+`sample.int.albandrieu.com`. C'est une anomalie actuelle du **client
+Linux**, et non une panne de résolution sur pfSense.
+
+Comparaison essentielle :
+
+| Source | DNS / résultat | Preuve |
+| --- | --- | --- |
+| DHCP LAN Kea | `172.17.0.1` | Bail observé, correct |
+| Profil NetworkManager `Wired eno1` | `ipv4.dns=172.17.0.1` et `ipv4.ignore-auto-dns=yes` | Config du profil |
+| `resolvectl dns eno1` | `9.9.9.9`, `149.112.112.112` | Valeurs **actives** différentes du profil |
+| `dig @172.17.0.1 sample.int.albandrieu.com` | `172.17.0.24` | DNS privé pfSense OK |
+| `dig @172.17.0.24 sample.int.albandrieu.com` | `172.17.0.24` | Pi-hole OK |
+| `getent ahostsv4 sample.int.albandrieu.com` | Pas d'adresse | Résolution **système KO** |
+
+La valeur affichée précédemment par le collecteur
+`DHCP DNS=172.17.0.1,172.17.0.57,255.255.255.0` était un **bug
+d'extraction**. L'adresse client et le masque ne sont pas des DNS.
+Le parseur lit à présent **uniquement l'option
+`domain_name_servers`** et dispose d'un test négatif.
+
+### Nouveau contrat de diagnostic
+
+Lorsque les DNS publics fonctionnent, que la zone privée est résolue
+directement depuis pfSense mais pas via `getent`, le diagnostic retourne
+`CLIENT_PRIVATE_SPLIT_DNS_PATH`, **exit 1**. Il ne doit plus afficher
+`NO_FAILURE_DURING_SAMPLE`. Cette erreur est indépendante du lien Wi-Fi
+et peut expliquer des dysfonctionnements des services `*.int`. Elle
+**n'explique pas à elle seule les perturbations WhatsApp**.
+
+Le rapport inclut trois catégories distinctes :
+`dhcp_advertised_dns`, `configured_profile_dns` et
+`active_link_dns`, puis `profile_dns_runtime_drift`. Il lit
+`nmcli -f ipv4.dns,ipv4.ignore-auto-dns connection show <profil>`
+en lecture seule et n'affiche pas l'identifiant du profil.
+`ipv4.ignore-auto-dns=yes` n'explique pas **à lui seul** pourquoi
+`resolvectl` indique Quad9 si `ipv4.dns=172.17.0.1` : inspecter
+sans modification les substitutions `systemd-resolved`, les profils
+VPN, les DNS globaux NetworkManager et un éventuel état périmé.
+Ne pas changer DHCP ni désactiver Quad9 arbitrairement.
+
+### Validation local-first après correction
+
+Exécuter successivement sur le HEAD exact de la PR :
+
+```bash
+just pfsense-console-test
+```
+
+```bash
+just pfsense-wifi-path-test
+```
+
+```bash
+just pfsense-wifi-path
+```
+
+```bash
+just sample-dns-workstation
+```
+
+Résultat visé : DHCP DNS **seulement** `172.17.0.1`,
+`diagnosis=CLIENT_PRIVATE_SPLIT_DNS_PATH` tant que l'incident est
+présent, et sortie 1 dans ce cas. Une éventuelle future restauration
+du DNS privé devra être confirmée par `getent` et non par le seul
+`dig @pfSense`. Aucune commande ne modifie l'interface ou les DNS.
+
+**À distinguer du problème radio** : l'interface `eno1` ne permet pas
+de diagnostiquer RSSI, roaming ou déconnexion d'un téléphone. Il faut
+observer le client directement connecté au SSID affecté.
+
