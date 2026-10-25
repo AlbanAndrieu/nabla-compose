@@ -28,20 +28,22 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
 | Ordre | Domaine | Contrôle à valider | État |
 | --- | --- | --- | --- |
-| 1 | Prometheus | Targets, accès config, rules | **FAIL historique**, cause à confirmer |
-| 2 | OpenRAG | Startup, secrets, dépendances et bundle | **FAIL historique**, récupération non attestée |
-| 3 | Akvorado | Config et blocage résolus ; inserts récents non attestés | **FAIL insertions uniquement** |
+| 1 | Prometheus | Configuration corrigée (0640), 21 targets UP, 7 DOWN | **Serveur sain, collecte dégradée** |
+| 2 | OpenRAG | Backend/frontend healthy ; deux clés requises absentes, validation secrets bloquée | **Runtime partiel, secrets incomplets** |
+| 3 | Akvorado | +5 flux / +4 metadata missing / +0 lots ClickHouse ; statique ifIndex=11 à vérifier en mémoire | **Ingestion bloquée** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
 | Indépendant | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; DHCP annoncé `172.17.0.1`, profil NM `172.17.0.1`, résolveurs actifs Quad9 | **FAIL client constaté**, origine de la substitution à identifier |
 
 **Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
+**Troisième preuve ciblée (25/10) :** [deux sessions à 1 PASS / 6 FAIL](runbooks/2026-10-25-critical-acceptance-followup.md) avant réparation Prometheus `0644 → 0640`. Les résultats individuels du serveur Prometheus et d'Akvorado détaillent désormais les causes ; aucun E2E de migration n'est clos. Ne pas réutiliser les anciens états 9/7 comme preuve actuelle.
+
 ## P0 — Accepter les services critiques
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
-| H-01 | OpenRAG | Second relevé 25/10 : startup, récupération IA, secret OpenSearch et bundle Backstage FAIL. Chemin canonique et diagnostic scoped corrigés **en PR, non déployés** | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
+| H-01 | OpenRAG | Triage ciblé : Backstage PASS, backend/frontend healthy ; `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY` manquent, comparateur OpenSearch bloqué par les métadonnées de fichier | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
 | H-04 | pfSense / Unbound | OOM du noyau observés ; causalité des tâches Snort/CrowdSec/pfBlockerNG **non démontrée** | Horaires et mémoire corrélés, plan de changement unique avec sauvegarde et rollback |
@@ -72,10 +74,10 @@ Les procédures spécialisées restent dans
 
 | ID | Domaine | Fait établi | Reste à prouver |
 | --- | --- | --- | --- |
-| H-05 | Prometheus | Le 25/10 : `prometheus-targets` et `prometheus-config-access` FAIL ; rules access PASS | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
-| H-06 | Akvorado | 25/10 : configuration et contrôle de blocage PASS ; aucun nouveau lot ClickHouse attesté en 20 s | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
+| H-05 | Prometheus | Correction du fichier `prometheus.yml` par opérateur : uid 1000, gid 568, mode 0640 ; promtool OK, 21/28 targets UP | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
+| H-06 | Akvorado | Nouvelle preuve : 5 flux reçus, 4 rejets metadata, 0 insertion ; le PASS ponctuel précédent ne prouve pas l'absence de blocage | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
 | H-07 | Catalogue OWNER/SERVICE | Identités Backstage/`x-nabla` déclarées ; consommateurs FastAPI/Site distincts | Vérifier dérive catalogue, puis comportement runtime par provenance |
-| H-08 | Secrets et noms | Chemins canoniques, renommages `openwebui`/`homeassistant` préparés | Réconcilier chaque Custom App et chaque secret avec rollback indépendant |
+| H-08 | Secrets et noms | Copies OpenRAG cohérentes mais chemin hérité non finalisé ; secrets OpenRAG/LiteLLM incomplets ; candidat OpenSearch à droits non conformes | **BLOCKED** : réconcilier les clés et droits avant tout `--finalize` |
 | H-09 | Talos / Kubernetes | CSI NFS antérieurement accepté | Retained smoke multi-nœuds avant changement d'Ingress ou migration d'App |
 
 Actions :
@@ -90,8 +92,13 @@ Actions :
 - [ ] **H-07 :** garder le catalogue Compose/`x-nabla` comme source
   déclarative ; ne pas transformer une sonde inaccessible en preuve `DOWN`
   d'une application.
-- [ ] **H-08 :** migrer les secrets un service à la fois ; garder les
-  sources historiques tant que la restauration n'est pas attestée.
+- [ ] **H-08 :** migration des secrets **non terminée**.
+  Préserver les secrets existants, vérifier la présence des clés
+  `LITELLM_IDE_API_KEY` / `OPENRAG_ENCRYPTION_KEY` (OpenRAG)
+  et `LANGFUSE_SECRET_KEY` (LiteLLM), corriger uniquement le candidat
+  OpenSearch identifié par métadonnées, puis valider son égalité. Ne pas
+  finaliser le chemin historique OpenRAG avant un vrai runtime accepté.
+  [Preuves et commandes](runbooks/2026-10-25-critical-acceptance-followup.md).
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
@@ -165,6 +172,15 @@ Actions :
   des erreurs Scrutiny/LiteLLM et ajouter le triage privé des **sept
   gates**. Tests négatifs ajoutés, **runtime TrueNAS NOT_VERIFIED**.
   [Reprise ciblée](runbooks/2026-10-25-critical-acceptance-followup.md).
+- [x] **D-12 (code) :** ajouter icônes et couleurs au triage ciblé
+  (`--color auto|always|never`, `--icons auto|always|never`,
+  `NO_COLOR`, `--no-color`), sans ANSI dans les preuves privées.
+  Le comparateur OpenSearch indique désormais une **classe de fichier**
+  incorrecte, sans afficher sa valeur.
+- [ ] **D-13 (runtime) :** démontrer séparément l'accès au secret
+  canonique, l'absence de chemin legacy, les identifiants authentifiés,
+  la disponibilité des 7 exporters Prometheus et des lots ClickHouse
+  datés ; ne pas clore la migration sur la seule base des copies staged.
 - [ ] **D-10 :** exécuter la suite Python complète de migration,
   `agent-skills-check`, ShellCheck et `just quality` dans un vrai worktree
   au HEAD exact. Aucune gate L3 complète n'est déclarée PASS.
