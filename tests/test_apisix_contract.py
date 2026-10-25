@@ -104,7 +104,7 @@ class ApisixRollbackContract(unittest.TestCase):
 
     def test_reject_weak_or_malformed_keys_before_docker(self):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
-        for key in ("too-short", " " * 24, "x" * 24 + "\\n", "x" * 257):
+        for key in ("too-short", " " * 24, "x" * 24 + "\n", "x" * 257):
             with self.subTest(case=("spaces" if key.isspace() else "invalid")):
                 env = os.environ.copy()
                 env["APISIX_KEY"] = key
