@@ -26,14 +26,16 @@ class DoclingDeployPreflightTest(unittest.TestCase):
     def test_no_mutation_before_preflight(self):
         source = SCRIPT.read_text(encoding="utf-8")
         verify = source.index('if [[ "${MODE}" == "--check" ]]; then')
-        execute = source.index('if truenas_app_query_by_id "${APP_ID}" |\n  jq -e')
+        execute = source.index('if [[ "${app_count}" == "1" ]]; then')
         self.assertLess(verify, execute)
         self.assertIn('docker image inspect "${image}"', source)
         self.assertIn('docker network inspect "${network}"', source)
 
     def test_declared_app_is_single_docling_and_no_purge(self):
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('APP_ID="${DOCLING_APP_ID:-docling}"', source)
+        self.assertIn('APP_ID="docling"', source)
+        self.assertIn('only the docling Custom App', source)
+        self.assertIn('unexpected or ambiguous existing App count', source)
         for forbidden in ("rm -rf", "docker compose down", "docker system prune",
                           "zfs destroy", "app.delete"):
             self.assertNotIn(forbidden, source)
