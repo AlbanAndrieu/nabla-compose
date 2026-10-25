@@ -129,6 +129,18 @@ yubikey-postgres-fixture-check:
 yubikey-postgres-fixture-run:
     bash scripts/workstation/verify-postgres-fixture-recovery.sh --run --acknowledge SYNTHETIC_ONLY
 
+# Five YubiKey backup workstreams prepared in parallel; NO configuration writes.
+yubikey-backup-five-test:
+    python3 -m py_compile scripts/workstation/prepare-yubikey-backup-five.py tests/test_yubikey_backup_five_workstreams.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_backup_five_workstreams.py' -v
+
+yubikey-backup-five-readonly:
+    python3 scripts/workstation/prepare-yubikey-backup-five.py
+
+# A single 22916048 must be connected; hardware metadata only, after host checks.
+yubikey-backup-five-secondary-readonly:
+    python3 scripts/workstation/prepare-yubikey-backup-five.py --secondary-public-inventory
+
 yubikey-parallel-host-readonly:
     python3 scripts/workstation/run-yubikey-parallel-readonly.py
 
