@@ -107,8 +107,8 @@ class DependencyContracts(unittest.TestCase):
 
     def test_existing_agent_reports_scd_without_start_or_card_access(self):
         response = subprocess.CompletedProcess(
-            [], 0, "OK\\nOK closing connection\\n", "")
-        with patch.object(module.shutil, "which", return_value="/usr/bin/gpg-connect-agent"), \\
+            [], 0, "OK\nOK closing connection\n", "")
+        with patch.object(module.shutil, "which", return_value="/usr/bin/gpg-connect-agent"), \
              patch.object(module.subprocess, "run", return_value=response) as runner:
             self.assertEqual(module.scdaemon_agent_state(),
                              "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
@@ -121,25 +121,25 @@ class DependencyContracts(unittest.TestCase):
 
     def test_scd_error_or_malformed_reply_never_claims_running(self):
         cases = (
-            subprocess.CompletedProcess([], 0, "ERR 123 FALSE\\nOK closing connection\\n", ""),
-            subprocess.CompletedProcess([], 0, "OK closing connection\\n", ""),
-            subprocess.CompletedProcess([], 1, "OK\\nOK closing connection\\n", ""),
-            subprocess.CompletedProcess([], 0, "OK\\nOK closing connection\\n", "diagnostic"),
-            subprocess.CompletedProcess([], 0, "OK\\nOK closing connection\\nEXTRA\\n", ""),
+            subprocess.CompletedProcess([], 0, "ERR 123 FALSE\nOK closing connection\n", ""),
+            subprocess.CompletedProcess([], 0, "OK closing connection\n", ""),
+            subprocess.CompletedProcess([], 1, "OK\nOK closing connection\n", ""),
+            subprocess.CompletedProcess([], 0, "OK\nOK closing connection\n", "diagnostic"),
+            subprocess.CompletedProcess([], 0, "OK\nOK closing connection\nEXTRA\n", ""),
         )
         with patch.object(module.shutil, "which", return_value="gpg-connect-agent"):
             for result in cases:
-                with self.subTest(result=result.returncode), \\
+                with self.subTest(result=result.returncode), \
                      patch.object(module.subprocess, "run", return_value=result):
                     self.assertNotEqual(module.scdaemon_agent_state(),
                                         "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
 
     def test_scd_tool_missing_and_timeout_fail_closed(self):
-        with patch.object(module.shutil, "which", return_value=None), \\
+        with patch.object(module.shutil, "which", return_value=None), \
              patch.object(module.subprocess, "run") as runner:
             self.assertEqual(module.scdaemon_agent_state(), "TOOL_MISSING")
             runner.assert_not_called()
-        with patch.object(module.shutil, "which", return_value="gpg-connect-agent"), \\
+        with patch.object(module.shutil, "which", return_value="gpg-connect-agent"), \
              patch.object(module.subprocess, "run",
                           side_effect=subprocess.TimeoutExpired(["gpg-connect-agent"], 5)):
             self.assertEqual(module.scdaemon_agent_state(), "UNKNOWN")
@@ -160,7 +160,7 @@ class DependencyContracts(unittest.TestCase):
         program.lstat.return_value = SimpleNamespace(
             st_mode=stat.S_IFREG | 0o755, st_uid=0)
         binaries.__truediv__.return_value = program
-        with patch.object(module, "Path", return_value=root), \\
+        with patch.object(module, "Path", return_value=root), \
              patch.object(module.subprocess, "run") as runner:
             self.assertEqual(module.postgres_versioned_tools_state(),
                              "VERSIONED_SERVER_BINARIES_PRESENT_UNVERIFIED")
