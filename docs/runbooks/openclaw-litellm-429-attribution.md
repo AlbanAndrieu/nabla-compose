@@ -515,3 +515,87 @@ Aucun changement de modèle ou de clé n'est effectué
 par ces quatre recettes. La bonne santé des modèles et
 la persistance PostgreSQL restent à prouver.
 
+
+
+## TrueNAS LiteLLM : master key de format inattendu — 25 octobre 2026
+
+La Workstation a validé **29/29 contrats** :
+18 tests TrueNAS, 3 de routage et 8 de tunnel SSH.
+Le tunnel est établi avec
+`truenas_tunnel_after_start=verified_ssh`, puis réutilisé
+avec `truenas_tunnel_action=reuse`.
+L'inventaire authentifié du proxy **n'a pas encore eu lieu** :
+
+```text
+truenas_admin_source=dedicated_truenas_environment
+truenas_admin_env_state=unexpected_format
+truenas_admin_auth=missing
+```
+
+Ce refus était déclenché **localement** si la valeur ne
+commençait pas par `sk-` ou était trop courte. Il ne représente
+ni une réponse HTTP 401/403 du serveur, ni une preuve que
+la clé est erronée. La documentation LiteLLM recommande
+`sk-` pour les nouvelles master keys ; certaines versions
+indiquent que ce préfixe n'est qu'une convention. Ne pas
+changer la master key TrueNAS ou `LITELLM_SALT_KEY`
+uniquement pour satisfaire le diagnostic : une rotation
+incontrôlée risque de rendre les données chiffrées illisibles.
+
+### Diagnostic sans réseau et sans impression de secret
+
+Après synchronisation de la branche de la PR :
+
+```bash
+just openclaw-truenas-model-keys-test
+just openclaw-truenas-master-env-check
+```
+
+Cette recette classe uniquement le contenu **déjà exporté**
+de `LITELLM_TRUENAS_MASTER_KEY`. Elle ne contacte aucun
+serveur et ne publie ni valeur, ni préfixe, ni longueur exacte.
+
+Les états possibles comprennent :
+`not_exported`, `empty`, `too_short`,
+`looks_like_reference`, `surrounding_quotes`,
+`invalid_characters`, `present` (préfixe `sk-`)
+et `nonstandard_prefix` (valeur de longueur suffisante,
+composée de caractères imprimables, mais sans préfixe `sk-`).
+
+Si le résultat indique `looks_like_reference`, ne pas
+transmettre le contenu tel quel à LiteLLM : résoudre la
+référence en privé et exporter **la vraie valeur**, sans
+utiliser `echo` ni la placer dans l'historique shell.
+`too_short`, `surrounding_quotes` ou
+`invalid_characters` exigent la correction de la
+source privée avant toute requête authentifiée.
+
+Si `present`, utiliser :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-dedicated
+```
+
+Si `nonstandard_prefix`, confirmer auprès de la
+configuration privée **effective** du conteneur LiteLLM
+TrueNAS que cette valeur est bien la master key.
+Une option explicite autorise ensuite uniquement deux
+**GET de diagnostic** via un tunnel SSH déjà vérifié :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard
+```
+
+Sans cette option, le préflight continue de refuser les
+clés non standard. Une réponse 401/403 signifie
+que le serveur n'accepte pas la clé présentée ;
+aucun client ni proxy ne doit être reconfiguré
+pour contourner cette autorisation.
+
+Les inventaires `/v1/models` et `/key/list`,
+la présence de modèles `gpt-4.1*` et la
+persistance des clés virtuelles sur TrueNAS restent
+**non attestés** jusqu'à la première réponse admin
+réussie. La PR ne crée, ne copie et ne supprime
+aucun credential.
+
