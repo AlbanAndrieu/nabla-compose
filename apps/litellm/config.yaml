@@ -254,11 +254,8 @@ general_settings:
       litellm_user_role: customer
 litellm_settings:
   fallbacks:
-    - { "gpt-5.1": ["gpt-4.1", "gpt-4o", "gpt-4.1-mini"] }
-    - { "gpt-4.1": ["gpt-4o", "gpt-4.1-mini"] }
-    - { "gpt-4o": ["gpt-4.1-mini"] }
-    - { "llama3.2": ["gpt-4.1-mini"] }
-    - { "gemma3": ["gpt-4.1-mini"] }
+    # Only use aliases configured on this TrueNAS proxy.
+    # Private paid upstream routes remain outside this deployment.
     - { "qwen": ["llama3.2"] }
     # Explicitly no alternate paid/local model for this budget-scoped service.
     - { "fastapi-qwen": [] }
