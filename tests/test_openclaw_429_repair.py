@@ -90,6 +90,34 @@ class RepairContracts(unittest.TestCase):
         self.assertEqual(update["agents"]["list"], [])
         self.assertEqual(mod.repair_scope(original), "concurrency_only")
 
+    def test_implicit_agent_plan_checks_gateway_without_mutation(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        with patch.object(mod, "gateway_snapshot_hash", return_value="rpc-revision-not-sha"), \
+             patch.object(mod, "scoped_models") as model_probe, \
+             patch.object(mod, "native_patch_concurrency") as writer, \
+             patch.object(mod, "restart_gateway") as restart, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.main([])
+        self.assertEqual(code, 0)
+        self.assertIn("gateway_snapshot=verified", output.getvalue())
+        model_probe.assert_not_called()
+        writer.assert_not_called()
+        restart.assert_not_called()
+
+    def test_implicit_agent_plan_fails_closed_on_missing_snapshot(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        with patch.object(mod, "gateway_snapshot_hash", return_value=None), \
+             patch.object(mod, "native_patch_concurrency") as writer, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.main([])
+        self.assertEqual(code, 2)
+        self.assertIn("gateway_snapshot=unavailable_or_wrong_owner", output.getvalue())
+        writer.assert_not_called()
+
     def test_implicit_agent_does_not_access_cron_credentials_or_models(self):
         original = sample()
         del original["agents"]["list"]
