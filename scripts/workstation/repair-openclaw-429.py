@@ -43,7 +43,9 @@ def private_read(path, max_size):
 
 def scoped_models(token):
     """Only send this existing service token to Workstation loopback."""
-    if not isinstance(token, str) or not token.startswith("sk-"):
+    if (not isinstance(token, str) or not token.startswith("sk-")
+            or len(token) > 4096 or not token.isascii()
+            or any(ord(ch) <= 32 for ch in token)):
         return None
     req = Request(BASE + "/v1/models",
                   headers={"Authorization": "Bearer " + token,
@@ -64,7 +66,10 @@ def scoped_models(token):
 def candidate(config, cron_secret, allowed):
     if not isinstance(config, dict):
         raise ValueError("config_invalid")
-    providers = config.get("models", {}).get("providers", {})
+    models_root = config.get("models")
+    if not isinstance(models_root, dict):
+        raise ValueError("models_invalid")
+    providers = models_root.get("providers")
     if not isinstance(providers, dict):
         raise ValueError("providers_invalid")
     main, cron = providers.get("litellm-main"), providers.get("litellm-cron")
