@@ -446,3 +446,12 @@ apisix-poc-smoke:
 
 apisix-poc-down:
     bash scripts/truenas/apisix-poc.sh down
+
+# Stable migration operator: no runtime probes on --help.
+migration-operator-help:
+    bash scripts/truenas/migration-operator.sh --help
+
+# Offline migration and POC rollback contracts. No Docker/TrueNAS required.
+migration-operator-contracts:
+    python3 -m pytest -q tests/test_finish_migrations_20261024.py
+    python3 -m unittest discover -s tests -p 'test_apisix_poc_contract.py' -v
