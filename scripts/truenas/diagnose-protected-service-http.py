@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -72,6 +73,27 @@ def request_code(probe: Probe) -> int | None:
         return None
 
 
+def docker_health(container: str) -> str:
+    """Read only the Docker Health.Status field; never print inspection JSON."""
+    if container not in {"litellm", "garage"}:
+        return "not_observed"
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--format",
+             "{{if .State.Health}}{{.State.Health.Status}}{{else}}not_configured{{end}}",
+             container],
+            capture_output=True, text=True, check=False, timeout=3,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "not_observed"
+    value = result.stdout.strip()
+    if result.returncode == 0 and value in {
+        "healthy", "unhealthy", "starting", "not_configured",
+    }:
+        return value
+    return "not_observed"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -82,7 +104,10 @@ def main() -> int:
     print(json.dumps({
         "schema_version": 1,
         "checks": observations,
-        "docker_healthcheck": "not_queried",
+        "docker_healthcheck": {
+            "garage": docker_health("garage"),
+            "litellm": docker_health("litellm"),
+        },
         "gatus_monitor": "not_queried",
         "s3_signed_functionality": "not_queried",
         "litellm_inference": "not_queried",
