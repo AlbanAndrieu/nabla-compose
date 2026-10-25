@@ -77,7 +77,7 @@ def classify_scdaemon_assuan(raw: str) -> str:
     """
     import re
 
-    if not isinstance(raw, str) or len(raw) > 4096 or "\\x00" in raw:
+    if not isinstance(raw, str) or len(raw) > 4096 or "\x00" in raw:
         return "NOT_CONFIRMED"
     lines = raw.strip().splitlines()
     if len(lines) == 3 and lines[0] == "OK Pleased to meet you":
@@ -86,7 +86,7 @@ def classify_scdaemon_assuan(raw: str) -> str:
         return "NOT_CONFIRMED"
     if lines[0] == "OK":
         return "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED"
-    if re.fullmatch(r"ERR [0-9]+(?: [^\\r\\n]{0,200})?", lines[0]):
+    if re.fullmatch(r"ERR [0-9]+(?: [^\r\n]{0,200})?", lines[0]):
         return "AGENT_SCD_STATUS_REJECTED_UNVERIFIED"
     return "NOT_CONFIRMED"
 
