@@ -4,7 +4,8 @@
   "private": true,
   "description": "Homelab Docker Compose and infrastructure-as-code automation",
   "scripts": {
-    "semantic-release": "echo \"Release publishing is owned by GitHub Actions\""
+    "semantic-release": "echo \"Release publishing is owned by GitHub Actions\"",
+    "test:fast:node22": "node --test scripts/quality/node22-fast.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.12",
