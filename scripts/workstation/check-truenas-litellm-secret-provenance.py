@@ -4,7 +4,6 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import sys
-import textwrap
 import shlex
 
 REMOTE = r'''
@@ -12,9 +11,9 @@ import json, os, re, subprocess, sys
 MODE = sys.argv[1]
 NAMES = ("LITELLM_OPENCLAW_CRON_API_KEY", "LITELLM_OPENCLAW_MAIN_API_KEY",
          "LITELLM_REACTIVE_API_KEY", "LITELLM_IDE_API_KEY",
-         "LITELLM_API_KEY", "LITELLM_N8N_API_KEY")
-SOURCE = "/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets"
-CANONICAL = "/mnt/cpool/secrets/runtime/litellm/.env.secrets"
+         "LITELLM_API_KEY", "LITELLM_N8N_API_KEY",
+         "LANGFUSE_PUBLIC_KEY")
+SOURCE = "/mnt/cpool/secrets/runtime/litellm/.env.secrets"
 
 def read_file(path):
     if not os.path.isfile(path) or os.path.islink(path):
@@ -68,21 +67,19 @@ def inspect():
 
 if MODE == "syntax":
     values, errors = read_file(SOURCE)
-    print("openrag_secret_file=" + ("available" if values is not None else "unavailable"))
+    print("canonical_secret_file=" + ("available" if values is not None else "unavailable"))
     for name in NAMES:
         state = "unverified" if values is None else ("present" if values.get(name) else "missing_or_empty")
         print("source_" + name.lower() + "=" + state)
     print("secret_syntax=" + ("unverified" if values is None else "invalid" if errors else "valid"))
-    print("secret_syntax_issue=" + ("present" if errors else "none"))
+    print("secret_syntax_issue=" + ("unverified" if values is None else "present" if errors else "none"))
     sys.exit(0 if values is not None and not errors and all(values.get(n) for n in NAMES) else 2)
 elif MODE == "runtime":
     item = inspect()
     if item is None:
         sys.exit(2)
-    mounts = item.get("Mounts") or []
     print("container_running=" + str(bool(item.get("State", {}).get("Running"))).lower())
-    print("openrag_secret_mounted=" + str(any(m.get("Source") == SOURCE for m in mounts)).lower())
-    print("canonical_secret_mounted=" + str(any(m.get("Source") == CANONICAL for m in mounts)).lower())
+    print("env_file_semantics=loaded_at_container_creation_not_bind_mount")
     env = {}
     for e in item.get("Config", {}).get("Env") or []:
         k, sep, value = e.partition("=")
@@ -95,8 +92,8 @@ elif MODE == "runtime":
         for name in NAMES:
             state = ("match" if env.get(name) == values.get(name) and values.get(name)
                      else "mismatch_or_not_loaded")
-            print("runtime_vs_openrag_" + name.lower() + "=" + state)
-    sys.exit(0)
+            print("runtime_vs_canonical_" + name.lower() + "=" + state)
+    sys.exit(0 if values is not None and not errors else 2)
 elif MODE == "database":
     item = inspect()
     if item is None:
