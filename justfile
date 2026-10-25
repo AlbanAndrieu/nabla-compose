@@ -154,6 +154,18 @@ yubikey-backup-ssh-check:
 yubikey-backup-ssh-enroll:
     python3 scripts/workstation/enroll-yubikey-backup-ssh-fido2.py --enroll --acknowledge ENROLL_SSH_FIDO2_BACKUP_22916048
 
+# OpenPGP public transport only. --probe may auto-start scdaemon (opt-in).
+yubikey-backup-openpgp-test:
+    python3 -m py_compile scripts/workstation/probe-yubikey-backup-openpgp.py tests/test_yubikey_backup_openpgp_probe.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_backup_openpgp_probe.py' -v
+
+yubikey-backup-openpgp-check:
+    python3 scripts/workstation/probe-yubikey-backup-openpgp.py --check
+
+# Single backup YubiKey and interactive TTY required, no PIN or private keys.
+yubikey-backup-openpgp-probe:
+    python3 scripts/workstation/probe-yubikey-backup-openpgp.py --probe --acknowledge QUERY_OPENPGP_BACKUP_22916048
+
 yubikey-parallel-host-readonly:
     python3 scripts/workstation/run-yubikey-parallel-readonly.py
 
