@@ -85,6 +85,54 @@ Le `FAIL` de la session historique est obsolète. Le smoke
 HTTPS privé et le chargement de la page sont acceptés ; la connexion
 authentifiée n'est pas testée.
 
+## Réception complémentaire — comparaison OpenRAG et coffre Code (26 octobre)
+
+**OpenRAG :** le comparateur exécuté avec le venv TrueNAS confirme
+`left=2`, `right=4`, `differentValue=0` et `onlyLeft=0`.
+Les deux fichiers ont les mêmes valeurs pour `LANGFLOW_KEY` et
+`OPENSEARCH_PASSWORD`. Le fichier canonique contient **en plus**
+`LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY`.
+Ce n'est **pas une rotation ni un désaccord sur les valeurs communes**.
+Le comparateur annonce désormais `relationship=right_has_additional_keys`,
+mais garde son **exit code 1** : avant finalisation, il faut vérifier le
+chargement et l'authentification runtime des secrets supplémentaires.
+**Ne pas restage OpenRAG** : cela ferait perdre les clés supplémentaires.
+Ne pas régénérer la clé de chiffrement.
+
+**Code :** `materialize_runtime.py --app code --verify` a réussi la
+validation du manifeste, puis Vaultwarden n'a pas trouvé l'entrée exacte
+`nabla/prod/code` dans le dossier `TrueNAS` (`found 0`).
+Ne pas interpréter ce résultat comme un mot de passe invalide ou perdu.
+Un dry-run de l'importeur peut vérifier la présence de `CODE_PASSWORD`
+ou `PASSWORD` dans un ancien fichier, sans afficher sa valeur :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+"$HOME/.cache/nabla-compose/dev-venv/bin/python" \
+  scripts/secrets/import_dotenv_to_bitwarden.py \
+  --app code --input /mnt/cpool/code/.env
+```
+
+Il est aussi possible d'examiner explicitement
+`/mnt/cpool/code/.env.secrets` si c'est la source réelle. **Le dry-run
+ne crée aucun élément dans Vaultwarden** ; `mapped=1/1` signifie
+uniquement que la clé requise a été trouvée. Si les deux fichiers sont
+vides ou incomplets, rechercher la source d'autorité dans une sauvegarde
+ou une configuration runtime existante, sans inventer une valeur.
+Quand une source récupérée et sa provenance ont été vérifiées,
+l'importeur permet un `--apply` *ciblé* pour créer l'élément exact.
+Ne pas l'exécuter avant revue, et ne pas générer `CODE_PASSWORD`.
+
+Après la création de l'élément exact, reprendre le test
+`materialize_runtime.py --app code --verify` (non mutatif).
+Si le coffre diffère du fichier canonique, comparer les sources puis
+planifier une installation ponctuelle séparée, avec rollback.
+
+**Tests ciblés opérateur :** `test_secret_materialization_contract.py`
+8/8 PASS et `test_openrag_secret_migration_metadata.py` 4/4 PASS ;
+`bash -n` des deux scripts TrueNAS PASS. Ces tests ne prouvent pas
+l'authentification ni la création d'un élément Vaultwarden.
+
 ## Diagnostic des sources d'import et des dépendances Python (26 octobre)
 
 Le manifeste contenait trois collisions d'`importEnv` :

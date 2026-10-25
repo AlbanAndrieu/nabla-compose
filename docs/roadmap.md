@@ -241,6 +241,23 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Résultats de validation TrueNAS supplémentaires — 26 octobre
+
+- **Tests :** contrat secrets 8/8 PASS, métadonnées OpenRAG 4/4
+  PASS, syntaxe Bash des deux helpers PASS.
+- **OpenRAG / secrets :** `left=2 right=4 onlyLeft=0 onlyRight=2
+  differentValue=0 sameValue=2`. Le canonique est un surensemble
+  strict du legacy, pas un conflit des valeurs communes. Il conserve
+  `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY`, qui ne
+  doivent pas disparaître. Comparaison en venv acceptée ; migration
+  et authentification runtime restent bloquées, pas de `--restage`.
+- **Code / Vaultwarden :** `materialize_runtime.py --verify`
+  atteint le coffre, mais l'élément exact `nabla/prod/code`
+  n'existe pas dans le dossier TrueNAS (`found 0`). Contrôler
+  d'abord l'ancienne source `/mnt/cpool/code/.env` via le dry-run
+  de `import_dotenv_to_bitwarden.py`, sans afficher le mot de passe.
+  L'import `--apply` reste une étape distincte et conditionnelle.
+
 ## Manifest Vaultwarden — réparation P0 (26 octobre)
 
 - **Validation bloquante identifiée :** trois `importEnv` partagés
