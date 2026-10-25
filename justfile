@@ -141,6 +141,19 @@ yubikey-backup-five-readonly:
 yubikey-backup-five-secondary-readonly:
     python3 scripts/workstation/prepare-yubikey-backup-five.py --secondary-public-inventory
 
+# SSH FIDO backup enrollment on workstation only. Never touches PIV, OTP2,
+# existing SSH keys, authorized_keys, hosts or SOPS. Card serial checked first.
+yubikey-backup-ssh-test:
+    python3 -m py_compile scripts/workstation/enroll-yubikey-backup-ssh-fido2.py tests/test_yubikey_backup_ssh_fido2_enrollment.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_backup_ssh_fido2_enrollment.py' -v
+
+yubikey-backup-ssh-check:
+    python3 scripts/workstation/enroll-yubikey-backup-ssh-fido2.py --check
+
+# Explicit interactive hardware enrollment; no auto-retry or overwrites.
+yubikey-backup-ssh-enroll:
+    python3 scripts/workstation/enroll-yubikey-backup-ssh-fido2.py --enroll --acknowledge ENROLL_SSH_FIDO2_BACKUP_22916048
+
 yubikey-parallel-host-readonly:
     python3 scripts/workstation/run-yubikey-parallel-readonly.py
 
