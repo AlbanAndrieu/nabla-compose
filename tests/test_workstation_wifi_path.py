@@ -1,12 +1,12 @@
 """Hermetic workstation Wi-Fi/DNS path diagnosis tests: no network required."""
-from pathlib import Path
 import contextlib
-import io
-from unittest import mock
 import importlib.util
+import io
 import subprocess
 import sys
 import unittest
+from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/workstation/diagnose-wifi-path.py"
@@ -216,7 +216,8 @@ class WifiPathTest(unittest.TestCase):
             "diagnosis": "CLIENT_PRIVATE_SPLIT_DNS_PATH",
         }
         with mock.patch.object(module, "snapshot", return_value=data):
-            rc = module.main(["--check", "--json"])
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc = module.main(["--check", "--json"])
         self.assertEqual(rc, 1)
 
     def test_dns_runtime_diff_is_not_blame_for_resolver(self):
