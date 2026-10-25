@@ -38,6 +38,11 @@ Docker, OpenClaw ou LiteLLM :
   mélanger les commandes de tunnel Workstation et les commandes locales
   TrueNAS. Vérifier les deux chemins par des tests hors ligne, y compris
   un cas négatif qui refuse SSH sur TrueNAS.
+- Exécuter les **tests unitaires Python sur Workstation par défaut**.
+  Ne pas demander leur répétition sur TrueNAS : les tests hors ligne
+  simulent les deux environnements. Réserver TrueNAS aux preuves runtime
+  (Docker, PostgreSQL, clés virtuelles) et aux actions locales qui en dépendent.
+  Depuis Workstation, les recettes runtime utilisent le dispatch SSH existant.
 
 ## Workflow IA — chemin court
 
