@@ -347,3 +347,92 @@ HTTP Inspect memcap of 32 MiB, do not mutate generated
 performed by these commits.** New local SSH-mock tests cover
 confirmation, root/sudo privilege routing, and read-only
 pre/postchecks. They need validation on the PR HEAD.
+
+## 2026-10-25 — Cutover confirmé par l'opérateur, contrôle post-changement
+
+**L'application a réellement été exécutée par l'opérateur**, pas par
+l'agent, le 25 octobre 2026 en soirée (vers 23:40 CET).
+Les 13 tests `just pfsense-security-capacity-test` sont **PASS**
+(4 contrats initiaux PHP-FPM, 6 du driver SSH et 3 de posture).
+
+| Constat | Avant | Après (preuve opérateur) |
+| --- | --- | --- |
+| Générateur pfSense | `8/3600/2/7/5000` | **`4/30/1/2/500`** |
+| Pool généré | `8/3600/2/7/5000` | **`4/30/1/2/500`** |
+| Enfants `php-fpm: pool nginx` | **7** | **1** |
+| Socket PHP-FPM | PRESENT | **PRESENT** |
+| Unbound / DNS localhost | HEALTHY en preflight | **HEALTHY** en postcheck |
+| RSS agrégé php-fpm | ~283–307 Mio selon la fenêtre précédente | **195792 Kio / 5 processus**, maître compris |
+| `free+inactive` | **72,4 Mio** au minimum dans la fenêtre avant | **277868 Kio = 271,4 Mio** au premier snapshot après |
+
+Le changement a sauvegardé le générateur dans
+`/conf/backup/rc.php_ini_setup.nabla-pre-phpfpm-hardening`.
+`--apply` s'est terminé par
+`result=CHANGE_COMPLETED_WITH_DNS_SMOKE`, avec le profil cible confirmé.
+**Ne pas rejouer l'apply** simplement parce qu'il est disponible.
+Conserver le rollback uniquement en cas de régression avérée.
+
+### Événements à dissocier
+
+Le script natif de redémarrage a imprimé **`[: NaN: bad number`**
+pendant l'application, avant le redémarrage `check_reload_status`.
+Le code de nos scripts ne contient pas de calcul numérique `NaN`,
+mais la provenance exacte n'est **pas prouvée** (générateur, script
+de restart pfSense, ou dépendance appelée). Les contrôles postérieurs
+réussissent. Le traiter comme **dette de diagnostic native non fatale**
+et ne pas modifier les scripts OS de pfSense sans preuve.
+
+Unbound avait subi **un nouveau kill noyau lors de l'OOM
+du 25 octobre à 22:12 CET** et a été redémarré manuellement
+avec le PID `19252` à **22:46:18 CET**. La dernière victime
+journalisée à `22:12:38+01:00` est **`php_pfb`**.
+Le cron pfBlockerNG est planifié à **22:00** ; proximité d'horaire
+seule, le job déclencheur de l'OOM n'est pas démontré.
+Tous ces événements sont **antérieurs** au changement PHP-FPM.
+Les journaux noyau les conservent : ne pas les compter comme des
+OOM survenus après déploiement.
+
+### Protections effectivement auditées
+
+- Snort WAN **running** en mode passif, AC-BNFA **PASS**,
+  HTTP Inspect memcap **32 Mio**, règle TLS port 7000 non inspectée
+  comme HTTP clair : **aucune réduction supplémentaire nécessaire**.
+- CrowdSec **engine running**, firewall bouncer
+  **stopped_or_unknown**, arrêt signalé par l'opérateur :
+  les décisions de blocage locales peuvent ne plus s'appliquer.
+  Ne pas considérer les protections de blocage CrowdSec actives.
+- pfBlockerNG DNSBL Python fonctionne, la dernière mise à jour
+  présente un marqueur `PASSED` à 00:05:12 ; mais
+  `pfblocker.dnsbl_loaded_entries=0` signifie compteur de module
+  **absent ou inconnu**, et **pas** nécessairement zéro entrée.
+- `service.pfb_filter=0` : helper filterlog pfBlockerNG non observé.
+  C'est une vérification séparée ; ne pas tenter de le redémarrer
+  pour économiser ou restaurer la mémoire sans preuve de besoin.
+
+### Recette réutilisable de réception
+
+```bash
+just pfsense-php-fpm-postcheck
+```
+
+Le postcheck exécute en lecture seule l'audit de capacité, les
+statuts Unbound/Watchdog/Snort/pfBlockerNG/CrowdSec, les OOM
+historiques, puis un snapshot RAM ; il ne force pas de restart.
+Compléter par les contrôles **depuis le LAN** sur
+`https://home.albandrieu.com:10443` (HTTPS avec certificat valide),
+un endpoint pfREST autorisé et les résolutions DNS publiques
+et privées. Un simple `401` sur pfREST indique potentiellement
+une authentification requise et ne doit pas être assimilé à
+un service totalement indisponible.
+
+**Critères de stabilisation :** maintien du profil `4/30/1/2/500`,
+retour de l'accès management, absence de nouvel OOM **après
+~23:40 CET**, mémoire disponible au-dessus de 128 Mio en
+régime ordinaire et surveillance spécifique après les jobs
+pfBlockerNG 00:00/04:00/22:00 et Snort 02:09/14:09.
+Un snapshot après application ne prouve pas un gain durable :
+la charge et l'état CrowdSec ont également changé.
+
+Ne pas augmenter `PHP memory_limit` au-delà de 128M, ne pas
+réactiver le feed UT1 Adult, et ne pas désactiver Snort WAN
+puisque ses réglages basse mémoire sont déjà confirmés.
