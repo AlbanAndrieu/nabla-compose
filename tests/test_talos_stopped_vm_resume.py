@@ -1,0 +1,63 @@
+"""Offline TrueNAS Talos VM resume contracts; no actual VM operations."""
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/truenas/resume-stopped-talos-vms.py"
+spec = importlib.util.spec_from_file_location("resume_stopped_talos", SCRIPT)
+assert spec is not None and spec.loader is not None
+MODULE = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(MODULE)
+
+
+def fixture(state="STOPPED"):
+    return [
+        {"id": 6, "name": "taloscp01", "autostart": True, "status": {"state": state}},
+        {"id": 7, "name": "taloswk01", "autostart": True, "status": {"state": state}},
+        {"id": 8, "name": "taloswk02", "autostart": True, "status": {"state": state}},
+    ]
+
+
+class TalosStoppedVMTest(unittest.TestCase):
+    def test_expected_names_order(self):
+        self.assertEqual(MODULE.VM_NAMES, ("taloscp01", "taloswk01", "taloswk02"))
+
+    def test_synthetic_stopped_vms_do_not_start(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "vm.json"
+            path.write_text(json.dumps(fixture()), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--check", "--query-json", str(path)],
+                text=True, capture_output=True, check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("READ_ONLY", result.stdout)
+        self.assertIn("taloscp01", result.stdout)
+
+    def test_ambiguous_and_transitional_states_refused(self):
+        for data in (fixture() + [fixture()[0]], fixture("STARTING"), []):
+            with self.subTest(data=data):
+                with self.assertRaises(ValueError):
+                    MODULE.inventory(data)
+
+    def test_start_requires_explicit_ack_and_live_inventory(self):
+        for args in (["--start"], ["--start", "--query-json", "/tmp/invalid"]):
+            with self.subTest(args=args):
+                run = subprocess.run([sys.executable, str(SCRIPT), *args],
+                                     capture_output=True, text=True, check=False)
+                self.assertEqual(run.returncode, 2)
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('"vm.stop"', source)
+        self.assertNotIn("talosctl upgrade", source)
+        self.assertNotIn("etcd reset", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
