@@ -123,7 +123,7 @@ Actions :
   avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
 - [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
   OWNER/INTERNAL avant tout changement de dataplane.
-- [x] Livrer POC APISIX standalone opt-in dans `apps/apisix/` : route mock protégée, réseau interne sans port publié, recette de tests `just apisix-contract` (L1 historique 4/4 PASS (HEAD précédent)). Aucune preuve de démarrage Docker à ce stade.
+- [x] Fournir le service **`apisix`** dans `apps/apisix/` avec projet Compose et profil `apisix`, route `/health`, clé `APISIX_KEY` et recettes `just apisix-*`. Réseau isolé, sans port hôte. **Tests du HEAD actuel NOT_RUN**, aucun déploiement prouvé.
 - [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
@@ -137,8 +137,8 @@ Actions :
   TLS/JWKS, validation d'audience et tests `Host`/`Forwarded` falsifiés.
   APISIX reste interdit en production sans ADR de cutover spécifique.
 
-- [x] Documenter le rollback isolé du POC APISIX ; la commande `down`
-  fonctionne sans conserver la clé POC. Tests synthétiques ajoutés,
+- [x] Documenter le rollback isolé d'APISIX ; la commande `down`
+  fonctionne sans conserver la clé. Tests synthétiques ajoutés,
   **non encore exécutés sur le HEAD courant**.
 - [ ] Faire une recette négative runtime avant toute migration de routes.
   Aucun cutover ni déploiement de gateway en production autorisé par ce document.
@@ -161,6 +161,10 @@ Actions :
 - [ ] **D-04 :** parseur HTTP/MIME DefectDojo factorisé et contrôle DNS
   fail-closed ajouté ; tests négatifs versionnés mais **non exécutés**.
   Valider 200 HTML / 200 JSON / 403 / 000 / DNS timeout.
+- [x] **D-08 :** ajouter deux sections opt-in au registre de migration :
+  `--section postmigration` (catalogue, readiness, Gatus, Prometheus) et
+  `--section apisix` (métadonnées Docker, absent = non vérifié).
+  Tests de contrat versionnés, acceptation runtime **NOT_VERIFIED**.
 - [ ] **D-05 :** extraire les primitives redondantes de diagnostics Docker
   (état, health, compteurs, expurgation) uniquement avec tests négatifs.
 - [ ] **D-06 :** une CLI stable `scripts/truenas/migration-operator.sh`
