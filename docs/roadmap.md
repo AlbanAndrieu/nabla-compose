@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | **Nouvelle régression signalée le 25/10 :** `https://defectdojo.int.albandrieu.com/` inaccessible dans le navigateur ; cause runtime actuelle **NOT_VERIFIED**. L'ancienne acceptation HTTP 302 ne constitue plus une preuve présente | Rejouer la chaîne Nginx/uWSGI → LAN :31085 → DNS Pi-hole/Unbound → HTTPS Traefik/SNI et valider la page de connexion |
-| H-04 | pfSense / Unbound | **PHP-FPM `4/30/1/2/500` appliqué et vérifié en production le 25/10 à ~23:41 CET** : 1 worker nginx, Unbound/DNS healthy, free+inactive **271,4 Mio** au premier relevé, Snort **ac-bnfa** + HTTP Inspect 32 Mio. **Nouvel OOM le 25/10 à 22:12 CET** (dont Unbound et `php_pfb`) **avant** le changement, après le cron pfBlockerNG de 22:00. CrowdSec engine actif, firewall bouncer arrêté ; `pfb_filter` absent. | **P0 :** confirmer HTTPS/pfREST, DNS privé depuis LAN et absence de nouvel OOM depuis ~23:40 ; stabiliser le profil après charge réelle. **P1 :** déterminer les causes de l'OOM 22:12 / `php_pfb`, vérification IPinfo/DNSBL et bouncer CrowdSec. **P2 :** comparer à 02:09 et 00:04, sans retirer AC-BNFA ni les protections encore utiles. |
+| H-04 | pfSense / Unbound | **PHP-FPM `4/30/1/2/500` confirmé après cutover** : 1 worker puis **2 workers nginx à 23:56**, free+inactive **271,4 puis 247,0 Mio**. Unbound `HEALTHY`, PID **19252** inchangé, dernier OOM visible `php_pfb` **25/10 22:12** (avant cutover), aucun kill ultérieur dans la fenêtre consultée. Snort WAN **ac-bnfa**, HTTP Inspect **32 Mio**. **15/15 tests sécurité/capacité PASS**, audit **37 PASS / 5 WARN / 0 FAIL**. | **P0 :** confirmer indépendamment HTTPS GUI :10443, pfREST, DNS privé LAN ; monitorer la mémoire et les kills après mise à jour DNSBL 00:00/04:00/22:00. **P1 :** enquêter sur `php_pfb` 22:12, compteur DNSBL absent, `pfb_filter` absent, et remettre la couverture CrowdSec bouncer après mesure. Pas de nouvelle réduction Snort sans preuve. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -85,14 +85,22 @@ Actions :
   Les commandes ont indiqué un `[: NaN: bad number` **non fatal** au
   redémarrage natif, d'origine **non déterminée** ; voir runbook.
 - [ ] **H-04 / PHP-FPM P0 — acceptation après changement :**
-  confirmer HTTPS WebConfigurator **:10443**, accès pfREST, résolution DNS
-  publique et privée depuis LAN, absence de nouvel OOM, et absence de
-  saturation des workers FastCGI. Le premier snapshot après changement
-  montre **277868 Kio de free+inactive = 271,4 Mio**, RSS agrégé
-  php_fpm **195792 Kio** sur **5 processus** (dont master), mais pas un
-  essai à charge strictement équivalente. Rejouer le sampler et comparer
-  une fenêtre équivalente. Ne pas réappliquer le changement déjà effectué.
-  Rollback uniquement en cas de régression avérée :
+  **Deuxième preuve à 23:56 CET :** générateur/pool **`4/30/1/2/500`**,
+  **2 vrais workers nginx**, socket présente, Unbound PID `19252`
+  (`22:46:18`) et control `REACHABLE` ; public DNS localhost/LAN PASS.
+  Snapshot **252948 Kio = 247,0 Mio free+inactive**, agrégat RSS PHP-FPM
+  **97476 Kio sur 3 processus** (`comm`, master inclus), au lieu de
+  **195792 Kio sur 5 processus** au snapshot initial postcutover.
+  Les deux mesures ne représentent pas une comparaison isochargée.
+  L'OOM le plus récent **22:12 CET** reste antérieur au cutover ;
+  **aucun événement plus récent n'a été identifié dans les journaux
+  consultés**, sans certifier toutes les plages temporelles.
+  `just pfsense-security-capacity-test` **15/15 PASS** et
+  `just pfsense-php-fpm-postcheck` exécuté ; posture **37 PASS / 5 WARN
+  / 0 FAIL**. **À confirmer depuis le LAN :** HTTPS GUI **:10443**,
+  pfREST authentifié, DNS privé, saturation FastCGI et stabilité
+  pendant les crons de nuit. Ne pas réappliquer le changement.
+  Rollback uniquement en cas de régression démontrée :
   `PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just pfsense-php-fpm-restore`.
   [Runbook PHP-FPM](pfsense-php-fpm-hardening.md).
 - [x] **H-04 / Snort P1 — réglages basse mémoire confirmés :**
