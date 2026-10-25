@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Provision existing OpenClaw virtual key values on TrueNAS LiteLLM.
 
-Run on TrueNAS via SSH stdin. Defaults to dry run. Never prints credentials.
+Run on TrueNAS directly or via SSH stdin. Defaults to dry run. Never prints credentials.
 """
 import argparse
 import json
@@ -56,7 +56,9 @@ def container_environment():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true")
+    options = parser.add_mutually_exclusive_group()
+    options.add_argument("--apply", action="store_true")
+    options.add_argument("--status", action="store_true")
     args = parser.parse_args()
     env = container_environment()
     if not env:
@@ -84,6 +86,9 @@ def main():
             return 2
     print("models_allowlist=verified")
     print("existing_key_count=" + str(len(existing["keys"])))
+    if args.status:
+        print("provisioning=inspection_only")
+        return 0
     if existing["keys"]:
         print("provisioning=blocked_existing_keys_require_reconciliation")
         return 2
