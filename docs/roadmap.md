@@ -47,7 +47,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | --- | --- | --- | --- |
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
-| H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
+| H-03 | DefectDojo | **Nouvelle régression signalée le 25/10 :** `https://defectdojo.int.albandrieu.com/` inaccessible dans le navigateur ; cause runtime actuelle **NOT_VERIFIED**. L'ancienne acceptation HTTP 302 ne constitue plus une preuve présente | Rejouer la chaîne Nginx/uWSGI → LAN :31085 → DNS Pi-hole/Unbound → HTTPS Traefik/SNI et valider la page de connexion |
 | H-04 | pfSense / Unbound | **45/45 tests PASS** ; premières mesures réelles à 21:23–21:27 : disponible **125,3–200,1 Mio**, 1/13 sous 128 Mio, PHP-FPM/CrowdSec charges majeures ; `unbound.conf` mtime **24/10 23:39:55 CEST**, même seconde que conflit bind | Vérifier les **48 contrats** du nouveau HEAD ; échantillonner **02:08:30–02:11:30** autour du cron Snort ; comparer empreintes à 23:55/00:10 ; aucun changement live avant preuve du producteur OOM / du fallback DNSBL |
 
 Actions :
@@ -58,8 +58,15 @@ Actions :
   régénérer de clé ni indexer le corpus `cpool/bababou`.
 - [ ] **H-02 :** contrôler les deux consommateurs avec
   `diagnose-sentry-consumers.sh --check` et le smoke Sentry déjà versionné.
-- [ ] **H-03 :** isoler la panne par `diagnose-defectdojo.sh --check`,
-  sans modifier PostgreSQL, l'initializer ou la route publique.
+- [ ] **H-03 :** depuis TrueNAS, exécuter
+  `sudo bash scripts/truenas/diagnose-defectdojo.sh --check`.
+  Le script indique **séparément** les anomalies d'origine HTTP,
+  de réseau Traefik, de DNS Pi-hole/Unbound et de HTTPS SNI/TLS,
+  sans fuite de secret ni redéploiement. Depuis la workstation,
+  exécuter `bash scripts/workstation/diagnose-defectdojo-lan.sh --check`
+  pour identifier un chemin client différent. Ne pas modifier PostgreSQL,
+  réinitialiser l'initializer, créer de DNS public ou redémarrer pfSense.
+  [Runbook](runbooks/defectdojo-private-ingress-acceptance.md).
 - [ ] **H-04 :** séparer le **OOM Unbound confirmé** vers 02:10 des
   redémarrages 23:38/00:04 non attribués ; exécuter
   `just pfsense-unbound-restart-test` puis
@@ -128,6 +135,28 @@ Actions :
 `just node22-fast` : **5 PASS / 1 FAIL** car exécuté sous Node 24 ;
 la recette sélectionne désormais Node 22 via `mise` et doit être rejouée
 sur le HEAD exact. `just quality` reste NOT_RUN.
+
+## Régression DefectDojo et dernières validations locales
+
+- **DefectDojo** : URL privée signalée inaccessible par l'opérateur.
+  Ancienne acceptation ingress **supplantée**, origine réelle non prouvée.
+  Les preuves historiques indiquent une panne du forwarder Unbound
+  vers Pi-hole malgré un Traefik HTTP 302 fonctionnel le 17 octobre ;
+  **ne pas assimiler cet historique au défaut courant sans sondes**.
+  [Diagnostic et branches de correction](runbooks/defectdojo-private-ingress-acceptance.md).
+- **Node22/npm10** : `just node22-fast` **6/6 PASS** à la révision
+  de l'opérateur. Les tests sur l'ancien contrat npm sont résolus.
+- **Migration/Docling** : `just migration-recovery-contracts` a un échec
+  `test_no_mutation_before_preflight` sur une assertion d'ordonnancement ;
+  corrigée dans la PR pour comparer l'état guardé, la matérialisation et
+  l'**action réelle app.update**, sans affaiblir le mode read-only.
+  Rejouer après mise à jour du checkout.
+- **CSI** : `CONTROLLER_READY_WITH_TERMINATED_PODS`; Pod Failed
+  du RS actif et contrôleur sain, aucun cleanup automatique.
+- **Docling** : `DEPLOYING`, conteneur `running` mais `unhealthy`,
+  redémarrages `0`, TCP host :5001 refuse la connexion.
+  **Pas de seconde app.apply**. Inspecter les métadonnées healthcheck
+  et l'API avant toute mise à jour ciblée.
 
 ## Preuves de déploiement et quality gate — 25 octobre, dernier relevé
 
