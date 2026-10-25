@@ -50,7 +50,7 @@ class OpenragSecretMetadataTest(unittest.TestCase):
 
     def test_runner_does_not_apply_secret_migration_as_a_check(self):
         script = (
-            ROOT / "scripts/truenas/finish-migrations-20261024.sh"
+            ROOT / "scripts/truenas/migration-diagnostic-sections.sh"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "bootstrap-repository-env-files.sh --check openrag", script,
