@@ -278,6 +278,22 @@ class ConsoleContract(unittest.TestCase):
                 self.assertNotIn("0 distinct historical OOM records", result.stdout)
                 self.assertNotIn("EVIDENCE INCOMPLETE", result.stdout)
 
+    def test_one_memory_sample_uses_singular_and_not_evaluated_oom(self):
+        sample = (
+            "=== Memory-pressure time-series (instantaneous) ===\n"
+            "sampler_budget=samples=1 interval_seconds=15\n"
+            "sample_seq=1 timestamp=2026-10-25T23:56:19+0100 "
+            "available_kib=252948 free_kib=135424 inactive_kib=117524\n"
+            "=== End of bounded memory-pressure sampling ===\n"
+        )
+        result = render(sample, mode="verbose")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Memory window · 1 sample", result.stdout)
+        self.assertIn("available min=247.0 MiB", result.stdout)
+        self.assertNotIn("1 samples", result.stdout)
+        self.assertIn("Historical OOM events NOT_EVALUATED", result.stdout)
+        self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
     def test_missing_sampler_samples_are_incomplete(self):
         sample = (
             "=== Memory-pressure time-series (instantaneous) ===\n"
