@@ -7,7 +7,7 @@ never signs, decrypts, moves keys, asks PIN, or prints GPG card metadata.
 from __future__ import annotations
 import argparse
 import json
-import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +20,33 @@ def check() -> str:
     if not shutil.which('gpg') or not shutil.which('ykman'):
         return 'TOOLS_MISSING'
     return 'TOOLS_PRESENT_HARDWARE_NOT_CHECKED'
+
+
+
+# All matching happens in memory. Never persist/print GnuPG stderr or card IDs.
+APPLICATION_ID = re.compile(r"(?im)^Application ID\s*\.{2,}\s*:\s*D27600012401[0-9A-F]{12,52}\s*$")
+
+
+def classify_card_reply(exit_code: int, stdout: str, stderr: str) -> str:
+    """Only recognize strong public card evidence; bucket common failures."""
+    if not isinstance(stdout, str) or not isinstance(stderr, str):
+        return "OPENPGP_PROBE_UNCLASSIFIED"
+    if len(stdout) > 32768 or len(stderr) > 32768 or "\x00" in (stdout + stderr):
+        return "OPENPGP_PROBE_UNCLASSIFIED"
+    if exit_code == 0 and not stderr.strip():
+        if APPLICATION_ID.search(stdout):
+            return "GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED"
+        return "OPENPGP_CARD_STATUS_UNRECOGNIZED"
+    diagnostic = stderr.lower()
+    if re.search(r"resource busy|device busy|sharing violation|card is busy|card is being used|locked by", diagnostic):
+        return "OPENPGP_READER_BUSY_UNVERIFIED"
+    if re.search(r"scdaemon.*(unavailable|failed|connect|start)|can't connect to the agent|ipc connect call failed", diagnostic):
+        return "OPENPGP_SCDAEMON_OR_AGENT_UNAVAILABLE"
+    if re.search(r"no such device|no smartcard|no card|card not present|card has been removed|no readers? found", diagnostic):
+        return "OPENPGP_DEVICE_NOT_AVAILABLE"
+    if re.search(r"card error|reader error|selecting openpgp failed|selecting card failed", diagnostic):
+        return "OPENPGP_CARD_OR_READER_ERROR"
+    return "OPENPGP_TRANSPORT_NOT_CONFIRMED"
 
 
 def probe(tty: bool) -> str:
@@ -37,12 +64,10 @@ def probe(tty: bool) -> str:
         result = subprocess.run(['gpg', '--batch', '--no-tty', '--card-status'],
                                 stdin=subprocess.DEVNULL, capture_output=True,
                                 text=True, timeout=20, check=False)
-        if result.returncode or result.stderr.strip():
-            return 'OPENPGP_TRANSPORT_NOT_CONFIRMED'
-        if len(result.stdout) > 32768 or '\x00' in result.stdout:
-            return 'OPENPGP_TRANSPORT_NOT_CONFIRMED'
-        return 'GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED'
-    except (OSError, UnicodeError, subprocess.TimeoutExpired):
+        return classify_card_reply(result.returncode, result.stdout, result.stderr)
+    except subprocess.TimeoutExpired:
+        return 'OPENPGP_PROBE_TIMEOUT'
+    except (OSError, UnicodeError, ValueError):
         return 'OPENPGP_TRANSPORT_NOT_CONFIRMED'
 
 
