@@ -189,6 +189,23 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertNotIn("pkg upgrade", script)
         self.assertNotIn("pkg update", script)
 
+    def test_configd_unbound_actions_are_redacted_when_log_is_present(self):
+        sample = (
+            "<30>1 2026-10-24T23:39:20+02:00 host configd - - - "
+            "Restart Unbound password=PRIVATE\n"
+            "<30>1 2026-10-24T23:40:05+02:00 host configd - - - "
+            "Reload Unbound token=SECRET\n"
+            "<30>1 2026-10-24T23:41:05+02:00 host configd - - - "
+            "Reload unrelated package key=PRIVATE\n"
+        )
+        output = classify("configd", sample)
+        self.assertEqual(output.count("event=configd_unbound_action"), 2)
+        self.assertIn("timestamp=2026-10-24T23:39:20+02:00", output)
+        self.assertIn("timestamp=2026-10-24T23:40:05+02:00", output)
+        self.assertNotIn("PRIVATE", output)
+        self.assertNotIn("SECRET", output)
+        self.assertNotIn("unrelated package", output)
+
 
 if __name__ == "__main__":
     unittest.main()
