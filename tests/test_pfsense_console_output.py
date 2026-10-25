@@ -212,7 +212,10 @@ class ConsoleContract(unittest.TestCase):
         self.assertEqual(verbose.stdout.count("victim=unbound"), 1)
 
     def test_typed_oom_during_dst_keeps_two_minutes_separate(self):
+        # The remote collector always emits an explicit section before events.
+        # An event-only fragment without a section is incomplete evidence.
         sample = (
+            "=== system lifecycle events (bounded, redacted) ===\n"
             "WARN: signal_source=system event=kernel_oom_unbound "
             "timestamp=2026-10-25T02:09:11+02:00\n"
             "WARN: signal_source=system event=kernel_oom_unbound "
@@ -235,6 +238,19 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("❌ EVIDENCE INCOMPLETE", result.stdout)
         self.assertIn("OOM totals are NOT reliable", result.stdout)
         self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
+    def test_unframed_oom_signals_remain_incomplete(self):
+        # Recognizing an OOM signal is not evidence that a collector
+        # completed; preserve the fail-closed report semantics.
+        sample = (
+            "WARN: signal_source=system event=kernel_oom_unbound "
+            "timestamp=2026-10-25T02:09:11+02:00\n"
+        )
+        result = render(sample, mode="compact")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Historical OOM minute=2026-10-25T02:09 +02:00", result.stdout)
+        self.assertIn("EVIDENCE INCOMPLETE", result.stdout)
+        self.assertNotIn("1 distinct historical OOM records", result.stdout)
 
     def test_zero_sections_cannot_be_presented_as_zero_oom(self):
         result = render("", mode="compact")
