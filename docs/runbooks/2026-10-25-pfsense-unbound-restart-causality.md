@@ -208,3 +208,96 @@ la source et la date. Sinon conserver `restart_initiator=NOT_PROVEN`
 et surveiller une prochaine fenêtre d'actualisation avec une
 collecte strictement bornée. Ne pas modifier les horaires ni les services
 sur la seule corrélation.
+
+
+## Relevé du 25 octobre à 19:40 CET — branche PR #280
+
+**Preuve opérateur** : `just pfsense-unbound-restart-test` est
+**26/26 PASS** : 10 tests du collecteur Unbound et 16 du formateur
+console, avant les évolutions de cette section. Le nouvel échantillon
+`pfSense_time=2026-10-25T19:40:49+0100` donne Unbound **PID 2135**,
+démarré **25/10 00:04:56**. `unbound_control=REACHABLE` et
+RSS **142284 Kio**. La mémoire free+inactive vaut **138,4 Mio**
+au moment de cet échantillon ; aucune mesure du pic nocturne n'est
+disponible.
+
+### Attribution affinée
+
+- `watchdog_unbound_membership=NOT_LISTED` : la configuration
+  installée ne liste pas Unbound dans Service Watchdog ; le cron
+  générique toutes les minutes ne suffit pas à conclure que le
+  watchdog le redémarre. Une configuration passée différente reste
+  historiquement possible, sans preuve.
+- `pfblocker_package=pfSense-pkg-pfBlockerNG version=3.2.17_1` :
+  le paquet installé contient les **définitions** des fonctions
+  `pfb_stop_start_unbound` et `pfb_reload_unbound`.
+  Cela n'atteste aucune invocation effective à 00:04.
+- Le nouveau résultat affiche **16 OOM historiques distincts sur
+  7 minutes**, dont les kills d'Unbound prouvés les **17, 22 et
+  24 octobre**. Ce nombre est celui des *lignes distinctes*
+  disponibles ; il ne décrit pas 16 redémarrages d'Unbound.
+- Le journal configd n'a produit aucun signal correspondant à notre
+  filtre. Un fichier absent, un journal tronqué ou une autre manière
+  d'invoquer le rechargement reste possible.
+
+Le chemin de code documenté par
+[pfBlockerNG / Unbound reload behavior](https://github.com/pfBlockerNG/pfBlockerNG/blob/devel/docs/research/unbound-reload-strategies.md)
+distingue une **actualisation des seules données DNSBL** (swap en
+mémoire, pas de redémarrage Unbound) d'une **modification de
+configuration, d'inclusion de module, de montage ou d'un échec de
+swap** (fallback stop/start). Le document a été vérifié par son auteur
+le 22 juillet 2026, mais ne constitue **pas** une preuve du chemin
+choisi par la version exacte installée sur ce Netgate.
+
+L'[incident amont #546](https://github.com/pfBlockerNG/pfBlockerNG/issues/546)
+a documenté une boucle de redémarrages lorsqu'il n'existait **aucun
+feed DNSBL actif** ; le bogue a été corrigé en juin 2026.
+**Ne pas appliquer** cette cause à ce Netgate : les relevés précédents
+montrent plusieurs feeds DNSBL peuplés et actifs, et l'état exact de
+l'application installée n'a pas été comparé à la correction amont.
+
+### Nouveau diagnostic d'attribution source et journal
+
+Le collecteur reconnaît les marqueurs expurgés suivants :
+
+| Événement | Portée |
+| --- | --- |
+| `pfblocker_unbound_stop_marker` | pfBlockerNG a journalisé une demande d'arrêt du résolveur |
+| `pfblocker_unbound_start_marker` | pfBlockerNG a journalisé une demande de démarrage |
+| `pfblocker_unbound_restart_marker` | pfBlockerNG a journalisé un redémarrage/reload |
+| `dnsbl_service_restart_marker` | Redémarrage du service DNSBL, **pas** forcément Unbound |
+| `pfblocker_possible_call_target=...` | Appel **possible** dans le PHP installé, jamais une trace d'exécution |
+
+Le dernier en-tête horodaté `[ MM/DD/YY H:MM:SS ]` du journal natif
+est affiché seulement lorsqu'il précède l'événement d'au plus **80
+lignes**. Les champs `preceding_header_local` et
+`header_gap_lines` désignent un **contexte** : ne pas les
+rebaptiser `timestamp` ni leur attribuer un décalage UTC inventé.
+En l'absence de marqueur fiable, `timestamp=unknown` reste exact.
+Le collecteur n'affiche aucun message brut, URL, feed ou credential,
+et n'exécute pas les fonctions PHP inspectées.
+
+### Décision
+
+**Cause immédiatement prouvée des interruptions OOM** : pression
+mémoire globale du Netgate. **Hypothèse principale des cycles à
+minuit** : apply/update pfBlockerNG associé au DNSBL Python.
+Le niveau de preuve requis pour attribuer un stop/start est un
+`pfblocker_unbound_stop_marker` suivi d'un
+`pfblocker_unbound_start_marker` dans un même passage du journal,
+et une chronologie compatible avec le nouveau PID, sans OOM
+concomitant. L'existence de fonctions dans le paquet ne suffit pas.
+
+Après synchronisation du HEAD de la PR #280 :
+
+```bash
+just pfsense-unbound-restart-test
+```
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+**Ces nouveaux tests ne sont pas encore exécutés sur le HEAD publié**.
+Ne pas déclencher de CI GitHub payante. Aucune modification des services
+ou de pfSense n'est justifiée à ce stade.
