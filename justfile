@@ -433,3 +433,11 @@ gatus-monitor-failures:
 
 gatus-monitor-contracts:
     python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
+
+
+# These commands never change TrueNAS services or send credentials.
+protected-http-diagnostics:
+    sudo -n python3 scripts/truenas/diagnose-protected-service-http.py --check
+
+protected-http-contracts:
+    python3 -m pytest -q tests/test_protected_service_http.py
