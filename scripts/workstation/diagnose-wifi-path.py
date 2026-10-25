@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+from pathlib import Path
 import re
 import socket
 import subprocess
@@ -88,6 +89,65 @@ def profile_dns_fields(output: str) -> tuple[list[str], bool | None]:
     return dns, ignored
 
 
+def read_installed_dns_hook() -> str | None:
+    """Inspect a tiny regular file; do not follow a link or print its contents."""
+    hook = Path("/opt/script/hide-location.sh")
+    try:
+        if not hook.is_file() or hook.is_symlink() or hook.stat().st_size > 16384:
+            return None
+        return hook.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+
+def inspect_legacy_dns_hook(
+    runner: Runner, interface: str | None, source: str | None,
+) -> dict[str, object]:
+    """Classify the installed Ansible DNS override; never run it."""
+    service_ok, service_text = runner((
+        "systemctl", "--user", "show", "hide-location.service",
+        "--property=LoadState,UnitFileState,ActiveState,ExecMainStartTimestamp",
+        "--no-pager",
+    ))
+    # The service status proves only unit configuration, not who wrote DNS.
+    allowed_fields = {
+        "LoadState", "UnitFileState", "ActiveState", "ExecMainStartTimestamp",
+    }
+    fields: dict[str, str] = {}
+    if service_ok:
+        for line in service_text.splitlines():
+            key, separator, value = line.partition("=")
+            if separator and key in allowed_fields:
+                fields[key] = value
+    state = fields.get("LoadState", "unknown")
+    started = fields.get("ExecMainStartTimestamp", "")
+    template = source or ""
+    target_match = re.search(r'^net_interface="([A-Za-z0-9_.:-]{1,32})"$',
+                             template, re.MULTILINE)
+    dns_match = re.search(r'^dns_new="([0-9. ]{3,64})"$',
+                          template, re.MULTILINE)
+    target = target_match.group(1) if target_match else None
+    configured = ipv4_addresses(dns_match.group(1)) if dns_match else []
+    # Do not disclose the installed script's contents or any other variables.
+    return {
+        "unit_state": state,
+        "unit_file_state": fields.get("UnitFileState", "unknown"),
+        "unit_active_state": fields.get("ActiveState", "unknown"),
+        "unit_has_start_timestamp": bool(started and started != "n/a"),
+        "hook_present": source is not None,
+        "hook_contains_resolvectl_dns": bool(
+            re.search(r'^\s*(?:sudo\s+)?resolvectl\s+dns\s+',
+                      template, re.MULTILINE),
+        ),
+        "hook_sets_quad9": configured == ["149.112.112.112", "9.9.9.9"],
+        "hook_targets_current_interface": (
+            None if target is None or interface is None else target == interface
+        ),
+        # This is an investigation candidate, never a proof of execution.
+        "causality": "NOT_PROVEN",
+    }
+
+
 def query_a(runner: Runner, dns: str, name: str) -> bool:
     success, value = runner(
         ("dig", "+time=2", "+tries=1", "+short", f"@{dns}", name, "A"),
@@ -99,6 +159,7 @@ def snapshot(
     runner: Runner = run_readonly,
     connect: Connect = tcp_probe,
     iface: str | None = None,
+    read_override: Callable[[], str | None] | None = None,
 ) -> dict[str, object]:
     route_ok, route = runner(("ip", "-4", "route", "get", "1.1.1.1"))
     if not iface:
@@ -254,6 +315,9 @@ def snapshot(
         not result["pfsense_private_zone"] or not result["system_dns_private"]
     )
     result["wifi_client_not_tested"] = result["vantage"] != "wifi"
+    result["legacy_dns_override"] = inspect_legacy_dns_hook(
+        runner, iface, read_override() if read_override is not None else None,
+    )
     return result
 
 
@@ -294,6 +358,20 @@ def render(result: dict[str, object]) -> None:
         print("📍 DNS difference layer=" + str(result["runtime_dns_drift"]))
     if result["wifi_client_not_tested"]:
         print("ℹ️ Workstation is not a confirmed Wi-Fi client: AP/phone radio not tested.")
+    legacy = result["legacy_dns_override"]
+    if legacy["hook_present"] or legacy["unit_state"] == "loaded":
+        print("🔎 Legacy Ansible hide-location DNS hook (read-only)")
+        print(
+            "  unit_state=" + str(legacy["unit_state"])
+            + " enabled=" + str(legacy["unit_file_state"])
+            + " started_recorded=" + str(legacy["unit_has_start_timestamp"])
+        )
+        print(
+            "  sets_quad9=" + str(legacy["hook_sets_quad9"])
+            + " targets_interface=" + str(legacy["hook_targets_current_interface"])
+            + " resolvectl_dns=" + str(legacy["hook_contains_resolvectl_dns"])
+        )
+        print("  ⚠️ Hook existence is not evidence it changed this link's DNS.")
     print("Evidence from this instant only; do not infer a pfSense restart cause.")
 
 
@@ -313,7 +391,10 @@ def main(argv: list[str] | None = None) -> int:
     for index in range(args.samples):
         if index:
             time.sleep(args.interval)
-        row = snapshot(iface=args.interface)
+        row = snapshot(
+            iface=args.interface,
+            read_override=read_installed_dns_hook,
+        )
         row["sample_number"] = index + 1
         rows.append(row)
         if not args.json:
