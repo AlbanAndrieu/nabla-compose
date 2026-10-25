@@ -8,6 +8,8 @@ and never changes memory embeddings, budgets, or other agent profiles.
 import argparse
 import copy
 import hmac
+import hashlib
+import re
 import json
 import os
 from pathlib import Path
@@ -186,6 +188,107 @@ def apply_config(old, new, path=None):
     return backup
 
 
+def private_backup(old):
+    """Create a single owner-only snapshot without publishing secrets."""
+    home = Path.home()
+    directory = home / ".local/share/nabla-compose/openclaw-config-rollback"
+    if directory.is_symlink():
+        raise ValueError("unsafe_backup_dir")
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if directory.stat().st_mode & 0o077:
+        raise ValueError("unsafe_backup_permissions")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    target = directory / ("openclaw-before-native-429-" + stamp + ".json")
+    with target.open("xb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(old)
+        output.flush()
+        os.fsync(output.fileno())
+    return target
+
+
+def gateway_call(method, params):
+    """No raw Gateway stdout/stderr escapes into operator output."""
+    try:
+        proc = subprocess.run(
+            ["openclaw", "gateway", "call", method,
+             "--params", json.dumps(params, separators=(",", ":")),
+             "--json"],
+            capture_output=True, timeout=25, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode or len(proc.stdout) > 1024 * 1024:
+        return None
+    try:
+        obj = json.loads(proc.stdout)
+        return obj if isinstance(obj, dict) and not obj.get("error") else None
+    except (UnicodeError, ValueError):
+        return None
+
+
+def gateway_snapshot_hash():
+    doc = gateway_call("config.get", {})
+    if not isinstance(doc, dict):
+        return None
+    for data in (doc, doc.get("payload"), doc.get("result")):
+        if isinstance(data, dict):
+            value = data.get("hash")
+            if isinstance(value, str) and re.fullmatch("[0-9a-fA-F]{64}", value):
+                return value.lower()
+    return None
+
+
+def native_patch_concurrency(original, old_bytes):
+    """Patch the active Gateway with baseHash; no out-of-band config overwrite.
+
+    Returns an operator-safe status. A refused/unknown RPC never falls back to
+    a direct write of the running Gateway config.
+    """
+    if private_read(CONFIG, 4 * 1024 * 1024) != old_bytes:
+        return "blocked_concurrent_change"
+    base = gateway_snapshot_hash()
+    if base is None or base != hashlib.sha256(old_bytes).hexdigest():
+        return "blocked_gateway_snapshot"
+    previous = original.get("agents", {}).get("defaults", {}).get("maxConcurrent")
+    try:
+        private_backup(old_bytes)
+    except (ValueError, OSError):
+        return "blocked_backup"
+    payload = {"agents": {"defaults": {"maxConcurrent": 1}}}
+    response = gateway_call("config.patch", {
+        "raw": json.dumps(payload, separators=(",", ":")),
+        "baseHash": base,
+    })
+    new_bytes = private_read(CONFIG, 4 * 1024 * 1024)
+    if response is not None and new_bytes is not None:
+        try:
+            new_data = json.loads(new_bytes)
+            if new_data["agents"]["defaults"]["maxConcurrent"] == 1:
+                return "applied"
+        except (ValueError, TypeError, KeyError):
+            pass
+    if new_bytes == old_bytes:
+        return "blocked_native_patch"
+    # Only revert the one authored value, with a fresh optimistic hash.
+    new_hash = gateway_snapshot_hash()
+    if new_bytes is not None and new_hash == hashlib.sha256(new_bytes).hexdigest():
+        rollback = {"agents": {"defaults": {"maxConcurrent": previous}}}
+        revert = gateway_call("config.patch", {
+            "raw": json.dumps(rollback, separators=(",", ":")),
+            "baseHash": new_hash,
+        })
+        final_bytes = private_read(CONFIG, 4 * 1024 * 1024)
+        if revert is not None and final_bytes is not None:
+            try:
+                final_data = json.loads(final_bytes)
+                final_value = final_data.get("agents", {}).get("defaults", {}).get("maxConcurrent")
+                if final_value == previous:
+                    return "failed_rollback_verified"
+            except (ValueError, TypeError):
+                pass
+    return "failed_rollback_unverified"
+
+
 def restart_gateway():
     try:
         result = subprocess.run(["systemctl", "--user", "restart",
@@ -249,6 +352,13 @@ def main(argv=None):
     if args.restart_gateway and not active:
         print("repair=blocked_gateway_not_running")
         return 2
+    if scope == "concurrency_only":
+        outcome = native_patch_concurrency(current, raw)
+        print("native_config_patch=" + outcome)
+        print("memory_embedding_changed=false")
+        print("gateway_restart=managed_by_openclaw" if outcome == "applied"
+              else "gateway_restart=not_performed_by_script")
+        return 0 if outcome == "applied" else 2
     serialized = (json.dumps(updated, indent=2, ensure_ascii=False) + "\n").encode()
     try:
         backup = apply_config(raw, serialized)
