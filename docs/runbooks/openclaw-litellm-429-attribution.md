@@ -1265,3 +1265,84 @@ just openclaw-429-fix-all
 If the exact error class is still `unknown`, use the sanitized
 update run status in `openclaw update status --json` privately
 rather than posting raw log contents.
+
+
+## 25 octobre 2026 — dernier incident : moteur Node et agent par défaut
+
+Preuve opérateur sur Workstation :
+- `just openclaw-update-recovery-local` : suites npm 8/8,
+  collecteur 429 6/6, réparation 11/11, routes 8/8 **PASS**
+  (33 tests exécutés, zéro CI) ;
+- diagnostic du log du 25/10 19:43 : `runtime_engine`,
+  Node `24.18.1`, npm `12.2.0`, OpenClaw `2026.9.5`,
+  préfixe global npm dans HOME et apparemment inscriptible ;
+- `just openclaw-429-fix-plan` : `blocked_reason=agents_list_missing`.
+  Le shell `set -e` a interrompu l'exécution **avant** l'application
+  et le redémarrage. Aucun 429 corrigé ni patch Gateway appliqué par
+  cette tentative.
+
+**Correction du runtime :** la release 2026.10.7 requiert Node
+`>=24.22.1 <25 || >=26.12.1`. Les pinning du dépôt
+`.nvmrc` et `mise.toml` ciblent maintenant `24.22.1`. Ce commit
+ne change **pas** la version du Node actif sur Workstation, du
+Node enregistré dans l'unité systemd, ni l'installation globale
+OpenClaw. Le diagnostic npm imprime un verdict de compatibilité.
+
+Réparer le runtime par le gestionnaire réellement utilisé, une seule
+fois, puis vérifier la commande `node --version` **dans le même
+environnement que celui d'OpenClaw**. Pour un poste géré par mise :
+`mise install node@24.22.1`, puis
+`mise exec node@24.22.1 -- node --version`.
+Pour un poste géré par nvm : `nvm install v24.22.1` puis
+`nvm use v24.22.1`. Ne pas lancer `sudo npm install -g`, ne
+pas écraser un préfixe étranger et ne pas relancer `openclaw update`
+tant que le Node du processus d'installation et le rollback ne sont
+pas vérifiés. Vérifier `openclaw update status --json` en privé
+avant une nouvelle tentative.
+
+**Correction de l'hypothèse `agents.list` :** l'absence du champ
+signifie que l'installation peut n'avoir qu'un agent implicite.
+Les jobs cron ne sont pas des agents `cron` par définition.
+Le plan respecte trois cas :
+- un agent `cron` explicitement présent : continuer le contrôle
+  d'autorisation et la séparation de modèle prévue ;
+- aucun agent `cron` et `agents.list` absent ou vide : modifier
+  **seulement** `agents.defaults.maxConcurrent=1`, sans ajouter de
+  faux agent et sans affirmer que les jobs sont maintenant isolés ;
+- structure invalide ou doublon : refuser le changement.
+
+Pour le cas « agent implicite », l'application utilise le
+**RPC OpenClaw `config.get` + `config.patch`**, un `baseHash`
+optimiste, une sauvegarde 0600 hors dépôt, et un contrôle de la
+valeur appliquée. Si la réponse RPC est perdue après écriture,
+le script tente une restauration ciblée de l'ancienne valeur
+via un nouveau `baseHash`. Il **n'effectue aucun fallback**
+vers une écriture directe du `openclaw.json` actif.
+Le Gateway prend en charge sa propre procédure de reload/restart ;
+le script ne force pas de seconde relance dans ce cas.
+
+**Limite résiduelle** : `maxConcurrent=1` limite les exécutions
+parallèles, mais un fournisseur upstream peut toujours retourner
+un 429. Les jobs cron existants peuvent conserver un
+`payload.model` et une identité d'inférence distincte :
+les changements de modèle/credential de jobs demandent un inventaire
+de leurs paramètres et ne doivent pas être déduits du seul
+`openclaw.json`. Les embeddings et index 768D ne changent pas.
+
+Contrôle Workstation au nouveau HEAD (sans CI ni modèle payant) :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+just openclaw-429-fix-all
+```
+
+**Preuves du correctif au nouveau HEAD** : à confirmer par l'exécution
+locale des tests et du RPC ; aucun accès direct à la Workstation n'est
+possible depuis l'agent ici.
+
+Documentation OpenClaw :
+- https://docs.openclaw.ai/install/node-compatibility
+- https://docs.openclaw.ai/gateway/configuration/config-rpc
+- https://docs.openclaw.ai/automation/cron-jobs/payloads
