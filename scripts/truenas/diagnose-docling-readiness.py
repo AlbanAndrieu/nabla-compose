@@ -55,6 +55,18 @@ def diagnose() -> dict[str, str]:
     exists, status = command("docker", "inspect", "--type", "container",
                              "--format", "{{.State.Status}}", "docling")
     result["container"] = status.strip() if exists else "ABSENT_OR_UNVERIFIED"
+    # Only metadata; never fetch the container logs or environment variables.
+    has_health, health = command(
+        "docker", "inspect", "--type", "container", "--format",
+        "{{if .State.Health}}{{.State.Health.Status}}{{else}}unavailable{{end}}",
+        "docling",
+    )
+    result["containerHealth"] = health.strip() if has_health else "UNVERIFIED"
+    has_restarts, count = command(
+        "docker", "inspect", "--type", "container", "--format",
+        "{{.RestartCount}}", "docling",
+    )
+    result["restartCount"] = count.strip() if has_restarts and count.strip().isdigit() else "UNVERIFIED"
     result["hostReady"] = host_ready()
     valid, _ = command("docker", "exec", "openrag-backend", "curl", "-fsS",
                        "--max-time", "6", "http://docling:5001/ready")
@@ -63,7 +75,10 @@ def diagnose() -> dict[str, str]:
             and result["hostReady"] == "READY" and result["fromOpenrag"] == "READY"):
         result["status"] = "READY_ONLY"
         result["next"] = "run_synthetic_pdf_conversion_before_ingestion"
-    elif result["app"] in ("ABSENT", "STOPPED"):
+    elif result["app"] == "DEPLOYING" and result["container"] == "running":
+        result["status"] = "INITIALIZING"
+        result["next"] = "observe_docling_container_health_without_redeploy"
+    elif result["app"] in ("ABSENT", "STOPPED", "CRASHED", "FAILED"):
         result["status"] = "NOT_READY"
         result["next"] = "review_docling_custom_app_and_compose_before_targeted_deploy"
     else:
