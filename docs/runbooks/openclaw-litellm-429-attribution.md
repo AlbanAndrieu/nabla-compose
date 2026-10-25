@@ -1154,3 +1154,71 @@ pro de Workstation par `apps/litellm/config.yaml`, qui appartient
 GPT et réduit la concurrence du client ; une réduction des retries
 du routeur Workstation reste un changement distinct, à réaliser
 depuis son fichier de configuration réellement monté après audit.
+
+
+## 2026-10-25 — `openclaw update` npm failed, 429 repair test gate (Workstation)
+
+L'interface OpenClaw annonce `2026.10.7` disponible ; la CLI observée
+est toujours `2026.9.5`. La tentative `openclaw update` a rapporté
+`global-install-failed` avec `npm exit 1`, et a enregistré :
+`~/.npm/_logs/2026-10-25T19_43_24_104Z-debug-0.log`.
+
+**Cause exacte npm non encore prouvée.** Ne pas attribuer sans preuve à
+un conflit de plugin, à des permissions, au registre ou au runtime Node.
+Le message UI `config edited outside OpenClaw` indique une modification
+externe observée ; il ne démontre pas une corruption ou une migration
+cassée. Éviter de relancer immédiatement `openclaw update` en boucle.
+
+La commande `just openclaw-429-fix-all` s'est arrêtée à son premier
+ensemble de tests : 6/6 collecteur PASS, 8/10 réparation PASS,
+2 erreurs d'assertion `blocked_write`. **Aucun fix ni redémarrage
+Gateway n'a été exécuté par cette invocation.**
+
+### Cause déterministe de ces deux tests
+
+La signature `apply_config(old, new, path=CONFIG)` capturait
+`~/.openclaw/openclaw.json` lors de l'import du module. Les tests
+injectaient `mod.CONFIG` vers un répertoire temporaire, sans modifier
+ce chemin par défaut. L'écriture tentait alors le fichier d'origine,
+et les tests rapportaient `blocked_write`. Correction :
+`apply_config(old, new, path=None)` puis `path = CONFIG` à l'appel.
+Un test de régression verrouille cette absence de chemin figé.
+
+### Collecte npm locale, expurgée, sans mise à jour
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+```
+
+Cette recette ne lance ni `npm install`, ni `openclaw update`, ni
+requête de modèle. Elle exécute les tests ciblés, examine seulement
+le **fichier npm nommé ci-dessus** avec un contrôle d'appartenance,
+de type et de taille, puis classe des erreurs connues :
+`permission`, `install_collision`, `runtime_engine`,
+`registry_or_integrity`, `network`, `dependency_resolution`,
+`build_toolchain` ou `unknown`. Elle annonce les versions de
+Node/npm/OpenClaw et qualifie le prefix npm sans afficher les paths,
+tokens, lignes de journaux, registres privés ni commandes brutes.
+
+Si `npm_error_category=unknown`, demander davantage de preuves
+par **le diagnostic automatisé**, pas en recopiant les logs bruts.
+`openclaw update status --json` et `openclaw update --dry-run`
+sont les interfaces officielles de suivi ; leurs sorties brutes
+peuvent contenir des chemins privés et ne doivent pas être publiées
+dans un ticket/chat sans filtrage.
+
+Le contrat de rollback après correction ne change pas le
+`memory.search` ni les clés d'embeddings. **Ne pas lancer**
+`just openclaw-429-fix-apply` dans la même procédure de mise à jour npm
+sans validation des tests, du fichier cible et des credentials.
+Les éditeurs OpenClaw natifs (`config patch`, RPC `config.patch`)
+sont préférables aux éditions directes pour éviter le warning
+`config edited outside OpenClaw` ; une migration vers ce mécanisme
+reste distincte de la correction de chemin ci-dessus.
+
+Références officielles :
+- https://docs.openclaw.ai/install/update-troubleshooting
+- https://docs.openclaw.ai/install/updating
+- https://docs.openclaw.ai/cli/config
