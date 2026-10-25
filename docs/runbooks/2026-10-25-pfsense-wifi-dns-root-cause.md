@@ -194,3 +194,49 @@ du DNS privé devra être confirmée par `getent` et non par le seul
 de diagnostiquer RSSI, roaming ou déconnexion d'un téléphone. Il faut
 observer le client directement connecté au SSID affecté.
 
+
+
+### Isoler l'écart entre NetworkManager et systemd-resolved
+
+Le diagnostic lit désormais trois états **distincts** sans révéler le nom
+du profil ou ses autres paramètres : DNS déclarés dans le profil,
+DNS effectifs de l'interface selon `nmcli -g IP4.DNS`, DNS de la même
+interface selon `resolvectl dns`.
+
+La variable `runtime_dns_drift` distingue :
+
+- `NETWORKMANAGER_VS_RESOLVED` : NetworkManager indique un DNS
+  différent de systemd-resolved ; inspecter le propriétaire de la
+  configuration resolved, les VPN et les paramètres DNS globaux.
+- `PROFILE_VS_NETWORKMANAGER_DEVICE` : profil enregistré différent de
+  la configuration NetworkManager active ; vérifier l'activation du
+  profil, les changements runtime et les politiques DNS.
+- `PROFILE_VS_ACTIVE_RESOLVER` : écart profil/résolveur confirmé,
+  mais pas assez de données pour trancher l'étage intermédiaire.
+- `NONE_CONFIRMED` : aucun écart prouvé dans cet échantillon ;
+  ce résultat ne garantit pas l'absence d'incident intermittent.
+
+Les noms ci-dessus localisent un **écart de valeurs**, pas l'auteur
+d'une mutation. Aucune modification via `nmcli` ou `resolvectl` ne
+doit être appliquée sans détenir la preuve de l'étage responsable.
+
+Commandes complémentaires pour interpréter le diagnostic :
+
+```bash
+nmcli -g IP4.DNS device show eno1
+```
+
+```bash
+resolvectl dns eno1
+```
+
+```bash
+nmcli -f ipv4.dns,ipv4.ignore-auto-dns connection show 'Wired eno1'
+```
+
+Exécuter `just pfsense-wifi-path-test` avant le test runtime sur la
+nouvelle révision. Les tests ajoutés simulent séparément les deux types
+d'écarts. Les résultats de l'opérateur (**14 + 9 PASS**) portent sur
+la version **antérieure** à ces corrections ; les 15 contrats Wi-Fi
+mis à jour sont à exécuter au HEAD exact.
+
