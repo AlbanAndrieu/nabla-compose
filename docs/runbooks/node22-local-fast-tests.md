@@ -44,9 +44,11 @@ Node 22 et npm 10 provoquent un échec explicite.
 
 Environnement agent vérifié : Node `v22.16.0`, npm `10.9.2`.
 Le fichier `scripts/quality/node22-fast.test.mjs` exécuté localement
-possède le même blob Git que celui publié dans la PR #280.
+était identique au blob Git publié au moment de ce test.
+Depuis, la suite Node inclut la syntaxe du script de triage critique :
+**le HEAD actuel n'a pas été retesté sur un checkout intégral**.
 
-- **6/6 PASS** : suite Node sur un espace de travail isolé contenant
+- **6/6 PASS (ancienne révision du test)** : suite Node sur un espace de travail isolé contenant
   les fichiers APISIX récupérés par blob Git et des substituts pour les
   autres fichiers de migration (l'environnement agent n'a pas pu cloner
   le dépôt complet).
@@ -63,3 +65,10 @@ ni l'acceptation runtime sur TrueNAS. Ces gates restent **NOT_RUN** sur
 le dépôt complet tant que les outils et le HEAD exact ne sont pas
 disponibles dans un checkout accessible. Les tests Node sur les fichiers
 de migration ont utilisé des substituts, pas le runtime réel.
+
+## Extension du 25 octobre — sept gates critiques
+
+La suite rapide vérifie aussi la syntaxe de
+`scripts/truenas/triage-critical-failures.sh`. Le test complet de la
+PR actuelle, incluant la révision des diagnostics OpenRAG, reste
+**NOT_RUN**. Exécuter `just node22-fast` sur le HEAD exact avant fusion.
