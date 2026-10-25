@@ -19,13 +19,14 @@ BASE = Path("/mnt/cpool")
 TARGETS = {
     "litellm": BASE / "secrets/runtime/litellm/.env.secrets",
     "scrutiny": BASE / "secrets/runtime/scrutiny/.env.secrets",
-    "openrag": BASE / "openrag/.env.secrets",
+    "openrag": BASE / "secrets/runtime/openrag/.env.secrets",
 }
 REQUIRED_KEYS = {
     "litellm": ("LITELLM_MASTER_KEY", "LITELLM_SALT_KEY",
                 "LITELLM_IDE_API_KEY", "REDIS_URL", "LANGFUSE_SECRET_KEY"),
     "scrutiny": ("SCRUTINY_WEB_INFLUXDB_TOKEN",),
-    "openrag": (),
+    "openrag": ("OPENSEARCH_PASSWORD", "LANGFLOW_KEY",
+                "LITELLM_IDE_API_KEY", "OPENRAG_ENCRYPTION_KEY"),
 }
 CONTAINERS = (
     "litellm", "scrutiny", "scrutiny-collector", "openrag-backend",
@@ -143,23 +144,50 @@ def inspect_container(name: str) -> dict[str, Any]:
         return {"status": "UNVERIFIED"}
 
 
-def assess() -> dict[str, Any]:
+SCOPES = {
+    "all": {
+        "secrets": tuple(TARGETS), "apps": APP_IDS, "containers": CONTAINERS,
+    },
+    "openrag": {
+        "secrets": ("openrag",),
+        "apps": ("openrag", "langflow", "opensearch"),
+        "containers": ("openrag-backend", "openrag-frontend", "langflow", "opensearch"),
+    },
+    "litellm": {
+        "secrets": ("litellm",), "apps": ("litellm",), "containers": ("litellm",),
+    },
+    "scrutiny": {
+        "secrets": ("scrutiny",), "apps": ("scrutiny", "influxdb"),
+        "containers": ("scrutiny", "scrutiny-collector", "influxdb"),
+    },
+}
+
+
+def assess(scope: str = "all") -> dict[str, Any]:
+    """Isolate blockers to the selected service; avoid unrelated false failures."""
+    selection = SCOPES[scope]
     secrets = {
-        app: check_secret(path, REQUIRED_KEYS[app])
-        for app, path in TARGETS.items()
+        app: check_secret(TARGETS[app], REQUIRED_KEYS[app])
+        for app in selection["secrets"]
     }
-    apps = {app: query_app(app) for app in APP_IDS}
-    containers = {name: inspect_container(name) for name in CONTAINERS}
-    blockers = []
-    if not secrets["litellm"]["ready"]:
+    apps = {app: query_app(app) for app in selection["apps"]}
+    containers = {name: inspect_container(name) for name in selection["containers"]}
+    blockers: list[str] = []
+    if "litellm" in secrets and not secrets["litellm"]["ready"]:
         blockers.append("litellm: restore canonical Vaultwarden runtime secrets")
-    if not secrets["scrutiny"]["ready"]:
+    if "scrutiny" in secrets and not secrets["scrutiny"]["ready"]:
         blockers.append("scrutiny: restore scoped InfluxDB token secret")
-    if apps["scrutiny"]["legacyScrutinyEnvFile"] is True:
+    if "scrutiny" in apps and apps["scrutiny"]["legacyScrutinyEnvFile"] is True:
         blockers.append("scrutiny: TrueNAS App still references legacy env_file")
-    if containers["openrag-backend"].get("health") == "unhealthy":
+    if "openrag" in secrets and not secrets["openrag"]["ready"]:
+        blockers.append("openrag: canonical runtime secret missing, unsafe or incomplete")
+    if "openrag" in apps and apps["openrag"]["state"] != "RUNNING":
+        blockers.append("openrag: TrueNAS App not confirmed RUNNING")
+    if "openrag-backend" in containers and containers["openrag-backend"].get("health") == "unhealthy":
         blockers.append("openrag: backend unhealthy; diagnose upstreams and logs")
-    return {"readOnly": True, "secrets": secrets, "apps": apps,
+    if "openrag-frontend" in containers and containers["openrag-frontend"].get("health") == "unhealthy":
+        blockers.append("openrag: frontend unhealthy; diagnose backend readiness")
+    return {"readOnly": True, "scope": scope, "secrets": secrets, "apps": apps,
             "containers": containers, "blockers": blockers}
 
 
@@ -168,11 +196,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check", action="store_true", help="read-only")
     parser.add_argument("--strict", action="store_true",
                         help="return failure on required secret or runtime blockers")
+    parser.add_argument("--scope", choices=tuple(SCOPES), default="all",
+                        help="diagnose one service without unrelated blockers")
     args = parser.parse_args(argv)
     if os.geteuid() != 0:
         print("Run via sudo for root-only metadata inspection", file=sys.stderr)
         return 2
-    report = assess()
+    report = assess(args.scope)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 1 if args.strict and report["blockers"] else 0
 
