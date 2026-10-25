@@ -111,6 +111,13 @@ class RepairContracts(unittest.TestCase):
         self.assertIn("repair=blocked_private_config_or_key", output.getvalue())
         self.assertNotIn("sk-", output.getvalue())
 
+    def test_config_target_is_resolved_at_call_time(self):
+        # Regression: path=CONFIG in a function signature freezes the real
+        # ~/.openclaw path before the temporary test fixture is installed.
+        # That previously made the apply and rollback tests return blocked_write.
+        self.assertEqual(mod.apply_config.__defaults__, (None,))
+        self.assertNotEqual(self.config, Path.home() / ".openclaw/openclaw.json")
+
     def test_atomic_apply_private_backup_and_no_restart(self):
         with patch.object(mod, "scoped_models", return_value={"gpt-4.1"}), \
              patch.object(Path, "home", return_value=self.root), \
