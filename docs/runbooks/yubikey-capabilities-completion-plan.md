@@ -130,3 +130,32 @@ Exécuter `just yubikey-diagnostics-test` puis `just yubikey-diagnostics-seconda
 
 
 La cible `just yubikey-diagnostics-all-secondary` inclut une sonde GPG-agent `GETINFO version` avec `--no-autostart`, sans PIN et sans toucher à scdaemon ni aux clés. Un agent joignable ne suffit pas à valider OpenPGP ou la restauration des sauvegardes PostgreSQL. Elle comprend 95 méthodes de test au total. **Preuve opérateur du 25/10/2026 : 95/95 PASS** depuis le HEAD local `d4f1afbd`, avec `gpg_agent=RESPONDS_GETINFO_ONLY`. Le HEAD distant peut avoir évolué : ces résultats ne valent pas validation d'un commit ultérieur. **Statut de récupération : NO-GO** (scdaemon/OpenPGP, PostgreSQL/GPG, escrow age, PIV82 et PAM non validés). Voir le [rapport de diagnostic groupé](yubikey-readonly-batch.md#preuve-opérateur--diagnostic-groupé-du-25-octobre-2026).
+
+## Exécution parallèle des préparations (PR #280)
+
+Pour réduire le chemin critique, les chantiers P0/P1 sont préparés en
+**quatre flux simultanés** : (A) GPG-agent/scdaemon/OpenPGP,
+(B) sauvegardes GPG/PostgreSQL et escrow age/SOPS, (C) FIDO2/SSH/KeePassXC,
+(D) PKI/9A et plan PIV82/AES256. Aucun flux ne doit attendre la fin des autres
+pour préparer ses contrats, runbooks, preuves et tests hermétiques.
+
+- `just yubikey-parallel-test` : 11 tests supplémentaires vérifiant notamment
+  la concurrence et l'absence de mutation.
+- `just yubikey-parallel-host-readonly` : cinq familles de tests en parallèle,
+  puis vérifications de la workstation et de GPG-agent en parallèle.
+- `just yubikey-parallel-secondary-readonly` : même lot, puis **un seul**
+  inventaire public de la secondaire, sans concurrence sur le périphérique.
+
+**Barrière transversale conservée** : les configurations qui écrivent ou qui
+utilisent des secrets ne sont pas incluses dans l'orchestrateur. Les opérations
+OpenPGP, PIV82, PIN/AES256, OTP2, PAM et SOPS ne sont jamais déclenchées
+implicitement. Avant configuration réelle, démontrer restauration indépendante,
+préservation 9A/OTP2, moyens de secours et approbation de l'opération ciblée.
+La présence d'une carte, le succès d'un test ou une réponse Assuan ne suffit pas.
+
+**Preuve locale hors matériel** : au 25/10/2026, compilation Python et **11/11
+nouveaux tests PASS** sur copies strictement identiques aux blobs Git publiés :
+`run-yubikey-parallel-readonly.py@823111e8` et
+`test_yubikey_parallel_readonly.py@4b6ebd29`. Ce résultat ne teste ni
+la recette réelle `just` du worktree, ni le périphérique de la workstation.
+Le statut de récupération et de configuration reste **NO-GO**.
