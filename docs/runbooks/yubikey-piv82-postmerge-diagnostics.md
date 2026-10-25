@@ -446,3 +446,44 @@ démontre pas le secret HMAC-SHA1 ni KeePassXC ; deux fichiers d'escrow
 sur des systèmes de fichiers différents ne sont pas deux restaurations
 validées. Ne pas générer PIV82, tester un PIN, lire des secrets, modifier
 OTP2/PIV9A/AES256, ni changer les destinataires SOPS.
+
+
+## 14. Validation locale des contrats OTP2 / escrow — 25 octobre 2026
+
+**Journal fourni par l'opérateur**, exécuté avec
+`just yubikey-recovery-test` :
+
+- `python3 -m py_compile` : PASS sur les scripts et tests concernés ;
+- `bash -n` : PASS sur le lanceur Git/YubiKey ;
+- Tests de récupération OTP2/escrow : **16/16 PASS** (0,006 s) ;
+- Tests d'intégration du lanceur : **28/28 PASS** (22,969 s) ;
+- Total : **44/44 PASS**, sans exécution de commande matérielle.
+- Le message d'usage dans le test de portée manquante est
+  un résultat **attendu du test négatif**, pas un échec de la gate.
+
+**Limite :** le journal transmis ne contient pas le SHA Git exécuté.
+Cette preuve valide le contenu du worktree de l'opérateur au moment du
+test, pas automatiquement tous les commits ultérieurs de la PR #280.
+Le résultat n'atteste ni OTP2 réel, ni HMAC-SHA1/KeePassXC, ni présence,
+indépendance physique ou restauration de deux copies d'escrow.
+
+### Étape matérielle facultative et strictement read-only
+
+La recette explicite `just yubikey-otp2-secondary-readonly`
+exécute uniquement
+`python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary`.
+Elle requiert la seule YubiKey **22916048** (firmware 5.4.3) et
+interroge trois commandes publiques allowlistées : liste des appareils,
+identité/firmware, statut OTP. Aucune demande de PIN, aucun challenge,
+aucune génération et aucune modification.
+
+Le résultat `PROGRAMMED_TYPE_UNVERIFIED` valide seulement
+la présence d'une configuration OTP2. Les états `EMPTY`
+et `UNKNOWN` bloquent. Même avec retour 0,
+`status=NO-GO` et `hardware_mutation_authorized=false`
+restent inchangés. **Ne pas confondre succès de lecture et preuve
+du secret KeePassXC.**
+
+La recette ne doit être lancée que depuis un worktree isolé et actualisé
+sur la branche PR #280. Elle n'exécute aucune gate de qualité large
+et ne réutilise aucun chemin temporaire disparu après redémarrage.
