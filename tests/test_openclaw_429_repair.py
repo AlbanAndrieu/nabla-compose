@@ -131,11 +131,13 @@ class RepairContracts(unittest.TestCase):
         original = sample()
         del original["agents"]["list"]
         self.config.write_text(json.dumps(original))
+        opaque = "a" * 64
+        self.assertNotEqual(opaque, hashlib.sha256(self.config.read_bytes()).hexdigest())
         def rpc(method, params):
             if method == "config.get":
-                return {"hash": hashlib.sha256(self.config.read_bytes()).hexdigest()}
+                return {"payload": {"hash": opaque, "path": str(self.config)}}
             self.assertEqual(method, "config.patch")
-            self.assertEqual(params["baseHash"], hashlib.sha256(self.config.read_bytes()).hexdigest())
+            self.assertEqual(params["baseHash"], opaque)
             patch_value = json.loads(params["raw"])
             self.assertEqual(set(patch_value), {"agents"})
             self.assertEqual(set(patch_value["agents"]), {"defaults"})
@@ -155,24 +157,57 @@ class RepairContracts(unittest.TestCase):
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
 
-    def test_native_rpc_rejects_mismatched_snapshot_without_write(self):
+    def test_native_rpc_rejects_mismatched_gateway_config_path(self):
         original = sample()
         del original["agents"]["list"]
         self.config.write_text(json.dumps(original))
-        with patch.object(mod, "gateway_snapshot_hash", return_value="a" * 64), \
-             patch.object(mod, "gateway_call") as rpc, \
+        def other_gateway(method, params):
+            self.assertEqual(method, "config.get")
+            return {"hash": "a" * 64, "path": str(self.root / "other.json")}
+        with patch.object(mod, "gateway_call", side_effect=other_gateway) as rpc, \
              patch.object(Path, "home", return_value=self.root):
             result = mod.native_patch_concurrency(original, self.config.read_bytes())
         self.assertEqual(result, "blocked_gateway_snapshot")
-        rpc.assert_not_called()
+        self.assertEqual(rpc.call_count, 1)
         self.assertEqual(json.loads(self.config.read_text()), original)
+
+    def test_native_rpc_refuses_local_edit_between_get_and_patch(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        bytes_before = self.config.read_bytes()
+        def interleaved_get(method, params):
+            self.assertEqual(method, "config.get")
+            updated = dict(original)
+            updated["modified_by_other_process"] = "synthetic"
+            self.config.write_text(json.dumps(updated))
+            self.config.chmod(0o600)
+            return {"hash": "b" * 64, "path": str(self.config)}
+        with patch.object(mod, "gateway_call", side_effect=interleaved_get) as rpc, \
+             patch.object(Path, "home", return_value=self.root):
+            result = mod.native_patch_concurrency(original, bytes_before)
+        self.assertEqual(result, "blocked_concurrent_change")
+        self.assertEqual(rpc.call_count, 1)
+        self.assertNotEqual(self.config.read_bytes(), bytes_before)
+
+    def test_gateway_snapshot_hash_is_opaque_and_case_preserved(self):
+        opaque = "A" * 64
+        with patch.object(mod, "gateway_call",
+                          return_value={"payload": {"hash": opaque, "path": str(self.config)}}):
+            self.assertEqual(mod.gateway_snapshot_hash(), opaque)
+
+    def test_gateway_snapshot_hash_fails_closed_on_missing_response(self):
+        for document in (None, {}, {"hash": "unsafe-string"},
+                         {"payload": {"hash": "a" * 64, "path": "/etc/passwd"}}):
+            with self.subTest(document_type=type(document).__name__), \
+                 patch.object(mod, "gateway_call", return_value=document):
+                self.assertIsNone(mod.gateway_snapshot_hash())
 
     def test_native_rpc_refusal_does_not_fallback_to_direct_write(self):
         original = sample()
         del original["agents"]["list"]
         self.config.write_text(json.dumps(original))
-        with patch.object(mod, "gateway_snapshot_hash",
-                          return_value=hashlib.sha256(self.config.read_bytes()).hexdigest()), \
+        with patch.object(mod, "gateway_snapshot_hash", return_value="c" * 64), \
              patch.object(mod, "gateway_call", return_value=None), \
              patch.object(Path, "home", return_value=self.root):
             result = mod.native_patch_concurrency(original, self.config.read_bytes())
@@ -186,8 +221,10 @@ class RepairContracts(unittest.TestCase):
         count = [0]
         def mock_rpc(method, params):
             if method == "config.get":
-                return {"hash": hashlib.sha256(self.config.read_bytes()).hexdigest()}
+                return {"hash": ("c" if count[0] == 0 else "d") * 64,
+                        "path": str(self.config)}
             self.assertEqual(method, "config.patch")
+            self.assertEqual(params["baseHash"], ("c" if count[0] == 0 else "d") * 64)
             count[0] += 1
             new_value = json.loads(params["raw"])["agents"]["defaults"]["maxConcurrent"]
             value = json.loads(self.config.read_text())
