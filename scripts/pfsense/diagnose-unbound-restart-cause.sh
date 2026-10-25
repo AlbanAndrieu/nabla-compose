@@ -165,14 +165,17 @@ for file in /var/unbound/unbound.conf \
   modified=$(stat -f '%m' "$file" 2>/dev/null || printf '')
   checksum=$(sha256 -q "$file" 2>/dev/null || printf '')
   case "$length:$modified:$checksum" in
-    *[!a-zA-Z0-9:]*|::*|*::) printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item" ;;
-    *) if [ "${#checksum}" -ne 64 ]; then
-         printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"
-       else
-         printf 'config_fingerprint=%s size_bytes=%s mtime_unix=%s sha256=%s\n' \
-           "$item" "$length" "$modified" "$checksum"
-       fi ;;
+    *[!0-9a-f:]*|'') printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"; continue ;;
   esac
+  case "$length:$modified" in
+    *[!0-9:]*|:*|*:) printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"; continue ;;
+  esac
+  if [ "${#checksum}" -ne 64 ]; then
+    printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"
+  else
+    printf 'config_fingerprint=%s size_bytes=%s mtime_unix=%s sha256=%s\n' \
+      "$item" "$length" "$modified" "$checksum"
+  fi
 done
 echo 'config_fingerprint_comparison=NEEDS_TWO_SNAPSHOTS'
 echo '=== Bounded lifecycle and kernel signals (raw messages withheld) ==='
