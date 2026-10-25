@@ -374,7 +374,10 @@ just yubikey-backup-ssh-signature-check
 ```
 
 Le lot corrigé contient **14 tests** ; l'exécution complète sur
-workstation reste `NOT_RUN` tant que l'opérateur ne l'a pas relancée.
+workstation a ensuite été confirmée **14/14 PASS** au SHA
+`2e434d8f623bbcda9543b3b9fbf28b2b0b7717ef`.
+`just yubikey-backup-ssh-signature-check` a de nouveau confirmé
+`EXISTING_FIDO2_KEY_READY_FOR_SIGNATURE`, sans contact avec la carte.
 **Ne pas** relancer `just yubikey-backup-ssh-enroll` ou
 `just yubikey-backup-ssh-signature-run` : la preuve matérielle est acquise.
 
@@ -383,3 +386,20 @@ autorisée avec cette clé publique, sans retirer les accès existants.
 Pour les autres capacités, statut inchangé : OpenPGP accessible
 publiquement mais historique intermittent, PIV82/age non provisionné,
 challenge KeePassXC OTP2 non testé et escrow/SOPS/PostgreSQL réel non restauré.
+
+## Clôture locale SSH/FIDO2 — preuves consolidées (26/10/2026)
+
+- Identité matérielle existante : `22916048`, `ED25519-SK`, empreinte `SHA256:42+Klqmv8gwQZB+1OxRjkye3nEQF1PsMjTQwXwzoSwQ`.
+- `ssh-keygen -Y sign` et `ssh-keygen -Y verify` avec cette identité : **PASS opérateur** au HEAD `579796a6`.
+- Tests hermétiques **14/14 PASS** au HEAD `2e434d8f` ; permissions `.ssh` et dossier de clé strictement `0700`, contrôle des autres permissions inchangé.
+- Contrôle local `--check` : `EXISTING_FIDO2_KEY_READY_FOR_SIGNATURE`.
+- Authentification distante à destination autorisée : **NOT_VERIFIED**. Ne jamais inférer un login serveur à partir de la signature locale.
+- Ne pas relancer la génération de clé ni de signature. Préserver la passphrase SSH, le handle local et les moyens d'accès précédents.
+
+**Travaux suivants indépendants** :
+`just yubikey-otp2-secondary-readonly` peut inventorier uniquement le slot 2
+sur la secondaire, sans HMAC/challenge ni écriture ; vérifier KeePassXC sur
+une copie de base dans une séance utilisateur distincte.
+Pour PIV82, conserver l'exigence de deux escrows récupérables et de test
+age réel avant toute écriture. GPG/OpenPGP reste limité à une réponse publique,
+avec historique d'intermittence.
