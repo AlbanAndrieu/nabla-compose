@@ -139,9 +139,13 @@ d'une YubiKey à l'autre ; inscrire les deux cartes par service.
 
 ## 4 — KeePassXC / OTP2
 
-**État connu** : OTP slot 2 programmé sur la secondaire, mais son type
-HMAC-SHA1 et le déverrouillage de la base réelle ne sont pas prouvés
-par ces diagnostics. **Ne jamais écrire le slot 2.**
+**État opérateur confirmé (26/10/2026)** :
+`just yubikey-otp2-secondary-readonly` a retourné
+`otp2=PROGRAMMED_TYPE_UNVERIFIED`, `keepassxc_verified=false`,
+`otp2_hmac_sha1_verified=false`, `escrow=NOT_CHECKED`.
+Le slot 2 est programmé sur la secondaire `22916048`, mais ni son
+type HMAC-SHA1 ni le déverrouillage réel ne sont démontrés.
+**Ne jamais écrire le slot 2.**
 
 Avec une **copie locale** de la base KeePassXC et sa méthode de récupération,
 tester la connexion dans l'interface KeePassXC avec la principale, puis avec
@@ -149,9 +153,16 @@ la secondaire, **séparément**, sans tenter de reprogrammer OTP2.
 Une base utilisant un challenge-response HMAC-SHA1 doit être associée
 au même secret HMAC sur les deux cartes pour être interchangeable.
 
-**Acceptation** : même base de test déverrouillée avec chacune des cartes et
-méthode de secours fonctionnelle. Aucune valeur HMAC ou mot de passe ne doit
-être recopié dans les sorties.
+**Acceptation** : même copie KDBX chiffrée, ouverte séparément
+avec chacune des deux cartes et les mêmes autres facteurs, puis refermée
+**sans enregistrer** ; récupération indépendante conservée.
+Aucune valeur HMAC, mot de passe ou donnée KDBX ne doit être recopiée
+dans les sorties. Aucun succès n'est actuellement revendiqué.
+
+**Procédure opérateur détaillée** :
+[yubikey-backup-keepassxc-otp2-verification.md](yubikey-backup-keepassxc-otp2-verification.md).
+Ne pas activer une protection challenge-response sur une base qui ne
+l'utilise pas déjà dans le seul but de valider le slot.
 
 ## 5 — SOPS / age / deux escrows / sauvegardes PostgreSQL-GPG
 
