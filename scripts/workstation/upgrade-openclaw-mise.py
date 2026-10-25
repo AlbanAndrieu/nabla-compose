@@ -216,6 +216,12 @@ def state_backup(repo_root):
 def activate(repo_root):
     owner = unit_exec()
     destination = new_root()
+    # An already-verified cutover is idempotent and must not stop a healthy
+    # Gateway or create another backup on a repeated operator invocation.
+    if (owner == destination and service_active() and ready()
+            and package_version(destination) == TARGET_OPENCLAW):
+        print("upgrade_activation=already_verified")
+        return 0
     if (owner is None or owner == destination or not node_ready() or not service_active()
             or package_version(destination) != TARGET_OPENCLAW or
             package_version(owner) is None):
