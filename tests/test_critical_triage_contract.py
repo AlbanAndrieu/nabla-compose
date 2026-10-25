@@ -89,6 +89,19 @@ class CriticalTriageContract(unittest.TestCase):
         self.assertIn("repair-prometheus-config-access.sh --check", source)
         self.assertNotRegex(source, re.compile(r"^\s+(?:midclt call app\.(?:start|redeploy)|docker compose up|rm -rf)", re.M))
 
+    def test_remaining_mode_limits_to_two_known_failures(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("--remaining) REMAINING=true; shift", source)
+        self.assertIn('if [[ "$REMAINING" != true ]]; then', source)
+        self.assertIn('run_gate prometheus-targets 80', source)
+        self.assertIn('run_gate akvorado-fresh-inserts 75', source)
+        result = subprocess.run(
+            ["bash", str(SCRIPT), "--help"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--remaining", result.stdout)
+
     def test_private_evidence_and_unknown_are_not_pass(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("umask 077", source)
