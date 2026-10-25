@@ -80,15 +80,18 @@ def main():
         print("key_inventory=unverified")
         return 2
     available = {model.get("id") for model in models["data"] if isinstance(model, dict)}
+    missing_models = False
     for _, alias, names in KEYS:
         if not set(names).issubset(available):
             print(alias + "_models=unavailable")
-            return 2
-    print("models_allowlist=verified")
+            missing_models = True
+    print("models_allowlist=" + ("incomplete" if missing_models else "verified"))
     print("existing_key_count=" + str(len(existing["keys"])))
     if args.status:
         print("provisioning=inspection_only")
         return 0
+    if missing_models:
+        return 2
     if existing["keys"]:
         print("provisioning=blocked_existing_keys_require_reconciliation")
         return 2
