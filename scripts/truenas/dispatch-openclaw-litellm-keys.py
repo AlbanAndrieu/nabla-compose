@@ -21,9 +21,10 @@ def execution_target(root=ROOT):
 
 
 def build_command(mode, target):
-    if mode not in ("plan", "apply", "status"):
+    if mode not in ("plan", "apply", "status", "quota-audit"):
         raise ValueError("unsupported_mode")
-    arguments = {"plan": (), "apply": ("--apply",), "status": ("--status",)}[mode]
+    arguments = {"plan": (), "apply": ("--apply",), "status": ("--status",),
+                 "quota-audit": ("--quota-audit",)}[mode]
     if target == "truenas_local":
         return ["sudo", "-n", "python3", str(PROVISIONER), *arguments]
     if target == "workstation_ssh":
