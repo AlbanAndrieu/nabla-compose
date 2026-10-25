@@ -32,7 +32,8 @@ class DoclingReadinessTest(unittest.TestCase):
             raise AssertionError("Unexpected subprocess")
         with patch.object(module, "command", side_effect=mocked):
             with patch.object(module, "host_ready", return_value="READY"):
-                report = module.diagnose()
+                with patch.object(module, "host_probe", return_value="READY"):
+                    report = module.diagnose()
         self.assertEqual(report["status"], "READY_ONLY")
         self.assertEqual(report["next"], "run_synthetic_pdf_conversion_before_ingestion")
 
@@ -52,11 +53,29 @@ class DoclingReadinessTest(unittest.TestCase):
             raise AssertionError("Unexpected subprocess")
         with patch.object(module, "command", side_effect=mocked):
             with patch.object(module, "host_ready", return_value="UNREACHABLE"):
-                report = module.diagnose()
+                with patch.object(module, "host_probe", return_value="UNREACHABLE"):
+                    report = module.diagnose()
         self.assertEqual(report["status"], "INITIALIZING")
         self.assertEqual(report["containerHealth"], "starting")
         self.assertEqual(report["restartCount"], "1")
         self.assertEqual(report["next"], "observe_docling_container_health_without_redeploy")
+
+    def test_unhealthy_deploying_requires_startup_inspection_not_redeploy(self):
+        def mocked(*args, **kwargs):
+            if args[:2] == ("midclt", "call"):
+                return True, '[{"id":"docling","state":"DEPLOYING"}]'
+            if args[:2] == ("docker", "inspect"):
+                return True, "unhealthy" if ".State.Health" in args[-2] else "running"
+            return False, ""
+        with patch.object(module, "command", side_effect=mocked):
+            with patch.object(module, "host_ready", return_value="UNREACHABLE"):
+                with patch.object(module, "host_probe", return_value="UNREACHABLE"):
+                    report = module.diagnose()
+        self.assertEqual(report["status"], "INITIALIZING")
+        self.assertEqual(report["containerHealth"], "unhealthy")
+        self.assertEqual(report["hostLiveness"], "UNREACHABLE")
+        self.assertEqual(report["next"], "inspect_docling_startup_without_redeploy")
+
 
     def test_running_app_with_unready_api_does_not_pass(self):
         def mocked(*args, **kwargs):
@@ -67,14 +86,16 @@ class DoclingReadinessTest(unittest.TestCase):
             return False, ""
         with patch.object(module, "command", side_effect=mocked):
             with patch.object(module, "host_ready", return_value="UNREACHABLE"):
-                report = module.diagnose()
+                with patch.object(module, "host_probe", return_value="UNREACHABLE"):
+                    report = module.diagnose()
         self.assertEqual(report["status"], "UNVERIFIED")
         self.assertNotEqual(report["status"], "READY_ONLY")
 
     def test_absent_app_stays_not_ready(self):
         with patch.object(module, "command", return_value=(True, "[]")):
             with patch.object(module, "host_ready", return_value="UNREACHABLE"):
-                report = module.diagnose()
+                with patch.object(module, "host_probe", return_value="UNREACHABLE"):
+                    report = module.diagnose()
         self.assertEqual(report["app"], "ABSENT")
         self.assertEqual(report["status"], "NOT_READY")
 
