@@ -406,3 +406,43 @@ Avant toute reprise de l'escrow réel, confirmer les deux supports
 physiques et la procédure d'une restauration supervisée séparée.
 La lecture de métadonnées seule ne constitue pas une preuve de
 récupération ; garder le statut matériel NO-GO.
+
+
+## 13. PR #280 — second contrôle de série et gate récupération sans matériel
+
+Le contrôle de la secondaire 22916048 n'est pas une autorisation PIV82.
+Pour OTP2, le script inspect-yubikey-recovery-readonly.py vérifie
+maintenant deux sources publiques : ykman list --serials et
+le champ Serial number de ykman --device 22916048 info. Le firmware
+doit rester 5.4.3. Un numéro absent, différent ou répété donne UNKNOWN.
+
+Les copies chiffrées d'escrow doivent être des fichiers ordinaires
+non vides, sans liens symboliques ni liens matériels multiples.
+Le contrôle rejette aussi les chemins non absolus et les fichiers
+dont l'extension n'est pas .age. Les statuts restent des **observations
+de métadonnées uniquement** : ils ne prouvent ni contenu récupérable,
+ni support physique distinct, ni fonctionnalité KeePassXC.
+
+### Validation hors matériel (worktree PR #280)
+
+Depuis un checkout de cette PR, exécuter une seule cible locale :
+
+`just yubikey-recovery-test`
+
+Cette cible vérifie la syntaxe Python/Bash puis lance uniquement les
+contrats synthétiques OTP2, escrow et lanceur Git. Pas de réseau
+explicite, aucun lecteur YubiKey, aucun PIN, challenge OTP ou secret
+n'est requis. Une .venv n'est pas nécessaire pour ces tests standard
+library. Le résultat ne vaut pas validation de toute la quality gate.
+
+Pour exécuter le lanceur historique avec la branche active, transmettre
+explicitement `--branch feat/apisix-standalone-poc-20261025`.
+L'option `--pinned-sha` reste réservée au bootstrap qui
+a déjà vérifié la fraîcheur du SHA distant. Ne pas utiliser l'ancienne
+branche PR #274 fusionnée comme source de nouveaux contrôles.
+
+Garder **NO-GO** : un résultat OTP2 PROGRAMMED_TYPE_UNVERIFIED ne
+démontre pas le secret HMAC-SHA1 ni KeePassXC ; deux fichiers d'escrow
+sur des systèmes de fichiers différents ne sont pas deux restaurations
+validées. Ne pas générer PIV82, tester un PIN, lire des secrets, modifier
+OTP2/PIV9A/AES256, ni changer les destinataires SOPS.
