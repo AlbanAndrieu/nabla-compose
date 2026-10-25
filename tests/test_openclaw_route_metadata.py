@@ -18,7 +18,7 @@ class OpenClawRouteMetadataTests(unittest.TestCase):
 
     def inspect(self, config):
         self.config.write_text(json.dumps(config), encoding="utf-8")
-        env = dict(os.environ, OPENCLAW_CONFIG_PATH=str(self.config))
+        env = dict(os.environ, OPENCLAW_CONFIG_PATH=str(self.config), OPENCLAW_STATE_DIR=str(self.tmp.name))
         return subprocess.run(
             [sys.executable, str(SCRIPT)], env=env, text=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
@@ -83,6 +83,38 @@ class OpenClawRouteMetadataTests(unittest.TestCase):
         self.assertNotIn("private-host.invalid", result.stdout + result.stderr)
         self.assertNotIn("secret-port", result.stdout + result.stderr)
         self.assertNotIn("sk-SHOULD_NOT_PRINT", result.stdout + result.stderr)
+
+    def test_missing_base_url_is_classified_without_unbound_variable(self):
+        result = self.inspect({"models": {"providers": {"litellm-main": {"apiKey": "secret"}}}})
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("route_owner=unconfigured", result.stdout)
+        self.assertNotIn("secret", result.stdout)
+
+    def test_agent_models_json_can_override_configured_route_and_default(self):
+        agent_root = Path(self.tmp.name) / "agents" / "cron" / "agent"
+        agent_root.mkdir(parents=True)
+        agent_root.joinpath("models.json").write_text(json.dumps({
+            "providers": {"litellm-cron": {
+                "baseUrl": "http://172.17.0.57:4000/v1",
+                "apiKey": "sk-PRIVATE_TEST_VALUE",
+            }}
+        }), encoding="utf-8")
+        result = self.inspect({
+            "models": {"providers": {"litellm-main": {
+                "baseUrl": "http://172.17.0.24:4000/v1",
+                "apiKey": {"source": "file", "provider": "main", "id": "value"},
+            }}},
+            "agents": {"defaults": {"model": {"primary": "litellm-main/qwen"}},
+                       "list": [{"id": "cron", "model": "litellm-cron/gpt-4.1-mini"}]},
+        })
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("default_model_provider=litellm-main", result.stdout)
+        self.assertIn("default_model_alias=qwen", result.stdout)
+        self.assertIn("cron_configured_model_alias=gpt-4.1-mini", result.stdout)
+        self.assertIn("cron_model_selection=agent_override", result.stdout)
+        self.assertIn("cron_litellm-cron_agent_route=workstation_lan_litellm", result.stdout)
+        self.assertNotIn("sk-PRIVATE_TEST_VALUE", result.stdout)
+
 
 
 if __name__ == "__main__":
