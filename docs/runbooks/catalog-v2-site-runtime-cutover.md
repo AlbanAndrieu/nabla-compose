@@ -61,3 +61,8 @@ avec un snapshot privé `app.query`. Il **ne redémarre rien**.
 - Les scripts TrueNAS/clients FastAPI et site qui lisent encore les données
   v1 sont à retirer via leurs migrations respectives, sans garantie de
   disponibilité permanente pendant le cutover.
+
+Pour diagnostiquer une erreur du catalogue sur plusieurs couches, appliquer
+le [runbook transverse canonique](homelab-e2e-diagnostics.md). Les commandes
+de migration et les instantanés ci-dessus restent historiques et ne prouvent
+pas le HEAD actuellement déployé.

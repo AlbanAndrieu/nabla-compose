@@ -198,3 +198,12 @@ commiter une configuration concrète.
 - https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/
 - https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_application
 - https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_policy
+
+## Renvoi : gateway et diagnostic transverse
+
+Le choix de la gateway, les étapes POC et la politique de rollback sont
+centralisés dans [le document APISIX](api-gateway-selection.md).
+Les procédures de recherche d'incident traversant Compose, FastAPI et Site
+sont dans [le runbook unique](runbooks/homelab-e2e-diagnostics.md).
+Conserver ici seulement le design Cloudflare Access / Tunnel du domaine
+`ops.albandrieu.com`. Ne pas déduire que ce domaine ou APISIX est actif.

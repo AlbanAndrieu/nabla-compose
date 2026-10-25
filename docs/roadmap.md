@@ -77,6 +77,24 @@ Actions :
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
+## P1 — API gateway OSS et corrélation des causes (25 octobre 2026)
+
+**Décision et backlog canoniques :** [choix APISIX](api-gateway-selection.md)
+et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md).
+- [x] Comparer APISIX, Traefik ForwardAuth, Envoy Gateway et Kong OSS ;
+  choisir **APISIX standalone YAML** pour un POC interne non exposé, sans etcd.
+- [x] Documenter la chaîne Catalogue Compose → FastAPI → Site → utilisateur,
+  avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
+- [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
+  OWNER/INTERNAL avant tout changement de dataplane.
+- [ ] Préparer et tester un POC APISIX **staging** sur hostname interne,
+  sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
+- [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
+  lorsque le service Keycloak existe réellement ; ne pas bloquer le
+  durcissement immédiat de FastAPI sur cet ajout.
+- [ ] Faire un runbook de rollback et une recette négative avant toute
+  migration de routes. Aucun déploiement gateway autorisé par ce document.
+
 ## P1 — Dette de code et de documentation
 
 - [x] **D-01 :** séparer la roadmap active de ses 3 770 lignes historiques
