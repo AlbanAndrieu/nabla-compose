@@ -535,3 +535,106 @@ Pour le prochain incident : `just pfsense-feed-pressure-check`,
 puis `PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check`
 si les catégories justifient un approfondissement. Ces commandes
 restent en lecture seule.
+
+## Investigation suivante — fallback DNSBL et pression RAM Snort
+
+**État observé (25 octobre) :** 39/39 tests locaux reçus comme PASS.
+pfBlockerNG `3.2.17_1` émet des marqueurs stop/start Unbound autour
+de 00:04 ; le noyau tue Unbound par OOM sur d'autres créneaux vers
+02:10. Ces deux mécanismes doivent rester distincts.
+
+### 1. Vérifier les capacités du code pfBlockerNG installé
+
+Depuis un worktree à jour de la PR :
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+Le collecteur rapporte désormais :
+
+- `pfblocker_dnsbl_swap_ram_gate=PRESENT|ABSENT` selon la présence
+  de `pfb_unbound_py_swap_fits_ram` dans le code PHP réellement
+  installé. Le précédent audit indique ABSENT pour `3.2.17_1` ;
+  **le nouvel appel doit le confirmer**.
+- `pfblocker_dnsbl_live_reload_marker=PRESENT|ABSENT` selon la
+  présence d'un mécanisme de génération/rechargement.
+- `pfblocker_dnsbl_fallback_condition=NOT_OBSERVED_AT_RUNTIME` :
+  présence de code et appels possibles ne démontrent **pas**
+  pourquoi le restart a été choisi le 22, 23 ou 24 octobre.
+
+Le code amont distingue les mises à jour de données pures, les
+changements de module/configuration et les échecs de swap. Il n'est
+pas garanti qu'il corresponde au code déployé :
+<https://github.com/pfBlockerNG/pfBlockerNG/blob/devel/docs/research/unbound-reload-strategies.md>.
+Ne pas exécuter `pfb_reload_unbound()` ni modifier les feeds pour
+tester ce chemin.
+
+### 2. Mesurer la pression mémoire avant le cron Snort
+
+Le nouvel échantillonneur `scripts/pfsense/sample-oom-pressure.sh`
+utilise **une seule session SSH read-only**, sans fichiers ni tâches
+sur l'appliance. Il mesure `free + inactive` et des RSS/CPU
+regroupés par nom de processus (Unbound, Snort, PHP CLI/PHP-FPM,
+helpers pfBlockerNG, CrowdSec, HAProxy et lighttpd_pfb).
+Il ne copie jamais les arguments des processus ou les journaux bruts.
+
+**Étape A — vérifier la collecte immédiatement :**
+
+```bash
+just pfsense-memory-sample-test
+```
+
+```bash
+just pfsense-memory-sample
+```
+
+**Étape B — mesurer pendant la prochaine fenêtre Snort 02:09**
+(pfSense locale Europe/Paris, CET le 26 octobre 2026) :
+
+```bash
+just pfsense-memory-window
+```
+
+Démarrer cette dernière commande manuellement vers **02:08:30 CET**.
+Elle prend **13 échantillons à 15 secondes d'intervalle**,
+soit 180 secondes couvrant environ 02:08:30–02:11:30.
+Le processus est au premier plan : il n'installe aucun cron, timer
+ni service sur pfSense. Si le lancement est tardif, les heures
+présentes dans la sortie font foi.
+
+**Étape C — classer avec les OOM et les téléchargements :**
+
+```bash
+just pfsense-feed-pressure-check
+```
+
+L'analyse doit comparer les heures des RSS/CPU et de la mémoire
+disponible aux kills du noyau, ainsi qu'aux échecs de téléchargement
+Snort et pfBlockerNG. Un simple pic CPU ou RSS ne suffit pas à
+attribuer la cause : les RSS peuvent partager des pages et ne
+s'additionnent pas à la RAM physique utilisée.
+
+### Contrats et limites
+
+- Budget : **1 à 16 échantillons**, intervalle **5 à 30 s**,
+  durée totale plafonnée à **240 s**. Valeurs invalides refusées
+  avant ouverture SSH.
+- Mémoire disponible **inférieure à 128 Mio** : avertissement ;
+  **inférieure à 64 Mio** : avertissement critique.
+- Échec de `sysctl` ou `ps` : code de sortie non nul, diagnostic
+  marqué incomplet, pas de fausse classification saine.
+- Les échantillons sont **instantanés**. Le script ne prétend pas
+  retrouver le RSS exact d'un processus déjà tué.
+- Les gardes RAM, budgets et tests ont été validés sur un
+  **environnement local simulé (5/5 PASS)**, mais le comportement
+  réel sur pfSense reste **NOT_VERIFIED** tant que la commande
+  n'a pas été exécutée sur le Netgate.
+
+La gate ciblée de la PR devient **21 contrats Unbound + 19 console
++ 5 échantillonneur = 45 tests**. Les 39 anciens PASS sont attestés
+par l'opérateur ; le nouveau total reste NOT_RUN sur le HEAD exact.
+
+Ne pas activer Service Watchdog pour Unbound, déclencher un
+rechargement DNSBL, augmenter le PHP memory_limit ni modifier
+les horaires Snort pendant l'investigation.
