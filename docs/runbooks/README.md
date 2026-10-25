@@ -28,6 +28,7 @@
 
 | Domaine | Référence | Usage |
 | --- | --- | --- |
+| APISIX | [service opt-in](../../apps/apisix/README.md) · [acceptation après migration](truenas-migration-operator.md) | Vérifier le runtime séparément du smoke HTTP, sans ingress public |
 | OpenRAG | [README d'exploitation](../../apps/openrag/README.md) · [ingestion](openrag-babou-ingestion-diagnostics.md) | État applicatif, Langflow/OpenSearch/LiteLLM, Docling et corpus privé |
 | Sentry | [reprise Apps du 23/10](2026-10-23-app-error-recovery.md) | Historique des incidents ; utiliser le diagnostic ciblé avant toute remédiation |
 | DefectDojo | [accès privé](defectdojo-private-ingress-acceptance.md) | Nginx/uWSGI, HTML origine, DNS interne, Traefik et HTTPS SNI |
