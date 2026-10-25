@@ -77,6 +77,12 @@ catalog-convergence-check:
     python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
     python3 scripts/quality/check-site-catalog-convergence.py
 
+# Explicit physical read-only OTP2 metadata check on secondary 22916048.
+# This proves only slot programmed/empty; NEVER proves HMAC-SHA1 or KeePassXC.
+# Status remains NO-GO even when this recipe exits successfully.
+yubikey-otp2-secondary-readonly:
+    python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary
+
 # Offline, no-hardware YubiKey recovery contracts (stdlib only).
 yubikey-recovery-test:
     python3 -m py_compile scripts/workstation/inspect-yubikey-recovery-readonly.py tests/test_yubikey_recovery_readonly.py tests/test_yubikey_pr274_readonly_runner.py
