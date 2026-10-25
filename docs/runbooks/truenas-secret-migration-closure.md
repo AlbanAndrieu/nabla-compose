@@ -9,7 +9,7 @@
 | Service | Preuve établie | Dette restante |
 | --- | --- | --- |
 | OpenRAG | Dernier `--strict --scope openrag` : `ready=true`, `missingKeys=[]`, `blockers=[]`, backend/frontend `running+healthy` | Recharge effective et authentification non vérifiées ; migration legacy non finalisée |
-| OpenSearch | Source du blocage identifiée : `legacy_env`, fichier `apps/opensearch/.env` UID=1000 GID=568 mode=0644 | Le Compose **référence encore ce fichier** ; corriger uniquement les métadonnées, puis vérifier l'égalité des credentials |
+| OpenSearch | `legacy_env` corrigé UID=0 GID=568 mode=0640 ; **deux candidats déclaratifs identiques** au mot de passe OpenRAG ; gate PASS | Identifiant effectivement chargé par OpenSearch et son authentification non vérifiés ; chemin encore déclaré dans Compose |
 | LiteLLM | Dernier `--strict --scope litellm` : `ready=true`, `missingKeys=[]`, `blockers=[]`, conteneur running | Les clés Langfuse doivent être réelles ; callback/authentification et recharge runtime non testés |
 | Scrutiny | Secret canonique examiné et déclaré prêt par le diagnostic global | App STOPPED ; statut runtime séparé, aucune validation de déploiement |
 | Autres Apps | Pas de preuve globale récente fournie | Inventaire de clôture complet non attesté |
@@ -122,7 +122,7 @@ de tous les secrets par un `chmod -R`.
 
 Le Compose `apps/opensearch/compose.yml` référence explicitement
 `/mnt/cpool/compose/nabla-compose/apps/opensearch/.env` via `env_file`.
-Le dernier relevé opérateur donne `uid=1000 gid=568 mode=0644`.
+Le relevé **avant correction** donnait `uid=1000 gid=568 mode=0644` ; **après correction** l'opérateur confirme `uid=0 gid=568 mode=0640`, avec comparaison du credential PASS.
 Le comparateur exige un propriétaire root et un mode privé `0600`,
 `0400` ou `0640`. C'est une **erreur de métadonnées**, pas encore une
 preuve de divergence des mots de passe.
@@ -153,6 +153,11 @@ Vérifier le projet Git ignoré, le Compose effectivement chargé par TrueNAS,
 la source Vaultwarden et les données OpenSearch existantes. La configuration
 Compose actuellement versionnée pointe toujours sur le chemin legacy ;
 ne pas supprimer, renommer ou finaliser ce fichier sans migration dédiée.
+
+> **Ne pas rejouer le `chown`/`chmod` lorsque le contrôle est déjà PASS.**
+> Le mode `0640` et l'égalité de deux valeurs déclarées sont acquis ;
+> seule la preuve du credential chargé et de l'authentification manque.
+> Ne pas finaliser les chemins hérités sur cette seule base.
 
 ## Gates obligatoires avant `--finalize openrag`
 
