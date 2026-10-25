@@ -49,6 +49,21 @@ class SecretMaterializationContractTests(unittest.TestCase):
             installer,
         )
 
+    def test_dotenv_comparison_fails_closed_when_runtime_dependencies_absent(self) -> None:
+        script = (
+            ROOT / "scripts" / "truenas" / "bootstrap-repository-env-files.sh"
+        ).read_text(encoding="utf-8")
+        comparator = (
+            ROOT / "scripts" / "secrets" / "compare_dotenv_sources.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("! python3 -c 'import dotenv, jsonschema'", script)
+        self.assertIn("semantic dotenv comparison unavailable", script)
+        self.assertIn('if ((result > 1)); then', script)
+        self.assertIn('exit 2', script)
+        self.assertIn('except (SecretsError, OSError, ValueError):', comparator)
+        self.assertIn('raise SystemExit(2)', comparator)
+        self.assertNotIn('dotenv values differ', script)
+
     def test_shared_shell_library_no_longer_renders_vaultwarden_as_root(self) -> None:
         library = SECRETS_LIB.read_text(encoding="utf-8")
         self.assertNotIn("secrets_render_vaultwarden_app", library)

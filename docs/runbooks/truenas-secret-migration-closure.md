@@ -121,11 +121,14 @@ cd /mnt/cpool/compose/nabla-compose
 
 Si le venv n'existe pas, installer les outils en espace utilisateur
 avec `bash scripts/truenas/bootstrap-dev-tools.sh` (sans `sudo`).
-**Attention :** l'ancien `bootstrap-repository-env-files.sh` regroupe
-tous les échecs du comparateur sous « migration conflict ». Le FAIL
-du rapport historique peut donc être dû à l'environnement Python
-et non à des valeurs divergentes. La comparaison en venv est le
-pré-requis avant `--restage openrag` ; aucun restage automatique.
+**Correction du runner :** `bootstrap-repository-env-files.sh`
+distingue désormais le résultat du comparateur : `0` = égalité
+sémantique, `1` = différences confirmées, `2` = comparaison
+impossible / dépendances Python manquantes. Dans le dernier cas, le
+script s'arrête sans mutation avec `BLOCKED` et **ne déclare plus
+un conflit de valeurs non prouvé**. Le FAIL historique peut être
+dû à l'environnement Python. Comparer les deux fichiers depuis
+le venv opérateur avant tout `--restage openrag`.
 
 Le répertoire `apps/scanopy/` ne contient pas de `.env.secrets`,
 conformément à la politique : les credentials ne sont pas stockés dans Git.

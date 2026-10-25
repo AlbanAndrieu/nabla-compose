@@ -110,5 +110,8 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except SecretsError as exc:
-        raise SystemExit(f"error: {exc}") from exc
+    except (SecretsError, OSError, ValueError):
+        # Exit 1 is reserved for a completed comparison which found
+        # different dotenv values. Error/inaccessible inputs are UNKNOWN.
+        print("UNVERIFIED: dotenv comparison failed; no secret values disclosed")
+        raise SystemExit(2) from None
