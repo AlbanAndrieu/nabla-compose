@@ -525,12 +525,16 @@ gatus-monitor-failures:
 gatus-monitor-contracts:
     python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
 
-# Fast offline compatibility gate. Node 22/npm 10; never npm ci, npx, Docker or CI.
-# Node 24 remains canonical; explicitly select Node 22 for this isolated fast gate.
-# mise uses the already provisioned version when installed; npm stays offline.
+# Offline compatibility: always use Node 22 AND bundled npm 10 from one install.
+# The npm shim on PATH can be npm 12 even when mise exec selects Node 22.
 node22-fast:
-    @mise where node@22 >/dev/null 2>&1 || { echo 'Node 22 not installed: install it separately with mise install node@22' >&2; exit 2; }
-    mise exec node@22 -- npm --offline run test:fast:node22
+    @node_root="$(mise where node@22 2>/dev/null)" || { echo 'Node 22 missing; install separately with mise install node@22' >&2; exit 2; }; \
+      node_bin="$node_root/bin/node"; npm_cli="$node_root/lib/node_modules/npm/bin/npm-cli.js"; \
+      test -x "$node_bin" && test -f "$npm_cli" || { echo 'Node22 bundled npm missing; no download attempted' >&2; exit 2; }; \
+      node_major="$("$node_bin" -p 'process.versions.node.split(".")[0]')"; \
+      npm_major="$("$node_bin" "$npm_cli" --version | cut -d. -f1)"; \
+      test "$node_major" = 22 && test "$npm_major" = 10 || { echo "Expected Node22/npm10, found $node_major/$npm_major" >&2; exit 2; }; \
+      PATH="$node_root/bin:$PATH" "$node_bin" "$npm_cli" --offline run test:fast:node22
 
 # On-demand standalone APISIX service; isolated from default deployment.
 apisix-contract:
