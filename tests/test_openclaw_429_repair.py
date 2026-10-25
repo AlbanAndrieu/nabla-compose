@@ -161,6 +161,38 @@ class RepairContracts(unittest.TestCase):
         self.assertEqual(result, "blocked_native_patch")
         self.assertEqual(json.loads(self.config.read_text()), original)
 
+    def test_native_patch_rolls_back_if_gateway_response_is_lost(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        count = [0]
+        def mock_rpc(method, params):
+            if method == "config.get":
+                return {"hash": hashlib.sha256(self.config.read_bytes()).hexdigest()}
+            self.assertEqual(method, "config.patch")
+            count[0] += 1
+            new_value = json.loads(params["raw"])["agents"]["defaults"]["maxConcurrent"]
+            value = json.loads(self.config.read_text())
+            value["agents"]["defaults"]["maxConcurrent"] = new_value
+            self.config.write_text(json.dumps(value))
+            self.config.chmod(0o600)
+            # Simulate a lost success response after an otherwise committed patch.
+            return None if count[0] == 1 else {"ok": True}
+        with patch.object(mod, "gateway_call", side_effect=mock_rpc), \
+             patch.object(Path, "home", return_value=self.root):
+            result = mod.native_patch_concurrency(original, self.config.read_bytes())
+        self.assertEqual(result, "failed_rollback_verified")
+        self.assertEqual(json.loads(self.config.read_text()), original)
+        self.assertEqual(count[0], 2)
+
+    def test_missing_defaults_map_is_created_without_agent(self):
+        original = sample()
+        del original["agents"]["list"]
+        del original["agents"]["defaults"]
+        updated = mod.candidate(original, "sk-CRON-SYNTHETIC", {"gpt-4.1"})
+        self.assertEqual(updated["agents"]["defaults"]["maxConcurrent"], 1)
+        self.assertNotIn("list", updated["agents"])
+
     def test_missing_authorization_blocks(self):
         with self.assertRaisesRegex(ValueError, "cron_model_not_authorized"):
             mod.candidate(sample(), "sk-CRON-SYNTHETIC", {"workstation-qwen"})
