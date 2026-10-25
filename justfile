@@ -868,6 +868,7 @@ openclaw-update-recovery-local:
 # Explicit mutation: downloads only Node, not OpenClaw; does not change
 # system Node, npm prefix, Gateway unit, config, or any embeddings.
 openclaw-node24-runtime-install:
-    mise install node@24.22.1
+    MISE_SAFE=1 mise lock node@24.22.1
+    mise install --locked node@24.22.1
     mise exec node@24.22.1 -- node --version
 
