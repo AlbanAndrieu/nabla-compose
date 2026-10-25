@@ -249,6 +249,70 @@ class WifiPathTest(unittest.TestCase):
         self.assertEqual(data["diagnosis"], "PFSENSE_PRIVATE_ZONE_NOT_CONFIRMED")
         self.assertTrue(data["private_dns_warning"])
 
+    def test_legacy_hide_location_quad9_candidate_without_causality(self):
+        template = (
+            '#!/bin/bash\n'
+            'dns_new="9.9.9.9 149.112.112.112"\n'
+            'net_interface="wlp0s20f3"\n'
+            'if sudo resolvectl status | grep -q 172.17.0.24; then\n'
+            '  sudo resolvectl dns $net_interface $dns_new\n'
+            'fi\n'
+            'SECRET_TOKEN="DO_NOT_PRINT"\n'
+        )
+
+        def systemctl(args):
+            if args[0] == "systemctl":
+                return True, (
+                    "LoadState=loaded\n"
+                    "UnitFileState=enabled\n"
+                    "ActiveState=inactive\n"
+                    "ExecMainStartTimestamp=Sun 2026-10-25 00:00:00 CET\n"
+                    "Sensitive=DO_NOT_PRINT\n"
+                )
+            return False, ""
+
+        probe = module.inspect_legacy_dns_hook(systemctl, "eno1", template)
+        self.assertEqual(probe["unit_state"], "loaded")
+        self.assertTrue(probe["hook_sets_quad9"])
+        self.assertFalse(probe["hook_targets_current_interface"])
+        self.assertTrue(probe["hook_contains_resolvectl_dns"])
+        self.assertTrue(probe["unit_has_start_timestamp"])
+        self.assertEqual(probe["causality"], "NOT_PROVEN")
+        self.assertNotIn("DO_NOT_PRINT", str(probe))
+
+    def test_legacy_hide_location_iface_match_and_missing_unit(self):
+        body = (
+            'dns_new="9.9.9.9 149.112.112.112"\n'
+            'net_interface="eno1"\n'
+            'sudo resolvectl dns $net_interface $dns_new\n'
+        )
+        empty_runner = lambda args: (False, "")
+        probe = module.inspect_legacy_dns_hook(empty_runner, "eno1", body)
+        self.assertTrue(probe["hook_targets_current_interface"])
+        self.assertEqual(probe["unit_state"], "unknown")
+        self.assertEqual(probe["causality"], "NOT_PROVEN")
+        absent = module.inspect_legacy_dns_hook(empty_runner, "eno1", None)
+        self.assertFalse(absent["hook_present"])
+        self.assertIsNone(absent["hook_targets_current_interface"])
+        self.assertFalse(absent["hook_sets_quad9"])
+
+    def test_runtime_hook_is_injected_not_read_during_fixtures(self):
+        runner, calls = fixture(active="9.9.9.9", private_sys=False)
+        injected = (
+            'net_interface="eno1"\n'
+            'dns_new="9.9.9.9 149.112.112.112"\n'
+            'sudo resolvectl dns $net_interface $dns_new\n'
+        )
+        row = module.snapshot(
+            runner=runner, connect=lambda *_: True,
+            read_override=lambda: injected,
+        )
+        self.assertEqual(row["diagnosis"], "CLIENT_PRIVATE_SPLIT_DNS_PATH")
+        self.assertTrue(row["legacy_dns_override"]["hook_sets_quad9"])
+        self.assertTrue(row["legacy_dns_override"]["hook_targets_current_interface"])
+        self.assertEqual(row["legacy_dns_override"]["causality"], "NOT_PROVEN")
+        self.assertTrue(any(cmd[0] == "systemctl" for cmd in calls))
+
 
 if __name__ == "__main__":
     unittest.main()
