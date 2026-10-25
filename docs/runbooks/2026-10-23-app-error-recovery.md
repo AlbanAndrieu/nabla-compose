@@ -1,5 +1,13 @@
 # Réparer les Apps TrueNAS en erreur — séance du 23 octobre 2026
 
+> **Historique — état observé en octobre 2026.** Ce fichier conserve
+> ses commandes et preuves à titre de traçabilité ; il n'est pas le point
+> d'entrée pour un nouveau diagnostic. Lire d'abord
+> [l'acceptation runtime courante](homelab-runtime-acceptance.md) et
+> [la roadmap active](../roadmap.md). Aucune commande mutante ci-dessous
+> n'est autorisée par cet archivage. La PR #274 est fusionnée.
+
+
 **Statut documentaire : runbook spécialisé historique.** Pour la séquence opérateur actuelle, les résultats des gates et les points d'entrée, utiliser le [runbook de migration canonique](2026-10-24-homelab-operator-next-commands.md). Conserver ici les détails techniques de récupération propres à cette séance ; les états et PR cités sont des instantanés, non une preuve du runtime actuel.
 
 

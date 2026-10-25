@@ -12,6 +12,19 @@ diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
 for cmd in docker curl dig jq ip; do
   command -v "${cmd}" >/dev/null 2>&1 || { echo "ERROR missing=${cmd}" >&2; exit 2; }
 done
+# Normalize untrusted HTTP metadata into a fixed vocabulary.
+# This helper never displays Content-Type and does not treat HTTP status as readiness.
+classify_html_probe() {
+  local record="${1:-000|}" code mime
+  IFS='|' read -r code mime <<<"${record}"
+  [[ "${code}" =~ ^[0-9]{3}$ ]] || code=000
+  case "${mime,,}" in
+    text/html|text/html\;*) mime=html ;;
+    '') mime=missing ;;
+    *) mime=other ;;
+  esac
+  printf '%s|%s\n' "${code}" "${mime}"
+}
 diag_section '1/4' 'TrueNAS identity and Docker network (metadata only)'
 if ip -o -4 addr show | grep -Eq '[[:space:]]172[.]17[.]0[.]24/[0-9]{1,2}[[:space:]]'; then
   diag_ok "TrueNAS LAN address present"
@@ -67,14 +80,7 @@ fi
 ui_probe="$(curl --noproxy '*' --silent --show-error --output /dev/null \
   --write-out '%{http_code}|%{content_type}' --connect-timeout 3 --max-time 8 \
   "http://${APP_HOST}:${PORT}/" 2>/dev/null)" || ui_probe="000|"
-IFS='|' read -r ui_http ui_content_type <<<"${ui_probe}"
-[[ "${ui_http}" =~ ^[0-9]{3}$ ]] || ui_http=000
-# Do not print untrusted Content-Type header values to operator logs.
-case "${ui_content_type,,}" in
-  text/html|text/html\;*) ui_mime=html ;;
-  '') ui_mime=missing ;;
-  *) ui_mime=other ;;
-esac
+IFS='|' read -r ui_http ui_mime <<<"$(classify_html_probe "${ui_probe}")"
 printf 'ui_origin_http=%s ui_mime=%s\n' "${ui_http}" "${ui_mime}"
 case "${ui_http}" in
   200)
@@ -94,7 +100,29 @@ if [[ "$http" != 000 && "$ui_http" == 000 ]]; then
 fi
 diag_section '3/4' 'Split DNS A records'
 for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
-  response="$(dig +time=2 +tries=1 +noall +answer @"${resolver}" "${FQDN}" A 2>/dev/null | awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)" || response=""
+  # An empty answer is NOT evidence of private DNS when the DNS RCODE
+  # is SERVFAIL/REFUSED, or the resolver serves stale cached data.
+  if ! dns_packet="$(dig +time=2 +tries=1 +noall +comments +answer @"${resolver}" "${FQDN}" A 2>/dev/null)"; then
+    printf 'dns_server=%s query=failed\n' "${resolver}"
+    diag_fail "DNS resolver ${resolver} unavailable; no assertion about public exposure"
+    continue
+  fi
+  dns_status="$(printf '%s\n' "${dns_packet}" |
+    sed -nE 's/^;; .*status: ([A-Z]+),.*/\1/p' | head -n 1)"
+  case "${dns_status}" in
+    NOERROR|NXDOMAIN) ;;
+    *)
+      printf 'dns_server=%s query=invalid_response\n' "${resolver}"
+      diag_fail "DNS resolver ${resolver} returned an unverified response status"
+      continue ;;
+  esac
+  if printf '%s\n' "${dns_packet}" | grep -Eq '^;; EDE: 3([[:space:]]|$)'; then
+    printf 'dns_server=%s query=stale_answer\n' "${resolver}"
+    diag_fail "DNS resolver ${resolver} served stale data; no current DNS acceptance"
+    continue
+  fi
+  response="$(printf '%s\n' "${dns_packet}" |
+    awk '$4 == "A" {print $5}' | sort -u | paste -sd, -)"
   printf 'dns_server=%s A=%s\n' "${resolver}" "${response:-none}"
   if [[ "${resolver}" == 1.1.1.1 ]]; then
     if [[ -z "${response}" ]]; then
@@ -112,13 +140,7 @@ diag_section '4/4' 'Traefik HTTPS with SNI (no TLS bypass)'
 headers="$(mktemp)"
 trap 'rm -f "$headers"' EXIT
 https_probe="$(curl --noproxy '*' --silent --show-error --output /dev/null --dump-header "${headers}" --write-out '%{http_code}|%{content_type}' --connect-timeout 3 --max-time 10 --resolve "${FQDN}:443:${APP_HOST}" "https://${FQDN}/" 2>/dev/null)" || https_probe="000|"
-IFS='|' read -r code https_content_type <<<"${https_probe}"
-[[ "${code}" =~ ^[0-9]{3}$ ]] || code=000
-case "${https_content_type,,}" in
-  text/html|text/html\;*) https_mime=html ;;
-  '') https_mime=missing ;;
-  *) https_mime=other ;;
-esac
+IFS='|' read -r code https_mime <<<"$(classify_html_probe "${https_probe}")"
 printf 'https_http=%s https_mime=%s\n' "${code}" "${https_mime}"
 case "${code}" in
   000) diag_fail "HTTPS transport or TLS verification failed" ;;
