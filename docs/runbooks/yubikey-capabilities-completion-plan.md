@@ -127,3 +127,6 @@ restauration de sauvegardes. Le JSON reste `status=NO-GO`.
 ## Diagnostic agrégé du poste et des applications
 
 Exécuter `just yubikey-diagnostics-test` puis `just yubikey-diagnostics-secondary-readonly` pour une seule observation sans mutation. Les étapes GPG/scdaemon, escrow, PostgreSQL, PIV82, FIDO2/SSH et PAM conservent `NOT_VERIFIED`. L'OTP2 n'est pas revérifié par défaut. [Runbook](yubikey-readonly-batch.md).
+
+
+La cible `just yubikey-diagnostics-all-secondary` inclut une sonde GPG-agent `GETINFO version` avec `--no-autostart`, sans PIN et sans toucher à scdaemon ni aux clés. Un agent joignable ne suffit pas à valider OpenPGP ou la restauration des sauvegardes PostgreSQL. Elle comprend 95 méthodes de test au total, à exécuter sur la workstation après mise à jour du worktree.
