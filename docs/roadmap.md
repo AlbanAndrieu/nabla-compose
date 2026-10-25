@@ -67,6 +67,14 @@ Actions :
   les catégories kernel, DNSBL, cron, Watchdog et configd sans leur
   attribuer une causalité implicite.
   [Runbook causalité](runbooks/2026-10-25-pfsense-unbound-restart-causality.md).
+- [ ] **H-04 feed-pressure :** exécuter `just pfsense-feed-pressure-check`
+  en lecture seule lors des prochaines anomalies Unbound/Snort/pfBlockerNG.
+  Examiner les erreurs HTTP 403/404/429/5xx, timeouts, retries IPinfo,
+  épuisements mémoire PHP et artefacts DNSBL >=16/64 Mio ou Snort
+  >=64/128 Mio. Les résultats sont des signaux historiques bornés :
+  recouper avec la chronologie des OOM et la version installée avant
+  tout changement de feeds, cron, mémoire ou service.
+  [Runbook](runbooks/2026-10-25-pfsense-unbound-restart-causality.md).
 - [ ] **Workstation DNS :** valider le parseur DHCP et le chemin de la zone privée via
   `just pfsense-wifi-path-test` et `just pfsense-wifi-path` ; isoler le
   propriétaire de la divergence NetworkManager ↔ `systemd-resolved` sans
