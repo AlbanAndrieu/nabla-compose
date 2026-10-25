@@ -17,6 +17,8 @@
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
   contrats statiques hors ligne et limitations de la preuve.
+- **[Reprise ciblée TrueNAS du 25/10](2026-10-25-critical-acceptance-followup.md)** —
+  second relevé PASS=9/FAIL=7, sept contrôles read-only et réparations conditionnelles.
 - **[Relevé TrueNAS du 25/10](2026-10-25-critical-acceptance-evidence.md)** —
   preuve datée PASS=8/FAIL=8, non assimilée à une santé courante.
 - **[Roadmap active](../roadmap.md)** —
