@@ -44,6 +44,26 @@ Après un échec déterministe, ne pas relancer des commandes identiques.
 Ne pas confondre compilation syntaxique, tests ciblés, gate complète et
 preuve sur le matériel réel.
 
+## Mode rapide Node 22 / npm 10 (compatibilité, local-only)
+
+Le dépôt conserve **Node 24** dans `.nvmrc` et `mise.toml`. Si l'agent
+dispose de **Node 22.x et npm 10.x**, exécuter `just node22-fast` depuis
+un worktree isolé. Sans `just`, exécuter
+`npm --offline run test:fast:node22`.
+
+Ce mode utilise uniquement `node:test` et la bibliothèque standard.
+**Ne pas lancer** `npm install`, `npm ci`, `npx`, un workflow GitHub ou
+un téléchargement automatique pour ces contrats. Refuser une version
+différente plutôt que modifier la configuration Node du dépôt.
+Le test ne démarre aucun conteneur et ne touche pas aux secrets.
+
+La preuve du mode Node est **L1 rapide**, pas la quality gate.
+Exécuter ensuite les tests Python/Compose/Shell ciblés et `just quality`
+sur le HEAD exact. S'il n'existe pas de checkout complet accessible,
+ne pas attribuer au HEAD une validation faite sur une fixture partielle.
+Lire le [runbook Node rapide](../../../docs/runbooks/node22-local-fast-tests.md)
+pour les contrôles et limites.
+
 ## Shell parent et isolation uv entre worktrees (P0)
 
 **Ne jamais appliquer set -euo pipefail au shell interactif du client.**
