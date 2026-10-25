@@ -36,12 +36,12 @@ def read_regular(path: Path, parent: Path, cap: int) -> str | None:
 
 def classify(phase: str, state: str, log: str | None) -> dict:
     """Use allowlisted static labels; never quote arbitrary log content."""
-    if state == 'PASS':
-        return {'category': 'passed', 'evidence': {}}
     if state == 'SKIP':
         return {'category': 'not_executed', 'evidence': {}}
     if log is None:
         return {'category': 'log_unavailable', 'evidence': {}}
+    if state == 'PASS':
+        return {'category': 'passed', 'evidence': {}}
     low = log.lower()
     evidence: dict[str, int] = {}
     if phase == 'postmigration-gatus':
@@ -130,10 +130,18 @@ def analyze(session: Path, root: Path = ROOT) -> dict:
     if not checks:
         raise ValueError('empty_summary')
     failed = sum(x['state'] == 'FAIL' for x in checks)
-    uncertain = sum(x['state'] in ('WARN', 'SKIP') for x in checks)
+    uncertain = sum(x['state'] in ('WARN', 'SKIP') or
+                    x['category'] == 'log_unavailable' for x in checks)
+    expected_postmigration = PHASES - {'apisix-runtime'}
+    observed = set(seen)
+    missing_phases = sorted((expected_postmigration - observed)
+                            if observed != {'apisix-runtime'} else set())
+    if missing_phases or (observed - expected_postmigration and
+                          observed != {'apisix-runtime'}):
+        uncertain += 1
     return {'phase_count': len(checks), 'failed': failed,
-            'unverified': uncertain, 'checks': checks,
-            'complete': failed == 0 and uncertain == 0}
+            'unverified': uncertain, 'missing_phases': missing_phases,
+            'checks': checks, 'complete': failed == 0 and uncertain == 0}
 
 
 def main() -> int:
