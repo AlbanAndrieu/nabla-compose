@@ -16,12 +16,27 @@ state="$(docker inspect --type container --format "{{.State.Status}}" openrag-ba
 if ! docker exec openrag-backend sh -c 'test -r "$1" && test -f "$1"' _ "/mnt/bababou/$basename" >/dev/null 2>&1; then
   echo "FAIL: private_pdf_mount_unreadable" >&2; exit 1;
 fi
-echo "PASS: openrag_pdf_mount=readable"
-if curl -fsS --max-time 8 http://172.17.0.24:5001/ready >/dev/null 2>&1 &&
-   docker exec openrag-backend curl -fsS --max-time 8 http://docling:5001/ready >/dev/null 2>&1; then
-  echo "PASS: docling_ready=host_and_docker_network"
+mount_record="$(docker inspect --type container --format '{{range .Mounts}}{{if eq .Destination "/mnt/bababou"}}{{printf "%s|%t" .Source .RW}}{{end}}{{end}}' openrag-backend 2>/dev/null || true)"
+if [[ "$mount_record" != "$root|false" ]]; then
+  echo "UNVERIFIED: private_pdf_bind_read_only_not_attested" >&2
+  exit 2
+fi
+echo "PASS: openrag_pdf_mount=readable_and_read_only"
+if curl -fsS --max-time 8 http://172.17.0.24:5001/ready >/dev/null 2>&1; then
+  echo "PASS: docling_host_ready"
 else
-  echo "UNVERIFIED: docling_not_ready"; echo "NOT_TESTED: pdf_ingestion_and_retrieval"; exit 2;
+  echo "UNVERIFIED: docling_host_not_ready"
+  echo "NEXT: python3 scripts/truenas/diagnose-docling-readiness.py --check"
+  echo "NOT_TESTED: pdf_ingestion_and_retrieval"
+  exit 2
+fi
+if docker exec openrag-backend curl -fsS --max-time 8 http://docling:5001/ready >/dev/null 2>&1; then
+  echo "PASS: docling_openrag_network_ready"
+else
+  echo "UNVERIFIED: docling_openrag_network_not_ready"
+  echo "NEXT: python3 scripts/truenas/diagnose-docling-readiness.py --check"
+  echo "NOT_TESTED: pdf_ingestion_and_retrieval"
+  exit 2
 fi
 if docker exec openrag-backend curl -fsS --max-time 8 http://127.0.0.1:8000/search/health >/dev/null 2>&1; then
   echo "PASS: openrag_search_health=reachable"
