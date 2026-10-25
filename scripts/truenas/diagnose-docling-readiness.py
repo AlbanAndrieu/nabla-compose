@@ -74,14 +74,6 @@ def diagnose() -> dict[str, str]:
         "{{.RestartCount}}", "docling",
     )
     result["restartCount"] = count.strip() if has_restarts and count.strip().isdigit() else "UNVERIFIED"
-    checked, health_exit = command(
-        "docker", "inspect", "--type", "container", "--format",
-        "{{if .State.Health}}{{if .State.Health.Log}}{{(index .State.Health.Log 0).ExitCode}}{{else}}unavailable{{end}}{{else}}unavailable{{end}}",
-        "docling",
-    )
-    result["healthCheckExitCode"] = (health_exit.strip()
-                                     if checked and health_exit.strip() in ("0", "1", "2", "unavailable")
-                                     else "UNVERIFIED")
     result["hostLiveness"] = host_probe("/health")
     result["hostReady"] = host_ready()
     valid, _ = command("docker", "exec", "openrag-backend", "curl", "-fsS",
