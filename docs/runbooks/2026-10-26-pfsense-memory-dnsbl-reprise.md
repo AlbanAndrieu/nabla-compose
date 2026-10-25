@@ -76,7 +76,7 @@ Le rollback PHP-FPM existe : `PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just
 Ces deux fichiers existent sur la **workstation de l'opérateur**
 dans `~/.local/state/nabla/pfsense-unbound/`.
 Le code vérifie leurs permissions et leur structure ;
-leur **comparaison n'a pas encore été fournie**.
+leur **comparaison a été exécutée avec succès** par l'opérateur.
 
 **Important :** les deux snapshots ont été pris à 7 secondes
 d'intervalle et **après** le cron DNSBL de 00:00 / restart
@@ -110,3 +110,44 @@ premier snapshot **avant** un futur cron et le deuxième
 **après**, puis corréler les événements d'exécution
 avec un contrôle DNS depuis le LAN. Ne pas forcer un
 restart Unbound ou un rebuild DNSBL pour créer ce cas.
+
+### Résultat du comparateur — 26 octobre 00:40:15–00:40:22 CET
+
+Comparaison **réellement exécutée** entre les deux fichiers de capture
+ci-dessus, sans nouvelle connexion SSH pendant la comparaison :
+
+| Champ de preuve | Résultat opérateur |
+| --- | --- |
+| Baseline / observation | `2026-10-26T00:40:15+01:00` / `2026-10-26T00:40:22+01:00` |
+| PID Unbound | **2611 → 2611** (`unbound_pid_changed=no`) |
+| Processus lancé dans cette fenêtre | `unbound_start_in_window=unverified` |
+| `unbound_control` final | **REACHABLE** |
+| Marqueurs pfBlockerNG stop/start | `no_or_unverifiable` **pour cet intervalle seulement** |
+| Sortie DNSBL Python | `no_or_unverifiable` **pour cet intervalle seulement** |
+| OOM noyau depuis baseline | `NONE_IN_BOUNDED_VISIBLE_LOGS`, **0 visible**, Unbound 0 |
+| `unbound.conf` SHA-256 | **MATCH** |
+| INI DNSBL legacy SHA-256 | **MATCH** |
+| INI DNSBL Python | **UNKNOWN_MISSING_EVIDENCE** |
+| Synthèse | **`NO_PID_CHANGE_IN_THIS_INTERVAL`** |
+
+**Verdict strict :** le résolveur a conservé son PID et répondait
+au contrôle au terme des **sept secondes 00:40:15–00:40:22**.
+Les empreintes des deux fichiers disponibles concordent.
+Aucun nouvel OOM n'est trouvé par le comparateur dans les
+**journaux bornés** pour ces sept secondes ; il ne peut
+certifier l'exhaustivité de l'historique noyau.
+
+Ce verdict **n'annule pas** le stop/start pfBlockerNG de
+**00:04**, confirmé séparément par le passage du PID **19252**
+au PID **2611**. Les deux captures ont été prises **36 minutes
+après cet événement**. Les marqueurs `no_or_unverifiable`
+signifient uniquement qu'ils ne sont pas corrélables à
+cette **courte fenêtre**.
+
+**Statut H-04 :** capture automatique, comparaison locale et
+contrats (64/64 PASS) validés. L'indisponibilité éventuelle
+du DNS pendant les stop/start DNSBL et la cause exacte
+du chemin de rechargement restent à investiguer.
+
+Ne pas relancer l'optimisation PHP-FPM et ne pas provoquer
+un nouveau cycle pfBlockerNG pour obtenir cette mesure.
