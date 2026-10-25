@@ -1,7 +1,17 @@
 # Reprise Talos, permissions de secrets et PDF OpenRAG — 25 octobre 2026
 
-Etat : scripts publies dans la PR #280 ; AUCUN demarrage VM ou ingestion PDF
-effectue par l'agent. Les operations TrueNAS doivent etre validees localement.
+Nouvelle preuve operateur : **trois VM Talos RUNNING** sur TrueNAS.
+Le premier vm.start control-plane a expire mais le passage suivant
+a confirme RUNNING ; les deux workers sont egalement RUNNING.
+**Talos/etcd/Kubernetes/CSI restent NOT_VERIFIED.** Aucun upgrade lance.
+
+Audit global secret : une correction de mode OpenClaw 0644 vers 0640
+appliquee avec uid/gid inchanges. Les 12 tests de contrat Python/Bash
+sont PASS sur le checkout operateur.
+
+Le PDF prive est valide sur l'hote (849129 octets), lisible par OpenRAG
+mais **Docling NOT_READY**. Conversion, ingestion et retrieval NON TESTES.
+Aucune action runtime TrueNAS ni lecture de PDF effectuee par l'agent.
 
 ## 1. Talos : VM arretees (TrueNAS)
 
@@ -32,6 +42,16 @@ Ne lancer aucun upgrade Talos/Kubernetes pendant que les VM sont STOPPED.
 Le batch versionne (Talos 1.14.4/K8s 1.37.1) vise les TROIS noeuds en
 parallele, y compris le singleton etcd : risque d'indisponibilite
 globale et de perte de donnees sans sauvegarde etcd validee.
+
+### Timeout vm.start
+
+Un `TimeoutExpired` de `midclt call vm.start` ne signifie pas
+forcement que la VM a echoue a demarrer. Le script actuel observe
+`vm.query` apres la commande, meme en cas de timeout. S'il confirme
+RUNNING, il accepte la VM sans deuxieme demande de demarrage.
+Sinon l'etat reste UNVERIFIED : ne pas insister sans verifier le
+middleware TrueNAS. **Ne pas relancer `--start` pour le moment**
+puisque les trois VM sont maintenant RUNNING.
 
 ## 2. Correction groupee des modes des secrets canoniques
 
@@ -73,6 +93,17 @@ Les tests d'ingestion E2E et de retrieval sont NON EXECUTES. Commencer
 par un PDF synthetique et verifier Docling/ready, OpenSearch indexing et
 une recherche OpenRAG qui retourne la valeur attendue. Avec la copie
 personnelle, utiliser ensuite une execution volontairement autorisee.
+
+### Diagnostic Docling dedie (sans ingest)
+
+    sudo python3 scripts/truenas/diagnose-docling-readiness.py --check
+
+Cette commande distingue App TrueNAS, conteneur Docling, readiness
+`172.17.0.24:5001/ready` et readiness depuis
+`openrag-backend -> docling:5001`. Elle ne lit aucun fichier prive.
+Ne pas declencher de redeploiement automatique tant que ce diagnostic
+n'est pas compris. Le test PDF protege maintenant explicitement
+le montage Docker `/mnt/bababou` en lecture seule.
 
 ## 4. Pannes toujours ouvertes
 
