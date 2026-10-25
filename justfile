@@ -774,3 +774,14 @@ openclaw-429-fix-plan:
 openclaw-429-fix-apply:
     python3 scripts/workstation/repair-openclaw-429.py --apply --restart-gateway
 
+
+# Single Workstation entrypoint. Tests + preflight gate the one-shot
+# mutation. Diagnostic is optional evidence, not a reason to block local fix.
+# No remote CI, no budget changes, no embedding reindex.
+openclaw-429-fix-all:
+    just openclaw-429-fix-test
+    just openclaw-429-fix-plan
+    just openclaw-429-fix-apply
+    python3 scripts/workstation/openclaw-route-metadata.py
+    python3 scripts/workstation/diagnose-openclaw-429-auto.py --hours 2 || echo 'WARN: 429 evidence unavailable; runtime fix already processed'
+
