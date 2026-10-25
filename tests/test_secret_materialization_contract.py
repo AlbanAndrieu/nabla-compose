@@ -34,6 +34,21 @@ class SecretMaterializationContractTests(unittest.TestCase):
         self.assertIn("cmp -s", installer)
         self.assertIn("root:root 600", installer)
 
+    def test_verify_never_creates_runtime_directory(self) -> None:
+        """--verify only compares; directory creation belongs to --install."""
+        installer = INSTALLER.read_text(encoding="utf-8")
+        self.assertIn('[[ ! -L "${DEST_DIR}" ]]', installer)
+        self.assertEqual(installer.count('install -d -o root -g root -m 700'), 1)
+        self.assertIn(
+            'if [[ "${MODE}" == "--install" ]]; then\\n'
+            '  install -d -o root -g root -m 700 "${DEST_DIR}"',
+            installer,
+        )
+        self.assertIn(
+            '[[ -f "${DEST}" && ! -L "${DEST}" ]]',
+            installer,
+        )
+
     def test_shared_shell_library_no_longer_renders_vaultwarden_as_root(self) -> None:
         library = SECRETS_LIB.read_text(encoding="utf-8")
         self.assertNotIn("secrets_render_vaultwarden_app", library)

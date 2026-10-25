@@ -217,6 +217,18 @@ Les procédures spécialisées restent dans
   le bundle et Akvorado env passent. Les anciennes catégories de conflit
   étaient heuristiques et nécessitent un contrôle détaillé du rapport privé.
   Pas de `--finalize`, copie ou rotation automatique.
+- **Première vague secrets (26/10) :** contrats Backstage PASS ;
+  `scanopy`, `joplin`, `autokuma` possèdent des matérialisations
+  vides (canonique ou legacy) ; `code` a `PASSWORD` absent malgré
+  deux copies staged ; `openrag` révèle une différence sémantique
+  legacy/canonique. **Bloqué** tant que Vaultwarden et la source
+  réellement chargée ne sont pas vérifiés. Ne pas restage OpenRAG.
+- **Sentry plus récent (26/10) :** `recover-sentry-deploying.sh
+  --check` valide les credentials et `diagnose-sentry:
+  exit=0 ok=14 failed=0`. Le FAIL Sentry préflight de l'ancien
+  rapport n'est plus courant. E2E ingestion NOT_VERIFIED.
+- **DefectDojo poste de travail :** `curl --location` renvoie
+  `http=200 redirects=1 tls=0`. Page privée accessible, login non testé.
 - **Postmigration :** catalogue dérivé, readiness, Gatus et Prometheus en
   échec. **Critical :** 11 PASS / 5 FAIL (Prometheus, migration env
   OpenRAG, Sentry preflight, Akvorado blocage/insertions).

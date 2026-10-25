@@ -18,6 +18,73 @@
 `1 staged legacy path(s) remain intact` et **finalize pending**.
 Le script n'a pas automatiquement finalisé ce chemin.
 
+## État précis de la première vague — réception opérateur du 26 octobre
+
+Les quatre contrats Backstage P0.3 sont valides ; la migration **runtime**
+reste incomplète. Le relevé `--check` montre :
+
+| App | Preuve | Décision |
+| --- | --- | --- |
+| `scanopy` | Le fichier canonique `runtime/scanopy/.env.secrets` est vide | Retrouver les clés `POSTGRES_PASSWORD` et `SCANOPY_DATABASE_URL` auprès de leur source d'autorité. Ne pas générer une nouvelle chaîne de connexion à l'aveugle. |
+| `joplin` | Le fichier source `/mnt/cpool/joplin/.env.secrets` est vide | Récupérer le `POSTGRES_PASSWORD` existant depuis Vaultwarden/la configuration validée. |
+| `autokuma` | Le fichier source `/mnt/cpool/autokuma/.env.secrets` est vide | Importer la clé `AUTOKUMA__KUMA__AUTH_TOKEN` provenant de la même instance Uptime Kuma. |
+| `code` | Canonique non vide et staged, mais `PASSWORD` manquant ; deux liens legacy non finalisés | Le manifeste mappe `CODE_PASSWORD` vers `PASSWORD`. Vérifier la source de cette ancienne valeur et sa matérialisation par Vaultwarden. Ne pas effacer le fichier canonique actuel sans comparer les sources. |
+| `openrag` | Différence sémantique entre `/mnt/cpool/openrag/.env.secrets` et `/mnt/cpool/secrets/runtime/openrag/.env.secrets` | **Bloquer le restage** tant que l'on ne sait pas quelle source est réellement chargée. Les secrets fonctionnels (en particulier `OPENRAG_ENCRYPTION_KEY`) doivent être conservés. |
+
+Le manifeste versionné associe les clés historiques
+`SCANOPY_POSTGRES_PASSWORD`, `JOPLIN_POSTGRES_PASSWORD`,
+`AUTOKUMA_KUMA_AUTH_TOKEN` et `CODE_PASSWORD` à leurs noms
+d'environnement runtime ; ne pas copier un nom de clé legacy tel quel
+dans le fichier cible sans appliquer cette transformation.
+
+**Étape 1 — vérifier l'inventaire sans voir les valeurs**, depuis TrueNAS :
+
+```bash
+for app in scanopy joplin autokuma code openrag; do
+  sudo bash scripts/truenas/inventory-runtime-env-files.sh "$app"
+done
+```
+
+**Étape 2 — comparer OpenRAG** sur l'hôte autorisé. Le comparateur
+n'affiche aucune valeur : uniquement les noms des variables et le nombre
+de différences. Les noms de variables ne sont pas des credentials, mais
+ils peuvent renseigner sur l'architecture ; conserver la sortie en privé.
+
+```bash
+sudo python3 scripts/secrets/compare_dotenv_sources.py \
+  --app openrag \
+  --left /mnt/cpool/openrag/.env.secrets \
+  --right /mnt/cpool/secrets/runtime/openrag/.env.secrets
+```
+
+**Étape 3 — matérialiser depuis Vaultwarden**, uniquement quand l'élément
+existant et la provenance ont été contrôlés. Lancer comme utilisateur
+normal disposant d'une session `bw` déverrouillée, pas avec `sudo` :
+
+```bash
+python3 scripts/secrets/materialize_runtime.py --app scanopy --verify
+```
+
+`--verify` est une **comparaison non mutante**. S'il échoue parce que
+la cible est vide ou absente, cela ne justifie pas une rotation.
+`--install` remplace le fichier canonique : exécuter une seule
+application après sauvegarde privée, contrôle du rendu Vaultwarden et
+accord explicite. **Ne pas automatiser les quatre installations dans
+une boucle.** Le chargeur ne garantit pas un reload automatique du
+conteneur : l'acceptation runtime est distincte.
+
+**Étape 4 — Sentry accepté au niveau diagnostic** : le dernier
+`recover-sentry-deploying.sh --check` confirme les credentials
+système, Relay, ClickHouse runtime et migrator, puis
+`diagnose-sentry: exit=0 ok=14 failed=0 warnings=0`.
+Le `FAIL` de la session historique est obsolète. Le smoke
+`scripts/truenas/smoke-sentry-event.sh` reste le gate d'ingestion E2E.
+
+**Étape 5 — DefectDojo** : la workstation confirme
+`http=200 redirects=1 tls=0` avec `curl --location`. Le transport
+HTTPS privé et le chargement de la page sont acceptés ; la connexion
+authentifiée n'est pas testée.
+
 ## Procédure d'inspection sans afficher les secrets
 
 Sur TrueNAS, exécuter les étapes séparément depuis la révision revue :
