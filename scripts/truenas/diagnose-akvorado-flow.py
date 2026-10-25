@@ -222,6 +222,16 @@ def main() -> int:
                 initial_outlet, fetch(ENDPOINTS["outlet"])
             )
             print(f"[outlet] observed_status={observed_status}")
+            if observed_status in {
+                "BLOCKED_METADATA_MISSING",
+                "METADATA_REJECTIONS_INSERTS_UNVERIFIED",
+                "PARTIAL_METADATA_REJECTIONS",
+            }:
+                print("[outlet] evidence=active_metadata_rejections")
+                print("[outlet] next_check=diagnose-akvorado-config.sh --check")
+                print("[outlet] note=host_config_checksum_does_not_prove_runtime_reload")
+            elif observed_status == "NEW_INSERT_BATCHES_ROWS_UNVERIFIED":
+                print("[outlet] evidence=new_batches_but_clickhouse_rows_unverified")
             if observed_status == "NO_NEW_FLOW_EVIDENCE":
                 print("[outlet] evidence=no_new_packets_or_inserts_in_observation_window")
             for key, value in sorted(delta.items()):
