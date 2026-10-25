@@ -83,6 +83,15 @@ catalog-convergence-check:
 yubikey-otp2-secondary-readonly:
     python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary
 
+# One command: all hermetic YubiKey contract groups, then one public snapshot
+# on the secondary only. Never re-runs OTP2/F9/PIV82 hardware reads.
+yubikey-diagnostics-all-secondary:
+    just yubikey-recovery-test
+    just yubikey-applications-test
+    just yubikey-workstation-test
+    just yubikey-diagnostics-test
+    just yubikey-diagnostics-secondary-readonly
+
 # One-shot read-only snapshot. Never asks PIN, challenge, writes or decrypts.
 yubikey-diagnostics-test:
     python3 -m py_compile scripts/workstation/diagnose-yubikey-readonly-batch.py tests/test_yubikey_readonly_batch.py
