@@ -36,8 +36,8 @@ def safe_hardware():
 
 class ParallelYubiKeyContracts(unittest.TestCase):
     def test_fixed_jobs_are_only_synthetic_test_recipes(self):
-        self.assertEqual(len(module.TEST_JOBS), 5)
-        self.assertEqual(len(module.HOST_JOBS), 2)
+        self.assertEqual(len(module.TEST_JOBS), 6)
+        self.assertEqual(len(module.HOST_JOBS), 3)
         for command in module.TEST_JOBS.values():
             self.assertEqual(command[0], "just")
             self.assertTrue(command[1].startswith("yubikey-"))
@@ -49,14 +49,35 @@ class ParallelYubiKeyContracts(unittest.TestCase):
         ))
 
     def test_jobs_are_actually_concurrent(self):
-        barrier = threading.Barrier(5)
+        barrier = threading.Barrier(6)
         def mocked(name, cmd, **kwargs):
             barrier.wait(timeout=3)
             return {"job": name, "state": "PASS"}
         with patch.object(module, "run_job", side_effect=mocked) as mock:
             result = module.parallel(module.TEST_JOBS)
         self.assertEqual(set(result.values()), {"PASS"})
-        self.assertEqual(mock.call_count, 5)
+        self.assertEqual(mock.call_count, 6)
+
+    def test_all_expected_jobs_are_required_before_hardware(self):
+        with patch.object(module, "parallel", return_value={
+            "recovery": "PASS", "applications": "PASS",
+            "workstation": "PASS", "coordinator": "PASS",
+            "gpg_agent": "PASS",
+        }), patch.object(module, "run_job") as hardware:
+            result, code = module.execute(True)
+        self.assertEqual(code, 3)
+        self.assertEqual(result["hardware"], "NOT_CHECKED")
+        hardware.assert_not_called()
+
+    def test_missing_new_dependency_host_probe_blocks_hardware(self):
+        with patch.object(module, "parallel", side_effect=[
+            dict.fromkeys(module.TEST_JOBS, "PASS"),
+            {"workstation": "PASS", "gpg_agent": "PASS"},
+        ]), patch.object(module, "run_job") as hardware:
+            result, code = module.execute(True)
+        self.assertEqual(code, 3)
+        self.assertEqual(result["hardware"], "NOT_CHECKED")
+        hardware.assert_not_called()
 
     def test_failing_contract_blocks_host_and_hardware(self):
         with patch.object(module, "parallel", return_value={
