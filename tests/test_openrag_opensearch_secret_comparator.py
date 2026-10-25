@@ -68,6 +68,22 @@ def test_equality_is_read_only_and_no_secret_leak(
         assert "differs" in out
 
 
+def test_unsafe_candidate_reports_class_but_not_secret(tmp_path: Path) -> None:
+    marker = "never-echo-this-credential"
+    # The check runs on a synthetic copy without a TrueNAS root requirement.
+    # The candidate class is fixed: never print paths or dotenv values.
+    result = _test_with_synthetic_root(tmp_path, marker, marker)
+    assert result.returncode == 0
+    source = SCRIPT.read_text(encoding="utf-8")
+    for category in (
+        "canonical_env", "canonical_secret", "legacy_env",
+        "operator_selected",
+    ):
+        assert category in source
+    assert "source=${candidate_class}" in source
+    assert marker not in result.stdout + result.stderr
+
+
 def test_legacy_apply_cannot_mutate_existing_file(tmp_path: Path) -> None:
     result = _test_with_synthetic_root(
         tmp_path, "do-not-replace", "other-secret", apply=True
