@@ -38,7 +38,7 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
 
   bash scripts/truenas/finish-migrations-20261024.sh --next-commands
   bash scripts/truenas/finish-migrations-20261024.sh --local-gates
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|apisix|postmigration|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -133,7 +133,7 @@ fi
 
 diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
-case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
+case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|apisix|postmigration|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
   case "${WAVE}" in core|gatus|deferred) ;; *) echo 'Invalid wave' >&2; exit 2 ;; esac
 fi
