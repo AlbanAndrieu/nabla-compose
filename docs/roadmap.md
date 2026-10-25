@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
-| H-04 | pfSense / Unbound | OOM noyau Unbound **confirmés** ; pfBlockerNG `3.2.17_1` journalise un stop/start les 22–24 oct. vers 00:04 ; Service Watchdog **NOT_LISTED** ; 39/39 tests locaux PASS opérateur | Comprendre le fallback DNSBL stop/start ; corréler les RSS Snort/PHP/CrowdSec vers 02:09–02:10 ; dater les erreurs IPinfo/ASN avant tout changement |
+| H-04 | pfSense / Unbound | OOM noyau Unbound **confirmés** ; pfBlockerNG `3.2.17_1` journalise un stop/start les 22–24 oct. vers 00:04 ; Service Watchdog **NOT_LISTED** ; 39/39 tests initiaux PASS, échantillonneur simulé 5/5 PASS | **Nouvelles preuves attendues** : comparer les empreintes Unbound/INI à 23:55 et 00:10 ; collecter 13 RSS/mémoire de 02:08:30 à 02:11:30 ; corréler aux événements de téléchargements et OOM sans changer les services |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
