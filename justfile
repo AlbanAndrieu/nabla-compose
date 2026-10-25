@@ -116,6 +116,19 @@ yubikey-dependencies-test:
 yubikey-dependencies-readonly:
     python3 scripts/workstation/inspect-yubikey-dependencies-readonly.py
 
+# Synthetic PostgreSQL-only recovery: tests and a non-mutating local image check.
+# Requires NABLA_POSTGRES_FIXTURE_IMAGE_SHA256 to reference a cached local image.
+yubikey-postgres-fixture-test:
+    bash -n scripts/workstation/verify-postgres-fixture-recovery.sh
+    python3 -m unittest discover -s tests -p 'test_yubikey_postgres_fixture_recovery.py' -v
+
+yubikey-postgres-fixture-check:
+    bash scripts/workstation/verify-postgres-fixture-recovery.sh --check
+
+# Opt-in: ephemeral container, no network, no ports, no production backup.
+yubikey-postgres-fixture-run:
+    bash scripts/workstation/verify-postgres-fixture-recovery.sh --run --acknowledge SYNTHETIC_ONLY
+
 yubikey-parallel-host-readonly:
     python3 scripts/workstation/run-yubikey-parallel-readonly.py
 
