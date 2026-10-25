@@ -366,7 +366,7 @@ Pour détailler, remplacer `compact` par `verbose` ; l'expurgation
 reste effective. Si le classifieur échoue, la commande doit échouer.
 
 **Qualité :** les 30 tests de l'ancienne version passent selon
-l'opérateur. Les 18 tests Unbound et 18 tests console de la version
+l'opérateur. Les 19 tests Unbound et 18 tests console de la version
 en cours restent à revalider sur le SHA exact.
 
 ### Commande opérateur ciblée sur les downloads et fichiers volumineux
@@ -382,3 +382,14 @@ Vérifier les catégories `feed_download_signal`, les champs
 puis `feed_artifact_summary` et `feed_artifact_scope`.
 Une erreur du classifieur rend désormais le rapport **incomplet** et
 le script sort avec un code d'échec, plutôt que de déclarer zéro OOM.
+### Régression de bout en bout du shell distant
+
+Le local-first gate dispose aussi d'un test qui extrait la **boucle
+POSIX sh réelle** du heredoc distant et l'exécute sur une fixture
+historique isolée. Contrairement au test AWK seul, celui-ci détecte
+les apostrophes accidentelles qui cassent l'imbrication shell/AWK.
+Le test injecte ensuite une erreur de syntaxe AWK et exige une
+sortie non nulle avec `ERROR: lifecycle_classifier_failed`.
+
+Suite de référence : **19 contrats Unbound + 18 contrats console =
+37 tests** (nouveau HEAD non validé par l'opérateur à ce stade).
