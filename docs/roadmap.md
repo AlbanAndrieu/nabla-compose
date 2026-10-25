@@ -23,6 +23,42 @@ L'ordre de traitement est **P0 OpenRAG → Sentry → DefectDojo**,
 puis **P1 Prometheus → Akvorado**. La sécurité mémoire de pfSense reste
 un chantier P0 indépendant. Ne pas démarrer plusieurs remédiations à la fois.
 
+## Dernière preuve opérateur — 25 octobre 2026
+
+Le contrôle read-only `finish-migrations-20261024.sh --check --section critical`
+a retourné **PASS=8 FAIL=8 WARN=0 SKIP=0**. Les informations ci-dessous
+sont une **preuve datée**, pas une sonde permanente :
+
+- **Prometheus :** `prometheus-targets` et `prometheus-config-access`
+  échouent ; `prometheus-rules-access` réussit. Ne pas réappliquer
+  d'ancienne réparation POSIX sans consulter le rapport privé.
+- **OpenRAG :** `openrag-startup`, `ai-runtime-recovery`,
+  `openrag-opensearch-legacy-secret`, `openrag-backstage-bundle`
+  échouent. Les dépendances et le préflight `openrag-env-migration`
+  réussissent. Aucun restart ni changement de mot de passe implicite.
+- **Sentry :** consommateurs et préflight de récupération réussissent.
+  Cela ne remplace pas un événement E2E frais.
+- **Akvorado :** configuration réussie ; `akvorado-blocked` et
+  `akvorado-fresh-inserts` échouent. Les compteurs historiques ne
+  valent pas une nouvelle insertion ClickHouse.
+- **DefectDojo :** préflight et accès privé réussissent ; ne pas
+  ouvrir davantage le service.
+
+**Séquence de diagnostic recommandée :** Prometheus → OpenRAG → Akvorado,
+sans intervention globale sur Sentry ou DefectDojo.
+Rapport privé sur TrueNAS : `/mnt/cpool/var/nabla/migration-20261024/session-uPAiEbSW`.
+Ne pas copier les secrets ou les logs bruts dans Git.
+
+**Gatus (catalogue/observabilité) :** 85 sondes déclarées dans le
+dernier relevé de la PR #277, pas 85 services fonctionnellement attestés.
+Les nouveaux scripts `diagnose-gatus-monitors.py --check` et
+`diagnose-service-bundle.py --plan|--check` séparent `down`,
+`unverified`, observation périmée, disponibilité réseau et intention
+de déploiement. Refaire la comparaison sur l'API Gatus LAN avant
+d'affirmer une couverture.
+[Entrée diagnostique](runbooks/2026-10-25-homelab-operator-diagnostics.md) ·
+[Observabilité spécialisée](runbooks/2026-10-25-observability-triage.md).
+
 ## P0 — Terminer la stabilisation réelle
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |

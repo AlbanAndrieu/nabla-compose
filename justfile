@@ -413,3 +413,23 @@ sample-dns-workstation:
 # Offline mock-contracts, no real DNS or Docker requests.
 sample-dns-test:
     python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v
+
+# Read-only service diagnostics; NO quality gate, CI, restart or deployment.
+homelab-diagnostics-plan:
+    python3 scripts/truenas/diagnose-service-bundle.py --plan --section all
+
+homelab-diagnostics-observability:
+    sudo -n python3 scripts/truenas/diagnose-service-bundle.py --check --section observability
+
+homelab-diagnostics-applications:
+    sudo -n python3 scripts/truenas/diagnose-service-bundle.py --check --section applications
+
+homelab-diagnostics-contracts:
+    python3 -m pytest -q tests/test_service_diagnostic_bundle.py
+
+# Gatus latest probe results (read-only): statuses, staleness, catalogue parity.
+gatus-monitor-failures:
+    python3 scripts/truenas/diagnose-gatus-monitors.py --check
+
+gatus-monitor-contracts:
+    python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py

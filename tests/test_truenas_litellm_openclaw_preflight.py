@@ -103,7 +103,9 @@ class TrueNASInventoryTests(unittest.TestCase):
         self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
 
     def test_prompt_admin_requires_terminal_and_never_reads_secret(self):
+        # A verified tunnel is a prerequisite: isolate the non-TTY condition.
         with patch.object(module.sys.stdin, "isatty", return_value=False), \
+             patch.object(module, "loopback_listener", return_value=True), \
              patch.object(module, "getpass") as prompted, \
              patch.object(module, "inspect") as inspected:
             with contextlib.redirect_stdout(io.StringIO()) as output:
