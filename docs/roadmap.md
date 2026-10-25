@@ -23,6 +23,27 @@ L'ordre de traitement est **P0 OpenRAG → Sentry → DefectDojo**,
 puis **P1 Prometheus → Akvorado**. La sécurité mémoire de pfSense reste
 un chantier P0 indépendant. Ne pas démarrer plusieurs remédiations à la fois.
 
+## P1 — APISIX gateway POC (ADR-0001 accepté)
+
+**Compose owner** : [ADR](adr/0001-apisix-api-gateway-poc.md),
+[modèle ADR/RACI/C4](architecture-governance.md) et
+[runbook](../apps/apisix/README.md).
+
+- [x] Choisir APISIX standalone 3.19.0 et conserver Traefik en production.
+- [x] Livrer `apps/apisix/` (réseau Docker `internal: true`, ports non
+  publiés, mock, route `GET /poc/health` protégée par `key-auth`).
+- [x] Fournir les recettes `just apisix-poc-contract/up/smoke/down`,
+  sans exécution implicite depuis les contrôles qualité.
+- [ ] **Runtime NOT_VERIFIED** : démarrer le POC depuis une workstation Docker ;
+  vérifier 401/200/404, refus de méthode et rollback.
+- [ ] Épingler l'image par digest vérifié avant exposition durable.
+- [ ] Connecter ensuite un endpoint FastAPI staging avec politique
+  d'authentification intacte, traceparent et mesures Prometheus.
+- [x] Confier les vues C4 interactives à Site Alban, ADR/RACI à Compose ;
+  conserver la topologie Backstage comme unique source déclarative.
+
+Aucun changement de Traefik, de DNS ou de la production.
+
 ## P0 — Terminer la stabilisation réelle
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |

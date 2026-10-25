@@ -405,3 +405,16 @@ sample-dns-workstation:
 # Offline mock-contracts, no real DNS or Docker requests.
 sample-dns-test:
     python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v
+
+# Isolated APISIX gateway POC: explicit opt-in only, no paid CI.
+apisix-poc-contract:
+    python3 -m unittest discover -s tests -p 'test_apisix_poc_contract.py' -v
+
+apisix-poc-up:
+    bash scripts/truenas/apisix-poc.sh up
+
+apisix-poc-smoke:
+    bash scripts/truenas/apisix-poc.sh smoke
+
+apisix-poc-down:
+    bash scripts/truenas/apisix-poc.sh down
