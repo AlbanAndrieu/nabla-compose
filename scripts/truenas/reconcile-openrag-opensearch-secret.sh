@@ -22,7 +22,7 @@ require_commands awk stat grep
 legacy="/mnt/cpool/compose/nabla-compose/apps/opensearch/.env"
 canonical="/mnt/cpool/secrets/runtime/opensearch/.env"
 canonical_secret="/mnt/cpool/secrets/runtime/opensearch/.env.secrets"
-openrag="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
+openrag="${OPENRAG_SECRET_FILE:-/mnt/cpool/secrets/runtime/openrag/.env.secrets}"
 
 # Override exists for a privately reviewed staged source; no automatic rewrite.
 if [[ -n "${OPENSEARCH_ENV_FILE:-}" ]]; then
