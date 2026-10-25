@@ -11,7 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/pfsense/reconcile-php-fpm.sh"
 
 
-def invoke(*args: str, confirm: str = "", target: str = "home.albandrieu.com"):
+def invoke(
+    *args: str,
+    confirm: str = "",
+    target: str = "home.albandrieu.com",
+    native_warn: bool = False,
+):
     with tempfile.TemporaryDirectory(prefix="nabla-fpm-workstation-") as root:
         root_path = Path(root)
         log = root_path / "ssh.log"
@@ -20,6 +25,12 @@ def invoke(*args: str, confirm: str = "", target: str = "home.albandrieu.com"):
             "#!/bin/sh\n"
             'printf "%s\\n" "$*" >> "$MOCK_SSH_LOG"\n'
             "cat >/dev/null\n"
+            "case \"$*\" in\n"
+            "  *--apply*)\n"
+            "    if [ \"$MOCK_NATIVE_WARN\" = 1 ]; then\n"
+            "      echo '[: NaN: bad number' >&2\n"
+            "    fi;;\n"
+            "esac\n"
             "exit 0\n",
             encoding="utf-8",
         )
@@ -28,6 +39,7 @@ def invoke(*args: str, confirm: str = "", target: str = "home.albandrieu.com"):
             **os.environ,
             "PATH": str(root_path) + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
             "MOCK_SSH_LOG": str(log),
+            "MOCK_NATIVE_WARN": "1" if native_warn else "0",
             "PFSENSE_PHP_FPM_CHANGE_CONFIRM": confirm,
             "PFSENSE_SSH_TARGET": target,
         }
@@ -88,6 +100,19 @@ class PfSensePhpFpmReconcileContract(unittest.TestCase):
         self.assertIn("ERROR: post_workers_exceed_four_or_missing", code)
         self.assertIn("verified_php_fpm_max_children=4", code)
         self.assertIn("crowdsec_firewall_bouncer=NOT_OBSERVED", code)
+
+    def test_native_nan_diagnostic_is_visible_but_not_false_failure(self):
+        result, calls = invoke(
+            "--apply", confirm="APPLY_4_WORKERS", native_warn=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(calls), 6)
+        self.assertIn("[: NaN: bad number", result.stdout)
+        self.assertIn(
+            "WARN: pfSense_native_restart_numeric_warning=OBSERVED_SOURCE_UNCONFIRMED",
+            result.stdout,
+        )
+        self.assertIn("result=CHANGE_COMPLETED_WITH_DNS_SMOKE", result.stdout)
 
     def test_restore_requires_own_ack_and_has_no_post_four_worker_gate(self):
         result, calls = invoke("--restore", confirm="RESTORE_BACKUP")
