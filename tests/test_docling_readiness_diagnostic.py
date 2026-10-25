@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import importlib.util
+import unittest
 from pathlib import Path
 from unittest.mock import patch
-import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PATH = ROOT / "scripts/truenas/diagnose-docling-readiness.py"
