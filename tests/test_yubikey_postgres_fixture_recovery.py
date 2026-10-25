@@ -9,14 +9,14 @@ SOURCE = Path(__file__).resolve().parents[1] / 'scripts/workstation/verify-postg
 FAKE_SHA = 'sha256:' + 'a' * 64
 
 class Contracts(unittest.TestCase):
-    def call(self, *args, image=FAKE_SHA):
+    def call(self, *args, image=FAKE_SHA, endpoint="unix:///var/run/docker.sock", docker_host=""):
         with tempfile.TemporaryDirectory() as temp:
             docker = Path(temp, 'docker')
-            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TRACE"\nif [ "$1" = image ] && [ "$2" = inspect ]; then printf "%s\\n" "$IMAGE_SHA"; fi\n')
+            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TRACE"\nif [ "$1" = context ]; then printf "%s\\n" "$LOCAL_ENDPOINT"; fi\nif [ "$1" = image ] && [ "$2" = inspect ]; then printf "%s\\n" "$IMAGE_SHA"; fi\n')
             docker.chmod(0o700)
             trace = Path(temp, 'trace')
             env = {**os.environ, 'PATH': f'{temp}:' + os.environ['PATH'],
-                   'TRACE': str(trace), 'IMAGE_SHA': FAKE_SHA,
+                   'TRACE': str(trace), 'IMAGE_SHA': FAKE_SHA, 'LOCAL_ENDPOINT': endpoint, 'DOCKER_HOST': docker_host,
                    'NABLA_POSTGRES_FIXTURE_IMAGE_SHA256': image}
             proc = subprocess.run(['bash', str(SOURCE), *args], env=env,
                                   capture_output=True, text=True, timeout=6)
@@ -35,6 +35,14 @@ class Contracts(unittest.TestCase):
         for value in ('postgres:18', '', 'sha256:invalid', 'sha256:' + 'b'*64):
             proc, called = self.call('--check', image=value)
             self.assertNotEqual(proc.returncode, 0)
+            self.assertNotIn(' run ', called)
+
+    def test_remote_docker_endpoints_are_rejected_before_image_access(self):
+        for opts in ({'endpoint': 'ssh://truenas'}, {'endpoint': 'tcp://172.17.0.24:2375'},
+                     {'docker_host': 'ssh://truenas'}):
+            proc, called = self.call('--check', **opts)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertNotIn('image inspect', called)
             self.assertNotIn(' run ', called)
 
     def test_run_requires_exact_acknowledgment(self):
