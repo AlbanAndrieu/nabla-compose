@@ -8,7 +8,6 @@ and never changes memory embeddings, budgets, or other agent profiles.
 import argparse
 import copy
 import hmac
-import re
 import json
 import os
 from pathlib import Path
@@ -248,7 +247,10 @@ def gateway_snapshot_hash():
             except (OSError, ValueError):
                 return None
         value = data.get("hash")
-        if isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value):
+        # An opaque hash has no fixed SHA-256 length or encoding contract.
+        # Accept a bounded, printable ASCII token without normalizing it.
+        if (isinstance(value, str) and 8 <= len(value) <= 256
+                and value.isascii() and all(33 <= ord(ch) <= 126 for ch in value)):
             return value
     return None
 
