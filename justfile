@@ -101,6 +101,20 @@ yubikey-diagnostics-all-secondary:
     just yubikey-gpg-agent-test
     python3 scripts/workstation/diagnose-yubikey-readonly-batch.py --hardware --serial 22916048 --gpg-agent-probe
 
+# Concurrent software readiness: five hermetic suites + host and GPG probes.
+# NO-GO even when all gates PASS; never mutates keys, PAM, SOPS or GPG.
+yubikey-parallel-test:
+    python3 -m py_compile scripts/workstation/run-yubikey-parallel-readonly.py tests/test_yubikey_parallel_readonly.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_parallel_readonly.py' -v
+
+yubikey-parallel-host-readonly:
+    python3 scripts/workstation/run-yubikey-parallel-readonly.py
+
+# Public inventory only; a single secondary must be attached. Device access
+# follows the parallel host gates and NEVER runs concurrently with another probe.
+yubikey-parallel-secondary-readonly:
+    python3 scripts/workstation/run-yubikey-parallel-readonly.py --secondary
+
 # One-shot read-only snapshot. Never asks PIN, challenge, writes or decrypts.
 yubikey-diagnostics-test:
     python3 -m py_compile scripts/workstation/diagnose-yubikey-readonly-batch.py tests/test_yubikey_readonly_batch.py
