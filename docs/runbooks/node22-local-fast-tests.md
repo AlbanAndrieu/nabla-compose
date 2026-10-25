@@ -9,8 +9,11 @@ ni `node_modules`, ni le système TrueNAS.
 
 Sur une workstation disposant de **Node 22.x et npm 10.x** :
 
-1. Vérifier les versions avec `node --version` et `npm --version`.
-2. Exécuter une seule commande dans un worktree isolé :
+1. Verifier l'installation existante via `mise where node@22`.
+   Si la version manque, la recette s'arrete sans installer
+   automatiquement Node.
+2. Lancer la commande : `just` selectionne **Node 22**
+   avec `mise exec node@22` meme si la version canonique est Node 24 :
 
 ```bash
 just node22-fast
@@ -19,7 +22,7 @@ just node22-fast
 Si `just` est absent, utiliser directement :
 
 ```bash
-npm --offline run test:fast:node22
+mise exec node@22 -- npm --offline run test:fast:node22
 ```
 
 Les tests sont implémentés avec `node:test` et `node:assert/strict`,
@@ -72,3 +75,13 @@ La suite rapide vérifie aussi la syntaxe de
 `scripts/truenas/triage-critical-failures.sh`. Le test complet de la
 PR actuelle, incluant la révision des diagnostics OpenRAG, reste
 **NOT_RUN**. Exécuter `just node22-fast` sur le HEAD exact avant fusion.
+
+## Releve utilisateur du 25 octobre 2026
+
+`just migration-recovery-contracts` : **12 tests PASS**.
+`just node22-fast` : **5 PASS / 1 FAIL**, le test de version a
+identifie `24 !== 22`. Les cinq autres contrats sont passes.
+La recette a ete corrigee pour selectionner la version Node 22
+explicitement. **Retester sur le HEAD actuel** ; cette modification
+n'est pas encore validee par une nouvelle execution.
+`just quality` reste NON EXECUTE.
