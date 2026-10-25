@@ -78,7 +78,8 @@ class UpgradeContracts(unittest.TestCase):
         proc.assert_not_called()
 
     def test_partial_stage_reports_marker_without_reinstall(self):
-        package = self.new / "lib/node_modules/openclaw"
+        # Both standard and isolated prefixes are incomplete: fail closed.
+        package = mod.isolated_stage_root() / "lib/node_modules/openclaw"
         package.mkdir(parents=True)
         (package / "package.json").write_text(json.dumps({
             "name": "openclaw", "version": "2026.10.7",
@@ -92,10 +93,56 @@ class UpgradeContracts(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             code = mod.stage()
         self.assertEqual(code, 2)
+        self.assertIn("stage_prefix=isolated_prefix", output.getvalue())
         self.assertIn("package_manifest=target", output.getvalue())
         self.assertIn("lifecycle_marker=present", output.getvalue())
         self.assertIn("npm_reinstallation_attempted=false", output.getvalue())
         process.assert_not_called()
+
+    def test_incomplete_node_package_uses_isolated_prefix_without_touching_original(self):
+        node_package = self.new / "lib/node_modules/openclaw"
+        node_package.mkdir(parents=True)
+        (node_package / "package.json").write_text("bad json")
+        isolation = mod.isolated_stage_root()
+        self.assertEqual(mod.selected_stage_root(), isolation)
+        self.assertEqual((node_package / "package.json").read_text(), "bad json")
+        self.assertEqual(mod.stage_kind(isolation), "isolated_prefix")
+        self.assertEqual(mod.stage_kind(self.new), "node_prefix")
+
+    def test_isolated_stage_validates_using_pinned_node_not_isolated_node(self):
+        isolation = mod.isolated_stage_root()
+        package = isolation / "lib/node_modules/openclaw"
+        package.mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps({
+            "name": "openclaw", "version": "2026.10.7",
+            "bin": {"openclaw": "openclaw.mjs"},
+        }))
+        (package / "openclaw.mjs").write_text("// fixture")
+        with patch.object(mod, "run",
+                          return_value=(0, b"OpenClaw 2026.10.7", b"")) as proc:
+            self.assertTrue(mod.stage_valid(isolation))
+        command = proc.call_args.args[0]
+        self.assertEqual(command[0], str(self.new / "bin/node"))
+        self.assertEqual(command[1], str(package / "openclaw.mjs"))
+
+    def test_unit_exec_recognizes_pinned_node_plus_isolated_package(self):
+        isolation = mod.isolated_stage_root()
+        node = str(self.new / "bin/node")
+        entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
+        output = ("{ path=" + node + " ; argv[]=" + node +
+                  " --max-old-space-size=16053 " + entry +
+                  " gateway --port 18789 ; ignore_errors=no }").encode()
+        with patch.object(mod, "run", return_value=(0, output, b"")):
+            self.assertEqual(mod.unit_exec(), isolation)
+
+    def test_unit_exec_refuses_isolated_package_with_legacy_node(self):
+        isolation = mod.isolated_stage_root()
+        entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
+        output = ("{ path=/usr/bin/node ; argv[]=/usr/bin/node "
+                  "--max-old-space-size=16053 " + entry +
+                  " gateway --port 18789 ; ignore_errors=no }").encode()
+        with patch.object(mod, "run", return_value=(0, output, b"")):
+            self.assertIsNone(mod.unit_exec())
 
     def test_stage_recovers_from_npm_nonzero_if_full_package_valid(self):
         calls = []
@@ -107,7 +154,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.old), \
              patch.object(mod, "node_ready", return_value=True), \
              patch.object(mod, "service_active", return_value=True), \
-             patch.object(mod, "stage_valid", side_effect=[False, True]), \
+             patch.object(mod, "stage_valid", side_effect=[False, False, False, True]), \
              patch.object(mod, "package_version", return_value=None), \
              patch.object(mod, "run", side_effect=run_mock), \
              contextlib.redirect_stdout(io.StringIO()) as output:
@@ -196,7 +243,7 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "unit_exec", return_value=self.old), \
              patch.object(mod, "node_ready", return_value=True), \
              patch.object(mod, "service_active", return_value=True), \
-             patch.object(mod, "stage_valid", side_effect=[False, True]), \
+             patch.object(mod, "stage_valid", side_effect=[False, False, False, True]), \
              patch.object(mod, "package_version", side_effect=pack), \
              patch.object(mod, "run", side_effect=capture), \
              contextlib.redirect_stdout(io.StringIO()) as output:
