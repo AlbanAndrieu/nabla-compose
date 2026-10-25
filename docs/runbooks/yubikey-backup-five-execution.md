@@ -78,6 +78,24 @@ scdaemon et accéder au lecteur. Ne lancer `--check` que pendant
 une séance matérielle supervisée, après validation des sauvegardes.
 Pour le diagnostic sans contact, utiliser `--host-only`.
 
+Pour faire évoluer le diagnostic sans utiliser de clé privée,
+`just yubikey-backup-openpgp-test` valide sept contrats hermétiques,
+puis `just yubikey-backup-openpgp-check` vérifie uniquement les outils
+présents. Avec **une seule** secondaire connectée et sur une session
+interactive supervisée, la commande facultative
+`just yubikey-backup-openpgp-probe` vérifie le numéro de série via
+`ykman` et appelle `gpg --batch --no-tty --card-status`.
+Les sorties brutes (numéros de carte, métadonnées et erreurs détaillées)
+restent masquées. **Cette commande peut démarrer scdaemon** ; elle ne doit
+pas être ajoutée aux sondes hôte parallèles et ne signe ni ne déchiffre.
+
+Même un `GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED`
+ne prouve pas que l'applet répondante soit la secondaire attendue
+sans une preuve de liaison cryptographique, ni que les clés privées
+historiques fonctionnent. En cas de `OPENPGP_TRANSPORT_NOT_CONFIRMED`,
+préserver la configuration existante et examiner les conflits PC/SC
+avant de relancer.
+
 **Acceptation** : visibilité de l'applet OpenPGP et correspondance des
 sous-clés publiques sans régression de signature Git ni de l'accès aux
 anciennes archives. Une signature/déchiffrement réel nécessite un test
