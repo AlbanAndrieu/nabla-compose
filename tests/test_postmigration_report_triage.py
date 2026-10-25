@@ -84,3 +84,18 @@ def test_large_log_not_loaded(tmp_path):
     root, folder=session(tmp_path,[('postmigration-catalog','FAIL','SECRET\n' * 30000)])
     res=module.analyze(folder,root)
     assert res['checks'][0]['category'] in {'log_unavailable','catalog_check_failed'}
+
+def test_missing_pass_log_is_never_full_acceptance(tmp_path):
+    root, folder = session(tmp_path,[('apisix-runtime','PASS','runtime=running')])
+    (folder/'apisix-runtime.log').unlink()
+    report=module.analyze(folder,root)
+    assert report['checks'][0]['category']=='log_unavailable'
+    assert report['complete'] is False
+    assert report['unverified'] == 1
+
+def test_partial_postmigration_summary_is_not_full_acceptance(tmp_path):
+    root, folder = session(tmp_path,[('postmigration-catalog','PASS','catalog ok')])
+    report=module.analyze(folder,root)
+    assert report['complete'] is False
+    assert 'postmigration-gatus' in report['missing_phases']
+    assert report['unverified'] == 1
