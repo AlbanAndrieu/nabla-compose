@@ -45,6 +45,18 @@ class NpmDiagnosticTests(unittest.TestCase):
         self.assertNotIn("private-user", output.getvalue())
         self.assertNotIn("HIGHLY_PRIVATE_MARKER", output.getvalue())
 
+    def test_target_node_floor_matches_pinned_workstation_runtime(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        self.assertEqual((root / ".nvmrc").read_text().strip(), "v24.22.1")
+        self.assertIn('node = "24.22.1"', (root / "mise.toml").read_text())
+        self.assertEqual(mod.node_target_compatibility("24.18.1"), "below_floor")
+        self.assertEqual(mod.node_target_compatibility("24.22.0"), "below_floor")
+        self.assertEqual(mod.node_target_compatibility("24.22.1"), "compatible")
+        self.assertEqual(mod.node_target_compatibility("26.12.1"), "compatible")
+        self.assertEqual(mod.node_target_compatibility("25.1.0"), "unsupported_line")
+        self.assertEqual(mod.node_target_compatibility("unavailable"), "unverified")
+
     def test_classifies_registry_and_node_engine(self):
         labels, codes = mod.classify([
             "npm error code EBADENGINE",
