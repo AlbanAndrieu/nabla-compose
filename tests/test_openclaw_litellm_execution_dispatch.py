@@ -118,6 +118,8 @@ class ProvisionerStatusTests(unittest.TestCase):
         calls = []
         def inventory(path, master, body=None):
             calls.append((path, body))
+            if path == "/health/liveliness":
+                return 200, None
             if path == "/v1/models":
                 return 200, {"data": [{"id": "workstation-qwen"}]}
             if path == "/key/list":
@@ -128,10 +130,50 @@ class ProvisionerStatusTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             code = self.provisioner.main(["--status"])
         self.assertEqual(code, 0)
-        self.assertEqual(calls, [("/v1/models", None), ("/key/list", None)])
+        self.assertEqual(calls, [("/health/liveliness", None), ("/v1/models", None),
+                                 ("/key/list", None)])
+        self.assertIn("litellm_liveliness_http=200", output.getvalue())
+        self.assertIn("models_inventory_http=200", output.getvalue())
         self.assertIn("models_allowlist=incomplete", output.getvalue())
         self.assertIn("existing_key_count=0", output.getvalue())
         self.assertNotIn("SYNTHETIC", output.getvalue())
+
+    def test_status_reports_model_http_failure_and_still_counts_keys(self):
+        calls = []
+        def inventory(path, master, body=None):
+            calls.append((path, body))
+            return {
+                "/health/liveliness": (200, None),
+                "/v1/models": (500, None),
+                "/key/list": (200, {"keys": ["opaque", "opaque"]}),
+            }[path]
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=inventory), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--status"])
+        self.assertEqual(code, 2)
+        self.assertEqual(len(calls), 3)
+        self.assertIn("models_inventory_http=500", output.getvalue())
+        self.assertIn("key_inventory_http=200", output.getvalue())
+        self.assertIn("existing_key_count=2", output.getvalue())
+        self.assertIn("provisioning=inspection_only", output.getvalue())
+        self.assertNotIn("opaque", output.getvalue())
+
+    def test_status_rejects_unexpected_model_json_with_http_200(self):
+        def inventory(path, master, body=None):
+            return {
+                "/health/liveliness": (200, None),
+                "/v1/models": (200, {"unexpected": "schema"}),
+                "/key/list": (503, None),
+            }[path]
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=inventory), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--status"])
+        self.assertEqual(code, 2)
+        self.assertIn("models_inventory_http=200", output.getvalue())
+        self.assertIn("models_inventory=unavailable_or_invalid_schema", output.getvalue())
+        self.assertIn("key_inventory_http=503", output.getvalue())
 
     def test_apply_fails_closed_without_required_model(self):
         calls = []
