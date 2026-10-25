@@ -77,6 +77,13 @@ catalog-convergence-check:
     python3 -m unittest discover -s tests -p 'test_site_catalog_convergence_contract.py' -v
     python3 scripts/quality/check-site-catalog-convergence.py
 
+# Offline, no-hardware YubiKey recovery contracts (stdlib only).
+yubikey-recovery-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-recovery-readonly.py tests/test_yubikey_recovery_readonly.py tests/test_yubikey_pr274_readonly_runner.py
+    bash -n scripts/workstation/run-age-yubikey-pr274-readonly.sh
+    python3 -m unittest discover -s tests -p 'test_yubikey_recovery_readonly.py' -v
+    python3 -m unittest discover -s tests -p 'test_yubikey_pr274_readonly_runner.py' -v
+
 # Full local quality gate without publishing. Invoke the canonical checker
 # directly to avoid outdated TrueNAS mise auto-lock/download side effects.
 quality:
