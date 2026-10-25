@@ -108,18 +108,47 @@ def classify(phase: str, state: str, log: str | None) -> dict:
         if affected:
             evidence['affected_services'] = affected
             reasons: dict[str, list[str]] = {}
-            service = None
             selected = {row['service'] for row in affected}
-            # Runner renders a service heading then up to 3 indented
-            # notes. Only fixed categories may leave this private report.
+            current = None
+            # A heading is followed by up to three indented notes.
+            # Return only stable codes; never include raw log text.
             for line in log.splitlines()[:200]:
                 header = re.match(
                     r'^\s*(?:BLOCKED|DEGRADED|UNKNOWN|WARN)\s+'
                     r'([a-z0-9-]+)\s+TrueNAS=', line)
                 if header:
-                    service = header.group(1) if header.group(1) in selected else None
+                    current = header.group(1) if header.group(1) in selected else None
                     continue
-                note = re.match(r'^\s+·\s+(.+)
+                note = re.match(r'^\s+·\s+(.+)$', line)
+                if not note:
+                    current = None
+                    continue
+                if current is None:
+                    continue
+                value = note.group(1).lower()
+                code = None
+                if re.search(r'\bmonitors=\d+\s+up=\d+\s+down=\d+', value):
+                    code = 'monitor_coverage_degraded'
+                elif 'http probe unavailable' in value:
+                    code = 'http_probe_unavailable'
+                elif 'running git sha not attested' in value or 'git provenance endpoint unavailable' in value:
+                    code = 'build_provenance_unverified'
+                elif 'docker unhealthy' in value:
+                    code = 'docker_unhealthy'
+                elif re.search(r'truenas (?:stopped|crashed|error|missing)', value):
+                    code = 'truenas_lifecycle_failure'
+                elif 'state unknown' in value:
+                    code = 'container_state_unverified'
+                elif 'gatus' in value and re.search(r'config|gid 568|group', value):
+                    code = 'gatus_config_access_unverified'
+                elif 'no docker healthcheck' in value:
+                    code = 'no_docker_healthcheck'
+                if code:
+                    codes = reasons.setdefault(current, [])
+                    if code not in codes and len(codes) < 3:
+                        codes.append(code)
+            if reasons:
+                evidence['service_reasons'] = reasons
         # A plain 'no Docker healthcheck' note is informational and must
         # not convert an unrelated HTTP failure into a healthcheck failure.
         if re.search(r'docker unhealthy|healthcheck (?:permissions|binary|'
