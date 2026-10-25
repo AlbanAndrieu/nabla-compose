@@ -104,6 +104,15 @@ Ces codes de sortie ne doivent pas être regroupés sous un unique statut DOWN.
 automatiquement après `--apply-wave` sans connaître les composants
 effectivement migrés : une absence volontaire reste non vérifiée.
 
+## Migration des secrets : pas encore clôturée
+
+Le fait que les fichiers canoniques soient « staged » ne signifie pas
+que leur contenu est complet, que leur `env_file` runtime est à jour ni
+que les anciens chemins sont supprimables. Suivre les
+[critères de clôture](truenas-secret-migration-closure.md) avant un
+`--finalize openrag`. Ne jamais générer un nouveau mot de passe
+OpenSearch pour résoudre une simple erreur de métadonnées.
+
 ## Séquence de migration approuvée (jamais automatique)
 
 1. Créer une sauvegarde des ressources réellement concernées.
