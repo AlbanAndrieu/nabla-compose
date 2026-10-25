@@ -54,6 +54,7 @@ test('shell migration and diagnostics parse without executing', () => {
     'scripts/truenas/finish-migrations-20261024.sh',
     'scripts/truenas/migration-diagnostic-sections.sh',
     'scripts/truenas/triage-critical-failures.sh',
+    'scripts/truenas/check-openrag-private-pdf.sh',
   ]) {
     assert.ok(existsSync(join(root, path)), path + ' missing');
     execFileSync('bash', ['-n', join(root, path)], {
