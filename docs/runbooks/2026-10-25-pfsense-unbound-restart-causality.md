@@ -366,5 +366,19 @@ Pour détailler, remplacer `compact` par `verbose` ; l'expurgation
 reste effective. Si le classifieur échoue, la commande doit échouer.
 
 **Qualité :** les 30 tests de l'ancienne version passent selon
-l'opérateur. Les 18 tests Unbound et 16 tests console de la version
+l'opérateur. Les 18 tests Unbound et 18 tests console de la version
 en cours restent à revalider sur le SHA exact.
+
+### Commande opérateur ciblée sur les downloads et fichiers volumineux
+
+```bash
+just pfsense-feed-pressure-check
+```
+
+Cette recette réutilise le même collecteur SSH **read-only** avec
+`PFSENSE_OUTPUT=compact`, sans multiplier les commandes de collecte.
+Vérifier les catégories `feed_download_signal`, les champs
+`log=pfblockerng_extras|pfblockerng_main|snort_updates|snort_rules_update`,
+puis `feed_artifact_summary` et `feed_artifact_scope`.
+Une erreur du classifieur rend désormais le rapport **incomplet** et
+le script sort avec un code d'échec, plutôt que de déclarer zéro OOM.
