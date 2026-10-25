@@ -54,12 +54,12 @@ def container_environment():
         return None
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     options = parser.add_mutually_exclusive_group()
     options.add_argument("--apply", action="store_true")
     options.add_argument("--status", action="store_true")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     env = container_environment()
     if not env:
         print("container_env=unavailable")
