@@ -1710,3 +1710,63 @@ elle arrête temporairement le Gateway, sauvegarde `~/.openclaw`,
 installe un drop-in user et vérifie `/readyz`. Aucun reindex ni
 changement de clé LiteLLM n'est réalisé. Le smoke `gpt-4.1` a déjà
 réussi ; respecter la période de 24 h avant tout autre smoke payant.
+
+
+## 26 octobre 2026 — `unsafe_prefix` pendant le stage isolé
+
+Dernière preuve Workstation : **26/26 tests PASS**, Gateway historique
+toujours actif, `/readyz=200`, Node `24.22.1` compatible.
+`just openclaw-upgrade-local-stage` a retourné
+`stage_prefix=isolated_prefix`, `upgrade_stage=unsafe_prefix`.
+L'activation indépendante a refusé `blocked_preflight` et le contrôle
+final a légitimement signalé `functional_contract=partial_or_unverified` ;
+**aucune bascule effective de l'unité systemd n'est prouvée**.
+
+Le staging utilisait
+`~/.local/share/nabla-compose/openclaw-stage/2026.10.7`.
+Le contrôle refuse toute composante du chemin group-writable ou
+symlink. La cause précise n'a pas été imprimée à l'époque.
+Un des répertoires partagés peut légitimement avoir un mode 0775
+(`umask 0002`) ; il ne faut **pas** imposer `chmod 0700` à
+`~/.local/share/nabla-compose`, ni à ses autres services.
+
+**Correction dans PR #280** : installer désormais dans
+`~/.openclaw-upgrade-stage/2026.10.7`, avec uniquement des
+répertoires nouvellement créés en 0700. Les trois composants contrôlés
+sont `home`, `stage_base` et `stage_target`.
+`stage_security` produit une catégorie constante telle que
+`safe`, `symlink_stage_base`,
+`group_or_world_writable_stage_target` ou
+`wrong_owner_home`, sans exposer le chemin ni modifier les permissions
+d'autres applications. Le stage refuse tout propriétaire ou chemin
+inattendu et n'exécute pas npm sur un préfixe non sûr.
+
+Le code utilise des `mkdir(mode=0o700)` successifs, et **non**
+`Path.mkdir(parents=True)` qui pourrait créer un parent
+intermédiaire en 0775 sous `umask 0002`.
+Les tests couvrent explicitement les umask, la conservation d'un
+répertoire partagé en 0775, les symlinks, les erreurs de propriété
+et la vérification d'identité de l'unité systemd.
+L'ancien staging sous `.local/share/nabla-compose` reste en place
+s'il existe ; aucun nettoyage ou déplacement n'est effectué.
+
+Pour reprendre sur la Workstation, sans CI ni requête de modèle :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+```
+
+N'exécuter **l'activation** que si le stage affiche
+`upgrade_stage=verified` ou `upgrade_stage=already_verified`.
+Cela arrête le Gateway puis sauvegarde son état avant de remplacer le
+`ExecStart` de l'unité systemd user.
+Ensuite exécuter `just openclaw-upgrade-local-verify`.
+Le smoke `litellm-main/gpt-4.1` a déjà réussi : ne pas le rejouer
+dans sa période de cooldown 24 h.
+
+Les nouveaux tests et le runtime n'ont pas encore été exécutés
+sur la Workstation au HEAD contenant cette correction.
