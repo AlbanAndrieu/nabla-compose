@@ -780,3 +780,55 @@ pour affirmer qu'aucun OOM plus récent n'existe.
 empreintes dans le `pfsense-unbound-restart-check` post-minuit
 et vérifier les stop/start réellement journalisés. Aucun
 rebuild DNSBL ou restart provoqué artificiellement.
+
+## Gate du 26 octobre 00:06 CET — pas encore de preuve post-cron
+
+**Reçu opérateur complet** : à **00:06 CET le 26/10/2026**,
+les deux recettes locales ont réussi :
+
+| Commande | Tests PASS |
+| --- | ---: |
+| `just pfsense-security-capacity-test` | 16/16 : 5 PHP-FPM, 8 driver SSH, 3 posture |
+| `just pfsense-unbound-restart-test` | 49/49 : 21 Unbound, 23 console, 5 sampler |
+| **Total** | **65/65** |
+
+La régression `test_constrained_profile_two_workers_matches_postcutover_receipt`
+est validée, ainsi que `test_one_memory_sample_uses_singular_and_not_evaluated_oom`.
+Les contrôles de lecture seule, la conservation de l'offset DST,
+la séparation OOM historique/échantillon et le fail-closed AWK
+restent verts. Il s'agit **uniquement de tests offline** :
+aucune commande pfSense runtime n'a été exécutée dans ce
+second bloc de validation.
+
+### Données manquantes après la tâche pfBlockerNG de minuit
+
+La dernière empreinte **du vrai firewall** est celle de
+**2026-10-25 à 23:56 CET**, stockée dans la section
+précédente. Le résultat lancé à 00:06 ne contient **ni nouveau
+PID Unbound ni nouvelle empreinte**, donc ne permet pas de
+conclure sur un éventuel arrêt/démarrage pendant le cron 00:00.
+
+Collecter **une seule fois** depuis la workstation, sans restart :
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+Comparer **uniquement** les nouveaux faits :
+
+1. `unbound_pid` et `started_local` à la baseline
+   `19252` / `2026-10-25 22:46:18 CET`.
+2. `config_fingerprint=unbound_config` au SHA-256
+   `3745a4109d7d9a42cba12a3d0abd77013a3971890e838f9905566a8b94482b44`.
+3. `dnsbl_legacy_ini` au SHA-256
+   `b856d9aab131f2796c7e993d6039a3b24cad4a0c5faa0bbd0241582943d403a3`.
+4. L'existence de marqueurs pfBlockerNG stop/start
+   **du 26/10 après 00:00**, en tenant compte du fait que
+   `preceding_header_local` est un **contexte**, pas l'horodatage exact.
+5. Les nouveaux kills kernel **postérieurs au 25/10 23:40** ;
+   un OOM du 25/10 à 22:12 reste historique.
+
+Une empreinte identique ne prouve **pas** l'absence de
+reload interne Python. Un PID modifié ne désigne **pas** à lui
+seul le service à l'origine du redémarrage. Continuer
+l'analyse de causalité sans désactiver Snort ou DNSBL.
