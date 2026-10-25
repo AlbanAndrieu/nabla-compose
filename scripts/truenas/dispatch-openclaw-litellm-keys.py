@@ -34,7 +34,7 @@ def build_command(mode, target):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("plan", "apply", "status"), default="plan")
+    parser.add_argument("--mode", choices=("plan", "apply", "status", "quota-audit"), default="plan")
     args = parser.parse_args(argv)
     if not PROVISIONER.is_file():
         print("provisioner=missing")
