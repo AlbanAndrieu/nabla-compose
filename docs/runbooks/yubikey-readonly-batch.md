@@ -13,7 +13,7 @@ just yubikey-diagnostics-test
 just yubikey-diagnostics-secondary-readonly
 ```
 
-La première recette exécute les **16 contrats synthétiques** du
+La première recette exécute les **19 contrats synthétiques** du
 coordinateur sans carte et sans réseau. La seconde exécute en une fois :
 - contrôle des métadonnées de la workstation (SOPS, GPG-agent via
   `gpgconf --list-dirs agent-socket`, SSH et mapping PAM),
@@ -149,5 +149,37 @@ Une réponse `RESPONDS_GETINFO_ONLY` ne vaut pas validation
 OpenPGP ou de récupération GPG/PostgreSQL. Un état `NO-GO`
 est attendu même si le programme retourne 0.
 
-Le journal des tests de la recette complète doit encore être
-fourni par l'opérateur avant toute affirmation de PASS au dernier HEAD.
+Le journal opérateur du 25 octobre 2026 est disponible (voir la preuve ci-dessous).
+Il ne valide pas automatiquement les commits publiés après son exécution.
+
+## Preuve opérateur — diagnostic groupé du 25 octobre 2026
+
+Source : sortie de `just yubikey-diagnostics-all-secondary` exécutée sur la
+workstation au HEAD **`d4f1afbd`** rapporté par l'opérateur.
+Le HEAD distant de #280 peut différer : revalider au SHA exact avant
+acceptation de nouvelles modifications. **Aucune CI GitHub déclenchée.**
+
+| Suite | Résultat effectivement rapporté |
+| --- | --- |
+| Récupération (contrats + runner) | 16/16 + 28/28 PASS |
+| Applications YubiKey | 12/12 PASS |
+| Workstation | 13/13 PASS |
+| Coordinateur | 19/19 PASS |
+| GPG-agent | 7/7 PASS |
+| **Total ciblé** | **95/95 PASS** |
+
+Rapport agrégé de la **seule** secondaire `22916048` :
+`gpg_agent=RESPONDS_GETINFO_ONLY`,
+`workstation.gpg_agent_socket_locator=GPGCONF`,
+`device.management=AES256_PIN_PROTECTED`,
+`device.piv_slots.9A=OCCUPIED_METADATA`,
+`otp2=NOT_CHECKED`, `escrow=NOT_CHECKED`.
+`pin_requested=false`, `decrypt_executed=false`,
+`hardware_mutation_authorized=false`, `status=NO-GO`.
+
+Cette preuve confirme **la réponse Assuan `GETINFO version` d'un agent existant**,
+pas une connexion à scdaemon/OpenPGP, signature/déchiffrement, roundtrip age,
+ni restauration PostgreSQL. Les gates `GPG_OPENPGP_INTEROP_NOT_VERIFIED`,
+`POSTGRES_RESTORE_NOT_VERIFIED`, `ESCROW_RESTORE_NOT_VERIFIED` et
+`HARDWARE_AGE_ROUNDTRIP_NOT_VERIFIED` restent ouvertes. Aucun changement
+PIV82/9A, OTP2, PAM, SOPS ou escrow n'est autorisé par ce résultat.
