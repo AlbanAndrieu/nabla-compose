@@ -88,12 +88,17 @@ elif MODE == "runtime":
     for name in NAMES:
         print("runtime_" + name.lower() + "=" + ("present" if env.get(name) else "missing"))
     values, errors = read_file(SOURCE)
+    mismatches = []
     if values is not None and not errors:
         for name in NAMES:
             state = ("match" if env.get(name) == values.get(name) and values.get(name)
                      else "mismatch_or_not_loaded")
             print("runtime_vs_canonical_" + name.lower() + "=" + state)
-    sys.exit(0 if values is not None and not errors else 2)
+            if state != "match":
+                mismatches.append(name)
+    print("container_recreation_needed=" + ("unverified" if values is None or errors else
+                                           "true" if mismatches else "false"))
+    sys.exit(0 if values is not None and not errors and not mismatches else 2)
 elif MODE == "database":
     item = inspect()
     if item is None:
