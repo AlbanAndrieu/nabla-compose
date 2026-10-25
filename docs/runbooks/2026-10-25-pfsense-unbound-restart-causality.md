@@ -431,3 +431,29 @@ just pfsense-unbound-restart-test
 
 Conserver l'absence d'exécution GitHub Actions payante et ne pas
 modifier Unbound/pfBlockerNG pendant la validation.
+
+## Contract local-first : DST et preuve partielle — 25 octobre
+
+Le dernier retour opérateur passe **20/20** contrats Unbound et
+**17/18** contrats console avant ce correctif. Le seul échec est
+`test_typed_oom_during_dst_keeps_two_minutes_separate` : sa fixture
+n'avait aucun en-tête `=== ... ===`, alors que la console marque
+volontairement les flux sans section comme `EVIDENCE INCOMPLETE`.
+Les événements étaient correctement séparés selon `+02:00` / `+01:00`.
+
+Le test inclut désormais la section de collecteur réelle.
+Un test négatif additionnel garantit qu'un OOM sans section
+reste **incomplet**, même s'il est individuellement reconnaissable.
+**Ne pas supprimer ce fail-closed du renderer pour satisfaire
+une fixture tronquée.**
+
+La suite attendue sur la nouvelle révision est maintenant
+**20 tests Unbound + 19 tests console = 39 tests**.
+Ces tests ne sont pas déclarés verts tant que la validation
+sur le HEAD exact n'a pas été fournie.
+
+Commande locale :
+
+```bash
+just pfsense-unbound-restart-test
+```
