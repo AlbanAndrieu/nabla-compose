@@ -1,0 +1,89 @@
+"""Offline contracts for native TrueNAS versus Workstation OpenClaw operations."""
+import contextlib
+import importlib.util
+import io
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import types
+import unittest
+from unittest.mock import patch
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts/truenas/dispatch-openclaw-litellm-keys.py"
+spec = importlib.util.spec_from_file_location("openclaw_litellm_dispatch", SCRIPT)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+class DispatchTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.provisioner = Path(self.temp.name) / "provisioner.py"
+        self.provisioner.write_text("pass\n", encoding="utf-8")
+        self.patch_script = patch.object(module, "PROVISIONER", self.provisioner)
+        self.patch_script.start()
+        self.addCleanup(self.patch_script.stop)
+
+    def test_canonical_truenas_checkout_is_local(self):
+        self.assertEqual(module.execution_target(module.TRUENAS_ROOT), "truenas_local")
+        self.assertEqual(module.execution_target(Path("/home/dev/w/nabla-compose")),
+                         "workstation_ssh")
+
+    def test_local_apply_never_opens_ssh(self):
+        with patch.object(module, "execution_target", return_value="truenas_local"), \
+             patch.object(module.subprocess, "run",
+                          return_value=types.SimpleNamespace(returncode=0)) as runner, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = module.main(["--mode", "apply"])
+        self.assertEqual(code, 0)
+        runner.assert_called_once_with(
+            ["sudo", "-n", "python3", str(self.provisioner), "--apply"], check=False)
+        self.assertIn("execution_target=truenas_local", output.getvalue())
+
+    def test_remote_apply_uses_configured_ssh_alias(self):
+        with patch.object(module, "execution_target", return_value="workstation_ssh"), \
+             patch.object(module.subprocess, "run",
+                          return_value=types.SimpleNamespace(returncode=0)) as runner:
+            code = module.main(["--mode", "apply"])
+        self.assertEqual(code, 0)
+        kwargs = runner.call_args.kwargs
+        self.assertEqual(runner.call_args.args[0][-1],
+                         "sudo -n python3 - --apply")
+        self.assertIn("BatchMode=yes", runner.call_args.args[0])
+        self.assertEqual(runner.call_args.args[0][-2], "truenas")
+        self.assertEqual(kwargs["stdin"].name, str(self.provisioner))
+
+    def test_status_uses_no_apply_or_tunnel(self):
+        self.assertEqual(module.build_command("status", "truenas_local"),
+                         ["sudo", "-n", "python3", str(self.provisioner), "--status"])
+        remote = module.build_command("status", "workstation_ssh")
+        self.assertEqual(remote[-1], "sudo -n python3 - --status")
+        self.assertNotIn("--apply", " ".join(remote))
+
+    def test_bad_mode_never_runs_command(self):
+        with patch.object(module.subprocess, "run") as runner, \
+             contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                module.main(["--mode", "unexpected"])
+        self.assertEqual(error.exception.code, 2)
+        runner.assert_not_called()
+
+    def test_remote_failure_is_propagated(self):
+        with patch.object(module, "execution_target", return_value="workstation_ssh"), \
+             patch.object(module.subprocess, "run",
+                          return_value=types.SimpleNamespace(returncode=255)):
+            code = module.main(["--mode", "plan"])
+        self.assertEqual(code, 255)
+
+    def test_missing_provisioner_never_runs(self):
+        with patch.object(module, "PROVISIONER",
+                          Path(self.temp.name) / "missing.py"), \
+             patch.object(module.subprocess, "run") as runner, \
+             contextlib.redirect_stdout(io.StringIO()):
+            code = module.main(["--mode", "apply"])
+        self.assertEqual(code, 2)
+        runner.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
