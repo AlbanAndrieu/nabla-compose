@@ -1650,3 +1650,63 @@ Sources officielles :
 - https://www.npmjs.com/package/openclaw/v/2026.10.7
 - https://docs.openclaw.ai/install/installer
 - https://docs.openclaw.ai/cli/doctor/lint
+
+
+## 2026-10-26 — Stage bloqué par un paquet npm incomplet sous Node 24.22.1
+
+Nouvelle preuve Workstation après 19/19 tests de migration PASS :
+`upgrade_stage=blocked_partial_or_foreign_package`,
+`package_manifest=absent_or_different`,
+`package_cli_entry=missing_or_unsafe`,
+`lifecycle_marker=absent`,
+`npm_reinstallation_attempted=false`.
+Le Gateway historique est actif, le propriétaire du service est vérifié,
+et aucun cutover n'a eu lieu. Un autre CLI exécuté via
+`mise exec node@24.22.1 -- openclaw --version` avait répondu
+`2026.10.7` : cela ne prouve **pas** que le répertoire npm du Node
+24.22.1 est complet ou qu'il est propriétaire de ce CLI.
+
+**Correction** : le script utilise maintenant un préfixe de staging
+isolé `~/.local/share/nabla-compose/openclaw-stage/2026.10.7`
+lorsque le dossier global `.../mise/installs/node/24.22.1/lib/node_modules/openclaw`
+est déjà présent mais ne passe pas le contrôle de manifeste/bin.
+Il n'efface, ne déplace et ne remplace **aucun** fichier de ce dernier.
+`npm` reçoit l'option `--prefix` vers ce préfixe isolé,
+avec Node 24.22.1 exécuté par chemin absolu.
+
+Le stage vérifie avant le téléchargement les permissions et l'absence
+de symlink des parents dédiés, puis le manifeste, le nom du paquet,
+`bin.openclaw`, l'absence de marqueurs d'installation interrompue,
+et la sortie de la CLI sous le Node cible. Une installation isolée déjà
+valide est réutilisée sans relancer npm. Si un stage isolé est également
+incomplet, le script s'arrête **sans écrasement** et affiche seulement
+la raison contrôlée ; aucune trace brute npm, aucun secret ni prompt.
+
+Lors de `activate`, le drop-in systemd peut référencer le
+`openclaw.mjs` du préfixe isolé tout en lançant le binaire Node
+**du préfixe mise 24.22.1**. `unit_exec` valide cette combinaison
+exacte, et refuse `/usr/bin/node` ou un paquet extérieur au staging
+autorisé. La sauvegarde cohérente et les contrôles mémoire restent
+obligatoires.
+
+**Commande opérateur Workstation :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Les tests nouvellement ajoutés (dont les contrats de sécurité du
+préfixe isolé) sont **en attente de validation Workstation**.
+Ne pas contourner un nouveau refus de stage par `rm -rf`,
+`npm install -g --force` ou un démarrage depuis des fichiers
+partiellement installés. `activate` est une opération de maintenance :
+elle arrête temporairement le Gateway, sauvegarde `~/.openclaw`,
+installe un drop-in user et vérifie `/readyz`. Aucun reindex ni
+changement de clé LiteLLM n'est réalisé. Le smoke `gpt-4.1` a déjà
+réussi ; respecter la période de 24 h avant tout autre smoke payant.
