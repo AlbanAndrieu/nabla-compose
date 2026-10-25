@@ -96,12 +96,12 @@ if [[ "${ACTION}" == commands ]]; then
     echo '--next-commands accepts no apply, wave or section flags' >&2
     exit 2
   }
-  RUNBOOK="${ROOT}/docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+  RUNBOOK="${ROOT}/docs/runbooks/truenas-migration-operator.md"
   [[ -f "${RUNBOOK}" && ! -L "${RUNBOOK}" ]] || {
     echo 'Operator runbook unavailable; no commands executed' >&2
     exit 2
   }
-  printf 'RUNBOOK=%s\n' "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+  printf 'RUNBOOK=%s\n' "docs/runbooks/truenas-migration-operator.md"
   exit 0
 fi
 
