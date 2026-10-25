@@ -638,3 +638,36 @@ par l'opérateur ; le nouveau total reste NOT_RUN sur le HEAD exact.
 Ne pas activer Service Watchdog pour Unbound, déclencher un
 rechargement DNSBL, augmenter le PHP memory_limit ni modifier
 les horaires Snort pendant l'investigation.
+
+### 3. Comparer les empreintes de configuration avant et après DNSBL
+
+Le collecteur `pfsense-unbound-restart-check` imprime maintenant les
+empreintes SHA-256 et métadonnées `size_bytes` / `mtime_unix` de
+`unbound.conf` et de deux candidats INI pfBlockerNG lorsqu'ils
+existent. Il n'affiche pas leur contenu et ne hache pas les grands
+fichiers de données DNSBL. Une absence donne `UNAVAILABLE` ou
+`UNVERIFIED`, jamais une fausse empreinte.
+
+Pour la prochaine maintenance DNSBL programmée à 00:00 :
+
+1. Exécuter `PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check`
+   **avant** les travaux (par exemple vers 23:55).
+2. Exécuter la même commande **après** les travaux (par exemple
+   vers 00:10). Ne pas faire tourner de sonde supplémentaire
+   pendant le pic de traitement lui-même.
+3. Comparer les champs `config_fingerprint=unbound_config` et
+   `config_fingerprint=dnsbl_python_ini|dnsbl_legacy_ini`.
+   Une empreinte différente atteste un changement de contenu
+   entre ces deux relevés, pas nécessairement la raison exacte
+   de la décision stop/start.
+4. Si les empreintes restent identiques, considérer les autres
+   hypothèses : montage, état du module Python, notification de
+   génération ou échec d'un data-swap. **Ne pas conclure**
+   à l'absence de changement de configuration hors fichiers
+   inspectés.
+
+Le jour 26 octobre 2026, l'échantillonnage Snort à 02:09 est une
+investigation distincte ; il ne faut pas mélanger les deux fenêtres.
+
+Les analyses de code sont statiques. Seuls les marqueurs émis par
+pfBlockerNG confirment que des demandes de stop/start ont existé.
