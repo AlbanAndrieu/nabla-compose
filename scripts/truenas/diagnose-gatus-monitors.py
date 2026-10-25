@@ -46,6 +46,29 @@ def fresh_observation(result: dict, now: datetime, max_age: float) -> bool:
     return 0 <= delta <= max_age
 
 
+def failure_category(result: dict) -> str:
+    """Only allowlisted diagnostic categories; never emit the error body."""
+    raw = " ".join(
+        str(result.get(field, ""))[:256]
+        for field in ("error", "errors", "message")
+    ).lower()
+    if "401" in raw or "unauthorized" in raw:
+        return "authentication_401"
+    if "403" in raw or "forbidden" in raw:
+        return "authorization_403"
+    if "no such host" in raw or "lookup " in raw:
+        return "dns_failure"
+    if "certificate" in raw or "x509" in raw or "tls" in raw:
+        return "tls_failure"
+    if "connection refused" in raw:
+        return "tcp_refused"
+    if "timed out" in raw or "timeout" in raw or "deadline exceeded" in raw:
+        return "timeout"
+    if "404" in raw:
+        return "http_404"
+    return "condition_or_endpoint_failed"
+
+
 def audit(config: object, statuses: object, now: datetime) -> dict:
     """Correlate by group/name; never emit untrusted network response values."""
     if not isinstance(config, dict) or not isinstance(statuses, list):
@@ -74,16 +97,22 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
         group, name = str(endpoint.get("group") or ""), str(endpoint.get("name") or "")
         matches = runtime.get((group, name), [])
         state = "unverified"
+        reason = "missing_runtime_monitor" if not matches else "duplicate_monitor"
         if len(matches) == 1:
             observations = matches[0].get("results")
+            reason = "no_latest_result"
             if isinstance(observations, list) and observations:
                 last = observations[-1]
+                reason = "stale_or_invalid_timestamp"
                 if isinstance(last, dict) and fresh_observation(last, now, 180):
                     if last.get("success") is True:
-                        state = "up"
+                        state, reason = "up", "observed"
                     elif last.get("success") is False:
-                        state = "down"
+                        state, reason = "down", failure_category(last)
+                    else:
+                        reason = "invalid_success_value"
         checks.append({"service_id": service_id, "state": state,
+                       "reason": reason,
                        "protocol": str(endpoint.get("url") or "").split(":", 1)[0]})
         counts[state] += 1
 
@@ -127,7 +156,7 @@ def main() -> int:
     print(json.dumps(summary, sort_keys=True))
     for item in report["checks"]:
         if item["state"] != "up":
-            print(f"service={item['service_id']} protocol={item['protocol']} state={item['state']}")
+            print(f"service={item['service_id']} protocol={item['protocol']} state={item['state']} reason={item['reason']}")
     return 0 if report["complete"] else 1
 
 
