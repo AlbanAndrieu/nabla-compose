@@ -267,11 +267,15 @@ Ne pas lancer fast-batch-upgrade avant validation du cluster.
   et la sante search, sans jamais envoyer ou indexer le PDF.
 - [x] **Runtime montage :** PDF Mickey privé de 849129 octets valide
   et lisible par `openrag-backend` selon le relevé opérateur.
-- [x] **Création Docling :** `app.create` OK ; App actuellement
-  `DEPLOYING`, conteneur `running`. Ne pas rejouer `--apply`.
-- [ ] **Readiness Docling :** confirmer le healthcheck, le statut
-  `RUNNING`, `/ready` depuis TrueNAS et OpenRAG, puis convertir un
-  PDF synthétique. Ingestion et retrieval restent **NOT_TESTED**.
+- [x] **Création Docling :** `app.create` OK ; ne pas répéter `deploy --apply`.
+- [x] **Readiness (preuve opérateur 25/10) :** `RUNNING`, conteneur
+  `running+healthy`, 0 restart, `/ready` depuis TrueNAS et OpenRAG.
+  État `READY_ONLY` ; reconfirmer avant le test réel.
+- [x] **Code :** test hermétique de conversion d'un PDF synthétique,
+  `just docling-synthetic-test` (8 tests unitaires exécutés localement).
+- [ ] **Conversion réelle Docling :** `just docling-synthetic-apply` sur
+  TrueNAS, sans installer ou redéployer Docling. Runtime non testé depuis l'agent.
+
 - [ ] **E2E OpenRAG :** conversion, ingestion et retrieval **NOT_TESTED** ;
   commencer par un document synthétique, sans publier le billet.
   [Runbook cible](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·

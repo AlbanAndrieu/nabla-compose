@@ -655,6 +655,16 @@ talos-csi-controller-pods-check:
 docling-readiness-check:
     sudo -n python3 scripts/truenas/diagnose-docling-readiness.py --check
 
+# Offline fixture and response-contract tests. No network or corpus reads.
+docling-synthetic-test:
+    python3 -m py_compile scripts/truenas/smoke-docling-synthetic-pdf.py tests/test_docling_synthetic_pdf.py
+    python3 -m unittest discover -s tests -p 'test_docling_synthetic_pdf.py' -v
+    python3 scripts/truenas/smoke-docling-synthetic-pdf.py --check
+
+# Explicit conversion on private LAN only. Does not index an OpenRAG corpus.
+docling-synthetic-apply:
+    python3 scripts/truenas/smoke-docling-synthetic-pdf.py --apply
+
 # Check the TrueNAS Docling Custom App include, cached image and networks.
 docling-deploy-check:
     sudo -n bash scripts/truenas/deploy-docling.sh --check
@@ -669,6 +679,7 @@ migration-recovery-contracts:
     python3 -m unittest discover -s tests -p 'test_runtime_secret_permission_audit.py' -v
     python3 -m unittest discover -s tests -p 'test_openrag_private_pdf_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_docling_readiness_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_docling_synthetic_pdf.py' -v
     python3 -m unittest discover -s tests -p 'test_docling_deploy_preflight.py' -v
     python3 -m unittest discover -s tests -p 'test_truenas_csi_controller_pods.py' -v
     bash -n scripts/truenas/check-openrag-private-pdf.sh

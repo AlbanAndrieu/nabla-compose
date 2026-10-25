@@ -17,14 +17,12 @@ The service is deliberately private. Do not add Cloudflare public exposure for t
 
 ## Latest TrueNAS status (25 October 2026)
 
-The operator has already created the App with
-`sudo bash scripts/truenas/deploy-docling.sh --apply`.
-TrueNAS reports **`app.create OK`**, state **`DEPLOYING`** and
-container **`running`**, but `/ready` is not yet reachable from
-the host or from OpenRAG. This is **not** an absent App.
-**Do not run `--apply`, `app.update` or `app.redeploy` again
-while the App is deploying.** The guarded deploy script now refuses
-an overlapping apply in this state.
+The latest operator snapshot reports `app=RUNNING`,
+`container=running`, `containerHealth=healthy`, `restartCount=0`,
+and `/ready` reachable both from TrueNAS and `openrag-backend`.
+The classifier is **`READY_ONLY`**, not proof of PDF conversion or
+OpenRAG ingestion. Re-run the read-only probe for fresh runtime evidence.
+**Docling is already installed. Do not repeat deploy `--apply`.**
 
 Read-only inspection:
 
@@ -103,15 +101,26 @@ docker exec openrag-backend getent hosts docling
 docker exec openrag-backend curl -fsS http://docling:5001/ready
 ```
 
-Then perform one bounded direct conversion before testing OpenRAG ingestion. For example, use a small reviewed HTTP source and the stable v1 API:
+First validate a locally generated 613-byte PDF. The smoke uses only
+the in-memory synthetic fixture; no personal document or public URL.
 
 ```bash
-curl -fsS -X POST http://172.17.0.24:5001/v1/convert/source \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{"sources":[{"kind":"http","url":"https://example.com/"}]}' |
-jq .
+# No network or upload:
+python3 scripts/truenas/smoke-docling-synthetic-pdf.py --check
+
+# Explicit POST to LAN Docling only; does not ingest into OpenRAG:
+python3 scripts/truenas/smoke-docling-synthetic-pdf.py --apply
 ```
+
+The smoke invokes `POST /v1/convert/file` with multipart/form-data.
+It requires `status=success` and an extracted sentinel in the returned
+Markdown. It prints only redacted status, not the API response body.
+See https://github.com/docling-project/docling-serve/blob/main/docs/usage.md.
+
+After conversion succeeds, discover the ingestion paths implemented by the
+**deployed OpenRAG 0.7.1 backend**, verify an isolated test index and
+cleanup/rollback contract, then run indexed ingestion and retrieval under
+a separate explicit approval. **This smoke never indexes content.**
 
 Acceptance is not complete until one small document is ingested through OpenRAG, indexed in OpenSearch and retrieved successfully. Only then activate or revalidate the workstation LiteLLM GPU chat/embedding path.
 
