@@ -2,7 +2,7 @@
 """Audit and narrowly reduce unsafe permissions in canonical TrueNAS secrets.
 
 No reading secret contents. Preserves uid/gid and intentional group read/traverse.
-Does not touch legacy paths or symlinks. Apply requires explicit acknowledgement.
+Does not touch legacy paths or symlinks. Covers all regular canonical files. Apply requires explicit acknowledgement.
 """
 from __future__ import annotations
 
@@ -58,15 +58,16 @@ def plan(root: Path) -> tuple[list[tuple[Path, int, int]], list[str]]:
                 stack.append(path)
                 target = stat.S_IMODE(kind) & ~0o027  # remove group write + all other access
                 target |= 0o700  # ensure root can traverse/read
-            elif is_secret_name(path.name):
+            else:
+                # Every regular file below the canonical secrets root is
+                # private, including JSON, PEM, key and dotenv materials.
                 if info.st_nlink != 1:
                     blockers.append("HARDLINK: " + str(path.relative_to(root)))
                     continue
-                target = stat.S_IMODE(kind) & ~0o137  # no exec, no g-write, no other
-                target |= 0o600  # owner can read and write
-            else:
-                # Do not interpret unknown files as dotenv/credentials.
-                continue
+                target = stat.S_IMODE(kind) & ~0o027  # no group write / others
+                if is_secret_name(path.name):
+                    target &= ~0o110  # no executable dotenv material
+                    target |= 0o600  # root may read and replace dotenv
             mode = stat.S_IMODE(kind)
             if target != mode:
                 changes.append((path, mode, target))
