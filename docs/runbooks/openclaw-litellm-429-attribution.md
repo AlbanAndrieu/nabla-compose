@@ -1346,3 +1346,44 @@ Documentation OpenClaw :
 - https://docs.openclaw.ai/install/node-compatibility
 - https://docs.openclaw.ai/gateway/configuration/config-rpc
 - https://docs.openclaw.ai/automation/cron-jobs/payloads
+
+
+### 25 octobre 2026 — cohérence des versions Workstation et du lockfile mise
+
+L'audit du dépôt a mis au jour une autre dérive de runtime :
+`mise.lock` continue à **enregistrer Node 24.18.1**, avec les
+checksums propres à cet ancien artefact, alors que `.nvmrc`,
+`mise.toml` et `.envrc` visent maintenant `24.22.1`.
+Les scripts `diagnose-openclaw.sh` et
+`prepare-openclaw-systemd.sh` utilisaient également des chemins
+absolus figés sur `24.18.1`. Ils ont été adaptés pour inspecter
+l'identité réelle du Gateway ou la cible déclarée ; le script de
+préparation ne modifie aucun service.
+
+**Ne jamais réutiliser ni recopier les anciens checksums sous une
+nouvelle version.** La commande explicite
+`just openclaw-node24-runtime-install` exécute :
+`MISE_SAFE=1 mise lock node@24.22.1`, puis
+`mise install --locked node@24.22.1`, puis vérifie
+`mise exec node@24.22.1 -- node --version`. Cette séquence
+régénère les URL/checksums depuis mise au lieu de les inventer.
+Elle peut **modifier le `mise.lock` local** ; conserver et revoir
+ce diff avant de le publier dans Git. La PR ne prétend pas contenir
+les checksums Node 24.22.1 tant qu'ils ne sont pas validés.
+
+L'installation de la nouvelle version de Node **ne déplace pas**
+automatiquement le paquet global `openclaw`, ne réécrit pas le
+service systemd et ne prouve pas le succès de `openclaw update`.
+Le propriétaire actuel du package peut rester l'ancien préfixe
+`mise/installs/node/24.18.1`. Ne pas effacer cet ancien préfixe
+avant la validation de la nouvelle installation, du démarrage Gateway,
+du `memory status` et des canaux.
+
+L'application du fix 429 pour un agent implicite n'exige désormais
+**aucune clé cron** : seule la concurrence est réduite. La séparation
+d'identité exige un véritable agent `cron` explicitement déclaré
+ou une réconciliation prouvée des jobs. Le patch du cas implicite
+est natif et garde une sauvegarde owner-only.
+
+Ces chemins sont indépendants : ne pas confondre correction du
+`EBADENGINE` et preuve de disparition des 429.
