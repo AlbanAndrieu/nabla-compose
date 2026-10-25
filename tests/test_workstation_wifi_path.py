@@ -19,7 +19,8 @@ spec.loader.exec_module(module)
 def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
             system_dns=True, private_sys=True, active="172.17.0.1",
             dhcp="172.17.0.1", profile_dns="172.17.0.1",
-            ignore_auto="yes", lease_override=None):
+            ignore_auto="yes", lease_override=None,
+            device_dns="172.17.0.1"):
     calls = []
     interface = "wlp2s0" if wifi else "eno1"
 
@@ -38,6 +39,8 @@ def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
                     "DHCP4.OPTION[6]: ip_address = 172.17.0.57\n"
                     "DHCP4.OPTION[7]: subnet_mask = 255.255.255.0"
                 )
+            if "IP4.DNS" in args:
+                return True, device_dns
             if "GENERAL.CONNECTION" in args:
                 return True, "Wired eno1"
             if "ipv4.dns,ipv4.ignore-auto-dns" in args:
@@ -118,6 +121,8 @@ class WifiPathTest(unittest.TestCase):
         self.assertEqual(data["configured_profile_dns"], ["172.17.0.1"])
         self.assertTrue(data["profile_ignore_auto_dns"])
         self.assertTrue(data["profile_dns_runtime_drift"])
+        self.assertEqual(data["nm_device_dns"], ["172.17.0.1"])
+        self.assertEqual(data["runtime_dns_drift"], "NETWORKMANAGER_VS_RESOLVED")
 
     def test_system_resolver_failure_is_not_mislabeled_wifi_radio(self):
         runner, _ = fixture(system_dns=False)
@@ -213,6 +218,28 @@ class WifiPathTest(unittest.TestCase):
         with mock.patch.object(module, "snapshot", return_value=data):
             rc = module.main(["--check", "--json"])
         self.assertEqual(rc, 1)
+
+    def test_dns_runtime_diff_is_not_blame_for_resolver(self):
+        runner, _ = fixture(
+            active="9.9.9.9 149.112.112.112",
+            device_dns="172.17.0.1",
+        )
+        data = module.snapshot(runner=runner, connect=lambda *_: True)
+        self.assertEqual(data["runtime_dns_drift"], "NETWORKMANAGER_VS_RESOLVED")
+        self.assertEqual(data["nm_device_dns"], ["172.17.0.1"])
+        self.assertEqual(data["active_link_dns"], ["149.112.112.112", "9.9.9.9"])
+
+    def test_profile_differs_from_networkmanager_device_dns(self):
+        runner, _ = fixture(
+            active="9.9.9.9 149.112.112.112",
+            device_dns="9.9.9.9 149.112.112.112",
+            profile_dns="172.17.0.1",
+        )
+        data = module.snapshot(runner=runner, connect=lambda *_: True)
+        self.assertEqual(
+            data["runtime_dns_drift"], "PROFILE_VS_NETWORKMANAGER_DEVICE"
+        )
+        self.assertTrue(data["profile_dns_runtime_drift"])
 
 
 if __name__ == "__main__":
