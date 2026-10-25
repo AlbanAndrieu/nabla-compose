@@ -160,6 +160,24 @@ def plan():
     return owner
 
 
+def npm_failure_category(data):
+    """Return only fixed codes from failed npm stdout/stderr, no raw text."""
+    if not isinstance(data, bytes):
+        return "unknown"
+    upper = data[:131072].decode("utf-8", "replace").upper()
+    groups = (
+        ("runtime_engine", ("EBADENGINE",)),
+        ("permission", ("EACCES", "EPERM")),
+        ("registry_or_integrity", ("ETARGET", "EINTEGRITY", "E404")),
+        ("network", ("ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN")),
+        ("dependency", ("ERESOLVE", "ENOTEMPTY", "EEXIST")),
+    )
+    for label, codes in groups:
+        if any(re.search(r"(?<![A-Z])" + code + r"(?![A-Z])", upper) for code in codes):
+            return label
+    return "unknown"
+
+
 def stage():
     owner = unit_exec()
     if owner is None or not node_ready() or not service_active():
@@ -199,9 +217,10 @@ def stage():
         npm_parts = (0, 0)
     if npm_parts >= (11, 16):
         cmd.append("--allow-scripts=openclaw")
-    rc, _, _ = run(cmd, timeout=300, env=env)
+    rc, install_out, install_err = run(cmd, timeout=300, env=env)
     if rc or package_version(destination) != TARGET_OPENCLAW:
         print("upgrade_stage=install_failed_or_unverified")
+        print("npm_error_category=" + npm_failure_category(install_out + install_err))
         return 2
     # Version probe never runs a model or touches the live service.
     rc, out, _ = run([str(node), str(destination / "lib/node_modules/openclaw/dist/index.js"),
