@@ -143,7 +143,9 @@ def test_catalog_stale_generator_contract_is_classified(tmp_path):
     result = module.analyze(folder, root)['checks'][0]
     assert result['category'] == 'generated_catalog_drift'
     assert result['evidence']['stale_artifact_count'] == 2
-    assert 'identity-map' not in json.dumps(result)
+    assert result['evidence']['stale_artifacts'] == [
+        'catalog/generated/entities.json', 'catalog/generated/identity-map.json',
+    ]
     assert 'SECRET' not in json.dumps(result)
 
 
@@ -177,3 +179,65 @@ def test_readiness_note_no_healthcheck_does_not_mask_connectivity(tmp_path):
     assert result['evidence']['affected_services'] == [
         {'service':'scrutiny', 'status':'BLOCKED'}
     ]
+
+
+def test_catalog_paths_are_restricted_to_public_generator_outputs(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-catalog', 'FAIL',
+         'stale catalog-v2 artifacts:\n'
+         ' - catalog/generated/identity-map.json\n'
+         ' - catalog/generated/homelab.cdx.json\n'
+         ' - catalog/generated/entities.json\n'
+         ' - /etc/private/token=secret\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['evidence']['stale_artifact_count'] == 4
+    assert result['evidence']['stale_artifacts'] == [
+        'catalog/generated/entities.json', 'catalog/generated/homelab.cdx.json',
+        'catalog/generated/identity-map.json',
+    ]
+    assert 'secret' not in json.dumps(result)
+
+
+def test_prometheus_failing_jobs_and_scrape_categories_are_bounded(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-prometheus', 'FAIL',
+         'prometheus_runtime=running config_validation=passed target_up=21 target_not_up=7\n'
+         'docling targets=1 up=0 not_up=1\n'
+         'fastapi_sample targets=1 up=0 not_up=1\n'
+         'prometheus targets=1 up=1 not_up=0\n'
+         'private_token=SECRET targets=1 up=0 not_up=1\n'
+         '  docling\tdown\tconnection_refused\n'
+         '  fastapi_sample\tdown\tauthorization\n'
+         '  private_token=SECRET\tdown\tsecret-credential\n'
+         'Unhealthy targets (job and health only; error category redacted):\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'prometheus_scrape_degraded'
+    assert result['evidence']['failed_jobs'] == [
+        {'job': 'docling', 'targets': 1, 'up': 0, 'not_up': 1,
+         'errors': ['connection_refused']},
+        {'job': 'fastapi_sample', 'targets': 1, 'up': 0, 'not_up': 1,
+         'errors': ['authorization']},
+    ]
+    assert 'SECRET' not in json.dumps(result)
+
+
+def test_readiness_sanitized_reason_codes_for_three_services(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-service-readiness', 'FAIL',
+         'WARN     gatus        TrueNAS=RUNNING\n'
+         '  · monitors=85 up=61 down=24 pending=0 unknown=0\n'
+         'BLOCKED  scrutiny     TrueNAS=RUNNING\n'
+         '  · HTTP probe unavailable TOKEN=neverprint\n'
+         'WARN     sample       TrueNAS=RUNNING\n'
+         '  · running Git SHA not attested (build_revision missing)\n'
+         'Summary: HEALTHY=5 WARN=2 BLOCKED=1\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['evidence']['service_reasons'] == {
+        'gatus': ['monitor_coverage_degraded'],
+        'scrutiny': ['http_probe_unavailable'],
+        'sample': ['build_provenance_unverified'],
+    }
+    assert 'neverprint' not in json.dumps(result)
