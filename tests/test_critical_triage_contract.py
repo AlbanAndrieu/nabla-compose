@@ -1,4 +1,5 @@
 """Static/offline contracts for bounded TrueNAS seven-gate triage."""
+import os
 import re
 import subprocess
 import unittest
@@ -67,8 +68,6 @@ class CriticalTriageContract(unittest.TestCase):
             ("never", "never", False, False, False),
         ):
             with self.subTest(color=color, icons=icons, no_color=no_color):
-                import os
-
                 env = os.environ.copy()
                 env.pop("NO_COLOR", None)
                 if no_color:
@@ -78,9 +77,8 @@ class CriticalTriageContract(unittest.TestCase):
                     env=env, capture_output=True, text=True, check=False,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual("\\x1b[" in result.stdout, expected_ansi)
+                self.assertEqual("\x1b[" in result.stdout, expected_ansi)
                 self.assertEqual("✅" in result.stdout, expected_icon)
-
 
     def test_exactly_seven_read_only_checks(self):
         source = SCRIPT.read_text(encoding="utf-8")
