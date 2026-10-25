@@ -50,6 +50,9 @@ class BatchContracts(unittest.TestCase):
         }
         self.otp_result = "PROGRAMMED_TYPE_UNVERIFIED"
         self.escrow_result = "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED"
+        self.modules["inspect-gpg-agent-readonly.py"] = SimpleNamespace(
+            probe=lambda: "RESPONDS_GETINFO_ONLY"
+        )
 
     def applet_snapshot(self, serial):
         self.calls.append(("applet", serial))
@@ -137,6 +140,27 @@ class BatchContracts(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertIn("DEVICE_INSPECTION_ERROR", report["blockers"])
         self.assertEqual(report["status"], "NO-GO")
+
+    def test_gpg_agent_probe_requires_explicit_flag(self):
+        code, report = self.run_cli([])
+        self.assertEqual(code, 0)
+        self.assertEqual(report["gpg_agent"], "NOT_CHECKED")
+        self.assertFalse(any(x == ("load", "inspect-gpg-agent-readonly.py")
+                             for x in self.calls))
+
+    def test_gpg_agent_getinfo_does_not_prove_openpgp(self):
+        code, report = self.run_cli(["--gpg-agent-probe"])
+        self.assertEqual(code, 0)
+        self.assertEqual(report["gpg_agent"], "RESPONDS_GETINFO_ONLY")
+        self.assertEqual(report["completion"]["openpgp_sign_decrypt"], "NOT_VERIFIED")
+
+    def test_gpg_agent_unreachable_blocks(self):
+        self.modules["inspect-gpg-agent-readonly.py"] = SimpleNamespace(
+            probe=lambda: "UNKNOWN"
+        )
+        code, report = self.run_cli(["--gpg-agent-probe"])
+        self.assertEqual(code, 3)
+        self.assertIn("GPG_AGENT_GETINFO_UNAVAILABLE", report["blockers"])
 
     def test_device_report_with_wrong_serial_is_refused(self):
         self.modules["inspect-yubikey-applications-readonly.py"] = (
