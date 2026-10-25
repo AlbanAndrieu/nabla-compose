@@ -30,8 +30,19 @@ class ApisixContract(unittest.TestCase):
             self.assertEqual(service["profiles"], ["apisix"])
             self.assertEqual(service["restart"], "no")
             self.assertNotIn("ports", service)
-            self.assertNotIn("labels", service)
+            self.assertNotIn("traefik.enable", service.get("labels", {}))
             self.assertEqual(service["networks"], ["isolated"])
+        self.assertEqual(self.compose["name"], "apisix")
+        apisix = self.compose["services"]["apisix"]
+        self.assertEqual(apisix["x-nabla"]["id"], "apisix")
+        self.assertEqual(apisix["x-nabla"]["status"], "planned")
+        self.assertEqual(
+            apisix["labels"]["com.albandrieu.nabla.entity-ref"],
+            "component:default/apisix",
+        )
+        self.assertEqual(
+            apisix["x-nabla"]["runtime"]["containerService"], "apisix"
+        )
         self.assertTrue(self.compose["networks"]["isolated"]["internal"])
 
     def test_single_protected_mock_route(self):
