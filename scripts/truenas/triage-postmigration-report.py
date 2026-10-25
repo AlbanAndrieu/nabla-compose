@@ -43,7 +43,7 @@ def classify(phase: str, state: str, log: str | None) -> dict:
     if state == 'PASS':
         return {'category': 'passed', 'evidence': {}}
     low = log.lower()
-    evidence: dict[str, int] = {}
+    evidence: dict[str, object] = {}
     if phase == 'postmigration-gatus':
         for line in log.splitlines()[:256]:
             if not line.startswith('{') or len(line) > 4096:
@@ -65,13 +65,38 @@ def classify(phase: str, state: str, log: str | None) -> dict:
             return {'category': 'observed_monitors_down', 'evidence': evidence}
         return {'category': 'gatus_samples_missing_or_unverified', 'evidence': evidence}
     if phase == 'postmigration-catalog':
-        if re.search(r'drift|mismatch|out.of.date|not up.to.date|different from|differs', low):
+        # generator emits "stale catalog-v2 artifacts:" for actual drift;
+        # absence of the token does not prove that a generated file is stale.
+        if 'stale catalog-v2 artifacts:' in low:
             category = 'generated_catalog_drift'
-        elif re.search(r'no such file|missing|file not found', low):
+            # Count generator list entries only; never copy file paths.
+            items = [line for line in log.splitlines()[:128]
+                     if line.startswith(' - ') and len(line) <= 320]
+            evidence['stale_artifact_count'] = min(len(items), 64)
+        elif re.search(r'modulenotfounderror|importerror|no module named', low):
+            category = 'catalog_generator_dependency_error'
+        elif re.search(r'no such file|file not found', low):
             category = 'catalog_input_missing'
+        elif re.search(r'drift|mismatch|out.of.date|not up.to.date|different from|differs', low):
+            category = 'generated_catalog_drift'
         else:
             category = 'catalog_check_failed'
     elif phase == 'postmigration-service-readiness':
+        # Parse only an explicitly allowlisted service/status pair from the
+        # stable readiness report. All other text is untrusted diagnostics.
+        allowed = {'gatus', 'litellm', 'openrag', 'scrutiny', 'influxdb',
+                   'prometheus', 'sentry', 'sample'}
+        affected = []
+        for line in log.splitlines()[:200]:
+            match = re.match(r'^\s*(BLOCKED|DEGRADED|UNKNOWN|WARN)\s+'
+                             r'([a-z0-9-]+)\s+TrueNAS=', line)
+            if match and match.group(2) in allowed and match.group(2) not in (
+                    item['service'] for item in affected):
+                affected.append({'service': match.group(2),
+                                 'status': match.group(1)})
+        evidence['affected_count'] = len(affected)
+        if affected:
+            evidence['affected_services'] = affected
         if re.search(r'unhealthy|healthcheck|health.check|restarting', low):
             category = 'runtime_or_healthcheck_failed'
         elif re.search(r'connection refused|timed out|timeout', low):
@@ -79,12 +104,49 @@ def classify(phase: str, state: str, log: str | None) -> dict:
         else:
             category = 'functional_readiness_failed'
     elif phase == 'postmigration-prometheus':
-        if re.search(r'runtime=(restarting|exited|dead|created|unknown)', low):
+        # "=== Prometheus config drift ===" is an unconditional SECTION
+        # HEADER in diagnose-prometheus-targets.sh; never treat it as drift.
+        # Only explicit failure messages can establish the cause.
+        metrics = re.search(r'(?m)^prometheus_runtime=running\s+'
+                            r'config_validation=(passed|invalid_or_unverified)\s+'
+                            r'target_up=(\d+)\s+target_not_up=(\d+)\s*$', log)
+        if metrics:
+            up, not_up = int(metrics.group(2)), int(metrics.group(3))
+            if up <= 512 and not_up <= 512:
+                evidence.update({'target_up': up, 'target_not_up': not_up})
+        runtime_down = bool(re.search(
+            r'(?m)^.*Prometheus runtime=(restarting|exited|dead|created|unknown)\b', log))
+        config_bad = bool(re.search(
+            r'host prometheus config differs|promtool rejected the config|'
+            r'cannot read /etc/prometheus/prometheus.yml from container|'
+            r'prometheus_rules_permission_denied|prometheus_config_permission_denied',
+            low))
+        targets_down = bool(re.search(
+            r'(?m)^Unhealthy targets\b|one or more Prometheus targets are not UP|'
+            r'one or more declared Prometheus jobs are absent|'
+            r'evidence=collector_targets_degraded_not_prometheus_startup', log,
+            flags=re.IGNORECASE)) or evidence.get('target_not_up', 0) > 0
+        api_unreachable = bool(re.search(
+            r'Prometheus active-target API unavailable', log, flags=re.IGNORECASE))
+        signals = []
+        if runtime_down:
+            signals.append('runtime_unavailable')
+        if config_bad:
+            signals.append('configuration_or_rules')
+        if targets_down:
+            signals.append('scrape_targets_degraded')
+        if api_unreachable:
+            signals.append('targets_api_unavailable')
+        if signals:
+            evidence['signals'] = signals
+        if runtime_down:
             category = 'prometheus_runtime_unavailable'
-        elif re.search(r'config differs|config drift|promtool rejected|configuration problem', low):
+        elif config_bad:
             category = 'prometheus_config_or_rules'
-        elif re.search(r'target_not_up=[1-9]|targets are not up|unhealthy targets|active.targets.*unavailable|target api unavailable|one or more prometheus targets are not up', low):
+        elif targets_down:
             category = 'prometheus_scrape_degraded'
+        elif api_unreachable:
+            category = 'prometheus_api_unavailable'
         else:
             category = 'prometheus_validation_failed'
     elif phase == 'apisix-runtime':
