@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
-| H-04 | pfSense / Unbound | OOM noyau Unbound **confirmés** ; pfBlockerNG `3.2.17_1` journalise un stop/start les 22–24 oct. vers 00:04 ; Service Watchdog **NOT_LISTED** ; 39/39 tests initiaux PASS, échantillonneur simulé 5/5 PASS | **Nouvelles preuves attendues** : comparer les empreintes Unbound/INI à 23:55 et 00:10 ; collecter 13 RSS/mémoire de 02:08:30 à 02:11:30 ; corréler aux événements de téléchargements et OOM sans changer les services |
+| H-04 | pfSense / Unbound | **45/45 tests PASS** ; premières mesures réelles à 21:23–21:27 : disponible **125,3–200,1 Mio**, 1/13 sous 128 Mio, PHP-FPM/CrowdSec charges majeures ; `unbound.conf` mtime **24/10 23:39:55 CEST**, même seconde que conflit bind | Vérifier les **48 contrats** du nouveau HEAD ; échantillonner **02:08:30–02:11:30** autour du cron Snort ; comparer empreintes à 23:55/00:10 ; aucun changement live avant preuve du producteur OOM / du fallback DNSBL |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
