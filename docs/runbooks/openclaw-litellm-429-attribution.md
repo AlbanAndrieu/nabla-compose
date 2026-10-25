@@ -823,3 +823,43 @@ just openclaw-truenas-virtual-keys-plan
 
 Ne pas utiliser `just openclaw-truenas-tunnel-check` depuis TrueNAS :
 cette recette inspecte **un forward SSH initié sur Workstation**.
+
+
+## Acceptation : création des deux clés TrueNAS et correction des tests (25 octobre 2026)
+
+**Preuve opérateur réelle, depuis Workstation :**
+
+- `just openclaw-truenas-virtual-keys-status` (avant) :
+  `execution_target=workstation_ssh`, `models_allowlist=verified`,
+  `existing_key_count=0`.
+- `just openclaw-truenas-virtual-keys-plan` :
+  `provisioning=planned`, `key_count=2`, `max_budget_each=2`.
+- `just openclaw-truenas-virtual-keys-apply` :
+  `openclaw-main_creation_http=200`,
+  `openclaw-cron_creation_http=200`,
+  `post_provision_inventory_http=200`, `post_provision_key_count=2`.
+- `just openclaw-truenas-virtual-keys-status` (après) :
+  `existing_key_count=2`, `provisioning=inspection_only`.
+
+**Création observée : deux clés virtuelles sont maintenant retournées par
+l'inventaire de LiteLLM TrueNAS.** Le compte ne prouve pas à lui seul
+l'application effective des budgets, l'identité des deux entrées,
+la persistance après redémarrage, ni le routage actuel d'OpenClaw.
+Ne plus rejouer `apply` sur cet état sans réconciliation.
+
+**Régression L1 distincte** : sur TrueNAS puis Workstation, les sept tests
+du dispatch ont réussi ; deux tests du provisioner ont échoué avec
+`TypeError: main() takes 0 positional arguments but 1 was given`.
+L'implémentation recevait les arguments CLI seulement depuis `sys.argv`,
+alors que les tests appelaient `main(["--apply"])` et `main(["--status"])`.
+Correction : `main(argv=None)` avec `parser.parse_args(argv)`.
+Les tests doivent être relancés sur le nouveau HEAD (aucun PASS inventé).
+
+**Exécution canonique** :
+
+- Workstation Ubuntu (`~/w/nabla-compose`) : tests unitaires et
+  `just openclaw-truenas-virtual-keys-status` via SSH ;
+- TrueNAS (`/mnt/cpool/compose/nabla-compose`) : opération Docker locale
+  seulement lorsqu'un diagnostic ou une mutation runtime le nécessite ;
+- aucun besoin de lancer la suite Python deux fois, ni d'utiliser un tunnel
+  Workstation quand la commande tourne sur TrueNAS.
