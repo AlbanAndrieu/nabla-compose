@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
+import subprocess
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,6 +69,12 @@ class AiSecretRecoveryScopeTest(unittest.TestCase):
         self.assertFalse(any("scrutiny" in x for x in report["blockers"]))
 
     def test_scope_is_declared_in_runner_and_rejects_unknown(self):
+        result = subprocess.run(
+            ["python3", str(SCRIPT), "--scope", "unknown"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("invalid choice", result.stderr)
         source = SCRIPT.read_text(encoding="utf-8")
         registry = (ROOT / "scripts/truenas/migration-diagnostic-sections.sh").read_text(
             encoding="utf-8"
