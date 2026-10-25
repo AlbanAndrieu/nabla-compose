@@ -192,6 +192,18 @@ class UnboundRestartCauseContract(unittest.TestCase):
                 self.assertIn(expected, res.stdout)
                 self.assertNotIn("DONOTEXPOSE", res.stdout)
 
+    def test_installed_swap_guard_is_static_not_runtime_causality(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("pfblocker_dnsbl_swap_ram_gate=PRESENT", script)
+        self.assertIn("pfblocker_dnsbl_swap_ram_gate=ABSENT", script)
+        self.assertIn("pfblocker_dnsbl_live_reload_marker=PRESENT", script)
+        self.assertIn("pfblocker_dnsbl_live_reload_marker=ABSENT", script)
+        self.assertIn(
+            "pfblocker_dnsbl_fallback_condition=NOT_OBSERVED_AT_RUNTIME", script,
+        )
+        self.assertIn("grep -Fq 'pfb_unbound_py_swap_fits_ram'", script)
+        self.assertNotIn("php -r 'pfb_reload_unbound", script)
+
     def test_pfblocker_implementation_probe_is_read_only(self):
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("pfSense-pkg-pfBlockerNG-devel", script)
