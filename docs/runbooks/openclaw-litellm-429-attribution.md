@@ -732,3 +732,40 @@ provisionnement/budgets des clés virtuelles, alias `gpt-4.1*`,
 bonne santé applicative de tous les endpoints. Un `DATABASE_URL`
 présent n'est pas un test de connexion. La migration des agents reste
 indépendante de cette correction et n'est pas réputée effectuée.
+
+
+## Provisionnement virtuel OpenClaw — PR #280 (25 octobre 2026)
+
+L'inventaire authentifié après la recréation affiche encore
+`GET /v1/models=200` avec `workstation-qwen` et `qwen`
+sur le modèle déclaré (la présence de `qwen` au runtime doit être
+confirmée par la recette), et `GET /key/list=200`, `count=0`.
+Les alias GPT `gpt-4.1` et `gpt-4.1-mini` restent absents.
+
+Le script `scripts/truenas/provision-openclaw-litellm-keys.py`
+utilise les deux valeurs déjà injectées dans le conteneur pour effectuer
+`POST /key/generate`, budget `max_budget=2` pour chacune :
+`openclaw-main` sur `workstation-qwen,qwen` et
+`openclaw-cron` sur `workstation-qwen`.
+Il n'imprime jamais les clés, bloque si leur valeur est identique ou
+égale à la master key et refuse le provisionnement si `/key/list`
+n'est pas vide. Le script ne suppose pas que sept variables
+environnement équivalent à sept clés virtuelles.
+
+```bash
+just openclaw-truenas-virtual-keys-plan
+just openclaw-truenas-virtual-keys-apply
+just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard
+```
+
+La première commande est non mutante. La deuxième écrit dans la DB
+LiteLLM via l'API administrateur de l'instance TrueNAS. L'étape suivante
+consiste à vérifier la présence des deux entrées, leur limitation
+`max_budget=2`, les modèles autorisés et la persistance en base.
+Une réponse API 200 et un compte de deux entrées ne prouvent pas
+à eux seuls l'application effective des budgets. L'échec de la seconde
+création peut laisser la première créée : le script refuse alors
+automatiquement toute relance aveugle, pour une réconciliation manuelle.
+
+Les variables des autres consommateurs (Reactive, IDE, n8n, etc.)
+sont chargées mais **ne sont pas provisionnées par ce script**.
