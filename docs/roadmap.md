@@ -32,7 +32,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | Suivi | OpenRAG / LiteLLM | Contrôles ciblés OpenRAG (`startup`, `ai-runtime-recovery`, `opensearch-legacy-secret`, `backstage-bundle`) tous PASS ; fichiers OpenRAG/LiteLLM `ready=true` | **5/5 côté configuration ; authentification/rechargement runtime NOT_VERIFIED** |
 | 2 | Akvorado | Dernière preuve : `metadata missing` sur les nouveaux flux, aucun lot ClickHouse confirmé | **Ingestion non acceptée, vérifier mapping ifIndex et Outlet chargé** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
-| Indépendant | pfSense / Unbound | Kill Unbound par OOM **confirmé** (17/22/24 oct.) ; routine DNSBL de minuit fortement corrélée aux sorties Python, initiateur des redémarrages **non prouvé** | **OOM_CONFIRMED / RESTART_PROVENANCE_PENDING** |
+| Indépendant | pfSense / Unbound | **2 causes d'interruption confirmées** : OOM noyau (17/22/24 oct.) et marqueurs explicites stop/start Unbound par pfBlockerNG DNSBL (22/23/24 oct., vers 00:04). Raison du choix stop/start et processus à l'origine du pic RAM inconnus | **OOM_CONFIRMED / DNSBL_STOP_START_REPORTED / UPSTREAM_CAUSE_PENDING** |
 | Différé | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; 19 tests de diagnostic PASS opérateur | **Correction reportée par décision utilisateur ; ne pas modifier la workstation** |
 
 **Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
-| H-04 | pfSense / Unbound | OOM Unbound **confirmés** le 17/22/24 octobre ; fermeture DNSBL Python vers 00:04 répétée ; chronologie pfBlockerNG à la seconde **manquante** | Identifier le déclencheur du restart, vérifier appartenance Service Watchdog et version pfBlockerNG ; corréler RSS des jobs avant tout changement |
+| H-04 | pfSense / Unbound | OOM noyau Unbound **confirmés** ; pfBlockerNG `3.2.17_1` journalise un stop/start les 22–24 oct. vers 00:04 ; Service Watchdog **NOT_LISTED** ; 39/39 tests locaux PASS opérateur | Comprendre le fallback DNSBL stop/start ; corréler les RSS Snort/PHP/CrowdSec vers 02:09–02:10 ; dater les erreurs IPinfo/ASN avant tout changement |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
