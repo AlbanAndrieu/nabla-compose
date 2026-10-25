@@ -105,12 +105,14 @@ echo '=== Bounded lifecycle and kernel signals (raw messages withheld) ==='
 for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
             /var/log/resolver.log /var/log/resolver.log.0 \
             /var/log/cron.log /var/log/cron.log.0 \
+            /var/log/configd.log /var/log/configd.log.0 \
             /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockerng.log.0; do
   [ -r "$file" ] || continue
   case "$file" in
     *system*) source=system ;;
     *resolver*) source=resolver ;;
     *cron*) source=cron ;;
+    *configd*) source=configd ;;
     *) source=pfblockerng ;;
   esac
   printf '=== %s lifecycle events (bounded, redacted) ===\n' "$source"
@@ -146,6 +148,10 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
         if($0 ~ /snort_check_for_rule_updates/) event="snort_cron_exec"
         else if($0 ~ /pfblockerng[.]php/) event="pfblockerng_cron_exec"
         else if($0 ~ /servicewatchdog_cron/) event="watchdog_cron_exec"
+      } else if(source=="configd") {
+        if($0 ~ /[Uu]nbound/ &&
+           $0 ~ /[Rr]estart|[Rr]eload|[Ss]top|[Ss]tart/)
+          event="configd_unbound_action"
       } else if(source=="pfblockerng") {
         if($0 ~ /Restarting DNSBL Service/) event="dnsbl_service_restart_marker"
         else if($0 ~ /UPDATE PROCESS ENDED/) event="pfblockerng_update_end"
