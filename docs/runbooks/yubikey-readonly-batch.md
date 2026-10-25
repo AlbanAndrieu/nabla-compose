@@ -354,3 +354,45 @@ Références externes :
 [GnuPG gpg-agent](https://gnupg.org/documentation/manuals/gnupg26/gpg-agent.1.html),
 [PostgreSQL pg_config](https://www.postgresql.org/docs/current/app-pgconfig.html),
 [PostgreSQL sous Debian](https://wiki.debian.org/PostgreSql).
+
+## Suite opérateur après validation du SHA dfb2b850 (25 octobre 2026)
+
+Exécution réellement fournie sur workstation :
+
+- `just yubikey-dependencies-test` **17/17 PASS** et `just yubikey-parallel-test` **13/13 PASS**, compilation Python réussie.
+- Les six familles de tests du diagnostic parallèle et trois sondes du poste ont renvoyé `PASS`. **Aucun inventaire matériel demandé dans cette dernière exécution** ; l'inventaire de la secondaire avait été validé au SHA opérateur précédent.
+- `scdaemon=PROCESS_PRESENT_UNVERIFIED`, `pcscd=PROCESS_PRESENT_UNVERIFIED`, mais `agent_scdaemon=NOT_CONFIRMED`. Ces deux preuves ne sont pas contradictoires : un processus scdaemon peut exister sans qu'il soit connu de l'agent GPG connecté, ou la sonde peut recevoir une réponse non conforme. Il n'est pas autorisé de démarrer, redémarrer ou tuer des agents à titre de correction automatique.
+- Les commandes clientes `psql`, `pg_dump`, `pg_restore` sont présentes. `initdb`/`pg_ctl` manquent dans `PATH` et la disposition Debian/Ubuntu `/usr/lib/postgresql/<version>/bin` n'a pas fourni de binaires serveur vérifiés. Cela ne suffit pas à exclure une installation PostgreSQL différente, un conteneur ou un serveur distant.
+
+### Extension du diagnostic PostgreSQL, en lecture seule
+
+La nouvelle sortie `postgres_pg_config_server_tools` interroge exclusivement
+`pg_config --bindir` avec entrée standard fermée, durée bornée et sortie
+masquée ; elle contrôle ensuite seulement les métadonnées des deux
+exécutables serveur `initdb`/`pg_ctl` à cet emplacement. Refus des
+liens symboliques et des exécutables dont le propriétaire est inconnu.
+
+- `PG_CONFIG_SERVER_BINARIES_PRESENT_UNVERIFIED` : deux binaires trouvés ; ni version compatible ni restauration démontrée.
+- `PG_CONFIG_BINDIR_HAS_NO_SERVER_BINARIES` : `pg_config` peut décrire une installation cliente seulement.
+- `PG_CONFIG_SERVER_BINARIES_PARTIAL` : un des deux binaires admissibles seulement.
+- `PG_CONFIG_MISSING`, `BINDIR_UNAVAILABLE`, `UNKNOWN` : constat insuffisant.
+
+`pg_config --bindir` fournit le répertoire des exécutables *de son installation*, sans prouver la présence d'un serveur complet ; source :
+[PostgreSQL, pg_config](https://www.postgresql.org/docs/current/app-pgconfig.html).
+
+**Nouveau code publié, NON TESTÉ sur la workstation** : quatre tests hermétiques
+supplémentaires, soit **21 tests** de dépendances attendus. Aucun service,
+conteneur ni token n'est démarré. La récupération GPG/PostgreSQL reste
+`NOT_VERIFIED`. Valider les commandes :
+
+```bash
+git pull --ff-only
+git rev-parse HEAD
+just yubikey-dependencies-test
+just yubikey-parallel-test
+just yubikey-dependencies-readonly
+just yubikey-parallel-host-readonly
+```
+
+Ces commandes n'effectuent ni restauration, ni accès PIV, ni signature OpenPGP.
+Les tests de contrat `PASS` n'équivalent pas à un `GO` fonctionnel.
