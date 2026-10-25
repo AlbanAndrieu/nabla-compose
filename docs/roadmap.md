@@ -102,7 +102,8 @@ Actions :
 - [x] **APISIX code livré :** `apps/apisix/`, identité `apisix`,
   `x-nabla.id=apisix`, route `/health`, clé `APISIX_KEY`, réseau isolé,
   sans exposition hôte. Les commandes `just apisix-*` sont opt-in.
-  **Déploiement et smoke réseau NOT_VERIFIED**.
+  **Contrat APISIX Python : 10/10 PASS local** sur copies de fichiers
+  identiques par blob Git ; déploiement et smoke réseau **NOT_VERIFIED**.
 - [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
@@ -149,6 +150,14 @@ Actions :
 - [x] **D-07 :** preuve `critical` du 25/10 externalisée dans un
   [runbook daté](runbooks/2026-10-25-critical-acceptance-evidence.md).
   Les observations futures doivent aller dans un rapport daté distinct.
+- [x] **D-09 (code) :** compatibilité Node 22/npm 10, sans dépendances
+  installées : `just node22-fast` ; **6/6 PASS** sur espace de test
+  isolé et **cas négatif PASS**. Les artefacts APISIX copiés sont identiques
+  aux blobs de la PR, mais les scripts de migration utilisés dans cette
+  suite rapide sont des substituts. [Preuves et limites](runbooks/node22-local-fast-tests.md).
+- [ ] **D-10 :** exécuter la suite Python complète de migration,
+  `agent-skills-check`, ShellCheck et `just quality` dans un vrai worktree
+  au HEAD exact. Aucune gate L3 complète n'est déclarée PASS.
 
 [Registre des risques des refactorings](runbooks/homelab-refactoring-risk-register.md) :
 R-01 à R-07, avec conditions de rollback et seuils L1/L3.
@@ -165,8 +174,12 @@ complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
   tests Node natifs sans `npm install`, `npx`, réseau ni GitHub Actions.
 - **Portée :** contrats statiques des chemins/commandes APISIX et migrations,
   distincts des tests Python, ShellCheck, du smoke Docker et de `just quality`.
-- **Reste à valider :** `just node22-fast`, `just migration-operator-contracts`,
-  `just agent-skills-check`, puis `just quality` sur **le HEAD exact**.
+- **Validé localement :** lanceur Node 22/npm 10 (6/6 et refus d'une
+  identité Compose incorrecte), ainsi que 10/10 tests Python APISIX
+  avec correspondance SHA des fichiers concernés.
+- **Reste à valider :** `just node22-fast` dans le **checkout complet**,
+  puis `just migration-operator-contracts`, `just agent-skills-check`
+  et `just quality` sur **le HEAD exact**.
 
 ## Autorités, sécurité et séquence opérateur
 
