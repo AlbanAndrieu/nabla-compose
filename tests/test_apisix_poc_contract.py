@@ -1,9 +1,9 @@
 """Offline POC assertions: never starts Docker or retrieves secrets."""
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 import yaml
 
