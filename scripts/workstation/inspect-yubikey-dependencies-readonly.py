@@ -81,7 +81,7 @@ def scdaemon_agent_state() -> str:
             stderr=subprocess.PIPE, text=True, timeout=5, check=False,
         )
         if (done.returncode != 0 or done.stderr.strip()
-                or len(done.stdout) > 4096 or "\\0" in done.stdout):
+                or len(done.stdout) > 4096 or "\x00" in done.stdout):
             return "UNKNOWN"
         lines = done.stdout.strip().splitlines()
         if lines == ["OK", "OK closing connection"]:
