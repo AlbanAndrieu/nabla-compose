@@ -134,6 +134,53 @@ def postgres_versioned_tools_state() -> str:
         return "UNKNOWN"
 
 
+def postgres_pg_config_server_tools_state() -> str:
+    """Check client pg_config bindir metadata; never run server binaries.
+
+    A client pg_config does not establish server installation or compatibility.
+    """
+    if not shutil.which("pg_config"):
+        return "PG_CONFIG_MISSING"
+    try:
+        done = subprocess.run(
+            ["pg_config", "--bindir"], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, timeout=5, check=False,
+        )
+        if done.returncode != 0 or done.stderr.strip():
+            return "UNKNOWN"
+        raw = done.stdout
+        if len(raw) > 4096 or "\x00" in raw or len(raw.splitlines()) != 1:
+            return "UNKNOWN"
+        value = raw.strip()
+        if not value or not Path(value).is_absolute():
+            return "UNKNOWN"
+        directory = Path(value)
+        if directory.is_symlink() or not directory.is_dir():
+            return "BINDIR_UNAVAILABLE"
+        found = []
+        for name in ("initdb", "pg_ctl"):
+            binary = directory / name
+            if binary.is_symlink():
+                found.append(False)
+                continue
+            try:
+                info = binary.lstat()
+                found.append(
+                    stat.S_ISREG(info.st_mode) and
+                    info.st_uid in (0, os.getuid()) and
+                    bool(stat.S_IMODE(info.st_mode) & 0o111)
+                )
+            except FileNotFoundError:
+                found.append(False)
+        if all(found):
+            return "PG_CONFIG_SERVER_BINARIES_PRESENT_UNVERIFIED"
+        return ("PG_CONFIG_SERVER_BINARIES_PARTIAL"
+                if any(found) else "PG_CONFIG_BINDIR_HAS_NO_SERVER_BINARIES")
+    except (OSError, ValueError, UnicodeError, subprocess.TimeoutExpired):
+        return "UNKNOWN"
+
+
 def snapshot() -> dict:
     return {
         "status": "NO-GO",
@@ -142,6 +189,7 @@ def snapshot() -> dict:
         "pcscd": process_state("pcscd"),
         "agent_scdaemon": scdaemon_agent_state(),
         "postgres_versioned_server_tools": postgres_versioned_tools_state(),
+        "postgres_pg_config_server_tools": postgres_pg_config_server_tools_state(),
         "ssh_agent": ssh_agent_state(),
         "recovery_tools": {name: "INSTALLED_UNVERIFIED" if shutil.which(name) else "MISSING"
                            for name in TOOLS},
