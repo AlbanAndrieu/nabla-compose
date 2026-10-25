@@ -206,6 +206,58 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertNotIn("SECRET", output)
         self.assertNotIn("unrelated package", output)
 
+    def test_pfblocker_stop_start_marker_without_execution_claim(self):
+        events = (
+            "10/25/2026 00:04:54 Stopping Unbound Resolver... password=PRIVATE\n"
+            "10/25/2026 00:04:56 Starting Unbound Resolver... token=SECRET\n"
+            "10/25/2026 00:05:00 Restarting DNSBL Service account=PRIVATE\n"
+            "10/25/2026 00:09:01 UPDATE PROCESS ENDED password=PRIVATE\n"
+        )
+        output = classify("pfblockerng", events)
+        for name in (
+            "pfblocker_unbound_stop_marker",
+            "pfblocker_unbound_start_marker",
+            "dnsbl_service_restart_marker",
+            "pfblockerng_update_end",
+        ):
+            self.assertIn(f"event={name}", output)
+        self.assertIn("timestamp=10/25/2026 00:04:54", output)
+        self.assertNotIn("SECRET", output)
+        self.assertNotIn("PRIVATE", output)
+        self.assertNotIn("restart_initiator=pfblockerng", output)
+
+    def test_static_pfblocker_call_sites_are_not_runtime_proof(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split(
+            "# Static source call sites only", 1,
+        )[1].split("pfblocker_possible_call_sites_are_execution_proof=no", 1)[0]
+        matches = re.findall(r"\n  awk '(.*?)' \"\$file\"", section, re.DOTALL)
+        self.assertEqual(len(matches), 1)
+        php = (
+            "function pfb_stop_start_unbound($mode) { }\n"
+            "function pfb_reload_unbound($mode) {\n"
+            "  pfb_stop_start_unbound($mode);\n"
+            "}\n"
+            "function pfb_update_dnsbl($mode) {\n"
+            "  pfb_reload_unbound($mode);\n"
+            "}\n"
+            "// pfb_stop_start_unbound($secret);\n"
+        )
+        run = subprocess.run(
+            ["awk", matches[0]], input=php,
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn(
+            "pfblocker_possible_call_target=pfb_stop_start_unbound "
+            "enclosing_function=pfb_reload_unbound sites=1", run.stdout,
+        )
+        self.assertIn(
+            "pfblocker_possible_call_target=pfb_reload_unbound "
+            "enclosing_function=pfb_update_dnsbl sites=1", run.stdout,
+        )
+        self.assertNotIn("$secret", run.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
