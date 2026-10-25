@@ -523,3 +523,31 @@ différents, la restauration effective et l'indépendance physique
 des supports restent **NOT_VERIFIED**. Aucun PIN, challenge OTP,
 décryptage, provisionnement PIV82, changement AES256/OTP2/PIV9A
 ou modification SOPS n'est autorisé.
+
+
+## 16. Diagnostics des autres applications — PR #280
+
+La configuration YubiKey comporte d'autres domaines que le slot PIV82.
+Voir le [plan d'achèvement](yubikey-capabilities-completion-plan.md) :
+récupération GPG/PostgreSQL, dépendances PKI du PIV9A historique,
+FIDO2/passkeys/SSH, OpenPGP, OATH et PIV9C/9D/9E.
+
+Nouveau script `scripts/workstation/inspect-yubikey-applications-readonly.py` :
+seulement les commandes publiques `ykman` allowlistées, avec entrée
+standard fermée et délai. Il vérifie une carte à la fois :
+`just yubikey-applications-secondary-readonly`, puis lors d'une
+séance distincte `just yubikey-applications-primary-readonly`.
+Le script n'interroge ni OTP2, ni F9, ni PIV82 déjà documentés.
+Aucun secret, certificat brut, identifiant de compte OATH/FIDO2 ou
+empreinte GPG n'est publié. Le rapport JSON contient seulement des
+états abstraits : `RESPONDS_METADATA_ONLY`, `EMPTY_CONFIRMED`,
+`OCCUPIED_METADATA` ou `UNKNOWN`. Un état inconnu bloque avec
+code non nul, sans conclure que l'application est absente.
+
+La cible `just yubikey-applications-test` exécute les tests
+synthétiques sans lecteur, réseau, PIN ni dépendance externe.
+La réussite du diagnostic **n'est pas** la preuve d'une passkey
+enregistrée, d'une signature OpenPGP fonctionnelle, d'une
+récupération PostgreSQL, d'une PKI sûre ou d'un âge hardware
+interopérable. Tous les chemins restent NO-GO pour mutations
+matérielles et SOPS.

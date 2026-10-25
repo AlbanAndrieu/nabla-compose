@@ -83,6 +83,19 @@ catalog-convergence-check:
 yubikey-otp2-secondary-readonly:
     python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary
 
+# Public applet/PIV metadata only. Connect exactly one selected YubiKey.
+# These observations NEVER authorize provisioning, PIN input, OTP challenge or reset.
+yubikey-applications-secondary-readonly:
+    python3 scripts/workstation/inspect-yubikey-applications-readonly.py --serial 22916048
+
+yubikey-applications-primary-readonly:
+    python3 scripts/workstation/inspect-yubikey-applications-readonly.py --serial 23501671
+
+# No device required; hermetic allowlist, transport and metadata contracts.
+yubikey-applications-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-applications-readonly.py tests/test_yubikey_applications_readonly.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_applications_readonly.py' -v
+
 # Offline, no-hardware YubiKey recovery contracts (stdlib only).
 yubikey-recovery-test:
     python3 -m py_compile scripts/workstation/inspect-yubikey-recovery-readonly.py tests/test_yubikey_recovery_readonly.py tests/test_yubikey_pr274_readonly_runner.py
