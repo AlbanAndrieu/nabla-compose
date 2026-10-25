@@ -241,6 +241,15 @@ def stage():
         return 0
     if current is not None or (destination / "lib/node_modules/openclaw").exists():
         print("upgrade_stage=blocked_partial_or_foreign_package")
+        print("package_manifest=" + ("target" if current == TARGET_OPENCLAW
+                                     else "absent_or_different"))
+        print("package_cli_entry=" + ("present" if package_entry(destination)
+                                      else "missing_or_unsafe"))
+        package = destination / "lib/node_modules/openclaw"
+        interrupted = ((package / ".openclaw-lifecycle-pending").exists()
+                       or (package / "dist/openclaw-install-guard").exists())
+        print("lifecycle_marker=" + ("present" if interrupted else "absent"))
+        print("npm_reinstallation_attempted=false")
         return 2
     npm = destination / "lib/node_modules/npm/bin/npm-cli.js"
     node = destination / "bin/node"
