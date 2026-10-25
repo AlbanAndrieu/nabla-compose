@@ -262,6 +262,38 @@ def test_new_read_only_sections_are_documented():
     assert "verify-fastapi-lan-probes.sh" in script
 
 
+def test_postmigration_diagnostics_are_explicit_and_read_only(fake_operator):
+    _, _, report, marker = fake_operator
+    lib = SECTIONS.read_text(encoding="utf-8")
+    runner = SOURCE.read_text(encoding="utf-8")
+    assert "    postmigration)" in lib
+    for name in (
+        "postmigration-catalog",
+        "postmigration-service-readiness",
+        "postmigration-gatus",
+        "postmigration-prometheus",
+    ):
+        assert name in lib
+    assert "postmigration" not in runner.split("for part in ", 1)[1].split("; do", 1)[0]
+    result = invoke(fake_operator, "--check", "--section", "postmigration")
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Invalid section" not in result.stderr
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
+def test_apisix_is_optional_until_deployed(fake_operator):
+    _, _, report, marker = fake_operator
+    lib = SECTIONS.read_text(encoding="utf-8")
+    assert "    apisix)" in lib
+    assert "record apisix-runtime SKIP" in lib
+    result = invoke(fake_operator, "--check", "--section", "apisix")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SKIP=1" in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
 def test_critical_read_only_section_combines_five_independent_gates(
     fake_operator,
 ):
