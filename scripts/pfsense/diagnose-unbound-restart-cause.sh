@@ -96,6 +96,33 @@ for file in /usr/local/pkg/pfblockerng/pfblockerng.inc \
       printf 'pfblocker_implementation_function=%s present=yes\n' "$fn"
     fi
   done
+  # Static source call sites only; no PHP executed, no source lines printed.
+  # The containing function is a best-effort clue, never runtime attribution.
+  awk '
+    /^[[:space:]]*(function|public[[:space:]]+function)[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[(]/ {
+      name=$0
+      sub(/^.*function[[:space:]]+/, "", name)
+      sub(/[[:space:]]*[(].*$/, "", name)
+      caller=name
+    }
+    /^[[:space:]]*(\/\/|#|\*|\/\*)/ {next}
+    /pfb_stop_start_unbound[[:space:]]*[(]/ && $0 !~ /function[[:space:]]+pfb_stop_start_unbound/ {
+      calls["pfb_stop_start_unbound" SUBSEP caller]++
+    }
+    /pfb_reload_unbound[[:space:]]*[(]/ && $0 !~ /function[[:space:]]+pfb_reload_unbound/ {
+      calls["pfb_reload_unbound" SUBSEP caller]++
+    }
+    END {
+      for (pair in calls) {
+        split(pair, components, SUBSEP)
+        target=components[1]; location=components[2]
+        if(location !~ /^[A-Za-z_][A-Za-z0-9_]*$/) location="unknown"
+        printf "pfblocker_possible_call_target=%s enclosing_function=%s sites=%d\n",
+          target,location,calls[pair]
+      }
+    }
+  ' "$file" | sort | head -20
+  echo 'pfblocker_possible_call_sites_are_execution_proof=no'
   break
 done
 [ "$implementation_seen" = yes ] ||
@@ -153,7 +180,13 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
            $0 ~ /[Rr]estart|[Rr]eload|[Ss]top|[Ss]tart/)
           event="configd_unbound_action"
       } else if(source=="pfblockerng") {
-        if($0 ~ /Restarting DNSBL Service/) event="dnsbl_service_restart_marker"
+        if($0 ~ /Stopping Unbound Resolver|Stopping Unbound Service/)
+          event="pfblocker_unbound_stop_marker"
+        else if($0 ~ /Starting Unbound Resolver|Starting Unbound Service/)
+          event="pfblocker_unbound_start_marker"
+        else if($0 ~ /Restarting Unbound Resolver|Restarting Unbound[[:space:]]/)
+          event="pfblocker_unbound_restart_marker"
+        else if($0 ~ /Restarting DNSBL Service/) event="dnsbl_service_restart_marker"
         else if($0 ~ /UPDATE PROCESS ENDED/) event="pfblockerng_update_end"
         else if($0 ~ /DNSBL.*(PASSED|FAILED)/) event="dnsbl_update_result"
       }
@@ -172,6 +205,8 @@ echo '=== Evidence interpretation ==='
 echo 'kernel_oom_unbound=CONFIRMED_KERNEL_KILL_WHEN_TIMESTAMP_MATCHES'
 echo 'dnsbl_python_exit=MODULE_SHUTDOWN_NOT_PROOF_OF_CALLER'
 echo 'dnsbl_service_restart_marker=DNSBL_ACTION_NOT_PROOF_OF_UNBOUND_PID_CHANGE'
+echo 'pfblocker_unbound_stop_marker=SOURCE_REPORTS_A_STOP_REQUEST_NOT_PID_VERIFIED'
+echo 'pfblocker_unbound_start_marker=SOURCE_REPORTS_A_START_REQUEST_NOT_READINESS_PROOF'
 echo 'unbound_bind_conflict=OVERLAPPING_SOCKET_ATTEMPTS_OR_STALE_LISTENER'
 echo 'cron_schedule=NOT_PROOF_OF_EXECUTION'
 echo 'watchdog_membership=SEE_READ_ONLY_CONFIG_PROBE'
