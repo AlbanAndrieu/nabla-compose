@@ -75,7 +75,7 @@ def diagnose() -> dict[str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True)
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
     result = diagnose()
     print(json.dumps(result, indent=2, sort_keys=True))
     print("NOT_TESTED: PDF_conversion_ingestion_or_retrieval")
