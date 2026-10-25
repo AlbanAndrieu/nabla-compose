@@ -26,7 +26,7 @@ TARGET_OPENCLAW = "2026.10.7"
 UNIT = "openclaw-gateway.service"
 DROPIN_NAME = "20-nabla-openclaw-upgrade.conf"
 READY_URL = "http://127.0.0.1:18789/readyz"
-SERVICE_PATTERN = re.compile(r"([^\s;{}\"']+)/lib/node_modules/openclaw/dist/index\.js")
+SERVICE_PATTERN = re.compile(r"([^\s;{}\"']+)/lib/node_modules/openclaw/(?:dist/index\.js|openclaw\.mjs)")
 OLD_NODE_PATTERN = re.compile(r"/node/(\d+\.\d+\.\d+)/bin/node")
 
 
@@ -90,23 +90,51 @@ def unit_exec():
     return owner
 
 
-def package_version(root):
+def package_metadata(root):
+    """Inspect npm manifest independently of legacy dist/index.js layout."""
     package = root / "lib/node_modules/openclaw"
-    package_file = package / "package.json"
-    entry = package / "dist/index.js"
-    if not (package_file.is_file() and entry.is_file()
-            and private_status(package_file) and private_status(entry)):
-        return None
-    # Refuse redirecting the package root via a symlink.
-    if package.is_symlink() or package.resolve() != package:
+    manifest = package / "package.json"
+    if not (package.is_dir() and not package.is_symlink() and
+            package.resolve() == package and manifest.is_file() and
+            private_status(package) and private_status(manifest)):
         return None
     try:
-        if package_file.stat().st_size > 32768:
+        if manifest.stat().st_size > 32768:
             return None
-        value = json.loads(package_file.read_text(encoding="utf-8"))
-        return value.get("version") if isinstance(value, dict) else None
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+        if isinstance(value, dict) and value.get("name") == "openclaw":
+            return value
     except (OSError, ValueError, UnicodeError):
+        pass
+    return None
+
+
+def package_version(root):
+    metadata = package_metadata(root)
+    return metadata.get("version") if metadata else None
+
+
+def package_entry(root):
+    metadata = package_metadata(root)
+    if metadata is None:
         return None
+    published = metadata.get("bin")
+    relative = (published.get("openclaw") if isinstance(published, dict)
+                else published if isinstance(published, str) else None)
+    # Upstream npm bin is openclaw.mjs. Refuse arbitrary package-authored paths
+    # for a privileged user systemd ExecStart change.
+    if relative not in ("openclaw.mjs", "dist/index.js"):
+        return None
+    entry = root / "lib/node_modules/openclaw" / relative
+    package = root / "lib/node_modules/openclaw"
+    try:
+        if (not entry.is_file() or entry.is_symlink() or
+                not private_status(entry) or
+                not entry.resolve().is_relative_to(package.resolve())):
+            return None
+    except (OSError, ValueError):
+        return None
+    return entry
 
 
 def node_ready():
@@ -118,6 +146,27 @@ def node_ready():
         return False
     rc, out, _ = run([str(binary), "--version"])
     return rc == 0 and out.strip() == ("v" + TARGET_NODE).encode()
+
+
+def stage_valid(root):
+    """Prove a complete, approved package independently of npm's exit code."""
+    if package_version(root) != TARGET_OPENCLAW:
+        return False
+    entry = package_entry(root)
+    if entry is None:
+        return False
+    package = root / "lib/node_modules/openclaw"
+    # A lifecycle interruption marker means a usable-looking CLI is not safe
+    # to activate, even when it prints the expected version.
+    if ((package / ".openclaw-lifecycle-pending").exists() or
+            (package / "dist/openclaw-install-guard").exists()):
+        return False
+    env = dict(os.environ)
+    env["PATH"] = str(root / "bin") + os.pathsep + env.get("PATH", "")
+    env["NPM_CONFIG_PREFIX"] = str(root)
+    rc, out, _ = run([str(root / "bin/node"), str(entry), "--version"],
+                      env=env, timeout=25)
+    return rc == 0 and TARGET_OPENCLAW.encode() in out
 
 
 def service_active():
@@ -150,8 +199,10 @@ def plan():
     print("runtime_compatible=" + ("yes" if node_ready() else "no"))
     print("gateway_service_owner=" + ("verified" if owner else "unverified"))
     print("gateway_service_running=" + ("yes" if service_active() else "no"))
-    print("old_package_detected=" + ("yes" if owner and package_version(owner) else "no"))
-    print("staged_package=" + ("verified" if package_version(target) == TARGET_OPENCLAW
+    print("old_package_detected=" + ("yes" if owner and
+          (package_version(owner) or (owner / "lib/node_modules/openclaw/dist/index.js").is_file())
+          else "no"))
+    print("staged_package=" + ("verified" if stage_valid(target)
                                else "not_ready"))
     print("dropin_exists=" + ("yes" if unit_dropin().exists() or
                                unit_dropin().is_symlink() else "no"))
@@ -185,11 +236,11 @@ def stage():
         return 2
     destination = new_root()
     current = package_version(destination)
-    if current == TARGET_OPENCLAW:
+    if stage_valid(destination):
         print("upgrade_stage=already_verified")
         return 0
     if current is not None or (destination / "lib/node_modules/openclaw").exists():
-        print("upgrade_stage=blocked_foreign_package")
+        print("upgrade_stage=blocked_partial_or_foreign_package")
         return 2
     npm = destination / "lib/node_modules/npm/bin/npm-cli.js"
     node = destination / "bin/node"
@@ -218,16 +269,15 @@ def stage():
     if npm_parts >= (11, 16):
         cmd.append("--allow-scripts=openclaw")
     rc, install_out, install_err = run(cmd, timeout=300, env=env)
-    if rc or package_version(destination) != TARGET_OPENCLAW:
+    if not stage_valid(destination):
         print("upgrade_stage=install_failed_or_unverified")
         print("npm_error_category=" + npm_failure_category(install_out + install_err))
+        print("package_manifest=" + ("target" if package_version(destination) == TARGET_OPENCLAW
+                                       else "absent_or_different"))
+        print("package_cli_entry=" + ("verified" if package_entry(destination) else "unverified"))
         return 2
-    # Version probe never runs a model or touches the live service.
-    rc, out, _ = run([str(node), str(destination / "lib/node_modules/openclaw/dist/index.js"),
-                      "--version"], env=env, timeout=25)
-    if rc or TARGET_OPENCLAW.encode() not in out:
-        print("upgrade_stage=cli_validation_failed")
-        return 2
+    if rc:
+        print("npm_install_exit=nonzero_but_package_verified")
     print("upgrade_stage=verified")
     print("gateway_changed=false")
     return 0
@@ -247,12 +297,13 @@ def activate(repo_root):
     # An already-verified cutover is idempotent and must not stop a healthy
     # Gateway or create another backup on a repeated operator invocation.
     if (owner == destination and service_active() and ready()
-            and package_version(destination) == TARGET_OPENCLAW):
+            and stage_valid(destination)):
         print("upgrade_activation=already_verified")
         return 0
     if (owner is None or owner == destination or not node_ready() or not service_active()
-            or package_version(destination) != TARGET_OPENCLAW or
-            package_version(owner) is None):
+            or not stage_valid(destination) or not
+            ((owner / "lib/node_modules/openclaw/dist/index.js").is_file()
+              or package_entry(owner) is not None)):
         print("upgrade_activation=blocked_preflight")
         return 2
     config_path = user_home() / ".openclaw/openclaw.json"
@@ -277,7 +328,7 @@ def activate(repo_root):
     content = ("[Service]\nExecStart=\nExecStart=" +
                str(destination / "bin/node") +
                " --max-old-space-size=16053 " +
-               str(destination / "lib/node_modules/openclaw/dist/index.js") +
+               str(package_entry(destination)) +
                " gateway --port 18789\n" +
                "Environment=NPM_CONFIG_PREFIX=" + str(destination) + "\n")
     try:
@@ -316,16 +367,15 @@ def activate(repo_root):
 def verify():
     owner = unit_exec()
     root = new_root()
-    healthy = (owner == root and service_active() and ready()
-               and package_version(root) == TARGET_OPENCLAW)
+    healthy = (owner == root and service_active() and ready() and
+               stage_valid(root))
     print("openclaw_service_version=" + ("verified" if healthy else "unverified"))
     print("http_ready=" + ("yes" if ready() else "no"))
     print("service_runtime_target=" + ("verified" if owner == root else "unverified"))
     doctor_ok = False
     memory_ok = False
     if healthy:
-        launcher = [str(root / "bin/node"),
-                    str(root / "lib/node_modules/openclaw/dist/index.js")]
+        launcher = [str(root / "bin/node"), str(package_entry(root))]
         env = dict(os.environ)
         env["PATH"] = str(root / "bin") + os.pathsep + env.get("PATH", "")
         env["NPM_CONFIG_PREFIX"] = str(root)
