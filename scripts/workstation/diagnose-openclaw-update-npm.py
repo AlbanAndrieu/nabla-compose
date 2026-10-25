@@ -88,8 +88,14 @@ def installed_version(command):
         p = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            check=False, timeout=8, text=True)
         result = p.stdout.strip().splitlines()
-        if p.returncode == 0 and len(result) == 1 and VERSION.fullmatch(result[0]):
-            return result[0].lstrip("v")
+        if p.returncode == 0 and len(result) == 1:
+            raw = result[0]
+            if VERSION.fullmatch(raw):
+                return raw.lstrip("v")
+            # OpenClaw prints 'OpenClaw 2026.9.5 (build)' not bare semver.
+            match = re.fullmatch(r"OpenClaw (\d+\.\d+\.\d+)(?: \([^\r\n]{1,100}\))?", raw)
+            if match:
+                return match.group(1)
     except (OSError, subprocess.TimeoutExpired, UnicodeError):
         pass
     return "unavailable"
