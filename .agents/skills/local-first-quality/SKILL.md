@@ -16,6 +16,29 @@ faits observés, les mesures non vérifiées et les actions proposées.
 Cette règle s'inspire de l'ASD-STE100. Elle ne prétend pas établir une
 conformité formelle à la norme.
 
+## Environnements d'exécution Nabla (obligatoire)
+
+Distinguer **l'hôte où tourne la commande** avant de proposer une recette
+Docker, OpenClaw ou LiteLLM :
+
+| Hôte | Checkout canonique | Exécution des opérations TrueNAS |
+| --- | --- | --- |
+| TrueNAS | `/mnt/cpool/compose/nabla-compose` | locale : `sudo -n python3 scripts/truenas/...` |
+| Workstation Ubuntu | `~/w/nabla-compose` | distante : alias SSH `truenas` (port 9922) |
+
+- Ne jamais appeler `ssh truenas` **depuis TrueNAS** pour administrer
+  `litellm`. Ne pas supposer SSH port 22 ni un forward local 14000 sur TrueNAS.
+- Le checkout canonique TrueNAS et les recettes `just` sont des chemins
+  d'exploitation, pas des worktrees temporaires de développement.
+- Pour `openclaw-truenas-virtual-keys-plan|apply|status`, utiliser
+  `scripts/truenas/dispatch-openclaw-litellm-keys.py` : le script reconnaît
+  le checkout TrueNAS et utilise Docker local, sinon il utilise SSH depuis
+  la Workstation. `status` ne crée aucune clé.
+- Donner le **chemin du checkout** dans le bloc opérateur et éviter de
+  mélanger les commandes de tunnel Workstation et les commandes locales
+  TrueNAS. Vérifier les deux chemins par des tests hors ligne, y compris
+  un cas négatif qui refuse SSH sur TrueNAS.
+
 ## Workflow IA — chemin court
 
 **Décision en six actions, avant toute modification :**
