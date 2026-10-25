@@ -280,3 +280,71 @@ processus et binaires n'implique aucune preuve fonctionnelle de
 restauration, signature, SSH ou chiffrement. Les sauvegardes existantes
 sont à inventorier explicitement, sans découvrir ou publier leurs chemins
 dans les logs du dépôt.
+
+## Validations workstation — transport scdaemon et outils PostgreSQL versionnés
+
+**Nouvelle preuve opérateur au SHA `aa2bdedd01a2d3dd93405d704c39934e21a7747c`** :
+`just yubikey-dependencies-test` **11/11 PASS**,
+`just yubikey-parallel-test` **13/13 PASS** ;
+`just yubikey-parallel-host-readonly` et
+`just yubikey-parallel-secondary-readonly` terminés avec toutes les
+suites/sondes `PASS`. La secondaire `22916048` était seule interrogée.
+Dépendances : `scdaemon=PROCESS_PRESENT_UNVERIFIED`,
+`pcscd=PROCESS_PRESENT_UNVERIFIED`,
+`ssh_agent=PUBLIC_IDENTITIES_PRESENT_UNVERIFIED`.
+PostgreSQL : `pg_restore`, `pg_dump` et `psql` dans `PATH` ;
+`initdb` et `pg_ctl` **absents de `PATH`**, installation globale inconnue.
+`status=NO-GO`, `recovery=NOT_VERIFIED`,
+`configuration=NOT_AUTHORIZED` et
+`hardware_mutation_authorized=false` maintenus.
+
+### Nouveaux diagnostics préparés dans la PR
+
+`just yubikey-dependencies-readonly` ajoute deux champs de statut :
+
+- `agent_scdaemon` interroge uniquement **l'agent GPG existant**
+  (`gpg-connect-agent --no-autostart "GETINFO scd_running" /bye`).
+  `AGENT_REPORTS_SCD_RUNNING_UNVERIFIED` signifie que l'agent connaît
+  déjà un scdaemon actif. Tout refus, erreur ou réponse incomplète
+  n'est pas une preuve d'accès à l'applet OpenPGP. **Aucune commande
+  `SCD` n'est envoyée** : l'ouverture d'une session `SCD` peut démarrer
+  scdaemon si celui-ci est absent. Ni signature, ni carte, ni clé privée,
+  ni PIN n'est touché.
+- `postgres_versioned_server_tools` examine uniquement les métadonnées
+  des exécutables `initdb` et `pg_ctl` sous
+  `/usr/lib/postgresql/<version>/bin` (disposition Debian/Ubuntu).
+  Les liens symboliques et exécutables non détenus par root sont
+  refusés. `VERSIONED_SERVER_BINARIES_PRESENT_UNVERIFIED` n'est
+  **pas** une preuve de leur fonctionnement ou d'une restauration.
+  Une absence à cet emplacement n'exclut pas une installation
+  PostgreSQL différente (container, Nix, autre distribution).
+
+Les deux observations se déroulent avec le diagnostic du poste et la
+sonde GPG-agent : **trois sondes indépendantes en parallèle**, sans lancer
+`initdb`, `pg_ctl`, `gpg --card-status`, `SCD GETINFO` ni accéder aux
+sauvegardes.
+
+Le collecteur de dépendances possède désormais **17 tests hermétiques**
+(11 initiaux et 6 nouveaux). Les nouvelles modifications n'ont **pas
+encore été validées sur la workstation** ; exécuter depuis un HEAD à jour :
+
+```bash
+git rev-parse HEAD
+just yubikey-dependencies-test
+just yubikey-parallel-test
+just yubikey-dependencies-readonly
+just yubikey-parallel-host-readonly
+# Facultatif : un seul token secondaire, jamais simultanément à un autre inventaire
+just yubikey-parallel-secondary-readonly
+```
+
+**Interprétation de sortie** : aucune réussite de sonde ni présence
+de binaires n'autorise une écriture de clé, un changement PAM/SOPS, un
+déchiffrement age/GPG ou la restauration des bases. Avant une restauration
+isolée, inventorier séparément les archives existantes et leur format,
+puis approuver le déchiffrement et l'utilisation des secrets concernés.
+
+Références externes :
+[GnuPG gpg-agent](https://gnupg.org/documentation/manuals/gnupg26/gpg-agent.1.html),
+[PostgreSQL pg_config](https://www.postgresql.org/docs/current/app-pgconfig.html),
+[PostgreSQL sous Debian](https://wiki.debian.org/PostgreSql).
