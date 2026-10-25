@@ -15,12 +15,34 @@ This directory owns the repository-managed Docling Serve instance used by OpenRA
 
 The service is deliberately private. Do not add Cloudflare public exposure for the `*.int.albandrieu.com` hostname.
 
+## Latest TrueNAS status (25 October 2026)
+
+The operator has already created the App with
+`sudo bash scripts/truenas/deploy-docling.sh --apply`.
+TrueNAS reports **`app.create OK`**, state **`DEPLOYING`** and
+container **`running`**, but `/ready` is not yet reachable from
+the host or from OpenRAG. This is **not** an absent App.
+**Do not run `--apply`, `app.update` or `app.redeploy` again
+while the App is deploying.** The guarded deploy script now refuses
+an overlapping apply in this state.
+
+Read-only inspection:
+
+```bash
+sudo python3 scripts/truenas/diagnose-docling-readiness.py --check
+sudo docker inspect --type container docling \
+  --format 'status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}unavailable{{end}} restarts={{.RestartCount}}'
+```
+
+`INITIALIZING` means the container is running while TrueNAS still
+reports DEPLOYING; it does **not** prove the readiness route works.
+Keep the personal PDF out of logs, remote conversion or test uploads.
+
 ## Deploy on TrueNAS
 
-The October 25 operator's read-only diagnostic reports **App ABSENT**:
-there is no App to `app.update` or `app.redeploy`. **Create exactly
-one App using the reviewed single-App deploy script**, not an unconditional
-update/redeploy. No secret or personal PDF is involved.
+The following is the **initial creation procedure**, retained for
+future rebuilds. It has **already been executed successfully** on
+25 October 2026. Do not repeat it for the current DEPLOYING App.
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
