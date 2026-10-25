@@ -13,7 +13,7 @@ def remote_awk() -> str:
     source = SCRIPT.read_text(encoding="utf-8")
     match = re.search(
         r'tail -n 4000 "\$file" \| awk -v source="\$source" \'(.*?)\''
-        r" \| tail -35", source, re.DOTALL,
+        r"\s*;\s*then", source, re.DOTALL,
     )
     if not match:
         raise AssertionError("expected remote AWK chronology block")
@@ -296,6 +296,71 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertIn("event=pfblocker_unbound_start_marker timestamp=unknown", output)
         self.assertNotIn("preceding_header_local=", output)
         self.assertNotIn("SECRET", output)
+
+    def test_posix_remote_shell_parses_including_nested_awk(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("<<'REMOTE'\n", src)
+        remote = src.split("<<'REMOTE'\n", 1)[1].rsplit("\nREMOTE", 1)[0]
+        result = subprocess.run(
+            ["/bin/sh", "-n"], input=remote, text=True,
+            capture_output=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("block's header", remote)
+
+    def test_collector_does_not_swallow_awk_failures(self):
+        code = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if ! tail -n 4000 "$file" | awk', code)
+        self.assertIn('if ! tail -n 2500 "$file" | awk', code)
+        self.assertIn("ERROR: lifecycle_classifier_failed", code)
+        self.assertIn("ERROR: feed_log_classifier_failed", code)
+        self.assertIn("exit 70", code)
+        self.assertNotIn("| tail -35 || true", code)
+        self.assertIn("saved[++record_count % 35]", code)
+
+    def test_feed_download_failures_are_redacted_and_classified(self):
+        code = SCRIPT.read_text(encoding="utf-8")
+        match = re.search(
+            r'tail -n 2500 "\$file" \| awk -v family="\$family" \'(.*?)\''
+            r"\s*;\s*then", code, re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        events = (
+            "Fetching https://private.example/token=SECRET HTTP 404\n"
+            "Downloading https://private.example/key=SECRET HTTP 403\n"
+            "curl failed: operation timed out https://private.example/SECRET\n"
+            "Downloading [ IPinfo databases ] user=SECRET\n"
+            "PHP Fatal error: Allowed memory size of 134217728 bytes exhausted\n"
+            "Downloading https://private.example/token=SECRET HTTP 429\n"
+            "Fetching https://private.example/token=SECRET HTTP 503\n"
+        )
+        proc = subprocess.run(
+            ["awk", "-v", "family=pfblockerng", match.group(1)],
+            input=events, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        for kind in (
+            "http_403_or_404",
+            "http_429_rate_limited",
+            "http_5xx",
+            "download_transport_timeout",
+            "asn_ipinfo_retry_signature",
+            "php_memory_exhausted",
+        ):
+            self.assertIn(f"feed_download_signal={kind}", proc.stdout)
+        self.assertIn("signal_total=7", proc.stdout)
+        self.assertNotIn("SECRET", proc.stdout)
+        self.assertNotIn("private.example", proc.stdout)
+
+    def test_feed_artifact_thresholds_match_historical_oom_budget(self):
+        code = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("dnsblorig/*", code)
+        self.assertIn("warn=16777216; critical=67108864", code)
+        self.assertIn("warn=67108864; critical=134217728", code)
+        self.assertIn('stat -f', code)
+        self.assertIn("size_is_causality_proof=no", code)
+        self.assertIn("feed_artifact_status=METADATA_ONLY_NO_LIVE_DOWNLOAD", code)
+        self.assertIn("tr -c 'A-Za-z0-9._-'", code)
 
 
 if __name__ == "__main__":
