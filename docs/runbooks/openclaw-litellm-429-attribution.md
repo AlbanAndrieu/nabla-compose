@@ -769,3 +769,57 @@ automatiquement toute relance aveugle, pour une réconciliation manuelle.
 
 Les variables des autres consommateurs (Reactive, IDE, n8n, etc.)
 sont chargées mais **ne sont pas provisionnées par ce script**.
+
+
+## Correction des recettes : exécution sur TrueNAS ou Workstation (25 octobre 2026)
+
+**Cause du retour opérateur** : le checkout utilisé était
+`/mnt/cpool/compose/nabla-compose` sur TrueNAS, mais les anciennes
+recettes lançaient `ssh truenas` (port 22 par défaut) et exigeaient un
+tunnel SSH `127.0.0.1:14000` propre à la Workstation.
+La tentative de provisionnement n'a donc effectué **aucune écriture**.
+
+Le chemin canonique est déjà décrit dans le skill
+`.agents/skills/docker-compose-orchestration/SKILL.md`. La règle explicite
+est ajoutée à `.agents/skills/local-first-quality/SKILL.md`.
+
+Les recettes `openclaw-truenas-virtual-keys-plan`,
+`openclaw-truenas-virtual-keys-apply` et
+`openclaw-truenas-virtual-keys-status` détectent désormais l'hôte à
+partir du chemin réel du dépôt. Sur TrueNAS elles exécutent
+`sudo -n python3` en local. Depuis la Workstation, elles délèguent via
+l'alias SSH `truenas` configuré avec le port 9922. La recette historique
+`openclaw-truenas-model-keys-tunnel-dedicated-nonstandard` utilise le
+nouveau statut contextuel ; son nom « tunnel » est conservé pour
+compatibilité mais aucun tunnel n'est nécessaire sur TrueNAS.
+
+### Commandes sur TrueNAS
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-test
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-plan
+just openclaw-truenas-virtual-keys-apply
+just openclaw-truenas-virtual-keys-status
+```
+
+Les tests sont hors ligne ; `status` et `plan` n'écrivent rien.
+`apply` est l'opération explicite qui demande à LiteLLM de créer les
+deux clés virtuelles, chacune avec un budget maximal de 2. Le statut et
+le plan exigent un inventaire HTTP 200 et les alias autorisés présents.
+Le fait que les variables existent dans l'environnement n'indique pas
+à lui seul une clé enregistrée en base.
+
+### Commandes depuis la Workstation Ubuntu
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-plan
+```
+
+Ne pas utiliser `just openclaw-truenas-tunnel-check` depuis TrueNAS :
+cette recette inspecte **un forward SSH initié sur Workstation**.
