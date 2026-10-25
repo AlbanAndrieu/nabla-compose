@@ -134,6 +134,28 @@ check_section() {
         record fastapi-lan-probes SKIP 'LAN verification script missing from this checkout'
       fi
       ;;
+    # Explicit acceptance after a reviewed migration: do not mutate Apps
+    # or infer service health from a stale TrueNAS lifecycle flag.
+    postmigration)
+      run_check postmigration-catalog python3 scripts/generate-catalog-v2-artifacts.py --check
+      run_check postmigration-service-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
+      run_check postmigration-gatus python3 scripts/truenas/diagnose-gatus-monitors.py --check
+      run_check postmigration-prometheus bash scripts/truenas/diagnose-prometheus-targets.sh --check
+      ;;
+    # APISIX is isolated and not part of the mandatory/default migration wave.
+    # A missing deployment is UNVERIFIED, not a proved outage.
+    apisix)
+      if [[ ! -f scripts/truenas/apisix.sh ]]; then
+        record apisix-runtime SKIP 'APISIX diagnostic unavailable in this checkout'
+      elif bash scripts/truenas/apisix.sh check >"${SESSION_DIR}/apisix-runtime.log" 2>&1; then
+        record apisix-runtime PASS "${SESSION_DIR}/apisix-runtime.log"
+      else
+        case "$?" in
+          2) record apisix-runtime WARN "${SESSION_DIR}/apisix-runtime.log" ;;
+          *) record apisix-runtime FAIL "${SESSION_DIR}/apisix-runtime.log" ;;
+        esac
+      fi
+      ;;
     talos)
       if command -v kubectl >/dev/null 2>&1 && command -v talosctl >/dev/null 2>&1; then
         run_check talos-cluster bash scripts/talos/validate-cluster.sh
