@@ -54,6 +54,96 @@ sudo python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-insert
 ajoute cette option ; ne pas la passer au script sur `master` avant
 sa mise à jour.
 
+## Troisième collecte ciblée — observations complémentaires (25/10)
+
+Deux exécutions successives du triage ciblé ont donné **PASS=1 FAIL=6
+UNVERIFIED=0** (sessions privées `focused-5EzLbk` et `focused-mx0EmU`).
+Le contrôle `openrag-backstage-bundle` est désormais PASS ; les six
+autres gates restent en échec **avant les corrections opérateur
+suivantes**.
+
+**Prometheus (post-triage) :** l'opérateur a exécuté
+`repair-prometheus-config-access.sh --apply` avec succès. Le fichier
+`prometheus.yml` a été conservé avec uid 1000, groupe 568, mode
+**0644 → 0640**, et l'accès effectif uid/gid 568 a été validé.
+Cela répare la **confidentialité/lecture du fichier**, pas les scrapes.
+`promtool` valide 15 fichiers de règles ; Prometheus lui-même
+`running`, **21 cibles UP et 7 DOWN**.
+
+| Cible DOWN | Catégorie observée | Hypothèse à valider |
+| --- | --- | --- |
+| `docling` | connection_refused | composant absent ou métriques non publiées |
+| `fastapi_sample` | authorization | politique ou token de scrape dédié |
+| `haproxy` | connection_refused | listener métriques non ouvert |
+| `litellm_hermes` | authorization | auth exporter distincte |
+| `opensearch` | connection_refused | exporter/port observé non joignable |
+| `opensearch-security` | connection_refused | exporter de sécurité non joignable |
+| `postgres_exporter` | connection_refused | exporter absent ou port fermé, **pas une preuve de panne PostgreSQL** |
+
+**OpenRAG :** le middleware confirme `RUNNING` et les conteneurs
+backend/frontend `running+healthy`. Langflow répond 200 et le corpus
+ZFS est monté sans lecture des données. Le préflight échoue **sur les
+noms de clés manquantes** `LITELLM_IDE_API_KEY` et
+`OPENRAG_ENCRYPTION_KEY`, non sur le démarrage Docker.
+Le diagnostic global LiteLLM indique en plus
+`LITELLM_IDE_API_KEY` et `LANGFUSE_SECRET_KEY` manquantes.
+`docling` est indisponible pour l'ingestion.
+
+**État des secrets : non finalisé.** `bootstrap-repository-env-files.sh
+--check openrag` valide des copies canoniques cohérentes, mais annonce
+**un ancien chemin encore présent, finalisation en attente**.
+`reconcile-openrag-opensearch-secret.sh --check` échoue sur le
+propriétaire ou mode d'un candidat OpenSearch. Après mise à jour de
+#280, le contrôle précise la classe de ce candidat **sans lire sa valeur**.
+Ne lancer ni `--finalize openrag` ni rotation tant que la présence des
+clés requises, l'égalité de mot de passe et le Compose runtime ne sont
+pas vérifiés.
+
+**Akvorado :** pendant la fenêtre échantillonnée : **+5 flux reçus,
++4 erreurs `metadata missing`, +2 messages Kafka, 0 lot ClickHouse**.
+Les compteurs historiques ont `metadata_provider_errors=105858`
+et `snmp_poller_errors=2277`, mais leur delta est respectivement
+**+8 et 0**. Le problème actif est la **résolution de métadonnées**
+avant insertion ; le PASS ponctuel de `akvorado-blocked` ne suffit
+pas à conclure que la panne est résolue. La configuration Git contient
+un provider statique pour `ifIndex=11`. Vérifier que la version
+réellement chargée par l'App utilise ce provider et que les nouveaux
+flux portent cet index, **sans supposer qu'un checksum de fichier
+atteste son chargement en mémoire**.
+
+### Vérifications immédiates ciblées
+
+```bash
+# Une seule réparation Prometheus a été effectuée : vérifier le résultat.
+sudo bash scripts/truenas/repair-prometheus-config-access.sh --check
+sudo bash scripts/truenas/diagnose-prometheus-targets.sh --check
+
+# Vérifier les métadonnées et chemins, sans afficher de valeur.
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+
+# Distinguer configuration déclarée/chargée et nouveaux flux.
+sudo bash scripts/truenas/diagnose-akvorado-config.sh --check
+sudo python3 scripts/truenas/diagnose-akvorado-flow.py \
+  --strict --fail-on-blocked --observe-seconds 60
+```
+
+### Couleurs et icônes du triage
+
+Le script `triage-critical-failures.sh` utilise désormais
+`scripts/lib/diagnostic-ui.sh` (déjà employée par
+`finish-migrations-20261024.sh`). Les couleurs sont activées sur
+terminal TTY et désactivées dans les sorties redirigées ; `NO_COLOR`
+est respectée même avec `--color=always`. Les icônes Unicode sont
+automatiques si l'environnement le permet, sinon optionnelles.
+**Les fichiers TSV et les logs privés restent sans séquences ANSI.**
+
+```bash
+sudo bash scripts/truenas/triage-critical-failures.sh --check
+sudo bash scripts/truenas/triage-critical-failures.sh --check --color=always --icons=always
+sudo bash scripts/truenas/triage-critical-failures.sh --check --no-color --no-icons
+```
+
 ## Préconditions de remédiation
 
 ### Prometheus
