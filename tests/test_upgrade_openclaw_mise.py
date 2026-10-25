@@ -77,6 +77,26 @@ class UpgradeContracts(unittest.TestCase):
         self.assertIn("upgrade_stage=already_verified", output.getvalue())
         proc.assert_not_called()
 
+    def test_partial_stage_reports_marker_without_reinstall(self):
+        package = self.new / "lib/node_modules/openclaw"
+        package.mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps({
+            "name": "openclaw", "version": "2026.10.7",
+            "bin": {"openclaw": "openclaw.mjs"},
+        }))
+        (package / ".openclaw-lifecycle-pending").write_text("pending")
+        with patch.object(mod, "unit_exec", return_value=self.old), \
+             patch.object(mod, "node_ready", return_value=True), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "run") as process, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.stage()
+        self.assertEqual(code, 2)
+        self.assertIn("package_manifest=target", output.getvalue())
+        self.assertIn("lifecycle_marker=present", output.getvalue())
+        self.assertIn("npm_reinstallation_attempted=false", output.getvalue())
+        process.assert_not_called()
+
     def test_stage_recovers_from_npm_nonzero_if_full_package_valid(self):
         calls = []
         def run_mock(args, **kwargs):
