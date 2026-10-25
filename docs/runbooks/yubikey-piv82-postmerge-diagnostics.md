@@ -487,3 +487,39 @@ du secret KeePassXC.**
 La recette ne doit être lancée que depuis un worktree isolé et actualisé
 sur la branche PR #280. Elle n'exécute aucune gate de qualité large
 et ne réutilise aucun chemin temporaire disparu après redémarrage.
+
+
+## 15. Preuve OTP2 réelle — secondaire 22916048 (25 octobre 2026)
+
+**Sortie opérateur** de `just yubikey-otp2-secondary-readonly` :
+
+- `serial=22916048` — le diagnostic a vérifié l'unicité de la
+  carte connectée, son numéro de série rapporté et le firmware
+  attendu `5.4.3` avant la lecture OTP.
+- `otp2=PROGRAMMED_TYPE_UNVERIFIED` — **slot 2 programmé
+  sur la carte réelle**. Cette observation ne vérifie **pas** le type
+  HMAC-SHA1, la clé secrète stockée ou un échange KeePassXC.
+- `escrow=NOT_CHECKED` ; `escrow_restoration_verified=false` ;
+  `independent_physical_media_verified=false`.
+- `otp2_hmac_sha1_verified=false` ;
+  `keepassxc_verified=false`.
+- `status=NO-GO` et
+  `hardware_mutation_authorized=false`.
+
+**Provenance :** journal de la workstation fourni par l'opérateur,
+sans SHA Git affiché. Ne pas attribuer cette preuve à un commit ultérieur ;
+elle décrit l'état matériel observé au moment de l'exécution.
+
+**Décision :** ne pas relancer inutilement l'inventaire OTP2 ;
+conserver le slot existant et les fonctions KeePassXC intactes.
+L'étape suivante concerne exclusivement les métadonnées des **deux
+copies d'escrow déjà existantes**, si et seulement si leurs chemins
+absolus sont connus. Utiliser alors
+`inspect-yubikey-recovery-readonly.py --escrow-a PATH1.age --escrow-b PATH2.age`
+sans l'option OTP2. Le script ne lit pas le contenu chiffré.
+
+Même si les deux fichiers sont présents sur des systèmes de fichiers
+différents, la restauration effective et l'indépendance physique
+des supports restent **NOT_VERIFIED**. Aucun PIN, challenge OTP,
+décryptage, provisionnement PIV82, changement AES256/OTP2/PIV9A
+ou modification SOPS n'est autorisé.
