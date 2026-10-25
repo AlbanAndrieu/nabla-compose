@@ -77,6 +77,33 @@ Actions :
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
+## P1 — API gateway OSS et corrélation des causes (25 octobre 2026)
+
+**Décision et backlog canoniques :** [ADR-0001 Apache APISIX](adr/0001-apisix-api-gateway-poc.md), [choix APISIX](api-gateway-selection.md), [gouvernance du dispatch](architecture-governance.md) et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md). L'ADR-0001 est accepté pour un POC en staging, non déployé ; Traefik reste la gateway/ingress existante.
+- [x] Comparer APISIX, Traefik ForwardAuth, Envoy Gateway et Kong OSS ;
+  choisir **APISIX standalone YAML** pour un POC interne non exposé, sans etcd.
+- [x] Documenter la chaîne Catalogue Compose → FastAPI → Site → utilisateur,
+  avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
+- [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
+  OWNER/INTERNAL avant tout changement de dataplane.
+- [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
+  sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
+- [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
+  lorsque le service Keycloak existe réellement ; ne pas bloquer le
+  durcissement immédiat de FastAPI sur cet ajout.
+- [x] Approuver ADR-0001 pour un POC APISIX staging (sans cutover) et adopter le fast-track ADR/RACI/C4 pour les agents ; le processus documentaire ne doit pas bloquer les changements réversibles.
+- [ ] Après preuve des tests APISIX, arbitrer un éventuel cutover Traefik via ADR successeur, sans changer les routes publiques par défaut.
+- [ ] Inventorier les besoins d'auth, quotas, rate-limit, logs et traçage par route avant configuration APISIX ; rejeter une Admin API externe et pinning incomplet.
+- [ ] **OIDC sûr en standalone :** secrets `session.secret` et `client_secret`
+  hors Git, `redirect_uri` HTTPS absolu, cookies sécurisés, vérification
+  TLS/JWKS, validation d'audience et tests `Host`/`Forwarded` falsifiés.
+  APISIX reste interdit en production sans ADR de cutover spécifique.
+
+- [ ] Faire un runbook de rollback et une recette négative avant toute
+  migration de routes. Aucun cutover ni déploiement de gateway en production autorisé par ce document.
+
+- [x] Affecter le rendu C4 interactif au Site Alban avec React Flow existant, sans service supplémentaire ; source C4 dérivée du catalogue v2, pas un nouvel inventaire Compose.
+
 ## P1 — Dette de code et de documentation
 
 - [x] **D-01 :** séparer la roadmap active de ses 3 770 lignes historiques
