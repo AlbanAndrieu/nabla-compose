@@ -442,3 +442,76 @@ TrueNAS avant inventaire des modèles, de l'authentification et de
 la persistance PostgreSQL. Pas de mutation des credentials,
 pas de restart Gateway, pas d'import de clé sans autorisation.
 
+
+
+## Correction du 25 octobre — tests et alias SSH TrueNAS
+
+### Résultat de validation reçu sur Workstation
+
+La synchronisation fast-forward est réussie. Le contrôle
+`just openclaw-truenas-model-keys-test` a exécuté 18 tests de
+préflight TrueNAS, avec **un échec synthétique seulement** :
+`test_prompt_admin_requires_terminal_and_never_reads_secret`.
+Le test supposait un listener actif, mais n'avait pas simulé
+`loopback_listener=True`. Comme le script vérifie le tunnel
+**avant** le TTY, il retournait correctement
+`truenas_tunnel_local_listener=unavailable`. Le contrat
+a été corrigé : son stub simule maintenant un tunnel vérifié
+pour isoler le cas `stdin.isatty()=false`.
+
+Le vrai `just openclaw-truenas-tunnel-ensure` a retourné
+`truenas_tunnel=absent`, puis
+`truenas_ssh_alias=unexpected_target_or_port`.
+Le script exigeait `ssh -G truenas` avec
+`hostname=172.17.0.24`. Or le bloc SSH fourni :
+
+```sshconfig
+Host 172.17.0.24 nabla freenas truenas
+    User albandrieu
+    Port 9922
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+ne contient pas de `HostName` explicite : la sortie
+de `ssh -G truenas` peut donc contenir
+`hostname truenas`. **Ce n'est pas un mauvais port SSH.**
+
+### Correctif
+
+Le helper accepte `hostname=truenas` ou
+`hostname=172.17.0.24`, mais impose toujours
+`user=albandrieu` et `port=9922`.
+**Lorsqu'il crée le tunnel**, l'argument
+`-o HostName=172.17.0.24` fixe explicitement
+la destination pour empêcher toute résolution de
+l'alias vers un autre serveur. Les vérifications
+`StrictHostKeyChecking=yes`, `BatchMode=yes`
+et `ForwardAgent=no` restent obligatoires.
+Un listener inconnu n'est jamais écrasé ni arrêté.
+
+### Prochaine exécution sur Workstation
+
+Synchroniser la branche de la **PR Draft #277** (la
+[PR #274](https://github.com/AlbanAndrieu/nabla-compose/pull/274)
+a été fusionnée le 24 octobre), en protégeant les
+modifications locales des sous-modules.
+
+```bash
+cd ~/w/nabla-compose
+just openclaw-truenas-model-keys-test
+just openclaw-truenas-tunnel-ensure
+just openclaw-truenas-tunnel-check
+just openclaw-truenas-model-keys-tunnel-dedicated
+```
+
+La dernière commande exige la vraie
+`LITELLM_TRUENAS_MASTER_KEY` exportée, mais ne
+l'imprime jamais. Une variable `present`
+ne garantit pas que le serveur l'accepte.
+L'inventaire reste **non exécuté** tant qu'il n'y a pas
+de `truenas_key_list_http=200` et de modèles runtime.
+
+Aucun changement de modèle ou de clé n'est effectué
+par ces quatre recettes. La bonne santé des modèles et
+la persistance PostgreSQL restent à prouver.
+
