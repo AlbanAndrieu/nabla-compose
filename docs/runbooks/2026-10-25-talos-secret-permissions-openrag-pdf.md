@@ -182,6 +182,45 @@ assainir d'éventuelles données. Seules les sondes `/ready` établissent
 la disponibilité API. Le test PDF vérifie explicitement
 `/mnt/bababou` en lecture seule, sans envoyer le contenu.
 
+### Docling : conteneur running mais unhealthy, port 5001 refusé
+
+Le relevé suivant confirme `DEPLOYING` côté TrueNAS, conteneur
+`running`, **health=unhealthy**, **restarts=0** et
+`curl http://172.17.0.24:5001/ready` retourne **connection refused**.
+Ce n'est pas simplement un modèle non chargé : aucun serveur HTTP
+joignable n'a encore été démontré. La sonde Docker est documentée
+avec `start_period: 120s` ; ne pas prolonger ses délais ou masquer
+un `unhealthy` avant d'avoir inspecté la séquence de démarrage.
+
+Docling Serve distingue `GET /health` (liveness) de
+`GET /ready` (readiness, peut retourner 503 pendant le chargement
+des modèles). Le diagnostic ajoute les deux statuts, sans télécharger
+de contenu PDF.
+
+```bash
+sudo python3 scripts/truenas/diagnose-docling-readiness.py --check
+
+# Métadonnées de santé uniquement, pas les sorties de healthcheck.
+sudo docker inspect --type container docling --format \
+  'status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}unavailable{{end}} restarts={{.RestartCount}}'
+
+# Depuis TrueNAS, voir si le serveur écoute avant de lire des logs.
+sudo docker exec docling python -c \
+  'import socket; s=socket.socket(); s.settimeout(2); print("loopback_5001="+str(s.connect_ex(("127.0.0.1",5001)))) ;s.close()'
+```
+
+`loopback_5001=0` signifie que le port écoute dans le conteneur.
+Une valeur non nulle signifie qu'il n'écoute pas. Si le port ne répond
+pas et que la santé reste `unhealthy`, inspecter **dans une session
+privée** des lignes récentes des logs en retirant toute valeur sensible,
+pour détecter un échec de démarrage Python, une limite mémoire ou un
+problème d'image. Ne pas partager le log brut.
+
+**Ne pas lancer un nouveau `app.update`, `app.redeploy` ou
+`deploy-docling.sh --apply` lorsque TrueNAS signale DEPLOYING.**
+La conversion du PDF Mickey et sa recherche dans OpenRAG restent
+`NOT_TESTED`.
+
 ## 4. Pannes toujours ouvertes
 
     sudo bash scripts/truenas/triage-critical-failures.sh --check --remaining
