@@ -218,6 +218,83 @@ class TrueNASInventoryTests(unittest.TestCase):
             with patch.object(module.importlib.util, "spec_from_file_location"):
                 self.assertTrue(module.loopback_listener())
 
+    def test_master_credential_classification_never_prints_values(self):
+        indirect = chr(36) + "{LITELLM_MASTER_KEY}"
+        cases = [
+            (None, "not_exported"), ("", "empty"),
+            ("short", "too_short"), (indirect, "looks_like_reference"),
+            ("file:/private/credential", "looks_like_reference"),
+            ("'sk-wrapped-value'", "surrounding_quotes"),
+            ("sk-contains a space", "invalid_characters"),
+            ("sk-valid-but-synthetic", "present"),
+            ("custom_master_credential", "nonstandard_prefix"),
+        ]
+        for key, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(module.master_key_state(key), expected)
+
+    def test_master_format_check_requires_no_tunnel_or_http(self):
+        with patch.dict(module.os.environ, {
+            "LITELLM_TRUENAS_MASTER_KEY": "custom_master_credential"
+        }), patch.object(module, "loopback_listener") as listener, \
+             patch.object(module, "fetch_local") as fetch:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                rc = module.main([
+                    "--master-env", "LITELLM_TRUENAS_MASTER_KEY",
+                    "--check-master-env",
+                ])
+        self.assertEqual(rc, 0)
+        listener.assert_not_called()
+        fetch.assert_not_called()
+        self.assertIn("truenas_admin_env_state=nonstandard_prefix", output.getvalue())
+        self.assertIn("truenas_admin_auth=not_sent", output.getvalue())
+        self.assertNotIn("custom_master_credential", output.getvalue())
+
+    def test_indirect_key_is_blocked_before_admin_http(self):
+        raw = chr(36) + "{LITELLM_MASTER_KEY}"
+        with patch.dict(module.os.environ, {
+            "LITELLM_TRUENAS_MASTER_KEY": raw
+        }), patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "inspect") as inspect:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                rc = module.main(["--tunnel", "--master-env",
+                                  "LITELLM_TRUENAS_MASTER_KEY"])
+        self.assertEqual(rc, 2)
+        inspect.assert_not_called()
+        self.assertIn("looks_like_reference", output.getvalue())
+        self.assertNotIn(raw, output.getvalue())
+
+    def test_nonstandard_requires_explicit_readonly_override(self):
+        raw = "custom_master_credential"
+        with patch.dict(module.os.environ, {
+            "LITELLM_TRUENAS_MASTER_KEY": raw
+        }), patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "inspect", return_value=0) as inspect:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                blocked = module.main(["--tunnel", "--master-env",
+                                       "LITELLM_TRUENAS_MASTER_KEY"])
+                allowed = module.main(["--tunnel", "--master-env",
+                                       "LITELLM_TRUENAS_MASTER_KEY",
+                                       "--allow-nonstandard-master"])
+        self.assertEqual(blocked, 2)
+        self.assertEqual(allowed, 0)
+        inspect.assert_called_once_with(
+            True, credentials=raw, allow_nonstandard_master=True)
+        self.assertNotIn(raw, output.getvalue())
+
+    def test_opt_in_nonstandard_is_still_admin_readonly(self):
+        with patch.object(module, "loopback_listener", return_value=True), \
+             patch.object(module, "fetch_local", return_value=(401, None)) as fetch:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                rc = module.inspect(True, config=self.config,
+                                    credentials="custom_master_credential",
+                                    allow_nonstandard_master=True)
+        self.assertEqual(rc, 2)
+        self.assertEqual([call.args[0] for call in fetch.call_args_list],
+                         ["/v1/models", "/key/list"])
+        self.assertIn("truenas_key_list_http=401", output.getvalue())
+        self.assertNotIn("custom_master_credential", output.getvalue())
+
     def test_filtered_result_only_prints_whitelisted_aliases(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             module.filtered_result("x", 200, {"embedding", "private-model-secret"})
