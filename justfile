@@ -544,3 +544,12 @@ openclaw-truenas-litellm-recreate-plan:
 # Explicit one-service recreation; no change to unrelated containers.
 openclaw-truenas-litellm-recreate-apply:
     ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/recreate-litellm-env.py
+
+# TrueNAS provisioning with existing runtime key values; no secret output.
+# Plan is read-only and uses the local TrueNAS LiteLLM API.
+openclaw-truenas-virtual-keys-plan:
+    ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/provision-openclaw-litellm-keys.py
+
+# Explicitly create the two OpenClaw virtual keys (budget 2 each).
+openclaw-truenas-virtual-keys-apply:
+    ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/provision-openclaw-litellm-keys.py
