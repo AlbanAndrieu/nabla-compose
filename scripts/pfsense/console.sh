@@ -34,7 +34,10 @@ pfsense_ui_render() {
       if(mode=="compact") {
         for(i=1;i<=pending_count;i++) {
           bucket=pending_order[i]
-          emit("Historical OOM minute="bucket" · kernel kills="pending[bucket],"warn",1)
+          summary="Historical OOM minute="bucket" · kernel kills="pending[bucket]
+          if(pending_unbound[bucket]>0) summary=summary" · unbound kills="pending_unbound[bucket]
+          emit(summary,"warn",1)
+          delete pending_unbound[bucket]
           delete pending[bucket]
           delete pending_order[i]
         }
@@ -68,7 +71,7 @@ pfsense_ui_render() {
       if(ts ~ /Z$/) return minute" Z"
       return minute" (offset unknown)"
     }
-    function historic_oom(ts, id, minute) {
+    function historic_oom(ts, victim, id, minute, message) {
       id=(ts=="unknown" ? "unknown-" ++unknown_id : ts)
       if(seen_oom[id]++) {oom_duplicates++; return}
       oom_unique++
@@ -77,8 +80,11 @@ pfsense_ui_render() {
       if(mode=="compact") {
         if(!(minute in pending)) {pending_order[++pending_count]=minute;pending[minute]=0}
         pending[minute]++
+        if(victim=="unbound") pending_unbound[minute]++
       } else {
-        emit("Historical kernel OOM timestamp="ts,"warn",1)
+        message="Historical kernel OOM"
+        if(victim!="") message=message" victim="victim
+        emit(message" timestamp="ts,"warn",1)
       }
     }
     function syslog_kind(line) {
@@ -100,6 +106,13 @@ pfsense_ui_render() {
       printf "\n%s🔎 %s%s\n",cyan,name,reset;next
     }
     /^source=snort .*timestamp=unknown$/ && mode=="compact" {snort_unknown++;next}
+    # Dedicated restart-provenance collector uses a typed OOM signal.
+    # Count this as historical evidence, not a current down service.
+    /^(WARN: )?signal_source=system event=kernel_oom_(unbound|other) timestamp=/ {
+      ts=$0;sub(/^.*timestamp=/,"",ts)
+      victim=($0 ~ /event=kernel_oom_unbound / ? "unbound" : "other")
+      historic_oom(ts,victim);next
+    }
     /^source=system event=kernel_oom/ {
       ts=$0;sub(/^.*timestamp=/,"",ts)
       historic_oom(ts);next
