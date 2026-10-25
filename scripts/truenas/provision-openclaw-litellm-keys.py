@@ -34,10 +34,14 @@ def request(path, master, body=None):
             raw = response.read(256 * 1024 + 1)
             if len(raw) > 256 * 1024:
                 return 0, None
-            return response.status, json.loads(raw)
+            try:
+                payload = json.loads(raw)
+            except (ValueError, UnicodeError):
+                payload = None
+            return response.status, payload
     except HTTPError as exc:
         return exc.code, None
-    except (URLError, OSError, ValueError):
+    except (URLError, OSError):
         return 0, None
 
 
@@ -114,13 +118,27 @@ def main(argv=None):
         return 2
     if args.quota_audit:
         return quota_audit(master, env)
+    if args.status:
+        liveliness_http, _ = request("/health/liveliness", master)
+        print("litellm_liveliness_http=" + str(liveliness_http or "unavailable"))
     models_code, models = request("/v1/models", master)
     keys_code, existing = request("/key/list", master)
-    if models_code != 200 or not isinstance(models, dict) or not isinstance(models.get("data"), list):
-        print("models_inventory=unverified")
+    print("models_inventory_http=" + str(models_code or "unavailable"))
+    print("key_inventory_http=" + str(keys_code or "unavailable"))
+    models_valid = (models_code == 200 and isinstance(models, dict)
+                    and isinstance(models.get("data"), list))
+    keys_valid = (keys_code == 200 and isinstance(existing, dict)
+                  and isinstance(existing.get("keys"), list))
+    print("models_inventory=" + ("verified" if models_valid else
+                                 "unavailable_or_invalid_schema"))
+    print("key_inventory=" + ("verified" if keys_valid else
+                              "unavailable_or_invalid_schema"))
+    if keys_valid:
+        print("existing_key_count=" + str(len(existing["keys"])))
+    if args.status and (not models_valid or not keys_valid):
+        print("provisioning=inspection_only")
         return 2
-    if keys_code != 200 or not isinstance(existing, dict) or not isinstance(existing.get("keys"), list):
-        print("key_inventory=unverified")
+    if not models_valid or not keys_valid:
         return 2
     available = {model.get("id") for model in models["data"] if isinstance(model, dict)}
     missing_models = False
@@ -129,7 +147,6 @@ def main(argv=None):
             print(alias + "_models=unavailable")
             missing_models = True
     print("models_allowlist=" + ("incomplete" if missing_models else "verified"))
-    print("existing_key_count=" + str(len(existing["keys"])))
     if args.status:
         print("provisioning=inspection_only")
         return 0
