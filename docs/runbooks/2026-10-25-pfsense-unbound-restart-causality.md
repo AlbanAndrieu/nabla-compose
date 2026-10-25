@@ -124,9 +124,15 @@ remonte au **25/10 00:04:56**, donc avant le passage à l'heure CET.
 Mémoire libre + inactive : **174,3 Mio au moment du relevé** ; pas
 une mesure d'un pic à 02:09.
 
-Les journaux remontent des sorties `pfb_unbound.py` autour de
-**00:03–00:05** quasiment quotidiennement, du **12 septembre**
-au **25 octobre**, alors que pfBlockerNG possède un cron de
+Dans l'échantillon borné, le journal resolver comporte **59 sorties
+`pfb_unbound.py`** mais seulement **11 notices `Restart of unbound`**.
+Les sorties autour de **00:02–00:05** apparaissent sur **22 dates
+distinctes** dans les fichiers consultés (12–26 septembre et
+19–25 octobre) ; les jours absents sont des trous de rétention et ne
+prouvent pas l'absence d'événement. Ces nombres sont des **comptes
+sur les journaux disponibles**, pas une fréquence exhaustive ni une
+preuve qu'il y a eu 59 changements de PID.
+Le motif quotidien coïncide avec le cron pfBlockerNG de
 mise à jour à minuit. Cela rend les travaux DNSBL périodiques
 **fortement suspects pour la séquence de cycle de vie**.
 Toutefois, ces sorties régulières ne prouvent pas que le
