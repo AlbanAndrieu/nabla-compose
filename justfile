@@ -632,3 +632,14 @@ protected-http-diagnostics:
 
 protected-http-contracts:
     python3 -m pytest -q tests/test_protected_service_http.py
+
+# Read-only LiteLLM per-key quota, scope and spend inspection; works on both hosts.
+openclaw-truenas-virtual-keys-quota:
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode quota-audit
+
+# Run only on Workstation: sanitized config/model routes + TrueNAS budget evidence.
+# No LLM completion or Gateway restart. Return 1/2 if the quota audit detects an issue.
+openclaw-429-attribution:
+    python3 scripts/workstation/openclaw-route-metadata.py
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode quota-audit
+
