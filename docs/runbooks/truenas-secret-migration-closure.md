@@ -72,7 +72,7 @@ Si le déploiement n'a **jamais** persisté de données chiffrées avec
 une autre clé, générer une seule clé avec la bibliothèque standard :
 
 ```bash
-python3 -c 'import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())'
+python3 -c 'import base64,secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())'
 ```
 
 Copier immédiatement cette valeur dans Vaultwarden, puis dans
