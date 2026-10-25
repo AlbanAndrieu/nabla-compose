@@ -298,14 +298,30 @@ pfsense-console-test:
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
 
 # Read-only Netgate 1100 lifecycle evidence: no pfSense mutation or paid CI.
-# Read-only check of PHP-FPM generator, generated pool and actual nginx workers.
-# Run the reviewed script on pfSense through a single non-interactive SSH session.
+# Read-only generator, generated pool, true nginx children and DNS readiness.
 pfsense-php-fpm-check:
-    ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes "${PFSENSE_SSH_TARGET:-home.albandrieu.com}" '/bin/sh -s -- --check' < scripts/security/harden-pfsense-php-fpm.sh
+    bash scripts/pfsense/reconcile-php-fpm.sh --check
 
 pfsense-php-fpm-test:
     sh -n scripts/security/harden-pfsense-php-fpm.sh
+    bash -n scripts/pfsense/reconcile-php-fpm.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_php_fpm_hardening_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_php_fpm_reconcile_contract.py' -v
+
+# Controlled PHP-FPM/GUI changes. Explicit confirmation required.
+# Keep serial console access; preflight requires healthy Unbound.
+pfsense-php-fpm-apply:
+    bash scripts/pfsense/reconcile-php-fpm.sh --apply
+
+# Emergency rollback to saved pfSense PHP-FPM generator, independently guarded.
+pfsense-php-fpm-restore:
+    bash scripts/pfsense/reconcile-php-fpm.sh --restore
+
+# Read-only capacity + posture audit; review gates before reducing security coverage.
+pfsense-security-capacity-audit:
+    bash scripts/pfsense/reconcile-php-fpm.sh --check
+    bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+    bash scripts/pfsense/audit-posture.sh --ssh "${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 
 pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
