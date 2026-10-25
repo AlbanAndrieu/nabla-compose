@@ -616,3 +616,10 @@ openclaw-truenas-virtual-keys-status:
 openclaw-truenas-virtual-keys-test:
     python3 -m py_compile scripts/truenas/dispatch-openclaw-litellm-keys.py scripts/truenas/provision-openclaw-litellm-keys.py tests/test_openclaw_litellm_execution_dispatch.py
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
+
+# These commands never change TrueNAS services or send credentials.
+protected-http-diagnostics:
+    sudo -n python3 scripts/truenas/diagnose-protected-service-http.py --check
+
+protected-http-contracts:
+    python3 -m pytest -q tests/test_protected_service_http.py
