@@ -129,6 +129,36 @@ Actions :
 la recette sélectionne désormais Node 22 via `mise` et doit être rejouée
 sur le HEAD exact. `just quality` reste NOT_RUN.
 
+## Preuves de déploiement et quality gate — 25 octobre, dernier relevé
+
+- **CSI contrôleur** : `deployment/truenas-csi-controller` **1/1
+  Available** et `rollout status` réussi. ReplicaSet actif
+  `truenas-csi-controller-6556bff5d6` **1/1 READY**. Un autre pod
+  **0/5 Error** (`qbk5n`, 144 restarts) porte **le même hash de
+  ReplicaSet**, et **n'est donc pas un pod d'un ancien ReplicaSet**.
+  Examiner ses propriétaires et l'état `Error` sans supprimer le RS actif
+  ou le contrôleur sain. Le smoke `--apply` avec PVC/reclaim reste
+  **NOT_RUN**.
+- **Docling** : `app.create` a terminé **OK** ; App `DEPLOYING`,
+  conteneur `running`, endpoint hôte `/ready` **UNREACHABLE**,
+  sondage OpenRAG **UNVERIFIED**. **Ce n'est plus une App absente**.
+  Ne pas relancer `deploy-docling.sh --apply` pendant `DEPLOYING`.
+  Le diagnostic expose désormais `INITIALIZING`, le healthcheck
+  du conteneur et le nombre de redémarrages sans lire ses logs.
+- **Node22/npm10** : la paire de versions **PASS** sous le
+  `just node22-fast` corrigé. Les tests ont donné **5 PASS / 1 FAIL**
+  sur une **assertion obsolète** de `node22-fast.test.mjs`
+  qui attendait encore `npm --offline run`, alors que le script
+  appelle `npm-cli.js --offline run`. L'assertion a été mise à jour
+  dans la PR ; **6/6 au dernier HEAD non encore rejoué**.
+- **Qualité des opérateurs** : `just migration-recovery-contracts`
+  **23 tests Python PASS**, syntaxe Bash PASS, y compris gestion d'un
+  timeout Talos et préflight Docling. Les nouveaux tests ajoutés
+  après ce relevé n'ont pas encore été exécutés sur le dernier HEAD.
+
+[Runbook Talos/CSI/Docling](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·
+[Node 22](runbooks/node22-local-fast-tests.md).
+
 ## P0 — Reprise Talos VM, secret modes et preuve PDF (25 octobre)
 
 **Nouvelle preuve :** les trois VM Talos `taloscp01`, `taloswk01`,
@@ -164,10 +194,11 @@ Ne pas lancer fast-batch-upgrade avant validation du cluster.
   et la sante search, sans jamais envoyer ou indexer le PDF.
 - [x] **Runtime montage :** PDF Mickey privé de 849129 octets valide
   et lisible par `openrag-backend` selon le relevé opérateur.
-- [ ] **Runtime Docling :** l'App est confirmée **ABSENT**.
-  `deploy-docling.sh --check` contrôle Compose, image CPU déjà
-  disponible et réseaux externes sans mutation ; `--apply` reste
-  une action volontaire avant les tests de readiness et d'ingestion.
+- [x] **Création Docling :** `app.create` OK ; App actuellement
+  `DEPLOYING`, conteneur `running`. Ne pas rejouer `--apply`.
+- [ ] **Readiness Docling :** confirmer le healthcheck, le statut
+  `RUNNING`, `/ready` depuis TrueNAS et OpenRAG, puis convertir un
+  PDF synthétique. Ingestion et retrieval restent **NOT_TESTED**.
 - [ ] **E2E OpenRAG :** conversion, ingestion et retrieval **NOT_TESTED** ;
   commencer par un document synthétique, sans publier le billet.
   [Runbook cible](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·
