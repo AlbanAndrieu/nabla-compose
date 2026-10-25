@@ -164,18 +164,26 @@ def test_https_forbidden_and_json_are_not_ui_acceptance() -> None:
 def test_failed_html_origin_has_actionable_private_diagnostic() -> None:
     result = _run({"FAKE_UI_DOWN": "1"})
     assert result.returncode == 1
-    assert "NEXT: check Nginx/uWSGI containers and LAN :31085" in result.stdout
+    assert "NEXT origin: check Nginx/uWSGI containers and LAN :31085" in result.stdout
     assert "READ_ONLY: no app restart, DNS edit, database migration or secret read" in result.stdout
 
 
 def test_private_dns_mismatch_does_not_trigger_public_route_recommendation() -> None:
     src = SCRIPT.read_text(encoding="utf-8")
-    assert "reconcile internal Pi-hole -> Unbound DNS" in src
+    assert "NEXT DNS: verify Pi-hole A record and pfSense Unbound forward/reachability" in src
     assert "never publish a public A record" in src
-    assert "NEXT: verify Traefik router labels, SNI and TLS" in src
+    assert "NEXT HTTPS: verify Traefik router labels, SNI and TLS" in src
     assert "DD_PROXY_NETWORK_FAILED" in src
     assert "DD_PRIVATE_DNS_FAILED" in src
     assert "DD_HTTPS_FAILED" in src
+
+
+def test_servfail_dns_contains_actionable_unbound_diagnostic() -> None:
+    result = _run({"FAKE_DNS_RCODE": "SERVFAIL"})
+    assert result.returncode == 1
+    assert "query=invalid_response status=SERVFAIL" in result.stdout
+    assert "NEXT DNS: verify Pi-hole A record and pfSense Unbound forward/reachability" in result.stdout
+    assert "public A record present" not in result.stdout
 
 
 def test_usage_and_preflight_syntax() -> None:
