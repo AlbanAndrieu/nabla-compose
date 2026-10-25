@@ -197,7 +197,7 @@ openclaw-truenas-master-env-check:
 # Explicit exceptional read-only GETs for a true non-sk master key.
 # Never use if format check says looks_like_reference, empty or invalid.
 openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
-    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY --allow-nonstandard-master
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
 
 
 
@@ -556,8 +556,17 @@ openclaw-truenas-litellm-recreate-apply:
 # TrueNAS provisioning with existing runtime key values; no secret output.
 # Plan is read-only and uses the local TrueNAS LiteLLM API.
 openclaw-truenas-virtual-keys-plan:
-    ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/provision-openclaw-litellm-keys.py
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode plan
 
 # Explicitly create the two OpenClaw virtual keys (budget 2 each).
 openclaw-truenas-virtual-keys-apply:
-    ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/provision-openclaw-litellm-keys.py
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode apply
+
+# Works from either canonical TrueNAS checkout or Workstation; no tunnel required.
+openclaw-truenas-virtual-keys-status:
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+
+# Offline stdlib contracts; require no Docker, SSH, API key, or CI.
+openclaw-truenas-virtual-keys-test:
+    python3 -m py_compile scripts/truenas/dispatch-openclaw-litellm-keys.py scripts/truenas/provision-openclaw-litellm-keys.py tests/test_openclaw_litellm_execution_dispatch.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
