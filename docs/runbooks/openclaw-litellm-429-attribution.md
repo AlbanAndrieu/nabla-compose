@@ -599,3 +599,39 @@ persistance des clés virtuelles sur TrueNAS restent
 réussie. La PR ne crée, ne copie et ne supprime
 aucun credential.
 
+
+
+## Acceptation Workstation — 25 octobre 2026 — inventaire admin TrueNAS
+
+Retour d'exécution fourni par l'opérateur sur la branche de la PR #280.
+Cette section prévaut sur les anciennes mentions « inventaire non exécuté ».
+
+| Contrôle | Preuve | Résultat |
+| --- | --- | --- |
+| Contrats préflight TrueNAS | unittest | 25/25 PASS |
+| Contrats routage OpenClaw | unittest | 3/3 PASS |
+| Contrats tunnel SSH | unittest | 8/8 PASS |
+| Tunnel local | `verified_ssh`, `reuse` | PASS |
+| Master admin dédiée | `nonstandard_prefix`, `provided` | Acceptée pour les deux GET |
+| `GET /v1/models` | HTTP 200 | PASS, mais `gpt-4.1` et `gpt-4.1-mini` absents |
+| `GET /key/list` | HTTP 200, `count=0` | Aucun élément listé par l'endpoint |
+| Migration virtuelle | `migration_applied=false` | NON EFFECTUÉE |
+
+**Interprétation** : le préfixe différent de `sk-` n'est pas un motif
+d'échec d'authentification sur cette instance. Les réponses 200 attestent
+uniquement les deux lectures autorisées ; elles ne prouvent ni la
+disponibilité d'autres routes, ni la connexion PostgreSQL, ni la persistance
+après redéploiement. Le `count=0` concerne le résultat de `/key/list`,
+pas une inspection directe de la base.
+
+**Décision NO-GO** : ne pas basculer `openclaw-main` ou `openclaw-cron`
+vers TrueNAS, ne pas générer de clé, ne pas tourner `LITELLM_MASTER_KEY`
+ou `LITELLM_SALT_KEY` tant que :
+1. la source effective de configuration et les alias de modèles nécessaires sont identifiés ;
+2. `DATABASE_URL` et la connectivité DB sont attestées sans divulgation de valeur ;
+3. les clés virtuelles distinctes `main` et `cron` sont provisionnées et testées avec un rollback possible.
+
+La suite de diagnostic est strictement en lecture seule. Les sous-modules
+`n8n` et `sentry` signalés modifiés dans le worktree opérateur ne sont
+pas touchés par cette procédure. Les tests ont été exécutés sur Workstation ;
+le runtime et la DB n'ont pas été modifiés.
