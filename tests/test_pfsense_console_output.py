@@ -252,6 +252,55 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("EVIDENCE INCOMPLETE", result.stdout)
         self.assertNotIn("1 distinct historical OOM records", result.stdout)
 
+    def test_memory_window_summary_never_claims_zero_kernel_oom(self):
+        sample = (
+            "=== Memory-pressure time-series (instantaneous) ===\n"
+            "sampler_budget=samples=3 interval_seconds=15\n"
+            "sample_seq=1 timestamp=2026-10-25T21:23:57+0100 "
+            "available_kib=182976 free_kib=156144 inactive_kib=26832\n"
+            "sample_seq=2 timestamp=2026-10-25T21:24:42+0100 "
+            "available_kib=128260 free_kib=55136 inactive_kib=73124\n"
+            "WARN: sampled_memory_headroom=LOW_BELOW_128_MIB\n"
+            "sample_seq=3 timestamp=2026-10-25T21:24:58+0100 "
+            "available_kib=196532 free_kib=177332 inactive_kib=19200\n"
+            "sample_scope=INSTANT_ONLY_PROCESS_NAMES_NO_ARGS\n"
+            "=== End of bounded memory-pressure sampling ===\n"
+        )
+        for mode in ("compact", "verbose"):
+            with self.subTest(mode=mode):
+                result = render(sample, mode=mode)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("Memory window · 3 samples", result.stdout)
+                self.assertIn("available min=125.3 MiB", result.stdout)
+                self.assertIn("max=191.9 MiB", result.stdout)
+                self.assertIn("below 128 MiB=1", result.stdout)
+                self.assertIn("Historical OOM events NOT_EVALUATED", result.stdout)
+                self.assertNotIn("0 distinct historical OOM records", result.stdout)
+                self.assertNotIn("EVIDENCE INCOMPLETE", result.stdout)
+
+    def test_missing_sampler_samples_are_incomplete(self):
+        sample = (
+            "=== Memory-pressure time-series (instantaneous) ===\n"
+            "sampler_budget=samples=2 interval_seconds=15\n"
+            "sample_seq=1 timestamp=2026-10-25T21:23:57+0100 "
+            "available_kib=182976 free_kib=156144 inactive_kib=26832\n"
+        )
+        result = render(sample, mode="verbose")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("EVIDENCE INCOMPLETE", result.stdout)
+        self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
+    def test_sampler_command_failure_is_incomplete(self):
+        sample = (
+            "=== Memory-pressure time-series (instantaneous) ===\n"
+            "sampler_budget=samples=1 interval_seconds=15\n"
+            "ERROR: sampler_ps_failed\n"
+        )
+        result = render(sample)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("EVIDENCE INCOMPLETE", result.stdout)
+        self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
     def test_zero_sections_cannot_be_presented_as_zero_oom(self):
         result = render("", mode="compact")
         self.assertEqual(result.returncode, 0, result.stderr)
