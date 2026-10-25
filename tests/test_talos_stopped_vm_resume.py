@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/resume-stopped-talos-vms.py"
@@ -46,6 +47,34 @@ class TalosStoppedVMTest(unittest.TestCase):
             with self.subTest(data=data):
                 with self.assertRaises(ValueError):
                     MODULE.inventory(data)
+
+    def test_vm_start_timeout_followed_by_running_is_not_retried(self):
+        stopped = MODULE.inventory(fixture())[0]
+        with patch.object(MODULE.subprocess, "run",
+                          side_effect=subprocess.TimeoutExpired("vm.start", 180)) as run:
+            with patch.object(MODULE, "midclt",
+                              return_value=json.dumps(fixture("RUNNING"))) as query:
+                self.assertTrue(MODULE.start_and_observe(stopped))
+        self.assertEqual(run.call_count, 1)
+        self.assertGreaterEqual(query.call_count, 1)
+
+    def test_vm_start_timeout_without_running_does_not_repeat_start(self):
+        stopped = MODULE.inventory(fixture())[0]
+        with patch.object(MODULE.subprocess, "run",
+                          side_effect=subprocess.TimeoutExpired("vm.start", 180)) as run:
+            with patch.object(MODULE, "midclt",
+                              return_value=json.dumps(fixture("STOPPED"))):
+                with patch.object(MODULE.time, "sleep", return_value=None):
+                    self.assertFalse(MODULE.start_and_observe(stopped))
+        self.assertEqual(run.call_count, 1)
+
+    def test_vm_state_polling_does_not_guess_health_or_cluster(self):
+        with patch.object(MODULE, "midclt",
+                          return_value=json.dumps(fixture("RUNNING"))):
+            self.assertEqual(MODULE.wait_for_vm_state("taloscp01"), "RUNNING")
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("Talos/etcd not yet verified", source)
+        self.assertNotIn("talosctl upgrade", source)
 
     def test_start_requires_explicit_ack_and_live_inventory(self):
         for args in (["--start"], ["--start", "--query-json", "/tmp/invalid"]):
