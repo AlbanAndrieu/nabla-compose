@@ -50,7 +50,7 @@ def test_fixed_allowlist_no_shell_and_no_raw_output() -> None:
     checks = MODULE.selected_checks("observability")
     results = MODULE.collect(checks, runner=fake_runner)
     assert MODULE.overall_exit(results) == 0
-    assert len(seen) == 3
+    assert len(seen) == 4
     assert set(x["state"] for x in results) == {"pass"}
     for command in seen:
         assert command[0] in {"python3", "bash"}
@@ -64,14 +64,14 @@ def test_failure_isolation_and_no_false_green() -> None:
     def fake_runner(_args, **_kwargs):
         nonlocal count
         count += 1
-        return SimpleNamespace(returncode=[1, 2, 0][count - 1])
+        return SimpleNamespace(returncode=[1, 2, 0, 0][count - 1])
 
     results = MODULE.collect(
         MODULE.selected_checks("observability"), runner=fake_runner
     )
-    assert count == 3
+    assert count == 4
     assert [x["state"] for x in results] == [
-        "failed", "unverified", "pass",
+        "failed", "unverified", "pass", "pass",
     ]
     assert MODULE.overall_exit(results) == 1
 
