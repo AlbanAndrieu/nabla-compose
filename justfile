@@ -184,6 +184,14 @@ openclaw-cron-file-cutover:
     python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
+# Separate radio association, IPv4 route, public DNS and local DNS without pfSense mutations.
+pfsense-wifi-path-test:
+    python3 -m py_compile scripts/workstation/diagnose-wifi-path.py tests/test_workstation_wifi_path.py
+    python3 -m unittest discover -s tests -p 'test_workstation_wifi_path.py' -v
+
+pfsense-wifi-path:
+    python3 scripts/workstation/diagnose-wifi-path.py --check
+
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:
     bash -n scripts/pfsense/console.sh
