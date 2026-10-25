@@ -63,6 +63,29 @@ def stage_kind(root):
     return "unverified"
 
 
+def isolated_prefix_safe():
+    """Reject user-writable symlink redirects before invoking npm.
+
+    Check existing ancestors under HOME as well as the final stage path.
+    No path creation in this read-only helper.
+    """
+    home = user_home()
+    for p in (home / ".local", home / ".local/share",
+              home / ".local/share/nabla-compose",
+              home / ".local/share/nabla-compose/openclaw-stage",
+              isolated_stage_root()):
+        try:
+            st = p.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return False
+        if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid()
+                or st.st_mode & 0o022):
+            return False
+    return True
+
+
 def private_status(path):
     try:
         meta = path.lstat()
@@ -313,11 +336,15 @@ def stage():
     # The isolated prefix is created owner-only; do not follow a symlink
     # created by another process or overwrite a preexisting package tree.
     if destination == isolated_stage_root():
-        if destination.is_symlink():
+        if not isolated_prefix_safe():
             print("upgrade_stage=unsafe_prefix")
             return 2
-        destination.mkdir(mode=0o700, parents=True, exist_ok=True)
-        if not private_status(destination) or destination.stat().st_mode & 0o022:
+        try:
+            destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+        except OSError:
+            print("upgrade_stage=unsafe_prefix")
+            return 2
+        if not isolated_prefix_safe():
             print("upgrade_stage=unsafe_prefix")
             return 2
     rc, install_out, install_err = run(cmd, timeout=300, env=env)
