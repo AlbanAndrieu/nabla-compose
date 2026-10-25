@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | **Nouvelle régression signalée le 25/10 :** `https://defectdojo.int.albandrieu.com/` inaccessible dans le navigateur ; cause runtime actuelle **NOT_VERIFIED**. L'ancienne acceptation HTTP 302 ne constitue plus une preuve présente | Rejouer la chaîne Nginx/uWSGI → LAN :31085 → DNS Pi-hole/Unbound → HTTPS Traefik/SNI et valider la page de connexion |
-| H-04 | pfSense / Unbound | **PHP-FPM `4/30/1/2/500` confirmé après cutover** : 1 worker puis **2 workers nginx à 23:56**, free+inactive **271,4 puis 247,0 Mio**. Unbound `HEALTHY`, PID **19252** inchangé, dernier OOM visible `php_pfb` **25/10 22:12** (avant cutover), aucun kill ultérieur dans la fenêtre consultée. Snort WAN **ac-bnfa**, HTTP Inspect **32 Mio**. **15/15 tests sécurité/capacité PASS**, audit **37 PASS / 5 WARN / 0 FAIL**. | **P0 :** confirmer indépendamment HTTPS GUI :10443, pfREST, DNS privé LAN ; monitorer la mémoire et les kills après mise à jour DNSBL 00:00/04:00/22:00. **P1 :** enquêter sur `php_pfb` 22:12, compteur DNSBL absent, `pfb_filter` absent, et remettre la couverture CrowdSec bouncer après mesure. Pas de nouvelle réduction Snort sans preuve. |
+| H-04 | pfSense / Unbound | **PHP-FPM `4/30/1/2/500` confirmé après cutover** : 1 worker puis **2 workers nginx à 23:56**, free+inactive **271,4 puis 247,0 Mio**. Unbound `HEALTHY`, PID **19252** inchangé, dernier OOM visible `php_pfb` **25/10 22:12** (avant cutover), aucun kill ultérieur dans la fenêtre consultée. Snort WAN **ac-bnfa**, HTTP Inspect **32 Mio**. **16/16 tests sécurité/capacité PASS le 26/10 à 00:06 CET**, **49/49 contrats Unbound/console/mémoire PASS** ; audit runtime antérieur **37 PASS / 5 WARN / 0 FAIL**. | **P0 :** confirmer indépendamment HTTPS GUI :10443, pfREST, DNS privé LAN ; monitorer la mémoire et les kills après mise à jour DNSBL 00:00/04:00/22:00. **P1 :** enquêter sur `php_pfb` 22:12, compteur DNSBL absent, `pfb_filter` absent, et remettre la couverture CrowdSec bouncer après mesure. Pas de nouvelle réduction Snort sans preuve. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -77,7 +77,9 @@ Actions :
 - [x] **H-04 / PHP-FPM P0 — déploiement du profil mémoire allégé :**
   commande appliquée par l'opérateur le **25 octobre 2026** ;
   `just pfsense-security-capacity-test` **13/13 PASS** et
-  `just pfsense-unbound-restart-test` **48/48 PASS** (précédemment).
+  `just pfsense-unbound-restart-test` **49/49 PASS** (21 Unbound, 23 console,
+  5 échantillonneur) **le 26/10 à 00:06 CET**. Les gates hors réseau
+  ne constituent pas un relevé runtime post-cron pfBlockerNG.
   Avant : générateur + pool `8/3600/2/7/5000`, **7 workers nginx**.
   Après : générateur + pool **`4/30/1/2/500`**, **1 worker nginx**,
   socket PHP-FPM présente, DNS public localhost et contrôle Unbound HEALTHY.
@@ -95,7 +97,8 @@ Actions :
   L'OOM le plus récent **22:12 CET** reste antérieur au cutover ;
   **aucun événement plus récent n'a été identifié dans les journaux
   consultés**, sans certifier toutes les plages temporelles.
-  `just pfsense-security-capacity-test` **15/15 PASS** et
+  `just pfsense-security-capacity-test` **16/16 PASS** (5 PHP-FPM,
+  8 wrapper, 3 posture) le 26/10 à 00:06 CET et
   `just pfsense-php-fpm-postcheck` exécuté ; posture **37 PASS / 5 WARN
   / 0 FAIL**. **À confirmer depuis le LAN :** HTTPS GUI **:10443**,
   pfREST authentifié, DNS privé, saturation FastCGI et stabilité
@@ -143,6 +146,17 @@ Actions :
   `pfblocker.dnsbl_loaded_entries=0` signifie compteur **inconnu**,
   pas preuve d'une liste réellement vide ; dernier marqueur `PASSED`
   connu à **00:05:12**. Ne pas forcer de téléchargement/rebuild.
+- [ ] **H-04 / réception du 26/10 après minuit :** les **65 tests
+  locaux PASS** (16 sécurité/capacité + 49 Unbound/console/mémoire)
+  ont été lancés vers **00:06 CET**, mais **aucun nouveau relevé
+  runtime pfSense post-cron** ne figure dans ces résultats.
+  Collecter `PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check`
+  puis comparer PID / heure de démarrage, empreintes
+  `unbound_config` et `dnsbl_legacy_ini` à la baseline
+  du **25/10 à 23:56 CET**, ainsi que les nouveaux marqueurs
+  stop/start DNSBL et OOM **après 00:00**. Une empreinte inchangée
+  n'établit pas que le module Python a gardé son état en RAM.
+  Aucun restart/rebuild forcé pendant la collecte.
 - [ ] **H-04 feed-pressure :** exécuter `just pfsense-feed-pressure-check`
   en lecture seule lors des prochaines anomalies Unbound/Snort/pfBlockerNG.
   Examiner les erreurs HTTP 403/404/429/5xx, timeouts, retries IPinfo,
