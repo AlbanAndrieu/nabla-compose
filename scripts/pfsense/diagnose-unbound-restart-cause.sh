@@ -226,7 +226,7 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
       for(i=first;i<=record_count;i++) print saved[i % 35]
     }
   '; then
-    printf 'ERROR: lifecycle_classifier_failed source=%s\n' "$source" >&2
+    printf 'ERROR: lifecycle_classifier_failed source=%s\n' "$source"
     exit 70
   fi
 done
@@ -237,8 +237,14 @@ for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockern
             /var/log/snort/snort_rules_update.log /var/log/snort/snort_updates.log \
             /var/log/snort/snort_updates.log.0; do
   [ -r "$file" ] || continue
-  case "$file" in *snort*) family=snort ;; *) family=pfblockerng ;; esac
-  if ! tail -n 2500 "$file" | awk -v family="$family" '
+  case "$file" in
+    *snort_rules_update*) family=snort; logfile=snort_rules_update ;;
+    *snort*) family=snort; logfile=snort_updates ;;
+    *extras.log*) family=pfblockerng; logfile=pfblockerng_extras ;;
+    *error.log*) family=pfblockerng; logfile=pfblockerng_error ;;
+    *) family=pfblockerng; logfile=pfblockerng_main ;;
+  esac
+  if ! tail -n 2500 "$file" | awk -v family="$family" -v logfile="$logfile" '
     {
       line=tolower($0)
       kind=""
@@ -262,13 +268,13 @@ for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockern
       if(kind!="") {count[kind]++; total++; last[kind]=NR}
     }
     END {
-      printf "feed_log_family=%s scope=last_2500_lines signal_total=%d\n",family,total+0
+      printf "feed_log_family=%s log=%s scope=last_2500_lines signal_total=%d\n",family,logfile,total+0
       for(kind in count)
-        printf "WARN: feed_download_signal=%s family=%s count=%d last_line_in_window=%d\n",
-          kind,family,count[kind],last[kind]
+        printf "WARN: feed_download_signal=%s family=%s log=%s count=%d last_line_in_window=%d\n",
+          kind,family,logfile,count[kind],last[kind]
     }
   '; then
-    printf 'ERROR: feed_log_classifier_failed family=%s\n' "$family" >&2
+    printf 'ERROR: feed_log_classifier_failed family=%s\n' "$family"
     exit 70
   fi
 done
