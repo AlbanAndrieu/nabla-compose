@@ -9,12 +9,12 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
-from pathlib import Path
 import re
 import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Callable, Sequence
 
 Runner = Callable[[Sequence[str]], tuple[bool, str]]
