@@ -148,6 +148,33 @@ for file in /usr/local/pkg/pfblockerng/pfblockerng.inc \
 done
 [ "$implementation_seen" = yes ] ||
   echo 'pfblocker_dnsbl_reload_capabilities=NOT_OBSERVED'
+echo '=== Unbound configuration fingerprints (compare observations; read-only) ==='
+for file in /var/unbound/unbound.conf \
+            /var/unbound/pfb_py.ini \
+            /var/unbound/pfb_unbound.ini; do
+  case "$file" in
+    /var/unbound/unbound.conf) item=unbound_config ;;
+    /var/unbound/pfb_py.ini) item=dnsbl_python_ini ;;
+    *) item=dnsbl_legacy_ini ;;
+  esac
+  if [ ! -f "$file" ] || [ -L "$file" ] || [ ! -r "$file" ]; then
+    printf 'config_fingerprint=%s status=UNAVAILABLE\n' "$item"
+    continue
+  fi
+  length=$(stat -f '%z' "$file" 2>/dev/null || printf '')
+  modified=$(stat -f '%m' "$file" 2>/dev/null || printf '')
+  checksum=$(sha256 -q "$file" 2>/dev/null || printf '')
+  case "$length:$modified:$checksum" in
+    *[!a-zA-Z0-9:]*|::*|*::) printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item" ;;
+    *) if [ "${#checksum}" -ne 64 ]; then
+         printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"
+       else
+         printf 'config_fingerprint=%s size_bytes=%s mtime_unix=%s sha256=%s\n' \
+           "$item" "$length" "$modified" "$checksum"
+       fi ;;
+  esac
+done
+echo 'config_fingerprint_comparison=NEEDS_TWO_SNAPSHOTS'
 echo '=== Bounded lifecycle and kernel signals (raw messages withheld) ==='
 for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
             /var/log/resolver.log /var/log/resolver.log.0 \
