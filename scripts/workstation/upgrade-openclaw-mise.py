@@ -65,7 +65,7 @@ def unit_exec():
     text = out.decode("utf-8", "replace")
     packages = SERVICE_PATTERN.findall(text)
     nodes = OLD_NODE_PATTERN.findall(text)
-    if len(packages) != 1 or len(nodes) != 1:
+    if len(packages) != 1 or len(nodes) > 1:
         return None
     # Reject unknown service flags; never discard runtime customization.
     if "--max-old-space-size=16053" not in text or "gateway --port 18789" not in text:
@@ -74,8 +74,17 @@ def unit_exec():
     expected_parent = (user_home() / ".local/share/mise/installs/node").resolve()
     if owner.parent != expected_parent or not re.fullmatch(r"\d+\.\d+\.\d+", owner.name):
         return None
-    if owner.name != nodes[0]:
-        return None
+    if nodes:
+        if owner.name != nodes[0]:
+            return None
+    else:
+        # Historical Ubuntu service could launch /usr/bin/node yet load
+        # OpenClaw JS from its user-owned mise package prefix. Permit only
+        # the OLD package in that situation; the migrated service MUST bind
+        # the exact new Node binary and package together.
+        system_node = re.search(r"(?:path=|argv\[\]=|ExecStart=)\s*/usr/bin/node(?:\s|;)", text)
+        if not system_node or owner == new_root():
+            return None
     if not private_status(owner):
         return None
     return owner
