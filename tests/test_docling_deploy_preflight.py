@@ -26,12 +26,13 @@ class DoclingDeployPreflightTest(unittest.TestCase):
     def test_no_mutation_before_preflight(self):
         source = SCRIPT.read_text(encoding="utf-8")
         verify = source.index('if [[ "${MODE}" == "--check" ]]; then')
-        execute = source.index('if [[ "${app_count}" == "1" ]]; then')
-        self.assertLess(verify, execute)
+        guard = source.index('if [[ "${app_count}" == "1" ]]; then\n  app_state=')
         prepare = source.index(
             'bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"'
         )
-        self.assertLess(verify, prepare)
+        execute = source.index('  truenas_job_compact app.update "${APP_ID}"')
+        self.assertLess(verify, guard)
+        self.assertLess(guard, prepare)
         self.assertLess(prepare, execute)
         self.assertIn('docker image inspect "${image}"', source)
         self.assertIn('docker network inspect "${network}"', source)
