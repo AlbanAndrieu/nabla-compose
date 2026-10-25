@@ -927,3 +927,83 @@ Documentation officielle :
 - https://docs.openclaw.ai/help/faq-models
 - https://docs.openclaw.ai/gateway/config-tools/custom-providers
 - https://docs.openclaw.ai/concepts/model-failover
+
+
+## Alignement LiteLLM générique Workstation → TrueNAS (25 octobre 2026)
+
+**Contexte** : le diagnostic de la Workstation a réussi 21/21 contrats,
+mais la commande `quota-audit` renvoyait `invalid choice`. Le code
+`build_command()` acceptait ce mode et le provisioner le gérait ;
+la liste `argparse --mode` du dispatcher ne le contenait pas.
+Le choix CLI et le contrat de non-régression ont été corrigés.
+L'ancienne chaîne s'arrêtait donc *avant* de lire le budget TrueNAS.
+
+**Périmètre de synchronisation des modèles :**
+- les alias Ollama génériques `llama3.2`, `llama3.1`,
+  `llama3.8b`, `deepseek-coder-v2`, `qwen`, `gemma3`,
+  `rr-json` utilisent le GPU Ollama Workstation
+  `172.17.0.57:11434` ;
+- `qwen` conserve la capacité d'outils déclarée sur TrueNAS pour
+  OpenClaw, et reçoit le coût nul de la route locale ;
+- `embedding` reste relayé via LiteLLM Workstation avec sa clé dédiée,
+  `embedding-local` reste isolé sur Ollama TrueNAS pour rollback ;
+- `fastapi-qwen`, `workstation-qwen`, Hermes, Redis, Langfuse,
+  PostgreSQL et les deux clés virtuelles sont conservés ;
+- les fournisseurs externes génériques facultatifs sont seulement
+  documentés comme routes désactivées jusqu'à confirmation des
+  secrets et disponibilités ; aucun secret nouveau n'a été généré ;
+- **les routes et identifiants d'entreprise n'entrent pas dans le
+  catalogue TrueNAS, y compris sous forme de commentaires** ;
+- les fallbacks vers des alias GPT absents du proxy TrueNAS sont
+  supprimés ; le routage utilise `least-busy`,
+  `allowed_fails=1`, `cooldown_time=30`,
+  `enable_pre_call_checks=true` et conserve une seule relance.
+
+Ne pas confondre alignement de la déclaration TrueNAS et bascule
+OpenClaw : les providers `litellm-main` et `litellm-cron` dans la
+Workstation pointent toujours vers le LiteLLM Workstation. Les
+deux clés récemment créées sur TrueNAS **ne corrigeront pas** le 429
+tant que la route et le modèle OpenClaw ne sont pas adaptés.
+La clé `cron` autorise `workstation-qwen`, et la clé `main`
+autorise `workstation-qwen` et `qwen` ; elles n'autorisent
+aucun modèle GPT.
+
+### Vérification locale Workstation (sans CI)
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just litellm-truenas-generic-alignment-test
+just openclaw-429-attribution-test
+just openclaw-truenas-virtual-keys-quota
+```
+
+La dernière commande interroge les **métadonnées** des clés TrueNAS,
+sans génération. Une clé au budget épuisé retourne un code non nul
+sans modifier la limite.
+
+### Publication runtime TrueNAS — après validation locale
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+sudo -n python3 scripts/truenas/recreate-litellm-env.py
+sudo -n python3 scripts/truenas/recreate-litellm-env.py --apply
+```
+
+Le plan lit les métadonnées du Compose existant. L'application
+recrée uniquement le service `litellm` en reprenant le fichier de
+configuration lié au checkout TrueNAS ; elle vérifie à la fin que
+les sept variables prévues sont encore injectées. La preuve de
+readiness applicative et l'inventaire des modèles nécessitent le
+contrôle ultérieur sur la Workstation :
+
+```bash
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-quota
+```
+
+Aucun déploiement ni correction de la configuration privée OpenClaw
+n'a été exécuté dans la PR ; les tests demandés doivent être rejoués
+au nouveau HEAD. L'absence de budget épuisé ne prouve pas l'absence
+d'un rate limit RPM/TPM en amont.
