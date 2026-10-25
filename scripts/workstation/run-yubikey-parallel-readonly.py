@@ -24,10 +24,12 @@ TEST_JOBS = {
     "workstation": ("just", "yubikey-workstation-test"),
     "coordinator": ("just", "yubikey-diagnostics-test"),
     "gpg_agent": ("just", "yubikey-gpg-agent-test"),
+    "dependencies": ("just", "yubikey-dependencies-test"),
 }
 HOST_JOBS = {
     "workstation": (sys.executable, "scripts/workstation/inspect-yubikey-workstation-readonly.py"),
     "gpg_agent": (sys.executable, "scripts/workstation/inspect-gpg-agent-readonly.py"),
+    "dependencies": (sys.executable, "scripts/workstation/inspect-yubikey-dependencies-readonly.py"),
 }
 HARDWARE_JOB = (
     sys.executable, "scripts/workstation/diagnose-yubikey-readonly-batch.py",
@@ -97,11 +99,11 @@ def execute(secondary: bool) -> tuple[dict, int]:
         "configuration": "NOT_AUTHORIZED",
     }
     report["tests"] = parallel(TEST_JOBS)
-    if any(state != "PASS" for state in report["tests"].values()):
+    if any(report["tests"].get(name) != "PASS" for name in TEST_JOBS):
         return report, 3
 
     report["host"] = parallel(HOST_JOBS, read_json=True)
-    if any(state != "PASS" for state in report["host"].values()):
+    if any(report["host"].get(name) != "PASS" for name in HOST_JOBS):
         return report, 3
 
     # Deliberately serial: only after all non-hardware checks have completed.
