@@ -22,6 +22,10 @@ class NpmDiagnosticTests(unittest.TestCase):
         self.home = Path(directory.name)
         self.logs = self.home / ".npm/_logs"
         self.logs.mkdir(parents=True)
+        # Keep fixture security independent of operator umask (often 0002):
+        # the production guard correctly refuses group-writable npm dirs.
+        (self.home / ".npm").chmod(0o700)
+        self.logs.chmod(0o700)
         self.log = self.logs / BASENAME
 
     def write(self, content):
@@ -54,6 +58,17 @@ class NpmDiagnosticTests(unittest.TestCase):
         external = self.home / "external.log"
         external.write_text("error token private")
         self.log.symlink_to(external)
+        self.assertIsNone(mod.choose_log(self.home, BASENAME))
+
+    def test_reject_group_writable_npm_directory(self):
+        self.write("npm error code EACCES")
+        self.logs.chmod(0o770)
+        self.assertIsNone(mod.choose_log(self.home, BASENAME))
+        self.assertIsNone(mod.choose_log(self.home, None))
+
+    def test_reject_group_writable_npm_parent(self):
+        self.write("npm error code EACCES")
+        (self.home / ".npm").chmod(0o770)
         self.assertIsNone(mod.choose_log(self.home, BASENAME))
 
     def test_reject_path_traversal(self):
