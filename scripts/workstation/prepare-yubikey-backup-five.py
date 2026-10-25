@@ -115,7 +115,7 @@ def collect(hardware: bool, escrow_a: Path | None = None,
         "completion": "NOT_VERIFIED",
     }
     passed = complete and (not hardware or slots.get("state") == "METADATA_ONLY")
-    if escrow in ("INVALID_INPUT", "UNVERIFIED"):
+    if escrow_a is not None and escrow != "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED":
         passed = False
     return result, 0 if passed else 3
 
