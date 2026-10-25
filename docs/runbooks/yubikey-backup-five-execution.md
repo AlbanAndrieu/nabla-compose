@@ -197,3 +197,69 @@ Références :
 [Yubico PIV CLI](https://docs.yubico.com/software/yubikey/tools/ykman/PIV_Commands.html),
 [KeePassXC User Guide](https://keepassxc.org/docs/KeePassXC_UserGuide),
 [Plan PIV82 détaillé](yubikey-capabilities-completion-plan.md).
+
+## Preuve opérateur — identité SSH FIDO2 créée, OpenPGP intermittent (26/10/2026)
+
+La workstation a généré effectivement une nouvelle poignée SSH FIDO2
+`ed25519-sk` sur la secondaire **22916048** (commande
+`just yubikey-backup-ssh-enroll`). Une première tentative de PIN FIDO2
+était incorrecte, la suivante a abouti à la génération. Ne pas relancer
+l'enrôlement, ne pas multiplier les essais de PIN. Une passphrase SSH
+a été saisie et confirmée localement ; elle ne doit jamais être copiée
+dans les journaux ni dans GitHub. Le fichier existe dans
+`~/.ssh/nabla-yubikey-backup-22916048/id_ed25519_sk_backup`
+et la clé publique existe à côté.
+
+Empreinte publique attestée par `ssh-keygen -lf` :
+`SHA256:42+Klqmv8gwQZB+1OxRjkye3nEQF1PsMjTQwXwzoSwQ`
+(`ED25519-SK`).
+**Il s'agit uniquement d'une identité SSH locale créée.**
+La signature matérielle d'une fixture et l'authentification distante
+sur les serveurs/GitHub sont encore `NOT_VERIFIED`.
+
+La séance OpenPGP s'est déroulée avec **deux résultats différents** :
+- Première exécution `GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED`.
+- Deuxième exécution `OPENPGP_TRANSPORT_NOT_CONFIRMED` (exit 3).
+
+On ne peut pas affirmer la cause sans diagnostic : scdaemon, CCID,
+PC/SC, lecteur ou contexte agent concurrent restent des hypothèses.
+Ne pas redémarrer/arrêter GPG-agent, scdaemon ou pcscd et ne pas
+éditer `scdaemon.conf` automatiquement. L'état OpenPGP reste **NO-GO**.
+
+### Nouvelle classification OpenPGP, sans divulgation
+
+La sonde `probe-yubikey-backup-openpgp.py` refuse désormais
+un succès GPG si la sortie ne comporte pas un identifiant d'applet
+OpenPGP de forme canonique `D27600012401...`.
+Une réponse GPG vide avec code 0 n'est **pas** une preuve d'accès carte.
+
+Les échecs sont catégorisés dans le JSON sans imprimer stdout/stderr :
+`OPENPGP_DEVICE_NOT_AVAILABLE`, `OPENPGP_READER_BUSY_UNVERIFIED`,
+`OPENPGP_SCDAEMON_OR_AGENT_UNAVAILABLE`,
+`OPENPGP_CARD_OR_READER_ERROR`, `OPENPGP_PROBE_TIMEOUT` et
+`OPENPGP_TRANSPORT_NOT_CONFIRMED`.
+Une réussite reste `GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED`,
+**pas** une preuve de sous-clé privée ou d'identité liée à 22916048.
+
+Le script et ses 15 contrats hermétiques ont été vérifiés sur copies
+locales dont les blobs Git correspondent exactement aux versions publiées :
+`probe-yubikey-backup-openpgp.py@e11a7d26` ;
+`test_yubikey_backup_openpgp_probe.py@94f5fb2e`.
+**15/15 PASS local ; workstation sur cette nouvelle version NOT_RUN.**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+git rev-parse HEAD
+just yubikey-backup-openpgp-test
+just yubikey-dependencies-readonly
+bash scripts/workstation/diagnose-gpg-smartcard.sh --host-only
+# Puis, seulement avec la secondaire et une session terminal supervisée :
+just yubikey-backup-openpgp-probe
+```
+
+Si la sonde renvoie à nouveau une erreur, noter **uniquement son état
+JSON** et ne pas la répéter immédiatement. Analyser ensuite le type
+d'erreur avant de changer une option PC/SC ou relancer un daemon.
+Ne jamais publier une sortie GPG complète contenant identifiants
+de lecteurs, clés, UID, chemins ou données sensibles.
