@@ -90,6 +90,24 @@ class RepairContracts(unittest.TestCase):
         self.assertEqual(update["agents"]["list"], [])
         self.assertEqual(mod.repair_scope(original), "concurrency_only")
 
+    def test_implicit_agent_does_not_access_cron_credentials_or_models(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        self.key.unlink()
+        with patch.object(mod, "scoped_models") as model_probe, \
+             patch.object(mod, "native_patch_concurrency", return_value="applied") as rpc, \
+             patch.object(mod, "apply_config") as direct, \
+             patch.object(mod, "service_active", return_value=True), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.main(["--apply", "--restart-gateway"])
+        self.assertEqual(result, 0)
+        model_probe.assert_not_called()
+        direct.assert_not_called()
+        rpc.assert_called_once()
+        self.assertIn("cron_key_access=not_required", output.getvalue())
+        self.assertIn("cron_route_change=not_applicable_no_named_agent", output.getvalue())
+
     def test_default_agent_apply_uses_rpc_not_direct_overwrite(self):
         original = sample()
         del original["agents"]["list"]
