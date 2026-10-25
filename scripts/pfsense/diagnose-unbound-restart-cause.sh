@@ -68,6 +68,7 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
     *cron*) source=cron ;;
     *) source=pfblockerng ;;
   esac
+  printf '=== %s lifecycle events (bounded, redacted) ===\n' "$source"
   printf 'log_family=%s readable=yes\n' "$source"
   tail -n 4000 "$file" | awk -v source="$source" '
     function stamp(line, s) {
@@ -105,8 +106,12 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
         else if($0 ~ /UPDATE PROCESS ENDED/) event="pfblockerng_update_end"
         else if($0 ~ /DNSBL.*(PASSED|FAILED)/) event="dnsbl_update_result"
       }
-      if(event!="")
-        printf "signal_source=%s event=%s timestamp=%s\n",source,event,stamp($0)
+      if(event!="") {
+        level=(event=="kernel_oom_unbound" || event=="unbound_bind_conflict" ||
+               event=="watchdog_unbound_restart" ? "WARN: " : "")
+        printf "%ssignal_source=%s event=%s timestamp=%s\n",
+          level,source,event,stamp($0)
+      }
     }
   ' | tail -35 || true
 done
