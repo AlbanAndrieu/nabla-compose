@@ -26,6 +26,10 @@ class UpgradeContracts(unittest.TestCase):
         self.new = self.home / ".local/share/mise/installs/node/24.22.1"
         self.old.mkdir(parents=True)
         self.new.mkdir(parents=True)
+        for relative in (".local", ".local/share", ".local/share/nabla-compose"):
+            directory = self.home / relative
+            if directory.exists():
+                directory.chmod(0o700)
         old_entry = self.old / "lib/node_modules/openclaw/dist/index.js"
         old_entry.parent.mkdir(parents=True)
         old_entry.write_text("// Synthetic legacy installed entry\\n")
@@ -135,6 +139,27 @@ class UpgradeContracts(unittest.TestCase):
                   " gateway --port 18789 ; ignore_errors=no }").encode()
         with patch.object(mod, "run", return_value=(0, output, b"")):
             self.assertEqual(mod.unit_exec(), isolation)
+
+    def test_isolated_prefix_rejects_symlink_parent(self):
+        target = self.home / "redirect"
+        target.mkdir()
+        root = mod.isolated_stage_root()
+        root.parent.parent.mkdir(parents=True, exist_ok=True)
+        root.parent.symlink_to(target, target_is_directory=True)
+        self.assertFalse(mod.isolated_prefix_safe())
+        self.assertFalse(mod.stage_valid(root))
+
+    def test_isolated_prefix_rejects_group_writable_parent(self):
+        root = mod.isolated_stage_root()
+        root.parent.mkdir(parents=True, exist_ok=True)
+        root.parent.chmod(0o770)
+        self.assertFalse(mod.isolated_prefix_safe())
+
+    def test_isolated_prefix_accepts_owner_only_parent(self):
+        root = mod.isolated_stage_root()
+        root.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        root.parent.chmod(0o700)
+        self.assertTrue(mod.isolated_prefix_safe())
 
     def test_unit_exec_refuses_isolated_package_with_legacy_node(self):
         isolation = mod.isolated_stage_root()
