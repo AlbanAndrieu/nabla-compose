@@ -18,6 +18,9 @@ ACK_RESTART="I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION="I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
 
 ACTION="check"
+# Exactly one explicit execution mode is allowed. Mixed modes must fail before
+# probing TrueNAS or creating any private report.
+ACTION_FLAGS=0
 SECTION="all"
 WAVE=""
 STEP=""
@@ -61,14 +64,14 @@ EOF
 
 while (($#)); do
   case "$1" in
-    --check) ACTION="check"; shift ;;
-    --next-commands) ACTION="commands"; shift ;;
-    --local-gates) ACTION="local-gates"; shift ;;
+    --check) ACTION="check"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
+    --next-commands) ACTION="commands"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
+    --local-gates) ACTION="local-gates"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
     --section) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; SECTION="$2"; shift 2 ;;
-    --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; WAVE="$2"; shift 2 ;;
-    --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; WAVE="$2"; shift 2 ;;
-    --apply-step) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="migrate"; STEP="$2"; shift 2 ;;
-    --apply-csi-smoke) ACTION="smoke"; shift ;;
+    --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; ACTION_FLAGS=$((ACTION_FLAGS+1)); WAVE="$2"; shift 2 ;;
+    --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; ACTION_FLAGS=$((ACTION_FLAGS+1)); WAVE="$2"; shift 2 ;;
+    --apply-step) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="migrate"; ACTION_FLAGS=$((ACTION_FLAGS+1)); STEP="$2"; shift 2 ;;
+    --apply-csi-smoke) ACTION="smoke"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
     --expected-plan-hash) [[ $# -ge 2 ]] || exit 2; HASH="$2"; shift 2 ;;
     --acknowledge) [[ $# -ge 2 ]] || exit 2; ACK="$2"; shift 2 ;;
     --allow-reviewed-drift) ALLOW_DRIFT=true; shift ;;
@@ -81,6 +84,11 @@ while (($#)); do
     *) printf 'ERROR: unknown argument (see --help): %s\n' "$1" >&2; exit 2 ;;
   esac
 done
+
+if ((ACTION_FLAGS > 1)); then
+  echo "BLOCKED: choose exactly one execution mode; mixed or repeated modes are forbidden" >&2
+  exit 2
+fi
 
 if [[ "${ACTION}" == commands ]]; then
   [[ "${SECTION}" == all && -z "${WAVE}" && -z "${STEP}" &&
@@ -303,7 +311,7 @@ plan_wave() {
     printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=true\n' "${wave}" "${hash}"
   else
     record "catalog-${wave}" FAIL "${report}"
-    diag_warn "catalog ${wave}: $(jq -r '.selectedWaveBlocker // "unknown"' "${report}")"
+    diag_warn "catalog ${wave}: wave not ready; inspect the private plan report"
     printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=false\n' "${wave}" "${hash}"
   fi
   printf '%s\n' "${hash}" >"${SESSION_DIR}/catalog-${wave}.sha256"
