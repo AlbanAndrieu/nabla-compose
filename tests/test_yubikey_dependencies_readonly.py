@@ -135,6 +135,38 @@ class DependencyContracts(unittest.TestCase):
                     self.assertNotEqual(module.scdaemon_agent_state(),
                                         "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
 
+    def test_scd_optional_greeting_is_not_a_false_negative(self):
+        success = "OK Pleased to meet you\nOK\nOK closing connection\n"
+        self.assertEqual(
+            module.classify_scdaemon_assuan(success),
+            "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
+        with patch.object(module.shutil, "which", return_value="gpg-connect-agent"), \
+             patch.object(module.subprocess, "run",
+                          return_value=subprocess.CompletedProcess([], 0, success, "")):
+            self.assertEqual(
+                module.scdaemon_agent_state(),
+                "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
+
+    def test_scd_assuan_err_is_distinct_from_malformed(self):
+        refused = "ERR 67109139 No Smartcard daemon <GPG Agent>\nOK closing connection\n"
+        self.assertEqual(
+            module.classify_scdaemon_assuan(refused),
+            "AGENT_SCD_STATUS_REJECTED_UNVERIFIED")
+        self.assertEqual(
+            module.classify_scdaemon_assuan("OK random\nOK closing connection\n"),
+            "NOT_CONFIRMED")
+        self.assertEqual(module.classify_scdaemon_assuan(""), "NOT_CONFIRMED")
+
+    def test_scd_assuan_bounded_and_no_success_with_extra_output(self):
+        for raw in ("OK\n", "OK\nOK closing connection\nEXTRA\n",
+                    "OK\nOK closing connection\nERR 1\n",
+                    "OK\nOK closing connection\x00\n",
+                    "OK Pleased to meet you\nD SECRET\nOK\nOK closing connection\n",
+                    "OK\nOK closing connection\n" + "X" * 5000):
+            with self.subTest(case=repr(raw)[:36]):
+                self.assertEqual(module.classify_scdaemon_assuan(raw),
+                                 "NOT_CONFIRMED")
+
     def test_scd_tool_missing_and_timeout_fail_closed(self):
         with patch.object(module.shutil, "which", return_value=None), \
              patch.object(module.subprocess, "run") as runner:
