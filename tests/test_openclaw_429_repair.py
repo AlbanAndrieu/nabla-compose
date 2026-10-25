@@ -191,13 +191,16 @@ class RepairContracts(unittest.TestCase):
         self.assertNotEqual(self.config.read_bytes(), bytes_before)
 
     def test_gateway_snapshot_hash_is_opaque_and_case_preserved(self):
-        opaque = "A" * 64
-        with patch.object(mod, "gateway_call",
-                          return_value={"payload": {"hash": opaque, "path": str(self.config)}}):
-            self.assertEqual(mod.gateway_snapshot_hash(), opaque)
+        # The Gateway revision is intentionally unlike SHA-256 of config bytes.
+        for opaque in ("A" * 64, "authored-revision:includes:state-v2"):
+            with self.subTest(opaque=opaque), \
+                 patch.object(mod, "gateway_call",
+                              return_value={"payload": {"hash": opaque, "path": str(self.config)}}):
+                self.assertEqual(mod.gateway_snapshot_hash(), opaque)
 
     def test_gateway_snapshot_hash_fails_closed_on_missing_response(self):
-        for document in (None, {}, {"hash": "unsafe-string"},
+        for document in (None, {}, {"hash": "short"},
+                         {"hash": "unsafe\\nrevision"},
                          {"payload": {"hash": "a" * 64, "path": "/etc/passwd"}}):
             with self.subTest(document_type=type(document).__name__), \
                  patch.object(mod, "gateway_call", return_value=document):
