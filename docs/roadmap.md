@@ -33,6 +33,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | 3 | Akvorado | Ingestion / métadonnées / inserts récents | **FAIL historique**, aucun flux frais confirmé |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
+| Indépendant | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; DHCP annoncé `172.17.0.1`, profil NM `172.17.0.1`, résolveurs actifs Quad9 | **FAIL client constaté**, origine de la substitution à identifier |
 
 **Preuve datée :** [rapport opérateur du 25 octobre](runbooks/2026-10-25-critical-acceptance-evidence.md) — `PASS=8 FAIL=8 WARN=0 SKIP=0` ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
@@ -57,6 +58,10 @@ Actions :
   sans modifier PostgreSQL, l'initializer ou la route publique.
 - [ ] **H-04 :** étudier les traces OOM, les processus et les tâches planifiées
   en lecture seule ; ne déplacer aucune tâche sur simple corrélation temporelle.
+- [ ] **Workstation DNS :** valider le parseur DHCP et le chemin de la zone privée via
+  `just pfsense-wifi-path-test` et `just pfsense-wifi-path` ; isoler le
+  propriétaire de la divergence NetworkManager ↔ `systemd-resolved` sans
+  modifier DHCP, Pi-hole ou pfSense. [Runbook daté](runbooks/2026-10-25-pfsense-wifi-dns-root-cause.md).
 
 Les contrôles regroupés sont décrits dans
 [Runtime acceptance](runbooks/homelab-runtime-acceptance.md).
