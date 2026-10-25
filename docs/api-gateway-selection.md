@@ -1,5 +1,7 @@
 # API gateway open source — décision d'architecture et POC
 
+**ADR associé :** [ADR-0001](adr/0001-apisix-api-gateway-poc.md) (proposed). [Méthode de dispatch](architecture-governance.md).
+
 **Propriétaire :** `nabla-compose`. **Date :** 25/10/2026. **Statut :**
 sélection pour laboratoire, **non déployé**, aucune modification d'ingress/TLS.
 Traefik demeure l'entrée actuelle et la source autoritaire des routes.

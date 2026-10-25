@@ -79,19 +79,20 @@ Actions :
 
 ## P1 — API gateway OSS et corrélation des causes (25 octobre 2026)
 
-**Décision et backlog canoniques :** [choix APISIX](api-gateway-selection.md)
-et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md).
+**Décision et backlog canoniques :** [ADR-0001 Apache APISIX](adr/0001-apisix-api-gateway-poc.md), [choix APISIX](api-gateway-selection.md), [gouvernance du dispatch](architecture-governance.md) et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md). Le POC est proposé et non déployé ; Traefik reste la gateway/ingress existante.
 - [x] Comparer APISIX, Traefik ForwardAuth, Envoy Gateway et Kong OSS ;
   choisir **APISIX standalone YAML** pour un POC interne non exposé, sans etcd.
 - [x] Documenter la chaîne Catalogue Compose → FastAPI → Site → utilisateur,
   avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
 - [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
   OWNER/INTERNAL avant tout changement de dataplane.
-- [ ] Préparer et tester un POC APISIX **staging** sur hostname interne,
+- [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité
   lorsque le service Keycloak existe réellement ; ne pas bloquer le
   durcissement immédiat de FastAPI sur cet ajout.
+- [x] Créer le registre de gouvernance ADR/RACI/C4 et le handoff inter-dépôts ; les décisions proposées restent Draft.
+- [ ] Inventorier les besoins d'auth, quotas, rate-limit, logs et traçage par route avant configuration APISIX ; rejeter une Admin API externe et pinning incomplet.
 - [ ] Faire un runbook de rollback et une recette négative avant toute
   migration de routes. Aucun déploiement gateway autorisé par ce document.
 
