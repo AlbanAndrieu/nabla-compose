@@ -507,3 +507,9 @@ migration-operator-help:
 migration-operator-contracts:
     python3 -m pytest -q tests/test_finish_migrations_20261024.py
     python3 -m unittest discover -s tests -p 'test_apisix_contract.py' -v
+
+# Parallel read-only TrueNAS evidence: secret syntax, container provenance and DB flag.
+# Requires passwordless sudo for python3 on TrueNAS; never prints secret material.
+openclaw-truenas-secret-provenance:
+    python3 scripts/workstation/check-truenas-litellm-secret-provenance.py
+
