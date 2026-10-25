@@ -11,6 +11,9 @@ une page de test, sur un réseau Docker `internal: true`, **sans ports hôte**.
 4. Exécuter `just apisix-poc-smoke` : absence de clé 401, clé 200,
    route inconnue 404, méthode non autorisée non-200.
 5. Exécuter `just apisix-poc-down` pour supprimer le réseau et les conteneurs.
+   **Aucune clé POC n'est nécessaire pour ce rollback** : le wrapper utilise
+   uniquement une valeur de substitution lors de l'interpolation Compose,
+   sans redémarrer les services.
 
 La clé POC ne remplace jamais le jeton machine FastAPI. Le POC
 n'expose aucune Admin API ni métriques sur un port hôte.
