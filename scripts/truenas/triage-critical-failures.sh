@@ -4,7 +4,7 @@
 set -euo pipefail
 umask 077
 
-case "\${1:---check}" in
+case "${1:---check}" in
   --help|-h)
     printf '%s\n' 'Usage: sudo bash scripts/truenas/triage-critical-failures.sh --check'
     printf '%s\n' 'Runs seven read-only gates. Evidence is private on TrueNAS.'
@@ -20,26 +20,28 @@ esac
   printf 'BLOCKED: root required for protected TrueNAS metadata\n' >&2
   exit 2
 }
-for tool in mktemp chmod timeout python3; do
+for tool in mktemp chmod timeout python3 stat readlink; do
   command -v "$tool" >/dev/null 2>&1 || {
     printf 'BLOCKED: diagnostic prerequisite unavailable: %s\n' "$tool" >&2
     exit 2
   }
 done
 
-ROOT="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")/../.." && pwd -P)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT"
-REPORT_ROOT="\${NABLA_MIGRATION_REPORT_ROOT:-/mnt/cpool/var/nabla/migration-20261024}"
-[[ "$REPORT_ROOT" == /* && ! -L "$REPORT_ROOT" ]] || {
-  printf 'BLOCKED: report root must be absolute and not symlinked\n' >&2
+EXPECTED_ROOT="/mnt/cpool/var/nabla/migration-20261024"
+REPORT_ROOT="${NABLA_MIGRATION_REPORT_ROOT:-$EXPECTED_ROOT}"
+# Fail closed; never chmod unrelated directories, even as root.
+[[ "$REPORT_ROOT" == "$EXPECTED_ROOT" &&
+   -d "$REPORT_ROOT" && ! -L "$REPORT_ROOT" &&
+   "$(readlink -f -- "$REPORT_ROOT")" == "$EXPECTED_ROOT" &&
+   "$(stat -c '%a' -- "$REPORT_ROOT")" == 700 ]] || {
+  printf 'BLOCKED: private report root must be reviewed 0700 path\n' >&2
   exit 2
 }
-mkdir -p -- "$REPORT_ROOT"
-[[ -d "$REPORT_ROOT" && ! -L "$REPORT_ROOT" ]] || exit 2
-chmod 0700 -- "$REPORT_ROOT"
-SESSION_DIR="$(mktemp -d "\${REPORT_ROOT}/focused-XXXXXX")"
+SESSION_DIR="$(mktemp -d "${REPORT_ROOT}/focused-XXXXXX")"
 chmod 0700 -- "$SESSION_DIR"
-SUMMARY="\${SESSION_DIR}/summary.tsv"
+SUMMARY="${SESSION_DIR}/summary.tsv"
 printf 'gate\tstatus\texit_code\tprivate_log\n' >"$SUMMARY"
 chmod 0600 -- "$SUMMARY"
 
@@ -59,7 +61,7 @@ record_gate() {
 run_gate() {
   local gate="$1" budget="$2" log status=0
   shift 2
-  log="\${SESSION_DIR}/\${gate}.log"
+  log="${SESSION_DIR}/${gate}.log"
   # Never echo command output or secret environment. All evidence stays 0600.
   timeout "$budget" "$@" >"$log" 2>&1 || status=$?
   chmod 0600 -- "$log"
