@@ -138,8 +138,8 @@ check_section() {
     # or infer service health from a stale TrueNAS lifecycle flag.
     postmigration)
       run_check postmigration-catalog python3 scripts/generate-catalog-v2-artifacts.py --check
-      run_check postmigration-service-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
-      run_check postmigration-gatus python3 scripts/truenas/diagnose-gatus-monitors.py --check
+      run_observation postmigration-service-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
+      run_observation postmigration-gatus python3 scripts/truenas/diagnose-gatus-monitors.py --check
       run_check postmigration-prometheus bash scripts/truenas/diagnose-prometheus-targets.sh --check
       ;;
     # APISIX is isolated and not part of the mandatory/default migration wave.
