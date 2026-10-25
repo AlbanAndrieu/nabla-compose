@@ -1,6 +1,10 @@
 """Offline POC assertions: never starts Docker or retrieves secrets."""
+import os
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1] / "apps" / "apisix"
@@ -46,6 +50,52 @@ class ApisixPocContract(unittest.TestCase):
         raw = (ROOT / "config/apisix.yaml").read_text()
         self.assertNotIn("172.17.", raw)
         self.assertNotIn("fastapi-sample.fastapicloud.dev", raw)
+
+
+
+class ApisixPocRollbackContract(unittest.TestCase):
+    def test_down_requires_no_live_key_and_invokes_only_scoped_compose(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        with tempfile.TemporaryDirectory() as workdir:
+            root = Path(workdir)
+            log = root / "docker-calls"
+            envfile = root / "mock-docker-functions"
+            envfile.write_text(
+                'docker() { printf "%s\\n" "$*" >> "$MOCK_DOCKER_LOG"; }\\n',
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("APISIX_POC_KEY", None)
+            env.update(BASH_ENV=str(envfile), MOCK_DOCKER_LOG=str(log))
+            result = subprocess.run(
+                ["bash", str(script), "down"], env=env,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(log.read_text().splitlines()), 1)
+            self.assertIn("--profile poc down", log.read_text())
+            self.assertNotIn("poc-cleanup-placeholder", result.stdout + result.stderr)
+
+    def test_up_and_smoke_reject_missing_key_before_docker(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        env = os.environ.copy()
+        env.pop("APISIX_POC_KEY", None)
+        for action in ("up", "smoke"):
+            with self.subTest(action=action):
+                result = subprocess.run(
+                    ["bash", str(script), action],
+                    env=env, capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("APISIX_POC_KEY", result.stderr)
+
+    def test_mixed_cli_modes_are_invalid(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        result = subprocess.run(
+            ["bash", str(script), "up", "down"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 2)
 
 
 if __name__ == "__main__":
