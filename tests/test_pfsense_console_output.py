@@ -225,6 +225,23 @@ class ConsoleContract(unittest.TestCase):
         self.assertEqual(output.stdout.count("unbound kills=1"), 2)
         self.assertIn("2 OOM minutes", output.stdout)
 
+    def test_failed_remote_classifier_marks_report_incomplete(self):
+        payload = (
+            "=== system lifecycle events ===\n"
+            "ERROR: lifecycle_classifier_failed source=system\n"
+        )
+        result = render(payload, mode="verbose")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("❌ EVIDENCE INCOMPLETE", result.stdout)
+        self.assertIn("OOM totals are NOT reliable", result.stdout)
+        self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
+    def test_zero_sections_cannot_be_presented_as_zero_oom(self):
+        result = render("", mode="compact")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("EVIDENCE INCOMPLETE", result.stdout)
+        self.assertNotIn("0 distinct historical OOM records", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
