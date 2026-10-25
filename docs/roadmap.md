@@ -188,6 +188,40 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Relevé opérateur du 26 octobre — DefectDojo, Docling et migration
+
+- **DefectDojo :** les sondes depuis TrueNAS et la workstation confirment
+  le DNS privé Pi-hole/Unbound (172.17.0.24), l'absence d'A public,
+  l'origine HTTP 302 et Traefik HTTPS/TLS vérifié 302 vers la même
+  origine. Le problème réseau signalé ne se reproduit plus. La page
+  de connexion et l'authentification Django restent non vérifiées.
+- **Docling :** 10/10 tests de contrat PASS ; `--apply` sur TrueNAS :
+  `PASS: docling_synthetic_conversion`. La conversion PDF synthétique est
+  acceptée. **OpenRAG ingestion/Opensearch retrieval non testés**.
+- **Catalogue :** `core` et `deferred` non prêts, `gatus` planifiable
+  (sans acceptation runtime). Le relevé brut contient 12 secrets core absents,
+  12 bloqueurs core de dépendances, 5 états core inactifs, 18 Apps
+  différées déjà running et 44 Apps sans mapping. Ces compteurs globaux
+  sont répétés dans les plans ; le lecteur corrigé les classe **par vague**
+  sans exposer les identités privées. Revoir explicitement le crosswalk.
+- **Secrets :** `canonical-secret-files`, `first-wave-env`,
+  `openrag-env-migration` en échec ; le comparateur OpenRAG/OpenSearch,
+  le bundle et Akvorado env passent. Les anciennes catégories de conflit
+  étaient heuristiques et nécessitent un contrôle détaillé du rapport privé.
+  Pas de `--finalize`, copie ou rotation automatique.
+- **Postmigration :** catalogue dérivé, readiness, Gatus et Prometheus en
+  échec. **Critical :** 11 PASS / 5 FAIL (Prometheus, migration env
+  OpenRAG, Sentry preflight, Akvorado blocage/insertions).
+  La catégorie `sentry_credential_preflight_blocked` n'était pas
+  une preuve de défaut de credential car le titre du diagnostic est inconditionnel.
+- **Talos :** trois nœuds Kubernetes Ready au dernier contrôle, mais le
+  smoke CSI multi-nœuds avec reclaim reste à exécuter avant un upgrade.
+
+Prochaine action : `triage-migration-session.py --check` avec les
+quatre sessions déjà conservées, puis contrôles ciblés service par service.
+Aucun redéploiement, aucune application de vague et aucune utilisation de
+GitHub Actions n'est compris dans ce relevé.
+
 ## P1 — Corriger les causes instrumentées
 
 | ID | Domaine | Fait établi | Reste à prouver |

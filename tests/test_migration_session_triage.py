@@ -94,6 +94,51 @@ class TriageTest(unittest.TestCase):
         self.save([('vaultwarden-inventory', 'SKIP', '')])
         self.assertEqual(triage.analyze(self.session, self.root)['unverified'], 1)
 
+    def test_deferred_wave_does_not_inherit_core_secret_blockers(self):
+        self.save([('catalog-deferred', 'FAIL', json.dumps({
+            'selectedWave': 'deferred', 'selectedWaveReady': False,
+            'missingRunningSecrets': ['core-only-secret'],
+            'missingDeferredSecrets': [],
+            'runningDeferredExcluded': ['deferred-already-running'],
+            'unmappedApps': ['native-without-compose-mapping'],
+        }))])
+        row = triage.analyze(self.session, self.root)['checks'][0]
+        self.assertEqual(row['category'], 'wave_blocked_dependency_or_lifecycle')
+        self.assertEqual(row['blocker_counts']['runningDeferredExcluded'], 1)
+        self.assertEqual(row['blocker_counts']['inventoryUnmappedTotal'], 1)
+        self.assertNotIn('missingRunningSecrets', row['blocker_counts'])
+        self.assertNotIn('deferred-already-running', json.dumps(row))
+
+    def test_core_wave_reports_both_secret_and_dependency_blockers(self):
+        self.save([('catalog-core', 'FAIL', json.dumps({
+            'selectedWave': 'core', 'selectedWaveReady': False,
+            'missingRunningSecrets': ['one'],
+            'coreDependencyBlockers': ['two'],
+        }))])
+        self.assertEqual(triage.analyze(self.session, self.root)['checks'][0]['category'],
+                         'wave_blocked_secrets_and_dependencies')
+
+    def test_sentry_heading_alone_does_not_prove_credentials_failed(self):
+        self.save([('sentry-recovery-preflight', 'FAIL',
+                    '==> Sentry runtime credential preflight\n'
+                    '==> current Sentry lifecycle diagnosis\n'
+                    'some status mismatch\n')])
+        self.assertEqual(triage.analyze(self.session, self.root)['checks'][0]['category'],
+                         'sentry_preflight_blocked_unknown_cause')
+
+    def test_secret_benign_conflict_text_not_misclassified(self):
+        self.save([('openrag-env-migration', 'FAIL',
+                    'no source conflicts\n'
+                    '❌ 3 declared runtime env materialization(s) have no recoverable source.\n')])
+        self.assertEqual(triage.analyze(self.session, self.root)['checks'][0]['category'],
+                         'secret_materialization_missing_or_unstaged')
+
+    def test_gatus_zero_down_not_failure_evidence(self):
+        self.save([('postmigration-gatus', 'FAIL',
+                    '{"down": 0, "up": 12, "unverified": 8}\n')])
+        self.assertEqual(triage.analyze(self.session, self.root)['checks'][0]['category'],
+                         'gatus_monitor_data_unverified')
+
     def test_large_log_unavailable(self):
         self.save([('postmigration-gatus', 'FAIL', 'SECRET' * 60000)])
         self.assertEqual(triage.analyze(self.session, self.root)['checks'][0]['category'],

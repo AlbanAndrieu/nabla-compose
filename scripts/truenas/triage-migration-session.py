@@ -55,6 +55,12 @@ def read_bounded(file: Path, parent: Path, limit: int) -> str | None:
 def classify_text(phase: str, value: str) -> str:
     """Emit only constant categories; avoid printing captured matches."""
     low = value.lower()
+    # Logs contain benign banners and remediation hints. Prefer actual
+    # failure lines over matches in instructional text or success messages.
+    failures = '\n'.join(
+        line.lower() for line in value.splitlines()
+        if re.search(r'(?i)(?:❌|^\s*(?:error|fail|blocked):|migration conflict:)', line)
+    )[:8192]
     if phase == 'postmigration-catalog':
         if 'stale catalog-v2 artifacts:' in low:
             return 'generated_catalog_drift'
@@ -62,17 +68,18 @@ def classify_text(phase: str, value: str) -> str:
             return 'generator_dependency_missing'
         return 'catalog_validation_failed'
     if phase in {'canonical-secret-files', 'first-wave-env', 'openrag-env-migration'}:
-        if re.search(r'conflict|differ.*semantically|mismatch', low):
+        # Do not interpret "no source conflicts" as an actual conflict.
+        if re.search(r'migration conflict:|differs semantically|source conflict:', failures):
             return 'secret_source_conflict'
-        if re.search(r'permission denied|mode=|owner/mode=|root:root 600|acl', low):
+        if re.search(r'permission denied|owner/mode=|mode=[0-7]{3,4}|expected=root:root 600|acl denied', failures):
             return 'secret_permissions_or_owner'
-        if re.search(r'empty-placeholder|empty secret|zero-byte', low):
+        if re.search(r'empty-placeholder|empty secret|zero-byte', failures):
             return 'secret_empty_placeholder'
-        if re.search(r'no recoverable source|missing.*secret|not found|requires staging|require staging|materialization.*missing|canonical env materialization', low):
+        if re.search(r'no recoverable source|missing.*secret|not found|requires staging|require staging|materialization.*missing|canonical env materialization', failures):
             return 'secret_materialization_missing_or_unstaged'
-        if 'finalize pending' in low:
+        if 'finalize pending' in failures:
             return 'legacy_finalize_pending'
-        return 'secret_migration_unclassified'
+        return 'secret_migration_failure_needs_private_detail'
     if phase.startswith('akvorado-'):
         if re.search(r'metadata missing|metadata_missing|rejected.*metadata|missing metadata', low):
             return 'netflow_metadata_rejected'
@@ -86,14 +93,17 @@ def classify_text(phase: str, value: str) -> str:
             return 'prometheus_exporter_tcp_refused'
         return 'prometheus_scrapes_degraded_or_unverified'
     if phase == 'sentry-recovery-preflight':
-        if re.search(r'deploying|crashed|unhealthy|restart', low):
+        # "Sentry runtime credential preflight" is printed unconditionally
+        # as a heading, including when only the app diagnostic fails.
+        if re.search(r'deploying|crashed|unhealthy|restart', failures):
             return 'sentry_runtime_state_blocked'
-        if re.search(r'credentials?|password|authentication|secret', low):
+        if re.search(r'credentials?|password|authentication|secret', failures):
             return 'sentry_credential_preflight_blocked'
         return 'sentry_preflight_blocked_unknown_cause'
     if phase == 'postmigration-gatus':
-        if 'down' in low:
-            return 'gatus_monitor_down_or_unverified'
+        # Seeing a field named "down" does not prove down > 0.
+        if re.search(r'(?:["\x27]?down["\x27]?\s*[:=]\s*)(?:[1-9][0-9]*)\b', low):
+            return 'gatus_monitors_observed_down'
         return 'gatus_monitor_data_unverified'
     if phase == 'postmigration-service-readiness':
         if re.search(r'healthcheck|unhealthy', low):
@@ -109,18 +119,52 @@ def classify_wave(raw: str, wave: str) -> tuple[str, dict[str, int]]:
         return 'catalog_plan_invalid_json', {}
     if not isinstance(data, dict) or data.get('selectedWave') != wave or type(data.get('selectedWaveReady')) is not bool:
         return 'catalog_plan_invalid_schema', {}
-    counts = {
-        key: min(len(data[key]), 10000)
-        for key in COUNT_FIELDS
-        if isinstance(data.get(key), (list, dict))
-    }
-    secrets = sum(counts.get(key, 0) for key in COUNT_FIELDS if key.endswith('Secrets'))
+    # The plan repeats global fields in every wave. Report only blockers
+    # which validate_wave() actually enforces for the selected wave.
+    scoped = {
+        'core': (
+            'missingRunningSecrets', 'unverifiedRunningSecrets',
+            'blockedCoreApps', 'coreDependencyBlockers',
+            'declaredCoreInactive', 'runningDeferredExcluded',
+        ),
+        'gatus': (
+            'gatusBlocked', 'gatusMissingSecret', 'gatusSecretUnverified',
+            'gatusDeclaredInactive',
+        ),
+        'deferred': (
+            'missingDeferredSecrets', 'unverifiedDeferredSecrets',
+            'blockedDeferredApps', 'plannedOrDisabledDeferred',
+            'runningDeferredExcluded', 'deferredDependencyBlockers',
+        ),
+    }[wave]
+    counts = {}
+    for key in scoped:
+        value = data.get(key)
+        if isinstance(value, list):
+            counts[key] = min(len(value), 10000)
+        elif type(value) is bool:
+            counts[key] = int(value)
+    # These are inventory observations, not necessarily blockers.
+    inventory = data.get('unmappedApps')
+    if isinstance(inventory, list):
+        counts['inventoryUnmappedTotal'] = min(len(inventory), 10000)
+    if wave == 'gatus':
+        state = data.get('states')
+        if isinstance(state, dict) and state.get('gatus') not in ('RUNNING', 'STOPPED'):
+            counts['gatusInvalidState'] = 1
+    secrets = sum(counts.get(key, 0) for key in (
+        'missingRunningSecrets', 'unverifiedRunningSecrets',
+        'missingDeferredSecrets', 'unverifiedDeferredSecrets',
+        'gatusMissingSecret', 'gatusSecretUnverified'))
     deps = sum(counts.get(key, 0) for key in (
         'blockedCoreApps', 'coreDependencyBlockers', 'blockedDeferredApps',
         'deferredDependencyBlockers', 'runningDeferredExcluded',
-        'plannedOrDisabledDeferred', 'declaredCoreInactive'))
+        'plannedOrDisabledDeferred', 'declaredCoreInactive',
+        'gatusBlocked', 'gatusDeclaredInactive', 'gatusInvalidState'))
     if data['selectedWaveReady']:
         return 'wave_plan_ready_not_runtime_acceptance', counts
+    if secrets and deps:
+        return 'wave_blocked_secrets_and_dependencies', counts
     if secrets:
         return 'wave_blocked_runtime_secrets', counts
     if deps:

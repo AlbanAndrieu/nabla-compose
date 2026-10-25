@@ -156,6 +156,29 @@ les symlinks et n'affiche jamais le contenu des rapports. Un plan Gatus
 L'outil n'exécute aucun `--apply-wave` et n'ajuste aucun secret.
 La qualité locale hermétique se vérifie par `just migration-session-triage-test`.
 
+## Précision sur les compteurs des plans de vague
+
+Le rapport de redémarrage stocke des compteurs **globaux**, répétés dans
+chacun des trois plans. Le triage affiche désormais les **bloqueurs réellement
+contrôlés pour la vague sélectionnée**. Ne pas transférer les
+`missingRunningSecrets` du plan `core` à la vague `deferred`.
+`inventoryUnmappedTotal` est un compteur d'inventaire, pas en soi une
+permission de redémarrage. De même, une vague `gatus` planifiable
+ne prouve pas que les sondes Gatus sont fonctionnelles.
+
+Le script Sentry imprime « credential preflight » même quand les credentials
+ne sont pas la cause de l'échec. Le triage ne déclare plus un incident
+de credentials sans signal d'échec explicite. Pour préciser la cause,
+exécuter séparément (lecture seule) :
+```bash
+sudo bash scripts/truenas/reconcile-sentry-system-secret.sh --check
+sudo bash scripts/truenas/reconcile-sentry-runtime-clickhouse-credential.sh --check
+sudo bash scripts/truenas/reconcile-sentry-migrator-credential.sh --check
+sudo bash scripts/truenas/diagnose-sentry.sh --check
+```
+Conserver les fichiers et logs bruts sur TrueNAS ; seul le résultat expurgé
+est exploitable hors de la machine.
+
 ## Migration des secrets : pas encore clôturée
 
 Le fait que les fichiers canoniques soient « staged » ne signifie pas
