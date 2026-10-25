@@ -30,18 +30,18 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | --- | --- | --- | --- |
 | 1 | Prometheus | Targets, accès config, rules | **FAIL historique**, cause à confirmer |
 | 2 | OpenRAG | Startup, secrets, dépendances et bundle | **FAIL historique**, récupération non attestée |
-| 3 | Akvorado | Ingestion / métadonnées / inserts récents | **FAIL historique**, aucun flux frais confirmé |
+| 3 | Akvorado | Config et blocage résolus ; inserts récents non attestés | **FAIL insertions uniquement** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
 | Indépendant | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; DHCP annoncé `172.17.0.1`, profil NM `172.17.0.1`, résolveurs actifs Quad9 | **FAIL client constaté**, origine de la substitution à identifier |
 
-**Preuve datée :** [rapport opérateur du 25 octobre](runbooks/2026-10-25-critical-acceptance-evidence.md) — `PASS=8 FAIL=8 WARN=0 SKIP=0` ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
+**Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
 ## P0 — Accepter les services critiques
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
-| H-01 | OpenRAG | Le 25/10 : startup, récupération IA, secret historique OpenSearch et bundle Backstage en FAIL ; dépendances et migration env PASS | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
+| H-01 | OpenRAG | Second relevé 25/10 : startup, récupération IA, secret OpenSearch et bundle Backstage FAIL. Chemin canonique et diagnostic scoped corrigés **en PR, non déployés** | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
 | H-04 | pfSense / Unbound | OOM du noyau observés ; causalité des tâches Snort/CrowdSec/pfBlockerNG **non démontrée** | Horaires et mémoire corrélés, plan de changement unique avec sauvegarde et rollback |
@@ -73,7 +73,7 @@ Les procédures spécialisées restent dans
 | ID | Domaine | Fait établi | Reste à prouver |
 | --- | --- | --- | --- |
 | H-05 | Prometheus | Le 25/10 : `prometheus-targets` et `prometheus-config-access` FAIL ; rules access PASS | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
-| H-06 | Akvorado | Flux Kafka historiques ; erreurs metadata provider cumulées ; aucune nouvelle insertion ClickHouse attestée | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
+| H-06 | Akvorado | 25/10 : configuration et contrôle de blocage PASS ; aucun nouveau lot ClickHouse attesté en 20 s | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
 | H-07 | Catalogue OWNER/SERVICE | Identités Backstage/`x-nabla` déclarées ; consommateurs FastAPI/Site distincts | Vérifier dérive catalogue, puis comportement runtime par provenance |
 | H-08 | Secrets et noms | Chemins canoniques, renommages `openwebui`/`homeassistant` préparés | Réconcilier chaque Custom App et chaque secret avec rollback indépendant |
 | H-09 | Talos / Kubernetes | CSI NFS antérieurement accepté | Retained smoke multi-nœuds avant changement d'Ingress ou migration d'App |
@@ -160,6 +160,11 @@ Actions :
   isolé et **cas négatif PASS**. Les artefacts APISIX copiés sont identiques
   aux blobs de la PR, mais les scripts de migration utilisés dans cette
   suite rapide sont des substituts. [Preuves et limites](runbooks/node22-local-fast-tests.md).
+- [x] **D-11 (code) :** aligner l'env_file OpenRAG sur le secret
+  canonique, isoler `diagnose-ai-secret-recovery.py --scope openrag`
+  des erreurs Scrutiny/LiteLLM et ajouter le triage privé des **sept
+  gates**. Tests négatifs ajoutés, **runtime TrueNAS NOT_VERIFIED**.
+  [Reprise ciblée](runbooks/2026-10-25-critical-acceptance-followup.md).
 - [ ] **D-10 :** exécuter la suite Python complète de migration,
   `agent-skills-check`, ShellCheck et `just quality` dans un vrai worktree
   au HEAD exact. Aucune gate L3 complète n'est déclarée PASS.
