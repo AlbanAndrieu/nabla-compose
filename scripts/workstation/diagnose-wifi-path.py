@@ -133,6 +133,12 @@ def snapshot(
                 result["wifi_radio"] = "UNKNOWN"
         dns_ok, dns_text = runner(("resolvectl", "dns", iface))
         result["active_link_dns"] = ipv4_addresses(dns_text) if dns_ok else []
+        device_ok, device_dns_text = runner((
+            "nmcli", "-g", "IP4.DNS", "device", "show", iface,
+        ))
+        result["nm_device_dns"] = (
+            ipv4_addresses(device_dns_text) if device_ok else []
+        )
         nm_ok, lease = runner(("nmcli", "-f", "DHCP4.OPTION", "device", "show", iface))
         result["dhcp_advertised_dns"] = dhcp_dns_addresses(lease) if nm_ok else []
         profile_ok, profile_name = runner(
@@ -152,6 +158,7 @@ def snapshot(
     else:
         result["vantage"] = "unknown"
         result["active_link_dns"] = []
+        result["nm_device_dns"] = []
         result["dhcp_advertised_dns"] = []
         result["configured_profile_dns"] = []
         result["profile_ignore_auto_dns"] = None
@@ -224,6 +231,21 @@ def snapshot(
     else:
         diagnosis = "INCONCLUSIVE_CHECK_MORE_CLIENTS"
     result["diagnosis"] = diagnosis
+    nm_device_dns = result["nm_device_dns"]
+    if (
+        nm_device_dns and active_dns
+        and set(nm_device_dns) != set(active_dns)
+    ):
+        result["runtime_dns_drift"] = "NETWORKMANAGER_VS_RESOLVED"
+    elif (
+        configured_dns and nm_device_dns
+        and set(configured_dns) != set(nm_device_dns)
+    ):
+        result["runtime_dns_drift"] = "PROFILE_VS_NETWORKMANAGER_DEVICE"
+    elif profile_drift:
+        result["runtime_dns_drift"] = "PROFILE_VS_ACTIVE_RESOLVER"
+    else:
+        result["runtime_dns_drift"] = "NONE_CONFIRMED"
     result["dns_override_suspected"] = override
     result["profile_dns_runtime_drift"] = profile_drift
     result["private_dns_warning"] = (
@@ -246,6 +268,7 @@ def render(result: dict[str, object]) -> None:
         print(f"  signal_dbm={result['wifi_signal_dbm']} frequency_mhz={result['wifi_frequency_mhz']}")
     print("  DHCP DNS =", ",".join(result["dhcp_advertised_dns"]) or "not_observed")
     print("  active DNS =", ",".join(result["active_link_dns"]) or "not_observed")
+    print("  NetworkManager device DNS =", ",".join(result["nm_device_dns"]) or "not_observed")
     print("  profile DNS =", ",".join(result["configured_profile_dns"]) or "not_observed")
     print("  profile ignore-auto-dns =", result["profile_ignore_auto_dns"])
     for label, key in (
@@ -265,6 +288,8 @@ def render(result: dict[str, object]) -> None:
     if result["profile_dns_runtime_drift"]:
         print("⚠️ Runtime DNS also differs from the active NetworkManager profile.")
         print("ℹ️ Inspect resolved/VPN/global DNS ownership; do not change DHCP.")
+    if result["runtime_dns_drift"] != "NONE_CONFIRMED":
+        print("📍 DNS difference layer=" + str(result["runtime_dns_drift"]))
     if result["wifi_client_not_tested"]:
         print("ℹ️ Workstation is not a confirmed Wi-Fi client: AP/phone radio not tested.")
     print("Evidence from this instant only; do not infer a pfSense restart cause.")
