@@ -1,5 +1,8 @@
 """Hermetic workstation Wi-Fi/DNS path diagnosis tests: no network required."""
 from pathlib import Path
+import contextlib
+import io
+from unittest import mock
 import importlib.util
 import subprocess
 import sys
@@ -14,7 +17,9 @@ spec.loader.exec_module(module)
 
 
 def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
-            system_dns=True, active="172.17.0.1", dhcp="172.17.0.1"):
+            system_dns=True, private_sys=True, active="172.17.0.1",
+            dhcp="172.17.0.1", profile_dns="172.17.0.1",
+            ignore_auto="yes", lease_override=None):
     calls = []
     interface = "wlp2s0" if wifi else "eno1"
 
@@ -27,7 +32,19 @@ def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
             if "GENERAL.TYPE" in args:
                 return True, "wifi" if wifi else "ethernet"
             if "DHCP4.OPTION" in args:
-                return True, f"DHCP4.OPTION[5]: domain_name_servers = {dhcp}"
+                return True, lease_override or (
+                    "DHCP4.OPTION[3]: dhcp_server_identifier = 172.17.0.1\n"
+                    f"DHCP4.OPTION[5]: domain_name_servers = {dhcp}\n"
+                    "DHCP4.OPTION[6]: ip_address = 172.17.0.57\n"
+                    "DHCP4.OPTION[7]: subnet_mask = 255.255.255.0"
+                )
+            if "GENERAL.CONNECTION" in args:
+                return True, "Wired eno1"
+            if "ipv4.dns,ipv4.ignore-auto-dns" in args:
+                return True, (
+                    f"ipv4.dns: {profile_dns}\n"
+                    f"ipv4.ignore-auto-dns: {ignore_auto}"
+                )
         if args[0] == "resolvectl":
             return True, f"Link 2 ({interface}): {active}"
         if args[0] == "iw":
@@ -46,6 +63,11 @@ def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
             if dns == "9.9.9.9":
                 return public_dns, "93.184.215.14" if public_dns else ""
         if args[0] == "getent":
+            if args[-1] == "sample.int.albandrieu.com":
+                return private_sys, (
+                    "172.17.0.24 STREAM sample.int.albandrieu.com"
+                    if private_sys else ""
+                )
             return system_dns, "93.184.215.14 STREAM example.org" if system_dns else ""
         return False, ""
 
@@ -93,6 +115,9 @@ class WifiPathTest(unittest.TestCase):
         self.assertTrue(data["dns_override_suspected"])
         self.assertEqual(data["dhcp_advertised_dns"], ["172.17.0.1"])
         self.assertEqual(data["active_link_dns"], ["149.112.112.112", "9.9.9.9"])
+        self.assertEqual(data["configured_profile_dns"], ["172.17.0.1"])
+        self.assertTrue(data["profile_ignore_auto_dns"])
+        self.assertTrue(data["profile_dns_runtime_drift"])
 
     def test_system_resolver_failure_is_not_mislabeled_wifi_radio(self):
         runner, _ = fixture(system_dns=False)
@@ -124,6 +149,70 @@ class WifiPathTest(unittest.TestCase):
             self.assertNotIn(forbidden, contents)
         self.assertIn("timeout=5", contents)
         self.assertIn("timeout=2", contents)
+
+    def test_dhcp_lease_excludes_client_ipv4_and_netmask(self):
+        lease = (
+            "DHCP4.OPTION[3]: dhcp_server_identifier = 172.17.0.1\n"
+            "DHCP4.OPTION[5]: domain_name_servers = 172.17.0.1\n"
+            "DHCP4.OPTION[6]: ip_address = 172.17.0.57\n"
+            "DHCP4.OPTION[7]: subnet_mask = 255.255.255.0\n"
+            "DHCP4.OPTION[11]: requested_domain_name_servers = 1\n"
+        )
+        self.assertEqual(module.dhcp_dns_addresses(lease), ["172.17.0.1"])
+        self.assertEqual(
+            module.dhcp_dns_addresses(
+                "DHCP4.OPTION[1]: domain_name_servers = 172.17.0.1 9.9.9.9\n"
+            ),
+            ["172.17.0.1", "9.9.9.9"],
+        )
+        self.assertEqual(
+            module.dhcp_dns_addresses(
+                "DHCP4.OPTION[2]: requested_domain_name_servers = 1\n"
+            ),
+            [],
+        )
+
+    def test_real_operator_snapshot_classifies_private_dns_failure(self):
+        runner, _ = fixture(
+            active="9.9.9.9 149.112.112.112",
+            dhcp="172.17.0.1",
+            private_sys=False,
+            profile_dns="172.17.0.1",
+            ignore_auto="yes",
+        )
+        data = module.snapshot(runner=runner, connect=lambda *_: True)
+        self.assertEqual(data["dhcp_advertised_dns"], ["172.17.0.1"])
+        self.assertTrue(data["pfsense_private_zone"])
+        self.assertFalse(data["system_dns_private"])
+        self.assertTrue(data["private_dns_warning"])
+        self.assertTrue(data["profile_dns_runtime_drift"])
+        self.assertEqual(data["diagnosis"], "CLIENT_PRIVATE_SPLIT_DNS_PATH")
+        self.assertNotEqual(data["diagnosis"], "NO_FAILURE_DURING_SAMPLE")
+
+    def test_profile_dns_parser_ignores_sensitive_non_dns_fields(self):
+        profile = (
+            "ipv4.dns: 172.17.0.1\n"
+            "ipv4.ignore-auto-dns: yes\n"
+            "connection.id: PRIVATE_PROFILE_IDENTIFIER\n"
+            "ipv4.addresses: 172.17.0.57/24\n"
+        )
+        self.assertEqual(module.profile_dns_fields(profile), (["172.17.0.1"], True))
+        runner, _ = fixture(active="9.9.9.9")
+        data = module.snapshot(runner=runner, connect=lambda *_: True)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            module.render(data)
+        self.assertNotIn("Wired eno1", buf.getvalue())
+        self.assertNotIn("PRIVATE_PROFILE_IDENTIFIER", buf.getvalue())
+        self.assertIn("Runtime DNS also differs", buf.getvalue())
+
+    def test_private_dns_failure_exit_code_without_network(self):
+        data = {
+            "diagnosis": "CLIENT_PRIVATE_SPLIT_DNS_PATH",
+        }
+        with mock.patch.object(module, "snapshot", return_value=data):
+            rc = module.main(["--check", "--json"])
+        self.assertEqual(rc, 1)
 
 
 if __name__ == "__main__":
