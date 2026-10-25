@@ -156,6 +156,16 @@ openclaw-truenas-model-keys-tunnel-existing-master:
 openclaw-truenas-model-keys-tunnel-dedicated:
     python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY
 
+# No API call, SSH requirement, secret readback, or network access.
+openclaw-truenas-master-env-check:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --master-env LITELLM_TRUENAS_MASTER_KEY --check-master-env
+
+# Explicit exceptional read-only GETs for a true non-sk master key.
+# Never use if format check says looks_like_reference, empty or invalid.
+openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY --allow-nonstandard-master
+
+
 
 # Read-only 429 attribution. No chat, embeddings, resets or key mutations.
 openclaw-429-triage-test:
