@@ -444,10 +444,17 @@ apisix-up:
 apisix-smoke:
     bash scripts/truenas/apisix.sh smoke
 
+# Safe process metadata, never logs, credentials or HTTP data.
+apisix-check:
+    bash scripts/truenas/apisix.sh check
+
 apisix-down:
     bash scripts/truenas/apisix.sh down
 
 # Stable migration operator: no runtime probes on --help.
+postmigration-check:
+    sudo -n bash scripts/truenas/migration-operator.sh --check --section postmigration
+
 migration-operator-help:
     bash scripts/truenas/migration-operator.sh --help
 
