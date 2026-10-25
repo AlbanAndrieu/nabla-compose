@@ -12,8 +12,9 @@ if [[ "${#}" -ne 1 ]]; then
 fi
 case "${1}" in
   up|smoke)
-    if [[ -z "${APISIX_KEY:-}" || "${#APISIX_KEY}" -lt 24 ]]; then
-      echo "BLOCKED: APISIX_KEY of at least 24 characters is required" >&2
+    if [[ -z "${APISIX_KEY:-}" || "${#APISIX_KEY}" -lt 24 ||
+          "${#APISIX_KEY}" -gt 256 || "$APISIX_KEY" =~ [[:space:][:cntrl:]] ]]; then
+      echo "BLOCKED: APISIX_KEY must contain 24-256 non-whitespace, printable characters" >&2
       exit 2
     fi
     ;;
@@ -36,13 +37,15 @@ case "${1:-}" in
 import os
 import time
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
+# Ignore inherited proxy settings; only the isolated Docker network is trusted.
+opener = build_opener(ProxyHandler({}))
 url = "http://apisix:9080/health"
 def request(path, key=None, method="GET"):
     headers = {"X-Nabla-APISIX-Key": key} if key else {}
     try:
-        with urlopen(Request(path, headers=headers, method=method), timeout=3) as response:
+        with opener.open(Request(path, headers=headers, method=method), timeout=3) as response:
             return response.status, response.read()
     except HTTPError as failure:
         return failure.code, b""
@@ -61,7 +64,7 @@ assert status == 200 and b"APISIX healthy" in body, f"credential expected 200: {
 status, _ = request("http://apisix:9080/missing", os.environ["APISIX_KEY"])
 assert status == 404, f"unknown route expected 404: {status}"
 status, _ = request(url, os.environ["APISIX_KEY"], method="POST")
-assert status != 200, f"method violation: {status}"
+assert status in (404, 405), f"POST must not match GET-only route: {status}"
 print("APISIX_SMOKE_PASS: 401, 200, 404 and invalid method")
 PY
     ;;
