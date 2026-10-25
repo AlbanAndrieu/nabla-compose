@@ -1,5 +1,6 @@
 """Offline safeguards for scoped OpenClaw 429 cron route repair."""
 import contextlib
+import hashlib
 import copy
 import importlib.util
 import io
@@ -71,6 +72,94 @@ class RepairContracts(unittest.TestCase):
         self.assertEqual(updated["agents"]["defaults"]["model"]["primary"],
                          "litellm-main/gpt-4.1")
         self.assertEqual(updated["models"], sample()["models"])
+
+    def test_default_agent_without_list_is_valid_concurrency_only(self):
+        original = sample()
+        del original["agents"]["list"]
+        update = mod.candidate(original, "sk-CRON-SYNTHETIC", {"gpt-4.1"})
+        self.assertEqual(mod.repair_scope(original), "concurrency_only")
+        self.assertEqual(update["agents"]["defaults"]["maxConcurrent"], 1)
+        self.assertNotIn("list", update["agents"])
+        self.assertEqual(update["models"], original["models"])
+        self.assertEqual(update["memory"], original["memory"])
+
+    def test_empty_agent_list_does_not_invent_cron_agent(self):
+        original = sample()
+        original["agents"]["list"] = []
+        update = mod.candidate(original, "sk-CRON-SYNTHETIC", {"gpt-4.1"})
+        self.assertEqual(update["agents"]["list"], [])
+        self.assertEqual(mod.repair_scope(original), "concurrency_only")
+
+    def test_default_agent_apply_uses_rpc_not_direct_overwrite(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        with patch.object(mod, "scoped_models", return_value={"gpt-4.1"}), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "native_patch_concurrency", return_value="applied") as rpc, \
+             patch.object(mod, "apply_config") as direct, \
+             patch.object(mod, "restart_gateway") as restart, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.main(["--apply", "--restart-gateway"])
+        self.assertEqual(result, 0)
+        rpc.assert_called_once()
+        direct.assert_not_called()
+        restart.assert_not_called()
+        self.assertIn("repair_scope=concurrency_only", output.getvalue())
+        self.assertIn("cron_route_change=not_applicable_no_named_agent", output.getvalue())
+        self.assertIn("native_config_patch=applied", output.getvalue())
+
+    def test_native_rpc_optimistic_hash_and_private_backup(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        def rpc(method, params):
+            if method == "config.get":
+                return {"hash": hashlib.sha256(self.config.read_bytes()).hexdigest()}
+            self.assertEqual(method, "config.patch")
+            self.assertEqual(params["baseHash"], hashlib.sha256(self.config.read_bytes()).hexdigest())
+            patch_value = json.loads(params["raw"])
+            self.assertEqual(set(patch_value), {"agents"})
+            self.assertEqual(set(patch_value["agents"]), {"defaults"})
+            self.assertEqual(set(patch_value["agents"]["defaults"]), {"maxConcurrent"})
+            new = json.loads(self.config.read_text())
+            new["agents"]["defaults"]["maxConcurrent"] = patch_value["agents"]["defaults"]["maxConcurrent"]
+            self.config.write_text(json.dumps(new))
+            self.config.chmod(0o600)
+            return {"ok": True}
+        with patch.object(mod, "gateway_call", side_effect=rpc), \
+             patch.object(Path, "home", return_value=self.root):
+            result = mod.native_patch_concurrency(original, self.config.read_bytes())
+        self.assertEqual(result, "applied")
+        self.assertEqual(json.loads(self.config.read_text())["agents"]["defaults"]["maxConcurrent"], 1)
+        backups = list((self.root / ".local/share/nabla-compose/openclaw-config-rollback").glob(
+            "openclaw-before-native-429-*.json"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
+
+    def test_native_rpc_rejects_mismatched_snapshot_without_write(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        with patch.object(mod, "gateway_snapshot_hash", return_value="a" * 64), \
+             patch.object(mod, "gateway_call") as rpc, \
+             patch.object(Path, "home", return_value=self.root):
+            result = mod.native_patch_concurrency(original, self.config.read_bytes())
+        self.assertEqual(result, "blocked_gateway_snapshot")
+        rpc.assert_not_called()
+        self.assertEqual(json.loads(self.config.read_text()), original)
+
+    def test_native_rpc_refusal_does_not_fallback_to_direct_write(self):
+        original = sample()
+        del original["agents"]["list"]
+        self.config.write_text(json.dumps(original))
+        with patch.object(mod, "gateway_snapshot_hash",
+                          return_value=hashlib.sha256(self.config.read_bytes()).hexdigest()), \
+             patch.object(mod, "gateway_call", return_value=None), \
+             patch.object(Path, "home", return_value=self.root):
+            result = mod.native_patch_concurrency(original, self.config.read_bytes())
+        self.assertEqual(result, "blocked_native_patch")
+        self.assertEqual(json.loads(self.config.read_text()), original)
 
     def test_missing_authorization_blocks(self):
         with self.assertRaisesRegex(ValueError, "cron_model_not_authorized"):
