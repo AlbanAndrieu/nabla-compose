@@ -145,15 +145,26 @@ if [ "${MODE}" = "--check" ]; then
   if [ "$current_source" != "$current_generated" ]; then
     printf 'WARN: generator and active generated profile differ; reconcile before a service restart\n'
   fi
+  if [ "$current_source" = "$expected" ] && [ "$current_generated" = "$expected" ]; then
+    printf 'php_fpm_profile_contract=CONSTRAINED_MATCH\n'
+  else
+    printf 'php_fpm_profile_contract=UPSTREAM_OR_DRIFT\n'
+  fi
   workers=$(worker_count)
   case "$workers" in
-    ''|*[!0-9]*) printf 'WARN: nginx PHP-FPM worker count unavailable\n' ;;
-    0) printf 'WARN: no nginx PHP-FPM workers observed; process state not confirmed\n' ;;
+    ''|*[!0-9]*) printf 'WARN: nginx PHP-FPM worker count unavailable\n'
+                    printf 'php_fpm_worker_contract=UNKNOWN\n' ;;
+    0) printf 'WARN: no nginx PHP-FPM workers observed; process state not confirmed\n'
+       printf 'php_fpm_worker_contract=NO_WORKERS\n' ;;
     *) printf 'php_fpm_nginx_pool_workers=%s\n' "$workers"
        if [ "$workers" -gt "$TARGET_MAX" ]; then
          printf 'WARN: running nginx PHP-FPM workers exceed constrained target max=%s\n' "$TARGET_MAX"
+         printf 'php_fpm_worker_contract=EXCEEDS_TARGET\n'
+       else
+         printf 'php_fpm_worker_contract=WITHIN_TARGET\n'
        fi ;;
   esac
+  printf 'php_fpm_reconciliation_is_readonly=yes\n'
   exit 0
 fi
 
