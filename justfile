@@ -394,6 +394,8 @@ pfsense-unbound-restart-test:
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_snapshot_compare.py' -v
+    bash -n scripts/pfsense/capture-unbound-snapshot.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_unbound_snapshot_capture.py' -v
 
 # Lightweight Netgate memory observation, without changing daemon configuration.
 pfsense-memory-sample-test:
@@ -407,6 +409,11 @@ pfsense-memory-sample:
 # 13 readings at 15 s intervals span 180 s, one SSH session.
 pfsense-memory-window:
     PFSENSE_OUTPUT=verbose bash scripts/pfsense/sample-oom-pressure.sh --check --samples 13 --interval-seconds 15
+
+# One safe read-only SSH capture, persisted in a private workstation directory.
+# It prints the exact saved path for use as PFSENSE_BEFORE/PFSENSE_AFTER.
+pfsense-unbound-capture:
+    bash scripts/pfsense/capture-unbound-snapshot.sh --check
 
 # Compare two saved redacted output files entirely locally. No SSH.
 # Set PFSENSE_BEFORE and PFSENSE_AFTER to the operator-controlled report paths.
