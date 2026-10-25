@@ -30,7 +30,7 @@ class Contracts(unittest.TestCase):
 
     def test_gpg_probe_only_reads_public_status_and_masks_it(self):
         good=subprocess.CompletedProcess([],0,'22916048\n','')
-        card=subprocess.CompletedProcess([],0,'private path not for logs','')
+        card=subprocess.CompletedProcess([],0,'Application ID ...: D2760001240103040006186980150000\n','')
         with patch.object(mod.shutil,'which',return_value='/usr/bin/fake'), patch.object(mod.subprocess,'run',side_effect=[good,card]) as runner:
             self.assertEqual(mod.probe(True),'GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED')
             self.assertEqual(runner.call_args.args[0],['gpg','--batch','--no-tty','--card-status'])
@@ -42,6 +42,61 @@ class Contracts(unittest.TestCase):
         bad=subprocess.CompletedProcess([],2,'','No such device, secrets irrelevant')
         with patch.object(mod.shutil,'which',return_value='/usr/bin/fake'), patch.object(mod.subprocess,'run',side_effect=[good,bad]):
             self.assertEqual(mod.probe(True),'OPENPGP_TRANSPORT_NOT_CONFIRMED')
+
+    def test_no_success_for_empty_stdout_with_exit_zero(self):
+        self.assertEqual(mod.classify_card_reply(0, '', ''),
+                         'OPENPGP_CARD_STATUS_UNRECOGNIZED')
+
+    def test_no_success_for_arbitrary_text_with_exit_zero(self):
+        self.assertEqual(mod.classify_card_reply(0, 'private path not for logs', ''),
+                         'OPENPGP_CARD_STATUS_UNRECOGNIZED')
+
+    def test_no_success_for_gpg_warning_even_with_valid_application_id(self):
+        aid = 'Application ID ...: D2760001240103040006186980150000\n'
+        self.assertEqual(mod.classify_card_reply(0, aid, 'gpg: warning: unexpected'),
+                         'OPENPGP_TRANSPORT_NOT_CONFIRMED')
+
+    def test_no_success_if_valid_app_id_and_exit_nonzero(self):
+        aid = 'Application ID ...: D2760001240103040006186980150000\n'
+        self.assertEqual(mod.classify_card_reply(2, aid, 'gpg: failed'),
+                         'OPENPGP_TRANSPORT_NOT_CONFIRMED')
+
+    def test_common_gpg_errors_are_classified_without_details(self):
+        errors = [
+            ('gpg: selecting openpgp failed: No such device', 'OPENPGP_DEVICE_NOT_AVAILABLE'),
+            ('gpg: OpenPGP card not available: Card error', 'OPENPGP_CARD_OR_READER_ERROR'),
+            ('scdaemon: failed to connect to agent', 'OPENPGP_SCDAEMON_OR_AGENT_UNAVAILABLE'),
+            ('PCSC resource busy', 'OPENPGP_READER_BUSY_UNVERIFIED'),
+            ('gpg: another obscure /home/secret/private/path', 'OPENPGP_TRANSPORT_NOT_CONFIRMED'),
+        ]
+        for diagnostic, expected in errors:
+            with self.subTest(diagnostic=expected):
+                actual = mod.classify_card_reply(2, '', diagnostic)
+                self.assertEqual(actual, expected)
+                self.assertNotIn('/home/', actual)
+                self.assertNotIn('secret', actual)
+
+    def test_output_size_or_nul_is_rejected(self):
+        for text in ('secret\x00', 'a' * 32769):
+            with self.subTest(length=len(text)):
+                self.assertEqual(mod.classify_card_reply(0, text, ''),
+                                 'OPENPGP_PROBE_UNCLASSIFIED')
+
+    def test_probe_timeout_is_categorized_not_retried(self):
+        good = subprocess.CompletedProcess([], 0, '22916048\n', '')
+        with patch.object(mod.shutil, 'which', return_value='/usr/bin/fake'), \
+             patch.object(mod.subprocess, 'run',
+                          side_effect=[good, subprocess.TimeoutExpired(['gpg'], 20)]) as runner:
+            self.assertEqual(mod.probe(True), 'OPENPGP_PROBE_TIMEOUT')
+            self.assertEqual(runner.call_count, 2)
+
+    def test_probe_reports_busy_reader_without_logging_sensitive_error(self):
+        good = subprocess.CompletedProcess([], 0, '22916048\n', '')
+        failure = subprocess.CompletedProcess([], 2, '',
+                    'gpg: resource busy: /private/reader/internal-id')
+        with patch.object(mod.shutil, 'which', return_value='/usr/bin/fake'), \
+             patch.object(mod.subprocess, 'run', side_effect=[good, failure]):
+            self.assertEqual(mod.probe(True), 'OPENPGP_READER_BUSY_UNVERIFIED')
 
     def test_unsupported_options_rejected(self):
         with redirect_stderr(io.StringIO()), patch.object(mod,'probe') as runner:
