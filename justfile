@@ -520,6 +520,33 @@ critical-failures-triage:
     sudo -n bash scripts/truenas/triage-critical-failures.sh --check
 
 # TrueNAS: focused Prometheus/Akvorado acceptance, no unnecessary OpenRAG probes.
+# Read-only stopped Talos VM inventory on TrueNAS; not a Kubernetes upgrade.
+talos-stopped-vms-check:
+    sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --check
+
+# Intentional Talos VM start; never upgrade Talos while VMs are stopped.
+talos-stopped-vms-start:
+    sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --start --acknowledge I_ACCEPT_STARTING_EXISTING_TALOS_VMS
+
+# Read-only audit of ALL canonical runtime secrets and directory modes.
+runtime-secret-modes-check:
+    sudo -n python3 scripts/truenas/audit-runtime-secret-permissions.py --check
+
+# Scoped, deliberate mode-only fix; preserves owner, group, group read.
+runtime-secret-modes-apply:
+    sudo -n python3 scripts/truenas/audit-runtime-secret-permissions.py --apply --acknowledge I_ACCEPT_SCOPED_SECRET_MODE_REPAIR
+
+# Read-only test of an already-approved private PDF, no indexing or upload.
+openrag-private-pdf-check file:
+    sudo -n bash scripts/truenas/check-openrag-private-pdf.sh --check --file "{{file}}"
+
+# Offline acceptance contracts for staged infrastructure and private-document probes.
+migration-recovery-contracts:
+    python3 -m unittest discover -s tests -p 'test_talos_stopped_vm_resume.py' -v
+    python3 -m unittest discover -s tests -p 'test_runtime_secret_permission_audit.py' -v
+    python3 -m unittest discover -s tests -p 'test_openrag_private_pdf_readiness.py' -v
+    bash -n scripts/truenas/check-openrag-private-pdf.sh
+
 critical-remaining-triage:
     sudo -n bash scripts/truenas/triage-critical-failures.sh --check --remaining
 
