@@ -41,7 +41,7 @@ class Contracts(unittest.TestCase):
         good=subprocess.CompletedProcess([],0,'22916048\n','')
         bad=subprocess.CompletedProcess([],2,'','No such device, secrets irrelevant')
         with patch.object(mod.shutil,'which',return_value='/usr/bin/fake'), patch.object(mod.subprocess,'run',side_effect=[good,bad]):
-            self.assertEqual(mod.probe(True),'OPENPGP_TRANSPORT_NOT_CONFIRMED')
+            self.assertEqual(mod.probe(True),'OPENPGP_DEVICE_NOT_AVAILABLE')
 
     def test_no_success_for_empty_stdout_with_exit_zero(self):
         self.assertEqual(mod.classify_card_reply(0, '', ''),
