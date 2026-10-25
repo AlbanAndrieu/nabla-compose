@@ -56,6 +56,51 @@ if [ -r /etc/crontab ]; then
     }
   ' /etc/crontab | head -20
 fi
+echo '=== Service Watchdog membership (read-only configuration, names only) ==='
+if [ -r /conf/config.xml ]; then
+  awk '
+    /<servicewatchdog>/ {inside=1; found=1}
+    inside && /<name>[[:space:]]*unbound[[:space:]]*<\/name>/ {watched=1}
+    /<\/servicewatchdog>/ {inside=0}
+    END {
+      if(watched) print "watchdog_unbound_membership=LISTED"
+      else if(found) print "watchdog_unbound_membership=NOT_LISTED"
+      else print "watchdog_unbound_membership=PACKAGE_SECTION_NOT_OBSERVED"
+    }
+  ' /conf/config.xml
+else
+  echo 'watchdog_unbound_membership=CONFIG_UNAVAILABLE'
+fi
+echo '=== Installed pfBlockerNG version and apply implementation (not execution) ==='
+if command -v pkg >/dev/null 2>&1; then
+  found_package=no
+  for name in pfSense-pkg-pfBlockerNG-devel pfSense-pkg-pfBlockerNG; do
+    version=$(pkg query '%v' "$name" 2>/dev/null | head -1 || true)
+    case "$version" in
+      ''|*[!A-Za-z0-9._,+~-]*) ;;
+      *) printf 'pfblocker_package=%s version=%s\n' "$name" "$version"
+         found_package=yes ;;
+    esac
+  done
+  [ "$found_package" = yes ] || echo 'pfblocker_package=NOT_OBSERVED'
+else
+  echo 'pfblocker_package=PKG_UNAVAILABLE'
+fi
+implementation_seen=no
+for file in /usr/local/pkg/pfblockerng/pfblockerng.inc \
+            /usr/local/pkg/pfblockerng.inc; do
+  [ -r "$file" ] || continue
+  implementation_seen=yes
+  for fn in pfb_stop_start_unbound pfb_reload_unbound pfb_validate_unbound; do
+    if grep -Fq "$fn" "$file" 2>/dev/null; then
+      printf 'pfblocker_implementation_function=%s present=yes\n' "$fn"
+    fi
+  done
+  break
+done
+[ "$implementation_seen" = yes ] ||
+  echo 'pfblocker_implementation=NOT_OBSERVED'
+echo 'pfblocker_implementation_is_execution_proof=no'
 echo '=== Bounded lifecycle and kernel signals (raw messages withheld) ==='
 for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
             /var/log/resolver.log /var/log/resolver.log.0 \
@@ -123,7 +168,7 @@ echo 'dnsbl_python_exit=MODULE_SHUTDOWN_NOT_PROOF_OF_CALLER'
 echo 'dnsbl_service_restart_marker=DNSBL_ACTION_NOT_PROOF_OF_UNBOUND_PID_CHANGE'
 echo 'unbound_bind_conflict=OVERLAPPING_SOCKET_ATTEMPTS_OR_STALE_LISTENER'
 echo 'cron_schedule=NOT_PROOF_OF_EXECUTION'
-echo 'watchdog_membership=NOT_VERIFIED'
+echo 'watchdog_membership=SEE_READ_ONLY_CONFIG_PROBE'
 echo 'restart_initiator=NOT_PROVEN_UNLESS_EXPLICIT_LIFECYCLE_ACTION'
 echo '=== End of read-only Unbound restart triage ==='
 REMOTE
