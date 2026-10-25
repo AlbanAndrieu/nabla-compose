@@ -434,6 +434,11 @@ gatus-monitor-failures:
 gatus-monitor-contracts:
     python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
 
+# Fast offline compatibility gate. Node 22/npm 10; never npm ci, npx, Docker or CI.
+# Node 24 remains the canonical version for other repository workflows.
+node22-fast:
+    npm --offline run test:fast:node22
+
 # On-demand standalone APISIX service; isolated from default deployment.
 apisix-contract:
     python3 -m unittest discover -s tests -p 'test_apisix_contract.py' -v
