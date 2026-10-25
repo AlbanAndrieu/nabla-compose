@@ -551,3 +551,62 @@ enregistrée, d'une signature OpenPGP fonctionnelle, d'une
 récupération PostgreSQL, d'une PKI sûre ou d'un âge hardware
 interopérable. Tous les chemins restent NO-GO pour mutations
 matérielles et SOPS.
+
+
+## 17. Preuve workstation et secondaire — diagnostics multi-applications (25 octobre 2026)
+
+**Sortie réelle fournie par l'opérateur** après création de l'inventaire
+FIDO2/OATH/OpenPGP/PIV et des diagnostics de poste. Le SHA de la
+copie de travail n'était pas imprimé : ne pas attribuer ce résultat
+aux commits publiés ensuite.
+
+- `just yubikey-applications-test` : **12/12 PASS** ;
+  compilation Python PASS.
+- `just yubikey-workstation-test` : **8/8 PASS** ;
+  compilation Python PASS. L'erreur affichée pendant le test négatif
+  « No arguments supported » est attendue, car ce test se termine OK.
+- `just yubikey-workstation-readonly` : identité SOPS
+  logicielle présente, permissions/ownership conformes à la politique ;
+  mapping PAM U2F présent mais non testé ; outil
+  `pamu2fcfg` absent ; clé publique SSH FIDO2
+  conventionnelle non trouvée.
+- Outils présents, **interopérabilité non prouvée** : gpg, gpgconf,
+  age, age-plugin-yubikey, sops, ykman, keepassxc,
+  ssh-keygen, cryptsetup, lsblk, pcsc_scan.
+- Socket GPG-agent **non trouvé à l'ancien chemin conventionnel**.
+  **Cela ne prouve pas que l'agent soit absent ou arrêté**.
+- `just yubikey-applications-secondary-readonly` sur
+  **22916048**, firmware 5.4.3 : les quatre applets FIDO, OATH,
+  OpenPGP et PIV répondent aux commandes publiques.
+  Management key AES256 protégée par PIN.
+  PIV9A OCCUPIED_METADATA. Slots 83, 9C, 9D et 9E EMPTY_CONFIRMED.
+- Aucun nouvel essai PIN, test GPG de déchiffrement, challenge OTP,
+  génération de clé, modification PAM ni opération SOPS.
+
+**Corrigé dans #280 :** le contrôleur
+`inspect-yubikey-workstation-readonly.py` interroge maintenant
+**uniquement** `gpgconf --list-dirs agent-socket`
+pour localiser le chemin propre à cette installation, au lieu
+d'inférer `~/.gnupg/S.gpg-agent`.
+Il applique `lstat` uniquement au chemin reçu et
+ne lance pas l'agent ; ni chemin ni données d'identité n'apparaissent
+dans le JSON. Il distingue les sources
+`GPGCONF`, `GPGCONF_MISSING`,
+`GPGCONF_ERROR` et `GPGCONF_INVALID_PATH`.
+Un socket trouvé demeure `PRESENT_UNVERIFIED`, pas
+une preuve de fonctionnement d'OpenPGP/scdaemon.
+Les 5 nouveaux tests de chemin/socket sont hermétiques ; leur
+validation sur la workstation au HEAD actuel est encore **NOT_RUN**.
+
+**Prochaine étape non destructive :**
+`just yubikey-workstation-test`
+puis `just yubikey-workstation-readonly`.
+Les états à regarder sont `gpg_agent_socket`
+et `gpg_agent_socket_locator`.
+L'étape suivante seulement, si nécessaire, sera un diagnostic
+GPG/PCSC non interactif et sans démarrage automatique d'agent.
+Les sauvegardes GPG/PostgreSQL et l'escrow age restent à vérifier
+par une procédure de restauration isolée et autorisée.
+
+**Toutes les opérations de configuration matérielle et de migration
+SOPS restent NO-GO.**
