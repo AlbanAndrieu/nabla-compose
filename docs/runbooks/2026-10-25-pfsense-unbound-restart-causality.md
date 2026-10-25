@@ -457,3 +457,81 @@ Commande locale :
 ```bash
 just pfsense-unbound-restart-test
 ```
+
+## Verdict d'enquête — validation des 39 tests et arrêt/démarrage DNSBL
+
+**Validation opérateur du 25 octobre :**
+`just pfsense-unbound-restart-test` = **39/39 PASS**
+(20 contrats de causalité Unbound, 19 contrats du formateur console).
+La suite valide le rendu des deux minutes distinctes lors du changement
+d'heure, les preuves partielles et la détection des erreurs de classifieur.
+Elle ne valide pas une absence d'incident réseau à elle seule.
+
+### Deux mécanismes indépendants de perturbation Unbound
+
+**1. Cycle quotidien pfBlockerNG/DNSBL — stop/start journalisé.**
+Le relevé pfSense du 25 octobre à 20:27 CET contient maintenant
+des marqueurs directs **émis par pfBlockerNG** :
+
+| Date et contexte local du bloc pfBlockerNG | Stop Unbound | Start Unbound |
+| --- | --- | --- |
+| 22 octobre 2026 | 00:04:01 | 00:04:18 |
+| 23 octobre 2026 | 00:04:12 | 00:04:25 |
+| 24 octobre 2026 | 00:04:38 | 00:04:59 |
+
+Il s'agit d'**heures d'en-tête de bloc**, pas obligatoirement
+de l'instant exact de l'appel. Cependant, les marqueurs explicites
+`pfblocker_unbound_stop_marker` et
+`pfblocker_unbound_start_marker` démontrent que les mises à jour
+pfBlockerNG demandent bien des arrêts/démarrages du résolveur.
+Ce n'est plus seulement une corrélation avec la sortie du module
+`pfb_unbound.py`. La cause de l'utilisation de la voie
+`pfb_stop_start_unbound` plutôt que d'un rechargement sans arrêt
+n'est **pas établie** pour chaque mise à jour.
+
+**2. OOM système — interruption forcée confirmée.**
+Le noyau a tué explicitement Unbound les **17, 22 et 24 octobre**.
+Les 16 enregistrements OOM distincts sur 7 minutes concernent
+plusieurs processus, pas 16 redémarrages Unbound.
+Le cron Snort à 02:09 est temporellement proche des kills vers
+02:10, mais **le processus responsable du pic global RAM** reste
+non prouvé. CrowdSec, PHP/pfBlockerNG et Snort doivent être
+corrélés à leur RSS au moment du pic avant toute remédiation.
+
+**Service Watchdog :** `watchdog_unbound_membership=NOT_LISTED`
+lors du relevé. Ne pas l'attribuer aux cycles actuels.
+
+### État des feeds au relevé
+
+- pfBlockerNG principal : **5 erreurs 403/404** et **7 autres
+  erreurs** dans la fenêtre conservée.
+- Logs ASN/IPinfo : **1 941** signatures `extras` et **1 182**
+  dans le journal d'erreur. Ces comptes peuvent inclure des
+  événements redondants ; la rétention ne prouve pas un retry actif
+  lors du relevé du 25 octobre.
+- **64 fichiers DNSBL** et **147 fichiers Snort** inspectés :
+  aucun n'atteint les seuils d'alerte du collecteur (16/64 Mio
+  pour DNSBL, 64/128 Mio pour Snort).
+
+**Ne pas conclure** que les téléchargements échoués provoquent
+chaque restart ou OOM. Ne pas réactiver UT1 Adult, relever la
+mémoire PHP, déplacer les crons ou désactiver DNSBL sans un
+changement isolé et réversible.
+
+### Priorités de diagnostic restantes
+
+1. Déterminer pourquoi le traitement DNSBL choisit parfois un
+   stop/start plutôt que le reload prévu par le code installé
+   `pfSense-pkg-pfBlockerNG 3.2.17_1` ; conserver les journaux
+   natifs et les marqueurs explicites.
+2. Identifier le consommateur à l'origine des OOM vers 02:10 :
+   obtenir un échantillon RSS et les événements de téléchargement
+   Snort/pfBlockerNG immédiatement avant le pic, sans lancer de
+   mise à jour artificielle.
+3. Vérifier la **récence** des échecs IPinfo/ASN et HTTP
+   plutôt que d'utiliser seulement leurs totaux historiques.
+
+Pour le prochain incident : `just pfsense-feed-pressure-check`,
+puis `PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check`
+si les catégories justifient un approfondissement. Ces commandes
+restent en lecture seule.
