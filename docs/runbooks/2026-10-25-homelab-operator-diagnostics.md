@@ -156,3 +156,53 @@ l'application. **Ne pas créer/recréer 24 conteneurs pour obtenir du vert** :
 réconcilier d'abord le catalogue avec les services intentionnellement
 déployés, puis confirmer les sondes nécessaires. Séparer les correctifs
 Compose (cibles/ports) de ceux du runtime (service réellement arrêté).
+
+
+### Nouveau relevé postmigration — classification affinée
+
+Le second relevé opérateur du 25 octobre identifie :
+- Catalogue : `generated_catalog_drift` et `stale_artifact_count=3`. Le générateur
+  versionné produit `entities.json`, `homelab.cdx.json` et
+  `identity-map.json`. Confirmer les chemins autorisés présents dans
+  `stale_artifacts` avant toute régénération.
+- Readiness : `gatus=WARN`, `scrutiny=BLOCKED`, `sample=WARN`.
+  `service_reasons` classe les notes existantes sans publier leur texte.
+  Une sonde Gatus DOWN n'est pas une preuve de panne du processus Gatus ;
+  le warning FastAPI peut seulement signifier une provenance Git absente.
+- Prometheus : `target_up=21`, `target_not_up=7`, signal
+  `scrape_targets_degraded`. `failed_jobs` reprend les seuls noms
+  versionnés du catalogue, leurs compteurs et leurs catégories d'erreur.
+  La liste des sept jobs reste à confirmer dans le rapport privé.
+- APISIX : `optional_gateway_unverified`, sans déploiement prouvé.
+
+Sans nouvelle connexion réseau, relire les deux sessions existantes
+depuis une copie de la branche #280 :
+
+```bash
+sudo python3 scripts/truenas/triage-postmigration-report.py --check \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-gXRf82tS
+
+sudo python3 scripts/truenas/triage-postmigration-report.py --check \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-GMLt5rTO
+```
+
+Ces commandes sont **read-only**. Elles peuvent retourner `1` ou `2`
+tant que la panne est confirmée ou qu'une observation manque.
+Les informations `stale_artifacts`, `service_reasons` et `failed_jobs`
+ne sont présentes que si le journal privé contient une preuve analysable.
+Ne pas publier les journaux privés ou les sorties brutes Prometheus.
+
+Pour contrôler les jobs Prometheus en direct depuis un hôte autorisé,
+le classificateur déjà présent suffit :
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
+```
+
+Cette commande ne donne aucune autorisation de déployer un exporter
+ou de modifier le scrape config. Comparer les sept jobs attendus avec
+les sept DOWN réels avant de proposer une correction.
+
+Pour les trois artefacts, une régénération éventuelle doit rester
+dans un worktree isolé et faire l'objet d'un diff revu ; aucun
+générateur n'a été exécuté en mode écriture sur TrueNAS.
