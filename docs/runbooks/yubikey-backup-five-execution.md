@@ -62,7 +62,7 @@ fixture age, attestation et SPKI vérifiés, PIV9A et OTP2 inchangés.
 Cela ne prouve pas l'accès à la carte. Préparer hors connexion :
 ```bash
 just yubikey-dependencies-readonly
-bash scripts/workstation/diagnose-gpg-smartcard.sh --check
+bash scripts/workstation/diagnose-gpg-smartcard.sh --host-only
 ```
 
 Une fois l'environnement de récupération garanti, utiliser une séance
@@ -70,6 +70,13 @@ interactive sur la carte secondaire pour vérifier `gpg --card-status`
 sans déplacer les sous-clés. Si nécessaire, comparer le mode PC/SC à CCID
 et l'agent réellement utilisé. Ne pas exécuter `gpg --edit-key`,
 `keytocard`, `gpgconf --kill` ou une rotation de clé automatiquement.
+
+**Important :** `diagnose-gpg-smartcard.sh --check` n'est pas
+un contrôle strictement sans effet : il exécute actuellement des
+commandes `SCD` et `gpg --card-status`, ce qui peut démarrer
+scdaemon et accéder au lecteur. Ne lancer `--check` que pendant
+une séance matérielle supervisée, après validation des sauvegardes.
+Pour le diagnostic sans contact, utiliser `--host-only`.
 
 **Acceptation** : visibilité de l'applet OpenPGP et correspondance des
 sous-clés publiques sans régression de signature Git ni de l'accès aux
@@ -83,21 +90,30 @@ mais leur type et l'enrôlement sur la secondaire ne sont pas démontrés.
 Avant tout enrôlement, conserver un accès SSH de secours et tester
 `ssh-keygen -Q key` ou la capacité ed25519-sk du client.
 
-**Session opérateur — clé SSH FIDO2 distincte** (seulement après contrôle
-que `ykman list --serials` retourne **exactement** `22916048`) :
+**Session opérateur — enrôlement SSH FIDO2 distinct**
+(aucune autre YubiKey connectée ; terminal interactif) :
+
 ```bash
-umask 077
-test ! -e "$HOME/.ssh/id_ed25519_sk_backup" || exit 3
-test ! -e "$HOME/.ssh/id_ed25519_sk_backup.pub" || exit 3
-ssh-keygen -t ed25519-sk -f "$HOME/.ssh/id_ed25519_sk_backup" -C 'yubikey-backup-22916048'
+just yubikey-backup-ssh-test
+just yubikey-backup-ssh-check
+# Uniquement après résultat READY_FOR_INTERACTIVE_ENROLLMENT :
+just yubikey-backup-ssh-enroll
 ```
-Toucher la carte et saisir le PIN uniquement dans la boîte locale de l'outil
-si demandé. Cette opération génère un **nouvel identifiant FIDO** ; elle
-n'enregistre pas automatiquement la clé auprès des serveurs.
-Configurer ensuite chaque destination (GitHub, serveur, fournisseur de
-passkeys) individuellement avec la **clé publique**, sans retirer les
-accès existants. Ne modifier ni PAM, ni `authorized_keys` ni les comptes
-distants automatiquement.
+
+La commande `--check` ne contacte pas la carte et n'écrit aucun fichier.
+La commande `--enroll`, explicitement nommée dans la recette, vérifie
+`ykman list --serials` == **22916048**, exige un terminal et produit
+une nouvelle poignée SSH `ed25519-sk` dans le dossier dédié
+`~/.ssh/nabla-yubikey-backup-22916048`. Ce dossier doit être absent :
+aucun écrasement ni retry automatique, y compris après une exécution
+partielle. Le PIN et le touch restent gérés localement par `ssh-keygen`
+si nécessaire. Aucune modification de `~/.ssh/config`,
+`authorized_keys`, serveur SSH, PAM ou GitHub n'est effectuée.
+
+Une poignée SSH locale **n'est pas un login validé**. Conserver
+la clé de secours existante et enregistrer manuellement la nouvelle
+clé publique sur chaque destination. Les passkeys WebAuthn nécessitent
+également leur propre inscription sur chaque service.
 
 **Acceptation** : authentification réelle testée sur chaque destination,
 avec seconde voie de secours disponible. Les passkeys ne sont pas copiées
