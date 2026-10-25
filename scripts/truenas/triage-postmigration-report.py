@@ -97,9 +97,12 @@ def classify(phase: str, state: str, log: str | None) -> dict:
         evidence['affected_count'] = len(affected)
         if affected:
             evidence['affected_services'] = affected
-        if re.search(r'unhealthy|healthcheck|health.check|restarting', low):
+        # A plain 'no Docker healthcheck' note is informational and must
+        # not convert an unrelated HTTP failure into a healthcheck failure.
+        if re.search(r'docker unhealthy|healthcheck (?:permissions|binary|'
+                     r'connectivity|http response|nonzero|unhealthy)|\brestarting\b', low):
             category = 'runtime_or_healthcheck_failed'
-        elif re.search(r'connection refused|timed out|timeout', low):
+        elif re.search(r'connection refused|timed out|timeout|http probe unavailable', low):
             category = 'functional_connection_failed'
         else:
             category = 'functional_readiness_failed'
