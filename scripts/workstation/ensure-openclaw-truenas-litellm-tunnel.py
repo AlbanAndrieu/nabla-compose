@@ -33,7 +33,12 @@ def ssh_alias_valid():
         key, sep, value = line.partition(" ")
         if sep and key in {"hostname", "port", "user"}:
             options[key] = value.strip()
-    return (options.get("hostname") == "172.17.0.24"
+    # OpenSSH leaves HostName unchanged when Host is a multi-alias stanza:
+    #   Host 172.17.0.24 nabla freenas truenas
+    # Thus "ssh -G truenas" can yield "hostname truenas". Keep the user's
+    # alias for user/port/options but explicitly pin the destination IP in
+    # the command that creates the forward.
+    return (options.get("hostname") in {"172.17.0.24", "truenas"}
             and options.get("port") == "9922"
             and options.get("user") == "albandrieu")
 
@@ -109,6 +114,7 @@ def main(argv=None):
         "ssh", "-f", "-N", "-S", "none", "-o", "BatchMode=yes",
         "-o", "ExitOnForwardFailure=yes", "-o", "StrictHostKeyChecking=yes",
         "-o", "ForwardAgent=no", "-o", "ServerAliveInterval=30",
+        "-o", "HostName=172.17.0.24",
         "-L", FORWARD, ALIAS
     ], timeout=18)
     if result is None or result.returncode != 0:
