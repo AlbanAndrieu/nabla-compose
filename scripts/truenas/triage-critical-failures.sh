@@ -4,17 +4,37 @@
 set -euo pipefail
 umask 077
 
-case "${1:---check}" in
-  --help|-h)
-    printf '%s\n' 'Usage: sudo bash scripts/truenas/triage-critical-failures.sh --check'
-    printf '%s\n' 'Runs seven read-only gates. Evidence is private on TrueNAS.'
-    exit 0 ;;
-  --check)
-    (($# <= 1)) || { printf 'Unexpected arguments\n' >&2; exit 2; } ;;
-  *)
-    printf 'BLOCKED: read-only --check is the only supported action\n' >&2
-    exit 2 ;;
-esac
+COLOR_MODE=auto
+ICON_MODE=auto
+ACTION_FLAGS=0
+VERBOSE=false
+while (($#)); do
+  case "$1" in
+    -h|--help)
+      printf '%s\n' 'Usage: sudo bash scripts/truenas/triage-critical-failures.sh --check [--color auto|always|never] [--icons auto|always|never] [--verbose]'
+      printf '%s\n' 'Runs seven read-only gates. Evidence stays private on TrueNAS.'
+      exit 0 ;;
+    --check) ACTION_FLAGS=$((ACTION_FLAGS + 1)); shift ;;
+    --color)
+      (($# >= 2)) || exit 2
+      COLOR_MODE="$2"; shift 2 ;;
+    --color=*) COLOR_MODE="${1#*=}"; shift ;;
+    --icons)
+      (($# >= 2)) || exit 2
+      ICON_MODE="$2"; shift 2 ;;
+    --icons=*) ICON_MODE="${1#*=}"; shift ;;
+    --no-color) COLOR_MODE=never; shift ;;
+    --no-icons) ICON_MODE=never; shift ;;
+    --verbose) VERBOSE=true; shift ;;
+    *)
+      printf 'BLOCKED: unknown or mutating triage argument (see --help)\n' >&2
+      exit 2 ;;
+  esac
+done
+((ACTION_FLAGS <= 1)) || {
+  printf 'BLOCKED: --check may only be specified once\n' >&2
+  exit 2
+}
 
 ((EUID == 0)) || {
   printf 'BLOCKED: root required for protected TrueNAS metadata\n' >&2
@@ -29,6 +49,14 @@ done
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT"
+UI_LIB="${ROOT}/scripts/lib/diagnostic-ui.sh"
+[[ -f "$UI_LIB" && ! -L "$UI_LIB" ]] || {
+  printf 'BLOCKED: diagnostic UI library unavailable or symlinked\n' >&2
+  exit 2
+}
+# shellcheck source=../lib/diagnostic-ui.sh
+source "$UI_LIB"
+diag_ui_init "$COLOR_MODE" "$ICON_MODE" || exit 2
 EXPECTED_ROOT="/mnt/cpool/var/nabla/migration-20261024"
 REPORT_ROOT="${NABLA_MIGRATION_REPORT_ROOT:-$EXPECTED_ROOT}"
 # Fail closed; never chmod unrelated directories, even as root.
@@ -56,7 +84,14 @@ record_gate() {
     *) status=FAIL; failed=$((failed+1)) ;;
   esac
   printf '%s\t%s\t%s\t%s\n' "$gate" "$status" "$code" "$log" >>"$SUMMARY"
-  printf '%s=%s\n' "$gate" "$status"
+  case "$status" in
+    PASS) diag_ok "$gate" ;;
+    FAIL) diag_fail "$gate (see private report)" ;;
+    UNVERIFIED) diag_unknown "$gate (no conclusive evidence)" ;;
+  esac
+  if [[ "$VERBOSE" == true && "$status" != PASS ]]; then
+    diag_info "evidence: $log"
+  fi
 }
 run_gate() {
   local gate="$1" budget="$2" log status=0
@@ -85,8 +120,9 @@ run_gate openrag-backstage-bundle 30 \
 run_gate akvorado-fresh-inserts 75 \
   python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 30
 
+diag_section '' 'Seven-gate critical migration summary'
 printf 'Results: PASS=%d FAIL=%d UNVERIFIED=%d\n' "$passed" "$failed" "$unverified"
-printf 'Private evidence: %s\n' "$SESSION_DIR"
+diag_info "Private evidence: $SESSION_DIR"
 printf 'Review: sudo cat %q\n' "$SUMMARY"
 # Treat missing observations as incomplete acceptance, not successful service health.
 ((failed == 0 && unverified == 0))
