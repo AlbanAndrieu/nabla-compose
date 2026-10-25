@@ -38,6 +38,30 @@ def new_root():
     return user_home() / ".local/share/mise/installs/node" / TARGET_NODE
 
 
+def isolated_stage_root():
+    # Never overwrite an incomplete npm tree under the Node distribution.
+    return user_home() / ".local/share/nabla-compose/openclaw-stage" / TARGET_OPENCLAW
+
+
+def selected_stage_root():
+    if stage_valid(new_root()):
+        return new_root()
+    if stage_valid(isolated_stage_root()):
+        return isolated_stage_root()
+    # A pre-existing incomplete npm tree is quarantined in place, not moved.
+    if (new_root() / "lib/node_modules/openclaw").exists():
+        return isolated_stage_root()
+    return new_root()
+
+
+def stage_kind(root):
+    if root == new_root():
+        return "node_prefix"
+    if root == isolated_stage_root():
+        return "isolated_prefix"
+    return "unverified"
+
+
 def private_status(path):
     try:
         meta = path.lstat()
@@ -72,16 +96,21 @@ def unit_exec():
         return None
     owner = Path(packages[0]).resolve()
     expected_parent = (user_home() / ".local/share/mise/installs/node").resolve()
-    if owner.parent != expected_parent or not re.fullmatch(r"\d+\.\d+\.\d+", owner.name):
+    is_node_install = (owner.parent == expected_parent and
+                       re.fullmatch(r"\d+\.\d+\.\d+", owner.name))
+    is_isolated = owner == isolated_stage_root().resolve()
+    if not is_node_install and not is_isolated:
         return None
-    if nodes:
+    if is_isolated:
+        # The package prefix is different from its Node runtime owner.
+        # Require the exact pinned runtime, not the legacy /usr/bin/node.
+        if nodes != {TARGET_NODE} or str(new_root() / "bin/node") not in text:
+            return None
+    elif nodes:
         if owner.name != next(iter(nodes)):
             return None
     else:
-        # Historical Ubuntu service could launch /usr/bin/node yet load
-        # OpenClaw JS from its user-owned mise package prefix. Permit only
-        # the OLD package in that situation; the migrated service MUST bind
-        # the exact new Node binary and package together.
+        # Historical Ubuntu service uses /usr/bin/node with an old mise JS.
         system_node = re.search(r"(?:path=|argv\[\]=|ExecStart=)\s*/usr/bin/node(?:\s|;)", text)
         if not system_node or owner == new_root():
             return None
@@ -162,9 +191,9 @@ def stage_valid(root):
             (package / "dist/openclaw-install-guard").exists()):
         return False
     env = dict(os.environ)
-    env["PATH"] = str(root / "bin") + os.pathsep + env.get("PATH", "")
+    env["PATH"] = str(new_root() / "bin") + os.pathsep + env.get("PATH", "")
     env["NPM_CONFIG_PREFIX"] = str(root)
-    rc, out, _ = run([str(root / "bin/node"), str(entry), "--version"],
+    rc, out, _ = run([str(new_root() / "bin/node"), str(entry), "--version"],
                       env=env, timeout=25)
     return rc == 0 and TARGET_OPENCLAW.encode() in out
 
@@ -202,7 +231,9 @@ def plan():
     print("old_package_detected=" + ("yes" if owner and
           (package_version(owner) or (owner / "lib/node_modules/openclaw/dist/index.js").is_file())
           else "no"))
-    print("staged_package=" + ("verified" if stage_valid(target)
+    stage_root = selected_stage_root()
+    print("stage_prefix=" + stage_kind(stage_root))
+    print("staged_package=" + ("verified" if stage_valid(stage_root)
                                else "not_ready"))
     print("dropin_exists=" + ("yes" if unit_dropin().exists() or
                                unit_dropin().is_symlink() else "no"))
@@ -234,7 +265,8 @@ def stage():
     if owner is None or not node_ready() or not service_active():
         print("upgrade_stage=blocked_preflight")
         return 2
-    destination = new_root()
+    destination = selected_stage_root()
+    print("stage_prefix=" + stage_kind(destination))
     current = package_version(destination)
     if stage_valid(destination):
         print("upgrade_stage=already_verified")
@@ -251,10 +283,10 @@ def stage():
         print("lifecycle_marker=" + ("present" if interrupted else "absent"))
         print("npm_reinstallation_attempted=false")
         return 2
-    npm = destination / "lib/node_modules/npm/bin/npm-cli.js"
-    node = destination / "bin/node"
+    npm = new_root() / "lib/node_modules/npm/bin/npm-cli.js"
+    node = new_root() / "bin/node"
     env = dict(os.environ)
-    env["PATH"] = str(destination / "bin") + os.pathsep + env.get("PATH", "")
+    env["PATH"] = str(new_root() / "bin") + os.pathsep + env.get("PATH", "")
     env["NPM_CONFIG_PREFIX"] = str(destination)
     env["NPM_CONFIG_REGISTRY"] = "https://registry.npmjs.org/"
     # npm 12 honors --allow-scripts; only the OpenClaw install hook runs.
@@ -277,6 +309,16 @@ def stage():
         npm_parts = (0, 0)
     if npm_parts >= (11, 16):
         cmd.append("--allow-scripts=openclaw")
+    # The isolated prefix is created owner-only; do not follow a symlink
+    # created by another process or overwrite a preexisting package tree.
+    if destination == isolated_stage_root():
+        if destination.is_symlink():
+            print("upgrade_stage=unsafe_prefix")
+            return 2
+        destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if not private_status(destination) or destination.stat().st_mode & 0o022:
+            print("upgrade_stage=unsafe_prefix")
+            return 2
     rc, install_out, install_err = run(cmd, timeout=300, env=env)
     if not stage_valid(destination):
         print("upgrade_stage=install_failed_or_unverified")
@@ -302,7 +344,7 @@ def state_backup(repo_root):
 
 def activate(repo_root):
     owner = unit_exec()
-    destination = new_root()
+    destination = selected_stage_root()
     # An already-verified cutover is idempotent and must not stop a healthy
     # Gateway or create another backup on a repeated operator invocation.
     if (owner == destination and service_active() and ready()
@@ -335,7 +377,7 @@ def activate(repo_root):
         print("upgrade_activation=backup_failed_old_start_attempted")
         return 2
     content = ("[Service]\nExecStart=\nExecStart=" +
-               str(destination / "bin/node") +
+               str(new_root() / "bin/node") +
                " --max-old-space-size=16053 " +
                str(package_entry(destination)) +
                " gateway --port 18789\n" +
@@ -375,18 +417,19 @@ def activate(repo_root):
 
 def verify():
     owner = unit_exec()
-    root = new_root()
+    root = selected_stage_root()
     healthy = (owner == root and service_active() and ready() and
                stage_valid(root))
     print("openclaw_service_version=" + ("verified" if healthy else "unverified"))
     print("http_ready=" + ("yes" if ready() else "no"))
     print("service_runtime_target=" + ("verified" if owner == root else "unverified"))
+    print("stage_prefix=" + stage_kind(root))
     doctor_ok = False
     memory_ok = False
     if healthy:
-        launcher = [str(root / "bin/node"), str(package_entry(root))]
+        launcher = [str(new_root() / "bin/node"), str(package_entry(root))]
         env = dict(os.environ)
-        env["PATH"] = str(root / "bin") + os.pathsep + env.get("PATH", "")
+        env["PATH"] = str(new_root() / "bin") + os.pathsep + env.get("PATH", "")
         env["NPM_CONFIG_PREFIX"] = str(root)
         # Doctor lint is deliberately non-mutating. Do not echo JSON.
         lint_code, _, _ = run(launcher + ["doctor", "--lint", "--json"],
