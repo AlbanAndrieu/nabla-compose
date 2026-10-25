@@ -146,6 +146,49 @@ def inspect(config, root=ROOT):
     if isinstance(memory, dict):
         for name in ("provider", "model", "baseUrl"):
             print("memory_" + name + "=" + ("present" if memory.get(name) else "absent"))
+    memory_root = config.get("memory", {})
+    search = memory_root.get("search", {}) if isinstance(memory_root, dict) else {}
+    if not isinstance(search, dict):
+        search = {}
+    remote = search.get("remote", {})
+    if not isinstance(remote, dict):
+        remote = {}
+    memory_route = route_owner(remote.get("baseUrl"))[0]
+    memory_key = remote.get("apiKey")
+    secrets = config.get("secrets", {})
+    secret_providers = secrets.get("providers", {}) if isinstance(secrets, dict) else {}
+    if not isinstance(secret_providers, dict):
+        secret_providers = {}
+    ref_is_embedding = (
+        isinstance(memory_key, dict)
+        and memory_key.get("source") == "file"
+        and memory_key.get("provider") == "openclaw-embeddings"
+        and memory_key.get("id") == "value"
+    )
+    provider = secret_providers.get("openclaw-embeddings")
+    if ref_is_embedding and isinstance(provider, dict):
+        expected = str(Path.home() / ".local/share/nabla-compose/openclaw-embeddings.key")
+        provider_ok = (provider.get("source") == "file"
+                       and provider.get("mode") == "singleValue"
+                       and provider.get("path") == expected)
+    else:
+        provider_ok = False
+    print("memory_global_config=" + ("present" if search else "missing"))
+    print("memory_global_provider=" +
+          ("openai-compatible" if search.get("provider") == "openai-compatible"
+           else "other_or_unverified"))
+    print("memory_global_model=" + model_category(search.get("model")))
+    print("memory_global_route_owner=" + memory_route)
+    print("memory_global_key_representation=" + key_state(memory_key))
+    print("memory_embedding_secretref=" +
+          ("expected" if ref_is_embedding else "other_or_unverified"))
+    print("memory_embedding_file_provider=" +
+          ("expected" if provider_ok else "unverified_or_different"))
+    print("memory_virtual_key_instance=" +
+          ("workstation" if memory_route == "workstation_litellm" and provider_ok
+           else "truenas" if memory_route == "truenas_litellm"
+           else "other_or_unverified"))
+    print("memory_runtime_secret_resolution=not_tested")
     print("effective_auth_profiles=unverified")
     print("effective_session_model=unverified")
     print("NOTE: static configuration does not prove the effective gateway route or auth profile")
