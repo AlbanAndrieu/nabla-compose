@@ -1387,3 +1387,73 @@ est natif et garde une sauvegarde owner-only.
 
 Ces chemins sont indépendants : ne pas confondre correction du
 `EBADENGINE` et preuve de disparition des 429.
+
+
+## 2026-10-25 — échec du patch natif : `blocked_gateway_snapshot`
+
+L'opérateur a relancé sur Workstation la séquence de récupération.
+Les tests npm (10/10), collecteur 429 (6/6), réparation (20/20) et routes
+(8/8) sont PASS, soit **44 tests**. Le diagnostic historique indique
+Node 24.18.1 et `runtime_engine` ; la commande
+`mise exec node@24.22.1 -- node --version` retourne **v24.22.1**.
+Le `mise.lock` local a été régénéré avec des artefacts officiels pour
+sept plateformes ; des avertissements de lockfile concernant d'autres
+outils globaux restent non bloquants. Ne pas supprimer ni forcer ce
+`mise.lock` sans vérifier son diff local.
+
+Le plan OpenClaw a confirmé `repair_scope=concurrency_only`,
+`cron_key_access=not_required` et `global_concurrency=1`.
+L'application a retourné **`native_config_patch=blocked_gateway_snapshot`**
+avant toute mutation, sans redémarrer le Gateway.
+
+**Cause :** notre contrôle comparait le `hash` de `config.get` au
+SHA-256 des seuls octets de `~/.openclaw/openclaw.json`. C'est une
+erreur de protocole : le `hash` fourni par OpenClaw est **opaque**,
+et sa révision peut couvrir les identités et le contenu des fichiers
+`$include` en plus du fichier racine. Le hash n'est pas un checksum
+local à recalculer. Ne pas utiliser `configRevisionHash` ni
+`appliedConfigHash` à la place du champ `hash`.
+
+**Correction versionnée :** le programme transmet la révision
+exactement reçue par le Gateway comme `baseHash`, sans conversion
+hexadécimale ni comparaison à un SHA-256 local. Il vérifie que le
+fichier local n'a pas changé avant et après le RPC `config.get`,
+vérifie l'identité du chemin lorsqu'elle est exposée et protège le
+patch par le mécanisme CAS du Gateway. Le rollback, si nécessaire,
+récupère **une nouvelle révision opaque** avant la tentative de
+réparation. Il ne remplace jamais directement le fichier de
+configuration pour contourner un refus RPC.
+
+Le mode `plan` du cas `concurrency_only` vérifie désormais aussi la
+présence du snapshot Gateway en **lecture seule**. Ses sorties ne
+contiennent aucune valeur de secret, aucun hash brut, ni JSON de config.
+Des contrats couvrent les révisions opaques non SHA, les changements
+concurrents, les chemins erronés, le plan sans écriture et le rollback.
+
+**Exécution Workstation (aucun CI)** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-fix-test
+just openclaw-429-fix-plan
+just openclaw-429-fix-apply
+python3 scripts/workstation/openclaw-route-metadata.py
+just openclaw-429-auto
+```
+
+`openclaw-429-fix-apply` est **mutant** (patch natif ciblé et
+rechargement géré par le Gateway). Vérifier le résultat avant de
+relancer la commande. `maxConcurrent=1` n'est pas un remède universel
+à une limite RPM/TPM upstream, ni une séparation d'identité des
+jobs cron ; ceux-ci nécessitent un audit distinct.
+
+**L'installation du Node 24.22.1 n'a pas automatiquement mis à jour
+l'ancien préfixe npm d'OpenClaw ni le binaire Node du service systemd.**
+Conserver l'ancien préfixe jusqu'à preuve de migration réussie. Ne
+pas relancer `openclaw update` avant un contrôle du runtime
+effectivement utilisé par le service.
+
+Documentation :
+https://docs.openclaw.ai/gateway/protocol/rpc-talk-config-and-agents
+https://docs.openclaw.ai/gateway/configuration/config-rpc
