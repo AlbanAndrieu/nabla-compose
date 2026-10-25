@@ -170,7 +170,8 @@ class UnboundSnapshotCompareContract(unittest.TestCase):
             a.write_text(BEFORE, encoding="utf-8")
             for data, reason in (
                 ("some unrelated log", "after_missing_pfSense_time"),
-                (BEFORE.replace("unbound_pid=19252", "unbound_pid=unavailable"),
+                (BEFORE.replace("2026-10-25T23:56:01+0100", "2026-10-26T00:12:48+0100")
+                 .replace("unbound_pid=19252", "unbound_pid=unavailable"),
                  "after_missing_unbound_pid"),
                 (BEFORE, "reports_same_timestamp"),
             ):
