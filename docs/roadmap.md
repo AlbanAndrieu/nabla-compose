@@ -124,6 +124,41 @@ Actions :
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
+## P0 — Reprise Talos VM, secret modes et preuve PDF (25 octobre)
+
+**Source :** VM Talos `taloscp01`, `taloswk01`, `taloswk02`
+annoncees STOPPED par l'operateur. Aucune preuve de VM RUNNING,
+Talos API, etcd ou CSI actuelle. **Ne pas lancer fast-batch-upgrade**
+avant restauration et validation du cluster.
+
+- [x] **Code :** `resume-stopped-talos-vms.py --check` et
+  `--start --acknowledge I_ACCEPT_STARTING_EXISTING_TALOS_VMS` :
+  liste de VM figée, refuse l'inventaire ambigu et confirme le middleware,
+  aucun upgrade/etcd reset.
+- [ ] **Runtime :** demarrer les 3 VM existantes depuis TrueNAS, puis
+  `validate-cluster.sh` et smoke retained CSI depuis la workstation ;
+  VM RUNNING seule ne prouve pas Kubernetes Ready.
+- [x] **Code :** `audit-runtime-secret-permissions.py --check` pour
+  tous les fichiers secrets canoniques ; `--apply` exige un
+  acquittement, refuse symlinks/proprietaires non-root, conserve
+  UID/GID ainsi que l'acces groupe necessaire. **Pas de chown/chmod -R**.
+- [ ] **Runtime :** audit puis revue avant correction globale des modes
+  sous `/mnt/cpool/secrets/runtime`; les legacy sont un chantier separe.
+- [x] **Code :** `check-openrag-private-pdf.sh --check --file` pour
+  la lecture du PDF depuis le dataset bind RO, la readiness Docling
+  et la sante search, sans jamais envoyer ou indexer le PDF.
+- [ ] **Runtime :** verifier d'abord le PDF source en local, puis valider
+  Docling et un test E2E d'ingestion/retrieval avec PDF synthetique ;
+  **billet Mickey dans cpool/bababou NON TESTE par l'agent**.
+  [Runbook cible](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·
+  [Runbook ingestion de reference](runbooks/openrag-babou-ingestion-diagnostics.md).
+
+**Dernieres gates critiques :** Prometheus sept scrapes non-UP
+(dont 2 HTTP 401) et Akvorado rejetant les nouveaux flux
+(`metadata missing`, delta +20 en 60s, aucune insertion).
+Le dossier prive `focused-1CBwrm` donne `PASS=0 FAIL=2` sur
+les deux gates restantes. N'appliquer aucune remediation de masse.
+
 ## P1 — API gateway APISIX (ADR-0001)
 
 **Décision et backlog canoniques :** [ADR-0001 Apache APISIX](adr/0001-apisix-api-gateway-poc.md), [choix APISIX](api-gateway-selection.md), [gouvernance du dispatch](architecture-governance.md) et [runbook diagnostic bout en bout](runbooks/homelab-e2e-diagnostics.md). L'ADR-0001 est accepté pour un POC en staging, non déployé ; Traefik reste la gateway/ingress existante.
