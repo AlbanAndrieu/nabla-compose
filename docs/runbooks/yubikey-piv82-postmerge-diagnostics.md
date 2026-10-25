@@ -378,3 +378,31 @@ Valider d'abord les tests du nouveau script et du lanceur dans
 la gate hors matériel de la PR. Cette étape n'exige aucune YubiKey.
 Les observations OTP2 ou escrow réelles demeurent NOT_RUN tant
 que l'opérateur n'a pas choisi d'options et fourni les chemins.
+
+
+## 12. Poursuite sur PR #280 — branch selection sans PR #274 fermée
+
+**25 octobre 2026.** Les PR #274 et #278 ont été fusionnées. Le
+travail YubiKey est poursuivi dans [PR #280](https://github.com/AlbanAndrieu/nabla-compose/pull/280)
+(branch `feat/apisix-standalone-poc-20261025`). Les résultats
+106/106 et l'inventaire PIV82 `EMPTY_CONFIRMED` sont
+des preuves **antérieures** ; la gate doit être exécutée de nouveau
+sur le SHA de #280 avant toute conclusion sur les changements présents.
+
+Le lanceur existant conserve son défaut historique PR #274 pour éviter
+de modifier les contrats opérateur antérieurs. Utiliser explicitement
+`--branch feat/apisix-standalone-poc-20261025` pour lire
+le HEAD actuel de #280. Le SHA est identifié par `git ls-remote`
+et vérifié avant création du worktree. Avec `--pinned-sha`,
+l'opérateur doit valider la fraîcheur du SHA **avant** de lancer le
+script ; ce mode ne vérifie pas lui-même le ref distant.
+
+Le parcours par défaut reste **hors matériel**, sauf export F9 public
+si la preuve manque. L'inventaire OTP2 et l'escrow exigent toujours
+leurs options respectives. **Aucune action PIN, challenge OTP,
+génération PIV82, modification AES256 ou migration SOPS.**
+
+Avant toute reprise de l'escrow réel, confirmer les deux supports
+physiques et la procédure d'une restauration supervisée séparée.
+La lecture de métadonnées seule ne constitue pas une preuve de
+récupération ; garder le statut matériel NO-GO.
