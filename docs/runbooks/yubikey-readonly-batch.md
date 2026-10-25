@@ -396,3 +396,70 @@ just yubikey-parallel-host-readonly
 
 Ces commandes n'effectuent ni restauration, ni accès PIV, ni signature OpenPGP.
 Les tests de contrat `PASS` n'équivalent pas à un `GO` fonctionnel.
+
+## Diagnostic GPG renforcé et restauration PostgreSQL synthétique — 25/10/2026
+
+**Dernière preuve opérateur** : `32209b385b3bdc974a6cdcf5d3ec0c609ea69d76`,
+`just yubikey-dependencies-test` **21/21 PASS**,
+`just yubikey-parallel-test` **13/13 PASS**, six familles de tests et trois
+sondes du poste PASS. `agent_scdaemon=NOT_CONFIRMED`,
+`scdaemon=PROCESS_PRESENT_UNVERIFIED` et
+`pcscd=PROCESS_PRESENT_UNVERIFIED`.
+`postgres_pg_config_server_tools=PG_CONFIG_BINDIR_HAS_NO_SERVER_BINARIES` ;
+les clients `pg_dump`, `pg_restore` et `psql` sont installés. La dernière
+recette `host-readonly` n'a pas interrogé la YubiKey.
+
+### 1. GPG-agent ↔ scdaemon : diagnostic, pas remédiation
+
+Le classifieur Assuan accepte désormais les deux réponses positives
+`OK / OK closing connection` et
+`OK Pleased to meet you / OK / OK closing connection`.
+Il distingue une réponse `ERR <code>` (`AGENT_SCD_STATUS_REJECTED_UNVERIFIED`)
+d'une réponse malformée (`NOT_CONFIRMED`).
+Ni code, ni message d'erreur brut, ni PID ni chemin ne sont affichés.
+`gpg-connect-agent --no-autostart "GETINFO scd_running" /bye` reste
+l'unique requête ; aucune commande `SCD` n'est envoyée.
+**Un succès n'autorise ni l'accès à la carte OpenPGP, ni un PIN ni une signature.**
+`NOT_CONFIRMED` ne prouve pas l'absence de scdaemon ; ne pas redémarrer les
+agents sans un diagnostic et une autorisation séparés.
+
+### 2. PostgreSQL : smoke de récupération avec des données synthétiques
+
+Le manque de `initdb` et `pg_ctl` sur la workstation ne justifie pas
+l'installation d'un serveur dans le système hôte.
+Le script `scripts/workstation/verify-postgres-fixture-recovery.sh`
+vérifie séparément `pg_dump -Fc` → `pg_restore -1` → résultat SQL
+dans **un conteneur jetable contenant seulement une fixture synthétique**.
+
+Prérequis : image PostgreSQL approuvée déjà présente dans Docker local ;
+choisir une version majeure cohérente avec la source de la future restauration.
+Exporter son identifiant **immutable** `sha256:<64 hex>` via
+`NABLA_POSTGRES_FIXTURE_IMAGE_SHA256` ; la recette refuse les tags, ne
+télécharge aucune image et refuse les contextes Docker distants
+(`ssh://`, `tcp://`, y compris un contexte TrueNAS).
+
+```bash
+just yubikey-postgres-fixture-test
+# Image SHA256 déjà choisie et installée localement :
+export NABLA_POSTGRES_FIXTURE_IMAGE_SHA256='sha256:REMPLACER_PAR_ID_LOCAL_64_HEX'
+just yubikey-postgres-fixture-check
+# Action explicitement autorisée : crée puis détruit un conteneur local jetable
+just yubikey-postgres-fixture-run
+```
+
+La recette `--check` ne crée ni conteneur ni base. La recette `--run`
+exige `--acknowledge SYNTHETIC_ONLY`, Docker Unix local, `--pull=never`,
+`--network none`, `--read-only`, tmpfs seulement, sans ports ni volumes
+hôtes. Elle s'arrête si la fixture SQL restaurée ne correspond pas à la
+source. Le conteneur est supprimé à la sortie. **Le SHA doit appartenir
+à une image PostgreSQL de confiance** ; aucune nouvelle image n'est
+récupérée automatiquement.
+
+**Preuve hors Docker** : `bash -n` PASS, 5/5 tests hermétiques PASS
+sur les blobs Git exacts `verify-postgres-fixture-recovery.sh@ddb6a5c8`
+et `test_yubikey_postgres_fixture_recovery.py@5153dc79`.
+**Smoke Docker réel : NOT_RUN** dans l'environnement agent dépourvu
+de Docker. Une fixture réussie ne valide pas un backup GPG/age,
+une restauration d'escrow ni une base PostgreSQL de production.
+Ces récupérations nécessitent une autorisation distincte et un
+environnement isolé, sans accès aux bases existantes.
