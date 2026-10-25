@@ -39,8 +39,9 @@ def new_root():
 
 
 def isolated_stage_root():
-    # Never overwrite an incomplete npm tree under the Node distribution.
-    return user_home() / ".local/share/nabla-compose/openclaw-stage" / TARGET_OPENCLAW
+    # Dedicated owner-only staging directly under HOME. Avoid the shared
+    # nabla-compose state tree: it may legitimately be group-writable.
+    return user_home() / ".openclaw-upgrade-stage" / TARGET_OPENCLAW
 
 
 def selected_stage_root():
@@ -63,27 +64,58 @@ def stage_kind(root):
     return "unverified"
 
 
-def isolated_prefix_safe():
-    """Reject user-writable symlink redirects before invoking npm.
+def isolated_prefix_posture():
+    """Classify each trusted directory without disclosing its absolute path.
 
-    Check existing ancestors under HOME as well as the final stage path.
-    No path creation in this read-only helper.
+    This is read-only: only a dedicated stage directory may be created by
+    ensure_isolated_prefix(). Existing parent modes are never chmod'ed.
     """
-    home = user_home()
-    for p in (home / ".local", home / ".local/share",
-              home / ".local/share/nabla-compose",
-              home / ".local/share/nabla-compose/openclaw-stage",
-              isolated_stage_root()):
+    for label, directory in (
+        ("home", user_home()),
+        ("stage_base", isolated_stage_root().parent),
+        ("stage_target", isolated_stage_root()),
+    ):
         try:
-            st = p.lstat()
+            metadata = directory.lstat()
         except FileNotFoundError:
-            continue
+            if label != "home":
+                continue
+            return "missing_home"
         except OSError:
+            return "unreadable_" + label
+        if stat.S_ISLNK(metadata.st_mode):
+            return "symlink_" + label
+        if not stat.S_ISDIR(metadata.st_mode):
+            return "not_directory_" + label
+        if metadata.st_uid != os.geteuid():
+            return "wrong_owner_" + label
+        if metadata.st_mode & 0o022:
+            return "group_or_world_writable_" + label
+    return "safe"
+
+
+def isolated_prefix_safe():
+    return isolated_prefix_posture() == "safe"
+
+
+def ensure_isolated_prefix():
+    """Create only the two private dedicated dirs, never modify existing dirs.
+
+    An explicit mkdir mode of 0700 avoids the 0775 intermediate-parent
+    created by Path.mkdir(parents=True) under a common umask 0002.
+    """
+    if not isolated_prefix_safe():
+        return False
+    base = isolated_stage_root().parent
+    target = isolated_stage_root()
+    try:
+        base.mkdir(mode=0o700, exist_ok=True)
+        if not isolated_prefix_safe():
             return False
-        if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid()
-                or st.st_mode & 0o022):
-            return False
-    return True
+        target.mkdir(mode=0o700, exist_ok=True)
+    except OSError:
+        return False
+    return isolated_prefix_safe()
 
 
 def private_status(path):
@@ -259,6 +291,8 @@ def plan():
           else "no"))
     stage_root = selected_stage_root()
     print("stage_prefix=" + stage_kind(stage_root))
+    if stage_root == isolated_stage_root():
+        print("stage_security=" + isolated_prefix_posture())
     print("staged_package=" + ("verified" if stage_valid(stage_root)
                                else "not_ready"))
     print("dropin_exists=" + ("yes" if unit_dropin().exists() or
@@ -338,17 +372,16 @@ def stage():
     # The isolated prefix is created owner-only; do not follow a symlink
     # created by another process or overwrite a preexisting package tree.
     if destination == isolated_stage_root():
-        if not isolated_prefix_safe():
+        posture = isolated_prefix_posture()
+        if posture != "safe":
+            print("stage_security=" + posture)
             print("upgrade_stage=unsafe_prefix")
             return 2
-        try:
-            destination.mkdir(mode=0o700, parents=True, exist_ok=True)
-        except OSError:
+        if not ensure_isolated_prefix():
+            print("stage_security=" + isolated_prefix_posture())
             print("upgrade_stage=unsafe_prefix")
             return 2
-        if not isolated_prefix_safe():
-            print("upgrade_stage=unsafe_prefix")
-            return 2
+        print("stage_security=safe")
     rc, install_out, install_err = run(cmd, timeout=300, env=env)
     if not stage_valid(destination):
         print("upgrade_stage=install_failed_or_unverified")
