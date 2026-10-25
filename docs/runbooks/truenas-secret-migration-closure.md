@@ -55,6 +55,67 @@ sans afficher `OPENSEARCH_PASSWORD`. Ne pas lancer un `chmod -R`
 ni changer le propriétaire de tous les fichiers. Une correction
 ciblée exige d'identifier la source d'autorité et ses ACL ZFS.
 
+## OpenRAG / LiteLLM — dernières clés et chemins (25 octobre)
+
+La dernière exécution de `--scope openrag` confirme que la clé
+`LITELLM_IDE_API_KEY` est maintenant présente dans le fichier OpenRAG.
+Il manque **seulement** `OPENRAG_ENCRYPTION_KEY` dans ce périmètre.
+Ne pas annoncer une clôture avant test de l'authentification effective.
+
+`OPENRAG_ENCRYPTION_KEY` est une **clé maître AES-256-GCM de 32 octets
+encodés en Base64**. **La retrouver d'abord** dans la configuration
+initiale, Vaultwarden ou la sauvegarde OpenRAG existante. Une nouvelle
+clé ne déchiffre pas les credentials/index antérieurement chiffrés ;
+ne pas la régénérer si elle a déjà servi.
+
+Si le déploiement n'a **jamais** persisté de données chiffrées avec
+une autre clé, générer une seule clé avec la bibliothèque standard :
+
+```bash
+python3 -c 'import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())'
+```
+
+Copier immédiatement cette valeur dans Vaultwarden, puis dans
+`/mnt/cpool/secrets/runtime/openrag/.env.secrets` via `sudo nano`
+sans guillemet déséquilibré. Ne pas coller la clé dans des tickets,
+logs ou discussions. Le script de diagnostic vérifie maintenant
+**le format Base64/32 octets**, sans divulguer le contenu.
+
+**Attention au chemin LiteLLM.** Le vrai `env_file` Compose est
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` ; un fichier nommé
+`/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets` n'est pas
+chargé automatiquement. Préserver les clés déjà présentes dans le
+fichier canonique LiteLLM et y fusionner les clés de consommateurs
+manquantes, sans remplacer `LITELLM_MASTER_KEY` ni `LITELLM_SALT_KEY`.
+
+**Langfuse : oui, compléter `LANGFUSE_SECRET_KEY` ET
+`LANGFUSE_PUBLIC_KEY` dans le fichier LiteLLM canonique.** Les deux
+doivent provenir du **même projet Langfuse** (`sk-lf-...` /
+`pk-lf-...`), sans confusion avec les secrets du serveur Langfuse,
+`NEXTAUTH_SECRET`, ni avec `OPENRAG_ENCRYPTION_KEY`. Ne pas
+inventer de valeur. Le runtime Compose LiteLLM doit être réconcilié
+pour charger un env_file modifié. Les tests de diagnostics n'affichent
+pas les valeurs.
+
+Vérifier aussi l'entrée dotenv `LITELLM_N8N_API_KEY` : le guillemet
+fermant isolé de l'exemple est invalide et doit être corrigé.
+Le diagnostic signale désormais les **guillemets déséquilibrés**
+sans afficher la clé.
+
+```bash
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict --scope openrag
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict --scope litellm
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+La dernière erreur OpenSearch porte sur **`source=legacy_env`** :
+`/mnt/cpool/compose/nabla-compose/apps/opensearch/.env`.
+Vérifier seulement ses métadonnées ; si le fichier est encore source
+d'autorité active, ne pas le remplacer sans valider la configuration
+stockée TrueNAS. Les modes admis par le comparateur sont `0600`,
+`0400` ou `0640`, propriétaire root. Ne pas changer les permissions
+de tous les secrets par un `chmod -R`.
+
 ## Gates obligatoires avant `--finalize openrag`
 
 1. Restaurer les **identifiants existants** depuis leur source
