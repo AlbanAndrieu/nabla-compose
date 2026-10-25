@@ -325,8 +325,14 @@ sonde GPG-agent : **trois sondes indépendantes en parallèle**, sans lancer
 sauvegardes.
 
 Le collecteur de dépendances possède désormais **17 tests hermétiques**
-(11 initiaux et 6 nouveaux). Les nouvelles modifications n'ont **pas
-encore été validées sur la workstation** ; exécuter depuis un HEAD à jour :
+(11 initiaux et 6 nouveaux). **Preuve locale isolée du 25 octobre :**
+`py_compile` PASS, **17/17 tests PASS** sous Python 3.13 ; les blobs
+effectivement exécutés correspondent aux fichiers publiés dans #280 :
+`inspect-yubikey-dependencies-readonly.py@18545ba46b26e2a735162056437b810f1942edd5`
+et `test_yubikey_dependencies_readonly.py@86fc35e484cf29f064abfb7d996886f2bbd684d5`.
+Ce test local ne prouve aucun état matériel de la workstation :
+**validation des nouvelles sondes réelles encore NOT_RUN**. Exécuter
+depuis un HEAD à jour :
 
 ```bash
 git rev-parse HEAD
