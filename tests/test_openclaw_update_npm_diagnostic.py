@@ -2,6 +2,7 @@
 import contextlib
 import importlib.util
 import io
+import subprocess
 from pathlib import Path
 import tempfile
 import types
@@ -56,6 +57,16 @@ class NpmDiagnosticTests(unittest.TestCase):
         self.assertEqual(mod.node_target_compatibility("26.12.1"), "compatible")
         self.assertEqual(mod.node_target_compatibility("25.1.0"), "unsupported_line")
         self.assertEqual(mod.node_target_compatibility("unavailable"), "unverified")
+
+    def test_workstation_shell_diagnostics_follow_live_or_reviewed_runtime(self):
+        root = Path(__file__).resolve().parents[1]
+        for name in ("diagnose-openclaw.sh", "prepare-openclaw-systemd.sh"):
+            path = root / "scripts/workstation" / name
+            with self.subTest(script=name):
+                result = subprocess.run(["bash", "-n", str(path)],
+                                        capture_output=True, check=False, timeout=8)
+                self.assertEqual(result.returncode, 0)
+                self.assertNotIn("/node/24.18.1", path.read_text())
 
     def test_classifies_registry_and_node_engine(self):
         labels, codes = mod.classify([
