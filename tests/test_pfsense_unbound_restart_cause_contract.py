@@ -321,7 +321,8 @@ class UnboundRestartCauseContract(unittest.TestCase):
     def test_feed_download_failures_are_redacted_and_classified(self):
         code = SCRIPT.read_text(encoding="utf-8")
         match = re.search(
-            r'tail -n 2500 "\$file" \| awk -v family="\$family" \'(.*?)\''
+            r'tail -n 2500 "\$file" \| awk -v family="\$family" '
+            r'-v logfile="\$logfile" \'(.*?)\''
             r"\s*;\s*then", code, re.DOTALL,
         )
         self.assertIsNotNone(match)
@@ -335,7 +336,7 @@ class UnboundRestartCauseContract(unittest.TestCase):
             "Fetching https://private.example/token=SECRET HTTP 503\n"
         )
         proc = subprocess.run(
-            ["awk", "-v", "family=pfblockerng", match.group(1)],
+            ["awk", "-v", "family=pfblockerng", "-v", "logfile=pfblockerng_main", match.group(1)],
             input=events, text=True, capture_output=True, check=False,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
