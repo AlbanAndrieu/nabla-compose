@@ -32,7 +32,9 @@ Pas d'etcd pour le POC. Ne pas publier la console Admin API, les secrets,
 les routes de gestion ni les métriques. Ne pas créer de route hors du réseau
 privé avant le test de refus. Épingler l'image par digest après revue.
 OIDC Keycloak est une cible future ; ne pas attendre son installation pour
-fermer les endpoints FastAPI existants.
+fermer les endpoints FastAPI existants. Pour le mode file-driven, garder
+`session.secret` persistant hors Git, configurer un `redirect_uri` absolu
+en HTTPS et rejeter un `Host`/`Forwarded` falsifié.
 
 Ne pas confondre **choix d'évaluation** et **ADR accepté de migration**.
 

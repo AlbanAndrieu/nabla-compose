@@ -28,7 +28,19 @@ Références :
 - https://developer.konghq.com/plugins/openid-connect/
 
 APISIX `standalone file-driven` charge `conf/apisix.yaml` et **n'a pas
-besoin d'etcd** ; c'est préférable au démarrage pour ce homelab. Tester en
+besoin d'etcd** ; c'est préférable au démarrage pour ce homelab.
+
+**Conditions de sécurité OIDC obligatoires avant POC :**
+en standalone, le plugin `openid-connect` exige un `session.secret`
+persistant (hors Git, matériel chiffré via secret runtime) pour le flux
+avec session. Définir un `redirect_uri` absolu HTTPS sur le hostname
+de staging, afin qu'un `Host`/`Forwarded` falsifié ne puisse pas modifier
+la destination OIDC. Vérifier `SameSite`, cookies `Secure`/`HttpOnly`,
+TLS amont, validation des audiences et du rôle par FastAPI. Ne jamais
+copier les exemples documentaires `ssl_verify: false` en déploiement.
+Le fichier YAML doit être validé et chargé sans logging de secrets.
+Référence : https://apisix.apache.org/docs/apisix/plugins/openid-connect/
+ Tester en
 lecture seule et sur **un hostname interne dédié** avec configuration
 déclarative versionnée et ports d'administration non publiés.
 

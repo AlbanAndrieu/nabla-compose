@@ -93,6 +93,11 @@ Actions :
   durcissement immédiat de FastAPI sur cet ajout.
 - [x] Créer le registre de gouvernance ADR/RACI/C4 et le handoff inter-dépôts ; les décisions proposées restent Draft.
 - [ ] Inventorier les besoins d'auth, quotas, rate-limit, logs et traçage par route avant configuration APISIX ; rejeter une Admin API externe et pinning incomplet.
+- [ ] **OIDC sûr en standalone :** secrets `session.secret` et `client_secret`
+  hors Git, `redirect_uri` HTTPS absolu, cookies sécurisés, vérification
+  TLS/JWKS, validation d'audience et tests `Host`/`Forwarded` falsifiés.
+  APISIX reste interdit en production jusqu'à acceptation de l'ADR.
+
 - [ ] Faire un runbook de rollback et une recette négative avant toute
   migration de routes. Aucun déploiement gateway autorisé par ce document.
 
