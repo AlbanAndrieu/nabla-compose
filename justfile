@@ -856,3 +856,11 @@ openclaw-update-recovery-local:
     just openclaw-429-fix-test
     python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log || echo 'WARN: npm update root cause not verified; do not rerun update blindly'
 
+
+# Install the patched Node runtime into the existing user-owned mise store.
+# Explicit mutation: downloads only Node, not OpenClaw; does not change
+# system Node, npm prefix, Gateway unit, config, or any embeddings.
+openclaw-node24-runtime-install:
+    mise install node@24.22.1
+    mise exec node@24.22.1 -- node --version
+
