@@ -118,6 +118,7 @@ for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
   # is SERVFAIL/REFUSED, or the resolver serves stale cached data.
   if ! dns_packet="$(dig +time=2 +tries=1 +noall +comments +answer @"${resolver}" "${FQDN}" A 2>/dev/null)"; then
     printf 'dns_server=%s query=failed\n' "${resolver}"
+    [[ "${resolver}" != 1.1.1.1 ]] && DD_PRIVATE_DNS_FAILED=1
     diag_fail "DNS resolver ${resolver} unavailable; no assertion about public exposure"
     continue
   fi
@@ -126,12 +127,14 @@ for resolver in 172.17.0.24 172.17.0.1 1.1.1.1; do
   case "${dns_status}" in
     NOERROR|NXDOMAIN) ;;
     *)
-      printf 'dns_server=%s query=invalid_response\n' "${resolver}"
+      printf 'dns_server=%s query=invalid_response status=%s\n' "${resolver}" "${dns_status:-UNKNOWN}"
+      [[ "${resolver}" != 1.1.1.1 ]] && DD_PRIVATE_DNS_FAILED=1
       diag_fail "DNS resolver ${resolver} returned an unverified response status"
       continue ;;
   esac
   if printf '%s\n' "${dns_packet}" | grep -Eq '^;; EDE: 3([[:space:]]|$)'; then
     printf 'dns_server=%s query=stale_answer\n' "${resolver}"
+    [[ "${resolver}" != 1.1.1.1 ]] && DD_PRIVATE_DNS_FAILED=1
     diag_fail "DNS resolver ${resolver} served stale data; no current DNS acceptance"
     continue
   fi
@@ -176,17 +179,22 @@ case "${code}" in
 esac
 diag_section '' 'DefectDojo remediation hints (diagnostics only)'
 if (( DD_CONTAINER_ABSENT > 0 )); then
-  diag_info 'NEXT: inspect TrueNAS app.query defectdojo and deployment state; never reinitialize PostgreSQL'
-elif (( DD_ORIGIN_FAILED > 0 )); then
-  diag_info 'NEXT: check Nginx/uWSGI containers and LAN :31085 before modifying DNS or Traefik'
-elif (( DD_PROXY_NETWORK_FAILED > 0 )); then
-  diag_info 'NEXT: reconcile only DefectDojo frontend attachment to traefik_network with reviewed compose'
-elif (( DD_PRIVATE_DNS_FAILED > 0 )); then
-  diag_info 'NEXT: reconcile internal Pi-hole -> Unbound DNS for private hostname, never publish a public A record'
-elif (( DD_HTTPS_FAILED > 0 )); then
-  diag_info 'NEXT: verify Traefik router labels, SNI and TLS without changing Django or credentials'
-else
-  diag_info 'NEXT: HTTP/browser failure not reproduced; compare workstation DNS, browser proxy and redirect behavior'
+  diag_info 'NEXT origin: inspect TrueNAS app.query defectdojo and deployment state; never reinitialize PostgreSQL'
+fi
+if (( DD_ORIGIN_FAILED > 0 )); then
+  diag_info 'NEXT origin: check Nginx/uWSGI containers and LAN :31085 before modifying DNS or Traefik'
+fi
+if (( DD_PROXY_NETWORK_FAILED > 0 )); then
+  diag_info 'NEXT proxy: reconcile only DefectDojo frontend attachment to traefik_network with reviewed compose'
+fi
+if (( DD_PRIVATE_DNS_FAILED > 0 )); then
+  diag_info 'NEXT DNS: verify Pi-hole A record and pfSense Unbound forward/reachability; never publish a public A record'
+fi
+if (( DD_HTTPS_FAILED > 0 )); then
+  diag_info 'NEXT HTTPS: verify Traefik router labels, SNI and TLS without changing Django or credentials'
+fi
+if (( DD_CONTAINER_ABSENT + DD_ORIGIN_FAILED + DD_PROXY_NETWORK_FAILED + DD_PRIVATE_DNS_FAILED + DD_HTTPS_FAILED == 0 )); then
+  diag_info 'NEXT client: compare workstation DNS, browser proxy and redirects; runtime failure not reproduced'
 fi
 diag_info 'READ_ONLY: no app restart, DNS edit, database migration or secret read'
 diag_summary
