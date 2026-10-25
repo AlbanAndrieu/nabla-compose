@@ -144,6 +144,40 @@ sudo bash scripts/truenas/triage-critical-failures.sh --check --color=always --i
 sudo bash scripts/truenas/triage-critical-failures.sh --check --no-color --no-icons
 ```
 
+## Dernier triage ciblé — 5 PASS / 2 FAIL (25 octobre)
+
+Dossier privé : `/mnt/cpool/var/nabla/migration-20261024/focused-4SkRmq`.
+Les gates `prometheus-config-access`, `openrag-startup`,
+`ai-runtime-recovery`, `openrag-opensearch-legacy-secret` et
+`openrag-backstage-bundle` sont **PASS**. Les gates
+`prometheus-targets` et `akvorado-fresh-inserts` restent **FAIL**.
+
+OpenSearch : l'opérateur a corrigé `apps/opensearch/.env` en
+**UID=0/GID=568/mode=0640** ; `opensearch_credential_candidates=2`,
+comparaison déclarative **PASS**. Aucun besoin de répéter les corrections
+de permissions ni de régénérer le mot de passe. Le secret réellement
+chargé dans OpenSearch et son authentification restent **NOT_VERIFIED**.
+
+Sur une révision contenant l'option `--remaining`, ne collecter que
+les **deux gates restantes**, sans interrompre les cinq gates acceptées :
+
+```bash
+sudo bash scripts/truenas/triage-critical-failures.sh --check --remaining
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
+sudo python3 scripts/truenas/check-akvorado-metadata-config.py --check
+sudo bash scripts/truenas/diagnose-akvorado-config.sh --check
+sudo python3 scripts/truenas/diagnose-akvorado-flow.py --strict \
+  --fail-on-blocked --observe-seconds 60
+```
+
+Le classificateur Prometheus utilise une **allowlist de sept jobs** et
+n'affiche ni URL de scrape, ni body, ni secret. Un `no_active_target`
+reste non vérifié, **pas une preuve de panne applicative**.
+Pour Akvorado, le provider statique exportateur/ifIndex du fichier Git
+n'établit pas le chargement effectif par Outlet. Une reprise ou un
+redéploiement Akvorado ne doit suivre qu'un diagnostic ciblé et un
+plan de rollback de l'App, sans purge Kafka/ClickHouse.
+
 ## Préconditions de remédiation
 
 ### Prometheus
