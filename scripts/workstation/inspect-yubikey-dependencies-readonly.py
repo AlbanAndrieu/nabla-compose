@@ -70,12 +70,78 @@ def ssh_agent_state() -> str:
     return "UNKNOWN"
 
 
+def scdaemon_agent_state() -> str:
+    """Ask existing agent whether scdaemon already runs; never send SCD."""
+    if not shutil.which("gpg-connect-agent"):
+        return "TOOL_MISSING"
+    try:
+        done = subprocess.run(
+            ["gpg-connect-agent", "--no-autostart", "GETINFO scd_running", "/bye"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, timeout=5, check=False,
+        )
+        if (done.returncode != 0 or done.stderr.strip()
+                or len(done.stdout) > 4096 or "\\0" in done.stdout):
+            return "UNKNOWN"
+        lines = done.stdout.strip().splitlines()
+        if lines == ["OK", "OK closing connection"]:
+            return "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED"
+        return "NOT_CONFIRMED"
+    except (OSError, UnicodeError, ValueError, subprocess.TimeoutExpired):
+        return "UNKNOWN"
+
+
+def postgres_versioned_tools_state() -> str:
+    """Stat only conventional Debian/Ubuntu root-owned server executables.
+
+    Never enumerate database clusters, invoke initdb/pg_ctl, or reveal paths.
+    """
+    root = Path("/usr/lib/postgresql")
+    try:
+        if root.is_symlink():
+            return "UNKNOWN"
+        if not root.is_dir():
+            return "NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS"
+        partly_installed = False
+        for version in root.iterdir():
+            if (not version.name.isascii() or not version.name.isdecimal()
+                    or len(version.name) > 3 or version.is_symlink()):
+                continue
+            binary_dir = version / "bin"
+            if binary_dir.is_symlink():
+                continue
+            checks = []
+            for name in ("initdb", "pg_ctl"):
+                binary = binary_dir / name
+                if binary.is_symlink():
+                    checks.append(False)
+                    continue
+                try:
+                    info = binary.lstat()
+                    checks.append(
+                        stat.S_ISREG(info.st_mode) and info.st_uid == 0
+                        and bool(stat.S_IMODE(info.st_mode) & 0o111)
+                    )
+                except FileNotFoundError:
+                    checks.append(False)
+            if all(checks):
+                return "VERSIONED_SERVER_BINARIES_PRESENT_UNVERIFIED"
+            if any(checks):
+                partly_installed = True
+        return ("PARTIAL_VERSIONED_SERVER_BINARIES"
+                if partly_installed else "NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS")
+    except (OSError, ValueError):
+        return "UNKNOWN"
+
+
 def snapshot() -> dict:
     return {
         "status": "NO-GO",
         "mode": "HOST_DEPENDENCIES_METADATA_ONLY",
         "scdaemon": process_state("scdaemon", uid=os.getuid()),
         "pcscd": process_state("pcscd"),
+        "agent_scdaemon": scdaemon_agent_state(),
+        "postgres_versioned_server_tools": postgres_versioned_tools_state(),
         "ssh_agent": ssh_agent_state(),
         "recovery_tools": {name: "INSTALLED_UNVERIFIED" if shutil.which(name) else "MISSING"
                            for name in TOOLS},
