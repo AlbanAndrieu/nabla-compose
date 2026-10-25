@@ -1138,3 +1138,19 @@ Références :
 - https://docs.litellm.ai/docs/proxy/cost_tracking
 - https://docs.openclaw.ai/gateway/config-agents/models
 - https://docs.openclaw.ai/gateway/config-tools/custom-providers
+
+
+### Dette complémentaire — relances LiteLLM Workstation
+
+Le fichier LiteLLM Workstation fourni par l'opérateur contient
+`router_settings.num_retries: 5`. Il existe plusieurs déploiements
+amont portant le même alias GPT, avec des limites potentiellement
+indépendantes. Cinq relances peuvent amplifier des 429, mais
+**le nombre exact de tentatives n'est pas encore attribué**.
+La configuration Workstation n'est pas identifiée comme un fichier
+de déploiement actif dans ce dépôt ; ne pas remplacer la configuration
+pro de Workstation par `apps/litellm/config.yaml`, qui appartient
+à TrueNAS. La mitigation OpenClaw ci-dessus conserve les modèles
+GPT et réduit la concurrence du client ; une réduction des retries
+du routeur Workstation reste un changement distinct, à réaliser
+depuis son fichier de configuration réellement monté après audit.
