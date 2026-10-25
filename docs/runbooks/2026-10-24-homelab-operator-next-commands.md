@@ -12,11 +12,20 @@ Aucune commande ici ne démarre, redéploie ou efface un service.
 sudo python3 scripts/truenas/diagnose-service-bundle.py --check --section observability
 # Pour le résultat détaillé de chaque vérification :
 python3 scripts/prometheus/diagnose-failed-scrapes.py --check
+sudo python3 scripts/truenas/diagnose-gatus-monitors.py --check
 sudo bash scripts/truenas/diagnose-observability-post-repair.sh --check
 sudo bash scripts/truenas/diagnose-postgres-exporter.sh
 python3 scripts/prometheus/audit-telemetry-coverage.py \
   --prometheus-url http://172.17.0.24:9090
 ```
+
+Le diagnostic Gatus compare chaque sonde déclarée à sa dernière
+observation LAN. Il classe les résultats manquants, expirés et ambigus comme
+`unverified`. Un HTTP 401/403 peut indiquer une protection Access ou
+une condition de sonde inadaptée : **ne pas rendre les endpoints publics
+ni affaiblir les conditions**. L'opérateur doit examiner les détails
+depuis le tableau Gatus privé. Les services volontairement arrêtés doivent
+être classés par intention d'exploitation, pas forcés au vert.
 
 La procédure globale peut être lancée par le script
 `scripts/truenas/diagnose-service-bundle.py --check --section observability`
