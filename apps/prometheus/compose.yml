@@ -46,6 +46,14 @@ services:
         target: /etc/prometheus
         read_only: true
       - /mnt/cpool/prometheus/data:/prometheus
+      # Fail closed if the dedicated secret has not been provisioned.
+      # Never create a directory at this file path.
+      - type: bind
+        source: /mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key
+        target: /run/secrets/fastapi-sample-metrics.key
+        read_only: true
+        bind:
+          create_host_path: false
     # Prometheus joins the shared private Docker network so database metrics
     # such as InfluxDB can be scraped without publishing their full API on the
     # LAN. Host/LAN targets remain reachable through the Docker bridge route.
