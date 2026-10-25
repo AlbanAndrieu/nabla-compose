@@ -224,7 +224,9 @@ pfsense-console-test:
 # Read-only Netgate 1100 lifecycle evidence: no pfSense mutation or paid CI.
 pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
+    bash -n scripts/pfsense/console.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_restart_cause_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
 
 pfsense-unbound-restart-check:
     bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
