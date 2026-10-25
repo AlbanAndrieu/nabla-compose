@@ -669,3 +669,11 @@ openclaw-429-attribution-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
 
+
+# Offline generic LiteLLM catalogue parity without professional upstream routes.
+# Run on Workstation. No TrueNAS restart, API call, or hosted CI.
+litellm-truenas-generic-alignment-test:
+    python3 -m py_compile tests/test_litellm_truenas_generic_alignment.py
+    python3 -m unittest discover -s tests -p 'test_litellm_truenas_generic_alignment.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
+
