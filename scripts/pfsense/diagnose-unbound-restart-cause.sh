@@ -230,6 +230,96 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
     exit 70
   fi
 done
+echo '=== Feed download errors (bounded, categories only) ==='
+for file in /var/log/pfblockerng/pfblockerng.log /var/log/pfblockerng/pfblockerng.log.0 \
+            /var/log/pfblockerng/extras.log /var/log/pfblockerng/extras.log.0 \
+            /var/log/pfblockerng/error.log \
+            /var/log/snort/snort_rules_update.log /var/log/snort/snort_updates.log \
+            /var/log/snort/snort_updates.log.0; do
+  [ -r "$file" ] || continue
+  case "$file" in *snort*) family=snort ;; *) family=pfblockerng ;; esac
+  if ! tail -n 2500 "$file" | awk -v family="$family" '
+    {
+      line=tolower($0)
+      kind=""
+      # Emit only categories and counts, never feed URLs or credentials.
+      if(line ~ /allowed memory size of [0-9]+ bytes exhausted|memory exhausted/)
+        kind="php_memory_exhausted"
+      else if(line ~ /http[^0-9]*(403|404)|[[:space:]](403|404)[[:space:]]*(forbidden|not found)|download.*(403|404)/)
+        kind="http_403_or_404"
+      else if(line ~ /http[^0-9]*429|download.*429|too many requests/)
+        kind="http_429_rate_limited"
+      else if(line ~ /http[^0-9]*5[0-9][0-9]|download.*5[0-9][0-9]/)
+        kind="http_5xx"
+      else if(line ~ /timed out|timeout|operation too slow|connection refused/)
+        kind="download_transport_timeout"
+      else if(line ~ /downloading[[:space:]]*\[[[:space:]]*ipinfo databases|asn token not defined/)
+        kind="asn_ipinfo_retry_signature"
+      else if(line ~ /download.*(fail|error)|unable to download|fetch.*(fail|error)|curl error/)
+        kind="download_failed_other"
+      else if(line ~ /file too large|exceeds.*size|cannot allocate memory/)
+        kind="download_oversize_or_allocation"
+      if(kind!="") {count[kind]++; total++; last[kind]=NR}
+    }
+    END {
+      printf "feed_log_family=%s scope=last_2500_lines signal_total=%d\n",family,total+0
+      for(kind in count)
+        printf "WARN: feed_download_signal=%s family=%s count=%d last_line_in_window=%d\n",
+          kind,family,count[kind],last[kind]
+    }
+  '; then
+    printf 'ERROR: feed_log_classifier_failed family=%s\n' "$family" >&2
+    exit 70
+  fi
+done
+echo '=== Oversized downloaded feed candidates (metadata only) ==='
+# Warning thresholds are cautious Netgate 1100 indicators, not proof of OOM.
+dnsbl_seen=0
+dnsbl_warn=0
+dnsbl_critical=0
+snort_seen=0
+snort_warn=0
+snort_critical=0
+for file in /var/db/pfblockerng/dnsblorig/* \
+            /var/db/pfblockerng/original/* \
+            /var/db/snort/*/*.rules /var/db/snort/*/*.gz \
+            /var/db/snort/*/*.tar /var/db/snort/*/*.zip \
+            /usr/local/etc/snort/*/*.rules; do
+  [ -f "$file" ] && [ ! -L "$file" ] || continue
+  case "$file" in
+    /var/db/pfblockerng/*) family=dnsbl; warn=16777216; critical=67108864
+      dnsbl_seen=$((dnsbl_seen+1)) ;;
+    *) family=snort; warn=67108864; critical=134217728
+      snort_seen=$((snort_seen+1)) ;;
+  esac
+  bytes=$(stat -f '%z' "$file" 2>/dev/null || printf 'unknown')
+  case "$bytes" in ''|*[!0-9]*) continue ;; esac
+  [ "$bytes" -ge "$warn" ] || continue
+  if [ "$bytes" -ge "$critical" ]; then
+    level=CRITICAL
+    if [ "$family" = dnsbl ]; then
+      dnsbl_critical=$((dnsbl_critical+1))
+    else
+      snort_critical=$((snort_critical+1))
+    fi
+  else
+    level=WARN
+    if [ "$family" = dnsbl ]; then
+      dnsbl_warn=$((dnsbl_warn+1))
+    else
+      snort_warn=$((snort_warn+1))
+    fi
+  fi
+  name=${file##*/}
+  safe_name=$(printf '%s' "$name" | LC_ALL=C tr -c 'A-Za-z0-9._-' '_' | cut -c1-72)
+  printf 'WARN: feed_artifact_scope=%s filename=%s bytes=%s level=%s size_is_causality_proof=no\n' \
+    "$family" "$safe_name" "$bytes" "$level"
+done
+printf 'feed_artifact_summary scope=dnsbl checked=%d warning=%d critical=%d warn_bytes=16777216 critical_bytes=67108864\n' \
+  "$dnsbl_seen" "$dnsbl_warn" "$dnsbl_critical"
+printf 'feed_artifact_summary scope=snort checked=%d warning=%d critical=%d warn_bytes=67108864 critical_bytes=134217728\n' \
+  "$snort_seen" "$snort_warn" "$snort_critical"
+echo 'feed_artifact_status=METADATA_ONLY_NO_LIVE_DOWNLOAD'
 echo '=== Memory context (sample only, not a nocturnal measurement) ==='
 sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_size 2>/dev/null || true
 echo '=== Evidence interpretation ==='
