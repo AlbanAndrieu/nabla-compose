@@ -643,8 +643,8 @@ openclaw-truenas-virtual-keys-quota:
 openclaw-429-attribution:
     python3 scripts/workstation/openclaw-route-metadata.py
     python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
-    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode quota-audit
     python3 scripts/workstation/diagnose-openclaw-auth-cooldowns.py
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode quota-audit
 
 # Targeted local-only contracts for 429 attribution; no real model or SSH calls.
 openclaw-429-attribution-test:
