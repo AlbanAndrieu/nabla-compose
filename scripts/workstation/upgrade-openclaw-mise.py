@@ -49,7 +49,8 @@ def selected_stage_root():
     if stage_valid(isolated_stage_root()):
         return isolated_stage_root()
     # A pre-existing incomplete npm tree is quarantined in place, not moved.
-    if (new_root() / "lib/node_modules/openclaw").exists():
+    if ((new_root() / "lib/node_modules/openclaw").exists() or
+            (isolated_stage_root() / "lib/node_modules/openclaw").exists()):
         return isolated_stage_root()
     return new_root()
 
