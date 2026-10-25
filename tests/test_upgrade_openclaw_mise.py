@@ -127,6 +127,7 @@ class UpgradeContracts(unittest.TestCase):
 
     def test_unit_exec_recognizes_pinned_node_plus_isolated_package(self):
         isolation = mod.isolated_stage_root()
+        isolation.mkdir(parents=True)
         node = str(self.new / "bin/node")
         entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
         output = ("{ path=" + node + " ; argv[]=" + node +
