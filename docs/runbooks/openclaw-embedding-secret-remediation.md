@@ -790,3 +790,53 @@ via the Gateway and can record recall metadata; no index reset or
 rebuild is needed. Repeated 60-second embedding retries remain a
 separate reliability investigation. Do not change secrets or fallback
 models solely due to an empty result.
+
+
+## 2026-10-25 — emplacement de la clé « openclaw-embeddings »
+
+**La clé virtuelle `openclaw-embeddings` appartient à LiteLLM
+Workstation, pas à LiteLLM TrueNAS.** Le script d'origine
+`scripts/workstation/provision-openclaw-embeddings-litellm-key.py`
+ne crée une clé que sur `http://127.0.0.1:4000` depuis Workstation,
+pour le modèle `embedding` ; budget 1 USD / 30 jours, 5 RPM,
+20 000 TPM. Le fichier local `~/.local/share/nabla-compose/openclaw-embeddings.key`
+est propriétaire de la valeur privée.
+
+La configuration prévue d'OpenClaw est `memory.search.remote.baseUrl=
+http://127.0.0.1:4000/v1` et le SecretRef
+`{"source":"file","provider":"openclaw-embeddings","id":"value"}`.
+La configuration active doit être contrôlée après `openclaw update`.
+
+**TrueNAS est un autre proxy LiteLLM et une autre base de clés.**
+Il expose l'alias de modèle `embedding` vers l'upstream Workstation
+via `LITELLM_IDE_API_KEY`, mais ne reçoit pas automatiquement
+`openclaw-embeddings`. L'inventaire TrueNAS vérifié compte deux
+clés : `openclaw-main`, `openclaw-cron` (budgets 2,
+`spend=0.0`). Une absence d'`openclaw-embeddings` dans la UI
+TrueNAS est donc attendue ; **ne pas recréer la clé pour corriger
+une liste UI** et ne pas confondre modèle exposé et clé provisionnée.
+
+Les index de mémoire observés après mise à jour sont propres :
+`main=107/107` (199 chunks), `cron=63/63` (73 chunks),
+vecteurs 768D. Ils ne prouvent pas qu'une nouvelle génération
+d'embedding ou une résolution SecretRef fonctionnerait aujourd'hui.
+
+Diagnostic de provenance non mutant, à lancer sur Workstation :
+
+```bash
+cd ~/w/nabla-compose
+python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
+python3 scripts/workstation/openclaw-route-metadata.py
+```
+
+Observer `memory_global_route_owner`,
+`memory_embedding_secretref`, `memory_embedding_file_provider`
+et `memory_virtual_key_instance`. Le champ historique
+`memory_search_config=not_in_agents_defaults` indique seulement
+l'absence d'`agents.defaults.memorySearch`, **pas** de
+`memory.search`, maintenant lu séparément.
+
+Une migration future vers TrueNAS demanderait une **nouvelle**
+clé virtuelle scopée `embedding`, sa validation dans TrueNAS,
+la bascule contrôlée de la route/SecretRef et un contrôle
+de compatibilité des vecteurs 768D ; pas de reindex automatique.
