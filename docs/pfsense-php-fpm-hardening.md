@@ -184,3 +184,62 @@ no sustained php-fpm.socket listen queue overflow
 Keep Unbound out of Service Watchdog while memory pressure remains a plausible
 failure mode. A process-only restart loop can amplify allocation pressure and
 cannot detect a resolver that is alive but returning functional DNS failures.
+
+
+## October 25 recurrence: verify actual PHP-FPM workers before removing security
+
+New Netgate 1100 read-only sampling on 2026-10-25 21:37–21:40 CET showed
+**8 processes in the broad `php_fpm` group**, accounting for about
+**283–307 MiB aggregate RSS** (RSS double-counts shared pages).
+The sampler groups `comm` names beginning with `php-fpm`; this is **not
+equivalent to 8 pool workers**. It may include the PHP-FPM master.
+Do not assert the prior generator patch was lost on this evidence alone.
+
+Use the new workstation read-only recipes:
+
+```bash
+just pfsense-php-fpm-test
+just pfsense-php-fpm-check
+```
+
+`pfsense-php-fpm-check` transfers only the reviewed `--check` script
+through SSH. It **does not install anything, restart PHP-FPM, restart
+WebConfigurator or alter pfSense**. It reports three independent signals:
+
+1. Generator `>1000 MiB` profile in `/etc/rc.php_ini_setup`.
+2. Generated `/usr/local/lib/php-fpm.conf` values.
+3. Actual `php-fpm: pool nginx` child count (excluding master).
+
+If generator and generated pool differ, classify this as **configuration
+drift**, not as a license to restart production services immediately.
+If both are already `4/30/1/2/500` but the pool still has more than
+four workers, inspect runtime process ownership and pfSense state first.
+If both are at upstream `8/3600/2/7/5000`, apply the documented
+constrained profile only in a reviewed maintenance window using the
+version-guarded `--apply` and its backup/restore path; never auto-apply
+from a read-only audit. Recheck pfREST/WebConfigurator and Unbound DNS.
+
+The historical 2026-09-08 improvement and target remain applicable only
+to the reviewed `26.07-RELEASE` generator. A newer pfSense release may
+have a different script layout and must fail closed.
+
+### Decision order to protect DNS and retain security coverage
+
+1. **P0 PHP-FPM:** diagnose generator/runtime drift; reduce idle workers
+   using the reviewed profile when eligible. This was more material
+   historically than dropping individual Snort signatures.
+2. **P1 firewall/telemetry:** avoid high-frequency pfREST fan-out and
+   excess PF pass logging; verify CrowdSec input/CPU backpressure.
+3. **P2 Snort:** keep the WAN-only instance and 32 MiB HTTP Inspect cap;
+   verify the low-memory AC-BNFA matching engine before changing rule
+   categories. Disabled categories reduce signature coverage; quantify
+   relevance and validate LAN/WAN probes before any change.
+4. **P2 pfBlockerNG:** keep previously disabled UT1 Adult and obsolete
+   feeds disabled, avoid re-enabling DNSBL TLD, and verify ASN reporting
+   is still disabled when no IPinfo token/database contract exists.
+   Classify stale HTTP 403/404 and log retry lines as maintenance debt,
+   not proof of present RAM exhaustion.
+
+Do **not** disable Unbound, all DNSBL or all WAN Snort as the default
+memory optimization; do not raise PHP memory_limit from 128M as a
+workaround for a large DNSBL file.
