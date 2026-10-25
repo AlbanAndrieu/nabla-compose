@@ -73,6 +73,16 @@ def classify(phase: str, state: str, log: str | None) -> dict:
             items = [line for line in log.splitlines()[:128]
                      if line.startswith(' - ') and len(line) <= 320]
             evidence['stale_artifact_count'] = min(len(items), 64)
+            allowed = {'catalog/generated/entities.json',
+                       'catalog/generated/homelab.cdx.json',
+                       'catalog/generated/identity-map.json'}
+            # No raw operator paths; only canonical generated artifacts.
+            artifacts = sorted({
+                line[3:].strip() for line in items
+                if line.startswith(' - ') and line[3:].strip() in allowed
+            })
+            if artifacts:
+                evidence['stale_artifacts'] = artifacts
         elif re.search(r'modulenotfounderror|importerror|no module named', low):
             category = 'catalog_generator_dependency_error'
         elif re.search(r'no such file|file not found', low):
