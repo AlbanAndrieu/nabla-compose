@@ -141,6 +141,54 @@ class UnboundRestartCauseContract(unittest.TestCase):
                        "service snort stop", "sudo "):
             self.assertNotIn(unsafe, code)
 
+    def test_watchdog_membership_from_xml_without_exposing_config(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        section = script.split("=== Service Watchdog membership", 1)[1]
+        section = section.split("=== Installed pfBlockerNG version", 1)[0]
+        matches = re.findall(r"awk '(.*?)' /conf/config[.]xml", section, re.DOTALL)
+        self.assertEqual(len(matches), 1)
+        payloads = (
+            (
+                "<pfsense><installedpackages><servicewatchdog>\n"
+                "<item><name>unbound</name><secret>DONOTEXPOSE</secret></item>\n"
+                "</servicewatchdog></installedpackages></pfsense>\n",
+                "watchdog_unbound_membership=LISTED",
+            ),
+            (
+                "<pfsense><installedpackages><servicewatchdog>\n"
+                "<item><name>openvpn</name><secret>DONOTEXPOSE</secret></item>\n"
+                "</servicewatchdog></installedpackages></pfsense>\n",
+                "watchdog_unbound_membership=NOT_LISTED",
+            ),
+            (
+                "<pfsense><installedpackages><pfblockerng/>\n"
+                "</installedpackages></pfsense>\n",
+                "watchdog_unbound_membership=PACKAGE_SECTION_NOT_OBSERVED",
+            ),
+        )
+        for data, expected in payloads:
+            with self.subTest(expected=expected):
+                res = subprocess.run(
+                    ["awk", matches[0]],
+                    input=data, capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(res.returncode, 0, res.stderr)
+                self.assertIn(expected, res.stdout)
+                self.assertNotIn("DONOTEXPOSE", res.stdout)
+
+    def test_pfblocker_implementation_probe_is_read_only(self):
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("pfSense-pkg-pfBlockerNG-devel", script)
+        self.assertIn("pfSense-pkg-pfBlockerNG", script)
+        self.assertIn("pfblocker_implementation_is_execution_proof=no", script)
+        self.assertIn("pfb_stop_start_unbound", script)
+        self.assertIn("pfb_reload_unbound", script)
+        self.assertIn("pfb_validate_unbound", script)
+        self.assertIn("grep -Fq", script)
+        self.assertNotIn("pkg install", script)
+        self.assertNotIn("pkg upgrade", script)
+        self.assertNotIn("pkg update", script)
+
 
 if __name__ == "__main__":
     unittest.main()
