@@ -335,3 +335,51 @@ sont **NOT_RUN sur workstation** à cette étape.
 
 Documentation SSHSIG :
 [ssh-keygen -Y sign/verify](https://man.openbsd.org/ssh-keygen).
+
+## Preuve opérateur SSH FIDO2 — signature et vérification locale PASS (26/10/2026)
+
+**HEAD exécuté sur workstation :** `579796a6d7e658cf7675d53e125785341d60a8a3`.
+
+- `just yubikey-backup-ssh-signature-check` :
+  `EXISTING_FIDO2_KEY_READY_FOR_SIGNATURE`.
+  Le contrôle confirme les permissions et l'empreinte publique attendue.
+- `just yubikey-backup-ssh-signature-run` :
+  `LOCAL_HARDWARE_SSHSIG_VERIFIED_REMOTE_LOGIN_NOT_TESTED`.
+  `ssh-keygen -Y sign` a utilisé **l'identité FIDO2 existante**,
+  suivi de `ssh-keygen -Y verify` sur un message synthétique.
+  Empreinte publique :
+  `SHA256:42+Klqmv8gwQZB+1OxRjkye3nEQF1PsMjTQwXwzoSwQ`.
+  **Preuve fonctionnelle locale de signature et de vérification : PASS.**
+  Aucun serveur SSH/GitHub n'a authentifié cette identité dans ce test.
+
+**Anomalie des tests hermétiques** : `just yubikey-backup-ssh-signature-test`
+a retourné **8/13 PASS** et 5 échecs `UNTRUSTED_KEY_DIRECTORY`.
+La cause a été reproduite hors hardware : dans `setUp`,
+`Path.mkdir(parents=True, mode=0o700)` ne fixe pas le mode
+des répertoires *parents* créés implicitement. Avec `umask 022`,
+le parent `~/.ssh` de la fixture recevait `0755`, que le
+contrôle de sécurité rejette **à juste titre**.
+Le correctif crée explicitement chaque répertoire avec `0700` ;
+un test négatif supplémentaire vérifie qu'un parent `0750`
+reste refusé. **Le validateur de production n'a pas été assoupli.**
+
+**À relancer uniquement sur workstation, sans contacter la carte :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+git rev-parse HEAD
+just yubikey-backup-ssh-signature-test
+just yubikey-backup-ssh-signature-check
+```
+
+Le lot corrigé contient **14 tests** ; l'exécution complète sur
+workstation reste `NOT_RUN` tant que l'opérateur ne l'a pas relancée.
+**Ne pas** relancer `just yubikey-backup-ssh-enroll` ou
+`just yubikey-backup-ssh-signature-run` : la preuve matérielle est acquise.
+
+**Suite SSH** : vérifier un login réel sur une destination explicitement
+autorisée avec cette clé publique, sans retirer les accès existants.
+Pour les autres capacités, statut inchangé : OpenPGP accessible
+publiquement mais historique intermittent, PIV82/age non provisionné,
+challenge KeePassXC OTP2 non testé et escrow/SOPS/PostgreSQL réel non restauré.
