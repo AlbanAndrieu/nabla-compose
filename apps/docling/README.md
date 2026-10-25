@@ -39,8 +39,8 @@ Keep the personal PDF out of logs, remote conversion or test uploads.
 ## Deploy on TrueNAS
 
 The following is the **initial creation procedure**, retained for
-future rebuilds. It has **already been executed successfully** on
-25 October 2026. Do not repeat it for the current DEPLOYING App.
+future rebuilds. It was **already executed** on 25 October 2026. The current operator
+snapshot reports RUNNING/healthy. Do not repeat the deployment command.
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
@@ -121,6 +121,29 @@ After conversion succeeds, discover the ingestion paths implemented by the
 **deployed OpenRAG 0.7.1 backend**, verify an isolated test index and
 cleanup/rollback contract, then run indexed ingestion and retrieval under
 a separate explicit approval. **This smoke never indexes content.**
+
+Read-only route discovery from the deployed backend (only route names and
+HTTP methods are displayed; do not export OpenAPI schemas or credentials):
+
+```bash
+sudo docker exec openrag-backend python -c '
+import json
+from urllib.request import urlopen
+with urlopen("http://127.0.0.1:8000/openapi.json", timeout=8) as r:
+    spec = json.load(r)
+for path, methods in sorted(spec.get("paths", {}).items()):
+    if any(key in path.lower() for key in (
+            "ingest", "document", "knowledge", "collection", "search", "upload")):
+        print(path, ",".join(m.upper() for m in methods
+                             if m in ("get", "post", "delete", "put", "patch")))
+'
+```
+
+Do not guess an ingestion API from a newer upstream release. Use the
+resulting route contract to implement a controlled synthetic-document
+collection with a verified removal path before permitting any
+personal-document ingestion.
+
 
 Acceptance is not complete until one small document is ingested through OpenRAG, indexed in OpenSearch and retrieved successfully. Only then activate or revalidate the workstation LiteLLM GPU chat/embedding path.
 
