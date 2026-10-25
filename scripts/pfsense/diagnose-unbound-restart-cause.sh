@@ -158,8 +158,25 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
         return substr(s,RSTART,RLENGTH)
       return "unknown"
     }
+    function pfblocker_time_marker(line, v) {
+      # Log timestamps are intermittent [ NOW ] expansions, not per-line.
+      # Preserve the nearest prior marker only as contextual evidence.
+      if(match(line, /\\[[[:space:]]*[0-9][0-9]\\/[0-9][0-9]\\/[0-9][0-9] [0-9][0-9]?:[0-9][0-9]:[0-9][0-9][[:space:]]*\\]/)) {
+        v=substr(line,RSTART,RLENGTH)
+        gsub(/\\[|\\]/,"",v)
+        sub(/^[[:space:]]*/,"",v)
+        sub(/[[:space:]]*$/,"",v)
+        return v
+      }
+      return ""
+    }
     {
       event=""
+      marker=""
+      if(source=="pfblockerng") {
+        marker=pfblocker_time_marker($0)
+        if(marker!="") {last_header_time=marker;last_header_line=NR}
+      }
       if(source=="system" || source=="resolver") {
         if($0 ~ /failed to reclaim memory|out of swap|waited too long to allocate a page/)
           event=($0 ~ /[(]unbound[)]/ ? "kernel_oom_unbound" : "kernel_oom_other")
@@ -193,8 +210,15 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
       if(event!="") {
         level=(event=="kernel_oom_unbound" || event=="unbound_bind_conflict" ||
                event=="watchdog_unbound_restart" ? "WARN: " : "")
-        printf "%ssignal_source=%s event=%s timestamp=%s\n",
+        printf "%ssignal_source=%s event=%s timestamp=%s",
           level,source,event,stamp($0)
+        # Do not misrepresent a block's header as the event's own timestamp.
+        if(source=="pfblockerng" && last_header_time!="" &&
+           (NR-last_header_line)<=80) {
+          printf " preceding_header_local=%s header_gap_lines=%d",
+            last_header_time,NR-last_header_line
+        }
+        printf "\n"
       }
     }
   ' | tail -35 || true
