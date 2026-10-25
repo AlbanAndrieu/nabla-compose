@@ -43,18 +43,26 @@ ssh_opts=(-o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes)
 [[ -z "$PORT" ]] || ssh_opts+=(-p "$PORT")
 
 echo "=== Preflight: Unbound resolver and pfSense service posture (read-only) ==="
-ssh "${ssh_opts[@]}" "$TARGET" '/bin/sh -s' <<'REMOTE'
+ssh "${ssh_opts[@]}" "$TARGET" "/bin/sh -s -- $mode" <<'REMOTE'
 set -eu
+mode=$1
+healthy=yes
 if ! pgrep -x unbound >/dev/null 2>&1; then
-  echo "ERROR: unbound_not_running"; exit 80
+  echo "WARN: unbound_not_running"; healthy=no
+elif ! unbound-control -c /var/unbound/unbound.conf status 2>/dev/null | grep -q 'is running'; then
+  echo "WARN: unbound_control_unavailable"; healthy=no
+elif ! drill -t A example.com @127.0.0.1 2>/dev/null | grep -q 'rcode: NOERROR'; then
+  echo "WARN: unbound_public_dns_unverified"; healthy=no
 fi
-if ! unbound-control -c /var/unbound/unbound.conf status 2>/dev/null | grep -q 'is running'; then
-  echo "ERROR: unbound_control_unavailable"; exit 80
+if [ "$healthy" = yes ]; then
+  echo 'preflight_unbound=HEALTHY'
+else
+  echo 'preflight_unbound=UNVERIFIED'
+  if [ "$mode" = apply ]; then
+    echo 'ERROR: refusing_php_fpm_apply_while_unbound_unhealthy'
+    exit 80
+  fi
 fi
-if ! drill -t A example.com @127.0.0.1 2>/dev/null | grep -q 'rcode: NOERROR'; then
-  echo "ERROR: unbound_public_dns_unverified"; exit 80
-fi
-echo 'preflight_unbound=HEALTHY'
 if [ -S /var/run/php-fpm.socket ]; then
   echo 'preflight_php_socket=PRESENT'
 else
