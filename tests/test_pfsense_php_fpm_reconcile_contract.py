@@ -96,6 +96,17 @@ class PfSensePhpFpmReconcileContract(unittest.TestCase):
         self.assertIn("--restore", calls[2])
         self.assertNotIn("--apply", " ".join(calls))
 
+    def test_postcutover_just_receipt_is_readonly(self):
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        marker = "pfsense-php-fpm-postcheck:\n"
+        self.assertIn(marker, justfile)
+        recipe = justfile.split(marker, 1)[1].split("\n\n", 1)[0]
+        self.assertIn("just pfsense-security-capacity-audit", recipe)
+        self.assertIn("just pfsense-memory-sample", recipe)
+        self.assertNotIn("pfsense-php-fpm-apply", recipe)
+        self.assertNotIn("pfsense-php-fpm-restore", recipe)
+        self.assertNotIn("pfsense-memory-window", recipe)
+
     def test_operator_script_never_changes_unbound_or_crowdsec(self):
         source = SCRIPT.read_text(encoding="utf-8")
         for forbidden in (
