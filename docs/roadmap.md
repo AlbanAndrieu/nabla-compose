@@ -78,7 +78,7 @@ et [commandes de diagnostic](runbooks/2026-10-24-homelab-operator-next-commands.
 
 ## P1 — Qualité locale et refactoring
 
-- [ ] Refactoriser les diagnostics redondants en une entrée de lecture
+- [x] Ajouter une entrée commune qui orchestre les diagnostics existants en lecture
   seule avec sélection explicite des services et états `PASS/FAIL/UNKNOWN`.
   Garder un budget réseau fixe, éviter les sorties de secrets et isoler
   chaque échec : un check en panne ne saute pas les autres.
