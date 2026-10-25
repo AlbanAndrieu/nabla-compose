@@ -4,6 +4,7 @@
 Run on TrueNAS directly or via SSH stdin. Defaults to dry run. Never prints credentials.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -54,11 +55,51 @@ def container_environment():
         return None
 
 
+def quota_audit(master, env):
+    """Read per-key budget and model grant metadata; no model requests."""
+    outcomes = []
+    for variable, alias, expected_models in KEYS:
+        key_id = hashlib.sha256(env[variable].encode("utf-8")).hexdigest()
+        status, payload = request("/key/info?key=" + key_id, master)
+        label = alias.replace("-", "_")
+        print(label + "_info_http=" + str(status or "unavailable"))
+        info = payload.get("info") if isinstance(payload, dict) else None
+        if status != 200 or not isinstance(info, dict):
+            print(label + "_quota_state=unverified")
+            outcomes.append(2)
+            continue
+        permitted = info.get("models")
+        match = (isinstance(permitted, list) and
+                 set(permitted) == set(expected_models))
+        print(label + "_model_scope=" + ("verified" if match else "mismatch_or_unverified"))
+        budget = info.get("max_budget")
+        spend = info.get("spend")
+        budget_ok = type(budget) in (int, float) and budget == 2
+        print(label + "_budget_cap=" + ("2" if budget_ok else "mismatch_or_unverified"))
+        if type(spend) in (int, float) and 0 <= spend < 1000000000 and budget_ok:
+            print(label + "_spend=" + str(round(spend, 6)))
+            state = "exhausted" if spend >= budget else "below_cap"
+        else:
+            state = "unverified"
+        print(label + "_quota_state=" + state)
+        for limit in ("rpm_limit", "tpm_limit"):
+            value = info.get(limit)
+            print(label + "_" + limit + "=" +
+                  (str(value) if type(value) in (int, float) and
+                   0 <= value < 1000000000 else "not_reported"))
+        outcomes.append(0 if match and budget_ok and state == "below_cap" else
+                        1 if state == "exhausted" else 2)
+    return max(outcomes)
+
+
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     options = parser.add_mutually_exclusive_group()
     options.add_argument("--apply", action="store_true")
     options.add_argument("--status", action="store_true")
+    options.add_argument("--quota-audit", action="store_true")
     args = parser.parse_args(argv)
     env = container_environment()
     if not env:
@@ -71,6 +112,8 @@ def main(argv=None):
     if env[KEYS[0][0]] == env[KEYS[1][0]] or master in (env[KEYS[0][0]], env[KEYS[1][0]]):
         print("credential_separation=failed")
         return 2
+    if args.quota_audit:
+        return quota_audit(master, env)
     models_code, models = request("/v1/models", master)
     keys_code, existing = request("/key/list", master)
     if models_code != 200 or not isinstance(models, dict) or not isinstance(models.get("data"), list):
