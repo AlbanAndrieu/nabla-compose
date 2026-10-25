@@ -48,7 +48,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | **Dernière preuve 26/10 :** `sentry-consumers` PASS, mais `sentry-recovery-preflight` FAIL ; cause exacte non vérifiée (le titre « credential preflight » n'est pas une preuve) | Vérifier séparément les trois préflights secrets et l'état Sentry, puis smoke E2E sans initialisation ni rotation |
 | H-03 | DefectDojo | **Dernière preuve 26/10 :** frontend/uWSGI en cours d'exécution, origine HTTP 302, Pi-hole+Unbound A privé conforme, DNS public sans A, HTTPS TLS vérifié 302 depuis TrueNAS et workstation | Réseau/ingress PASS ; vérifier le rendu de la page de connexion et l'authentification Django. Aucun redeploy |
-| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64 attendus après les correctifs capture/compare**. | **P0 :** capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; contrôler indisponibilité DNS pendant 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
+| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS opérateur le 26/10 vers 00:40**. | **P0 :** capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; contrôler indisponibilité DNS pendant 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -178,20 +178,31 @@ Actions :
   La commande de comparaison réelle a cependant échoué avec
   `ERROR: unbound_comparison_incomplete: ValueError` : le script
   n'explicitait pas les entrées manquantes, vides ou inversées.
-- [ ] **H-04 / reprise et qualité du nouvel outillage :**
+- [x] **H-04 / reprise et qualité du nouvel outillage — contrats et capture :**
   `pfsense-unbound-capture` sauvegarde désormais chaque relevé
   complet dans un dossier local privé **0700**, fichier **0600** ;
   le comparateur donne des raisons `before_file_missing`,
   `after_file_empty`, `reports_same_timestamp`,
   `reports_out_of_order`, etc., sans imprimer les données privées.
   **8 nouveaux tests** (3 erreurs de comparateur et 5 capture)
-  portent la gate Unbound attendue de **56 à 64 tests**.
-  Valider `just pfsense-unbound-restart-test` après synchronisation,
-  puis `just pfsense-unbound-capture` **avant ET après** un prochain
-  cycle DNSBL ; comparer les vrais chemins `snapshot_saved`.
+  portent la gate Unbound de **56 à 64 tests** : **64/64 PASS
+  opérateur**. Deux captures réelles réussies à **00:40:15** et
+  **00:40:22 CET** sur la workstation, toutes deux **postérieures**
+  au stop/start DNSBL vers 00:04. L'erreur de comparaison suivante
+  `reason=before_file_missing` concernait le chemin
+  **placeholder** `/chemin/reel/avant.log`, pas le collecteur.
+  Les vrais chemins `snapshot_saved` figurent dans le runbook.
+  **Cette paire de sept secondes ne constitue pas un avant/après
+  du cron** ; confirmer celui-ci lors d'un prochain cycle.
   Document canonique de reprise :
   [RCA / runbook 2026-10-26](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
   Aucun rollback PHP-FPM exploratoire ni reload DNSBL forcé.
+- [ ] **H-04 / comparaison de deux fichiers réels :**
+  exécuter `just pfsense-unbound-compare` avec les deux fichiers
+  enregistrés à **00:40:15** et **00:40:22** (voir runbook),
+  puis classer uniquement la continuité observée pendant
+  **sept secondes**. Mesurer séparément la transition
+  avant/après un prochain cron DNSBL et la disponibilité DNS LAN.
 - [ ] **H-04 / causalité des modifications antérieures :**
   corréler upgrades/paramètres pfBlockerNG, Snort et DHCP/DNS,
   bouncer CrowdSec, changement PHP-FPM et reboot/restore aux
