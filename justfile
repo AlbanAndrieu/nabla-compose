@@ -466,6 +466,15 @@ apisix-check:
 apisix-down:
     bash scripts/truenas/apisix.sh down
 
+# TrueNAS only: replay the seven known failed gates; read-only/private.
+critical-failures-triage:
+    sudo -n bash scripts/truenas/triage-critical-failures.sh --check
+
+# Offline regression checks for bounded seven-gate recovery diagnostics.
+critical-failures-contracts:
+    python3 -m unittest discover -s tests -p 'test_critical_triage_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_ai_secret_recovery_scope.py' -v
+
 # Stable migration operator: no runtime probes on --help.
 postmigration-check:
     sudo -n bash scripts/truenas/migration-operator.sh --check --section postmigration
