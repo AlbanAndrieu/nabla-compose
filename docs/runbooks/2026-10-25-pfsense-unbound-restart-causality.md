@@ -113,3 +113,92 @@ Les tests fournis précédemment par l'opérateur ont passé 19/19 pour le
 diagnostic *workstation Wi-Fi/DNS*, mais **ne couvrent pas** le nouveau
 collecteur de causalité Unbound. Les tests exact-SHA de celui-ci et la
 quality gate globale restent à exécuter en local, sans CI payante.
+
+
+## Relevé supplémentaire du 25 octobre à 19 h 23 CET
+
+**Validation fournie :** les **7 tests** du collecteur précédent passent.
+Le diagnostic daté `2026-10-25T19:23:30+0100` établit que
+Unbound PID **2135** fonctionne toujours et que son démarrage local
+remonte au **25/10 00:04:56**, donc avant le passage à l'heure CET.
+Mémoire libre + inactive : **174,3 Mio au moment du relevé** ; pas
+une mesure d'un pic à 02:09.
+
+Les journaux remontent des sorties `pfb_unbound.py` autour de
+**00:03–00:05** quasiment quotidiennement, du **12 septembre**
+au **25 octobre**, alors que pfBlockerNG possède un cron de
+mise à jour à minuit. Cela rend les travaux DNSBL périodiques
+**fortement suspects pour la séquence de cycle de vie**.
+Toutefois, ces sorties régulières ne prouvent pas que le
+**PID d'Unbound change tous les jours**. Le nouveau PID à 00:04:56
+le 25/10 est attesté ; une demande de redémarrage au même instant ne
+l'est pas. Aucune nouvelle preuve d'OOM à 00:04 n'est présente.
+
+Plusieurs épisodes de notifications Unbound accompagnent des sorties
+du module Python, notamment **20/10 10:39**, **22/10 14:05**,
+**22/10 21:41–21:42** et **24/10 23:39–23:40**.
+Les conflits de bind de 21:42 le 22/10 et 23:39:55 le 24/10
+renforcent la piste de tentatives de relance qui se chevauchent,
+sans identifier qui exécute la deuxième action.
+
+Les OOM enregistrés les 17, 22 et 24 octobre attestent des
+kills d'Unbound par le noyau ; ils sont **indépendants des sorties
+DNSBL observées à 00:04**, sauf nouvelle preuve commune.
+
+### Défauts du diagnostic corrigés après ce relevé
+
+- Le résumé `0 distinct historical OOM records` était faux : les
+  événements `signal_source=system event=kernel_oom_unbound` n'étaient
+  pas pris en compte par `console.sh`. Le formateur les agrège maintenant
+  par minute et conserve un compteur `unbound kills`, sans dupliquer
+  les événements des autres collecteurs.
+- Les événements pfBlockerNG portaient `timestamp=unknown`.
+  Le diagnostic **ne remplace pas** ce champ par le mtime du fichier,
+  une date d'un événement adjacent ou une heure inventée. La corrélation
+  à la seconde reste **bloquée par la forme du journal natif**.
+- `Service Watchdog` : lecture limitée à
+  `/conf/config.xml` dans la section
+  `installedpackages/servicewatchdog/item/name`. Seul
+  `watchdog_unbound_membership=LISTED|NOT_LISTED|...` est affiché.
+  Un cron Watchdog toutes les minutes ne prouve pas qu'il surveille Unbound.
+- `pfBlockerNG` : interrogation read-only de la version de paquet
+  installée et de la **présence de fonctions**, sans charger ni exécuter
+  son code. Cette présence n'est pas une preuve du chemin utilisé lors
+  de l'événement. Les implémentations plus récentes peuvent appliquer
+  les données DNSBL en mémoire, tandis qu'un changement de configuration
+  peut nécessiter un stop/start :
+  [documentation pfBlockerNG](https://github.com/pfBlockerNG/pfBlockerNG/blob/devel/docs/research/unbound-reload-strategies.md).
+  Ne pas attribuer ce comportement au Netgate avant confirmation de version.
+- Le collecteur recherche aussi les événements classifiés de
+  `/var/log/configd.log` et de sa rotation si les fichiers existent ;
+  aucun argument de commande ni message brut n'est recopié.
+
+Le nouveau contrat local contient désormais les tests de parsing
+Watchdog, de classification configd et du rendu OOM. Les **7 anciens
+tests ont réussi chez l'opérateur**, pas ces nouvelles validations au
+HEAD suivant. L'agent n'a pas exécuté la quality gate complète ;
+aucune CI payante ne doit être déclenchée pendant cette enquête.
+
+### Diagnostic suivant
+
+Exécuter depuis le worktree de la PR sur la workstation :
+
+```bash
+just pfsense-console-test
+```
+
+```bash
+just pfsense-unbound-restart-test
+```
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+**Critère de décision :** si Watchdog ne liste pas Unbound et qu'un
+`configd_unbound_action` ou un événement DNSBL daté est démontré au
+voisinage immédiat du démarrage 00:04:56, préciser l'initiateur avec
+la source et la date. Sinon conserver `restart_initiator=NOT_PROVEN`
+et surveiller une prochaine fenêtre d'actualisation avec une
+collecte strictement bornée. Ne pas modifier les horaires ni les services
+sur la seule corrélation.
