@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
         print(f"START: {vm['name']} (existing VM only)")
         try:
-            subprocess.run(["midclt", "call", "-j", "vm.start", str(vm["id"])],
+            subprocess.run(["midclt", "call", "vm.start", str(vm["id"])],
                            check=True, capture_output=True, text=True, timeout=180)
             post = inventory(json.loads(midclt("vm.query")))
         except (OSError, ValueError, subprocess.CalledProcessError,
