@@ -32,6 +32,10 @@ class PrivatePDFReadinessTest(unittest.TestCase):
         self.assertIn('"/mnt/bababou/$basename"', source)
         self.assertIn('head -c 5', source)
         self.assertIn('http://docling:5001/ready', source)
+        self.assertIn('private_pdf_bind_read_only_not_attested', source)
+        self.assertIn('docling_host_not_ready', source)
+        self.assertIn('docling_openrag_network_not_ready', source)
+        self.assertIn('diagnose-docling-readiness.py --check', source)
         self.assertIn("NOT_TESTED: pdf_conversion_indexing_retrieval", source)
         for forbidden in ("curl -F", "convert/source", "docker cp", "base64", "--upload-file"):
             self.assertNotIn(forbidden, source)
