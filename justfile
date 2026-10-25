@@ -529,6 +529,7 @@ gatus-monitor-contracts:
 # Node 24 remains canonical; explicitly select Node 22 for this isolated fast gate.
 # mise uses the already provisioned version when installed; npm stays offline.
 node22-fast:
+    @mise where node@22 >/dev/null 2>&1 || { echo 'Node 22 not installed: install it separately with mise install node@22' >&2; exit 2; }
     mise exec node@22 -- npm --offline run test:fast:node22
 
 # On-demand standalone APISIX service; isolated from default deployment.
