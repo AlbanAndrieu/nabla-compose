@@ -162,3 +162,18 @@ def test_readiness_flags_only_allowlisted_service_ids(tmp_path):
         {'service': 'openrag', 'status': 'DEGRADED'},
     ]
     assert 'private-secret-url' not in json.dumps(result)
+
+
+def test_readiness_note_no_healthcheck_does_not_mask_connectivity(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-service-readiness', 'FAIL',
+         'BLOCKED  scrutiny     TrueNAS=RUNNING\n'
+         '  · scrutiny no Docker healthcheck\n'
+         '  · HTTP probe unavailable\n'
+         'Summary: BLOCKED=1\n')
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'functional_connection_failed'
+    assert result['evidence']['affected_services'] == [
+        {'service':'scrutiny', 'status':'BLOCKED'}
+    ]
