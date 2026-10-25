@@ -133,7 +133,7 @@ class UpgradeContracts(unittest.TestCase):
 
     def test_unit_exec_recognizes_pinned_node_plus_isolated_package(self):
         isolation = mod.isolated_stage_root()
-        isolation.mkdir(parents=True)
+        self.assertTrue(mod.ensure_isolated_prefix())
         node = str(self.new / "bin/node")
         entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
         output = ("{ path=" + node + " ; argv[]=" + node +
@@ -205,6 +205,36 @@ class UpgradeContracts(unittest.TestCase):
         self.assertEqual(mod.isolated_prefix_posture(), "safe")
         self.assertNotIn(str(self.home), mod.isolated_prefix_posture())
         self.assertTrue(mod.ensure_isolated_prefix())
+
+    def test_unit_exec_refuses_group_writable_isolated_stage(self):
+        isolation = mod.isolated_stage_root()
+        self.assertTrue(mod.ensure_isolated_prefix())
+        isolation.chmod(0o770)
+        node = str(self.new / "bin/node")
+        entry = str(isolation / "lib/node_modules/openclaw/openclaw.mjs")
+        output = ("{ path=" + node + " ; argv[]=" + node +
+                  " --max-old-space-size=16053 " + entry +
+                  " gateway --port 18789 ; ignore_errors=no }").encode()
+        with patch.object(mod, "run", return_value=(0, output, b"")):
+            self.assertIsNone(mod.unit_exec())
+
+    def test_stage_reports_unsafe_existing_stage_before_npm(self):
+        self.assertTrue(mod.ensure_isolated_prefix())
+        mod.isolated_stage_root().chmod(0o770)
+        broken = self.new / "lib/node_modules/openclaw"
+        broken.mkdir(parents=True)
+        (broken / "package.json").write_text("invalid")
+        with patch.object(mod, "unit_exec", return_value=self.old), \
+             patch.object(mod, "node_ready", return_value=True), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "run") as runner, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.stage()
+        self.assertEqual(result, 2)
+        self.assertIn("stage_security=group_or_world_writable_stage_target",
+                      output.getvalue())
+        self.assertIn("upgrade_stage=unsafe_prefix", output.getvalue())
+        runner.assert_not_called()
 
     def test_unit_exec_refuses_isolated_package_with_legacy_node(self):
         isolation = mod.isolated_stage_root()
