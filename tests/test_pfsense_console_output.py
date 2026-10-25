@@ -183,6 +183,48 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("2 OOM minutes", result.stdout)
         self.assertIn("kernel kills=2", result.stdout)
 
+    def test_typed_unbound_oom_is_counted_and_labeled(self):
+        fixture = (
+            "=== system lifecycle events (bounded, redacted) ===\n"
+            "WARN: signal_source=system event=kernel_oom_unbound "
+            "timestamp=2026-10-24T02:10:50.474019+02:00\n"
+            "signal_source=system event=kernel_oom_other "
+            "timestamp=2026-10-24T02:10:51.881022+02:00\n"
+            "=== archived system lifecycle events ===\n"
+            "WARN: signal_source=system event=kernel_oom_unbound "
+            "timestamp=2026-10-24T02:10:50.474019+02:00\n"
+        )
+        compact = render(fixture)
+        self.assertEqual(compact.returncode, 0, compact.stderr)
+        self.assertIn("kernel kills=2", compact.stdout)
+        self.assertIn("unbound kills=1", compact.stdout)
+        self.assertIn("2 distinct historical OOM records", compact.stdout)
+        self.assertIn("1 duplicate lines suppressed", compact.stdout)
+        self.assertNotIn("0 distinct historical OOM records", compact.stdout)
+        verbose = render(fixture, mode="verbose")
+        self.assertEqual(verbose.returncode, 0, verbose.stderr)
+        self.assertIn(
+            "Historical kernel OOM victim=unbound "
+            "timestamp=2026-10-24T02:10:50.474019+02:00",
+            verbose.stdout,
+        )
+        self.assertIn("Historical kernel OOM victim=other", verbose.stdout)
+        self.assertEqual(verbose.stdout.count("victim=unbound"), 1)
+
+    def test_typed_oom_during_dst_keeps_two_minutes_separate(self):
+        sample = (
+            "WARN: signal_source=system event=kernel_oom_unbound "
+            "timestamp=2026-10-25T02:09:11+02:00\n"
+            "WARN: signal_source=system event=kernel_oom_unbound "
+            "timestamp=2026-10-25T02:09:15+01:00\n"
+        )
+        output = render(sample)
+        self.assertEqual(output.returncode, 0, output.stderr)
+        self.assertIn("Historical OOM minute=2026-10-25T02:09 +02:00", output.stdout)
+        self.assertIn("Historical OOM minute=2026-10-25T02:09 +01:00", output.stdout)
+        self.assertEqual(output.stdout.count("unbound kills=1"), 2)
+        self.assertIn("2 OOM minutes", output.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
