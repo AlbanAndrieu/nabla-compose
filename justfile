@@ -393,6 +393,7 @@ pfsense-unbound-restart-test:
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_restart_cause_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_unbound_snapshot_compare.py' -v
 
 # Lightweight Netgate memory observation, without changing daemon configuration.
 pfsense-memory-sample-test:
@@ -406,6 +407,11 @@ pfsense-memory-sample:
 # 13 readings at 15 s intervals span 180 s, one SSH session.
 pfsense-memory-window:
     PFSENSE_OUTPUT=verbose bash scripts/pfsense/sample-oom-pressure.sh --check --samples 13 --interval-seconds 15
+
+# Compare two saved redacted output files entirely locally. No SSH.
+# Set PFSENSE_BEFORE and PFSENSE_AFTER to the operator-controlled report paths.
+pfsense-unbound-compare:
+    python3 scripts/pfsense/compare-unbound-snapshots.py --before "${PFSENSE_BEFORE:?set PFSENSE_BEFORE}" --after "${PFSENSE_AFTER:?set PFSENSE_AFTER}"
 
 pfsense-unbound-restart-check:
     bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
