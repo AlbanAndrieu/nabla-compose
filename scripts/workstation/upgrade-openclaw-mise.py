@@ -88,6 +88,9 @@ def package_version(root):
     if not (package_file.is_file() and entry.is_file()
             and private_status(package_file) and private_status(entry)):
         return None
+    # Refuse redirecting the package root via a symlink.
+    if package.is_symlink() or package.resolve() != package:
+        return None
     try:
         if package_file.stat().st_size > 32768:
             return None
@@ -176,11 +179,17 @@ def stage():
     cmd = [str(node), str(npm), "install", "--global", "--prefix",
            str(destination), "--registry=https://registry.npmjs.org/",
            "openclaw@" + TARGET_OPENCLAW]
-    if npm_rc == 0 and npm_major >= 12:
-        cmd.append("--allow-scripts=openclaw")
-    elif npm_rc != 0 or npm_major < 11:
+    if npm_rc != 0 or npm_major < 11:
         print("upgrade_stage=blocked_npm_unverified")
         return 2
+    # npm 11.16+ and npm 12 allow explicit approval of OpenClaw scripts.
+    # Older npm 11 does not recognize that flag.
+    try:
+        npm_parts = tuple(int(x) for x in npm_out.decode().strip().split(".")[:2])
+    except (ValueError, UnicodeError):
+        npm_parts = (0, 0)
+    if npm_parts >= (11, 16):
+        cmd.append("--allow-scripts=openclaw")
     rc, _, _ = run(cmd, timeout=300, env=env)
     if rc or package_version(destination) != TARGET_OPENCLAW:
         print("upgrade_stage=install_failed_or_unverified")
@@ -272,13 +281,36 @@ def activate(repo_root):
 
 def verify():
     owner = unit_exec()
-    rc = int(not (owner == new_root() and service_active()
-                  and ready() and package_version(new_root()) == TARGET_OPENCLAW))
-    print("openclaw_service_version=" + ("verified" if rc == 0 else "unverified"))
+    root = new_root()
+    healthy = (owner == root and service_active() and ready()
+               and package_version(root) == TARGET_OPENCLAW)
+    print("openclaw_service_version=" + ("verified" if healthy else "unverified"))
     print("http_ready=" + ("yes" if ready() else "no"))
-    print("service_runtime_target=" + ("verified" if owner == new_root() else "unverified"))
+    print("service_runtime_target=" + ("verified" if owner == root else "unverified"))
+    if healthy:
+        launcher = [str(root / "bin/node"),
+                    str(root / "lib/node_modules/openclaw/dist/index.js")]
+        env = dict(os.environ)
+        env["PATH"] = str(root / "bin") + os.pathsep + env.get("PATH", "")
+        env["NPM_CONFIG_PREFIX"] = str(root)
+        # Doctor lint is deliberately non-mutating. Do not echo JSON.
+        lint_code, _, _ = run(launcher + ["doctor", "--lint", "--json"],
+                              env=env, timeout=45)
+        print("doctor_lint=" + ("completed" if lint_code == 0 else "needs_review"))
+        # memory status reports index health without generating embeddings.
+        mem_code, out, _ = run(launcher + ["memory", "status"], env=env, timeout=45)
+        if mem_code == 0:
+            sample = out.decode("utf-8", "replace")
+            main = "Memory Search (main)" in sample
+            cron = "Memory Search (cron)" in sample
+            clean = sample.count("Dirty: no")
+            print("memory_main=" + ("visible" if main else "unverified"))
+            print("memory_cron=" + ("visible" if cron else "unverified"))
+            print("memory_clean_indexes=" + str(min(clean, 2)))
+        else:
+            print("memory_status=unavailable")
     print("no_billable_model_request=true")
-    return rc * 2
+    return 0 if healthy else 2
 
 
 def main(argv=None):
