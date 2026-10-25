@@ -94,6 +94,41 @@ par un PDF synthetique et verifier Docling/ready, OpenSearch indexing et
 une recherche OpenRAG qui retourne la valeur attendue. Avec la copie
 personnelle, utiliser ensuite une execution volontairement autorisee.
 
+### Etat reel des services apres les tests du 25/10
+
+- Talos 1.13.9 / Kubernetes 1.36.3 : trois noeuds Ready.
+- `validate-cluster.sh` : exit=0, 5 OK, 2 avertissements.
+- CSI TrueNAS : controller recent 5/5, node plugins Ready,
+  StorageClass declaree, mais **ancien controller 0/5 Error**
+  (144 redemarrages) a qualifier par ReplicaSet.
+- `smoke-truenas-csi-nfs.sh --check` : PASS preflight, mais n'a
+  cree aucun PVC ; pas encore de smoke cross-node + reclaim.
+- Secrets canoniques : second audit `mode_changes=0 blockers=0`.
+- Node22 : version correcte selectionnee avec mise, mais npm 12
+  etait encore trouve dans PATH (5 tests PASS/1 FAIL). La recette
+  `just node22-fast` appelle maintenant le npm CLI embarque dans
+  la meme installation Node22. Gate complete a rejouer.
+- Docling : App ABSENT et conteneur absent ; port host et reseau
+  Docker non joignables. PDF OpenRAG valide et lisible en montage RO
+  mais conversion/ingestion/retrieval non effectues.
+
+### Recette CSI restante (sur la workstation)
+
+```bash
+mise exec -- kubectl -n truenas-csi get deploy truenas-csi-controller -o wide
+mise exec -- kubectl -n truenas-csi get rs -o wide
+mise exec -- kubectl -n truenas-csi get pods -o wide
+```
+
+Le controller recent est pret, mais l'ancien pod Error existe toujours.
+Verifier son owner ReplicaSet et le nombre de replicas desires avant
+une suppression. **Ne pas supprimer le controller sain et ne pas
+deployer un deuxieme CSI**. Pour le smoke `--apply`, le script exige
+`kubectl`, `jq`, `midclt`, `zfs` et un kubeconfig valable lorsque
+`--keep` n'est pas selectionne. Le TrueNAS operator doit disposer
+de ces outils, sinon le reclaim ne peut pas etre prouve. Aucun
+`--apply` execute a ce stade.
+
 ### Diagnostic Docling dedie (sans ingest)
 
     sudo python3 scripts/truenas/diagnose-docling-readiness.py --check
@@ -101,8 +136,19 @@ personnelle, utiliser ensuite une execution volontairement autorisee.
 Cette commande distingue App TrueNAS, conteneur Docling, readiness
 `172.17.0.24:5001/ready` et readiness depuis
 `openrag-backend -> docling:5001`. Elle ne lit aucun fichier prive.
-Ne pas declencher de redeploiement automatique tant que ce diagnostic
-n'est pas compris. Le test PDF protege maintenant explicitement
+Le diagnostic actuel montre `app=ABSENT`. Faire le preflight de la
+creation unique :
+
+```bash
+sudo bash scripts/truenas/deploy-docling.sh --check
+```
+
+Le preflight verifie le Compose, les deux reseaux externes et l'image
+CPU deja presente dans le cache Docker. **Il ne telecharge rien**.
+Apres validation, l'action explicite est
+`sudo bash scripts/truenas/deploy-docling.sh --apply`.
+Ne pas lancer `app.update` sur une App absente et ne pas multiplier
+les jobs d'installation. Le test PDF protege maintenant explicitement
 le montage Docker `/mnt/bababou` en lecture seule.
 
 ## 4. Pannes toujours ouvertes
