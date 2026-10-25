@@ -60,7 +60,9 @@ def fake_operator(tmp_path):
         "    output = Path(args[args.index('--output')+1])\n"
         "    output.write_text(json.dumps({"
         "'inventorySource':'live-midclt', 'runtimeSecretsSource':'live-filesystem',"
-        "'selectedWave':wave, 'selectedWaveReady':True,"
+        "'selectedWave':wave,"
+        "'selectedWaveReady':os.getenv('MOCK_WAVE_BLOCKED') != '1',"
+        "'selectedWaveBlocker':'PRIVATE_TOKEN_MUST_NOT_PRINT',"
         "'planHash':'" + HASH + "'}))\n",
         encoding="utf-8",
     )
@@ -175,6 +177,40 @@ def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
     assert result.returncode != 0
     assert not marker.exists()
     assert not report.exists()
+
+
+@pytest.mark.parametrize("args", [
+    ("--apply-step", "gatus-config", "--check", "--acknowledge", ACK_MIGRATION),
+    ("--check", "--apply-step", "gatus-config", "--acknowledge", ACK_MIGRATION),
+    ("--plan-wave", "core", "--apply-wave", "core",
+     "--expected-plan-hash", HASH, "--acknowledge", ACK_RESTART),
+    ("--apply-wave", "core", "--check",
+     "--expected-plan-hash", HASH, "--acknowledge", ACK_RESTART),
+    ("--apply-csi-smoke", "--check", "--acknowledge", ACK_MIGRATION),
+    ("--local-gates", "--check"),
+    ("--next-commands", "--plan-wave", "core"),
+    ("--check", "--check"),
+])
+def test_mixed_execution_modes_are_rejected_before_runtime(fake_operator, args):
+    _, _, report, marker = fake_operator
+    result = invoke(fake_operator, *args)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "choose exactly one execution mode" in result.stderr
+    assert not marker.exists()
+    assert not report.exists()
+
+
+def test_planner_blocker_is_not_printed_from_private_json(fake_operator):
+    _, _, report, marker = fake_operator
+    result = invoke(
+        fake_operator, "--plan-wave", "core",
+        env_overrides={"MOCK_WAVE_BLOCKED": "1"},
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "wave not ready; inspect the private plan report" in result.stdout
+    assert "PRIVATE_TOKEN_MUST_NOT_PRINT" not in result.stdout + result.stderr
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
 
 
 def test_new_read_only_sections_are_documented():
