@@ -95,6 +95,7 @@ class DependencyContracts(unittest.TestCase):
              patch.object(module, "ssh_agent_state", return_value="SOCKET_NOT_CONFIGURED"), \
              patch.object(module, "scdaemon_agent_state", return_value="NOT_CONFIRMED"), \
              patch.object(module, "postgres_versioned_tools_state", return_value="NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS"), \
+             patch.object(module, "postgres_pg_config_server_tools_state", return_value="PG_CONFIG_MISSING"), \
              patch.object(module.shutil, "which", side_effect=lambda x: "/bin/fake" if x=="pg_restore" else None):
             report = module.snapshot()
         self.assertEqual(report["recovery_tools"]["pg_restore"], "INSTALLED_UNVERIFIED")
@@ -196,6 +197,67 @@ class DependencyContracts(unittest.TestCase):
         with patch.object(module, "Path", return_value=root):
             self.assertEqual(module.postgres_versioned_tools_state(),
                              "NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS")
+
+    def test_pg_config_absent_does_not_start_anything(self):
+        with patch.object(module.shutil, "which", return_value=None), \
+             patch.object(module.subprocess, "run") as cmd:
+            self.assertEqual(module.postgres_pg_config_server_tools_state(),
+                             "PG_CONFIG_MISSING")
+            cmd.assert_not_called()
+
+    def test_pg_config_reports_binaries_by_metadata_without_execution(self):
+        directory = MagicMock()
+        directory.is_absolute.return_value = True
+        directory.is_symlink.return_value = False
+        directory.is_dir.return_value = True
+        binary = MagicMock()
+        binary.is_symlink.return_value = False
+        binary.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o755, st_uid=0)
+        directory.__truediv__.return_value = binary
+        done = subprocess.CompletedProcess([], 0, "/usr/pgsql-18/bin\n", "")
+        with patch.object(module.shutil, "which", return_value="/usr/bin/pg_config"), \
+             patch.object(module, "Path", return_value=directory), \
+             patch.object(module.subprocess, "run", return_value=done) as cmd:
+            self.assertEqual(module.postgres_pg_config_server_tools_state(),
+                             "PG_CONFIG_SERVER_BINARIES_PRESENT_UNVERIFIED")
+        self.assertEqual(cmd.call_args.args[0], ["pg_config", "--bindir"])
+        self.assertEqual(cmd.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertEqual(cmd.call_args.kwargs["timeout"], 5)
+        self.assertFalse(cmd.call_args.kwargs["check"])
+
+    def test_pg_config_client_only_and_untrusted_binary_fail_closed(self):
+        directory = MagicMock()
+        directory.is_absolute.return_value = True
+        directory.is_symlink.return_value = False
+        directory.is_dir.return_value = True
+        binary = MagicMock()
+        binary.is_symlink.return_value = False
+        binary.lstat.side_effect = FileNotFoundError
+        directory.__truediv__.return_value = binary
+        done = subprocess.CompletedProcess([], 0, "/usr/bin\n", "")
+        with patch.object(module.shutil, "which", return_value="pg_config"), \
+             patch.object(module, "Path", return_value=directory), \
+             patch.object(module.subprocess, "run", return_value=done):
+            self.assertEqual(module.postgres_pg_config_server_tools_state(),
+                             "PG_CONFIG_BINDIR_HAS_NO_SERVER_BINARIES")
+        binary.lstat.side_effect = None
+        binary.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o755, st_uid=123456789)
+        with patch.object(module.shutil, "which", return_value="pg_config"), \
+             patch.object(module, "Path", return_value=directory), \
+             patch.object(module.subprocess, "run", return_value=done):
+            self.assertEqual(module.postgres_pg_config_server_tools_state(),
+                             "PG_CONFIG_BINDIR_HAS_NO_SERVER_BINARIES")
+
+    def test_pg_config_bad_paths_and_outputs_are_unknown(self):
+        for output in ("relative\n", "bad\x00/path\n", "\n",
+                       "/usr/bin\nunexpected\n", "/" * 4200):
+            with self.subTest(case=repr(output)[:18]), \
+                 patch.object(module.shutil, "which", return_value="pg_config"), \
+                 patch.object(module.subprocess, "run",
+                              return_value=subprocess.CompletedProcess([], 0, output, "")):
+                self.assertEqual(module.postgres_pg_config_server_tools_state(), "UNKNOWN")
 
     def test_arguments_rejected_before_snapshot(self):
         with patch.object(module, "snapshot") as snap, redirect_stderr(io.StringIO()):
