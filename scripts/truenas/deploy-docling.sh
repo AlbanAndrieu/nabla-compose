@@ -69,6 +69,14 @@ if [[ "${MODE}" == "--check" ]]; then
   exit 0
 fi
 
+# A TrueNAS app.create may complete while the CPU image and models are
+# still initializing. Never send app.update/redeploy during DEPLOYING.
+if [[ "${app_count}" == "1" ]]; then
+  app_state="$(jq -r '.[0].state // "UNKNOWN"' <<<"${app_json}")"
+  [[ "${app_state}" != "DEPLOYING" ]] ||
+    fail "Docling is already DEPLOYING; observe readiness, do not repeat --apply"
+fi
+
 # Run any prerequisite materialization only after validating the image,
 # networks, Compose and App identity. Never mutate during --check.
 bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
