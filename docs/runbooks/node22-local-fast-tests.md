@@ -22,7 +22,10 @@ just node22-fast
 Si `just` est absent, utiliser directement :
 
 ```bash
-mise exec node@22 -- npm --offline run test:fast:node22
+node_root="$(mise where node@22)"
+PATH="$node_root/bin:$PATH" "$node_root/bin/node" \
+  "$node_root/lib/node_modules/npm/bin/npm-cli.js" \
+  --offline run test:fast:node22
 ```
 
 Les tests sont implémentés avec `node:test` et `node:assert/strict`,
@@ -85,3 +88,16 @@ La recette a ete corrigee pour selectionner la version Node 22
 explicitement. **Retester sur le HEAD actuel** ; cette modification
 n'est pas encore validee par une nouvelle execution.
 `just quality` reste NON EXECUTE.
+
+## Correctif de résolution npm 12 (25 octobre 2026)
+
+Le nouvel essai de l'operateur sous Node 22 a echoue car la commande
+`npm` resolvait **npm 12**. `mise exec node@22 -- npm` ne
+garantissait pas la provenance du CLI npm. La recette `just node22-fast`
+resout maintenant le repertoire via `mise where node@22`, puis lance
+`bin/node` et `lib/node_modules/npm/bin/npm-cli.js` depuis cette
+**meme installation**. Elle refuse toute version autre que Node 22 /
+npm 10 et tout npm manquant, sans installer de dependance.
+
+Un test local isole a reussi avec un faux npm 12 prioritaire dans
+`PATH`, mais **la suite 6/6 du HEAD GitHub actuel reste a lancer**.
