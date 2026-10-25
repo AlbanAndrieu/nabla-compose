@@ -92,7 +92,7 @@ for file in /usr/local/pkg/pfblockerng/pfblockerng.inc \
   [ -r "$file" ] || continue
   implementation_seen=yes
   for fn in pfb_stop_start_unbound pfb_reload_unbound pfb_validate_unbound; do
-    if grep -Fq "$fn" "$file" 2>/dev/null; then
+    if grep -Eq "function[[:space:]]+$fn[[:space:]]*[(]" "$file" 2>/dev/null; then
       printf 'pfblocker_implementation_function=%s present=yes\n' "$fn"
     fi
   done
