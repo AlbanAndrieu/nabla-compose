@@ -91,6 +91,14 @@ yubikey-applications-secondary-readonly:
 yubikey-applications-primary-readonly:
     python3 scripts/workstation/inspect-yubikey-applications-readonly.py --serial 23501671
 
+# Local tool and file-metadata readiness; never opens secrets or connects a token.
+yubikey-workstation-readonly:
+    python3 scripts/workstation/inspect-yubikey-workstation-readonly.py
+
+yubikey-workstation-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-workstation-readonly.py tests/test_yubikey_workstation_readonly.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_workstation_readonly.py' -v
+
 # No device required; hermetic allowlist, transport and metadata contracts.
 yubikey-applications-test:
     python3 -m py_compile scripts/workstation/inspect-yubikey-applications-readonly.py tests/test_yubikey_applications_readonly.py

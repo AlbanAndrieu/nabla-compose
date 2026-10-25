@@ -103,3 +103,22 @@ actuels ne satisfont pas les critères L3-L5.
 - [Diagnostic F9, PIV82 et escrow](yubikey-piv82-postmerge-diagnostics.md)
 - [Reprise AES256](yubikey-piv82-aes256-handoff.md)
 - [Yubico ykman commandes](https://docs.yubico.com/software/yubikey/tools/ykman/)
+
+
+## Diagnostic du poste (sans aucune commande YubiKey)
+
+`just yubikey-workstation-readonly` examine exclusivement la présence
+des outils locaux (`gpg`, `gpgconf`, `age`, `sops`,
+`age-plugin-yubikey`, `ykman`, `pcsc_scan`, `ssh-keygen`,
+`pamu2fcfg`, `keepassxc`, `cryptsetup`, `lsblk`).
+Il inspecte uniquement les métadonnées de quatre emplacements
+conventionnels : identité age SOPS (mode 0600, utilisateur courant),
+socket gpg-agent, poignée publique SSH FIDO2 et mapping PAM U2F.
+Il **n'ouvre aucun fichier**, n'énumère aucun compte, ne lance pas
+`gpg --card-status`, ne demande aucun PIN ni mot de passe et
+n'interroge pas la carte. Les chemins et contenus ne sont pas imprimés.
+
+`just yubikey-workstation-test` valide ces règles hors matériel.
+La présence d'une commande, d'un socket ou d'un fichier public n'est
+**jamais** une preuve d'authentification, de déchiffrement, ni de
+restauration de sauvegardes. Le JSON reste `status=NO-GO`.

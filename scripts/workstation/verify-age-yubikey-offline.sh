@@ -38,6 +38,8 @@ for python_source in \
   "${script_dir}/inspect-age-yubikey-piv82-secondary.py" \
   "${script_dir}/inspect-yubikey-recovery-readonly.py" \
   "${script_dir}/inspect-yubikey-applications-readonly.py" \
+  "${script_dir}/inspect-yubikey-workstation-readonly.py" \
+  "${repo_root}/tests/test_yubikey_workstation_readonly.py" \
   "${repo_root}/tests/test_yubikey_applications_readonly.py" \
   "${repo_root}/tests/test_yubikey_recovery_readonly.py" \
   "${repo_root}/tests/test_yubikey_piv82_secondary_inventory.py" \
