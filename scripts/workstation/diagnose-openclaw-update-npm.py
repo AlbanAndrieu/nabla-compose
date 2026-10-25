@@ -110,6 +110,8 @@ def node_target_compatibility(version):
         return "compatible" if (minor, patch) >= (22, 1) else "below_floor"
     if major == 26:
         return "compatible" if (minor, patch) >= (12, 1) else "below_floor"
+    if major >= 27:
+        return "development_line_unverified"
     return "unsupported_line"
 
 
