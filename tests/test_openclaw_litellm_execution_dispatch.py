@@ -85,5 +85,54 @@ class DispatchTests(unittest.TestCase):
         runner.assert_not_called()
 
 
+class ProvisionerStatusTests(unittest.TestCase):
+    def setUp(self):
+        path = SCRIPT.with_name("provision-openclaw-litellm-keys.py")
+        provision_spec = importlib.util.spec_from_file_location("openclaw_litellm_provisioner", path)
+        self.provisioner = importlib.util.module_from_spec(provision_spec)
+        provision_spec.loader.exec_module(self.provisioner)
+        self.env = {
+            "LITELLM_MASTER_KEY": "sk-ADMIN-SYNTHETIC",
+            "LITELLM_OPENCLAW_MAIN_API_KEY": "sk-MAIN-SYNTHETIC",
+            "LITELLM_OPENCLAW_CRON_API_KEY": "sk-CRON-SYNTHETIC",
+        }
+
+    def test_status_reports_missing_alias_without_attempting_creation(self):
+        calls = []
+        def inventory(path, master, body=None):
+            calls.append((path, body))
+            if path == "/v1/models":
+                return 200, {"data": [{"id": "workstation-qwen"}]}
+            if path == "/key/list":
+                return 200, {"keys": []}
+            raise AssertionError(path)
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=inventory), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--status"])
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, [("/v1/models", None), ("/key/list", None)])
+        self.assertIn("models_allowlist=incomplete", output.getvalue())
+        self.assertIn("existing_key_count=0", output.getvalue())
+        self.assertNotIn("SYNTHETIC", output.getvalue())
+
+    def test_apply_fails_closed_without_required_model(self):
+        calls = []
+        def inventory(path, master, body=None):
+            calls.append((path, body))
+            if path == "/v1/models":
+                return 200, {"data": [{"id": "workstation-qwen"}]}
+            if path == "/key/list":
+                return 200, {"keys": []}
+            raise AssertionError("No provisioning call is allowed")
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=inventory), \
+             contextlib.redirect_stdout(io.StringIO()):
+            code = self.provisioner.main(["--apply"])
+        self.assertEqual(code, 2)
+        self.assertEqual(calls, [("/v1/models", None), ("/key/list", None)])
+
+
+
 if __name__ == "__main__":
     unittest.main()
