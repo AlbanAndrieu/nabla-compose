@@ -1,109 +1,185 @@
-# Nabla Compose — roadmap opérationnelle
+# Services Homelab — roadmap active
 
-**Mise à jour : 25 octobre 2026.** Cette page est la **seule liste active de
-priorités Compose**. Les livrables déjà fusionnés restent documentés dans Git ;
-les anciens comptes rendus sont préservés dans
-[archive du 24 octobre](archive/2026-10-24/roadmap.md).
-Un merge ne prouve jamais qu'une application TrueNAS est déployée.
+> Mise à jour : **25 octobre 2026**. Source d'autorité pour le travail restant
+> dans `nabla-compose`. Ce document décrit des **décisions et gates**,
+> pas une preuve de fonctionnement des services.
+>
+> L'[historique intégral jusqu'au 24 octobre](archive/roadmap-through-2026-10-24.md)
+> est conservé, octet pour octet (blob Git identique à l'ancien `docs/roadmap.md`).
+> Les états et commandes datés de cet historique **ne sont pas des consignes
+> de réparation courantes**.
 
-**Périmètre** : pfSense/Unbound, TrueNAS, Docker Compose, exporter/Prometheus,
-Akvorado/NetFlow, Talos/Kubernetes, secrets runtime et services homelab.
-Les sondes API, DTO et interfaces appartiennent à
-[fastapi-sample](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md).
-Les pages Next.js, icônes et cache du navigateur appartiennent à
-[nabla-site-alban](https://github.com/AlbanAndrieu/nabla-site-alban).
+## Convention de suivi
 
-## P0 — Collecte observabilité et sécurité des secrets
+- **DONE (code)** : implémentation versionnée et contrôle ciblé identifié ;
+  ne prouve pas le déploiement.
+- **NOT_VERIFIED (runtime)** : preuve opérateur absente ou antérieure à la
+  dernière modification ; ne pas marquer `UP` par inférence.
+- **BLOCKED** : prérequis explicite manquant ; noter la cause.
+- **ACCEPTED (runtime)** : preuves datées issues de TrueNAS/pfSense, test
+  fonctionnel et critère de rollback satisfaits.
 
-- [x] **Prometheus** : règle illisible corrigée sous UID 568, HTTP readiness 200.
-  **Pyroscope** : metastore réinitialisé après sauvegarde horodatée,
-  HTTP 200. Ne pas recommencer les resets sans preuve de nouvelle panne.
-- [ ] **Gatus** : vérifier la parité entre les 85 sondes déclarées
-  (63 TCP, 21 HTTP, 1 HTTPS), les statuts réellement observés et les
-  services **éligibles** du catalogue. Réconcilier `eligible`,
-  `monitored`, `observed`, `up`, `down`, `not_deployed` et
-  `intentionally_stopped` avant de réclamer 100 % de couverture.
-  Corriger les chemins HTTP, DNS et les identités seulement après
-  confirmation. Ne jamais forcer une sonde en échec au vert.
-- [x] **Akvorado** : scrapes Inlet/Outlet UP, métriques présentes ;
-  **Gatus**, **Redis**, **CrowdSec**, **pfSense exporter** UP au dernier
-  inventaire opérateur. La santé d'un scrape ne prouve pas l'ingestion
-  NetFlow → Kafka → ClickHouse.
-- [ ] **PostgreSQL exporter** : conteneur absent et secret absent.
-  Préparer un rôle SQL de monitoring sans privilèges d'administration ;
-  matérialiser `DATA_SOURCE_NAME` depuis Vaultwarden dans le chemin dédié,
-  vérifier `docker compose version` et `env_file.format: raw`. **Déploiement
-  non effectué**. Accepter `up=1` et `pg_up=1` séparément.
-- [ ] **FastAPI staging : scrape HTTP 401**. Après validation/déploiement
-  [FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376),
-  provisionner la clé de scrape dédiée, puis seulement monter un
-  `authorization.credentials_file` lisible par l'UID Prometheus 568.
-  Ne jamais rendre `/metrics` public ni partager la clé diagnostics.
-- [ ] **FastAPI Cloud HTTP 403** sur `/api/health-board` : diagnostic
-  d'autorisation/proxy côté FastAPI, pas un échec démontré d'Akvorado.
-  Valider la projection après déploiement du code au SHA exact.
-- [ ] Vérifier ensuite les métriques **fonctionnelles** : NetFlow récent,
-  consommation Kafka, écritures ClickHouse, Alertmanager et Mimir remote_write.
+L'ordre de traitement est **P0 OpenRAG → Sentry → DefectDojo**,
+puis **P1 Prometheus → Akvorado**. La sécurité mémoire de pfSense reste
+un chantier P0 indépendant. Ne pas démarrer plusieurs remédiations à la fois.
 
-**Entrée opérateur :**
-[observabilité et récupération](runbooks/2026-10-24-prometheus-pyroscope-dns-dot-recovery.md)
-et [commandes de diagnostic](runbooks/2026-10-24-homelab-operator-next-commands.md).
+## Dernière preuve opérateur — 25 octobre 2026
 
-## P0 — Résilience pfSense / DNS / réseau
+Le contrôle read-only `finish-migrations-20261024.sh --check --section critical`
+a retourné **PASS=8 FAIL=8 WARN=0 SKIP=0**. Les informations ci-dessous
+sont une **preuve datée**, pas une sonde permanente :
 
-- [ ] Corréler les OOM Unbound avec Snort, pfBlockerNG, PHP-FPM, CrowdSec
-  et les tâches nocturnes **sans conclure à une causalité non prouvée**.
-- [ ] Sauvegarder la configuration pfSense, puis valider une
-  migration **progressive** de l'upstream Unbound vers DNS-over-TLS
-  authentifié. Les overrides `int.albandrieu.com` restent locaux.
-- [ ] Garder les scrapes pfSense lents (300 s) et les probes limités ;
-  pas de relance ou de scan lourd sur Netgate 1100.
-- [ ] Séparer le profil DNS de la workstation
-  ([ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation))
-  de la configuration serveur pfSense.
+- **Prometheus :** `prometheus-targets` et `prometheus-config-access`
+  échouent ; `prometheus-rules-access` réussit. Ne pas réappliquer
+  d'ancienne réparation POSIX sans consulter le rapport privé.
+- **OpenRAG :** `openrag-startup`, `ai-runtime-recovery`,
+  `openrag-opensearch-legacy-secret`, `openrag-backstage-bundle`
+  échouent. Les dépendances et le préflight `openrag-env-migration`
+  réussissent. Aucun restart ni changement de mot de passe implicite.
+- **Sentry :** consommateurs et préflight de récupération réussissent.
+  Cela ne remplace pas un événement E2E frais.
+- **Akvorado :** configuration réussie ; `akvorado-blocked` et
+  `akvorado-fresh-inserts` échouent. Les compteurs historiques ne
+  valent pas une nouvelle insertion ClickHouse.
+- **DefectDojo :** préflight et accès privé réussissent ; ne pas
+  ouvrir davantage le service.
 
-**Références :** [pfSense/Unbound/pfBlockerNG](runbooks/2026-10-24-pfsense-unbound-pfblocker-whatsapp.md),
-[diagnostic pfSense](pfsense-diagnose-recover.md).
+**Séquence de diagnostic recommandée :** Prometheus → OpenRAG → Akvorado,
+sans intervention globale sur Sentry ou DefectDojo.
+Rapport privé sur TrueNAS : `/mnt/cpool/var/nabla/migration-20261024/session-uPAiEbSW`.
+Ne pas copier les secrets ou les logs bruts dans Git.
 
-## P1 — Services TrueNAS et dépendances critiques
+**Gatus (catalogue/observabilité) :** 85 sondes déclarées dans le
+dernier relevé de la PR #277, pas 85 services fonctionnellement attestés.
+Les nouveaux scripts `diagnose-gatus-monitors.py --check` et
+`diagnose-service-bundle.py --plan|--check` séparent `down`,
+`unverified`, observation périmée, disponibilité réseau et intention
+de déploiement. Refaire la comparaison sur l'API Gatus LAN avant
+d'affirmer une couverture.
+[Entrée diagnostique](runbooks/2026-10-25-homelab-operator-diagnostics.md) ·
+[Observabilité spécialisée](runbooks/2026-10-25-observability-triage.md).
 
-- [ ] **OpenRAG/Docling** : confirmer l'état App et conteneurs depuis
-  TrueNAS, secret backend, Langflow global et OpenSearch, puis demander
-  approbation avant tout démarrage ; ingestion synthétique avant données privées.
-- [ ] **Sentry** : établir santé Taskbroker/Taskworker, Kafka lag et
-  E2E frais ; ne pas réinitialiser les offsets pour corriger un faux rouge.
-- [ ] **DefectDojo** : confirmer origine privée, TLS, uWSGI et droits
-  minimaux avant intégration de nouveaux imports.
-- [ ] Réconcilier catalog v2, Backstage/Gatus/AutoKuma, identité des
-  services et secret matérialisé ; n'effectuer un cutover qu'avec rollback.
-- [ ] Talos/NFS/CSI : vérifier le smoke inter-nœuds et les droits avant
-  de planifier une migration de services.
+## P0 — Terminer la stabilisation réelle
 
-**Références :** [Runbook commandes opérateur](runbooks/2026-10-24-homelab-operator-next-commands.md),
-[Migration plateforme](homelab-platform-migration-roadmap.md),
-[OpenRAG](../apps/openrag/README.md).
+| ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
+| --- | --- | --- | --- |
+| H-01 | OpenRAG | Le 24/10 : `STOPPED`, composants absents ; démarrage annoncé mais non revérifié | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
+| H-02 | Sentry | Le 24/10 : `DEPLOYING`, `sentry-events-consumer` et `sentry-post-process-forwarder-errors` `unhealthy` ; redémarrage non revérifié | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
+| H-03 | DefectDojo | L'accès HTTPS privé signalé indisponible ; pas de nouvelle preuve après diagnostic | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
+| H-04 | pfSense / Unbound | OOM du noyau observés ; causalité des tâches Snort/CrowdSec/pfBlockerNG **non démontrée** | Horaires et mémoire corrélés, plan de changement unique avec sauvegarde et rollback |
 
-## P1 — Qualité locale et refactoring
+Actions :
+- [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
+  `diagnose-openrag-dependencies.sh --check` et
+  `reconcile-openrag-opensearch-secret.sh --check` depuis TrueNAS.
+- [ ] **H-01 :** accepter backend/frontend et les authentifications sans
+  régénérer de clé ni indexer le corpus `cpool/bababou`.
+- [ ] **H-02 :** contrôler les deux consommateurs avec
+  `diagnose-sentry-consumers.sh --check` et le smoke Sentry déjà versionné.
+- [ ] **H-03 :** isoler la panne par `diagnose-defectdojo.sh --check`,
+  sans modifier PostgreSQL, l'initializer ou la route publique.
+- [ ] **H-04 :** étudier les traces OOM, les processus et les tâches planifiées
+  en lecture seule ; ne déplacer aucune tâche sur simple corrélation temporelle.
 
-- [x] Ajouter une entrée commune qui orchestre les diagnostics existants en lecture
-  seule avec sélection explicite des services et états `PASS/FAIL/UNKNOWN`.
-  Garder un budget réseau fixe, éviter les sorties de secrets et isoler
-  chaque échec : un check en panne ne saute pas les autres.
-- [ ] Utiliser des tests unitaires synthétiques, un rapport borné et
-  la provenance par collecteur. Vérifier que les scripts sont exécutables
-  dans Git sans toucher aux scripts bibliothèque sans shebang.
-- [ ] Valider les changements sur un **worktree** local sans écraser
-  les modifications préexistantes du dépôt opérateur. Aucune CI payante
-  ne doit être lancée involontairement.
+Les contrôles regroupés sont décrits dans
+[Runtime acceptance](runbooks/homelab-runtime-acceptance.md).
+Les procédures spécialisées restent dans
+[le répertoire des runbooks](runbooks/README.md).
 
-## Critères de clôture
+## P1 — Corriger les causes instrumentées, sans panne induite
 
-Chaque entrée exige une preuve **runtime ou test du HEAD concerné**,
-un propriétaire de dépôt unique, un statut de déploiement et un rollback
-lorsqu'il y a mutation. `NOT_RUN` est distinct de `PASS`.
-Les incidents résolus et commentaires par date restent en
-[archive](archive/2026-10-24/) ou dans [incidents/](incidents/).
+| ID | Domaine | Fait établi | Reste à prouver |
+| --- | --- | --- | --- |
+| H-05 | Prometheus | Serveur et 15 règles sains au dernier triage ; `pfsense_exporter` ultérieurement UP | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
+| H-06 | Akvorado | Flux Kafka historiques ; erreurs metadata provider cumulées ; aucune nouvelle insertion ClickHouse attestée | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
+| H-07 | Catalogue OWNER/SERVICE | Identités Backstage/`x-nabla` déclarées ; consommateurs FastAPI/Site distincts | Vérifier dérive catalogue, puis comportement runtime par provenance |
+| H-08 | Secrets et noms | Chemins canoniques, renommages `openwebui`/`homeassistant` préparés | Réconcilier chaque Custom App et chaque secret avec rollback indépendant |
+| H-09 | Talos / Kubernetes | CSI NFS antérieurement accepté | Retained smoke multi-nœuds avant changement d'Ingress ou migration d'App |
 
-**Mode de travail de la présente PR** : quality gate complète volontairement
-**NOT_RUN** sur demande de l'opérateur. Cela ne retire aucun contrôle de
-publication et n'autorise aucun déploiement.
+Actions :
+- [ ] **H-05 :** classer chaque cible restante `DNS`, `TLS`, `HTTP`,
+  `TCP` ou `auth`, à partir des preuves Prometheus assainies. Le `401`
+  FastAPI `/metrics` nécessite la clé de scrape dédiée **après**
+  déploiement du correctif FastAPI ; `postgres_exporter:9187` refusé
+  ne signifie pas `PostgreSQL:5432` indisponible.
+- [ ] **H-06 :** comparer la configuration Akvorado effectivement montée,
+  le metadata provider, les compteurs sur deux fenêtres et ClickHouse ;
+  ne pas élargir le tracking pfSense sans décision.
+- [ ] **H-07 :** garder le catalogue Compose/`x-nabla` comme source
+  déclarative ; ne pas transformer une sonde inaccessible en preuve `DOWN`
+  d'une application.
+- [ ] **H-08 :** migrer les secrets un service à la fois ; garder les
+  sources historiques tant que la restauration n'est pas attestée.
+- [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
+  et dans la fenêtre approuvée.
+
+## P1 — Dette de code et de documentation
+
+- [x] **D-01 :** séparer la roadmap active de ses 3 770 lignes historiques
+  sans supprimer l'historique ni contourner le contrôle de diff destructif.
+- [x] **D-02 :** créer un index des runbooks avec statut `actif` ou
+  `historique` ; une seule procédure d'acceptation courante.
+- [ ] **D-03 :** le registre read-only a été extrait de
+  `finish-migrations-20261024.sh` vers
+  `scripts/truenas/migration-diagnostic-sections.sh` et les tests négatifs
+  ont été ajoutés ; **quality gate complète à exécuter**. Conserver les modes
+  `--apply-*` dans la CLI protégée ; toute extraction de mutation reste différée.
+- [ ] **D-04 :** parseur HTTP/MIME DefectDojo factorisé et contrôle DNS
+  fail-closed ajouté ; tests négatifs versionnés mais **non exécutés**.
+  Valider 200 HTML / 200 JSON / 403 / 000 / DNS timeout.
+- [ ] **D-05 :** extraire les primitives redondantes de diagnostics Docker
+  (état, health, compteurs, expurgation) uniquement avec tests négatifs.
+- [ ] **D-06 :** remplacer les noms de lanceurs temporaires datés
+  `pr274` seulement après publication d'un point d'entrée générique
+  testé, sans modifier les scripts historiques en exploitation.
+- [ ] **D-07 :** réduire la duplication de preuves datées entre les runbooks
+  d'incident et la roadmap ; publier les observations futures dans
+  l'incident correspondant, puis ne garder ici que l'état et le lien.
+
+[Registre des risques des refactorings](runbooks/homelab-refactoring-risk-register.md) :
+R-01 à R-07, avec conditions de rollback et seuils L1/L3.
+
+**Conditions de clôture documentaire :** liens relatifs valides, archivage
+intègre, conformité `agent-skills-check`, tests ciblés et quality gate
+complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
+
+## Autorités, sécurité et séquence opérateur
+
+| Projet | Autorité |
+| --- | --- |
+| `nabla-compose` | Compose/`x-nabla`, exposition déclarée, topologie, scripts TrueNAS/Talos/pfSense, runbooks |
+| `fastapi-sample` | Sondes, diagnostic runtime, DTO OWNER/SERVICE, contrôle d'accès |
+| `nabla-site-alban` | Présentation des services, icônes, filtres, cache client expurgé |
+| `nabla-site-bababou` | Site et données privées, sans duplication de la logique transverse |
+
+Lire [la politique des skills](agent-skills-architecture.md) et
+[`AGENTS.md`](../AGENTS.md). Les skills externes
+`docker-compose-patterns` et `kubernetes-specialist` exigent de
+**Ask the user** avant installation. Respecter le stockage TrueNAS,
+Vaultwarden, `democratic-csi`, `entityRef` et `catalogRevision`.
+Ne pas ouvrir la production, assouplir TLS, supprimer des données, ni
+exécuter de remédiation implicite pour obtenir un `PASS`.
+
+### Contrôle local-first
+
+1. Créer un worktree isolé à partir du HEAD vérifié, sans toucher au checkout TrueNAS.
+2. Préparer une `.venv` par worktree à l'aide de `uv` et du lockfile.
+3. Exécuter les tests ciblés avec cas négatifs.
+4. Exécuter `just agent-skills-check` puis `just quality`.
+5. Vérifier le HEAD testé avant toute déclaration `PASS`.
+
+La [procédure qualité versionnée](runbooks/2026-10-24-pr274-local-quality-one-shot.md)
+appartient à l'historique de la PR fusionnée ; préférer le
+[skill local-first](../.agents/skills/local-first-quality/SKILL.md)
+pour toute nouvelle PR.
+
+## Archives et chantiers spécialisés
+
+Les preuves et décisions antérieures (DSOMM, GitOps, YubiKey, OpenClaw,
+Cloudflare, Sentry, Gatus, Scrutiny, Talos et sécurité) sont **conservées**
+dans l'[archive datée](archive/roadmap-through-2026-10-24.md).
+Pour les chantiers durables, consulter également :
+[secrets](secrets-migration-roadmap.md) ·
+[catalogue sécurité](service-catalog-security-graph.md) ·
+[plateforme Kubernetes](homelab-platform-migration-roadmap.md) ·
+[gestion des skills](agent-skills-architecture.md).
