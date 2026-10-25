@@ -69,6 +69,27 @@ class TrueNASInventoryTests(unittest.TestCase):
         self.assertIn("truenas_runtime_model_gpt_4_1=absent", output.getvalue())
         self.assertNotIn("sk-NONREAL_ADMIN_ONLY", output.getvalue())
 
+    def test_redirect_handler_refuses_external_target(self):
+        from urllib.request import Request
+
+        request = Request("http://127.0.0.1:14000/v1/models",
+                          headers={"Authorization": "Bearer sk-SYNTHETIC"})
+        self.assertIsNone(module.RejectRedirects().redirect_request(
+            request, None, 302, "Found", {},
+            "https://unexpected.example/collect"))
+
+    def test_admin_fetch_blocks_redirect_and_bypasses_proxy(self):
+        from urllib.error import HTTPError
+
+        with patch.object(module, "build_opener") as opener:
+            opener.return_value.open.side_effect = HTTPError(
+                module.TUNNEL + "/key/list", 302, "Found", {}, None)
+            result = module.fetch_local("/key/list", "sk-SYNTHETIC")
+        self.assertEqual(result, (302, None))
+        handlers = opener.call_args.args
+        self.assertTrue(any(isinstance(h, module.ProxyHandler) for h in handlers))
+        self.assertTrue(any(isinstance(h, module.RejectRedirects) for h in handlers))
+
     def test_tunnel_failure_does_not_assume_empty_key_list(self):
         with patch.object(module, "loopback_listener", return_value=True), \
              patch.object(module, "fetch_local", return_value=(403, None)):
