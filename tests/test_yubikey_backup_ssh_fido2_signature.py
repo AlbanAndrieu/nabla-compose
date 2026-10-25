@@ -24,7 +24,13 @@ class Contracts(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.home = Path(self.tmp.name)
         self.key, self.pub = mod.paths(self.home)
-        self.key.parent.mkdir(parents=True, mode=0o700)
+        # Create BOTH directories with explicit 0700 permissions.
+        # Path.mkdir(parents=True) uses default permissions for parents,
+        # which yields .ssh=0755 under a typical umask and invalidates tests.
+        (self.home / ".ssh").mkdir(mode=0o700)
+        self.key.parent.mkdir(mode=0o700)
+        self.assertEqual(stat.S_IMODE((self.home / ".ssh").stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(self.key.parent.stat().st_mode), 0o700)
         self.key.write_text("fake private handle, never an actual key")
         self.key.chmod(0o600)
         self.pub.write_text("sk-ssh-ed25519@openssh.com AAAAFAKEBASE64 backup\n")
@@ -50,6 +56,14 @@ class Contracts(unittest.TestCase):
              patch.object(mod.subprocess, "run", return_value=self.fingerprint()) as runner:
             self.assertEqual(mod.local_state(self.home), "EXISTING_FIDO2_KEY_READY_FOR_SIGNATURE")
         self.assertEqual(runner.call_count, 1)
+
+    def test_intermediate_ssh_directory_must_reject_group_read_permission(self):
+        # Fail closed even when the leaf key directory itself is mode 0700.
+        (self.home / ".ssh").chmod(0o750)
+        with patch.object(mod.shutil, "which", return_value="/bin/tool"), \
+             patch.object(mod.subprocess, "run") as runner:
+            self.assertEqual(mod.local_state(self.home), "UNTRUSTED_KEY_DIRECTORY")
+            runner.assert_not_called()
 
     def test_untrusted_directory_file_and_symlink_rejected(self):
         with patch.object(mod.shutil, "which", return_value="/bin/tool"):
