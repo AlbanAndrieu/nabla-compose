@@ -42,8 +42,9 @@ Le script inspecte les metadonnees SANS lire les secrets. Il refuse les
 symlinks, hardlinks, proprietaires non-root et types non classiques.
 Il retire la lecture/ecriture/traversee des autres utilisateurs et
 l'ecriture du groupe ; il preserve uid/gid ET group-read/traverse.
-Il corrige les modes des .env, .env.secrets, .env.compose et
-.env.*.secrets ; il ne touche pas aux autres types de fichiers.
+Il corrige les modes de TOUS les fichiers reguliers sous ce root,
+y compris JSON/PEM/.key et les dotenv ; seuls les fichiers dotenv
+perdent aussi leur bit executable. Les uid/gid sont preserves.
 Il ne corrige pas les anciens chemins legacy en dehors du scope.
 
 Apres revue du rapport, action explicite et bornee :
