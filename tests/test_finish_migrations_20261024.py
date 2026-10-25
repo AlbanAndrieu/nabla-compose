@@ -294,6 +294,40 @@ def test_apisix_is_optional_until_deployed(fake_operator):
     assert len(list(report.glob("session-*"))) == 1
 
 
+def test_postmigration_unknown_probe_is_warn_and_exit_two(fake_operator):
+    target, _, report, marker = fake_operator
+    root = target.parents[2]
+    (root / "scripts/generate-catalog-v2-artifacts.py").write_text(
+        "raise SystemExit(0)\\n", encoding="utf-8",
+    )
+    (target.parent / "diagnose-gatus-monitors.py").write_text(
+        "raise SystemExit(2)\\n", encoding="utf-8",
+    )
+    result = invoke(fake_operator, "--check", "--section", "postmigration")
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "PASS=3 FAIL=0 WARN=1" in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
+@pytest.mark.parametrize(
+    ("return_code", "expected_status", "expected_exit"),
+    [(0, "PASS=1", 0), (1, "FAIL=1", 1), (2, "WARN=1", 2)],
+)
+def test_apisix_runtime_observation_is_explicit(
+    fake_operator, return_code, expected_status, expected_exit,
+):
+    target, _, report, marker = fake_operator
+    (target.parent / "apisix.sh").write_text(
+        f"#!/bin/bash\\nexit {return_code}\\n", encoding="utf-8",
+    )
+    result = invoke(fake_operator, "--check", "--section", "apisix")
+    assert result.returncode == expected_exit, result.stdout + result.stderr
+    assert expected_status in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
 def test_critical_read_only_section_combines_five_independent_gates(
     fake_operator,
 ):
