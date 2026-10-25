@@ -194,6 +194,43 @@ def classify(phase: str, state: str, log: str | None) -> dict:
             signals.append('targets_api_unavailable')
         if signals:
             evidence['signals'] = signals
+        # Prometheus prints one bounded row per active job. Only known
+        # source-controlled job IDs and fixed error classes leave the log.
+        jobs = {
+            'prometheus', 'grafana', 'alloy', 'loki', 'mimir', 'tempo',
+            'alertmanager', 'truenas_node', 'kafka_exporter', 'fastapi_sample',
+            'pyroscope', 'docling', 'n8n', 'pihole_exporter', 'postgres_exporter',
+            'redis_exporter', 'influxdb', 'pfsense_exporter', 'akvorado_inlet',
+            'akvorado_outlet', 'litellm_hermes', 'gatus', 'keycloak', 'crowdsec',
+            'haproxy', 'clickhouse', 'opensearch', 'opensearch-security',
+        }
+        safe_errors = {
+            'dns', 'connection_refused', 'timeout', 'tls', 'authorization',
+            'http_404', 'http_5xx', 'no_error_reported', 'other_redacted',
+        }
+        failures = {}
+        for line in log.splitlines()[:320]:
+            row = re.fullmatch(
+                r'\s*([a-z0-9_-]{1,64})\s+targets=(\d+)\s+'
+                r'up=(\d+)\s+not_up=(\d+)\s*', line)
+            if row and row.group(1) in jobs:
+                job = row.group(1)
+                total, up, down = (int(row.group(i)) for i in (2, 3, 4))
+                if 0 < down <= 512 and total <= 512 and up + down == total:
+                    failures[job] = {'job': job, 'targets': total,
+                                     'up': up, 'not_up': down, 'errors': []}
+        for line in log.splitlines()[:320]:
+            row = re.fullmatch(
+                r'\s*([a-z0-9_-]{1,64})\s+(down|unknown)\s+'
+                r'([a-z0-9_]+)\s*', line)
+            if row:
+                job, _, kind = row.groups()
+                if job in failures and kind in safe_errors:
+                    categories = failures[job]['errors']
+                    if kind not in categories and len(categories) < 5:
+                        categories.append(kind)
+        if failures:
+            evidence['failed_jobs'] = [failures[job] for job in sorted(failures)]
         if runtime_down:
             category = 'prometheus_runtime_unavailable'
         elif config_bad:
