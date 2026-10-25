@@ -298,10 +298,10 @@ def test_postmigration_unknown_probe_is_warn_and_exit_two(fake_operator):
     target, _, report, marker = fake_operator
     root = target.parents[2]
     (root / "scripts/generate-catalog-v2-artifacts.py").write_text(
-        "raise SystemExit(0)\\n", encoding="utf-8",
+        "raise SystemExit(0)\n", encoding="utf-8",
     )
     (target.parent / "diagnose-gatus-monitors.py").write_text(
-        "raise SystemExit(2)\\n", encoding="utf-8",
+        "raise SystemExit(2)\n", encoding="utf-8",
     )
     result = invoke(fake_operator, "--check", "--section", "postmigration")
     assert result.returncode == 2, result.stdout + result.stderr
@@ -319,7 +319,7 @@ def test_apisix_runtime_observation_is_explicit(
 ):
     target, _, report, marker = fake_operator
     (target.parent / "apisix.sh").write_text(
-        f"#!/bin/bash\\nexit {return_code}\\n", encoding="utf-8",
+        f"#!/bin/bash\nexit {return_code}\n", encoding="utf-8",
     )
     result = invoke(fake_operator, "--check", "--section", "apisix")
     assert result.returncode == expected_exit, result.stdout + result.stderr
