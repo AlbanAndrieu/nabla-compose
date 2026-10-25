@@ -187,6 +187,30 @@ class SecretsRendererTests(TestCase):
         with self.assertRaises(renderer.SecretsError):
             renderer.validate_manifest(manifest)
 
+    def test_repository_manifest_import_names_are_globally_unique(self) -> None:
+        """Shared provider keys must not silently cross app import boundaries."""
+        manifest = renderer.load_manifest(ROOT / "config" / "secrets" / "manifest.json")
+        owners: dict[str, str] = {}
+        by_app = {entry["app"]: entry for entry in manifest["items"]}
+        for entry in manifest["items"]:
+            for secret in entry["secrets"]:
+                name = secret.get("importEnv", secret["env"])
+                self.assertNotIn(name, owners, f"{name} shared by {owners.get(name)} and {entry['app']}")
+                owners[name] = entry["app"]
+
+        def source(app: str, env: str) -> str:
+            secret = next(
+                s for s in by_app[app]["secrets"] if s["env"] == env
+            )
+            return secret.get("importEnv", secret["env"])
+
+        self.assertEqual(source("openrag", "OPENSEARCH_PASSWORD"), "OPENRAG_OPENSEARCH_PASSWORD")
+        self.assertEqual(source("opensearch", "OPENSEARCH_PASSWORD"), "OPENSEARCH_PASSWORD")
+        self.assertEqual(source("openrag", "LITELLM_IDE_API_KEY"), "OPENRAG_LITELLM_IDE_API_KEY")
+        self.assertEqual(source("litellm", "LITELLM_IDE_API_KEY"), "LITELLM_IDE_API_KEY")
+        self.assertEqual(source("karakeep", "KARAKEEP_OPENAI_API_KEY"), "KARAKEEP_OPENAI_API_KEY")
+        self.assertEqual(source("litellm", "OPENAI_API_KEY"), "OPENAI_API_KEY")
+
     def test_dotenv_literal_disables_compose_interpolation(self) -> None:
         self.assertEqual(renderer.dotenv_literal("a$B${C}"), "'a$B${C}'")
         self.assertEqual(renderer.dotenv_literal("let's\\go"), "'let\\'s\\\\go'")

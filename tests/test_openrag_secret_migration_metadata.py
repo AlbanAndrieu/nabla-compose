@@ -17,7 +17,7 @@ class OpenragSecretMetadataTest(unittest.TestCase):
         self.assertEqual(entry["item"], "nabla/prod/openrag")
         self.assertEqual(
             {secret["env"] for secret in entry["secrets"]},
-            {"OPENSEARCH_PASSWORD", "LITELLM_IDE_API_KEY"},
+            {"OPENSEARCH_PASSWORD", "LITELLM_IDE_API_KEY", "OPENRAG_ENCRYPTION_KEY"},
         )
         for secret in entry["secrets"]:
             self.assertEqual(secret["rotation"], "preserve")

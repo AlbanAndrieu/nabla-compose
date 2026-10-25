@@ -219,6 +219,21 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Manifest Vaultwarden — réparation P0 (26 octobre)
+
+- **Validation bloquante identifiée :** trois `importEnv` partagés
+  entre Karakeep, LiteLLM, OpenSearch et OpenRAG. Les sources d'import
+  ont été rendues uniques, sans modifier les clés Docker ni les valeurs.
+  Rejouer le validateur local et la comparaison OpenRAG avec le
+  Python de l'opérateur (venv, sans `sudo`).
+- **Comparateur OpenRAG :** le `sudo python3` système ne fournit
+  pas `python-dotenv` ; le précédent « conflit sémantique » de
+  bootstrap reste **à confirmer avec l'interpréteur approprié**.
+  Ne pas lancer `--restage openrag`.
+- **Scanopy :** `apps/scanopy/` ne stocke volontairement aucun secret.
+  Le fichier canonique sous `/mnt/cpool/secrets/runtime/scanopy/`
+  reste vide et doit être matérialisé depuis Vaultwarden.
+
 ## Relevé opérateur du 26 octobre — DefectDojo, Docling et migration
 
 - **DefectDojo :** les sondes depuis TrueNAS et la workstation confirment

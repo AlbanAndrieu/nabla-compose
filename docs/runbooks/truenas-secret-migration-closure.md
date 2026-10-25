@@ -85,6 +85,53 @@ Le `FAIL` de la session historique est obsolète. Le smoke
 HTTPS privé et le chargement de la page sont acceptés ; la connexion
 authentifiée n'est pas testée.
 
+## Diagnostic des sources d'import et des dépendances Python (26 octobre)
+
+Le manifeste contenait trois collisions d'`importEnv` :
+`OPENSEARCH_PASSWORD` (OpenRAG/OpenSearch),
+`LITELLM_IDE_API_KEY` (OpenRAG/LiteLLM) et
+`OPENAI_API_KEY` (Karakeep/LiteLLM). La validation les rejetait
+**avant toute connexion Vaultwarden**. Les imports sont maintenant
+namespacés pour le consommateur : `OPENRAG_OPENSEARCH_PASSWORD`,
+`OPENRAG_LITELLM_IDE_API_KEY` et `KARAKEEP_OPENAI_API_KEY`.
+Les clés runtime `OPENSEARCH_PASSWORD`, `LITELLM_IDE_API_KEY`
+et `KARAKEEP_OPENAI_API_KEY` **ne changent pas** ; aucune valeur ni
+secret n'est régénéré. Les procédures qui exportent les variables
+d'import devront utiliser ces nouveaux noms, à partir des valeurs
+existantes dans le coffre.
+
+Les sources d'import sont une frontière de sécurité : ne pas assouplir
+la règle globale d'unicité, notamment entre Karakeep et LiteLLM.
+
+Le comparateur `compare_dotenv_sources.py` utilise
+`python-dotenv` + `jsonschema`. Sur TrueNAS, utiliser le Python du
+venv de l'opérateur **sans `sudo`** ; son lecteur élève uniquement
+la lecture des fichiers privés et ne transmet pas `BW_SESSION`
+au processus `sudo`. Ne pas exécuter un interpréteur installé
+dans `$HOME` avec des privilèges root :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+"$HOME/.cache/nabla-compose/dev-venv/bin/python" \
+  scripts/secrets/compare_dotenv_sources.py \
+  --app openrag \
+  --left /mnt/cpool/openrag/.env.secrets \
+  --right /mnt/cpool/secrets/runtime/openrag/.env.secrets
+```
+
+Si le venv n'existe pas, installer les outils en espace utilisateur
+avec `bash scripts/truenas/bootstrap-dev-tools.sh` (sans `sudo`).
+**Attention :** l'ancien `bootstrap-repository-env-files.sh` regroupe
+tous les échecs du comparateur sous « migration conflict ». Le FAIL
+du rapport historique peut donc être dû à l'environnement Python
+et non à des valeurs divergentes. La comparaison en venv est le
+pré-requis avant `--restage openrag` ; aucun restage automatique.
+
+Le répertoire `apps/scanopy/` ne contient pas de `.env.secrets`,
+conformément à la politique : les credentials ne sont pas stockés dans Git.
+Le chemin Compose à examiner est
+`/mnt/cpool/secrets/runtime/scanopy/.env.secrets`.
+
 ## Procédure d'inspection sans afficher les secrets
 
 Sur TrueNAS, exécuter les étapes séparément depuis la révision revue :
