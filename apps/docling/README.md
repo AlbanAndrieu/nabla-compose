@@ -17,15 +17,35 @@ The service is deliberately private. Do not add Cloudflare public exposure for t
 
 ## Deploy on TrueNAS
 
+The October 25 operator's read-only diagnostic reports **App ABSENT**:
+there is no App to `app.update` or `app.redeploy`. **Create exactly
+one App using the reviewed single-App deploy script**, not an unconditional
+update/redeploy. No secret or personal PDF is involved.
+
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-
-sudo midclt call -j app.update docling \
-  "$(jq -cn --arg include '/mnt/cpool/compose/nabla-compose/apps/docling/compose.yml' \
-    '{custom_compose_config:{include:[$include]}}')"
-
-sudo midclt call -j app.redeploy docling
+sudo bash scripts/truenas/deploy-docling.sh --check
 ```
+
+The preflight checks the compose syntax, presence of `intranet` and
+`traefik_network` and the **locally cached CPU image**. No image
+pull, App creation, or modification happens during `--check`.
+If the image is absent, stop and review the explicit ~5GB image pull
+separately; do not repeatedly schedule middleware installation jobs.
+
+After successful preflight and only after approving this *single-App*
+creation:
+
+```bash
+sudo bash scripts/truenas/deploy-docling.sh --apply
+sudo python3 scripts/truenas/diagnose-docling-readiness.py --check
+```
+
+The script requires an explicit `--apply`. It creates `docling`
+if absent or updates its reviewed Compose include if it already exists.
+It never touches ClickHouse, OpenSearch, Kafka, or the private corpus.
+**Readiness is not PDF ingestion acceptance.**
+
 
 The first start can be long because the CPU image and model artifacts are large. Diagnose readiness instead of repeatedly redeploying.
 
