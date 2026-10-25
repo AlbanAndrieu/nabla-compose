@@ -112,6 +112,15 @@ class UpgradeContracts(unittest.TestCase):
         with patch.object(mod, "run", return_value=(0, fixture.encode(), b"")):
             self.assertEqual(mod.unit_exec(), self.old)
 
+    def test_systemd_repeated_node_path_and_argv_is_not_drift(self):
+        node = str(self.new / "bin/node")
+        entry = str(self.new / "lib/node_modules/openclaw/openclaw.mjs")
+        output = ("{ path=" + node + " ; argv[]=" + node +
+                  " --max-old-space-size=16053 " + entry +
+                  " gateway --port 18789 ; ignore_errors=no }").encode()
+        with patch.object(mod, "run", return_value=(0, output, b"")):
+            self.assertEqual(mod.unit_exec(), self.new)
+
     def test_legacy_system_node_allowed_only_for_old_package(self):
         def fixture(package):
             return ("{ path=/usr/bin/node ; argv[]=/usr/bin/node "
