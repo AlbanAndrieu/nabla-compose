@@ -288,7 +288,7 @@ def test_apisix_is_optional_until_deployed(fake_operator):
     assert "    apisix)" in lib
     assert "record apisix-runtime SKIP" in lib
     result = invoke(fake_operator, "--check", "--section", "apisix")
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.returncode == 2, result.stdout + result.stderr
     assert "SKIP=1" in result.stdout
     assert not marker.exists()
     assert len(list(report.glob("session-*"))) == 1
