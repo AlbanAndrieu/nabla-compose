@@ -19,6 +19,11 @@ esac
 image="$(printenv NABLA_POSTGRES_FIXTURE_IMAGE_SHA256 2>/dev/null || true)"
 [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || fail 'explicit local image SHA256 required'
 command -v docker >/dev/null 2>&1 || fail 'docker missing'
+# A workstation may have a remote TrueNAS Docker context; refuse it.
+docker_host="$(printenv DOCKER_HOST 2>/dev/null || true)"
+[[ -z "$docker_host" || "$docker_host" == unix:///* ]] || fail 'remote DOCKER_HOST prohibited'
+docker_endpoint="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null)" || fail 'Docker context unavailable'
+[[ "$docker_endpoint" == unix:///* ]] || fail 'local Unix Docker context required'
 local_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)" || fail 'image not cached'
 [[ "$local_image" == "$image" ]] || fail 'image digest mismatch'
 if [[ "$mode" == check ]]; then
