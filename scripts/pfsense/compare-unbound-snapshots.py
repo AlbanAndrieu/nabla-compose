@@ -19,21 +19,56 @@ import sys
 
 MAX_REPORT_BYTES = 512 * 1024
 FINGERPRINTS = ("unbound_config", "dnsbl_legacy_ini", "dnsbl_python_ini")
-HEADERS = {
-    "pfblocker_unbound_stop_marker": "stop",
-    "pfblocker_unbound_start_marker": "start",
+
+# Deliberately fixed strings: no filenames, log lines or secrets in errors.
+REMEDIES = {
+    "before_file_missing": "Capture an earlier report first; example paths are not created automatically.",
+    "after_file_missing": "Capture a later report; use a different file from the baseline.",
+    "before_file_empty": "The earlier capture is empty; rerun the read-only collector.",
+    "after_file_empty": "The later capture is empty; rerun the read-only collector.",
+    "before_file_is_symlink": "Use a real regular file, not a symlink.",
+    "after_file_is_symlink": "Use a real regular file, not a symlink.",
+    "before_file_not_regular": "Use a regular file containing a verbose Unbound report.",
+    "after_file_not_regular": "Use a regular file containing a verbose Unbound report.",
+    "before_file_too_large": "Input must be a bounded report under 512 KiB.",
+    "after_file_too_large": "Input must be a bounded report under 512 KiB.",
+    "before_missing_pfSense_time": "Use PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check for the earlier capture.",
+    "after_missing_pfSense_time": "Use PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check for the later capture.",
+    "before_missing_unbound_pid": "The earlier report lacks the numeric Unbound identity.",
+    "after_missing_unbound_pid": "The later report lacks the numeric Unbound identity.",
+    "reports_same_timestamp": "These reports describe the same moment; capture a fresh later report.",
+    "reports_out_of_order": "Set PFSENSE_BEFORE to the older capture and PFSENSE_AFTER to the newer one.",
+    "before_collector_incomplete": "The earlier report contains a collector failure; repeat the read-only capture.",
+    "after_collector_incomplete": "The later report contains a collector failure; repeat the read-only capture.",
+    "snapshot_read_error": "Unable to read one report; verify file permissions and regular-file type.",
 }
 
 
-def load_report(filename: str) -> str:
+def load_report(filename: str, role: str = "before") -> str:
+    if role not in ("before", "after"):
+        raise ValueError("invalid_report_role")
     path = Path(filename)
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_REPORT_BYTES:
-        raise ValueError("report missing, symlinked or exceeds the bounded input limit")
+    if path.is_symlink():
+        raise ValueError(f"{role}_file_is_symlink")
+    if not path.exists():
+        raise ValueError(f"{role}_file_missing")
+    if not path.is_file():
+        raise ValueError(f"{role}_file_not_regular")
+    size = path.stat().st_size
+    if size == 0:
+        raise ValueError(f"{role}_file_empty")
+    if size > MAX_REPORT_BYTES:
+        raise ValueError(f"{role}_file_too_large")
     with path.open("rb") as handle:
         data = handle.read(MAX_REPORT_BYTES + 1)
     if len(data) > MAX_REPORT_BYTES:
-        raise ValueError("report exceeds the bounded input limit")
-    return data.decode("utf-8", errors="replace")
+        raise ValueError(f"{role}_file_too_large")
+    report = data.decode("utf-8", errors="replace")
+    if ("EVIDENCE INCOMPLETE" in report
+            or "ERROR: lifecycle_classifier_failed" in report
+            or "ERROR: feed_log_classifier_failed" in report):
+        raise ValueError(f"{role}_collector_incomplete")
+    return report
 
 
 def field(text: str, pattern: str) -> str | None:
@@ -129,11 +164,19 @@ def oom_events_after(text: str, baseline: datetime) -> tuple[int, int, str]:
 
 def compare(before: str, after: str) -> dict[str, str]:
     a, b = report_time(before), report_time(after)
-    if a is None or b is None or b <= a:
-        raise ValueError("reports require ordered pfSense_time with UTC offsets")
+    if a is None:
+        raise ValueError("before_missing_pfSense_time")
+    if b is None:
+        raise ValueError("after_missing_pfSense_time")
+    if b == a:
+        raise ValueError("reports_same_timestamp")
+    if b < a:
+        raise ValueError("reports_out_of_order")
     old_pid, new_pid = pid(before), pid(after)
-    if not old_pid or not new_pid:
-        raise ValueError("both reports require a numeric Unbound PID")
+    if not old_pid:
+        raise ValueError("before_missing_unbound_pid")
+    if not new_pid:
+        raise ValueError("after_missing_unbound_pid")
 
     boot = started_local(after)
     if boot is not None:
@@ -203,9 +246,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--after", required=True, help="sanitized later report")
     args = parser.parse_args(argv)
     try:
-        result = compare(load_report(args.before), load_report(args.after))
-    except (ValueError, OSError) as exc:
-        print(f"ERROR: unbound_comparison_incomplete: {type(exc).__name__}", file=sys.stderr)
+        result = compare(
+            load_report(args.before, role="before"),
+            load_report(args.after, role="after"),
+        )
+    except ValueError as exc:
+        reason = str(exc)
+        if reason not in REMEDIES:
+            reason = "unexpected_report_format"
+        print(f"ERROR: unbound_comparison_incomplete reason={reason}", file=sys.stderr)
+        print("hint=" + REMEDIES.get(
+            reason, "Review report format; expected verbose pfSense_time and unbound_pid."
+        ), file=sys.stderr)
+        return 2
+    except OSError:
+        print("ERROR: unbound_comparison_incomplete reason=snapshot_read_error", file=sys.stderr)
+        print("hint=" + REMEDIES["snapshot_read_error"], file=sys.stderr)
         return 2
     for key, value in result.items():
         print(f"{key}={value}")
