@@ -301,3 +301,70 @@ PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
 **Ces nouveaux tests ne sont pas encore exécutés sur le HEAD publié**.
 Ne pas déclencher de CI GitHub payante. Aucune modification des services
 ou de pfSense n'est justifiée à ce stade.
+
+
+## Erreur du collecteur et durcissement — 25 octobre, 19:57 CET
+
+**Preuve opérateur :** 30/30 tests PASS (14 Unbound, 16 console) avant
+cette correction, mais le diagnostic réel pfSense échouait sur toutes les
+sections de journaux : `awk: syntax error at source line 69` (mot `block`).
+Il affichait ensuite à tort `0 distinct historical OOM records`.
+
+### Cause du défaut de diagnostic
+
+Un commentaire AWK contenait une apostrophe dans `block's header` alors
+que le programme AWK était délimité par des apostrophes dans le shell
+FreeBSD. La chaîne était coupée prématurément. Le test `bash -n`
+vérifiait le script workstation mais pas le **heredoc distant**.
+Le suffixe `| tail -35 || true` masquait ensuite le code de sortie AWK.
+
+**Correctifs persistants :** commentaire corrigé, vérification du heredoc
+par `/bin/sh -n` dans les tests hors réseau, stockage borné des
+35 derniers événements directement dans AWK, et sortie **non nulle (70)**
+avec `ERROR: lifecycle_classifier_failed` si l'analyse échoue.
+Un échec de parsing ne doit jamais être présenté comme zéro événement.
+
+### Détection systématique des erreurs de feeds
+
+Le même script inspecte désormais les dernières 2 500 lignes disponibles
+des journaux pfBlockerNG (principal, extras, error) et Snort (updater et
+rotations prévues), sans téléchargement ni émission d'URL, tokens
+ou lignes de journaux brutes. Les catégories sont :
+`http_403_or_404`, `http_429_rate_limited`, `http_5xx`,
+`download_transport_timeout`, `download_failed_other`,
+`asn_ipinfo_retry_signature`, `php_memory_exhausted` et
+`download_oversize_or_allocation`. Ce sont des **signaux historiques**
+sur une fenêtre bornée : ils ne prouvent pas une panne courante.
+
+### Seuils d'alerte sur les fichiers téléchargés
+
+| Groupe | Warning | Critique | Précaution |
+| --- | ---: | ---: | --- |
+| DNSBL `.orig` | 16 Mio | 64 Mio | Ancien feed UT1 Adult d'environ 124,5 Mo ; PHP plafonné à 128M |
+| Snort règles/archives | 64 Mio | 128 Mio | Inspecter avant d'attribuer un OOM au job de 02:09 |
+
+Les contrôles utilisent uniquement `stat` FreeBSD sur les chemins
+connus. Ils affichent un **nom de fichier expurgé** et la taille, pas
+les données. Les seuils indiquent un risque à examiner, **pas une
+corruption ni une causalité confirmée**. Le nombre de fichiers
+inspectés est affiché ; un fichier situé ailleurs peut échapper au scan.
+Ne pas augmenter durablement le `memory_limit=128M` du Netgate 1100.
+
+### Validation rapide (aucune mutation pfSense ni CI payante)
+
+```bash
+just pfsense-unbound-restart-test
+```
+
+```bash
+PFSENSE_OUTPUT=compact just pfsense-unbound-restart-check
+```
+
+Le rapport unique contient la provenance Unbound, les OOM historiques,
+les erreurs de téléchargement et les tailles de fichiers suspects.
+Pour détailler, remplacer `compact` par `verbose` ; l'expurgation
+reste effective. Si le classifieur échoue, la commande doit échouer.
+
+**Qualité :** les 30 tests de l'ancienne version passent selon
+l'opérateur. Les 18 tests Unbound et 16 tests console de la version
+en cours restent à revalider sur le SHA exact.
