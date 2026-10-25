@@ -742,3 +742,26 @@ openclaw-morning-briefing-apply:
     python3 scripts/workstation/openclaw-heartbeat-gitops.py --apply
     python3 scripts/workstation/openclaw-heartbeat-gitops.py --briefing-apply
 
+
+# Local-only, read-only 429 collection: workstation LiteLLM spend API and
+# redacted OpenClaw/systemd/Docker counters. No user exports or model calls.
+openclaw-429-auto:
+    python3 scripts/workstation/diagnose-openclaw-429-auto.py --hours 2
+
+# Hermetic contracts; no CI credits, model calls, or service restart.
+openclaw-429-fix-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-429-auto.py scripts/workstation/repair-openclaw-429.py tests/test_openclaw_429_auto.py tests/test_openclaw_429_repair.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_429_auto.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_429_repair.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
+
+# Preflight only: validate that cron's existing scoped key permits GPT-4.1.
+openclaw-429-fix-plan:
+    python3 scripts/workstation/repair-openclaw-429.py
+
+# Explicit one-shot fix on the Workstation. Back up, isolate cron key, cap
+# global concurrency, then restart/recheck Gateway or roll back.
+# Never touches memory.search, virtual-key budgets, or TrueNAS LiteLLM.
+openclaw-429-fix-apply:
+    python3 scripts/workstation/repair-openclaw-429.py --apply --restart-gateway
+
