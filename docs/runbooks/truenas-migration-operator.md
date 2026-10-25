@@ -100,6 +100,36 @@ notamment si APISIX n'est pas déployé ou si Gatus ne dispose pas de résultats
 récents. **exit=1** signifie qu'au moins un contrôle a réellement échoué.
 Ces codes de sortie ne doivent pas être regroupés sous un unique statut DOWN.
 
+### Diagnostic Gatus — preuve directe ou capture locale
+
+La configuration Git contient **85 moniteurs** (63 TCP, 21 HTTP,
+1 HTTPS). Ce total ne prouve ni l'exécution ni le succès des sondes.
+
+Sur TrueNAS autorisé, sans clé ni modification de service :
+
+```bash
+python3 scripts/truenas/diagnose-gatus-monitors.py --check
+```
+
+Pour réanalyser une capture privée **récente** de l'API
+`/api/v1/endpoints/statuses` sans aucune connexion réseau :
+
+```bash
+python3 scripts/truenas/diagnose-gatus-monitors.py --check --snapshot /chemin/prive/gatus-statuses.json
+```
+
+Le script refuse les liens symboliques et les captures de plus de 1 Mio.
+Il n'affiche ni URLs de destination, ni corps d'erreur, ni secrets.
+Le résultat contient seulement des identifiants canoniques et des
+catégories d'erreur autorisées. **Ne pas joindre la capture brute à la PR.**
+
+Contrat de sortie : `0` si toutes les sondes déclarées sont confirmées
+UP avec parité d'inventaire ; `1` dès qu'une sonde est effectivement DOWN
+(même en présence d'inconnues) ; `2` en cas de données absentes, périmées,
+dupliquées ou de dérive de catalogue, sans DOWN observé.
+Le `postmigration` classe `2` en WARN, jamais en panne démontrée.
+Une capture historique ne prouve pas l'état courant des services.
+
 **Chaque commande est indépendante**. Ne pas les déclencher
 automatiquement après `--apply-wave` sans connaître les composants
 effectivement migrés : une absence volontaire reste non vérifiée.
