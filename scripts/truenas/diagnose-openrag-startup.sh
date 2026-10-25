@@ -60,7 +60,7 @@ fi
 
 # Required secrets must exist as root-owned 0600 or 0400 files.
 # Only emit required KEY names and status, never content or line values.
-secret="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
+secret="${OPENRAG_SECRET_FILE:-/mnt/cpool/secrets/runtime/openrag/.env.secrets}"
 # The reviewed migrations may finalize the legacy path as a compatibility
 # symlink. Accept ONLY its exact canonical destination; reject other links.
 if [[ -L "$secret" ]]; then
