@@ -832,3 +832,113 @@ Une empreinte identique ne prouve **pas** l'absence de
 reload interne Python. Un PID modifié ne désigne **pas** à lui
 seul le service à l'origine du redémarrage. Continuer
 l'analyse de causalité sans désactiver Snort ou DNSBL.
+
+## Preuve post-cron — 26 octobre 2026 à 00:12 CET
+
+**La donnée manquante à 00:06 est désormais disponible** :
+`PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check`
+a été exécuté réellement à **2026-10-26T00:12:48+0100**.
+
+| Signal | Avant cron — 25/10 23:56 CET | Après cron — 26/10 00:12 CET |
+| --- | --- | --- |
+| Unbound PID | **19252** | **2611** |
+| Démarrage Unbound | 25/10 22:46:18 CET | **26/10 00:04:32 CET** |
+| `unbound_control` | REACHABLE | **REACHABLE** |
+| `unbound.conf` SHA-256 | `3745a410…82b44` | **IDENTIQUE** |
+| `dnsbl_legacy_ini` SHA-256 | `b856d9aa…403a3` | **IDENTIQUE** |
+| `dnsbl_python_ini` | UNAVAILABLE | UNAVAILABLE |
+| `free + inactive` | **247,0 Mio** | **167,1 Mio** |
+| Dernier kernel OOM visible | 25/10 22:12 CET | **toujours 25/10 22:12 CET** |
+
+### Chronologie corrélée — heures locales CET
+
+- **00:04:25** : marqueur `pfblocker_unbound_stop_marker`,
+  rattaché à l'en-tête pfBlockerNG `preceding_header_local`.
+- **00:04:30.252104+01:00** :
+  `resolver event=dnsbl_python_exit`, horodatage syslog.
+- **00:04:32** : Unbound PID **2611** démarre, d'après `ps`.
+- **00:04:37** : marqueur `pfblocker_unbound_start_marker`,
+  rattaché à l'en-tête pfBlockerNG.
+- **00:04:45** : marqueur `dnsbl_update_result`.
+- **00:08:53** : `pfblockerng_update_end`.
+- **00:12:48** : Unbound Control répond à la sonde.
+
+**Interprétation** : le PID a effectivement changé ;
+le nouveau processus a démarré pendant la séquence
+stop/start rapportée par pfBlockerNG, accompagnée
+de la sortie du module Python DNSBL. **La corrélation
+est forte pour un restart associé à la mise à jour DNSBL.**
+Les heures de `preceding_header_local` sont des
+**contextes d'en-tête**, pas des horodatages exacts de
+l'appel d'arrêt/démarrage. Unbound Control a répondu
+**à 00:12**, sans démontrer la durée d'interruption DNS
+entre 00:04 et 00:05.
+
+Le contenu de `unbound.conf` et de l'INI DNSBL historique
+n'a **pas changé** entre les deux instantanés SHA-256.
+Cela ne prouve pas que les données des feeds ou l'état
+Python en mémoire étaient identiques. Le code installé
+de pfBlockerNG **3.2.17_1** ne comporte pas les
+marqueurs statiques `pfb_unbound_py_swap_fits_ram`
+et `pfb_py_reload` recherchés par le diagnostic ;
+la raison précise du fallback vers stop/start
+reste **NOT_PROVEN**.
+
+**OOM** : le collecteur retrouve **19 événements noyau
+historiques sur 8 minutes**, identiques en nombre au
+relevé précédent ; le dernier kill visible est
+du **25/10 à 22:12:38+01:00** (`php_pfb` d'après l'audit
+précédent), antérieur au profil PHP-FPM contraint.
+Aucun OOM supplémentaire n'est observé dans
+les fenêtres de journaux retenues à 00:12.
+Ce constat ne démontre pas l'exhaustivité des archives.
+
+**Capacité** : free+inactive descend de 247,0 à
+167,1 Mio autour du traitement DNSBL, sous des
+charges non comparables. Reste au-dessus du seuil
+de suivi de 128 Mio. Ne pas attribuer mécaniquement
+ces ~80 Mio à pfBlockerNG, PHP-FPM ou Snort.
+
+### Comparaison réutilisable de deux instantanés
+
+Un nouvel outil **local-only** est disponible :
+`scripts/pfsense/compare-unbound-snapshots.py`.
+Il n'exécute **aucun SSH** ; il examine uniquement
+deux fichiers issus du collecteur et sort des champs
+stables sans imprimer de logs, feed URLs ou secrets.
+
+**Capturer proprement deux relevés à la prochaine fenêtre :**
+
+```bash
+umask 077
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check > /tmp/unbound-before.log
+# Exécuter de nouveau après la fenêtre, sans provoquer de restart.
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check > /tmp/unbound-after.log
+PFSENSE_BEFORE=/tmp/unbound-before.log PFSENSE_AFTER=/tmp/unbound-after.log just pfsense-unbound-compare
+```
+
+Les fichiers temporaires restent sur la workstation de
+l'opérateur ; les deux entrées sont limitées à **512 Kio**
+et les liens symboliques sont refusés.
+Le comparateur classe séparément changement PID,
+match/variation des trois empreintes,
+séquence DNSBL dans la fenêtre, kills noyau
+**postérieurs à la baseline** et état Unbound final.
+
+L'état `NONE_IN_BOUNDED_VISIBLE_LOGS` ne signifie
+**pas** que l'ensemble des journaux du système est exhaustif.
+Un passage d'heure DST ou des preuves manquantes
+doivent empêcher l'attribution trop confiante du restart.
+Ne pas utiliser ce comparateur pour déclencher une
+modification automatique de services.
+
+### Décision à court terme
+
+**Conserver PHP-FPM à 4 workers**, Snort WAN avec AC-BNFA
+et HTTP Inspect 32 Mio, sans réappliquer ni modifier
+les services. Une courte interruption DNSBL lors de
+la mise à jour de minuit est maintenant une hypothèse
+fonctionnelle prioritaire à **mesurer** (requêtes DNS
+depuis un client LAN autorisé). Ne pas modifier
+pfBlockerNG avant d'avoir caractérisé le mécanisme
+et ses impacts sur la disponibilité.
