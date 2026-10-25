@@ -91,34 +91,53 @@ def candidate(config, cron_secret, allowed):
     if not isinstance(agents, dict):
         raise ValueError("agents_invalid")
     entries = agents.get("list")
-    if not isinstance(entries, list):
-        raise ValueError("agents_list_missing")
-    indices = [index for index, entry in enumerate(entries)
-               if isinstance(entry, dict) and entry.get("id") == "cron"]
-    if len(indices) != 1:
-        raise ValueError("cron_agent_not_unique")
+    # A single default agent does not need an authored agents.list. Scheduled
+    # jobs are NOT automatically a separate 'cron' agent. Never create one.
+    if entries is None:
+        cron_index = None
+    elif isinstance(entries, list):
+        if any(not isinstance(entry, dict) for entry in entries):
+            raise ValueError("agents_list_invalid")
+        indices = [index for index, entry in enumerate(entries)
+                   if entry.get("id") == "cron"]
+        if len(indices) > 1:
+            raise ValueError("cron_agent_not_unique")
+        cron_index = indices[0] if indices else None
+    else:
+        raise ValueError("agents_list_invalid")
     defaults = agents.get("defaults", {})
     if not isinstance(defaults, dict):
         raise ValueError("defaults_invalid")
-    current_model = entries[indices[0]].get("model")
-    if isinstance(current_model, dict):
-        primary = current_model.get("primary")
-    elif isinstance(current_model, str):
-        primary = current_model
-    elif current_model is None:
-        configured = defaults.get("model")
-        primary = configured.get("primary") if isinstance(configured, dict) else configured
-    else:
-        raise ValueError("cron_model_schema_invalid")
-    if primary not in ("litellm-main/gpt-4.1", TARGET):
-        raise ValueError("cron_model_unexpected")
     updated = copy.deepcopy(config)
-    updated["agents"]["list"][indices[0]]["model"] = {"primary": TARGET, "fallbacks": []}
+    if cron_index is not None:
+        current_model = entries[cron_index].get("model")
+        if isinstance(current_model, dict):
+            primary = current_model.get("primary")
+        elif isinstance(current_model, str):
+            primary = current_model
+        elif current_model is None:
+            configured = defaults.get("model")
+            primary = configured.get("primary") if isinstance(configured, dict) else configured
+        else:
+            raise ValueError("cron_model_schema_invalid")
+        if primary not in ("litellm-main/gpt-4.1", TARGET):
+            raise ValueError("cron_model_unexpected")
+        updated["agents"]["list"][cron_index]["model"] = {
+            "primary": TARGET, "fallbacks": []}
     concurrency = defaults.get("maxConcurrent", 4)
     if type(concurrency) is not int or not 1 <= concurrency <= 64:
         raise ValueError("concurrency_invalid")
     updated["agents"]["defaults"]["maxConcurrent"] = min(concurrency, 1)
     return updated
+
+
+def repair_scope(config):
+    agents = config.get("agents", {})
+    entries = agents.get("list") if isinstance(agents, dict) else None
+    return ("cron_agent_and_concurrency" if isinstance(entries, list) and
+            any(isinstance(item, dict) and item.get("id") == "cron"
+                for item in entries) else "concurrency_only")
+
 
 
 def service_active():
@@ -202,7 +221,7 @@ def main(argv=None):
             "config_invalid", "models_invalid", "providers_invalid",
             "providers_missing", "routing_not_workstation",
             "cron_key_not_verified_distinct", "cron_model_not_authorized",
-            "agents_invalid", "agents_list_missing", "cron_agent_not_unique",
+            "agents_invalid", "agents_list_invalid", "cron_agent_not_unique",
             "defaults_invalid", "cron_model_schema_invalid",
             "cron_model_unexpected", "concurrency_invalid",
         }
@@ -212,7 +231,11 @@ def main(argv=None):
             print("blocked_reason=unverified")
         return 2
     print("repair=ready")
-    print("cron_model=litellm-cron/gpt-4.1")
+    scope = repair_scope(current)
+    print("repair_scope=" + scope)
+    print("cron_route_change=" +
+          ("configured_explicit_agent" if scope == "cron_agent_and_concurrency"
+           else "not_applicable_no_named_agent"))
     print("cron_key_access=verified")
     print("global_concurrency=1")
     print("memory_embedding_changed=false")
