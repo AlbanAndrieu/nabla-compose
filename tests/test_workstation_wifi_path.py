@@ -20,7 +20,7 @@ def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
             system_dns=True, private_sys=True, active="172.17.0.1",
             dhcp="172.17.0.1", profile_dns="172.17.0.1",
             ignore_auto="yes", lease_override=None,
-            device_dns="172.17.0.1"):
+            device_dns="172.17.0.1", private_pf=True):
     calls = []
     interface = "wlp2s0" if wifi else "eno1"
 
@@ -60,7 +60,7 @@ def fixture(*, wifi=False, wifi_connected=True, pf_dns=True, public_dns=True,
             dns = next((a[1:] for a in args if a.startswith("@")), None)
             name = args[-2]
             if name.endswith(".int.albandrieu.com"):
-                return True, "172.17.0.24"
+                return True, "172.17.0.24" if private_pf else ""
             if dns == "172.17.0.1":
                 return pf_dns, "93.184.215.14" if pf_dns else ""
             if dns == "9.9.9.9":
@@ -241,6 +241,13 @@ class WifiPathTest(unittest.TestCase):
             data["runtime_dns_drift"], "PROFILE_VS_NETWORKMANAGER_DEVICE"
         )
         self.assertTrue(data["profile_dns_runtime_drift"])
+
+    def test_private_zone_failure_is_not_reported_as_healthy(self):
+        runner, _ = fixture(private_pf=False, private_sys=False)
+        data = module.snapshot(runner=runner, connect=lambda *_: True)
+        self.assertFalse(data["pfsense_private_zone"])
+        self.assertEqual(data["diagnosis"], "PFSENSE_PRIVATE_ZONE_NOT_CONFIRMED")
+        self.assertTrue(data["private_dns_warning"])
 
 
 if __name__ == "__main__":
