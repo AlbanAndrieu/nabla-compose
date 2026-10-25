@@ -79,6 +79,15 @@ insertions SQL récentes.
 classe d'erreur, la gate et le prochain acte. Ne jamais transformer
 une observation historique en état courant.
 
+## Services optionnels et post-migration
+
+Pour contrôler les services après une vague approuvée, utiliser
+[les sections postmigration et apisix](truenas-migration-operator.md).
+APISIX n'est pas inclus dans `critical` tant que le service n'est pas
+déployé et accepté. `--section apisix` vérifie uniquement les
+métadonnées Docker ; `just apisix-smoke` valide la route et
+l'authentification séparément.
+
 ## Qualité du code avant changement
 
 Sur un **worktree de développement séparé**, non-root :
