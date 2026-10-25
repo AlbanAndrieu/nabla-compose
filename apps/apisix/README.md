@@ -4,13 +4,14 @@
 est indépendant de Traefik, FastAPI et TrueNAS : il interroge uniquement
 une page de test, sur un réseau Docker `internal: true`, **sans ports hôte**.
 
-1. Définir `APISIX_KEY` (clé aléatoire >= 24 caractères) dans le shell ;
+1. Définir `APISIX_KEY` (clé aléatoire de 24 à 256 caractères, sans espace ni caractère de contrôle) dans le shell ;
    ne pas la placer dans Git ou l'historique de commandes.
 2. Exécuter `just apisix-contract` (contrôle sans Docker).
 3. Exécuter `just apisix-up` sur une workstation disposant de Docker.
 4. Exécuter `just apisix-check` pour vérifier les métadonnées des deux conteneurs sans clé. Ce contrôle ne teste pas la route HTTP.
 5. Exécuter `just apisix-smoke` : absence de clé 401, clé 200,
-   route inconnue 404, méthode non autorisée non-200.
+   route inconnue 404, méthode non autorisée 404/405. Le smoke désactive
+   les proxys HTTP hérités pour garantir un test direct du réseau Docker isolé.
 6. Exécuter `just apisix-down` pour supprimer le réseau et les conteneurs.
    **Aucune clé APISIX n'est nécessaire pour ce rollback** : le wrapper utilise
    uniquement une valeur de substitution lors de l'interpolation Compose,
