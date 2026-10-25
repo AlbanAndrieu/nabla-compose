@@ -55,6 +55,34 @@ Prometheus (targets/config), OpenRAG (startup/secret/bundle) et Akvorado
 passé leurs contrôles ciblés. Il ne s'agit **pas** d'une validation E2E
 permanente.
 
+## Contrôles distincts après migration
+
+Le runner conserve la collecte `critical` historique, mais ajoute deux
+sections **sélectionnées explicitement** :
+
+- `--check --section postmigration` : validité du catalogue généré,
+  readiness fonctionnelle des services, observations Gatus fraîches et
+  cibles Prometheus. Tous les résultats sont horodatés dans un répertoire
+  privé ; une panne ne masque pas les suivantes.
+- `--check --section apisix` : état des seuls conteneurs `apisix`
+  et `echo`. Un déploiement absent retourne `SKIP/WARN`, pas un PASS
+  artificiel. Un processus `running` ne garantit pas une route HTTP
+  opérationnelle.
+
+Après un lancement APISIX explicitement autorisé, exécuter d'abord le
+[contrôle du service](../../apps/apisix/README.md), puis le smoke
+authentifié. La clé `APISIX_KEY` n'est pas nécessaire pour consulter
+les métadonnées Docker. Aucun port hôte ou label Traefik n'est ajouté.
+
+```bash
+sudo bash scripts/truenas/migration-operator.sh --check --section postmigration
+sudo bash scripts/truenas/migration-operator.sh --check --section apisix
+```
+
+**Chaque commande est indépendante**. Ne pas les déclencher
+automatiquement après `--apply-wave` sans connaître les composants
+effectivement migrés : une absence volontaire reste non vérifiée.
+
 ## Séquence de migration approuvée (jamais automatique)
 
 1. Créer une sauvegarde des ressources réellement concernées.
