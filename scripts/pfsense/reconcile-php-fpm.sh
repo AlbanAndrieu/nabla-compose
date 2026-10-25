@@ -80,7 +80,7 @@ echo "=== Controlled maintenance: PHP-FPM and webConfigurator ($mode) ==="
 # The remote command chooses root directly or passwordless sudo.
 # No interactive credentials; stdin is exclusively the reviewed POSIX script.
 ssh "${ssh_opts[@]}" "$TARGET" \
-  "if [ \"\\$(id -u)\" -eq 0 ]; then exec /bin/sh -s -- --$mode; else exec sudo -n /bin/sh -s -- --$mode; fi" < "$PAYLOAD"
+  "if [ \"\$(id -u)\" -eq 0 ]; then exec /bin/sh -s -- --$mode; else exec sudo -n /bin/sh -s -- --$mode; fi" < "$PAYLOAD"
 
 echo '=== Post-change verification: critical DNS and PHP-FPM ==='
 ssh "${ssh_opts[@]}" "$TARGET" '/bin/sh -s' <<'REMOTE'
@@ -102,6 +102,22 @@ echo "post_php_fpm_nginx_workers=$workers"
 echo 'post_unbound=HEALTHY'
 echo 'post_php_socket=PRESENT'
 REMOTE
+
+if [[ "$mode" == apply ]]; then
+  echo '=== Verify reduced PHP-FPM pool after apply ==='
+  ssh "${ssh_opts[@]}" "$TARGET" '/bin/sh -s' <<'REMOTE'
+set -eu
+config=/usr/local/lib/php-fpm.conf
+[ -r "$config" ] || { echo 'ERROR: expected_php_fpm_config_unavailable'; exit 82; }
+max_children=$(awk -F= '/^[[:space:]]*pm[.]max_children[[:space:]]*=/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$config")
+[ "$max_children" = 4 ] || { echo 'ERROR: expected_four_php_fpm_children'; exit 82; }
+workers=$(ps axww -o command= | awk '/^php-fpm: pool nginx/ {count++} END{print count+0}')
+case "$workers" in ''|*[!0-9]*) echo 'ERROR: post_workers_invalid'; exit 82;; esac
+[ "$workers" -le 4 ] && [ "$workers" -gt 0 ] ||
+  { echo 'ERROR: post_workers_exceed_four_or_missing'; exit 82; }
+printf 'verified_php_fpm_max_children=4 active_workers=%s\n' "$workers"
+REMOTE
+fi
 
 echo '=== Final profile check ==='
 ssh "${ssh_opts[@]}" "$TARGET" '/bin/sh -s -- --check' < "$PAYLOAD"
