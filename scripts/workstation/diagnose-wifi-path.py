@@ -214,6 +214,8 @@ def snapshot(
         and route_ok
     ):
         diagnosis = "CLIENT_PRIVATE_SPLIT_DNS_PATH"
+    elif route_ok and not result["pfsense_private_zone"]:
+        diagnosis = "PFSENSE_PRIVATE_ZONE_NOT_CONFIRMED"
     elif not route_ok:
         diagnosis = "IPV4_ROUTE_NOT_CONFIRMED"
     elif (
@@ -327,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         "PFSENSE_DNS_OR_WIFI_VLAN_POLICY",
         "CLIENT_SYSTEM_DNS_PATH",
         "CLIENT_PRIVATE_SPLIT_DNS_PATH",
+        "PFSENSE_PRIVATE_ZONE_NOT_CONFIRMED",
     }
     return 1 if any(row["diagnosis"] in verified_failures for row in rows) else 0
 
