@@ -1007,3 +1007,48 @@ Aucun déploiement ni correction de la configuration privée OpenClaw
 n'a été exécuté dans la PR ; les tests demandés doivent être rejoués
 au nouveau HEAD. L'absence de budget épuisé ne prouve pas l'absence
 d'un rate limit RPM/TPM en amont.
+
+
+## 25 octobre — inventaire des modèles après recreation TrueNAS
+
+Preuve fournie après le changement `apps/litellm/config.yaml` :
+`compose_config=valid`, `container_running=true`,
+`secrets_loaded=yes`, `secrets_missing_count=0`.
+Sur Workstation, `openclaw-truenas-virtual-keys-status` retournait
+`models_inventory=unverified` et sortait avec code 2. Le diagnostic
+antérieur de `/key/info` avait pourtant retourné 200 avec
+`openclaw-main` et `openclaw-cron`, scope exact, budget 2 chacun
+et `spend=0.0` (avant ce dernier redéploiement). **Ne pas inférer
+la perte des deux clés** ni une panne d'embeddings à partir du code 2.
+
+Le script `scripts/truenas/provision-openclaw-litellm-keys.py --status`
+est étendu pour afficher séparément, sans corps de réponse :
+`litellm_liveliness_http`, `models_inventory_http`,
+`key_inventory_http`, `models_inventory`, `key_inventory`
+et `existing_key_count` si la liste reste lisible.
+Un status HTTP 200 dont le schéma JSON est invalide est distingué
+d'un HTTP 500. Le statut **continue les lectures** même après échec
+du premier endpoint. Aucun secret ni message brut d'erreur n'est
+imprimé.
+
+Procédure depuis Workstation :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-test
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-quota
+```
+
+Sur HTTP 5xx, contrôler le healthcheck Docker et la configuration
+effective du service **sur TrueNAS** (sans exporter `docker inspect`
+avec les variables de secrets), puis les erreurs redigées des logs.
+Ne pas relancer `apply` pour créer des clés déjà existantes.
+L'alignement de `apps/litellm/config.yaml` a été contrôlé
+statiquement ; `docker compose config --quiet` ne garantit pas
+que LiteLLM accepte le YAML et ses modèles au démarrage.
+
+La restauration du modèle de briefing se trouve dans
+`apps/openclaw/workstation/MORNING_BRIEFING.md`. Elle est indépendante
+de ce diagnostic, des clés virtuelles et de la version des embeddings.
