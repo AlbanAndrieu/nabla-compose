@@ -8,10 +8,11 @@ COLOR_MODE=auto
 ICON_MODE=auto
 ACTION_FLAGS=0
 VERBOSE=false
+REMAINING=false
 while (($#)); do
   case "$1" in
     -h|--help)
-      printf '%s\n' 'Usage: sudo bash scripts/truenas/triage-critical-failures.sh --check [--color auto|always|never] [--icons auto|always|never] [--verbose]'
+      printf '%s\n' 'Usage: sudo bash scripts/truenas/triage-critical-failures.sh --check [--color auto|always|never] [--icons auto|always|never] [--remaining] [--verbose]'
       printf '%s\n' 'Runs seven read-only gates. Evidence stays private on TrueNAS.'
       exit 0 ;;
     --check) ACTION_FLAGS=$((ACTION_FLAGS + 1)); shift ;;
@@ -26,6 +27,7 @@ while (($#)); do
     --no-color) COLOR_MODE=never; shift ;;
     --no-icons) ICON_MODE=never; shift ;;
     --verbose) VERBOSE=true; shift ;;
+    --remaining) REMAINING=true; shift ;;
     *)
       printf 'BLOCKED: unknown or mutating triage argument (see --help)\n' >&2
       exit 2 ;;
@@ -107,6 +109,7 @@ run_gate() {
 # Each command is read-only. No service is restarted or reconfigured.
 run_gate prometheus-targets 80 \
   bash scripts/truenas/diagnose-prometheus-targets.sh --check
+if [[ "$REMAINING" != true ]]; then
 run_gate prometheus-config-access 30 \
   bash scripts/truenas/repair-prometheus-config-access.sh --check
 run_gate openrag-startup 65 \
@@ -117,10 +120,15 @@ run_gate openrag-opensearch-legacy-secret 30 \
   bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
 run_gate openrag-backstage-bundle 30 \
   python3 scripts/check-service-migration-bundle.py --app openrag
+fi
 run_gate akvorado-fresh-inserts 75 \
   python3 scripts/truenas/diagnose-akvorado-flow.py --strict --require-inserts --observe-seconds 30
 
-diag_section '' 'Seven-gate critical migration summary'
+if [[ "$REMAINING" == true ]]; then
+  diag_section '' 'Remaining Prometheus and Akvorado gates'
+else
+  diag_section '' 'Seven-gate critical migration summary'
+fi
 printf 'Results: PASS=%d FAIL=%d UNVERIFIED=%d\n' "$passed" "$failed" "$unverified"
 diag_info "Private evidence: $SESSION_DIR"
 printf 'Review: sudo cat %q\n' "$SUMMARY"
