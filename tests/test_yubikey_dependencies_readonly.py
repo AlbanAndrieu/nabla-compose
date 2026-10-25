@@ -10,7 +10,7 @@ import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts/workstation/inspect-yubikey-dependencies-readonly.py"
 spec = importlib.util.spec_from_file_location("yubi_dependencies_readonly", SOURCE)
@@ -93,6 +93,8 @@ class DependencyContracts(unittest.TestCase):
     def test_recovery_tools_presence_only(self):
         with patch.object(module, "process_state", return_value="PROCESS_NOT_OBSERVED"), \
              patch.object(module, "ssh_agent_state", return_value="SOCKET_NOT_CONFIGURED"), \
+             patch.object(module, "scdaemon_agent_state", return_value="NOT_CONFIRMED"), \
+             patch.object(module, "postgres_versioned_tools_state", return_value="NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS"), \
              patch.object(module.shutil, "which", side_effect=lambda x: "/bin/fake" if x=="pg_restore" else None):
             report = module.snapshot()
         self.assertEqual(report["recovery_tools"]["pg_restore"], "INSTALLED_UNVERIFIED")
@@ -102,6 +104,98 @@ class DependencyContracts(unittest.TestCase):
                     "hardware_mutation_authorized"):
             self.assertFalse(report[key])
         self.assertEqual(report["status"], "NO-GO")
+
+    def test_existing_agent_reports_scd_without_start_or_card_access(self):
+        response = subprocess.CompletedProcess(
+            [], 0, "OK\\nOK closing connection\\n", "")
+        with patch.object(module.shutil, "which", return_value="/usr/bin/gpg-connect-agent"), \\
+             patch.object(module.subprocess, "run", return_value=response) as runner:
+            self.assertEqual(module.scdaemon_agent_state(),
+                             "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
+        self.assertEqual(runner.call_args.args[0], [
+            "gpg-connect-agent", "--no-autostart", "GETINFO scd_running", "/bye"
+        ])
+        self.assertEqual(runner.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertEqual(runner.call_args.kwargs["timeout"], 5)
+        self.assertFalse(runner.call_args.kwargs["check"])
+
+    def test_scd_error_or_malformed_reply_never_claims_running(self):
+        cases = (
+            subprocess.CompletedProcess([], 0, "ERR 123 FALSE\\nOK closing connection\\n", ""),
+            subprocess.CompletedProcess([], 0, "OK closing connection\\n", ""),
+            subprocess.CompletedProcess([], 1, "OK\\nOK closing connection\\n", ""),
+            subprocess.CompletedProcess([], 0, "OK\\nOK closing connection\\n", "diagnostic"),
+            subprocess.CompletedProcess([], 0, "OK\\nOK closing connection\\nEXTRA\\n", ""),
+        )
+        with patch.object(module.shutil, "which", return_value="gpg-connect-agent"):
+            for result in cases:
+                with self.subTest(result=result.returncode), \\
+                     patch.object(module.subprocess, "run", return_value=result):
+                    self.assertNotEqual(module.scdaemon_agent_state(),
+                                        "AGENT_REPORTS_SCD_RUNNING_UNVERIFIED")
+
+    def test_scd_tool_missing_and_timeout_fail_closed(self):
+        with patch.object(module.shutil, "which", return_value=None), \\
+             patch.object(module.subprocess, "run") as runner:
+            self.assertEqual(module.scdaemon_agent_state(), "TOOL_MISSING")
+            runner.assert_not_called()
+        with patch.object(module.shutil, "which", return_value="gpg-connect-agent"), \\
+             patch.object(module.subprocess, "run",
+                          side_effect=subprocess.TimeoutExpired(["gpg-connect-agent"], 5)):
+            self.assertEqual(module.scdaemon_agent_state(), "UNKNOWN")
+
+    def test_postgres_versioned_server_tools_metadata_only(self):
+        root = MagicMock()
+        root.is_symlink.return_value = False
+        root.is_dir.return_value = True
+        version = MagicMock()
+        version.name = "18"
+        version.is_symlink.return_value = False
+        root.iterdir.return_value = [version]
+        binaries = MagicMock()
+        binaries.is_symlink.return_value = False
+        version.__truediv__.return_value = binaries
+        program = MagicMock()
+        program.is_symlink.return_value = False
+        program.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o755, st_uid=0)
+        binaries.__truediv__.return_value = program
+        with patch.object(module, "Path", return_value=root), \\
+             patch.object(module.subprocess, "run") as runner:
+            self.assertEqual(module.postgres_versioned_tools_state(),
+                             "VERSIONED_SERVER_BINARIES_PRESENT_UNVERIFIED")
+            runner.assert_not_called()
+
+    def test_postgres_versioned_path_and_file_symlinks_refused(self):
+        root = MagicMock()
+        root.is_symlink.return_value = True
+        with patch.object(module, "Path", return_value=root):
+            self.assertEqual(module.postgres_versioned_tools_state(), "UNKNOWN")
+        root.is_symlink.return_value = False
+        root.is_dir.return_value = False
+        with patch.object(module, "Path", return_value=root):
+            self.assertEqual(module.postgres_versioned_tools_state(),
+                             "NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS")
+
+    def test_postgres_untrusted_binary_owner_never_present(self):
+        root = MagicMock()
+        root.is_symlink.return_value = False
+        root.is_dir.return_value = True
+        version = MagicMock()
+        version.name = "18"
+        version.is_symlink.return_value = False
+        root.iterdir.return_value = [version]
+        binaries = MagicMock()
+        binaries.is_symlink.return_value = False
+        version.__truediv__.return_value = binaries
+        program = MagicMock()
+        program.is_symlink.return_value = False
+        program.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o755, st_uid=1000)
+        binaries.__truediv__.return_value = program
+        with patch.object(module, "Path", return_value=root):
+            self.assertEqual(module.postgres_versioned_tools_state(),
+                             "NOT_FOUND_IN_STANDARD_VERSIONED_LOCATIONS")
 
     def test_arguments_rejected_before_snapshot(self):
         with patch.object(module, "snapshot") as snap, redirect_stderr(io.StringIO()):
