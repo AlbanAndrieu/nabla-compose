@@ -8,6 +8,13 @@ source "${SCRIPT_DIR}/../lib/truenas.sh"
 source "${SCRIPT_DIR}/../lib/common.sh"
 truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
+# Do not deploy by accident; check mode never renders secrets or mutates Apps.
+case "${1:-}" in
+  --check|--apply) [[ "$#" -eq 1 ]] || fail 'usage: deploy-docling.sh --check|--apply' ;;
+  *) fail 'usage: deploy-docling.sh --check|--apply (explicit apply required)' ;;
+esac
+MODE="$1"
+
 APP_ID="${DOCLING_APP_ID:-docling}"
 CANONICAL_ROOT="${DOCLING_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 
@@ -21,7 +28,9 @@ ROOT="$(git rev-parse --show-toplevel)"
   fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
 cd "${CANONICAL_ROOT}"
 
-bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+if [[ "${MODE}" == "--apply" ]]; then
+  bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+fi
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 compose_path="${CANONICAL_ROOT}/apps/docling/compose.yml"
@@ -33,6 +42,27 @@ docker compose \
   --quiet \
   --no-interpolate \
   --no-env-resolution
+
+# External networks and image must already be present: avoid unexpected
+# network creation, large image pulls or repeated TrueNAS App jobs.
+image="quay.io/docling-project/docling-serve-cpu:${DOCLING_VERSION:-v1.32.0}"
+for network in intranet traefik_network; do
+  if ! docker network inspect "${network}" >/dev/null 2>&1; then
+    fail "Docling preflight: external network ${network} is absent"
+  fi
+done
+if ! docker image inspect "${image}" >/dev/null 2>&1; then
+  fail "Docling preflight: image ${image} is not cached locally; do not run a blind pull"
+fi
+if [[ "${MODE}" == "--check" ]]; then
+  printf '✅ Docling static Compose, cached image, and external networks present\n'
+  truenas_app_query_by_id "${APP_ID}" |
+    jq -r 'if length == 0 then "app=ABSENT (ready for deliberate --apply)"
+           elif length == 1 then "app=" + (.[0].state // "UNKNOWN")
+           else "BLOCKED: multiple matching Apps" end'
+  printf 'READ_ONLY: no app.create, app.update, app.redeploy, image pull or PDF processing\n'
+  exit 0
+fi
 
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
