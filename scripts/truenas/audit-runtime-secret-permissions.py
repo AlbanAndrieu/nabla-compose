@@ -26,6 +26,14 @@ def plan(root: Path) -> tuple[list[tuple[Path, int, int]], list[str]]:
         raise ValueError("canonical secret root absent or symlink")
     changes: list[tuple[Path, int, int]] = []
     blockers: list[str] = []
+    root_stat = root.stat(follow_symlinks=False)
+    if root_stat.st_uid != 0:
+        blockers.append("NON_ROOT_OWNER: .")
+    else:
+        before = stat.S_IMODE(root_stat.st_mode)
+        target = (before & ~0o027) | 0o700
+        if target != before:
+            changes.append((root, before, target))
     stack = [root]
     visited = 0
     while stack:
