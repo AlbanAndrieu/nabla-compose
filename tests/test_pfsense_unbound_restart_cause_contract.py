@@ -425,10 +425,11 @@ class UnboundRestartCauseContract(unittest.TestCase):
             self.assertIn("timestamp=2026-10-24T02:10:50.474019+02:00", run.stdout)
             self.assertNotIn("DO_NOT_PRINT", run.stdout)
 
-            broken = loop.replace(
-                "    function stamp(line, s) {",
-                "    THIS TOKEN IS INVALID AWK;\n    function stamp(line, s) {",
-            )
+            anchor = "    function stamp(line, s) {"
+            self.assertIn(anchor, loop)
+            # An invalid AWK grammar token, not a legal expression statement.
+            broken = loop.replace(anchor, "    if ( {\n" + anchor, 1)
+            self.assertNotEqual(broken, loop)
             failure = subprocess.run(
                 ["/bin/sh", "-c", broken, "sh", str(logfile)],
                 capture_output=True, text=True, timeout=5, check=False,
