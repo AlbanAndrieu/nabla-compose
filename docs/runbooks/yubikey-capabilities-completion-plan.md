@@ -139,10 +139,14 @@ Pour réduire le chemin critique, les chantiers P0/P1 sont préparés en
 (D) PKI/9A et plan PIV82/AES256. Aucun flux ne doit attendre la fin des autres
 pour préparer ses contrats, runbooks, preuves et tests hermétiques.
 
-- `just yubikey-parallel-test` : 11 tests supplémentaires vérifiant notamment
-  la concurrence et l'absence de mutation.
-- `just yubikey-parallel-host-readonly` : cinq familles de tests en parallèle,
-  puis vérifications de la workstation et de GPG-agent en parallèle.
+- `just yubikey-parallel-test` : 13 tests (dont 2 nouveaux contrats de complétude),
+  vérifiant la concurrence, toutes les réponses attendues et l'absence de mutation.
+- `just yubikey-dependencies-test` : 11 tests hermétiques indépendants sur
+  les états GPG/scdaemon/PCSC, SSH-agent public et outils PostgreSQL/age/SOPS.
+- `just yubikey-dependencies-readonly` : métadonnées locales uniquement,
+  sans démarrage de daemon, sans secrets ni inventaire matériel.
+- `just yubikey-parallel-host-readonly` : six familles de tests en parallèle,
+  puis vérifications workstation/GPG-agent/dépendances en parallèle.
 - `just yubikey-parallel-secondary-readonly` : même lot, puis **un seul**
   inventaire public de la secondaire, sans concurrence sur le périphérique.
 
@@ -159,3 +163,11 @@ nouveaux tests PASS** sur copies strictement identiques aux blobs Git publiés :
 `test_yubikey_parallel_readonly.py@4b6ebd29`. Ce résultat ne teste ni
 la recette réelle `just` du worktree, ni le périphérique de la workstation.
 Le statut de récupération et de configuration reste **NO-GO**.
+
+**Point d'avancement P0 (25/10/2026)** : diagnostic du poste étendu,
+sans toucher aux clés. Les 11 tests du collecteur de dépendances ont réussi
+sur copie locale strictement identique à GitHub ; la recette parallèle
+élargie (13 tests de contrat, six suites puis trois sondes) reste à exécuter
+sur la workstation. Les étapes mutantes restent soumises à des accords
+séparés ; aucune vérification GPG/OpenPGP, escrow ou restauration PostgreSQL
+ne peut être déclarée terminée par simple présence d'un daemon.
