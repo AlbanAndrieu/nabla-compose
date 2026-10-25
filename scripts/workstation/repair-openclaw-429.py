@@ -8,7 +8,6 @@ and never changes memory embeddings, budgets, or other agent profiles.
 import argparse
 import copy
 import hmac
-import hashlib
 import re
 import json
 import os
@@ -229,14 +228,28 @@ def gateway_call(method, params):
 
 
 def gateway_snapshot_hash():
+    """Return the opaque authored revision from the active Gateway.
+
+    OpenClaw's hash may cover included file identity and content; never
+    compare it with sha256(openclaw.json). Use it unchanged as baseHash.
+    """
     doc = gateway_call("config.get", {})
     if not isinstance(doc, dict):
         return None
-    for data in (doc, doc.get("payload"), doc.get("result")):
-        if isinstance(data, dict):
-            value = data.get("hash")
-            if isinstance(value, str) and re.fullmatch("[0-9a-fA-F]{64}", value):
-                return value.lower()
+    for data in (doc.get("payload"), doc.get("result"), doc):
+        if not isinstance(data, dict):
+            continue
+        # Refuse a Gateway reporting a different authored config path.
+        owner_path = data.get("path")
+        if isinstance(owner_path, str) and owner_path:
+            try:
+                if Path(owner_path).expanduser().resolve() != CONFIG.expanduser().resolve():
+                    return None
+            except (OSError, ValueError):
+                return None
+        value = data.get("hash")
+        if isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value):
+            return value
     return None
 
 
@@ -249,13 +262,19 @@ def native_patch_concurrency(original, old_bytes):
     if private_read(CONFIG, 4 * 1024 * 1024) != old_bytes:
         return "blocked_concurrent_change"
     base = gateway_snapshot_hash()
-    if base is None or base != hashlib.sha256(old_bytes).hexdigest():
+    if base is None:
         return "blocked_gateway_snapshot"
+    # Local bytes are checked again after the RPC. The Gateway performs the
+    # authoritative optimistic concurrency check on opaque baseHash.
+    if private_read(CONFIG, 4 * 1024 * 1024) != old_bytes:
+        return "blocked_concurrent_change"
     previous = original.get("agents", {}).get("defaults", {}).get("maxConcurrent")
     try:
         private_backup(old_bytes)
     except (ValueError, OSError):
         return "blocked_backup"
+    if private_read(CONFIG, 4 * 1024 * 1024) != old_bytes:
+        return "blocked_concurrent_change"
     payload = {"agents": {"defaults": {"maxConcurrent": 1}}}
     response = gateway_call("config.patch", {
         "raw": json.dumps(payload, separators=(",", ":")),
@@ -273,7 +292,10 @@ def native_patch_concurrency(original, old_bytes):
         return "blocked_native_patch"
     # Only revert the one authored value, with a fresh optimistic hash.
     new_hash = gateway_snapshot_hash()
-    if new_bytes is not None and new_hash == hashlib.sha256(new_bytes).hexdigest():
+    # A second opaque Gateway revision protects rollback against concurrent
+    # changes. Compare the disk snapshot before, not its unrelated hash.
+    if new_bytes is not None and new_hash is not None and (
+            private_read(CONFIG, 4 * 1024 * 1024) == new_bytes):
         rollback = {"agents": {"defaults": {"maxConcurrent": previous}}}
         revert = gateway_call("config.patch", {
             "raw": json.dumps(rollback, separators=(",", ":")),
