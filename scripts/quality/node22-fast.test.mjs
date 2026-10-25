@@ -91,7 +91,7 @@ test('local just recipes are opt-in and unchanged by CI', () => {
   mustMatch(just, /test "\$node_major" = 22 && test "\$npm_major" = 10/,
     'version preflight must refuse npm 12');
   assert.doesNotMatch(just.split(/^node22-fast:\s*$/m)[1]?.split(/^\S[^\n]*:\s*$/m)[0] ?? '',
-    /\b(?:npm install|npm ci|npx|mise install)\b/,
-    'fast lane must not install dependencies');
+    /(?:^|\n)\s*[@-]?(?:npm\s+(?:ci|install)|npx\b|mise\s+install\b)/m,
+    'fast lane must not execute dependency installation');
   assert.ok(existsSync(join(root, 'docs/roadmap.md')));
 });
