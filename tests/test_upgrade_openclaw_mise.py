@@ -69,7 +69,7 @@ class UpgradeContracts(unittest.TestCase):
         calls = []
         def proc(args, **kwargs):
             calls.append(args)
-            if args[-1] == "--version":
+            if args[-1] == "--version" and any("npm-cli.js" in x for x in args):
                 return 0, b"12.2.0", b""
             if "install" in args:
                 return 0, b"npm private output", b""
