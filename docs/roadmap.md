@@ -32,7 +32,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | 2 | OpenRAG | Backend/frontend healthy ; `LITELLM_IDE_API_KEY` désormais présent, `OPENRAG_ENCRYPTION_KEY` encore absent | **Secret maître à restaurer ou générer une seule fois** |
 | 3 | Akvorado | +5 flux / +4 metadata missing / +0 lots ClickHouse ; statique ifIndex=11 à vérifier en mémoire | **Ingestion bloquée** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
-| Indépendant | pfSense / Unbound | OOM et causalité des tâches | **NOT_VERIFIED** |
+| Indépendant | pfSense / Unbound | Kill Unbound par OOM **confirmé** (17/22/24 oct.) ; routine DNSBL de minuit fortement corrélée aux sorties Python, initiateur des redémarrages **non prouvé** | **OOM_CONFIRMED / RESTART_PROVENANCE_PENDING** |
 | Différé | Workstation split-DNS | DNS pfSense/Pi-hole corrects, NSS privé indisponible via Quad9 ; 19 tests de diagnostic PASS opérateur | **Correction reportée par décision utilisateur ; ne pas modifier la workstation** |
 
 **Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
@@ -46,7 +46,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | H-01 | OpenRAG | Triage ciblé : Backstage PASS, backend/frontend healthy ; `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY` manquent, comparateur OpenSearch bloqué par les métadonnées de fichier | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
-| H-04 | pfSense / Unbound | OOM du noyau observés ; causalité des tâches Snort/CrowdSec/pfBlockerNG **non démontrée** | Horaires et mémoire corrélés, plan de changement unique avec sauvegarde et rollback |
+| H-04 | pfSense / Unbound | OOM Unbound **confirmés** le 17/22/24 octobre ; fermeture DNSBL Python vers 00:04 répétée ; chronologie pfBlockerNG à la seconde **manquante** | Identifier le déclencheur du restart, vérifier appartenance Service Watchdog et version pfBlockerNG ; corréler RSS des jobs avant tout changement |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
