@@ -173,8 +173,13 @@ for file in /var/unbound/unbound.conf \
   if [ "${#checksum}" -ne 64 ]; then
     printf 'config_fingerprint=%s status=UNVERIFIED\n' "$item"
   else
-    printf 'config_fingerprint=%s size_bytes=%s mtime_unix=%s sha256=%s\n' \
-      "$item" "$length" "$modified" "$checksum"
+    # FreeBSD date -r takes a Unix epoch; keep the UTC offset around DST.
+    local_stamp=$(date -r "$modified" '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf 'unknown')
+    case "$local_stamp" in
+      *[!0-9T:+-]*|'') local_stamp=unknown ;;
+    esac
+    printf 'config_fingerprint=%s size_bytes=%s mtime_unix=%s mtime_local=%s sha256=%s\n' \
+      "$item" "$length" "$modified" "$local_stamp" "$checksum"
   fi
 done
 echo 'config_fingerprint_comparison=NEEDS_TWO_SNAPSHOTS'
