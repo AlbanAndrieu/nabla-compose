@@ -133,17 +133,89 @@ class UnboundSnapshotCompareContract(unittest.TestCase):
             self.assertEqual(before.read_text(encoding="utf-8"), BEFORE)
             self.assertEqual(after.read_text(encoding="utf-8"), AFTER)
 
+    def test_cli_distinguishes_missing_empty_and_same_capture(self):
+        with tempfile.TemporaryDirectory(prefix="unbound-input-errors-") as tmp:
+            a = Path(tmp) / "a.log"
+            b = Path(tmp) / "b.log"
+            missing = Path(tmp) / "not-created.log"
+            a.write_text(BEFORE, encoding="utf-8")
+            b.write_text("", encoding="utf-8")
+
+            def run(baseline, later):
+                return subprocess.run(
+                    [
+                        sys.executable, str(SCRIPT),
+                        "--before", str(baseline), "--after", str(later),
+                    ],
+                    text=True, capture_output=True, timeout=5, check=False,
+                )
+
+            for baseline, later, reason in (
+                (missing, a, "before_file_missing"),
+                (a, missing, "after_file_missing"),
+                (a, b, "after_file_empty"),
+                (a, a, "reports_same_timestamp"),
+            ):
+                with self.subTest(reason=reason):
+                    output = run(baseline, later)
+                    self.assertEqual(output.returncode, 2)
+                    self.assertIn("reason=" + reason, output.stderr)
+                    self.assertIn("hint=", output.stderr)
+                    self.assertNotIn(str(tmp), output.stderr)
+                    self.assertNotIn(HASH_A, output.stderr)
+
+    def test_cli_distinguishes_unrecognized_reports_and_reversed_order(self):
+        with tempfile.TemporaryDirectory(prefix="unbound-input-errors-") as tmp:
+            a, b = Path(tmp) / "a.log", Path(tmp) / "b.log"
+            a.write_text(BEFORE, encoding="utf-8")
+            for data, reason in (
+                ("some unrelated log", "after_missing_pfSense_time"),
+                (BEFORE.replace("unbound_pid=19252", "unbound_pid=unavailable"),
+                 "after_missing_unbound_pid"),
+                (BEFORE, "reports_same_timestamp"),
+            ):
+                with self.subTest(reason=reason):
+                    b.write_text(data, encoding="utf-8")
+                    result = subprocess.run(
+                        [sys.executable, str(SCRIPT),
+                         "--before", str(a), "--after", str(b)],
+                        text=True, capture_output=True, timeout=5, check=False,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("reason=" + reason, result.stderr)
+
+            b.write_text(AFTER, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--before", str(b),
+                 "--after", str(a)],
+                text=True, capture_output=True, timeout=5, check=False,
+            )
+            self.assertIn("reason=reports_out_of_order", result.stderr)
+
+    def test_incomplete_collector_report_rejected(self):
+        with tempfile.TemporaryDirectory(prefix="unbound-input-errors-") as tmp:
+            a, b = Path(tmp) / "a.log", Path(tmp) / "b.log"
+            a.write_text(BEFORE, encoding="utf-8")
+            b.write_text(AFTER + "ERROR: feed_log_classifier_failed\\n", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--before", str(a),
+                 "--after", str(b)],
+                text=True, capture_output=True, timeout=5, check=False,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("reason=after_collector_incomplete", result.stderr)
+
     def test_missing_or_reversed_evidence_fails_closed(self):
-        with self.assertRaisesRegex(ValueError, "ordered pfSense_time"):
+        with self.assertRaisesRegex(ValueError, "reports_out_of_order"):
             module.compare(AFTER, BEFORE)
-        with self.assertRaisesRegex(ValueError, "numeric Unbound PID"):
+        with self.assertRaisesRegex(ValueError, "after_missing_unbound_pid"):
             module.compare(BEFORE, AFTER.replace("unbound_pid=2611", "unbound_pid=x"))
         with tempfile.TemporaryDirectory(prefix="unbound-diff-") as tmp:
             path = Path(tmp) / "before"
             link = Path(tmp) / "symlink"
             path.write_text(BEFORE, encoding="utf-8")
             link.symlink_to(path)
-            with self.assertRaisesRegex(ValueError, "symlinked"):
+            with self.assertRaisesRegex(ValueError, "before_file_is_symlink"):
                 module.load_report(str(link))
 
 
