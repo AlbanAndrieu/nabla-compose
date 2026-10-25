@@ -103,7 +103,7 @@ def installed_version(command):
 
 def node_target_compatibility(version):
     """Pinned OpenClaw 2026.10.7 Node engine floor; no npm/network access."""
-    if not isinstance(version, str) or not re.fullmatch(r"\\d+\\.\\d+\\.\\d+", version):
+    if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
         return "unverified"
     major, minor, patch = map(int, version.split("."))
     if major == 24:
