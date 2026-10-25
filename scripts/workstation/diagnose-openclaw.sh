@@ -8,14 +8,41 @@ if [[ -z "${OPENCLAW_STYLE_ACTIVE:-}" && -z "${NO_COLOR+x}" && "${OPENCLAW_COLOR
   exit "${PIPESTATUS[0]}"
 fi
 export LC_ALL=C
-NODE_ROOT="${OPENCLAW_NODE_ROOT:-${HOME}/.local/share/mise/installs/node/24.18.1}"
 UNIT="${OPENCLAW_UNIT:-openclaw-gateway.service}"
+# Prefer the actual Gateway service owner, not a stale hardcoded Node minor.
+# Pinned Node is used only if the service does not report a managed runtime.
+NODE_ROOT="${OPENCLAW_NODE_ROOT:-}"
+if [[ -z "${NODE_ROOT}" ]]; then
+  entry_probe="$(systemctl --user show "${UNIT}" -p ExecStart --value 2>/dev/null || :)"
+  runtime_pattern='/node/([0-9]+\.[0-9]+\.[0-9]+)/bin/node'
+  if [[ "${entry_probe}" =~ ${runtime_pattern} ]]; then
+    candidate="${HOME}/.local/share/mise/installs/node/${BASH_REMATCH[1]}"
+    if [[ "${entry_probe}" == *"${candidate}/bin/node"* ]]; then
+      NODE_ROOT="${candidate}"
+    fi
+  fi
+fi
+if [[ -z "${NODE_ROOT}" ]]; then
+  repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+  pinned="$(tr -d 'v[:space:]' < "${repo_root}/.nvmrc")"
+  [[ "${pinned}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'FAIL invalid Node pin'; exit 1; }
+  NODE_ROOT="${HOME}/.local/share/mise/installs/node/${pinned}"
+fi
 errors=0; warnings=0
 ok(){ printf 'OK %s\n' "$1"; }
 warn(){ printf 'WARN %s\n' "$1"; warnings=$((warnings+1)); }
 fail(){ printf 'FAIL %s\n' "$1"; errors=$((errors+1)); }
 [[ "${NODE_ROOT}" == "${HOME}/"* ]] || { fail 'runtime outside HOME'; exit 1; }
-if [[ -x "${NODE_ROOT}/bin/node" ]]; then ok "Node $("${NODE_ROOT}/bin/node" --version)"; else fail 'mise Node missing'; fi
+if [[ -x "${NODE_ROOT}/bin/node" ]]; then
+  version="$("${NODE_ROOT}/bin/node" --version)"
+  ok "Node ${version}"
+  if [[ "${version}" =~ ^v24\.([0-9]+)\.([0-9]+)$ ]]; then
+    minor="${BASH_REMATCH[1]}"; patch="${BASH_REMATCH[2]}"
+    if (( minor < 22 || (minor == 22 && patch < 1) )); then
+      warn 'Gateway Node below OpenClaw 2026.10.7 minimum 24.22.1'
+    fi
+  fi
+else fail 'mise Node missing'; fi
 if [[ -x "${NODE_ROOT}/bin/npm" ]]; then
   prefix="$(env PATH="${NODE_ROOT}/bin:${PATH}" NPM_CONFIG_PREFIX="${NODE_ROOT}" "${NODE_ROOT}/bin/npm" prefix -g 2>/dev/null || :)"
   if [[ "${prefix}" == "${NODE_ROOT}" ]]; then
