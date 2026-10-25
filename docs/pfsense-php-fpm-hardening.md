@@ -443,3 +443,95 @@ la charge et l'état CrowdSec ont également changé.
 Ne pas augmenter `PHP memory_limit` au-delà de 128M, ne pas
 réactiver le feed UT1 Adult, et ne pas désactiver Snort WAN
 puisque ses réglages basse mémoire sont déjà confirmés.
+
+## Réception complémentaire — 25 octobre 2026 à 23:56 CET
+
+**Pièce opérateur :** sortie complète de `just pfsense-php-fpm-postcheck`
+reçue le 25 octobre à 23:56 CET, après confirmation
+`just pfsense-security-capacity-test` **15/15 PASS**
+(4 contrats hardening, 8 wrapper SSH, 3 posture).
+
+### Comparaison des deux premiers snapshots après cutover
+
+| Indicateur | ~23:41 CET | 23:56 CET |
+| --- | ---: | ---: |
+| Générateur / pool | `4/30/1/2/500` | **`4/30/1/2/500`** |
+| Enfants nginx PHP-FPM | 1 | **2** |
+| `free+inactive` | 277868 Kio (**271,4 Mio**) | 252948 Kio (**247,0 Mio**) |
+| RSS agrégé `comm=php-fpm` | 195792 Kio (**191,2 Mio**) | 97476 Kio (**95,2 Mio**) |
+| Processus nommés `php-fpm` | 5 | 3 |
+| Unbound / DNS | HEALTHY | **HEALTHY** |
+
+Ces chiffres sont **instantanés** et pris sous des charges
+différentes. Ils n'établissent pas le gain isolé imputable
+à PHP-FPM. Le nombre `comm=php-fpm` inclut le master ;
+`php_fpm_nginx_pool_workers=2` désigne le décompte exact
+des enfants du pool nginx. La nouvelle sortie structurée
+`php_fpm_profile_contract=CONSTRAINED_MATCH` et
+`php_fpm_worker_contract=WITHIN_TARGET` permettra d'éviter
+de confondre ces deux nombres lors des prochaines collectes.
+
+### Continuité Unbound et événements historiques
+
+Le dernier rapport Unbound a été pris à **23:56:01 CET** :
+`unbound_pid=19252`, démarré le **25/10 à 22:46:18 CET**,
+`unbound_control=REACHABLE`. Les sondes DNS publiques
+(localhost et LAN 172.17.0.1) sont PASS. Cela n'établit
+pas encore la résolution DNS *privée* depuis un client LAN.
+
+`config_fingerprint=unbound_config` est **inchangé** depuis le
+premier relevé à 23:39 : taille 2289 octets,
+`mtime_local=2026-10-25T22:46:17+0100` et même SHA-256.
+Le fichier INI DNSBL hérité a également la même empreinte.
+Le fichier candidat `dnsbl_python_ini` est `UNAVAILABLE`.
+Cette identité ne prouve pas que la liste DNSBL en mémoire
+n'a pas changé. **Une deuxième empreinte après l'exécution
+de minuit est encore nécessaire.**
+
+Dans les journaux consultés, le dernier OOM reste à
+**22:12:38+0100**, victime `php_pfb`, avec Unbound également
+tué au cours de cette minute. Il précède le cutover PHP-FPM.
+Aucun kill plus tardif n'est visible dans les fenêtres
+bornées inspectées ; cela ne prouve pas l'absence de
+messages supprimés ou non retenus.
+
+### Résultat global de l'audit — 37 PASS, 5 WARN, 0 FAIL
+
+| WARN | Signification | Prochaine action |
+| --- | --- | --- |
+| `pfblocker.dnsbl_ram_swap_gate=missing` | Garde-fou de swap DNSBL absent dans `3.2.17_1` | Éviter le rebuild forcé, rechercher mise à niveau vérifiée |
+| `pfblocker.dnsbl_loaded_entries=0` | Compteur non renseigné, **pas** DNSBL vide prouvé | Recouper les marqueurs DNSBL `PASSED` et la couverture effective |
+| `crowdsec.firewall_bouncer=stopped_or_unknown` | Moteur actif, filtrage par bouncer non confirmé | Restaurer la couverture dans une fenêtre séparée |
+| `service.zabbix_agentd=stopped` | Monitoring agent non actif | Restaurer après la stabilisation mémoire |
+| `service.pfb_filter=0` | Helper filterlog non observé | Vérifier son besoin et sa provenance avant de le relancer |
+
+Les contrôles suivants sont conformes : **Snort WAN passif**
+avec **AC-BNFA** et HTTP Inspect **32 Mio**, Unbound
+fonctionnel, DNSBL Python, TLD désactivé, DNSBL VIP
+`10.10.10.1:443` avec un listener, Kea DHCPv4,
+`php.memory_limit=128M` et dernier update DNSBL signalé
+`PASSED` (marqueur 25/10 à 00:05:12).
+
+### Évolutions des scripts
+
+- `harden-pfsense-php-fpm.sh --check` émet désormais des
+  champs machine lisibles pour le contrat du profil et le
+  budget de workers ; ces champs sont des **observations
+  read-only**, pas un nouvel apply ni une surveillance continue.
+- `console.sh` emploie `1 sample` au singulier et conserve
+  `Historical OOM events NOT_EVALUATED` pour une mesure mémoire
+  ponctuelle sans consultation du journal noyau.
+- Des régressions locales couvrent le vrai profil
+  `4/30/1/2/500`, les **deux** enfants nginx, le changement
+  de profil et le rendu d'une seule mesure.
+
+Les **15 tests fournis par l'opérateur** passent sur l'ancienne
+révision. Les **nouveaux tests** ajoutés après ce relevé
+nécessitent une nouvelle exécution locale ; ne pas les
+déclarer validés par les 15 PASS antérieurs.
+
+**P0 encore ouvert :** valider depuis LAN la GUI
+`https://home.albandrieu.com:10443`, le pfREST authentifié,
+la zone DNS privée et la non-régression sous la prochaine
+charge DNSBL/Snort. Ne pas redémarrer Unbound ni réappliquer
+le patch PHP-FPM pour ces contrôles.
