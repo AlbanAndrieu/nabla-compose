@@ -29,7 +29,7 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 | Ordre | Domaine | Contrôle à valider | État |
 | --- | --- | --- | --- |
 | 1 | Prometheus | Configuration corrigée (0640), 21 targets UP, 7 DOWN | **Serveur sain, collecte dégradée** |
-| 2 | OpenRAG | Backend/frontend healthy ; `LITELLM_IDE_API_KEY` désormais présent, `OPENRAG_ENCRYPTION_KEY` encore absent | **Secret maître à restaurer ou générer une seule fois** |
+| 2 | OpenRAG / LiteLLM | `--strict --scope openrag` et `--scope litellm` : `blockers=[]`, `missingKeys=[]`, fichiers `ready=true`, conteneurs RUNNING | **Secrets déclarés PASS ; authentification et rechargement runtime NOT_VERIFIED** |
 | 3 | Akvorado | +5 flux / +4 metadata missing / +0 lots ClickHouse ; statique ifIndex=11 à vérifier en mémoire | **Ingestion bloquée** |
 | Suivi | Sentry et DefectDojo | Smoke métier / E2E après sondes PASS | **NOT_VERIFIED E2E** |
 | Indépendant | pfSense / Unbound | Kill Unbound par OOM **confirmé** (17/22/24 oct.) ; routine DNSBL de minuit fortement corrélée aux sorties Python, initiateur des redémarrages **non prouvé** | **OOM_CONFIRMED / RESTART_PROVENANCE_PENDING** |
@@ -37,13 +37,15 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
 **Dernière preuve datée :** [second relevé du 25 octobre](runbooks/2026-10-25-critical-acceptance-followup.md) — `PASS=9 FAIL=7 WARN=0 SKIP=0` (contre [8/8 au premier relevé](runbooks/2026-10-25-critical-acceptance-evidence.md)) ; révision du checkout TrueNAS inconnue. Une réussite de sondes sur Sentry ou DefectDojo ne prouve pas la disponibilité E2E. Les 85 sondes Gatus déclarées ne représentent pas 85 services opérationnels : [diagnostic spécialisé](runbooks/2026-10-25-homelab-operator-diagnostics.md).
 
+**Quatrième preuve (25/10) :** `openrag` et `litellm` ont chacun `ready=true`, `missingKeys=[]`, `blockers=[]` au diagnostic `--strict` de l'opérateur ; le comparateur OpenSearch reste bloqué sur **legacy_env UID 1000/GID 568/mode 0644**. La lecture des nouvelles variables par les processus, les authentifications et la finalisation sont **NOT_VERIFIED**. [Clôture guidée](runbooks/truenas-secret-migration-closure.md).
+
 **Troisième preuve ciblée (25/10) :** [deux sessions à 1 PASS / 6 FAIL](runbooks/2026-10-25-critical-acceptance-followup.md) avant réparation Prometheus `0644 → 0640`. Les résultats individuels du serveur Prometheus et d'Akvorado détaillent désormais les causes ; aucun E2E de migration n'est clos. Ne pas réutiliser les anciens états 9/7 comme preuve actuelle.
 
 ## P0 — Accepter les services critiques
 
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
-| H-01 | OpenRAG | Triage ciblé : Backstage PASS, backend/frontend healthy ; `LITELLM_IDE_API_KEY` et `OPENRAG_ENCRYPTION_KEY` manquent, comparateur OpenSearch bloqué par les métadonnées de fichier | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
+| H-01 | OpenRAG | Dernières sondes : secret OpenRAG `ready=true`, `missingKeys=[]`, `blockers=[]` ; OpenSearch App RUNNING mais conteneur exact `ABSENT_OR_UNVERIFIED` ; égalité du credential bloquée par les droits de `legacy_env` | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | Le 25/10 : consumer et recovery preflight PASS ; ingestion E2E non reconfirmée | Consommateurs sains, Kafka/Relay et smoke d'ingestion E2E contrôlés |
 | H-03 | DefectDojo | Le 25/10 : préflight et ingress privé PASS ; pas de preuve de bout en bout actuelle | Origine HTML, uWSGI, DNS privé Pi-hole/Unbound et HTTPS SNI/TLS contrôlés séparément |
 | H-04 | pfSense / Unbound | OOM Unbound **confirmés** le 17/22/24 octobre ; fermeture DNSBL Python vers 00:04 répétée ; chronologie pfBlockerNG à la seconde **manquante** | Identifier le déclencheur du restart, vérifier appartenance Service Watchdog et version pfBlockerNG ; corréler RSS des jobs avant tout changement |
@@ -82,7 +84,7 @@ Les procédures spécialisées restent dans
 | H-05 | Prometheus | Correction du fichier `prometheus.yml` par opérateur : uid 1000, gid 568, mode 0640 ; promtool OK, 21/28 targets UP | Réconcilier les scrapes non UP sans réparer à nouveau les règles |
 | H-06 | Akvorado | Nouvelle preuve : 5 flux reçus, 4 rejets metadata, 0 insertion ; le PASS ponctuel précédent ne prouve pas l'absence de blocage | Vérifier l'export NetFlow, les `ifIndex` et **de nouvelles lignes SQL datées** |
 | H-07 | Catalogue OWNER/SERVICE | Identités Backstage/`x-nabla` déclarées ; consommateurs FastAPI/Site distincts | Vérifier dérive catalogue, puis comportement runtime par provenance |
-| H-08 | Secrets et noms | Copies OpenRAG cohérentes mais chemin hérité non finalisé ; secrets OpenRAG/LiteLLM incomplets ; candidat OpenSearch à droits non conformes | **BLOCKED** : réconcilier les clés et droits avant tout `--finalize` |
+| H-08 | Secrets et noms | OpenRAG et LiteLLM : validations de présence/format PASS ; `apps/opensearch/.env` legacy actuellement UID=1000 GID=568 mode=0644, encore déclaré par Compose | **BLOCKED** : mode/propriétaire OpenSearch, égalité des credentials, runtime effectif et finalisation legacy |
 | H-09 | Talos / Kubernetes | CSI NFS antérieurement accepté | Retained smoke multi-nœuds avant changement d'Ingress ou migration d'App |
 
 Actions :
@@ -97,13 +99,14 @@ Actions :
 - [ ] **H-07 :** garder le catalogue Compose/`x-nabla` comme source
   déclarative ; ne pas transformer une sonde inaccessible en preuve `DOWN`
   d'une application.
-- [ ] **H-08 :** migration des secrets **non terminée**.
-  Préserver les secrets existants, vérifier la présence des clés
-  `LITELLM_IDE_API_KEY` / `OPENRAG_ENCRYPTION_KEY` (OpenRAG)
-  ainsi que `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (LiteLLM, même projet),
-  vérifier le chemin canonique LiteLLM et les guillemets dotenv, puis corriger le candidat
-  OpenSearch identifié par métadonnées, puis valider son égalité. Ne pas
-  finaliser le chemin historique OpenRAG avant un vrai runtime accepté.
+- [ ] **H-08 :** présence et format des clés OpenRAG/LiteLLM **PASS** sur TrueNAS.
+  Corriger **uniquement** les métadonnées du candidat OpenSearch `legacy_env`
+  (UID=1000, GID=568, mode=0644 au dernier relevé) : fichier encore
+  utilisé par `apps/opensearch/compose.yml`. Vérifier l'égalité des valeurs
+  après réparation, puis l'identifiant effectivement chargé et l'authentification.
+  Vérifier que les clés Langfuse sont réelles et issues du même projet : un
+  PASS syntaxique ne prouve pas le callback. Ne pas finaliser le legacy
+  OpenRAG avant une acceptation runtime vérifiée.
   [Gates de clôture](runbooks/truenas-secret-migration-closure.md) · [preuves et commandes](runbooks/2026-10-25-critical-acceptance-followup.md).
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
