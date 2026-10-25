@@ -910,11 +910,16 @@ stables sans imprimer de logs, feed URLs ou secrets.
 **Capturer proprement deux relevés à la prochaine fenêtre :**
 
 ```bash
-umask 077
-PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check > /tmp/unbound-before.log
-# Exécuter de nouveau après la fenêtre, sans provoquer de restart.
-PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check > /tmp/unbound-after.log
-PFSENSE_BEFORE=/tmp/unbound-before.log PFSENSE_AFTER=/tmp/unbound-after.log just pfsense-unbound-compare
+# Avant la fenêtre DNSBL : noter le chemin exact snapshot_saved.
+just pfsense-unbound-capture
+
+# Après la fenêtre : noter le deuxième chemin exact snapshot_saved.
+just pfsense-unbound-capture
+
+# Remplacer les valeurs suivantes par les chemins réellement affichés.
+PFSENSE_BEFORE="/chemin-reel-du-premier-snapshot" \
+PFSENSE_AFTER="/chemin-reel-du-deuxieme-snapshot" \
+just pfsense-unbound-compare
 ```
 
 Les fichiers temporaires restent sur la workstation de
@@ -965,8 +970,7 @@ Le workflow à privilégier désormais est :
    incomplets ou de même horodatage sont maintenant distingués.
 
 Le **document canonique pour une reprise différée** est
-[2026-10-26-pfsense-memory-dnsbl-reprise.md]
-(2026-10-26-pfsense-memory-dnsbl-reprise.md). Il contient la
+[2026-10-26-pfsense-memory-dnsbl-reprise.md](2026-10-26-pfsense-memory-dnsbl-reprise.md). Il contient la
 chronologie des changements antérieurs et les règles
 d'attribution causale. Les OOM et cycles DNSBL préexistent
 au cutover PHP-FPM du 25/10, mais la plupart des autres
@@ -975,3 +979,18 @@ modifications ne disposent pas d'un historique de diff suffisant.
 Ne pas rouvrir d'anciens rapports via des chemins fictifs.
 Une nouvelle capture ne permet pas de reconstituer rétroactivement
 le PID et le RSS de l'ancienne baseline.
+
+### Reçu de comparaison réelle — 26 octobre 00:40 CET
+
+La comparaison du **26/10 00:40:15 → 00:40:22 CET** a
+réussi avec les deux véritables fichiers `snapshot_saved` :
+PID Unbound **2611** stable, Unbound Control **REACHABLE**,
+hashes de `unbound.conf` et `dnsbl_legacy_ini` **MATCH**,
+`dnsbl_python_ini` **UNKNOWN_MISSING_EVIDENCE**.
+Aucun nouvel OOM n'est visible dans cette fenêtre de
+sept secondes. `restart_assessment=NO_PID_CHANGE_IN_THIS_INTERVAL`.
+
+Cette constatation n'invalide **pas** le changement de PID
+**19252 → 2611** pendant le cycle DNSBL de **00:04**.
+Pour les résultats complets, voir le
+[runbook de reprise du 26 octobre](2026-10-26-pfsense-memory-dnsbl-reprise.md).
