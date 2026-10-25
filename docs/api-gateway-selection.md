@@ -108,7 +108,7 @@ d'APISIX ou modification de header, métriques présentes, rollback validé.
 [procédure opérateur](../apps/apisix/README.md) : APISIX `3.19.0-debian`
 file-driven `apisix.yaml` avec `#END`, mode `data_plane` sans etcd,
 mock Python local, réseau Docker interne sans port publié, seul
-`GET /poc/health` protégé par `key-auth`, quota 30/min.
-`just apisix-poc-contract` vérifie le contrat sans Docker.
-`just apisix-poc-up/smoke/down` demandent une action explicite.
+`GET /health` protégé par `key-auth`, quota 30/min.
+`just apisix-contract` vérifie le contrat sans Docker.
+`just apisix-up/smoke/down` demandent une action explicite.
 Avant production, signer/résoudre le digest, ajouter gateway↔FastAPI et OIDC.

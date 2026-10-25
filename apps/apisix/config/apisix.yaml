@@ -1,12 +1,12 @@
 ---
 # Standalone file-driven requires the final #END marker.
 routes:
-  - id: poc-health
-    uri: /poc/health
+  - id: apisix-health
+    uri: /health
     methods: [GET]
     plugins:
       key-auth:
-        header: X-Nabla-POC-Key
+        header: X-Nabla-APISIX-Key
         hide_credentials: true
       proxy-rewrite:
         uri: /
@@ -22,8 +22,8 @@ routes:
       nodes:
         "echo:8080": 1
 consumers:
-  - username: poc-agent
+  - username: apisix-agent
     plugins:
       key-auth:
-        key: "$env://APISIX_POC_KEY"
+        key: "$env://APISIX_KEY"
 #END

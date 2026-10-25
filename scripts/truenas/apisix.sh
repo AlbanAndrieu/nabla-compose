@@ -12,14 +12,14 @@ if [[ "${#}" -ne 1 ]]; then
 fi
 case "${1}" in
   up|smoke)
-    if [[ -z "${APISIX_POC_KEY:-}" || "${#APISIX_POC_KEY}" -lt 24 ]]; then
-      echo "BLOCKED: APISIX_POC_KEY of at least 24 characters is required" >&2
+    if [[ -z "${APISIX_KEY:-}" || "${#APISIX_KEY}" -lt 24 ]]; then
+      echo "BLOCKED: APISIX_KEY of at least 24 characters is required" >&2
       exit 2
     fi
     ;;
   down)
-    : "${APISIX_POC_KEY:=poc-cleanup-placeholder-not-a-live-key}"
-    export APISIX_POC_KEY
+    : "${APISIX_KEY:=apisix-cleanup-placeholder-not-a-live-key}"
+    export APISIX_KEY
     ;;
   *)
     echo "Usage: $0 {up|smoke|down}" >&2
@@ -28,19 +28,19 @@ case "${1}" in
 esac
 case "${1:-}" in
   up)
-    docker compose -f "$file" --profile poc config --quiet
-    docker compose -f "$file" --profile poc up -d
+    docker compose -f "$file" --profile apisix config --quiet
+    docker compose -f "$file" --profile apisix up -d
     ;;
   smoke)
-    docker compose -f "$file" --profile poc exec -T -e APISIX_POC_KEY echo python - <<'PY'
+    docker compose -f "$file" --profile apisix exec -T -e APISIX_KEY echo python - <<'PY'
 import os
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-url = "http://apisix:9080/poc/health"
+url = "http://apisix:9080/health"
 def request(path, key=None, method="GET"):
-    headers = {"X-Nabla-POC-Key": key} if key else {}
+    headers = {"X-Nabla-APISIX-Key": key} if key else {}
     try:
         with urlopen(Request(path, headers=headers, method=method), timeout=3) as response:
             return response.status, response.read()
@@ -56,17 +56,17 @@ for _ in range(30):
 else:
     raise SystemExit("APISIX did not start within the bounded preflight")
 assert status == 401, f"without credential expected 401: {status}"
-status, body = request(url, os.environ["APISIX_POC_KEY"])
-assert status == 200 and b"APISIX POC healthy" in body, f"credential expected 200: {status}"
-status, _ = request("http://apisix:9080/missing", os.environ["APISIX_POC_KEY"])
+status, body = request(url, os.environ["APISIX_KEY"])
+assert status == 200 and b"APISIX healthy" in body, f"credential expected 200: {status}"
+status, _ = request("http://apisix:9080/missing", os.environ["APISIX_KEY"])
 assert status == 404, f"unknown route expected 404: {status}"
-status, _ = request(url, os.environ["APISIX_POC_KEY"], method="POST")
+status, _ = request(url, os.environ["APISIX_KEY"], method="POST")
 assert status != 200, f"method violation: {status}"
-print("APISIX_POC_SMOKE_PASS: 401, 200, 404 and invalid method")
+print("APISIX_SMOKE_PASS: 401, 200, 404 and invalid method")
 PY
     ;;
   down)
-    docker compose -f "$file" --profile poc down
+    docker compose -f "$file" --profile apisix down
     ;;
   *)
     echo "Usage: $0 {up|smoke|down}" >&2

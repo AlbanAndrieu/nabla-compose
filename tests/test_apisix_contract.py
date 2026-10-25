@@ -10,7 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1] / "apps" / "apisix"
 
 
-class ApisixPocContract(unittest.TestCase):
+class ApisixContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.compose = yaml.safe_load((ROOT / "compose.yml").read_text())
@@ -27,7 +27,7 @@ class ApisixPocContract(unittest.TestCase):
 
     def test_isolated_opt_in_no_ingress(self):
         for service in self.compose["services"].values():
-            self.assertEqual(service["profiles"], ["poc"])
+            self.assertEqual(service["profiles"], ["apisix"])
             self.assertEqual(service["restart"], "no")
             self.assertNotIn("ports", service)
             self.assertNotIn("labels", service)
@@ -37,7 +37,7 @@ class ApisixPocContract(unittest.TestCase):
     def test_single_protected_mock_route(self):
         self.assertEqual(len(self.rules["routes"]), 1)
         route = self.rules["routes"][0]
-        self.assertEqual(route["uri"], "/poc/health")
+        self.assertEqual(route["uri"], "/health")
         self.assertEqual(route["methods"], ["GET"])
         self.assertTrue(route["plugins"]["key-auth"]["hide_credentials"])
         self.assertEqual(route["plugins"]["limit-count"]["rejected_code"], 429)
@@ -45,17 +45,17 @@ class ApisixPocContract(unittest.TestCase):
 
     def test_secret_from_environment_and_no_real_origin(self):
         key = self.rules["consumers"][0]["plugins"]["key-auth"]["key"]
-        self.assertEqual(key, "$env://APISIX_POC_KEY")
-        self.assertIn("APISIX_POC_KEY", self.compose["services"]["apisix"]["environment"])
+        self.assertEqual(key, "$env://APISIX_KEY")
+        self.assertIn("APISIX_KEY", self.compose["services"]["apisix"]["environment"])
         raw = (ROOT / "config/apisix.yaml").read_text()
         self.assertNotIn("172.17.", raw)
         self.assertNotIn("fastapi-sample.fastapicloud.dev", raw)
 
 
 
-class ApisixPocRollbackContract(unittest.TestCase):
+class ApisixRollbackContract(unittest.TestCase):
     def test_down_requires_no_live_key_and_invokes_only_scoped_compose(self):
-        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
         with tempfile.TemporaryDirectory() as workdir:
             root = Path(workdir)
             log = root / "docker-calls"
@@ -65,7 +65,7 @@ class ApisixPocRollbackContract(unittest.TestCase):
                 encoding="utf-8",
             )
             env = os.environ.copy()
-            env.pop("APISIX_POC_KEY", None)
+            env.pop("APISIX_KEY", None)
             env.update(BASH_ENV=str(envfile), MOCK_DOCKER_LOG=str(log))
             result = subprocess.run(
                 ["bash", str(script), "down"], env=env,
@@ -73,13 +73,13 @@ class ApisixPocRollbackContract(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(len(log.read_text().splitlines()), 1)
-            self.assertIn("--profile poc down", log.read_text())
-            self.assertNotIn("poc-cleanup-placeholder", result.stdout + result.stderr)
+            self.assertIn("--profile apisix down", log.read_text())
+            self.assertNotIn("apisix-cleanup-placeholder", result.stdout + result.stderr)
 
     def test_up_and_smoke_reject_missing_key_before_docker(self):
-        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
         env = os.environ.copy()
-        env.pop("APISIX_POC_KEY", None)
+        env.pop("APISIX_KEY", None)
         for action in ("up", "smoke"):
             with self.subTest(action=action):
                 result = subprocess.run(
@@ -87,10 +87,10 @@ class ApisixPocRollbackContract(unittest.TestCase):
                     env=env, capture_output=True, text=True, check=False,
                 )
                 self.assertEqual(result.returncode, 2)
-                self.assertIn("APISIX_POC_KEY", result.stderr)
+                self.assertIn("APISIX_KEY", result.stderr)
 
     def test_mixed_cli_modes_are_invalid(self):
-        script = ROOT.parents[1] / "scripts/truenas/apisix-poc.sh"
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
         result = subprocess.run(
             ["bash", str(script), "up", "down"],
             capture_output=True, text=True, check=False,
