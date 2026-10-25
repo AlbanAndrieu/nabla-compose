@@ -18,6 +18,7 @@ SERIAL = "22916048"
 FIRMWARE = "5.4.3"
 OTP2 = re.compile(r"(?im)^Slot 2:\s*(programmed|empty)\s*$")
 FIRMWARE_LINE = re.compile(r"(?im)^Firmware version:\s*(\d+\.\d+\.\d+)\s*$")
+SERIAL_LINE = re.compile(r"(?im)^Serial number:\s*(\d+)\s*$")
 
 
 def public_command(*args: str) -> tuple[int, str]:
@@ -44,7 +45,8 @@ def otp2_inventory() -> str:
         if rc != 0 or devices.splitlines() != [SERIAL]:
             return "UNKNOWN"
         rc, info = public_command("--device", SERIAL, "info")
-        if rc != 0 or FIRMWARE_LINE.findall(info) != [FIRMWARE]:
+        if (rc != 0 or FIRMWARE_LINE.findall(info) != [FIRMWARE]
+                or SERIAL_LINE.findall(info) != [SERIAL]):
             return "UNKNOWN"
         rc, info = public_command("--device", SERIAL, "otp", "info")
         if rc != 0:
@@ -68,7 +70,7 @@ def file_metadata(path: Path) -> tuple[bool, int, int]:
             if part.is_symlink():
                 return False, 0, 0
         info = path.lstat()
-        if not stat.S_ISREG(info.st_mode) or info.st_size <= 0:
+        if not stat.S_ISREG(info.st_mode) or info.st_size <= 0 or info.st_nlink != 1:
             return False, 0, 0
         return True, info.st_dev, info.st_ino
     except (OSError, ValueError):
