@@ -41,6 +41,12 @@ class DoclingDeployPreflightTest(unittest.TestCase):
         self.assertIn('APP_ID="docling"', source)
         self.assertIn('only the docling Custom App', source)
         self.assertIn('unexpected or ambiguous existing App count', source)
+        self.assertIn('Docling is already DEPLOYING', source)
+        guard = source.index('if [[ "${app_count}" == "1" ]]; then\n  app_state=')
+        apply_runtime = source.index(
+            'bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"'
+        )
+        self.assertLess(guard, apply_runtime)
         for forbidden in ("rm -rf", "docker compose down", "docker system prune",
                           "zfs destroy", "app.delete"):
             self.assertNotIn(forbidden, source)
