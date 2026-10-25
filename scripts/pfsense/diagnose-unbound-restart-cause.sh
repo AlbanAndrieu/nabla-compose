@@ -161,9 +161,9 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
     function pfblocker_time_marker(line, v) {
       # Log timestamps are intermittent [ NOW ] expansions, not per-line.
       # Preserve the nearest prior marker only as contextual evidence.
-      if(match(line, /\\[[[:space:]]*[0-9][0-9]\\/[0-9][0-9]\\/[0-9][0-9] [0-9][0-9]?:[0-9][0-9]:[0-9][0-9][[:space:]]*\\]/)) {
+      if(match(line, /\[[[:space:]]*[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9] [0-9][0-9]?:[0-9][0-9]:[0-9][0-9][[:space:]]*\]/)) {
         v=substr(line,RSTART,RLENGTH)
-        gsub(/\\[|\\]/,"",v)
+        gsub(/\[|\]/,"",v)
         sub(/^[[:space:]]*/,"",v)
         sub(/[[:space:]]*$/,"",v)
         return v
