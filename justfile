@@ -83,6 +83,14 @@ catalog-convergence-check:
 yubikey-otp2-secondary-readonly:
     python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary
 
+# GnuPG Assuan GETINFO only. Uses --no-autostart and never handles secrets.
+yubikey-gpg-agent-test:
+    python3 -m py_compile scripts/workstation/inspect-gpg-agent-readonly.py tests/test_yubikey_gpg_agent_readonly.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_gpg_agent_readonly.py' -v
+
+yubikey-gpg-agent-readonly:
+    python3 scripts/workstation/inspect-gpg-agent-readonly.py
+
 # One command: all hermetic YubiKey contract groups, then one public snapshot
 # on the secondary only. Never re-runs OTP2/F9/PIV82 hardware reads.
 yubikey-diagnostics-all-secondary:
@@ -90,7 +98,8 @@ yubikey-diagnostics-all-secondary:
     just yubikey-applications-test
     just yubikey-workstation-test
     just yubikey-diagnostics-test
-    just yubikey-diagnostics-secondary-readonly
+    just yubikey-gpg-agent-test
+    python3 scripts/workstation/diagnose-yubikey-readonly-batch.py --hardware --serial 22916048 --gpg-agent-probe
 
 # One-shot read-only snapshot. Never asks PIN, challenge, writes or decrypts.
 yubikey-diagnostics-test:
