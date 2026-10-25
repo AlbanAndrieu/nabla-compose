@@ -191,8 +191,21 @@ def main(argv=None):
         current = json.loads(raw)
         allowed = scoped_models(key)
         updated = candidate(current, key, allowed)
-    except (ValueError, UnicodeError, TypeError):
+    except (ValueError, UnicodeError, TypeError) as error:
         print("repair=blocked_preflight")
+        # Only internally authored fixed error codes are safe to show.
+        reasons = {
+            "config_invalid", "models_invalid", "providers_invalid",
+            "providers_missing", "routing_not_workstation",
+            "cron_key_not_verified_distinct", "cron_model_not_authorized",
+            "agents_invalid", "agents_list_missing", "cron_agent_not_unique",
+            "defaults_invalid", "cron_model_schema_invalid",
+            "cron_model_unexpected", "concurrency_invalid",
+        }
+        if str(error) in reasons:
+            print("blocked_reason=" + str(error))
+        else:
+            print("blocked_reason=unverified")
         return 2
     print("repair=ready")
     print("cron_model=litellm-cron/gpt-4.1")
