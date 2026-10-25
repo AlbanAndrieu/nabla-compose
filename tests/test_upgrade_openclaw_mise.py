@@ -98,6 +98,18 @@ class UpgradeContracts(unittest.TestCase):
         self.assertTrue(any("--allow-scripts=openclaw" in x for x in calls))
         self.assertNotIn("npm private output", output.getvalue())
 
+    def test_activation_is_idempotent_on_healthy_migrated_service(self):
+        with patch.object(mod, "unit_exec", return_value=self.new), \
+             patch.object(mod, "service_active", return_value=True), \
+             patch.object(mod, "ready", return_value=True), \
+             patch.object(mod, "package_version", return_value="2026.10.7"), \
+             patch.object(mod, "run") as runner, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.activate(self.home)
+        self.assertEqual(result, 0)
+        self.assertIn("upgrade_activation=already_verified", output.getvalue())
+        runner.assert_not_called()
+
     def test_activate_refuses_unstaged_package(self):
         with patch.object(mod, "unit_exec", return_value=self.old), \
              patch.object(mod, "node_ready", return_value=True), \
