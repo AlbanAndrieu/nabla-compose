@@ -128,6 +128,26 @@ done
 [ "$implementation_seen" = yes ] ||
   echo 'pfblocker_implementation=NOT_OBSERVED'
 echo 'pfblocker_implementation_is_execution_proof=no'
+echo '=== Installed DNSBL reload fallback capabilities (static flags only) ==='
+# A missing guard does not explain which branch executed at midnight.
+for file in /usr/local/pkg/pfblockerng/pfblockerng.inc \
+            /usr/local/pkg/pfblockerng.inc; do
+  [ -r "$file" ] || continue
+  if grep -Fq 'pfb_unbound_py_swap_fits_ram' "$file" 2>/dev/null; then
+    echo 'pfblocker_dnsbl_swap_ram_gate=PRESENT'
+  else
+    echo 'pfblocker_dnsbl_swap_ram_gate=ABSENT'
+  fi
+  if grep -Fq 'pfb_py_reload' "$file" 2>/dev/null; then
+    echo 'pfblocker_dnsbl_live_reload_marker=PRESENT'
+  else
+    echo 'pfblocker_dnsbl_live_reload_marker=ABSENT'
+  fi
+  echo 'pfblocker_dnsbl_fallback_condition=NOT_OBSERVED_AT_RUNTIME'
+  break
+done
+[ "$implementation_seen" = yes ] ||
+  echo 'pfblocker_dnsbl_reload_capabilities=NOT_OBSERVED'
 echo '=== Bounded lifecycle and kernel signals (raw messages withheld) ==='
 for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
             /var/log/resolver.log /var/log/resolver.log.0 \
