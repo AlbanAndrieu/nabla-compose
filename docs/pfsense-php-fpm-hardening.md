@@ -568,3 +568,37 @@ configuration, les stop/start pfBlockerNG et les éventuels
 OOM postérieurs à 00:00 avec la baseline conservée dans
 `docs/runbooks/2026-10-25-pfsense-unbound-restart-causality.md`.
 **Ne pas réappliquer le profil PHP-FPM** pour cette vérification.
+
+## Après cron DNSBL — 26/10/2026 à 00:12 CET
+
+Le relevé post-cron reçu à **00:12:48 CET** montre
+**Unbound PID 2611**, lancé à **00:04:32 CET**.
+La baseline du 25/10 à 23:56 montrait PID 19252 :
+la continuité du PID est donc rompue pendant les
+marqueurs pfBlockerNG stop/start autour de 00:04.
+Une sortie du module Python DNSBL a été horodatée
+à **00:04:30.252+01:00**. Unbound Control répond à 00:12.
+
+Les empreintes de `unbound.conf` et
+`dnsbl_legacy_ini` sont **inchangées** ;
+la configuration effective Python en mémoire n'a
+pas été contrôlée. Aucun nouvel OOM n'apparaît
+après le kill du 25/10 22:12 dans les journaux
+conservés. La RAM `free+inactive` est passée
+de **247,0 Mio (23:56)** à **167,1 Mio (00:12)**,
+sous une charge différente et sans preuve
+du consommateur responsable de l'écart.
+
+**Ne pas revenir au profil PHP-FPM précédent.**
+Le redémarrage nocturne d'Unbound se produit avec
+le profil PHP-FPM contraint, mais il correspond
+à un autre mécanisme (cycle pfBlockerNG DNSBL
+rapporté par le package), non à un nouveau kill OOM.
+Un incident de disponibilité DNS éventuel reste
+à mesurer durant le cycle lui-même.
+
+Pour automatiser une comparaison réutilisable
+de deux rapports sans SSH, utiliser
+`just pfsense-unbound-compare` avec
+`PFSENSE_BEFORE` et `PFSENSE_AFTER`.
+Voir le runbook H-04 pour les limites causales.
