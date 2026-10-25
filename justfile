@@ -514,6 +514,14 @@ apisix-down:
 critical-failures-triage:
     sudo -n bash scripts/truenas/triage-critical-failures.sh --check
 
+# TrueNAS: focused Prometheus/Akvorado acceptance, no unnecessary OpenRAG probes.
+critical-remaining-triage:
+    sudo -n bash scripts/truenas/triage-critical-failures.sh --check --remaining
+
+# Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
+prometheus-remaining-scrapes:
+    python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
+
 # Offline regression checks for bounded seven-gate recovery diagnostics.
 critical-failures-contracts:
     python3 -m unittest discover -s tests -p 'test_critical_triage_contract.py' -v
