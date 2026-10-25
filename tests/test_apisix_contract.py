@@ -1,4 +1,4 @@
-"""Offline POC assertions: never starts Docker or retrieves secrets."""
+"""Offline APISIX contracts; no real Docker requests or secrets."""
 import os
 import subprocess
 import tempfile
@@ -52,7 +52,6 @@ class ApisixContract(unittest.TestCase):
         self.assertNotIn("fastapi-sample.fastapicloud.dev", raw)
 
 
-
 class ApisixRollbackContract(unittest.TestCase):
     def test_down_requires_no_live_key_and_invokes_only_scoped_compose(self):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
@@ -88,6 +87,49 @@ class ApisixRollbackContract(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("APISIX_KEY", result.stderr)
+
+    def test_check_reports_container_metadata_without_key(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
+        with tempfile.TemporaryDirectory() as workdir:
+            root = Path(workdir)
+            envfile = root / "mock-docker-functions"
+            envfile.write_text(
+                'docker() { '
+                'if [[ "$1" == inspect ]]; then '
+                'printf "running|none\\n"; '
+                'elif [[ "$*" == *"ps -q"* ]]; then '
+                'printf "abcdef123456\\n"; '
+                'fi; }\\n',
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("APISIX_KEY", None)
+            env["BASH_ENV"] = str(envfile)
+            result = subprocess.run(
+                ["bash", str(script), "check"], env=env,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("service=apisix runtime=running", result.stdout)
+            self.assertIn("service=echo runtime=running", result.stdout)
+            self.assertIn("health=none http=not_checked", result.stdout)
+            self.assertNotIn("apisix-cleanup-placeholder", result.stdout)
+
+    def test_check_absent_container_is_unverified_not_down(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
+        with tempfile.TemporaryDirectory() as workdir:
+            fake = Path(workdir) / "mock-docker-functions"
+            fake.write_text('docker() { return 0; }\\n', encoding="utf-8")
+            env = os.environ.copy()
+            env.pop("APISIX_KEY", None)
+            env["BASH_ENV"] = str(fake)
+            result = subprocess.run(
+                ["bash", str(script), "check"], env=env,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("runtime=not_deployed_or_ambiguous", result.stdout)
+            self.assertNotIn("runtime=failed", result.stdout)
 
     def test_mixed_cli_modes_are_invalid(self):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
