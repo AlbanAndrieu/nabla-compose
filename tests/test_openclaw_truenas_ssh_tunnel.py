@@ -31,6 +31,11 @@ class SSHTunnelContracts(unittest.TestCase):
         correct = b"hostname 172.17.0.24\nuser albandrieu\nport 9922\n"
         with patch.object(tunnel, "execute", return_value=CompletedProcess([], 0, correct, b"")):
             self.assertTrue(tunnel.ssh_alias_valid())
+        # The user's ~/.ssh/config uses: Host 172.17.0.24 nabla freenas truenas
+        # without a HostName directive. OpenSSH then returns "hostname truenas".
+        multi_alias = b"hostname truenas\nuser albandrieu\nport 9922\n"
+        with patch.object(tunnel, "execute", return_value=CompletedProcess([], 0, multi_alias, b"")):
+            self.assertTrue(tunnel.ssh_alias_valid())
         for config in (b"hostname 172.17.0.57\nuser albandrieu\nport 9922",
                        b"hostname 172.17.0.24\nuser albandrieu\nport 22",
                        b"hostname 172.17.0.24\nuser root\nport 9922"):
@@ -79,6 +84,7 @@ class SSHTunnelContracts(unittest.TestCase):
         self.assertIn("ExitOnForwardFailure=yes", cmd)
         self.assertIn("none", cmd)
         self.assertIn(tunnel.FORWARD, cmd)
+        self.assertIn("HostName=172.17.0.24", cmd)
         self.assertNotIn("LITELLM_MASTER_KEY", " ".join(cmd))
         self.assertIn("truenas_tunnel_after_start=verified_ssh", output.getvalue())
 
