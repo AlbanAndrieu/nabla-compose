@@ -376,6 +376,13 @@ Conserver le rollback uniquement en cas de régression avérée.
 
 Le script natif de redémarrage a imprimé **`[: NaN: bad number`**
 pendant l'application, avant le redémarrage `check_reload_status`.
+La commande de maintenance détecte désormais ce message en sortie du
+redémarrage natif et émet
+`WARN: pfSense_native_restart_numeric_warning=OBSERVED_SOURCE_UNCONFIRMED`,
+sans masquer ni les erreurs SSH ni les tests DNS/WebConfigurator.
+**Il ne s'agit pas d'une correction du script natif pfSense** ; ne
+pas réexécuter le changement pour tester ce warning.
+
 Le code de nos scripts ne contient pas de calcul numérique `NaN`,
 mais la provenance exacte n'est **pas prouvée** (générateur, script
 de restart pfSense, ou dépendance appelée). Les contrôles postérieurs
