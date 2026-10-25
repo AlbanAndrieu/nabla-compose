@@ -102,3 +102,10 @@ distinctes.
 
 Références internes : [plan de finition](yubikey-capabilities-completion-plan.md),
 [preuves F9/PIV82/OTP2](yubikey-piv82-postmerge-diagnostics.md).
+
+
+## Sonde GPG-agent active mais non intrusive (opt-in)
+
+`just yubikey-gpg-agent-readonly` envoie uniquement `GETINFO version` à un agent GPG **déjà lancé**, par `gpg-connect-agent --no-autostart`. La réponse brute et le chemin du socket ne sont jamais imprimés. L'état `RESPONDS_GETINFO_ONLY` prouve uniquement la joignabilité du protocole Assuan, **pas** l'accès à une carte OpenPGP, une signature, un déchiffrement ni une restauration PostgreSQL. Une erreur indique `UNKNOWN` ou `TOOL_MISSING`, jamais un agent démarré implicitement. Voir la [documentation GnuPG](https://gnupg.org/documentation/manuals/gnupg-devel/Invoking-gpg_002dconnect_002dagent.html).
+
+`just yubikey-diagnostics-all-secondary` lance aussi `just yubikey-gpg-agent-test` puis active `--gpg-agent-probe` sur le coordinateur. Ce lot exécute **16 + 28 + 12 + 13 + 19 + 7 = 95 méthodes de tests ciblés** avant l'observation publique de la secondaire. Ce compteur indique les tests versionnés, **pas des tests déjà exécutés sur le nouveau HEAD**. Aucune nouvelle lecture OTP2, F9 ou PIV82.
