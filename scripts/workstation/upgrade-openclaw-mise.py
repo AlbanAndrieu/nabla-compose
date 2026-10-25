@@ -287,6 +287,8 @@ def verify():
     print("openclaw_service_version=" + ("verified" if healthy else "unverified"))
     print("http_ready=" + ("yes" if ready() else "no"))
     print("service_runtime_target=" + ("verified" if owner == root else "unverified"))
+    doctor_ok = False
+    memory_ok = False
     if healthy:
         launcher = [str(root / "bin/node"),
                     str(root / "lib/node_modules/openclaw/dist/index.js")]
@@ -296,7 +298,8 @@ def verify():
         # Doctor lint is deliberately non-mutating. Do not echo JSON.
         lint_code, _, _ = run(launcher + ["doctor", "--lint", "--json"],
                               env=env, timeout=45)
-        print("doctor_lint=" + ("completed" if lint_code == 0 else "needs_review"))
+        doctor_ok = lint_code == 0
+        print("doctor_lint=" + ("completed" if doctor_ok else "needs_review"))
         # memory status reports index health without generating embeddings.
         mem_code, out, _ = run(launcher + ["memory", "status"], env=env, timeout=45)
         if mem_code == 0:
@@ -307,10 +310,13 @@ def verify():
             print("memory_main=" + ("visible" if main else "unverified"))
             print("memory_cron=" + ("visible" if cron else "unverified"))
             print("memory_clean_indexes=" + str(min(clean, 2)))
+            memory_ok = main and cron and clean >= 2
         else:
             print("memory_status=unavailable")
+    functional = healthy and doctor_ok and memory_ok
+    print("functional_contract=" + ("verified" if functional else "partial_or_unverified"))
     print("no_billable_model_request=true")
-    return 0 if healthy else 2
+    return 0 if functional else 2
 
 
 def main(argv=None):
