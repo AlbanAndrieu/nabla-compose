@@ -393,3 +393,41 @@ sortie non nulle avec `ERROR: lifecycle_classifier_failed`.
 
 Suite de référence : **19 contrats Unbound + 18 contrats console =
 37 tests** (nouveau HEAD non validé par l'opérateur à ce stade).
+
+## Suivi qualité — extraction du heredoc SSH, 25 octobre
+
+Le dernier retour opérateur sur `just pfsense-unbound-restart-test`
+montre 17/19 PASS pour la suite Unbound précédente et deux défauts
+de test : les deux scénarios attendaient `<<'REMOTE'` immédiatement
+suivi d'un saut de ligne. L'appel réel est pourtant :
+
+```bash
+ssh ... '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
+```
+
+Un extracteur commun `extract_remote_shell()` sélectionne maintenant
+le corps jusqu'au marqueur de fermeture en ignorant le pipeline
+local de rendu. Il échoue si le heredoc manque ou est tronqué.
+
+Un second défaut est apparu pendant la reproduction locale :
+l'ancienne injection `THIS TOKEN IS INVALID AWK;` était une expression
+AWK grammaticalement valide. Le test utilise désormais `if ( {`
+pour provoquer une véritable erreur de parsing. Sur la version
+réelle du script fournie par l'opérateur, une reproduction isolée
+a validé l'extraction, `/bin/sh -n`, la classification d'un OOM
+et le **code de sortie 70** avec `ERROR: lifecycle_classifier_failed`
+lors de l'injection. Aucun accès pfSense n'a été requis.
+
+Le contrat est désormais **20 tests Unbound + 18 tests console = 38**.
+Ces 38 tests doivent encore être exécutés localement sur le HEAD
+de la PR. Le test de la nouvelle version n'a pas été déclaré PASS
+à partir du seul résultat de la reproduction isolée.
+
+Commande :
+
+```bash
+just pfsense-unbound-restart-test
+```
+
+Conserver l'absence d'exécution GitHub Actions payante et ne pas
+modifier Unbound/pfBlockerNG pendant la validation.
