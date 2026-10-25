@@ -117,5 +117,58 @@ class OpenClawRouteMetadataTests(unittest.TestCase):
 
 
 
+    def test_memory_search_local_secretref_points_to_workstation_instance(self):
+        local_key = str(Path.home() / ".local/share/nabla-compose/openclaw-embeddings.key")
+        result = self.inspect({
+            "memory": {"search": {
+                "provider": "openai-compatible",
+                "model": "embedding",
+                "remote": {
+                    "baseUrl": "http://127.0.0.1:4000/v1",
+                    "apiKey": {"source": "file", "provider": "openclaw-embeddings",
+                               "id": "value"},
+                },
+            }},
+            "secrets": {"providers": {"openclaw-embeddings": {
+                "source": "file", "mode": "singleValue", "path": local_key,
+            }}},
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("memory_global_provider=openai-compatible", result.stdout)
+        self.assertIn("memory_global_model=embedding", result.stdout)
+        self.assertIn("memory_global_route_owner=workstation_litellm", result.stdout)
+        self.assertIn("memory_embedding_secretref=expected", result.stdout)
+        self.assertIn("memory_embedding_file_provider=expected", result.stdout)
+        self.assertIn("memory_virtual_key_instance=workstation", result.stdout)
+        self.assertIn("memory_runtime_secret_resolution=not_tested", result.stdout)
+        self.assertNotIn(local_key, result.stdout)
+
+    def test_memory_search_truenas_route_does_not_claim_workstation_key(self):
+        confidential = "sk-private-embedding-test"
+        result = self.inspect({"memory": {"search": {
+            "provider": "openai-compatible",
+            "model": "embedding",
+            "remote": {"baseUrl": "http://172.17.0.24:4000/v1",
+                       "apiKey": confidential},
+        }}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("memory_global_route_owner=truenas_litellm", result.stdout)
+        self.assertIn("memory_global_key_representation=literal_or_unresolved", result.stdout)
+        self.assertIn("memory_virtual_key_instance=truenas", result.stdout)
+        self.assertNotIn(confidential, result.stdout)
+
+    def test_memory_provider_malformed_url_does_not_expose_private_host(self):
+        result = self.inspect({"memory": {"search": {"remote": {
+            "baseUrl": "http://private.example.invalid:not-a-port/v1",
+            "apiKey": {"source": "file", "provider": "private-provider",
+                       "id": "secret"},
+        }}}})
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("memory_global_route_owner=other_or_unverified", result.stdout)
+        self.assertIn("memory_embedding_file_provider=unverified_or_different", result.stdout)
+        self.assertNotIn("private-provider", result.stdout)
+        self.assertNotIn("private.example.invalid", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
