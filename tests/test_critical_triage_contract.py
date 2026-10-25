@@ -1,8 +1,8 @@
 """Static/offline contracts for bounded TrueNAS seven-gate triage."""
-from pathlib import Path
 import re
 import subprocess
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/truenas/triage-critical-failures.sh"
@@ -52,7 +52,7 @@ class CriticalTriageContract(unittest.TestCase):
         self.assertIn("--scope openrag", source)
         self.assertIn("--require-inserts --observe-seconds 30", source)
         self.assertIn("repair-prometheus-config-access.sh --check", source)
-        self.assertNotRegex(source, r"^\s+(?:midclt call app\.(?:start|redeploy)|docker compose up|rm -rf)",)
+        self.assertNotRegex(source, re.compile(r"^\s+(?:midclt call app\.(?:start|redeploy)|docker compose up|rm -rf)", re.M))
 
     def test_private_evidence_and_unknown_are_not_pass(self):
         source = SCRIPT.read_text(encoding="utf-8")
