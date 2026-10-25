@@ -28,8 +28,8 @@ class UpgradeContracts(unittest.TestCase):
         self.new.mkdir(parents=True)
         for relative in (".local", ".local/share", ".local/share/nabla-compose"):
             directory = self.home / relative
-            if directory.exists():
-                directory.chmod(0o700)
+            directory.mkdir(parents=True, exist_ok=True)
+            directory.chmod(0o700)
         old_entry = self.old / "lib/node_modules/openclaw/dist/index.js"
         old_entry.parent.mkdir(parents=True)
         old_entry.write_text("// Synthetic legacy installed entry\\n")
