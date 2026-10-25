@@ -53,6 +53,18 @@ dans le Python de TrueNAS.
 just agent-skills-check
 ```
 
+Pour des contrôles de compatibilité rapides avec **Node 22 / npm 10**
+sans dépendance installée ni crédit CI, utiliser :
+
+```bash
+just node22-fast
+```
+
+Ce contrôle valide des contrats statiques et la syntaxe Bash.
+Il ne remplace pas les tests Python ni le smoke Docker.
+La version canonique du projet reste Node 24 ; consulter
+[le runbook du mode rapide](docs/runbooks/node22-local-fast-tests.md).
+
 Puis, dans la même révision après les tests ciblés :
 
 ```bash
