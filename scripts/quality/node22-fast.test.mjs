@@ -84,6 +84,14 @@ test('local just recipes are opt-in and unchanged by CI', () => {
   ]) {
     mustMatch(just, new RegExp('^' + recipe + ':', 'm'), recipe);
   }
-  mustMatch(just, /npm --offline run test:fast:node22/, 'offline mode');
+  mustMatch(just, /npm_cli="\$node_root\/lib\/node_modules\/npm\/bin\/npm-cli\.js"/,
+    'npm 10 must come from the selected Node 22 installation');
+  mustMatch(just, /PATH="\$node_root\/bin:\$PATH" "\$node_bin" "\$npm_cli" --offline run test:fast:node22/,
+    'explicit bundled npm must run offline');
+  mustMatch(just, /test "\$node_major" = 22 && test "\$npm_major" = 10/,
+    'version preflight must refuse npm 12');
+  assert.doesNotMatch(just.split(/^node22-fast:\s*$/m)[1]?.split(/^\S[^\n]*:\s*$/m)[0] ?? '',
+    /\b(?:npm install|npm ci|npx|mise install)\b/,
+    'fast lane must not install dependencies');
   assert.ok(existsSync(join(root, 'docs/roadmap.md')));
 });
