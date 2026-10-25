@@ -1052,3 +1052,89 @@ que LiteLLM accepte le YAML et ses modèles au démarrage.
 La restauration du modèle de briefing se trouve dans
 `apps/openclaw/workstation/MORNING_BRIEFING.md`. Elle est indépendante
 de ce diagnostic, des clés virtuelles et de la version des embeddings.
+
+
+## 2026-10-25 — mitigation automatique du 429 sans copier les logs de la UI
+
+Les preuves opérateur, après correction du test et de `memory.search`,
+confirment huit contrats PASS, `litellm-main` et `litellm-cron` toujours
+sur `172.17.0.57:4000/v1`, modèle par défaut `gpt-4.1` et
+`cron` héritant à tort du provider principal. L'embedding est un
+chemin indépendant, `127.0.0.1:4000/v1` avec SecretRef
+`openclaw-embeddings`. Ne pas le migrer pour réparer un 429 de chat.
+
+Le nouveau diagnostic `scripts/workstation/diagnose-openclaw-429-auto.py`
+lit *depuis Workstation*, sans intervention dans l'UI :
+- `GET http://127.0.0.1:4000/spend/logs/v2`, page bornée à 100
+  entrées et deux heures, avec master key **uniquement sur loopback**,
+  si disponible dans l'environnement du shell ;
+- `journalctl --user` pour `openclaw-gateway.service` et
+  `litellm.service` ;
+- `docker logs litellm` local si un conteneur existe.
+
+Tous les flux bruts restent en mémoire et sont supprimés. Le script
+affiche seulement des compteurs d'erreurs, d'incidents budget, de débit,
+de timeout, d'authentification, et des modèles d'une liste sûre.
+Les requêtes rejetées avant facturation peuvent être **absentes**
+des spend logs. Zéro ligne **n'est pas une preuve de santé**.
+Aucune requête de génération, aucun payload, aucun jeton ni ID
+de requête ne sont affichés.
+
+### Correction locale de l'identité cron
+
+`scripts/workstation/repair-openclaw-429.py` est un changement
+**explicite et limité**, après contrôle préflight. Il requiert :
+
+1. config `~/.openclaw/openclaw.json` et clé privée
+   `~/.local/share/nabla-compose/openclaw-cron.key`, fichiers owner-only ;
+2. deux providers `litellm-main` et `litellm-cron` pointant sur
+   l'instance LiteLLM Workstation prévue ;
+3. concordance exacte de la credential du provider `litellm-cron`
+   avec le fichier cron privé et différence de la clé principale ;
+4. `GET /v1/models` autorisé par la clé cron sur la seule boucle locale
+   et présence de `gpt-4.1` ;
+5. un agent `cron` **unique** dans `agents.list`, héritant de
+   `litellm-main/gpt-4.1` ou déjà sur `litellm-cron/gpt-4.1`.
+
+À l'application, seul le modèle de l'agent `cron` devient
+`litellm-cron/gpt-4.1` sans fallbacks, et
+`agents.defaults.maxConcurrent` est borné à **1**. Ce réglage réduit
+les appels parallèles mais peut allonger la file d'attente.
+La configuration complète précédente est sauvegardée en **0600**
+hors Git puis remplacée atomiquement. Avec `--restart-gateway`,
+un échec de redémarrage déclenche une tentative de restauration.
+Le script refuse les prérequis incertains au lieu de forcer une
+rotation ou de réutiliser une clé plus privilégiée.
+
+**Depuis Workstation uniquement** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-fix-test
+just openclaw-429-auto
+just openclaw-429-fix-plan
+just openclaw-429-fix-apply
+python3 scripts/workstation/openclaw-route-metadata.py
+```
+
+Exécuter les commandes dans un shell enfant `bash <<'...'`
+avec `set -euo pipefail` pour arrêter à la première anomalie.
+
+**Limitations** :
+- L'application modifie la **configuration locale OpenClaw**, pas la
+  base/clé virtuelle LiteLLM. Aucun budget ni modèle backend ne change.
+- Une limite upstream GPT ou une limite RPM/TPM de LiteLLM peut
+  produire encore des 429. Ne pas prétendre le contraire : il faudra
+  une nouvelle observation automatisée après la modification.
+- La configuration **effective des sessions déjà ouvertes** reste à
+  vérifier ; des épinglages de modèle/session peuvent prévaloir sur
+  la nouvelle valeur par défaut de l'agent.
+- Le plan ne s'applique pas si la clé `cron` n'a pas accès à
+  `gpt-4.1`. Ne pas élargir automatiquement cette clé.
+- La politique de heartbeat et les index embeddings restent inchangés.
+
+Références :
+- https://docs.litellm.ai/docs/proxy/cost_tracking
+- https://docs.openclaw.ai/gateway/config-agents/models
+- https://docs.openclaw.ai/gateway/config-tools/custom-providers
