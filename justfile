@@ -607,6 +607,10 @@ runtime-secret-modes-apply:
 openrag-private-pdf-check file:
     sudo -n bash scripts/truenas/check-openrag-private-pdf.sh --check --file "{{file}}"
 
+# Kubernetes-only, read-only controller ReplicaSet and terminated Pod correlation.
+talos-csi-controller-pods-check:
+    python3 scripts/talos/diagnose-truenas-csi-controller-pods.py --check
+
 # Read-only Docling App/container/host/Docker-network readiness; no PDF bytes.
 docling-readiness-check:
     sudo -n python3 scripts/truenas/diagnose-docling-readiness.py --check
@@ -626,6 +630,7 @@ migration-recovery-contracts:
     python3 -m unittest discover -s tests -p 'test_openrag_private_pdf_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_docling_readiness_diagnostic.py' -v
     python3 -m unittest discover -s tests -p 'test_docling_deploy_preflight.py' -v
+    python3 -m unittest discover -s tests -p 'test_truenas_csi_controller_pods.py' -v
     bash -n scripts/truenas/check-openrag-private-pdf.sh
 
 critical-remaining-triage:
