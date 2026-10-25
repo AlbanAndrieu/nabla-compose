@@ -146,6 +146,9 @@ pfsense_ui_render() {
       }
       next
     }
+    /^ERROR: (lifecycle_classifier_failed|feed_log_classifier_failed)/ {
+      collector_failed=1; emit($0,"error",1);next
+    }
     /^(ERROR:|FAIL:|FAIL |BLOCKED:|.*status=BLOCKED)/ {emit($0,"error",1);next}
     /^(WARN(ING)?:|WARN |NOT ACTIVE:|.*status=unknown|.*=NOT_VERIFIED|.*transport=unavailable)/ {emit($0,"warn",1);next}
     /^(PASS:|PASS |OK:)/ {emit($0,"ok",0);next}
@@ -153,7 +156,11 @@ pfsense_ui_render() {
     END {
       flush()
       if(snort_unknown)printf "%s⚠️ Snort: %d events with unknown timestamps%s\n",yellow,snort_unknown,reset
-      printf "\n%s📊 Evidence only · %d sections · %d distinct historical OOM records · %d duplicate lines suppressed · %d OOM minutes · %d warnings · %d lines omitted%s\n",dim,sections,oom_unique,oom_duplicates,oom_minutes,warnings,total_hidden,reset
+      if(collector_failed || sections==0) {
+        printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or no remote sections; OOM totals are NOT reliable%s\n",red,reset
+      } else {
+        printf "\n%s📊 Evidence only · %d sections · %d distinct historical OOM records · %d duplicate lines suppressed · %d OOM minutes · %d warnings · %d lines omitted%s\n",dim,sections,oom_unique,oom_duplicates,oom_minutes,warnings,total_hidden,reset
+      }
       if(uncategorized && mode=="compact") printf "%sℹ️ %d unclassified syslog lines hidden in compact mode%s\n",dim,uncategorized,reset
       if(errors)printf "%s❌ %d explicit error signals to review; not a service health assertion%s\n",red,errors,reset
     }
