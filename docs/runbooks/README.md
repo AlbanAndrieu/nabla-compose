@@ -6,6 +6,9 @@
 
 ## Point d'entrée courant
 
+- **[Reprise Talos, secret modes et PDF OpenRAG](2026-10-25-talos-secret-permissions-openrag-pdf.md)** —
+  controles Talos VM STOPPED, permissions de secrets sans chmod recursif,
+  accessibilite PDF prive et preflight Docling, sans ingestion.
 - **[Opérateur de migration TrueNAS](truenas-migration-operator.md)** —
   entrée CLI stable, modes exclusifs, planHash et workflow de rollback.
 - **[Acceptation runtime Homelab](homelab-runtime-acceptance.md)** —
