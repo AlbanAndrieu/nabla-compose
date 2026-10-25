@@ -418,3 +418,10 @@ homelab-diagnostics-applications:
 
 homelab-diagnostics-contracts:
     python3 -m pytest -q tests/test_service_diagnostic_bundle.py
+
+# Gatus latest probe results (read-only): statuses, staleness, catalogue parity.
+gatus-monitor-failures:
+    sudo -n python3 scripts/truenas/diagnose-gatus-monitors.py --check
+
+gatus-monitor-contracts:
+    python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
