@@ -40,6 +40,8 @@ for python_source in \
   "${script_dir}/inspect-yubikey-applications-readonly.py" \
   "${script_dir}/inspect-yubikey-workstation-readonly.py" \
   "${script_dir}/diagnose-yubikey-readonly-batch.py" \
+  "${script_dir}/inspect-gpg-agent-readonly.py" \
+  "${repo_root}/tests/test_yubikey_gpg_agent_readonly.py" \
   "${repo_root}/tests/test_yubikey_readonly_batch.py" \
   "${repo_root}/tests/test_yubikey_workstation_readonly.py" \
   "${repo_root}/tests/test_yubikey_applications_readonly.py" \
