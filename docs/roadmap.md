@@ -144,8 +144,13 @@ Ne pas lancer fast-batch-upgrade avant validation du cluster.
   aucun upgrade/etcd reset.
 - [x] **Runtime VM :** les trois VM sont RUNNING côté middleware ;
   script amélioré pour gérer le timeout sans double `vm.start`.
-- [ ] **Runtime Kubernetes :** valider les nœuds, etcd et smoke retained CSI
-  depuis la workstation ; VM RUNNING ne prouve pas Kubernetes Ready.
+- [x] **Runtime Talos/Kubernetes :** `validate-cluster.sh` exit 0
+  (5 OK, 2 WARN) ; 3 nœuds Ready Talos 1.13.9 et K8s 1.36.3.
+  Controller CSI récent 5/5 ; anciens pods à inspecter avant nettoyage.
+- [ ] **CSI E2E :** smoke retained cross-node + final reclaim
+  **NOT_RUN** ; le `--check` a validé uniquement les prérequis.
+  Ne pas lancer d'upgrade Talos tant que les vérifications etcd et
+  reclaim ne sont pas achevées.
 - [x] **Code :** `audit-runtime-secret-permissions.py --check` pour
   tous les fichiers reguliers et repertoires du root canonique ; `--apply` exige un
   acquittement, refuse symlinks/proprietaires non-root, conserve
@@ -159,8 +164,10 @@ Ne pas lancer fast-batch-upgrade avant validation du cluster.
   et la sante search, sans jamais envoyer ou indexer le PDF.
 - [x] **Runtime montage :** PDF Mickey privé de 849129 octets valide
   et lisible par `openrag-backend` selon le relevé opérateur.
-- [ ] **Runtime Docling :** `docling_not_ready` ; diagnostiquer App,
-  port hôte et résolution Docker via `diagnose-docling-readiness.py --check`.
+- [ ] **Runtime Docling :** l'App est confirmée **ABSENT**.
+  `deploy-docling.sh --check` contrôle Compose, image CPU déjà
+  disponible et réseaux externes sans mutation ; `--apply` reste
+  une action volontaire avant les tests de readiness et d'ingestion.
 - [ ] **E2E OpenRAG :** conversion, ingestion et retrieval **NOT_TESTED** ;
   commencer par un document synthétique, sans publier le billet.
   [Runbook cible](runbooks/2026-10-25-talos-secret-permissions-openrag-pdf.md) ·
