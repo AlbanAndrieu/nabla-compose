@@ -102,6 +102,25 @@ class ApisixRollbackContract(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("APISIX_KEY", result.stderr)
 
+    def test_reject_weak_or_malformed_keys_before_docker(self):
+        script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
+        for key in ("too-short", " " * 24, "x" * 24 + "\\n", "x" * 257):
+            with self.subTest(case=("spaces" if key.isspace() else "invalid")):
+                env = os.environ.copy()
+                env["APISIX_KEY"] = key
+                result = subprocess.run(
+                    ["bash", str(script), "up"], env=env,
+                    capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("APISIX_KEY", result.stderr)
+
+    def test_smoke_direct_http_and_get_only_method_contract(self):
+        script = (ROOT.parents[1] / "scripts/truenas/apisix.sh").read_text()
+        self.assertIn("build_opener(ProxyHandler({}))", script)
+        self.assertIn("opener.open(Request(", script)
+        self.assertIn("assert status in (404, 405)", script)
+
     def test_check_reports_container_metadata_without_key(self):
         script = ROOT.parents[1] / "scripts/truenas/apisix.sh"
         with tempfile.TemporaryDirectory() as workdir:
