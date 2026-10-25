@@ -44,6 +44,32 @@ Docker, OpenClaw ou LiteLLM :
   (Docker, PostgreSQL, clés virtuelles) et aux actions locales qui en dépendent.
   Depuis Workstation, les recettes runtime utilisent le dispatch SSH existant.
 
+## OpenClaw : mises à jour et propriété de la configuration
+
+- En cas de `global-install-failed`, **lire en local** le log npm nommé
+  par OpenClaw via `just openclaw-update-npm-triage`. N'exposer
+  que des catégories d'erreurs, l'état du préfixe et les versions.
+  Ne jamais demander de copier une trace npm brute dans la conversation.
+- Ne pas confondre `npm exit 1`, erreur de configuration OpenClaw,
+  délai de reprise des plugins et erreur 429 du modèle. Diagnostiquer
+  les causes séparément et conserver les sauvegardes avant une action.
+- Pour un Gateway actif, privilégier **l'API native**
+  `config.get` + `config.patch` avec `baseHash` plutôt qu'une
+  réécriture externe de `~/.openclaw/openclaw.json`. Cela évite
+  une partie des alertes « config edited outside OpenClaw » et protège
+  les modifications concurrentes. Si le client installé ne supporte
+  pas le contrat, échouer sans mutation.
+- Lors d'un test Python, ne jamais lier une cible réelle dans un
+  argument de fonction tel que `path=CONFIG` : le patch de fixture
+  n'affecterait pas cette valeur déjà capturée. Utiliser `path=None`
+  et résoudre la constante à chaque appel.
+- Ne jamais exécuter `npm install -g`, `openclaw update`, `doctor
+  --fix`, ni redémarrer le Gateway lors de tests unitaires.
+  Un diagnostic ou une compilation ne prouvent pas la réussite
+  d'une mise à jour réelle.
+- Maintenir la clé `openclaw-embeddings` et les index 768 dimensions
+  indépendants des changements d'agents de chat.
+
 ## Workflow IA — chemin court
 
 **Décision en six actions, avant toute modification :**
