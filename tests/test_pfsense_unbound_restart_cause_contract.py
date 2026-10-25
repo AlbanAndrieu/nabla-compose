@@ -203,6 +203,10 @@ class UnboundRestartCauseContract(unittest.TestCase):
         )
         self.assertIn("grep -Fq 'pfb_unbound_py_swap_fits_ram'", script)
         self.assertNotIn("php -r 'pfb_reload_unbound", script)
+        self.assertIn("config_fingerprint_comparison=NEEDS_TWO_SNAPSHOTS", script)
+        self.assertIn("sha256 -q", script)
+        self.assertIn("config_fingerprint=%s status=UNVERIFIED", script)
+        self.assertNotIn("cat /var/unbound/unbound.conf", script)
 
     def test_pfblocker_implementation_probe_is_read_only(self):
         script = SCRIPT.read_text(encoding="utf-8")
