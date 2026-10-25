@@ -73,7 +73,7 @@ check_section() {
       # determine whether the Vaultwarden materialization is ready.
       run_check openrag-startup bash scripts/truenas/diagnose-openrag-startup.sh --check
       run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
-      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict --scope openrag
       run_check openrag-opensearch-legacy-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
       run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
       run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
