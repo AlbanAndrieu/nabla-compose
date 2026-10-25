@@ -148,7 +148,7 @@ def test_strict_mode_blocks_runtime_failure_without_leaking(monkeypatch, capsys)
     main = mod["main"]
     monkeypatch.setattr(main.__globals__["os"], "geteuid", lambda: 0)
     monkeypatch.setitem(main.__globals__, "assess",
-                        lambda: {"readOnly": True, "blockers": [
+                        lambda scope="all": {"readOnly": True, "blockers": [
                             "litellm: restore canonical Vaultwarden runtime secrets"
                         ]})
     assert main(["--check", "--strict"]) == 1
