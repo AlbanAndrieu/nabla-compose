@@ -48,9 +48,16 @@ class ConsoleContract(unittest.TestCase):
                "kernel - - - failed to reclaim memory token=PRIVATE\n")
         output = render(log)
         self.assertEqual(output.returncode, 0, output.stderr)
-        self.assertIn("02:10:50.474019+02:00", output.stdout)
+        # Compact aggregates historical kills by minute (including UTC offset).
+        self.assertIn("Historical OOM minute=2026-10-24T02:10 +02:00", output.stdout)
+        self.assertNotIn("02:10:50.474019+02:00", output.stdout)
         self.assertIn("1 distinct historical OOM records", output.stdout)
         self.assertNotIn("PRIVATE", output.stdout)
+        # Verbose preserves complete RFC 5424 timestamps without raw syslog text.
+        detail = render(log, mode="verbose")
+        self.assertEqual(detail.returncode, 0, detail.stderr)
+        self.assertIn("Historical kernel OOM timestamp=2026-10-24T02:10:50.474019+02:00", detail.stdout)
+        self.assertNotIn("PRIVATE", detail.stdout)
 
     def test_snort_unknown_collapse_and_verbose(self):
         payload = "=== Snort ===\n" + "source=snort event=snort_update_start timestamp=unknown\n" * 21

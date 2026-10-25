@@ -9,6 +9,10 @@
 - **[Acceptation runtime Homelab](homelab-runtime-acceptance.md)** —
   ordre OpenRAG → Sentry → DefectDojo → Prometheus → Akvorado ;
   sondes en lecture seule, preuves minimales, interdictions et décisions.
+- **[Diagnostics opérateur spécialisés](2026-10-25-homelab-operator-diagnostics.md)** —
+  Gatus, Prometheus et vérifications isolées, sans déploiement.
+- **[Triage observabilité](2026-10-25-observability-triage.md)** —
+  causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Roadmap active](../roadmap.md)** —
   priorités, risques ouverts et conditions de clôture.
 - **[Skill local-first](../../.agents/skills/local-first-quality/SKILL.md)** —

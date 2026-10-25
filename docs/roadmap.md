@@ -23,26 +23,41 @@ L'ordre de traitement est **P0 OpenRAG → Sentry → DefectDojo**,
 puis **P1 Prometheus → Akvorado**. La sécurité mémoire de pfSense reste
 un chantier P0 indépendant. Ne pas démarrer plusieurs remédiations à la fois.
 
-## P1 — APISIX gateway POC (ADR-0001 accepté)
+## Dernière preuve opérateur — 25 octobre 2026
 
-**Compose owner** : [ADR](adr/0001-apisix-api-gateway-poc.md),
-[modèle ADR/RACI/C4](architecture-governance.md) et
-[runbook](../apps/apisix/README.md).
+Le contrôle read-only `finish-migrations-20261024.sh --check --section critical`
+a retourné **PASS=8 FAIL=8 WARN=0 SKIP=0**. Les informations ci-dessous
+sont une **preuve datée**, pas une sonde permanente :
 
-- [x] Choisir APISIX standalone 3.19.0 et conserver Traefik en production.
-- [x] Livrer `apps/apisix/` (réseau Docker `internal: true`, ports non
-  publiés, mock, route `GET /poc/health` protégée par `key-auth`).
-- [x] Fournir les recettes `just apisix-poc-contract/up/smoke/down`,
-  sans exécution implicite depuis les contrôles qualité.
-- [ ] **Runtime NOT_VERIFIED** : démarrer le POC depuis une workstation Docker ;
-  vérifier 401/200/404, refus de méthode et rollback.
-- [ ] Épingler l'image par digest vérifié avant exposition durable.
-- [ ] Connecter ensuite un endpoint FastAPI staging avec politique
-  d'authentification intacte, traceparent et mesures Prometheus.
-- [x] Confier les vues C4 interactives à Site Alban, ADR/RACI à Compose ;
-  conserver la topologie Backstage comme unique source déclarative.
+- **Prometheus :** `prometheus-targets` et `prometheus-config-access`
+  échouent ; `prometheus-rules-access` réussit. Ne pas réappliquer
+  d'ancienne réparation POSIX sans consulter le rapport privé.
+- **OpenRAG :** `openrag-startup`, `ai-runtime-recovery`,
+  `openrag-opensearch-legacy-secret`, `openrag-backstage-bundle`
+  échouent. Les dépendances et le préflight `openrag-env-migration`
+  réussissent. Aucun restart ni changement de mot de passe implicite.
+- **Sentry :** consommateurs et préflight de récupération réussissent.
+  Cela ne remplace pas un événement E2E frais.
+- **Akvorado :** configuration réussie ; `akvorado-blocked` et
+  `akvorado-fresh-inserts` échouent. Les compteurs historiques ne
+  valent pas une nouvelle insertion ClickHouse.
+- **DefectDojo :** préflight et accès privé réussissent ; ne pas
+  ouvrir davantage le service.
 
-Aucun changement de Traefik, de DNS ou de la production.
+**Séquence de diagnostic recommandée :** Prometheus → OpenRAG → Akvorado,
+sans intervention globale sur Sentry ou DefectDojo.
+Rapport privé sur TrueNAS : `/mnt/cpool/var/nabla/migration-20261024/session-uPAiEbSW`.
+Ne pas copier les secrets ou les logs bruts dans Git.
+
+**Gatus (catalogue/observabilité) :** 85 sondes déclarées dans le
+dernier relevé de la PR #277, pas 85 services fonctionnellement attestés.
+Les nouveaux scripts `diagnose-gatus-monitors.py --check` et
+`diagnose-service-bundle.py --plan|--check` séparent `down`,
+`unverified`, observation périmée, disponibilité réseau et intention
+de déploiement. Refaire la comparaison sur l'API Gatus LAN avant
+d'affirmer une couverture.
+[Entrée diagnostique](runbooks/2026-10-25-homelab-operator-diagnostics.md) ·
+[Observabilité spécialisée](runbooks/2026-10-25-observability-triage.md).
 
 ## P0 — Terminer la stabilisation réelle
 
@@ -107,6 +122,7 @@ Actions :
   avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
 - [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
   OWNER/INTERNAL avant tout changement de dataplane.
+- [x] Livrer POC APISIX standalone opt-in dans `apps/apisix/` : route mock protégée, réseau interne sans port publié, recette de tests `just apisix-poc-contract` (L1 4/4 PASS). Aucune preuve de démarrage Docker à ce stade.
 - [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité

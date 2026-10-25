@@ -184,6 +184,14 @@ openclaw-cron-file-cutover:
     python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
+# Separate radio association, IPv4 route, public DNS and local DNS without pfSense mutations.
+pfsense-wifi-path-test:
+    python3 -m py_compile scripts/workstation/diagnose-wifi-path.py tests/test_workstation_wifi_path.py
+    python3 -m unittest discover -s tests -p 'test_workstation_wifi_path.py' -v
+
+pfsense-wifi-path:
+    python3 scripts/workstation/diagnose-wifi-path.py --check
+
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:
     bash -n scripts/pfsense/console.sh
@@ -406,7 +414,27 @@ sample-dns-workstation:
 sample-dns-test:
     python3 -m unittest discover -s tests -p test_sample_dns_diagnostic.py -v
 
-# Isolated APISIX gateway POC: explicit opt-in only, no paid CI.
+# Read-only service diagnostics; NO quality gate, CI, restart or deployment.
+homelab-diagnostics-plan:
+    python3 scripts/truenas/diagnose-service-bundle.py --plan --section all
+
+homelab-diagnostics-observability:
+    sudo -n python3 scripts/truenas/diagnose-service-bundle.py --check --section observability
+
+homelab-diagnostics-applications:
+    sudo -n python3 scripts/truenas/diagnose-service-bundle.py --check --section applications
+
+homelab-diagnostics-contracts:
+    python3 -m pytest -q tests/test_service_diagnostic_bundle.py
+
+# Gatus latest probe results (read-only): statuses, staleness, catalogue parity.
+gatus-monitor-failures:
+    python3 scripts/truenas/diagnose-gatus-monitors.py --check
+
+gatus-monitor-contracts:
+    python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
+
+# On-demand standalone APISIX POC; deliberately excluded from quality gates.
 apisix-poc-contract:
     python3 -m unittest discover -s tests -p 'test_apisix_poc_contract.py' -v
 
