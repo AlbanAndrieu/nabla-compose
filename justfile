@@ -582,12 +582,21 @@ openrag-private-pdf-check file:
 docling-readiness-check:
     sudo -n python3 scripts/truenas/diagnose-docling-readiness.py --check
 
+# Check the TrueNAS Docling Custom App include, cached image and networks.
+docling-deploy-check:
+    sudo -n bash scripts/truenas/deploy-docling.sh --check
+
+# Deliberate single-App creation/update; no bulk restore or implicit image pull.
+docling-deploy-apply:
+    sudo -n bash scripts/truenas/deploy-docling.sh --apply
+
 # Offline acceptance contracts for staged infrastructure and private-document probes.
 migration-recovery-contracts:
     python3 -m unittest discover -s tests -p 'test_talos_stopped_vm_resume.py' -v
     python3 -m unittest discover -s tests -p 'test_runtime_secret_permission_audit.py' -v
     python3 -m unittest discover -s tests -p 'test_openrag_private_pdf_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_docling_readiness_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_docling_deploy_preflight.py' -v
     bash -n scripts/truenas/check-openrag-private-pdf.sh
 
 critical-remaining-triage:
