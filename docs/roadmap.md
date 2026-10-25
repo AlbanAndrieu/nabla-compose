@@ -122,6 +122,7 @@ Actions :
   avec séparation rôle/identité/reseau, sécurité des erreurs et rollback.
 - [ ] Inventorier les routes Traefik/Cloudflare et les politiques PUBLIC/SERVICE/
   OWNER/INTERNAL avant tout changement de dataplane.
+- [x] Livrer POC APISIX standalone opt-in dans `apps/apisix/` : route mock protégée, réseau interne sans port publié, recette de tests `just apisix-poc-contract` (L1 4/4 PASS). Aucune preuve de démarrage Docker à ce stade.
 - [ ] **APISIX (API Gateway OSS, ADR-0001, Compose owner)** : préparer et tester un POC APISIX **staging** sur hostname interne,
   sans exposer l'Admin API, avec tests 401/403/429/502/timeout/trace.
 - [ ] Valider OIDC Keycloak, rotation des credentials, mTLS et observabilité

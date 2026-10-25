@@ -433,3 +433,16 @@ gatus-monitor-failures:
 
 gatus-monitor-contracts:
     python3 -m pytest -q tests/test_gatus_monitor_failures.py tests/test_service_diagnostic_bundle.py
+
+# On-demand standalone APISIX POC; deliberately excluded from quality gates.
+apisix-poc-contract:
+    python3 -m unittest discover -s tests -p 'test_apisix_poc_contract.py' -v
+
+apisix-poc-up:
+    bash scripts/truenas/apisix-poc.sh up
+
+apisix-poc-smoke:
+    bash scripts/truenas/apisix-poc.sh smoke
+
+apisix-poc-down:
+    bash scripts/truenas/apisix-poc.sh down
