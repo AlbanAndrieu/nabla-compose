@@ -98,7 +98,7 @@ Actions :
   et `LANGFUSE_SECRET_KEY` (LiteLLM), corriger uniquement le candidat
   OpenSearch identifié par métadonnées, puis valider son égalité. Ne pas
   finaliser le chemin historique OpenRAG avant un vrai runtime accepté.
-  [Preuves et commandes](runbooks/2026-10-25-critical-acceptance-followup.md).
+  [Gates de clôture](runbooks/truenas-secret-migration-closure.md) · [preuves et commandes](runbooks/2026-10-25-critical-acceptance-followup.md).
 - [ ] **H-09 :** exécuter les contrôles CSI/Talos uniquement après P0
   et dans la fenêtre approuvée.
 
