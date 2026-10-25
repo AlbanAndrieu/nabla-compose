@@ -1,8 +1,10 @@
 # Gouvernance d'architecture — décisions et dispatch inter-dépôts
 
 **Propriétaire de ce registre :** nabla-compose (vue plateforme).
-**Statut :** procédure proposée en Draft PR #278. Ce document ne constitue
-ni une approbation de déploiement ni un changement de politique d'accès.
+**Statut :** méthode validée par le propriétaire du homelab (25 octobre 2026).
+L'ADR-0001 est accepté pour un **POC APISIX staging**, pas pour le cutover.
+Ce processus est volontairement léger : les agents peuvent prendre des décisions
+réversibles sans soumettre chaque refactoring à une revue humaine.
 
 ## Méthode légère : RFC → ADR → contrats → tâches → preuves
 
@@ -20,26 +22,31 @@ Références :
 - https://c4model.com/
 - https://teamtopologies.com/key-concepts/
 
-### Procédure (une opération par étape)
+### Procédure fast-track (une action par étape)
 
-1. **Identifier le changement.** Décrire le problème et le risque sans
-   prescrire immédiatement un outil.
-2. **Classifier le périmètre.** Si plusieurs dépôts, une API, une identité,
-   un ingress ou une donnée sensible changent, ouvrir une proposition
-   RFC/ADR dans le registre Compose.
-3. **Désigner la source d'autorité.** Assigner UN dépôt producteur du contrat.
-4. **Comparer les options.** Noter coût de fonctionnement, sécurité,
-   migration, rollback et critères d'échec.
-5. **Faire la revue.** Inclure les dépôts consommateurs et la sécurité ;
-   un Draft n'équivaut pas à un ADR accepté.
-6. **Répartir le travail.** Chaque dépôt reçoit ses propres tâches et ses
-   propres tests d'acceptation. Aucun copier-coller de roadmap actif.
-7. **Valider les frontières.** Tests de contrat négatifs/positifs et
-   preuve du HEAD exact, local-first sans CI payante.
-8. **Livrer progressivement.** Publication et activation séparées, avec
-   compatibilité, feature flags et rollback.
-9. **Enregistrer la décision.** Status `proposed → accepted → superseded`,
-   conserver l'historique au lieu de modifier rétroactivement un ADR accepté.
+1. **Décider directement** pour un changement réversible, limité à un dépôt,
+   sans exposition nouvelle ni modification d'un contrat consommé.
+2. **Écrire une note de décision courte** dans la PR : problème, choix,
+   rollback. Un ADR n'est pas requis pour du style, du refactoring ou des tests.
+3. **Créer un ADR en Compose** si une décision modifie au moins deux dépôts,
+   le routage, la source d'autorité, une interface publiée ou les droits.
+   Format cible : 15 à 30 lignes ; pas de réunion ni d'outil central additionnel.
+4. **Accepter immédiatement** l'option par défaut documentée si elle est
+   réversible et couverte par des tests ; l'agent enregistre son statut.
+   Demander une décision humaine uniquement pour une migration irréversible
+   ou le remplacement d'un chemin de production essentiel.
+5. **Dispatcher les contrats** vers les dépôts propriétaires, avec un unique
+   owner par livrable ; corriger le code dans la PR déjà ouverte si possible.
+6. **Exécuter les vérifications disponibles** local-first et exact-SHA ;
+   mentionner `NOT_RUN` sans transformer une Preview READY en preuve métier.
+7. **Documenter le rollback** et les résultats dans l'ADR ou la PR.
+   Garder les anciens ADRs et remplacer leur statut par `superseded`.
+
+**SLA agent :** pas d'attente humaine pour un changement réversible en
+staging ou documentation. Le formulaire ADR n'est **pas** une gate CI.
+La revue d'architecture se fait dans la description de PR, pas au préalable.
+Une nouvelle exposition publique ou un relâchement de l'autorisation nécessite
+toujours des tests négatifs explicites, même pour un homelab.
 
 ### Routing des changements : matrice d'autorité
 
@@ -70,8 +77,8 @@ dépendance est marquée DONE sans validation sur l'environnement adéquat.
 
 ## Exemple appliqué — ADR-0001
 
-[Proposition de POC Apache APISIX](adr/0001-apisix-api-gateway-poc.md)
-est **proposed**. Les responsabilités sont réparties ainsi :
+[ADR-0001 — POC Apache APISIX](adr/0001-apisix-api-gateway-poc.md)
+est **accepted pour staging**, sans autoriser une publication publique. Les responsabilités sont réparties ainsi :
 
 - **Compose / PR #278 :** cataloguer Traefik/Cloudflare, décider du hostname
   privé, écrire le POC standalone sans etcd, règles réseau, secrets et rollback.
@@ -84,6 +91,27 @@ est **proposed**. Les responsabilités sont réparties ainsi :
 - **Gate transverse :** anonymes refusés, headers spoofés rejetés, identité
   workload vérifiée, pas de perte de télémétrie, rollback fonctionnel.
 - **Keycloak :** explicitement différé. Ne pas le déclarer installé.
+
+## Présentation C4 dans Site Alban
+
+**Outil choisi :** `@xyflow/react` déjà présent dans Site Alban ;
+aucun serveur Structurizr, iframe ou dépendance graphique nouvelle.
+**Données :** topologie et `catalogRevision` existants, issus de Backstage
+v2/FastAPI ; ce document reste la source de la décision et des responsabilités,
+le Site est seul responsable du rendu interactif.
+
+- L1 Contexte : acteurs et système Nabla (vue d'architecture déclarée).
+- L2 Conteneurs/services : projection bornée des nœuds et relations connus
+  de `ServiceTopology`, sans déduire un verdict runtime.
+- L3 Composants : différé jusqu'à existence de relations `partOf`
+  ou d'un contrat de composants explicites.
+- Confidentialité : les vues publiques ne reçoivent que les données déjà
+  autorisées du read-model, pas les URL ou preuves OWNER.
+
+[Site #256](https://github.com/AlbanAndrieu/nabla-site-alban/pull/256)
+assure le rendu C4 et ses tests. Ne pas stocker un deuxième inventaire
+des nœuds C4 dans Compose. Structurizr DSL pourra être **exporté**
+ultérieurement depuis le modèle canonique si un format portable est utile.
 
 ## Cadence de réconciliation
 
