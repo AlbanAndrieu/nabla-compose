@@ -87,8 +87,24 @@ fi
 echo "=== Controlled maintenance: PHP-FPM and webConfigurator ($mode) ==="
 # The remote command chooses root directly or passwordless sudo.
 # No interactive credentials; stdin is exclusively the reviewed POSIX script.
-ssh "${ssh_opts[@]}" "$TARGET" \
-  "if [ \"\$(id -u)\" -eq 0 ]; then exec /bin/sh -s -- --$mode; else exec sudo -n /bin/sh -s -- --$mode; fi" < "$PAYLOAD"
+# Native pfSense scripts may issue a non-fatal numeric warning on restart.
+# Capture only in process memory, show unchanged output and flag it explicitly.
+# Never rewrite pfSense appliance service scripts from this workstation driver.
+if native_output=$(ssh "${ssh_opts[@]}" "$TARGET" \
+  "if [ \"\$(id -u)\" -eq 0 ]; then exec /bin/sh -s -- --$mode; else exec sudo -n /bin/sh -s -- --$mode; fi" < "$PAYLOAD" 2>&1); then
+  printf '%s\n' "$native_output"
+else
+  native_rc=$?
+  printf '%s\n' "$native_output"
+  printf 'ERROR: native_php_fpm_restart_failed exit_code=%s\n' "$native_rc" >&2
+  exit "$native_rc"
+fi
+case "$native_output" in
+  *'NaN: bad number'*)
+    echo 'WARN: pfSense_native_restart_numeric_warning=OBSERVED_SOURCE_UNCONFIRMED'
+    ;;
+esac
+unset native_output
 
 echo '=== Post-change verification: critical DNS and PHP-FPM ==='
 ssh "${ssh_opts[@]}" "$TARGET" '/bin/sh -s' <<'REMOTE'
