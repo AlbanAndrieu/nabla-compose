@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 import importlib.util
 import sys
 from datetime import UTC, datetime, timedelta
@@ -160,6 +162,45 @@ def test_unmapped_declaration_does_not_pass_parity() -> None:
     assert report["mapped"] == 3
     assert report["declared"] == 4
     assert module.verdict_exit_code(report) == 2
+
+
+
+def test_offline_snapshot_cli_never_uses_live_gatus(tmp_path: Path) -> None:
+    now = datetime.now(UTC)
+    path = tmp_path / "gatus-private.json"
+    path.write_text(json.dumps([
+        {"name": "Unmatched", "group": "internal",
+         "results": [{"timestamp": now.isoformat(), "success": True,
+                      "error": "PRIVATE_TOKEN_NEVER_PRINT"}]}
+    ]), encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(FILE), "--check", "--snapshot", str(path)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2  # only unknown, not observed DOWN
+    assert '"source": "gatus_saved_snapshot"' in result.stdout
+    assert "PRIVATE_TOKEN_NEVER_PRINT" not in result.stdout + result.stderr
+    assert "172.17." not in result.stdout + result.stderr
+
+    link = tmp_path / "gatus-link.json"
+    link.symlink_to(path)
+    refused = subprocess.run(
+        [sys.executable, str(FILE), "--check", "--snapshot", str(link)],
+        capture_output=True, text=True, check=False,
+    )
+    assert refused.returncode == 2
+    assert "invalid_snapshot_file" not in refused.stdout + refused.stderr
+
+
+def test_offline_snapshot_rejects_oversized_private_input(tmp_path: Path) -> None:
+    path = tmp_path / "oversized.json"
+    path.write_bytes(b"x" * (module.MAX_BYTES + 1))
+    result = subprocess.run(
+        [sys.executable, str(FILE), "--check", "--snapshot", str(path)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2
+    assert len(result.stdout + result.stderr) < 256
 
 
 def test_script_avoids_printing_source_url_and_raw_error() -> None:
