@@ -744,3 +744,39 @@ La gate courante regroupe **21 tests Unbound + 22 tests console
 + 5 tests échantillonneur = 48 tests**. Les 45 tests précédents
 sont PASS selon l'opérateur ; les trois nouveaux cas console
 restent à valider sur le HEAD actuel.
+
+## Baseline avant minuit du 25/10 — reçue à 23:56 CET
+
+La réception opérateur `just pfsense-php-fpm-postcheck`
+à **23:56 CET** a confirmé **Unbound PID 19252** et
+`unbound_control=REACHABLE`, avec DNS local/LAN PASS.
+Le profil PHP-FPM `4/30/1/2/500` est conservé à
+**2 travailleurs nginx**, et `free+inactive=252948 KiB`
+(**247,0 Mio**) dans le prélèvement à 23:56:19.
+
+**Empreinte pré-maintenance DNSBL** à conserver pour comparaison
+après le cron de 00:00 :
+
+```text
+unbound_config size_bytes=2289 mtime_local=2026-10-25T22:46:17+0100
+unbound_config sha256=3745a4109d7d9a42cba12a3d0abd77013a3971890e838f9905566a8b94482b44
+dnsbl_python_ini=UNAVAILABLE
+dnsbl_legacy_ini size_bytes=355 mtime_local=2026-05-18T14:18:05+0200
+dnsbl_legacy_ini sha256=b856d9aab131f2796c7e993d6039a3b24cad4a0c5faa0bbd0241582943d403a3
+```
+
+Ces valeurs sont des empreintes du **système de fichiers**,
+pas de la configuration effective Python résidant en mémoire.
+Le compteur `pfblocker.dnsbl_loaded_entries=0` reste **inconnu**
+faute de métrique du module, et non preuve que DNSBL est vide.
+
+Le dernier OOM visible dans les journaux collectés reste celui
+du **25/10 à 22:12 CET**, avec `php_pfb` à 22:12:38 et
+Unbound tué pendant la même minute : il précède le cutover
+PHP-FPM. Ne pas utiliser le résumé du sampler (`OOM NOT_EVALUATED`)
+pour affirmer qu'aucun OOM plus récent n'existe.
+
+**Étape suivante (lecture seule)** : comparer ces deux
+empreintes dans le `pfsense-unbound-restart-check` post-minuit
+et vérifier les stop/start réellement journalisés. Aucun
+rebuild DNSBL ou restart provoqué artificiellement.
