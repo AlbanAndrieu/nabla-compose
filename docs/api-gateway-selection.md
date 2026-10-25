@@ -110,5 +110,5 @@ file-driven `apisix.yaml` avec `#END`, mode `data_plane` sans etcd,
 mock Python local, réseau Docker interne sans port publié, seul
 `GET /health` protégé par `key-auth`, quota 30/min.
 `just apisix-contract` vérifie le contrat sans Docker.
-`just apisix-up/smoke/down` demandent une action explicite.
+`just apisix-up/check/smoke/down` demandent une action explicite.
 Avant production, signer/résoudre le digest, ajouter gateway↔FastAPI et OIDC.
