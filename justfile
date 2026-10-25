@@ -277,9 +277,24 @@ pfsense-console-test:
 # Read-only Netgate 1100 lifecycle evidence: no pfSense mutation or paid CI.
 pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
+    bash -n scripts/pfsense/sample-oom-pressure.sh
     bash -n scripts/pfsense/console.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_restart_cause_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
+
+# Lightweight Netgate memory observation, without changing daemon configuration.
+pfsense-memory-sample-test:
+    bash -n scripts/pfsense/sample-oom-pressure.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
+
+pfsense-memory-sample:
+    PFSENSE_OUTPUT=verbose bash scripts/pfsense/sample-oom-pressure.sh --check
+
+# Start manually shortly before the Snort 02:09 scheduled task.
+# 13 readings at 15 s intervals span 180 s, one SSH session.
+pfsense-memory-window:
+    PFSENSE_OUTPUT=verbose bash scripts/pfsense/sample-oom-pressure.sh --check --samples 13 --interval-seconds 15
 
 pfsense-unbound-restart-check:
     bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
