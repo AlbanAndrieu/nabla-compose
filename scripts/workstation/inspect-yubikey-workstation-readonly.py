@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import subprocess
 import sys
 
 TOOLS = (
@@ -35,10 +36,36 @@ def metadata(path: Path, kind: str, uid: int) -> str:
         return "UNKNOWN"
 
 
+
+def gpg_agent_socket_status() -> tuple[str, str]:
+    """Resolve agent socket from GnuPG itself; do not launch/connect to agent."""
+    if not shutil.which("gpgconf"):
+        return "UNKNOWN", "GPGCONF_MISSING"
+    try:
+        done = subprocess.run(
+            ["gpgconf", "--list-dirs", "agent-socket"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=5, check=False,
+        )
+        if done.returncode != 0 or done.stderr.strip():
+            return "UNKNOWN", "GPGCONF_ERROR"
+        raw = done.stdout
+        if (len(raw) > 4096 or "\0" in raw or
+                len(raw.splitlines()) != 1):
+            return "UNKNOWN", "GPGCONF_INVALID_PATH"
+        value = raw.strip()
+        if not value or not Path(value).is_absolute():
+            return "UNKNOWN", "GPGCONF_INVALID_PATH"
+        return metadata(Path(value), "socket", os.getuid()), "GPGCONF"
+    except (OSError, subprocess.TimeoutExpired, UnicodeError, ValueError):
+        return "UNKNOWN", "GPGCONF_ERROR"
+
+
 def snapshot(home: Path, uid: int) -> dict:
+    socket, origin = gpg_agent_socket_status()
     paths = {
         "sops_age_identity": metadata(home / ".config/sops/age/keys.txt", "identity", uid),
-        "gpg_agent_socket": metadata(home / ".gnupg/S.gpg-agent", "socket", uid),
+        "gpg_agent_socket": socket,
         "ssh_fido_public_handle": metadata(home / ".ssh/id_ed25519_sk.pub", "public", uid),
         "pam_u2f_mapping": metadata(home / ".config/Yubico/u2f_keys", "public", uid),
     }
@@ -46,6 +73,7 @@ def snapshot(home: Path, uid: int) -> dict:
         "status": "NO-GO", "mode": "HOST_METADATA_ONLY",
         "tools": {tool: "INSTALLED_UNVERIFIED" if shutil.which(tool) else "MISSING" for tool in TOOLS},
         "paths": paths,
+        "gpg_agent_socket_locator": origin,
         "gpg_card_access_verified": False,
         "postgres_restore_verified": False,
         "age_decrypt_verified": False,
