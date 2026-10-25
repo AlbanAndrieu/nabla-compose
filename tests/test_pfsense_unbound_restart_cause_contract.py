@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import re
 import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -362,6 +363,46 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertIn("size_is_causality_proof=no", code)
         self.assertIn("feed_artifact_status=METADATA_ONLY_NO_LIVE_DOWNLOAD", code)
         self.assertIn("tr -c 'A-Za-z0-9._-'", code)
+
+    def test_full_remote_shell_executes_classifier_with_fixture(self):
+        # The old tests invoked AWK alone and missed a shell-quoting defect.
+        source = SCRIPT.read_text(encoding="utf-8")
+        remote = source.split("<<'REMOTE'\n", 1)[1].rsplit("\nREMOTE", 1)[0]
+        begin = remote.index("for file in /var/log/system.log")
+        end = remote.index("echo '=== Feed download errors", begin)
+        loop = remote[begin:end]
+        loop = re.sub(
+            r"^for file in .*?; do",
+            'for file in "$1"; do',
+            loop, count=1, flags=re.DOTALL,
+        )
+        with tempfile.TemporaryDirectory(prefix="nabla-pfsense-shell-") as td:
+            logfile = Path(td) / "system.log"
+            logfile.write_text(
+                "<3>1 2026-10-24T02:10:50.474019+02:00 fw kernel - - - "
+                "pid 45881 (unbound) killed: failed to reclaim memory "
+                "token=DO_NOT_PRINT\n",
+                encoding="utf-8",
+            )
+            run = subprocess.run(
+                ["/bin/sh", "-c", loop, "sh", str(logfile)],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn("event=kernel_oom_unbound", run.stdout)
+            self.assertIn("timestamp=2026-10-24T02:10:50.474019+02:00", run.stdout)
+            self.assertNotIn("DO_NOT_PRINT", run.stdout)
+
+            broken = loop.replace(
+                "    function stamp(line, s) {",
+                "    THIS TOKEN IS INVALID AWK;\n    function stamp(line, s) {",
+            )
+            failure = subprocess.run(
+                ["/bin/sh", "-c", broken, "sh", str(logfile)],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            self.assertNotEqual(failure.returncode, 0)
+            self.assertIn("ERROR: lifecycle_classifier_failed", failure.stdout)
 
 
 if __name__ == "__main__":
