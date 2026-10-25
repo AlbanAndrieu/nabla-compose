@@ -105,6 +105,33 @@ pfsense_ui_render() {
       flush();sections++;name=$0;sub(/^=== /,"",name);sub(/^==> /,"",name);sub(/ ===$/,"",name)
       printf "\n%s🔎 %s%s\n",cyan,name,reset;next
     }
+    /^sampler_budget=samples=/ {
+      sampler_run=1
+      split($1,v,"=")
+      sampler_expected=v[3]+0
+      emit($0,"",1);next
+    }
+    /^sample_seq=[0-9]+ timestamp=/ {
+      sampler_run=1
+      available=""
+      timestamp=""
+      for(j=1;j<=NF;j++) {
+        split($j,v,"=")
+        if(v[1]=="available_kib" && v[2] ~ /^[0-9]+$/) available=v[2]+0
+        if(v[1]=="timestamp") timestamp=v[2]
+      }
+      if(available=="") {
+        collector_failed=1
+        emit("ERROR: sampler_missing_available_kib","error",1)
+      } else {
+        sampler_samples++
+        if(sampler_samples==1 || available<sampler_min) {sampler_min=available;sampler_min_ts=timestamp}
+        if(sampler_samples==1 || available>sampler_max) {sampler_max=available;sampler_max_ts=timestamp}
+        if(available<131072) sampler_below_128++
+        if(available<65536) sampler_below_64++
+      }
+      emit($0,"",1);next
+    }
     /^source=snort .*timestamp=unknown$/ && mode=="compact" {snort_unknown++;next}
     # Dedicated restart-provenance collector uses a typed OOM signal.
     # Count this as historical evidence, not a current down service.
@@ -146,7 +173,7 @@ pfsense_ui_render() {
       }
       next
     }
-    /^ERROR: (lifecycle_classifier_failed|feed_log_classifier_failed)/ {
+    /^ERROR: (lifecycle_classifier_failed|feed_log_classifier_failed|sampler_[A-Za-z0-9_]+)/ {
       collector_failed=1; emit($0,"error",1);next
     }
     /^(ERROR:|FAIL:|FAIL |BLOCKED:|.*status=BLOCKED)/ {emit($0,"error",1);next}
@@ -156,8 +183,15 @@ pfsense_ui_render() {
     END {
       flush()
       if(snort_unknown)printf "%s⚠️ Snort: %d events with unknown timestamps%s\n",yellow,snort_unknown,reset
-      if(collector_failed || sections==0) {
-        printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or no remote sections; OOM totals are NOT reliable%s\n",red,reset
+      if(sampler_run && sampler_samples>0) {
+        printf "\n%s📊 Memory window · %d samples · available min=%.1f MiB (%s) · max=%.1f MiB (%s) · below 128 MiB=%d · below 64 MiB=%d%s\n",
+          cyan,sampler_samples,sampler_min/1024,sampler_min_ts,sampler_max/1024,sampler_max_ts,
+          sampler_below_128,sampler_below_64,reset
+      }
+      if(collector_failed || sections==0 || (sampler_run && sampler_expected!=sampler_samples)) {
+        printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or missing samples/sections; OOM totals are NOT reliable%s\n",red,reset
+      } else if(sampler_run) {
+        printf "%sℹ️ Historical OOM events NOT_EVALUATED · this sampler does not inspect kernel logs%s\n",dim,reset
       } else {
         printf "\n%s📊 Evidence only · %d sections · %d distinct historical OOM records · %d duplicate lines suppressed · %d OOM minutes · %d warnings · %d lines omitted%s\n",dim,sections,oom_unique,oom_duplicates,oom_minutes,warnings,total_hidden,reset
       }
