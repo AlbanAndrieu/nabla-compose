@@ -625,6 +625,7 @@ openclaw-truenas-virtual-keys-status:
 openclaw-truenas-virtual-keys-test:
     python3 -m py_compile scripts/truenas/dispatch-openclaw-litellm-keys.py scripts/truenas/provision-openclaw-litellm-keys.py tests/test_openclaw_litellm_execution_dispatch.py
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
 
 # These commands never change TrueNAS services or send credentials.
 protected-http-diagnostics:
@@ -641,12 +642,13 @@ openclaw-truenas-virtual-keys-quota:
 # No LLM completion or Gateway restart. Return 1/2 if the quota audit detects an issue.
 openclaw-429-attribution:
     python3 scripts/workstation/openclaw-route-metadata.py
+    python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode quota-audit
     python3 scripts/workstation/diagnose-openclaw-auth-cooldowns.py
 
 # Targeted local-only contracts for 429 attribution; no real model or SSH calls.
 openclaw-429-attribution-test:
-    python3 -m py_compile scripts/workstation/openclaw-route-metadata.py scripts/workstation/diagnose-openclaw-auth-cooldowns.py scripts/truenas/provision-openclaw-litellm-keys.py scripts/truenas/dispatch-openclaw-litellm-keys.py tests/test_openclaw_auth_cooldowns.py tests/test_openclaw_route_metadata.py tests/test_openclaw_litellm_execution_dispatch.py
+    python3 -m py_compile scripts/workstation/openclaw-route-metadata.py scripts/workstation/diagnose-openclaw-auth-cooldowns.py scripts/truenas/provision-openclaw-litellm-keys.py scripts/truenas/dispatch-openclaw-litellm-keys.py tests/test_openclaw_auth_cooldowns.py tests/test_openclaw_route_metadata.py tests/test_openclaw_litellm_execution_dispatch.py tests/test_openclaw_litellm_429_diagnostic.py
     python3 -m unittest discover -s tests -p 'test_openclaw_auth_cooldowns.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_route_metadata.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_execution_dispatch.py' -v
