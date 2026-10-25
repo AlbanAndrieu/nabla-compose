@@ -342,6 +342,13 @@ pfsense-security-capacity-audit:
     bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
     bash scripts/pfsense/audit-posture.sh --ssh "${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 
+# Post-cutover receipt: PHP-FPM profile/worker count, Unbound + historical OOM,
+# Snort/DNSBL/CrowdSec posture, then a new instantaneous memory observation.
+# This intentionally performs no restart, rebuild, update or configuration write.
+pfsense-php-fpm-postcheck:
+    just pfsense-security-capacity-audit
+    just pfsense-memory-sample
+
 pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
     bash -n scripts/pfsense/sample-oom-pressure.sh
