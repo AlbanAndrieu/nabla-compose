@@ -8,9 +8,9 @@
 
 | Service | Preuve établie | Dette restante |
 | --- | --- | --- |
-| OpenRAG | Backend/frontend `running+healthy`, copie canonique `staged` cohérente | Deux clés obligatoires absentes (`LITELLM_IDE_API_KEY`, `OPENRAG_ENCRYPTION_KEY`) ; legacy non finalisé |
-| OpenSearch | Comparaison échouée **avant lecture de la valeur** | Au moins un candidat possède des droits/métadonnées non acceptés ; égalité des passwords non attestée |
-| LiteLLM | App running, transport accessible | Secret canonique incomplet : `LITELLM_IDE_API_KEY`, `LANGFUSE_SECRET_KEY` |
+| OpenRAG | Dernier `--strict --scope openrag` : `ready=true`, `missingKeys=[]`, `blockers=[]`, backend/frontend `running+healthy` | Recharge effective et authentification non vérifiées ; migration legacy non finalisée |
+| OpenSearch | Source du blocage identifiée : `legacy_env`, fichier `apps/opensearch/.env` UID=1000 GID=568 mode=0644 | Le Compose **référence encore ce fichier** ; corriger uniquement les métadonnées, puis vérifier l'égalité des credentials |
+| LiteLLM | Dernier `--strict --scope litellm` : `ready=true`, `missingKeys=[]`, `blockers=[]`, conteneur running | Les clés Langfuse doivent être réelles ; callback/authentification et recharge runtime non testés |
 | Scrutiny | Secret canonique examiné et déclaré prêt par le diagnostic global | App STOPPED ; statut runtime séparé, aucune validation de déploiement |
 | Autres Apps | Pas de preuve globale récente fournie | Inventaire de clôture complet non attesté |
 
@@ -57,10 +57,12 @@ ciblée exige d'identifier la source d'autorité et ses ACL ZFS.
 
 ## OpenRAG / LiteLLM — dernières clés et chemins (25 octobre)
 
-La dernière exécution de `--scope openrag` confirme que la clé
-`LITELLM_IDE_API_KEY` est maintenant présente dans le fichier OpenRAG.
-Il manque **seulement** `OPENRAG_ENCRYPTION_KEY` dans ce périmètre.
-Ne pas annoncer une clôture avant test de l'authentification effective.
+Les dernières exécutions `--scope openrag` et `--scope litellm`
+confirment désormais des secrets **`ready=true`**, sans clé absente ni
+blocage déclaré. `OPENRAG_ENCRYPTION_KEY` est donc présente et de format
+accepté par le validateur. **Ne pas la régénérer.** La validation
+syntaxique ne prouve pas que les conteneurs ont rechargé ces valeurs ni
+que les identifiants Langfuse/API fonctionnent.
 
 `OPENRAG_ENCRYPTION_KEY` est une **clé maître AES-256-GCM de 32 octets
 encodés en Base64**. **La retrouver d'abord** dans la configuration
@@ -115,6 +117,42 @@ d'autorité active, ne pas le remplacer sans valider la configuration
 stockée TrueNAS. Les modes admis par le comparateur sont `0600`,
 `0400` ou `0640`, propriétaire root. Ne pas changer les permissions
 de tous les secrets par un `chmod -R`.
+
+## Correction bornée du fichier OpenSearch encore utilisé
+
+Le Compose `apps/opensearch/compose.yml` référence explicitement
+`/mnt/cpool/compose/nabla-compose/apps/opensearch/.env` via `env_file`.
+Le dernier relevé opérateur donne `uid=1000 gid=568 mode=0644`.
+Le comparateur exige un propriétaire root et un mode privé `0600`,
+`0400` ou `0640`. C'est une **erreur de métadonnées**, pas encore une
+preuve de divergence des mots de passe.
+
+Exécuter sur TrueNAS après revue du chemin et vérification qu'il ne
+s'agit pas d'un lien symbolique :
+
+```bash
+FILE=/mnt/cpool/compose/nabla-compose/apps/opensearch/.env
+sudo test -f "$FILE" && ! sudo test -L "$FILE" || {
+  echo 'BLOCKED: fichier absent ou symlink'; false;
+}
+sudo stat -c 'uid=%u gid=%g mode=%a type=%F' -- "$FILE"
+```
+
+Pour corriger **ce seul fichier**, conserver le GID 568 :
+
+```bash
+sudo chown 0:568 -- /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
+sudo chmod 0640 -- /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+Aucun mot de passe n'est modifié. Aucun `app.redeploy` n'est lancé.
+Si le comparateur découvre ensuite une divergence, **arrêter** :
+ne pas synchroniser ou renouveler automatiquement `OPENSEARCH_PASSWORD`.
+Vérifier le projet Git ignoré, le Compose effectivement chargé par TrueNAS,
+la source Vaultwarden et les données OpenSearch existantes. La configuration
+Compose actuellement versionnée pointe toujours sur le chemin legacy ;
+ne pas supprimer, renommer ou finaliser ce fichier sans migration dédiée.
 
 ## Gates obligatoires avant `--finalize openrag`
 
