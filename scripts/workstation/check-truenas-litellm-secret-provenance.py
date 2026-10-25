@@ -27,7 +27,7 @@ def read_file(path):
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                match = re.match(r"^(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+                match = re.match(r"^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
                 if not match:
                     errors.append("invalid_assignment")
                     continue
