@@ -1578,3 +1578,75 @@ Les actions du script sont strictement limitées à la Workstation ;
 aucune route professionnelle n'est copiée vers le TrueNAS et
 les clés virtuelles `openclaw-main`, `openclaw-cron`,
 `openclaw-embeddings` ne sont pas reprovisionnées.
+
+
+## 2026-10-26 — OpenClaw CLI 2026.10.7 fonctionne, mais stage déclaré en échec
+
+**Retour Workstation** :
+- `just openclaw-upgrade-local-test` : **13/13 PASS** au HEAD précédent ;
+- `upgrade_target=2026.10.7`, `node_target=24.22.1`,
+  `runtime_compatible=yes`, `gateway_service_owner=verified`,
+  `gateway_service_running=yes`, `old_package_detected=no`,
+  `staged_package=not_ready` ;
+- `--stage` : `install_failed_or_unverified`,
+  `npm_error_category=unknown`, code 2 ; **aucun cutover
+  systemd** n'a été lancé car le `justfile` utilise fail-fast ;
+- `mise exec node@24.22.1 -- openclaw --version` :
+  **OpenClaw 2026.10.7 (157d8c2)** ;
+- le smoke test existant a renvoyé
+  `OK model smoke: litellm-main/gpt-4.1 returned OK`.
+  Cette preuve concerne la conversation existante, pas le Gateway
+  sous le nouveau Node ; ne pas consommer un deuxième smoke pendant
+  les 24 heures de cooldown.
+
+**Défaut du stage corrigé :** le script exigeait
+`dist/index.js` et refusait un paquet dont le `bin` npm était
+`openclaw.mjs`. L'entrypoint npm déclaré officiellement dans le
+`package.json` OpenClaw est `openclaw.mjs`. La vérification
+examine désormais le nom `openclaw`, la version du manifeste, le
+`bin.openclaw` sûr, l'exécution directe du CLI avec le Node cible,
+et l'absence des marqueurs `openclaw-lifecycle-pending` ou
+`dist/openclaw-install-guard`. Elle ne considère plus le **seul**
+exit code npm comme preuve d'une installation cassée.
+
+Un stage déjà validé retourne `upgrade_stage=already_verified`
+**sans relancer npm**. Si npm retourne un code non nul mais le paquet
+est complet et vérifié, le stage signale
+`npm_install_exit=nonzero_but_package_verified`. Si un paquet
+partiel subsiste, il refuse un nouvel écrasement et affiche
+uniquement `package_manifest`, `package_cli_entry` et
+`lifecycle_marker`, sans journaux, secrets ni chemins privés.
+
+La découverte de l'unité systemd reconnaît maintenant l'ancien
+`dist/index.js` et le nouveau `openclaw.mjs`, y compris quand
+le Node apparaît deux fois dans les champs `path` et `argv[]`.
+Après la bascule, le service **doit** utiliser le Node exact du
+préfixe cible, pas `/usr/bin/node`. Les chemins d'embeddings,
+la base mémoire, les clés virtuelles et les canaux ne changent pas.
+
+**Nouvelle exécution Workstation :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Les deux premières étapes n'écrivent rien. Le stage est idempotent ;
+l'activation est la seule étape qui arrête le Gateway, crée la
+sauvegarde cohérente et met en place le drop-in systemd. La
+vérification finale impose readiness, Doctor lint et statut sain
+des deux index mémoire. **Les nouveaux tests de ce commit restent
+à exécuter sur la Workstation**. Si stage refuse un paquet marqué
+incomplet, ne pas effacer de fichier dans `node_modules` ni
+contourner le marqueur : examiner la sortie catégorisée et préparer
+une réparation ciblée.
+
+Sources officielles :
+- https://www.npmjs.com/package/openclaw/v/2026.10.7
+- https://docs.openclaw.ai/install/installer
+- https://docs.openclaw.ai/cli/doctor/lint
