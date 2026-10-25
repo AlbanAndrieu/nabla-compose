@@ -60,6 +60,13 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(remote[-1], "sudo -n python3 - --status")
         self.assertNotIn("--apply", " ".join(remote))
 
+    def test_quota_mode_selects_loopback_on_truenas_and_ssh_from_workstation(self):
+        local = module.build_command("quota-audit", "truenas_local")
+        remote = module.build_command("quota-audit", "workstation_ssh")
+        self.assertEqual(local[-1], "--quota-audit")
+        self.assertEqual(remote[-1], "sudo -n python3 - --quota-audit")
+        self.assertNotIn("ssh", local)
+
     def test_bad_mode_never_runs_command(self):
         with patch.object(module.subprocess, "run") as runner, \
              contextlib.redirect_stderr(io.StringIO()):
@@ -131,6 +138,49 @@ class ProvisionerStatusTests(unittest.TestCase):
             code = self.provisioner.main(["--apply"])
         self.assertEqual(code, 2)
         self.assertEqual(calls, [("/v1/models", None), ("/key/list", None)])
+
+
+    def test_quota_audit_reports_budget_and_scope_without_exposing_keys(self):
+        calls = []
+        def info(path, master, body=None):
+            calls.append((path, body))
+            self.assertEqual(master, self.env["LITELLM_MASTER_KEY"])
+            if "key=" not in path:
+                raise AssertionError("Only hashed key metadata GET allowed")
+            if path.endswith(__import__("hashlib").sha256(
+                    self.env["LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()):
+                return 200, {"info": {"models": ["workstation-qwen", "qwen"],
+                                     "max_budget": 2, "spend": 0.3,
+                                     "rpm_limit": 30, "tpm_limit": 9000}}
+            return 200, {"info": {"models": ["workstation-qwen"],
+                                 "max_budget": 2, "spend": 0.7}}
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=info), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--quota-audit"])
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(body is None for _, body in calls))
+        self.assertIn("openclaw_main_quota_state=below_cap", output.getvalue())
+        self.assertIn("openclaw_cron_model_scope=verified", output.getvalue())
+        self.assertIn("openclaw_main_budget_cap=2", output.getvalue())
+        for value in self.env.values():
+            self.assertNotIn(value, output.getvalue())
+
+    def test_quota_audit_classifies_exhausted_without_model_post(self):
+        paths = []
+        def exhausted(path, master, body=None):
+            paths.append(path)
+            return 200, {"info": {"models": ["workstation-qwen", "qwen"]
+                                  if not paths[:-1] else ["workstation-qwen"],
+                                  "max_budget": 2, "spend": 2.0}}
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=exhausted), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--quota-audit"])
+        self.assertEqual(code, 1)
+        self.assertEqual(len(paths), 2)
+        self.assertIn("openclaw_main_quota_state=exhausted", output.getvalue())
 
 
 
