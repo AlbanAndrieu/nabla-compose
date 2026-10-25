@@ -210,3 +210,34 @@ preuves : aucun changement du statut `NO-GO`.
   matériel du smoke PostgreSQL.
 
 Voir [runbook des diagnostics](yubikey-readonly-batch.md#diagnostic-gpg-renforcé-et-restauration-postgresql-synthétique--25102026).
+
+## Cinq opérations demandées — exécution conjointe (25 octobre 2026)
+
+La demande opérateur couvre **PIV82/age, OpenPGP/GPG, FIDO2/SSH,
+KeePassXC/OTP2 et SOPS/escrow/PostgreSQL**. Leur préparation peut
+être menée en parallèle, mais les opérations sur matériel réel ne
+peuvent pas être lancées depuis l'agent sans lecteur ni secrets locaux.
+
+Livré en #280 : `scripts/workstation/prepare-yubikey-backup-five.py`,
+`tests/test_yubikey_backup_five_workstreams.py` et recettes
+`just yubikey-backup-five-{test,readonly,secondary-readonly}`.
+Le collecteur réutilise les outils existants, refuse de reproduire
+les sorties brutes et conserve `status=NO-GO`. Il ne configure
+pas automatiquement PIV, FIDO, OpenPGP, OTP2 ni SOPS.
+
+| Piste | Prochaine preuve d'acceptation |
+| --- | --- |
+| PIV82/age | attestation P-256, certificat interopérable, roundtrip réel sur la secondaire |
+| OpenPGP/GPG | accès réel à la carte et test de signature/déchiffrement supervisé |
+| FIDO2/SSH | création locale d'une identité backup distincte puis login vérifié et secours |
+| KeePassXC/OTP2 | ouverture d'une copie de base KDBX avec les deux clés, sans reprogrammer OTP2 |
+| SOPS/age/escrow | deux voies indépendantes de récupération, déchiffrement et restauration PostgreSQL isolée |
+
+**Contrats :** 10 tests hermétiques de l'orchestrateur exécutés
+sur une copie locale avant publication ; la validation des nouvelles
+recettes sur workstation reste `NOT_RUN`. L'inventaire
+matériel et les étapes mutantes doivent rester séparés.
+Ne pas interpréter le code de sortie 0 d'un diagnostic comme une
+autorisation d'opération irréversible.
+
+[Runbook détaillé des cinq chantiers](yubikey-backup-five-execution.md).
