@@ -719,6 +719,11 @@ migration-recovery-contracts:
 critical-remaining-triage:
     sudo -n bash scripts/truenas/triage-critical-failures.sh --check --remaining
 
+# Offline private-migration report triage; prints only bounded categories/counts.
+migration-session-triage-test:
+    python3 -m py_compile scripts/truenas/triage-migration-session.py tests/test_migration_session_triage.py
+    python3 -m unittest discover -s tests -p 'test_migration_session_triage.py' -v
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining

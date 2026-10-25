@@ -134,6 +134,28 @@ Une capture historique ne prouve pas l'état courant des services.
 automatiquement après `--apply-wave` sans connaître les composants
 effectivement migrés : une absence volontaire reste non vérifiée.
 
+## Diagnostic des quatre sessions migration (25 octobre)
+
+Les sessions `catalog`, `secrets`, `postmigration` et `critical`
+restent privées. Pour obtenir uniquement les catégories d'erreur et
+les **comptages** de bloqueurs, sans afficher les noms d'applications ni
+les valeurs de secrets, exécuter sur TrueNAS :
+
+```bash
+sudo python3 scripts/truenas/triage-migration-session.py --check \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-NcBIRDu9 \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-UVhR50Jd \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-o39rErEc \
+  --session /mnt/cpool/var/nabla/migration-20261024/session-l5DtxbvY
+```
+
+Cet analyseur accepte uniquement les sessions dans la racine canonique,
+les phases connues et les fichiers réguliers de taille bornée. Il refuse
+les symlinks et n'affiche jamais le contenu des rapports. Un plan Gatus
+`selectedWaveReady=true` est **planifiable**, pas accepté au runtime.
+L'outil n'exécute aucun `--apply-wave` et n'ajuste aucun secret.
+La qualité locale hermétique se vérifie par `just migration-session-triage-test`.
+
 ## Migration des secrets : pas encore clôturée
 
 Le fait que les fichiers canoniques soient « staged » ne signifie pas
