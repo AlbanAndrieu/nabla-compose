@@ -76,7 +76,7 @@ class PfSensePhpFpmReconcileContract(unittest.TestCase):
     def test_apply_requires_positive_ack_and_validates_dns_and_workers(self):
         result, calls = invoke("--apply", confirm="APPLY_4_WORKERS")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), 6)
         self.assertIn("--apply", calls[2])
         self.assertIn("sudo -n", calls[2])
         self.assertIn("/bin/sh -s -- --check", calls[-1])
@@ -91,7 +91,7 @@ class PfSensePhpFpmReconcileContract(unittest.TestCase):
     def test_restore_requires_own_ack_and_has_no_post_four_worker_gate(self):
         result, calls = invoke("--restore", confirm="RESTORE_BACKUP")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(calls), 5)
         self.assertIn("--restore", calls[2])
         self.assertNotIn("--apply", " ".join(calls))
 
