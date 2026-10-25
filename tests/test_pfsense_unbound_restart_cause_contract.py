@@ -184,7 +184,7 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertIn("pfb_stop_start_unbound", script)
         self.assertIn("pfb_reload_unbound", script)
         self.assertIn("pfb_validate_unbound", script)
-        self.assertIn("grep -Fq", script)
+        self.assertIn("grep -Eq", script)
         self.assertNotIn("pkg install", script)
         self.assertNotIn("pkg upgrade", script)
         self.assertNotIn("pkg update", script)
