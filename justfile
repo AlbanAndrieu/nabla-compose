@@ -940,3 +940,14 @@ openclaw-upgrade-local-activate:
 openclaw-upgrade-local-verify:
     python3 scripts/workstation/upgrade-openclaw-mise.py --verify
 
+
+# One explicit operator workflow: offline contracts, inspect, isolated npm
+# staging, backed-up maintenance cutover, then redacted functional checks.
+# May stop/restart the user Gateway; does NOT run model inference.
+openclaw-upgrade-local-all:
+    just openclaw-upgrade-local-test
+    just openclaw-upgrade-local-plan
+    just openclaw-upgrade-local-stage
+    just openclaw-upgrade-local-activate
+    just openclaw-upgrade-local-verify
+
