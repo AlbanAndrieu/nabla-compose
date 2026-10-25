@@ -263,3 +263,75 @@ JSON** et ne pas la répéter immédiatement. Analyser ensuite le type
 d'erreur avant de changer une option PC/SC ou relancer un daemon.
 Ne jamais publier une sortie GPG complète contenant identifiants
 de lecteurs, clés, UID, chemins ou données sensibles.
+
+## Nouvelle preuve opérateur — OpenPGP public répond au SHA 42d3512a
+
+La workstation au commit
+`42d3512a01db58bf0cc5e854507fe3e390ce59e9` a exécuté
+`just yubikey-backup-openpgp-test` : **15/15 PASS**.
+`just yubikey-dependencies-readonly` :
+`scdaemon=PROCESS_PRESENT_UNVERIFIED`,
+`pcscd=PROCESS_PRESENT_UNVERIFIED`,
+`agent_scdaemon=NOT_CONFIRMED`.
+Le diagnostic `diagnose-gpg-smartcard.sh --host-only` a confirmé
+`pcscd.service`, `pcscd.socket`, `gpg-agent` actifs et
+`disable-ccid` plus `pcsc-shared` présents dans la configuration,
+sans interroger la carte.
+
+Après cette vérification, la sonde matérielle sur une seule secondaire
+`22916048` a renvoyé
+`GPG_CARD_STATUS_RESPONDS_PUBLIC_ONLY_IDENTITY_UNVERIFIED` : **transport
+OpenPGP public accessible lors de cette exécution**. Une réponse antérieure
+a échoué, et `GETINFO scd_running` reste non confirmé ; la stabilité
+n'est donc pas démontrée. Ne pas redémarrer les services sans diagnostiquer
+une éventuelle récidive. Rien ne démontre une clé privée OpenPGP sur
+la carte, une signature ni un déchiffrement.
+
+## Test local supplémentaire — signature SSH FIDO2 sans serveur
+
+La clé SSH FIDO2 secondaire a **déjà été générée**. Pour ne pas la
+modifier ou multiplier les credentials, **ne pas relancer**
+`just yubikey-backup-ssh-enroll`.
+
+Un script indépendant `verify-yubikey-backup-ssh-fido2-signature.py`
+utilise exclusivement cette identité et une fixture temporaire :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+git rev-parse HEAD
+just yubikey-backup-ssh-signature-test
+just yubikey-backup-ssh-signature-check
+# Puis avec la seule carte secondaire et un terminal interactif :
+just yubikey-backup-ssh-signature-run
+```
+
+Le `--check` vérifie les permissions des dossiers/fichiers et
+l'empreinte de la clé publique `SHA256:42+Klqmv8gwQZB+1OxRjkye3nEQF1PsMjTQwXwzoSwQ`
+sans aucune opération USB. Il refuse les liens symboliques, les
+mauvaises permissions et les empreintes inattendues.
+
+Le `--sign`, exclusivement opt-in, exige un terminal et
+`ykman list --serials` contenant **uniquement 22916048**.
+La commande `ssh-keygen -Y sign` peut demander le PIN FIDO2, la
+passphrase locale et le contact physique. Elle signe uniquement
+`Nabla disposable SSH FIDO2 proof v1` sous un espace de noms
+de preuve réservé ; `ssh-keygen -Y verify` vérifie la signature
+contre la clé publique attendue. La fixture, l'allowed_signers
+temporaire et la signature sont effacés automatiquement.
+Aucune clé nouvelle, `authorized_keys`, règle PAM, configuration
+SSH distante ni service externe ne sont modifiés.
+
+**Résultat attendu en cas de réussite réelle** :
+`LOCAL_HARDWARE_SSHSIG_VERIFIED_REMOTE_LOGIN_NOT_TESTED`.
+Un échec est `NO-GO` sans retry automatique ; préserver la carte,
+le fichier de clé SSH local et les deux moyens de récupération.
+Une signature locale réussie ne démontre pas qu'un serveur distant
+accepte cette identité, et ne valide pas OpenPGP, PIV82, OTP2 ou SOPS.
+
+Le script et **13 nouveaux tests hermétiques** sont publiés en #280,
+mais `just yubikey-backup-ssh-signature-test` et la signature réelle
+sont **NOT_RUN sur workstation** à cette étape.
+
+Documentation SSHSIG :
+[ssh-keygen -Y sign/verify](https://man.openbsd.org/ssh-keygen).
