@@ -671,3 +671,76 @@ investigation distincte ; il ne faut pas mélanger les deux fenêtres.
 
 Les analyses de code sont statiques. Seuls les marqueurs émis par
 pfBlockerNG confirment que des demandes de stop/start ont existé.
+
+## Premières mesures réelles mémoire et corrélation configuration / bind
+
+Le 25 octobre 2026, l'opérateur a exécuté la gate complète
+`just pfsense-unbound-restart-test` : **45/45 tests PASS**
+(21 Unbound, 19 console, 5 mémoire).
+
+### Période mesurée : 21:23:57–21:26:58 CET (hors cron Snort)
+
+Le test ponctuel à 21:23:08 donne 161 408 Kio disponibles.
+Sur les 13 mesures suivantes, `free + inactive` varie de
+**128 260 à 204 856 Kio (125,3–200,1 Mio)**. Une mesure
+(21:24:42) descend **sous 128 Mio** ; aucun échantillon ne
+descend sous 64 Mio. La fenêtre ne recouvre PAS le cron Snort
+planifié à 02:09 et ne contient pas de journaux OOM du noyau.
+
+| Groupe de processus | RSS min.–max. (Mio) | Interprétation |
+| --- | ---: | --- |
+| PHP-FPM (8 processus) | 265,5–315,8 | Charge résidente agrégée majeure, variable |
+| Unbound | 142,1–144,2 | Stable pendant cette période |
+| CrowdSec (2 processus) | 78,0–115,6 | Variations fréquentes |
+| Snort | 75,1–85,0 | Généralement 1 processus, un 2e ponctuel |
+| PHP pfBlockerNG | 51,5–53,6 | Stable |
+
+Les RSS agrégés peuvent compter plusieurs fois de la mémoire
+partagée. Ils ne représentent pas une décomposition de la RAM
+physique totale. **Leur variation ne prouve pas qu'un processus
+cause la baisse `free + inactive`**. Snort est stable en dehors
+de son créneau de mise à jour ; on ne peut donc pas attribuer
+l'OOM de 02:10 avec ce seul relevé.
+
+### Nouvelle corrélation forte le 24 octobre à 23:39:55 CEST
+
+La première empreinte jointe à 21:23:27 CET rapporte
+`unbound_config mtime_unix=1792877995`, soit **2026-10-24
+23:39:55 +02:00**. Le journal système enregistre au **même
+second** `unbound_bind_conflict` à
+`2026-10-24T23:39:55.370768+02:00`.
+
+Ce rapprochement implique une opération de modification (ou de
+mise à jour de mtime) du fichier de configuration au moment
+d'une tentative de bind. Il soutient une piste de génération
+de configuration et/ou de démarrages concurrents. Il **ne prouve
+pas** que pfBlockerNG, configd, l'UI ou un autre composant
+ait initié cette modification : l'horodatage et le message
+du noyau ne portent pas l'identité du déclencheur.
+
+Le collecteur inclut maintenant `mtime_local` avec son offset
+UTC en complément de `mtime_unix`, pour éviter les erreurs de
+corrélation autour du changement d'heure. Les empreintes
+avant/après la mise à jour de minuit restent nécessaires.
+
+### Rendu du sampler — protection de preuve
+
+Le rendu console fournit désormais un **bilan min/max de la
+fenêtre, le nombre de mesures sous 128 et 64 Mio**, et
+affiche `Historical OOM events NOT_EVALUATED` : le sampler
+n'interroge pas les journaux OOM. Il ne doit jamais afficher
+`0 distinct historical OOM records` comme conclusion.
+
+Si une collecte `ps` ou `sysctl` échoue, ou si un nombre de
+mesures inférieur au budget est reçu, le résumé indique
+`EVIDENCE INCOMPLETE` au lieu de déclarer un résultat sain.
+
+**Prochaine preuve :** un prélèvement encadrant réellement
+**02:09–02:11**, plus une comparaison des empreintes vers
+23:55/00:10. Ne pas provoquer ces événements par un update
+forcé ou un reload manuel.
+
+La gate courante regroupe **21 tests Unbound + 22 tests console
++ 5 tests échantillonneur = 48 tests**. Les 45 tests précédents
+sont PASS selon l'opérateur ; les trois nouveaux cas console
+restent à valider sur le HEAD actuel.
