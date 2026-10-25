@@ -203,6 +203,8 @@ def node_ready():
 
 def stage_valid(root):
     """Prove a complete, approved package independently of npm's exit code."""
+    if root == isolated_stage_root() and not isolated_prefix_safe():
+        return False
     if package_version(root) != TARGET_OPENCLAW:
         return False
     entry = package_entry(root)
