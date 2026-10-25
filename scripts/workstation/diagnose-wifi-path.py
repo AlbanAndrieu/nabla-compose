@@ -223,7 +223,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"schema": "nabla.workstation.network-path.v1", "samples": rows},
                          indent=2, sort_keys=True))
     # A read-only probe never claims that a short healthy sample closed an incident.
-    return 1 if any(row["diagnosis"] == "WIFI_ASSOCIATION_LOST" for row in rows) else 0
+    verified_failures = {
+        "WIFI_ASSOCIATION_LOST",
+        "PFSENSE_DNS_OR_WIFI_VLAN_POLICY",
+        "CLIENT_SYSTEM_DNS_PATH",
+    }
+    return 1 if any(row["diagnosis"] in verified_failures for row in rows) else 0
 
 
 if __name__ == "__main__":
