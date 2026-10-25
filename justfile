@@ -808,5 +808,5 @@ openclaw-update-npm-test:
 openclaw-update-recovery-local:
     just openclaw-update-npm-test
     just openclaw-429-fix-test
-    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log
+    python3 scripts/workstation/diagnose-openclaw-update-npm.py --log-name 2026-10-25T19_43_24_104Z-debug-0.log || echo 'WARN: npm update root cause not verified; do not rerun update blindly'
 
