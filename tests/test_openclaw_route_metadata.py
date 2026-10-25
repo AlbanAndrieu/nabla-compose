@@ -85,10 +85,17 @@ class OpenClawRouteMetadataTests(unittest.TestCase):
         self.assertNotIn("sk-SHOULD_NOT_PRINT", result.stdout + result.stderr)
 
     def test_missing_base_url_is_classified_without_unbound_variable(self):
-        result = self.inspect({"models": {"providers": {"litellm-main": {"apiKey": "secret"}}}})
-        self.assertEqual(result.returncode, 0)
+        # Assert that the actual credential is hidden. Diagnostic field names
+        # like memory_embedding_secretref are public and must remain visible.
+        raw_key = "sk-REDACTION-TEST-DO-NOT-PRINT-8f3bd0a"
+        result = self.inspect({"models": {"providers": {
+            "litellm-main": {"apiKey": raw_key},
+        }}})
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("route_owner=unconfigured", result.stdout)
-        self.assertNotIn("secret", result.stdout)
+        self.assertIn("key_representation=literal_or_unresolved", result.stdout)
+        self.assertIn("memory_embedding_secretref=other_or_unverified", result.stdout)
+        self.assertNotIn(raw_key, result.stdout + result.stderr)
 
     def test_agent_models_json_can_override_configured_route_and_default(self):
         agent_root = Path(self.tmp.name) / "agents" / "cron" / "agent"
