@@ -64,7 +64,7 @@ def unit_exec():
         return None
     text = out.decode("utf-8", "replace")
     packages = SERVICE_PATTERN.findall(text)
-    nodes = OLD_NODE_PATTERN.findall(text)
+    nodes = set(OLD_NODE_PATTERN.findall(text))
     if len(packages) != 1 or len(nodes) > 1:
         return None
     # Reject unknown service flags; never discard runtime customization.
@@ -75,7 +75,7 @@ def unit_exec():
     if owner.parent != expected_parent or not re.fullmatch(r"\d+\.\d+\.\d+", owner.name):
         return None
     if nodes:
-        if owner.name != nodes[0]:
+        if owner.name != next(iter(nodes)):
             return None
     else:
         # Historical Ubuntu service could launch /usr/bin/node yet load
@@ -95,7 +95,7 @@ def package_metadata(root):
     package = root / "lib/node_modules/openclaw"
     manifest = package / "package.json"
     if not (package.is_dir() and not package.is_symlink() and
-            package.resolve() == package and manifest.is_file() and
+            manifest.is_file() and
             private_status(package) and private_status(manifest)):
         return None
     try:
