@@ -243,6 +243,23 @@ schéma ; ne pas la restaurer sur un état actif ou potentiellement
 plus récent.
 
 
+## Contrat systemd Node.js après mise à jour `mise` (26 octobre)
+
+Le diagnostic de service ne dépend plus de **Node 24.22.1**
+en dur : il accepte une version corrective de Node 24 installée
+sous `~/.local/share/mise/installs/node/24.x.y/` lorsque
+l'exécutable `bin/node` et le module
+`lib/node_modules/openclaw/openclaw.mjs` proviennent **du même
+répertoire de version**, avec `gateway --port 18789`.
+Un chemin mixte entre deux versions reste
+`different_or_unverified`. La commande `ExecStart` brute
+n'est pas affichée et aucune réparation n'est appliquée.
+
+Le diagnostic reste de **lecture seule** et ne prouve pas
+la disponibilité `/readyz` ; utiliser ensuite le diagnostic
+Gateway existant. Ces règles sont couvertes par des fixtures,
+sans démarrage du Gateway par l'agent.
+
 ## 26 octobre — pourquoi un seul redémarrage manuel peut se justifier
 
 Dernier rapport `doctor --lint --json` de la Workstation :
