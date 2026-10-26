@@ -193,15 +193,35 @@ gate distincte à valider avant fusion.
 
 ### Vérification d'une minute avant la prochaine fenêtre
 
-Choisir un nom privé **déjà connu comme résoluble en A**
-depuis le LAN ; `nexus-albanandrieu.int` est un exemple
-à confirmer localement, pas une preuve que l'enregistrement
-existe encore. Exécuter depuis la workstation :
+Choisir un nom privé **réellement résolu en A par pfSense**.
+La zone documentée est `int.albandrieu.com`, transmise par
+Unbound à Pi-hole sur TrueNAS `172.17.0.24:53`.
+Ne plus utiliser `nexus-albanandrieu.int` : ce nom issu d'un
+ancien inventaire a renvoyé **45 NXDOMAIN/45** le 26 octobre,
+alors que **45/45 requêtes publiques étaient OK**. Il n'avait
+pas été vérifié avant la mesure.
+
+Exemple **historique** plus conforme à la topologie :
+`s3.int.albandrieu.com` (A `172.17.0.24` dans un diagnostic
+antérieur). **Vérifier son état actuel** avant de le retenir :
 
 ```bash
-PFSENSE_PRIVATE_DNS_NAME=nexus-albanandrieu.int \
+dig +tries=1 +time=2 @172.17.0.1 s3.int.albandrieu.com A
+dig +tries=1 +time=2 @172.17.0.24 s3.int.albandrieu.com A
+```
+
+Si les deux renvoient un A attendu, depuis la workstation :
+
+```bash
+PFSENSE_PRIVATE_DNS_NAME=s3.int.albandrieu.com \
   just pfsense-unbound-lan-dns-watch
 ```
+
+Si le premier renvoie `NXDOMAIN` et le second `NOERROR`
+avec `172.17.0.24`, examiner le Domain Override Unbound de
+`int.albandrieu.com` vers Pi-hole. Si les deux renvoient
+`NXDOMAIN`, vérifier la publication du nom côté Pi-hole et
+les politiques de filtrage. Ne rien modifier à ce stade.
 
 La recette effectue **45 prélèvements**, espacés au
 mieux de **2 secondes**, avec **2 requêtes A par prélèvement**
@@ -210,8 +230,20 @@ Elle s'achève normalement en environ **90 secondes** hors
 ralentissements/timeouts et émet `dns_watch_result=...`.
 Elle est bornée à 60 prélèvements et à un délai de dig
 configurable de 1 à 5 secondes, sans boucle infinie.
-Un code retour `1` après le bilan signifie **qu'un échec DNS
-a été observé**, pas que la recette est en panne.
+**Nouveau précontrôle obligatoire :** deux requêtes A
+(publique et privée) sont exécutées avant la fenêtre. Si
+l'une des deux ne renvoie pas `OK`, le programme affiche
+`dns_watch_result=INVALID_BASELINE_NO_SAMPLES` ainsi
+qu'un indice (`PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS`
+pour `NXDOMAIN`) et sort avec le **code 2**, sans
+lancer 45 prélèvements. Ce résultat est une **baseline DNS
+invalide**, pas une interruption mesurée pendant le cron.
+
+Le programme effectue alors **2 requêtes de précontrôle + 90
+requêtes maximum** pendant les 45 prélèvements par défaut.
+Un code retour `1` **après un précontrôle réussi et un
+bilan de prélèvements** indique qu'au moins une requête
+DNS a échoué pendant la surveillance.
 
 Pour couvrir le cron d'environ 00:04, démarrer la commande
 vers **00:03:35–00:03:45**, heure locale du Netgate.
@@ -254,3 +286,23 @@ brut n'est imprimé, seuls les états agrégés sont conservés.
 
 **Aucune action corrective sur l'appliance n'est nécessaire
 pour exécuter ou valider ces scripts.**
+
+### Correctif après la mesure du 26 octobre 20:09–20:10 CET
+
+La mesure opérateur avec l'ancien nom `nexus-albanandrieu.int`
+a observé **45/45 réponses publiques OK**, **45/45 NXDOMAIN
+sur le nom privé**, **aucun timeout**, **aucun SERVFAIL** et
+`both_fail=0`. Cela indique qu'Unbound répondait pendant
+la fenêtre, mais ne trouvait pas le nom privé interrogé.
+Ce test ne couvre pas le cron de **00:04** : la mesure
+a eu lieu vers **20:09–20:10 CET**.
+
+La version de la sonde dans la **PR #285** inclut désormais
+une vérification préalable. Si le nom privé retourne
+`NXDOMAIN` dès le départ, le test se termine en
+`INVALID_BASELINE_NO_SAMPLES` et recommande de revoir
+la chaîne **pfSense/Unbound → Pi-hole → enregistrements DNS
+privés**, sans conclure à une panne du résolveur.
+
+L'ancien exemple `nexus-albanandrieu.int` ne doit plus
+être proposé pour les contrôles de disponibilité DNS LAN.
