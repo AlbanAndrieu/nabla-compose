@@ -183,11 +183,12 @@ just pfsense-unbound-lan-dns-test
 just pfsense-unbound-restart-test
 ```
 
-La première recette couvre **9 tests offline** ; elle est
-également incluse dans la gate Unbound existante.
-Le compteur de gate attendu passe de **64 à 73 tests**.
-Les **64 tests historiques PASS** viennent de l'opérateur ;
-les nouveaux 9 tests restent **NOT_RUN sur le HEAD #285**.
+La recette LAN contient maintenant **18 tests offline**,
+incluant les scénarios d'IPv4 attendue, Pi-hole et échecs échantillonnés.
+La gate Unbound inclut cette recette. Les résultats antérieurs
+**73/73 PASS** concernent une version précédente, et ne
+valident pas les derniers correctifs. Rejouer les deux recettes
+localement ; ne pas annoncer de nouveau total PASS avant exécution.
 Le correctif Code déjà présent dans cette PR possède une
 gate distincte à valider avant fusion.
 
