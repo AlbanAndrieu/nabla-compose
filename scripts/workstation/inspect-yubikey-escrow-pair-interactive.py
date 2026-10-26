@@ -18,6 +18,55 @@ SOURCE = Path(__file__).with_name("inspect-yubikey-recovery-readonly.py")
 ACK = "INSPECT_EXISTING_ESCROW_METADATA"
 
 
+# Workstation-specific known backup roots; filenames and private paths are
+# never sent to stdout, GitHub, argv or diagnostics. No recursive scan.
+DISCOVERY_LIMIT = 256
+
+
+def candidate_directories(home: Path) -> tuple[Path, ...]:
+    return (
+        home / ".local/share/nabla/age-backups",
+        Path("/media/backup/lab/secret"),
+    )
+
+
+def discover_pair(home: Path) -> tuple[str, tuple[Path, Path] | None]:
+    """Match a single existing .age basename across the two known roots.
+
+    Iterate directory entries only. No archives are opened, hashed, decrypted
+    or copied. No directory traversal through symlinks and no name output.
+    """
+    roots = candidate_directories(home)
+    all_candidates: list[dict[str, Path]] = []
+    for directory in roots:
+        try:
+            # Prevent traversal of symlinked parents or directories.
+            if any(part.is_symlink() for part in (directory, *directory.parents)):
+                return "DISCOVERY_DIRECTORY_UNTRUSTED", None
+            matches: dict[str, Path] = {}
+            with os.scandir(directory) as entries:
+                for index, entry in enumerate(entries):
+                    if index >= DISCOVERY_LIMIT:
+                        return "DISCOVERY_TOO_MANY_ENTRIES", None
+                    if (entry.name.endswith(".age")
+                            and entry.is_file(follow_symlinks=False)):
+                        matches[entry.name] = directory / entry.name
+            all_candidates.append(matches)
+        except (OSError, ValueError, UnicodeError):
+            return "DISCOVERY_DIRECTORY_UNAVAILABLE", None
+    common = set(all_candidates[0]) & set(all_candidates[1])
+    if not common:
+        return "DISCOVERY_NO_MATCHING_PAIR", None
+    if len(common) != 1:
+        return "DISCOVERY_MULTIPLE_MATCHING_PAIRS", None
+    name = next(iter(common))
+    pair = (all_candidates[0][name], all_candidates[1][name])
+    state = read_escrow_state(*pair)
+    return state, pair if state == "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED" else None
+
+
+
+
 def read_escrow_state(a: Path, b: Path) -> str:
     """Delegate existing symlink-safe stat-only policy. No raw path output."""
     try:
@@ -45,12 +94,25 @@ def classify_inputs(first: str, second: str) -> str:
     return read_escrow_state(a, b)
 
 
-def inspect(*, tty: bool, reader=None) -> str:
+def inspect(*, tty: bool, reader=None, confirmer=None) -> str:
     if not tty:
         return "INTERACTIVE_TERMINAL_REQUIRED"
+    # Keep injected test/automation readers independent of host filesystem.
+    autodiscover = reader is None
     if reader is None:
         reader = getpass.getpass
+    if confirmer is None:
+        confirmer = input
     try:
+        if autodiscover:
+            found, pair = discover_pair(Path.home())
+            if pair is not None:
+                answer = confirmer(
+                    "Deux sauvegardes .age de même nom trouvées dans les deux "
+                    "répertoires connus. Vérifier leurs métadonnées ? [o/N] : "
+                ).strip().lower()
+                if answer in ("o", "oui", "y", "yes"):
+                    return read_escrow_state(*pair)
         first = reader("Escrow age A (chemin absolu, saisie masquée) : ")
         second = reader("Escrow age B (chemin absolu, saisie masquée) : ")
         return classify_inputs(first, second)
@@ -63,14 +125,19 @@ def main(argv: list[str] | None = None) -> int:
     opts = parser.add_mutually_exclusive_group(required=True)
     opts.add_argument("--check", action="store_true")
     opts.add_argument("--inspect", action="store_true")
+    opts.add_argument("--discover", action="store_true")
     parser.add_argument("--acknowledge")
     args = parser.parse_args(argv)
-    if args.check and args.acknowledge:
+    if (args.check or args.discover) and args.acknowledge:
         parser.error("acknowledgment accepted only for --inspect")
     if args.inspect and args.acknowledge != ACK:
         parser.error("explicit metadata-only acknowledgment required")
-    state = ("PATHS_NOT_COLLECTED" if args.check else
-             inspect(tty=os.isatty(0) and os.isatty(2)))
+    if args.check:
+        state = "PATHS_NOT_COLLECTED"
+    elif args.discover:
+        state, _ = discover_pair(Path.home())
+    else:
+        state = inspect(tty=os.isatty(0) and os.isatty(2))
     print(json.dumps({
         "mode": "EXISTING_ESCROW_PAIR_METADATA_ONLY",
         "status": "NO-GO", "state": state,
