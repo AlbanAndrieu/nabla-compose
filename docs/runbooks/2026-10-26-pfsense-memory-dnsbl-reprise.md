@@ -151,3 +151,106 @@ du chemin de rechargement restent à investiguer.
 
 Ne pas relancer l'optimisation PHP-FPM et ne pas provoquer
 un nouveau cycle pfBlockerNG pour obtenir cette mesure.
+
+## Continuation PR #285 — sonde DNS LAN bornée (à exécuter au prochain cycle)
+
+**Source** : la PR #280 est fusionnée ; le suivi s'effectue
+dans [la PR #285](https://github.com/AlbanAndrieu/nabla-compose/pull/285).
+Cette PR contient aussi un correctif indépendant du test de
+secrets canonique du service Code : vérifier les deux périmètres
+avant fusion.
+
+### Pourquoi une sonde supplémentaire ?
+
+Le comparateur local a établi la stabilité du PID 2611
+**entre 00:40:15 et 00:40:22 le 26 octobre**.
+Il n'a pas mesuré la disponibilité DNS du LAN pendant le
+stop/start Unbound associé à pfBlockerNG vers **00:04**.
+Les futurs relevés de PID, même encadrant le cron, ne
+quantifieront pas seuls les requêtes DNS perdues.
+
+Le nouveau script `scripts/pfsense/probe-unbound-lan-dns.py`
+utilise `dig` directement contre l'IP DNS explicite
+`172.17.0.1`, depuis un client autorisé sur le LAN.
+Il **n'utilise pas** la résolution de la workstation
+(`systemd-resolved`) pour rejoindre pfSense.
+Il n'ouvre ni SSH, ni API pfSense, et n'installe aucun service.
+
+### Validation locale initiale (hors réseau)
+
+```bash
+just pfsense-unbound-lan-dns-test
+just pfsense-unbound-restart-test
+```
+
+La première recette couvre **9 tests offline** ; elle est
+également incluse dans la gate Unbound existante.
+Le compteur de gate attendu passe de **64 à 73 tests**.
+Les **64 tests historiques PASS** viennent de l'opérateur ;
+les nouveaux 9 tests restent **NOT_RUN sur le HEAD #285**.
+Le correctif Code déjà présent dans cette PR possède une
+gate distincte à valider avant fusion.
+
+### Vérification d'une minute avant la prochaine fenêtre
+
+Choisir un nom privé **déjà connu comme résoluble en A**
+depuis le LAN ; `nexus-albanandrieu.int` est un exemple
+à confirmer localement, pas une preuve que l'enregistrement
+existe encore. Exécuter depuis la workstation :
+
+```bash
+PFSENSE_PRIVATE_DNS_NAME=nexus-albanandrieu.int \
+  just pfsense-unbound-lan-dns-watch
+```
+
+La recette effectue **45 prélèvements**, espacés au
+mieux de **2 secondes**, avec **2 requêtes A par prélèvement**
+(une publique `example.com`, une privée fournie par l'opérateur).
+Elle s'achève normalement en environ **90 secondes** hors
+ralentissements/timeouts et émet `dns_watch_result=...`.
+Elle est bornée à 60 prélèvements et à un délai de dig
+configurable de 1 à 5 secondes, sans boucle infinie.
+Un code retour `1` après le bilan signifie **qu'un échec DNS
+a été observé**, pas que la recette est en panne.
+
+Pour couvrir le cron d'environ 00:04, démarrer la commande
+vers **00:03:35–00:03:45**, heure locale du Netgate.
+Si le chronogramme pfBlockerNG change, adapter la fenêtre.
+Pendant la même fenêtre, ne pas modifier PHP-FPM, Snort,
+pfBlockerNG, CrowdSec, Unbound ni les règles DNS.
+
+### Interprétation du résultat
+
+Le script produit pour chaque prélèvement un horodatage
+avec offset local, les états `public_dns` et `private_dns`,
+les durées de requête, puis des compteurs :
+`public_fail`, `private_fail`, `both_fail` et les plus
+longues **séquences d'échantillons défaillants**.
+Il distingue `OK`, `TIMEOUT`, `NXDOMAIN`, `SERVFAIL`,
+`REFUSED`, `NO_A_ANSWER`, etc. Un échec du nom privé seul
+peut être une faute de DNS split plutôt qu'une coupure Unbound.
+
+`dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED` est
+intentionnel. Si la sonde échoue à des instants successifs,
+elle démontre des requêtes perdues pendant la fenêtre,
+**pas** la durée exacte et continue de la panne. Une absence
+d'échec ne prouve pas qu'une microcoupure n'a pas eu lieu
+entre deux échantillons. Aucun nom, réponse A ou log
+brut n'est imprimé, seuls les états agrégés sont conservés.
+
+### Suite après la sonde
+
+1. Capturer l'état Unbound **avant** le cron avec
+   `just pfsense-unbound-capture`.
+2. Exécuter la mesure LAN à l'heure approximative prévue.
+3. Capturer **après** le cron avec la même recette.
+4. Comparer les deux vrais `snapshot_saved` via
+   `just pfsense-unbound-compare`.
+5. Corréler les horodatages des éventuels échecs DNS
+   avec les nouveaux PID, marqueurs pfBlockerNG et OOM.
+6. En l'absence de coupure, conserver le stop/start comme
+   dette de continuité à surveiller, sans le traiter
+   d'office comme une panne utilisateur.
+
+**Aucune action corrective sur l'appliance n'est nécessaire
+pour exécuter ou valider ces scripts.**
