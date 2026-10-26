@@ -455,3 +455,35 @@ probe. Maintenir `NO-GO` pour PIV82 et la restauration réelle ;
 KeePassXC/OTP2 reste reporté.
 
 [Procédure détaillée](yubikey-software-recovery-20261026.md).
+
+## Escrow age — 120 snapshots sans candidat, copie NFS contrôlée préparée (27/10/2026)
+
+**Preuve workstation** : `just yubikey-escrow-history-test`
+**14/14 PASS**. Page 0 : 96 snapshots, 0 candidat, page suivante
+disponible. Page 1 : 24 snapshots, 0 candidat,
+`more_pages=false`, `next_page=null`,
+`inventory_truncated=false`. **120 entrées examinées dans les trois
+racines connues** ; la recherche a terminé ses pages sans retrouver
+le nom de l'archive attendu. Cela n'exclut pas d'autres datasets,
+supports ni une variation des snapshots entre les probes.
+
+**Priorité suivante : créer une copie chiffrée NFS**, mais
+uniquement après précontrôle. Le script
+`create-yubikey-escrow-nfs-copy.py` est ajouté à #285 avec
+`just yubikey-escrow-copy-test` et
+`just yubikey-escrow-copy-check`. **9/9 contrats synthétiques
+PASS local agent** ; workstation encore `NOT_RUN`.
+Il vérifie la source, le montage NFS et l'absence de destination.
+La copie réelle reste une commande Python **séparée, facultative
+et opt-in**, avec nom temporaire 0600, publication atomique sans
+écrasement, `fsync` et comparaison octet par octet. Aucune
+écriture n'a été effectuée par l'agent.
+
+**Conditions d'acceptation** : copie chiffrée créée et identique,
+puis visibilité depuis le client et TrueNAS, ACL contrôlées,
+déchiffrement age et récupération SOPS réels séparément démontrés.
+Une simple copie binaire **n'est pas un escrow récupérable prouvé**.
+Pas de changement des destinataires SOPS ou de PIV82. Le test
+KeePassXC/OTP2 reste reporté.
+
+[Procédure](yubikey-software-recovery-20261026.md).
