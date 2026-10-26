@@ -62,6 +62,47 @@ class AkvoradoDeltaTest(unittest.TestCase):
         self.assertEqual(status, "COUNTER_RESET_INCONCLUSIVE")
         self.assertEqual(delta, {})
 
+    def test_negative_counter_never_proves_new_inserts(self):
+        before = metrics(10, 0, -2)
+        after = metrics(12, 0, 3)
+        status, delta = MODULE.assess_deltas(before, after)
+        self.assertEqual(status, "COUNTER_INVALID_INCONCLUSIVE")
+        self.assertEqual(delta, {})
+
+    def test_overflow_counter_never_proves_insert_activity(self):
+        before = metrics(10, 0, 0)
+        after = metrics(12, 0, "1e999")
+        status, delta = MODULE.assess_deltas(before, after)
+        self.assertEqual(status, "COUNTER_INVALID_INCONCLUSIVE")
+        self.assertEqual(delta, {})
+
+    def test_initial_snapshot_negative_is_inconclusive(self):
+        self.assertEqual(
+            MODULE.classify_outlet(metrics(5, 5, -1)),
+            "METRICS_INVALID_INCONCLUSIVE",
+        )
+        self.assertNotIn(
+            "akvorado_outlet_clickhouse_flow_per_batch_count=-1",
+            MODULE.summarize_metrics(metrics(5, 5, -1), "outlet"),
+        )
+
+    def test_fail_on_blocked_rejects_invalid_new_counters(self):
+        output = io.StringIO()
+        with (
+            patch.object(MODULE, "fetch", side_effect=[
+                "", metrics(10, 0, 0), metrics(12, 0, -1)
+            ]),
+            patch.object(MODULE.time, "sleep"),
+            patch.object(MODULE.sys, "argv", [
+                "diagnose-akvorado-flow.py",
+                "--fail-on-blocked", "--observe-seconds", "1",
+            ]),
+            redirect_stdout(output),
+        ):
+            result = MODULE.main()
+        self.assertEqual(result, 1)
+        self.assertIn("COUNTER_INVALID_INCONCLUSIVE", output.getvalue())
+
     def test_kafka_received_not_sql_success(self):
         status, _ = MODULE.assess_deltas(metrics(10, 10, 0), metrics(10, 10, 0, kafka=3))
         self.assertEqual(status, "NEW_KAFKA_MESSAGES_PROCESSING_UNVERIFIED")
