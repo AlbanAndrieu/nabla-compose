@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot PR #274 read-only verification in a disposable, isolated Git worktree.
+# Historical PR #274 defaults retained; --branch selects a new PR without altering an operator checkout.
 # Never executes git pull/reset, changes the operator checkout, accesses PIN or writes PIV.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   printf 'Execute with bash; never source this script.\n' >&2
@@ -22,9 +22,10 @@ observed_f9='6C:6E:14:0A:69:81:14:C3:51:14:0C:1B:68:C4:B1:16:A7:D9:B4:49:29:76:6
 expected_root='63ece914e54dd87915f34033c85af4c0696ba1512f8add66ced738331207b546'
 root_url='https://developers.yubico.com/PKI/yubico-piv-ca-1.pem'
 usage() {
-  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo PATH] [--evidence-dir PATH] [--pinned-sha SHA] [--inventory-secondary] [--otp2-secondary] [--escrow-a PATH --escrow-b PATH]\n'
+  printf 'Usage: bash run-age-yubikey-pr274-readonly.sh [--repo PATH] [--evidence-dir PATH] [--branch NAME] [--pinned-sha SHA] [--inventory-secondary] [--otp2-secondary] [--escrow-a PATH --escrow-b PATH]\n'
   printf 'No pre-existing checkout required. Persistent bare Git cache under HOME; isolated worktree per run.\n'
   printf 'Use --inventory-secondary for fresh public metadata on secondary 22916048 (never writes the card).\n'
+  printf 'Use --branch NAME to select the active PR; legacy PR #274 is the default for old scripts.\n'
   printf 'Use --pinned-sha SHA after a verified git ls-remote bootstrap to avoid duplicate Git network calls.\n'
   printf 'Does not git pull, switch operator checkout, write PIV, request PIN or change SOPS.\n'
 }
@@ -33,6 +34,9 @@ while (($#)); do
     --repo)
       (($# >= 2)) || { usage >&2; exit 2; }
       repo="$2"; shift 2 ;;
+    --branch)
+      (($# >= 2)) || { usage >&2; exit 2; }
+      branch="$2"; shift 2 ;;
     --inventory-secondary) inventory_secondary=true; shift ;;
     --otp2-secondary) recovery_otp2=true; shift ;;
     --escrow-a)
@@ -51,6 +55,11 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
+# Reject invalid ref names before contacting Git or any device.
+if [[ "$branch" == -* ]] || ! git check-ref-format --branch "$branch" >/dev/null 2>&1; then
+  printf 'NO-GO: invalid branch name\n' >&2
+  exit 2
+fi
 if [[ -n "$escrow_a" || -n "$escrow_b" ]]; then
   [[ -n "$escrow_a" && -n "$escrow_b" ]] || {
     printf 'NO-GO: escrow requires BOTH existing backup paths\n' >&2

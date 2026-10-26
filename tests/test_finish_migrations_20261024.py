@@ -13,6 +13,7 @@ import pytest
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts/truenas/finish-migrations-20261024.sh"
 SECTIONS = SOURCE.with_name("migration-diagnostic-sections.sh")
+OPERATOR = SOURCE.with_name("migration-operator.sh")
 HASH = "a" * 64
 ACK_RESTART = "I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION = "I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
@@ -26,6 +27,7 @@ def fake_operator(tmp_path):
     target = truenas / SOURCE.name
     shutil.copyfile(SOURCE, target)
     shutil.copyfile(SECTIONS, truenas / SECTIONS.name)
+    shutil.copyfile(OPERATOR, truenas / OPERATOR.name)
     # Fake the terminal interface used by the production runner. No TrueNAS.
     lib = root / "scripts/lib/diagnostic-ui.sh"
     lib.parent.mkdir(parents=True, exist_ok=True)
@@ -42,6 +44,10 @@ def fake_operator(tmp_path):
     runbook = root / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
     runbook.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(SOURCE.parents[2] / "docs/runbooks" / runbook.name, runbook)
+    canonical = root / "docs/runbooks/truenas-migration-operator.md"
+    shutil.copyfile(
+        SOURCE.parents[2] / "docs/runbooks" / canonical.name, canonical,
+    )
     binary = tmp_path / "bin"
     binary.mkdir()
     midclt = binary / "midclt"
@@ -60,7 +66,9 @@ def fake_operator(tmp_path):
         "    output = Path(args[args.index('--output')+1])\n"
         "    output.write_text(json.dumps({"
         "'inventorySource':'live-midclt', 'runtimeSecretsSource':'live-filesystem',"
-        "'selectedWave':wave, 'selectedWaveReady':True,"
+        "'selectedWave':wave,"
+        "'selectedWaveReady':os.getenv('MOCK_WAVE_BLOCKED') != '1',"
+        "'selectedWaveBlocker':'PRIVATE_TOKEN_MUST_NOT_PRINT',"
         "'planHash':'" + HASH + "'}))\n",
         encoding="utf-8",
     )
@@ -117,6 +125,34 @@ def test_shell_parses_and_help_needs_no_truenas(fake_operator):
     assert not marker.exists()
 
 
+def test_stable_migration_operator_delegates_without_runtime_probing(fake_operator):
+    target, env, report, marker = fake_operator
+    wrapper = target.with_name(OPERATOR.name)
+    assert subprocess.run(["bash", "-n", str(wrapper)], check=False).returncode == 0
+    result = subprocess.run(
+        ["bash", str(wrapper), "--help"], env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--plan-wave" in result.stdout
+    assert not report.exists()
+    assert not marker.exists()
+
+
+def test_stable_operator_rejects_missing_legacy_target(fake_operator):
+    target, env, report, marker = fake_operator
+    wrapper = target.with_name(OPERATOR.name)
+    target.unlink()
+    result = subprocess.run(
+        ["bash", str(wrapper), "--check"], env=env,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2
+    assert "canonical migration operator unavailable" in result.stderr
+    assert not report.exists()
+    assert not marker.exists()
+
+
 def test_readonly_registry_is_required_and_rejects_symlinks(fake_operator):
     target, _, report, marker = fake_operator
     registry = target.with_name("migration-diagnostic-sections.sh")
@@ -156,7 +192,7 @@ def test_next_commands_print_only_runbook_location_without_runtime_access(fake_o
     result = invoke(fake_operator, "--next-commands")
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout == (
-        "RUNBOOK=docs/runbooks/2026-10-24-homelab-operator-next-commands.md\n"
+        "RUNBOOK=docs/runbooks/truenas-migration-operator.md\n"
     )
     assert "NEVER-LOG" not in result.stdout
     assert len(result.stdout) < 100
@@ -177,6 +213,40 @@ def test_next_commands_rejects_mixed_apply_flags(fake_operator, args):
     assert not report.exists()
 
 
+@pytest.mark.parametrize("args", [
+    ("--apply-step", "gatus-config", "--check", "--acknowledge", ACK_MIGRATION),
+    ("--check", "--apply-step", "gatus-config", "--acknowledge", ACK_MIGRATION),
+    ("--plan-wave", "core", "--apply-wave", "core",
+     "--expected-plan-hash", HASH, "--acknowledge", ACK_RESTART),
+    ("--apply-wave", "core", "--check",
+     "--expected-plan-hash", HASH, "--acknowledge", ACK_RESTART),
+    ("--apply-csi-smoke", "--check", "--acknowledge", ACK_MIGRATION),
+    ("--local-gates", "--check"),
+    ("--next-commands", "--plan-wave", "core"),
+    ("--check", "--check"),
+])
+def test_mixed_execution_modes_are_rejected_before_runtime(fake_operator, args):
+    _, _, report, marker = fake_operator
+    result = invoke(fake_operator, *args)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "choose exactly one execution mode" in result.stderr
+    assert not marker.exists()
+    assert not report.exists()
+
+
+def test_planner_blocker_is_not_printed_from_private_json(fake_operator):
+    _, _, report, marker = fake_operator
+    result = invoke(
+        fake_operator, "--plan-wave", "core",
+        env_overrides={"MOCK_WAVE_BLOCKED": "1"},
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "wave not ready; inspect the private plan report" in result.stdout
+    assert "PRIVATE_TOKEN_MUST_NOT_PRINT" not in result.stdout + result.stderr
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
 def test_new_read_only_sections_are_documented():
     script = SECTIONS.read_text(encoding="utf-8")
     for section in (
@@ -190,6 +260,72 @@ def test_new_read_only_sections_are_documented():
     ).read_text(encoding="utf-8")
     assert "--require-inserts --observe-seconds" in script
     assert "verify-fastapi-lan-probes.sh" in script
+
+
+def test_postmigration_diagnostics_are_explicit_and_read_only(fake_operator):
+    _, _, report, marker = fake_operator
+    lib = SECTIONS.read_text(encoding="utf-8")
+    runner = SOURCE.read_text(encoding="utf-8")
+    assert "    postmigration)" in lib
+    for name in (
+        "postmigration-catalog",
+        "postmigration-service-readiness",
+        "postmigration-gatus",
+        "postmigration-prometheus",
+    ):
+        assert name in lib
+    assert "postmigration" not in runner.split("for part in ", 1)[1].split("; do", 1)[0]
+    result = invoke(fake_operator, "--check", "--section", "postmigration")
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Invalid section" not in result.stderr
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
+def test_apisix_is_optional_until_deployed(fake_operator):
+    _, _, report, marker = fake_operator
+    lib = SECTIONS.read_text(encoding="utf-8")
+    assert "    apisix)" in lib
+    assert "record apisix-runtime SKIP" in lib
+    result = invoke(fake_operator, "--check", "--section", "apisix")
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "SKIP=1" in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
+def test_postmigration_unknown_probe_is_warn_and_exit_two(fake_operator):
+    target, _, report, marker = fake_operator
+    root = target.parents[2]
+    (root / "scripts/generate-catalog-v2-artifacts.py").write_text(
+        "raise SystemExit(0)\n", encoding="utf-8",
+    )
+    (target.parent / "diagnose-gatus-monitors.py").write_text(
+        "raise SystemExit(2)\n", encoding="utf-8",
+    )
+    result = invoke(fake_operator, "--check", "--section", "postmigration")
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "PASS=3 FAIL=0 WARN=1" in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
+
+
+@pytest.mark.parametrize(
+    ("return_code", "expected_status", "expected_exit"),
+    [(0, "PASS=1", 0), (1, "FAIL=1", 1), (2, "WARN=1", 2)],
+)
+def test_apisix_runtime_observation_is_explicit(
+    fake_operator, return_code, expected_status, expected_exit,
+):
+    target, _, report, marker = fake_operator
+    (target.parent / "apisix.sh").write_text(
+        f"#!/bin/bash\nexit {return_code}\n", encoding="utf-8",
+    )
+    result = invoke(fake_operator, "--check", "--section", "apisix")
+    assert result.returncode == expected_exit, result.stdout + result.stderr
+    assert expected_status in result.stdout
+    assert not marker.exists()
+    assert len(list(report.glob("session-*"))) == 1
 
 
 def test_critical_read_only_section_combines_five_independent_gates(

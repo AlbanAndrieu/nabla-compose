@@ -515,3 +515,1258 @@ Aucun changement de modèle ou de clé n'est effectué
 par ces quatre recettes. La bonne santé des modèles et
 la persistance PostgreSQL restent à prouver.
 
+
+
+## TrueNAS LiteLLM : master key de format inattendu — 25 octobre 2026
+
+La Workstation a validé **29/29 contrats** :
+18 tests TrueNAS, 3 de routage et 8 de tunnel SSH.
+Le tunnel est établi avec
+`truenas_tunnel_after_start=verified_ssh`, puis réutilisé
+avec `truenas_tunnel_action=reuse`.
+L'inventaire authentifié du proxy **n'a pas encore eu lieu** :
+
+```text
+truenas_admin_source=dedicated_truenas_environment
+truenas_admin_env_state=unexpected_format
+truenas_admin_auth=missing
+```
+
+Ce refus était déclenché **localement** si la valeur ne
+commençait pas par `sk-` ou était trop courte. Il ne représente
+ni une réponse HTTP 401/403 du serveur, ni une preuve que
+la clé est erronée. La documentation LiteLLM recommande
+`sk-` pour les nouvelles master keys ; certaines versions
+indiquent que ce préfixe n'est qu'une convention. Ne pas
+changer la master key TrueNAS ou `LITELLM_SALT_KEY`
+uniquement pour satisfaire le diagnostic : une rotation
+incontrôlée risque de rendre les données chiffrées illisibles.
+
+### Diagnostic sans réseau et sans impression de secret
+
+Après synchronisation de la branche de la PR :
+
+```bash
+just openclaw-truenas-model-keys-test
+just openclaw-truenas-master-env-check
+```
+
+Cette recette classe uniquement le contenu **déjà exporté**
+de `LITELLM_TRUENAS_MASTER_KEY`. Elle ne contacte aucun
+serveur et ne publie ni valeur, ni préfixe, ni longueur exacte.
+
+Les états possibles comprennent :
+`not_exported`, `empty`, `too_short`,
+`looks_like_reference`, `surrounding_quotes`,
+`invalid_characters`, `present` (préfixe `sk-`)
+et `nonstandard_prefix` (valeur de longueur suffisante,
+composée de caractères imprimables, mais sans préfixe `sk-`).
+
+Si le résultat indique `looks_like_reference`, ne pas
+transmettre le contenu tel quel à LiteLLM : résoudre la
+référence en privé et exporter **la vraie valeur**, sans
+utiliser `echo` ni la placer dans l'historique shell.
+`too_short`, `surrounding_quotes` ou
+`invalid_characters` exigent la correction de la
+source privée avant toute requête authentifiée.
+
+Si `present`, utiliser :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-dedicated
+```
+
+Si `nonstandard_prefix`, confirmer auprès de la
+configuration privée **effective** du conteneur LiteLLM
+TrueNAS que cette valeur est bien la master key.
+Une option explicite autorise ensuite uniquement deux
+**GET de diagnostic** via un tunnel SSH déjà vérifié :
+
+```bash
+just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard
+```
+
+Sans cette option, le préflight continue de refuser les
+clés non standard. Une réponse 401/403 signifie
+que le serveur n'accepte pas la clé présentée ;
+aucun client ni proxy ne doit être reconfiguré
+pour contourner cette autorisation.
+
+Les inventaires `/v1/models` et `/key/list`,
+la présence de modèles `gpt-4.1*` et la
+persistance des clés virtuelles sur TrueNAS restent
+**non attestés** jusqu'à la première réponse admin
+réussie. La PR ne crée, ne copie et ne supprime
+aucun credential.
+
+
+
+## Acceptation Workstation — 25 octobre 2026 — inventaire admin TrueNAS
+
+Retour d'exécution fourni par l'opérateur sur la branche de la PR #280.
+Cette section prévaut sur les anciennes mentions « inventaire non exécuté ».
+
+| Contrôle | Preuve | Résultat |
+| --- | --- | --- |
+| Contrats préflight TrueNAS | unittest | 25/25 PASS |
+| Contrats routage OpenClaw | unittest | 3/3 PASS |
+| Contrats tunnel SSH | unittest | 8/8 PASS |
+| Tunnel local | `verified_ssh`, `reuse` | PASS |
+| Master admin dédiée | `nonstandard_prefix`, `provided` | Acceptée pour les deux GET |
+| `GET /v1/models` | HTTP 200 | PASS, mais `gpt-4.1` et `gpt-4.1-mini` absents |
+| `GET /key/list` | HTTP 200, `count=0` | Aucun élément listé par l'endpoint |
+| Migration virtuelle | `migration_applied=false` | NON EFFECTUÉE |
+
+**Interprétation** : le préfixe différent de `sk-` n'est pas un motif
+d'échec d'authentification sur cette instance. Les réponses 200 attestent
+uniquement les deux lectures autorisées ; elles ne prouvent ni la
+disponibilité d'autres routes, ni la connexion PostgreSQL, ni la persistance
+après redéploiement. Le `count=0` concerne le résultat de `/key/list`,
+pas une inspection directe de la base.
+
+**Décision NO-GO** : ne pas basculer `openclaw-main` ou `openclaw-cron`
+vers TrueNAS, ne pas générer de clé, ne pas tourner `LITELLM_MASTER_KEY`
+ou `LITELLM_SALT_KEY` tant que :
+1. la source effective de configuration et les alias de modèles nécessaires sont identifiés ;
+2. `DATABASE_URL` et la connectivité DB sont attestées sans divulgation de valeur ;
+3. les clés virtuelles distinctes `main` et `cron` sont provisionnées et testées avec un rollback possible.
+
+La suite de diagnostic est strictement en lecture seule. Les sous-modules
+`n8n` et `sentry` signalés modifiés dans le worktree opérateur ne sont
+pas touchés par cette procédure. Les tests ont été exécutés sur Workstation ;
+le runtime et la DB n'ont pas été modifiés.
+
+
+## Vérification parallèle des secrets — 25 octobre 2026
+
+L'opérateur a indiqué avoir ajouté six noms de variables dans
+`/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets` :
+`LITELLM_OPENCLAW_CRON_API_KEY`, `LITELLM_OPENCLAW_MAIN_API_KEY`,
+`LITELLM_REACTIVE_API_KEY`, `LITELLM_IDE_API_KEY`,
+`LITELLM_API_KEY`, `LITELLM_N8N_API_KEY`.
+**Aucune valeur de clé n'est documentée.**
+
+Attention : `apps/litellm/compose.yml` référence l'autre chemin
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`. La présence de valeurs
+dans un fichier ne prouve pas leur injection dans le conteneur
+`litellm`, ni la création des clés virtuelles en base.
+
+La ligne `LITELLM_N8N_API_KEY=XXX"` communiquée présente un guillemet
+de fermeture isolé. Corriger la source réelle **si** elle a été
+copiée sous cette forme ; ne pas recopier les valeurs dans Git ou les logs.
+
+Diagnostic depuis la Workstation, en lecture seule, avec trois contrôles
+SSH concurrents (pas de restart, pas de requête LLM, pas de génération de clé) :
+
+```bash
+just openclaw-truenas-secret-provenance
+```
+
+Cette recette utilise `sudo -n python3` sur TrueNAS et `docker inspect`.
+Une absence de sudo non interactif donne `unverified`, pas un PASS fictif.
+Le résultat compare les variables du fichier OpenRAG avec l'environnement
+du conteneur **uniquement en mémoire** : aucune valeur ou empreinte n'est
+imprimée. La lecture est limitée à des indicateurs de présence, à la
+syntaxe et à la concordance. `database_url_in_container=present`
+ne teste **pas** la connexion PostgreSQL ou la persistance.
+
+L'inventaire authentifié des modèles et du nombre de virtual keys
+reste disponible via
+`just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard` :
+ne jamais considérer six variables présentes comme six clés
+provisionnées dans LiteLLM. Conserver le statut NO-GO de la migration
+tant que la persistance et les modèles ne sont pas vérifiés.
+
+
+### Correction du chemin canonique et Langfuse — retour opérateur
+
+Le chemin `/mnt/cpool/secrets/runtime/openrag/litellm/.env.secrets`
+avait été communiqué par erreur. **Le fichier réellement modifié** est
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`, déjà utilisé dans
+`apps/litellm/compose.yml`. La variable `LANGFUSE_PUBLIC_KEY`
+a été ajoutée en plus des six noms mentionnés ci-dessus.
+
+La recette `just openclaw-truenas-secret-provenance` examine désormais
+**sept noms** dans le fichier canonique et les compare aux variables
+injectées du conteneur `litellm`. Le résultat
+`env_file_semantics=loaded_at_container_creation_not_bind_mount` rappelle
+qu'un `env_file` Docker Compose n'est pas un bind mount.
+Un fichier correct, mais des variables absentes dans le conteneur déjà
+lancé, signifient un **drift runtime** (recréation à planifier), pas une
+erreur de chemin. `container_recreation_needed=true` indique ce drift
+sans déclencher de changement.
+
+Le relevé précédent `DATABASE_URL=present` ne prouve ni l'accès à
+PostgreSQL ni la persistance. Ne pas lancer `docker compose up`,
+`restart`, `--force-recreate` ni de migration automatique avant de
+valider la syntaxe, le contenu des secrets nécessaires et un rollback.
+
+Commande de validation depuis le checkout PR actualisé :
+
+```bash
+python3 -m py_compile scripts/workstation/check-truenas-litellm-secret-provenance.py
+just openclaw-truenas-secret-provenance
+```
+
+La commande sort avec code 2 si la source n'est pas vérifiée ou en cas
+de différence entre le fichier et le conteneur. **Un exit 2 signifie
+investigation nécessaire, pas incident HTTP.** Aucune valeur de secret
+n'est imprimée. Le résultat n'a pas encore été exécuté au nouveau HEAD
+sur la Workstation.
+
+
+## Acceptation runtime — recréation LiteLLM TrueNAS (25 octobre 2026)
+
+Preuve exécutée sur Workstation par l'opérateur :
+
+- `just openclaw-truenas-litellm-recreate-plan` : `compose_config=valid`, plan validé ;
+- `just openclaw-truenas-litellm-recreate-apply` : conteneur recréé, `running=true`, `secrets_loaded=yes`, `secrets_missing_count=0` ;
+- `just openclaw-truenas-secret-provenance` : `syntax_status=complete`, `runtime_status=complete`, `database_status=complete` ;
+- les sept variables contrôlées, y compris `LANGFUSE_PUBLIC_KEY`, sont présentes et concordantes entre le fichier canonique et le conteneur ;
+- `container_recreation_needed=false` et `DATABASE_URL=present`.
+
+**Résolu** : drift d'environnement entre
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` et le conteneur.
+**Non démontré** : accès PostgreSQL, conservation des clés en DB,
+provisionnement/budgets des clés virtuelles, alias `gpt-4.1*`,
+bonne santé applicative de tous les endpoints. Un `DATABASE_URL`
+présent n'est pas un test de connexion. La migration des agents reste
+indépendante de cette correction et n'est pas réputée effectuée.
+
+
+## Provisionnement virtuel OpenClaw — PR #280 (25 octobre 2026)
+
+L'inventaire authentifié après la recréation affiche encore
+`GET /v1/models=200` avec `workstation-qwen` et `qwen`
+sur le modèle déclaré (la présence de `qwen` au runtime doit être
+confirmée par la recette), et `GET /key/list=200`, `count=0`.
+Les alias GPT `gpt-4.1` et `gpt-4.1-mini` restent absents.
+
+Le script `scripts/truenas/provision-openclaw-litellm-keys.py`
+utilise les deux valeurs déjà injectées dans le conteneur pour effectuer
+`POST /key/generate`, budget `max_budget=2` pour chacune :
+`openclaw-main` sur `workstation-qwen,qwen` et
+`openclaw-cron` sur `workstation-qwen`.
+Il n'imprime jamais les clés, bloque si leur valeur est identique ou
+égale à la master key et refuse le provisionnement si `/key/list`
+n'est pas vide. Le script ne suppose pas que sept variables
+environnement équivalent à sept clés virtuelles.
+
+```bash
+just openclaw-truenas-virtual-keys-plan
+just openclaw-truenas-virtual-keys-apply
+just openclaw-truenas-model-keys-tunnel-dedicated-nonstandard
+```
+
+La première commande est non mutante. La deuxième écrit dans la DB
+LiteLLM via l'API administrateur de l'instance TrueNAS. L'étape suivante
+consiste à vérifier la présence des deux entrées, leur limitation
+`max_budget=2`, les modèles autorisés et la persistance en base.
+Une réponse API 200 et un compte de deux entrées ne prouvent pas
+à eux seuls l'application effective des budgets. L'échec de la seconde
+création peut laisser la première créée : le script refuse alors
+automatiquement toute relance aveugle, pour une réconciliation manuelle.
+
+Les variables des autres consommateurs (Reactive, IDE, n8n, etc.)
+sont chargées mais **ne sont pas provisionnées par ce script**.
+
+
+## Correction des recettes : exécution sur TrueNAS ou Workstation (25 octobre 2026)
+
+**Cause du retour opérateur** : le checkout utilisé était
+`/mnt/cpool/compose/nabla-compose` sur TrueNAS, mais les anciennes
+recettes lançaient `ssh truenas` (port 22 par défaut) et exigeaient un
+tunnel SSH `127.0.0.1:14000` propre à la Workstation.
+La tentative de provisionnement n'a donc effectué **aucune écriture**.
+
+Le chemin canonique est déjà décrit dans le skill
+`.agents/skills/docker-compose-orchestration/SKILL.md`. La règle explicite
+est ajoutée à `.agents/skills/local-first-quality/SKILL.md`.
+
+Les recettes `openclaw-truenas-virtual-keys-plan`,
+`openclaw-truenas-virtual-keys-apply` et
+`openclaw-truenas-virtual-keys-status` détectent désormais l'hôte à
+partir du chemin réel du dépôt. Sur TrueNAS elles exécutent
+`sudo -n python3` en local. Depuis la Workstation, elles délèguent via
+l'alias SSH `truenas` configuré avec le port 9922. La recette historique
+`openclaw-truenas-model-keys-tunnel-dedicated-nonstandard` utilise le
+nouveau statut contextuel ; son nom « tunnel » est conservé pour
+compatibilité mais aucun tunnel n'est nécessaire sur TrueNAS.
+
+### Commandes sur TrueNAS
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-test
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-plan
+just openclaw-truenas-virtual-keys-apply
+just openclaw-truenas-virtual-keys-status
+```
+
+Les tests sont hors ligne ; `status` et `plan` n'écrivent rien.
+`apply` est l'opération explicite qui demande à LiteLLM de créer les
+deux clés virtuelles, chacune avec un budget maximal de 2. Le statut et
+le plan exigent un inventaire HTTP 200 et les alias autorisés présents.
+Le fait que les variables existent dans l'environnement n'indique pas
+à lui seul une clé enregistrée en base.
+
+### Commandes depuis la Workstation Ubuntu
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-plan
+```
+
+Ne pas utiliser `just openclaw-truenas-tunnel-check` depuis TrueNAS :
+cette recette inspecte **un forward SSH initié sur Workstation**.
+
+
+## Acceptation : création des deux clés TrueNAS et correction des tests (25 octobre 2026)
+
+**Preuve opérateur réelle, depuis Workstation :**
+
+- `just openclaw-truenas-virtual-keys-status` (avant) :
+  `execution_target=workstation_ssh`, `models_allowlist=verified`,
+  `existing_key_count=0`.
+- `just openclaw-truenas-virtual-keys-plan` :
+  `provisioning=planned`, `key_count=2`, `max_budget_each=2`.
+- `just openclaw-truenas-virtual-keys-apply` :
+  `openclaw-main_creation_http=200`,
+  `openclaw-cron_creation_http=200`,
+  `post_provision_inventory_http=200`, `post_provision_key_count=2`.
+- `just openclaw-truenas-virtual-keys-status` (après) :
+  `existing_key_count=2`, `provisioning=inspection_only`.
+
+**Création observée : deux clés virtuelles sont maintenant retournées par
+l'inventaire de LiteLLM TrueNAS.** Le compte ne prouve pas à lui seul
+l'application effective des budgets, l'identité des deux entrées,
+la persistance après redémarrage, ni le routage actuel d'OpenClaw.
+Ne plus rejouer `apply` sur cet état sans réconciliation.
+
+**Régression L1 distincte** : sur TrueNAS puis Workstation, les sept tests
+du dispatch ont réussi ; deux tests du provisioner ont échoué avec
+`TypeError: main() takes 0 positional arguments but 1 was given`.
+L'implémentation recevait les arguments CLI seulement depuis `sys.argv`,
+alors que les tests appelaient `main(["--apply"])` et `main(["--status"])`.
+Correction : `main(argv=None)` avec `parser.parse_args(argv)`.
+Les tests doivent être relancés sur le nouveau HEAD (aucun PASS inventé).
+
+**Exécution canonique** :
+
+- Workstation Ubuntu (`~/w/nabla-compose`) : tests unitaires et
+  `just openclaw-truenas-virtual-keys-status` via SSH ;
+- TrueNAS (`/mnt/cpool/compose/nabla-compose`) : opération Docker locale
+  seulement lorsqu'un diagnostic ou une mutation runtime le nécessite ;
+- aucun besoin de lancer la suite Python deux fois, ni d'utiliser un tunnel
+  Workstation quand la commande tourne sur TrueNAS.
+
+
+## 25 octobre 2026 — 429 persistant après création des clés TrueNAS
+
+Nouvelle preuve Workstation :
+`just openclaw-truenas-virtual-keys-test` **9/9 PASS**,
+`just openclaw-truenas-virtual-keys-status` :
+`execution_target=workstation_ssh`,
+`models_allowlist=verified`, `existing_key_count=2`,
+`provisioning=inspection_only`.
+
+L'interface OpenClaw montre encore **« API rate limit reached. Please try
+again later. »**. **Cela ne signifie pas que le provisioning a échoué.**
+Il faut distinguer :
+- la route Workstation `172.17.0.57:4000/v1` historiquement utilisée
+  par `litellm-main` et `litellm-cron` ;
+- les clés nouvellement créées uniquement sur le proxy TrueNAS
+  `172.17.0.24:4000/v1` ;
+- les modèles `qwen` / `workstation-qwen` autorisés par ces clés, par
+  opposition aux anciens `gpt-4.1` / `gpt-4.1-mini` OpenClaw ;
+- le budget effectif, la limite RPM/TPM, les éventuels cooldowns
+  OpenClaw, et les limites appliquées par le proxy ou le fournisseur
+  en amont.
+
+**Audit nouveau, à lancer uniquement sur Workstation** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-attribution-test
+just openclaw-429-attribution
+```
+
+Le premier exécute des tests unitaires hors ligne. Le second examine :
+1. `openclaw.json` : routes et modèles principaux et `cron`,
+   sans afficher les URL complètes ni les valeurs de clé ;
+2. `agents/{main,cron}/agent/models.json` : overrides possibles
+   qui peuvent maintenir l'ancienne route ;
+3. sur TrueNAS, `/key/info` pour les deux clés connues, avec leur
+   **hash SHA-256 uniquement dans la requête locale**, afin de classifier
+   `spend`, `max_budget`, `rpm_limit`, `tpm_limit` et les scopes ;
+4. `openclaw models status --json` : agrégats non identifiants
+   d'authentifications inutilisables (cooldown/billing).
+
+Les diagnostics ne lancent aucune génération ni `openclaw models
+status --probe`. Si le schema OpenClaw évolue, l'audit doit retourner
+`unrecognized_schema`, pas déclarer zéro profil indisponible.
+
+Les verdicts possibles sont indépendants : `budget exhausted` sur la
+clé TrueNAS, route OpenClaw Workstation inchangée, modèle non attribué
+à la clé TrueNAS, ou cooldown au niveau OpenClaw. **Ne pas réexécuter
+`openclaw-truenas-virtual-keys-apply`** : deux entrées existent.
+Ne pas augmenter les budgets pour masquer un 429 non attribué.
+
+La vraie bascule vers TrueNAS exige une configuration cohérente des
+providers/modèles/SecretRefs et la vérification de l'identité de clé
+réellement présentée par chaque agent. Le routage effectif de sessions
+existantes et de l'auth SQLite reste non attesté par une simple lecture
+de `openclaw.json`.
+
+Documentation officielle :
+- https://docs.openclaw.ai/help/faq-models
+- https://docs.openclaw.ai/gateway/config-tools/custom-providers
+- https://docs.openclaw.ai/concepts/model-failover
+
+
+## Alignement LiteLLM générique Workstation → TrueNAS (25 octobre 2026)
+
+**Contexte** : le diagnostic de la Workstation a réussi 21/21 contrats,
+mais la commande `quota-audit` renvoyait `invalid choice`. Le code
+`build_command()` acceptait ce mode et le provisioner le gérait ;
+la liste `argparse --mode` du dispatcher ne le contenait pas.
+Le choix CLI et le contrat de non-régression ont été corrigés.
+L'ancienne chaîne s'arrêtait donc *avant* de lire le budget TrueNAS.
+
+**Périmètre de synchronisation des modèles :**
+- les alias Ollama génériques `llama3.2`, `llama3.1`,
+  `llama3.8b`, `deepseek-coder-v2`, `qwen`, `gemma3`,
+  `rr-json` utilisent le GPU Ollama Workstation
+  `172.17.0.57:11434` ;
+- `qwen` conserve la capacité d'outils déclarée sur TrueNAS pour
+  OpenClaw, et reçoit le coût nul de la route locale ;
+- `embedding` reste relayé via LiteLLM Workstation avec sa clé dédiée,
+  `embedding-local` reste isolé sur Ollama TrueNAS pour rollback ;
+- `fastapi-qwen`, `workstation-qwen`, Hermes, Redis, Langfuse,
+  PostgreSQL et les deux clés virtuelles sont conservés ;
+- les fournisseurs externes génériques facultatifs sont seulement
+  documentés comme routes désactivées jusqu'à confirmation des
+  secrets et disponibilités ; aucun secret nouveau n'a été généré ;
+- **les routes et identifiants d'entreprise n'entrent pas dans le
+  catalogue TrueNAS, y compris sous forme de commentaires** ;
+- les fallbacks vers des alias GPT absents du proxy TrueNAS sont
+  supprimés ; le routage utilise `least-busy`,
+  `allowed_fails=1`, `cooldown_time=30`,
+  `enable_pre_call_checks=true` et conserve une seule relance.
+
+Ne pas confondre alignement de la déclaration TrueNAS et bascule
+OpenClaw : les providers `litellm-main` et `litellm-cron` dans la
+Workstation pointent toujours vers le LiteLLM Workstation. Les
+deux clés récemment créées sur TrueNAS **ne corrigeront pas** le 429
+tant que la route et le modèle OpenClaw ne sont pas adaptés.
+La clé `cron` autorise `workstation-qwen`, et la clé `main`
+autorise `workstation-qwen` et `qwen` ; elles n'autorisent
+aucun modèle GPT.
+
+### Vérification locale Workstation (sans CI)
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just litellm-truenas-generic-alignment-test
+just openclaw-429-attribution-test
+just openclaw-truenas-virtual-keys-quota
+```
+
+La dernière commande interroge les **métadonnées** des clés TrueNAS,
+sans génération. Une clé au budget épuisé retourne un code non nul
+sans modifier la limite.
+
+### Publication runtime TrueNAS — après validation locale
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+sudo -n python3 scripts/truenas/recreate-litellm-env.py
+sudo -n python3 scripts/truenas/recreate-litellm-env.py --apply
+```
+
+Le plan lit les métadonnées du Compose existant. L'application
+recrée uniquement le service `litellm` en reprenant le fichier de
+configuration lié au checkout TrueNAS ; elle vérifie à la fin que
+les sept variables prévues sont encore injectées. La preuve de
+readiness applicative et l'inventaire des modèles nécessitent le
+contrôle ultérieur sur la Workstation :
+
+```bash
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-quota
+```
+
+Aucun déploiement ni correction de la configuration privée OpenClaw
+n'a été exécuté dans la PR ; les tests demandés doivent être rejoués
+au nouveau HEAD. L'absence de budget épuisé ne prouve pas l'absence
+d'un rate limit RPM/TPM en amont.
+
+
+## 25 octobre — inventaire des modèles après recreation TrueNAS
+
+Preuve fournie après le changement `apps/litellm/config.yaml` :
+`compose_config=valid`, `container_running=true`,
+`secrets_loaded=yes`, `secrets_missing_count=0`.
+Sur Workstation, `openclaw-truenas-virtual-keys-status` retournait
+`models_inventory=unverified` et sortait avec code 2. Le diagnostic
+antérieur de `/key/info` avait pourtant retourné 200 avec
+`openclaw-main` et `openclaw-cron`, scope exact, budget 2 chacun
+et `spend=0.0` (avant ce dernier redéploiement). **Ne pas inférer
+la perte des deux clés** ni une panne d'embeddings à partir du code 2.
+
+Le script `scripts/truenas/provision-openclaw-litellm-keys.py --status`
+est étendu pour afficher séparément, sans corps de réponse :
+`litellm_liveliness_http`, `models_inventory_http`,
+`key_inventory_http`, `models_inventory`, `key_inventory`
+et `existing_key_count` si la liste reste lisible.
+Un status HTTP 200 dont le schéma JSON est invalide est distingué
+d'un HTTP 500. Le statut **continue les lectures** même après échec
+du premier endpoint. Aucun secret ni message brut d'erreur n'est
+imprimé.
+
+Procédure depuis Workstation :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-truenas-virtual-keys-test
+just openclaw-truenas-virtual-keys-status
+just openclaw-truenas-virtual-keys-quota
+```
+
+Sur HTTP 5xx, contrôler le healthcheck Docker et la configuration
+effective du service **sur TrueNAS** (sans exporter `docker inspect`
+avec les variables de secrets), puis les erreurs redigées des logs.
+Ne pas relancer `apply` pour créer des clés déjà existantes.
+L'alignement de `apps/litellm/config.yaml` a été contrôlé
+statiquement ; `docker compose config --quiet` ne garantit pas
+que LiteLLM accepte le YAML et ses modèles au démarrage.
+
+La restauration du modèle de briefing se trouve dans
+`apps/openclaw/workstation/MORNING_BRIEFING.md`. Elle est indépendante
+de ce diagnostic, des clés virtuelles et de la version des embeddings.
+
+
+## 2026-10-25 — mitigation automatique du 429 sans copier les logs de la UI
+
+Les preuves opérateur, après correction du test et de `memory.search`,
+confirment huit contrats PASS, `litellm-main` et `litellm-cron` toujours
+sur `172.17.0.57:4000/v1`, modèle par défaut `gpt-4.1` et
+`cron` héritant à tort du provider principal. L'embedding est un
+chemin indépendant, `127.0.0.1:4000/v1` avec SecretRef
+`openclaw-embeddings`. Ne pas le migrer pour réparer un 429 de chat.
+
+Le nouveau diagnostic `scripts/workstation/diagnose-openclaw-429-auto.py`
+lit *depuis Workstation*, sans intervention dans l'UI :
+- `GET http://127.0.0.1:4000/spend/logs/v2`, page bornée à 100
+  entrées et deux heures, avec master key **uniquement sur loopback**,
+  si disponible dans l'environnement du shell ;
+- `journalctl --user` pour `openclaw-gateway.service` et
+  `litellm.service` ;
+- `docker logs litellm` local si un conteneur existe.
+
+Tous les flux bruts restent en mémoire et sont supprimés. Le script
+affiche seulement des compteurs d'erreurs, d'incidents budget, de débit,
+de timeout, d'authentification, et des modèles d'une liste sûre.
+Les requêtes rejetées avant facturation peuvent être **absentes**
+des spend logs. Zéro ligne **n'est pas une preuve de santé**.
+Aucune requête de génération, aucun payload, aucun jeton ni ID
+de requête ne sont affichés.
+
+### Correction locale de l'identité cron
+
+`scripts/workstation/repair-openclaw-429.py` est un changement
+**explicite et limité**, après contrôle préflight. Il requiert :
+
+1. config `~/.openclaw/openclaw.json` et clé privée
+   `~/.local/share/nabla-compose/openclaw-cron.key`, fichiers owner-only ;
+2. deux providers `litellm-main` et `litellm-cron` pointant sur
+   l'instance LiteLLM Workstation prévue ;
+3. concordance exacte de la credential du provider `litellm-cron`
+   avec le fichier cron privé et différence de la clé principale ;
+4. `GET /v1/models` autorisé par la clé cron sur la seule boucle locale
+   et présence de `gpt-4.1` ;
+5. un agent `cron` **unique** dans `agents.list`, héritant de
+   `litellm-main/gpt-4.1` ou déjà sur `litellm-cron/gpt-4.1`.
+
+À l'application, seul le modèle de l'agent `cron` devient
+`litellm-cron/gpt-4.1` sans fallbacks, et
+`agents.defaults.maxConcurrent` est borné à **1**. Ce réglage réduit
+les appels parallèles mais peut allonger la file d'attente.
+La configuration complète précédente est sauvegardée en **0600**
+hors Git puis remplacée atomiquement. Avec `--restart-gateway`,
+un échec de redémarrage déclenche une tentative de restauration.
+Le script refuse les prérequis incertains au lieu de forcer une
+rotation ou de réutiliser une clé plus privilégiée.
+
+**Depuis Workstation uniquement** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-fix-test
+just openclaw-429-auto
+just openclaw-429-fix-plan
+just openclaw-429-fix-apply
+python3 scripts/workstation/openclaw-route-metadata.py
+```
+
+Exécuter les commandes dans un shell enfant `bash <<'...'`
+avec `set -euo pipefail` pour arrêter à la première anomalie.
+
+**Limitations** :
+- L'application modifie la **configuration locale OpenClaw**, pas la
+  base/clé virtuelle LiteLLM. Aucun budget ni modèle backend ne change.
+- Une limite upstream GPT ou une limite RPM/TPM de LiteLLM peut
+  produire encore des 429. Ne pas prétendre le contraire : il faudra
+  une nouvelle observation automatisée après la modification.
+- La configuration **effective des sessions déjà ouvertes** reste à
+  vérifier ; des épinglages de modèle/session peuvent prévaloir sur
+  la nouvelle valeur par défaut de l'agent.
+- Le plan ne s'applique pas si la clé `cron` n'a pas accès à
+  `gpt-4.1`. Ne pas élargir automatiquement cette clé.
+- La politique de heartbeat et les index embeddings restent inchangés.
+
+Références :
+- https://docs.litellm.ai/docs/proxy/cost_tracking
+- https://docs.openclaw.ai/gateway/config-agents/models
+- https://docs.openclaw.ai/gateway/config-tools/custom-providers
+
+
+### Dette complémentaire — relances LiteLLM Workstation
+
+Le fichier LiteLLM Workstation fourni par l'opérateur contient
+`router_settings.num_retries: 5`. Il existe plusieurs déploiements
+amont portant le même alias GPT, avec des limites potentiellement
+indépendantes. Cinq relances peuvent amplifier des 429, mais
+**le nombre exact de tentatives n'est pas encore attribué**.
+La configuration Workstation n'est pas identifiée comme un fichier
+de déploiement actif dans ce dépôt ; ne pas remplacer la configuration
+pro de Workstation par `apps/litellm/config.yaml`, qui appartient
+à TrueNAS. La mitigation OpenClaw ci-dessus conserve les modèles
+GPT et réduit la concurrence du client ; une réduction des retries
+du routeur Workstation reste un changement distinct, à réaliser
+depuis son fichier de configuration réellement monté après audit.
+
+
+## 2026-10-25 — `openclaw update` npm failed, 429 repair test gate (Workstation)
+
+L'interface OpenClaw annonce `2026.10.7` disponible ; la CLI observée
+est toujours `2026.9.5`. La tentative `openclaw update` a rapporté
+`global-install-failed` avec `npm exit 1`, et a enregistré :
+`~/.npm/_logs/2026-10-25T19_43_24_104Z-debug-0.log`.
+
+**Cause exacte npm non encore prouvée.** Ne pas attribuer sans preuve à
+un conflit de plugin, à des permissions, au registre ou au runtime Node.
+Le message UI `config edited outside OpenClaw` indique une modification
+externe observée ; il ne démontre pas une corruption ou une migration
+cassée. Éviter de relancer immédiatement `openclaw update` en boucle.
+
+La commande `just openclaw-429-fix-all` s'est arrêtée à son premier
+ensemble de tests : 6/6 collecteur PASS, 8/10 réparation PASS,
+2 erreurs d'assertion `blocked_write`. **Aucun fix ni redémarrage
+Gateway n'a été exécuté par cette invocation.**
+
+### Cause déterministe de ces deux tests
+
+La signature `apply_config(old, new, path=CONFIG)` capturait
+`~/.openclaw/openclaw.json` lors de l'import du module. Les tests
+injectaient `mod.CONFIG` vers un répertoire temporaire, sans modifier
+ce chemin par défaut. L'écriture tentait alors le fichier d'origine,
+et les tests rapportaient `blocked_write`. Correction :
+`apply_config(old, new, path=None)` puis `path = CONFIG` à l'appel.
+Un test de régression verrouille cette absence de chemin figé.
+
+### Collecte npm locale, expurgée, sans mise à jour
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+```
+
+Cette recette ne lance ni `npm install`, ni `openclaw update`, ni
+requête de modèle. Elle exécute les tests ciblés, examine seulement
+le **fichier npm nommé ci-dessus** avec un contrôle d'appartenance,
+de type et de taille, puis classe des erreurs connues :
+`permission`, `install_collision`, `runtime_engine`,
+`registry_or_integrity`, `network`, `dependency_resolution`,
+`build_toolchain` ou `unknown`. Elle annonce les versions de
+Node/npm/OpenClaw et qualifie le prefix npm sans afficher les paths,
+tokens, lignes de journaux, registres privés ni commandes brutes.
+
+Si `npm_error_category=unknown`, demander davantage de preuves
+par **le diagnostic automatisé**, pas en recopiant les logs bruts.
+`openclaw update status --json` et `openclaw update --dry-run`
+sont les interfaces officielles de suivi ; leurs sorties brutes
+peuvent contenir des chemins privés et ne doivent pas être publiées
+dans un ticket/chat sans filtrage.
+
+Le contrat de rollback après correction ne change pas le
+`memory.search` ni les clés d'embeddings. **Ne pas lancer**
+`just openclaw-429-fix-apply` dans la même procédure de mise à jour npm
+sans validation des tests, du fichier cible et des credentials.
+Les éditeurs OpenClaw natifs (`config patch`, RPC `config.patch`)
+sont préférables aux éditions directes pour éviter le warning
+`config edited outside OpenClaw` ; une migration vers ce mécanisme
+reste distincte de la correction de chemin ci-dessus.
+
+Références officielles :
+- https://docs.openclaw.ai/install/update-troubleshooting
+- https://docs.openclaw.ai/install/updating
+- https://docs.openclaw.ai/cli/config
+
+
+### 25 octobre, 23:21 Europe/Paris — npm triage tests blocked by group umask
+
+New operator proof on Workstation:
+`just openclaw-update-recovery-local` exited during
+`just openclaw-update-npm-test`, with 4 tests PASS and two failures:
+`test_known_permission_failure_without_printing_path_or_token`
+and `test_valid_latest_log_selected_without_network`.
+`just openclaw-429-fix-all` was **not run** by the guarded shell.
+
+**Deterministic fixture bug**: `tests/test_openclaw_update_npm_diagnostic.py`
+created `.npm/` and `.npm/_logs/` using the operator's `umask`.
+On a default group-writable `umask 0002`, temporary fixture
+directories received mode `0775`. The production `safe_log()`
+intentionally refuses directories writable by group or others,
+making both expected-positive fixture reads return `None`.
+This was reproduced locally with `umask 0002`.
+
+**Fix committed**: after creating fixture directories, explicitly
+`chmod 0700` the `.npm` and `_logs` parents; preserve the
+production fail-closed rules, and add two negative contracts refusing
+group-writable parents. Offline permission behavior was checked,
+but all target repository tests remain **NOT_RUN in the agent runtime**
+until confirmed on Workstation.
+
+The recovery recipe keeps the npm log scan informational: if the
+specific log has been rotated or is unsafe, report `WARN` and
+allow the later independent 429 test/repair path; never claim a
+successful OpenClaw update from a missing npm diagnostic.
+
+Workstation command:
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+just openclaw-429-fix-all
+```
+
+If the exact error class is still `unknown`, use the sanitized
+update run status in `openclaw update status --json` privately
+rather than posting raw log contents.
+
+
+## 25 octobre 2026 — dernier incident : moteur Node et agent par défaut
+
+Preuve opérateur sur Workstation :
+- `just openclaw-update-recovery-local` : suites npm 8/8,
+  collecteur 429 6/6, réparation 11/11, routes 8/8 **PASS**
+  (33 tests exécutés, zéro CI) ;
+- diagnostic du log du 25/10 19:43 : `runtime_engine`,
+  Node `24.18.1`, npm `12.2.0`, OpenClaw `2026.9.5`,
+  préfixe global npm dans HOME et apparemment inscriptible ;
+- `just openclaw-429-fix-plan` : `blocked_reason=agents_list_missing`.
+  Le shell `set -e` a interrompu l'exécution **avant** l'application
+  et le redémarrage. Aucun 429 corrigé ni patch Gateway appliqué par
+  cette tentative.
+
+**Correction du runtime :** la release 2026.10.7 requiert Node
+`>=24.22.1 <25 || >=26.12.1`. Les pinning du dépôt
+`.nvmrc` et `mise.toml` ciblent maintenant `24.22.1`. Ce commit
+ne change **pas** la version du Node actif sur Workstation, du
+Node enregistré dans l'unité systemd, ni l'installation globale
+OpenClaw. Le diagnostic npm imprime un verdict de compatibilité.
+
+Réparer le runtime par le gestionnaire réellement utilisé, une seule
+fois, puis vérifier la commande `node --version` **dans le même
+environnement que celui d'OpenClaw**. Pour un poste géré par mise :
+`mise install node@24.22.1`, puis
+`mise exec node@24.22.1 -- node --version`.
+Pour un poste géré par nvm : `nvm install v24.22.1` puis
+`nvm use v24.22.1`. Ne pas lancer `sudo npm install -g`, ne
+pas écraser un préfixe étranger et ne pas relancer `openclaw update`
+tant que le Node du processus d'installation et le rollback ne sont
+pas vérifiés. Vérifier `openclaw update status --json` en privé
+avant une nouvelle tentative.
+
+**Correction de l'hypothèse `agents.list` :** l'absence du champ
+signifie que l'installation peut n'avoir qu'un agent implicite.
+Les jobs cron ne sont pas des agents `cron` par définition.
+Le plan respecte trois cas :
+- un agent `cron` explicitement présent : continuer le contrôle
+  d'autorisation et la séparation de modèle prévue ;
+- aucun agent `cron` et `agents.list` absent ou vide : modifier
+  **seulement** `agents.defaults.maxConcurrent=1`, sans ajouter de
+  faux agent et sans affirmer que les jobs sont maintenant isolés ;
+- structure invalide ou doublon : refuser le changement.
+
+Pour le cas « agent implicite », l'application utilise le
+**RPC OpenClaw `config.get` + `config.patch`**, un `baseHash`
+optimiste, une sauvegarde 0600 hors dépôt, et un contrôle de la
+valeur appliquée. Si la réponse RPC est perdue après écriture,
+le script tente une restauration ciblée de l'ancienne valeur
+via un nouveau `baseHash`. Il **n'effectue aucun fallback**
+vers une écriture directe du `openclaw.json` actif.
+Le Gateway prend en charge sa propre procédure de reload/restart ;
+le script ne force pas de seconde relance dans ce cas.
+
+**Limite résiduelle** : `maxConcurrent=1` limite les exécutions
+parallèles, mais un fournisseur upstream peut toujours retourner
+un 429. Les jobs cron existants peuvent conserver un
+`payload.model` et une identité d'inférence distincte :
+les changements de modèle/credential de jobs demandent un inventaire
+de leurs paramètres et ne doivent pas être déduits du seul
+`openclaw.json`. Les embeddings et index 768D ne changent pas.
+
+Contrôle Workstation au nouveau HEAD (sans CI ni modèle payant) :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-update-recovery-local
+just openclaw-429-fix-all
+```
+
+**Preuves du correctif au nouveau HEAD** : à confirmer par l'exécution
+locale des tests et du RPC ; aucun accès direct à la Workstation n'est
+possible depuis l'agent ici.
+
+Documentation OpenClaw :
+- https://docs.openclaw.ai/install/node-compatibility
+- https://docs.openclaw.ai/gateway/configuration/config-rpc
+- https://docs.openclaw.ai/automation/cron-jobs/payloads
+
+
+### 25 octobre 2026 — cohérence des versions Workstation et du lockfile mise
+
+L'audit du dépôt a mis au jour une autre dérive de runtime :
+`mise.lock` continue à **enregistrer Node 24.18.1**, avec les
+checksums propres à cet ancien artefact, alors que `.nvmrc`,
+`mise.toml` et `.envrc` visent maintenant `24.22.1`.
+Les scripts `diagnose-openclaw.sh` et
+`prepare-openclaw-systemd.sh` utilisaient également des chemins
+absolus figés sur `24.18.1`. Ils ont été adaptés pour inspecter
+l'identité réelle du Gateway ou la cible déclarée ; le script de
+préparation ne modifie aucun service.
+
+**Ne jamais réutiliser ni recopier les anciens checksums sous une
+nouvelle version.** La commande explicite
+`just openclaw-node24-runtime-install` exécute :
+`MISE_SAFE=1 mise lock node@24.22.1`, puis
+`mise install --locked node@24.22.1`, puis vérifie
+`mise exec node@24.22.1 -- node --version`. Cette séquence
+régénère les URL/checksums depuis mise au lieu de les inventer.
+Elle peut **modifier le `mise.lock` local** ; conserver et revoir
+ce diff avant de le publier dans Git. La PR ne prétend pas contenir
+les checksums Node 24.22.1 tant qu'ils ne sont pas validés.
+
+L'installation de la nouvelle version de Node **ne déplace pas**
+automatiquement le paquet global `openclaw`, ne réécrit pas le
+service systemd et ne prouve pas le succès de `openclaw update`.
+Le propriétaire actuel du package peut rester l'ancien préfixe
+`mise/installs/node/24.18.1`. Ne pas effacer cet ancien préfixe
+avant la validation de la nouvelle installation, du démarrage Gateway,
+du `memory status` et des canaux.
+
+L'application du fix 429 pour un agent implicite n'exige désormais
+**aucune clé cron** : seule la concurrence est réduite. La séparation
+d'identité exige un véritable agent `cron` explicitement déclaré
+ou une réconciliation prouvée des jobs. Le patch du cas implicite
+est natif et garde une sauvegarde owner-only.
+
+Ces chemins sont indépendants : ne pas confondre correction du
+`EBADENGINE` et preuve de disparition des 429.
+
+
+## 2026-10-25 — échec du patch natif : `blocked_gateway_snapshot`
+
+L'opérateur a relancé sur Workstation la séquence de récupération.
+Les tests npm (10/10), collecteur 429 (6/6), réparation (20/20) et routes
+(8/8) sont PASS, soit **44 tests**. Le diagnostic historique indique
+Node 24.18.1 et `runtime_engine` ; la commande
+`mise exec node@24.22.1 -- node --version` retourne **v24.22.1**.
+Le `mise.lock` local a été régénéré avec des artefacts officiels pour
+sept plateformes ; des avertissements de lockfile concernant d'autres
+outils globaux restent non bloquants. Ne pas supprimer ni forcer ce
+`mise.lock` sans vérifier son diff local.
+
+Le plan OpenClaw a confirmé `repair_scope=concurrency_only`,
+`cron_key_access=not_required` et `global_concurrency=1`.
+L'application a retourné **`native_config_patch=blocked_gateway_snapshot`**
+avant toute mutation, sans redémarrer le Gateway.
+
+**Cause :** notre contrôle comparait le `hash` de `config.get` au
+SHA-256 des seuls octets de `~/.openclaw/openclaw.json`. C'est une
+erreur de protocole : le `hash` fourni par OpenClaw est **opaque**,
+et sa révision peut couvrir les identités et le contenu des fichiers
+`$include` en plus du fichier racine. Le hash n'est pas un checksum
+local à recalculer. Ne pas utiliser `configRevisionHash` ni
+`appliedConfigHash` à la place du champ `hash`.
+
+**Correction versionnée :** le programme transmet la révision
+exactement reçue par le Gateway comme `baseHash`, sans conversion
+hexadécimale ni comparaison à un SHA-256 local. Il vérifie que le
+fichier local n'a pas changé avant et après le RPC `config.get`,
+vérifie l'identité du chemin lorsqu'elle est exposée et protège le
+patch par le mécanisme CAS du Gateway. Le rollback, si nécessaire,
+récupère **une nouvelle révision opaque** avant la tentative de
+réparation. Il ne remplace jamais directement le fichier de
+configuration pour contourner un refus RPC.
+
+Le mode `plan` du cas `concurrency_only` vérifie désormais aussi la
+présence du snapshot Gateway en **lecture seule**. Ses sorties ne
+contiennent aucune valeur de secret, aucun hash brut, ni JSON de config.
+Des contrats couvrent les révisions opaques non SHA, les changements
+concurrents, les chemins erronés, le plan sans écriture et le rollback.
+
+**Exécution Workstation (aucun CI)** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-429-fix-test
+just openclaw-429-fix-plan
+just openclaw-429-fix-apply
+python3 scripts/workstation/openclaw-route-metadata.py
+just openclaw-429-auto
+```
+
+`openclaw-429-fix-apply` est **mutant** (patch natif ciblé et
+rechargement géré par le Gateway). Vérifier le résultat avant de
+relancer la commande. `maxConcurrent=1` n'est pas un remède universel
+à une limite RPM/TPM upstream, ni une séparation d'identité des
+jobs cron ; ceux-ci nécessitent un audit distinct.
+
+**L'installation du Node 24.22.1 n'a pas automatiquement mis à jour
+l'ancien préfixe npm d'OpenClaw ni le binaire Node du service systemd.**
+Conserver l'ancien préfixe jusqu'à preuve de migration réussie. Ne
+pas relancer `openclaw update` avant un contrôle du runtime
+effectivement utilisé par le service.
+
+Documentation :
+https://docs.openclaw.ai/gateway/protocol/rpc-talk-config-and-agents
+https://docs.openclaw.ai/gateway/configuration/config-rpc
+
+
+## 2026-10-26 — récupération opérationnelle et upgrade rootless vers OpenClaw 2026.10.7
+
+Les **dernières** preuves opérateur montrent désormais
+`native_config_patch=applied` et `gateway_restart=managed_by_openclaw`.
+Le Gateway utilise `maxConcurrent=1` : le diagnostic local de deux
+heures trouve **zéro indicateur 429**, et un indicateur de timeout.
+Le collecteur n'avait pas la master key Workstation (API
+`/spend/logs/v2` non interrogée) : ceci ne prouve ni zéro requête
+refusée, ni une guérison complète du fournisseur GPT. Le modèle
+`litellm-main/gpt-4.1` et le secret embeddings restent inchangés.
+
+Le blocage d'upgrade reste séparé : `openclaw --version=2026.9.5`,
+Node actif `24.18.1`, Node `24.22.1` installé dans le préfixe
+`mise` mais non sélectionné partout. Le log npm original avait
+montré `runtime_engine`. Les avertissements de `mise.lock`
+concernant des outils globaux non verrouillés n'empêchent pas
+l'installation ciblée déjà prouvée de Node 24.22.1.
+
+**Source de version et de compatibilité (consultée 2026-10-26) :**
+OpenClaw stable 2026.10.7, Node 24.22.1 ou Node 26.12.1 minimum
+sur leurs branches respectives. Version épinglée **exactement**
+pour ne pas prendre un canal beta par erreur. Documents :
+- https://docs.openclaw.ai/install/updating
+- https://docs.openclaw.ai/install/update-troubleshooting
+- https://docs.openclaw.ai/install/node-compatibility
+- https://github.com/openclaw/openclaw/releases/tag/v2026.10.7
+
+### Pourquoi ne pas faire un simple `sudo npm i -g` ?
+
+Le service systemd user et le paquet OpenClaw appartiennent à un
+ancien préfixe `mise`. Une commande npm sur le nouveau PATH
+pourrait installer ailleurs et laisser le Gateway sur 2026.9.5.
+L'updater lui-même demande une vérification de propriétaire de
+service/paquet et du runtime. Le script de ce dépôt
+`scripts/workstation/upgrade-openclaw-mise.py` effectue une
+**migration côte à côte**, sans effacer le précédent paquet.
+
+La migration est volontairement fractionnée :
+
+1. **Test (offline)** — `just openclaw-upgrade-local-test`.
+   Tous les appels systemd, npm, HTTP et OpenClaw sont simulés.
+2. **Plan (lecture seule)** — `just openclaw-upgrade-local-plan`.
+   Vérifie `mise` Node, l'unique service
+   `openclaw-gateway.service` du compte courant, son
+   `ExecStart` attendu et le statut du paquet versionné.
+3. **Stage (mutation isolée)** — `just openclaw-upgrade-local-stage`.
+   Exécute npm avec le Node 24.22.1 **par chemin absolu** et le
+   préfixe npm du même Node ; installe uniquement le paquet
+   `openclaw@2026.10.7` depuis le registre npm officiel.
+   Vérifie `package.json` et la sortie de version.
+   **Le Gateway ancien continue à tourner** et aucune config,
+   identité de clé, mémoire ou service systemd n'est modifié.
+4. **Activation (maintenance explicite)** —
+   `just openclaw-upgrade-local-activate` :
+   arrête la seule unité systemd utilisateur connue ; sauvegarde
+   de manière cohérente `~/.openclaw` en tar.gz privé 0600 via
+   `backup-openclaw.sh` ; crée uniquement
+   `~/.config/systemd/user/openclaw-gateway.service.d/20-nabla-openclaw-upgrade.conf`
+   (0600), avec `ExecStart` sous Node 24.22.1 et paquet
+   2026.10.7. Le drop-in préserve les autres fichiers
+   `EnvironmentFile`, les variables de l'unité et le port 18789.
+   `daemon-reload`, `start`, puis sonde locale `/readyz`.
+   Le script refuse un drop-in concurrent ou un service inconnu.
+5. **Vérification sans modèle payant** —
+   `just openclaw-upgrade-local-verify` :
+   statut unité, version de paquet, owner Node, `/readyz`,
+   `doctor --lint --json` et `memory status` expurgés.
+   Vérifier ensuite les canaux et sessions de manière explicite.
+
+**Procédure Workstation** :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Le CLI `openclaw` du shell peut encore désigner l'ancien préfixe
+après activation. Pour interroger explicitement la nouvelle version :
+
+```bash
+mise exec node@24.22.1 -- openclaw --version
+```
+
+ou en chemin absolu via la CLI du nouveau préfixe. Vérifier
+`openclaw --version` dans un nouveau shell avant de supprimer
+l'ancien paquet, en gardant le service stable d'abord.
+La CLI `openclaw update` ne doit plus être lancée avec l'ancien
+Node/prefix sur PATH.
+
+### Limites et retour arrière
+
+**Ne jamais effacer les données SQLite ni réindexer la mémoire.**
+Une activation 2026.10.7 peut migrer des schémas SQLite et plugins.
+L'ancien 2026.9.5 ne saurait pas forcément relire ces données.
+Si le nouveau Gateway ne démarre pas, le script **n'effectue aucun
+rollback automatique des bases** ; il garde l'ancien package et la
+sauvegarde cohérente dans `~/Backups/openclaw`. Examiner le code
+d'échec, récupérer les données depuis une sauvegarde compatible
+uniquement sous contrôle utilisateur, puis rétablir l'unité.
+Un échec pendant la **sauvegarde** (avant activation) relance
+l'ancien service automatiquement et ne crée aucun drop-in.
+
+Ne pas exécuter `doctor --fix`, ne pas réinstaller les plugins
+à l'aveugle et ne pas lancer un modèle facturable durant le
+cutover. Les warnings de migration Slack sont une dette distincte :
+`doctor --lint` et les diagnostics des canaux servent à décider
+de la correction après upgrade. Les jobs cron sans agent nommé
+ne deviennent pas un agent distinct lors de cette migration.
+
+Les actions du script sont strictement limitées à la Workstation ;
+aucune route professionnelle n'est copiée vers le TrueNAS et
+les clés virtuelles `openclaw-main`, `openclaw-cron`,
+`openclaw-embeddings` ne sont pas reprovisionnées.
+
+
+## 2026-10-26 — OpenClaw CLI 2026.10.7 fonctionne, mais stage déclaré en échec
+
+**Retour Workstation** :
+- `just openclaw-upgrade-local-test` : **13/13 PASS** au HEAD précédent ;
+- `upgrade_target=2026.10.7`, `node_target=24.22.1`,
+  `runtime_compatible=yes`, `gateway_service_owner=verified`,
+  `gateway_service_running=yes`, `old_package_detected=no`,
+  `staged_package=not_ready` ;
+- `--stage` : `install_failed_or_unverified`,
+  `npm_error_category=unknown`, code 2 ; **aucun cutover
+  systemd** n'a été lancé car le `justfile` utilise fail-fast ;
+- `mise exec node@24.22.1 -- openclaw --version` :
+  **OpenClaw 2026.10.7 (157d8c2)** ;
+- le smoke test existant a renvoyé
+  `OK model smoke: litellm-main/gpt-4.1 returned OK`.
+  Cette preuve concerne la conversation existante, pas le Gateway
+  sous le nouveau Node ; ne pas consommer un deuxième smoke pendant
+  les 24 heures de cooldown.
+
+**Défaut du stage corrigé :** le script exigeait
+`dist/index.js` et refusait un paquet dont le `bin` npm était
+`openclaw.mjs`. L'entrypoint npm déclaré officiellement dans le
+`package.json` OpenClaw est `openclaw.mjs`. La vérification
+examine désormais le nom `openclaw`, la version du manifeste, le
+`bin.openclaw` sûr, l'exécution directe du CLI avec le Node cible,
+et l'absence des marqueurs `openclaw-lifecycle-pending` ou
+`dist/openclaw-install-guard`. Elle ne considère plus le **seul**
+exit code npm comme preuve d'une installation cassée.
+
+Un stage déjà validé retourne `upgrade_stage=already_verified`
+**sans relancer npm**. Si npm retourne un code non nul mais le paquet
+est complet et vérifié, le stage signale
+`npm_install_exit=nonzero_but_package_verified`. Si un paquet
+partiel subsiste, il refuse un nouvel écrasement et affiche
+uniquement `package_manifest`, `package_cli_entry` et
+`lifecycle_marker`, sans journaux, secrets ni chemins privés.
+
+La découverte de l'unité systemd reconnaît maintenant l'ancien
+`dist/index.js` et le nouveau `openclaw.mjs`, y compris quand
+le Node apparaît deux fois dans les champs `path` et `argv[]`.
+Après la bascule, le service **doit** utiliser le Node exact du
+préfixe cible, pas `/usr/bin/node`. Les chemins d'embeddings,
+la base mémoire, les clés virtuelles et les canaux ne changent pas.
+
+**Nouvelle exécution Workstation :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Les deux premières étapes n'écrivent rien. Le stage est idempotent ;
+l'activation est la seule étape qui arrête le Gateway, crée la
+sauvegarde cohérente et met en place le drop-in systemd. La
+vérification finale impose readiness, Doctor lint et statut sain
+des deux index mémoire. **Les nouveaux tests de ce commit restent
+à exécuter sur la Workstation**. Si stage refuse un paquet marqué
+incomplet, ne pas effacer de fichier dans `node_modules` ni
+contourner le marqueur : examiner la sortie catégorisée et préparer
+une réparation ciblée.
+
+Sources officielles :
+- https://www.npmjs.com/package/openclaw/v/2026.10.7
+- https://docs.openclaw.ai/install/installer
+- https://docs.openclaw.ai/cli/doctor/lint
+
+
+## 2026-10-26 — Stage bloqué par un paquet npm incomplet sous Node 24.22.1
+
+Nouvelle preuve Workstation après 19/19 tests de migration PASS :
+`upgrade_stage=blocked_partial_or_foreign_package`,
+`package_manifest=absent_or_different`,
+`package_cli_entry=missing_or_unsafe`,
+`lifecycle_marker=absent`,
+`npm_reinstallation_attempted=false`.
+Le Gateway historique est actif, le propriétaire du service est vérifié,
+et aucun cutover n'a eu lieu. Un autre CLI exécuté via
+`mise exec node@24.22.1 -- openclaw --version` avait répondu
+`2026.10.7` : cela ne prouve **pas** que le répertoire npm du Node
+24.22.1 est complet ou qu'il est propriétaire de ce CLI.
+
+**Correction** : le script utilise maintenant un préfixe de staging
+isolé `~/.local/share/nabla-compose/openclaw-stage/2026.10.7`
+lorsque le dossier global `.../mise/installs/node/24.22.1/lib/node_modules/openclaw`
+est déjà présent mais ne passe pas le contrôle de manifeste/bin.
+Il n'efface, ne déplace et ne remplace **aucun** fichier de ce dernier.
+`npm` reçoit l'option `--prefix` vers ce préfixe isolé,
+avec Node 24.22.1 exécuté par chemin absolu.
+
+Le stage vérifie avant le téléchargement les permissions et l'absence
+de symlink des parents dédiés, puis le manifeste, le nom du paquet,
+`bin.openclaw`, l'absence de marqueurs d'installation interrompue,
+et la sortie de la CLI sous le Node cible. Une installation isolée déjà
+valide est réutilisée sans relancer npm. Si un stage isolé est également
+incomplet, le script s'arrête **sans écrasement** et affiche seulement
+la raison contrôlée ; aucune trace brute npm, aucun secret ni prompt.
+
+Lors de `activate`, le drop-in systemd peut référencer le
+`openclaw.mjs` du préfixe isolé tout en lançant le binaire Node
+**du préfixe mise 24.22.1**. `unit_exec` valide cette combinaison
+exacte, et refuse `/usr/bin/node` ou un paquet extérieur au staging
+autorisé. La sauvegarde cohérente et les contrôles mémoire restent
+obligatoires.
+
+**Commande opérateur Workstation :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+just openclaw-upgrade-local-activate
+just openclaw-upgrade-local-verify
+```
+
+Les tests nouvellement ajoutés (dont les contrats de sécurité du
+préfixe isolé) sont **en attente de validation Workstation**.
+Ne pas contourner un nouveau refus de stage par `rm -rf`,
+`npm install -g --force` ou un démarrage depuis des fichiers
+partiellement installés. `activate` est une opération de maintenance :
+elle arrête temporairement le Gateway, sauvegarde `~/.openclaw`,
+installe un drop-in user et vérifie `/readyz`. Aucun reindex ni
+changement de clé LiteLLM n'est réalisé. Le smoke `gpt-4.1` a déjà
+réussi ; respecter la période de 24 h avant tout autre smoke payant.
+
+
+## 26 octobre 2026 — `unsafe_prefix` pendant le stage isolé
+
+Dernière preuve Workstation : **26/26 tests PASS**, Gateway historique
+toujours actif, `/readyz=200`, Node `24.22.1` compatible.
+`just openclaw-upgrade-local-stage` a retourné
+`stage_prefix=isolated_prefix`, `upgrade_stage=unsafe_prefix`.
+L'activation indépendante a refusé `blocked_preflight` et le contrôle
+final a légitimement signalé `functional_contract=partial_or_unverified` ;
+**aucune bascule effective de l'unité systemd n'est prouvée**.
+
+Le staging utilisait
+`~/.local/share/nabla-compose/openclaw-stage/2026.10.7`.
+Le contrôle refuse toute composante du chemin group-writable ou
+symlink. La cause précise n'a pas été imprimée à l'époque.
+Un des répertoires partagés peut légitimement avoir un mode 0775
+(`umask 0002`) ; il ne faut **pas** imposer `chmod 0700` à
+`~/.local/share/nabla-compose`, ni à ses autres services.
+
+**Correction dans PR #280** : installer désormais dans
+`~/.openclaw-upgrade-stage/2026.10.7`, avec uniquement des
+répertoires nouvellement créés en 0700. Les trois composants contrôlés
+sont `home`, `stage_base` et `stage_target`.
+`stage_security` produit une catégorie constante telle que
+`safe`, `symlink_stage_base`,
+`group_or_world_writable_stage_target` ou
+`wrong_owner_home`, sans exposer le chemin ni modifier les permissions
+d'autres applications. Le stage refuse tout propriétaire ou chemin
+inattendu et n'exécute pas npm sur un préfixe non sûr.
+
+Le code utilise des `mkdir(mode=0o700)` successifs, et **non**
+`Path.mkdir(parents=True)` qui pourrait créer un parent
+intermédiaire en 0775 sous `umask 0002`.
+Les tests couvrent explicitement les umask, la conservation d'un
+répertoire partagé en 0775, les symlinks, les erreurs de propriété
+et la vérification d'identité de l'unité systemd.
+L'ancien staging sous `.local/share/nabla-compose` reste en place
+s'il existe ; aucun nettoyage ou déplacement n'est effectué.
+
+Pour reprendre sur la Workstation, sans CI ni requête de modèle :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+```
+
+N'exécuter **l'activation** que si le stage affiche
+`upgrade_stage=verified` ou `upgrade_stage=already_verified`.
+Cela arrête le Gateway puis sauvegarde son état avant de remplacer le
+`ExecStart` de l'unité systemd user.
+Ensuite exécuter `just openclaw-upgrade-local-verify`.
+Le smoke `litellm-main/gpt-4.1` a déjà réussi : ne pas le rejouer
+dans sa période de cooldown 24 h.
+
+Les nouveaux tests et le runtime n'ont pas encore été exécutés
+sur la Workstation au HEAD contenant cette correction.

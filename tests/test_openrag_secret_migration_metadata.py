@@ -17,7 +17,7 @@ class OpenragSecretMetadataTest(unittest.TestCase):
         self.assertEqual(entry["item"], "nabla/prod/openrag")
         self.assertEqual(
             {secret["env"] for secret in entry["secrets"]},
-            {"OPENSEARCH_PASSWORD", "LITELLM_IDE_API_KEY"},
+            {"OPENSEARCH_PASSWORD", "LITELLM_IDE_API_KEY", "OPENRAG_ENCRYPTION_KEY"},
         )
         for secret in entry["secrets"]:
             self.assertEqual(secret["rotation"], "preserve")
@@ -38,9 +38,19 @@ class OpenragSecretMetadataTest(unittest.TestCase):
         )
         self.assertEqual(shared["rotation"], "preserve")
 
+    def test_openrag_compose_uses_canonical_secret_without_embedded_value(self):
+        text = (ROOT / "apps/openrag/compose.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "/mnt/cpool/secrets/runtime/openrag/.env.secrets", text
+        )
+        self.assertNotIn("      - /mnt/cpool/openrag/.env.secrets", text)
+        self.assertNotIn("OPENSEARCH_PASSWORD:", text)
+        self.assertIn("create_host_path: false", text)
+
+
     def test_runner_does_not_apply_secret_migration_as_a_check(self):
         script = (
-            ROOT / "scripts/truenas/finish-migrations-20261024.sh"
+            ROOT / "scripts/truenas/migration-diagnostic-sections.sh"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "bootstrap-repository-env-files.sh --check openrag", script,

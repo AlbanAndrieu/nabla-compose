@@ -18,6 +18,9 @@ ACK_RESTART="I_ACCEPT_SEQUENTIAL_TRUENAS_RESTART"
 ACK_MIGRATION="I_ACCEPT_REVIEWED_RUNTIME_MIGRATION"
 
 ACTION="check"
+# Exactly one explicit execution mode is allowed. Mixed modes must fail before
+# probing TrueNAS or creating any private report.
+ACTION_FLAGS=0
 SECTION="all"
 WAVE=""
 STEP=""
@@ -35,7 +38,7 @@ Usage (TrueNAS, from /mnt/cpool/compose/nabla-compose):
 
   bash scripts/truenas/finish-migrations-20261024.sh --next-commands
   bash scripts/truenas/finish-migrations-20261024.sh --local-gates
-  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
+  sudo bash scripts/truenas/finish-migrations-20261024.sh --check [--section all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|apisix|postmigration|talos|observability|secrets|convergence|lan] [--color auto|always|never] [--icons auto|always|never] [--verbose]
   sudo bash scripts/truenas/finish-migrations-20261024.sh --plan-wave core|gatus|deferred
   sudo bash scripts/truenas/finish-migrations-20261024.sh --apply-wave core|gatus|deferred \
     --expected-plan-hash <64-hex-from-plan> \
@@ -61,14 +64,14 @@ EOF
 
 while (($#)); do
   case "$1" in
-    --check) ACTION="check"; shift ;;
-    --next-commands) ACTION="commands"; shift ;;
-    --local-gates) ACTION="local-gates"; shift ;;
+    --check) ACTION="check"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
+    --next-commands) ACTION="commands"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
+    --local-gates) ACTION="local-gates"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
     --section) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; SECTION="$2"; shift 2 ;;
-    --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; WAVE="$2"; shift 2 ;;
-    --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; WAVE="$2"; shift 2 ;;
-    --apply-step) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="migrate"; STEP="$2"; shift 2 ;;
-    --apply-csi-smoke) ACTION="smoke"; shift ;;
+    --plan-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="plan"; ACTION_FLAGS=$((ACTION_FLAGS+1)); WAVE="$2"; shift 2 ;;
+    --apply-wave) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="restart"; ACTION_FLAGS=$((ACTION_FLAGS+1)); WAVE="$2"; shift 2 ;;
+    --apply-step) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; ACTION="migrate"; ACTION_FLAGS=$((ACTION_FLAGS+1)); STEP="$2"; shift 2 ;;
+    --apply-csi-smoke) ACTION="smoke"; ACTION_FLAGS=$((ACTION_FLAGS+1)); shift ;;
     --expected-plan-hash) [[ $# -ge 2 ]] || exit 2; HASH="$2"; shift 2 ;;
     --acknowledge) [[ $# -ge 2 ]] || exit 2; ACK="$2"; shift 2 ;;
     --allow-reviewed-drift) ALLOW_DRIFT=true; shift ;;
@@ -82,18 +85,23 @@ while (($#)); do
   esac
 done
 
+if ((ACTION_FLAGS > 1)); then
+  echo "BLOCKED: choose exactly one execution mode; mixed or repeated modes are forbidden" >&2
+  exit 2
+fi
+
 if [[ "${ACTION}" == commands ]]; then
   [[ "${SECTION}" == all && -z "${WAVE}" && -z "${STEP}" &&
      -z "${HASH}" && -z "${ACK}" && "${ALLOW_DRIFT}" == false ]] || {
     echo '--next-commands accepts no apply, wave or section flags' >&2
     exit 2
   }
-  RUNBOOK="${ROOT}/docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+  RUNBOOK="${ROOT}/docs/runbooks/truenas-migration-operator.md"
   [[ -f "${RUNBOOK}" && ! -L "${RUNBOOK}" ]] || {
     echo 'Operator runbook unavailable; no commands executed' >&2
     exit 2
   }
-  printf 'RUNBOOK=%s\n' "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
+  printf 'RUNBOOK=%s\n' "docs/runbooks/truenas-migration-operator.md"
   exit 0
 fi
 
@@ -125,7 +133,7 @@ fi
 
 diag_ui_init "${COLOR_MODE}" "${ICON_MODE}" || exit 2
 case "${ACTION}" in check|plan|restart|migrate|smoke) ;; *) exit 2 ;; esac
-case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
+case "${SECTION}" in all|platform|migrations|catalog|services|ai|critical|prometheus|openrag|sentry|akvorado|defectdojo|apisix|postmigration|talos|observability|secrets|convergence|lan) ;; *) echo 'Invalid section' >&2; exit 2 ;; esac
 if [[ "${ACTION}" == plan || "${ACTION}" == restart ]]; then
   case "${WAVE}" in core|gatus|deferred) ;; *) echo 'Invalid wave' >&2; exit 2 ;; esac
 fi
@@ -260,6 +268,22 @@ run_check() {
     record "${name}" FAIL "${logfile}"
   fi
 }
+run_observation() {
+  # Exit 2 = missing / unverified data. Do not infer a service outage.
+  # Only explicitly selected post-migration checks use this classification.
+  local name="$1" logfile rc
+  shift
+  logfile="${SESSION_DIR}/${name}.log"
+  if "$@" >"${logfile}" 2>&1; then
+    record "${name}" PASS "${logfile}"
+  else
+    rc=$?
+    case "${rc}" in
+      2) record "${name}" WARN "${logfile}" ;;
+      *) record "${name}" FAIL "${logfile}" ;;
+    esac
+  fi
+}
 run_optional_tool() {
   local name="$1" tool="$2"; shift 2
   if ! command -v "${tool}" >/dev/null 2>&1; then
@@ -303,7 +327,7 @@ plan_wave() {
     printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=true\n' "${wave}" "${hash}"
   else
     record "catalog-${wave}" FAIL "${report}"
-    diag_warn "catalog ${wave}: $(jq -r '.selectedWaveBlocker // "unknown"' "${report}")"
+    diag_warn "catalog ${wave}: wave not ready; inspect the private plan report"
     printf 'catalog_wave=%s plan_hash=%s selectedWaveReady=false\n' "${wave}" "${hash}"
   fi
   printf '%s\n' "${hash}" >"${SESSION_DIR}/catalog-${wave}.sha256"
@@ -334,6 +358,12 @@ if [[ "${ACTION}" == check ]]; then
   fi
   print_summary
   ((FAILED==0)) || exit 1
+  # Optional/unverified status is never a successful *post-migration*
+  # acceptance. Keep existing historical --section critical semantics.
+  if [[ "${SECTION}" == postmigration || "${SECTION}" == apisix ]] &&
+     ((WARNINGS > 0 || SKIPPED > 0)); then
+    exit 2
+  fi
   exit 0
 fi
 

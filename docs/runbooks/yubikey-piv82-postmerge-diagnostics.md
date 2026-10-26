@@ -378,3 +378,240 @@ Valider d'abord les tests du nouveau script et du lanceur dans
 la gate hors matériel de la PR. Cette étape n'exige aucune YubiKey.
 Les observations OTP2 ou escrow réelles demeurent NOT_RUN tant
 que l'opérateur n'a pas choisi d'options et fourni les chemins.
+
+
+## 12. Poursuite sur PR #280 — branch selection sans PR #274 fermée
+
+**25 octobre 2026.** Les PR #274 et #278 ont été fusionnées. Le
+travail YubiKey est poursuivi dans [PR #280](https://github.com/AlbanAndrieu/nabla-compose/pull/280)
+(branch `feat/apisix-standalone-poc-20261025`). Les résultats
+106/106 et l'inventaire PIV82 `EMPTY_CONFIRMED` sont
+des preuves **antérieures** ; la gate doit être exécutée de nouveau
+sur le SHA de #280 avant toute conclusion sur les changements présents.
+
+Le lanceur existant conserve son défaut historique PR #274 pour éviter
+de modifier les contrats opérateur antérieurs. Utiliser explicitement
+`--branch feat/apisix-standalone-poc-20261025` pour lire
+le HEAD actuel de #280. Le SHA est identifié par `git ls-remote`
+et vérifié avant création du worktree. Avec `--pinned-sha`,
+l'opérateur doit valider la fraîcheur du SHA **avant** de lancer le
+script ; ce mode ne vérifie pas lui-même le ref distant.
+
+Le parcours par défaut reste **hors matériel**, sauf export F9 public
+si la preuve manque. L'inventaire OTP2 et l'escrow exigent toujours
+leurs options respectives. **Aucune action PIN, challenge OTP,
+génération PIV82, modification AES256 ou migration SOPS.**
+
+Avant toute reprise de l'escrow réel, confirmer les deux supports
+physiques et la procédure d'une restauration supervisée séparée.
+La lecture de métadonnées seule ne constitue pas une preuve de
+récupération ; garder le statut matériel NO-GO.
+
+
+## 13. PR #280 — second contrôle de série et gate récupération sans matériel
+
+Le contrôle de la secondaire 22916048 n'est pas une autorisation PIV82.
+Pour OTP2, le script inspect-yubikey-recovery-readonly.py vérifie
+maintenant deux sources publiques : ykman list --serials et
+le champ Serial number de ykman --device 22916048 info. Le firmware
+doit rester 5.4.3. Un numéro absent, différent ou répété donne UNKNOWN.
+
+Les copies chiffrées d'escrow doivent être des fichiers ordinaires
+non vides, sans liens symboliques ni liens matériels multiples.
+Le contrôle rejette aussi les chemins non absolus et les fichiers
+dont l'extension n'est pas .age. Les statuts restent des **observations
+de métadonnées uniquement** : ils ne prouvent ni contenu récupérable,
+ni support physique distinct, ni fonctionnalité KeePassXC.
+
+### Validation hors matériel (worktree PR #280)
+
+Depuis un checkout de cette PR, exécuter une seule cible locale :
+
+`just yubikey-recovery-test`
+
+Cette cible vérifie la syntaxe Python/Bash puis lance uniquement les
+contrats synthétiques OTP2, escrow et lanceur Git. Pas de réseau
+explicite, aucun lecteur YubiKey, aucun PIN, challenge OTP ou secret
+n'est requis. Une .venv n'est pas nécessaire pour ces tests standard
+library. Le résultat ne vaut pas validation de toute la quality gate.
+
+Pour exécuter le lanceur historique avec la branche active, transmettre
+explicitement `--branch feat/apisix-standalone-poc-20261025`.
+L'option `--pinned-sha` reste réservée au bootstrap qui
+a déjà vérifié la fraîcheur du SHA distant. Ne pas utiliser l'ancienne
+branche PR #274 fusionnée comme source de nouveaux contrôles.
+
+Garder **NO-GO** : un résultat OTP2 PROGRAMMED_TYPE_UNVERIFIED ne
+démontre pas le secret HMAC-SHA1 ni KeePassXC ; deux fichiers d'escrow
+sur des systèmes de fichiers différents ne sont pas deux restaurations
+validées. Ne pas générer PIV82, tester un PIN, lire des secrets, modifier
+OTP2/PIV9A/AES256, ni changer les destinataires SOPS.
+
+
+## 14. Validation locale des contrats OTP2 / escrow — 25 octobre 2026
+
+**Journal fourni par l'opérateur**, exécuté avec
+`just yubikey-recovery-test` :
+
+- `python3 -m py_compile` : PASS sur les scripts et tests concernés ;
+- `bash -n` : PASS sur le lanceur Git/YubiKey ;
+- Tests de récupération OTP2/escrow : **16/16 PASS** (0,006 s) ;
+- Tests d'intégration du lanceur : **28/28 PASS** (22,969 s) ;
+- Total : **44/44 PASS**, sans exécution de commande matérielle.
+- Le message d'usage dans le test de portée manquante est
+  un résultat **attendu du test négatif**, pas un échec de la gate.
+
+**Limite :** le journal transmis ne contient pas le SHA Git exécuté.
+Cette preuve valide le contenu du worktree de l'opérateur au moment du
+test, pas automatiquement tous les commits ultérieurs de la PR #280.
+Le résultat n'atteste ni OTP2 réel, ni HMAC-SHA1/KeePassXC, ni présence,
+indépendance physique ou restauration de deux copies d'escrow.
+
+### Étape matérielle facultative et strictement read-only
+
+La recette explicite `just yubikey-otp2-secondary-readonly`
+exécute uniquement
+`python3 scripts/workstation/inspect-yubikey-recovery-readonly.py --otp2-secondary`.
+Elle requiert la seule YubiKey **22916048** (firmware 5.4.3) et
+interroge trois commandes publiques allowlistées : liste des appareils,
+identité/firmware, statut OTP. Aucune demande de PIN, aucun challenge,
+aucune génération et aucune modification.
+
+Le résultat `PROGRAMMED_TYPE_UNVERIFIED` valide seulement
+la présence d'une configuration OTP2. Les états `EMPTY`
+et `UNKNOWN` bloquent. Même avec retour 0,
+`status=NO-GO` et `hardware_mutation_authorized=false`
+restent inchangés. **Ne pas confondre succès de lecture et preuve
+du secret KeePassXC.**
+
+La recette ne doit être lancée que depuis un worktree isolé et actualisé
+sur la branche PR #280. Elle n'exécute aucune gate de qualité large
+et ne réutilise aucun chemin temporaire disparu après redémarrage.
+
+
+## 15. Preuve OTP2 réelle — secondaire 22916048 (25 octobre 2026)
+
+**Sortie opérateur** de `just yubikey-otp2-secondary-readonly` :
+
+- `serial=22916048` — le diagnostic a vérifié l'unicité de la
+  carte connectée, son numéro de série rapporté et le firmware
+  attendu `5.4.3` avant la lecture OTP.
+- `otp2=PROGRAMMED_TYPE_UNVERIFIED` — **slot 2 programmé
+  sur la carte réelle**. Cette observation ne vérifie **pas** le type
+  HMAC-SHA1, la clé secrète stockée ou un échange KeePassXC.
+- `escrow=NOT_CHECKED` ; `escrow_restoration_verified=false` ;
+  `independent_physical_media_verified=false`.
+- `otp2_hmac_sha1_verified=false` ;
+  `keepassxc_verified=false`.
+- `status=NO-GO` et
+  `hardware_mutation_authorized=false`.
+
+**Provenance :** journal de la workstation fourni par l'opérateur,
+sans SHA Git affiché. Ne pas attribuer cette preuve à un commit ultérieur ;
+elle décrit l'état matériel observé au moment de l'exécution.
+
+**Décision :** ne pas relancer inutilement l'inventaire OTP2 ;
+conserver le slot existant et les fonctions KeePassXC intactes.
+L'étape suivante concerne exclusivement les métadonnées des **deux
+copies d'escrow déjà existantes**, si et seulement si leurs chemins
+absolus sont connus. Utiliser alors
+`inspect-yubikey-recovery-readonly.py --escrow-a PATH1.age --escrow-b PATH2.age`
+sans l'option OTP2. Le script ne lit pas le contenu chiffré.
+
+Même si les deux fichiers sont présents sur des systèmes de fichiers
+différents, la restauration effective et l'indépendance physique
+des supports restent **NOT_VERIFIED**. Aucun PIN, challenge OTP,
+décryptage, provisionnement PIV82, changement AES256/OTP2/PIV9A
+ou modification SOPS n'est autorisé.
+
+
+## 16. Diagnostics des autres applications — PR #280
+
+La configuration YubiKey comporte d'autres domaines que le slot PIV82.
+Voir le [plan d'achèvement](yubikey-capabilities-completion-plan.md) :
+récupération GPG/PostgreSQL, dépendances PKI du PIV9A historique,
+FIDO2/passkeys/SSH, OpenPGP, OATH et PIV9C/9D/9E.
+
+Nouveau script `scripts/workstation/inspect-yubikey-applications-readonly.py` :
+seulement les commandes publiques `ykman` allowlistées, avec entrée
+standard fermée et délai. Il vérifie une carte à la fois :
+`just yubikey-applications-secondary-readonly`, puis lors d'une
+séance distincte `just yubikey-applications-primary-readonly`.
+Le script n'interroge ni OTP2, ni F9, ni PIV82 déjà documentés.
+Aucun secret, certificat brut, identifiant de compte OATH/FIDO2 ou
+empreinte GPG n'est publié. Le rapport JSON contient seulement des
+états abstraits : `RESPONDS_METADATA_ONLY`, `EMPTY_CONFIRMED`,
+`OCCUPIED_METADATA` ou `UNKNOWN`. Un état inconnu bloque avec
+code non nul, sans conclure que l'application est absente.
+
+La cible `just yubikey-applications-test` exécute les tests
+synthétiques sans lecteur, réseau, PIN ni dépendance externe.
+La réussite du diagnostic **n'est pas** la preuve d'une passkey
+enregistrée, d'une signature OpenPGP fonctionnelle, d'une
+récupération PostgreSQL, d'une PKI sûre ou d'un âge hardware
+interopérable. Tous les chemins restent NO-GO pour mutations
+matérielles et SOPS.
+
+
+## 17. Preuve workstation et secondaire — diagnostics multi-applications (25 octobre 2026)
+
+**Sortie réelle fournie par l'opérateur** après création de l'inventaire
+FIDO2/OATH/OpenPGP/PIV et des diagnostics de poste. Le SHA de la
+copie de travail n'était pas imprimé : ne pas attribuer ce résultat
+aux commits publiés ensuite.
+
+- `just yubikey-applications-test` : **12/12 PASS** ;
+  compilation Python PASS.
+- `just yubikey-workstation-test` : **8/8 PASS** ;
+  compilation Python PASS. L'erreur affichée pendant le test négatif
+  « No arguments supported » est attendue, car ce test se termine OK.
+- `just yubikey-workstation-readonly` : identité SOPS
+  logicielle présente, permissions/ownership conformes à la politique ;
+  mapping PAM U2F présent mais non testé ; outil
+  `pamu2fcfg` absent ; clé publique SSH FIDO2
+  conventionnelle non trouvée.
+- Outils présents, **interopérabilité non prouvée** : gpg, gpgconf,
+  age, age-plugin-yubikey, sops, ykman, keepassxc,
+  ssh-keygen, cryptsetup, lsblk, pcsc_scan.
+- Socket GPG-agent **non trouvé à l'ancien chemin conventionnel**.
+  **Cela ne prouve pas que l'agent soit absent ou arrêté**.
+- `just yubikey-applications-secondary-readonly` sur
+  **22916048**, firmware 5.4.3 : les quatre applets FIDO, OATH,
+  OpenPGP et PIV répondent aux commandes publiques.
+  Management key AES256 protégée par PIN.
+  PIV9A OCCUPIED_METADATA. Slots 83, 9C, 9D et 9E EMPTY_CONFIRMED.
+- Aucun nouvel essai PIN, test GPG de déchiffrement, challenge OTP,
+  génération de clé, modification PAM ni opération SOPS.
+
+**Corrigé dans #280 :** le contrôleur
+`inspect-yubikey-workstation-readonly.py` interroge maintenant
+**uniquement** `gpgconf --list-dirs agent-socket`
+pour localiser le chemin propre à cette installation, au lieu
+d'inférer `~/.gnupg/S.gpg-agent`.
+Il applique `lstat` uniquement au chemin reçu et
+ne lance pas l'agent ; ni chemin ni données d'identité n'apparaissent
+dans le JSON. Il distingue les sources
+`GPGCONF`, `GPGCONF_MISSING`,
+`GPGCONF_ERROR` et `GPGCONF_INVALID_PATH`.
+Un socket trouvé demeure `PRESENT_UNVERIFIED`, pas
+une preuve de fonctionnement d'OpenPGP/scdaemon.
+Les 5 nouveaux tests de chemin/socket sont hermétiques ; leur
+validation sur la workstation au HEAD actuel est encore **NOT_RUN**.
+
+**Prochaine étape non destructive :**
+`just yubikey-workstation-test`
+puis `just yubikey-workstation-readonly`.
+Les états à regarder sont `gpg_agent_socket`
+et `gpg_agent_socket_locator`.
+L'étape suivante seulement, si nécessaire, sera un diagnostic
+GPG/PCSC non interactif et sans démarrage automatique d'agent.
+Les sauvegardes GPG/PostgreSQL et l'escrow age restent à vérifier
+par une procédure de restauration isolée et autorisée.
+
+**Toutes les opérations de configuration matérielle et de migration
+SOPS restent NO-GO.**
+
+
+## 18. Diagnostic consolidé en une commande — PR #280
+
+La cible `just yubikey-diagnostics-secondary-readonly` réunit les contrôles du poste et des applications PIV/FIDO2/OATH/OpenPGP sur la seule carte 22916048. Voir [le runbook](yubikey-readonly-batch.md) pour les modes host-only, tests synthétiques et principale séparée. Aucun PIN, OTP2, F9, PIV82, déchiffrement, modification PAM ou SOPS n'est exécuté. Résultat global NO-GO même en cas d'observations positives. Les validations opérateur précédentes ne couvrent pas cette nouvelle cible.

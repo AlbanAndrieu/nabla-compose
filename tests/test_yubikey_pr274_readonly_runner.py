@@ -339,12 +339,37 @@ print(json.dumps({"status": "NO-GO", "hardware_mutation_authorized": False}))
         self.assertNotIn('PASS: snapshot', result.stdout)
         self.assert_untouched()
 
+    def test_explicit_pr280_branch_uses_requested_ref(self):
+        target = 'feat/apisix-standalone-poc-20261025'
+        git(self.source, 'push', '-q', str(self.remote),
+            f'{self.original}:refs/heads/{target}')
+        result = self.run_script('--branch', target)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('PASS: snapshot', result.stdout)
+        self.assert_untouched()
+
+    def test_invalid_branch_fails_before_network_or_hardware(self):
+        result = self.run_script('--branch', '../invalid')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('invalid branch name', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assertFalse(self.recovery_trace.exists())
+        self.assert_untouched()
+
+    def test_explicit_branch_ref_missing_fails_closed(self):
+        result = self.run_script('--branch', 'feat/not-created-20261025')
+        self.assertEqual(result.returncode, 3)
+        self.assertIn('Remote branch lookup failed', result.stderr)
+        self.assertFalse(self.trace.exists())
+        self.assert_untouched()
+
     def test_help_does_not_contact_git_or_hardware(self):
         result = subprocess.run(['bash', str(SCRIPT), '--help'], cwd=str(self.base),
                                 env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
         # Help describes the supported interface, not a deprecated /tmp checkout.
         self.assertIn('--pinned-sha SHA', result.stdout)
+        self.assertIn('--branch NAME', result.stdout)
         self.assertIn('--inventory-secondary', result.stdout)
         self.assertNotIn('/tmp/nabla-yubikey-pr259', result.stdout)
         self.assertFalse(self.trace.exists())

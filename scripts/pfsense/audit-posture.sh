@@ -447,6 +447,21 @@ snort_conf="$(find /usr/local/etc/snort -type f -path '*mvneta0.4090/snort.conf'
 if [ -n "$snort_conf" ]; then
   snort_memcap="$(grep -A12 'preprocessor http_inspect: global' "$snort_conf" 2>/dev/null | sed -n 's/.*memcap[[:space:]]\([0-9][0-9]*\).*/\1/p' | head -n 1)"
   snort_memcap="$(number_or_zero "$snort_memcap")"
+  # Snort 2.x fast pattern matcher. Return only a normalized enum,
+  # never the generated rule content. AC-BNFA is the low-memory preference.
+  snort_search_method="$(awk '
+    /^[[:space:]]*config[[:space:]]+detection:/ {
+      for(i=1;i<=NF;i++) {
+        if($i=="search-method" && (i+1)<=NF) {print $(i+1); exit}
+      }
+    }
+  ' "$snort_conf" 2>/dev/null | head -n 1)"
+  case "$snort_search_method" in
+    ac-bnfa|ac-bnfa-nq) emit PASS snort.search_method "$snort_search_method" "low-memory fast-pattern matcher" ;;
+    ac|ac-nq|ac-q|ac-std|ac-split|lowmem|lowmem-nq|acs|ac-banded|ac-sparsebands)
+      emit WARN snort.search_method "$snort_search_method" "review low-memory AC-BNFA in Snort GUI; do not change generated config manually" ;;
+    *) emit WARN snort.search_method unknown "generated search method not confirmed; verify WAN interface Performance in Snort UI" ;;
+  esac
   if [ "$snort_memcap" -eq "$expected_snort_memcap" ]; then
     emit PASS snort.http_inspect_memcap "$snort_memcap" "WAN HTTP Inspect memcap remains 32 MiB"
   else
@@ -474,6 +489,19 @@ if [ -n "$snort_conf" ]; then
   else
     emit PASS snort.http_inspect_port_7000 absent "TLS listener 7000 is not in http_inspect_server"
   fi
+fi
+
+# CrowdSec engine and its firewall bouncer are independent controls.
+# A stopped bouncer means local decisions may not be enforced by it.
+if pgrep -f '[c]rowdsec-firewall-bouncer' >/dev/null 2>&1; then
+  emit PASS crowdsec.firewall_bouncer running "bouncer process observed; rule enforcement still requires a functional check"
+else
+  emit WARN crowdsec.firewall_bouncer stopped_or_unknown "firewall bouncer not observed; CrowdSec decisions may not be applied locally"
+fi
+if pgrep -x crowdsec >/dev/null 2>&1; then
+  emit INFO crowdsec.engine running "engine observed independently of firewall bouncer"
+else
+  emit INFO crowdsec.engine stopped_or_unknown "engine not observed"
 fi
 
 if pgrep -x ntopng >/dev/null 2>&1; then

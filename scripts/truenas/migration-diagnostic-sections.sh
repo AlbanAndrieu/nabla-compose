@@ -73,7 +73,7 @@ check_section() {
       # determine whether the Vaultwarden materialization is ready.
       run_check openrag-startup bash scripts/truenas/diagnose-openrag-startup.sh --check
       run_check openrag-dependencies bash scripts/truenas/diagnose-openrag-dependencies.sh --check
-      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict
+      run_check ai-runtime-recovery python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict --scope openrag
       run_check openrag-opensearch-legacy-secret bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
       run_check openrag-env-migration bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
       run_check openrag-backstage-bundle python3 scripts/check-service-migration-bundle.py --app openrag
@@ -132,6 +132,28 @@ check_section() {
         run_check fastapi-lan-probes bash scripts/truenas/verify-fastapi-lan-probes.sh --check
       else
         record fastapi-lan-probes SKIP 'LAN verification script missing from this checkout'
+      fi
+      ;;
+    # Explicit acceptance after a reviewed migration: do not mutate Apps
+    # or infer service health from a stale TrueNAS lifecycle flag.
+    postmigration)
+      run_check postmigration-catalog python3 scripts/generate-catalog-v2-artifacts.py --check
+      run_observation postmigration-service-readiness python3 scripts/truenas/diagnose-service-readiness.py --check --strict --color never --icons never
+      run_observation postmigration-gatus python3 scripts/truenas/diagnose-gatus-monitors.py --check
+      run_check postmigration-prometheus bash scripts/truenas/diagnose-prometheus-targets.sh --check
+      ;;
+    # APISIX is isolated and not part of the mandatory/default migration wave.
+    # A missing deployment is UNVERIFIED, not a proved outage.
+    apisix)
+      if [[ ! -f scripts/truenas/apisix.sh ]]; then
+        record apisix-runtime SKIP 'APISIX diagnostic unavailable in this checkout'
+      elif bash scripts/truenas/apisix.sh check >"${SESSION_DIR}/apisix-runtime.log" 2>&1; then
+        record apisix-runtime PASS "${SESSION_DIR}/apisix-runtime.log"
+      else
+        case "$?" in
+          2) record apisix-runtime WARN "${SESSION_DIR}/apisix-runtime.log" ;;
+          *) record apisix-runtime FAIL "${SESSION_DIR}/apisix-runtime.log" ;;
+        esac
       fi
       ;;
     talos)

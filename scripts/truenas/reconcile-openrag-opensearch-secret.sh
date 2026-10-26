@@ -22,7 +22,7 @@ require_commands awk stat grep
 legacy="/mnt/cpool/compose/nabla-compose/apps/opensearch/.env"
 canonical="/mnt/cpool/secrets/runtime/opensearch/.env"
 canonical_secret="/mnt/cpool/secrets/runtime/opensearch/.env.secrets"
-openrag="${OPENRAG_SECRET_FILE:-/mnt/cpool/openrag/.env.secrets}"
+openrag="${OPENRAG_SECRET_FILE:-/mnt/cpool/secrets/runtime/openrag/.env.secrets}"
 
 # Override exists for a privately reviewed staged source; no automatic rewrite.
 if [[ -n "${OPENSEARCH_ENV_FILE:-}" ]]; then
@@ -66,7 +66,15 @@ for item in "${sources[@]}"; do
   [[ -e "$item" ]] || continue
   resolved=$((resolved + 1))
   if ! is_private "$item"; then
-    fail 'OpenSearch secret candidate has unsafe ownership or mode; no value read'
+    # Fixed candidate class only. Never print a secret path from an override,
+    # raw dotenv content, or any credential value.
+    case "$item" in
+      "$canonical") candidate_class=canonical_env ;;
+      "$canonical_secret") candidate_class=canonical_secret ;;
+      "$legacy") candidate_class=legacy_env ;;
+      *) candidate_class=operator_selected ;;
+    esac
+    fail "OpenSearch secret candidate has unsafe ownership or mode; source=${candidate_class}; expected uid=0 and mode=0600/0400/0640; no value read"
   fi
   candidate="$(read_key "$item" OPENSEARCH_PASSWORD)" ||
     fail 'OpenSearch candidate has missing, empty or duplicate OPENSEARCH_PASSWORD'

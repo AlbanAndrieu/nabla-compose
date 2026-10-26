@@ -35,6 +35,29 @@ def test_error_categories_do_not_copy_raw_error(raw: str, expected: str) -> None
     assert "never-print-me" not in result
 
 
+def test_remaining_scope_has_exact_seven_jobs_and_redacted_steps() -> None:
+    assert module.REMAINING_JOBS == (
+        "docling", "fastapi_sample", "haproxy", "litellm_hermes",
+        "opensearch", "opensearch-security", "postgres_exporter",
+    )
+    assert set(module.NEXT_CHECK) == set(module.REMAINING_JOBS)
+    payload = {
+        "status": "success",
+        "data": {"activeTargets": [
+            {"labels": {"job": "docling"}, "health": "down",
+             "lastError": "token=HIDDEN connection refused"},
+            {"labels": {"job": "fastapi_sample"}, "health": "down",
+             "lastError": "HTTP status 403 secret=HIDDEN"},
+        ]},
+    }
+    result = module.assess_targets(payload, jobs=module.REMAINING_JOBS)
+    assert result["docling"]["errors"] == ["tcp_refused"]
+    assert result["fastapi_sample"]["errors"] == ["http_403"]
+    assert result["haproxy"]["state"] == "no_active_target"
+    assert "HIDDEN" not in str(result)
+    assert all("HIDDEN" not in hint for hint in module.NEXT_CHECK.values())
+
+
 def test_missing_job_stays_unknown_instead_of_claiming_down() -> None:
     payload = {"status": "success", "data": {"activeTargets": []}}
     report = module.assess_targets(payload)

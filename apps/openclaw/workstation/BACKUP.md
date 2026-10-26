@@ -103,3 +103,76 @@ bypass budgets. OpenClaw documentation distinguishes `workspace/HEARTBEAT.md`
 from per-monitor cron scratch and documents a `reason=empty-heartbeat-file` skip.
 Identify the *active* scratch and verify skip events before calling this fixed.
 Do not perform billable manual probes.
+
+
+## 2026-10-25 — Préserver l'ancienne checklist et publier un briefing isolé
+
+L'opérateur détient encore un fichier local
+`~/.openclaw/workspace/HEARTBEAT.md.before-fix` contenant l'ancien
+modèle « Morning Briefing – Self-Healing Home Server » (météo, disque,
+RAM, CPU, services, calendriers, Gmail, WhatsApp, alertes et tâches).
+**Ne pas effacer ni écraser cette sauvegarde.**
+
+**Décision :** ne pas réintroduire ces sondes coûteuses dans la boucle
+native `main` de 30 minutes. Le fichier
+`apps/openclaw/workstation/HEARTBEAT.md` reste volontairement
+comment-only pour laisser OpenClaw ignorer les tours vides.
+Le briefing complet et révisé est versionné séparément dans
+`apps/openclaw/workstation/MORNING_BRIEFING.md` :
+- tous les états dynamiques restent `Non vérifié` sans preuve ;
+- seules des preuves autorisées Gatus/Prometheus/FastAPI sont utilisées ;
+- les conversations exclues restent dans une configuration privée ;
+- les jetons verrouillés restent verrouillés, sans reconnexion automatique ;
+- le briefing peut être lancé explicitement ou par une automation
+  isolée, jamais par le heartbeat non borné.
+
+**Depuis Workstation uniquement :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-morning-briefing-test
+just openclaw-morning-briefing-check
+just openclaw-morning-briefing-apply
+just openclaw-morning-briefing-check
+```
+
+`apply` conserve une sauvegarde privée de l'ancien `HEARTBEAT.md`
+sous `~/.openclaw/backups/heartbeat-gitops/`, installe le nouveau
+`MORNING_BRIEFING.md` dans le workspace en mode 0600 et sauvegarde
+une version préexistante de ce dernier. Le script refuse les symlinks
+et les changements concurrents. La sauvegarde
+`HEARTBEAT.md.before-fix` reste intacte.
+
+Ne pas créer un `cron` depuis un `tasks:` dans le fichier : les
+versions récentes d'OpenClaw orientent les tâches récurrentes vers
+leur scheduler natif, dont la syntaxe doit être vérifiée sur la
+version installée après `openclaw update`.
+
+### Interaction avec les embeddings
+
+La mise à jour d'un fichier `HEARTBEAT.md` ou
+`MORNING_BRIEFING.md` n'implique **pas** la reconstruction des
+embeddings `main`/`cron` dans le moteur mémoire standard, qui
+indexe plutôt `MEMORY.md`, `USER.md` et `memory/*.md`.
+Toutefois, `openclaw update` peut introduire une migration du
+moteur mémoire et reconstruire un index lors de la prochaine
+recherche/synchronisation ; distinguer cette migration d'un incident
+de transport LiteLLM.
+
+Contrôles après mise à jour (Workstation) :
+```bash
+openclaw --version
+bash scripts/workstation/openclaw-ops.sh --memory
+python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit
+```
+
+Ne pas exécuter `memory index --force` ni modifier le modèle
+d'embedding (dimension 768) pour résoudre le seul 429 de chat.
+La preuve d'index sain datée du 23 octobre reste historique :
+un `openclaw update` impose une nouvelle vérification.
+
+Documentation :
+- https://docs.openclaw.ai/heartbeat
+- https://docs.openclaw.ai/cron-vs-heartbeat
+- https://docs.openclaw.ai/concepts/memory-search

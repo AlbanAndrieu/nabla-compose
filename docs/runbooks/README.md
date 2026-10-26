@@ -6,13 +6,26 @@
 
 ## Point d'entrée courant
 
+- **[Reprise Talos, secret modes et PDF OpenRAG](2026-10-25-talos-secret-permissions-openrag-pdf.md)** —
+  controles Talos VM STOPPED, permissions de secrets sans chmod recursif,
+  accessibilite PDF prive et preflight Docling, sans ingestion.
+- **[Opérateur de migration TrueNAS](truenas-migration-operator.md)** —
+  entrée CLI stable, modes exclusifs, planHash et workflow de rollback.
 - **[Acceptation runtime Homelab](homelab-runtime-acceptance.md)** —
-  ordre OpenRAG → Sentry → DefectDojo → Prometheus → Akvorado ;
+  priorité de diagnostic Prometheus → OpenRAG → Akvorado ;
   sondes en lecture seule, preuves minimales, interdictions et décisions.
 - **[Diagnostics opérateur spécialisés](2026-10-25-homelab-operator-diagnostics.md)** —
   Gatus, Prometheus et vérifications isolées, sans déploiement.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
+- **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
+  contrats statiques hors ligne et limitations de la preuve.
+- **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —
+  clés manquantes, permissions OpenSearch, validation du legacy avant finalize.
+- **[Reprise ciblée TrueNAS du 25/10](2026-10-25-critical-acceptance-followup.md)** —
+  second relevé PASS=9/FAIL=7, sept contrôles read-only et réparations conditionnelles.
+- **[Relevé TrueNAS du 25/10](2026-10-25-critical-acceptance-evidence.md)** —
+  preuve datée PASS=8/FAIL=8, non assimilée à une santé courante.
 - **[Roadmap active](../roadmap.md)** —
   priorités, risques ouverts et conditions de clôture.
 - **[Skill local-first](../../.agents/skills/local-first-quality/SKILL.md)** —
@@ -26,6 +39,7 @@
 
 | Domaine | Référence | Usage |
 | --- | --- | --- |
+| APISIX | [service opt-in](../../apps/apisix/README.md) · [acceptation après migration](truenas-migration-operator.md) | Vérifier le runtime séparément du smoke HTTP, sans ingress public |
 | OpenRAG | [README d'exploitation](../../apps/openrag/README.md) · [ingestion](openrag-babou-ingestion-diagnostics.md) | État applicatif, Langflow/OpenSearch/LiteLLM, Docling et corpus privé |
 | Sentry | [reprise Apps du 23/10](2026-10-23-app-error-recovery.md) | Historique des incidents ; utiliser le diagnostic ciblé avant toute remédiation |
 | DefectDojo | [accès privé](defectdojo-private-ingress-acceptance.md) | Nginx/uWSGI, HTML origine, DNS interne, Traefik et HTTPS SNI |

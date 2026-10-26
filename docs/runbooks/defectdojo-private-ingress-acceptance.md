@@ -2,6 +2,73 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Régression du 25 octobre 2026 — URL privée inaccessible
+
+L'opérateur signale que `https://defectdojo.int.albandrieu.com/`
+ne répond plus. **La cause actuelle n'est pas vérifiée** et l'ancien
+HTTP 302 du 17 octobre ne suffit pas à déclarer le service sain.
+Les sondes de préflight antérieures peuvent être PASS alors que le
+navigateur échoue sur DNS ou HTTPS.
+
+### TrueNAS — diagnostic lecture seule
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/preflight-defectdojo.sh
+sudo bash scripts/truenas/diagnose-defectdojo.sh --check
+
+# Comparer le backend HTTP et Traefik HTTPS sans utiliser -k.
+curl --noproxy '*' -sS -o /dev/null --max-time 8 \
+  -w 'origin HTTP %{http_code}\n' http://172.17.0.24:31085/
+curl --noproxy '*' -sS -o /dev/null --max-time 10 \
+  --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
+  -w 'edge HTTP %{http_code} TLS_verify=%{ssl_verify_result}\n' \
+  https://defectdojo.int.albandrieu.com/
+```
+
+Le diagnostic classifie les échecs indépendants et donne plusieurs
+étapes `NEXT origin`, `NEXT proxy`, `NEXT DNS` et `NEXT HTTPS` si
+nécessaire. Il imprime uniquement les codes HTTP, états de conteneurs,
+réseaux, DNS RCODE et réponses A ; aucun cookie, password, body ni clé API.
+
+### Workstation — tester le résolveur réellement utilisé
+
+```bash
+dig +time=2 +tries=1 @172.17.0.24 defectdojo.int.albandrieu.com A
+dig +time=2 +tries=1 @172.17.0.1 defectdojo.int.albandrieu.com A
+bash scripts/workstation/diagnose-defectdojo-lan.sh --check
+```
+
+### Branches de résolution, une cause à la fois
+
+- **Origine LAN 000/502/503, conteneur arrêté :** vérifier le front
+  `defectdojo`, le serveur `defectdojo-uwsgi` et PostgreSQL partagé.
+  L'App est la seule cible admissible d'une éventuelle réconciliation,
+  avec `sudo bash scripts/truenas/deploy-security-tooling.sh --check defectdojo`
+  **avant** de considérer `--apply defectdojo`. Ce dernier peut
+  recréer/relancer des conteneurs : ne pas le lancer sur la seule panne DNS.
+- **LAN HTML 200/302 mais HTTPS 404/502/503 :** vérifier l'attachement
+  `traefik_network`, le router et la destination port `8080`.
+  Ne pas changer les secrets Django.
+- **LAN et HTTPS SNI 200/302, mais nom DNS en échec :** remettre en
+  cohérence Pi-hole → pfSense/Unbound. Les preuves du 17 octobre montraient
+  **Pi-hole OK et forwarding Unbound SERVFAIL/RTO élevé**, notamment avec
+  une interface sortante Unbound WAN-only. Vérifier la configuration
+  *Outgoing Network Interfaces* et les ACL pfSense via le runbook DNS,
+  sans changer pfSense à l'aveugle ni créer un enregistrement public.
+- **TLS invalide (HTTP 000, curl erreur certificat) :** vérifier le
+  certificat privé et le router Traefik avec SNI. Ne pas utiliser
+  `curl -k` comme preuve d'acceptation.
+- **Toutes les sondes serveur OK mais navigateur KO :** vérifier le
+  DNS réel du poste, le VPN, le proxy navigateur et le cache. Une
+  IP cliente fixe dans le VLAN ne garantit pas que ce navigateur résolve
+  la zone `.int` par Pi-hole/Unbound.
+
+**Conserver impérativement** les données DefectDojo/PostgreSQL,
+`DD_SECRET_KEY`, `DD_CREDENTIAL_AES_256_KEY` et le compte admin :
+aucun réinitialiseur, aucune migration DB ou redéploiement massif.
+Ne pas exposer `.int` dans le DNS public pour contourner la panne.
+
 ## Mise à jour de sécurité du diagnostic DNS (25 octobre 2026)
 
 La PR #276 corrige les faux positifs de `diagnose-defectdojo.sh --check` :

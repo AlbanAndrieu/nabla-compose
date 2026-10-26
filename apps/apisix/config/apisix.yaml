@@ -1,0 +1,29 @@
+---
+# Standalone file-driven requires the final #END marker.
+routes:
+  - id: apisix-health
+    uri: /health
+    methods: [GET]
+    plugins:
+      key-auth:
+        header: X-Nabla-APISIX-Key
+        hide_credentials: true
+      proxy-rewrite:
+        uri: /
+      limit-count:
+        count: 30
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
+        policy: local
+    upstream:
+      type: roundrobin
+      nodes:
+        "echo:8080": 1
+consumers:
+  - username: apisix-agent
+    plugins:
+      key-auth:
+        key: "$env://APISIX_KEY"
+#END

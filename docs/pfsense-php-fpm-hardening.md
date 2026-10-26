@@ -184,3 +184,421 @@ no sustained php-fpm.socket listen queue overflow
 Keep Unbound out of Service Watchdog while memory pressure remains a plausible
 failure mode. A process-only restart loop can amplify allocation pressure and
 cannot detect a resolver that is alive but returning functional DNS failures.
+
+
+## October 25 recurrence: verify actual PHP-FPM workers before removing security
+
+New Netgate 1100 read-only sampling on 2026-10-25 21:37–21:40 CET showed
+**8 processes in the broad `php_fpm` group**, accounting for about
+**283–307 MiB aggregate RSS** (RSS double-counts shared pages).
+The sampler groups `comm` names beginning with `php-fpm`; this is **not
+equivalent to 8 pool workers**. It may include the PHP-FPM master.
+Do not assert the prior generator patch was lost on this evidence alone.
+
+Use the new workstation read-only recipes:
+
+```bash
+just pfsense-php-fpm-test
+just pfsense-php-fpm-check
+```
+
+`pfsense-php-fpm-check` transfers only the reviewed `--check` script
+through SSH. It **does not install anything, restart PHP-FPM, restart
+WebConfigurator or alter pfSense**. It reports three independent signals:
+
+1. Generator `>1000 MiB` profile in `/etc/rc.php_ini_setup`.
+2. Generated `/usr/local/lib/php-fpm.conf` values.
+3. Actual `php-fpm: pool nginx` child count (excluding master).
+
+If generator and generated pool differ, classify this as **configuration
+drift**, not as a license to restart production services immediately.
+If both are already `4/30/1/2/500` but the pool still has more than
+four workers, inspect runtime process ownership and pfSense state first.
+If both are at upstream `8/3600/2/7/5000`, apply the documented
+constrained profile only in a reviewed maintenance window using the
+version-guarded `--apply` and its backup/restore path; never auto-apply
+from a read-only audit. Recheck pfREST/WebConfigurator and Unbound DNS.
+
+The historical 2026-09-08 improvement and target remain applicable only
+to the reviewed `26.07-RELEASE` generator. A newer pfSense release may
+have a different script layout and must fail closed.
+
+### Decision order to protect DNS and retain security coverage
+
+1. **P0 PHP-FPM:** diagnose generator/runtime drift; reduce idle workers
+   using the reviewed profile when eligible. This was more material
+   historically than dropping individual Snort signatures.
+2. **P1 firewall/telemetry:** avoid high-frequency pfREST fan-out and
+   excess PF pass logging; verify CrowdSec input/CPU backpressure.
+3. **P2 Snort:** keep the WAN-only instance and 32 MiB HTTP Inspect cap;
+   verify the low-memory AC-BNFA matching engine before changing rule
+   categories. Disabled categories reduce signature coverage; quantify
+   relevance and validate LAN/WAN probes before any change.
+4. **P2 pfBlockerNG:** keep previously disabled UT1 Adult and obsolete
+   feeds disabled, avoid re-enabling DNSBL TLD, and verify ASN reporting
+   is still disabled when no IPinfo token/database contract exists.
+   Classify stale HTTP 403/404 and log retry lines as maintenance debt,
+   not proof of present RAM exhaustion.
+
+Do **not** disable Unbound, all DNSBL or all WAN Snort as the default
+memory optimization; do not raise PHP memory_limit from 128M as a
+workaround for a large DNSBL file.
+
+## 2026-10-25 operator evidence and guarded workstation change
+
+### The regression is now confirmed, not inferred from broad RSS groups
+
+Operator `just pfsense-php-fpm-test` **4/4 PASS**. Real Netgate
+`just pfsense-php-fpm-check` confirmed:
+
+```text
+pfSense release: 26.07-RELEASE
+generator >1000 MiB profile: 8/3600/2/7/5000
+generated PHP-FPM profile: 8/3600/2/7/5000
+php_fpm_nginx_pool_workers=7
+```
+
+These are genuine `php-fpm: pool nginx` workers, not the earlier
+8 broad `comm` processes. The pfSense high-memory profile has
+reappeared since the previous successful hardening. On 2026-10-25
+the operator manually restarted Unbound after finding it offline
+and stopped an entity described as 'CrowdSec firewall'. Determine
+whether the stopped component is the **firewall bouncer** or engine
+before counting security protections as active.
+
+### Prepared workstation workflow
+
+Scripts in PR #280 provide explicit, guarded commands:
+
+```bash
+just pfsense-php-fpm-test
+just pfsense-php-fpm-check
+just pfsense-security-capacity-audit
+```
+
+The new read-only audit detects generator/runtime drift and actual
+nginx workers, verifies local Unbound control and DNS `NOERROR`,
+and reports CrowdSec bouncer presence without restarting it.
+
+**Apply only in a separate maintenance window**, not during
+pfBlockerNG at 00:00, 04:00, 22:00 or Snort at 02:09/14:09.
+Have SSH/serial fallback and verify management-access restrictions.
+
+```bash
+PFSENSE_PHP_FPM_CHANGE_CONFIRM=APPLY_4_WORKERS just pfsense-php-fpm-apply
+```
+
+This requires explicit confirmation and a remote privileged
+non-interactive shell (root or passwordless `sudo -n`). It:
+
+1. Rejects invalid args, host or unauthorized change *before SSH*.
+2. Preflights running Unbound, its control socket and an actual
+   `NOERROR` DNS response from 127.0.0.1. **Apply refuses when
+   Unbound is unverified**, particularly after the recent outage.
+3. Uses the previously reviewed version-guarded backup + generator
+   hardening script with the **native pfSense** PHP-FPM and webGUI
+   restart sequences; no reboot and no CrowdSec/Snort reload.
+4. Checks Unbound/DNS, PHP-FPM socket, generated `pm.max_children=4`
+   and the actual nginx worker count (1..4). Reports success
+   only when the checks complete.
+
+**If maintenance fails**, inspect the failure before running other
+service changes. Restore the saved generator using:
+
+```bash
+PFSENSE_PHP_FPM_CHANGE_CONFIRM=RESTORE_BACKUP just pfsense-php-fpm-restore
+```
+
+The restore is independently guarded and may proceed even when
+Unbound is unhealthy, so that DNS faults do not prevent recovery.
+The post-restoration DNS smoke can still fail if DNS remains down;
+that must not be confused with failure to restore the generator.
+The backup is the OS-local file
+`/conf/backup/rc.php_ini_setup.nabla-pre-phpfpm-hardening`.
+
+**After applying**, measure memory again with
+`just pfsense-memory-window`, validate the webConfigurator
+HTTPS, essential pfREST GET operations, localhost and LAN public
+and private DNS, then watch for new kernel OOM or php-fpm socket
+queue overflow. The improvement target is **at least 128 MiB**
+of free+inactive headroom under ordinary load (not an
+OOM-free guarantee). Do not increase PHP `memory_limit=128M`.
+
+**GUI distinction (Netgate docs):**
+`System > Advanced > Admin Access > webConfigurator > Max Processes`
+controls the **web server (nginx)** workers, not PHP-FPM pool
+workers. `System > Advanced > Miscellaneous > PHP Settings >
+Memory Limit` limits memory **per PHP process**. Neither exposes
+the five PHP-FPM sizing values this script reconciles.
+Sources:
+<https://docs.netgate.com/pfsense/en/latest/config/advanced-admin.html>
+<https://docs.netgate.com/pfsense/en/latest/config/advanced-misc.html>.
+
+**Snort performance UI (different component):**
+`Services > Snort > Interfaces > Edit WAN > Interface Settings >
+Detection Performance Settings > Search Method` should use
+**AC-BNFA** on a low-memory appliance; inspect the exact
+installed package UI first. Verify the WAN-only instance and
+HTTP Inspect memcap of 32 MiB, do not mutate generated
+`snort.conf` directly. Netgate docs:
+<https://docs.netgate.com/pfsense/en/latest/packages/snort/interface-settings.html>.
+
+**No GitHub Actions paid CI; no changes to pfSense have been
+performed by these commits.** New local SSH-mock tests cover
+confirmation, root/sudo privilege routing, and read-only
+pre/postchecks. They need validation on the PR HEAD.
+
+## 2026-10-25 — Cutover confirmé par l'opérateur, contrôle post-changement
+
+**L'application a réellement été exécutée par l'opérateur**, pas par
+l'agent, le 25 octobre 2026 en soirée (vers 23:40 CET).
+Les 13 tests `just pfsense-security-capacity-test` sont **PASS**
+(4 contrats initiaux PHP-FPM, 6 du driver SSH et 3 de posture).
+
+| Constat | Avant | Après (preuve opérateur) |
+| --- | --- | --- |
+| Générateur pfSense | `8/3600/2/7/5000` | **`4/30/1/2/500`** |
+| Pool généré | `8/3600/2/7/5000` | **`4/30/1/2/500`** |
+| Enfants `php-fpm: pool nginx` | **7** | **1** |
+| Socket PHP-FPM | PRESENT | **PRESENT** |
+| Unbound / DNS localhost | HEALTHY en preflight | **HEALTHY** en postcheck |
+| RSS agrégé php-fpm | ~283–307 Mio selon la fenêtre précédente | **195792 Kio / 5 processus**, maître compris |
+| `free+inactive` | **72,4 Mio** au minimum dans la fenêtre avant | **277868 Kio = 271,4 Mio** au premier snapshot après |
+
+Le changement a sauvegardé le générateur dans
+`/conf/backup/rc.php_ini_setup.nabla-pre-phpfpm-hardening`.
+`--apply` s'est terminé par
+`result=CHANGE_COMPLETED_WITH_DNS_SMOKE`, avec le profil cible confirmé.
+**Ne pas rejouer l'apply** simplement parce qu'il est disponible.
+Conserver le rollback uniquement en cas de régression avérée.
+
+### Événements à dissocier
+
+Le script natif de redémarrage a imprimé **`[: NaN: bad number`**
+pendant l'application, avant le redémarrage `check_reload_status`.
+La commande de maintenance détecte désormais ce message en sortie du
+redémarrage natif et émet
+`WARN: pfSense_native_restart_numeric_warning=OBSERVED_SOURCE_UNCONFIRMED`,
+sans masquer ni les erreurs SSH ni les tests DNS/WebConfigurator.
+**Il ne s'agit pas d'une correction du script natif pfSense** ; ne
+pas réexécuter le changement pour tester ce warning.
+
+Le code de nos scripts ne contient pas de calcul numérique `NaN`,
+mais la provenance exacte n'est **pas prouvée** (générateur, script
+de restart pfSense, ou dépendance appelée). Les contrôles postérieurs
+réussissent. Le traiter comme **dette de diagnostic native non fatale**
+et ne pas modifier les scripts OS de pfSense sans preuve.
+
+Unbound avait subi **un nouveau kill noyau lors de l'OOM
+du 25 octobre à 22:12 CET** et a été redémarré manuellement
+avec le PID `19252` à **22:46:18 CET**. La dernière victime
+journalisée à `22:12:38+01:00` est **`php_pfb`**.
+Le cron pfBlockerNG est planifié à **22:00** ; proximité d'horaire
+seule, le job déclencheur de l'OOM n'est pas démontré.
+Tous ces événements sont **antérieurs** au changement PHP-FPM.
+Les journaux noyau les conservent : ne pas les compter comme des
+OOM survenus après déploiement.
+
+### Protections effectivement auditées
+
+- Snort WAN **running** en mode passif, AC-BNFA **PASS**,
+  HTTP Inspect memcap **32 Mio**, règle TLS port 7000 non inspectée
+  comme HTTP clair : **aucune réduction supplémentaire nécessaire**.
+- CrowdSec **engine running**, firewall bouncer
+  **stopped_or_unknown**, arrêt signalé par l'opérateur :
+  les décisions de blocage locales peuvent ne plus s'appliquer.
+  Ne pas considérer les protections de blocage CrowdSec actives.
+- pfBlockerNG DNSBL Python fonctionne, la dernière mise à jour
+  présente un marqueur `PASSED` à 00:05:12 ; mais
+  `pfblocker.dnsbl_loaded_entries=0` signifie compteur de module
+  **absent ou inconnu**, et **pas** nécessairement zéro entrée.
+- `service.pfb_filter=0` : helper filterlog pfBlockerNG non observé.
+  C'est une vérification séparée ; ne pas tenter de le redémarrer
+  pour économiser ou restaurer la mémoire sans preuve de besoin.
+
+### Recette réutilisable de réception
+
+```bash
+just pfsense-php-fpm-postcheck
+```
+
+Le postcheck exécute en lecture seule l'audit de capacité, les
+statuts Unbound/Watchdog/Snort/pfBlockerNG/CrowdSec, les OOM
+historiques, puis un snapshot RAM ; il ne force pas de restart.
+Compléter par les contrôles **depuis le LAN** sur
+`https://home.albandrieu.com:10443` (HTTPS avec certificat valide),
+un endpoint pfREST autorisé et les résolutions DNS publiques
+et privées. Un simple `401` sur pfREST indique potentiellement
+une authentification requise et ne doit pas être assimilé à
+un service totalement indisponible.
+
+**Critères de stabilisation :** maintien du profil `4/30/1/2/500`,
+retour de l'accès management, absence de nouvel OOM **après
+~23:40 CET**, mémoire disponible au-dessus de 128 Mio en
+régime ordinaire et surveillance spécifique après les jobs
+pfBlockerNG 00:00/04:00/22:00 et Snort 02:09/14:09.
+Un snapshot après application ne prouve pas un gain durable :
+la charge et l'état CrowdSec ont également changé.
+
+Ne pas augmenter `PHP memory_limit` au-delà de 128M, ne pas
+réactiver le feed UT1 Adult, et ne pas désactiver Snort WAN
+puisque ses réglages basse mémoire sont déjà confirmés.
+
+## Réception complémentaire — 25 octobre 2026 à 23:56 CET
+
+**Pièce opérateur :** sortie complète de `just pfsense-php-fpm-postcheck`
+reçue le 25 octobre à 23:56 CET, après confirmation
+`just pfsense-security-capacity-test` **15/15 PASS**
+(4 contrats hardening, 8 wrapper SSH, 3 posture).
+
+### Comparaison des deux premiers snapshots après cutover
+
+| Indicateur | ~23:41 CET | 23:56 CET |
+| --- | ---: | ---: |
+| Générateur / pool | `4/30/1/2/500` | **`4/30/1/2/500`** |
+| Enfants nginx PHP-FPM | 1 | **2** |
+| `free+inactive` | 277868 Kio (**271,4 Mio**) | 252948 Kio (**247,0 Mio**) |
+| RSS agrégé `comm=php-fpm` | 195792 Kio (**191,2 Mio**) | 97476 Kio (**95,2 Mio**) |
+| Processus nommés `php-fpm` | 5 | 3 |
+| Unbound / DNS | HEALTHY | **HEALTHY** |
+
+Ces chiffres sont **instantanés** et pris sous des charges
+différentes. Ils n'établissent pas le gain isolé imputable
+à PHP-FPM. Le nombre `comm=php-fpm` inclut le master ;
+`php_fpm_nginx_pool_workers=2` désigne le décompte exact
+des enfants du pool nginx. La nouvelle sortie structurée
+`php_fpm_profile_contract=CONSTRAINED_MATCH` et
+`php_fpm_worker_contract=WITHIN_TARGET` permettra d'éviter
+de confondre ces deux nombres lors des prochaines collectes.
+
+### Continuité Unbound et événements historiques
+
+Le dernier rapport Unbound a été pris à **23:56:01 CET** :
+`unbound_pid=19252`, démarré le **25/10 à 22:46:18 CET**,
+`unbound_control=REACHABLE`. Les sondes DNS publiques
+(localhost et LAN 172.17.0.1) sont PASS. Cela n'établit
+pas encore la résolution DNS *privée* depuis un client LAN.
+
+`config_fingerprint=unbound_config` est **inchangé** depuis le
+premier relevé à 23:39 : taille 2289 octets,
+`mtime_local=2026-10-25T22:46:17+0100` et même SHA-256.
+Le fichier INI DNSBL hérité a également la même empreinte.
+Le fichier candidat `dnsbl_python_ini` est `UNAVAILABLE`.
+Cette identité ne prouve pas que la liste DNSBL en mémoire
+n'a pas changé. **Une deuxième empreinte après l'exécution
+de minuit est encore nécessaire.**
+
+Dans les journaux consultés, le dernier OOM reste à
+**22:12:38+0100**, victime `php_pfb`, avec Unbound également
+tué au cours de cette minute. Il précède le cutover PHP-FPM.
+Aucun kill plus tardif n'est visible dans les fenêtres
+bornées inspectées ; cela ne prouve pas l'absence de
+messages supprimés ou non retenus.
+
+### Résultat global de l'audit — 37 PASS, 5 WARN, 0 FAIL
+
+| WARN | Signification | Prochaine action |
+| --- | --- | --- |
+| `pfblocker.dnsbl_ram_swap_gate=missing` | Garde-fou de swap DNSBL absent dans `3.2.17_1` | Éviter le rebuild forcé, rechercher mise à niveau vérifiée |
+| `pfblocker.dnsbl_loaded_entries=0` | Compteur non renseigné, **pas** DNSBL vide prouvé | Recouper les marqueurs DNSBL `PASSED` et la couverture effective |
+| `crowdsec.firewall_bouncer=stopped_or_unknown` | Moteur actif, filtrage par bouncer non confirmé | Restaurer la couverture dans une fenêtre séparée |
+| `service.zabbix_agentd=stopped` | Monitoring agent non actif | Restaurer après la stabilisation mémoire |
+| `service.pfb_filter=0` | Helper filterlog non observé | Vérifier son besoin et sa provenance avant de le relancer |
+
+Les contrôles suivants sont conformes : **Snort WAN passif**
+avec **AC-BNFA** et HTTP Inspect **32 Mio**, Unbound
+fonctionnel, DNSBL Python, TLD désactivé, DNSBL VIP
+`10.10.10.1:443` avec un listener, Kea DHCPv4,
+`php.memory_limit=128M` et dernier update DNSBL signalé
+`PASSED` (marqueur 25/10 à 00:05:12).
+
+### Évolutions des scripts
+
+- `harden-pfsense-php-fpm.sh --check` émet désormais des
+  champs machine lisibles pour le contrat du profil et le
+  budget de workers ; ces champs sont des **observations
+  read-only**, pas un nouvel apply ni une surveillance continue.
+- `console.sh` emploie `1 sample` au singulier et conserve
+  `Historical OOM events NOT_EVALUATED` pour une mesure mémoire
+  ponctuelle sans consultation du journal noyau.
+- Des régressions locales couvrent le vrai profil
+  `4/30/1/2/500`, les **deux** enfants nginx, le changement
+  de profil et le rendu d'une seule mesure.
+
+**Validation locale confirmée après la dernière correction :**
+dans la sortie opérateur du **26/10/2026 vers 00:06 CET**,
+`just pfsense-security-capacity-test` est **16/16 PASS** :
+5 tests hardening PHP-FPM (dont la fixture à 2 workers),
+8 tests du driver SSH et 3 tests de posture. Aucun FAIL.
+Le rapport teste les contrats locaux ; il **ne remplace pas**
+un nouveau diagnostic runtime de pfSense après le cron DNSBL.
+
+**P0 encore ouvert :** valider depuis LAN la GUI
+`https://home.albandrieu.com:10443`, le pfREST authentifié,
+la zone DNS privée et la non-régression sous la prochaine
+charge DNSBL/Snort. Ne pas redémarrer Unbound ni réappliquer
+le patch PHP-FPM pour ces contrôles.
+
+### Validation locale supplémentaire — 26/10/2026 à 00:06 CET
+
+Le même relevé opérateur contient
+`just pfsense-unbound-restart-test` **49/49 PASS** :
+21 contrats Unbound, 23 tests console et 5 contrats d'échantillonnage.
+Au total, avec les **16/16** contrats capacité/PHP-FPM,
+ce sont **65/65 tests locaux validés** après la modification.
+Ces tests sont exécutés depuis la workstation, sans lancer
+de nouvelle mise à jour Snort ou pfBlockerNG et sans redémarrer
+les services.
+
+**Chronologie :** le dernier véritable relevé pfSense joint reste
+celui de **23:56 CET le 25/10** (profil 4 workers, 2 enfants
+actifs, 247,0 Mio disponibles, Unbound en service).
+La validation lancée à **00:06** le 26/10 est une **gate
+de tests**, pas un échantillon mémoire ou DNS après le cron
+pfBlockerNG programmé à 00:00. Le comportement du résolveur
+après ce cron reste **NOT_VERIFIED** jusqu'à une nouvelle
+exécution du collecteur read-only.
+
+```bash
+PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
+```
+
+Comparer le PID, la date de lancement, les empreintes de
+configuration, les stop/start pfBlockerNG et les éventuels
+OOM postérieurs à 00:00 avec la baseline conservée dans
+`docs/runbooks/2026-10-25-pfsense-unbound-restart-causality.md`.
+**Ne pas réappliquer le profil PHP-FPM** pour cette vérification.
+
+## Après cron DNSBL — 26/10/2026 à 00:12 CET
+
+Le relevé post-cron reçu à **00:12:48 CET** montre
+**Unbound PID 2611**, lancé à **00:04:32 CET**.
+La baseline du 25/10 à 23:56 montrait PID 19252 :
+la continuité du PID est donc rompue pendant les
+marqueurs pfBlockerNG stop/start autour de 00:04.
+Une sortie du module Python DNSBL a été horodatée
+à **00:04:30.252+01:00**. Unbound Control répond à 00:12.
+
+Les empreintes de `unbound.conf` et
+`dnsbl_legacy_ini` sont **inchangées** ;
+la configuration effective Python en mémoire n'a
+pas été contrôlée. Aucun nouvel OOM n'apparaît
+après le kill du 25/10 22:12 dans les journaux
+conservés. La RAM `free+inactive` est passée
+de **247,0 Mio (23:56)** à **167,1 Mio (00:12)**,
+sous une charge différente et sans preuve
+du consommateur responsable de l'écart.
+
+**Ne pas revenir au profil PHP-FPM précédent.**
+Le redémarrage nocturne d'Unbound se produit avec
+le profil PHP-FPM contraint, mais il correspond
+à un autre mécanisme (cycle pfBlockerNG DNSBL
+rapporté par le package), non à un nouveau kill OOM.
+Un incident de disponibilité DNS éventuel reste
+à mesurer durant le cycle lui-même.
+
+Pour automatiser une comparaison réutilisable
+de deux rapports sans SSH, utiliser
+`just pfsense-unbound-compare` avec
+`PFSENSE_BEFORE` et `PFSENSE_AFTER`.
+Voir le runbook H-04 pour les limites causales.

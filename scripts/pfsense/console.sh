@@ -34,7 +34,10 @@ pfsense_ui_render() {
       if(mode=="compact") {
         for(i=1;i<=pending_count;i++) {
           bucket=pending_order[i]
-          emit("Historical OOM minute="bucket" · kernel kills="pending[bucket],"warn",1)
+          summary="Historical OOM minute="bucket" · kernel kills="pending[bucket]
+          if(pending_unbound[bucket]>0) summary=summary" · unbound kills="pending_unbound[bucket]
+          emit(summary,"warn",1)
+          delete pending_unbound[bucket]
           delete pending[bucket]
           delete pending_order[i]
         }
@@ -68,7 +71,7 @@ pfsense_ui_render() {
       if(ts ~ /Z$/) return minute" Z"
       return minute" (offset unknown)"
     }
-    function historic_oom(ts, id, minute) {
+    function historic_oom(ts, victim, id, minute, message) {
       id=(ts=="unknown" ? "unknown-" ++unknown_id : ts)
       if(seen_oom[id]++) {oom_duplicates++; return}
       oom_unique++
@@ -77,8 +80,11 @@ pfsense_ui_render() {
       if(mode=="compact") {
         if(!(minute in pending)) {pending_order[++pending_count]=minute;pending[minute]=0}
         pending[minute]++
+        if(victim=="unbound") pending_unbound[minute]++
       } else {
-        emit("Historical kernel OOM timestamp="ts,"warn",1)
+        message="Historical kernel OOM"
+        if(victim!="") message=message" victim="victim
+        emit(message" timestamp="ts,"warn",1)
       }
     }
     function syslog_kind(line) {
@@ -99,7 +105,41 @@ pfsense_ui_render() {
       flush();sections++;name=$0;sub(/^=== /,"",name);sub(/^==> /,"",name);sub(/ ===$/,"",name)
       printf "\n%s🔎 %s%s\n",cyan,name,reset;next
     }
+    /^sampler_budget=samples=/ {
+      sampler_run=1
+      split($1,v,"=")
+      sampler_expected=v[3]+0
+      emit($0,"",1);next
+    }
+    /^sample_seq=[0-9]+ timestamp=/ {
+      sampler_run=1
+      available=""
+      timestamp=""
+      for(j=1;j<=NF;j++) {
+        split($j,v,"=")
+        if(v[1]=="available_kib" && v[2] ~ /^[0-9]+$/) available=v[2]+0
+        if(v[1]=="timestamp") timestamp=v[2]
+      }
+      if(available=="") {
+        collector_failed=1
+        emit("ERROR: sampler_missing_available_kib","error",1)
+      } else {
+        sampler_samples++
+        if(sampler_samples==1 || available<sampler_min) {sampler_min=available;sampler_min_ts=timestamp}
+        if(sampler_samples==1 || available>sampler_max) {sampler_max=available;sampler_max_ts=timestamp}
+        if(available<131072) sampler_below_128++
+        if(available<65536) sampler_below_64++
+      }
+      emit($0,"",1);next
+    }
     /^source=snort .*timestamp=unknown$/ && mode=="compact" {snort_unknown++;next}
+    # Dedicated restart-provenance collector uses a typed OOM signal.
+    # Count this as historical evidence, not a current down service.
+    /^(WARN: )?signal_source=system event=kernel_oom_(unbound|other) timestamp=/ {
+      ts=$0;sub(/^.*timestamp=/,"",ts)
+      victim=($0 ~ /event=kernel_oom_unbound / ? "unbound" : "other")
+      historic_oom(ts,victim);next
+    }
     /^source=system event=kernel_oom/ {
       ts=$0;sub(/^.*timestamp=/,"",ts)
       historic_oom(ts);next
@@ -133,6 +173,9 @@ pfsense_ui_render() {
       }
       next
     }
+    /^ERROR: (lifecycle_classifier_failed|feed_log_classifier_failed|sampler_[A-Za-z0-9_]+)/ {
+      collector_failed=1; emit($0,"error",1);next
+    }
     /^(ERROR:|FAIL:|FAIL |BLOCKED:|.*status=BLOCKED)/ {emit($0,"error",1);next}
     /^(WARN(ING)?:|WARN |NOT ACTIVE:|.*status=unknown|.*=NOT_VERIFIED|.*transport=unavailable)/ {emit($0,"warn",1);next}
     /^(PASS:|PASS |OK:)/ {emit($0,"ok",0);next}
@@ -140,7 +183,18 @@ pfsense_ui_render() {
     END {
       flush()
       if(snort_unknown)printf "%s⚠️ Snort: %d events with unknown timestamps%s\n",yellow,snort_unknown,reset
-      printf "\n%s📊 Evidence only · %d sections · %d distinct historical OOM records · %d duplicate lines suppressed · %d OOM minutes · %d warnings · %d lines omitted%s\n",dim,sections,oom_unique,oom_duplicates,oom_minutes,warnings,total_hidden,reset
+      if(sampler_run && sampler_samples>0) {
+        printf "\n%s📊 Memory window · %d %s · available min=%.1f MiB (%s) · max=%.1f MiB (%s) · below 128 MiB=%d · below 64 MiB=%d%s\n",
+          cyan,sampler_samples,(sampler_samples==1?"sample":"samples"),sampler_min/1024,sampler_min_ts,sampler_max/1024,sampler_max_ts,
+          sampler_below_128,sampler_below_64,reset
+      }
+      if(collector_failed || sections==0 || (sampler_run && sampler_expected!=sampler_samples)) {
+        printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or missing samples/sections; OOM totals are NOT reliable%s\n",red,reset
+      } else if(sampler_run) {
+        printf "%sℹ️ Historical OOM events NOT_EVALUATED · this sampler does not inspect kernel logs%s\n",dim,reset
+      } else {
+        printf "\n%s📊 Evidence only · %d sections · %d distinct historical OOM records · %d duplicate lines suppressed · %d OOM minutes · %d warnings · %d lines omitted%s\n",dim,sections,oom_unique,oom_duplicates,oom_minutes,warnings,total_hidden,reset
+      }
       if(uncategorized && mode=="compact") printf "%sℹ️ %d unclassified syslog lines hidden in compact mode%s\n",dim,uncategorized,reset
       if(errors)printf "%s❌ %d explicit error signals to review; not a service health assertion%s\n",red,errors,reset
     }

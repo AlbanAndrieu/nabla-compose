@@ -85,13 +85,13 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
 
 
 def test_preflight_is_wired_into_local_first_and_both_migration_sections() -> None:
-    wrapper = (ROOT / "scripts/truenas/finish-migrations-20261024.sh").read_text(
+    wrapper = (ROOT / "scripts/truenas/migration-diagnostic-sections.sh").read_text(
         encoding="utf-8"
     )
     just = (ROOT / "justfile").read_text(encoding="utf-8")
     gate = ("run_check openrag-startup bash "
             "scripts/truenas/diagnose-openrag-startup.sh --check")
-    assert wrapper.count(gate) == 2  # `ai` and `openrag` sections
+    assert wrapper.count(gate) == 2  # `ai` and `openrag` sections in the registry
     assert "truenas-openrag-startup-check:" in just
     assert "truenas-openrag-startup-test:" in just
     assert "tests/test_openrag_startup_preflight.py" in just

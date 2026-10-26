@@ -1,0 +1,46 @@
+---
+name: apisix
+# Explicit local/TrueNAS opt-in only: no Traefik labels or host port mappings.
+services:
+  apisix:
+    image: ${APISIX_IMAGE:-apache/apisix:3.19.0-debian}
+    profiles: ["apisix"]
+    restart: "no"
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/apisix
+    x-nabla:
+      id: apisix
+      name: APISIX
+      kind: api-gateway
+      category: network
+      presentationRole: support
+      criticality: low
+      status: planned
+      description: Standalone API gateway isolated from production ingress.
+      runtime:
+        provider: truenas-app
+        containerService: apisix
+    environment:
+      APISIX_STAND_ALONE: "true"
+      APISIX_KEY: ${APISIX_KEY:?set a staging-only secret key in the calling shell}
+    volumes:
+      - ./config/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./config/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    security_opt:
+      - no-new-privileges:true
+    networks: [isolated]
+
+  echo:
+    image: python:3.13-alpine
+    profiles: ["apisix"]
+    restart: "no"
+    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/poc"]
+    volumes:
+      - ./fixtures:/srv/poc:ro
+    security_opt:
+      - no-new-privileges:true
+    networks: [isolated]
+
+networks:
+  isolated:
+    internal: true

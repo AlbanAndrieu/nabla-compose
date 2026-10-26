@@ -11,6 +11,7 @@ import tempfile
 from datetime import datetime, timezone
 
 SOURCE = Path(__file__).resolve().parents[2] / "apps/openclaw/workstation/HEARTBEAT.md"
+BRIEFING_SOURCE = SOURCE.with_name("MORNING_BRIEFING.md")
 
 
 def digest(data: bytes) -> str:
@@ -31,10 +32,13 @@ def validated_file(path: Path, allow_missing: bool = False) -> bytes | None:
     return path.read_bytes()
 
 
-def operate(action: str, home: Path, source: Path = SOURCE) -> str:
+def operate(action: str, home: Path, source: Path = SOURCE, *,
+            target_name: str = "HEARTBEAT.md", create_missing: bool = False) -> str:
     source_bytes = validated_file(source)
     assert source_bytes is not None
-    target = home / "workspace/HEARTBEAT.md"
+    if target_name not in ("HEARTBEAT.md", "MORNING_BRIEFING.md"):
+        raise ValueError("unsupported_target_name")
+    target = home / "workspace" / target_name
     if target.parent.is_symlink():
         raise ValueError("workspace_symlink_refused")
     current = validated_file(target, allow_missing=True)
@@ -43,7 +47,7 @@ def operate(action: str, home: Path, source: Path = SOURCE) -> str:
             f" source_sha256={digest(source_bytes)}"
             + (f" target_sha256={digest(current)}" if current is not None else " target=absent")
         )
-    if current is None:
+    if current is None and (not create_missing or action == "backup"):
         raise ValueError("current_heartbeat_missing_refuse_unsafe_replace")
     backup_dir = home / "backups/heartbeat-gitops"
     if backup_dir.is_symlink():
@@ -51,18 +55,20 @@ def operate(action: str, home: Path, source: Path = SOURCE) -> str:
     backup_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(backup_dir, 0o700)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    backup = backup_dir / f"HEARTBEAT.{timestamp}.{digest(current)[:12]}.md"
-    try:
-        fd = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
-    except FileExistsError:
-        # Same-second backup of unchanged bytes: retain existing snapshot, never overwrite.
-        if validated_file(backup) != current:
-            raise ValueError("backup_collision_different_content") from None
-    else:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(current)
-            stream.flush()
-            os.fsync(stream.fileno())
+    backup = (backup_dir / f"{target.stem}.{timestamp}.{digest(current)[:12]}.md"
+              if current is not None else None)
+    if backup is not None:
+        try:
+            fd = os.open(backup, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        except FileExistsError:
+            # Same-second backup of unchanged bytes: retain existing snapshot.
+            if validated_file(backup) != current:
+                raise ValueError("backup_collision_different_content") from None
+        else:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(current)
+                stream.flush()
+                os.fsync(stream.fileno())
     if action == "backup":
         return f"backup={backup} sha256={digest(current)}"
     fd, temp_name = tempfile.mkstemp(prefix=".heartbeat-", dir=target.parent)
@@ -73,13 +79,13 @@ def operate(action: str, home: Path, source: Path = SOURCE) -> str:
             stream.flush()
             os.fsync(stream.fileno())
         # Re-check target before replacing to avoid a silent concurrent edit.
-        if validated_file(target) != current:
+        if validated_file(target, allow_missing=create_missing) != current:
             raise ValueError("heartbeat_changed_during_apply")
         os.replace(temp_name, target)
     finally:
         if os.path.exists(temp_name):
             os.unlink(temp_name)
-    return f"applied_sha256={digest(source_bytes)} backup={backup}"
+    return f"applied_sha256={digest(source_bytes)} backup={backup if backup is not None else 'none_created_new_file'}"
 
 
 def main() -> None:
@@ -88,11 +94,17 @@ def main() -> None:
     actions.add_argument("--check", action="store_true")
     actions.add_argument("--backup", action="store_true")
     actions.add_argument("--apply", action="store_true")
+    actions.add_argument("--briefing-check", action="store_true")
+    actions.add_argument("--briefing-apply", action="store_true")
     parser.add_argument("--root", type=Path, default=Path.home() / ".openclaw")
     args = parser.parse_args()
-    action = "check" if args.check else "backup" if args.backup else "apply"
+    action = "check" if args.check or args.briefing_check else "backup" if args.backup else "apply"
     try:
-        print(operate(action, args.root))
+        if args.briefing_check or args.briefing_apply:
+            print(operate(action, args.root, BRIEFING_SOURCE,
+                          target_name="MORNING_BRIEFING.md", create_missing=True))
+        else:
+            print(operate(action, args.root))
     except (OSError, ValueError) as exc:
         raise SystemExit(f"ERROR: {type(exc).__name__}; operation not completed") from None
 

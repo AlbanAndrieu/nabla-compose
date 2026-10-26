@@ -28,8 +28,10 @@ services:
           description: OpenRAG backend stores and retrieves indexed content through OpenSearch.
           evidence:
             - apps/openrag/compose.yml:OPENSEARCH_HOST
+    # Canonical Vaultwarden materialization. Stage and verify on TrueNAS
+    # before applying this Compose change; do not rotate the shared password.
     env_file:
-      - /mnt/cpool/openrag/.env.secrets
+      - /mnt/cpool/secrets/runtime/openrag/.env.secrets
     environment:
       OPENSEARCH_HOST: opensearch
       OPENSEARCH_PORT: "9200"
@@ -40,7 +42,7 @@ services:
       DOCLING_SERVE_URL: ${DOCLING_SERVE_URL:-http://docling:5001}
       # OpenRAG 0.7.1 has no generic openai_like provider. Route its built-in
       # OpenAI-compatible client to the GPU workstation LiteLLM instead.
-      # LITELLM_IDE_API_KEY remains in /mnt/cpool/openrag/.env.secrets.
+      # LITELLM_IDE_API_KEY is injected via the canonical OpenRAG env_file.
       OPENRAG_LITELLM_API_BASE: ${OPENRAG_LITELLM_API_BASE:-http://172.17.0.57:4000/v1}
       OPENAI_BASE_URL: ${OPENRAG_LITELLM_API_BASE:-http://172.17.0.57:4000/v1}
       OPENRAG_LITELLM_CHAT_MODEL: ${OPENRAG_LITELLM_CHAT_MODEL:-qwen}

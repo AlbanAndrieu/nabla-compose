@@ -3,7 +3,7 @@
 **Statut :** procédure courante, lecture seule. Cette procédure ne confirme
 **aucun état runtime** sans nouveaux résultats opérateur.
 
-[Roadmap](../roadmap.md) · [Index des runbooks](README.md) ·
+[Roadmap](../roadmap.md) · [Opérateur de migration](truenas-migration-operator.md) · [Index des runbooks](README.md) ·
 [skill local-first](../../.agents/skills/local-first-quality/SKILL.md).
 
 ## Périmètre et garde-fous
@@ -34,7 +34,7 @@ TrueNAS sale ni copier une PR Draft dans un bind-mount applicatif.
 positionné à la racine d'une révision contenant ces scripts :
 
 ```bash
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section critical
+sudo bash scripts/truenas/migration-operator.sh --check --section critical
 ```
 
 Le contrôle regroupe OpenRAG, Sentry, DefectDojo, Prometheus et Akvorado
@@ -48,11 +48,11 @@ des classes d'erreurs, les codes de retour et les états expurgés.
 **Étape 4 — Isoler les échecs.** Exécuter seulement la section concernée :
 
 ```bash
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section openrag
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section sentry
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section defectdojo
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section prometheus
-sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section akvorado
+sudo bash scripts/truenas/migration-operator.sh --check --section openrag
+sudo bash scripts/truenas/migration-operator.sh --check --section sentry
+sudo bash scripts/truenas/migration-operator.sh --check --section defectdojo
+sudo bash scripts/truenas/migration-operator.sh --check --section prometheus
+sudo bash scripts/truenas/migration-operator.sh --check --section akvorado
 ```
 
 Chaque ligne est **une action indépendante**, à lancer séparément seulement
@@ -78,6 +78,15 @@ insertions SQL récentes.
 **Étape 7 — Renseigner la roadmap.** Noter l'heure, le SHA de code, la
 classe d'erreur, la gate et le prochain acte. Ne jamais transformer
 une observation historique en état courant.
+
+## Services optionnels et post-migration
+
+Pour contrôler les services après une vague approuvée, utiliser
+[les sections postmigration et apisix](truenas-migration-operator.md).
+APISIX n'est pas inclus dans `critical` tant que le service n'est pas
+déployé et accepté. `--section apisix` vérifie uniquement les
+métadonnées Docker ; `just apisix-smoke` valide la route et
+l'authentification séparément.
 
 ## Qualité du code avant changement
 

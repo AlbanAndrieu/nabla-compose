@@ -29,9 +29,14 @@ fi
 DEST_DIR="/mnt/cpool/secrets/runtime/${APP}"
 DEST="${DEST_DIR}/.env.secrets"
 
-install -d -o root -g root -m 700 "${DEST_DIR}"
+# Verification must not create directories or modify target ownership.
+# Refuse a symlinked destination directory before either mode.
+[[ ! -L "${DEST_DIR}" ]] || fail "runtime secret directory must not be a symlink"
+[[ ! -e "${DEST_DIR}" || -d "${DEST_DIR}" ]] ||
+  fail "runtime secret directory is not a directory"
 
 if [[ "${MODE}" == "--install" ]]; then
+  install -d -o root -g root -m 700 "${DEST_DIR}"
   tmp="$(mktemp "${DEST_DIR}/.env.secrets.tmp.XXXXXX")"
   trap 'rm -f "${tmp:-}"' EXIT
   install -o root -g root -m 600 "${SOURCE}" "${tmp}"

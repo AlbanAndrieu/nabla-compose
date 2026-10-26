@@ -40,6 +40,33 @@ def test_compare_values_reports_names_only() -> None:
     assert "new-secret" not in repr(result)
 
 
+def test_canonical_superset_of_legacy_is_not_a_value_conflict() -> None:
+    legacy = {"LANGFLOW_KEY": "same1", "OPENSEARCH_PASSWORD": "same2"}
+    canonical = {
+        **legacy,
+        "LITELLM_IDE_API_KEY": "third",
+        "OPENRAG_ENCRYPTION_KEY": "fourth",
+    }
+    diff = compare.compare_values(legacy, canonical)
+    assert diff["differentValue"] == []
+    assert diff["onlyLeft"] == []
+    assert diff["onlyRight"] == ["LITELLM_IDE_API_KEY", "OPENRAG_ENCRYPTION_KEY"]
+    assert compare.comparison_relationship(diff) == "right_has_additional_keys"
+    assert "third" not in repr(diff)
+    assert "fourth" not in repr(diff)
+
+
+def test_comparison_relationship_never_treats_mismatched_values_as_superset() -> None:
+    cases = (
+        ({"same": "s"}, {"same": "s"}, "equivalent"),
+        ({"only": "s"}, {}, "left_has_additional_keys"),
+        ({"same": "s"}, {"same": "different"}, "shared_values_differ"),
+        ({"left": "s"}, {"right": "t"}, "both_sides_have_unique_keys"),
+    )
+    for left, right, expected in cases:
+        assert compare.comparison_relationship(compare.compare_values(left, right)) == expected
+
+
 def test_allowed_path_is_bounded_to_app_env_roots() -> None:
     assert compare.legacy.approved_app_env_path(
         "scrutiny",

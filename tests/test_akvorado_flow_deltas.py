@@ -112,6 +112,8 @@ class AkvoradoDeltaTest(unittest.TestCase):
             result = MODULE.main()
         self.assertEqual(result, 1)
         self.assertIn("BLOCKED_METADATA_MISSING", output.getvalue())
+        self.assertIn("evidence=active_metadata_rejections", output.getvalue())
+        self.assertIn("next_check=diagnose-akvorado-config.sh --check", output.getvalue())
 
     def test_cli_requires_new_insertions(self):
         output = io.StringIO()

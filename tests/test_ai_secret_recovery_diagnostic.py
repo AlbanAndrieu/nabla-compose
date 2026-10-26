@@ -42,6 +42,47 @@ def test_empty_required_token_not_accepted(tmp_path):
     assert any("empty value" in issue for issue in report["issues"])
 
 
+def test_openrag_encryption_key_requires_32_base64_decoded_bytes(tmp_path):
+    import base64
+    import secrets
+
+    raw = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
+    original = "OPENSEARCH_PASSWORD=opaque\nLANGFLOW_KEY=opaque\n"
+    original += "LITELLM_IDE_API_KEY=opaque\n"
+    file = create(tmp_path, original + "OPENRAG_ENCRYPTION_KEY=" + raw + "\n")
+    required = mod["REQUIRED_KEYS"]["openrag"]
+    report = check_secret(file, required, require_root=False)
+    assert report["ready"] is True, report["issues"]
+    assert raw not in json.dumps(report)
+
+    file.write_text(original + "OPENRAG_ENCRYPTION_KEY=" + "a" * 64 + "\n")
+    report = check_secret(file, required, require_root=False)
+    assert report["ready"] is False
+    assert any("32 bytes" in issue for issue in report["issues"])
+    assert "a" * 64 not in json.dumps(report)
+
+
+def test_unbalanced_dotenv_quote_is_not_accepted(tmp_path):
+    file = create(tmp_path, 'LITELLM_N8N_API_KEY=not-a-secret"\n')
+    result = check_secret(file, (), require_root=False)
+    assert result["ready"] is False
+    assert "malformed dotenv quoting: LITELLM_N8N_API_KEY" in result["issues"]
+    assert "not-a-secret" not in json.dumps(result)
+
+
+def test_litellm_requires_both_langfuse_project_api_keys(tmp_path):
+    keys = "LITELLM_MASTER_KEY=opaque\nLITELLM_SALT_KEY=opaque\n"
+    keys += "LITELLM_IDE_API_KEY=opaque\nREDIS_URL=opaque\n"
+    file = create(tmp_path, keys + "LANGFUSE_SECRET_KEY=sk-lf-synthetic\n")
+    required = mod["REQUIRED_KEYS"]["litellm"]
+    result = check_secret(file, required, require_root=False)
+    assert not result["ready"]
+    assert result["missingKeys"] == ["LANGFUSE_PUBLIC_KEY"]
+    file.write_text(keys + "LANGFUSE_SECRET_KEY=sk-lf-synthetic\n"
+                    "LANGFUSE_PUBLIC_KEY=pk-lf-synthetic\n")
+    assert check_secret(file, required, require_root=False)["ready"]
+
+
 def test_scrutiny_scope_v2_required(tmp_path):
     f = create(tmp_path, "SCRUTINY_WEB_INFLUXDB_TOKEN=opaque\n"
                "SCRUTINY_INFLUXDB_TOKEN_SCOPE_VERSION=1\n")
@@ -107,7 +148,7 @@ def test_strict_mode_blocks_runtime_failure_without_leaking(monkeypatch, capsys)
     main = mod["main"]
     monkeypatch.setattr(main.__globals__["os"], "geteuid", lambda: 0)
     monkeypatch.setitem(main.__globals__, "assess",
-                        lambda: {"readOnly": True, "blockers": [
+                        lambda scope="all": {"readOnly": True, "blockers": [
                             "litellm: restore canonical Vaultwarden runtime secrets"
                         ]})
     assert main(["--check", "--strict"]) == 1

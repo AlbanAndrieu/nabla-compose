@@ -10,6 +10,32 @@ The global service still uses the upstream OpenRAG-compatible Langflow image
 detail: the runtime service/container and Docker DNS identity are both
 `langflow`.
 
+## Migration canonique du secret — PR #280 (25 octobre 2026)
+
+La définition Compose de la PR référence désormais
+`/mnt/cpool/secrets/runtime/openrag/.env.secrets`. Le validateur
+Backstage exige ce chemin. Avant de réconcilier l'App TrueNAS,
+vérifier que le fichier canonique existe, appartient à root,
+a un mode privé et conserve le **même** `OPENSEARCH_PASSWORD`.
+
+Sur TrueNAS, exécuter séparément :
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check openrag
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+La PR ajoute `diagnose-ai-secret-recovery.py --scope openrag` afin
+d'exclure les échecs des services Scrutiny et LiteLLM de cette gate.
+Le contrôle ne charge ni n'affiche les valeurs des clés.
+**Aucun changement de Compose Git n'actualise automatiquement une
+Custom App TrueNAS.** Après vérification du Compose stocké, demander une
+réconciliation OpenRAG *unique* et son smoke backend/frontend.
+Ne pas exécuter l'ancien `reconcile-openrag-opensearch-secret.sh --apply` ;
+il est volontairement interdit.
+
+Voir la [reprise ciblée](../../docs/runbooks/2026-10-25-critical-acceptance-followup.md).
+
 ## Reprise prioritaire OpenRAG (24 octobre 2026)
 
 **Dernière preuve réelle TrueNAS :** `openrag=STOPPED`, les conteneurs

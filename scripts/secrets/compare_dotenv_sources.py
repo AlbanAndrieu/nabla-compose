@@ -72,6 +72,19 @@ def compare_values(
     }
 
 
+def comparison_relationship(result: dict[str, list[str]]) -> str:
+    """Classify only the shape of differences; never inspect secret values."""
+    if result["differentValue"]:
+        return "shared_values_differ"
+    if result["onlyLeft"] and result["onlyRight"]:
+        return "both_sides_have_unique_keys"
+    if result["onlyLeft"]:
+        return "left_has_additional_keys"
+    if result["onlyRight"]:
+        return "right_has_additional_keys"
+    return "equivalent"
+
+
 def main() -> int:
     args = parse_args()
     if not legacy.approved_app_env_path(args.app, args.left):
@@ -90,6 +103,7 @@ def main() -> int:
     )
     result = compare_values(left, right)
 
+    print(f"relationship={comparison_relationship(result)}")
     print(f"app={args.app}")
     print(f"aliases={len(aliases)}")
     print(f"left={args.left} normalized_keys={len(left)}")
@@ -110,5 +124,8 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except SecretsError as exc:
-        raise SystemExit(f"error: {exc}") from exc
+    except (SecretsError, OSError, ValueError):
+        # Exit 1 is reserved for a completed comparison which found
+        # different dotenv values. Error/inaccessible inputs are UNKNOWN.
+        print("UNVERIFIED: dotenv comparison failed; no secret values disclosed")
+        raise SystemExit(2) from None

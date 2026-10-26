@@ -87,14 +87,25 @@ requires_nonempty_materialization() {
 }
 
 env_files_equivalent() {
-  local app="$1" left="$2" right="$3"
+  local app="$1" left="$2" right="$3" result=0
   cmp -s "${left}" "${right}" && return 0
-  [[ -f "${DOTENV_COMPARE}" ]] || return 1
+  # Byte differences do NOT prove a semantic difference. Never confuse a
+  # missing Python dependency or parse error with a confirmed secret drift.
+  if [[ ! -f "${DOTENV_COMPARE}" ]] ||
+     ! python3 -c 'import dotenv, jsonschema' >/dev/null 2>&1; then
+    printf 'BLOCKED: semantic dotenv comparison unavailable; no credential divergence established.\n' >&2
+    exit 2
+  fi
   python3 "${DOTENV_COMPARE}" \
     --app "${app}" \
     --left "${left}" \
     --right "${right}" \
-    >/dev/null 2>&1
+    >/dev/null 2>&1 || result=$?
+  if ((result > 1)); then
+    printf 'BLOCKED: semantic dotenv comparison could not be verified; preserve both sources.\n' >&2
+    exit 2
+  fi
+  return "${result}"
 }
 
 canonical_env_file() {
