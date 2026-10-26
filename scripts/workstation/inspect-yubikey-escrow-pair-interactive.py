@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import stat
 import sys
 
 SOURCE = Path(__file__).with_name("inspect-yubikey-recovery-readonly.py")
@@ -64,10 +65,37 @@ def diagnose_backup_roots(home: Path) -> dict[str, object]:
         reports.append(report)
         names.append(found if report["state"] == "ACCESSIBLE" else set())
     intersection = names[0] & names[1]
+    # Only inspect the filename inferred from a unique local source.
+    # Do not expose it or read any encrypted file contents.
+    expected = "NOT_EVALUATED"
+    if (reports[0]["state"] == "ACCESSIBLE" and
+            reports[1]["state"] == "ACCESSIBLE"):
+        if len(names[0]) != 1:
+            expected = "NO_UNIQUE_SOURCE_FILE"
+        else:
+            # Backup directory was checked against symlinked parents above.
+            backup_target = candidate_directories(home)[1] / next(iter(names[0]))
+            try:
+                info = backup_target.lstat()
+                if stat.S_ISLNK(info.st_mode):
+                    expected = "EXPECTED_COPY_IS_SYMLINK"
+                elif not stat.S_ISREG(info.st_mode):
+                    expected = "EXPECTED_COPY_NOT_REGULAR"
+                elif info.st_size == 0:
+                    expected = "EXPECTED_COPY_EMPTY"
+                else:
+                    expected = "EXPECTED_COPY_REGULAR_NONEMPTY"
+            except FileNotFoundError:
+                expected = "EXPECTED_COPY_MISSING"
+            except PermissionError:
+                expected = "EXPECTED_COPY_ACCESS_DENIED"
+            except (OSError, ValueError, UnicodeError):
+                expected = "EXPECTED_COPY_METADATA_UNAVAILABLE"
     return {
         "source_directory": reports[0],
         "backup_directory": reports[1],
         "matching_age_filenames": min(len(intersection), DISCOVERY_LIMIT),
+        "expected_backup_copy_state": expected,
         "home_location_consistent_with_account": _home_is_account_home(home),
         "paths_disclosed": False,
         "files_opened": False,
