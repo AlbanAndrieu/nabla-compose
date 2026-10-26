@@ -40,7 +40,7 @@ for file in "${DB}" "${DB}-wal" "${DB}-shm"; do
   fi
 done
 echo "gateway_start_once=attempted"
-if ! systemctl --user start "${UNIT}"; then
+if ! systemctl --user start "${UNIT}" >/dev/null 2>&1; then
   python3 "${HERE}/diagnose-openclaw-gateway-service-failure.py" || true
   echo "gateway_start_once=start_command_failed"
   exit 2
