@@ -7,6 +7,7 @@ READS the two encrypted files. Never decrypts, copies, repairs or writes them.
 from __future__ import annotations
 
 import argparse
+import getpass
 import importlib.util
 import json
 import os
@@ -20,17 +21,40 @@ MAX_BYTES = 16 * 1024 * 1024
 CHUNK = 64 * 1024
 
 
+def load_locator():
+    spec = importlib.util.spec_from_file_location("nabla_escrow_pair_locator", DISCOVERY)
+    if spec is None or spec.loader is None:
+        raise ImportError("metadata locator unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def discover() -> tuple[str, tuple[Path, Path] | None]:
     """Use the existing unique pair selector. Return no paths in output."""
     try:
-        spec = importlib.util.spec_from_file_location("nabla_escrow_pair_locator", DISCOVERY)
-        if spec is None or spec.loader is None:
-            return "DISCOVERY_UNAVAILABLE", None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module.discover_pair(Path.home())
+        return load_locator().discover_pair(Path.home())
     except (OSError, ValueError, ImportError, AttributeError, TypeError):
         return "DISCOVERY_UNAVAILABLE", None
+
+
+def select_manual_pair(*, tty: bool, reader=None) -> tuple[str, tuple[Path, Path] | None]:
+    """Read private paths from TTY (not argv) and enforce the same metadata gate."""
+    if not tty:
+        return "INTERACTIVE_TERMINAL_REQUIRED", None
+    if reader is None:
+        reader = getpass.getpass
+    try:
+        first = reader("Escrow age A (chemin absolu, saisie masquée) : ")
+        second = reader("Escrow age B (chemin absolu, saisie masquée) : ")
+        locator = load_locator()
+        state = locator.classify_inputs(first, second)
+        if state != "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED":
+            return state, None
+        return state, (Path(first), Path(second))
+    except (EOFError, KeyboardInterrupt, OSError, UnicodeError,
+            ValueError, ImportError, AttributeError, TypeError):
+        return "MANUAL_ESCROW_INPUT_UNAVAILABLE", None
 
 
 def secure_open(path: Path) -> tuple[int, os.stat_result]:
@@ -103,17 +127,21 @@ def main(argv: list[str] | None = None) -> int:
     options = parser.add_mutually_exclusive_group(required=True)
     options.add_argument("--check", action="store_true")
     options.add_argument("--compare", action="store_true")
+    options.add_argument("--compare-manual", action="store_true")
     parser.add_argument("--acknowledge")
     args = parser.parse_args(argv)
     if args.check and args.acknowledge:
-        parser.error("--acknowledge only valid with --compare")
-    if args.compare and args.acknowledge != ACK:
+        parser.error("--acknowledge only valid with a compare mode")
+    if (args.compare or args.compare_manual) and args.acknowledge != ACK:
         parser.error("explicit acknowledgment of encrypted file reads required")
     pair_selected = False
     if args.check:
         state = "ENCRYPTED_CONTENT_NOT_READ"
     else:
-        state, paths = discover()
+        if args.compare_manual:
+            state, paths = select_manual_pair(tty=os.isatty(0) and os.isatty(2))
+        else:
+            state, paths = discover()
         pair_selected = paths is not None
         if pair_selected:
             state = compare_ciphertexts(*paths)
