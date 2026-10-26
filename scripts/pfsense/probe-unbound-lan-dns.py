@@ -18,7 +18,7 @@ import time
 
 
 STATUS = re.compile(r"\bstatus:\s*([A-Z]+)\b")
-A_RECORD = re.compile(r"(?im)^\S+\s+\d+\s+IN\s+A\s+\S+\s*$")
+A_RECORD = re.compile(r"(?im)^\S+\s+\d+\s+IN\s+A\s+(?P<address>(?:\d{1,3}\.){3}\d{1,3})\s*$")
 DNS_NAME = re.compile(
     r"(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.?$"
@@ -59,7 +59,7 @@ def resolver_ip(text: str) -> str:
     return str(addr)
 
 
-def interpret_dig(returncode: int, output: str) -> str:
+def interpret_dig(returncode: int, output: str, expected_ip: str | None = None) -> str:
     """Classify DNS status, not the dig exit status alone (NXDOMAIN may be rc=0)."""
     if returncode:
         return "TIMEOUT" if ("timed out" in output.lower()
@@ -70,10 +70,18 @@ def interpret_dig(returncode: int, output: str) -> str:
     rcode = status.group(1)
     if rcode != "NOERROR":
         return rcode if rcode in ("NXDOMAIN", "SERVFAIL", "REFUSED", "FORMERR") else "DNS_RCODE_OTHER"
-    return "OK" if A_RECORD.search(output) else "NO_A_ANSWER"
+    addresses = set()
+    for match in A_RECORD.finditer(output):
+        try:
+            addresses.add(str(ipaddress.IPv4Address(match.group("address"))))
+        except ipaddress.AddressValueError:
+            continue
+    if not addresses:
+        return "NO_A_ANSWER"
+    return "OK" if expected_ip is None or expected_ip in addresses else "A_MISMATCH"
 
 
-def query(resolver: str, name: str, timeout: int, runner=subprocess.run) -> tuple[str, int]:
+def query(resolver: str, name: str, timeout: int, runner=subprocess.run, *, expected_ip: str | None = None) -> tuple[str, int]:
     command = [
         "dig", f"@{resolver}", name, "A",
         "+tries=1", f"+time={timeout}", "+noall", "+comments", "+answer",
@@ -85,7 +93,7 @@ def query(resolver: str, name: str, timeout: int, runner=subprocess.run) -> tupl
             command, capture_output=True, text=True, check=False,
             timeout=timeout + 2,
         )
-        state = interpret_dig(result.returncode, result.stdout + "\n" + result.stderr)
+        state = interpret_dig(result.returncode, result.stdout + "\n" + result.stderr, expected_ip)
     except subprocess.TimeoutExpired:
         state = "TIMEOUT"
     elapsed_ms = round((time.monotonic() - started) * 1000)
@@ -99,30 +107,57 @@ def validate_baseline(
     private_name: str,
     timeout: int,
     *,
+    private_expected_ip: str | None = None,
+    pihole_resolver: str = "172.17.0.24",
     probe=query,
     printer=print,
 ) -> bool:
-    """Require two working A records before interpreting failures as degradation.
+    """Gate sampling on known-good public and expected private A records.
 
-    Invalid names and existing split-DNS defects must not be counted as
-    resolver downtime in every measurement. No domain or response is emitted.
+    A healthy Pi-hole with a failing pfSense private lookup indicates a
+    pre-existing split-DNS problem, not observed resolver downtime.
+    Only redacted protocol classifications are emitted.
     """
     public_status, _ = probe(resolver, public_name, timeout)
-    private_status, _ = probe(resolver, private_name, timeout)
-    printer(
-        f"dns_preflight=public:{public_status} private:{private_status}"
-    )
-    if public_status != "OK" or private_status != "OK":
-        printer("dns_watch_result=INVALID_BASELINE_NO_SAMPLES")
-        if private_status == "NXDOMAIN":
-            printer("preflight_hint=PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS")
+    if private_expected_ip is None:
+        private_status, _ = probe(resolver, private_name, timeout)
+    else:
+        private_status, _ = probe(
+            resolver, private_name, timeout, expected_ip=private_expected_ip
+        )
+    printer(f"dns_preflight=public:{public_status} private:{private_status}")
+    if public_status == "OK" and private_status == "OK":
+        printer("dns_preflight=VALID_BOTH_A_RECORDS")
+        return True
+
+    # A second resolver is queried only when the private baseline fails.
+    # This is a diagnosis, not an alternate target for the sampling period.
+    pihole_status = "NOT_CHECKED"
+    if private_status != "OK" and resolver != pihole_resolver:
+        if private_expected_ip is None:
+            pihole_status, _ = probe(pihole_resolver, private_name, timeout)
+        else:
+            pihole_status, _ = probe(
+                pihole_resolver, private_name, timeout,
+                expected_ip=private_expected_ip,
+            )
+        printer(f"dns_preflight_pihole=private:{pihole_status}")
+
+    if public_status == "OK" and private_status != "OK" and pihole_status == "OK":
+        printer("dns_watch_result=SPLIT_DNS_FAILURE")
+        printer("preflight_hint=CHECK_PFSENSE_DOMAIN_OVERRIDE")
+    else:
+        printer("dns_watch_result=BASELINE_INVALID")
+        if private_status == "NXDOMAIN" and pihole_status == "NXDOMAIN":
+            printer("preflight_hint=PRIVATE_NAME_NOT_REGISTERED")
+        elif private_status == "A_MISMATCH" or pihole_status == "A_MISMATCH":
+            printer("preflight_hint=PRIVATE_A_NOT_AS_EXPECTED")
         elif private_status == "NO_A_ANSWER":
             printer("preflight_hint=PRIVATE_NAME_HAS_NO_A_RECORD")
         else:
-            printer("preflight_hint=VERIFY_BOTH_NAMES_RESOLVE_BEFORE_WATCH")
-        return False
-    printer("dns_preflight=VALID_BOTH_A_RECORDS")
-    return True
+            printer("preflight_hint=VERIFY_PUBLIC_PRIVATE_AND_LAN_TRANSPORT")
+    printer("dns_sampling=SKIPPED_INVALID_PREFLIGHT")
+    return False
 
 
 def watch(
@@ -133,13 +168,14 @@ def watch(
     interval: int,
     timeout: int,
     *,
+    private_expected_ip: str | None = None,
     probe=query,
     monotonic=time.monotonic,
     sleeper=time.sleep,
     timestamp=lambda: datetime.now().astimezone().isoformat(timespec="milliseconds"),
     printer=print,
 ) -> int:
-    public_fail = private_fail = both_fail = 0
+    public_fail = private_fail = both_fail = both_timeout = 0
     streak_public = streak_private = 0
     max_public = max_private = 0
     started = monotonic()
@@ -152,7 +188,13 @@ def watch(
             sleeper(remaining)
         observed = timestamp()
         p_state, p_ms = probe(resolver, public_name, timeout)
-        l_state, l_ms = probe(resolver, private_name, timeout)
+        if private_expected_ip is None:
+            l_state, l_ms = probe(resolver, private_name, timeout)
+        else:
+            l_state, l_ms = probe(
+                resolver, private_name, timeout, expected_ip=private_expected_ip
+            )
+        both_timeout += int(p_state == "TIMEOUT" and l_state == "TIMEOUT")
         bad_p, bad_l = p_state != "OK", l_state != "OK"
         public_fail += int(bad_p)
         private_fail += int(bad_l)
@@ -174,7 +216,14 @@ def watch(
         f" longest_private_failure_samples={max_private}"
     )
     printer("dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED")
-    outcome = "OBSERVED_FAILURE" if public_fail or private_fail else "NO_FAILURE_IN_SAMPLES"
+    if both_timeout:
+        outcome = "DNS_OUTAGE_OBSERVED"
+    elif private_fail and not public_fail:
+        outcome = "SPLIT_DNS_FAILURE"
+    elif public_fail or private_fail:
+        outcome = "DNS_FAILURE_OBSERVED"
+    else:
+        outcome = "NO_FAILURE_IN_SAMPLES"
     printer(f"dns_watch_result={outcome}")
     return 1 if public_fail or private_fail else 0
 
@@ -185,6 +234,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolver", type=resolver_ip, default="172.17.0.1")
     parser.add_argument("--public-name", type=dns_name, default="example.com")
     parser.add_argument("--private-name", type=dns_name, required=True)
+    parser.add_argument(
+        "--private-expected-ip", type=resolver_ip, required=True,
+        help="verified expected private IPv4 A value; never inferred from DNS",
+    )
+    parser.add_argument("--pihole-resolver", type=resolver_ip, default="172.17.0.24")
     parser.add_argument("--samples", type=positive_int, default=45)
     parser.add_argument("--interval-seconds", type=small_int, default=2)
     parser.add_argument("--timeout-seconds", type=small_int, default=1)
@@ -199,11 +253,14 @@ def main(argv: list[str] | None = None) -> int:
     if not validate_baseline(
         args.resolver, args.public_name, args.private_name,
         args.timeout_seconds,
+        private_expected_ip=args.private_expected_ip,
+        pihole_resolver=args.pihole_resolver,
     ):
         return 2
     return watch(
         args.resolver, args.public_name, args.private_name,
         args.samples, args.interval_seconds, args.timeout_seconds,
+        private_expected_ip=args.private_expected_ip,
     )
 
 
