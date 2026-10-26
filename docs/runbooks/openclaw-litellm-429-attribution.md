@@ -1770,3 +1770,79 @@ dans sa période de cooldown 24 h.
 
 Les nouveaux tests et le runtime n'ont pas encore été exécutés
 sur la Workstation au HEAD contenant cette correction.
+
+
+## 2026-10-26 — correction directe du Gateway Node (PR #285)
+
+Rapport de l'opérateur pour \`openclaw update\` :
+- \`preflight-node-runtime-incompatible\` : système
+  \`/usr/bin/node\` à **24.16.0** ; OpenClaw 2026.10.7 requiert
+  Node \`>=24.22.1 <25 || >=26.12.1\` ;
+- unité user Gateway encore propriétaire du paquet
+  \`~/.local/share/mise/installs/node/24.18.1/lib/node_modules/openclaw\` ;
+- nouveau Node \`24.22.1\` installé sous mise ; shell OpenClaw
+  \`2026.10.7\` installé dans un **autre préfixe** ;
+- erreur de propriété SQLite sur le processus Gateway 3713 lors
+  de l'exécution d'autres commandes OpenClaw ; pas une corruption
+  démontrée. Ne pas supprimer la base, son WAL ni ses fichiers de lock ;
+- avertissements \`pacman\` non bloquants sous Ubuntu ;
+  l'inventaire de sauvegarde des plugins codex/discord/matrix/whatsapp
+  est inconnu ; risque de réversibilité accepté par l'opérateur,
+  qui **ne souhaite pas de sauvegarde de projet supplémentaire**.
+
+**Décision : abandonner le staging npm pour ce correctif.** Conserver
+le paquet contrôlé par le Gateway actuel, et remplacer uniquement
+l'exécutable Node dans l'unité systemd. Effectuer ensuite l'update
+de **ce même paquet** via son \`openclaw.mjs\` exécuté avec Node
+24.22.1. La CLI du shell ne décide plus de la racine cible.
+
+Scripts versionnés :
+- \`scripts/workstation/repair-openclaw-gateway-node.py\` :
+  plan et création contrôlée d'un drop-in systemd user
+  \`25-nabla-node-runtime-compat.conf\`, en mode \`0600\`. Préserve
+  \`--max-old-space-size=16053\`, le paquet du service, le port
+  18789 et toutes les autres unités/définitions. Refuse le service
+  actif, les installations inconnues, une version Node inadéquate,
+  les symlinks et les chemins group-writable. Ne sauvegarde rien.
+- \`scripts/workstation/recover-openclaw-managed-gateway.sh --apply\` :
+  vérifie les prérequis ; stoppe proprement **l'unique** unité user
+  connue ; exige l'absence d'un propriétaire observable sur le SQLite
+  via \`fuser -s\` ; applique le drop-in ; exécute
+  \`node@24.22.1 <ancien-openclaw.mjs> update --tag 2026.10.7
+  --yes --no-restart\` ; vérifie la version ; refuse de redémarrer
+  sur échec ; démarre uniquement après mise à jour réussie ;
+  vérifie \`is-active\` et \`http://127.0.0.1:18789/readyz\`
+  sans requête LLM.
+
+**Commandes Workstation :**
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-gateway-node-test
+just openclaw-gateway-node-plan
+just openclaw-gateway-node-update
+\`\`\`
+
+La commande \`-update\` est **mutante et peut provoquer un downtime**.
+Si un autre script de sauvegarde est encore actif, terminer ou arrêter
+proprement ce script avant d'exécuter la reprise ; ne pas lancer deux
+opérations OpenClaw simultanément. Le programme ne crée aucune
+sauvegarde supplémentaire ; l'updater natif peut conserver ses propres
+éléments internes de récupération, qui ne sont pas gérés ici.
+
+**Échec** : le Gateway peut rester **arrêté** si la migration, les
+plugins ou le contrôle de version échouent. Ne pas relancer
+automatiquement l'ancien paquet sur un état SQLite potentiellement
+migré. Investiguer \`openclaw update status --json\` sous le bon
+runtime et vérifier \`systemctl --user status\` sans publier les
+secrets. Pas de \`rm -rf\`, de \`sudo npm install -g\`, de
+\`doctor --fix\` automatisé, ni d'opération de modèle payante.
+
+Les tests unitaires sont synthétiques, exécutables localement sans CI.
+Le nouveau parcours n'est **pas** encore validé par un update réel sur
+la Workstation au HEAD de cette PR.
+
+Documentation :
+- https://docs.openclaw.ai/cli/update
+- https://docs.openclaw.ai/cli/update/how-updates-run
