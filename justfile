@@ -1140,11 +1140,12 @@ openclaw-upgrade-local-all:
 # OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
 # No project backup, no CI runner, no LiteLLM model requests.
 openclaw-gateway-node-test:
-    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py
+    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py tests/test_openclaw_gateway_doctor_lint.py
     bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
     python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_service_failure.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_doctor_lint.py' -v
     bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
 
 # Read-only. Distinguish HTTP liveness, startup and admission readiness
@@ -1156,6 +1157,11 @@ openclaw-gateway-readiness:
 # Exposes only fixed codes; never prints actual log lines or credentials.
 openclaw-gateway-service-failure:
     python3 scripts/workstation/diagnose-openclaw-gateway-service-failure.py
+
+# Read-only, no repairs or model requests: parse pinned OpenClaw Doctor
+# structured lint as sanitized categories for EX_CONFIG 78.
+openclaw-gateway-doctor-lint:
+    python3 scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py
 
 # Explicit scoped hardening when the Node 24.22.1 npm package is
 # group-writable because of workstation umask 0002. Never chmod shared
