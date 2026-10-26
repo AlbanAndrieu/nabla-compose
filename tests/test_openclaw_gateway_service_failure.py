@@ -135,7 +135,8 @@ class OpenClawServiceFailureTests(unittest.TestCase):
             file = folder / "openclaw-2026-10-26.log"
             file.write_text("private key sk-NEVER-SHARE\nnewer database schema")
             file.chmod(0o600)
-            constructor = lambda value: folder if value == "/tmp/openclaw" else Path(value)
+            constructor = (lambda value: folder if value == "/tmp/openclaw" else
+                           folder / "absent-scoped-dir" if value == "/tmp" else Path(value))
             with patch.object(mod, "Path", side_effect=constructor), \
                  patch.object(mod.time, "time", return_value=file.stat().st_mtime):
                 lines, source = mod.file_log_sample()
@@ -150,7 +151,8 @@ class OpenClawServiceFailureTests(unittest.TestCase):
             secret.write_text("newer database schema")
             candidate = folder / "openclaw-2026-10-26.log"
             candidate.symlink_to(secret)
-            constructor = lambda value: folder if value == "/tmp/openclaw" else Path(value)
+            constructor = (lambda value: folder if value == "/tmp/openclaw" else
+                           folder / "absent-scoped-dir" if value == "/tmp" else Path(value))
             with patch.object(mod, "Path", side_effect=constructor):
                 lines, source = mod.file_log_sample()
             self.assertIsNone(lines)
