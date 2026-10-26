@@ -319,3 +319,47 @@ just openclaw-gateway-start-once
 ```
 
 La PR ne prétend pas que le Gateway soit déjà fonctionnel.
+
+
+## 27 octobre — Service de nouveau en échec avec code 78
+
+La dernière inspection réseau a donné :
+`gateway_service=failed`, `service_exit_status=78`,
+`service_pid=absent`, `expected_port_listener=not_listening`,
+et toutes les sondes HTTP `unreachable`. Ce résultat exclut
+une simple erreur de lien `/chat/main` : **aucun serveur
+n'est actuellement à l'écoute sur le port attendu**.
+
+Doctor a précédemment trouvé **0 erreur, 9 avertissements**
+sur 36 contrôles. Cela ne suffit pas à identifier la cause du
+code 78, qui peut aussi signaler une configuration invalide ou un
+état incompatible au démarrage. Le résultat
+`journal_source=historic_tail`, `journal_pattern=no_known_pattern`
+était insatisfaisant : le script ne consultait les fichiers de
+logs OpenClaw que si journald ne renvoyait aucune ligne.
+
+**Correction du diagnostic dans PR #285 :** la recherche de logs
+privés se déclenche également si les 240 lignes historiques sont
+présentes mais ne correspondent à aucune signature connue.
+Le rapport conserve des catégories statiques :
+`journal_source`, `file_log_fallback`, `journal_pattern`,
+`exit_78_interpretation`. Aucun message brut, secret, identifiant
+d'agent, chemin de configuration ou clé n'est affiché.
+
+Une preuve issue du journal classé prime ; si le journal reste
+inconclusif, une signature reconnue dans les logs OpenClaw remplace
+le motif non reconnu. Si aucune signature n'est trouvée dans
+les deux sources, l'état reste `config_or_schema_unattributed`.
+Ce comportement est couvert par trois tests unitaires supplémentaires.
+
+**Commande unique, en lecture seule :**
+
+```bash
+cd ~/w/nabla-compose
+git fetch origin fix/code-password-dotenv-fixture-20261026
+git show origin/fix/code-password-dotenv-fixture-20261026:scripts/workstation/diagnose-openclaw-gateway-service-failure.py | python3 -
+```
+
+Ne pas relancer `openclaw-gateway-start-once`, `openclaw update`,
+`doctor --fix`, ni modifier SQLite pour l'instant.
+La sauvegarde existante du 26 octobre est conservée.
