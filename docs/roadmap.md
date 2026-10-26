@@ -267,6 +267,41 @@ Actions :
   mesure mémoire ; documenter le gain et restaurer la couverture lors
   d'une fenêtre dédiée. Vérifier également
   `service.pfb_filter=0` (helper filterlog absent).
+
+- [ ] **H-04 / CrowdSec central TrueNAS → pfSense Small :**
+  architecture déjà déclarée dans `apps/crowdsec/compose.yml`
+  (moteur central v1.8.1 + LAPI LAN `172.17.0.24:8084` ;
+  scénario `firewallservices/pf-scan-multi_ports` désactivé).
+  **État runtime non vérifié dans cette reprise** ; le fait qu'un
+  conteneur soit RUNNING ne valide ni l'ingestion Loki, ni les
+  décisions, ni le bouncer pfSense. Vérifier sur TrueNAS :
+  `sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime`,
+  puis `--check` seulement si le runtime est sain. Vérifier depuis la
+  workstation `bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight`.
+  Ne basculer qu'après confirmation de la clé existante
+  `BOUNCER_KEY_PFSENSE_FIREWALL` (valeur non affichée), de l'identité
+  du bouncer et de la connectivité LAPI depuis pfSense.
+  **Ne pas relancer le moteur local** sur le Netgate 1100 ; garder
+  le bouncer désactivé si l'API distante ou les ressources sont
+  insuffisantes. Une fenêtre de bascule explicite et un rollback
+  sont requis. Réception : diagnostic TrueNAS `--accept` et
+  workstation `--accept` (tables PF et `last_pull`), sans générer
+  de nouvelle clé ni publier le port 8084 sur WAN.
+  [Guide central CrowdSec](../apps/crowdsec/README.md).
+- [ ] **Nexus / réponse HTTP backend 200, Traefik 404 TLS OK :**
+  `http://172.17.0.24:8081/` renvoie HTTP 200 (2,097 s),
+  `https://nexus.int.albandrieu.com/` avec
+  `--resolve ...:443:172.17.0.24` renvoie HTTP 404
+  (`curl exit=0`, `ssl_verify_result=0`, 14 ms).
+  Après DNS privé **8/8 PASS**, isoler **routeur Traefik**
+  (labels effectivement déployés) et origine du 404.
+  Le routeur privé est préparé en opt-in
+  `NEXUS_PRIVATE_INGRESS_ENABLED=false` par défaut.
+  Avant activation vérifier que le proxy frontal refuse Host/SNI
+  privé venant de WAN ; DNS privé seul ne suffit pas à restreindre
+  l'accès. Ne pas redéployer sans cette validation.
+  [Runbook](runbooks/nexus-private-dns-ingress.md).
+
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
   viser au moins **128 Mio free+inactive** en régime ordinaire,
   aucune chute prolongée sous 64 Mio, et zéro nouvel OOM Unbound.
