@@ -109,16 +109,18 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--acknowledge only valid with --compare")
     if args.compare and args.acknowledge != ACK:
         parser.error("explicit acknowledgment of encrypted file reads required")
+    pair_selected = False
     if args.check:
         state = "ENCRYPTED_CONTENT_NOT_READ"
     else:
         state, paths = discover()
-        if paths is not None:
+        pair_selected = paths is not None
+        if pair_selected:
             state = compare_ciphertexts(*paths)
     print(json.dumps({
         "status": "NO-GO", "state": state,
         "mode": "ENCRYPTED_ESCROW_CONTENT_COMPARISON_ONLY",
-        "encrypted_content_read": bool(args.compare and state.startswith("ENCRYPTED_COPIES_")),
+        "encrypted_content_read_attempted": pair_selected,
         "encrypted_copies_identical": state == "ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED",
         "paths_disclosed": False, "digest_disclosed": False,
         "decryption_attempted": False, "restoration_verified": False,
