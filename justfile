@@ -147,6 +147,20 @@ yubikey-escrow-pair-check:
 yubikey-escrow-pair-discover:
     python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --discover
 
+# Synthetic contracts only, never touch real backups or YubiKeys.
+yubikey-escrow-compare-test:
+    python3 -m py_compile scripts/workstation/compare-yubikey-escrow-pair-readonly.py tests/test_yubikey_escrow_pair_compare.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_pair_compare.py' -v
+
+# No backup read, no device probe.
+yubikey-escrow-compare-check:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --check
+
+# Explicitly READ two existing encrypted backups, compare byte-for-byte,
+# never print contents or digests, never decrypt or change anything.
+yubikey-escrow-compare-run:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --compare --acknowledge COMPARE_EXISTING_ENCRYPTED_ESCROWS
+
 # Explicitly request private local paths via hidden interactive TTY prompts.
 # Never reads content or proves decryption. Returns NO-GO even on success.
 yubikey-escrow-pair-inspect:
