@@ -55,6 +55,30 @@ class GatewayDoctorLintContracts(unittest.TestCase):
         self.assertNotIn("NEVER-SHOW", text)
         self.assertNotIn("PRIVATE", text)
 
+    def test_severity_split_does_not_confuse_warning_with_error(self):
+        findings = [
+            {"checkId": "core/doctor/gateway-config",
+             "path": "gateway.mode", "severity": "warning",
+             "message": "PRIVATE"},
+            {"checkId": "core/doctor/state-schema-migration",
+             "severity": "error", "message": "sk-NEVER"},
+            {"checkId": "core/doctor/other",
+             "severity": "info"}]
+        report = {"schemaVersion": 1, "ok": False, "checksRun": 3,
+                  "findings": findings}
+        with patch.object(mod.subprocess, "run",
+                          return_value=SimpleNamespace(returncode=1,
+                              stdout=json.dumps(report).encode(), stderr=b"")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.run_doctor(), 0)
+        text = output.getvalue()
+        self.assertIn("doctor_severity_error=1", text)
+        self.assertIn("doctor_severity_warning=1", text)
+        self.assertIn("doctor_severity_info=1", text)
+        self.assertIn("doctor_gateway_mode_finding=yes", text)
+        self.assertNotIn("PRIVATE", text)
+        self.assertNotIn("NEVER", text)
+
     def test_schema_and_plugin_categories(self):
         checks = [
             ("core/doctor/state-schema-migration", "schema_migration"),
