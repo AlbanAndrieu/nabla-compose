@@ -53,6 +53,31 @@ def test_log_categories_never_expose_data(monkeypatch):
     assert "PRIVATE" not in str(result)
 
 
+def test_initializer_progress_is_allowlisted_and_not_completion_proof(monkeypatch):
+    text = (
+        "Waiting for database to be reachable Simple database test was successful\\n"
+        "No migrations to apply.\\n"
+        "Admin user already exists; skipping first-boot setup\\n"
+        "Initializing non-standard permissions\\n"
+        "DB_SECRET=DO_NOT_LOG\\n"
+    )
+    monkeypatch.setattr(MODULE, "container_snapshot", lambda name: {
+        "state": "running" if name == "defectdojo-initializer" else "ABSENT_OR_UNVERIFIED",
+        "oom_killed": False,
+    })
+    monkeypatch.setattr(MODULE, "app_state", lambda: "DEPLOYING")
+    monkeypatch.setattr(MODULE, "local_http", lambda: "UNREACHABLE")
+    monkeypatch.setattr(MODULE, "command", lambda args, **kwargs: (0, text))
+    report = MODULE.diagnose(include_logs=True)
+    assert report["initializer_log_progress"] == [
+        "POSTGRES_REACHABLE", "MIGRATIONS_NOT_NEEDED",
+        "EXISTING_ADMIN_CONFIRMED", "PERMISSIONS_INIT_STARTED",
+    ]
+    assert report["initializer_log_progress_is_exit_proof"] is False
+    assert report["next_check"] == "initializer_still_running_inspect_bounded_initializer_logs"
+    assert "DO_NOT_LOG" not in str(report)
+
+
 def test_app_query_unknown_is_not_marked_running(monkeypatch):
     monkeypatch.setattr(MODULE, "command", lambda *args, **kw: (2, ""))
     assert MODULE.app_state() == "UNVERIFIED"
