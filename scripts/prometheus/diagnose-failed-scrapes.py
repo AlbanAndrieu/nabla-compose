@@ -62,6 +62,25 @@ def error_kind(raw: object) -> str:
     return "scrape_failure_unclassified"
 
 
+def failure_domain(kind: str) -> str:
+    """Return a stable diagnostic domain; never echo an untrusted scrape error."""
+    if kind in ("http_401", "http_403"):
+        return "auth"
+    if kind.startswith("http_"):
+        return "http"
+    if kind == "tcp_refused":
+        return "tcp"
+    if kind == "dns_failure":
+        return "dns"
+    if kind == "tls_failure":
+        return "tls"
+    if kind == "timeout":
+        return "timeout"
+    if kind == "network_unreachable":
+        return "network"
+    return "unverified"
+
+
 def assess_targets(payload: object, jobs: tuple[str, ...] = JOBS) -> dict[str, dict[str, object]]:
     """Summarize only allowlisted jobs and fail closed on conflicting targets."""
     if not isinstance(payload, dict) or payload.get("status") != "success":
@@ -87,28 +106,40 @@ def assess_targets(payload: object, jobs: tuple[str, ...] = JOBS) -> dict[str, d
                 "state": "no_active_target",
                 "targets_up": 0,
                 "targets_total": 0,
+                "targets_unverified": 0,
+                "failure_domains": ["unverified"],
                 "errors": [],
             }
             continue
-        states = [str(target.get("health") or "").lower() for target in selected]
+        states = [str(target.get("health") or "").strip().lower() for target in selected]
         up = sum(state == "up" for state in states)
+        down = sum(state == "down" for state in states)
+        # Prometheus can legitimately report unknown/empty health during
+        # discovery or startup. Do not misreport an unobserved target as DOWN.
+        unverified = len(states) - up - down
         errors = sorted(
             {
                 error_kind(target.get("lastError"))
-                for target in selected
-                if str(target.get("health") or "").lower() != "up"
+                for target, state in zip(selected, states)
+                if state != "up"
             }
         )
         errors = [kind for kind in errors if kind != "none_reported"]
-        state = (
-            "scrape_up" if up == len(selected)
-            else "scrape_down" if up == 0
-            else "scrape_partial"
-        )
+        domains = sorted({failure_domain(kind) for kind in errors})
+        if unverified:
+            state = "scrape_unverified"
+        elif up == len(selected):
+            state = "scrape_up"
+        elif up == 0:
+            state = "scrape_down"
+        else:
+            state = "scrape_partial"
         result[job] = {
             "state": state,
             "targets_up": up,
             "targets_total": len(selected),
+            "targets_unverified": unverified,
+            "failure_domains": domains or (["unverified"] if unverified else []),
             "errors": errors,
         }
     return result
@@ -145,6 +176,8 @@ def main() -> int:
             f"{job}: state={record['state']} "
             f"targets_up={record['targets_up']} "
             f"targets_total={record['targets_total']} "
+            f"targets_unverified={record['targets_unverified']} "
+            f"failure_domains={','.join(record['failure_domains']) or 'none'} "
             f"errors={','.join(record['errors']) or 'none'}"
         )
         if record["state"] != "scrape_up" and job in NEXT_CHECK:
