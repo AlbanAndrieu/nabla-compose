@@ -21,6 +21,8 @@ class Contracts(unittest.TestCase):
         self.a, self.b = (Path(self.tmp.name) / x for x in ('a.age','b.age'))
         self.a.write_bytes(b'ENCRYPTED only sample')
         self.b.write_bytes(b'ENCRYPTED only sample')
+        self.a.chmod(0o600)
+        self.b.chmod(0o600)
 
     def cross_fs(self):
         # Fixture paths live on one filesystem. Only simulated metadata
@@ -68,6 +70,25 @@ class Contracts(unittest.TestCase):
             st_mode=0o100600; st_nlink=1; st_uid=os.getuid()+1000; st_size=50
         with patch.object(Path,'lstat',return_value=Fake()), patch.object(module.os,'open') as opener:
             self.assertEqual(module.compare_ciphertexts(self.a,self.b),'ENCRYPTED_COPY_UNVERIFIED')
+            opener.assert_not_called()
+
+    def test_group_or_world_readable_escrow_rejected_before_open(self):
+        self.a.chmod(0o644)
+        with patch.object(module.os, 'open') as opener:
+            self.assertEqual(
+                module.compare_ciphertexts(self.a, self.b),
+                'ENCRYPTED_COPY_UNVERIFIED',
+            )
+            opener.assert_not_called()
+
+    def test_parent_directory_symlink_is_rejected(self):
+        alias = Path(self.tmp.name) / "alias"
+        alias.symlink_to(Path(self.tmp.name), target_is_directory=True)
+        with patch.object(module.os, 'open') as opener:
+            self.assertEqual(
+                module.compare_ciphertexts(alias / "a.age", self.b),
+                'ENCRYPTED_COPY_UNVERIFIED',
+            )
             opener.assert_not_called()
 
     def test_same_filesystem_is_not_independent(self):
