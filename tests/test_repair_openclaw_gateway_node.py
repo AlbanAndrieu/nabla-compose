@@ -33,10 +33,15 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.new_entry = self.new_package / "openclaw.mjs"
         self.new_entry.write_text("// synthetic installed package")
         self.new_entry.chmod(0o600)
-        (self.new_package / "package.json").write_text(json.dumps({
+        manifest = self.new_package / "package.json"
+        manifest.write_text(json.dumps({
             "name": "openclaw", "version": "2026.10.7",
             "bin": {"openclaw": "openclaw.mjs"},
         }))
+        # Fixture must model npm's non-group-writable 0644/0600 manifest.
+        # Under the operator's umask 0002, write_text creates 0664 and
+        # installed_package_verified correctly rejects it.
+        manifest.chmod(0o600)
         self.legacy = (
             "{ path=/usr/bin/node ; argv[]=/usr/bin/node "
             "--max-old-space-size=16053 "
@@ -125,9 +130,26 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertIn("fuser -s", contents)
         self.assertIn("--select-installed", contents)
         self.assertNotIn("backup-openclaw.sh", contents)
-        self.assertNotIn("npm install", contents)
+        # Ignore comments: this script documents a refused npm install
+        # without running npm itself. Assert command lines only.
+        executable = "\n".join(line for line in contents.splitlines()
+                               if line.strip() and not line.lstrip().startswith("#"))
+        self.assertNotIn("npm install", executable)
         self.assertNotIn('${CLI}" update ', contents)
         self.assertNotIn("rm -rf", contents)
+
+    def test_group_writable_manifest_is_refused(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        manifest.chmod(0o664)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 2)
+        self.assertIn("existing_package_verified=no", output.getvalue())
+
+    def test_fixture_manifest_mode_is_owner_only(self):
+        manifest = self.new_package / "package.json"
+        self.assertEqual(manifest.stat().st_mode & 0o022, 0)
+        self.assertEqual(mod.installed_package_verified(), True)
 
     def test_select_plan_confirms_existing_package_without_writes(self):
         self.assertEqual(mod.main(["--apply"]), 0)
