@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **25 octobre 2026**. Source d'autorité pour le travail restant
+> Mise à jour : **26 octobre 2026**. Source d'autorité pour le travail restant
 > dans `nabla-compose`. Ce document décrit des **décisions et gates**,
 > pas une preuve de fonctionnement des services.
 >
@@ -49,6 +49,36 @@ La PR FastAPI #378 fournit un chemin de recherche OWNER-only, sans
 activation automatique, plus des tests de refus. L'OpenRAG v0.7.1 upstream
 déclare `/mcp` et `openrag_search(filter_id)`, mais l'image réellement
 déployée reste à vérifier. **Aucun résultat Bababou n'a été consulté.**
+
+**Gates de livraison IA (code ≠ runtime).**
+- [x] **FastAPI → LiteLLM**, configuration déclarée : URL TrueNAS `:4000`,
+  alias `fastapi-qwen` et fichier `sample/.env.secrets` non suivi par Git.
+  Les clés virtuelles, le budget et les capacités de tool calling restent
+  **NOT_VERIFIED** tant que le LAN est inaccessible.
+- [x] **OpenRAG lecture OWNER**, implémentation privée en PR FastAPI #378 :
+  `POST /private/ops/ai/bababou/search` appelle seulement
+  `openrag_search` avec un `filter_id` imposé côté serveur.
+  Le chemin général `/run` ne reçoit pas le corpus privé.
+- [ ] **Activer le client MCP** : résoudre le vrai `/mcp` et sa politique
+  d'authentification sur l'image OpenRAG déployée, configurer
+  `MCP_CLIENTS` et `OPENRAG_BABABOU_FILTER_ID` comme secrets
+  contrôlés. Ne pas supposer qu'une clé `X-API-Key` est effectivement
+  exigée par OpenRAG 0.7.1 sans preuve.
+- [ ] **Sélection de corpus** : vérifier filtre, index distinct, ACL,
+  citations/page et suppression, puis indexer uniquement les documents
+  Bababou explicitement autorisés. Le montage ZFS read-only ne signifie
+  pas indexation.
+- [ ] **Confidentialité de l'inférence** : le modèle `fastapi-qwen`
+  utilise actuellement l'upstream workstation `172.17.0.57:4000/v1`.
+  Ne jamais lui envoyer des extraits Bababou avant vérification du
+  traitement local, de la rétention des prompts et de l'absence
+  de trace Langfuse / tiers. Pour le corpus privé, privilégier
+  un modèle Ollama TrueNAS validé et une identité LiteLLM dédiée ;
+  ne pas activer un fallback inter-modèles non contrôlé.
+- [ ] **E2E différé** : sur LAN rétabli, vérifier d'abord la résolution
+  réseau et les réponses saines, ensuite les clés et scopes, puis un
+  document synthétique avec citations, enfin un sous-ensemble privé
+  approuvé. Toujours refuser et classer `UNVERIFIED` hors de ces preuves.
 
 **Accès et confidentialité du corpus.** Le montage ZFS ne crée ni index
 ni API de recherche. La recherche Bababou doit exiger une identité OWNER
