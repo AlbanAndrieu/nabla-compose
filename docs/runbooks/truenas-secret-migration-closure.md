@@ -85,6 +85,50 @@ Le `FAIL` de la session historique est obsolète. Le smoke
 HTTPS privé et le chargement de la page sont acceptés ; la connexion
 authentifiée n'est pas testée.
 
+## Code — réception supplémentaire (26 octobre 2026)
+
+Les derniers résultats opérateur sur TrueNAS sont : `uid=0 gid=0 mode=600
+size=39` pour `/mnt/cpool/secrets/runtime/code/.env.secrets` et
+`mapped=1/1` depuis **ce fichier canonique** avec l'importeur en
+dry-run. Le contrôle `accept-runtime-env-first-wave.sh --check code`
+a validé les prérequis Backstage et dataset, puis a échoué sur
+`semantic dotenv comparison unavailable` (Python système sans
+`python-dotenv`). Ce blocage ne prouve **aucune différence de secrets**.
+
+Le correctif PR #285 utilise en secours le venv de l'utilisateur
+`SUDO_USER`, en l'exécutant via `sudo -H -u` sans privilège root.
+La lecture des fichiers reste app-bounded. Relancer le `--check code`
+**après intégration de la PR dans le checkout TrueNAS canonique** :
+un simple `git pull` sur la branche de l'ancienne PR #280 ne récupère
+pas automatiquement la correction de la PR #285.
+
+Le fichier legacy `/mnt/cpool/code/.env` a perdu `CODE_PASSWORD` ;
+la copie staged `/mnt/cpool/secrets/runtime/code/.env` peut donc
+être divergente. Ne pas utiliser `--restage code`, car cela risquerait
+d'écraser le fichier canonique `.env.secrets` récemment modifié.
+Comparer uniquement les noms de variables et états avec :
+
+```bash
+"$HOME/.cache/nabla-compose/dev-venv/bin/python" \
+  scripts/secrets/compare_dotenv_sources.py \
+  --app code \
+  --left /mnt/cpool/code/.env \
+  --right /mnt/cpool/secrets/runtime/code/.env
+```
+
+Le coffre ne contenait pas l'élément exact `nabla/prod/code` lors
+de la dernière requête (`found 0`). L'import **ciblé** depuis le
+fichier canonique validé est désormais techniquement possible avec
+`import_dotenv_to_bitwarden.py --app code --input
+/mnt/cpool/secrets/runtime/code/.env.secrets --apply`.
+**Cette commande écrit dans Vaultwarden et doit être exécutée
+seulement après revue par l'opérateur et déverrouillage du coffre.**
+Elle ne change ni mot de passe ni conteneur et ne remplace pas
+automatiquement le `.env.secrets` canonique.
+
+Un `materialize_runtime.py --verify` compare le rendu Vaultwarden
+**octet par octet** : un fichier édité manuellement peut échouer
+même avec la bonne valeur, faute des commentaires générés.
 ## Code — déplacement manuel du mot de passe (26 octobre, réception opérateur)
 
 **Contrôles réussis :** tests `test_compare_dotenv_sources.py` et
