@@ -168,7 +168,11 @@ def inspect(source: Path = SOURCE, dest: Path = DEST, *, require_root: bool = Tr
         return "destination_directory_unavailable"
     try:
         parent = dest.parent.stat(follow_symlinks=False)
-        if (require_root and parent.st_uid != 0) or stat.S_IMODE(parent.st_mode) & 0o022:
+        if (
+            (require_root and (parent.st_uid != 0 or parent.st_gid != EXPECTED_GID
+                               or not stat.S_IMODE(parent.st_mode) & 0o010))
+            or stat.S_IMODE(parent.st_mode) & 0o022
+        ):
             return "destination_directory_insecure"
         if dest.is_symlink():
             return "destination_symlink_refused"
@@ -189,9 +193,33 @@ def inspect(source: Path = SOURCE, dest: Path = DEST, *, require_root: bool = Tr
         return "destination_unreadable"
 
 
+def prepare_destination_directory(dest: Path) -> None:
+    """Create only the missing private scrape-secret directory on approved apply."""
+    parent = dest.parent
+    base = parent.parent
+    if parent.is_symlink() or parent.exists():
+        raise ValueError("destination_directory_not_missing")
+    # Never create a new parent tree and never follow an existing parent symlink.
+    if base.is_symlink() or not base.is_dir():
+        raise ValueError("destination_parent_unavailable")
+    base_info = base.stat(follow_symlinks=False)
+    if (base_info.st_uid != 0
+            or stat.S_IMODE(base_info.st_mode) & 0o022):
+        raise ValueError("destination_parent_insecure")
+    os.mkdir(parent, 0o750)
+    os.chown(parent, 0, EXPECTED_GID)
+    os.chmod(parent, 0o750)
+
+
 def install(source: Path = SOURCE, dest: Path = DEST) -> str:
     """Atomically install the credential with uid 0, gid 568, mode 0640."""
     status = inspect(source, dest)
+    if status == "destination_directory_unavailable":
+        # The file bind has create_host_path=false: the destination directory
+        # must be provisioned before Prometheus can start. Never make the
+        # missing secret itself, and never create an unbounded parent tree.
+        prepare_destination_directory(dest)
+        status = inspect(source, dest)
     if status == "credential_ready":
         return status
     if status not in {"credential_not_installed", "credential_mismatch"}:
