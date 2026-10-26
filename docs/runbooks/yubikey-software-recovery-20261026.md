@@ -81,13 +81,31 @@ l'historique du shell ou la ligne de commande d'un processus :
 ```bash
 just yubikey-escrow-pair-test
 just yubikey-escrow-pair-check
-# Facultatif : deux vrais fichiers *.age existants, sur la workstation
+# Recherche automatique locale de deux fichiers *.age de même nom :
+just yubikey-escrow-pair-discover
+# Pour utiliser la paire détectée après confirmation (ou saisie masquée
+# manuelle si la découverte ne trouve pas exactement une paire) :
 just yubikey-escrow-pair-inspect
 ```
 
-La troisième recette nécessite un terminal interactif et demande les
-deux chemins absolus en **saisie masquée**. Les sorties JSON ne
-contiennent jamais les chemins. L'outil délègue à
+Le script recherche désormais les fichiers `.age` non récursivement dans
+les deux répertoires connus de la workstation :
+
+- `~/.local/share/nabla/age-backups/` (origine locale)
+- `/media/backup/lab/secret/` (copie du support monté)
+
+`--discover` vérifie uniquement les noms et métadonnées accessibles, puis
+retourne un état sans publier le nom des fichiers ni leurs chemins.
+Il sélectionne automatiquement **une seule** paire de noms identiques.
+Deux paires possibles donnent `DISCOVERY_MULTIPLE_MATCHING_PAIRS` :
+aucun choix arbitraire n'est effectué. Les répertoires et fichiers
+symboliques sont rejetés, et le nombre d'entrées parcourues est limité.
+
+`--inspect` exige un terminal interactif. Quand une paire est reconnue,
+il propose son inspection avec une confirmation `[o/N]`, sans montrer le
+chemin des fichiers. Si l'opérateur refuse ou si la découverte échoue,
+il demande les deux chemins absolus en **saisie masquée** comme auparavant.
+Les sorties JSON ne contiennent jamais ces chemins. L'outil délègue à
 `inspect-yubikey-recovery-readonly.py`, qui vérifie uniquement
 les métadonnées (type de fichier, taille non nulle, inode,
 filesystem, liens symboliques) ; il n'ouvre et ne déchiffre pas les
@@ -113,6 +131,24 @@ restauration**. Si les fichiers n'existent pas, ou si les chemins sont
 des liens symboliques, conserver `UNKNOWN` et ne pas créer de faux
 fichiers pour réussir le contrôle. Ne pas mettre ces chemins en clair
 dans un ticket public ou une PR.
+
+**Preuves opérateur du 26/10/2026** : le premier essai avait fourni
+deux fois le même chemin : `SAME_FILE`, refus normal. L'opérateur a
+ensuite copié une archive `.age` de l'origine locale vers le support
+monté avec `cp` et utilisé un chemin dans chaque répertoire. Deux
+exécutions ont produit `TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED`.
+La copie du support apparaît comme fichier de 389 octets,
+`-rw-------+` : le signe `+` indique une ACL à examiner séparément.
+Ces observations **ne prouvent pas** que les contenus sont identiques,
+que le support est physiquement indépendant ou que la clé de
+déchiffrement est récupérable. Il s'agit de deux copies d'une même
+archive chiffrée, non de deux identités de récupération distinctes.
+
+Pour vérifier ensuite uniquement l'identité binaire des deux copies,
+l'opérateur peut utiliser `cmp -s --` localement, avec les chemins
+réels, sans afficher le contenu. Ce test **lit** les deux fichiers
+(à la différence de l'inventaire stat-only) mais n'écrit rien.
+Une égalité binaire ne valide toujours pas le déchiffrement.
 
 Après un contrôle de métadonnées réussi, le prochain jalon est
 une récupération supervisée de chacune des deux archives sur un espace
