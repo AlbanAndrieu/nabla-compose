@@ -630,6 +630,24 @@ GitHub Actions n'est compris dans ce relevé.
 - **Exécution LAN différée :** aucun résultat live inventé.
   [Runbook de collecte et commandes](runbooks/prometheus-akvorado-lan-evidence-20261026.md).
 
+## Prometheus + Akvorado — campagne LAN préparée (26 octobre)
+
+- **Point d'entrée unique :** `scripts/truenas/observe-prometheus-akvorado-lan.sh`
+  (sans sudo) agrège baseline + sept scrapes restants et deux snapshots
+  Akvorado espacés de 1 à 60 secondes ; écrit un JSON privé 0600.
+  `--scope all` dans `collect-observability-evidence.py`
+  supprime les doublons de jobs. Synthèse `PASS/FAIL/UNVERIFIED`.
+- **Commandes opérateur :** voir
+  [runbook observabilité](runbooks/2026-10-25-observability-triage.md).
+  L'agent n'a pas observé le LAN : les scrapes courants, les erreurs
+  de métadonnées et les lignes ClickHouse sont **NOT_VERIFIED**.
+- **Critère de clôture :** Prometheus vérifié pour chaque job configuré ;
+  Akvorado deux fenêtres sans rejets actifs et preuve SQL de nouvelles
+  lignes, distincte du compteur de lots. Ne pas promouvoir le
+  status Akvorado `UNVERIFIED` à `PASS` sans SQL.
+- **Qualité :** test unitaire du scope `all` ajouté ; validation
+  sur le HEAD du checkout de l'opérateur encore requise.
+
 ## H-05 / H-06 — durcissement des diagnostics hors LAN (26 octobre)
 
 - **Prometheus (code livré dans PR #285) :** `health=unknown`,
