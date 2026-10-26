@@ -305,3 +305,35 @@ de métadonnées sur les deux vrais escrows reste **NOT_RUN**.
   certificat et roundtrip matériel), en préservant PIV9A et OTP2.
 
 Voir [runbook de récupération synthétique et escrows](yubikey-software-recovery-20261026.md).
+
+## Deux emplacements age connus — preuve opérateur et recherche automatique (26/10/2026)
+
+Le logiciel a désormais un mode `--discover` qui examine uniquement
+les deux répertoires suivants (sans récursion et sans ouverture du contenu) :
+
+- `~/.local/share/nabla/age-backups/`
+- `/media/backup/lab/secret/`
+
+La découverte fait correspondre les fichiers `.age` **par nom
+identique** dans les deux répertoires. Elle refuse de choisir une paire
+si plusieurs noms correspondent et ne suit aucun lien symbolique.
+`just yubikey-escrow-pair-discover` renvoie seulement un statut
+JSON, sans afficher les noms ni chemins.
+`just yubikey-escrow-pair-inspect` propose la paire unique après
+confirmation `[o/N]`, sinon conserve la saisie manuelle masquée.
+Les tests hermétiques de cette interface sont passés de **8 à 17**
+et attendent une validation sur la workstation.
+
+**Preuve utilisateur** : même chemin fourni deux fois
+→ `SAME_FILE`, refus correct. Après copie `cp` vers le support monté,
+deux inspections des deux chemins ont renvoyé
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED`.
+La copie destination apparaît en `-rw-------+` et contient
+389 octets. Cela ne prouve ni identité des contenus, ni supports
+physiquement indépendants, ni déchiffrement/restore.
+L'ACL `+` devra être contrôlée localement.
+
+**Suite** : vérifier l'identité binaire de la copie puis restaurer en
+environnement isolé à partir du support de sauvegarde, sans exposer
+la clé age ou le texte déchiffré. Aucune génération PIV82 ou mutation
+SOPS autorisée à ce stade. Test KeePassXC/OTP2 toujours reporté.
