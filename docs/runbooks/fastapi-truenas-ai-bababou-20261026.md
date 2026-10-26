@@ -109,6 +109,41 @@ tant que `/api/tags`, le modèle installé et la clé scoped ne sont pas attest�
 Éviter toute réponse faussement positive : `index_not_verified`
 ou `retrieval_not_verified` doit rester visible.
 
+## Réception opérateur 26 octobre — connectivité IA validée partiellement
+
+Depuis la workstation, la sonde SSH sans privilège a rapporté
+`docker_socket_denied`. La même sonde relancée avec `--ssh-sudo`
+(droits `sudo -n docker` déjà configurés, sans chmod du socket)
+a retourné :
+
+| Sonde depuis le conteneur FastAPI | Preuve | Limite |
+| --- | --- | --- |
+| LiteLLM TrueNAS :4000 `/health/liveliness` | `http_200` | Pas de virtual-key ni de modèle `fastapi-qwen` testé |
+| Ollama TrueNAS :30068 `/api/tags` | `http_200` | Aucune liste des modèles publiée ; pas d'inférence |
+| Backend OpenRAG :8000 `/health` | `http_200` | Index privé et authentification non vérifiés |
+| Frontend OpenRAG :3000 `/mcp` | `unverified` | HTTP / DNS / TCP indistincts avec l'ancienne sonde |
+| Recherche OpenRAG | `not_tested_requires_auth` | Aucun document ni filtre consulté |
+
+Le code corrigé en PR #285 catégorise les redirections
+`http_301/302/307/308`, les refus MCP `http_401/403/405/406`,
+les erreurs serveur `http_500/502/503/504`, ainsi que
+`dns_failure`, `tcp_refused` et `connection_timeout`.
+Il **n'envoie jamais `X-API-Key`**, ne suit pas de redirection et
+ne lit aucun corps HTTP. Pour revérifier depuis le checkout actualisé :
+
+```bash
+python3 scripts/truenas/diagnose-fastapi-ai-chain.py \
+  --check --runtime --ssh-target albandrieu@172.17.0.24 --ssh-sudo
+```
+
+Une réponse MCP `405`/`406` peut être normale pour un GET anonyme
+sur un serveur MCP streamable HTTP ; elle ne signifie pas que le service
+est opérationnel ou que l'authentification privée fonctionne.
+La doc amont `langflow-ai/openrag` tag `v0.7.1` confirme
+`http://openrag-frontend:3000/mcp` dans le Docker Compose standard.
+**Reste à vérifier** le conteneur réellement déployé et son profil
+d'authentification avant de configurer le client MCP OWNER.
+
 ## Endpoint privé de recherche (FastAPI PR #378)
 
 Un endpoint opt-in a été ajouté dans
