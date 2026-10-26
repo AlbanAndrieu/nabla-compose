@@ -568,6 +568,36 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## P0 — OOM global avéré / catalogue des capacités par service (26 octobre)
+
+- **Incident confirmé :** relevé initial `MemAvailable ≈2 Gio/62 Gio`,
+  PSI à 5 min `some=23,35 %` / `full=19,65 %`, swap absent.
+  Plusieurs `global_oom` ont tué des processus JVM, Python,
+  Obsidian et **2 QEMU** entre 21:27 et 22:18. Vérifier Talos/VM
+  avant de relancer la flotte. Lien causal Netdata/DefectDojo
+  **non démontré** (Netdata ~572 Mio, initializer ~129 Mio au snapshot).
+- **Contributeurs observés :** MongoDB ~9,55 Gio ; plusieurs JVM,
+  OpenSearch, Docling, Graylog et autres services consomment
+  chacun des centaines de Mio à plusieurs Gio. Échantillon
+  Docker distinct d'un pic et non une preuve causale.
+- **Collecte versionnée :**
+  `scripts/truenas/collect-service-resource-evidence.py` produit
+  `nabla-service-resources/v1`, une projection privée horodatée
+  Backstage/Compose avec `memory.working_set_bytes`,
+  `gpu.process_memory_bytes` et
+  `storage.writable_layer_bytes` + datasets ZFS partagés.
+  Valeur `null/unverified` si GPU distant, donnée absente ou
+  mapping non vérifiable. Pas de duplication permanente de cAdvisor.
+- **UI OWNER :** la branche
+  `nabla-site-alban:feat/homelab-service-resource-snapshots-20261026`
+  accepte un import JSON local et affiche RAM/GPU/ZFS dans
+  les cards. Mesures périmées après 30 minutes. Aucun upload
+  SERVICE/public ; collecte automatique OWNER à planifier.
+- **Qualité :** tests hermétiques
+  `tests/test_service_resource_evidence.py` ajoutés ;
+  exécution locale complète et collecte sur TrueNAS **à confirmer**.
+  [Runbook d'inventaire](runbooks/2026-10-26-homelab-service-resource-inventory.md).
+
 ## P0 — Pression mémoire TrueNAS après redémarrage DefectDojo (26 octobre)
 
 - **Symptôme :** opérateur rapporte une disponibilité RAM très faible
