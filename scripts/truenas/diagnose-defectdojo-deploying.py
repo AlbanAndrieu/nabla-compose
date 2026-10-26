@@ -22,6 +22,15 @@ CONTAINERS = (
 )
 ALLOWED_STATES = {"RUNNING", "DEPLOYING", "STOPPED", "CRASHED", "STOPPING", "UNKNOWN"}
 ALLOWED_DOCKER_STATES = {"running", "exited", "created", "restarting", "paused", "dead", "removing"}
+# Lifecycle milestones are named allowlisted states, not success verdicts.
+LOG_PROGRESS = (
+    ("POSTGRES_REACHABLE", re.compile(r"(database test was successful|is available after)", re.I)),
+    ("TRIGGERS_ENABLED", re.compile(r"(successfully enabled pghistory triggers)", re.I)),
+    ("MIGRATIONS_NOT_NEEDED", re.compile(r"(no migrations to apply)", re.I)),
+    ("EXISTING_ADMIN_CONFIRMED", re.compile(r"(admin user already exists)", re.I)),
+    ("PERMISSIONS_INIT_STARTED", re.compile(r"(initializing non-standard permissions)", re.I)),
+    ("PERMISSIONS_COMMAND_COMPLETED", re.compile(r"(non-standard permissions have been created)", re.I)),
+)
 LOG_CATEGORIES = (
     ("database_connection", re.compile(r"(connection refused|database.*unavailable|could not connect to server|psycopg.*operationalerror)", re.I)),
     ("migration_or_initializer", re.compile(r"(migration.*failed|django\.db\.utils|initializer.*failed|relation .*does not exist)", re.I)),
@@ -101,7 +110,7 @@ def redacted_log_classes(name: str) -> list[str]:
     if name not in CONTAINERS:
         raise ValueError("unapproved container")
     code, raw = command(
-        ["docker", "logs", "--since", "45m", "--tail", "100", name],
+        ["docker", "logs", "--since", "4h", "--tail", "120", name],
         timeout=7, limit=64 * 1024,
     )
     if code:
@@ -157,6 +166,16 @@ def diagnose(include_logs: bool) -> dict[str, object]:
     if include_logs:
         result["logs"] = {name: redacted_log_classes(name)
                           for name in ("defectdojo-initializer", "defectdojo-uwsgi", "defectdojo")}
+        code, raw = command(
+            ["docker", "logs", "--since", "4h", "--tail", "120",
+             "defectdojo-initializer"],
+            timeout=7, limit=64 * 1024,
+        )
+        result["initializer_log_progress"] = (
+            [state for state, pattern in LOG_PROGRESS if pattern.search(raw)]
+            if code == 0 else ["LOGS_UNVERIFIED"]
+        )
+        result["initializer_log_progress_is_exit_proof"] = False
     result["next_check"] = next_action(containers, result["origin_http"])
     return result
 
