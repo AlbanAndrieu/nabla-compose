@@ -227,6 +227,52 @@ déployés** avant d'en déduire que le routeur privé est actif.
 Le fait que Pi-hole réponde déjà pour Nexus **n'est pas une preuve**
 d'activation de ce routeur.
 
+## Gate 2 — résultat opérateur : backend HTTP OK, route privée 404
+
+Après les **8/8 réponses DNS** et les **4/4 contrats locaux** validés,
+l'opérateur a confirmé, depuis la workstation :
+
+| Vérification | Réponse | Conclusion limitée |
+| --- | --- | --- |
+| `curl http://172.17.0.24:8081/` | **HTTP 200**, `exit=0`, 2,097 s | Nexus répond directement |
+| `curl --resolve nexus.int.albandrieu.com:443:172.17.0.24 https://nexus.int.albandrieu.com/` | **HTTP 404**, `exit=0`, `tls=0`, 14 ms | Connexion HTTPS vérifiée, **aucune route applicative correspondant au Host** ou réponse 404 de l'origine |
+
+Le certificat est vérifié par `curl` (`ssl_verify_result=0`).
+Le `404` ne provient **pas** de la résolution DNS. C'est très
+probablement le routeur privé Traefik inactif ou non déployé,
+mais la provenance exacte du `404` n'est pas encore démontrée.
+
+Le fichier `apps/nexus/compose.yml` conserve une activation
+**explicite** : `traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-false}"`.
+La présence du label déclaratif n'est pas une preuve que l'application
+TrueNAS l'a déployé. Vérifier d'abord les **labels effectifs** :
+
+```bash
+# Depuis TrueNAS : lecture seule, n'affiche que des labels de routage.
+sudo docker inspect nexus --format '{{json .Config.Labels}}' |
+  jq 'with_entries(select(.key | startswith("traefik.")))'
+
+# Confirmer l'appartenance du conteneur au réseau partagé.
+sudo docker inspect nexus --format '{{json .NetworkSettings.Networks}}' |
+  jq 'keys'
+```
+
+Si `traefik.enable=false`, corriger le **rendu Compose de la seule
+application Nexus** en déployant explicitement
+`NEXUS_PRIVATE_INGRESS_ENABLED=true` depuis le propriétaire TrueNAS
+de cette variable ; valider **avant** que le routeur ne puisse être
+atteint depuis une interface WAN. Une URL `*.int` privée en DNS n'est
+**pas à elle seule** une barrière d'accès à l'ingress partagé :
+le filtrage public pfSense HAProxy/Traefik doit refuser les Host/SNI
+privés depuis Internet. Ne pas considérer un middleware IPAllowList
+seul comme protection suffisante si le proxy amont peut représenter
+une source WAN comme `172.17.0.1`.
+
+**Aucun changement de runtime n'est exécuté par ce runbook.**
+Conserver le contrat du Nexus public et vérifier le rollback
+avant tout redéploiement ciblé ; ne pas redémarrer Unbound,
+Pi-hole ou Traefik pour réparer un simple routeur.
+
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
