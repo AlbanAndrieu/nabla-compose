@@ -1962,3 +1962,68 @@ déjà et l'updater refuse à raison
 paquet existant est le seul changement souhaité. Elle ne crée pas
 de sauvegarde et ne lance pas de modèle. Le premier démarrage sous
 la nouvelle version peut provoquer une migration non réversible.
+
+
+## 26 octobre 2026 — sélection 2026.10.7 bloquée au contrôle du paquet
+
+Preuve Workstation : après correction de la fixture npm, **26/26 tests
+PASS avec le umask courant et 26/26 PASS avec umask 0002**. Le plan
+reste en échec avant toute activation :
+
+```text
+target_release=2026.10.7
+existing_package_verified=no
+gateway_running=no
+owned_dropin=no
+already_selected=no
+no_npm_install=true
+no_backup=true
+```
+
+Le champ `owned_dropin=no` découle aussi du paquet non vérifié : ce
+n'est **pas** une preuve indépendante de dérive systemd. La cause
+précise du refus n'était pas observable dans l'ancien script.
+Aucune sélection du paquet ni démarrage du Gateway n'a été exécuté
+par cette tentative.
+
+**Correction PR #285 :** `--select-installed-plan` imprime désormais
+`existing_package_check=<raison>` où `raison` appartient à un
+vocabulaire fixe. Exemples :
+- `node_root_group_write`, `package_root_group_write`,
+  `manifest_group_write` ou `entry_group_write` :
+  une permission group/other-writable sur un des quatre chemins
+  exacts du paquet cible ;
+- `package_name_mismatch`, `package_version_mismatch`,
+  `package_bin_mismatch` ou `cli_version_unverified` :
+  **pas** un défaut de permissions, ne pas retoucher le paquet ;
+- `*_unsafe_type_or_owner`, `package_metadata_unavailable`,
+  `manifest_size` : vérifier la structure sans contourner le garde-fou.
+
+Pour l'ancienne valeur possible `umask 0002`, une recette séparée
+`just openclaw-gateway-package-permissions` supprime seulement le
+bit write group/other des **quatre ressources user-owned** :
+racine Node 24.22.1, dossier npm `openclaw`, `package.json` et
+`openclaw.mjs`. Elle vérifie d'abord l'ancien drop-in user
+exactement possédé, le Gateway arrêté, le type/propriétaire de chaque
+ressource, puis le manifeste (nom/version/bin) par ouverture
+`O_NOFOLLOW`. Elle ne modifie aucun autre `node_modules`, aucune
+autre application, aucun secret, aucune clé, aucun index SQLite.
+Si le paquet est étranger ou symlink, elle bloque **sans chmod**.
+Le résultat `package_check=verified` conditionne la suite.
+
+**Exécution avec garde-fous depuis un worktree frais de la PR #285 :**
+
+```bash
+just openclaw-gateway-node-test
+just openclaw-gateway-package-permissions
+just openclaw-gateway-node-plan
+just openclaw-gateway-select-installed
+```
+
+Cette procédure ne réinstalle pas OpenClaw, ne lance pas
+`openclaw update`, ne crée pas de nouvelle sauvegarde et ne
+consomme aucun appel LLM. La sélection et le démarrage sont bloqués
+si une cause autre qu'une permission user-owned reste non résolue.
+Le premier démarrage 2026.10.7 peut toujours provoquer une migration
+SQLite/plugin non automatiquement réversible. Les tests ajoutés
+ne sont **pas encore validés sur la Workstation** au nouveau HEAD.
