@@ -108,3 +108,33 @@ def test_docker_collection_uses_bounded_stats_not_inspect():
     cmd = proc.call_args.args[0]
     assert cmd[:3] == ["docker", "stats", "--no-stream"]
     assert proc.call_args.kwargs["timeout"] == 8
+
+
+def test_resource_candidates_are_hints_not_root_cause():
+    raw = json.dumps({"Name": "ix-heavy-1", "CPUPerc": "125%",
+                      "MemUsage": "2GiB / 3GiB", "MemPerc": "90%"}) + "\n"
+    result = m.parse_docker_stats(raw, 10)
+    assert result["resource_candidates"] == [
+        {"name": "ix-heavy-1", "clues": [
+            "high_cpu_snapshot",
+            "near_container_memory_limit",
+            "large_working_set_not_host_pressure_proof",
+        ]}
+    ]
+
+
+def test_host_only_mode_never_queries_docker(capsys):
+    fake = {"at_utc": "2026-10-26T22:00:00+00:00",
+            "memory_available_pct": 45,
+            "memory_available_mib": 4000,
+            "memory_total_mib": 8000, "swap_used_mib": 0,
+            "psi": {"cpu": {"some_avg10_pct": 0},
+                    "memory": {"some_avg10_pct": 0, "full_avg10_pct": 0},
+                    "io": {"some_avg10_pct": 0}},
+            "vmstat": {"oom_kill": 0}, "zfs_arc": {"state": "UNAVAILABLE"}}
+    with (mock.patch.object(m, "host_sample", return_value=fake),
+          mock.patch.object(m, "docker_sample") as docker):
+        rc = m.main(["--check", "--observe-seconds", "0", "--skip-docker"])
+    assert rc == 0
+    assert '"SKIPPED"' in capsys.readouterr().out
+    docker.assert_not_called()
