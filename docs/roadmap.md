@@ -274,14 +274,29 @@ Actions :
   `just pfsense-feed-pressure-check`. Ne désactiver une liste
   supplémentaire que si elle est redondante/obsolète et si
   la couverture IP/DNSBL est documentée.
-- [ ] **H-04 / CrowdSec P1 — état de l'application firewall :**
-  audit du 25/10 : `crowdsec.engine=running` et
-  `crowdsec.firewall_bouncer=stopped_or_unknown` ; arrêt volontaire
-  rapporté par l'opérateur. Les décisions de blocage peuvent ne plus
-  être appliquées localement. Ne pas réactiver le bouncer pendant la
-  mesure mémoire ; documenter le gain et restaurer la couverture lors
-  d'une fenêtre dédiée. Vérifier également
-  `service.pfb_filter=0` (helper filterlog absent).
+- [ ] **H-04 / CrowdSec P1 — nouvelle preuve runtime du 26/10 :**
+  ancien audit du 25/10 `firewall_bouncer=stopped_or_unknown`
+  **supplanté par une preuve directe**. Sur pfSense :
+  moteur local **RUNNING**, bouncer **RUNNING**, API locale
+  `http://172.17.0.1:8089` ; deux tables PF présentes avec
+  **9399 + 22 = 9421 entrées**. Ces remédiations ne viennent
+  **pas** du moteur TrueNAS (LAPI centrale : zéro décision,
+  bouncer `PFSENSE_FIREWALL` enregistré mais `last_pull=<none>`).
+  Ne pas arrêter le moteur pfSense tant que la connexion centrale
+  n'est pas fonctionnelle : préserver les règles en vigueur.
+  `service.pfb_filter=0` demeure une observation à revoir.
+  TrueNAS CrowdSec 1.8.1 RUNNING/healthy ; LAPI `172.17.0.24:8084`
+  et métriques `:6060` accessibles ; mauvais scénario désactivé.
+  **Bloqueurs :** secret de cutover absent/illisible et mode Large
+  toujours actif. La requête Loki `device=pfsense` a échoué dans
+  le premier diagnostic puis réussi dans le second ; compteur
+  `cs_lokisource_hits_total=940`. Correctif code PR #285 :
+  **une relance bornée**, warning si récupérée, erreur si
+  classification toujours absente. Ne pas changer Alloy sur la
+  seule preuve du premier essai.
+  Tester localement `just crowdsec-loki-evidence-test`
+  (**5 nouveaux contrats, NOT_RUN sur le dernier HEAD**).
+  [Runbook CrowdSec](../apps/crowdsec/README.md).
 
 - [ ] **H-04 / CrowdSec central TrueNAS → pfSense Small :**
   architecture déjà déclarée dans `apps/crowdsec/compose.yml`
@@ -308,8 +323,14 @@ Actions :
   `https://nexus.int.albandrieu.com/` avec
   `--resolve ...:443:172.17.0.24` renvoie HTTP 404
   (`curl exit=0`, `ssl_verify_result=0`, 14 ms).
-  Après DNS privé **8/8 PASS**, isoler **routeur Traefik**
-  (labels effectivement déployés) et origine du 404.
+  Après DNS privé **8/8 PASS**, la lecture
+  `sudo docker inspect nexus` confirme **quatre labels
+  `nexus-private` et `traefik.enable` absents (`null`)**.
+  L'écart Compose souhaité / conteneur déployé est confirmé.
+  Lire le propriétaire de la Custom App et sa configuration effective
+  avant un redéploiement Nexus seul. Vérifier Host/SNI privé
+  inaccessible hors LAN sur le frontal WAN ; le DNS privé
+  ne constitue pas un contrôle d'accès.
   Le routeur privé est préparé en opt-in
   `NEXUS_PRIVATE_INGRESS_ENABLED=false` par défaut.
   Avant activation vérifier que le proxy frontal refuse Host/SNI
