@@ -660,6 +660,53 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## Réception opérateur du 27 octobre — ressources/DefectDojo/Vaultwarden
+
+- **Ressources TrueNAS : collecte réellement exécutée.**
+  Instantané privé horodaté `2026-10-26T23:37:27Z` :
+  **144 conteneurs RUNNING**, **92 mappés** à l'identité
+  Backstage, **52 non mappés**, `inventory_complete=true`,
+  **151 entités Component/Resource** ; GPU
+  `unavailable` sur TrueNAS. Le JSON est stocké sous
+  `/mnt/cpool/var/nabla/service-resources/resources-20261026T233659Z.json`
+  et **n'a pas été transmis à l'agent**. N'affirmer aucune
+  consommation CPU/RAM/ZFS individuelle sans lire ce rapport.
+  Le prochain collecteur inclut `compose_project`,
+  `compose_service` et `mapping_issue` pour réconcilier
+  les 52 non-mappés. Le flag `shared_by_services`
+  tient désormais compte des consommateurs non mappés.
+- **DefectDojo initializer :** la capture des logs prouve
+  l'accès PostgreSQL dès 21:04:30, une connexion test réussie,
+  les triggers pghistory à 22:25, **aucune migration
+  restante**, et `Admin user already exists; skipping first-boot
+  setup`. Dernière ligne transmise :
+  `Initializing non-standard permissions`. Aucun code
+  de sortie fourni : la fin réussie ou le blocage réel
+  **non vérifié**. Contrôler Docker status/OOM/exit et
+  `diagnose-defectdojo-postgres-waits.py --check`
+  sans réinitialiser la base.
+- **Vaultwarden CLI :** `code` et `openrag` retournent
+  `VAULT_ITEM_NOT_UNIQUE`, ambigu (manquant/doublon).
+  Nouveau classificateur différencie absent, déplacé et
+  dupliqué ; `defectdojo` : **5 MATCH**,
+  `DD_ADMIN_USER=DRIFT`,
+  `DD_ADMIN_PASSWORD=UNVERIFIED`.
+  Le complément `unverified_reasons` dit quel côté
+  manque/est vide, sans dévoiler la valeur.
+  Garder le compte Django `admin` historique.
+- **FastAPI/observabilité :** `update-fastapi-sample.sh`
+  a confirmé les deux fichiers d'environnement identiques,
+  checkout du commit `fa13c08db05ce8ce086d2366e1f35706913f05be`
+  et **démarrage de l'étape 3/6 de build Docker** ;
+  aucun succès de build/déploiement encore prouvé.
+  Les diagnostics Prometheus/Akvorado ont été lancés, mais
+  leurs résultats sont **non fournis / en cours**.
+  Éviter de paralléliser d'autres builds/redeploys sous
+  pression mémoire.
+- **Changements :** scripts/read-only + tests ajoutés dans
+  PR #285 avec `[skip ci]`, **aucune quality gate
+  exécutée**. [Runbook](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
 ## P0 — Dernière demande : CPU/RAM/stockage RUNNING + DefectDojo DEPLOYING (27 octobre)
 
 - **État réel : pas de collecte runtime complète effectuée par l'agent.**
