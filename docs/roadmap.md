@@ -843,6 +843,28 @@ GitHub Actions n'est compris dans ce relevé.
   en PR ; leur exécution sur le checkout Git complet **NOT_RUN**.
   Aucune CI GitHub, aucun changement de secret ou de service.
 
+## Suites P1 sans quality gate — changements du 26 octobre
+
+- **Vaultwarden** : appels `bw` limités à 60 s ;
+  aucune sortie `stderr`/secret incluse dans les erreurs
+  Python ; `BW_SESSION` réservé aux appels authentifiés.
+  Parité du coffre avec les secrets runtime encore à contrôler
+  depuis une session opérateur déverrouillée.
+- **Prometheus/Akvorado** : `diagnose-akvorado-flow.py` ne suit
+  plus les redirections ni les proxies, n'appelle que les
+  endpoints LAN explicitement déclarés et refuse les compteurs
+  historiques négatifs. Le défaut actif `metadata missing`
+  reste ouvert ; les lignes SQL récentes sont non vérifiées.
+- **OpenClaw** : le diagnostic systemd tolère les mises à jour
+  de Node 24 sous `mise` lorsque le binaire et le module
+  OpenClaw correspondent à la **même version**.
+- **YubiKey** : la comparaison des deux fichiers `.age`
+  refuse les permissions groupe/autres et les parents
+  symboliques avant ouverture. Aucune preuve de restauration.
+- Tests de non-régression ajoutés aux quatre thèmes mais
+  **pas exécutés**, conformément à la demande « pas de
+  quality gate ». Aucun service ou secret runtime modifié.
+
 ## P1 — Corriger les causes instrumentées
 
 | ID | Domaine | Fait établi | Reste à prouver |
