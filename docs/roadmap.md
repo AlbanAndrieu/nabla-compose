@@ -40,7 +40,7 @@ Continuer en PR #285, local-first et commits `[skip ci]`.
 | Ollama TrueNAS | `apps/ollama/compose.yml`: port hôte `30068`, modèle/chargement non vérifiés | **OPTIONAL / RUNTIME NOT_VERIFIED** : valider `/api/tags` avant de proposer un alias local dédié ; pas de substitution silencieuse au modèle scoped |
 | FastAPI → OpenRAG | **FastAPI PR #378 (code)** : route OWNER `POST /private/ops/ai/bababou/search`, outil `openrag_search` et `filter_id` serveur ; `MCP_CLIENTS` opt-in | **PREPARED / RUNTIME BLOCKED** : pas de clé OpenRAG ni filtre fourni, MCP 0.7.1 confirmé upstream mais ni route réelle ni ACL validées |
 | OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
-| Diagnostics Prometheus | 26/10 : le provisionneur retourne `source_file_missing`, mais un `ls` ultérieur voit le fichier `root:root 0600` (6496 octets) tandis que `stat` l'avait déclaré absent | **CONTRADICTORY EVIDENCE** : répéter `hostname`, `stat` et `--check` dans **la même session SSH TrueNAS** ; ne pas régénérer la clé ou lancer `--apply` avant résultat stable |
+| Diagnostics Prometheus | Sur TrueNAS, `stat` confirme le fichier source régulier `root:root 0600`, 6496 octets ; `reconcile-fastapi-metrics-credential.py --check` retourne `credential_not_installed` | **SOURCE ACCEPTED / INSTALL PENDING** : exécuter `--apply` après accord opérateur, vérifier `credential_ready`, puis recharger FastAPI/Prometheus de façon contrôlée et attester le scrape `up{job="fastapi_sample"}=1` |
 
 **Avancement code en cours :** la PR Compose #285 fournit
 `scripts/truenas/diagnose-fastapi-ai-chain.py --check` (inventaire Git
@@ -87,10 +87,26 @@ exposer le corpus privé sur `/run` public ni à FastAPI Cloud, `nabla-site-alba
 un endpoint RAG anonyme ou des logs LLM/Langfuse. Sans ACL validée,
 afficher `NOT_VERIFIED` au lieu de répondre à partir de documents privés.
 
-**Contrôles maintenant déblocables depuis le LAN :** commencer par le
-préflight du secret Prometheus (même hôte et même instant), puis le
-diagnostic `diagnose-fastapi-ai-chain.py --check --runtime` sur
-TrueNAS, ou son équivalent SSH limité aux statuts de transport.
+**Nouvelles preuves runtime (26/10)** : le préflight de la source
+métrique est terminé avec `credential_not_installed`, ce qui autorise
+la préparation de l'installation (pas son exécution automatique).
+`diagnose-fastapi-ai-chain.py --check --runtime --ssh-target` retourne
+successivement `ssh_unavailable_or_unauthorized` puis
+`docker_unavailable_or_probe_failed`. Le deuxième retour ne prouve
+ni que les modèles sont DOWN ni qu'OpenRAG est joignable.
+
+**Diagnostics améliorés (code PR #285)** : la sonde SSH distingue désormais
+`docker_socket_denied`, `sudo_noninteractive_denied`,
+`docker_daemon_unavailable`, `fastapi_container_missing`,
+`fastapi_container_not_running`, `fastapi_container_python_missing`,
+`docker_cli_missing`, `docker_exec_failed` et
+`probe_output_invalid`. Une option `--ssh-sudo` est disponible **uniquement
+si** le compte possède déjà les droits `sudo -n docker`.
+Le faux `GET /search/health` OpenRAG est supprimé :
+`openrag_search=not_tested_requires_auth` tant qu'une recherche
+authentifiée, filtrée et autorisée n'est pas exercée.
+Les statuts restent des preuves de transport et non d'accès au corpus.
+
 Un HTTP 401/403 sur MCP ou LiteLLM confirme seulement la barrière
 d'accès ; il faut une preuve *authentifiée* de la bonne clé et du bon
 modèle pour passer à ACCEPTED.
