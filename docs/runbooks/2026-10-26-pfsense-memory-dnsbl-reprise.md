@@ -210,12 +210,18 @@ dig +tries=1 +time=2 @172.17.0.1 s3.int.albandrieu.com A
 dig +tries=1 +time=2 @172.17.0.24 s3.int.albandrieu.com A
 ```
 
-Si les deux renvoient un A attendu, depuis la workstation :
+Si les deux renvoient **l'IPv4 attendue**, depuis la workstation :
 
 ```bash
 PFSENSE_PRIVATE_DNS_NAME=s3.int.albandrieu.com \
+PFSENSE_PRIVATE_DNS_EXPECTED_IP=172.17.0.24 \
   just pfsense-unbound-lan-dns-watch
 ```
+
+`172.17.0.24` est ici une **valeur historique candidate**.
+La vérifier avec `dig` sur les deux résolveurs avant d'exécuter la
+recette. Le script impose une IPv4 privée attendue, fournie explicitement,
+et ne la déduit jamais de la réponse DNS à vérifier.
 
 Si le premier renvoie `NXDOMAIN` et le second `NOERROR`
 avec `172.17.0.24`, examiner le Domain Override Unbound de
@@ -230,17 +236,26 @@ Elle s'achève normalement en environ **90 secondes** hors
 ralentissements/timeouts et émet `dns_watch_result=...`.
 Elle est bornée à 60 prélèvements et à un délai de dig
 configurable de 1 à 5 secondes, sans boucle infinie.
-**Nouveau précontrôle obligatoire :** deux requêtes A
-(publique et privée) sont exécutées avant la fenêtre. Si
-l'une des deux ne renvoie pas `OK`, le programme affiche
-`dns_watch_result=INVALID_BASELINE_NO_SAMPLES` ainsi
-qu'un indice (`PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS`
-pour `NXDOMAIN`) et sort avec le **code 2**, sans
-lancer 45 prélèvements. Ce résultat est une **baseline DNS
-invalide**, pas une interruption mesurée pendant le cron.
+**Précontrôle obligatoire :** la résolution publique et la réponse A
+privée de pfSense doivent être `OK` ; cette dernière doit contenir
+**l'IPv4 explicitement attendue**. Si la réponse privée est invalide,
+une troisième requête interroge directement Pi-hole `172.17.0.24` :
+- Pi-hole `OK` et pfSense en échec (public `OK`) :
+  `SPLIT_DNS_FAILURE` ; vérifier le Domain Override.
+- Pi-hole et pfSense sans l'A attendu : `BASELINE_INVALID` ;
+  vérifier le nom, la zone et l'IPv4 de référence.
+- Échec du nom public au précontrôle : `BASELINE_INVALID` ;
+  vérifier la connectivité sans conclure à une panne Unbound.
 
-Le programme effectue alors **2 requêtes de précontrôle + 90
+Dans chaque cas la sonde affiche
+`dns_sampling=SKIPPED_INVALID_PREFLIGHT` et sort en **code 2**.
+Les prélèvements ne commencent **jamais** sans précontrôle valide.
+Un échec au précontrôle ne constitue pas une coupure mesurée
+pendant le cron.
+
+Le programme effectue **2 à 3 requêtes de précontrôle + 90
 requêtes maximum** pendant les 45 prélèvements par défaut.
+Le résolveur Pi-hole est interrogé seulement si nécessaire.
 Un code retour `1` **après un précontrôle réussi et un
 bilan de prélèvements** indique qu'au moins une requête
 DNS a échoué pendant la surveillance.
@@ -259,8 +274,13 @@ les durées de requête, puis des compteurs :
 `public_fail`, `private_fail`, `both_fail` et les plus
 longues **séquences d'échantillons défaillants**.
 Il distingue `OK`, `TIMEOUT`, `NXDOMAIN`, `SERVFAIL`,
-`REFUSED`, `NO_A_ANSWER`, etc. Un échec du nom privé seul
-peut être une faute de DNS split plutôt qu'une coupure Unbound.
+`REFUSED`, `NO_A_ANSWER`, `A_MISMATCH`, etc.
+Après précontrôle valide : `SPLIT_DNS_FAILURE` signale un échec
+privé seul, `DNS_OUTAGE_OBSERVED` signale au moins un prélèvement
+où les **deux** requêtes séquentielles ont expiré, et
+`DNS_FAILURE_OBSERVED` regroupe les autres échecs.
+Cette catégorisation est une observation de prélèvements,
+pas une preuve de durée de panne ni d'une cause particulière.
 
 `dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED` est
 intentionnel. Si la sonde échoue à des instants successifs,
@@ -298,11 +318,12 @@ Ce test ne couvre pas le cron de **00:04** : la mesure
 a eu lieu vers **20:09–20:10 CET**.
 
 La version de la sonde dans la **PR #285** inclut désormais
-une vérification préalable. Si le nom privé retourne
-`NXDOMAIN` dès le départ, le test se termine en
-`INVALID_BASELINE_NO_SAMPLES` et recommande de revoir
-la chaîne **pfSense/Unbound → Pi-hole → enregistrements DNS
-privés**, sans conclure à une panne du résolveur.
+une vérification préalable. Si le nom privé retourne `NXDOMAIN` dès le départ, la sonde
+interroge aussi Pi-hole. Elle retourne `BASELINE_INVALID`
+si le nom manque sur les deux résolveurs, ou
+`SPLIT_DNS_FAILURE` si Pi-hole possède l'A attendu.
+Dans les deux cas, elle **n'échantillonne pas** et ne conclut pas
+à une panne temporelle d'Unbound.
 
 L'ancien exemple `nexus-albanandrieu.int` ne doit plus
 être proposé pour les contrôles de disponibilité DNS LAN.
