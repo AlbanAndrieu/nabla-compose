@@ -347,17 +347,25 @@ Actions :
   Avant activation vérifier que le proxy frontal refuse Host/SNI
   privé venant de WAN ; DNS privé seul ne suffit pas à restreindre
   l'accès. Ne pas redéployer sans cette validation.
-  **Gate TrueNAS Apps confirmée :** conteneur Docker `ix-nexus/nexus`,
-  fichier rendu déclaré :
+  **Gate TrueNAS Apps validée par l'opérateur :**
+  conteneur Docker `ix-nexus/nexus`, rendu
   `/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml`.
-  Ce n'est pas le fichier Git, et le rendu ne prouve pas qu'un
-  `include` pointe vers le dépôt. Avant toute intervention,
-  inspecter en lecture seule `app.config nexus` (clés uniquement)
-  et le modèle `docker compose -f <rendered> config --format json`
-  (labels/réseaux uniquement). Ne pas éditer `.ix-apps`.
-  Selon la provenance réelle, préparer `app.update` ou un
-  `app.redeploy` **Nexus seul**, puis réévaluer DNS, TLS,
-  labels et accès WAN avant l'opt-in.
+  `app.config nexus | jq 'keys'` donne uniquement `include` :
+  **wrapper déjà en place**, chemin inclus exact encore à confirmer.
+  Le rendu Compose contient **tous les labels du routeur privé**
+  et `traefik.enable="false"` ; réseau `traefik_network` présent.
+  La valeur `null` associée à ce réseau signifie « options réseau
+  par défaut » et non « réseau absent ».
+  **Désynchronisation runtime :** les labels étaient absents du
+  conteneur actif. Une réconciliation TrueNAS **Nexus seul** mettrait
+  normalement à jour les labels mais **n'activerait pas le routeur**
+  tant que le rendu conserve `false`. Prochaines gates : vérifier
+  le chemin réellement inclus, le réseau partagé, la santé et le
+  rollback Nexus, **puis** confirmer l'isolation Host/SNI depuis WAN.
+  N'envisager l'opt-in `true` et le redéploiement que pendant une
+  fenêtre de maintenance validée. Ne pas éditer `.ix-apps`,
+  redéployer par `docker compose up` direct ou toucher à
+  `nexus.albandrieu.com`.
   [Runbook](runbooks/nexus-private-dns-ingress.md).
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
