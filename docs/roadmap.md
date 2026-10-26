@@ -38,9 +38,17 @@ rétablissement de l'accès.
 | FastAPI TrueNAS → LiteLLM | `apps/sample/compose.yml`: `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen` ; clé scoped dans `.env.secrets` | **CONFIGURED / RUNTIME NOT_VERIFIED** : test d'identité LiteLLM, modèle, virtual-key et sortie avec tool calls |
 | LiteLLM TrueNAS → workstation | `apps/litellm/config.yaml`: `fastapi-qwen` vers `LITELLM_WORKSTATION_API_BASE` / `LITELLM_FASTAPI_WORKSTATION_API_KEY` | **CONFIGURED / RUNTIME NOT_VERIFIED** ; l'upstream GPU n'est pas un repli TrueNAS garanti |
 | Ollama TrueNAS | `apps/ollama/compose.yml`: port hôte `30068`, modèle/chargement non vérifiés | **OPTIONAL / RUNTIME NOT_VERIFIED** : valider `/api/tags` avant de proposer un alias local dédié ; pas de substitution silencieuse au modèle scoped |
-| FastAPI → OpenRAG | `nabla/integrations/openrag_mcp_tools.py` active les outils seulement si `MCP_CLIENTS` contient `openrag` activé | **NOT_WIRED / BLOCKED** : vérifier version 0.7.1, présence réelle de `/mcp`, authentification des recherches et ACL corpus avant activation |
+| FastAPI → OpenRAG | **FastAPI PR #378 (code)** : route OWNER `POST /private/ops/ai/bababou/search`, outil `openrag_search` et `filter_id` serveur ; `MCP_CLIENTS` opt-in | **PREPARED / RUNTIME BLOCKED** : pas de clé OpenRAG ni filtre fourni, MCP 0.7.1 confirmé upstream mais ni route réelle ni ACL validées |
 | OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
 | Diagnostics Prometheus | `METRICS_SCRAPE_KEY` ajouté par opérateur à sample `.env.secrets`, puis `reconcile-fastapi-metrics-credential.py --check` signale une source invalide | **BLOCKED sans LAN** : ne pas appliquer avant catégorie précise du nouveau diagnostic et correspondance de secret |
+
+**Avancement code en cours :** la PR Compose #285 fournit
+`scripts/truenas/diagnose-fastapi-ai-chain.py --check` (inventaire Git
+hors LAN), et son mode `--runtime` opt-in quand l'accès est rétabli.
+La PR FastAPI #378 fournit un chemin de recherche OWNER-only, sans
+activation automatique, plus des tests de refus. L'OpenRAG v0.7.1 upstream
+déclare `/mcp` et `openrag_search(filter_id)`, mais l'image réellement
+déployée reste à vérifier. **Aucun résultat Bababou n'a été consulté.**
 
 **Accès et confidentialité du corpus.** Le montage ZFS ne crée ni index
 ni API de recherche. La recherche Bababou doit exiger une identité OWNER
@@ -60,7 +68,8 @@ indexation, rotation, diffusion de PII ou redéploiement automatique.
 
 [Architecture RAG](runbooks/rag-bababou-poc-architecture.md) ·
 [LiteLLM FastAPI](runbooks/fastapi-sample-litellm.md) ·
-[Diagnostics OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md).
+[Diagnostics OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md) ·
+[Acceptation FastAPI IA/RAG](runbooks/fastapi-truenas-ai-bababou-20261026.md).
 
 ## Priorités opérationnelles et preuves
 
