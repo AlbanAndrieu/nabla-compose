@@ -150,6 +150,33 @@ les deux JSON expurgés **hors Git** avec leurs timestamps.
 Il n'est pas nécessaire d'appeler directement pfSense ni de forcer
 des mises à jour DNSBL/Snort.
 
+## Sécurité des sondes réseau — 26 octobre
+
+Le diagnostic historique `diagnose-akvorado-flow.py` utilise
+désormais exactement les deux endpoints métriques Inlet/Outlet
+autorisés. Aucun proxy système et aucune redirection HTTP ne sont
+acceptés ; le délai de connexion et la taille de réponse
+restent limités. Un compteur historique négatif n'est jamais
+présenté comme preuve d'un rejet actif.
+
+Le hash identique de la configuration Orchestrator est déjà prouvé,
+mais **n'atteste pas** que l'Outlet utilise ce mapping en mémoire.
+Le dernier relevé avec flux nouveaux (`+2` reçus,
+`+2` `metadata missing`, `0` lot ClickHouse) reste
+une anomalie d'ingestion **active**. Pour investiguer sans redémarrer :
+
+```bash
+sudo bash scripts/truenas/diagnose-akvorado-config.sh --check
+python3 scripts/truenas/check-akvorado-metadata-config.py --check
+python3 scripts/truenas/diagnose-akvorado-flow.py \
+  --strict --fail-on-blocked --observe-seconds 30
+```
+
+Les rejets doivent être classés selon l'exporter réellement reçu,
+les ifIndex et le chargement runtime de la configuration.
+L'existence d'un fichier ou d'un endpoint metrics HTTP 200 ne suffit
+pas à déclarer le pipeline opérationnel.
+
 ## 6. Conditions de clôture
 
 - Prometheus : classifier les sept cibles d'après les dernières
