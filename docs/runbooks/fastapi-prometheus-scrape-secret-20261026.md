@@ -145,6 +145,35 @@ jeton actif de FastAPI et déployer/recréer Prometheus avec son bind
 contrôlé avant de réclamer `scrape_up`. Ne pas afficher ni comparer
 les valeurs des clés en terminal.
 
+## Nouvelle preuve d'installation : `credential_ready` (26/10)
+
+L'opérateur a exécuté sur TrueNAS `--apply` avec confirmation,
+puis `--check`. Les deux retours incluent
+`state=credential_ready`, `credential_ready=true` et
+`next_check=verify_fastapi_container_loaded_key_and_prometheus_mount`.
+
+**Clôturé :** fichier secret Prometheus privé installé et validé.
+**Ouvert :** identité effective de la variable FastAPI, montage Docker
+Prometheus, relecture du job et `up{job="fastapi_sample"}=1`.
+Ne pas réexécuter `--apply` ni renouveler la clé.
+
+Après stabilisation mémoire TrueNAS, utiliser les contrôles déjà
+définis plus bas pour la présence de la variable FastAPI et la
+configuration Prometheus, sans afficher les valeurs. Pour obtenir
+la classification réelle du job depuis le LAN :
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check
+```
+
+Ne pas redémarrer Prometheus uniquement parce que le fichier source
+est valide. Le montage `/run/secrets/fastapi-sample-metrics.key`
+nécessite une recréation du conteneur seulement s'il n'est pas
+présent dans le conteneur **effectivement lancé**.
+Une erreur `http_401` après montage signifie une authentification
+non acceptée (éventuellement FastAPI démarré avant la mise à jour de
+`.env.secrets`), pas un fichier secret inexistant.
+
 ## Incident de montage du 26 octobre 2026
 
 `app_lifecycle.log` confirme une erreur de démarrage Prometheus
