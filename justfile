@@ -152,6 +152,22 @@ yubikey-escrow-pair-discover:
 yubikey-escrow-pair-diagnose:
     python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --diagnose
 
+# Validate TrueNAS NFS visibility contracts without contacting workstation
+# mounts, archive data, SSH services, or real credentials.
+yubikey-escrow-nfs-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-nfs-server.py tests/test_yubikey_escrow_nfs_server.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_server.py' -v
+
+# Inspect mount-source identity and local age basename metadata only.
+# No remote network access.
+yubikey-escrow-nfs-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-server.py --check
+
+# Optional server-side read-only metadata query via existing SSH credentials;
+# enforces known_hosts; no password prompt, key, age decryption or write.
+yubikey-escrow-nfs-probe:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-server.py --probe --ssh-target albandrieu@172.17.0.24 --acknowledge INSPECT_NFS_SERVER_METADATA_ONLY
+
 # Synthetic contracts only, never touch real backups or YubiKeys.
 yubikey-escrow-compare-test:
     python3 -m py_compile scripts/workstation/compare-yubikey-escrow-pair-readonly.py tests/test_yubikey_escrow_pair_compare.py
