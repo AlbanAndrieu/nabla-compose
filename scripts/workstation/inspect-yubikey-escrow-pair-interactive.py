@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import sys
 
 SOURCE = Path(__file__).with_name("inspect-yubikey-recovery-readonly.py")
@@ -29,6 +30,37 @@ def candidate_directories(home: Path) -> tuple[Path, ...]:
         home / ".local/share/nabla/age-backups",
         Path("/media/backup/lab/secret"),
     )
+
+
+def classify_backup_mount() -> str:
+    """Classify the active mount only. Never report its NFS source or options."""
+    try:
+        done = subprocess.run(
+            ["findmnt", "-n", "-T", "/media/backup/lab/secret",
+             "-o", "TARGET,FSTYPE"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, check=False, timeout=5,
+        )
+        if done.returncode != 0 or len(done.stdout) > 4096:
+            return "MOUNT_UNVERIFIED"
+        lines = done.stdout.strip().splitlines()
+        if len(lines) != 1:
+            return "MOUNT_UNVERIFIED"
+        parts = lines[0].split()
+        if len(parts) != 2:
+            return "MOUNT_UNVERIFIED"
+        target, fstype = parts
+        if target != "/media/backup/lab":
+            return "UNEXPECTED_MOUNT_TARGET"
+        if fstype == "nfs4":
+            return "EXPECTED_NFS4_MOUNT_PRESENT"
+        if fstype == "nfs":
+            return "EXPECTED_NFS_MOUNT_PRESENT"
+        return "EXPECTED_TARGET_NON_NFS_FILESYSTEM"
+    except FileNotFoundError:
+        return "FINDMNT_UNAVAILABLE"
+    except (OSError, subprocess.TimeoutExpired, ValueError, UnicodeError):
+        return "MOUNT_UNVERIFIED"
 
 
 def diagnose_backup_roots(home: Path) -> dict[str, object]:
@@ -95,6 +127,7 @@ def diagnose_backup_roots(home: Path) -> dict[str, object]:
         "source_directory": reports[0],
         "backup_directory": reports[1],
         "matching_age_filenames": min(len(intersection), DISCOVERY_LIMIT),
+        "backup_mount_state": classify_backup_mount(),
         "expected_backup_copy_state": expected,
         "home_location_consistent_with_account": _home_is_account_home(home),
         "paths_disclosed": False,
