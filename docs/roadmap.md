@@ -35,12 +35,22 @@ Continuer en PR #285, local-first et commits `[skip ci]`.
 
 | Liaison / chantier | Source Git vérifiée | Statut / prochaine preuve |
 | --- | --- | --- |
-| FastAPI TrueNAS → LiteLLM | `apps/sample/compose.yml`: `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen` ; clé scoped dans `.env.secrets` | **CONFIGURED / RUNTIME NOT_VERIFIED** : test d'identité LiteLLM, modèle, virtual-key et sortie avec tool calls |
+| FastAPI TrueNAS → LiteLLM | `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen` ; la sonde exécutée dans FastAPI retourne `litellm=http_200` | **HTTP REACHABLE / AUTH NOT_VERIFIED** : clé scoped, modèle réellement exposé, upstream workstation et tool calling restent à valider |
 | LiteLLM TrueNAS → workstation | `apps/litellm/config.yaml`: `fastapi-qwen` vers `LITELLM_WORKSTATION_API_BASE` / `LITELLM_FASTAPI_WORKSTATION_API_KEY` | **CONFIGURED / RUNTIME NOT_VERIFIED** ; l'upstream GPU n'est pas un repli TrueNAS garanti |
-| Ollama TrueNAS | `apps/ollama/compose.yml`: port hôte `30068`, modèle/chargement non vérifiés | **OPTIONAL / RUNTIME NOT_VERIFIED** : valider `/api/tags` avant de proposer un alias local dédié ; pas de substitution silencieuse au modèle scoped |
-| FastAPI → OpenRAG | **FastAPI PR #378 (code)** : route OWNER `POST /private/ops/ai/bababou/search`, outil `openrag_search` et `filter_id` serveur ; `MCP_CLIENTS` opt-in | **PREPARED / RUNTIME BLOCKED** : pas de clé OpenRAG ni filtre fourni, MCP 0.7.1 confirmé upstream mais ni route réelle ni ACL validées |
+| Ollama TrueNAS | Depuis FastAPI : `GET http://172.17.0.24:30068/api/tags` retourne **HTTP 200** | **HTTP REACHABLE / MODELS NOT_VERIFIED** : HTTP 200 ne prouve ni un modèle chargé ni le fallback FastAPI |
+| FastAPI → OpenRAG | Backend `openrag-backend:8000/health` retourne **HTTP 200** depuis FastAPI ; frontend `/mcp` reste `unverified` et la recherche filtrée reste `not_tested_requires_auth` | **BACKEND REACHABLE / MCP NOT_VERIFIED** : diagnostiquer frontend, auth X-API-Key et `filter_id` privé. PR FastAPI #378 fusionnée, code seulement |
 | OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
-| Diagnostics Prometheus | Sur TrueNAS, `stat` confirme le fichier source régulier `root:root 0600`, 6496 octets ; `reconcile-fastapi-metrics-credential.py --check` retourne `credential_not_installed` | **SOURCE ACCEPTED / INSTALL PENDING** : exécuter `--apply` après accord opérateur, vérifier `credential_ready`, puis recharger FastAPI/Prometheus de façon contrôlée et attester le scrape `up{job="fastapi_sample"}=1` |
+| Diagnostics Prometheus | `reconcile-fastapi-metrics-credential.py --apply` puis `--check` retournent **`credential_ready=true`** sur TrueNAS | **SECRET INSTALLED / RUNTIME NOT_VERIFIED** : vérifier variable FastAPI active, bind du fichier Prometheus, puis `fastapi_sample: state=scrape_up targets_up=1` |
+
+**Preuves opérateur actualisées (26/10) :** le secret Prometheus est
+`credential_ready` après installation ; sans `--ssh-sudo`, Docker refuse
+l'accès au socket (`docker_socket_denied`). Avec `--ssh-sudo`, les
+sondes exécutées **depuis le conteneur FastAPI** donnent
+`litellm=http_200`, `ollama=http_200`,
+`openrag_backend=http_200`, `openrag_mcp=unverified`,
+`openrag_search=not_tested_requires_auth`. Aucune clé, requête de
+modèle ni recherche privée n'a été validée. **Ne pas redéployer le
+homelab pour un simple HTTP 200 ; confirmer les contrats actifs.**
 
 **Avancement code en cours :** la PR Compose #285 fournit
 `scripts/truenas/diagnose-fastapi-ai-chain.py --check` (inventaire Git
@@ -87,13 +97,12 @@ exposer le corpus privé sur `/run` public ni à FastAPI Cloud, `nabla-site-alba
 un endpoint RAG anonyme ou des logs LLM/Langfuse. Sans ACL validée,
 afficher `NOT_VERIFIED` au lieu de répondre à partir de documents privés.
 
-**Nouvelles preuves runtime (26/10)** : le préflight de la source
-métrique est terminé avec `credential_not_installed`, ce qui autorise
-la préparation de l'installation (pas son exécution automatique).
-`diagnose-fastapi-ai-chain.py --check --runtime --ssh-target` retourne
-successivement `ssh_unavailable_or_unauthorized` puis
-`docker_unavailable_or_probe_failed`. Le deuxième retour ne prouve
-ni que les modèles sont DOWN ni qu'OpenRAG est joignable.
+**Limite de preuve runtime :** la copie du secret est prête,
+mais le `METRICS_SCRAPE_KEY` effectivement chargé par FastAPI,
+le montage `/run/secrets/fastapi-sample-metrics.key` dans
+Prometheus et le scrape `up{job="fastapi_sample"}=1` restent
+**NOT_VERIFIED**. La recherche Bababou reste bloquée sur
+authentification, filtre et index privé.
 
 **Diagnostics améliorés (code PR #285)** : la sonde SSH distingue désormais
 `docker_socket_denied`, `sudo_noninteractive_denied`,
