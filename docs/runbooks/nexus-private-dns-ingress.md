@@ -84,6 +84,84 @@ Aucune modification de route, NetworkManager, pfSense, TrueNAS,
 Unbound, Pi-hole, Snort, pfBlockerNG ou CrowdSec ne fait partie
 du diagnostic initial.
 
+## Gate 0 — relevé du 26 octobre à 21:18 CET
+
+Depuis la workstation `eno1=172.17.0.57/24` :
+
+- `ip -4 route get` sélectionne `eno1` pour les deux adresses ;
+- pfSense `172.17.0.1` : ICMP 2/2, moyenne 0,498 ms ;
+- TrueNAS `172.17.0.24` : ICMP 2/2, moyenne 0,166 ms ;
+- TCP `172.17.0.1:10443`, `172.17.0.24:8081` et
+  `172.17.0.24:443` : trois connexions réussies ;
+- les deux voisins ARP sont `REACHABLE`.
+
+**État : `LAN_TRANSPORT_REACHABILITY_OBSERVED` au seul instant testé.**
+Les anciens timeouts sur DNS/HTTP/HTTPS ne peuvent plus être présentés
+comme une indisponibilité persistante du LAN. Les connexions TCP établies
+ne démontrent cependant ni réponse DNS UDP/TCP 53, ni HTTP 200, ni TLS
+correct, ni stabilité de la connectivité dans le temps.
+
+### Gate 1 — distinguer DNS UDP/TCP, HTTP et TLS
+
+Depuis la workstation, en lecture seule :
+
+```bash
+# Refaire un DNS privé connu OK puis Nexus, sur chaque serveur.
+for server in 172.17.0.24 172.17.0.1; do
+  echo "== DNS UDP ${server} =="
+  dig +tries=1 +time=2 @"$server" s3.int.albandrieu.com A
+  dig +tries=1 +time=2 @"$server" nexus.int.albandrieu.com A
+
+  echo "== DNS TCP ${server} =="
+  dig +tcp +tries=1 +time=2 @"$server" s3.int.albandrieu.com A
+  dig +tcp +tries=1 +time=2 @"$server" nexus.int.albandrieu.com A
+done
+
+# HTTP direct. TCP SYN/ACK ne suffit pas.
+curl --noproxy '*' --connect-timeout 2 --max-time 8 \
+  -sS -o /dev/null \
+  -w 'backend_http=%{http_code} total=%{time_total}\n' \
+  http://172.17.0.24:8081/
+
+# TLS + routage applicatif, toujours sans modifier le DNS.
+curl --noproxy '*' --connect-timeout 2 --max-time 8 \
+  -sS -o /dev/null \
+  --resolve nexus.int.albandrieu.com:443:172.17.0.24 \
+  -w 'ingress_http=%{http_code} tls=%{ssl_verify_result} total=%{time_total}\n' \
+  https://nexus.int.albandrieu.com/
+```
+
+Un `NXDOMAIN` sur les deux résolveurs **après** confirmation
+des réponses DNS pour `s3.int.albandrieu.com` est compatible avec
+l'absence de publication de Nexus. `TIMEOUT` sur UDP et réponse TCP
+suggèrent un problème de transport/politique DNS spécifique au
+protocole ; cela ne prouve pas automatiquement la cause. Si les deux
+protocoles expirent, contrôler la santé des services DNS avant les
+labels Traefik. Si les deux DNS renvoient un A correct mais TLS/HTTP
+échoue, investiguer le reverse proxy.
+
+### Gate de tests du dépôt — protection contre zéro test
+
+Le test existe dans la branche de la PR #285, mais l'opérateur
+a obtenu `Ran 0 tests` avec `unittest discover`. Cela peut
+signaler un ancien checkout ou un mauvais répertoire courant ;
+ce résultat **n'est pas PASS**.
+
+```bash
+pwd
+git rev-parse --short HEAD
+test -f tests/test_nexus_private_ingress_contract.py
+just nexus-private-ingress-test
+```
+
+La nouvelle recette vérifie le chemin, compile et exécute
+**directement** le fichier de tests : si le fichier manque,
+elle échoue au lieu de retourner zéro test. Quatre contrats Nexus
+sont désormais présents sur la branche ; résultat opérateur sur
+ce nouvel état encore `NOT_VERIFIED`. Utiliser un worktree neuf
+sur la pointe de branche après `git fetch`, sans écraser le
+checkout actuel.
+
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
