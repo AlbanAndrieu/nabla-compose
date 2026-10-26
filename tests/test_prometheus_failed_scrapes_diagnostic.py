@@ -99,6 +99,66 @@ def test_bounded_inventory_and_failed_api_response_are_rejected() -> None:
         module.assess_targets({"status": "error"})
 
 
+@pytest.mark.parametrize(
+    ("kind", "domain"),
+    [
+        ("http_401", "auth"),
+        ("http_403", "auth"),
+        ("http_404", "http"),
+        ("http_429", "http"),
+        ("tcp_refused", "tcp"),
+        ("dns_failure", "dns"),
+        ("network_unreachable", "network"),
+        ("tls_failure", "tls"),
+        ("timeout", "timeout"),
+        ("scrape_failure_unclassified", "unverified"),
+    ],
+)
+def test_failure_domain_is_sanitized(kind: str, domain: str) -> None:
+    assert module.failure_domain(kind) == domain
+
+
+def test_prometheus_unknown_health_is_not_reported_down() -> None:
+    payload = {"status": "success", "data": {"activeTargets": [
+        {"labels": {"job": "fastapi_sample"}, "health": "unknown",
+         "lastError": "private_token=NEVER_PRINT"},
+        {"labels": {"job": "postgres_exporter"}, "health": ""},
+        {"labels": {"job": "pfsense_exporter"}, "health": "UP"},
+    ]}}
+    report = module.assess_targets(payload)
+    assert report["fastapi_sample"]["state"] == "scrape_unverified"
+    assert report["fastapi_sample"]["targets_unverified"] == 1
+    assert report["postgres_exporter"]["state"] == "scrape_unverified"
+    assert report["pfsense_exporter"]["state"] == "scrape_up"
+    assert "NEVER_PRINT" not in str(report)
+
+
+def test_mixed_known_and_unknown_targets_are_unverified() -> None:
+    payload = {"status": "success", "data": {"activeTargets": [
+        {"labels": {"job": "fastapi_sample"}, "health": "up"},
+        {"labels": {"job": "fastapi_sample"}, "health": "down",
+         "lastError": "server returned HTTP status 401 Unauthorized"},
+        {"labels": {"job": "fastapi_sample"}, "health": "unknown"},
+    ]}}
+    report = module.assess_targets(payload)
+    assert report["fastapi_sample"]["state"] == "scrape_unverified"
+    assert report["fastapi_sample"]["targets_up"] == 1
+    assert report["fastapi_sample"]["targets_total"] == 3
+    assert report["fastapi_sample"]["targets_unverified"] == 1
+    assert report["fastapi_sample"]["failure_domains"] == ["auth"]
+    assert report["fastapi_sample"]["errors"] == ["http_401"]
+
+
+def test_down_without_last_error_has_no_invented_cause() -> None:
+    payload = {"status": "success", "data": {"activeTargets": [
+        {"labels": {"job": "fastapi_sample"}, "health": "down"}
+    ]}}
+    report = module.assess_targets(payload)
+    assert report["fastapi_sample"]["state"] == "scrape_down"
+    assert report["fastapi_sample"]["failure_domains"] == []
+    assert report["fastapi_sample"]["errors"] == []
+
+
 def test_fetch_is_read_only_and_origin_pinned() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     assert "http://172.17.0.24:9090/api/v1/targets?state=active" in source
