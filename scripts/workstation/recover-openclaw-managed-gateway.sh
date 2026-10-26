@@ -87,6 +87,9 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 if [[ "${ready}" != 1 ]]; then
+  # A live service can fail readiness due to channel, SQLite admission,
+  # or plugin recovery. Never restart again or expose raw HTTP responses.
+  python3 "${HERE}/diagnose-openclaw-gateway-readiness.py" || true
   echo "repair=gateway_readiness_unverified"
   exit 2
 fi
