@@ -10,6 +10,7 @@ import argparse
 from collections import defaultdict
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -98,19 +99,36 @@ def docker_containers(mapped, refs):
     return discovered, [row["name"] for row in discovered if row["entityRef"] is None], reverse
 
 
+class ResourceStats(dict):
+    """Memory observations with colocated CPU samples from one Docker pass."""
+
+    def __init__(self):
+        super().__init__()
+        self.cpu_pct: dict[str, float] = {}
+
+
 def memory_stats():
+    # Preserve the existing memory_stats mapping contract for callers.
+    # Docker CPU % is relative to one core and can exceed 100 on multicore hosts.
     out = command(["docker", "stats", "--no-stream",
-                   "--format", "{{.Name}}\t{{.MemUsage}}"], 22)
-    result = {}
+                   "--format", "{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}"], 22)
     if out is None:
         return None
+    result = ResourceStats()
     for line in out.splitlines()[:MAX_CONTAINERS]:
         parts = line.split("\t")
-        if len(parts) != 2 or not RE_NAME.fullmatch(parts[0]):
+        if len(parts) != 3 or not RE_NAME.fullmatch(parts[0]):
             continue
         amount = parse_size(parts[1].split("/", 1)[0])
         if amount is not None:
             result[parts[0]] = amount
+        if parts[2].endswith("%"):
+            try:
+                cpu = float(parts[2][:-1])
+            except ValueError:
+                continue
+            if math.isfinite(cpu) and 0 <= cpu <= 100000:
+                result.cpu_pct[parts[0]] = round(cpu, 2)
     return result
 
 
@@ -224,6 +242,7 @@ def collect(host: str = "truenas") -> dict[str, object]:
     refs, mapping, revision = catalog()
     containers, unmapped, _names = docker_containers(mapping, refs)
     memory = memory_stats() if containers is not None else None
+    cpu = getattr(memory, "cpu_pct", {})
     layer = writable_layers() if containers is not None else None
     zfs = datasets() if host == "truenas" else None
     mount_map = mounted_datasets(containers, zfs) if containers is not None else None
@@ -246,6 +265,7 @@ def collect(host: str = "truenas") -> dict[str, object]:
     for ref in sorted(refs):
         group = by_ref.get(ref, [])
         used_mem = [memory[c["name"]] for c in group if memory is not None and c["name"] in memory]
+        used_cpu = [cpu[c["name"]] for c in group if c["name"] in cpu]
         used_layer = [layer[c["name"]] for c in group if layer is not None and c["name"] in layer]
         gpu_measured = [gpu[c["id"]] for c in group if gpu is not None and c["id"] in gpu]
         dataset_names = sorted(refs_to_datasets.get(ref, []))
@@ -254,6 +274,13 @@ def collect(host: str = "truenas") -> dict[str, object]:
             "name": refs[ref],
             "host": host,
             "observed_containers": [c["name"] for c in group],
+            "runtime": "running_observed" if group else "not_observed",
+            "cpu": {
+                "status": "observed" if group and len(used_cpu) == len(group) else "unverified",
+                "usage_pct": round(sum(used_cpu), 2)
+                    if group and len(used_cpu) == len(group) else None,
+                "units": "percent_of_one_core",
+            },
             "memory": {
                 "status": "observed" if group and len(used_mem) == len(group) else "unverified",
                 "working_set_bytes": sum(used_mem) if group and len(used_mem) == len(group) else None,
@@ -285,7 +312,26 @@ def collect(host: str = "truenas") -> dict[str, object]:
             "storage": "observed_host" if zfs is not None else "unavailable",
             "sample": "one_shot_not_peak",
         },
+        "coverage": {
+            "running_containers_observed": len(containers or []),
+            "mapped_running_containers": sum(
+                bool(row["entityRef"]) for row in containers or []
+            ),
+            "unmapped_running_containers": len(unmapped),
+            "inventory_complete": (
+                containers is not None and len(containers) < MAX_CONTAINERS
+            ),
+        },
         "unmapped_container_count": len(unmapped),
+        "unmapped_running_containers": [
+            {
+                "container": c["name"],
+                "cpu_pct": cpu.get(c["name"]),
+                "memory_bytes": memory.get(c["name"]) if memory is not None else None,
+                "catalog_identity": "UNMAPPED",
+            }
+            for c in containers or [] if not c["entityRef"]
+        ],
         "services": result,
     }
 
@@ -326,6 +372,7 @@ def main() -> int:
             "report": str(args.output),
             "services_count": len(snapshot["services"]),
             "unmapped_container_count": snapshot["unmapped_container_count"],
+            "coverage": snapshot["coverage"],
             "observed_at_utc": snapshot["observed_at_utc"],
             "collection": snapshot["collection"],
         }, sort_keys=True))
