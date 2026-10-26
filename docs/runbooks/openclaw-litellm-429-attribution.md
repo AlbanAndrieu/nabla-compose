@@ -1915,3 +1915,50 @@ pas la fonctionnalité de tous les plugins.
 
 Tests synthétiques ajoutés et scripts inspectés dans la PR ;
 **validation réelle du Gateway non encore faite par l'agent**.
+
+
+## 26 octobre 2026 — PR #285, 9 tests synthétiques échoués, aucune activation
+
+Nouvelle preuve opérateur : `just openclaw-gateway-node-test` a
+produit **14 PASS / 9 FAIL (23 tests)**. La procédure fail-fast ne s'est
+pas poursuivie vers `openclaw-gateway-node-plan` ni
+`openclaw-gateway-select-installed`. Aucun nouveau démarrage Gateway,
+aucun appel npm et aucune modification de SQLite dans cette exécution.
+
+Les échecs de sélection ont une cause commune : la fixture créait
+`package.json` par `write_text()` avec le `umask 0002` de la
+Workstation. Le fichier avait donc le mode `0664`, tandis que le
+contrat de production refuse expressément un fichier npm
+**group-writable**. La fixture est corrigée avec `chmod 0600`.
+Un contrat supplémentaire prouve que le mode npm standard `0644`
+reste accepté et un autre que `0664` est rejeté. Les contrôles de
+propriétaire, manifest, symlink, version et destination npm sont
+inchangés.
+
+L'autre échec était un **faux positif de test** :
+`assertNotIn("npm install", contents)` détectait le texte
+« npm install » dans un commentaire du shell. Le test inspecte
+maintenant uniquement les lignes exécutables du script.
+Il ne provoque pas d'opération npm.
+
+La recette locale `just openclaw-gateway-node-test` lance désormais
+les tests deux fois : avec le `umask` courant, puis sous
+`umask 0002`. Les deux modes `0600` et `0644` ont aussi été
+contrôlés dans une reproduction filesystem minimale exécutée
+par l'agent ; **la suite intégrale au dernier HEAD doit encore
+être validée sur la Workstation**.
+
+Reprise depuis la branche de PR #285, dans un nouveau worktree :
+
+```bash
+just openclaw-gateway-node-test
+just openclaw-gateway-node-plan
+just openclaw-gateway-select-installed
+```
+
+Ne pas relancer `openclaw update` : le paquet 2026.10.7 existe
+déjà et l'updater refuse à raison
+`global-install-foreign-destination`. La sélection systemd du
+paquet existant est le seul changement souhaité. Elle ne crée pas
+de sauvegarde et ne lance pas de modèle. Le premier démarrage sous
+la nouvelle version peut provoquer une migration non réversible.
