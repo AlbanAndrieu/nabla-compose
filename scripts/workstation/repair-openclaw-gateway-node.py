@@ -187,35 +187,112 @@ def installed_entry():
     return installed_root() / "lib/node_modules/openclaw/openclaw.mjs"
 
 
-def installed_package_verified():
-    """Prove existing npm package ownership without changing it."""
+def installed_package_check():
+    """Return a fixed, operator-safe reason; never disclose file contents."""
     root = installed_root()
     package = root / "lib/node_modules/openclaw"
     manifest = package / "package.json"
     entry = installed_entry()
+    if not node_supported():
+        return "node_runtime_unverified"
     try:
-        roots = (installed_root(), package)
-        if (not node_supported() or
-                any(p.is_symlink() or not p.is_dir() or
-                    p.stat().st_uid != os.geteuid() or
-                    p.stat().st_mode & 0o022 for p in roots) or
-                not safe_file(manifest) or not safe_file(entry) or
-                manifest.stat().st_size > 1024 * 1024 or
-                manifest.stat().st_mode & 0o022 or
-                entry.stat().st_mode & 0o022):
-            return False
+        for label, directory in (("node_root", root), ("package_root", package)):
+            st = directory.lstat()
+            if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid():
+                return label + "_unsafe_type_or_owner"
+            if st.st_mode & 0o022:
+                return label + "_group_write"
+        for label, file in (("manifest", manifest), ("entry", entry)):
+            st = file.lstat()
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid():
+                return label + "_unsafe_type_or_owner"
+            if st.st_mode & 0o022:
+                return label + "_group_write"
+        size = manifest.stat().st_size
+        if not 0 < size <= 1024 * 1024:
+            return "manifest_size"
         obj = json.loads(manifest.read_text(encoding="utf-8"))
-        if (not isinstance(obj, dict) or obj.get("name") != "openclaw"
-                or obj.get("version") != TARGET_OPENCLAW):
-            return False
-        published = obj.get("bin")
-        if not isinstance(published, dict) or published.get("openclaw") != "openclaw.mjs":
-            return False
     except (OSError, ValueError, UnicodeError, TypeError):
-        return False
+        return "package_metadata_unavailable"
+    if not isinstance(obj, dict) or obj.get("name") != "openclaw":
+        return "package_name_mismatch"
+    if obj.get("version") != TARGET_OPENCLAW:
+        return "package_version_mismatch"
+    published = obj.get("bin")
+    if not isinstance(published, dict) or published.get("openclaw") != "openclaw.mjs":
+        return "package_bin_mismatch"
     rc, output = command([str(node_bin()), str(entry), "--version"])
-    return bool(rc == 0 and re.search(
-        rb"(?m)^OpenClaw 2026\.10\.7(?:[ \t(]|$)", output))
+    if rc != 0 or not re.search(rb"(?m)^OpenClaw 2026\.10\.7(?:[ \t(]|$)", output):
+        return "cli_version_unverified"
+    return "verified"
+
+
+def installed_package_verified():
+    return installed_package_check() == "verified"
+
+
+def harden_installed_package_permissions():
+    """Remove group/other WRITE from four exact user-owned package paths.
+
+    No npm, no process or service changes. Fail closed for foreign files,
+    symlinks, unknown paths and unexpected Node runtime. No chmod on
+    unrelated npm packages or node_modules children.
+    """
+    if unit_active():
+        print("package_hardening=blocked_gateway_active")
+        return 2
+    if not node_supported():
+        print("package_hardening=blocked_node_runtime")
+        return 2
+
+    paths = (
+        ("node_root", installed_root(), True),
+        ("package_root", installed_root() / "lib/node_modules/openclaw", True),
+        ("manifest", installed_root() / "lib/node_modules/openclaw/package.json", False),
+        ("entry", installed_entry(), False),
+    )
+    # Preflight every resource before mutating any permission.
+    for label, path, is_dir in paths:
+        try:
+            st = path.lstat()
+        except OSError:
+            print("package_hardening=blocked_" + label + "_missing")
+            return 2
+        if st.st_uid != os.geteuid() or (
+            not stat.S_ISDIR(st.st_mode) if is_dir else
+            not stat.S_ISREG(st.st_mode)
+        ):
+            print("package_hardening=blocked_" + label + "_untrusted")
+            return 2
+
+    changed = 0
+    for label, path, is_dir in paths:
+        flags = os.O_RDONLY | os.O_NOFOLLOW | (os.O_DIRECTORY if is_dir else 0)
+        try:
+            fd = os.open(path, flags)
+            try:
+                st = os.fstat(fd)
+                if st.st_uid != os.geteuid() or (
+                    not stat.S_ISDIR(st.st_mode) if is_dir else
+                    not stat.S_ISREG(st.st_mode)
+                ):
+                    print("package_hardening=blocked_" + label + "_changed")
+                    return 2
+                if st.st_mode & 0o022:
+                    os.fchmod(fd, stat.S_IMODE(st.st_mode) & ~0o022)
+                    changed += 1
+            finally:
+                os.close(fd)
+        except OSError:
+            print("package_hardening=blocked_" + label + "_open")
+            return 2
+
+    verdict = installed_package_check()
+    print("package_permissions_hardened=" + str(changed))
+    print("package_check=" + verdict)
+    print("package_hardening=" + ("verified" if verdict == "verified"
+                                  else "requires_other_repair"))
+    return 0 if verdict == "verified" else 2
 
 
 def installed_service_unit():
@@ -251,6 +328,7 @@ def select_installed_plan():
     owned = installed_service_unit() if verified and not selected else None
     print("target_release=" + TARGET_OPENCLAW)
     print("existing_package_verified=" + ("yes" if verified else "no"))
+    print("existing_package_check=" + installed_package_check())
     print("gateway_running=" + ("yes" if unit_active() else "no"))
     print("owned_dropin=" + ("yes" if owned is not None else "no"))
     print("already_selected=" + ("yes" if selected else "no"))
@@ -347,6 +425,7 @@ def main(argv=None):
     action.add_argument("--apply", action="store_true")
     action.add_argument("--select-installed-plan", action="store_true")
     action.add_argument("--select-installed", action="store_true")
+    action.add_argument("--harden-installed-permissions", action="store_true")
     args = parser.parse_args(argv)
     if args.plan:
         return plan()
@@ -354,6 +433,8 @@ def main(argv=None):
         return apply()
     if args.select_installed_plan:
         return select_installed_plan()
+    if args.harden_installed_permissions:
+        return harden_installed_package_permissions()
     return select_installed()
 
 
