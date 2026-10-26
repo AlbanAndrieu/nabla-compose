@@ -445,3 +445,94 @@ Les identifiants de PID restent volontairement non affichés.
 Voir la documentation OpenClaw relative aux fichiers de lock natifs
 et au contrôle d'admission de la base :
 https://github.com/openclaw/openclaw/blob/main/docs/reference/database-schemas.md
+
+
+## 27 octobre — Doctor a redémarré le Gateway après migration
+
+**Nouvelle preuve opérateur.** \`openclaw doctor --fix\`, exécuté avec Node
+24.22.1 et le paquet géré OpenClaw 2026.10.7, a terminé par :
+\`Gateway restarted and verified after Doctor repair.\`
+
+Ce n'est **pas** la preuve indépendante que le navigateur charge
+\`/chat/main\` : confirmer ensuite le serveur HTTP. Éviter un nouveau
+\`doctor --fix\`, \`openclaw update\`, ou redémarrage manuel tant que le
+Gateway reste actif et que les sondes n'ont pas été relues.
+
+### Modifications réellement observées
+
+- Doctor a enregistré un état de récupération avant réparation
+  (\`.openclaw.update-captures/doctor-.../manifest.json\`).
+- Les bases SQLite des agents \`main\`, \`cron\` et \`openclaw\`
+  ont été migrées **v21 → v25**, avec un fichier \`.bak\` pré-migration
+  pour chacune, ainsi qu'un backup pré-migration de l'état partagé.
+- Doctor a reconstruit deux index canoniques de l'état partagé
+  et mis à jour les reçus de fermeture et de livraison cron.
+- Il a réparé les liens npm des plugins, rafraîchi \`codex\` et
+  \`searxng\`. La migration différée \`codex\` est indiquée achevée
+  en fin d'exécution ; un avertissement de migration \`slack\`
+  est toujours présent. Ne pas relancer \`openclaw update repair\`
+  sur la seule base d'un avertissement intermédiaire.
+- \`openclaw.json\` a été modifié avec une copie
+  \`openclaw.json.bak\` créée.
+- Des éléments de Skill Workshop retirés ont été supprimés lors
+  de la migration ; ne pas restaurer sélectivement ces fichiers
+  sur les nouveaux schémas.
+
+**Sauvegarde antérieure déjà vérifiée :**
+\`~/Backups/openclaw/openclaw-20261026T000901Z-1138514.tar.gz\`.
+Une copie opérateur existe dans \`/media/backup/lab/infra/openclaw/\`
+(empreinte de la copie non confirmée). Ne restaurer aucune de
+ces sauvegardes sur un état migré et actif.
+
+### Vérification d'acceptation — lecture seule uniquement
+
+\`\`\`bash
+systemctl --user show openclaw-gateway.service \
+  -p ActiveState -p SubState -p MainPID -p Result -p ExecMainStatus
+ss -ltn '( sport = :18789 )'
+curl --noproxy '*' --connect-timeout 2 --max-time 6 \
+  -sS -o /dev/null -w 'healthz_http=%{http_code}\n' \
+  http://127.0.0.1:18789/healthz
+curl --noproxy '*' --connect-timeout 2 --max-time 6 \
+  -sS -o /dev/null -w 'readyz_http=%{http_code}\n' \
+  http://127.0.0.1:18789/readyz
+curl --noproxy '*' --connect-timeout 2 --max-time 6 \
+  -sS -o /dev/null -w 'ui_root_http=%{http_code}\n' \
+  http://127.0.0.1:18789/
+\`\`\`
+
+HTTP 200 sur \`healthz\` et \`readyz\`, unité \`active\` et
+racine HTTP joignable constituent une validation du Gateway ;
+l'authentification de l'interface et les canaux demandent des
+contrôles fonctionnels séparés. Si la racine répond mais pas
+\`/chat/main\`, inspecter la route de la nouvelle Control UI
+sans conclure à une panne du service.
+
+### Dette différée, sans redémarrage supplémentaire
+
+- Doctor signale que le drop-in systemd **opérateur** utilise
+  \`openclaw.mjs\` alors que l'entrée attendue est
+  \`dist/index.js\`, et que le \`PATH\` du service ne contient pas
+  le dossier Node mise. **Ne pas réécrire une unité active et saine
+  pendant la validation.** Traiter cette dérive dans un correctif
+  isolé, avec vérification du chemin réel et de la parité du service.
+- La migration Slack peut nécessiter une intervention dédiée.
+  Codex a déclaré une migration différée terminée ; vérifier son
+  statut actuel avant réparation.
+- Des plugins \`diagnostics-prometheus\`, \`discord\`, \`matrix\`
+  et \`whatsapp\` étaient signalés à une ancienne version ; ne pas
+  mettre à jour tous les plugins durant la récupération du Gateway.
+- Le contrôle de sécurité indique des **secrets en clair dans
+  \`openclaw.json\`** (auth Gateway, clés LiteLLM et jetons Slack).
+  Prévoir une migration progressive vers SecretRefs, sans divulguer
+  les valeurs et avec un contrôle \`openclaw secrets audit --check\`.
+- \`browser.extensionRelay.allowLegacyAuth=true\` doit être retiré
+  seulement après migration de ses clients vers l'authentification v2.
+- Les journaux de captures temporaires volumineux sont conservés
+  en attente d'un inventaire sûr ; ne pas les supprimer maintenant.
+
+**Critère Done P0 :** Gateway \`active\`, \`/healthz=200\`,
+\`/readyz=200\`, Control UI HTTP accessible, sans nouvelle contention
+sur SQLite. La gestion des plugins, du service systemd et des
+secrets reste une dette distincte et ne doit pas bloquer
+l'acceptation du Gateway si celui-ci est sain.
