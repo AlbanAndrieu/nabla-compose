@@ -385,3 +385,63 @@ l'inventaire, puis seulement la comparaison chiffrée. Cela ne vaut
 toujours pas restauration indépendante. Pas de modification des
 destinataires SOPS, d'OTP2, de PIV9A ni de génération PIV82.
 KeePassXC reste reporté.
+
+## NFSv4 confirmé ; archive attendue manquante — suite (26/10/2026)
+
+**Preuve opérateur sur checkout PR #285** : `just yubikey-escrow-pair-test`
+**26/26 PASS**, `just yubikey-escrow-pair-diagnose` :
+`source_directory.age_files=1`,
+`backup_directory.state=ACCESSIBLE`,
+`backup_directory.age_files=0`,
+`expected_backup_copy_state=EXPECTED_COPY_MISSING`,
+`matching_age_filenames=0`. La commande
+`findmnt -T /media/backup/lab/secret -o TARGET,FSTYPE` a retourné
+**`/media/backup/lab nfs4`**.
+
+Ceci confirme que **le chemin de sauvegarde est actuellement situé
+sous un montage NFSv4 actif**. Il ne s'agit pas d'une simple écriture
+sous `/` causée par un montage absent. Le diagnostic ne prouve pas
+que l'export NFS actuel soit le même qu'au moment où le fichier
+`.age` de 389 octets avait été observé, ni la présence du fichier
+sur le serveur à un autre emplacement.
+
+**Ajout PR** : `backup_mount_state` dans la commande
+`just yubikey-escrow-pair-diagnose`, via `findmnt` sans exposer
+`SOURCE`, options, adresse du serveur ou chemin de l'export. État
+attendu : `EXPECTED_NFS4_MOUNT_PRESENT`.
+4 tests hermétiques supplémentaires vérifient le format de la
+réponse, le refus d'un point de montage parent et l'absence de
+succès trompeur si `findmnt` est indisponible. Les tests doivent
+être validés sur la workstation après récupération de la PR.
+
+### Investigation locale de l'export (sans écriture)
+
+```bash
+# Afficher ces informations uniquement localement : ne pas coller
+# la source/export, les ACL complètes ou la liste des secrets en PR.
+findmnt -T /media/backup/lab/secret -o TARGET,FSTYPE,SOURCE,OPTIONS
+
+# Vérifier la visibilité du répertoire, sans lecture d'archive chiffrée :
+stat -c 'directory_type=%F mode=%a uid=%u gid=%g' /media/backup/lab/secret
+
+# Relever les métadonnées et ACL du répertoire :
+getfacl -cp /media/backup/lab/secret
+
+# Comparer localement l'export indiqué par findmnt à l'export
+# attendu côté serveur NFS (aucun remount automatique).
+```
+
+Si la source de montage est inattendue, corriger **l'identification
+de l'export** d'abord ; ne pas recopier la sauvegarde vers un export
+qui pourrait être incorrect. Si la source est la bonne, rechercher
+sur le serveur NFS une suppression, un déplacement, un snapshot
+antérieur ou un changement de dataset/ACL. Ne pas recréer
+automatiquement l'archive avant d'avoir confirmé son sort.
+
+**Critère de reprise** : le montage correct est identifié, l'archive
+régulière `.age` attendue redevient visible, puis la comparaison
+réelle des deux fichiers chiffrés renvoie
+`ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED`. Même cette preuve
+n'autorise pas de mutation PIV82 ou de secrets SOPS : le déchiffrement
+et la restauration restent des étapes séparées. KeePassXC/OTP2
+reste reporté.
