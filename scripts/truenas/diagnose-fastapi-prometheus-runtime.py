@@ -20,7 +20,7 @@ PROM_URLS = {
     "readiness": "http://127.0.0.1:9090/-/ready",
     "targets": "http://127.0.0.1:9090/api/v1/targets?state=active",
 }
-REGEX = re.compile(r"^(running|restarting|exited|created|paused|dead)\\|(true|false)\\|([0-9]+)$")
+REGEX = re.compile(r"^(running|restarting|exited|created|paused|dead)[|](true|false)[|]([0-9]+)$")
 
 
 class NoRedirect(HTTPRedirectHandler):
