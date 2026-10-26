@@ -524,6 +524,36 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## P0 — Pression mémoire TrueNAS après redémarrage DefectDojo (26 octobre)
+
+- **Symptôme :** opérateur rapporte une disponibilité RAM très faible
+  depuis le redémarrage DefectDojo. **OOM et attribution à DefectDojo
+  NON CONFIRMÉS** : distinguer ZFS ARC récupérable et pression réelle
+  via `MemAvailable`, PSI, swap, cgroup OOM et statistiques Docker.
+- **Instrumentation versionnée :**
+  `scripts/truenas/diagnose-defectdojo-memory-pressure.py --check
+  --observe-seconds 20` produit un JSON sans secrets avec
+  `defectdojo_total_bytes`, ARC, PSI et delta OOM sur 20 secondes.
+  Baseline puis arrêt ciblé de DefectDojo pour comparer, jamais
+  arrêt global PostgreSQL ou limitation de l'ARC sans preuve.
+- **Option DB :** DefectDojo déclaré non utilisé par l'opérateur ;
+  n'en déduire aucune absence de données d'intégration.
+  `inspect-defectdojo-db-reset.py --check` inventorie
+  **uniquement** la base `defectdojo` (finding/product/
+  engagement/test) et les sessions dans PostgreSQL partagé.
+  **AUCUN DROP** ni régénération de clé. Si la base est vierge :
+  backup isolé + reset ciblé distinct après accord.
+- **Dimensionnement :** la documentation officielle DefectDojo
+  donne un ordre de grandeur minimum de **8 Go de RAM**
+  (base distincte) et des réglages uWSGI (4 processus, 4 threads
+  par défaut). Ne pas attribuer une mémoire saturée aux tables
+  PostgreSQL sans preuve ; une réinitialisation ne réduit pas
+  automatiquement l'empreinte des workers.
+- **Tests :** contrats hermétiques `test_defectdojo_memory_pressure.py`
+  et `test_defectdojo_db_reset_inventory.py` versionnés.
+  **Runtime TrueNAS NOT_VERIFIED**, pas de validation OOM réelle.
+  [Runbook mémoire et remise à zéro](runbooks/2026-10-26-defectdojo-memory-db-reset.md).
+
 ## P0 — DefectDojo : DNS sain, HTTPS indisponible, admin désynchronisé
 
 - **DNS privé : prouvé OK le 26/10 à 20:51 CET** :
