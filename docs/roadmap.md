@@ -241,6 +241,22 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Code / secret migration — dernier changement déclaré (26 octobre)
+
+- **Tests validés sur TrueNAS :** comparateur + renderer de secrets
+  27/27 PASS. Le dry-run Code historique a rendu `mapped=1/1`
+  depuis `/mnt/cpool/code/.env` **avant** suppression manuelle de
+  `CODE_PASSWORD` dans ce fichier.
+- **Fichier cible modifié :**
+  `/mnt/cpool/secrets/runtime/code/.env.secrets` a été édité,
+  mais le contrat `PASSWORD`, les permissions `root:root 0600`,
+  la présence de l'entrée `nabla/prod/code` dans Vaultwarden et le
+  runtime après édition restent **NOT_VERIFIED**.
+- **Prochaines gates :** `accept-runtime-env-first-wave.sh --check code`,
+  puis dry-run `import_dotenv_to_bitwarden.py --app code --input
+  /mnt/cpool/secrets/runtime/code/.env.secrets` (sans `--apply`).
+  Pas de rotation ni de redéploiement avant vérification.
+
 ## Résultats de validation TrueNAS supplémentaires — 26 octobre
 
 - **Tests :** contrat secrets 8/8 PASS, métadonnées OpenRAG 4/4

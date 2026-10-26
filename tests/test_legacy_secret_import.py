@@ -64,6 +64,39 @@ class LegacySecretImportTests(unittest.TestCase):
         self.assertEqual(values, {"DEMO_PASSWORD": "secret-value"})
         self.assertEqual(supplied, {"LEGACY_DEMO_PASSWORD"})
 
+    def test_code_canonical_source_accepts_runtime_password(self) -> None:
+        """Code migration accepts PASSWORD after removal of CODE_PASSWORD."""
+        spec = {
+            "app": "code",
+            "secrets": [{
+                "env": "PASSWORD",
+                "importEnv": "CODE_PASSWORD",
+                "field": "CODE_PASSWORD",
+            }],
+        }
+        values, supplied = legacy.collect_values(
+            spec, legacy.parse_dotenv("PASSWORD='existing-example'\\n")
+        )
+        self.assertEqual(values, {"PASSWORD": "existing-example"})
+        self.assertEqual(supplied, {"CODE_PASSWORD"})
+
+    def test_code_import_fails_closed_on_two_different_passwords(self) -> None:
+        spec = {
+            "app": "code",
+            "secrets": [{
+                "env": "PASSWORD",
+                "importEnv": "CODE_PASSWORD",
+                "field": "CODE_PASSWORD",
+            }],
+        }
+        with self.assertRaises(legacy.SecretsError):
+            legacy.collect_values(
+                spec,
+                legacy.parse_dotenv(
+                    "PASSWORD=first\\nCODE_PASSWORD=second\\n"
+                ),
+            )
+
     @mock.patch.object(legacy.subprocess, "run")
     @mock.patch.object(legacy.Path, "is_file", side_effect=PermissionError)
     def test_root_file_read_tolerates_inaccessible_parent(

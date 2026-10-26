@@ -85,6 +85,67 @@ Le `FAIL` de la session historique est obsolète. Le smoke
 HTTPS privé et le chargement de la page sont acceptés ; la connexion
 authentifiée n'est pas testée.
 
+## Code — déplacement manuel du mot de passe (26 octobre, réception opérateur)
+
+**Contrôles réussis :** tests `test_compare_dotenv_sources.py` et
+`test_secrets_renderer.py` **27/27 PASS** sur TrueNAS. Le dry-run historique
+`--app code --input /mnt/cpool/code/.env` a rendu `mapped=1/1` **avant**
+que l'opérateur retire `CODE_PASSWORD` de cet ancien fichier.
+
+**Changement manuel annoncé ensuite :** suppression de `CODE_PASSWORD`
+dans `/mnt/cpool/code/.env`, puis édition de
+`/mnt/cpool/secrets/runtime/code/.env.secrets`. Le contenu précis de la
+nouvelle clé, les droits du fichier et l'identité runtime chargée
+**ne sont pas encore vérifiés**.
+
+La chaîne LinuxServer code-server attend **`PASSWORD`**, et non
+`CODE_PASSWORD`, dans le `env_file` canonique
+(`apps/code/compose.yml`). Le manifeste Vaultwarden conserve
+`importEnv=CODE_PASSWORD` et `env=PASSWORD`, pour accepter un
+fichier legacy comme un fichier canonique sans changer la valeur.
+
+1. Valider le contrat `PASSWORD` sur TrueNAS (aucune valeur imprimée) :
+
+   ```bash
+   sudo bash scripts/truenas/accept-runtime-env-first-wave.sh --check code
+   sudo stat -Lc 'uid=%u gid=%g mode=%a size=%s' \
+     /mnt/cpool/secrets/runtime/code/.env.secrets
+   ```
+
+   Le fichier de secret canonique doit être `root:root`, mode `0600`.
+   Une écriture avec `nano` ne garantit pas à elle seule les droits
+   attendus. Éviter `cat`, `grep PASSWORD` non borné et
+   `docker inspect` contenant l'environnement.
+
+2. Refaire le dry-run **sur le nouveau fichier**, sans `--apply`
+   et sans `sudo` devant le Python utilisateur :
+
+   ```bash
+   "$HOME/.cache/nabla-compose/dev-venv/bin/python" \
+     scripts/secrets/import_dotenv_to_bitwarden.py \
+     --app code \
+     --input /mnt/cpool/secrets/runtime/code/.env.secrets
+   ```
+
+   Le résultat attendu est `mapped=1/1`. Le parser accepte
+   `PASSWORD` ou `CODE_PASSWORD`, mais refusera des valeurs
+   contradictoires si les deux clés sont présentes.
+
+3. Le coffre n'a pas encore l'élément exact `nabla/prod/code` dans
+   le dossier TrueNAS ; le dernier `materialize_runtime.py --verify`
+   a échoué sur `found 0`. **Ne pas lancer un nouvel
+   `--verify` comme preuve d'installation tant que cet item est absent.**
+   Après revue de la source exacte, import individuel explicite
+   `--apply` via le même importeur : crée l'élément dans Vaultwarden,
+   mais ne remplace pas automatiquement les fichiers runtime.
+
+4. Le fichier modifié manuellement ne porte probablement pas encore
+   l'en-tête `Generated from Vaultwarden` requis par le gate
+   `accept-runtime-env-first-wave.sh --accept code`. Une fois
+   l'import validé et une sauvegarde privée disponible, utiliser le
+   renderer Vaultwarden et accepter le service séparément.
+   **Pas de finalisation, redéploiement ni rotation automatique.**
+
 ## Réception complémentaire — comparaison OpenRAG et coffre Code (26 octobre)
 
 **OpenRAG :** le comparateur exécuté avec le venv TrueNAS confirme
