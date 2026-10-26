@@ -11,7 +11,7 @@ Ce runbook ne donne aucune permission de déploiement automatique.
 | FastAPI sample → LiteLLM TrueNAS | `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen`, virtual key `LITELLM_API_KEY` dans `sample/.env.secrets` | Conteneur chargé, key scoped, modèle listé, requête chat synthétique et tool-calling |
 | LiteLLM TrueNAS → proxy workstation | Modèle `fastapi-qwen` vers `LITELLM_WORKSTATION_API_BASE` avec `LITELLM_FASTAPI_WORKSTATION_API_KEY` | Ping/versions/allowlist des deux virtual keys ; **aucun fallback implicite vers modèle payant** |
 | Ollama TrueNAS | `apps/ollama/compose.yml`, port `30068`, endpoint privé `/api/tags` | Liste réelle des modèles et disponibilité de la mémoire ; ne pas supposer `qwen` présent |
-| FastAPI → OpenRAG | FastAPI dispose déjà de `MCP_CLIENTS` et `mcp_call_tool`; OpenRAG v0.7.1 expose `/mcp` avec `X-API-Key`, via `openrag-frontend:3000` | Clé API OpenRAG privée, route et permissions réelles, liste des outils |
+| FastAPI → OpenRAG | FastAPI dispose déjà de `MCP_CLIENTS` et `mcp_call_tool`; FastAPI prévoit `openrag-frontend:3000/mcp` et l'en-tête `X-API-Key` ; la route et son exigence d'authentification sur l'image réellement déployée restent à prouver | Clé API OpenRAG privée, route et permissions réelles, liste des outils |
 | OpenRAG → Bababou | `apps/openrag/compose.yml` monte `cpool/bababou` en lecture seule dans `/mnt/bababou` | Jeu de documents approuvé, index isolé, filtre de connaissance enregistré, citations et ACL |
 
 La version **v0.7.1** du projet upstream décrit le MCP intégré dans
@@ -42,6 +42,25 @@ GET **anonymes sur des URL fixes**. Il ne lit ni tokens ni réponses, ni
 noms de modèles ni documents. Un HTTP 401 prouve uniquement que le
 service a répondu et exige une authentification. Il ne valide ni
 les clés LiteLLM ni l'accès à OpenRAG.
+
+## Confidentialité des requêtes Éléonore / Bababou
+
+La recherche privée sur le corpus Bababou n'est **pas** le même parcours
+que l'agent générique `POST /run`. L'existence d'une route FastAPI
+OWNER ne signifie pas que le chat de la page `/api` l'utilise déjà.
+Avant de l'intégrer à une interface, exiger une session OWNER,
+une confirmation explicite de la recherche privée et des citations ;
+ne pas injecter les résultats dans une requête au modèle distant par défaut.
+
+Le modèle `fastapi-qwen` est acheminé vers la workstation via LiteLLM.
+Cette architecture reste adaptée aux requêtes **synthétiques** et
+non sensibles pour prouver le fonctionnement du chat.
+Pour des documents Bababou, valider préalablement rétention/traces,
+permissions réseau et option d'inférence strictement locale via
+Ollama TrueNAS. Aucune nouvelle route Ollama n'est activée
+tant que `/api/tags`, le modèle installé et la clé scoped ne sont pas attestés.
+Éviter toute réponse faussement positive : `index_not_verified`
+ou `retrieval_not_verified` doit rester visible.
 
 ## Endpoint privé de recherche (FastAPI PR #378)
 
