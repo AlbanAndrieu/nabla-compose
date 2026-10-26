@@ -179,6 +179,18 @@ yubikey-escrow-history-test:
 yubikey-escrow-history-check:
     python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --check
 
+# Contracts only. Runs a simulated write on a temporary local directory,
+# never real NFS, existing backup or YubiKey.
+yubikey-escrow-copy-test:
+    python3 -m py_compile scripts/workstation/create-yubikey-escrow-nfs-copy.py tests/test_yubikey_escrow_nfs_copy.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_copy.py' -v
+
+# Metadata-only check; does not open archive contents or create files.
+# No automatic "copy-run" recipe: writing requires a separately supervised
+# explicit command documented in the recovery runbook.
+yubikey-escrow-copy-check:
+    python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py --check
+
 # Explicit supervised read-only TrueNAS snapshot metadata inventory via SSH.
 # Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
 yubikey-escrow-history-probe:
