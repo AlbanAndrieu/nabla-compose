@@ -104,8 +104,11 @@ def collect(scope: str, observe_seconds: int) -> dict[str, object]:
 
     try:
         # Inlet accessibility is independent of Outlet processing health.
-        fetch_bounded(INLET_URL, MAX_AK_BYTES)
-        report["akvorado"]["inlet_metrics"] = "REACHABLE"
+        inlet = fetch_bounded(INLET_URL, MAX_AK_BYTES).decode("utf-8")
+        known_families = AK.summarize_metrics(inlet, "inlet")
+        report["akvorado"]["inlet_metrics"] = (
+            "COUNTERS_PRESENT" if known_families else "METRICS_UNVERIFIED"
+        )
     except (HTTPError, URLError, OSError, ValueError) as exc:
         report["akvorado"]["inlet_metrics"] = "UNVERIFIED"
         report["akvorado"]["inlet_error_class"] = type(exc).__name__
@@ -135,8 +138,13 @@ def collect(scope: str, observe_seconds: int) -> dict[str, object]:
 
 def save_private_report(directory: Path, report: dict[str, object]) -> Path:
     """Write only the sanitized JSON into an operator-owned private directory."""
-    if directory.is_symlink():
-        raise ValueError("symlink report directory denied")
+    cursor = directory
+    while True:
+        if cursor.is_symlink():
+            raise ValueError("symlink report path denied")
+        if cursor == cursor.parent:
+            break
+        cursor = cursor.parent
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     metadata = directory.stat()
     if (
