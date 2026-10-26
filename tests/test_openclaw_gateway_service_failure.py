@@ -40,6 +40,34 @@ class OpenClawServiceFailureTests(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertEqual(mod.classify_journal([msg]), expected)
 
+    def test_mise_node_patch_upgrade_is_not_falsely_marked_drift(self):
+        from unittest.mock import patch
+        for version in ("24.22.1", "24.22.2", "24.23.0"):
+            with self.subTest(version=version):
+                directory = f"/home/operator/.local/share/mise/installs/node/{version}"
+                unit = (
+                    f"{{ path={directory}/bin/node ; "
+                    f"argv[]={directory}/bin/node "
+                    f"{directory}/lib/node_modules/openclaw/openclaw.mjs "
+                    "gateway --port 18789 }}"
+                )
+                with patch.object(mod, "run", return_value=(0, unit.encode())):
+                    self.assertEqual(
+                        mod.current_unit_matches_expected(),
+                        "target_binding_confirmed",
+                    )
+
+    def test_mise_node_mismatched_versions_stay_unverified(self):
+        root = "/home/operator/.local/share/mise/installs/node"
+        binary = root + "/24.22.2/bin/node"
+        module = root + "/24.22.1/lib/node_modules/openclaw/openclaw.mjs"
+        with patch.object(
+            mod, "run", return_value=(0, (binary + " " + module +
+                                               " gateway --port 18789").encode()),
+        ):
+            self.assertEqual(mod.current_unit_matches_expected(),
+                             "different_or_unverified")
+
     def test_missing_journal_is_not_called_healthy(self):
         self.assertEqual(mod.classify_journal(None), "journal_unavailable")
         self.assertEqual(mod.classify_journal([]), "no_recent_journal_evidence")
