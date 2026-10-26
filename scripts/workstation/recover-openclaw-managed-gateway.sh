@@ -40,6 +40,15 @@ command -v fuser >/dev/null || {
   exit 2
 }
 
+# If already running, do not repeat the systemd/SQLite migration.
+# A readiness failure is an application diagnosis, not permission to restart
+# an active Gateway. This protects a potentially migrating SQLite database.
+if systemctl --user is-active --quiet "${UNIT}"; then
+  echo "repair=active_gateway_not_restarted"
+  python3 "${HERE}/diagnose-openclaw-gateway-readiness.py" || true
+  exit 2
+fi
+
 # Stop only the known user service. Never kill a process by historic PID.
 systemctl --user stop "${UNIT}"
 if systemctl --user is-active --quiet "${UNIT}"; then
