@@ -385,6 +385,82 @@ de `app.config`.
 Dans tous les cas, ne pas activer le routeur privé avant la preuve
 que le frontal WAN refuse le Host/SNI `nexus.int.albandrieu.com`.
 Ne pas modifier les routes de `nexus.albandrieu.com`.
+## Gate 5 — Compose TrueNAS rendu avec routeur désactivé (relevé opérateur)
+
+**Preuve opérateur complémentaire du 26 octobre :**
+
+- `sudo midclt call app.config nexus | jq 'keys'` retourne **`["include"]`**.
+  La configuration enregistrée utilise bien la fonction `include`
+  d'une Custom App. Le chemin exact référencé reste à lire ; la
+  présence de la clé ne prouve pas encore quel fichier elle inclut.
+- `sudo docker compose -f "$CFG" config --format json` donne
+  exactement un service `nexus`. Les labels du routeur privé sont
+  présents dans le rendu, mais **`traefik.enable="false"`**.
+  Routeur déclaré sur `websecure`, règle
+  `Host(\`nexus.int.albandrieu.com\`)`, backend HTTP `:8081`,
+  réseau `traefik_network`.
+- `nexus_networks: {"traefik_network": null}` signifie que le
+  service utilise ce réseau sans options réseau particulières
+  dans le modèle normalisé, **pas que le réseau est absent**.
+- Le précédent `sudo docker inspect nexus` retournait `null`
+  pour ces labels dans le conteneur en cours d'exécution.
+  Le rendu a donc **évolué sans être appliqué au conteneur**.
+
+### Interprétation et séparation des opérations
+
+1. **Réconciliation de runtime uniquement :** redéployer **Nexus seul**
+   selon TrueNAS Apps ferait normalement reprendre au conteneur les
+   labels du rendu, mais avec `traefik.enable=false`.
+   Le routeur **resterait désactivé** et le `404` attendu.
+2. **Activation privée séparée :** faire passer l'opt-in à `true`
+   depuis le contexte d'interpolation **réel** du `include` et
+   contrôler le rendu *avant* de redéployer. Un `env_file:` du service
+   Nexus injecte des variables **dans le conteneur**, ce n'est pas
+   nécessairement une source d'interpolation `${...}` pour Compose.
+   Le `include` Compose peut charger un fichier `.env` du répertoire
+   de son sous-projet ; confirmer son effet sur le rendu TrueNAS
+   plutôt que de supposer qu'un export shell transmis à `midclt` agit.
+3. **Contrôle réseau bloquant :** ne pas activer le routeur tant que
+   le frontal public (pfSense/HAProxy) ne rejette pas le Host/SNI
+   `nexus.int.albandrieu.com` depuis le WAN. Un A privé ne suffit
+   pas à empêcher un client externe d'envoyer ce Host.
+
+### Vérifications restantes, lecture seule sur TrueNAS
+
+```bash
+set -o pipefail
+
+# Contrat du wrapper enregistré, sans exposer ses autres champs.
+sudo midclt call app.config nexus |
+  jq '{include_type: (.include | type),
+       include_paths: .include}'
+
+# État normalisé de la route privée : zéro valeur de secret.
+CFG='/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml'
+sudo docker compose -f "$CFG" config --format json |
+  jq -e '.services.nexus as $n |
+    {enabled: $n.labels["traefik.enable"],
+     host_rule: $n.labels["traefik.http.routers.nexus-private.rule"],
+     networks: ($n.networks | keys)}'
+
+# Compare uniquement les labels du conteneur actif.
+sudo docker inspect nexus --format '{{json .Config.Labels}}' |
+  jq '{enabled: .["traefik.enable"],
+       host_rule: .["traefik.http.routers.nexus-private.rule"]}'
+
+# Confirmer l'existence du réseau externe, sans le modifier.
+sudo docker network inspect traefik_network --format '{{.Name}}'
+```
+
+**Choix de l'opérateur avant la première action mutante :**
+vérifier la provenance réelle de `include`, l'état Git de la
+workstation TrueNAS (plusieurs diagnostics ont montré `tree=dirty`),
+la santé de Nexus, la sauvegarde de son dataset et la disponibilité
+d'une fenêtre d'interruption. La commande officielle
+`midclt call -j app.redeploy nexus` est un **job de redéploiement**
+avec arrêt/recréation, qui peut tirer des images ; ne pas
+l'exécuter comme simple contrôle de labels. Ne pas éditer `.ix-apps`
+et ne pas recréer la Custom App.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
