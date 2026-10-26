@@ -329,43 +329,34 @@ Actions :
   workstation `--accept` (tables PF et `last_pull`), sans générer
   de nouvelle clé ni publier le port 8084 sur WAN.
   [Guide central CrowdSec](../apps/crowdsec/README.md).
-- [ ] **Nexus / réponse HTTP backend 200, Traefik 404 TLS OK :**
-  `http://172.17.0.24:8081/` renvoie HTTP 200 (2,097 s),
-  `https://nexus.int.albandrieu.com/` avec
-  `--resolve ...:443:172.17.0.24` renvoie HTTP 404
-  (`curl exit=0`, `ssl_verify_result=0`, 14 ms).
-  Après DNS privé **8/8 PASS**, la lecture
-  `sudo docker inspect nexus` confirme **quatre labels
-  `nexus-private` et `traefik.enable` absents (`null`)**.
-  L'écart Compose souhaité / conteneur déployé est confirmé.
-  Lire le propriétaire de la Custom App et sa configuration effective
-  avant un redéploiement Nexus seul. Vérifier Host/SNI privé
-  inaccessible hors LAN sur le frontal WAN ; le DNS privé
-  ne constitue pas un contrôle d'accès.
-  Le routeur privé est préparé en opt-in
-  `NEXUS_PRIVATE_INGRESS_ENABLED=false` par défaut.
-  Avant activation vérifier que le proxy frontal refuse Host/SNI
-  privé venant de WAN ; DNS privé seul ne suffit pas à restreindre
-  l'accès. Ne pas redéployer sans cette validation.
-  **Gate TrueNAS Apps validée par l'opérateur :**
-  conteneur Docker `ix-nexus/nexus`, rendu
-  `/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml`.
-  `app.config nexus | jq 'keys'` donne uniquement `include` :
-  **wrapper déjà en place**, chemin inclus exact encore à confirmer.
-  Le rendu Compose contient **tous les labels du routeur privé**
-  et `traefik.enable="false"` ; réseau `traefik_network` présent.
-  La valeur `null` associée à ce réseau signifie « options réseau
-  par défaut » et non « réseau absent ».
-  **Désynchronisation runtime :** les labels étaient absents du
-  conteneur actif. Une réconciliation TrueNAS **Nexus seul** mettrait
-  normalement à jour les labels mais **n'activerait pas le routeur**
-  tant que le rendu conserve `false`. Prochaines gates : vérifier
-  le chemin réellement inclus, le réseau partagé, la santé et le
-  rollback Nexus, **puis** confirmer l'isolation Host/SNI depuis WAN.
-  N'envisager l'opt-in `true` et le redéploiement que pendant une
-  fenêtre de maintenance validée. Ne pas éditer `.ix-apps`,
-  redéployer par `docker compose up` direct ou toucher à
-  `nexus.albandrieu.com`.
+- [x] **Nexus / DNS, rendu TrueNAS et runtime réconciliés (26/10) :**
+  DNS privé **8/8 PASS** ; backend direct `172.17.0.24:8081`
+  **HTTP 200** ; HTTPS privé **404 avec TLS vérifié**.
+  TrueNAS Custom App `ix-nexus` inclut exactement
+  `/mnt/cpool/compose/nabla-compose/apps/nexus/compose.yml` ;
+  aucun changement local signalé dans `apps/nexus` ;
+  `traefik_network` existe. Le rendu TrueNAS contient les labels
+  `nexus-private` avec `traefik.enable="false"`.
+  **Après redémarrage/réconciliation opérateur**, TrueNAS
+  `nexus=RUNNING`, labels effectivement appliqués au conteneur
+  (`enabled="false"`, règle Host et service `nexus-private`),
+  backend toujours **200**, HTTPS privé toujours **404 / TLS 0**.
+  L'écart de labels **est résolu** ; le 404 privé est le
+  résultat attendu du routeur délibérément inactif.
+- [ ] **Nexus / isolation WAN avant activation privée :**
+  pfSense HAProxy ré-encrypte vers l'entrypoint public partagé
+  Traefik `websecure` : **une résolution DNS privée ne protège
+  pas ce routeur contre un Host/SNI injecté depuis WAN**.
+  Prouver une ACL qui refuse spécifiquement
+  `nexus.int.albandrieu.com` au frontal, depuis un client
+  extérieur, sans bloquer l'exception publique documentée
+  `s3.int.albandrieu.com`. Un `404` Traefik actuel ne prouve
+  pas un refus au frontal HAProxy.
+  Après cette preuve : préparer l'opt-in Compose `true` via
+  une source de configuration approuvée, puis un seul
+  redéploiement Nexus contrôlé avec rollback ; vérifier
+  à nouveau backend 200, HTTPS privé, TLS et Nexus public.
+  **Route publique non retestée dans ce relevé : NOT_VERIFIED.**
   [Runbook](runbooks/nexus-private-dns-ingress.md).
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
