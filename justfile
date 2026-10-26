@@ -122,6 +122,21 @@ yubikey-postgres-fixture-test:
     bash -n scripts/workstation/verify-postgres-fixture-recovery.sh
     python3 -m unittest discover -s tests -p 'test_yubikey_postgres_fixture_recovery.py' -v
 
+# Synthetic software-only age/SOPS roundtrip. Does NOT use real escrow, hardware,
+# .sops.yaml, account credentials or existing private keys.
+yubikey-software-recovery-test:
+    python3 -m py_compile scripts/workstation/verify-yubikey-software-age-sops-fixture.py tests/test_yubikey_software_age_sops_fixture.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_software_age_sops_fixture.py' -v
+
+# No process execution beyond checking command presence.
+yubikey-software-recovery-check:
+    python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --check
+
+# Explicit opt-in: creates a disposable software-only age identity and
+# destroys it with a temporary directory. Never touches a real backup.
+yubikey-software-recovery-run:
+    python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --run --acknowledge SYNTHETIC_SOFTWARE_ONLY
+
 yubikey-postgres-fixture-check:
     bash scripts/workstation/verify-postgres-fixture-recovery.sh --check
 
