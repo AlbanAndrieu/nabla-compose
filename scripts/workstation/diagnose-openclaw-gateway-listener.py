@@ -144,6 +144,13 @@ def safe_numeric(snapshot, name):
     return "unknown"
 
 
+def safe_pid(snapshot):
+    raw = snapshot.get("MainPID", "") if snapshot else ""
+    if not re.fullmatch(r"\d{1,10}", raw):
+        return "absent"
+    return "present" if 0 < int(raw) <= 4294967295 else "absent"
+
+
 def classify(state, scope, answers):
     if state == "failed":
         return "service_failed"
@@ -159,7 +166,11 @@ def classify(state, scope, answers):
         return "http_server_not_healthy"
     if answers[""] == "unreachable":
         return "ui_root_unreachable"
-    if answers[""] in ("200", "401", "403") and answers["chat/main"] == "404":
+    if answers[""] in ("401", "403"):
+        return "ui_auth_required"
+    if answers[""] == "404" or answers[""].startswith("5"):
+        return "ui_root_not_served"
+    if answers["chat/main"] == "404":
         return "possibly_stale_chat_deeplink"
     if answers["startupz"] != "200":
         return "startup_pending"
@@ -177,9 +188,7 @@ def main():
     result = snapshot.get("Result") if snapshot else None
     print("service_result=" + (result if result in RESULT_VALUES else "unknown"))
     print("service_exit_status=" + safe_numeric(snapshot, "ExecMainStatus"))
-    print("service_pid=" +
-          ("present" if safe_numeric(snapshot, "MainPID") not in ("0", "unknown")
-           else "absent"))
+    print("service_pid=" + safe_pid(snapshot))
     print("service_restart_count=" + safe_numeric(snapshot, "NRestarts"))
     print("expected_port_listener=" + scope)
     for route, key in (("healthz", "healthz"), ("startupz", "startupz"),
