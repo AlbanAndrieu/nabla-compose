@@ -168,8 +168,9 @@ yubikey-escrow-nfs-check:
 yubikey-escrow-nfs-probe:
     python3 scripts/workstation/inspect-yubikey-escrow-nfs-server.py --probe --ssh-target albandrieu@172.17.0.24 --acknowledge INSPECT_NFS_SERVER_METADATA_ONLY
 
-# Snapshot history check: bounded to 3 dataset-level snapshot roots, max 32
-# snapshot entries per root; only file metadata, never archive contents.
+# Snapshot history check: 3 dataset-level roots, 32 snapshots per root per
+# page, at most 1024 directory entries inventoried per root per probe.
+# No archive content read, no write, no privileged ZFS command.
 yubikey-escrow-history-test:
     python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-nfs-history.py tests/test_yubikey_escrow_nfs_history.py
     python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_history.py' -v
@@ -182,6 +183,12 @@ yubikey-escrow-history-check:
 # Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
 yubikey-escrow-history-probe:
     python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --probe --acknowledge INSPECT_AGE_ESCROW_ZFS_HISTORY_ONLY
+
+# Continue to the next bounded window, e.g.:
+# just yubikey-escrow-history-page 1
+# Page 0..31, lexicographic snapshot-name order (not chronological).
+yubikey-escrow-history-page page:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --probe --page {{page}} --acknowledge INSPECT_AGE_ESCROW_ZFS_HISTORY_ONLY
 
 # Synthetic contracts only, never touch real backups or YubiKeys.
 yubikey-escrow-compare-test:
