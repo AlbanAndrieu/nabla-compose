@@ -191,6 +191,23 @@ d'escrow, lecture contrôlée des archives GPG/PostgreSQL et déchiffrement
 SOPS/age. Ne pas modifier les destinataires SOPS avant un roundtrip avec
 **les deux** YubiKeys et une voie logicielle de secours.
 
+## Sauvegardes `.age` — permissions et chemins (26 octobre)
+
+La comparaison de deux escrows exige maintenant, avant tout
+`os.open`, des **fichiers réguliers appartenant à l'opérateur**,
+avec liens physiques uniques, mode ne donnant **aucun droit
+au groupe ou aux autres** (par exemple `0600`), et chemins
+sans parent symbolique. Les deux fichiers doivent rester sur
+des filesystems différents.
+
+La procédure de comparaison ne révèle ni chemins ni contenu,
+et `ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED` ne vaut
+**jamais** un test de restauration, une validation de
+l'indépendance physique ou une réussite PIV/AES256.
+Aucune clé YubiKey n'est modifiée ; les tests de refus
+de permissions/symlinks ont été ajoutés mais non exécutés
+dans cette passe volontairement sans quality gate.
+
 ## Critères communs
 
 - Ne jamais déduire `GO` d'un exit code zéro d'un diagnostic.
