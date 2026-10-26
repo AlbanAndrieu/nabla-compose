@@ -123,22 +123,51 @@ def check(app: str) -> dict[str, object]:
                and item.get("name") == spec["item"]
                and item.get("folderId") == data["folder"]["id"]]
     if len(matches) != 1:
-        report["reason"] = "VAULT_ITEM_NOT_UNIQUE"
+        if len(matches) > 1:
+            report["reason"] = "VAULT_ITEM_DUPLICATED_IN_FOLDER"
+            return report
+        # Search across folders only to distinguish missing from misplaced.
+        # Never emit item IDs, folder IDs, account names or raw payloads.
+        other = run(["bw", "list", "items", "--search", spec["item"]],
+                    session=session)
+        try:
+            candidates = json.loads(other or "null")
+        except (TypeError, ValueError):
+            candidates = None
+        if not isinstance(candidates, list):
+            report["reason"] = "VAULT_ITEM_LOCATION_UNVERIFIED"
+            return report
+        exact = [x for x in candidates if isinstance(x, dict)
+                 and x.get("name") == spec["item"]]
+        report["reason"] = (
+            "VAULT_ITEM_MISSING" if not exact else
+            "VAULT_ITEM_IN_OTHER_FOLDER" if len(exact) == 1 else
+            "VAULT_ITEM_DUPLICATED_OUTSIDE_EXPECTED_FOLDER"
+        )
         return report
     runtime = load_runtime(app)
     if runtime is None:
         report["reason"] = "RUNTIME_READ_OR_PARSER_UNAVAILABLE"
         return report
     decisions: dict[str, str] = {}
+    missing_sources: dict[str, str] = {}
     for field in spec["secrets"]:
         name = field["env"]
         left = secret_value(matches[0], field)
         right = runtime.get(name)
-        decisions[name] = (
-            "UNVERIFIED" if left is None or right is None
-            else "MATCH" if compare_digest(left.encode(), right.encode()) else "DRIFT"
-        )
+        if left in (None, ""):
+            decisions[name] = "UNVERIFIED"
+            missing_sources[name] = "VAULT_FIELD_MISSING_OR_EMPTY"
+        elif right in (None, ""):
+            decisions[name] = "UNVERIFIED"
+            missing_sources[name] = "RUNTIME_KEY_MISSING_OR_EMPTY"
+        else:
+            decisions[name] = (
+                "MATCH" if compare_digest(left.encode(), right.encode()) else "DRIFT"
+            )
     report["keys"] = decisions
+    if missing_sources:
+        report["unverified_reasons"] = missing_sources
     report["status"] = (
         "DRIFT" if "DRIFT" in decisions.values() else
         "MATCH" if decisions and all(s == "MATCH" for s in decisions.values()) else
