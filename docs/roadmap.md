@@ -40,7 +40,22 @@ Continuer en PR #285, local-first et commits `[skip ci]`.
 | Ollama TrueNAS | Depuis FastAPI : `GET http://172.17.0.24:30068/api/tags` retourne **HTTP 200** | **HTTP REACHABLE / MODELS NOT_VERIFIED** : HTTP 200 ne prouve ni un modèle chargé ni le fallback FastAPI |
 | FastAPI → OpenRAG | Backend `openrag-backend:8000/health` retourne **HTTP 200** depuis FastAPI ; frontend `/mcp` reste `unverified` et la recherche filtrée reste `not_tested_requires_auth` | **BACKEND REACHABLE / MCP NOT_VERIFIED** : diagnostiquer frontend, auth X-API-Key et `filter_id` privé. PR FastAPI #378 fusionnée, code seulement |
 | OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
-| Diagnostics Prometheus | `reconcile-fastapi-metrics-credential.py --apply` puis `--check` retournent **`credential_ready=true`** sur TrueNAS | **SECRET INSTALLED / RUNTIME NOT_VERIFIED** : vérifier variable FastAPI active, bind du fichier Prometheus, puis `fastapi_sample: state=scrape_up targets_up=1` |
+| Diagnostics Prometheus | `credential_ready=true`, `METRICS_RUNTIME_PRESENT=true`, `METRICS_SECRET_MOUNT_PRESENT=true` ; `diagnose-failed-scrapes.py --check` échoue avec **`TimeoutError`** sur l’API cible | **SOURCE/RUNTIME/MOUNT PRESENT / SCRAPE UNVERIFIED** : lancer `sudo python3 scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check` directement sur TrueNAS ; classifier readiness et cible sans exposer les secrets ni redémarrer Prometheus |
+
+**Dernières preuves (26/10, suite) :** FastAPI confirme la
+présence de `METRICS_SCRAPE_KEY` dans son processus ; Docker confirme
+le bind `/run/secrets/fastapi-sample-metrics.key` dans Prometheus,
+sans lecture de valeur. Cependant `/api/v1/targets` **expire après
+5 secondes** : ni `scrape_up` ni un échec d'authentification ne sont
+établis. La sonde SSH `--ssh-sudo`, auparavant HTTP 200 pour trois
+composants IA, retourne ensuite `ssh_unavailable_or_unauthorized`.
+Ne pas inférer l'état des services de ces échecs réseau intermittents.
+Utiliser sur TrueNAS `sudo python3
+scripts/truenas/diagnose-fastapi-ai-chain.py --check --runtime` pour
+éviter l'étape SSH et `sudo python3
+scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check` pour
+classer séparément Prometheus `/-/ready`, l'API cible et Docker.
+Les deux outils ne modifient pas les services.
 
 **Preuves opérateur actualisées (26/10) :** le secret Prometheus est
 `credential_ready` après installation ; sans `--ssh-sudo`, Docker refuse
