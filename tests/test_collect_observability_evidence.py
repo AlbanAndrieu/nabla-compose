@@ -141,6 +141,33 @@ class EvidenceCollectorTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.save_private_report(alias, {"status": "UNVERIFIED"})
 
+    def test_symlink_in_parent_path_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            actual = root / "actual"
+            actual.mkdir()
+            alias = root / "parent-link"
+            alias.symlink_to(actual, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                module.save_private_report(
+                    alias / "evidence", {"status": "UNVERIFIED"}
+                )
+
+    def test_inlet_success_without_akvorado_counters_is_not_verified(self):
+        previous_fetch = self.fetch_synthetic(prom_state="up")
+
+        def fake(url, limit):
+            if url == module.INLET_URL:
+                return b"go_gc_duration_seconds 0.1\n"
+            return previous_fetch(url, limit)
+
+        with (
+            mock.patch.object(module, "fetch_bounded", side_effect=fake),
+            mock.patch.object(module.time, "sleep"),
+        ):
+            report = module.collect("baseline", 1)
+        self.assertEqual(report["akvorado"]["inlet_metrics"], "METRICS_UNVERIFIED")
+
     def test_existing_public_directory_is_not_accepted(self):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp) / "public"
