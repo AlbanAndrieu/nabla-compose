@@ -258,3 +258,36 @@ def test_bounded_remediation_codes_cover_remote_errors():
     assert module.RUNTIME_NEXT_CHECK["docker_socket_denied"] == (
         "use_ssh_sudo_only_if_already_authorized"
     )
+
+
+
+def test_mcp_transport_distinguishes_http_redirects_from_auth_or_dns():
+    probe = module.READ_ONLY_PROBE
+    assert 'http://openrag-frontend:3000/mcp' in probe
+    assert "class NoRedirect(urllib.request.HTTPRedirectHandler):" in probe
+    assert "return None" in probe
+    assert '"dns_failure"' in probe
+    assert '"tcp_refused"' in probe
+    assert '"connection_timeout"' in probe
+    assert '"http_unexpected"' in probe
+    assert "302" in probe and "307" in probe
+    assert "406" in probe and "405" in probe
+    assert "X-API-Key" not in probe
+    assert "Authorization" not in probe
+    assert "/mnt/bababou" not in probe
+    assert 'out["openrag_search"] = "not_tested_requires_auth"' in probe
+
+
+@pytest.mark.parametrize("response", [
+    "http_302", "http_307", "http_405", "http_406",
+    "http_500", "http_503", "dns_failure", "tcp_refused",
+    "connection_timeout", "transport_unverified", "http_unexpected",
+])
+def test_allowed_mcp_probe_codes_pass_strict_remote_contract(monkeypatch, response):
+    statuses = {name: "http_200" for name in module.SERVICES}
+    statuses["openrag_mcp"] = response
+    statuses["openrag_search"] = "not_tested_requires_auth"
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: SimpleNamespace(
+        returncode=0, stdout=json.dumps(statuses), stderr="private-only",
+    ))
+    assert module.inspect_ssh_runtime("albandrieu@172.17.0.24") == statuses
