@@ -365,3 +365,36 @@ La génération PIV82 et les changements de destinataires SOPS restent
 **NO-GO**. Le test KeePassXC/OTP2 demeure reporté.
 
 [Procédure](yubikey-software-recovery-20261026.md).
+
+## Escrows — diagnostic de découverte et comparaison manuelle (26/10/2026)
+
+La suite du comparateur a **11/11 PASS sur la workstation**, et son
+précontrôle `--check` confirme qu'aucun contenu n'est lu. Mais le
+premier `just yubikey-escrow-compare-run` réel a renvoyé
+`DISCOVERY_NO_MATCHING_PAIR`, avec
+`encrypted_content_read_attempted=false`.
+Ce résultat ne signifie pas que les archives diffèrent ou sont
+indéchiffrables : aucune comparaison de contenu n'a eu lieu.
+
+Le collecteur et le comparateur partagent l'inventaire des répertoires
+`~/.local/share/nabla/age-backups` et `/media/backup/lab/secret`.
+Pour distinguer HOME incohérent, dossier manquant, absence de fichier
+ou absence de nom commun, exécuter le nouveau
+`just yubikey-escrow-pair-diagnose`. Il produit uniquement les
+états des deux répertoires, les compteurs bornés de fichiers `.age`
+et le nombre de noms correspondants. Aucun chemin n'est publié.
+
+Si la découverte reste absente malgré l'existence des fichiers,
+`just yubikey-escrow-compare-manual` permet une sélection par
+saisie terminale masquée, sous le même contrôle de métadonnées,
+avec autorisation explicite. La comparaison **lit les contenus
+chiffrés**, sans déchiffrer, écrire ou afficher les fichiers.
+Les contrats ont été étendus à **22 tests d'inventaire** et
+**18 tests de comparaison** ; la validation complète de ces nouveaux
+contrats sur workstation est `NOT_RUN`.
+
+**Toujours NO-GO** pour la restauration réelle, l'identité d'un
+second moyen de récupération age, toute écriture PIV82 et toute
+modification du SOPS de production. KeePassXC/OTP2 reste reporté.
+
+[Diagnostic et procédure](yubikey-software-recovery-20261026.md).
