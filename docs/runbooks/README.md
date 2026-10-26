@@ -18,6 +18,8 @@
   Gatus, Prometheus et vérifications isolées, sans déploiement.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
+- **[Secret FastAPI → Prometheus](fastapi-prometheus-scrape-secret-20261026.md)** —
+  provisionner le jeton dédié, vérifier UID 568 et accepter le scrape sans fuite.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
   contrats statiques hors ligne et limitations de la preuve.
 - **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —

@@ -351,11 +351,23 @@ Actions :
   `--check --scope remaining` limité aux sept cibles précédemment DOWN,
   recommandations statiques sans URLs ni secrets.
   [Reprise ciblée](runbooks/2026-10-25-critical-acceptance-followup.md).
-- [ ] **H-05 :** classer chaque cible restante `DNS`, `TLS`, `HTTP`,
-  `TCP` ou `auth`, à partir des preuves Prometheus assainies. Le `401`
-  FastAPI `/metrics` nécessite la clé de scrape dédiée **après**
-  déploiement du correctif FastAPI ; `postgres_exporter:9187` refusé
-  ne signifie pas `PostgreSQL:5432` indisponible.
+- [x] **H-05 (code, PR #280) :** déclarer `authorization.type=Bearer`
+  et `authorization.credentials_file` pour le seul job
+  `fastapi_sample`. Préparer le bind mount en lecture seule,
+  avec `create_host_path=false`, sans mettre la clé dans Git.
+- [x] **H-05 (code, PR #280) :** ajouter le provisionneur TrueNAS
+  `reconcile-fastapi-metrics-credential.py` avec `--check` (lecture seule),
+  `--apply` sur validation explicite et contrôle `root:568/0640`.
+  Reprendre l'unique clé depuis le `.env.secrets` déjà renseigné.
+  [Procédure](runbooks/fastapi-prometheus-scrape-secret-20261026.md).
+- [ ] **H-05 (runtime) :** exécuter le provisionneur sur TrueNAS,
+  confirmer que le conteneur FastAPI a chargé `METRICS_SCRAPE_KEY`,
+  puis déployer la nouvelle définition Prometheus avec montage.
+  Terminer avec `fastapi_sample=scrape_up`. Aucun de ces événements
+  n'est démontré par le seul commit.
+- [ ] **H-05 (autres cibles) :** classer chaque échec `DNS`, `TLS`,
+  `HTTP`, `TCP` ou `auth` sans exposition des secrets. L'exporter
+  `postgres_exporter:9187` refusé ne démontre pas une panne PostgreSQL.
 - [ ] **H-06 :** comparer la configuration Akvorado effectivement montée,
   le metadata provider, les compteurs sur deux fenêtres et ClickHouse ;
   ne pas élargir le tracking pfSense sans décision.
