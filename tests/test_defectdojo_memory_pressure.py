@@ -90,6 +90,11 @@ def test_docker_failure_does_not_emit_stderr(monkeypatch):
     assert MODULE.docker_snapshot()["status"] == "UNVERIFIED"
 
 
+def test_absent_psi_cannot_certify_healthy_host():
+    memory = {"MemTotal": 1000000, "MemAvailable": 400000}
+    assert MODULE.assess(memory, {}, {}) == "INCONCLUSIVE"
+
+
 @pytest.mark.parametrize(("available", "psi_some", "psi_full", "expected"), [
     (0.03, 18.0, 2.0, "PRESSURE_LIKELY"),
     (0.30, 0.0, 0.0, "NO_CURRENT_PRESSURE_SIGNAL"),
