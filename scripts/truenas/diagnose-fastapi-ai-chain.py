@@ -20,29 +20,69 @@ SOURCES = {
     "openrag": ROOT / "apps/openrag/compose.yml",
 }
 SERVICES = frozenset(("litellm", "ollama", "openrag_backend", "openrag_search", "openrag_mcp"))
-HTTP_CODES = frozenset(("http_200", "http_400", "http_401", "http_403", "http_404", "http_405", "unverified", "not_tested_requires_auth"))
+# An unauthenticated MCP GET may legitimately return 401, 405 or 406.
+# This is HTTP transport evidence only, not a successful MCP handshake.
+HTTP_CODES = frozenset(
+    "http_" + str(code) for code in (
+        200, 301, 302, 303, 307, 308,
+        400, 401, 403, 404, 405, 406, 415, 429,
+        500, 502, 503, 504,
+    )
+) | frozenset((
+    "unverified", "not_tested_requires_auth",
+    "dns_failure", "tcp_refused", "connection_timeout",
+    "transport_unverified", "http_unexpected",
+))
 SSH_TARGET = re.compile(r"[a-z_][a-z0-9_-]{0,31}@172[.]17[.]0[.]24\Z")
 MAX_RUNTIME_REPORT = 4096
 READ_ONLY_PROBE = r'''
-import json, urllib.request, urllib.error
+import json, socket, urllib.request, urllib.error
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 urls = {
  "litellm": "http://172.17.0.24:4000/health/liveliness",
  "ollama": "http://172.17.0.24:30068/api/tags",
  "openrag_backend": "http://openrag-backend:8000/health",
  "openrag_mcp": "http://openrag-frontend:3000/mcp",
 }
-client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+allowed_status = {
+    200, 301, 302, 303, 307, 308,
+    400, 401, 403, 404, 405, 406, 415, 429,
+    500, 502, 503, 504,
+}
+client = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 out = {}
 for service, url in urls.items():
+    status = None
+    transport = "unverified"
     try:
         with client.open(urllib.request.Request(url, method="GET"), timeout=3) as reply:
             status = reply.status
     except urllib.error.HTTPError as error:
         status = error.code
         error.close()
-    except (OSError, ValueError, TimeoutError):
-        status = None
-    out[service] = "http_" + str(status) if status in (200, 400, 401, 403, 404, 405) else "unverified"
+    except urllib.error.URLError as error:
+        reason = error.reason
+        if isinstance(reason, socket.gaierror):
+            transport = "dns_failure"
+        elif isinstance(reason, ConnectionRefusedError):
+            transport = "tcp_refused"
+        elif isinstance(reason, (socket.timeout, TimeoutError)):
+            transport = "connection_timeout"
+        else:
+            transport = "transport_unverified"
+    except (socket.timeout, TimeoutError):
+        transport = "connection_timeout"
+    except (OSError, ValueError):
+        transport = "transport_unverified"
+    out[service] = (
+        "http_" + str(status) if status in allowed_status
+        else "http_unexpected" if status is not None
+        else transport
+    )
 out["openrag_search"] = "not_tested_requires_auth"
 print(json.dumps(out, sort_keys=True))
 '''
