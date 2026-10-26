@@ -268,9 +268,12 @@ def collect(host: str = "truenas") -> dict[str, object]:
         for row in group:
             refs_to_datasets[ref].update((mount_map or {}).get(row["id"], set()))
     dataset_users = defaultdict(set)
-    for ref, names in refs_to_datasets.items():
-        for name in names:
-            dataset_users[name].add(ref)
+    # A dataset can be shared with an UNMAPPED running container. Ignoring
+    # unmapped consumers would falsely mark shared storage as exclusive.
+    for container in containers or []:
+        owner = container["entityRef"] or "unmapped:" + container["id"]
+        for name in (mount_map or {}).get(container["id"], set()):
+            dataset_users[name].add(owner)
     zfs_map = {name: used for _mount, name, used in zfs or []}
 
     result = []
