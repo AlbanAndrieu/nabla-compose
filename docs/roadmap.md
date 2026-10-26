@@ -345,10 +345,12 @@ Actions :
   **Correction PR #285 :** au plus une relance publique transitoire ;
   résultat `PUBLIC_DNS_BASELINE_UNAVAILABLE` si le public reste
   indisponible. L'échec initial reste signalé si la relance passe.
-  **22 tests LAN** désormais présents ; les 4 nouveaux restent
-  **NOT_VERIFIED sur la branche actualisée**. Rejouer
-  `just pfsense-unbound-lan-dns-test` et
-  `just pfsense-unbound-restart-test`.
+  **Gate opérateur récente : 22/22 tests DNS LAN PASS et
+  86/86 tests Unbound PASS** (les 22 tests LAN sont inclus dans
+  la gate Unbound, pas additionnés). Test Nexus privé : **2/2 PASS**
+  sur le code précédent. Ces tests ne valident pas le runtime LAN.
+  Après la mise à jour documentaire ci-dessous, rejouer les
+  tests ciblés et le contrat Nexus à **3 cas**.
   [Runbook H-04](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
 - [ ] **Nexus / DNS privé / ingress :** le public
   `nexus.albandrieu.com` est déclaré accessible par l'opérateur,
@@ -356,10 +358,20 @@ Actions :
   `172.17.0.24:8081`, mais les labels Traefik privés étaient
   commentés. La PR #285 prépare le routeur et son service `:8081`,
   **désactivés par défaut**, sans modifier la route publique.
-  Vérifier successivement DNS Pi-hole, DNS Unbound, NSS workstation,
-  backend HTTP et HTTPS SNI/TLS ; décider ensuite de l'activation
-  explicite et du mécanisme de publication `pihole-dns-sync`.
-  Ne pas publier de DNS public `*.int` ni redéployer automatiquement.
+  **Nouveau relevé opérateur :** `dig @172.17.0.24` et
+  `dig @172.17.0.1` ont tous deux expiré pour Nexus, ainsi
+  que `curl` HTTP direct sur `:8081` et HTTPS `:443`
+  (`http=000`). Cela **ne prouve ni NXDOMAIN, ni défaut TLS,
+  ni panne certaine des deux appliances**. Classer
+  `LAN_TRANSPORT_UNVERIFIED` et vérifier d'abord les routes
+  et la connectivité depuis la même workstation (Gate 0
+  du runbook), puis séparer DNS Pi-hole/Unbound, NSS,
+  HTTP direct et HTTPS SNI/TLS **uniquement une fois le
+  transport confirmé**. La preuve S3 `NOERROR` sur les deux
+  DNS à 20:49 CET est antérieure à ce second relevé ;
+  l'état de connexion peut avoir changé entre temps.
+  Ne pas activer le routeur privé ni publier du DNS public
+  `*.int`, et ne redémarrer aucun service pour ce triage.
   [Runbook Nexus](runbooks/nexus-private-dns-ingress.md).
 - [ ] **H-04 / causalité des modifications antérieures :**
   corréler upgrades/paramètres pfBlockerNG, Snort et DHCP/DNS,
