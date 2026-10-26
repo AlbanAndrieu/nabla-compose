@@ -164,8 +164,20 @@ def parse_docker_stats(raw: str, top: int) -> dict[str, object]:
                 "note": "docker stats unavailable or no valid running container samples"}
     by_mem = sorted(results, key=lambda x: x["memory_mib"], reverse=True)
     by_cpu = sorted(results, key=lambda x: x["cpu_pct"], reverse=True)
+    candidates = []
+    for item in results:
+        clues = []
+        if item["cpu_pct"] >= 80:
+            clues.append("high_cpu_snapshot")
+        if item["memory_limit_pct"] is not None and item["memory_limit_pct"] >= 85:
+            clues.append("near_container_memory_limit")
+        if item["memory_mib"] >= 1024:
+            clues.append("large_working_set_not_host_pressure_proof")
+        if clues:
+            candidates.append({"name": item["name"], "clues": clues})
     return {"state": "OBSERVED", "containers_sampled": len(results),
             "top_memory": by_mem[:top], "top_cpu": by_cpu[:top],
+            "resource_candidates": candidates[:top],
             "netdata_running_in_sample": any("netdata" in x["name"].lower() for x in results),
             "note": "one-shot Docker working set; stopped services omitted; not a historical peak"}
 
@@ -238,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--observe-seconds", type=int, default=10)
     parser.add_argument("--docker-timeout", type=int, default=8)
     parser.add_argument("--top", type=int, default=10)
+    parser.add_argument("--skip-docker", action="store_true", help="host-only when Docker is overloaded")
     parser.add_argument("--report-dir", type=Path)
     args = parser.parse_args(argv)
     if not 0 <= args.observe_seconds <= 60 or not 1 <= args.docker_timeout <= 20 or not 1 <= args.top <= 30:
@@ -251,12 +264,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     deltas = counter_deltas(first["vmstat"], last["vmstat"])
     state, signals = assess(last, deltas)
-    docker = docker_sample(args.docker_timeout, args.top)
+    docker = ({"state": "SKIPPED", "note": "operator-selected host-only mode"}
+              if args.skip_docker else docker_sample(args.docker_timeout, args.top))
     report = {"schema": "nabla-truenas-pressure/v1", "status": state,
               "at_utc": last["at_utc"], "observe_seconds": args.observe_seconds,
               "memory_available_change_mib": round(last["memory_available_mib"] - first["memory_available_mib"], 1),
               "host": last, "counter_deltas": deltas, "signals": signals,
-              "docker": docker, "netdata_hypothesis": "STOPPED_BY_OPERATOR; causality NOT_VERIFIED",
+              "docker": docker, "netdata_hypothesis": "historical load before Netdata stop NOT_MEASURED",
               "limits": "Docker stats excludes stopped containers; single sample does not identify earlier peak or service cause"}
     if args.report_dir:
         try:
