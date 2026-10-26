@@ -16,8 +16,22 @@ au catalogue et indique si l'inventaire était borné. La liste
 des conteneurs sans correspondance certaine. Aucun conteneur
 introuvable n'est qualifié de `DOWN` ; l'absence n'est pas une valeur 0.
 
-**Aucune collecte réelle depuis TrueNAS n'a été effectuée par l'agent
-GitHub**. Il ne faut ni écrire des chiffres imaginaires dans
+**Réception opérateur du 27 octobre (capture du 26 octobre 23:37 UTC)** :
+`resources-20261026T233659Z.json` créé dans
+`/mnt/cpool/var/nabla/service-resources` ; Docker **144 RUNNING**,
+**92 mappés**, **52 non mappés**, `inventory_complete=true`,
+**151 entités de service** dans le rapport, GPU indisponible sur
+TrueNAS. Cela **prouve la collecte de l'inventaire runtime**, pas
+que chaque mesure CPU/RAM/ZFS a été reçue pour chacun des 144
+conteneurs. L'agent GitHub ne peut pas lire ce JSON local.
+
+Pour les 52 conteneurs non mappés, la prochaine version du relevé
+inclut `compose_project`, `compose_service` et
+`mapping_issue` (identités contrôlées et expurgées),
+afin de corriger les mappings exacts au lieu d'inférer un service
+depuis son nom. Le rapport existant contient au minimum les noms
+et consommations CPU/RAM disponibles. Il ne faut ni écrire
+des chiffres imaginaires dans
 `catalog/generated/entities.json` ni commiter un relevé périmé ou
 privé dans Git. L'opérateur générera un instantané `0600`
 pour import dans les cartes OWNER de nabla-site-alban PR #262.
@@ -80,6 +94,37 @@ ou `memory_kill`.
   uWSGI n'est pas prêt ; ne pas tenter une rotation du mot de passe
   avant le retour du backend.
 
+## DefectDojo — analyse des logs initializer reçus
+
+La capture d'initializer fournie le 27 octobre montre :
+
+- 21:04 CET : `172.17.0.24:5432` accessible ;
+- 21:07 CET : test de base PostgreSQL réussi ;
+- 22:25 CET : triggers d'audit `pghistory` activés et
+  migrations Django indiquées comme déjà appliquées ;
+- `Admin user already exists; skipping first-boot setup` ;
+- dernière ligne fournie :
+  `Initializing non-standard permissions`.
+
+**Ni code de sortie 0 ni erreur explicite** ne figurent dans
+cette capture. Le délai important ne prouve pas un blocage
+permanent : vérifier l'état Docker actuel de
+`defectdojo-initializer` et, si toujours actif, la présence
+d'une attente PostgreSQL. **Aucun DROP DATABASE** ni
+rotation des mots de passe n'est justifié par ces logs.
+
+```bash
+sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py \
+  --check --include-log-classes
+sudo python3 scripts/truenas/diagnose-defectdojo-postgres-waits.py --check
+```
+
+Le diagnostic SQL ne restitue que des catégories
+`state/wait_event_type/wait_event`, le nombre de sessions et
+d'attentes et leur durée. Il ne divulgue aucune requête SQL
+ni identifiant. En cas de `LOCK_WAIT_OBSERVED`, examiner
+la session bloquante **avant** un redémarrage de DefectDojo.
+
 ## Vaultwarden — preuves distinctes du déploiement
 
 `config/secrets/manifest.json` définit les objets
@@ -107,6 +152,40 @@ c'est la **cache de la CLI `bw`**, pas une preuve temps réel du
 serveur. Aucun `bw edit`, rotation, installation ni
 `materialize_runtime --install` n'est exécuté. Un coffre
 verrouillé ou `sudo -n` indisponible produit `UNVERIFIED`.
+
+### Résultat Vaultwarden du 27 octobre
+
+L'inventaire CLI **avant mise à jour du classificateur** retournait :
+`code=VAULT_ITEM_NOT_UNIQUE`,
+`openrag=VAULT_ITEM_NOT_UNIQUE` ; cette catégorie
+regroupait objets manquants **et** doublons. Le code distingue
+maintenant `VAULT_ITEM_MISSING`,
+`VAULT_ITEM_IN_OTHER_FOLDER` et
+`VAULT_ITEM_DUPLICATED_*` via une seconde recherche sans
+filtre de dossier, toujours sans afficher les objets.
+
+Pour `defectdojo`, cinq secrets applicatifs sont `MATCH`.
+`DD_ADMIN_USER=DRIFT` et
+`DD_ADMIN_PASSWORD=UNVERIFIED` : le résultat ne révèle
+aucun mot de passe. La nouvelle colonne
+`unverified_reasons` distingue une valeur absente/vidée
+dans l'objet Vaultwarden d'une clé runtime absente/vidée.
+Le hash Django reste indépendant et le login n'est pas
+opérationnel tant qu'uWSGI n'est pas prêt.
+
+```bash
+# Après la fin du build FastAPI en cours, sous l'utilisateur BW déverrouillé.
+bw sync
+VENV_PYTHON="$HOME/.cache/nabla-compose/dev-venv/bin/python"
+for app in code openrag defectdojo; do
+  "$VENV_PYTHON" scripts/secrets/compare_vaultwarden_runtime_readonly.py \
+    --check --app "$app"
+done
+```
+
+`bw sync` actualise la **cache locale CLI** ; il ne modifie
+pas les objets distants. Ne jamais copier de secret dans un ticket
+ou régénérer les clés Django/AES256 pendant l'initialisation.
 
 ## Prometheus / Akvorado — collecte H-05 / H-06
 
