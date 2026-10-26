@@ -337,3 +337,31 @@ L'ACL `+` devra être contrôlée localement.
 environnement isolé à partir du support de sauvegarde, sans exposer
 la clé age ou le texte déchiffré. Aucune génération PIV82 ou mutation
 SOPS autorisée à ce stade. Test KeePassXC/OTP2 toujours reporté.
+
+## Escrow chiffré — deux copies repérées et comparaison de contenu à faire (26/10/2026)
+
+**Preuve opérateur au HEAD `41e2b099` :** découverte de la
+copie locale et de la copie sur support monté
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED` par
+`just yubikey-escrow-pair-discover`, puis la même classification
+confirmée après réponse `o` à `just yubikey-escrow-pair-inspect`.
+**17/17 tests de la découverte PASS sur workstation.**
+
+La prochaine preuve est l'égalité **octet par octet** des deux
+archives `.age` chiffrées, sans clé, sans déchiffrement ni
+publication de hash. Nouveau programme :
+`compare-yubikey-escrow-pair-readonly.py`, recette explicite
+`just yubikey-escrow-compare-run`, avec contrôle et
+**11/11 tests hermétiques PASS en environnement agent**.
+Le test des **vraies copies** reste `NOT_RUN`.
+
+Une réponse `ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED` permettra
+de considérer la copie chiffrée comme identique au moment du contrôle,
+mais **pas** comme récupérable, indépendante physiquement ou source
+d'une seconde identité age. L'ACL `+` sur la destination et la
+restauration réelle doivent encore être vérifiées.
+
+La génération PIV82 et les changements de destinataires SOPS restent
+**NO-GO**. Le test KeePassXC/OTP2 demeure reporté.
+
+[Procédure](yubikey-software-recovery-20261026.md).
