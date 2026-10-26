@@ -827,6 +827,23 @@ observability-evidence-test:
     python3 -m unittest discover -s tests -p 'test_collect_observability_evidence.py' -v
     python3 -m pytest -q tests/test_prometheus_failed_scrapes_diagnostic.py tests/test_akvorado_flow_deltas.py
 
+# Classify the latest TrueNAS lifecycle failures; log text is never printed.
+truenas-lifecycle-recent:
+    sudo python3 scripts/truenas/triage-app-lifecycle-log.py --check --since 2026-10-20
+
+# Repair stored Scrutiny app definition, preserving its existing InfluxDB token.
+truenas-scrutiny-reconcile:
+    sudo env SCRUTINY_CUTOVER_APPROVED=1 bash scripts/truenas/deploy-scrutiny.sh --apply
+
+# Install existing FastAPI metrics token into the Prometheus bind source.
+truenas-prometheus-metrics-credential-install:
+    sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --apply --acknowledge I_APPROVE_FASTAPI_SCRAPE_CREDENTIAL_INSTALL
+
+# Offline scripts and fixtures: no TrueNAS API or secrets.
+truenas-lifecycle-recovery-test:
+    bash -n scripts/truenas/deploy-scrutiny.sh
+    python3 -m pytest -q tests/test_truenas_lifecycle_recovery.py tests/test_fastapi_prometheus_credential_contract.py tests/test_fastapi_metrics_source_triage.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
