@@ -116,7 +116,8 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
             with self.subTest(name=invalid):
                 with self.assertRaises(Exception):
                     watcher.dns_name(invalid)
-        for invalid in ("127.0.0.1", "0.0.0.0", "224.0.0.1", "not-an-ip"):
+        for invalid in ("127.0.0.1", "0.0.0.0", "224.0.0.1",
+                        "169.254.1.1", "8.8.8.8", "not-an-ip"):
             with self.subTest(ip=invalid):
                 with self.assertRaises(Exception):
                     watcher.resolver_ip(invalid)
