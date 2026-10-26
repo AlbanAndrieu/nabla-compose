@@ -158,30 +158,39 @@ fi
 loki_probe="$(mktemp)"
 crowdsec_metrics_probe="$(mktemp)"
 trap 'rm -f "${loki_probe:-}" "${crowdsec_metrics_probe:-}"' EXIT
-pfsense_loki_event_observed=false
-if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
-  --data-urlencode 'query={job="pfsense",device="pfsense"}' \
-  --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
-  --data-urlencode 'limit=1' \
-  --data-urlencode 'direction=backward' \
-  --output "${loki_probe}" \
-  "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
-  jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
-  pfsense_loki_event_observed=true
-  ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
-else
-  if curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
-    --data-urlencode 'query={job="pfsense",app!="nabla-smoke"}' \
+# One transient retry is allowed for a canonical Loki stream only.
+# The two runtime invocations in the operator report disagreed; a single
+# negative query must not be attributed immediately to Alloy relabeling.
+# Keep failures fail-closed after a second bounded negative observation.
+query_pfsense_loki() {
+  local selector="$1"
+  curl --silent --show-error --get --connect-timeout 4 --max-time 12 \
+    --data-urlencode "query=${selector}" \
     --data-urlencode "since=${PFSENSE_LOG_LOOKBACK}" \
     --data-urlencode 'limit=1' \
     --data-urlencode 'direction=backward' \
     --output "${loki_probe}" \
     "${LOKI_URL%/}/loki/api/v1/query_range" 2>/dev/null &&
-    jq -e '.status == "success" and (.data.result | length) > 0' "${loki_probe}" >/dev/null 2>&1; then
-    error "non-smoke job=pfsense events exist but none are classified device=pfsense; inspect Alloy source-IP relabeling"
-  else
-    error "no pfSense syslog event observed in Loki in lookback ${PFSENSE_LOG_LOOKBACK}; verify pfSense -> Alloy UDP/1514"
-  fi
+    jq -e '.status == "success" and (.data.result | length) > 0' \
+      "${loki_probe}" >/dev/null 2>&1
+}
+
+pfsense_loki_event_observed=false
+if query_pfsense_loki '{job="pfsense",device="pfsense"}'; then
+  pfsense_loki_event_observed=true
+  printf 'crowdsec_loki_classification=CANONICAL_CONFIRMED\n'
+  ok "fresh pfSense events are queryable in Loki (lookback ${PFSENSE_LOG_LOOKBACK})"
+elif query_pfsense_loki '{job="pfsense",device="pfsense"}'; then
+  pfsense_loki_event_observed=true
+  printf 'crowdsec_loki_classification=CANONICAL_RECOVERED_AFTER_RETRY\n'
+  warn "canonical pfSense Loki query failed once but recovered on bounded retry; investigate intermittent ingestion/query behavior"
+  ok "fresh pfSense events are queryable in Loki after retry (lookback ${PFSENSE_LOG_LOOKBACK})"
+elif query_pfsense_loki '{job="pfsense",app!="nabla-smoke"}'; then
+  printf 'crowdsec_loki_classification=CANONICAL_MISSING_NONSMOKE_PRESENT\n'
+  error "non-smoke job=pfsense events exist but canonical device=pfsense was not observed twice; inspect Alloy source-IP relabeling and event timestamps"
+else
+  printf 'crowdsec_loki_classification=NO_CONFIRMED_RECENT_PFSENSE_EVENTS\n'
+  error "no canonical pfSense syslog event observed after two queries, and no non-smoke event found in Loki in lookback ${PFSENSE_LOG_LOOKBACK}; verify pfSense -> Alloy UDP/1514"
 fi
 
 printf '\n==> CrowdSec Loki datasource metric\n'
