@@ -59,6 +59,20 @@ class EvidenceCollectorTests(unittest.TestCase):
             return next(outlet_reads)
         return fetch
 
+    def test_all_scope_includes_baseline_and_remaining_without_duplicates(self):
+        with (
+            mock.patch.object(module, "fetch_bounded", side_effect=self.fetch_synthetic()),
+            mock.patch.object(module.time, "sleep"),
+        ):
+            report = module.collect("all", 1)
+        self.assertEqual(
+            tuple(report["prometheus"]["jobs"]),
+            tuple(dict.fromkeys((*module.PROM.JOBS, *module.PROM.REMAINING_JOBS))),
+        )
+        self.assertEqual(report["acceptance"]["akvorado_sql_rows"], "NOT_VERIFIED")
+        self.assertEqual(report["acceptance"]["prometheus_scrapes"], "FAIL")
+        self.assertNotIn("SECRET_TOKEN", json.dumps(report))
+
     def test_fail_report_is_redacted_and_diagnoses_two_distinct_problems(self):
         with (
             mock.patch.object(module, "fetch_bounded", side_effect=self.fetch_synthetic()),
