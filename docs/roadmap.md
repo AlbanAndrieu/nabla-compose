@@ -413,15 +413,23 @@ Actions :
   **Transport LAN joignable pendant ce relevé**, sans conclusion sur
   DNS port 53 ni sur HTTP/TLS applicatifs ; les anciens timeouts
   peuvent être intermittents ou propres aux protocoles.
-  Prochain contrôle : DNS UDP **et** TCP sur S3 (témoin) et Nexus
-  (cible) vers les deux résolveurs, puis HTTP direct et HTTPS SNI.
-  **Nouveau test Nexus dans le worktree opérateur :** `Ran 0 tests`
-  signifie **NOT_RUN**, pas PASS. Le fichier existe dans la PR.
-  La recette ajoutée `just nexus-private-ingress-test` refuse
-  un fichier absent et exécute directement les **4 contrats**
-  sur HEAD récent. Rejouer depuis un worktree mis à jour.
-  Ne pas activer le routeur privé ni publier du DNS public
-  `*.int`, et ne redémarrer aucun service pour ce triage.
+  **Gate DNS et tests confirmée par l'opérateur :** worktree neuf
+  au commit `ebbacf8a`, `just nexus-private-ingress-test`
+  **4/4 PASS** (corrige le précédent `Ran 0 tests`).
+  Les huit interrogations DNS `dig` sont **8/8 PASS**
+  (pfSense/Pi-hole × UDP/TCP × S3/Nexus), toutes
+  `NOERROR A 172.17.0.24`. **Le nom privé Nexus existe déjà.**
+  Origine de cet A dans Pi-hole non attribuée : une réponse
+  autoritative ne prouve pas que les labels Traefik du conteneur
+  sont actifs. Ne pas créer un A doublon ni modifier Unbound.
+  **Prochain contrôle :** `getent` workstation,
+  `curl http://172.17.0.24:8081/` et HTTPS avec
+  `--resolve nexus.int.albandrieu.com:443:172.17.0.24`
+  pour isoler application, routeur Traefik et certificat.
+  **P1 ouvert :** réponse HTTP/TLS et labels réellement
+  déployés non vérifiés après les tests DNS. Conserver
+  `NEXUS_PRIVATE_INGRESS_ENABLED=false` par défaut,
+  ne pas redéployer ni publier de DNS public `*.int`.
   [Runbook Nexus](runbooks/nexus-private-dns-ingress.md).
 - [ ] **H-04 / causalité des modifications antérieures :**
   corréler upgrades/paramètres pfBlockerNG, Snort et DHCP/DNS,
