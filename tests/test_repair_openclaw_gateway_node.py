@@ -190,6 +190,26 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertIn("package_hardening=blocked_entry_untrusted", output.getvalue())
         self.assertTrue(self.new_entry.is_symlink())
 
+    def test_permission_repair_refuses_unknown_service_owner(self):
+        manifest = self.new_package / "package.json"
+        manifest.chmod(0o664)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--harden-installed-permissions"]), 2)
+        self.assertIn("blocked_unverified_service_owner", output.getvalue())
+        self.assertEqual(manifest.stat().st_mode & 0o777, 0o664)
+
+    def test_plan_diagnoses_package_identity_without_showing_metadata(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        obj = json.loads(manifest.read_text())
+        obj["version"] = "2026.0.0"
+        manifest.write_text(json.dumps(obj))
+        manifest.chmod(0o600)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 2)
+        self.assertIn("existing_package_check=package_version_mismatch", output.getvalue())
+        self.assertNotIn(str(self.root), output.getvalue())
+
     def test_permission_repair_refuses_active_gateway(self):
         self.assertEqual(mod.main(["--apply"]), 0)
         original = self.mock_command
