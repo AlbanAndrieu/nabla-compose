@@ -41,10 +41,11 @@ class Contracts(unittest.TestCase):
     def test_successful_inspection_returns_only_classification(self):
         sensitive_a = "/mnt/private-disk/a/backup.age"
         sensitive_b = "/mnt/offsite/b/backup.age"
+        inputs = iter([sensitive_a, sensitive_b])
         with patch.object(module, "read_escrow_state",
                           return_value="TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED") as target:
             self.assertEqual(module.inspect(tty=True,
-                reader=iter([sensitive_a, sensitive_b]).__next__),
+                reader=lambda _prompt: next(inputs)),
                 "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED")
         args = target.call_args.args
         self.assertEqual(args, (Path(sensitive_a), Path(sensitive_b)))
