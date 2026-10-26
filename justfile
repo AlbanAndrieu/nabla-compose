@@ -1056,10 +1056,16 @@ openclaw-gateway-node-test:
 
 # Read-only: verify 24.22.1 and service ownership before maintenance.
 openclaw-gateway-node-plan:
-    python3 scripts/workstation/repair-openclaw-gateway-node.py --plan
+    python3 scripts/workstation/repair-openclaw-gateway-node.py --select-installed-plan
 
-# Explicit mutating operation: stop Gateway, keep SQLite owner exclusive,
-# switch only systemd Node, native update of managed package, then /readyz.
-# Failures leave Gateway stopped rather than reopening unsafe SQLite state.
-openclaw-gateway-node-update:
+# The next step does NOT invoke npm or openclaw update. It selects the
+# existing, independently validated OpenClaw 2026.10.7 installation
+# under mise Node 24.22.1 for the managed systemd Gateway.
+# No project backup, model request, new staged installation or CI.
+openclaw-gateway-select-installed:
     bash scripts/workstation/recover-openclaw-managed-gateway.sh --apply
+
+# Backwards-compatible recipe name; the operation is package selection,
+# not a package-manager update. Retained for existing workstation commands.
+openclaw-gateway-node-update:
+    just openclaw-gateway-select-installed
