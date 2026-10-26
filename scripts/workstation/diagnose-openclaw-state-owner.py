@@ -226,7 +226,7 @@ def main():
     print("logged_holder_in_state_openers=" + (
         "unknown" if holder is None or openers is None
         else "yes" if holder in openers else "no"))
-    print("sqlite_owner_diagnosis=" + verdict)
+    print("state_owner_diagnosis=" + verdict)
     print("historical_pid_reuse_ruled_out=false")
     print("sqlite_modified=false")
     print("raw_logs_or_process_args_printed=false")
