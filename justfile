@@ -466,7 +466,7 @@ pfsense-memory-window:
 # Run from LAN shortly before the next scheduled DNSBL stop/start.
 # Caller must choose an actual split-DNS name; no default hidden domain.
 pfsense-unbound-lan-dns-watch:
-    python3 scripts/pfsense/probe-unbound-lan-dns.py --check --resolver 172.17.0.1 --public-name example.com --private-name "${PFSENSE_PRIVATE_DNS_NAME:?set PFSENSE_PRIVATE_DNS_NAME to an approved LAN-only FQDN}" --samples 45 --interval-seconds 2 --timeout-seconds 1
+    python3 scripts/pfsense/probe-unbound-lan-dns.py --check --resolver 172.17.0.1 --public-name example.com --private-name "${PFSENSE_PRIVATE_DNS_NAME:?set PFSENSE_PRIVATE_DNS_NAME to a verified LAN-only FQDN}" --private-expected-ip "${PFSENSE_PRIVATE_DNS_EXPECTED_IP:?set PFSENSE_PRIVATE_DNS_EXPECTED_IP to the verified IPv4 A value}" --pihole-resolver 172.17.0.24 --samples 45 --interval-seconds 2 --timeout-seconds 1
 
 pfsense-unbound-lan-dns-test:
     python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
