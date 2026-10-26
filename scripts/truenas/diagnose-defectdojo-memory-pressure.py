@@ -146,8 +146,9 @@ def assess(mem: dict[str, int], psi: dict[str, float],
     if (available_pct < 5 and (full is not None and full > 1 or
                                some is not None and some > 10)):
         return "PRESSURE_LIKELY"
-    if available_pct >= 15 and (full is None or full < 0.1) and (
-            some is None or some < 1):
+    # PSI is required before asserting an absence of pressure.
+    if (available_pct >= 15 and full is not None and full < 0.1
+            and some is not None and some < 1):
         return "NO_CURRENT_PRESSURE_SIGNAL"
     return "INCONCLUSIVE"
 
