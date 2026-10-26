@@ -2,6 +2,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -25,6 +26,15 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.old_entry.write_text("// fixture")
         self.new_node.parent.mkdir(parents=True)
         self.new_node.write_text("// synthetic node")
+        self.new_package = self.new_node.parent.parent / "lib/node_modules/openclaw"
+        self.new_package.mkdir(parents=True)
+        self.new_entry = self.new_package / "openclaw.mjs"
+        self.new_entry.write_text("// synthetic installed package")
+        self.new_entry.chmod(0o600)
+        (self.new_package / "package.json").write_text(json.dumps({
+            "name": "openclaw", "version": "2026.10.7",
+            "bin": {"openclaw": "openclaw.mjs"},
+        }))
         self.legacy = (
             "{ path=/usr/bin/node ; argv[]=/usr/bin/node "
             "--max-old-space-size=16053 "
@@ -44,9 +54,13 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.calls.append(argv)
         if argv == [str(self.new_node), "--version"]:
             return 0, b"v24.22.1\n"
+        if argv == [str(self.new_node), str(self.new_entry), "--version"]:
+            return 0, b"OpenClaw 2026.10.7 (fixture)\n"
         if argv[:4] == ["systemctl", "--user", "show", mod.UNIT]:
             if mod.override_path().exists():
-                entry = self.old_root / "lib/node_modules/openclaw/openclaw.mjs"
+                body = mod.override_path().read_text()
+                entry = (self.new_entry if str(self.new_entry) in body
+                         else self.old_root / "lib/node_modules/openclaw/openclaw.mjs")
                 updated = (
                     "{ path=" + str(self.new_node) +
                     " ; argv[]=" + str(self.new_node) +
@@ -98,7 +112,7 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertEqual(unit.parent.stat().st_mode & 0o777, 0o700)
         self.assertEqual(unit.stat().st_mode & 0o777, 0o600)
 
-    def test_bash_recovery_is_explicit_and_has_no_backup_step(self):
+    def test_bash_recovery_selects_existing_package_without_backup_or_npm(self):
         import subprocess
         script = SRC.parent / "recover-openclaw-managed-gateway.sh"
         lint = subprocess.run(["bash", "-n", str(script)],
@@ -106,11 +120,80 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertEqual(lint.returncode, 0)
         contents = script.read_text()
         self.assertIn("systemctl --user stop", contents)
-        self.assertIn('fuser -s', contents)
-        self.assertIn('--no-restart', contents)
+        self.assertIn("fuser -s", contents)
+        self.assertIn("--select-installed", contents)
         self.assertNotIn("backup-openclaw.sh", contents)
         self.assertNotIn("npm install", contents)
+        self.assertNotIn('${CLI}" update ', contents)
         self.assertNotIn("rm -rf", contents)
+
+    def test_select_plan_confirms_existing_package_without_writes(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            result = mod.main(["--select-installed-plan"])
+        self.assertEqual(result, 0)
+        self.assertIn("existing_package_verified=yes", output.getvalue())
+        self.assertIn("owned_dropin=yes", output.getvalue())
+        self.assertIn("no_npm_install=true", output.getvalue())
+        self.assertIn(str(self.old_entry), mod.override_path().read_text())
+
+    def test_select_installed_replaces_only_owned_dropin(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            code = mod.main(["--select-installed"])
+        self.assertEqual(code, 0)
+        text = mod.override_path().read_text()
+        self.assertIn(str(self.new_entry), text)
+        self.assertIn(str(self.new_node), text)
+        self.assertNotIn(str(self.old_entry), text)
+        self.assertEqual(mod.override_path().stat().st_mode & 0o777, 0o600)
+        self.assertIn("package_selection=verified", output.getvalue())
+        self.assertIn("npm_install_attempted=false", output.getvalue())
+        self.assertFalse(any(cmd[2:3] in (["start"], ["stop"], ["restart"])
+                             for cmd in self.calls if len(cmd) > 2))
+
+    def test_select_installed_repeat_is_idempotent(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        self.assertEqual(mod.main(["--select-installed"]), 0)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 0)
+        self.assertIn("package_selection=already_verified", output.getvalue())
+
+    def test_select_installed_refuses_wrong_package_version(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        value = json.loads(manifest.read_text())
+        value["version"] = "2026.9.5"
+        manifest.write_text(json.dumps(value))
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_invalid_package_or_service", output.getvalue())
+        self.assertIn(str(self.old_entry), mod.override_path().read_text())
+
+    def test_select_installed_requires_existing_owned_override(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_unowned_override", output.getvalue())
+
+    def test_select_installed_refuses_modified_owned_dropin(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        path = mod.override_path()
+        path.write_text(path.read_text() + "# operator modification\n")
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_dropin_drift", output.getvalue())
+
+    def test_select_installed_blocks_active_gateway(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        old = self.mock_command
+        def active(argv):
+            if argv == ["systemctl", "--user", "is-active", mod.UNIT]:
+                return 0, b"active\n"
+            return old(argv)
+        with patch.object(mod, "command", active), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_gateway_active", output.getvalue())
 
     def test_apply_does_not_duplicate_dropin(self):
         self.assertEqual(mod.main(["--apply"]), 0)
