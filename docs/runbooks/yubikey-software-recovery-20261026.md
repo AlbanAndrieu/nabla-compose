@@ -445,3 +445,75 @@ réelle des deux fichiers chiffrés renvoie
 n'autorise pas de mutation PIV82 ou de secrets SOPS : le déchiffrement
 et la restauration restent des étapes séparées. KeePassXC/OTP2
 reste reporté.
+
+## Preuve NFS client et comparaison avec le serveur TrueNAS — 26/10/2026
+
+**Preuve workstation au HEAD `1be4d5b2`** : la suite
+`just yubikey-escrow-pair-test` a réussi **30/30 tests**.
+Le diagnostic renvoie simultanément :
+`backup_mount_state=EXPECTED_NFS4_MOUNT_PRESENT`,
+`expected_backup_copy_state=EXPECTED_COPY_MISSING`,
+`source_directory.age_files=1`,
+`backup_directory.age_files=0`,
+`matching_age_filenames=0`.
+La commande `findmnt` sur la workstation identifie
+`/media/backup/lab` comme point de montage `nfs4`
+de `nabla:/mnt/cpool/backup/lab`, avec NFS version 4.2.
+Cette preuve correspond à **un export NFS actif**, mais ne démontre
+pas que la cible serveur correspond au dataset attendu ni qu'un
+fichier a été effectivement supprimé : la visibilité côté serveur
+n'a pas encore été interrogée.
+
+### Nouvelle sonde à preuve séparée côté TrueNAS
+
+Un contrôle non destructif a été ajouté sous
+`scripts/workstation/inspect-yubikey-escrow-nfs-server.py`.
+Il exige le montage `/media/backup/lab`, l'export
+`nabla:/mnt/cpool/backup/lab` et un **unique nom `.age`**
+dans l'emplacement local. Le nom attendu est transmis uniquement dans
+le programme Python envoyé sur **stdin SSH**, jamais en argument ou
+dans la sortie JSON. L'archive chiffrée n'est ni ouverte, ni copiée,
+ni déchiffrée.
+
+```bash
+# Mode passif : identifie l'export et la source locale. Aucun SSH.
+just yubikey-escrow-nfs-test
+just yubikey-escrow-nfs-check
+
+# Session volontaire : métadonnées uniquement côté TrueNAS.
+# Utilise un hôte SSH connu, BatchMode=yes, pas de prompt mot de passe.
+just yubikey-escrow-nfs-probe
+```
+
+Le probe exécute un Python fixe en lecture seule sur TrueNAS
+(`/mnt/cpool/backup/lab/secret`) via
+`albandrieu@172.17.0.24`. Il inspecte le répertoire, le nombre
+borné d'archives `.age` et les métadonnées du **nom attendu**.
+Il interdit les liens symboliques, n'ouvre aucun contenu et n'effectue
+aucune modification NFS/TrueNAS. Aucune authentification SSH
+interactive ni nouvelle clé d'hôte n'est acceptée automatiquement.
+En cas de refus SSH, d'hôte inconnu ou d'absence de Python, il
+renvoie un état borné de non-vérification, sans tentative en boucle.
+
+| `server_state` | Suite |
+| --- | --- |
+| `SERVER_EXPECTED_COPY_MISSING` | Confirmer la disparition/rotation/migration/snapshot côté serveur ; ne pas recopier automatiquement |
+| `SERVER_EXPECTED_COPY_REGULAR_NONEMPTY` | Fichier visible côté serveur mais pas côté NFS : analyser permissions UID/GID, export, cache et ACL |
+| `SERVER_DIRECTORY_MISSING` | Investiguer dataset ou répertoire côté serveur |
+| `SERVER_DIRECTORY_ACCESS_DENIED` | Vérifier les ACL côté TrueNAS avec accès autorisé |
+| `SERVER_EXPECTED_COPY_SYMLINK` | Ne pas suivre ni utiliser le lien pour la preuve |
+| `SSH_READONLY_PROBE_UNAVAILABLE` | Vérifier SSH/known_hosts/compte, sans redémarrage ni réessai automatique |
+
+Les sorties conservent **`status=NO-GO`**,
+`archive_opened=false`, `remote_write_performed=false`,
+`restoration_verified=false` et `decryption_attempted=false`.
+**11 tests hermétiques PASS en environnement agent**, mais le
+probe SSH réel et la suite sur la workstation restent
+**NOT_RUN** au moment de la création.
+Ne pas traiter une réponse `SERVER_EXPECTED_COPY_MISSING` comme
+une preuve de suppression définitive : d'autres datasets, snapshots
+ou exports peuvent contenir la copie historique.
+
+La vérification des copies et de leur déchiffrement est un jalon
+distinct, prérequis avant toute écriture PIV82. KeePassXC/OTP2
+reste différé à la demande de l'opérateur.
