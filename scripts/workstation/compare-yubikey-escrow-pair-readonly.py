@@ -59,9 +59,14 @@ def select_manual_pair(*, tty: bool, reader=None) -> tuple[str, tuple[Path, Path
 
 def secure_open(path: Path) -> tuple[int, os.stat_result]:
     """Open a verified regular file, never a symlink and never a FIFO."""
+    # Do not follow symlinked directory components for manually provided
+    # escrow paths either. O_NOFOLLOW only protects the final file name.
+    if any(directory.is_symlink() for directory in (path.parent, *path.parent.parents)):
+        raise ValueError("untrusted escrow parent")
     before = path.lstat()
     if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
             or before.st_uid != os.getuid()
+            or stat.S_IMODE(before.st_mode) & 0o077
             or before.st_size < 1 or before.st_size > MAX_BYTES):
         raise ValueError("invalid metadata")
     flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
@@ -70,6 +75,7 @@ def secure_open(path: Path) -> tuple[int, os.stat_result]:
         actual = os.fstat(fd)
         if (not stat.S_ISREG(actual.st_mode) or actual.st_nlink != 1
                 or actual.st_uid != os.getuid()
+                or stat.S_IMODE(actual.st_mode) & 0o077
                 or (actual.st_dev, actual.st_ino, actual.st_size,
                     actual.st_mtime_ns, actual.st_ctime_ns) !=
                    (before.st_dev, before.st_ino, before.st_size,
