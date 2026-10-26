@@ -423,3 +423,35 @@ Aucun rollback ZFS, copie, changement de destinataire SOPS ni
 provisionnement PIV82 autorisé. KeePassXC/OTP2 reste différé.
 
 Voir [runbook](yubikey-software-recovery-20261026.md).
+
+## Suite au probe des snapshots ZFS — pagination contrôlée (27/10/2026)
+
+**Résultat opérateur (version initiale) :** `just
+yubikey-escrow-history-test` **10/10 PASS** ;
+`just yubikey-escrow-history-probe` :
+`roots_accessible=3`, `snapshots_checked=96`,
+`candidate_copies=0`, `SNAPSHOT_HISTORY_INCOMPLETE`.
+Le programme a atteint son plafond de 32 snapshots dans
+chacune des trois racines ; il n'a pas prouvé l'absence
+des sauvegardes au-delà des entrées vérifiées.
+
+**Correctif livré** : pages de 32 snapshots par racine, en
+ordre lexicographique inverse des noms (pas nécessairement
+chronologique), jusqu'à 32 pages/1 024 entrées inventoriées
+par racine. `just yubikey-escrow-history-page 1` permet
+d'avancer explicitement. Suivre `next_page` seulement
+si la réponse l'autorise ; ne pas lancer de boucle non bornée.
+Un répertoire qui dépasse 1 024 entrées garde
+`inventory_truncated=true` : rien n'est déclaré complet.
+**14/14 tests PASS dans l'environnement agent** ;
+exécution paginée sur workstation encore `NOT_RUN`.
+
+**Étape suivante :** valider la pagination sur workstation,
+inspecter les pages suivantes si nécessaire, puis seulement
+préparer une récupération autorisée depuis un snapshot candidat
+dans un espace isolé. Aucune lecture des archives, copie,
+restauration ou modification matérielle n'est intégrée au
+probe. Maintenir `NO-GO` pour PIV82 et la restauration réelle ;
+KeePassXC/OTP2 reste reporté.
+
+[Procédure détaillée](yubikey-software-recovery-20261026.md).
