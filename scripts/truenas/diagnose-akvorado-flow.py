@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from urllib.request import ProxyHandler, build_opener
 import re
 import time
 import sys
@@ -72,7 +73,8 @@ def exporter_metadata_evidence(data: str) -> dict[str, float]:
         if labels.get("error") != "metadata missing":
             continue
         value = float(match.group(3))
-        if not math.isfinite(value):
+        if not math.isfinite(value) or value < 0:
+            # An invalid cumulative counter cannot support a historical claim.
             continue
         exporter = labels.get("exporter")
         key = "configured" if exporter == "172.17.0.1" else (
@@ -177,8 +179,22 @@ def assess_deltas(before: str, after: str) -> tuple[str, dict[str, float]]:
 
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Do not follow an Akvorado response to an uncontrolled destination."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Never honor environment HTTP proxies for LAN-only metrics.
+OPENER = build_opener(ProxyHandler({}), NoRedirect())
+
+
 def fetch(url: str) -> str:
-    with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310 local fixed endpoints
+    if url not in ENDPOINTS.values():
+        raise ValueError("Akvorado endpoint not approved")
+    request = urllib.request.Request(url, headers={"Accept": "text/plain"})
+    with OPENER.open(request, timeout=5) as response:
         data = response.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
         raise ValueError("metrics response exceeds 2 MiB")
