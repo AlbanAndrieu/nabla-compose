@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Recover the managed OpenClaw service from preflight-node-runtime-incompatible.
-# Explicit --apply only. No project backup, npm staging, sudo, or model calls.
+# Select the already-installed OpenClaw 2026.10.7 as managed Gateway owner.
+# Explicit --apply only. No backup, npm, OpenClaw update, sudo or model calls.
 set -Eeuo pipefail
 umask 077
 
@@ -12,7 +12,7 @@ fi
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPAIR="${HERE}/repair-openclaw-gateway-node.py"
 NODE="${HOME}/.local/share/mise/installs/node/24.22.1/bin/node"
-CLI="${HOME}/.local/share/mise/installs/node/24.18.1/lib/node_modules/openclaw/openclaw.mjs"
+CLI="${HOME}/.local/share/mise/installs/node/24.22.1/lib/node_modules/openclaw/openclaw.mjs"
 # Preserve the account's documented state/config/workspace paths. Explicit
 # environment overrides are kept unchanged rather than using a new profile.
 export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-${HOME}/.openclaw}"
@@ -21,8 +21,8 @@ export OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${OPENCLAW_STATE_DIR}/w
 DB="${OPENCLAW_STATE_DIR}/state/openclaw.sqlite"
 UNIT=openclaw-gateway.service
 
-# Read-only checks BEFORE stopping the service.
-python3 "${REPAIR}" --plan
+# Read-only installation checks BEFORE starting or changing the service.
+python3 "${REPAIR}" --select-installed-plan
 [[ -x "${NODE}" && -f "${CLI}" ]] || {
   echo "repair=blocked_node_or_install_owner_missing"
   exit 2
@@ -51,24 +51,19 @@ if [[ -f "${DB}" ]] && fuser -s "${DB}" 2>/dev/null; then
   exit 2
 fi
 
-# systemd owner is still the old npm package root; change only Node.
-python3 "${REPAIR}" --apply
+# Select the already installed 2026.10.7 package for the service.
+# The updater rejected the old-to-new npm install as foreign-destination;
+# no npm or schema migration is attempted by this script.
+python3 "${REPAIR}" --select-installed
+echo "package_selection=existing_installation_selected"
 
-# Run the updater from that SAME managed package under the new Node. This
-# avoids the shell's different global npm prefix being selected.
-# --no-restart keeps the Gateway stopped during schema/plugin migration.
-echo "update=starting_from_managed_package"
-"${NODE}" "${CLI}" update --tag 2026.10.7 --yes --no-restart
-
-# The managed package must now report the target release.
+# Verify the exact new package's CLI while SQLite is not owned.
 if ! "${NODE}" "${CLI}" --version | grep -Eq '^OpenClaw 2026\.10\.7([[:space:]]|$)'; then
-  echo "repair=blocked_updated_package_not_verified"
+  echo "repair=blocked_selected_package_not_verified"
   exit 2
 fi
-
-# Do not start after a failed update or unresolved DB ownership.
 if [[ -f "${DB}" ]] && fuser -s "${DB}" 2>/dev/null; then
-  echo "repair=blocked_sqlite_owned_after_update"
+  echo "repair=blocked_sqlite_owned_after_selection"
   exit 2
 fi
 
@@ -79,7 +74,7 @@ if ! systemctl --user is-active --quiet "${UNIT}"; then
 fi
 # /readyz is loopback-only and does not invoke a language model.
 ready=0
-for attempt in $(seq 1 12); do
+for attempt in $(seq 1 30); do
   if curl --noproxy '*' --fail --silent --max-time 3 \
      http://127.0.0.1:18789/readyz >/dev/null; then
     ready=1
@@ -91,8 +86,9 @@ if [[ "${ready}" != 1 ]]; then
   echo "repair=gateway_readiness_unverified"
   exit 2
 fi
-echo "repair=upgraded_gateway_healthy"
+echo "repair=existing_gateway_installation_healthy"
 echo "node_runtime=24.22.1"
 echo "openclaw_release=2026.10.7"
 echo "project_backup_created=false"
+echo "npm_install_attempted=false"
 echo "model_requests_sent=0"
