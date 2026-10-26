@@ -49,7 +49,11 @@ def summarize_metrics(data: str, component: str) -> list[str]:
                 continue
         # Never print exporter labels, Kafka broker identities, paths or raw samples.
         if name.endswith(("_total", "_count", "_sum")):
-            results[name] = results.get(name, 0.0) + float(value)
+            numeric = float(value)
+            # Negative and nonfinite counters are invalid telemetry, not
+            # evidence of healthy flow ingestion.
+            if math.isfinite(numeric) and numeric >= 0:
+                results[name] = results.get(name, 0.0) + numeric
     return [f"{key}={val:g}" for key, val in sorted(results.items())]
 
 
@@ -93,7 +97,10 @@ def classify_outlet(data: str) -> str:
             if name == "akvorado_outlet_core_flows_errors_total":
                 if dict(LABEL.findall(labels or "")).get("error") != "metadata missing":
                     continue
-            values[name] = values.get(name, 0) + float(value)
+            numeric = float(value)
+            if not math.isfinite(numeric) or numeric < 0:
+                return "METRICS_INVALID_INCONCLUSIVE"
+            values[name] = values.get(name, 0) + numeric
     received = values.get("akvorado_outlet_core_received_flows_total", 0)
     missing = values.get("akvorado_outlet_core_flows_errors_total", 0)
     if received > 0 and missing >= received and values.get("akvorado_outlet_clickhouse_flow_per_batch_count", 0) == 0:
@@ -128,8 +135,8 @@ def outlet_counters(data: str) -> dict[str, float]:
             if dict(LABEL.findall(raw_labels or "")).get("error") != "metadata missing":
                 continue
         value = float(raw_value)
-        if not math.isfinite(value):
-            continue
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("invalid Akvorado counter sample")
         label = names[name]
         values[label] = values.get(label, 0.0) + value
     return values
@@ -137,7 +144,10 @@ def outlet_counters(data: str) -> dict[str, float]:
 
 def assess_deltas(before: str, after: str) -> tuple[str, dict[str, float]]:
     """Classify NEW events, never conflate historical counters and current health."""
-    baseline, current = outlet_counters(before), outlet_counters(after)
+    try:
+        baseline, current = outlet_counters(before), outlet_counters(after)
+    except ValueError:
+        return "COUNTER_INVALID_INCONCLUSIVE", {}
     # A missing metric is not the number zero. Require ClickHouse and core
     # families on both scrapes before claiming any ingestion result.
     required = {"received_flows", "metadata_missing", "clickhouse_batches"}
@@ -251,6 +261,7 @@ def main() -> int:
             "METRICS_MISSING_INCONCLUSIVE",
             "METRICS_CHANGED_INCONCLUSIVE",
             "COUNTER_RESET_INCONCLUSIVE",
+            "COUNTER_INVALID_INCONCLUSIVE",
         }
     ):
         failures += 1
