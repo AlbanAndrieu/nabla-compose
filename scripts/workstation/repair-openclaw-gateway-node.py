@@ -122,8 +122,12 @@ def apply():
     if target.exists():
         try:
             if target.read_text(encoding="utf-8") == body:
-                print("node_runtime_switch=already_applied")
-                return 0
+                info = unit_exec()
+                if info is not None and str(node_bin()) in info[1]:
+                    print("node_runtime_switch=already_applied")
+                    return 0
+                print("node_runtime_switch=blocked_override_not_effective")
+                return 2
         except OSError:
             pass
         print("node_runtime_switch=blocked_existing_override")
@@ -152,7 +156,8 @@ def apply():
         rc, _ = command(["systemctl", "--user", "daemon-reload"])
         if rc:
             raise OSError("reload")
-        if not unit_exec() or str(node_bin()) not in unit_exec()[1]:
+        verified = unit_exec()
+        if verified is None or str(node_bin()) not in verified[1]:
             raise OSError("unit_owner_mismatch")
     except (OSError, ValueError):
         try:
