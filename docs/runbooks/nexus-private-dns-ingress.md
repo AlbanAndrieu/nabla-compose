@@ -23,6 +23,67 @@ un routeur `nexus-private`, désactivé par défaut avec
 publie des noms depuis les routeurs Traefik éligibles. **Un simple
 `dig` n'active pas un routeur ; un changement Git ne déploie rien.**
 
+## Gate 0 — transport LAN avant DNS et Nexus
+
+**Preuve opérateur du 26/10 (heure exacte du relevé non fournie) :**
+les deux requêtes `dig +tries=1 +time=2` pour
+`nexus.int.albandrieu.com` vers `172.17.0.24:53` et
+`172.17.0.1:53` ont expiré, sans `NXDOMAIN` ni `SERVFAIL`.
+La connexion directe `http://172.17.0.24:8081/` a expiré
+(`backend=000`, curl 28) ; la connexion à Traefik
+`172.17.0.24:443` a expiré (`traefik=000`, curl 28).
+Le champ `tls=1` associé à ce timeout n'est **pas** une preuve
+d'échec de vérification TLS : aucune négociation exploitable n'a eu lieu.
+
+**Interdiction de conclure à l'absence du nom DNS Nexus** à partir de
+timeouts. Le relevé `s3.int.albandrieu.com` via pfSense/Pi-hole du
+26/10 à 20:49 CET était `NOERROR → 172.17.0.24` pour les deux
+résolveurs ; comparer les conditions réseau des deux observations.
+
+Depuis **la même workstation et dans la même session réseau**, avant
+toute analyse du routeur Traefik ou des labels, exécuter :
+
+```bash
+date -Is
+ip -br -4 address
+ip -4 route get 172.17.0.1
+ip -4 route get 172.17.0.24
+
+# ICMP est indicatif ; un firewall peut le bloquer sur un hôte sain.
+ping -n -c 2 -W 1 172.17.0.1 || true
+ping -n -c 2 -W 1 172.17.0.24 || true
+
+# Preuve de connexion TCP avec budget court (netcat/OpenBSD nc).
+for item in 172.17.0.1:10443 172.17.0.24:8081 172.17.0.24:443; do
+  host=${item%:*}; port=${item##*:}
+  echo "== tcp ${host}:${port} =="
+  nc -z -v -w 2 "$host" "$port" || true
+done
+
+ip neigh show to 172.17.0.1
+ip neigh show to 172.17.0.24
+```
+
+Les résultats `ip route get` et `ip -br -4 address` aident à détecter
+un changement d'interface, de VLAN, de route ou de VPN. Une entrée ARP
+`FAILED` sur le même réseau de niveau 2 oriente vers un problème
+de transport, mais elle ne suffit pas seule à en attribuer la cause.
+Une panne de plusieurs ports **peut** concerner le client, la route,
+un pare-feu, les hôtes ou leurs services : ne pas présumer qu'Unbound
+ou Nexus est arrêté.
+
+**Gate :** si les contrôles TCP/IP ci-dessus n'établissent toujours
+aucune connexion, classer `LAN_TRANSPORT_UNVERIFIED`. **Suspendre
+l'investigation DNS autoritaire, le TLS Nexus et l'activation Traefik.**
+Si des ports répondent, poursuivre par couche : DNS UDP/TCP explicitement
+sur chaque résolveur, puis HTTP direct, puis HTTPS SNI. Tester
+`dig +tcp +tries=1 +time=2 @172.17.0.1 s3.int.albandrieu.com A`
+et son équivalent Pi-hole **seulement après** confirmation du transport.
+
+Aucune modification de route, NetworkManager, pfSense, TrueNAS,
+Unbound, Pi-hole, Snort, pfBlockerNG ou CrowdSec ne fait partie
+du diagnostic initial.
+
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
@@ -59,6 +120,7 @@ ne pas utiliser `-k` pour déclarer TLS conforme.
 
 | Observation | Hypothèse prioritaire et contrôle |
 | --- | --- |
+| DNS TIMEOUT sur deux résolveurs et HTTP/TCP également TIMEOUT | **Transport LAN indéterminé** ; commencer par Gate 0, ne pas classer Nexus `NXDOMAIN` |
 | Pi-hole NXDOMAIN | Nom absent de Pi-hole : vérifier `pihole-dns-sync`, labels Traefik actifs et source d'autorité |
 | Pi-hole A=172.17.0.24, Unbound NXDOMAIN | Domain Override / cache / liaison pfSense → Pi-hole |
 | Deux réponses A conformes, `getent` échoue | Résolveur workstation non relié à pfSense (ex. Quad9) |
