@@ -69,6 +69,46 @@ def safe_sqlite_files():
     return files
 
 
+
+def safe_native_lock_files():
+    """Inspect only the Gateway state-ownership native-lock directory.
+
+    A holder may keep only a native file lock and no open SQLite handle.
+    This is best-effort: no observed file descriptor is not a safe lease
+    revocation verdict. Never recurse or follow symlinks.
+    """
+    state_dir = Path(os.environ.get(
+        "OPENCLAW_STATE_DIR", str(Path.home() / ".openclaw")))
+    parents = (state_dir / "state" / "locks",
+               state_dir / "state" / "locks" / "openclaw-state-owners")
+    for directory in parents:
+        try:
+            st = directory.lstat()
+        except FileNotFoundError:
+            return []
+        except OSError:
+            return None
+        if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid()
+                or st.st_mode & 0o022):
+            return None
+    result = []
+    try:
+        # At most 128 entries: never traverse an unbounded or foreign tree.
+        entries = list(parents[-1].iterdir())
+        if len(entries) > 128:
+            return None
+        for item in entries:
+            if not re.fullmatch(r"state\.[A-Za-z0-9_-]{4,128}\.lock", item.name):
+                continue
+            st = item.lstat()
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid():
+                return None
+            result.append(item)
+    except OSError:
+        return None
+    return result
+
+
 def opener_pids(files):
     if files is None or not files:
         return None
@@ -162,8 +202,14 @@ def main():
         lines, source = None, "unavailable"
     holder = holder_from_lines(lines)
     kind = process_category(holder) if holder is not None else "not_found"
-    files = safe_sqlite_files()
-    openers = opener_pids(files)
+    sqlite_files = safe_sqlite_files()
+    native_files = safe_native_lock_files()
+    # Both database handles and native file locks can enforce custody.
+    # If either census is incomplete, do not claim no holder exists.
+    if sqlite_files is None or native_files is None:
+        openers = None
+    else:
+        openers = opener_pids(sqlite_files + native_files)
     verdict = decide(holder, kind, openers)
     print("gateway_service=" + service_state())
     print("contention_source=" + (
@@ -172,9 +218,12 @@ def main():
             "no_user_journal", "no_safe_file_logs") else "unavailable"))
     print("logged_holder=" + ("found" if holder is not None else "not_found"))
     print("logged_holder_process=" + kind)
-    print("sqlite_openers=" + (
-        "unknown" if openers is None else "present" if openers else "none"))
-    print("sqlite_holder_in_openers=" + (
+    print("native_lock_inventory=" + (
+        "unverified" if native_files is None else
+        "present" if native_files else "none_observed"))
+    print("state_openers=" + (
+        "unknown" if openers is None else "present" if openers else "none_observed"))
+    print("logged_holder_in_state_openers=" + (
         "unknown" if holder is None or openers is None
         else "yes" if holder in openers else "no"))
     print("sqlite_owner_diagnosis=" + verdict)
