@@ -158,6 +158,28 @@ Scrutiny web container health/logs, `influxdb:8086` reachability from the web
 container, config-directory writability, local and published `/api/health`,
 collector API target and SMART visibility.
 
+## Incident TrueNAS du 26 octobre 2026 — ancien Compose enregistré
+
+Le secret canonique `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`
+existe (`root:root`, `0600`, 319 octets). Pourtant les événements
+`app_lifecycle.log` du 26/10 à 20:01 et 20:10 font référence à
+`/mnt/cpool/scrutiny/.env.secrets`. Le code du dépôt utilise déjà
+le bon chemin ; le Custom App enregistré dans TrueNAS est obsolète.
+Il faut mettre à jour **la définition de l'App**, pas seulement la
+redémarrer.
+
+```bash
+sudo bash scripts/truenas/deploy-scrutiny.sh --check
+sudo env SCRUTINY_CUTOVER_APPROVED=1 \
+  bash scripts/truenas/deploy-scrutiny.sh --apply
+sudo bash scripts/truenas/diagnose-scrutiny.sh --check
+```
+
+Le helper vérifie désormais que le Compose rendu utilise exclusivement
+le fichier canonique. Ne pas tourner le token InfluxDB ni réinitialiser
+SQLite pour cette erreur de chemin. Voir le
+[runbook de reprise du 26 octobre](../../docs/runbooks/2026-10-26-scrutiny-prometheus-lifecycle-recovery.md).
+
 ## Canonical runtime secret path
 
 Repository Compose and the Scrutiny deployment/bootstrap helpers now consume:
@@ -392,7 +414,7 @@ extra capability.
 
 The rendered YAML is sent through TrueNAS
 `custom_compose_config_string`. Environment secrets remain referenced through
-`/mnt/cpool/scrutiny/.env.secrets`; the helper uses
+`/mnt/cpool/secrets/runtime/scrutiny/.env.secrets`; the helper uses
 `docker compose config --no-interpolate --no-env-resolution` so secret values
 are not expanded into the stored Compose definition.
 
