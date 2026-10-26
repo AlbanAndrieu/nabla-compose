@@ -363,3 +363,61 @@ git show origin/fix/code-password-dotenv-fixture-20261026:scripts/workstation/di
 Ne pas relancer `openclaw-gateway-start-once`, `openclaw update`,
 `doctor --fix`, ni modifier SQLite pour l'instant.
 La sauvegarde existante du 26 octobre est conservée.
+
+
+## 27 octobre — log OpenClaw : state_owner_contention
+
+La Workstation renvoie, après le repli vers les fichiers de logs privés :
+\`service_state=failed\`, \`service_exit_status=78\`,
+\`journal_source=private_file_tail\`,
+\`journal_pattern=state_owner_contention\` avec 115 lignes analysées.
+C'est un **indice sérieux** de conflit sur
+\`~/.openclaw/state/openclaw.sqlite\`, mais ce log est historique.
+Il ne suffit pas à démontrer qu'un PID détient toujours la base.
+
+Le 26 octobre, le PID **3713** détenait l'état du Gateway ancien.
+Ce PID pourrait être désormais terminé, réutilisé ou remplacé
+par un autre processus. Il serait dangereux d'exécuter
+\`kill 3713\`, \`pkill openclaw\` ou de supprimer les fichiers
+SQLite, WAL, SHM ou de location simplement à partir du journal.
+
+### Prochaine étape : recouper le journal avec la machine en lecture seule
+
+La PR #285 contient désormais :
+\`scripts/workstation/diagnose-openclaw-state-owner.py\` et
+\`just openclaw-state-owner\`. Le script :
+- récupère la **dernière** entrée de contention dans un log privé
+  vérifié, sans afficher son contenu ni le PID ;
+- inspecte sans modification le statut de ce PID sous \`/proc\` ;
+- consulte \`fuser\` sur les fichiers SQLite existants, \`-wal\`
+  et \`-shm\` sous \`OPENCLAW_STATE_DIR\` ;
+- distingue \`historical_holder_no_current_opener\`,
+  \`logged_holder_still_has_sqlite_open\`,
+  \`different_sqlite_opener_observed\`,
+  \`logged_pid_alive_without_sqlite_opener\` et
+  \`current_owner_unverified\`.
+
+Un PID actif peut avoir été **réutilisé**. Même si son numéro est
+présent dans \`fuser\`, la relation de propriété durable n'est pas
+prouvée sans vérifier la session/le bail d'OpenClaw.
+Le contrôle \`fuser\` peut être incomplet pour des processus d'autres
+comptes. L'absence d'un fichier ouvert au moment de la sonde
+**n'autorise pas** une suppression de verrou ni une migration.
+
+**Exécuter depuis la branche PR #285**, dans un worktree existant
+ou fraîchement synchronisé, sans démarrage ni upgrade :
+
+\`\`\`bash
+python3 -m unittest discover -s tests \
+  -p 'test_openclaw_state_owner.py' -v
+just openclaw-state-owner
+\`\`\`
+
+En cas de détenteur actuel confirmé, identifier le service propriétaire
+avant un éventuel arrêt ordonné. S'il n'existe plus, explorer le
+contrôle de bail interne d'OpenClaw et les étapes de récupération
+documentées ; ne pas conclure que la base est corrompue.
+
+Aucune nouvelle sauvegarde, réinstallation npm, \`doctor --fix\`,
+réparation de plugins, \`kill\`, \`systemctl restart\` ou modification
+SQLite n'est réalisée.
