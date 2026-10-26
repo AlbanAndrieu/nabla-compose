@@ -29,6 +29,8 @@
   secret canonique, bind metrics et triage des erreurs TrueNAS.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
+- **[Secret FastAPI → Prometheus](fastapi-prometheus-scrape-secret-20261026.md)** —
+  provisionnement du jeton dédié, UID 568 et réception du scrape.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
   contrats statiques hors ligne et limitations de la preuve.
 - **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —

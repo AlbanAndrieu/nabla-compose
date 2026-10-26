@@ -159,12 +159,16 @@ avec `env_file.format: raw`, `required: true` et listener
 
 ### FastAPI /metrics et cloud
 
-Le scrape staging nécessite une clé distincte `METRICS_SCRAPE_KEY`
-proposée dans [FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376).
-Déployer d'abord FastAPI avec la clé, puis provisionner le fichier
-`authorization.credentials_file` et vérifier sa lecture par l'UID 568
-avant tout reload de Prometheus. Ne pas rendre `/metrics` public.
-**Aucun changement de configuration Prometheus actif n'est présumé.**
+La clé dédiée `METRICS_SCRAPE_KEY` est documentée pour FastAPI
+staging ([FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376)).
+Le changement `master` #286 a ajouté `authorization.type=Bearer`
+et `authorization.credentials_file` au job `fastapi_sample` ainsi
+que le montage privé prévu pour l'UID 568. Le relevé opérateur
+atteste `credential_ready=true` **pour le fichier installé**, pas
+que FastAPI a rechargé la clé ni que Prometheus scrape correctement.
+Attendre un contrôle explicite de l'environnement conteneur et
+`fastapi_sample=scrape_up`. Ne pas rendre `/metrics` public.
+[Procédure](fastapi-prometheus-scrape-secret-20261026.md).
 
 Un HTTP 403 sur le snapshot FastAPI Cloud est un problème d'autorisation
 distinct. Consulter le

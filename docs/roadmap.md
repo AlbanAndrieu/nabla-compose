@@ -788,11 +788,18 @@ Actions :
   `--check --scope remaining` limité aux sept cibles précédemment DOWN,
   recommandations statiques sans URLs ni secrets.
   [Reprise ciblée](runbooks/2026-10-25-critical-acceptance-followup.md).
-- [ ] **H-05 :** classer chaque cible restante `DNS`, `TLS`, `HTTP`,
-  `TCP` ou `auth`, à partir des preuves Prometheus assainies. Le `401`
-  FastAPI `/metrics` nécessite la clé de scrape dédiée **après**
-  déploiement du correctif FastAPI ; `postgres_exporter:9187` refusé
-  ne signifie pas `PostgreSQL:5432` indisponible.
+- [ ] **H-05 / rapprochement avec master #286 :** le job
+  `fastapi_sample` a un contrat Bearer + `credentials_file`,
+  et le provisionneur TrueNAS `reconcile-fastapi-metrics-credential.py`
+  a été accepté côté code. L'opérateur a observé
+  `credential_ready=true` ; vérifier encore que FastAPI a chargé la
+  clé, que Prometheus monte le secret et que
+  `fastapi_sample: state=scrape_up targets_up=1` est confirmé.
+  [Procédure](runbooks/fastapi-prometheus-scrape-secret-20261026.md).
+- [ ] **H-05 / autres cibles :** classer chaque échec `DNS`, `TLS`,
+  `HTTP`, `TCP` ou `auth` sans exposer de secret.
+  `postgres_exporter:9187` refusé ne prouve pas
+  `PostgreSQL:5432` indisponible.
 - [ ] **H-06 :** comparer la configuration Akvorado effectivement montée,
   le metadata provider, les compteurs sur deux fenêtres et ClickHouse ;
   ne pas élargir le tracking pfSense sans décision.

@@ -1105,6 +1105,7 @@ openclaw-node24-runtime-install:
 openclaw-upgrade-local-test:
     python3 -m py_compile scripts/workstation/upgrade-openclaw-mise.py tests/test_upgrade_openclaw_mise.py
     python3 -m unittest discover -s tests -p 'test_upgrade_openclaw_mise.py' -v
+    bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_upgrade_openclaw_mise.py' -v"
 
 # Read-only service and package owner inspection.
 openclaw-upgrade-local-plan:
