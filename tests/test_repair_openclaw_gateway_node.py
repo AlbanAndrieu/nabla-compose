@@ -161,6 +161,27 @@ class ServiceNodeRepairContracts(unittest.TestCase):
             self.assertEqual(mod.main(["--select-installed"]), 0)
         self.assertIn("package_selection=already_verified", output.getvalue())
 
+    def test_realistic_large_openclaw_manifest_is_accepted(self):
+        # Upstream OpenClaw's published manifest is much larger than 32 KiB.
+        # The old 32 KiB gate misclassified a healthy install as incomplete.
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        data = json.loads(manifest.read_text())
+        data["description"] = "x" * 160000
+        manifest.write_text(json.dumps(data))
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 0)
+        self.assertIn("existing_package_verified=yes", output.getvalue())
+
+    def test_oversized_manifest_is_rejected_without_reading(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        with manifest.open("wb") as target:
+            target.truncate(1024 * 1024 + 1)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_invalid_package_or_service", output.getvalue())
+
     def test_select_installed_refuses_wrong_package_version(self):
         self.assertEqual(mod.main(["--apply"]), 0)
         manifest = self.new_package / "package.json"
