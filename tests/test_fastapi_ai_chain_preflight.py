@@ -90,3 +90,93 @@ def test_runtime_exceptions_stay_private(monkeypatch):
         raise OSError("private credential path")
     monkeypatch.setattr(module.subprocess, "run", failure)
     assert module.inspect_runtime() == {"runtime": "docker_unavailable_or_probe_failed"}
+
+
+
+def test_ssh_runtime_respects_open_ssh_config(monkeypatch):
+    calls = []
+    expected = {key: "http_401" for key in module.SERVICES}
+
+    def fake_ssh(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout=json.dumps(expected),
+                               stderr="remote_secret_should_not_print")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_ssh)
+    result = module.inspect_ssh_runtime("albandrieu@172.17.0.24")
+    assert result == {key: "http_401" for key in sorted(module.SERVICES)}
+    command, kwargs = calls[0]
+    assert command[:2] == ["ssh", "-T"]
+    assert "-p" not in command
+    assert "StrictHostKeyChecking=yes" in command
+    assert "BatchMode=yes" in command
+    assert command[-2:] == ["albandrieu@172.17.0.24", "python3 -"]
+    assert kwargs["timeout"] <= 35
+    assert "remote_secret_should_not_print" not in str(result)
+    assert "docker" in kwargs["input"]
+    assert "METRICS_SCRAPE_KEY" not in kwargs["input"]
+
+
+def test_ssh_sudo_and_explicit_port_are_opt_in(monkeypatch):
+    calls = []
+
+    def fake_ssh(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout=json.dumps({
+            "runtime": "docker_unavailable_or_probe_failed",
+        }), stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_ssh)
+    result = module.inspect_ssh_runtime(
+        "albandrieu@172.17.0.24", port=9922, sudo=True,
+    )
+    assert result == {"runtime": "docker_unavailable_or_probe_failed"}
+    command, kwargs = calls[0]
+    assert command[command.index("-p") + 1] == "9922"
+    assert "sudo" in kwargs["input"] and "'-n'" in kwargs["input"]
+
+
+@pytest.mark.parametrize("target", [
+    "operator@198.51.100.1",
+    "operator@172.17.0.24;echo secret",
+    "-Fnot-allowed@172.17.0.24",
+    "root@localhost",
+    "operator@172.17.0.24 -o ProxyCommand=evil",
+    "",
+])
+def test_ssh_cannot_execute_for_unapproved_targets(monkeypatch, target):
+    monkeypatch.setattr(module.subprocess, "run",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("SSH called")))
+    assert module.inspect_ssh_runtime(target) == {"runtime": "ssh_target_invalid"}
+
+
+def test_ssh_bad_port_rejected(monkeypatch):
+    monkeypatch.setattr(module.subprocess, "run",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("SSH called")))
+    assert module.inspect_ssh_runtime("albandrieu@172.17.0.24", port=0) == {
+        "runtime": "ssh_target_invalid",
+    }
+
+
+def test_ssh_sanitizes_untrusted_remote_output(monkeypatch):
+    monkeypatch.setattr(module.subprocess, "run",
+                        lambda *a, **k: SimpleNamespace(
+                            returncode=0, stdout='{"private":"file-content"}', stderr="token",
+                        ))
+    assert module.inspect_ssh_runtime("albandrieu@172.17.0.24") == {
+        "runtime": "remote_report_invalid",
+    }
+
+
+def test_ssh_runtime_requires_explicit_opt_in(monkeypatch):
+    monkeypatch.setattr(module.subprocess, "run",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("SSH called")))
+    with pytest.raises(SystemExit) as exc:
+        module.main(["--check", "--ssh-target", "albandrieu@172.17.0.24"])
+    assert exc.value.code == 2
+
+
+def test_ssh_is_disabled_when_requested_without_target(monkeypatch):
+    with pytest.raises(SystemExit) as exc:
+        module.main(["--check", "--runtime", "--ssh-sudo"])
+    assert exc.value.code == 2
