@@ -990,3 +990,20 @@ openclaw-upgrade-local-all:
     just openclaw-upgrade-local-activate
     just openclaw-upgrade-local-verify
 
+
+# OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
+# No project backup, no CI runner, no LiteLLM model requests.
+openclaw-gateway-node-test:
+    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py
+    bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
+    python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
+
+# Read-only: verify 24.22.1 and service ownership before maintenance.
+openclaw-gateway-node-plan:
+    python3 scripts/workstation/repair-openclaw-gateway-node.py --plan
+
+# Explicit mutating operation: stop Gateway, keep SQLite owner exclusive,
+# switch only systemd Node, native update of managed package, then /readyz.
+# Failures leave Gateway stopped rather than reopening unsafe SQLite state.
+openclaw-gateway-node-update:
+    bash scripts/workstation/recover-openclaw-managed-gateway.sh --apply
