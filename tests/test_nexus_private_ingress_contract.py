@@ -31,5 +31,19 @@ class NexusPrivateIngressContract(unittest.TestCase):
         self.assertNotIn("midclt call -j app.redeploy", text)
 
 
+    def test_timeout_is_transport_unknown_not_missing_nexus_record(self):
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("Gate 0 — transport LAN avant DNS et Nexus", text)
+        self.assertIn("LAN_TRANSPORT_UNVERIFIED", text)
+        self.assertIn("ip -4 route get 172.17.0.1", text)
+        self.assertIn("ip -4 route get 172.17.0.24", text)
+        self.assertIn('nc -z -v -w 2 "$host" "$port"', text)
+        self.assertIn("ip neigh show to 172.17.0.24", text)
+        self.assertIn("aucune négociation exploitable", text)
+        self.assertIn("NXDOMAIN", text)
+        self.assertIn("Suspendre", text)
+
+
+
 if __name__ == "__main__":
     unittest.main()
