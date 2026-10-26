@@ -1087,7 +1087,13 @@ openclaw-gateway-node-test:
     python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
     bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
 
-# Read-only: verify 24.22.1 and service ownership before maintenance.
+# Explicit scoped hardening when the Node 24.22.1 npm package is
+# group-writable because of workstation umask 0002. Never chmod shared
+# paths or reinstall packages. Requires an owned user systemd drop-in.
+openclaw-gateway-package-permissions:
+    python3 scripts/workstation/repair-openclaw-gateway-node.py --harden-installed-permissions
+
+# Read-only: print a fixed error category if package verification fails.
 openclaw-gateway-node-plan:
     python3 scripts/workstation/repair-openclaw-gateway-node.py --select-installed-plan
 
