@@ -244,6 +244,19 @@ def harden_installed_package_permissions():
     if not node_supported():
         print("package_hardening=blocked_node_runtime")
         return 2
+    # Permission repair is allowed only for a known managed service and
+    # a previously owned drop-in. Never touch a standalone npm install.
+    existing = override_path()
+    unit_expected = prepared_unit()
+    try:
+        managed = (safe_file(existing) and existing.stat().st_mode & 0o022 == 0
+                   and unit_expected is not None
+                   and existing.read_text(encoding="utf-8") == unit_expected)
+    except (OSError, UnicodeError):
+        managed = False
+    if not managed:
+        print("package_hardening=blocked_unverified_service_owner")
+        return 2
 
     paths = (
         ("node_root", installed_root(), True),
