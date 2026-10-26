@@ -268,3 +268,27 @@ déjà démontrée (SSHSIG), login SSH distant non testé ; OpenPGP
 répond publiquement mais pas de preuve de clé privée ; PIV82 non
 provisionné ; récupération SOPS/GPG/PostgreSQL réelle et escrows non
 vérifiés. Ces chantiers gardent leurs critères de validation propres.
+
+## Reprise après fusion de #280 — age/SOPS synthétique et KeePassXC reporté (26/10/2026)
+
+- **PR #280 fusionnée dans `master`** : les preuves SSH/FIDO2
+  (création de la clé secondaire, signature et vérification SSHSIG,
+  14/14 tests) sont conservées. Un login SSH distant reste à prouver.
+- **KeePassXC / OTP2 reporté par l'opérateur.** L'inventaire
+  `PROGRAMMED_TYPE_UNVERIFIED` ne constitue ni une validation HMAC-SHA1
+  ni un échec. Ne pas reprogrammer le slot ni traiter le report comme
+  une anomalie bloquante pour les autres diagnostics indépendants.
+- **age et SOPS — nouveau jalon L1 logiciel** : `just
+  yubikey-software-recovery-test`, `-check`, puis `-run` sur une
+  identité `age` éphémère. **9/9 tests hermétiques PASS en local** ;
+  exécution avec les véritables binaires sur workstation `NOT_RUN`.
+- **Escrow — jalon L3** : collecter les deux vrais chemins localement ;
+  observer les métadonnées sans lire les archives. Une séparation
+  de systèmes de fichiers n'est pas une preuve de supports
+  indépendants ou de déchiffrement.
+- **PIV82 — toujours bloqué pour la génération de clé** jusqu'à une
+  restauration indépendante et un protocole matériel complet (attestation,
+  certificat age, PIV9A/OTP2 inchangés). Aucun code ne provisionne la carte.
+
+La documentation opérationnelle actuelle est
+[yubikey-software-recovery-20261026.md](yubikey-software-recovery-20261026.md).
