@@ -347,6 +347,17 @@ Actions :
   Avant activation vérifier que le proxy frontal refuse Host/SNI
   privé venant de WAN ; DNS privé seul ne suffit pas à restreindre
   l'accès. Ne pas redéployer sans cette validation.
+  **Gate TrueNAS Apps confirmée :** conteneur Docker `ix-nexus/nexus`,
+  fichier rendu déclaré :
+  `/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml`.
+  Ce n'est pas le fichier Git, et le rendu ne prouve pas qu'un
+  `include` pointe vers le dépôt. Avant toute intervention,
+  inspecter en lecture seule `app.config nexus` (clés uniquement)
+  et le modèle `docker compose -f <rendered> config --format json`
+  (labels/réseaux uniquement). Ne pas éditer `.ix-apps`.
+  Selon la provenance réelle, préparer `app.update` ou un
+  `app.redeploy` **Nexus seul**, puis réévaluer DNS, TLS,
+  labels et accès WAN avant l'opt-in.
   [Runbook](runbooks/nexus-private-dns-ingress.md).
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
