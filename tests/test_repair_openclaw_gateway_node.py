@@ -28,6 +28,8 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.new_node.write_text("// synthetic node")
         self.new_package = self.new_node.parent.parent / "lib/node_modules/openclaw"
         self.new_package.mkdir(parents=True)
+        self.new_package.chmod(0o700)
+        self.new_node.parent.parent.chmod(0o700)
         self.new_entry = self.new_package / "openclaw.mjs"
         self.new_entry.write_text("// synthetic installed package")
         self.new_entry.chmod(0o600)
@@ -169,6 +171,45 @@ class ServiceNodeRepairContracts(unittest.TestCase):
             self.assertEqual(mod.main(["--select-installed"]), 2)
         self.assertIn("blocked_invalid_package_or_service", output.getvalue())
         self.assertIn(str(self.old_entry), mod.override_path().read_text())
+
+    def test_select_installed_refuses_group_writable_package(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        self.new_package.chmod(0o770)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_invalid_package_or_service", output.getvalue())
+        self.assertIn(str(self.old_entry), mod.override_path().read_text())
+
+    def test_select_installed_refuses_symlink_entry(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        self.new_entry.unlink()
+        self.new_entry.symlink_to(self.old_entry)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("blocked_invalid_package_or_service", output.getvalue())
+
+    def test_select_installed_rolls_back_if_daemon_reload_fails(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        original_text = mod.override_path().read_text()
+        real_command = self.mock_command
+        fail_once = [True]
+        def command(argv):
+            if argv == ["systemctl", "--user", "daemon-reload"] and fail_once[0]:
+                fail_once[0] = False
+                return 1, b"private failure text"
+            return real_command(argv)
+        with patch.object(mod, "command", side_effect=command), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed"]), 2)
+        self.assertIn("package_selection=failed_old_unit_restored", output.getvalue())
+        self.assertEqual(mod.override_path().read_text(), original_text)
+
+    def test_selected_package_plan_is_idempotent(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        self.assertEqual(mod.main(["--select-installed"]), 0)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 0)
+        self.assertIn("already_selected=yes", output.getvalue())
 
     def test_select_installed_requires_existing_owned_override(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
