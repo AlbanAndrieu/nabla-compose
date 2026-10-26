@@ -21,6 +21,8 @@
   hors LAN et gates avant ingestion du corpus.
 - **[Rapport LAN Prometheus + Akvorado](prometheus-akvorado-lan-evidence-20261026.md)** —
   commande unique, preuves JSON privées, classes FAIL/UNVERIFIED et diagnostics ciblés.
+- **[Reprise Scrutiny / Prometheus (26 octobre)](2026-10-26-scrutiny-prometheus-lifecycle-recovery.md)** —
+  secret canonique, bind metrics et triage des erreurs TrueNAS.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
