@@ -42,13 +42,45 @@ class ListenerContracts(unittest.TestCase):
         statuses = self.healthy()
         statuses["chat/main"] = "404"
         self.assertEqual(mod.classify("active", "loopback", statuses),
-                         "possibly_stale_chat_deeplink")
+                         "gateway_http_available_chat_deeplink_404")
         statuses[""] = "404"
         self.assertEqual(mod.classify("active", "loopback", statuses),
                          "ui_root_not_served")
         statuses[""] = "401"
         self.assertEqual(mod.classify("active", "loopback", statuses),
                          "ui_auth_required")
+
+    def test_one_deep_link_404_does_not_mark_healthy_gateway_failed(self):
+        checks = self.healthy()
+        checks["chat/main"] = "404"
+        with patch.object(mod, "systemd_snapshot", return_value={
+            "ActiveState": "active", "MainPID": "1234", "Result": "success",
+            "NRestarts": "0", "ExecMainStatus": "0"}), \
+             patch.object(mod, "listener_scope", return_value="loopback"), \
+             patch.object(mod, "http_status", side_effect=lambda route: checks[route]), \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            result = mod.main()
+        self.assertEqual(result, 0)
+        self.assertIn("gateway_listener_diagnosis=gateway_http_available_chat_deeplink_404",
+                      captured.getvalue())
+        self.assertIn("chat_main_http=404", captured.getvalue())
+
+    def test_html_navigation_sends_browser_accept_header(self):
+        requests = []
+        class FakeResponse:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+        class FakeOpener:
+            def open(self, request, timeout=2):
+                requests.append(request)
+                return FakeResponse()
+        with patch.object(mod, "build_opener", return_value=FakeOpener()):
+            for route in ("", "chat/main", "healthz"):
+                self.assertEqual(mod.http_status(route), "200")
+        self.assertEqual(requests[0].get_header("Accept"), "text/html")
+        self.assertEqual(requests[1].get_header("Accept"), "text/html")
+        self.assertIsNone(requests[2].get_header("Accept"))
 
     def test_service_failed_preempts_misleading_socket_evidence(self):
         self.assertEqual(mod.classify("failed", "loopback", self.healthy()),
