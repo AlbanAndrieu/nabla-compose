@@ -20,6 +20,55 @@ REF_A = "component:default/defectdojo"
 REF_B = "resource:default/mongo"
 
 
+def test_cpu_memory_collected_in_one_bounded_docker_pass():
+    from unittest.mock import patch
+    raw = "defectdojo-uwsgi\\t512MiB / 60GiB\\t125.4%\\n"
+    with patch.object(MODULE, "command", return_value=raw) as call:
+        sample = MODULE.memory_stats()
+    assert sample["defectdojo-uwsgi"] == 512 * 1024 ** 2
+    assert sample.cpu_pct["defectdojo-uwsgi"] == 125.4
+    assert "stats" in call.call_args.args[0]
+    assert call.call_args.args[0].count("--no-stream") == 1
+
+
+def test_cpu_unknown_is_not_reported_as_idle():
+    one = [{"id": ID_A, "name": "defectdojo-uwsgi", "entityRef": REF_A}]
+    with (
+        patch.object(MODULE, "catalog", return_value=({REF_A: "DefectDojo"}, {}, "rev")),
+        patch.object(MODULE, "docker_containers", return_value=(one, [], {})),
+        patch.object(MODULE, "memory_stats", return_value={"defectdojo-uwsgi": 100}),
+        patch.object(MODULE, "writable_layers", return_value=None),
+        patch.object(MODULE, "datasets", return_value=None),
+        patch.object(MODULE, "gpu_processes", return_value=None),
+        patch.object(MODULE, "host_memory", return_value={"status": "unverified"}),
+    ):
+        report = MODULE.collect()
+    service = report["services"][0]
+    assert service["cpu"]["status"] == "unverified"
+    assert service["cpu"]["usage_pct"] is None
+    assert report["coverage"]["running_containers_observed"] == 1
+    assert report["coverage"]["unmapped_running_containers"] == 0
+
+
+def test_unmapped_running_containers_are_reported_without_fake_catalog_joins():
+    rows = [{"id": ID_A, "name": "legacy-runner", "entityRef": None}]
+    with (
+        patch.object(MODULE, "catalog", return_value=({REF_A: "DefectDojo"}, {}, "rev")),
+        patch.object(MODULE, "docker_containers", return_value=(rows, ["legacy-runner"], {})),
+        patch.object(MODULE, "memory_stats", return_value={"legacy-runner": 300}),
+        patch.object(MODULE, "writable_layers", return_value=None),
+        patch.object(MODULE, "datasets", return_value=None),
+        patch.object(MODULE, "gpu_processes", return_value=None),
+        patch.object(MODULE, "host_memory", return_value={"status": "unverified"}),
+    ):
+        report = MODULE.collect()
+    assert report["coverage"]["mapped_running_containers"] == 0
+    assert report["coverage"]["unmapped_running_containers"] == 1
+    assert report["unmapped_running_containers"][0]["container"] == "legacy-runner"
+    assert report["unmapped_running_containers"][0]["cpu_pct"] is None
+    assert report["services"][0]["runtime"] == "not_observed"
+
+
 def test_bounded_storage_and_memory_units():
     assert MODULE.parse_size("1.25GiB") == int(1.25 * 1024**3)
     assert MODULE.parse_size("350MB") == 350_000_000
