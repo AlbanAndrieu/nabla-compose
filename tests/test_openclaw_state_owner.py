@@ -35,7 +35,7 @@ class OwnerEvidenceContracts(unittest.TestCase):
         rows = (
             ((3713, "exited", set()), "historical_holder_no_current_opener"),
             ((3713, "other_process", set()), "logged_pid_alive_without_sqlite_opener"),
-            ((3713, "gateway_process", {3713}), "logged_holder_still_has_sqlite_open"),
+            ((3713, "gateway_process", {3713}), "logged_holder_still_has_state_file_open"),
             ((3713, "gateway_process", {3817}), "different_sqlite_opener_observed"),
             ((3713, "gateway_process", None), "current_owner_unverified"),
             ((None, "not_found", set()), "logged_holder_unknown"),
@@ -57,7 +57,7 @@ class OwnerEvidenceContracts(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(mod.main(), 0)
         text = output.getvalue()
-        self.assertIn("sqlite_owner_diagnosis=logged_holder_still_has_sqlite_open", text)
+        self.assertIn("sqlite_owner_diagnosis=logged_holder_still_has_state_file_open", text)
         self.assertIn("logged_holder_process=gateway_process", text)
         for secret in ("PRIVATE", "sk-", "/home", "3713"):
             self.assertNotIn(secret, text)
@@ -146,7 +146,7 @@ class OwnerEvidenceContracts(unittest.TestCase):
             self.assertEqual(mod.main(), 0)
         self.assertIn("native_lock_inventory=present", output.getvalue())
         self.assertIn("logged_holder_in_state_openers=yes", output.getvalue())
-        self.assertIn("logged_holder_still_has_sqlite_open", output.getvalue())
+        self.assertIn("logged_holder_still_has_state_file_open", output.getvalue())
 
     def test_current_process_is_classified_without_disclosing_arguments(self):
         kind = mod.process_category(os.getpid())
