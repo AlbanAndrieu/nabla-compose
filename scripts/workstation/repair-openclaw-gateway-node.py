@@ -265,6 +265,32 @@ def harden_installed_package_permissions():
             print("package_hardening=blocked_" + label + "_untrusted")
             return 2
 
+    # Never modify a foreign/mismatched package, even if its modes are bad.
+    # Read through a no-follow descriptor before any chmod operation.
+    manifest = paths[2][1]
+    try:
+        fd = os.open(manifest, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            st = os.fstat(fd)
+            if st.st_uid != os.geteuid() or not stat.S_ISREG(st.st_mode) or (
+                    not 0 < st.st_size <= 1024 * 1024):
+                print("package_hardening=blocked_manifest_untrusted")
+                return 2
+            with os.fdopen(os.dup(fd), "r", encoding="utf-8") as file:
+                metadata = json.load(file)
+        finally:
+            os.close(fd)
+        if (not isinstance(metadata, dict) or
+                metadata.get("name") != "openclaw" or
+                metadata.get("version") != TARGET_OPENCLAW or
+                not isinstance(metadata.get("bin"), dict) or
+                metadata["bin"].get("openclaw") != "openclaw.mjs"):
+            print("package_hardening=blocked_package_identity")
+            return 2
+    except (OSError, ValueError, UnicodeError, TypeError):
+        print("package_hardening=blocked_manifest_unreadable")
+        return 2
+
     changed = 0
     for label, path, is_dir in paths:
         flags = os.O_RDONLY | os.O_NOFOLLOW | (os.O_DIRECTORY if is_dir else 0)
