@@ -20,7 +20,7 @@ SOURCES = {
     "openrag": ROOT / "apps/openrag/compose.yml",
 }
 SERVICES = frozenset(("litellm", "ollama", "openrag_backend", "openrag_search", "openrag_mcp"))
-HTTP_CODES = frozenset(("http_200", "http_400", "http_401", "http_403", "http_404", "http_405", "unverified"))
+HTTP_CODES = frozenset(("http_200", "http_400", "http_401", "http_403", "http_404", "http_405", "unverified", "not_tested_requires_auth"))
 SSH_TARGET = re.compile(r"[a-z_][a-z0-9_-]{0,31}@172[.]17[.]0[.]24\Z")
 MAX_RUNTIME_REPORT = 4096
 READ_ONLY_PROBE = r'''
@@ -29,7 +29,6 @@ urls = {
  "litellm": "http://172.17.0.24:4000/health/liveliness",
  "ollama": "http://172.17.0.24:30068/api/tags",
  "openrag_backend": "http://openrag-backend:8000/health",
- "openrag_search": "http://openrag-backend:8000/search/health",
  "openrag_mcp": "http://openrag-frontend:3000/mcp",
 }
 client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -44,6 +43,7 @@ for service, url in urls.items():
     except (OSError, ValueError, TimeoutError):
         status = None
     out[service] = "http_" + str(status) if status in (200, 400, 401, 403, 404, 405) else "unverified"
+out["openrag_search"] = "not_tested_requires_auth"
 print(json.dumps(out, sort_keys=True))
 '''
 
@@ -112,33 +112,101 @@ def inspect_runtime() -> dict[str, str]:
         return {"runtime": "docker_unavailable_or_probe_failed"}
 
 
+def build_remote_probe(docker: list[str]) -> str:
+    """Build the fixed remote probe. No inputs from SSH output or private env."""
+    prefix = (
+        "import json,subprocess,shutil\n"
+        "code = " + repr(READ_ONLY_PROBE) + "\n"
+        "docker = " + repr(docker) + "\n"
+        "command = docker + ['exec', 'fastapi-sample', 'python3', '-c', code]\n"
+        "expected = " + repr(set(SERVICES)) + "\n"
+        "allowed = " + repr(set(HTTP_CODES)) + "\n"
+    )
+    return prefix + '''
+def fixed(state):
+    print(json.dumps({"runtime": state}, sort_keys=True))
+
+def classify(stderr):
+    diagnostic = stderr.lower()[:4096]
+    if "a password is required" in diagnostic or "sudo: a terminal is required" in diagnostic:
+        return "sudo_noninteractive_denied"
+    if "permission denied" in diagnostic and ("docker.sock" in diagnostic or "docker daemon socket" in diagnostic):
+        return "docker_socket_denied"
+    if "cannot connect to the docker daemon" in diagnostic or "is the docker daemon running" in diagnostic:
+        return "docker_daemon_unavailable"
+    if "no such container" in diagnostic:
+        return "fastapi_container_missing"
+    if "is not running" in diagnostic or "container is paused" in diagnostic:
+        return "fastapi_container_not_running"
+    if "executable file not found" in diagnostic and "python3" in diagnostic:
+        return "fastapi_container_python_missing"
+    return "docker_exec_failed"
+
+try:
+    if shutil.which(docker[0]) is None:
+        fixed("sudo_binary_missing" if docker[0] == "sudo" else "docker_cli_missing")
+    else:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=22)
+        if result.returncode != 0:
+            fixed(classify(result.stderr))
+        elif len(result.stdout) > 4096:
+            fixed("probe_output_invalid")
+        else:
+            try:
+                report = json.loads(result.stdout)
+                if not isinstance(report, dict) or set(report) != expected:
+                    fixed("probe_output_invalid")
+                elif any(value not in allowed for value in report.values()):
+                    fixed("probe_output_invalid")
+                else:
+                    print(json.dumps(report, sort_keys=True))
+            except (ValueError, TypeError):
+                fixed("probe_output_invalid")
+except (OSError, UnicodeError, ValueError, subprocess.TimeoutExpired):
+    fixed("docker_exec_failed")
+'''
+
+
+REMOTE_FAILURE_STATES = frozenset({
+    "sudo_noninteractive_denied",
+    "docker_socket_denied",
+    "docker_daemon_unavailable",
+    "fastapi_container_missing",
+    "fastapi_container_not_running",
+    "fastapi_container_python_missing",
+    "docker_exec_failed",
+    "docker_cli_missing",
+    "sudo_binary_missing",
+    "probe_output_invalid",
+})
+
+RUNTIME_NEXT_CHECK = {
+    "ssh_target_invalid": "verify_ssh_account_host_and_port",
+    "ssh_unavailable_or_unauthorized": "verify_ssh_transport_with_batchmode",
+    "remote_report_invalid": "verify_remote_python3_and_shell_startup_output",
+    "docker_cli_missing": "verify_docker_cli_in_remote_ssh_path",
+    "sudo_binary_missing": "verify_noninteractive_sudo_binary_on_truenas",
+    "sudo_noninteractive_denied": "verify_existing_sudo_noninteractive_authorization",
+    "docker_socket_denied": "use_ssh_sudo_only_if_already_authorized",
+    "docker_daemon_unavailable": "verify_truenas_docker_service_readonly",
+    "fastapi_container_missing": "verify_fastapi_container_name_in_docker_ps",
+    "fastapi_container_not_running": "inspect_fastapi_container_state_readonly",
+    "fastapi_container_python_missing": "verify_fastapi_container_python_runtime",
+    "docker_exec_failed": "inspect_sanitized_container_diagnostics_locally",
+    "probe_output_invalid": "verify_python_probe_execution_in_fastapi_container",
+    "docker_unavailable_or_probe_failed": "verify_local_docker_permissions_and_container_state",
+    "runtime_report_invalid": "verify_local_probe_output_contract",
+}
+
+
 def inspect_ssh_runtime(target: str, *, port: int | None = None,
                         sudo: bool = False) -> dict[str, str]:
-    """Run only the fixed read-only probes over pinned TrueNAS SSH.
-
-    SSH respects the workstation OpenSSH config (including port 9922) unless
-    --ssh-port is explicitly provided. No secrets or documents cross SSH.
-    """
+    """Classify SSH/Docker failure without ever exposing the remote stderr."""
     if not SSH_TARGET.fullmatch(target) or (
         port is not None and not 1 <= port <= 65535
     ):
         return {"runtime": "ssh_target_invalid"}
-    docker = (["sudo", "-n", "docker"] if sudo else ["docker"])
-    # Python literals derive only from trusted source constants, never input.
-    remote = (
-        "import json,subprocess\n"
-        "code = " + repr(READ_ONLY_PROBE) + "\n"
-        "command = " + repr(docker + ["exec", "fastapi-sample", "python3", "-c"]) + " + [code]\n"
-        "try:\n"
-        "    p = subprocess.run(command, capture_output=True, text=True, timeout=22)\n"
-        "    report = json.loads(p.stdout) if p.returncode == 0 and len(p.stdout) <= 4096 else {}\n"
-        "    valid = isinstance(report, dict) and set(report) == "
-        + repr(set(SERVICES)) + "\n"
-        "    valid = valid and all(v in " + repr(set(HTTP_CODES)) + " for v in report.values())\n"
-        "    print(json.dumps(report if valid else {'runtime':'docker_unavailable_or_probe_failed'}))\n"
-        "except (OSError,ValueError,UnicodeError,subprocess.TimeoutExpired):\n"
-        "    print(json.dumps({'runtime':'docker_unavailable_or_probe_failed'}))\n"
-    )
+    docker = ["sudo", "-n", "docker"] if sudo else ["docker"]
     command = [
         "ssh", "-T", "-o", "BatchMode=yes",
         "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=7",
@@ -148,21 +216,22 @@ def inspect_ssh_runtime(target: str, *, port: int | None = None,
     command.extend((target, "python3 -"))
     try:
         response = subprocess.run(
-            command, input=remote, capture_output=True, text=True,
-            timeout=35, check=False,
+            command, input=build_remote_probe(docker), capture_output=True,
+            text=True, timeout=35, check=False,
         )
         if response.returncode != 0 or len(response.stdout) > MAX_RUNTIME_REPORT:
             return {"runtime": "ssh_unavailable_or_unauthorized"}
         result = json.loads(response.stdout)
-        if result == {"runtime": "docker_unavailable_or_probe_failed"}:
-            return result
-        if not isinstance(result, dict) or set(result) != SERVICES:
+        if not isinstance(result, dict):
             return {"runtime": "remote_report_invalid"}
-        if any(value not in HTTP_CODES for value in result.values()):
+        if set(result) == {"runtime"} and result["runtime"] in REMOTE_FAILURE_STATES:
+            return result
+        if set(result) != SERVICES or any(value not in HTTP_CODES for value in result.values()):
             return {"runtime": "remote_report_invalid"}
         return {key: result[key] for key in sorted(SERVICES)}
     except (OSError, ValueError, UnicodeError, subprocess.TimeoutExpired):
         return {"runtime": "ssh_unavailable_or_unauthorized"}
+
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -193,6 +262,10 @@ def main(argv: list[str] | None = None) -> int:
         "bababou_private_retrieval": "not_verified",
         "next_check": "validate_scoped_litellm_key_openrag_readonly_acl_and_private_index",
     }
+    if set(report["runtime"]) == {"runtime"}:
+        state = report["runtime"]["runtime"]
+        if state in RUNTIME_NEXT_CHECK:
+            report["runtime_next_check"] = RUNTIME_NEXT_CHECK[state]
     print(json.dumps(report, sort_keys=True))
     return 1 if "configuration_drift" in declarations.values() else 2
 
