@@ -238,3 +238,79 @@ Les tests existants du collecteur ont été validés par l'opérateur
 préparer une restauration isolée de la sauvegarde à partir de la copie
 sur support, avec ses moyens de déchiffrement réels et une preuve
 expurgée, avant toute transaction PIV82.
+
+## Investigation d'une découverte intermittente — 26/10/2026
+
+**Preuve opérateur :** `just yubikey-escrow-compare-test` **11/11 PASS**
+et `just yubikey-escrow-compare-check` =
+`ENCRYPTED_CONTENT_NOT_READ`. Cependant
+`just yubikey-escrow-compare-run` a renvoyé
+`DISCOVERY_NO_MATCHING_PAIR`, avec
+`encrypted_content_read_attempted=false`. Aucune archive n'a été lue
+par cette dernière commande.
+
+Les deux outils (inventaire et comparateur) réutilisent la **même**
+fonction `discover_pair(Path.home())`, qui exige **un unique nom
+de fichier .age commun** entre les répertoires source et backup.
+Les relevés antérieurs avaient réussi ; la cause du désaccord actuel
+n'est pas démontrée. Possibilités à vérifier : répertoire `HOME`
+différent, montage de backup indisponible, copie déplacée ou renommée,
+absence momentanée de fichier, ou changement de son type.
+Le code ne doit pas assimiler l'absence de paire à un échec de
+déchiffrement.
+
+### Diagnostic sans divulguer de chemin
+
+```bash
+just yubikey-escrow-pair-test
+just yubikey-escrow-compare-test
+just yubikey-escrow-pair-diagnose
+just yubikey-escrow-pair-discover
+```
+
+La nouvelle recette `yubikey-escrow-pair-diagnose` n'ouvre aucun
+fichier chiffré. Elle renvoie un nombre borné de fichiers `.age`
+et l'état d'accès à chaque répertoire connu (`ACCESSIBLE`,
+`DIRECTORY_MISSING`, `PERMISSION_DENIED`, `DIRECTORY_UNAVAILABLE`,
+`TOO_MANY_ENTRIES`, `SYMLINK_DIRECTORY_UNTRUSTED`), ainsi que
+`matching_age_filenames` et
+`home_location_consistent_with_account`.
+Aucun nom, chemin, octet chiffré ou contenu de clé n'est affiché.
+Une valeur `matching_age_filenames=0` explique le refus
+`DISCOVERY_NO_MATCHING_PAIR` à l'instant du contrôle, sans en prouver
+la cause historique.
+
+Pour vérifier la disponibilité du support monté sans modifier les
+données, un opérateur peut aussi exécuter localement :
+```bash
+findmnt -T /media/backup/lab/secret -o TARGET,FSTYPE
+```
+
+### Comparaison manuelle en lecture seule
+
+Si la découverte automatique échoue **mais que les deux archives
+existent**, utiliser **une commande distincte**, avec une session
+terminale interactive et l'autorisation explicite :
+
+```bash
+just yubikey-escrow-compare-manual
+```
+
+Les deux chemins absolus sont demandés en **saisie masquée**
+(sans argument en ligne de commande ni historique shell).
+Le programme vérifie d'abord avec l'inspecteur existant que les
+deux fichiers sont réguliers, non symboliques, distincts et
+sur des systèmes de fichiers différents, puis applique le même
+contrôle d'octets chiffrés avec `O_NOFOLLOW`, owner/métadonnées
+et limites de taille. **Il lit les données chiffrées**, mais
+ne déchiffre rien, ne modifie aucun fichier et ne publie
+ni chemin ni empreinte.
+
+Un `ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED` prouvera
+seulement l'égalité des deux copies au moment de la lecture.
+Un `NO-GO` de comparaison doit conduire au diagnostic,
+pas à une copie `cp` supplémentaire ni à une rotation de clé.
+Deux copies identiques de la même archive ne constituent toujours
+pas deux identités indépendantes de récupération.
+Le test KeePassXC/OTP2 reste reporté, et la génération PIV82
+reste bloquée.
