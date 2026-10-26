@@ -69,12 +69,35 @@ avec `env_file.format: raw`, `required: true` et listener
 
 ### FastAPI /metrics et cloud
 
-Le scrape staging nécessite une clé distincte `METRICS_SCRAPE_KEY`
-proposée dans [FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376).
-Déployer d'abord FastAPI avec la clé, puis provisionner le fichier
-`authorization.credentials_file` et vérifier sa lecture par l'UID 568
-avant tout reload de Prometheus. Ne pas rendre `/metrics` public.
-**Aucun changement de configuration Prometheus actif n'est présumé.**
+**Preuve opérateur du 26 octobre :** `METRICS_SCRAPE_KEY` a été ajouté
+à `/mnt/cpool/secrets/runtime/sample/.env.secrets`. Le diagnostic
+distant fonctionne via SSH port `9922` (OpenSSH local), et confirme
+`GET /metrics` **HTTP 401 sans credentials**. L'application refuse
+l'anonyme ; son conteneur n'a pas encore été attesté avec la nouvelle clé.
+
+Le job Prometheus `fastapi_sample` utilise désormais, **dans la PR #280**,
+`authorization.type=Bearer` et
+`authorization.credentials_file=/run/secrets/fastapi-sample-metrics.key`.
+Un bind mount en lecture seule prépare ce fichier côté conteneur.
+**Le déploiement et l'installation du secret restent à faire.**
+
+La [procédure dédiée](fastapi-prometheus-scrape-secret-20261026.md)
+décrit la vérification, l'installation explicite du fichier privé
+(`root:568`, `0640`), la validation de l'environnement FastAPI, le
+redéploiement contrôlé et la preuve `fastapi_sample=scrape_up`.
+
+Avant de modifier Prometheus, exécuter sur TrueNAS :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+Ce contrôle **n'écrit rien** et ne révèle pas la clé. Un résultat
+`credential_ready` atteste la correspondance des **deux fichiers**,
+pas la configuration effective des conteneurs. Ne pas mettre le secret
+dans Git, ne pas réutiliser `DIAGNOSTICS_ACCESS_KEY`, ne pas rendre
+`/metrics` public. Pour FastAPI Cloud, utiliser une clé distincte
+uniquement si un scraper Cloud est explicitement prévu.
 
 Un HTTP 403 sur le snapshot FastAPI Cloud est un problème d'autorisation
 distinct. Consulter le
