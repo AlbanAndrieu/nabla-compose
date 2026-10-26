@@ -94,7 +94,19 @@ def docker_containers(mapped, refs):
             logical_project = project.removeprefix("ix-")
             choices = mapped.get((logical_project, service), set())
         ref = next(iter(choices)) if len(choices) == 1 else None
-        discovered.append({"id": cid, "name": name, "entityRef": ref})
+        mapped_project = project.removeprefix("ix-")
+        mapping_issue = (
+            "MAPPED" if ref else "AMBIGUOUS_MAPPING" if len(choices) > 1
+            else "UNKNOWN_ENTITY_REF" if direct and direct not in refs
+            else "NO_COMPOSE_IDENTITY" if not project or not service
+            else "UNMAPPED_COMPOSE_SERVICE"
+        )
+        discovered.append({
+            "id": cid, "name": name, "entityRef": ref,
+            "compose_project": mapped_project if RE_NAME.fullmatch(mapped_project) else None,
+            "compose_service": service if RE_NAME.fullmatch(service) else None,
+            "mapping_issue": mapping_issue,
+        })
         reverse[name] = ref
     return discovered, [row["name"] for row in discovered if row["entityRef"] is None], reverse
 
@@ -328,6 +340,9 @@ def collect(host: str = "truenas") -> dict[str, object]:
                 "container": c["name"],
                 "cpu_pct": cpu.get(c["name"]),
                 "memory_bytes": memory.get(c["name"]) if memory is not None else None,
+                "compose_project": c.get("compose_project"),
+                "compose_service": c.get("compose_service"),
+                "mapping_issue": c.get("mapping_issue", "UNVERIFIED"),
                 "catalog_identity": "UNMAPPED",
             }
             for c in containers or [] if not c["entityRef"]
