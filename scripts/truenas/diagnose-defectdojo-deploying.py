@@ -33,14 +33,21 @@ LOG_CATEGORIES = (
 
 
 def command(args: list[str], *, timeout: int = 8, limit: int = 96 * 1024) -> tuple[int, str]:
+    logs = len(args) > 1 and args[:2] == ["docker", "logs"]
     try:
-        done = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              timeout=timeout, check=False)
+        done = subprocess.run(
+            args, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE if logs else subprocess.DEVNULL,
+            timeout=timeout, check=False,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return 2, ""
-    if len(done.stdout) > limit:
+    # Docker application logs can use either stdout or stderr. The two
+    # streams are inspected only in memory and NEVER returned to the CLI.
+    raw = done.stdout + (done.stderr if logs else b"")
+    if len(raw) > limit:
         return 2, ""
-    return done.returncode, done.stdout.decode("utf-8", "replace").strip()
+    return done.returncode, raw.decode("utf-8", "replace").strip()
 
 
 def app_state() -> str:
