@@ -121,4 +121,73 @@ class Contracts(unittest.TestCase):
         self.assertIn('"status": "NO-GO"',out.getvalue())
         self.assertFalse(json.loads(out.getvalue())['restoration_verified'])
 
+
+    def test_manual_without_tty_never_prompts_or_opens(self):
+        with patch.object(module.getpass,"getpass") as prompt, \
+             patch.object(module,"load_locator") as loader:
+            self.assertEqual(module.select_manual_pair(tty=False),
+                             ("INTERACTIVE_TERMINAL_REQUIRED",None))
+            prompt.assert_not_called()
+            loader.assert_not_called()
+
+    def test_manual_pair_can_verify_metadata_without_auto_discovery(self):
+        user_input=iter(("/home/user/private/source.age","/media/backup/secret/copy.age"))
+        from types import SimpleNamespace
+        fake=SimpleNamespace(classify_inputs=lambda a,b:"TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED")
+        with patch.object(module,"load_locator",return_value=fake), \
+             patch.object(module, "discover") as discover:
+            state,paths=module.select_manual_pair(tty=True,reader=lambda prompt:next(user_input))
+        self.assertEqual(state,"TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED")
+        self.assertEqual(paths[0],Path("/home/user/private/source.age"))
+        self.assertEqual(paths[1],Path("/media/backup/secret/copy.age"))
+        discover.assert_not_called()
+
+    def test_manual_same_file_denied_before_content_read(self):
+        from types import SimpleNamespace
+        fake=SimpleNamespace(classify_inputs=lambda a,b:"SAME_FILE")
+        with patch.object(module,"load_locator",return_value=fake):
+            state,paths=module.select_manual_pair(tty=True,reader=lambda prompt:"/home/user/one.age")
+        self.assertEqual(state,"SAME_FILE")
+        self.assertIsNone(paths)
+
+    def test_manual_input_interrupted_returns_only_bounded_state(self):
+        with patch.object(module.getpass, "getpass", side_effect=EOFError()):
+            self.assertEqual(module.select_manual_pair(tty=True),
+                             ("MANUAL_ESCROW_INPUT_UNAVAILABLE",None))
+
+    def test_manual_mode_explicit_ack_required(self):
+        with patch.object(module,"select_manual_pair") as reader, redirect_stderr(io.StringIO()):
+            for args in (["--compare-manual"],
+                         ["--compare-manual","--acknowledge","wrong"]):
+                with self.assertRaises(SystemExit) as exc:
+                    module.main(args)
+                self.assertEqual(exc.exception.code,2)
+            reader.assert_not_called()
+
+    def test_manual_compare_does_not_print_paths_or_modify_originals(self):
+        with patch.object(module, "select_manual_pair",
+                return_value=("TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED",(self.a,self.b))), \
+             patch.object(module.os,"isatty",return_value=True), \
+             patch.object(module, "compare_ciphertexts",
+                return_value="ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED") as compare, \
+             redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(module.main(["--compare-manual","--acknowledge",module.ACK]),0)
+        self.assertEqual(compare.call_args.args,(self.a,self.b))
+        report=json.loads(out.getvalue())
+        self.assertTrue(report["encrypted_content_read_attempted"])
+        self.assertFalse(report["restoration_verified"])
+        self.assertNotIn(str(self.a),out.getvalue())
+        self.assertNotIn(str(self.b),out.getvalue())
+
+    def test_manual_missing_tty_keeps_no_go_and_no_read(self):
+        with patch.object(module.os,"isatty",return_value=False), \
+             patch.object(module,"compare_ciphertexts") as cmp, \
+             redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(module.main(["--compare-manual","--acknowledge",module.ACK]),3)
+        cmp.assert_not_called()
+        report=json.loads(out.getvalue())
+        self.assertEqual(report["state"],"INTERACTIVE_TERMINAL_REQUIRED")
+        self.assertFalse(report["encrypted_content_read_attempted"])
+
+
 if __name__ == '__main__': unittest.main()
