@@ -173,6 +173,28 @@ class AkvoradoDeltaTest(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("NEW_INSERT_BATCHES_ROWS_UNVERIFIED", output.getvalue())
 
+    def test_akvorado_fetch_rejects_unapproved_host(self):
+        with patch.object(MODULE.OPENER, "open") as opener:
+            with self.assertRaises(ValueError):
+                MODULE.fetch("http://example.invalid/metrics")
+            opener.assert_not_called()
+
+    def test_akvorado_fetch_uses_no_proxy_and_no_redirect(self):
+        self.assertTrue(any(isinstance(handler, MODULE.NoRedirect)
+                            for handler in MODULE.OPENER.handlers))
+        proxies = [handler for handler in MODULE.OPENER.handlers
+                   if isinstance(handler, MODULE.ProxyHandler)]
+        self.assertEqual(len(proxies), 1)
+        self.assertEqual(proxies[0].proxies, {})
+
+    def test_negative_metadata_errors_do_not_count_as_history(self):
+        observed = (
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="metadata missing",exporter="172.17.0.1"} -5\\n'
+        )
+        result = MODULE.exporter_metadata_evidence(observed)
+        self.assertEqual(result["configured"], 0)
+
     def test_sensitive_labels_are_not_returned(self):
         text = metrics(1, 1, 0).replace(
             'error="metadata missing"', 'error="metadata missing",token="NEVER-LOG"'
