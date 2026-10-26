@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -43,6 +44,23 @@ class Contracts(unittest.TestCase):
         ]:
             with self.subTest(line=line), patch.object(m.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout=line)):
                 self.assertEqual(m.check_mount(), state)
+
+    def test_remote_python_snippet_checks_server_presence_without_reading_contents(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d) / 'secret'
+            root.mkdir()
+            program='EXPECTED_NAME = "backup.age"\\n' + m.REMOTE_PROBE.replace(
+                "Path('/mnt/cpool/backup/lab/secret')", f'Path({str(root)!r})')
+            for exists, expected in [(False, 'SERVER_EXPECTED_COPY_MISSING'),
+                                     (True, 'SERVER_EXPECTED_COPY_REGULAR_NONEMPTY')]:
+                if exists:
+                    (root/'backup.age').write_bytes(b'ENCRYPTED ONLY - fixture')
+                result=subprocess.run([sys.executable,'-'],input=program,text=True,
+                                      stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+                self.assertEqual(result.returncode,0,result.stderr)
+                obj=json.loads(result.stdout)
+                self.assertEqual(obj['state'],expected)
+                self.assertEqual(obj['age_files'],int(exists))
 
     def test_server_rejects_suspect_ssh_target(self):
         with patch.object(m.subprocess,'run') as run:
