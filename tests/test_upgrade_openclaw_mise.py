@@ -82,7 +82,10 @@ class UpgradeContracts(unittest.TestCase):
         proc.assert_not_called()
 
     def test_partial_stage_reports_marker_without_reinstall(self):
-        # Both standard and isolated prefixes are incomplete: fail closed.
+        # The fixture must use the same 0700 creation contract as staging:
+        # Path.mkdir(parents=True) would create stage_base with mode 0775
+        # under umask 0002 and trigger the independent security guard.
+        self.assertTrue(mod.ensure_isolated_prefix())
         package = mod.isolated_stage_root() / "lib/node_modules/openclaw"
         package.mkdir(parents=True)
         (package / "package.json").write_text(json.dumps({
