@@ -146,6 +146,62 @@ class ServiceNodeRepairContracts(unittest.TestCase):
             self.assertEqual(mod.main(["--select-installed-plan"]), 0)
         self.assertIn("existing_package_verified=yes", output.getvalue())
 
+    def test_plan_reports_exact_package_permission_reason(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        manifest.chmod(0o664)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 2)
+        self.assertIn("existing_package_check=manifest_group_write", output.getvalue())
+        self.assertNotIn(str(self.root), output.getvalue())
+
+    def test_scope_limited_permission_repair_restores_verification(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        node_root = self.new_node.parent.parent
+        manifest = self.new_package / "package.json"
+        for path in (node_root, self.new_package, manifest, self.new_entry):
+            mode = path.stat().st_mode & 0o777
+            path.chmod(mode | 0o022)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--harden-installed-permissions"]), 0)
+        self.assertIn("package_permissions_hardened=4", output.getvalue())
+        self.assertIn("package_check=verified", output.getvalue())
+        for path in (node_root, self.new_package, manifest, self.new_entry):
+            self.assertEqual(path.stat().st_mode & 0o022, 0)
+
+    def test_permission_repair_refuses_foreign_version_without_chmod(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        data = json.loads(manifest.read_text())
+        data["version"] = "2026.9.5"
+        manifest.write_text(json.dumps(data))
+        manifest.chmod(0o664)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--harden-installed-permissions"]), 2)
+        self.assertIn("package_hardening=blocked_package_identity", output.getvalue())
+        self.assertEqual(manifest.stat().st_mode & 0o777, 0o664)
+
+    def test_permission_repair_refuses_symlink_without_chmod(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        self.new_entry.unlink()
+        self.new_entry.symlink_to(self.old_entry)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--harden-installed-permissions"]), 2)
+        self.assertIn("package_hardening=blocked_entry_untrusted", output.getvalue())
+        self.assertTrue(self.new_entry.is_symlink())
+
+    def test_permission_repair_refuses_active_gateway(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        original = self.mock_command
+        def active(argv):
+            if argv == ["systemctl", "--user", "is-active", mod.UNIT]:
+                return 0, b"active\n"
+            return original(argv)
+        with patch.object(mod, "command", active), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--harden-installed-permissions"]), 2)
+        self.assertIn("package_hardening=blocked_gateway_active", output.getvalue())
+
     def test_group_writable_manifest_is_refused(self):
         self.assertEqual(mod.main(["--apply"]), 0)
         manifest = self.new_package / "package.json"
