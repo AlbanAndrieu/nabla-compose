@@ -876,6 +876,26 @@ private-login-contracts:
     bash -n scripts/workstation/check-defectdojo-login-lan.sh
     python3 -m pytest -q tests/test_defectdojo_login_lan_probe.py tests/test_litellm_dashboard_auth_failure.py
 
+# Canonical DefectDojo non-secret metadata: check without mutation.
+defectdojo-runtime-env-inspect:
+    sudo python3 scripts/truenas/prepare-defectdojo-runtime-env.py --inspect
+
+# Compare existing Django admin password hash with canonical runtime secret.
+defectdojo-admin-password-check:
+    sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --check
+
+# Explicitly update the EXISTING admin hash from canonical secrets, not Vaultwarden.
+defectdojo-admin-password-apply:
+    sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --apply --acknowledge I_APPROVE_EXISTING_DEFECTDOJO_ADMIN_PASSWORD_SYNC
+
+# Read-only HTTP origin vs HTTPS SNI, Traefik labels and Docker network.
+defectdojo-private-route-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+
+# Hermetic suite: no LAN, root, database or secret access required.
+defectdojo-recovery-test:
+    python3 -m pytest -q tests/test_defectdojo_existing_admin_reconcile.py tests/test_defectdojo_https_route_triage.py tests/test_defectdojo_runtime_credential_contract.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
