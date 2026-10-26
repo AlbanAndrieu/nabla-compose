@@ -669,6 +669,40 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## P0 — Dernière demande : CPU/RAM/stockage RUNNING + DefectDojo DEPLOYING (27 octobre)
+
+- **État réel : pas de collecte runtime complète effectuée par l'agent.**
+  Le catalogue v2 contient **154 entités / 151 Component/Resource**
+  et **141 mappings Compose**, pas des consommations attestées.
+  Le collecteur `collect-service-resource-evidence.py` capture
+  maintenant dans une seule mesure `docker stats` CPU
+  (% d'un cœur, peut dépasser 100), RAM, GPU attribuable,
+  taille de couche Docker et datasets ZFS ; `coverage` signale
+  les conteneurs RUNNING mappés/non mappés et l'exhaustivité.
+  Il publie un JSON privé et daté, **pas une mesure figée
+  dans le catalogue Git**. Les cartes OWNER du site PR #262
+  acceptent le CPU en plus de la RAM/GPU/stockage.
+- **DefectDojo actuellement DEPLOYING : HTTP origine :31085
+  et HTTPS privé tous deux indisponibles** (réception opérateur).
+  Nouveau `diagnose-defectdojo-deploying.py --check` :
+  app.query, état/OOM/exit des cinq conteneurs, priorité au
+  `defectdojo-initializer` avant uWSGI ; classes de logs
+  optionnelles et privées. Éviter le reset DB, les redéploiements
+  répétés et la rotation admin avant diagnostic.
+- **Vaultwarden :** `compare_vaultwarden_runtime_readonly.py
+  --check --app <code|openrag|defectdojo>` contrôle présence
+  et égalité des valeurs du cache CLI contre les secrets
+  runtime, sans les afficher. Pas de sync/rotation ; vraie
+  parité du serveur et résolution des `DRIFT` restantes à
+  vérifier depuis le LAN.
+- **Prometheus / Akvorado :** diagnostic readiness distinct de
+  l'inventaire des scrapes et des deltas NetFlow ; la dernière
+  preuve de rejets actifs `metadata missing` n'est pas
+  résolue et les insertions SQL restent à confirmer.
+- **État de validation :** modifications et contrats versionnés,
+  **aucun test ni quality gate exécuté dans cette passe**.
+  [Runbook du 27 octobre](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
 ## P0 — OOM global avéré / catalogue des capacités par service (26 octobre)
 
 - **Incident confirmé :** relevé initial `MemAvailable ≈2 Gio/62 Gio`,
