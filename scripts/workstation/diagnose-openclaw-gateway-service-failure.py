@@ -103,11 +103,17 @@ def current_unit_matches_expected():
     # This is a closed check of the previously agreed service binding.
     # Do not expose the actual path, flags or ExecStart data to stdout.
     text = raw.decode("utf-8", "replace")
-    node = "/.local/share/mise/installs/node/24.22.1/bin/node"
-    package = ("/.local/share/mise/installs/node/24.22.1"
-               "/lib/node_modules/openclaw/openclaw.mjs")
-    if (node in text and package in text and
-            "gateway --port 18789" in text):
+    # Match the executable and module under the SAME user-scoped mise
+    # Node 24 installation. A patch upgrade must not look like tampering.
+    # Never emit ExecStart, home directory, or unit environment.
+    found = re.search(
+        r"(?P<root>/\\.local/share/mise/installs/node/24\\.\\d+\\.\\d+)/bin/node",
+        text,
+    )
+    if not found:
+        return "different_or_unverified"
+    expected_package = found.group("root") + "/lib/node_modules/openclaw/openclaw.mjs"
+    if expected_package in text and "gateway --port 18789" in text:
         return "target_binding_confirmed"
     return "different_or_unverified"
 
