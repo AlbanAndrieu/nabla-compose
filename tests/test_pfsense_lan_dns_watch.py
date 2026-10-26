@@ -108,7 +108,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
         self.assertIn("private_fail=2", output)
         self.assertIn("both_fail=1", output)
         self.assertIn("longest_private_failure_samples=2", output)
-        self.assertIn("dns_watch_result=OBSERVED_FAILURE", output)
+        self.assertIn("dns_watch_result=DNS_FAILURE_OBSERVED", output)
         self.assertNotIn("dns_downtime_seconds=60", output)
 
     def test_invalid_names_addresses_and_budget_rejected(self):
@@ -126,12 +126,12 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
                 with self.assertRaises(Exception):
                     watcher.positive_int(invalid)
         self.assertEqual(watcher.resolver_ip("172.17.0.1"), "172.17.0.1")
-        self.assertEqual(watcher.dns_name("NEXUS-albanandrieu.int."),
+        self.assertEqual(watcher.dns_name("S3.int.albandrieu.com."),
                          "s3.int.albandrieu.com")
 
     def test_nxdomain_private_baseline_skips_the_watch(self):
         observed = []
-        states = iter([("OK", 32), ("NXDOMAIN", 28)])
+        states = iter([("OK", 32), ("NXDOMAIN", 28), ("NXDOMAIN", 30)])
         passed = watcher.validate_baseline(
             "172.17.0.1", "example.com", "s3.int.albandrieu.com", 1,
             probe=lambda *_: next(states),
@@ -139,9 +139,9 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
         )
         self.assertFalse(passed)
         self.assertIn("dns_preflight=public:OK private:NXDOMAIN", observed)
-        self.assertIn("dns_watch_result=INVALID_BASELINE_NO_SAMPLES", observed)
+        self.assertIn("dns_watch_result=BASELINE_INVALID", observed)
         self.assertIn(
-            "preflight_hint=PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS",
+            "preflight_hint=PRIVATE_NAME_NOT_REGISTERED",
             observed,
         )
         self.assertFalse(any("sample_seq=" in line for line in observed))
@@ -156,7 +156,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
         )
         self.assertTrue(passed)
         self.assertIn("dns_preflight=VALID_BOTH_A_RECORDS", records)
-        self.assertNotIn("dns_watch_result=INVALID_BASELINE_NO_SAMPLES", records)
+        self.assertNotIn("dns_watch_result=BASELINE_INVALID", records)
 
     def test_invalid_baseline_returns_exit_2_without_sampling(self):
         with mock.patch.object(watcher.shutil, "which", return_value="/usr/bin/dig"):
@@ -165,7 +165,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
                     result = watcher.main([
                         "--check",
                         "--private-name", "s3.int.albandrieu.com",
-                        "--samples", "45",
+                        "--private-expected-ip", "172.17.0.24", "--samples", "45",
                     ])
         self.assertEqual(result, 2)
         gate.assert_called_once()
@@ -191,9 +191,101 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
                 with mock.patch.object(sys, "stderr"):
                     result = watcher.main([
                         "--check", "--private-name", "s3.int.albandrieu.com",
-                        "--samples", "2",
+                        "--private-expected-ip", "172.17.0.24", "--samples", "2",
                     ])
         self.assertEqual(result, 2)
+        network.assert_not_called()
+
+
+    def test_expected_private_ip_is_checked_not_only_a_presence(self):
+        self.assertEqual(
+            watcher.interpret_dig(0, OK, expected_ip="172.17.0.24"),
+            "A_MISMATCH",
+        )
+        self.assertEqual(
+            watcher.interpret_dig(0, OK, expected_ip="93.184.215.14"),
+            "OK",
+        )
+        invalid = OK.replace("93.184.215.14", "999.999.999.999")
+        self.assertEqual(watcher.interpret_dig(0, invalid), "NO_A_ANSWER")
+
+    def test_pihole_valid_and_pfsense_nxdomain_is_split_dns_failure(self):
+        records = []
+        calls = []
+
+        def probe(resolver, name, timeout, *, expected_ip=None):
+            calls.append((resolver, name, expected_ip))
+            if name == "example.com":
+                return "OK", 5
+            return ("NXDOMAIN" if resolver == "172.17.0.1" else "OK"), 7
+
+        valid = watcher.validate_baseline(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com", 1,
+            private_expected_ip="172.17.0.24",
+            probe=probe, printer=records.append,
+        )
+        self.assertFalse(valid)
+        self.assertIn("dns_watch_result=SPLIT_DNS_FAILURE", records)
+        self.assertIn("dns_sampling=SKIPPED_INVALID_PREFLIGHT", records)
+        self.assertEqual(
+            calls[-1], ("172.17.0.24", "s3.int.albandrieu.com", "172.17.0.24")
+        )
+
+    def test_expected_a_mismatch_on_both_resolvers_invalidates_baseline(self):
+        records = []
+        valid = watcher.validate_baseline(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com", 1,
+            private_expected_ip="172.17.0.24",
+            probe=lambda resolver, name, timeout, **kwargs: (
+                "OK" if name == "example.com" else "A_MISMATCH", 5
+            ),
+            printer=records.append,
+        )
+        self.assertFalse(valid)
+        self.assertIn("dns_watch_result=BASELINE_INVALID", records)
+        self.assertIn("preflight_hint=PRIVATE_A_NOT_AS_EXPECTED", records)
+
+    def test_both_timeout_during_sampling_reports_observed_outage(self):
+        records = []
+        result = watcher.watch(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com",
+            1, 2, 1,
+            private_expected_ip="172.17.0.24",
+            probe=lambda *_args, **_kwargs: ("TIMEOUT", 1000),
+            monotonic=lambda: 0,
+            timestamp=lambda: "2026-10-26T00:04:30+01:00",
+            printer=lambda *args, **_kwargs: records.append(" ".join(map(str, args))),
+        )
+        self.assertEqual(result, 1)
+        self.assertIn("dns_watch_result=DNS_OUTAGE_OBSERVED", records)
+        self.assertIn("dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED", records)
+
+    def test_private_failure_after_good_baseline_is_split_dns_failure(self):
+        records = []
+        calls = []
+
+        def probe(resolver, name, timeout, *, expected_ip=None):
+            calls.append((resolver, name, expected_ip))
+            return ("A_MISMATCH" if expected_ip else "OK"), 4
+
+        result = watcher.watch(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com",
+            1, 2, 1,
+            private_expected_ip="172.17.0.24",
+            probe=probe, monotonic=lambda: 0,
+            timestamp=lambda: "2026-10-26T00:04:30+01:00",
+            printer=lambda *args, **_kwargs: records.append(" ".join(map(str, args))),
+        )
+        self.assertEqual(result, 1)
+        self.assertIn("dns_watch_result=SPLIT_DNS_FAILURE", records)
+        self.assertEqual(calls[-1][-1], "172.17.0.24")
+
+    def test_cli_requires_an_expected_private_ipv4(self):
+        with mock.patch.object(watcher.shutil, "which", return_value="/usr/bin/dig"):
+            with mock.patch.object(watcher, "query") as network:
+                with self.assertRaises(SystemExit) as ctx:
+                    watcher.main(["--check", "--private-name", "s3.int.albandrieu.com"])
+        self.assertEqual(ctx.exception.code, 2)
         network.assert_not_called()
 
     def test_no_ssh_config_changes_or_persistent_monitoring(self):
