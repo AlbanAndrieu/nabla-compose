@@ -24,6 +24,44 @@ est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
 leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
 pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
+## P0 — Reprise FastAPI / IA / Bababou sans LAN (26 octobre 2026)
+
+**Contrainte opérateur :** accès au LAN TrueNAS actuellement **indisponible**.
+Ne pas demander de commande LAN, relancer d'App, redéployer LiteLLM,
+réindexer `cpool/bababou` ou conclure à un service DOWN sur cette seule
+base. Les travaux continuent **dans le code Git, hors ligne**, en PR #285,
+sans GitHub Actions payantes (`[skip ci]`). Reprendre l'E2E dès le
+rétablissement de l'accès.
+
+| Liaison / chantier | Source Git vérifiée | Statut / prochaine preuve |
+| --- | --- | --- |
+| FastAPI TrueNAS → LiteLLM | `apps/sample/compose.yml`: `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen` ; clé scoped dans `.env.secrets` | **CONFIGURED / RUNTIME NOT_VERIFIED** : test d'identité LiteLLM, modèle, virtual-key et sortie avec tool calls |
+| LiteLLM TrueNAS → workstation | `apps/litellm/config.yaml`: `fastapi-qwen` vers `LITELLM_WORKSTATION_API_BASE` / `LITELLM_FASTAPI_WORKSTATION_API_KEY` | **CONFIGURED / RUNTIME NOT_VERIFIED** ; l'upstream GPU n'est pas un repli TrueNAS garanti |
+| Ollama TrueNAS | `apps/ollama/compose.yml`: port hôte `30068`, modèle/chargement non vérifiés | **OPTIONAL / RUNTIME NOT_VERIFIED** : valider `/api/tags` avant de proposer un alias local dédié ; pas de substitution silencieuse au modèle scoped |
+| FastAPI → OpenRAG | `nabla/integrations/openrag_mcp_tools.py` active les outils seulement si `MCP_CLIENTS` contient `openrag` activé | **NOT_WIRED / BLOCKED** : vérifier version 0.7.1, présence réelle de `/mcp`, authentification des recherches et ACL corpus avant activation |
+| OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
+| Diagnostics Prometheus | `METRICS_SCRAPE_KEY` ajouté par opérateur à sample `.env.secrets`, puis `reconcile-fastapi-metrics-credential.py --check` signale une source invalide | **BLOCKED sans LAN** : ne pas appliquer avant catégorie précise du nouveau diagnostic et correspondance de secret |
+
+**Accès et confidentialité du corpus.** Le montage ZFS ne crée ni index
+ni API de recherche. La recherche Bababou doit exiger une identité OWNER
+ou service scoped, une séparation de corpus et des citations. Ne pas
+exposer le corpus privé sur `/run` public ni à FastAPI Cloud, `nabla-site-alban`,
+un endpoint RAG anonyme ou des logs LLM/Langfuse. Sans ACL validée,
+afficher `NOT_VERIFIED` au lieu de répondre à partir de documents privés.
+
+**Gate de reprise LAN, dans cet ordre :** (1) réseau/service LiteLLM et
+clé dédiée ; (2) modèle `fastapi-qwen` et capacité tool-calling ;
+(3) Ollama TrueNAS `/api/tags` sans texte généré ;
+(4) OpenRAG backend/OpenSearch/Langflow/Docling ;
+(5) découverte MCP/API réelle et droits du corpus ;
+(6) recherche de document synthétique et citations ;
+(7) sous-ensemble privé Bababou explicitement approuvé. Aucune
+indexation, rotation, diffusion de PII ou redéploiement automatique.
+
+[Architecture RAG](runbooks/rag-bababou-poc-architecture.md) ·
+[LiteLLM FastAPI](runbooks/fastapi-sample-litellm.md) ·
+[Diagnostics OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md).
+
 ## Priorités opérationnelles et preuves
 
 | Ordre | Domaine | Contrôle à valider | État |
