@@ -269,6 +269,62 @@ class Contracts(unittest.TestCase):
         diag.assert_called_once()
         interactive.assert_not_called()
 
+    def test_diagnose_expected_copy_missing_when_backup_directory_is_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a, b = base / "source", base / "backup"
+            a.mkdir(); b.mkdir()
+            (a / "private-copy.age").write_bytes(b"ENCRYPTED only")
+            with patch.object(module,"candidate_directories",return_value=(a,b)), \
+                 patch.object(Path,"read_bytes") as reader:
+                result = module.diagnose_backup_roots(base)
+            self.assertEqual(result["expected_backup_copy_state"],"EXPECTED_COPY_MISSING")
+            self.assertEqual(result["backup_directory"]["age_files"],0)
+            self.assertEqual(result["matching_age_filenames"],0)
+            self.assertNotIn("private-copy",json.dumps(result))
+            reader.assert_not_called()
+
+    def test_diagnose_expected_copy_symlink_is_reported_without_following(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a, b = base / "source", base / "backup"
+            a.mkdir(); b.mkdir()
+            (a / "escrow.age").write_bytes(b"ENCRYPTED")
+            (b / "escrow.age").symlink_to(a / "escrow.age")
+            with patch.object(module,"candidate_directories",return_value=(a,b)):
+                result=module.diagnose_backup_roots(base)
+            self.assertEqual(result["expected_backup_copy_state"],"EXPECTED_COPY_IS_SYMLINK")
+            self.assertEqual(result["backup_directory"]["age_files"],0)
+
+    def test_diagnose_expected_copy_empty_is_reported_without_reading(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a,b=base/"source",base/"backup"
+            a.mkdir();b.mkdir()
+            (a/"escrow.age").write_bytes(b"ciphertext")
+            (b/"escrow.age").touch()
+            with patch.object(module,"candidate_directories",return_value=(a,b)), \
+                 patch.object(Path,"read_bytes") as reader:
+                result=module.diagnose_backup_roots(base)
+            self.assertEqual(result["expected_backup_copy_state"],"EXPECTED_COPY_EMPTY")
+            self.assertEqual(result["backup_directory"]["age_files"],1)
+            reader.assert_not_called()
+
+    def test_diagnose_multiple_local_sources_does_not_guess_a_copy(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a, b = base / "source", base / "backup"
+            a.mkdir(); b.mkdir()
+            for name in ("one.age","two.age"):
+                (a/name).write_bytes(b"ciphertext")
+            with patch.object(module,"candidate_directories",return_value=(a,b)):
+                result=module.diagnose_backup_roots(base)
+            self.assertEqual(result["expected_backup_copy_state"],"NO_UNIQUE_SOURCE_FILE")
+
     def test_diagnose_rejects_acknowledgment_without_work(self):
         with patch.object(module,"diagnose_backup_roots") as diag, \
              redirect_stderr(io.StringIO()):
