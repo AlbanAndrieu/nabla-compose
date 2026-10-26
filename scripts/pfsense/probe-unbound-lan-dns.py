@@ -119,6 +119,15 @@ def validate_baseline(
     Only redacted protocol classifications are emitted.
     """
     public_status, _ = probe(resolver, public_name, timeout)
+    if public_status in ("TIMEOUT", "SERVFAIL", "QUERY_ERROR"):
+        first_public_status = public_status
+        public_status, _ = probe(resolver, public_name, timeout)
+        printer(
+            f"dns_preflight_public_retry=first:{first_public_status}"
+            f" second:{public_status}"
+        )
+        if public_status == "OK":
+            printer("dns_preflight_warning=PUBLIC_RECOVERED_AFTER_ONE_RETRY")
     if private_expected_ip is None:
         private_status, _ = probe(resolver, private_name, timeout)
     else:
@@ -143,7 +152,10 @@ def validate_baseline(
             )
         printer(f"dns_preflight_pihole=private:{pihole_status}")
 
-    if public_status == "OK" and private_status != "OK" and pihole_status == "OK":
+    if public_status != "OK" and private_status == "OK":
+        printer("dns_watch_result=PUBLIC_DNS_BASELINE_UNAVAILABLE")
+        printer("preflight_hint=VERIFY_PUBLIC_RECURSION_AND_UPSTREAM_DNS")
+    elif public_status == "OK" and private_status != "OK" and pihole_status == "OK":
         printer("dns_watch_result=SPLIT_DNS_FAILURE")
         printer("preflight_hint=CHECK_PFSENSE_DOMAIN_OVERRIDE")
     else:
