@@ -147,6 +147,11 @@ yubikey-escrow-pair-check:
 yubikey-escrow-pair-discover:
     python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --discover
 
+# Report only directory availability, bounded age-file counts and whether the
+# effective HOME matches the current account. No filenames or file contents.
+yubikey-escrow-pair-diagnose:
+    python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --diagnose
+
 # Synthetic contracts only, never touch real backups or YubiKeys.
 yubikey-escrow-compare-test:
     python3 -m py_compile scripts/workstation/compare-yubikey-escrow-pair-readonly.py tests/test_yubikey_escrow_pair_compare.py
@@ -160,6 +165,11 @@ yubikey-escrow-compare-check:
 # never print contents or digests, never decrypt or change anything.
 yubikey-escrow-compare-run:
     python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --compare --acknowledge COMPARE_EXISTING_ENCRYPTED_ESCROWS
+
+# Optional: manual pairing with two hidden TTY prompts when automatic
+# discovery misses. Same metadata gate, no decrypted content or writes.
+yubikey-escrow-compare-manual:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --compare-manual --acknowledge COMPARE_EXISTING_ENCRYPTED_ESCROWS
 
 # Explicitly request private local paths via hidden interactive TTY prompts.
 # Never reads content or proves decryption. Returns NO-GO even on success.
