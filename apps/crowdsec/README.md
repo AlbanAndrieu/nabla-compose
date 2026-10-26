@@ -54,6 +54,36 @@ la requête exacte avant d'attribuer l'échec à la classification.
 Une relance réussie conserve un warning ; deux échecs puis des
 événements non-smoke provoquent un ERROR.
 
+### Réception complémentaire : contrats et classification Loki
+
+Le checkout de l'opérateur a exécuté sans erreur :
+
+- `just crowdsec-loki-evidence-test` : **5/5 PASS** ;
+- `just nexus-private-ingress-test` : **4/4 PASS**.
+
+Depuis TrueNAS, la requête agrégée, sans lecture des messages :
+
+```bash
+curl --noproxy '*' -fsSG \
+  'http://172.17.0.24:3100/loki/api/v1/query' \
+  --data-urlencode \
+  'query=sum by (device) (count_over_time({job="pfsense",app!="nabla-smoke"}[30m]))' |
+  jq '.data.result | map({labels: .metric, count: .value[1]})'
+```
+
+retourne une unique série `{device="pfsense"}` avec **1 247
+événements** sur la fenêtre de 30 minutes interrogée. Cela valide
+la présence du label canonique dans ce relevé. Cela ne mesure ni
+les événements totalement perdus avant Loki, ni l'absence de
+microcoupures, ni une nouvelle décision CrowdSec.
+
+**Conséquence opérationnelle :** aucune modification d'Alloy n'est
+justifiée par l'échec ponctuel antérieur de la requête canonique.
+La relance bornée du diagnostic signale une récupération, sans
+transformer un échec persistant en succès. Les tests hors ligne
+ne valident pas la configuration du bouncer pfSense, qui reste
+connecté à la LAPI locale. Ne pas exécuter le cutover tant que
+la clé centrale et `last_pull` ne sont pas confirmés.
 ### Séquence de décision avant la bascule
 
 1. **Stabiliser les preuves** sur TrueNAS (lecture seule) :
