@@ -314,3 +314,74 @@ Deux copies identiques de la même archive ne constituent toujours
 pas deux identités indépendantes de récupération.
 Le test KeePassXC/OTP2 reste reporté, et la génération PIV82
 reste bloquée.
+
+## Diagnostic confirmé — destination accessible sans fichier .age (26/10/2026)
+
+**Logs opérateur :** les deux suites récentes sont vertes :
+`just yubikey-escrow-pair-test` **22/22 PASS**,
+`just yubikey-escrow-compare-test` **18/18 PASS**.
+Le dernier contrôle `just yubikey-escrow-pair-diagnose` a retourné :
+
+- `source_directory.state=ACCESSIBLE`, `age_files=1`.
+- `backup_directory.state=ACCESSIBLE`, `age_files=0`.
+- `matching_age_filenames=0`.
+- `home_location_consistent_with_account=true`.
+- `files_opened=false` et `restoration_verified=false`.
+
+`just yubikey-escrow-pair-discover` a renvoyé
+`DISCOVERY_NO_MATCHING_PAIR`. La tentative
+`just yubikey-escrow-compare-manual` a renvoyé `UNKNOWN`
+avant d'ouvrir le contenu chiffré
+(`encrypted_content_read_attempted=false`).
+**Aucune preuve que les deux archives aient été comparées ou restaurées.**
+
+Le répertoire `/media/backup/lab/secret` est donc **accessible**,
+mais aucune entrée régulière se terminant par `.age` n'a été
+recensée au moment du test. Cela peut correspondre à un fichier
+absent, renommé, à un lien symbolique ignoré ou à une cible de
+montage devenue inaccessible à son contenu habituel.
+Le diagnostic ne prouve pas à lui seul un démontage du disque.
+
+### Prochaine vérification — aucun changement de fichiers
+
+```bash
+# Vérifier le filesystem effectif associé au chemin sauvegarde :
+findmnt -T /media/backup/lab/secret -o TARGET,FSTYPE
+
+# Diagnostiquer les entrées attendues SANS lire le contenu age :
+just yubikey-escrow-pair-diagnose
+```
+
+Attention : `findmnt -T` peut identifier simplement le filesystem
+parent (par exemple `/`) même si le disque de sauvegarde n'est plus
+monté. Comparer la valeur de `TARGET` au point de montage attendu.
+
+Le champ `diagnostic.expected_backup_copy_state` classe désormais,
+en lecture de métadonnées uniquement, le fichier de même nom que
+l'unique archive `.age` locale :
+
+| Valeur | Interprétation |
+| --- | --- |
+| `EXPECTED_COPY_MISSING` | Aucun fichier de ce nom au chemin de sauvegarde |
+| `EXPECTED_COPY_IS_SYMLINK` | Entrée présente, mais lien symbolique refusé |
+| `EXPECTED_COPY_EMPTY` | Entrée régulière vide ; copie non valide |
+| `EXPECTED_COPY_NOT_REGULAR` | Objet autre qu'un fichier régulier |
+| `EXPECTED_COPY_REGULAR_NONEMPTY` | Entrée régulière non vide présente ; **pas** une preuve d'intégrité |
+| `EXPECTED_COPY_ACCESS_DENIED` | Métadonnées inaccessibles |
+| `NO_UNIQUE_SOURCE_FILE` | Plusieurs fichiers locaux possibles ; ne pas choisir arbitrairement |
+| `NOT_EVALUATED` | Un des répertoires n'a pas passé l'inventaire |
+
+Le champ ne présente ni nom ni chemin, ne calcule aucun hash
+et n'ouvre aucun contenu. Les tests du nouveau champ sont publiés
+dans la PR ; leur exécution complète sur workstation est `NOT_RUN`.
+
+**Ne pas répéter `cp` avant d'avoir vérifié le montage attendu.**
+Écrire dans le répertoire sous-jacent d'un disque non monté risquerait
+de donner l'impression d'une sauvegarde externe alors que les données
+sont restées sur le disque local.
+
+Une fois le support et l'archive attendus retrouvés, relancer
+l'inventaire, puis seulement la comparaison chiffrée. Cela ne vaut
+toujours pas restauration indépendante. Pas de modification des
+destinataires SOPS, d'OTP2, de PIV9A ni de génération PIV82.
+KeePassXC reste reporté.
