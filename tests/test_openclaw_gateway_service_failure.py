@@ -210,6 +210,64 @@ class OpenClawServiceFailureTests(unittest.TestCase):
         self.assertIn("exit_78_interpretation=classified", output.getvalue())
         self.assertNotIn("PRIVATE", output.getvalue())
 
+    def test_unclassified_240_journal_lines_use_private_file_log_evidence(self):
+        props = {"ActiveState": "failed", "SubState": "failed",
+                 "Result": "exit-code", "ExecMainStatus": "78",
+                 "NRestarts": "0"}
+        journal = ["irrelevant log with sk-PRIVATE"] * 240
+        file_lines = ["Config validation failed: sk-SECRET /home/operator"]
+        with patch.object(mod, "systemd_properties", return_value=props), \
+             patch.object(mod, "journal_sample",
+                          return_value=(journal, "historic_tail")), \
+             patch.object(mod, "file_log_sample",
+                          return_value=(file_lines, "private_file_tail")) as fallback, \
+             patch.object(mod, "current_unit_matches_expected",
+                          return_value="target_binding_confirmed"), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(), 0)
+        fallback.assert_called_once()
+        result = output.getvalue()
+        self.assertIn("journal_source=private_file_tail", result)
+        self.assertIn("file_log_fallback=private_file_tail", result)
+        self.assertIn("journal_pattern=invalid_configuration", result)
+        self.assertIn("exit_78_interpretation=classified", result)
+        self.assertNotIn("SECRET", result)
+        self.assertNotIn("PRIVATE", result)
+        self.assertNotIn("/home/operator", result)
+
+    def test_known_journal_fatal_does_not_consult_file_logs(self):
+        props = {"ActiveState": "failed", "Result": "exit-code",
+                 "ExecMainStatus": "78"}
+        with patch.object(mod, "systemd_properties", return_value=props), \
+             patch.object(mod, "journal_sample", return_value=(
+                 ["state database is busy, token=SECRET"], "historic_tail")), \
+             patch.object(mod, "file_log_sample") as fallback, \
+             patch.object(mod, "current_unit_matches_expected",
+                          return_value="target_binding_confirmed"), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(), 0)
+        fallback.assert_not_called()
+        self.assertIn("journal_pattern=state_owner_contention", output.getvalue())
+        self.assertIn("file_log_fallback=not_needed", output.getvalue())
+        self.assertNotIn("SECRET", output.getvalue())
+
+    def test_unmatched_file_log_does_not_claim_exit78_attribution(self):
+        props = {"ActiveState": "failed", "Result": "exit-code",
+                 "ExecMainStatus": "78"}
+        with patch.object(mod, "systemd_properties", return_value=props), \
+             patch.object(mod, "journal_sample",
+                          return_value=(["unrelated supervisor chatter"], "historic_tail")), \
+             patch.object(mod, "file_log_sample",
+                          return_value=(["another irrelevant record"], "private_file_tail")), \
+             patch.object(mod, "current_unit_matches_expected",
+                          return_value="target_binding_confirmed"), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(), 0)
+        self.assertIn("journal_source=historic_tail", output.getvalue())
+        self.assertIn("file_log_fallback=private_file_tail", output.getvalue())
+        self.assertIn("exit_78_interpretation=config_or_schema_unattributed",
+                      output.getvalue())
+
     def test_unit_binding_is_verified_but_never_printed(self):
         root = "/home/fixture"
         body = (f"path={root}/.local/share/mise/installs/node/24.22.1/bin/node "
