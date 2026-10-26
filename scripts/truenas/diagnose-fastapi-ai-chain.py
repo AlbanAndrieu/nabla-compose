@@ -21,6 +21,8 @@ SOURCES = {
 }
 SERVICES = frozenset(("litellm", "ollama", "openrag_backend", "openrag_search", "openrag_mcp"))
 HTTP_CODES = frozenset(("http_200", "http_400", "http_401", "http_403", "http_404", "http_405", "unverified"))
+SSH_TARGET = re.compile(r"[a-z_][a-z0-9_-]{0,31}@172[.]17[.]0[.]24\\Z")
+MAX_RUNTIME_REPORT = 4096
 READ_ONLY_PROBE = r'''
 import json, urllib.request, urllib.error
 urls = {
@@ -110,17 +112,84 @@ def inspect_runtime() -> dict[str, str]:
         return {"runtime": "docker_unavailable_or_probe_failed"}
 
 
+def inspect_ssh_runtime(target: str, *, port: int | None = None,
+                        sudo: bool = False) -> dict[str, str]:
+    """Run only the fixed read-only probes over pinned TrueNAS SSH.
+
+    SSH respects the workstation OpenSSH config (including port 9922) unless
+    --ssh-port is explicitly provided. No secrets or documents cross SSH.
+    """
+    if not SSH_TARGET.fullmatch(target) or (
+        port is not None and not 1 <= port <= 65535
+    ):
+        return {"runtime": "ssh_target_invalid"}
+    docker = (["sudo", "-n", "docker"] if sudo else ["docker"])
+    # Python literals derive only from trusted source constants, never input.
+    remote = (
+        "import json,subprocess\n"
+        "code = " + repr(READ_ONLY_PROBE) + "\n"
+        "command = " + repr(docker + ["exec", "fastapi-sample", "python3", "-c"]) + " + [code]\n"
+        "try:\n"
+        "    p = subprocess.run(command, capture_output=True, text=True, timeout=22)\n"
+        "    report = json.loads(p.stdout) if p.returncode == 0 and len(p.stdout) <= 4096 else {}\n"
+        "    valid = isinstance(report, dict) and set(report) == "
+        + repr(set(SERVICES)) + "\n"
+        "    valid = valid and all(v in " + repr(set(HTTP_CODES)) + " for v in report.values())\n"
+        "    print(json.dumps(report if valid else {'runtime':'docker_unavailable_or_probe_failed'}))\n"
+        "except (OSError,ValueError,UnicodeError,subprocess.TimeoutExpired):\n"
+        "    print(json.dumps({'runtime':'docker_unavailable_or_probe_failed'}))\n"
+    )
+    command = [
+        "ssh", "-T", "-o", "BatchMode=yes",
+        "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=7",
+    ]
+    if port is not None:
+        command.extend(("-p", str(port)))
+    command.extend((target, "python3 -"))
+    try:
+        response = subprocess.run(
+            command, input=remote, capture_output=True, text=True,
+            timeout=35, check=False,
+        )
+        if response.returncode != 0 or len(response.stdout) > MAX_RUNTIME_REPORT:
+            return {"runtime": "ssh_unavailable_or_unauthorized"}
+        result = json.loads(response.stdout)
+        if result == {"runtime": "docker_unavailable_or_probe_failed"}:
+            return result
+        if not isinstance(result, dict) or set(result) != SERVICES:
+            return {"runtime": "remote_report_invalid"}
+        if any(value not in HTTP_CODES for value in result.values()):
+            return {"runtime": "remote_report_invalid"}
+        return {key: result[key] for key in sorted(SERVICES)}
+    except (OSError, ValueError, UnicodeError, subprocess.TimeoutExpired):
+        return {"runtime": "ssh_unavailable_or_unauthorized"}
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--check", action="store_true", required=True)
     p.add_argument("--runtime", action="store_true",
                    help="Explicit, anonymous read-only transport probes on TrueNAS")
+    p.add_argument("--ssh-target", help="Optional pinned account@172.17.0.24; uses ~/.ssh/config")
+    p.add_argument("--ssh-port", type=int, default=None, help="Only for an explicit SSH port override")
+    p.add_argument("--ssh-sudo", action="store_true", help="Use pre-authorized sudo -n for remote Docker")
     args = p.parse_args(argv)
+    if args.ssh_target and not args.runtime:
+        p.error("--ssh-target requires --runtime")
+    if args.ssh_port is not None and not args.ssh_target:
+        p.error("--ssh-port requires --ssh-target")
+    if args.ssh_sudo and not args.ssh_target:
+        p.error("--ssh-sudo requires --ssh-target")
     declarations = inspect_declared({name: _read(path) for name, path in SOURCES.items()})
     report = {
         "component": "fastapi_truenas_ai_rag",
         "declared": declarations,
-        "runtime": inspect_runtime() if args.runtime else {"runtime": "not_run"},
+        "runtime": (
+            inspect_ssh_runtime(args.ssh_target, port=args.ssh_port, sudo=args.ssh_sudo)
+            if args.runtime and args.ssh_target
+            else inspect_runtime() if args.runtime
+            else {"runtime": "not_run"}
+        ),
         "bababou_private_retrieval": "not_verified",
         "next_check": "validate_scoped_litellm_key_openrag_readonly_acl_and_private_index",
     }
