@@ -16,6 +16,9 @@
   sondes en lecture seule, preuves minimales, interdictions et décisions.
 - **[Diagnostics opérateur spécialisés](2026-10-25-homelab-operator-diagnostics.md)** —
   Gatus, Prometheus et vérifications isolées, sans déploiement.
+- **[FastAPI IA/RAG Bababou](fastapi-truenas-ai-bababou-20261026.md)** —
+  topologie LiteLLM/Ollama/OpenRAG, recherche OWNER filtrée, vérifications
+  hors LAN et gates avant ingestion du corpus.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
