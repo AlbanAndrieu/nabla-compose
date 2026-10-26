@@ -6,6 +6,19 @@ The v2 target is Backstage-native: `catalog-info.yaml` owns entity identity and 
 
 Compose `depends_on` remains authoritative for same-project startup dependencies. Backstage `spec.dependsOn` becomes authoritative for cross-entity functional dependencies. Do not repeat either relation in x-nabla.
 
+## 27 October — CPU + RUNNING workload coverage
+
+The resource collector now includes **CPU percentage of one core** and a
+`coverage` section with RUNNING Docker containers actually observed,
+exactly matched Backstage mappings, and unmapped workload names.
+An unmapped container is **not discarded** and no missing metric is
+converted into zero. The current static v2 catalog has **154 total
+entities**, **151 Component/Resource refs** and **141 Compose identity
+mappings**; these counts do NOT establish which services are RUNNING.
+Only the LAN-generated timestamped private snapshot provides runtime
+measurements. See
+[27 October operations runbook](../docs/runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
 ## Observed resource reference (RAM / GPU / storage)
 
 The canonical v2 `entityRef` is the join key for runtime resource
