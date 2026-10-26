@@ -254,7 +254,33 @@ Les prélèvements ne commencent **jamais** sans précontrôle valide.
 Un échec au précontrôle ne constitue pas une coupure mesurée
 pendant le cron.
 
-Le programme effectue **2 à 3 requêtes de précontrôle + 90
+**Suivi du 26/10 20:49 CET :** l'opérateur a confirmé
+`s3.int.albandrieu.com A=172.17.0.24` sur pfSense
+(`NOERROR`, 55 ms) et Pi-hole (`NOERROR`, 0 ms).
+La première requête `example.com` du précontrôle a cependant
+retourné `TIMEOUT`, tandis que le nom privé était `OK` ;
+le script a justement évité 45 mesures sur une baseline publique
+non établie. Cet événement ne démontre **ni panne globale Unbound,
+ni erreur DNS privée**.
+
+Dans la PR #285, une **seule relance** de la requête publique est
+autorisée pour `TIMEOUT`, `SERVFAIL` ou `QUERY_ERROR`.
+Si la seconde réponse est `OK`, le script affiche
+`dns_preflight_warning=PUBLIC_RECOVERED_AFTER_ONE_RETRY`
+et poursuit avec une référence temporairement récupérée :
+l'échec initial reste visible. Si les deux échouent alors que le
+privé est `OK`, retour code 2 avec
+`PUBLIC_DNS_BASELINE_UNAVAILABLE` (pas `BASELINE_INVALID`
+du nom privé) et **aucun prélèvement**. Les erreurs
+`NXDOMAIN` publiques ne font pas l'objet d'une relance.
+Le budget normal est désormais **2 à 4 requêtes de préflight**
+(public initial + éventuelle relance, privé pfSense,
+éventuel Pi-hole), sans retry pendant les 45 prélèvements.
+Les nouveaux tests sont à exécuter localement ; l'opérateur a
+validé les **18/18 précédents** et la gate Unbound **82/82**
+avant cet ajout.
+
+Le programme effectue **2 à 4 requêtes de précontrôle + 90
 requêtes maximum** pendant les 45 prélèvements par défaut.
 Le résolveur Pi-hole est interrogé seulement si nécessaire.
 Un code retour `1` **après un précontrôle réussi et un
