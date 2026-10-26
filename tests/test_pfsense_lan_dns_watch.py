@@ -63,7 +63,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
 
         with mock.patch.object(watcher.time, "monotonic", side_effect=[1.0, 1.02]):
             state, elapsed = watcher.query(
-                "172.17.0.1", "nexus-albanandrieu.int", 1, runner=runner
+                "172.17.0.1", "s3.int.albandrieu.com", 1, runner=runner
             )
         self.assertEqual((state, elapsed), ("TIMEOUT", 20))
 
@@ -71,7 +71,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
         records = []
         moments = iter([0.0, 0.0, 0.0, 2.0])
         result = watcher.watch(
-            "172.17.0.1", "example.com", "nexus-albanandrieu.int",
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com",
             2, 2, 1,
             probe=lambda *_: ("OK", 12),
             monotonic=lambda: next(moments),
@@ -85,7 +85,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
         self.assertIn("both_fail=0", output)
         self.assertIn("sample_seq=2", output)
         self.assertNotIn("example.com", output)
-        self.assertNotIn("nexus-albanandrieu.int", output)
+        self.assertNotIn("s3.int.albandrieu.com", output)
         self.assertIn("dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED", output)
 
     def test_dns_failure_is_not_silent_and_no_spurious_downtime(self):
@@ -94,7 +94,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
                        ("TIMEOUT", 1010), ("NXDOMAIN", 40),
                        ("OK", 22), ("NO_A_ANSWER", 20)])
         result = watcher.watch(
-            "172.17.0.1", "example.com", "nexus-albanandrieu.int",
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com",
             3, 2, 1,
             probe=lambda *_: next(states),
             monotonic=lambda: 0,
@@ -127,7 +127,49 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
                     watcher.positive_int(invalid)
         self.assertEqual(watcher.resolver_ip("172.17.0.1"), "172.17.0.1")
         self.assertEqual(watcher.dns_name("NEXUS-albanandrieu.int."),
-                         "nexus-albanandrieu.int")
+                         "s3.int.albandrieu.com")
+
+    def test_nxdomain_private_baseline_skips_the_watch(self):
+        observed = []
+        states = iter([("OK", 32), ("NXDOMAIN", 28)])
+        passed = watcher.validate_baseline(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com", 1,
+            probe=lambda *_: next(states),
+            printer=observed.append,
+        )
+        self.assertFalse(passed)
+        self.assertIn("dns_preflight=public:OK private:NXDOMAIN", observed)
+        self.assertIn("dns_watch_result=INVALID_BASELINE_NO_SAMPLES", observed)
+        self.assertIn(
+            "preflight_hint=PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS",
+            observed,
+        )
+        self.assertFalse(any("sample_seq=" in line for line in observed))
+        self.assertFalse(any("s3.int.albandrieu.com" in line for line in observed))
+
+    def test_both_preflight_A_records_enable_sampling(self):
+        records = []
+        passed = watcher.validate_baseline(
+            "172.17.0.1", "example.com", "s3.int.albandrieu.com", 1,
+            probe=lambda *_: ("OK", 18),
+            printer=records.append,
+        )
+        self.assertTrue(passed)
+        self.assertIn("dns_preflight=VALID_BOTH_A_RECORDS", records)
+        self.assertNotIn("dns_watch_result=INVALID_BASELINE_NO_SAMPLES", records)
+
+    def test_invalid_baseline_returns_exit_2_without_sampling(self):
+        with mock.patch.object(watcher.shutil, "which", return_value="/usr/bin/dig"):
+            with mock.patch.object(watcher, "validate_baseline", return_value=False) as gate:
+                with mock.patch.object(watcher, "watch") as sampler:
+                    result = watcher.main([
+                        "--check",
+                        "--private-name", "s3.int.albandrieu.com",
+                        "--samples", "45",
+                    ])
+        self.assertEqual(result, 2)
+        gate.assert_called_once()
+        sampler.assert_not_called()
 
     def test_help_and_missing_private_name_never_start_queries(self):
         result = subprocess.run(
@@ -148,7 +190,7 @@ class PfSenseLanDnsWatchContract(unittest.TestCase):
             with mock.patch.object(watcher, "watch") as network:
                 with mock.patch.object(sys, "stderr"):
                     result = watcher.main([
-                        "--check", "--private-name", "nexus-albanandrieu.int",
+                        "--check", "--private-name", "s3.int.albandrieu.com",
                         "--samples", "2",
                     ])
         self.assertEqual(result, 2)
