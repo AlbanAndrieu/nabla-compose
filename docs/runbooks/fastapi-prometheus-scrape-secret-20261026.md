@@ -112,6 +112,39 @@ défini sur la workstation est `9922` ; ouvrir d'abord une session SSH
 vers `albandrieu@172.17.0.24` pour identifier sans ambiguïté l'hôte
 d'exécution. Les valeurs de clés restent toujours privées.
 
+## Source métriques désormais validée (nouveau relevé opérateur, 26/10)
+
+Les trois commandes exécutées **dans la même session sur TrueNAS**
+produisent les preuves suivantes : `hostname=truenas`,
+`stat=regular file, uid=0, gid=0, mode=0600, links=1, size=6496`,
+et le provisionneur annonce désormais **`credential_not_installed`**
+(`next_check=install_credential_with_explicit_operator_approval`).
+
+**Conclusion :** le fichier `sample/.env.secrets` et la ligne de clé
+dédiée passent les validations d'accès et de format. Ne pas régénérer
+`METRICS_SCRAPE_KEY`. L'étape bloquante restante est **l'installation
+du fichier secret pour Prometheus** et la correspondance avec
+l'environnement effectivement chargé par FastAPI.
+
+Après approbation explicite de l'opérateur, le script actuel peut
+préparer le seul répertoire privé manquant puis installer le secret :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py \
+  --apply --acknowledge I_APPROVE_FASTAPI_SCRAPE_CREDENTIAL_INSTALL
+```
+
+Contrôler ensuite, séparément :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+`credential_ready` valide uniquement les **fichiers**. Vérifier le
+jeton actif de FastAPI et déployer/recréer Prometheus avec son bind
+contrôlé avant de réclamer `scrape_up`. Ne pas afficher ni comparer
+les valeurs des clés en terminal.
+
 ## Incident de montage du 26 octobre 2026
 
 `app_lifecycle.log` confirme une erreur de démarrage Prometheus
