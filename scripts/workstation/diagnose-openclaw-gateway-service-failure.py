@@ -209,10 +209,18 @@ def safe_number(value):
 def main():
     properties = systemd_properties()
     journal, source = journal_sample()
-    if not journal:
-        journal, file_source = file_log_sample()
-        if journal:
-            source = file_source
+    evidence = classify_journal(journal)
+    # A populated journal is not necessarily informative. In particular,
+    # user journal excerpts frequently contain only supervisor chatter.
+    # Consult local OpenClaw file logs on *unclassified* journal output too.
+    fallback = "not_needed"
+    if evidence in ("no_known_pattern", "no_recent_journal_evidence",
+                    "journal_unavailable"):
+        file_lines, fallback = file_log_sample()
+        file_evidence = classify_journal(file_lines)
+        if file_evidence not in ("no_known_pattern", "no_recent_journal_evidence",
+                                 "journal_unavailable"):
+            journal, source, evidence = file_lines, fallback, file_evidence
     if properties is None:
         print("service_properties=unavailable")
         print("service_state=unknown")
@@ -233,7 +241,7 @@ def main():
               safe_number(properties.get("NRestarts")))
     print("service_target_binding=" + current_unit_matches_expected())
     print("journal_source=" + source)
-    evidence = classify_journal(journal)
+    print("file_log_fallback=" + fallback)
     print("journal_pattern=" + evidence)
     if (properties is not None and properties.get("ExecMainStatus") == "78"
             and evidence in ("journal_unavailable", "no_recent_journal_evidence",
