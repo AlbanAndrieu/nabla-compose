@@ -174,3 +174,67 @@ Références : [SOPS age](https://getsops.io/docs/usage/identities/age/),
 [age-keygen](https://manpages.debian.org/testing/age/age-keygen.1.en.html),
 [plan YubiKey](yubikey-capabilities-completion-plan.md),
 [runbook de 5 chantiers](yubikey-backup-five-execution.md).
+
+## Contrôle supplémentaire — identité binaire des deux escrows chiffrés
+
+**Preuve workstation acquise au HEAD `41e2b099` (26/10/2026)** :
+`just yubikey-escrow-pair-test` **17/17 PASS**,
+`just yubikey-escrow-pair-discover` et
+`just yubikey-escrow-pair-inspect` avec confirmation `o`
+ont tous deux renvoyé
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED`.
+L'inventaire ne lit jamais le contenu des archives : ce résultat
+ne prouve donc pas leur identité binaire.
+
+Pour comparer leurs **octets chiffrés uniquement**, exécuter une commande
+**distincte** : elle lit les fichiers, contrairement à l'inventaire
+précédent. Elle exige une autorisation explicite. Aucune clé age,
+carte YubiKey ni passphrase n'est utilisée.
+
+```bash
+just yubikey-escrow-compare-test
+just yubikey-escrow-compare-check
+# Après validation des tests et de la présence des deux fichiers :
+just yubikey-escrow-compare-run
+```
+
+Le programme `compare-yubikey-escrow-pair-readonly.py` réutilise la
+découverte d'**une seule paire** de noms identiques dans les deux
+répertoires connus. Il vérifie l'appartenance des fichiers à
+l'utilisateur, les tailles non nulles (maximum 16 Mio), le type
+regular, les liens multiples et les identifiants de fichiers. Il ouvre
+les deux fichiers avec `O_NOFOLLOW`, puis compare les octets par
+blocs de 64 Kio en mémoire. Il détecte un changement de
+métadonnées pendant la lecture, refuse les fichiers sur un même
+filesystem et nettoie les descripteurs ouverts.
+
+Le résultat JSON ne contient jamais de chemin, de hash, de contenu,
+de clé ou de secret. Les états principaux sont :
+
+| État | Interprétation |
+| --- | --- |
+| `ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED` | Les deux fichiers chiffrés ont été lus et les octets comparés sont identiques, sans changement détecté pendant la lecture |
+| `ENCRYPTED_COPIES_DIFFER` | Contenu ou taille différents : ne pas utiliser la copie comme preuve de redondance identique |
+| `ENCRYPTED_COPY_CHANGED_DURING_READ` | Source ou copie modifiée pendant le contrôle : arrêt, pas de conclusion |
+| `ENCRYPTED_COPY_UNVERIFIED` | Permissions, type, métadonnées ou accès non conformes |
+| `DISCOVERY_MULTIPLE_MATCHING_PAIRS` | Plusieurs noms correspondants : il faut traiter l'ambiguïté avant de lire |
+| `COPIES_NOT_ON_DISTINCT_FILESYSTEMS` | Le test exige deux systèmes de fichiers différents |
+
+Même si les octets sont identiques, les deux fichiers représentent
+**la même archive chiffrée recopiée**, et non deux clés de récupération
+distinctes. Ce test ne démontre ni le déchiffrement de l'identité
+`age`, ni un stockage sur deux supports physiques indépendants,
+ni la récupération réelle d'un secret SOPS, ni l'autorisation de créer
+une clé PIV82.
+
+Le nouveau comparateur et **11 tests hermétiques ont été exécutés en
+local par l'agent** sur des fichiers synthétiques. L'exécution
+sur les deux vraies archives de workstation n'est **pas encore faite**.
+Les tests existants du collecteur ont été validés par l'opérateur
+(**17/17 PASS**).
+
+**Suite** : vérifier localement l'ACL du fichier de destination
+(`getfacl` ; ne pas publier les chemins si confidentiels), puis
+préparer une restauration isolée de la sauvegarde à partir de la copie
+sur support, avec ses moyens de déchiffrement réels et une preuve
+expurgée, avant toute transaction PIV82.
