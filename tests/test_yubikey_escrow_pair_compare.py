@@ -38,7 +38,7 @@ class Contracts(unittest.TestCase):
         with patch.object(module, 'discover') as discover, redirect_stdout(io.StringIO()) as out:
             self.assertEqual(module.main(['--check']),0)
         discover.assert_not_called()
-        self.assertFalse(json.loads(out.getvalue())['encrypted_content_read'])
+        self.assertFalse(json.loads(out.getvalue())['encrypted_content_read_attempted'])
 
     def test_compare_requires_exact_acknowledgement(self):
         with patch.object(module, 'discover') as discover, redirect_stderr(io.StringIO()):
