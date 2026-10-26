@@ -204,5 +204,79 @@ class Contracts(unittest.TestCase):
 
 
 
+    def test_diagnose_counts_only_basenames_without_content_reading(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            a, b = home / "source", home / "backup"
+            a.mkdir(); b.mkdir()
+            (a / "confidential-escrow.age").write_bytes(b"SECRET-AGE-CIPHERTEXT")
+            (b / "confidential-escrow.age").write_bytes(b"OTHER-CIPHERTEXT")
+            (a / "other.age").write_bytes(b"different")
+            with patch.object(module, "candidate_directories", return_value=(a,b)), \
+                 patch.object(module, "_home_is_account_home", return_value=True), \
+                 patch.object(Path, "read_bytes") as reader:
+                report = module.diagnose_backup_roots(home)
+            self.assertEqual(report["source_directory"],
+                             {"state":"ACCESSIBLE","age_files":2})
+            self.assertEqual(report["backup_directory"],
+                             {"state":"ACCESSIBLE","age_files":1})
+            self.assertEqual(report["matching_age_filenames"], 1)
+            self.assertTrue(report["home_location_consistent_with_account"])
+            self.assertFalse(report["files_opened"])
+            self.assertFalse(report["restoration_verified"])
+            self.assertNotIn("confidential", json.dumps(report))
+            self.assertNotIn(str(home), json.dumps(report))
+            reader.assert_not_called()
+
+    def test_diagnose_missing_backup_dir_is_explicit(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            base=Path(directory)
+            a,b=base/"source",base/"missing"
+            a.mkdir()
+            (a/"first.age").write_bytes(b"ciphertext")
+            with patch.object(module, "candidate_directories", return_value=(a,b)):
+                report=module.diagnose_backup_roots(base)
+            self.assertEqual(report["source_directory"]["age_files"],1)
+            self.assertEqual(report["backup_directory"]["state"],"DIRECTORY_MISSING")
+            self.assertEqual(report["matching_age_filenames"],0)
+
+    def test_diagnose_does_not_traverse_symlinked_root(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            base=Path(directory)
+            a=base/"source"; a.mkdir()
+            b=base/"shortcut"; b.symlink_to(a, target_is_directory=True)
+            with patch.object(module,"candidate_directories", return_value=(a,b)):
+                report=module.diagnose_backup_roots(base)
+            self.assertEqual(report["backup_directory"]["state"],"SYMLINK_DIRECTORY_UNTRUSTED")
+            self.assertEqual(report["matching_age_filenames"],0)
+
+    def test_diagnose_cli_does_not_require_tty_or_reveal_locations(self):
+        summary={"source_directory":{"state":"ACCESSIBLE","age_files":2},
+                 "backup_directory":{"state":"ACCESSIBLE","age_files":0},
+                 "matching_age_filenames":0,
+                 "home_location_consistent_with_account":True,
+                 "paths_disclosed":False,"files_opened":False,
+                 "restoration_verified":False}
+        with patch.object(module, "diagnose_backup_roots", return_value=summary) as diag, \
+             patch.object(module, "inspect") as interactive, \
+             redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(module.main(["--diagnose"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["diagnostic"],summary)
+        self.assertIn('"state": "DIRECTORY_METADATA_ONLY"',out.getvalue())
+        diag.assert_called_once()
+        interactive.assert_not_called()
+
+    def test_diagnose_rejects_acknowledgment_without_work(self):
+        with patch.object(module,"diagnose_backup_roots") as diag, \
+             redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as err:
+                module.main(["--diagnose", "--acknowledge",module.ACK])
+        self.assertEqual(err.exception.code,2)
+        diag.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
