@@ -336,13 +336,31 @@ Actions :
   `just pfsense-unbound-lan-dns-test` **9/9 PASS opérateur**
   et `just pfsense-unbound-restart-test` **73/73 PASS**
   le **26/10** (voir journal de validation).
-  La branche contient maintenant **18 tests LAN** (incluant
-  précontrôle A attendu, contrôle Pi-hole et classification
-  d'échantillons). **Nouveaux contrats NOT_VERIFIED localement** :
-  rejouer `just pfsense-unbound-lan-dns-test` puis
-  `just pfsense-unbound-restart-test`. Ne pas extrapoler le
-  total de l'ancienne gate à cette version.
+  Le relevé opérateur du **26/10** confirme **18/18 tests LAN**
+  et **82/82 tests Unbound PASS** sur HEAD `dca3bb4e`.
+  Le contrôle DNS réel à 20:49 CET confirme
+  `s3.int.albandrieu.com → 172.17.0.24` via pfSense et Pi-hole.
+  Le premier préflight public `example.com` a expiré
+  (`TIMEOUT`), avec le privé `OK`. Aucun échantillon n'a démarré.
+  **Correction PR #285 :** au plus une relance publique transitoire ;
+  résultat `PUBLIC_DNS_BASELINE_UNAVAILABLE` si le public reste
+  indisponible. L'échec initial reste signalé si la relance passe.
+  **22 tests LAN** désormais présents ; les 4 nouveaux restent
+  **NOT_VERIFIED sur la branche actualisée**. Rejouer
+  `just pfsense-unbound-lan-dns-test` et
+  `just pfsense-unbound-restart-test`.
   [Runbook H-04](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
+- [ ] **Nexus / DNS privé / ingress :** le public
+  `nexus.albandrieu.com` est déclaré accessible par l'opérateur,
+  `nexus.int.albandrieu.com` ne l'est pas encore. Compose expose
+  `172.17.0.24:8081`, mais les labels Traefik privés étaient
+  commentés. La PR #285 prépare le routeur et son service `:8081`,
+  **désactivés par défaut**, sans modifier la route publique.
+  Vérifier successivement DNS Pi-hole, DNS Unbound, NSS workstation,
+  backend HTTP et HTTPS SNI/TLS ; décider ensuite de l'activation
+  explicite et du mécanisme de publication `pihole-dns-sync`.
+  Ne pas publier de DNS public `*.int` ni redéployer automatiquement.
+  [Runbook Nexus](runbooks/nexus-private-dns-ingress.md).
 - [ ] **H-04 / causalité des modifications antérieures :**
   corréler upgrades/paramètres pfBlockerNG, Snort et DHCP/DNS,
   bouncer CrowdSec, changement PHP-FPM et reboot/restore aux
