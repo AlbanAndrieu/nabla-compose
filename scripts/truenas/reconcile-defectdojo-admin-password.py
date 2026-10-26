@@ -61,12 +61,12 @@ print(json.dumps({"state": status}, sort_keys=True))
 """
 
 
-def parse_runtime_secret(path: Path = SOURCE) -> dict[str, str]:
+def parse_runtime_secret(path: Path = SOURCE, *, require_root_metadata: bool = True) -> dict[str, str]:
     if path.is_symlink():
         raise ValueError("SOURCE_SYMLINK")
     info = path.stat(follow_symlinks=False)
     if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or
-            info.st_uid != 0 or info.st_gid != 0 or
+            (require_root_metadata and (info.st_uid != 0 or info.st_gid != 0)) or
             stat.S_IMODE(info.st_mode) != 0o600 or
             not 0 < info.st_size <= MAX_BYTES):
         raise ValueError("SOURCE_METADATA_INVALID")
