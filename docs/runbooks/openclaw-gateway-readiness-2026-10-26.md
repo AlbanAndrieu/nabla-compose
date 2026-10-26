@@ -241,3 +241,64 @@ requise pour les diagnostics en lecture seule. Cette sauvegarde
 précède les changements du service et la possible migration du
 schéma ; ne pas la restaurer sur un état actif ou potentiellement
 plus récent.
+
+
+## 26 octobre — pourquoi un seul redémarrage manuel peut se justifier
+
+Dernier rapport `doctor --lint --json` de la Workstation :
+`doctor_exit=1`, `doctor_report=structured`, `doctor_checks_run=36`,
+`doctor_findings_count=9`, `doctor_diagnosis=gateway_config`,
+`doctor_gateway_config_findings=1`,
+`doctor_schema_migration_findings=4`,
+`doctor_other_findings=4`. **Ces données agrégées ne permettent
+pas de distinguer warnings et errors** ; un exit 1 en lint signifie
+qu'une finding a atteint le seuil, qui peut être `warning`.
+
+Conformément à la documentation OpenClaw, code systemd `78`
+(`EX_CONFIG`) est un arrêt intentionnel du Gateway en cas de
+configuration invalide ou de migration hors ligne requise. Ce code
+empêche généralement le redémarrage automatique en boucle,
+mais n'empêche pas une tentative explicite d'un opérateur.
+Sources :
+- https://docs.openclaw.ai/cli/doctor/lint
+- https://docs.openclaw.ai/cli/gateway/running
+
+Dans la PR #285 :
+- `just openclaw-gateway-doctor-lint` sépare maintenant
+  `doctor_severity_error`, `doctor_severity_warning`,
+  `doctor_severity_info`, et signale uniquement
+  `doctor_gateway_mode_finding=yes|no`.
+- `just openclaw-gateway-start-once` exécute **une seule commande**
+  `systemctl --user start openclaw-gateway.service` lorsque le
+  Gateway est `failed` ou `inactive`. Avant cette commande,
+  il exige le Node/paquet `24.22.1 / 2026.10.7` déjà sélectionné
+  et aucune propriété SQLite DB/WAL/SHM détectable.
+  Le démarrage ne procède à aucune correction, réinstallation,
+  migration forcée ou sauvegarde supplémentaire.
+  Sur échec, il renvoie immédiatement les diagnostics systemd
+  expurgés. Sur service actif, il teste les sondes HTTP, sans
+  nouvelle tentative.
+- Aucun `systemctl reset-failed`, `restart`, boucle de retry,
+  `doctor --fix` ni retour automatique vers l'ancien binaire.
+
+**Décision opérateur :** une unique tentative est possible ; elle
+peut cependant réexécuter les contrôles et migrations de démarrage
+propres à OpenClaw. La sauvegarde préexistante est intacte,
+et les risques de migration non réversible restent présents.
+Si le service quitte à nouveau avec `78`, ne pas relancer le
+script. Examiner `doctor_severity_*`,
+`doctor_gateway_mode_finding` et la catégorie systemd avant une
+correction de configuration ou de schéma.
+
+Depuis un worktree de la PR #285, tester d'abord :
+```bash
+python3 -m unittest discover -s tests -p 'test_openclaw_gateway_start_once.py' -v
+just openclaw-gateway-doctor-lint
+```
+
+Pour tenter le démarrage explicitement **une seule fois** :
+```bash
+just openclaw-gateway-start-once
+```
+
+La PR ne prétend pas que le Gateway soit déjà fonctionnel.
