@@ -404,6 +404,8 @@ pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
     bash -n scripts/pfsense/sample-oom-pressure.sh
     bash -n scripts/pfsense/console.sh
+    python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
+    python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_restart_cause_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
@@ -426,6 +428,16 @@ pfsense-memory-window:
 
 # One safe read-only SSH capture, persisted in a private workstation directory.
 # It prints the exact saved path for use as PFSENSE_BEFORE/PFSENSE_AFTER.
+# Workstation-only, bounded A-record probes to explicit pfSense resolver.
+# Run from LAN shortly before the next scheduled DNSBL stop/start.
+# Caller must choose an actual split-DNS name; no default hidden domain.
+pfsense-unbound-lan-dns-watch:
+    python3 scripts/pfsense/probe-unbound-lan-dns.py --check --resolver 172.17.0.1 --public-name example.com --private-name "${PFSENSE_PRIVATE_DNS_NAME:?set PFSENSE_PRIVATE_DNS_NAME to an approved LAN-only FQDN}" --samples 45 --interval-seconds 2 --timeout-seconds 1
+
+pfsense-unbound-lan-dns-test:
+    python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
+    python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
+
 pfsense-unbound-capture:
     bash scripts/pfsense/capture-unbound-snapshot.sh --check
 
