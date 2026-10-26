@@ -90,5 +90,116 @@ class Contracts(unittest.TestCase):
                              "METADATA_INSPECTOR_UNAVAILABLE")
 
 
+    def test_known_backup_roots_include_workstation_and_mounted_copy(self):
+        home = Path("/home/example")
+        found = module.candidate_directories(home)
+        self.assertEqual(found[0], home / ".local/share/nabla/age-backups")
+        self.assertEqual(found[1], Path("/media/backup/lab/secret"))
+
+    def test_discovery_matches_unique_basename_without_opening_files(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a, b = base / "age-backups", base / "backup"
+            a.mkdir(); b.mkdir()
+            (a / "escrow-2026.age").write_bytes(b"ciphertext 1")
+            (b / "escrow-2026.age").write_bytes(b"ciphertext 2")
+            (a / "unrelated.age").write_bytes(b"different")
+            with patch.object(module, "candidate_directories", return_value=(a,b)), \
+                 patch.object(module, "read_escrow_state",
+                    return_value="TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED") as meta:
+                state,pair = module.discover_pair(base)
+            self.assertEqual(state, "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED")
+            self.assertEqual(pair, (a / "escrow-2026.age", b / "escrow-2026.age"))
+            meta.assert_called_once_with(*pair)
+
+    def test_discovery_does_not_follow_symlinked_backup_directory(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            base = Path(root)
+            a = base / "good"; a.mkdir()
+            shortcut = base / "link"
+            shortcut.symlink_to(a, target_is_directory=True)
+            with patch.object(module,"candidate_directories",return_value=(shortcut,a)), \
+                 patch.object(module,"read_escrow_state") as meta:
+                state,pair = module.discover_pair(base)
+            self.assertEqual(state, "DISCOVERY_DIRECTORY_UNTRUSTED")
+            self.assertIsNone(pair); meta.assert_not_called()
+
+    def test_discovery_fails_closed_on_ambiguous_or_missing_pairs(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            a,b=Path(root)/"a",Path(root)/"b"
+            a.mkdir(); b.mkdir()
+            with patch.object(module,"candidate_directories",return_value=(a,b)):
+                self.assertEqual(module.discover_pair(Path(root))[0],"DISCOVERY_NO_MATCHING_PAIR")
+                for name in ("one.age","two.age"):
+                    (a/name).write_bytes(b"one")
+                    (b/name).write_bytes(b"two")
+                self.assertEqual(module.discover_pair(Path(root))[0],"DISCOVERY_MULTIPLE_MATCHING_PAIRS")
+
+    def test_discovery_ignores_symlinked_files(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            a,b=Path(root)/"a",Path(root)/"b"
+            a.mkdir(); b.mkdir()
+            (a/"matching.age").write_bytes(b"abc")
+            (b/"matching.age").symlink_to(a/"matching.age")
+            with patch.object(module,"candidate_directories",return_value=(a,b)):
+                self.assertEqual(module.discover_pair(Path(root))[0], "DISCOVERY_NO_MATCHING_PAIR")
+
+    def test_discovery_refuses_oversized_directories(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            a,b=Path(root)/"a",Path(root)/"b"
+            a.mkdir(); b.mkdir()
+            for i in range(module.DISCOVERY_LIMIT + 1):
+                (a / f"file-{i}").touch()
+            with patch.object(module,"candidate_directories",return_value=(a,b)):
+                self.assertEqual(module.discover_pair(Path(root))[0],
+                                 "DISCOVERY_TOO_MANY_ENTRIES")
+
+    def test_inspect_can_accept_auto_discovered_pair_without_showing_paths(self):
+        a = Path("/private/age-backups/escrow.age")
+        b = Path("/media/backup/lab/secret/escrow.age")
+        with patch.object(module,"discover_pair",
+                return_value=("TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED",(a,b))), \
+             patch.object(module, "read_escrow_state",
+                return_value="TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED") as meta, \
+             patch.object(module.getpass,"getpass") as manual:
+            state = module.inspect(tty=True,confirmer=lambda prompt: "o")
+        self.assertEqual(state,"TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED")
+        meta.assert_called_once_with(a,b)
+        manual.assert_not_called()
+
+    def test_inspect_rejection_falls_back_to_manual_masked_input(self):
+        a,b="/private/a.age","/private/b.age"
+        prompts=iter([a,b])
+        with patch.object(module,"discover_pair",
+                return_value=("TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED",
+                              (Path(a),Path(b)))), \
+             patch.object(module.getpass,"getpass",
+                side_effect=lambda prompt: next(prompts)), \
+             patch.object(module,"read_escrow_state",
+                return_value="SAME_FILESYSTEM") as meta:
+            result=module.inspect(tty=True,confirmer=lambda prompt:"n")
+        self.assertEqual(result,"SAME_FILESYSTEM")
+        meta.assert_called_once_with(Path(a),Path(b))
+
+    def test_discover_cli_redacts_paths_and_never_claims_restore(self):
+        with patch.object(module,"discover_pair",
+                return_value=("TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED",
+                    (Path("/private/a.age"),Path("/secret/b.age")))), \
+             redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(module.main(["--discover"]),0)
+        record=json.loads(out.getvalue())
+        self.assertNotIn("/private/",out.getvalue())
+        self.assertNotIn("/secret/",out.getvalue())
+        self.assertFalse(record["files_opened"])
+        self.assertFalse(record["restoration_verified"])
+        self.assertFalse(record["independent_media_verified"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
