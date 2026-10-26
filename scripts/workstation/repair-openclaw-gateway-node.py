@@ -200,7 +200,7 @@ def installed_package_verified():
                     p.stat().st_uid != os.geteuid() or
                     p.stat().st_mode & 0o022 for p in roots) or
                 not safe_file(manifest) or not safe_file(entry) or
-                manifest.stat().st_size > 32768 or
+                manifest.stat().st_size > 1024 * 1024 or
                 manifest.stat().st_mode & 0o022 or
                 entry.stat().st_mode & 0o022):
             return False
