@@ -457,7 +457,7 @@ vérifier la provenance réelle de `include`, l'état Git de la
 workstation TrueNAS (plusieurs diagnostics ont montré `tree=dirty`),
 la santé de Nexus, la sauvegarde de son dataset et la disponibilité
 d'une fenêtre d'interruption. La commande officielle
-`midclt call -j app.redeploy nexus` est un **job de redéploiement**
+`app.redeploy nexus` sur TrueNAS est un **job de redéploiement**
 avec arrêt/recréation, qui peut tirer des images ; ne pas
 l'exécuter comme simple contrôle de labels. Ne pas éditer `.ix-apps`
 et ne pas recréer la Custom App.
