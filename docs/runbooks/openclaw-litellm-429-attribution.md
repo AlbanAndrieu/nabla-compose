@@ -1770,3 +1770,49 @@ dans sa période de cooldown 24 h.
 
 Les nouveaux tests et le runtime n'ont pas encore été exécutés
 sur la Workstation au HEAD contenant cette correction.
+
+
+## 26 octobre 2026 — fixture partielle non sécurisée malgré staging privé
+
+Preuve opérateur au HEAD précédent : `just openclaw-upgrade-local-all` s'est
+arrêté aux tests unitaires, **31/32 PASS**. Échec unique :
+`test_partial_stage_reports_marker_without_reinstall` attendait
+`package_manifest=target`, mais la fonction `isolated_prefix_posture`
+a correctement retourné `group_or_world_writable_stage_base`.
+**Aucune installation ni activation Gateway n'a été exécutée.**
+
+Cause : la fixture créait
+`~/.openclaw-upgrade-stage/2026.10.7/lib/node_modules/openclaw`
+par `package.mkdir(parents=True)`. Sous le `umask 0002` local, le
+parent réservé au stage recevait 0775. La sécurité de production est
+correcte ; la fixture doit utiliser la même initialisation sûre que
+le programme.
+
+Correction dans la PR #280 : la fixture appelle d'abord
+`assertTrue(mod.ensure_isolated_prefix())` ; seul le sous-arbre
+`lib/node_modules/openclaw` est ensuite créé dans le répertoire
+`0700`. Le contrôle anti-symlink, propriétaire et group-write reste
+inchangé. `just openclaw-upgrade-local-test` lance désormais
+les contrats une fois avec le `umask` courant, puis avec `umask 0002`,
+sans requête réseau, CI hébergée ou appel LLM.
+
+**Validation agent :** reproduction locale minimale de la création des
+répertoires `0700` sous `umask 0002` PASS. La suite entière sous
+le nouvel HEAD **n'est pas encore exécutée sur la Workstation**.
+
+Procédure de reprise :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-upgrade-local-test
+just openclaw-upgrade-local-plan
+just openclaw-upgrade-local-stage
+```
+
+Procéder à `just openclaw-upgrade-local-activate` **seulement** si
+le stage est validé. Faire ensuite
+`just openclaw-upgrade-local-verify` pour confirmer l'identité
+systemd, les index mémoire `main` et `cron`, ainsi que Doctor.
+Conserver l'ancien binaire et la sauvegarde ; ne pas rejouer le
+smoke modèle déjà réussi.
