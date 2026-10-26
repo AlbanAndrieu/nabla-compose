@@ -1,7 +1,8 @@
 # FastAPI TrueNAS — LiteLLM, Ollama et recherche OpenRAG Bababou
 
-**État au 26/10/2026 : code préparé, accès LAN opérateur indisponible,
-aucune vérification runtime, aucune ingestion du corpus.**
+**État au 26/10/2026 : LAN opérateur rétabli, configuration Git
+constatée, transport SSH/Docker encore à qualifier, aucune recherche
+authentifiée ni ingestion du corpus attestée.**
 Ce runbook ne donne aucune permission de déploiement automatique.
 
 ## Architecture établie par le code
@@ -40,10 +41,42 @@ python3 scripts/truenas/diagnose-fastapi-ai-chain.py \
   --check --runtime --ssh-target albandrieu@172.17.0.24
 ```
 
-Si le compte SSH ne dispose pas du groupe Docker, essayer l'option
-**explicite** `--ssh-sudo`, qui appelle `sudo -n docker` et ne fonctionne
-que si `sudo` non interactif est déjà autorisé. Ne pas modifier les
-permissions du socket Docker pour faire réussir la sonde.
+**Observations réelles (26/10)** : la première tentative SSH a
+retourné `ssh_unavailable_or_unauthorized`, la seconde
+`docker_unavailable_or_probe_failed`. Cette deuxième catégorie ancienne
+n'identifie pas encore la cause : permissions, absence du conteneur,
+Python absent dans FastAPI ou erreur du processus distant.
+
+Le script corrigé distingue désormais les catégories suivantes,
+sans afficher le stderr ni les réponses HTTP :
+
+| Statut | Action |
+| --- | --- |
+| `docker_socket_denied` | Vérifier le droit Docker du compte SSH, sans modifier le socket |
+| `sudo_noninteractive_denied` | Vérifier si `sudo -n` est déjà autorisé |
+| `docker_daemon_unavailable` | Contrôler la disponibilité du daemon Docker |
+| `fastapi_container_missing` | Vérifier le nom du conteneur actuel |
+| `fastapi_container_not_running` | Vérifier l'état du conteneur sans le relancer |
+| `fastapi_container_python_missing` | Vérifier la présence de Python dans l'image |
+| `probe_output_invalid` | Vérifier le probe Python et son contrat JSON |
+| `http_401` / `http_403` | Serveur joignable mais authentification non validée |
+
+Réexécuter d'abord la commande précédente avec le dernier code de la
+branche #285. Si le statut est `docker_socket_denied`, utiliser
+**uniquement si déjà autorisé** l'option `--ssh-sudo` :
+
+```bash
+python3 scripts/truenas/diagnose-fastapi-ai-chain.py \
+  --check --runtime --ssh-target albandrieu@172.17.0.24 --ssh-sudo
+```
+
+Ce mode appelle `sudo -n docker` et ne requiert aucun changement
+des permissions du socket. Aucun accès au corpus n'est ouvert.
+
+La fausse sonde `/search/health` est retirée : l'état
+`openrag_search=not_tested_requires_auth` est attendu tant qu'aucune
+recherche filtrée et authentifiée n'a été effectuée. Un GET anonyme
+sur `/mcp` n'établit pas l'accès à OpenRAG.
 
 Depuis une session **locale sur TrueNAS** :
 
