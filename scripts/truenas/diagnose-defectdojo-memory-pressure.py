@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 DEFECTDOJO_CONTAINERS = frozenset({
     "defectdojo", "defectdojo-uwsgi", "defectdojo-celeryworker",
@@ -185,14 +186,36 @@ def collect() -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--check", action="store_true", required=True)
+    p.add_argument("--observe-seconds", type=int, default=20)
     args = p.parse_args(argv)
+    if not 0 <= args.observe_seconds <= 60:
+        p.error("--observe-seconds must be 0..60")
     try:
+        first = collect()
+        if args.observe_seconds:
+            time.sleep(args.observe_seconds)
         report = collect()
+        previous_events = first.get("cgroup_events_cumulative", {})
+        current_events = report.get("cgroup_events_cumulative", {})
+        oom_before = previous_events.get("oom_kill")
+        oom_after = current_events.get("oom_kill")
+        if isinstance(oom_before, int) and isinstance(oom_after, int):
+            report["oom_kills_during_observation"] = (
+                max(0, oom_after - oom_before)
+            )
+            if oom_after > oom_before:
+                report["assessment"] = "OOM_KILL_OBSERVED"
+        else:
+            report["oom_kills_during_observation"] = "UNVERIFIED"
+        report["observation_seconds"] = args.observe_seconds
+        report["mem_available_change_bytes"] = (
+            report["mem_available_bytes"] - first["mem_available_bytes"]
+        )
     except (OSError, ValueError, ZeroDivisionError) as error:
         print(json.dumps({"assessment": "UNVERIFIED", "error_class": type(error).__name__}))
         return 2
     print(json.dumps(report, sort_keys=True, indent=2))
-    return 1 if report["assessment"] == "PRESSURE_LIKELY" else (
+    return 1 if report["assessment"] in ("PRESSURE_LIKELY", "OOM_KILL_OBSERVED") else (
         2 if report["assessment"] == "INCONCLUSIVE" else 0
     )
 
