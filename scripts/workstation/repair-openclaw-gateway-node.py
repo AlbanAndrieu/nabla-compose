@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Retarget only the existing OpenClaw user service's Node executable.
+"""Select an already installed OpenClaw release for the managed Gateway.
 
-Fixes the updater's \`preflight-node-runtime-incompatible\` without creating
-another installation, migrating state, restarting Gateway, or taking backups.
-The managed OpenClaw package root stays unchanged until \`openclaw update\`.
-Never expose config, EnvironmentFile, tokens, or raw systemctl output.
+Correct systemd package ownership without npm, state migration, restart
+or backup. All preflight results are sanitized.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -195,10 +194,15 @@ def installed_package_verified():
     manifest = package / "package.json"
     entry = installed_entry()
     try:
-        if (not node_supported() or package.is_symlink() or not package.is_dir()
-                or not safe_file(manifest) or not safe_file(entry)
-                or manifest.stat().st_size > 32768
-                or manifest.stat().st_mode & 0o022):
+        roots = (installed_root(), package)
+        if (not node_supported() or
+                any(p.is_symlink() or not p.is_dir() or
+                    p.stat().st_uid != os.geteuid() or
+                    p.stat().st_mode & 0o022 for p in roots) or
+                not safe_file(manifest) or not safe_file(entry) or
+                manifest.stat().st_size > 32768 or
+                manifest.stat().st_mode & 0o022 or
+                entry.stat().st_mode & 0o022):
             return False
         obj = json.loads(manifest.read_text(encoding="utf-8"))
         if (not isinstance(obj, dict) or obj.get("name") != "openclaw"
@@ -243,14 +247,16 @@ def unit_is_selected():
 
 def select_installed_plan():
     verified = installed_package_verified()
-    owned = installed_service_unit() if verified else None
+    selected = unit_is_selected() if verified else False
+    owned = installed_service_unit() if verified and not selected else None
     print("target_release=" + TARGET_OPENCLAW)
     print("existing_package_verified=" + ("yes" if verified else "no"))
     print("gateway_running=" + ("yes" if unit_active() else "no"))
     print("owned_dropin=" + ("yes" if owned is not None else "no"))
+    print("already_selected=" + ("yes" if selected else "no"))
     print("no_npm_install=true")
     print("no_backup=true")
-    return 0 if owned is not None else 2
+    return 0 if selected or owned is not None else 2
 
 
 def select_installed():
