@@ -347,11 +347,17 @@ Actions :
   pfSense HAProxy ré-encrypte vers l'entrypoint public partagé
   Traefik `websecure` : **une résolution DNS privée ne protège
   pas ce routeur contre un Host/SNI injecté depuis WAN**.
-  Prouver une ACL qui refuse spécifiquement
-  `nexus.int.albandrieu.com` au frontal, depuis un client
-  extérieur, sans bloquer l'exception publique documentée
-  `s3.int.albandrieu.com`. Un `404` Traefik actuel ne prouve
-  pas un refus au frontal HAProxy.
+  Nouveau test workstation **depuis le LAN** :
+  `curl --resolve nexus.int.albandrieu.com:443:82.66.4.247`
+  donne **HTTP 404 / tls=0**. L'IP cible est publique, mais
+  la source reste LAN ; un NAT reflection peut changer le chemin :
+  **WAN_REJECTION_NOT_VERIFIED**. Aucun poste externe disponible.
+  Auditer la configuration **effective** HAProxy sur pfSense,
+  frontend WAN et ACL Host/SNI Nexus + action de refus avant backend.
+  Préserver l'exception `s3.int.albandrieu.com`.
+  Après revue, un téléphone sur réseau mobile avec client capable
+  de forcer Host/SNI peut fournir le test externe manquant.
+  Ne pas attribuer le 404 au frontal sans preuve.
   Après cette preuve : préparer l'opt-in Compose `true` via
   une source de configuration approuvée, puis un seul
   redéploiement Nexus contrôlé avec rollback ; vérifier
