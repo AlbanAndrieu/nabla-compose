@@ -603,3 +603,75 @@ snapshots réels encore `NOT_RUN`.
 (reporté), ne pas modifier PIV9A, PIV82, les destinataires SOPS ou
 les bases existantes. Le logiciel age/SOPS synthétique a déjà
 fait son roundtrip ; les vrais escrows restent non restaurés.
+
+## Pagination de l'historique ZFS après 96 snapshots (27/10/2026)
+
+**Preuve fournie par l'opérateur :**
+
+- `just yubikey-escrow-history-test` : **10/10 PASS** sur la
+  version d'origine (sans pagination).
+- `just yubikey-escrow-history-check` :
+  `EXPECTED_NFS_EXPORT_MOUNTED`,
+  `SOURCE_UNIQUE_AGE_FOUND`, `state=NOT_PROBED`.
+- `just yubikey-escrow-history-probe` :
+  `roots_accessible=3`, `roots_missing=0`,
+  `snapshots_checked=96`, `candidate_copies=0`,
+  `state=SNAPSHOT_HISTORY_INCOMPLETE`.
+  Les trois racines ont atteint la limite initiale de 32 entrées ;
+  **ce résultat ne démontre pas l'absence de l'archive ailleurs ou
+  au-delà de cette première fenêtre**.
+
+### Pagination bornée implémentée dans PR #285
+
+- Une page examine au maximum **32 répertoires de snapshots par racine**,
+  soit 96 au total pour les trois racines autorisées.
+- Le programme inventorie au plus **1 024 entrées par racine**. Les
+  résultats sont classés selon **l'ordre lexicographique inverse des
+  noms de snapshots**, *pas* forcément selon la date de création.
+- Le champ `page` vaut 0 à 31.
+  `next_page` indique la page suivante lorsqu'elle existe ;
+  `more_pages` indique que certaines racines possèdent plus
+  de noms au-delà de cette page.
+- Si une racine contient plus de 1 024 entrées,
+  `inventory_truncated=true` et le résultat reste incomplet,
+  **même sur la page 31**. Une recherche ciblée supplémentaire,
+  fondée sur l'inventaire ZFS autorisé, sera alors nécessaire.
+- Les inventaires sont effectués séparément à chaque exécution.
+  Un ajout/suppression de snapshots entre deux pages peut modifier
+  leur ordre et faire manquer ou répéter une entrée. Ne jamais
+  interpréter une succession de pages comme un snapshot atomique.
+- Les sorties restent limitées à des comptes et des états bornés,
+  sans nom de snapshot, fichier, chemin privé, hash ni secret.
+
+```bash
+# Dans le worktree propre à la PR #285 :
+git fetch origin fix/code-password-dotenv-fixture-20261026
+git merge --ff-only origin/fix/code-password-dotenv-fixture-20261026
+
+just yubikey-escrow-history-test
+just yubikey-escrow-history-check
+
+# Refaire la première page avec le nouveau format.
+just yubikey-escrow-history-probe
+
+# Seulement si next_page=1 :
+just yubikey-escrow-history-page 1
+
+# Suivre next_page, sans lancer de boucle illimitée.
+# Par exemple, seulement si next_page=2 :
+just yubikey-escrow-history-page 2
+```
+
+**Validation du correctif** : **14/14 tests hermétiques PASS
+dans l'environnement agent**, dont un scénario où un fichier
+n'apparaît que dans la page 1, la validation d'une réponse SSH paginée
+malformée et le refus de considérer un inventaire tronqué comme
+une recherche complète. Les versions publiées sont identiques
+octet par octet aux versions testées. Le probe réel paginé sur
+la workstation est **NOT_RUN**.
+
+`SNAPSHOT_CANDIDATE_FOUND` signale une présence de métadonnées
+pour le nom attendu dans une page. Ce résultat **ne démontre ni
+l'intégrité du fichier ni sa récupérabilité**. La génération PIV82,
+les modifications de destinataires SOPS et les opérations de
+récupération restent bloquées. KeePassXC/OTP2 demeure reporté.
