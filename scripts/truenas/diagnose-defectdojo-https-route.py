@@ -105,7 +105,7 @@ def diagnose() -> dict[str, object]:
     result.update(inspect_app())
     origin = result["origin"]
     edge = result["https"]
-    if origin == "LOGIN_HTML_READY" and edge != "LOGIN_HTML_READY":
+    if origin in ("LOGIN_HTML_READY", "LOGIN_REDIRECT") and edge != "LOGIN_HTML_READY":
         result["next_layer"] = "TRAEFIK_TLS_ROUTER"
     elif edge == "LOGIN_HTML_READY":
         result["next_layer"] = "DJANGO_LOGIN_AUTHENTICATION"
