@@ -145,6 +145,19 @@ def run_doctor():
     print("doctor_checks_run=" + str(safe_count(report.get("checksRun"))))
     print("doctor_findings_count=" + str(len(rows)) if len(rows) <= 50000 else "doctor_findings_count=unknown")
     print("doctor_diagnosis=" + issue_category(report))
+    # Lint exit=1 includes warnings; separate them from actual errors.
+    for level in ("error", "warning", "info", "unknown"):
+        print("doctor_severity_" + level + "=" +
+              str(sum(1 for item in rows if isinstance(item, dict)
+                      and severity(item) == level)))
+    # Only one known configuration path is surfaced as a boolean.
+    gateway_mode_issues = [
+        item for item in rows if isinstance(item, dict) and
+        item.get("checkId") == "core/doctor/gateway-config" and
+        item.get("path") == "gateway.mode" and
+        severity(item) in ("error", "warning")]
+    print("doctor_gateway_mode_finding=" +
+          ("yes" if gateway_mode_issues else "no"))
     if report.get("ok") is True:
         print("doctor_ok=yes")
     elif report.get("ok") is False:
