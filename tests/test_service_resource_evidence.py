@@ -150,6 +150,34 @@ def test_dataset_shared_is_not_double_counted_as_service_total():
     assert z["storage"]["datasets"][0]["used_bytes_including_children"] == 8000
 
 
+def test_shared_zfs_datasets_include_unmapped_running_consumers():
+    containers = [
+        {"id": ID_A, "name": "defectdojo-uwsgi", "entityRef": REF_A},
+        {"id": ID_B, "name": "unmapped-sidecar", "entityRef": None},
+    ]
+    with (
+        patch.object(MODULE, "catalog", return_value=({REF_A: "DefectDojo"}, {}, "rev")),
+        patch.object(MODULE, "docker_containers", return_value=(
+            containers, ["unmapped-sidecar"], {}
+        )),
+        patch.object(MODULE, "memory_stats", return_value={
+            "defectdojo-uwsgi": 500, "unmapped-sidecar": 300
+        }),
+        patch.object(MODULE, "writable_layers", return_value=None),
+        patch.object(MODULE, "datasets", return_value=[
+            ("/mnt/cpool/shared", "cpool/shared", 9000)
+        ]),
+        patch.object(MODULE, "mounted_datasets", return_value={
+            ID_A: {"cpool/shared"}, ID_B: {"cpool/shared"}
+        }),
+        patch.object(MODULE, "gpu_processes", return_value=None),
+        patch.object(MODULE, "host_memory", return_value={"status": "unverified"}),
+    ):
+        report = MODULE.collect()
+    assert report["services"][0]["storage"]["datasets"][0]["shared_by_services"] is True
+    assert report["coverage"]["unmapped_running_containers"] == 1
+
+
 def test_docker_inspect_reads_only_mounts_not_secrets():
     out = ID_A + "\t" + json.dumps([
         {"Type": "bind", "Source": "/mnt/cpool/shared/defectdojo"},
