@@ -26,12 +26,12 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
 ## P0 — Reprise FastAPI / IA / Bababou sans LAN (26 octobre 2026)
 
-**Contrainte opérateur :** accès au LAN TrueNAS actuellement **indisponible**.
-Ne pas demander de commande LAN, relancer d'App, redéployer LiteLLM,
-réindexer `cpool/bababou` ou conclure à un service DOWN sur cette seule
-base. Les travaux continuent **dans le code Git, hors ligne**, en PR #285,
-sans GitHub Actions payantes (`[skip ci]`). Reprendre l'E2E dès le
-rétablissement de l'accès.
+**Accès au LAN rétabli : 26 octobre 2026, déclaration opérateur.**
+La configuration Git reste distincte de la santé réelle des conteneurs :
+reprendre d'abord les contrôles en lecture seule, puis les tests avec
+identités restreintes. Aucun déploiement, redémarrage, appel à un modèle
+payant ni ingestion de `cpool/bababou` sans validation dédiée.
+Continuer en PR #285, local-first et commits `[skip ci]`.
 
 | Liaison / chantier | Source Git vérifiée | Statut / prochaine preuve |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ rétablissement de l'accès.
 | Ollama TrueNAS | `apps/ollama/compose.yml`: port hôte `30068`, modèle/chargement non vérifiés | **OPTIONAL / RUNTIME NOT_VERIFIED** : valider `/api/tags` avant de proposer un alias local dédié ; pas de substitution silencieuse au modèle scoped |
 | FastAPI → OpenRAG | **FastAPI PR #378 (code)** : route OWNER `POST /private/ops/ai/bababou/search`, outil `openrag_search` et `filter_id` serveur ; `MCP_CLIENTS` opt-in | **PREPARED / RUNTIME BLOCKED** : pas de clé OpenRAG ni filtre fourni, MCP 0.7.1 confirmé upstream mais ni route réelle ni ACL validées |
 | OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
-| Diagnostics Prometheus | `METRICS_SCRAPE_KEY` ajouté par opérateur à sample `.env.secrets`, puis `reconcile-fastapi-metrics-credential.py --check` signale une source invalide | **BLOCKED sans LAN** : ne pas appliquer avant catégorie précise du nouveau diagnostic et correspondance de secret |
+| Diagnostics Prometheus | 26/10 : le provisionneur retourne `source_file_missing`, mais un `ls` ultérieur voit le fichier `root:root 0600` (6496 octets) tandis que `stat` l'avait déclaré absent | **CONTRADICTORY EVIDENCE** : répéter `hostname`, `stat` et `--check` dans **la même session SSH TrueNAS** ; ne pas régénérer la clé ou lancer `--apply` avant résultat stable |
 
 **Avancement code en cours :** la PR Compose #285 fournit
 `scripts/truenas/diagnose-fastapi-ai-chain.py --check` (inventaire Git
@@ -86,6 +86,14 @@ ou service scoped, une séparation de corpus et des citations. Ne pas
 exposer le corpus privé sur `/run` public ni à FastAPI Cloud, `nabla-site-alban`,
 un endpoint RAG anonyme ou des logs LLM/Langfuse. Sans ACL validée,
 afficher `NOT_VERIFIED` au lieu de répondre à partir de documents privés.
+
+**Contrôles maintenant déblocables depuis le LAN :** commencer par le
+préflight du secret Prometheus (même hôte et même instant), puis le
+diagnostic `diagnose-fastapi-ai-chain.py --check --runtime` sur
+TrueNAS, ou son équivalent SSH limité aux statuts de transport.
+Un HTTP 401/403 sur MCP ou LiteLLM confirme seulement la barrière
+d'accès ; il faut une preuve *authentifiée* de la bonne clé et du bon
+modèle pour passer à ACCEPTED.
 
 **Gate de reprise LAN, dans cet ordre :** (1) réseau/service LiteLLM et
 clé dédiée ; (2) modèle `fastapi-qwen` et capacité tool-calling ;
