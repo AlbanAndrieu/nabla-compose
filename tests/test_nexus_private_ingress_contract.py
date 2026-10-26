@@ -44,6 +44,16 @@ class NexusPrivateIngressContract(unittest.TestCase):
         self.assertIn("Suspendre", text)
 
 
+    def test_just_recipe_fails_closed_if_module_missing(self):
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        recipe = justfile.split("nexus-private-ingress-test:\n", 1)
+        self.assertEqual(len(recipe), 2)
+        commands = recipe[1].split("\n\n", 1)[0]
+        self.assertIn("test -f tests/test_nexus_private_ingress_contract.py", commands)
+        self.assertIn("python3 tests/test_nexus_private_ingress_contract.py -v", commands)
+        self.assertNotIn("unittest discover", commands)
+
+
 
 if __name__ == "__main__":
     unittest.main()
