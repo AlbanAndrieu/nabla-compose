@@ -675,3 +675,107 @@ pour le nom attendu dans une page. Ce résultat **ne démontre ni
 l'intégrité du fichier ni sa récupérabilité**. La génération PIV82,
 les modifications de destinataires SOPS et les opérations de
 récupération restent bloquées. KeePassXC/OTP2 demeure reporté.
+
+## Fin de la recherche paginée — préparation contrôlée d'une copie NFS (27/10/2026)
+
+**Preuves opérateur (HEAD workstation `5f2537af`) :**
+
+- `just yubikey-escrow-history-test` : **14/14 PASS**.
+- Page `0` : 96 snapshots examinés, aucune archive candidate,
+  `next_page=1`, `inventory_truncated=false`.
+- Page `1` : 24 snapshots examinés, aucune archive candidate,
+  `next_page=null`, `more_pages=false`,
+  `inventory_truncated=false`,
+  `state=NO_CANDIDATE_IN_CHECKED_SNAPSHOTS`.
+- Au total, **120 entrées inspectées**, réparties entre les trois
+  racines connues, sans candidat. La pagination n'est **pas un
+  instantané atomique** de l'historique : les snapshots pourraient
+  avoir changé entre les deux commandes. D'autres datasets ou
+  supports ne sont pas couverts.
+
+Les contrôles antérieurs ont également établi que l'archive attendue
+est absente du répertoire NFS actuellement exporté, **côté client et
+côté serveur TrueNAS**. Une sauvegarde age chiffrée reste présente sur
+la workstation. **Cela ne signifie pas qu'une restauration réelle
+est possible** ; le contenu de cette archive locale n'a pas été
+déchiffré dans le cadre de cette investigation.
+
+### Préparer une nouvelle copie chiffrée, sans écraser de fichier
+
+Le nouveau programme
+`scripts/workstation/create-yubikey-escrow-nfs-copy.py`
+sépare explicitement deux opérations :
+
+```bash
+# Exécutable maintenant, aucun fichier ouvert en lecture de contenu :
+just yubikey-escrow-copy-test
+just yubikey-escrow-copy-check
+```
+
+La vérification `--check` exige :
+
+- le montage exact NFS attendu `nabla:/mnt/cpool/backup/lab` ;
+- **un unique fichier `.age` source** dans
+  `~/.local/share/nabla/age-backups` ;
+- un fichier source régulier, unique, appartenant à l'utilisateur,
+  avec permissions non accessibles au groupe/autres et taille de
+  1 octet à 16 Mio ;
+- une destination `/media/backup/lab/secret` qui existe et ne
+  contient **pas encore** le nom de fichier attendu ;
+- aucun lien symbolique dans les composants des chemins.
+
+**État de précontrôle attendu** :
+`READY_TO_CREATE_ENCRYPTED_COPY`.
+Si la destination existe (même sous forme de lien), le contrôle
+retourne `TARGET_ALREADY_EXISTS_NO_OVERWRITE`.
+
+Après validation du précontrôle et inspection du partage NFS,
+la commande d'écriture **facultative, supervisée et distincte**
+est la suivante. **Ne l'exécuter qu'avec autorisation explicite
+de créer une nouvelle copie** :
+
+```bash
+python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py \
+  --copy --acknowledge CREATE_NEW_ENCRYPTED_AGE_ESCROW_NFS_COPY
+```
+
+Cette commande exige un terminal interactif. Elle ouvre le fichier
+`.age` **chiffré**, copie ses octets vers un nom temporaire sur le
+partage NFS avec le mode `0600`, synchronise le contenu, puis publie
+un nouveau nom final **par lien matériel atomique refusant tout
+écrasement**. Elle supprime le lien temporaire, effectue un
+`fsync` de répertoire si disponible, puis rouvre la source et la
+copie pour les comparer intégralement. Un échec de vérification après
+publication **ne supprime jamais automatiquement la destination**.
+Ne pas relancer l'opération en boucle après un résultat partiel.
+
+Résultat fort attendu :
+`ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`.
+Il prouve la création et l'égalité binaire de la copie avec la
+source lors de ce contrôle ; il ne prouve pas la pérennité NFS,
+l'indépendance physique du support, l'absence d'ACL inattendue,
+le déchiffrement age ni la restauration d'un secret SOPS.
+Un échec de `fsync` du répertoire donne
+`PUBLISHED_COPY_DIRECTORY_SYNC_UNVERIFIED`, même si
+la comparaison des octets a réussi.
+L'outil n'imprime aucun chemin, contenu, hash ou clé privée.
+
+**Qualité** : **9/9 tests locaux synthétiques PASS** pour l'outil,
+dont contrôle du montage, refus d'écraser des fichiers et liens
+symboliques, publication atomique, vérification et nettoyage du
+fichier de transit. Les sources GitHub correspondent exactement
+aux versions testées. **Le vrai précontrôle et l'écriture NFS sur
+workstation sont encore NOT_RUN**.
+
+### Après la copie
+
+1. Vérifier les ACL du répertoire et du nouveau fichier avec
+   `getfacl` localement, sans publier de contenu sensible.
+2. Vérifier que la copie reste visible côté TrueNAS et depuis NFS.
+3. Tester séparément sa récupération avec la méthode age disponible
+   dans un espace isolé.
+4. Vérifier deux moyens d'accès ou de récupération indépendants
+   avant tout provisionnement PIV82.
+
+**Statut inchangé : `NO-GO` global**, KeePassXC/OTP2 reporté,
+OpenPGP privé non prouvé, restauration réelle age/SOPS non effectuée.
