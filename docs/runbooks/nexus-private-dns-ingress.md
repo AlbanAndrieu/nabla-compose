@@ -565,6 +565,86 @@ Avant tout passage de `NEXUS_PRIVATE_INGRESS_ENABLED` à `true` :
    et impossibilité de connexion via le frontal WAN.
 
 **Aucune activation demandée ou réalisée pour cette réception.**
+## Gate 8 — `--resolve` WAN depuis le LAN ne prouve pas une ACL externe
+
+L'opérateur ne dispose pas de machine externe. Depuis la workstation
+LAN, la commande `curl --resolve nexus.int.albandrieu.com:443:82.66.4.247`
+renvoie **HTTP 404 / tls=0**. Ce test cible l'IP publique de pfSense
+mais ne garantit **pas** qu'un paquet provient du WAN : pfSense peut
+utiliser une redirection/NAT reflection ou un autre chemin local.
+En l'état, `traefik.enable="false"` et `--resolve ...:172.17.0.24`
+renvoient également 404 ; une réponse identique n'est pas la preuve
+d'un `deny` HAProxy. Noter **WAN_REJECTION_NOT_VERIFIED**.
+
+### Solution sans poste externe : examiner la politique HAProxy
+
+L'architecture déclarative mentionne pfSense HAProxy en frontal
+WAN et une ré-encryption TLS vers le Traefik partagé :443.
+Une règle **sur le frontend WAN HAProxy** qui refuse le
+`Host` privé `nexus.int.albandrieu.com` (et le SNI lorsque
+pertinent) doit empêcher l'atteinte de Traefik depuis le WAN,
+tout en autorisant un client LAN qui se connecte directement
+à `172.17.0.24:443`. Ne pas rejeter tout `*.int` :
+`s3.int.albandrieu.com` constitue une exception publique connue.
+
+Sur la workstation, si l'accès SSH habituel à pfSense est autorisé,
+afficher **uniquement les directives de routage et de refus** du
+HAProxy généré, sans afficher les certificats ou le reste de
+sa configuration :
+
+```bash
+ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s <<'PFSENSE_HAPROXY_READONLY'
+set -eu
+config=/var/etc/haproxy/haproxy.cfg
+if [ ! -r "$config" ]; then
+  echo "ERROR: HAProxy generated configuration unavailable" >&2
+  exit 2
+fi
+awk '
+  /^[[:space:]]*(frontend|listen)[[:space:]]+/ { section=$2 }
+  /^[[:space:]]*bind[[:space:]]+/ && /:443/ {
+    printf "section=%s listener_443=yes\n", section
+  }
+  /^[[:space:]]*acl[[:space:]]+/ &&
+    /nexus|hdr\(host\)|ssl_fc_sni/ {
+    printf "section=%s rule=%s\n", section, $0
+  }
+  /^[[:space:]]*http-request[[:space:]]+(deny|return)[[:space:]]+/ {
+    printf "section=%s action=%s\n", section, $0
+  }
+  /^[[:space:]]*use_backend[[:space:]]+/ &&
+    /traefik|front/ {
+    printf "section=%s backend_route=%s\n", section, $0
+  }
+' "$config"
+PFSENSE_HAPROXY_READONLY
+```
+
+Cette lecture n'affirme pas à elle seule que les règles sont
+chargées dans le processus courant. Si des noms de domaines ou
+d'ACL sont sensibles, masquer les valeurs avant partage.
+Une règle `http-request deny` doit être reliée à une ACL
+qui correspond réellement au Host/SNI privé dans le **frontend
+WAN actif**, avant sa sélection de backend. Un simple Host routé
+vers un backend par défaut ne constitue pas un refus.
+
+### Gate d'activation
+
+1. Auditer le **frontend WAN effectif** et sa règle de refus
+   ciblée Nexus, sans changer les autres exceptions.
+2. Si la règle manque, la préparer dans l'UI pfSense HAProxy
+   puis vérifier la configuration générée et la syntaxe avant
+   son application ; ne pas éditer `haproxy.cfg` à la main.
+3. Une fois le refus en place, tester la voie LAN directe avec
+   `--resolve ...:172.17.0.24`, puis éventuellement depuis
+   un téléphone en données mobiles (Wi-Fi/VPN désactivés) avec
+   un client permettant de forcer la résolution. Sans tel test,
+   le refus WAN reste fondé sur une revue de configuration,
+   et ne doit pas être déclaré validé par test externe.
+4. Activer **uniquement Nexus** via une source Compose dont
+   l'interpolation produit `traefik.enable="true"` ; vérifier
+   le rendu, puis la réconciliation TrueNAS. Le Host doit alors
+   être routable en LAN ; tester également le Nexus public.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
