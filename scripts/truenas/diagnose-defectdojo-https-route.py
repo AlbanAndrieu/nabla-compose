@@ -14,6 +14,7 @@ HTTP = f"http://{EDGE}:31085/login?next=/"
 HTTPS = f"https://{HOST}/login?next=/"
 EXPECTED = {
     "traefik.enable": "true",
+    "traefik.http.routers.defectdojo.rule": "host(`defectdojo.int.albandrieu.com`)",
     "traefik.docker.network": "traefik_network",
     "traefik.http.routers.defectdojo.entrypoints": "websecure",
     "traefik.http.routers.defectdojo.tls": "true",
