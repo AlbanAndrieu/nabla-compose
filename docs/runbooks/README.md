@@ -23,6 +23,8 @@
   commande unique, preuves JSON privées, classes FAIL/UNVERIFIED et diagnostics ciblés.
 - **[LiteLLM UI 401 / DefectDojo login / Prometheus API](2026-10-26-litellm-ui-session-defectdojo-prometheus.md)** —
   session navigateur expirée, URL login privée et diagnostic du port 9090.
+- **[27 octobre — ressources RUNNING et reprise DefectDojo/Vaultwarden/observabilité](2026-10-27-defectdojo-resources-vault-observability.md)** —
+  CPU/RAM/ZFS, couverture des conteneurs, initializer bloqué, parité et sondes H-05/H-06.
 - **[DefectDojo — mémoire TrueNAS et reset DB éventuel](2026-10-26-defectdojo-memory-db-reset.md)** —
   MemAvailable/PSI/ARC/OOM, mémoire des conteneurs, inventaire SQL en lecture seule.
 - **[Reprise Scrutiny / Prometheus (26 octobre)](2026-10-26-scrutiny-prometheus-lifecycle-recovery.md)** —
