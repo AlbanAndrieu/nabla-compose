@@ -30,6 +30,59 @@ def candidate_directories(home: Path) -> tuple[Path, ...]:
     )
 
 
+def diagnose_backup_roots(home: Path) -> dict[str, object]:
+    """Inspect directory entries only; never disclose paths or basenames.
+
+    Summaries are bounded. This does not open encrypted files or certify
+    that the mounted backup is on independent physical media.
+    """
+    reports: list[dict[str, object]] = []
+    names: list[set[str]] = []
+    for directory in candidate_directories(home):
+        report: dict[str, object] = {"state": "UNKNOWN", "age_files": 0}
+        found: set[str] = set()
+        try:
+            if any(part.is_symlink() for part in (directory, *directory.parents)):
+                report["state"] = "SYMLINK_DIRECTORY_UNTRUSTED"
+            else:
+                with os.scandir(directory) as entries:
+                    for count, entry in enumerate(entries):
+                        if count >= DISCOVERY_LIMIT:
+                            report["state"] = "TOO_MANY_ENTRIES"
+                            break
+                        if entry.name.endswith(".age") and entry.is_file(follow_symlinks=False):
+                            found.add(entry.name)
+                    else:
+                        report["state"] = "ACCESSIBLE"
+            report["age_files"] = min(len(found), DISCOVERY_LIMIT)
+        except FileNotFoundError:
+            report["state"] = "DIRECTORY_MISSING"
+        except PermissionError:
+            report["state"] = "PERMISSION_DENIED"
+        except (OSError, ValueError, UnicodeError):
+            report["state"] = "DIRECTORY_UNAVAILABLE"
+        reports.append(report)
+        names.append(found if report["state"] == "ACCESSIBLE" else set())
+    intersection = names[0] & names[1]
+    return {
+        "source_directory": reports[0],
+        "backup_directory": reports[1],
+        "matching_age_filenames": min(len(intersection), DISCOVERY_LIMIT),
+        "home_location_consistent_with_account": _home_is_account_home(home),
+        "paths_disclosed": False,
+        "files_opened": False,
+        "restoration_verified": False,
+    }
+
+
+def _home_is_account_home(home: Path) -> bool | None:
+    try:
+        import pwd
+        return home == Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return None
+
+
 def discover_pair(home: Path) -> tuple[str, tuple[Path, Path] | None]:
     """Match a single existing .age basename across the two known roots.
 
@@ -126,27 +179,35 @@ def main(argv: list[str] | None = None) -> int:
     opts.add_argument("--check", action="store_true")
     opts.add_argument("--inspect", action="store_true")
     opts.add_argument("--discover", action="store_true")
+    opts.add_argument("--diagnose", action="store_true")
     parser.add_argument("--acknowledge")
     args = parser.parse_args(argv)
-    if (args.check or args.discover) and args.acknowledge:
+    if (args.check or args.discover or args.diagnose) and args.acknowledge:
         parser.error("acknowledgment accepted only for --inspect")
     if args.inspect and args.acknowledge != ACK:
         parser.error("explicit metadata-only acknowledgment required")
+    details = None
     if args.check:
         state = "PATHS_NOT_COLLECTED"
+    elif args.diagnose:
+        state = "DIRECTORY_METADATA_ONLY"
+        details = diagnose_backup_roots(Path.home())
     elif args.discover:
         state, _ = discover_pair(Path.home())
     else:
         state = inspect(tty=os.isatty(0) and os.isatty(2))
-    print(json.dumps({
+    report = {
         "mode": "EXISTING_ESCROW_PAIR_METADATA_ONLY",
         "status": "NO-GO", "state": state,
         "paths_disclosed": False, "files_opened": False,
         "decryption_attempted": False, "independent_media_verified": False,
         "restoration_verified": False,
         "hardware_mutation_authorized": False,
-    }, sort_keys=True))
-    return 0 if state in ("PATHS_NOT_COLLECTED",
+    }
+    if details is not None:
+        report["diagnostic"] = details
+    print(json.dumps(report, sort_keys=True))
+    return 0 if state in ("PATHS_NOT_COLLECTED", "DIRECTORY_METADATA_ONLY",
                            "TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED") else 3
 
 
