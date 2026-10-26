@@ -398,3 +398,28 @@ second moyen de récupération age, toute écriture PIV82 et toute
 modification du SOPS de production. KeePassXC/OTP2 reste reporté.
 
 [Diagnostic et procédure](yubikey-software-recovery-20261026.md).
+
+## Escrow NFS — copie absente côté serveur, snapshots à examiner (26/10/2026)
+
+La workstation a validé **12/12 contrats** du probe NFS/TrueNAS ;
+`SERVER_EXPECTED_COPY_MISSING` a été observé depuis le serveur
+dans `/mnt/cpool/backup/lab/secret`. Le fichier est également absent
+de la vue cliente NFS, tandis que la source locale `.age`
+reste identifiable. **La disparition permanente n'est pas démontrée.**
+
+Nouveau jalon non destructif : `just yubikey-escrow-history-test`,
+`just yubikey-escrow-history-check`, puis
+`just yubikey-escrow-history-probe` supervisé.
+Le programme examine les métadonnées de trois racines de snapshots
+ZFS candidates, **au plus 32 entrées par racine**, sans scan récursif
+général, contenu privé ou commande ZFS à privilèges.
+**10 tests hermétiques PASS dans l'environnement agent** ;
+preuve workstation réelle `NOT_RUN`.
+
+L'ordre des opérations reste : identifier la copie/snapshot
+historique éventuel → confirmer intégrité → restaurer
+dans un espace isolé → vérifier les moyens de récupération.
+Aucun rollback ZFS, copie, changement de destinataire SOPS ni
+provisionnement PIV82 autorisé. KeePassXC/OTP2 reste différé.
+
+Voir [runbook](yubikey-software-recovery-20261026.md).
