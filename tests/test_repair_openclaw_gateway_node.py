@@ -86,6 +86,32 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertFalse(any(c[2:3] in (["start"], ["restart"], ["stop"])
                              for c in self.calls if len(c) > 2))
 
+    def test_apply_secure_dropin_with_umask_0002(self):
+        import os
+        previous = os.umask(0o002)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(mod.main(["--apply"]), 0)
+        finally:
+            os.umask(previous)
+        unit = mod.override_path()
+        self.assertEqual(unit.parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(unit.stat().st_mode & 0o777, 0o600)
+
+    def test_bash_recovery_is_explicit_and_has_no_backup_step(self):
+        import subprocess
+        script = SRC.parent / "recover-openclaw-managed-gateway.sh"
+        lint = subprocess.run(["bash", "-n", str(script)],
+                              capture_output=True, check=False, timeout=8)
+        self.assertEqual(lint.returncode, 0)
+        contents = script.read_text()
+        self.assertIn("systemctl --user stop", contents)
+        self.assertIn('fuser -s', contents)
+        self.assertIn('--no-restart', contents)
+        self.assertNotIn("backup-openclaw.sh", contents)
+        self.assertNotIn("npm install", contents)
+        self.assertNotIn("rm -rf", contents)
+
     def test_apply_does_not_duplicate_dropin(self):
         self.assertEqual(mod.main(["--apply"]), 0)
         with contextlib.redirect_stdout(io.StringIO()) as output:
