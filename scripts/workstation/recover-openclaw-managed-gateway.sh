@@ -13,7 +13,12 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPAIR="${HERE}/repair-openclaw-gateway-node.py"
 NODE="${HOME}/.local/share/mise/installs/node/24.22.1/bin/node"
 CLI="${HOME}/.local/share/mise/installs/node/24.18.1/lib/node_modules/openclaw/openclaw.mjs"
-DB="${OPENCLAW_STATE_DIR:-${HOME}/.openclaw}/state/openclaw.sqlite"
+# Preserve the account's documented state/config/workspace paths. Explicit
+# environment overrides are kept unchanged rather than using a new profile.
+export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-${HOME}/.openclaw}"
+export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-${OPENCLAW_STATE_DIR}/openclaw.json}"
+export OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${OPENCLAW_STATE_DIR}/workspace}"
+DB="${OPENCLAW_STATE_DIR}/state/openclaw.sqlite"
 UNIT=openclaw-gateway.service
 
 # Read-only checks BEFORE stopping the service.
