@@ -1058,6 +1058,7 @@ openclaw-gateway-node-test:
     python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py
     bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
     python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
+    bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
 
 # Read-only: verify 24.22.1 and service ownership before maintenance.
 openclaw-gateway-node-plan:
