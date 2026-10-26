@@ -62,12 +62,39 @@ La sortie attendue pour le test logiciel effectif est
 `piv82_decrypt_verified=false`.
 
 Le script possède **9 tests hermétiques PASS** en environnement agent
-sur copies correspondant bit-à-bit aux blobs Git publiés. Le test avec
-les vrais binaires age/SOPS n'a **pas** été exécuté par l'agent
-(ces exécutables sont absents de son environnement).
-Ce résultat devra être fourni par la workstation.
+sur copies correspondant bit-à-bit aux blobs Git publiés.
+
+**Preuve opérateur workstation reçue** : `just yubikey-software-recovery-test`
+**9/9 PASS**. Le contrôle `-check` a renvoyé
+`SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED`.
+L'exécution réelle `just yubikey-software-recovery-run` a ensuite
+renvoyé **`AGE_AND_SOPS_SYNTHETIC_ROUNDTRIP_PASS`** et
+`synthetic_software_roundtrip_verified=true` avec les vrais
+binaires du poste. Aucun secret utilisateur ni YubiKey n'a été utilisé.
+**Deux véritables archives d'escrow : toujours NOT_VERIFIED.**
 
 ## Deux escrows age réels — contrôle de métadonnées uniquement
+
+Une alternative interactive évite de placer les chemins privés dans
+l'historique du shell ou la ligne de commande d'un processus :
+
+```bash
+just yubikey-escrow-pair-test
+just yubikey-escrow-pair-check
+# Facultatif : deux vrais fichiers *.age existants, sur la workstation
+just yubikey-escrow-pair-inspect
+```
+
+La troisième recette nécessite un terminal interactif et demande les
+deux chemins absolus en **saisie masquée**. Les sorties JSON ne
+contiennent jamais les chemins. L'outil délègue à
+`inspect-yubikey-recovery-readonly.py`, qui vérifie uniquement
+les métadonnées (type de fichier, taille non nulle, inode,
+filesystem, liens symboliques) ; il n'ouvre et ne déchiffre pas les
+archives. L'état
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED` n'atteste **pas**
+l'indépendance physique des supports ni leur récupérabilité.
+Les tests de cette nouvelle recette doivent être validés sur workstation.
 
 Avec les **deux vrais chemins absolus** choisis localement par l'opérateur,
 le script déjà présent permet un inventaire de fichiers sans ouvrir
