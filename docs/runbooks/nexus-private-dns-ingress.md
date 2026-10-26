@@ -318,6 +318,73 @@ le même Host/SNI à l'ingress public. Avant d'activer la route,
 vérifier depuis un réseau externe que pfSense/HAProxy bloque
 `nexus.int.albandrieu.com`, sans toucher à
 `nexus.albandrieu.com`. Aucune activation automatique ni restart.
+## Gate 4 — provenance TrueNAS Apps confirmée par Docker
+
+**Relevé opérateur (26 octobre 2026)** :
+
+```json
+{
+  "project": "ix-nexus",
+  "service": "nexus",
+  "config_files": "/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml"
+}
+```
+
+Les labels `com.docker.compose.*` établissent que **TrueNAS Apps gère
+le conteneur Nexus** et que Docker Compose l'a créé depuis un rendu
+interne `.ix-apps`. Ce chemin n'est **pas** le Compose Git canonique
+`/mnt/cpool/compose/nabla-compose/apps/nexus/compose.yml`.
+Ne jamais éditer ou remplacer manuellement le fichier `.ix-apps` :
+il appartient au cycle de vie TrueNAS.
+
+Le chemin du rendu **ne prouve pas** si la Custom App stocke un
+`include:` vers Git ou une définition YAML autonome. Il faut
+consulter la configuration réelle, avant de choisir `app.update`
+ou `app.redeploy`. Une opération sur le dépôt seule ne modifie pas
+un conteneur existant.
+
+### Contrôle ciblé de la configuration enregistrée
+
+Sur TrueNAS, sans afficher les secrets :
+
+```bash
+# Montre uniquement les noms de propriétés de la configuration TrueNAS.
+sudo midclt call app.config nexus | jq 'keys'
+
+# Affiche uniquement les labels et réseaux du modèle Compose généré.
+CFG="/mnt/.ix-apps/app_configs/nexus/versions/1.0.0/templates/rendered/docker-compose.yaml"
+sudo docker compose -f "$CFG" config --format json |
+  jq '{services: (.services | keys),
+       nexus_labels: .services.nexus.labels,
+       nexus_networks: .services.nexus.networks}'
+
+# Vérifie le chemin Git sans écrire et sans afficher env_file.
+git -C /mnt/cpool/compose/nabla-compose status --short -- apps/nexus/compose.yml
+```
+
+Utiliser `set -o pipefail` en session Bash si nécessaire : un
+`docker compose config` en erreur ne doit pas être considéré
+comme preuve d'absence de labels. La configuration rendue peut
+intégrer des fichiers sensibles ; ne pas afficher son contenu
+intégral, `.Config.Env`, les valeurs `env_file` ou l'intégralité
+de `app.config`.
+
+**Décision selon résultats :**
+
+- `include` enregistré vers `apps/nexus/compose.yml` : vérifier
+  d'abord la version exacte du fichier sur TrueNAS et le rendu
+  de l'opt-in (défaut `false`), puis planifier une réconciliation
+  **de l'application Nexus seule**.
+- Aucun `include` enregistré : migrer la configuration **de la
+  Custom App TrueNAS** vers un wrapper `include` approuvé, après
+  revue de la configuration déployée et sauvegarde de retour arrière.
+- Labels présents dans Compose rendu mais absents du conteneur :
+  écart de cycle de vie ; un redéploiement ciblé peut être pertinent
+  après validation de l'impact et du rollback.
+
+Dans tous les cas, ne pas activer le routeur privé avant la preuve
+que le frontal WAN refuse le Host/SNI `nexus.int.albandrieu.com`.
+Ne pas modifier les routes de `nexus.albandrieu.com`.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
