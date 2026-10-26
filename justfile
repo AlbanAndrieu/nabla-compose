@@ -925,6 +925,15 @@ truenas-defectdojo-db-reset-plan:
 truenas-defectdojo-memory-test:
     python3 -m pytest -q tests/test_defectdojo_memory_pressure.py tests/test_defectdojo_db_reset_inventory.py
 
+# One-shot private Backstage-aligned RAM/GPU/ZFS resource inventory (never runs in CI).
+truenas-service-resources:
+    sudo install -d -o root -g root -m 0700 /mnt/cpool/var/nabla/service-resources
+    sudo python3 scripts/truenas/collect-service-resource-evidence.py --check --host truenas --output "/mnt/cpool/var/nabla/service-resources/resources-$(date -u +%Y%m%dT%H%M%SZ).json"
+
+# Hermetic resource identity/memory/storage/GPU contracts; no LAN or Docker.
+truenas-service-resources-test:
+    python3 -m pytest -q tests/test_service_resource_evidence.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
