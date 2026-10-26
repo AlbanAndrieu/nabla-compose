@@ -34,11 +34,11 @@ def test_origin_ok_https_failed_points_to_traefik(monkeypatch):
         calls.append(command)
         if command[0] == "curl":
             return (0, "302|text/html|0") if command[-1] == MODULE.HTTP else (0, "404|text/html|0")
-        if ".State.Status" in command:
+        if any(".State.Status" in token for token in command):
             return 0, "running"
-        if ".NetworkSettings.Networks" in command:
+        if any(".NetworkSettings.Networks" in token for token in command):
             return 0, '{"traefik_network":{}}'
-        if ".Config.Labels" in command:
+        if any(".Config.Labels" in token for token in command):
             return 0, '{"traefik.enable":"true"}'
         return 2, ""
 
