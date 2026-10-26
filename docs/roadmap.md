@@ -24,6 +24,33 @@ est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
 leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
 pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
+## P0 — TrueNAS redevient réactif après arrêt de Netdata (26 octobre)
+
+**Observation opérateur :** Netdata a été arrêté, puis TrueNAS a
+recommencé à répondre. Cette chronologie suggère une pression sur
+l'hôte, mais ne permet pas d'attribuer l'OOM, le ralentissement ou
+un blocage I/O à Netdata seul. Aucun prélèvement avant son arrêt
+n'est disponible.
+
+- [x] **Code de diagnostic :** nouveau
+  `scripts/truenas/diagnose-truenas-pressure.py` :
+  double snapshot MemAvailable, CPU/memory/I/O PSI,
+  événements `oom_kill`, swap, direct reclaim et
+  ZFS ARC, puis classement des conteneurs Docker par CPU et
+  mémoire avec timeout. Mode `--skip-docker` pour une machine
+  déjà en forte contention ; aucune mutation.
+- [x] **Qualité locale :** 15/15 tests hermétiques PASS sur
+  l'environnement agent ; exécution sur TrueNAS **NOT_VERIFIED**.
+- [ ] **Réception LAN :** baseline hôte pendant que Netdata reste
+  arrêté, classement Docker lorsque TrueNAS répond, puis revue
+  des processus QEMU et des latences ZFS.
+- [ ] **Cause racine :** confirmer ou écarter pression mémoire,
+  swap/OOM, I/O stall et charge CPU ; distinguer limitation
+  conteneur et pression physique. Aucune réduction ARC ni
+  suppression de service sans preuve.
+
+[Runbook TrueNAS / Netdata](runbooks/truenas-host-service-pressure-20261026.md).
+
 ## Priorités opérationnelles et preuves
 
 | Ordre | Domaine | Contrôle à valider | État |
