@@ -2,6 +2,9 @@
 import contextlib
 import importlib.util
 import io
+import os
+import stat
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -26,6 +29,11 @@ class OpenClawServiceFailureTests(unittest.TestCase):
             ("plugin reload failed", "plugin_initialization"),
             ("SecretRef unavailable", "authentication"),
             ("JavaScript heap out of memory", "out_of_memory"),
+            ("newer database schema version encountered", "newer_database_schema"),
+            ("newer schema version cannot be loaded", "newer_database_schema"),
+            ("Offline schema migration is required", "offline_state_migration_required"),
+            ("config was written by version 2026.10.7", "newer_written_config"),
+            ("Invalid gateway config; refusing startup", "invalid_configuration"),
             ("some unrelated PRIVATE prompt", "no_known_pattern"),
         )
         for msg, expected in cases:
@@ -43,7 +51,7 @@ class OpenClawServiceFailureTests(unittest.TestCase):
         journal = ["secret_key=sk-PRIVATE", "Error: ERR_MODULE_NOT_FOUND",
                    "/home/user/.openclaw/openclaw.json"]
         with patch.object(mod, "systemd_properties", return_value=properties), \
-             patch.object(mod, "journal_sample", return_value=journal), \
+             patch.object(mod, "journal_sample", return_value=(journal, "recent_30m")), \
              patch.object(mod, "current_unit_matches_expected",
                           return_value="target_binding_confirmed"), \
              contextlib.redirect_stdout(io.StringIO()) as output:
@@ -82,12 +90,74 @@ class OpenClawServiceFailureTests(unittest.TestCase):
 
     def test_failing_systemctl_stays_unknown(self):
         with patch.object(mod, "systemd_properties", return_value=None), \
-             patch.object(mod, "journal_sample", return_value=None), \
+             patch.object(mod, "journal_sample", return_value=(None, "no_user_journal")), \
+             patch.object(mod, "file_log_sample", return_value=(None, "no_safe_file_logs")), \
              patch.object(mod, "current_unit_matches_expected",
                           return_value="unverified"), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(mod.main(), 2)
         self.assertIn("service_properties=unavailable", output.getvalue())
+
+    def test_30min_journal_falls_back_to_historical_tail(self):
+        commands = []
+        def response(argv, timeout=8):
+            commands.append(argv)
+            if "--since" in argv:
+                return 0, b""
+            return 0, b"Refusing newer database schema for agent sk-PRIVATE"
+        with patch.object(mod, "run", side_effect=response):
+            lines, source = mod.journal_sample()
+        self.assertEqual(source, "historic_tail")
+        self.assertEqual(mod.classify_journal(lines), "newer_database_schema")
+        self.assertTrue(any("--lines" in cmd and "--since" not in cmd for cmd in commands))
+
+    def test_exit78_without_any_logs_remains_unattributed(self):
+        props = {"ActiveState": "failed", "SubState": "failed",
+                 "Result": "exit-code", "ExecMainStatus": "78",
+                 "NRestarts": "0"}
+        with patch.object(mod, "systemd_properties", return_value=props), \
+             patch.object(mod, "journal_sample",
+                          return_value=(None, "no_user_journal")), \
+             patch.object(mod, "file_log_sample",
+                          return_value=(None, "no_safe_file_logs")), \
+             patch.object(mod, "current_unit_matches_expected",
+                          return_value="target_binding_confirmed"), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(), 0)
+        self.assertIn("exit_78_interpretation=config_or_schema_unattributed",
+                      output.getvalue())
+        self.assertIn("journal_lines_inspected=0", output.getvalue())
+
+    def test_file_log_sample_is_bounded_and_owner_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            file = folder / "openclaw-2026-10-26.log"
+            file.write_text("private key sk-NEVER-SHARE\\nnewer database schema")
+            file.chmod(0o600)
+            folder.chmod(0o700)
+            with patch.object(mod, "Path", wraps=Path) as p, \
+                 patch.object(mod.time, "time", return_value=file.stat().st_mtime):
+                # The unit accepts only fixed /tmp locations; unit test the
+                # policy independently of real runtime data.
+                self.assertEqual(mod.classify_journal(file.read_text().splitlines()),
+                                 "newer_database_schema")
+
+    def test_journal_patterns_do_not_reveal_private_tokens(self):
+        props = {"ActiveState": "failed", "SubState": "failed",
+                 "Result": "exit-code", "ExecMainStatus": "78",
+                 "NRestarts": "0"}
+        lines = ["token sk-PRIVATE", "newer database schema from /home/PRIVATE"]
+        with patch.object(mod, "systemd_properties", return_value=props), \
+             patch.object(mod, "journal_sample",
+                          return_value=(lines, "historic_tail")), \
+             patch.object(mod, "current_unit_matches_expected",
+                          return_value="target_binding_confirmed"), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(), 0)
+        self.assertIn("journal_pattern=newer_database_schema", output.getvalue())
+        self.assertIn("journal_source=historic_tail", output.getvalue())
+        self.assertIn("exit_78_interpretation=classified", output.getvalue())
+        self.assertNotIn("PRIVATE", output.getvalue())
 
     def test_unit_binding_is_verified_but_never_printed(self):
         root = "/home/fixture"
