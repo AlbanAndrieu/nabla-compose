@@ -56,5 +56,8 @@ if python3 "${HERE}/diagnose-openclaw-gateway-readiness.py"; then
   echo "model_requests_sent=0"
   exit 0
 fi
-echo "gateway_start_once=active_but_unready"
+# Distinguish genuinely absent TCP listener from an HTTP-ready Gateway
+# that only has pending startup, channel or browser UI admission.
+python3 "${HERE}/diagnose-openclaw-gateway-listener.py" || true
+echo "gateway_start_once=active_but_http_not_verified"
 exit 2
