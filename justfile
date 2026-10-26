@@ -817,6 +817,16 @@ migration-session-triage-test:
     python3 -m py_compile scripts/truenas/triage-migration-session.py tests/test_migration_session_triage.py
     python3 -m unittest discover -s tests -p 'test_migration_session_triage.py' -v
 
+# Unified, redacted H-05/H-06 report: LAN-only; never restarts services.
+# Exit 0 = PASS, 1 = confirmed scrape/metadata fault, 2 = UNVERIFIED.
+observability-evidence-lan:
+    sudo python3 scripts/truenas/collect-observability-evidence.py --check --scope remaining --observe-seconds 20 --report-dir /mnt/cpool/var/nabla/observability
+
+# No LAN or Docker required: synthetic Prometheus/Akvorado contract checks.
+observability-evidence-test:
+    python3 -m unittest discover -s tests -p 'test_collect_observability_evidence.py' -v
+    python3 -m pytest -q tests/test_prometheus_failed_scrapes_diagnostic.py tests/test_akvorado_flow_deltas.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
