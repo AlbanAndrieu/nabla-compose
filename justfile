@@ -903,6 +903,18 @@ defectdojo-private-route-check:
 defectdojo-recovery-test:
     python3 -m pytest -q tests/test_defectdojo_existing_admin_reconcile.py tests/test_defectdojo_https_route_triage.py tests/test_defectdojo_runtime_credential_contract.py
 
+# Investigate TrueNAS memory pressure, ZFS ARC and DefectDojo container working sets.
+truenas-defectdojo-memory-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-memory-pressure.py --check --observe-seconds 20
+
+# Inspect only the DefectDojo database in shared PostgreSQL (no DROP/CREATE).
+truenas-defectdojo-db-reset-plan:
+    sudo python3 scripts/truenas/inspect-defectdojo-db-reset.py --check
+
+# Fixture-only tests: no Docker, SQL, LAN or TrueNAS API calls.
+truenas-defectdojo-memory-test:
+    python3 -m pytest -q tests/test_defectdojo_memory_pressure.py tests/test_defectdojo_db_reset_inventory.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
