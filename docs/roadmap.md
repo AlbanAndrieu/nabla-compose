@@ -294,27 +294,38 @@ Actions :
   **une relance bornée**, warning si récupérée, erreur si
   classification toujours absente. Ne pas changer Alloy sur la
   seule preuve du premier essai.
-  Tester localement `just crowdsec-loki-evidence-test`
-  (**5 nouveaux contrats, NOT_RUN sur le dernier HEAD**).
+  **Preuve opérateur ultérieure :**
+  `just crowdsec-loki-evidence-test` **5/5 PASS** ;
+  `just nexus-private-ingress-test` **4/4 PASS**.
+  Loki `sum by (device) (count_over_time({job="pfsense",app!="nabla-smoke"}[30m]))`
+  retourne **1 247 événements, tous agrégés dans la série
+  `device=pfsense`** sur la fenêtre observée. La classification
+  canonique fonctionne dans ce relevé ; ne pas modifier Alloy.
+  La cause de l'échec ponctuel précédent reste inconnue ; conserver
+  la relance bornée et surveiller sa classe de résultat.
+  Tests exécutés dans le checkout de l'opérateur, **pas
+  automatiquement sur chaque nouveau HEAD concurrent**.
   [Runbook CrowdSec](../apps/crowdsec/README.md).
 
 - [ ] **H-04 / CrowdSec central TrueNAS → pfSense Small :**
   architecture déjà déclarée dans `apps/crowdsec/compose.yml`
   (moteur central v1.8.1 + LAPI LAN `172.17.0.24:8084` ;
   scénario `firewallservices/pf-scan-multi_ports` désactivé).
-  **État runtime non vérifié dans cette reprise** ; le fait qu'un
-  conteneur soit RUNNING ne valide ni l'ingestion Loki, ni les
-  décisions, ni le bouncer pfSense. Vérifier sur TrueNAS :
-  `sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime`,
-  puis `--check` seulement si le runtime est sain. Vérifier depuis la
-  workstation `bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight`.
+  **Preuves runtime disponibles, cutover toujours bloqué :**
+  TrueNAS app RUNNING/healthy, LAPI `:8084` OK, scénario risqué
+  désactivé, Loki `device=pfsense` confirmé par 1 247 événements ;
+  `--runtime` avait néanmoins échoué une fois lors de la vérification
+  Loki. `--check` échoue sur le secret absent/illisible ; bouncer
+  central inscrit sans `last_pull`. Côté pfSense, `--preflight`
+  confirme moteur local encore actif, bouncer connecté à
+  `172.17.0.1:8089` et tables PF actives. Rejouer `--runtime`
+  après intégration de la relance bornée, sans modifier de service.
   Ne basculer qu'après confirmation de la clé existante
   `BOUNCER_KEY_PFSENSE_FIREWALL` (valeur non affichée), de l'identité
   du bouncer et de la connectivité LAPI depuis pfSense.
-  **Ne pas relancer le moteur local** sur le Netgate 1100 ; garder
-  le bouncer désactivé si l'API distante ou les ressources sont
-  insuffisantes. Une fenêtre de bascule explicite et un rollback
-  sont requis. Réception : diagnostic TrueNAS `--accept` et
+  **Ne pas arrêter le moteur ni le bouncer local actuellement
+  actifs** avant d'avoir une API distante authentifiée et un rollback
+  prêt. Une fenêtre de bascule explicite est requise. Réception : diagnostic TrueNAS `--accept` et
   workstation `--accept` (tables PF et `last_pull`), sans générer
   de nouvelle clé ni publier le port 8084 sur WAN.
   [Guide central CrowdSec](../apps/crowdsec/README.md).
