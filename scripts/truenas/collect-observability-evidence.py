@@ -86,7 +86,9 @@ def state_for_akvorado(kind: str) -> str:
 
 
 def collect(scope: str, observe_seconds: int) -> dict[str, object]:
-    jobs = PROM.REMAINING_JOBS if scope == "remaining" else PROM.JOBS
+    jobs = (PROM.REMAINING_JOBS if scope == "remaining" else
+            PROM.JOBS if scope == "baseline" else
+            tuple(dict.fromkeys((*PROM.JOBS, *PROM.REMAINING_JOBS))))
     report: dict[str, object] = {
         "schema": "nabla-observability-evidence/v1",
         "observed_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -142,6 +144,12 @@ def collect(scope: str, observe_seconds: int) -> dict[str, object]:
         else "PASS" if all(value == "PASS" for value in statuses)
         else "UNVERIFIED"
     )
+    report["acceptance"] = {
+        "prometheus_scrapes": report["prometheus"]["status"],
+        "akvorado_flow_pipeline": report["akvorado"]["status"],
+        "akvorado_sql_rows": "NOT_VERIFIED",
+        "note": "Scrape health and Akvorado counters are not SQL row proof",
+    }
     return report
 
 
@@ -176,7 +184,7 @@ def save_private_report(directory: Path, report: dict[str, object]) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True)
-    parser.add_argument("--scope", choices=("remaining", "baseline"), default="remaining")
+    parser.add_argument("--scope", choices=("remaining", "baseline", "all"), default="remaining")
     parser.add_argument("--observe-seconds", type=int, default=15)
     parser.add_argument("--report-dir", type=Path)
     args = parser.parse_args()
