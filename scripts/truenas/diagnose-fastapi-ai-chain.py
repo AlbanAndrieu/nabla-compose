@@ -21,7 +21,7 @@ SOURCES = {
 }
 SERVICES = frozenset(("litellm", "ollama", "openrag_backend", "openrag_search", "openrag_mcp"))
 HTTP_CODES = frozenset(("http_200", "http_400", "http_401", "http_403", "http_404", "http_405", "unverified"))
-SSH_TARGET = re.compile(r"[a-z_][a-z0-9_-]{0,31}@172[.]17[.]0[.]24\\Z")
+SSH_TARGET = re.compile(r"[a-z_][a-z0-9_-]{0,31}@172[.]17[.]0[.]24\Z")
 MAX_RUNTIME_REPORT = 4096
 READ_ONLY_PROBE = r'''
 import json, urllib.request, urllib.error
