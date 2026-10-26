@@ -82,6 +82,36 @@ Ne pas afficher la clé dans GitHub, ChatGPT, Slack, une URL ou des logs.
 Tant que l'état source est en échec, ne pas utiliser `--apply`, ne pas
 recréer FastAPI et ne pas tenter le redéploiement de Prometheus.
 
+## Preuve contradictoire du 26 octobre — source absente puis visible
+
+L'opérateur signale deux fois `source_file_missing` sur le provisionneur,
+puis `sudo stat` signale le fichier absent tandis qu'un `ls -l` voit
+ensuite un fichier **root:root, 0600, 6496 octets** dans le chemin
+attendu. Il est **interdit d'inférer la présence de la clé, une panne ZFS
+ou une erreur de droits** à partir de ces relevés non simultanés.
+
+Faire d'abord les trois contrôles **dans la même session SSH TrueNAS**,
+depuis le worktree à jour, sans afficher le contenu du fichier :
+
+```bash
+hostname
+sudo stat -c 'type=%F uid=%u gid=%g mode=%a links=%h size=%s' \
+  /mnt/cpool/secrets/runtime/sample/.env.secrets
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+Si `stat` trouve le fichier mais `--check` le considère toujours absent,
+vérifier que le Python exécuté et le chemin canonique correspondent,
+puis rechercher une variation du mountpoint (pas de restart/reboot).
+Si la source est validée, le script doit produire un **état de destination**
+tel que `credential_not_installed` ou `credential_ready`.
+
+Il ne faut pas exécuter le provisionneur depuis le système de fichiers
+de la workstation en pensant inspecter celui de TrueNAS. Le port SSH
+défini sur la workstation est `9922` ; ouvrir d'abord une session SSH
+vers `albandrieu@172.17.0.24` pour identifier sans ambiguïté l'hôte
+d'exécution. Les valeurs de clés restent toujours privées.
+
 ## Procédure TrueNAS
 
 Le checkout Compose doit inclure les changements de la PR #280.
