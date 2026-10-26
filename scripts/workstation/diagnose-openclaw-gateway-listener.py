@@ -117,7 +117,10 @@ def http_status(route):
         raise ValueError("unsupported_route")
     path = "/" + route if route else "/"
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    request = Request(BASE + path, method="GET")
+    # Browser navigation requests include HTML Accept. A headerless curl
+    # can receive a different SPA fallback response on a deep link.
+    headers = {"Accept": "text/html"} if route in ("", "chat/main") else {}
+    request = Request(BASE + path, headers=headers, method="GET")
     try:
         # We need only the status, and never read the body.
         with opener.open(request, timeout=2) as response:
@@ -170,12 +173,13 @@ def classify(state, scope, answers):
         return "ui_auth_required"
     if answers[""] == "404" or answers[""].startswith("5"):
         return "ui_root_not_served"
-    if answers["chat/main"] == "404":
-        return "possibly_stale_chat_deeplink"
     if answers["startupz"] != "200":
         return "startup_pending"
     if answers["readyz"] != "200":
         return "admission_unready"
+    # A single deep-link 404 never negates a healthy Gateway and UI root.
+    if answers["chat/main"] == "404":
+        return "gateway_http_available_chat_deeplink_404"
     return "gateway_http_available"
 
 
@@ -200,7 +204,8 @@ def main():
     print("state_or_raw_process_output_printed=false")
     # The UI root may require login; a 401/403 is proof of an HTTP listener
     # but not a healthy authenticated chat.
-    return 0 if verdict == "gateway_http_available" else 2
+    return 0 if verdict in ("gateway_http_available",
+                            "gateway_http_available_chat_deeplink_404") else 2
 
 
 if __name__ == "__main__":
