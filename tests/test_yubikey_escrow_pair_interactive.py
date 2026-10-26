@@ -208,7 +208,7 @@ class Contracts(unittest.TestCase):
         from subprocess import CompletedProcess
         with patch.object(module.subprocess, "run",
                 return_value=CompletedProcess([], 0,
-                    "/media/backup/lab nfs4\\n", "")) as runner:
+                    "/media/backup/lab nfs4\n", "")) as runner:
             self.assertEqual(module.classify_backup_mount(),
                              "EXPECTED_NFS4_MOUNT_PRESENT")
         self.assertEqual(runner.call_args.args[0],
@@ -219,8 +219,8 @@ class Contracts(unittest.TestCase):
 
     def test_mount_probe_refuses_parent_root_or_unexpected_target(self):
         from subprocess import CompletedProcess
-        for output in ("/ ext4\\n", "/media/backup nfs4\\n",
-                       "/media/backup/lab/secret nfs4\\n"):
+        for output in ("/ ext4\n", "/media/backup nfs4\n",
+                       "/media/backup/lab/secret nfs4\n"):
             with self.subTest(output=output), patch.object(module.subprocess,"run",
                     return_value=CompletedProcess([],0,output,"")):
                 self.assertEqual(module.classify_backup_mount(),
@@ -229,8 +229,8 @@ class Contracts(unittest.TestCase):
     def test_mount_probe_non_nfs_or_malformed_fails_to_claim_nfs(self):
         from subprocess import CompletedProcess
         for output,expected in (
-            ("/media/backup/lab ext4\\n", "EXPECTED_TARGET_NON_NFS_FILESYSTEM"),
-            ("/media/backup/lab nfs4\\n/more ext4\\n", "MOUNT_UNVERIFIED"),
+            ("/media/backup/lab ext4\n", "EXPECTED_TARGET_NON_NFS_FILESYSTEM"),
+            ("/media/backup/lab nfs4\n/more ext4\n", "MOUNT_UNVERIFIED"),
             ("", "MOUNT_UNVERIFIED"),
         ):
             with self.subTest(expected=expected), patch.object(module.subprocess,"run",
