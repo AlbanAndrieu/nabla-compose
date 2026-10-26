@@ -67,7 +67,10 @@ class Contracts(unittest.TestCase):
 
     def test_input_interrupt_never_raises(self):
         for exc in (EOFError, KeyboardInterrupt, OSError):
-            with self.subTest(exc=exc), patch.object(module.getpass, "getpass", side_effect=exc):
+            with self.subTest(exc=exc), \
+                 patch.object(module, "discover_pair",
+                              return_value=("DISCOVERY_NO_MATCHING_PAIR", None)), \
+                 patch.object(module.getpass, "getpass", side_effect=exc):
                 self.assertEqual(module.inspect(tty=True), "INPUT_UNAVAILABLE")
 
     def test_main_redacts_paths_and_never_claims_independent_media(self):
