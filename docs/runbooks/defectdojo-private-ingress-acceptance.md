@@ -2,6 +2,32 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Évidence LAN à 20:51 CET le 26 octobre 2026
+
+Les deux requêtes DNS ont réussi :
+`dig @172.17.0.1` et `dig @172.17.0.24` pour
+`defectdojo.int.albandrieu.com` renvoient toutes deux
+`NOERROR A 172.17.0.24`. Le serveur Nginx direct
+`http://172.17.0.24:31085/` répond. En revanche,
+`https://defectdojo.int.albandrieu.com/` reste inaccessible
+depuis la workstation. **Ne pas corriger le DNS** sur cette preuve.
+
+Le nouveau script
+`sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check`
+sépare l'origine HTTP et HTTPS TLS/SNI vers l'adresse LAN, l'état
+du conteneur Traefik, les labels de routage et le réseau Docker
+`traefik_network`. Il catégorise `TLS_CERTIFICATE_UNTRUSTED`,
+`ROUTER_OR_PATH_NOT_FOUND`, `TRAEFIK_UPSTREAM_UNAVAILABLE`
+ou `TCP_TLS_UNREACHABLE` sans divulguer le certificat ou des
+en-têtes privés. Le résultat nécessite une exécution LAN ;
+le seul DNS OK n'atteste pas le port 443 ni un certificat valable.
+
+Le mot de passe `admin` est indépendant : modifier
+`DD_ADMIN_PASSWORD` dans `.env.secrets` ne met pas à jour le
+hash PostgreSQL. Voir le [runbook du compte Django](defectdojo-admin-access-recovery.md)
+pour vérifier/synchroniser le compte existant, puis contrôler
+Vaultwarden.
+
 ## Vérification du login privé (26 octobre 2026)
 
 L'ancienne preuve de transport était HTTP 200 après redirection avec
