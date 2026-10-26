@@ -258,6 +258,22 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Code — dernière réception TrueNAS (26 octobre 2026)
+
+- Fichier `/mnt/cpool/secrets/runtime/code/.env.secrets` :
+  UID/GID `0:0`, mode `0600`, taille `39` octets.
+- Dry-run depuis **ce fichier canonique** : `mapped=1/1`,
+  clé acceptée par l'importeur, sans divulgation de valeur.
+- Gate `--check code` : Backstage/dataset PASS ; arrêt sur le
+  comparateur dotenv car Python système n'a pas `python-dotenv`.
+  PR #285 corrige le fallback avec le venv de `SUDO_USER` non-root.
+- Risque résiduel : `.env` staged peut contenir l'ancien
+  `CODE_PASSWORD` alors que le legacy `.env` a été nettoyé.
+  Comparer les sources avant toute correction ciblée ;
+  **ne pas utiliser `--restage code`**.
+- Élément Vaultwarden `nabla/prod/code` absent au dernier contrôle ;
+  import `--apply` distinct, après revue de la source.
+  Pas de rotation, de finalisation ni de redeploy.
 ## Code / secret migration — dernier changement déclaré (26 octobre)
 
 - **Tests validés sur TrueNAS :** comparateur + renderer de secrets
