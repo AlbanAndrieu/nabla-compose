@@ -519,3 +519,87 @@ ou exports peuvent contenir la copie historique.
 La vérification des copies et de leur déchiffrement est un jalon
 distinct, prérequis avant toute écriture PIV82. KeePassXC/OTP2
 reste différé à la demande de l'opérateur.
+
+## Absence côté NFS et serveur — inspection bornée des snapshots ZFS
+
+**Preuve opérateur confirmée (26/10/2026)**, HEAD workstation
+`72bf9956` : `just yubikey-escrow-nfs-test` **12/12 PASS** ;
+`just yubikey-escrow-nfs-check` :
+`mount_state=EXPECTED_NFS_EXPORT_MOUNTED`,
+`source_state=SOURCE_UNIQUE_AGE_FOUND`.
+Le probe SSH autorisé a renvoyé
+`server_state=SERVER_EXPECTED_COPY_MISSING`,
+`server_age_files=0`, `archive_opened=false`,
+`remote_write_performed=false`.
+
+La copie attendue n'est donc pas visible dans
+`/mnt/cpool/backup/lab/secret` sur le serveur au moment du probe.
+Cette réponse n'exclut pas un autre dataset ou un snapshot historique.
+Aucune preuve de suppression définitive, aucune restauration.
+
+### Recherche limitée aux emplacements ZFS connus
+
+Nouveau programme :
+`scripts/workstation/inspect-yubikey-escrow-nfs-history.py`.
+Il vérifie d'abord le montage NFS et **l'unique nom `.age`** de
+l'origine locale. En mode opt-in, il passe un script Python via
+l'entrée standard de SSH vers TrueNAS. Le script vérifie exclusivement
+les métadonnées du même nom dans ces chemins de snapshots :
+
+- snapshots du dataset `/mnt/cpool/backup/lab`,
+  sous-répertoire `secret` ;
+- snapshots du parent `/mnt/cpool/backup`,
+  sous-répertoire `lab/secret` ;
+- snapshots du pool `/mnt/cpool`,
+  sous-répertoire `backup/lab/secret`.
+
+Il ne descend pas dans d'autres datasets, ne recherche pas
+récursivement toutes les archives et n'inspecte **au maximum
+que 32 entrées par racine de snapshots**. Il refuse les chemins de
+snapshot symboliques. Il n'ouvre aucune archive, n'exécute pas
+`zfs rollback`, `zfs list`, `zfs send`, `cp` ou `sudo`.
+Il ne modifie ni le serveur ni les YubiKeys.
+
+```bash
+cd ~/w/nabla-compose
+git fetch origin fix/code-password-dotenv-fixture-20261026
+# Dans le worktree de PR #285 déjà sélectionné :
+git merge --ff-only origin/fix/code-password-dotenv-fixture-20261026
+
+just yubikey-escrow-history-test
+just yubikey-escrow-history-check
+
+# Si le check confirme le montage et l'unique source locale :
+just yubikey-escrow-history-probe
+```
+
+Les seuls résultats retournés concernent le nombre de snapshots
+examinés, le nombre de copies candidates et la disponibilité des
+trois racines : **aucun nom de snapshot, nom d'archive, chemin
+individuel, clé age ou sortie SSH brute n'est révélé**.
+
+| `state` | Interprétation |
+| --- | --- |
+| `SNAPSHOT_CANDIDATE_FOUND` | Au moins un fichier régulier non vide portant le nom attendu a été repéré dans les snapshots examinés, **sans preuve d'intégrité ni de déchiffrement** |
+| `NO_CANDIDATE_IN_CHECKED_SNAPSHOTS` | Aucun candidat dans les chemins examinés ; **ne prouve pas** l'absence de copies ailleurs |
+| `SNAPSHOT_HISTORY_INCOMPLETE` | Analyse partielle (permissions, limite de 32 entrées, erreur de parcours) ; ne pas conclure à l'absence |
+| `SNAPSHOT_HISTORY_UNAVAILABLE` | Aucun dossier de snapshot connu accessible ; examiner le dataset et la visibilité `.zfs` |
+| `SSH_HISTORY_UNAVAILABLE` | SSH ou sortie distante non validés ; aucun résultat historique fiable |
+
+Même `SNAPSHOT_CANDIDATE_FOUND` maintient
+`status=NO-GO`, `archive_opened=false`,
+`restore_verified=false` et
+`hardware_mutation_authorized=false`.
+Un résultat positif conduira à un plan de récupération supervisée
+**dans une nouvelle destination protégée**, sans rollback ZFS.
+Ne pas publier les secrets ni tenter de restauration automatique.
+
+**Qualité :** **10/10 tests hermétiques PASS en environnement agent**,
+y compris simulation des snapshots présents/absents et refus des
+liens symboliques. Exécution sur workstation et interrogation des
+snapshots réels encore `NOT_RUN`.
+
+**Maintien des contraintes** : ne pas reprogrammer OTP2/KeePassXC
+(reporté), ne pas modifier PIV9A, PIV82, les destinataires SOPS ou
+les bases existantes. Le logiciel age/SOPS synthétique a déjà
+fait son roundtrip ; les vrais escrows restent non restaurés.
