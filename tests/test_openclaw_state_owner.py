@@ -57,7 +57,7 @@ class OwnerEvidenceContracts(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(mod.main(), 0)
         text = output.getvalue()
-        self.assertIn("sqlite_owner_diagnosis=logged_holder_still_has_state_file_open", text)
+        self.assertIn("state_owner_diagnosis=logged_holder_still_has_state_file_open", text)
         self.assertIn("logged_holder_process=gateway_process", text)
         for secret in ("PRIVATE", "sk-", "/home", "3713"):
             self.assertNotIn(secret, text)
