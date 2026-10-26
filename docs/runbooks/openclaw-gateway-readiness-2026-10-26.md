@@ -169,3 +169,75 @@ Documentation OpenClaw :
 - https://docs.openclaw.ai/reference/database-schemas/versioning
 - https://docs.openclaw.ai/cli/gateway/running
 - https://docs.openclaw.ai/help/faq/logging-and-debugging
+
+
+## 23:31 — Historique journald sans signature reconnue
+
+Dernières preuves Workstation : **12/12 tests PASS** puis
+`service_state=failed`, `service_result=exit-code`,
+`service_exit_status=78`,
+`service_target_binding=target_binding_confirmed`,
+`journal_source=historic_tail`, `journal_lines_inspected=240`,
+`journal_pattern=no_known_pattern`,
+`exit_78_interpretation=config_or_schema_unattributed`.
+
+Cela confirme que le diagnostic a analysé 240 lignes historiques sans
+trouver de signature connue. **Il ne confirme pas la cause du code 78.**
+Ne pas recommencer la migration, ne pas éditer les bases et ne pas
+relancer le Gateway à l'aveugle.
+
+### Attribution via Doctor en lecture seule
+
+La documentation officielle recommande `openclaw doctor --lint --json`
+pour inspecter la configuration et les schémas sans appliquer de
+modifications. Contrairement à `openclaw doctor` seul ou
+`doctor --non-interactive`, le mode `--lint` interdit les migrations
+et corrections implicites. Voir :
+https://docs.openclaw.ai/cli/doctor/lint et
+https://docs.openclaw.ai/cli/doctor/running.
+
+Une nouvelle recette `just openclaw-gateway-doctor-lint` exécute cette
+commande avec `node@24.22.1` et le `openclaw.mjs` déjà validé de
+l'installation `2026.10.7`. Elle ne publie que les champs de
+diagnostic structurés, regroupés par `checkId` :
+`gateway_config`, `schema_migration`, `plugin`,
+`auth`, `session_storage` ou `other`, ainsi que les comptes
+de résultats et `doctor_ok`. Les messages, noms de comptes,
+fichiers privés, `fixHint` et sorties brutes sont volontairement
+ignorés.
+
+Les données de configuration utilisées sont les chemins de
+l'environnement courant (avec des valeurs par défaut correspondant
+aux chemins habituels sous `~/.openclaw`). S'il existe des
+surcharges `EnvironmentFile` propres à systemd non reproduites dans
+ce shell, le lint pourrait ne pas refléter exactement le contexte
+du service. Dans ce cas, il faut vérifier séparément la parité
+d'environnement **sans publier les secrets**.
+
+Commande Workstation :
+
+```bash
+python3 -m unittest discover -s tests \
+  -p 'test_openclaw_gateway_doctor_lint.py' -v
+just openclaw-gateway-doctor-lint
+```
+
+Le rapport Doctor complet peut contenir des valeurs sensibles : ne pas
+le copier dans la PR ou la conversation. La recette imprime uniquement
+les catégories prédéfinies. Aucun `doctor --fix`, aucun modèle LLM,
+aucun redémarrage ni installation npm n'est déclenché.
+
+### Sauvegarde existante (ne pas restaurer sans décision explicite)
+
+Avant la tentative de migration, l'opérateur a créé et vérifié
+`~/Backups/openclaw/openclaw-20261026T000901Z-1138514.tar.gz`
+(`files=107003`, empreinte SHA-256
+`c9c6d6fff132924de7b83aa8d2f7c2af8e470520fdf517b780a4be5b76748882`),
+puis a effectué une copie sous
+`/media/backup/lab/infra/openclaw/`.
+La copie hors répertoire initial n'a pas fait l'objet d'une
+vérification SHA-256 transmise. Aucune nouvelle sauvegarde n'est
+requise pour les diagnostics en lecture seule. Cette sauvegarde
+précède les changements du service et la possible migration du
+schéma ; ne pas la restaurer sur un état actif ou potentiellement
+plus récent.
