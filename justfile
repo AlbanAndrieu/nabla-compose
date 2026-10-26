@@ -1164,13 +1164,14 @@ openclaw-upgrade-local-all:
 # OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
 # No project backup, no CI runner, no LiteLLM model requests.
 openclaw-gateway-node-test:
-    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py tests/test_openclaw_gateway_doctor_lint.py
+    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py tests/test_openclaw_gateway_doctor_lint.py scripts/workstation/diagnose-openclaw-gateway-listener.py tests/test_openclaw_gateway_listener.py
     bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
     python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_service_failure.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_doctor_lint.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_start_once.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_listener.py' -v
     bash -n scripts/workstation/start-openclaw-gateway-once.sh
     bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
 
@@ -1178,6 +1179,11 @@ openclaw-gateway-node-test:
 # without exposing channel identities, database contents or secrets.
 openclaw-gateway-readiness:
     python3 scripts/workstation/diagnose-openclaw-gateway-readiness.py
+
+# Read-only TCP listener, IPv4/IPv6 loopback and UI root diagnosis.
+# Does not restart the Gateway, probe models or expose raw responses.
+openclaw-gateway-listener:
+    python3 scripts/workstation/diagnose-openclaw-gateway-listener.py
 
 # Read-only classification of failed systemd process and recent journal.
 # Exposes only fixed codes; never prints actual log lines or credentials.
