@@ -92,6 +92,39 @@ def query(resolver: str, name: str, timeout: int, runner=subprocess.run) -> tupl
     return state, elapsed_ms
 
 
+
+def validate_baseline(
+    resolver: str,
+    public_name: str,
+    private_name: str,
+    timeout: int,
+    *,
+    probe=query,
+    printer=print,
+) -> bool:
+    """Require two working A records before interpreting failures as degradation.
+
+    Invalid names and existing split-DNS defects must not be counted as
+    resolver downtime in every measurement. No domain or response is emitted.
+    """
+    public_status, _ = probe(resolver, public_name, timeout)
+    private_status, _ = probe(resolver, private_name, timeout)
+    printer(
+        f"dns_preflight=public:{public_status} private:{private_status}"
+    )
+    if public_status != "OK" or private_status != "OK":
+        printer("dns_watch_result=INVALID_BASELINE_NO_SAMPLES")
+        if private_status == "NXDOMAIN":
+            printer("preflight_hint=PRIVATE_NAME_NOT_REGISTERED_CHECK_SPLIT_DNS")
+        elif private_status == "NO_A_ANSWER":
+            printer("preflight_hint=PRIVATE_NAME_HAS_NO_A_RECORD")
+        else:
+            printer("preflight_hint=VERIFY_BOTH_NAMES_RESOLVE_BEFORE_WATCH")
+        return False
+    printer("dns_preflight=VALID_BOTH_A_RECORDS")
+    return True
+
+
 def watch(
     resolver: str,
     public_name: str,
@@ -162,6 +195,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("public and private names must differ")
     if shutil.which("dig") is None:
         print("ERROR: dig_not_installed_on_workstation", file=sys.stderr)
+        return 2
+    if not validate_baseline(
+        args.resolver, args.public_name, args.private_name,
+        args.timeout_seconds,
+    ):
         return 2
     return watch(
         args.resolver, args.public_name, args.private_name,
