@@ -1082,10 +1082,16 @@ openclaw-upgrade-local-all:
 # OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
 # No project backup, no CI runner, no LiteLLM model requests.
 openclaw-gateway-node-test:
-    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py
+    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py
     bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
     python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
     bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
+
+# Read-only. Distinguish HTTP liveness, startup and admission readiness
+# without exposing channel identities, database contents or secrets.
+openclaw-gateway-readiness:
+    python3 scripts/workstation/diagnose-openclaw-gateway-readiness.py
 
 # Explicit scoped hardening when the Node 24.22.1 npm package is
 # group-writable because of workstation umask 0002. Never chmod shared
