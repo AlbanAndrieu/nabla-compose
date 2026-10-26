@@ -3,8 +3,9 @@
 **Objet :** distinguer DNS, résolution du poste, Traefik et Nexus pour
 `https://nexus.int.albandrieu.com/`. Le succès de
 `https://nexus.albandrieu.com/` ne valide pas ce chemin privé.
-**État : code préparé, runtime non vérifié.** Ne pas toucher au
-chemin public ni publier de DNS `*.int` sur Cloudflare.
+**État du 26/10 : DNS et backend validés ; rendu TrueNAS connu,
+routeur privé volontairement désactivé et conteneur non réconcilié.**
+Ne pas toucher au chemin public ni publier de DNS `*.int` sur Cloudflare.
 
 ## Chaîne attendue
 
@@ -219,13 +220,14 @@ Un `502/504` oriente vers le chemin reverse-proxy → Nexus.
 Un échec TLS doit être analysé sans supprimer la vérification
 du certificat.
 
-**Bloquant actuel :** aucune nouvelle réponse HTTP/TLS exploitable
-n'a été fournie depuis la confirmation DNS. La variable
-`NEXUS_PRIVATE_INGRESS_ENABLED` reste `false` par défaut dans
-la configuration déclarative ; il faut vérifier les **labels réellement
-déployés** avant d'en déduire que le routeur privé est actif.
-Le fait que Pi-hole réponde déjà pour Nexus **n'est pas une preuve**
-d'activation de ce routeur.
+**Relevé historique avant le Gate 2 :** les réponses HTTP/TLS
+n'avaient pas encore été collectées. Elles sont désormais connues :
+backend **HTTP 200** ; HTTPS privé **404 avec certificat valide**.
+La variable `NEXUS_PRIVATE_INGRESS_ENABLED` reste `false`
+par défaut ; le rendu TrueNAS confirme la désactivation et
+les labels attendus, tandis que le conteneur actif ne les a
+pas encore récupérés. La réponse DNS privée n'est pas une preuve
+d'activation du routeur.
 
 ## Gate 2 — résultat opérateur : backend HTTP OK, route privée 404
 
