@@ -112,6 +112,27 @@ défini sur la workstation est `9922` ; ouvrir d'abord une session SSH
 vers `albandrieu@172.17.0.24` pour identifier sans ambiguïté l'hôte
 d'exécution. Les valeurs de clés restent toujours privées.
 
+## Incident de montage du 26 octobre 2026
+
+`app_lifecycle.log` confirme une erreur de démarrage Prometheus
+sur le bind source manquant
+`/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key`.
+Ce n'est pas encore un échec d'autorisation de scrape FastAPI :
+le conteneur Prometheus ne démarre pas.
+
+Le provisionneur de la PR #285 traite désormais ce cas précis :
+pendant le `--apply` confirmé, si seul le dossier privé
+`/mnt/cpool/prometheus/secrets` manque, il le crée en
+`root:568`, mode `0750`, sans créer d'autres dossiers parents
+et sans suivre de lien symbolique. Il installe ensuite la clé
+`METRICS_SCRAPE_KEY` de FastAPI avec `root:568 0640` dans
+`fastapi-sample-metrics.key`. `--check` reste sans mutation.
+
+Après `credential_ready`, `app.redeploy prometheus` est requis
+pour reprendre le conteneur et monter le fichier. La réussite du
+montage ne prouve pas que le jeton corresponde à la configuration
+FastAPI actuellement chargée.
+
 ## Procédure TrueNAS
 
 Le checkout Compose doit inclure les changements de la PR #280.
