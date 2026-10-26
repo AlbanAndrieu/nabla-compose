@@ -268,3 +268,40 @@ déjà démontrée (SSHSIG), login SSH distant non testé ; OpenPGP
 répond publiquement mais pas de preuve de clé privée ; PIV82 non
 provisionné ; récupération SOPS/GPG/PostgreSQL réelle et escrows non
 vérifiés. Ces chantiers gardent leurs critères de validation propres.
+
+## Transfert vers PR #285 — récupération age/SOPS validée, escrows à inventorier (26/10/2026)
+
+Le test KeePassXC/OTP2 est **reporté à la demande de l'opérateur** ;
+la seule observation actuelle reste `PROGRAMMED_TYPE_UNVERIFIED`.
+Pas de nouveau challenge, aucune reprogrammation.
+
+**Validation opérateur déjà obtenue** sur `feat/yubikey-software-recovery-20261026` :
+`just yubikey-software-recovery-test` **9/9 PASS** ;
+`just yubikey-software-recovery-check` :
+`SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED` ;
+`just yubikey-software-recovery-run` :
+`AGE_AND_SOPS_SYNTHETIC_ROUNDTRIP_PASS`, avec
+`synthetic_software_roundtrip_verified=true`.
+Cela démontre le roundtrip synthétique avec des binaires réels du
+poste, **pas** la récupération d'une sauvegarde personnelle.
+
+**Consolidation demandée dans PR #285** : reprise des mêmes blobs
+de script et de 9 tests age/SOPS depuis #287, en préservant les
+corrections secrètes de la PR #285. Ajout d'un collecteur facultatif
+`yubikey-escrow-pair-inspect` à saisie masquée, sans chemins en
+arguments ou logs, ni accès aux contenus. Les 8 contrats hermétiques
+de cet outil sont **PASS en environnement agent** ; une exécution
+de métadonnées sur les deux vrais escrows reste **NOT_RUN**.
+
+**Prochaines preuves séparées :**
+- Sélectionner deux archives `.age` déjà existantes sur la workstation.
+- Observer `TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED` (stat-only),
+  sans confondre plusieurs filesystems avec deux supports physiques.
+- Vérifier la récupération indépendante de chaque copie dans un
+  environnement isolé, sans publication des secrets.
+- Lancer une restauration isolée GPG/PostgreSQL seulement après
+  validation des prérequis, avec preuve expurgée.
+- Autoriser ensuite, phase par phase, PIV82/age (génération, attestation,
+  certificat et roundtrip matériel), en préservant PIV9A et OTP2.
+
+Voir [runbook de récupération synthétique et escrows](yubikey-software-recovery-20261026.md).
