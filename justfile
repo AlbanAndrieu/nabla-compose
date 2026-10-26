@@ -486,6 +486,13 @@ pfsense-unbound-lan-dns-test:
     python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
     python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
 
+# Fail closed on stale/different worktrees: direct execution cannot report
+# 0 tests as success when the expected test module is absent.
+nexus-private-ingress-test:
+    test -f tests/test_nexus_private_ingress_contract.py
+    python3 -m py_compile tests/test_nexus_private_ingress_contract.py
+    python3 tests/test_nexus_private_ingress_contract.py -v
+
 pfsense-unbound-capture:
     bash scripts/pfsense/capture-unbound-snapshot.sh --check
 
