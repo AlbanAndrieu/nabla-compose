@@ -462,6 +462,36 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## P0 — Échecs TrueNAS lifecycle du 26 octobre : Scrutiny / Prometheus
+
+- **Scrutiny :** `app.up` bloque sur
+  `/mnt/cpool/scrutiny/.env.secrets`, une **ancienne définition
+  enregistrée dans TrueNAS**. Le fichier canonique
+  `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets` est déjà présent
+  (319 octets, `root:root 0600`). Le helper
+  `deploy-scrutiny.sh` valide désormais le chemin du Compose rendu
+  avant `--apply`, puis réconcilie le Custom App et les devices SMART.
+  **Reprise runtime non exécutée.**
+- **Prometheus :** démarrage échoué à cause du bind absent
+  `/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key` ;
+  cela explique l'exception `URLError` de la collecte.
+  `reconcile-fastapi-metrics-credential.py --apply --acknowledge`
+  prépare le dossier privé `root:568 0750` s'il manque puis installe
+  **le jeton FastAPI existant** avec `root:568 0640`.
+  Un redémarrage ciblé reste nécessaire ; résultat non vérifié.
+- **Journal :** `triage-app-lifecycle-log.py` classe les erreurs
+  récentes sans afficher les messages ni traiter les incidents
+  historiques comme des pannes actuelles. Les incidents datés de
+  septembre/début octobre nécessitent `app.query` avant action.
+- **Akvorado :** nouveau relevé opérateur :
+  `delta_received_flows=2`, `delta_metadata_missing=2`,
+  `delta_clickhouse_batches=0`. Le blocage des métadonnées est
+  désormais **prouvé actif**, vérifier l'Orchestrator/Outlet
+  réellement configuré et les ifIndex des flux.
+- [Runbook de reprise ciblée](runbooks/2026-10-26-scrutiny-prometheus-lifecycle-recovery.md).
+  Nouveaux tests hors LAN : `just truenas-lifecycle-recovery-test`.
+  **Tests GitHub/local checkout non exécutés par l'agent.**
+
 ## H-05 / H-06 — collecte LAN unifiée (code PR #285, 26 octobre)
 
 - **Point d'entrée :** `scripts/truenas/collect-observability-evidence.py`
