@@ -510,6 +510,34 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## P0 — DefectDojo : DNS sain, HTTPS indisponible, admin désynchronisé
+
+- **DNS privé : prouvé OK le 26/10 à 20:51 CET** :
+  pfSense/Unbound `172.17.0.1` et Pi-hole `172.17.0.24`
+  renvoient tous deux `NOERROR A 172.17.0.24`.
+- **HTTP origine : répond sur `:31085`** ; domaine HTTPS
+  inaccessible depuis la workstation. Le diagnostic
+  `scripts/truenas/diagnose-defectdojo-https-route.py --check`
+  localise la panne entre TLS/SNI, labels Traefik, réseau Docker
+  et backend sans afficher de secrets. **HTTPS NOT_VERIFIED**.
+- **Lifecycle :** à 21:00:02, `app.up` échoue sur
+  `/mnt/cpool/secrets/runtime/defectdojo/.env` absent ;
+  l'opérateur l'a copié depuis `.env.example`.
+  `prepare-defectdojo-runtime-env.py --inspect/--apply`
+  valide et normalise uniquement ce metadata en `root:root 0600`,
+  sans toucher aux secrets.
+- **Compte admin Django :** nouveau `DD_ADMIN_PASSWORD` ajouté
+  manuellement dans `.env.secrets` ; le hash PostgreSQL du compte
+  historique `admin` ne change pas automatiquement.
+  `reconcile-defectdojo-admin-password.py --check`
+  diagnostique la parité. `--apply --acknowledge` synchronise
+  uniquement le compte existant, sans créer de superuser ni
+  redémarrer. **Login réel et Vaultwarden NOT_VERIFIED**.
+- **À faire après reprise :** contrôler la parité avec l'entrée
+  Vaultwarden `TrueNAS/nabla/prod/defectdojo` (login.username
+  réel `admin`) avant une future régénération.
+  [Runbook](runbooks/defectdojo-admin-access-recovery.md).
+
 ## LiteLLM UI / DefectDojo / Prometheus — réception 26 octobre
 
 - **LiteLLM :** le 401 observé appartient à `litellm-dashboard` avec
