@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -104,3 +105,41 @@ def test_pressure_requires_more_than_free_memory(available, psi_some, psi_full, 
     memory = {"MemTotal": 1000000, "MemAvailable": int(available * 1000000)}
     psi = {"some_avg10_pct": psi_some, "full_avg10_pct": psi_full}
     assert MODULE.assess(memory, psi, {}) == expected
+
+
+def test_recent_oom_event_is_distinct_from_historical_counter(monkeypatch, capsys):
+    first = {
+        "cgroup_events_cumulative": {"oom_kill": 7},
+        "mem_available_bytes": 700,
+        "assessment": "INCONCLUSIVE",
+    }
+    second = {
+        "cgroup_events_cumulative": {"oom_kill": 8},
+        "mem_available_bytes": 400,
+        "assessment": "INCONCLUSIVE",
+    }
+    iterator = iter((first, second))
+    monkeypatch.setattr(MODULE, "collect", lambda: next(iterator))
+    monkeypatch.setattr(MODULE.time, "sleep", lambda _seconds: None)
+    code = MODULE.main(["--check", "--observe-seconds", "20"])
+    outcome = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert outcome["assessment"] == "OOM_KILL_OBSERVED"
+    assert outcome["oom_kills_during_observation"] == 1
+    assert outcome["mem_available_change_bytes"] == -300
+
+
+def test_historical_oom_count_not_reported_as_new(monkeypatch, capsys):
+    samples = (
+        {"cgroup_events_cumulative": {"oom_kill": 7},
+         "mem_available_bytes": 700, "assessment": "INCONCLUSIVE"},
+        {"cgroup_events_cumulative": {"oom_kill": 7},
+         "mem_available_bytes": 750, "assessment": "NO_CURRENT_PRESSURE_SIGNAL"},
+    )
+    iterator = iter(samples)
+    monkeypatch.setattr(MODULE, "collect", lambda: next(iterator))
+    monkeypatch.setattr(MODULE.time, "sleep", lambda _seconds: None)
+    code = MODULE.main(["--check", "--observe-seconds", "20"])
+    outcome = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert outcome["oom_kills_during_observation"] == 0
