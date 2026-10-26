@@ -517,6 +517,54 @@ privé **doit rester inactif** ; un `404` HTTPS ne suffit pas
 à conclure à une nouvelle panne. La prochaine opération de
 configuration, distincte du redéploiement, sera de décider
 du `true` uniquement après le contrôle d'isolation WAN.
+## Gate 7 — réception du redéploiement ciblé Nexus
+
+**Résultats opérateur après redémarrage / réconciliation TrueNAS :**
+
+| Sonde | Relevé | Statut |
+| --- | --- | --- |
+| `midclt app.query nexus` | `name=nexus`, `state=RUNNING` | PASS — état déclaré |
+| `docker inspect nexus` | `traefik.enable="false"` | PASS — label appliqué et opt-in désactivé |
+| `docker inspect nexus` | `rule=Host(\`nexus.int.albandrieu.com\`)` | PASS — règle présente |
+| `docker inspect nexus` | `service=nexus-private` | PASS — service déclaré |
+| Nexus direct `172.17.0.24:8081/` | HTTP **200** | PASS — backend répond |
+| HTTPS privé via `--resolve` | HTTP **404**, `ssl_verify_result=0` | ATTENDU — routeur désactivé |
+
+**Conclusion :** la désynchronisation labels entre Compose rendu
+et conteneur actif est corrigée. Le `404` ne justifie **aucune**
+intervention sur le DNS, Unbound, Pi-hole, TrueNAS Apps ou Traefik.
+Le fonctionnement du site Nexus public n'a pas été retesté
+dans ces commandes : **PUBLIC_ROUTE_NOT_VERIFIED**.
+
+### Contrôle bloquant avant opt-in du routeur privé
+
+Le Compose `apps/traefik/compose.yml` déclare un frontal
+`pfSense HAProxy -> TrueNAS Traefik websecure :443`, avec
+ré-encryption TLS et conservation du Host. Le même entrypoint
+`websecure` sert des exceptions `*.int` publiques, dont
+`s3.int.albandrieu.com`. Un enregistrement DNS privé **n'interdit
+pas** un client WAN d'envoyer le Host/SNI
+`nexus.int.albandrieu.com` à l'adresse publique de pfSense.
+
+Avant tout passage de `NEXUS_PRIVATE_INGRESS_ENABLED` à `true` :
+
+1. Lire la configuration HAProxy **effective** sur pfSense et
+   confirmer une ACL WAN qui refuse **spécifiquement**
+   `nexus.int.albandrieu.com` avant son backend Traefik,
+   sans modifier l'exception publique `s3.int.albandrieu.com`.
+2. Valider depuis un **réseau réellement externe**, sans VPN,
+   que ce Host/SNI est rejeté au frontal HAProxy ; un HTTP `404`
+   renvoyé par Traefik avec son routeur désactivé ne prouve
+   **pas** qu'HAProxy bloque le trafic. Identifier le composant
+   qui répond ou les règles ACL/compteurs correspondants.
+3. Préparer le mécanisme d'interpolation `include` pour
+   obtenir `traefik.enable="true"` dans le rendu, sans éditer
+   le fichier généré `.ix-apps` ni exposer les secrets.
+4. Prévoir un rollback du seul service Nexus et vérifier
+   ensuite HTTP direct, HTTPS LAN, certificat, route publique
+   et impossibilité de connexion via le frontal WAN.
+
+**Aucune activation demandée ou réalisée pour cette réception.**
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
