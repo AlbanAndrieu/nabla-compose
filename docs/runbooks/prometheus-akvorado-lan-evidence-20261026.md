@@ -49,6 +49,8 @@ Le rapport est sauvegardé sous
 ne sont pas conformes ou si le chemin comporte un lien symbolique,
 la sauvegarde échoue sans modifier le dossier existant.
 
+Le verdict global est volontairement **UNVERIFIED** même si les lots Akvorado augmentent : le script ne vérifie aucune ligne SQL. Sans erreur avérée, le code de sortie habituel est donc `2`, et non `0`.
+
 Le JSON inclut les états et **uniquement les catégories** suivantes :
 
 - **Prometheus** : sept jobs ciblés (`docling`, `fastapi_sample`,
@@ -68,7 +70,7 @@ Interprétation de la sortie de la commande :
 
 | Code | Verdict | Conduite |
 | --- | --- | --- |
-| `0` | `PASS` | Tous les contrôles instrumentés pris en compte sont concluants ; SQL métier non démontré si indiqué séparément |
+| `0` | `PASS` | Réservé à une preuve complète (non atteignable dans cette version, qui ne valide pas les lignes SQL) |
 | `1` | `FAIL` | Au moins un scrape explicitement DOWN/partial ou un rejet actif de métadonnées |
 | `2` | `UNVERIFIED` | Observations absentes, inconnues, incomplètes ou non concluantes ; ne pas déclarer un service DOWN |
 
