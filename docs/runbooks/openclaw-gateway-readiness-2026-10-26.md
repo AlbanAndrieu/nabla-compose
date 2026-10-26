@@ -536,3 +536,53 @@ sans conclure à une panne du service.
 sur SQLite. La gestion des plugins, du service systemd et des
 secrets reste une dette distincte et ne doit pas bloquer
 l'acceptation du Gateway si celui-ci est sain.
+
+
+## 27 octobre — P0 Gateway confirmé sain, UI racine HTTP 200
+
+**Validation sur Workstation après `openclaw doctor --fix` :**
+
+```text
+ActiveState=active
+SubState=running
+Result=success
+MainPID=3750286
+healthz=200
+startupz=200
+readyz=200
+root=200
+chat/main=404
+```
+
+**Done P0 (Gateway et HTTP) :** service actif ; serveur HTTP,
+initialisation, admission des agents et URL racine répondent tous
+`200`. La restauration fonctionnelle des canaux, du chat authentifié,
+des plugins et des index mémoire reste à confirmer séparément.
+**Ne pas relancer `doctor --fix`, `openclaw update` ou
+`systemctl restart` pour ce seul résultat.**
+
+La documentation OpenClaw confirme `http://127.0.0.1:18789/`
+comme adresse par défaut de la Control UI. Elle documente aussi
+`/chat/main` comme chemin valide dans certains cas ; le `404`
+obtenu avec la requête `curl` générique ne permet pas de conclure
+que cette route est obsolète. L'interface peut appliquer un repli
+SPA différent selon l'en-tête HTTP `Accept`. Ouvrir d'abord
+la **racine dans le navigateur** et naviguer depuis l'interface.
+Si l'authentification WebSocket est demandée, utiliser la procédure
+de pairing OpenClaw ; ne pas imprimer ni transmettre le jeton.
+
+Le diagnostic `openclaw-gateway-listener` est corrigé pour envoyer
+`Accept: text/html` sur les routes de navigation `/` et
+`/chat/main`. Quand l'état, `healthz`, `startupz`, `readyz`
+et la racine sont sains, le `404` de `chat/main` est affiché
+mais **ne marque plus le Gateway en échec**.
+
+Les dettes post-récupération demeurent : parité systemd PATH/entrée,
+migrations/plugins, SecretRefs et protection de l'interface.
+Elles doivent être abordées séparément, avec tests locaux et
+sans perturber l'instance opérationnelle.
+
+Sources :
+- https://docs.openclaw.ai/dashboard
+- https://docs.openclaw.ai/web/urls
+- https://docs.openclaw.ai/web/control-ui
