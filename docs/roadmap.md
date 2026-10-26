@@ -406,6 +406,26 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## H-05 / H-06 — durcissement des diagnostics hors LAN (26 octobre)
+
+- **Prometheus (code livré dans PR #285) :** `health=unknown`,
+  vide ou inattendu ne sera plus décompté comme `scrape_down` :
+  `scrape_unverified`, `targets_unverified` et
+  `failure_domains` distinguent `auth` (HTTP 401/403),
+  `http`, `tcp`, `dns`, `tls`, `timeout`, `network`
+  et `unverified`. Les labels, URLs et messages bruts restent
+  exclus du rapport. **Pas de nouveau scrape LAN** ; les 21/28
+  du 25/10 sont des données historiques, pas une preuve live.
+- **Akvorado (code livré dans PR #285) :** les compteurs négatifs
+  ou non finis sont `COUNTER_INVALID_INCONCLUSIVE` au lieu de
+  fournir de fausses preuves de nouvelles insertions. `--fail-on-blocked`
+  considère cet état comme une défaillance de preuve ; les nouveaux
+  lots SQL et le mapping NetFlow/ifIndex restent **NOT_VERIFIED**.
+- **Validation agent :** 9 tests synthétiques de la logique isolée
+  **PASS** dans le conteneur de l'agent. Tests ciblés versionnés
+  en PR ; leur exécution sur le checkout Git complet **NOT_RUN**.
+  Aucune CI GitHub, aucun changement de secret ou de service.
+
 ## P1 — Corriger les causes instrumentées
 
 | ID | Domaine | Fait établi | Reste à prouver |
