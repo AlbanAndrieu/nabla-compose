@@ -133,7 +133,7 @@ indexation, rotation, diffusion de PII ou redéploiement automatique.
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
 | H-02 | Sentry | **Preuve plus récente 26/10 :** `recover-sentry-deploying.sh --check` valide les secrets système/Relay, l'utilisateur ClickHouse `sentry`, le migrator et `diagnose-sentry exit=0 ok=14 failed=0 warnings=0` | **Préflight + diagnostic PASS** ; ingestion d'un nouvel événement Relay → Kafka → Snuba → ClickHouse **NOT_VERIFIED**, sans nouveau redeploy |
 | H-03 | DefectDojo | **Preuve plus récente 26/10 :** frontend/uWSGI RUNNING ; DNS privé/HTTPS TLS vérifiés ; depuis workstation, `curl --location` retourne `http=200 redirects=1 tls=0` | **Transport + page HTTP accessibles** ; authentification Django et parcours utilisateur **NOT_VERIFIED**. Aucun redeploy nécessaire à cette preuve |
-| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS ; comparaison réelle 00:40:15→00:40:22 validée, PID 2611 stable et hashes MATCH**. | **P0 :** nouvelle sonde DNS LAN bornée dans PR #285 (9 tests encore à exécuter) ; capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; contrôler indisponibilité DNS pendant 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
+| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS ; comparaison réelle 00:40:15→00:40:22 validée, PID 2611 stable et hashes MATCH**. | **P0 :** nouvelle sonde DNS LAN bornée dans PR #285 (73/73 tests validés avant correctif ; 3 nouveaux à exécuter) ; capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; précontrôler DNS split valide et mesurer 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -295,25 +295,34 @@ Actions :
   **Une stabilité sur 7 secondes à 00:40 ne réfute pas** le
   redémarrage pfBlockerNG observé à 00:04.
 - [ ] **H-04 / disponibilité DNS LAN au cycle DNSBL :**
-  nouvelle sonde read-only côté workstation
-  `scripts/pfsense/probe-unbound-lan-dns.py`, développée sur
-  **PR #285** après fusion de #280. Elle envoie directement
-  des requêtes A publiques et privées à `172.17.0.1`,
-  sans passer par `systemd-resolved`, en
-  **45 prélèvements / 2 secondes / 90 requêtes DNS maximum**
-  par défaut, avec classification du RCODE et des timeouts.
-  Lancer `PFSENSE_PRIVATE_DNS_NAME=<vrai_nom_prive> just
-  pfsense-unbound-lan-dns-watch` vers **00:03:35–00:03:45**
-  et capturer Unbound avant/après le cron séparément.
-  Les échecs sont des **échantillons**, pas une durée
-  continue de panne mesurée. **Non exécuté sur le LAN**
-  pendant ce tour ; aucun changement de service pfSense.
-- [ ] **H-04 / gate du nouveau collecteur LAN :**
-  `just pfsense-unbound-lan-dns-test` (9 nouveaux tests)
-  et `just pfsense-unbound-restart-test`
-  (**73 tests attendus** au lieu des 64 auparavant
-  PASS). Tester dig sur la workstation et confirmer le
-  nom privé A avant la surveillance du cron.
+  sonde workstation `scripts/pfsense/probe-unbound-lan-dns.py`
+  dans **PR #285**. Premier essai réel du **26/10 20:09–20:10**
+  sur `172.17.0.1` : **45/45 DNS publics OK**, **45/45
+  `NXDOMAIN` privés** avec l'ancien nom non vérifié
+  `nexus-albanandrieu.int`, **0 timeout / 0 SERVFAIL**.
+  Cela **ne prouve pas une panne Unbound** : le nom privé
+  était une mauvaise baseline. La zone canonique actuelle
+  est **`int.albandrieu.com` via Pi-hole TrueNAS**.
+  **Correctif :** précontrôle A public + privé avant
+  surveillance ; en cas de `NXDOMAIN` préexistant,
+  `INVALID_BASELINE_NO_SAMPLES` (code 2), sans répéter
+  45 erreurs. Utiliser un nom réellement validé comme
+  `s3.int.albandrieu.com` **après vérification directe**
+  de pfSense `172.17.0.1` et Pi-hole `172.17.0.24`.
+  Puis relancer près de **00:04**, avec deux snapshots
+  Unbound avant/après. Toujours aucune durée de coupure
+  DNS mesurée pendant le cron : **P0 ouvert**.
+- [ ] **H-04 / gate collecteur LAN + précontrôle :**
+  `just pfsense-unbound-lan-dns-test` **9/9 PASS opérateur**
+  et `just pfsense-unbound-restart-test` **73/73 PASS**
+  le **26/10** (voir journal de validation).
+  **3 nouveaux contrats** préviennent désormais les
+  baselines `NXDOMAIN` ou les prélèvements lancés
+  sans précontrôle ; le total attendu passe à
+  **12 tests LAN et 76 tests Unbound**. Les 3 nouveaux
+  tests restent **NOT_RUN sur HEAD corrigé**.
+  Document :
+  [reprise H-04](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
   Documentation :
   [reprise H-04](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
 - [ ] **H-04 / causalité des modifications antérieures :**
