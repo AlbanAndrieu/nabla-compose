@@ -180,7 +180,7 @@ def decide(pid, owner_kind, openers):
     if openers is None:
         return "current_owner_unverified"
     if pid in openers:
-        return "logged_holder_still_has_sqlite_open"
+        return "logged_holder_still_has_state_file_open"
     if openers:
         return "different_sqlite_opener_observed"
     if owner_kind == "exited":
