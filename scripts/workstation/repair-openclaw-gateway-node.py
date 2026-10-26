@@ -130,11 +130,20 @@ def apply():
         return 2
     try:
         parent = target.parent
-        parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        st = parent.lstat()
-        if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid() or st.st_mode & 0o022:
-            print("node_runtime_switch=blocked_unsafe_unit_directory")
-            return 2
+        # Create only the dedicated directories with 0700 even under
+        # umask 0002. Refuse pre-existing symlinks and group-writable
+        # parents; do not chmod unrelated systemd settings.
+        config = home() / ".config"
+        systemd = config / "systemd"
+        user = systemd / "user"
+        for directory in (config, systemd, user, parent):
+            if not directory.exists() and not directory.is_symlink():
+                directory.mkdir(mode=0o700)
+            st = directory.lstat()
+            if (not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid()
+                    or st.st_mode & 0o022):
+                print("node_runtime_switch=blocked_unsafe_unit_directory")
+                return 2
         with target.open("x", encoding="utf-8") as writer:
             os.fchmod(writer.fileno(), 0o600)
             writer.write(body)
