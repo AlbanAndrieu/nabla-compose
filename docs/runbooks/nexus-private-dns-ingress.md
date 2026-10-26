@@ -273,6 +273,51 @@ Conserver le contrat du Nexus public et vérifier le rollback
 avant tout redéploiement ciblé ; ne pas redémarrer Unbound,
 Pi-hole ou Traefik pour réparer un simple routeur.
 
+## Gate 3 — labels Traefik absents du conteneur TrueNAS
+
+**Preuve opérateur du 26 octobre :** la commande `sudo docker inspect nexus`
+retourne `null` pour les quatre labels : `traefik.enable`,
+`traefik.http.routers.nexus-private.rule`, `entrypoints` et `service`.
+Le conteneur actif ne contient donc **pas** le routeur préparé dans
+la PR #285. Avec un backend `HTTP 200`, DNS `8/8 PASS` et HTTPS
+`404`, `tls_verify=0`, la priorité est l'**écart Compose déclaré
+vers runtime TrueNAS**. Un autre provider Traefik pourrait cependant
+répondre au Host : le 404 n'identifie pas à lui seul son origine.
+
+### Identifier le propriétaire du conteneur (lecture seule)
+
+```bash
+sudo docker inspect nexus --format \
+  'container={{.Name}} image={{.Config.Image}} status={{.State.Status}}'
+
+sudo docker inspect nexus --format '{{json .Config.Labels}}' |
+  jq '{project: .["com.docker.compose.project"],
+       service: .["com.docker.compose.service"],
+       enabled: .["traefik.enable"],
+       private_rule: .["traefik.http.routers.nexus-private.rule"]}'
+
+sudo docker inspect nexus --format \
+  '{{json .NetworkSettings.Networks}}' | jq 'keys'
+
+sudo midclt call app.query |
+  jq -c '.[] | select(.name == "nexus") | {name, state}'
+```
+
+Ne pas imprimer `.Config.Env`, les secrets ou l'intégralité du
+résultat `app.query`. Un `git pull` n'ajoute pas de labels à un
+conteneur déjà créé. Vérifier le modèle Compose effectivement utilisé
+par la Custom App TrueNAS avant de proposer un redéploiement **Nexus seul**.
+
+**Le défaut de la PR reste `NEXUS_PRIVATE_INGRESS_ENABLED=false`.**
+Un redéploiement avec cette valeur laisse le routeur désactivé :
+ne pas supposer que la variable du shell `midclt` se transmet au
+rendu Compose TrueNAS.
+
+**Sécurité :** un DNS privé n'empêche pas un client Internet d'envoyer
+le même Host/SNI à l'ingress public. Avant d'activer la route,
+vérifier depuis un réseau externe que pfSense/HAProxy bloque
+`nexus.int.albandrieu.com`, sans toucher à
+`nexus.albandrieu.com`. Aucune activation automatique ni restart.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
