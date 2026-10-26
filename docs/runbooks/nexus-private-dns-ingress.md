@@ -156,11 +156,76 @@ just nexus-private-ingress-test
 
 La nouvelle recette vérifie le chemin, compile et exécute
 **directement** le fichier de tests : si le fichier manque,
-elle échoue au lieu de retourner zéro test. Quatre contrats Nexus
-sont désormais présents sur la branche ; résultat opérateur sur
-ce nouvel état encore `NOT_VERIFIED`. Utiliser un worktree neuf
-sur la pointe de branche après `git fetch`, sans écraser le
-checkout actuel.
+elle échoue au lieu de retourner zéro test. Le résultat initial
+`Ran 0 tests` a été corrigé en utilisant un worktree neuf :
+**4/4 PASS opérateur** sur `ebbacf8a`.
+
+## Gate 1 — acceptation DNS et contrats locaux (26 octobre)
+
+L'opérateur a rejoué les vérifications dans un **worktree neuf** au
+commit `ebbacf8a` de la PR #285.
+
+- `just nexus-private-ingress-test` : **4 tests exécutés, 4 PASS**.
+  L'ancien résultat `Ran 0 tests` venait d'un autre contexte de
+  checkout ou de découverte ; le mécanisme précis n'a pas été établi.
+- `s3.int.albandrieu.com` (nom témoin) :
+  `NOERROR`, A `172.17.0.24` via **pfSense et Pi-hole**,
+  en **UDP et TCP**.
+- `nexus.int.albandrieu.com` (nom cible) :
+  `NOERROR`, A `172.17.0.24` via **pfSense et Pi-hole**,
+  en **UDP et TCP**.
+- **8/8 contrôles DNS réussis**, sans `NXDOMAIN`, `SERVFAIL`
+  ou `TIMEOUT` dans cette observation.
+
+**Statut : `PRIVATE_DNS_CONFIRMED`.** Le nom privé Nexus existe
+déjà. Sa provenance exacte dans Pi-hole
+(`pihole-dns-sync`, entrée locale manuelle, autre automatisation)
+reste **non vérifiée** : la réponse `aa` de Pi-hole prouve
+la réponse autoritative, pas le mécanisme de création.
+Ne pas créer un enregistrement doublon ni changer le Domain
+Override pfSense. Un routeur Traefik et le service Nexus
+peuvent rester en échec **malgré DNS conforme**.
+
+### Gate 2 — HTTP direct, HTTPS et routeur Traefik
+
+Depuis la workstation, exécuter séparément, sans `-k` et sans
+redémarrer les services :
+
+```bash
+getent ahostsv4 nexus.int.albandrieu.com || true
+
+curl --noproxy '*' --connect-timeout 2 --max-time 10 \
+  --silent --show-error -o /dev/null \
+  -w 'nexus_backend_http=%{http_code} connect=%{time_connect} total=%{time_total}\n' \
+  http://172.17.0.24:8081/
+echo "backend_exit=${PIPESTATUS[0]}"
+
+curl --noproxy '*' --connect-timeout 2 --max-time 10 \
+  --silent --show-error -o /dev/null \
+  --resolve nexus.int.albandrieu.com:443:172.17.0.24 \
+  -w 'nexus_ingress_http=%{http_code} tls=%{ssl_verify_result} connect=%{time_connect} total=%{time_total}\n' \
+  https://nexus.int.albandrieu.com/
+echo "ingress_exit=${PIPESTATUS[0]}"
+```
+
+Le `getent` vérifie **le résolveur effectif de la workstation**,
+pas la résolution directe de pfSense/Pi-hole déjà validée.
+Les codes de retour `curl` et HTTP sont distincts :
+`000` signifie qu'aucune réponse HTTP exploitable n'a été reçue ;
+`200/302/401` exigent une interprétation selon la route et
+l'authentification. Un `404` sur Traefik avec backend fonctionnel
+oriente vers un routeur absent/inactif ou un mauvais `Host`.
+Un `502/504` oriente vers le chemin reverse-proxy → Nexus.
+Un échec TLS doit être analysé sans supprimer la vérification
+du certificat.
+
+**Bloquant actuel :** aucune nouvelle réponse HTTP/TLS exploitable
+n'a été fournie depuis la confirmation DNS. La variable
+`NEXUS_PRIVATE_INGRESS_ENABLED` reste `false` par défaut dans
+la configuration déclarative ; il faut vérifier les **labels réellement
+déployés** avant d'en déduire que le routeur privé est actif.
+Le fait que Pi-hole réponde déjà pour Nexus **n'est pas une preuve**
+d'activation de ce routeur.
 
 ## Préflight en lecture seule sur la workstation
 
