@@ -138,6 +138,14 @@ class ServiceNodeRepairContracts(unittest.TestCase):
         self.assertNotIn('${CLI}" update ', contents)
         self.assertNotIn("rm -rf", contents)
 
+    def test_npm_manifest_mode_0644_is_accepted(self):
+        self.assertEqual(mod.main(["--apply"]), 0)
+        manifest = self.new_package / "package.json"
+        manifest.chmod(0o644)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(mod.main(["--select-installed-plan"]), 0)
+        self.assertIn("existing_package_verified=yes", output.getvalue())
+
     def test_group_writable_manifest_is_refused(self):
         self.assertEqual(mod.main(["--apply"]), 0)
         manifest = self.new_package / "package.json"
