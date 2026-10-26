@@ -21,6 +21,18 @@ diagnostic. Le détail DNS appartient au
 
 Ces constats sont datés. Ne pas les présenter comme états live actuels.
 
+## Collecte unifiée prête pour le LAN (26 octobre)
+
+Le nouveau [runbook Prometheus/Akvorado](prometheus-akvorado-lan-evidence-20261026.md)
+regroupe les sept scrapes restants et les deltas Inlet/Outlet dans
+un JSON expurgé via
+`scripts/truenas/collect-observability-evidence.py`.
+La commande `just observability-evidence-lan` exécute une fenêtre
+bornée de 20 secondes et stocke le rapport en privé.
+Le code est versionné dans la PR #285 ; **le runtime LAN n'a pas
+été sollicité par l'agent**. Les anciennes preuves ne remplacent pas
+le nouveau rapport.
+
 ## Diagnostic unique, lecture seule
 
 Sur **TrueNAS**, dans le checkout Compose :

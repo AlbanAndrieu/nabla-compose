@@ -445,6 +445,28 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## H-05 / H-06 — collecte LAN unifiée (code PR #285, 26 octobre)
+
+- **Point d'entrée :** `scripts/truenas/collect-observability-evidence.py`
+  et `just observability-evidence-lan`. En lecture seule, ces
+  outils collectent les sept scrapes Prometheus restants et deux
+  instantanés de métriques Akvorado, sans accès aux secrets ni au SQL.
+- **Sortie :** rapport JSON avec horodatage, classes d'erreur et deltas
+  `received_flows`, `metadata_missing`, Kafka, lots ClickHouse ;
+  aucun `lastError`, label, endpoint brut ou token n'est conservé.
+  Dossier de preuves privé en mode `0700`, fichier `0600`.
+- **Statuts :** `PASS` (preuve instrumentée concluante),
+  `FAIL` (scrape DOWN/partial ou rejets metadata actifs),
+  `UNVERIFIED` (cible absente/inconnue, mesure inaccessible,
+  activité de lots sans preuve SQL). L'absence de lignes SQL
+  vérifiées reste explicitement `sql_rows=NOT_VERIFIED`.
+- **Qualité :** contrats synthétiques créés dans
+  `tests/test_collect_observability_evidence.py` ;
+  `just observability-evidence-test` et tests H-05/H-06
+  **à exécuter sur le checkout complet**. Aucune CI payante lancée.
+- **Exécution LAN différée :** aucun résultat live inventé.
+  [Runbook de collecte et commandes](runbooks/prometheus-akvorado-lan-evidence-20261026.md).
+
 ## H-05 / H-06 — durcissement des diagnostics hors LAN (26 octobre)
 
 - **Prometheus (code livré dans PR #285) :** `health=unknown`,
