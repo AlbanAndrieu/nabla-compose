@@ -204,6 +204,43 @@ class Contracts(unittest.TestCase):
 
 
 
+    def test_mount_probe_nfs4_expected_target_without_source_disclosure(self):
+        from subprocess import CompletedProcess
+        with patch.object(module.subprocess, "run",
+                return_value=CompletedProcess([], 0,
+                    "/media/backup/lab nfs4\\n", "")) as runner:
+            self.assertEqual(module.classify_backup_mount(),
+                             "EXPECTED_NFS4_MOUNT_PRESENT")
+        self.assertEqual(runner.call_args.args[0],
+                         ["findmnt", "-n", "-T", "/media/backup/lab/secret",
+                          "-o", "TARGET,FSTYPE"])
+        self.assertEqual(runner.call_args.kwargs["stderr"], module.subprocess.DEVNULL)
+        self.assertEqual(runner.call_args.kwargs["stdin"], module.subprocess.DEVNULL)
+
+    def test_mount_probe_refuses_parent_root_or_unexpected_target(self):
+        from subprocess import CompletedProcess
+        for output in ("/ ext4\\n", "/media/backup nfs4\\n",
+                       "/media/backup/lab/secret nfs4\\n"):
+            with self.subTest(output=output), patch.object(module.subprocess,"run",
+                    return_value=CompletedProcess([],0,output,"")):
+                self.assertEqual(module.classify_backup_mount(),
+                                 "UNEXPECTED_MOUNT_TARGET")
+
+    def test_mount_probe_non_nfs_or_malformed_fails_to_claim_nfs(self):
+        from subprocess import CompletedProcess
+        for output,expected in (
+            ("/media/backup/lab ext4\\n", "EXPECTED_TARGET_NON_NFS_FILESYSTEM"),
+            ("/media/backup/lab nfs4\\n/more ext4\\n", "MOUNT_UNVERIFIED"),
+            ("", "MOUNT_UNVERIFIED"),
+        ):
+            with self.subTest(expected=expected), patch.object(module.subprocess,"run",
+                    return_value=CompletedProcess([],0,output,"")):
+                self.assertEqual(module.classify_backup_mount(),expected)
+
+    def test_mount_probe_unavailable_does_not_block_file_metadata(self):
+        with patch.object(module.subprocess,"run",side_effect=FileNotFoundError):
+            self.assertEqual(module.classify_backup_mount(),"FINDMNT_UNAVAILABLE")
+
     def test_diagnose_counts_only_basenames_without_content_reading(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
