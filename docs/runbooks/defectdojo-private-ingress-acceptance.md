@@ -2,6 +2,21 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Vérification du login privé (26 octobre 2026)
+
+L'ancienne preuve de transport était HTTP 200 après redirection avec
+vérification TLS, mais le login exact n'a pas été revérifié de façon
+contemporaine. Depuis TrueNAS ou la workstation LAN :
+
+```bash
+bash scripts/workstation/check-defectdojo-login-lan.sh --check
+```
+
+La nouvelle sonde utilise `--resolve` pour conserver l'origine
+HTTPS/SNI, vérifie le certificat, exige 200 + `text/html`,
+et ne suit aucune redirection. Un PASS vérifie l'affichage
+de la page de connexion, **pas l'authentification Django**.
+
 ## Régression du 25 octobre 2026 — URL privée inaccessible
 
 L'opérateur signale que `https://defectdojo.int.albandrieu.com/`
