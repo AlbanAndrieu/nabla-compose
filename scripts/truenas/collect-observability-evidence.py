@@ -58,7 +58,16 @@ def fetch_bounded(url: str, limit: int) -> bytes:
 
 def state_for_prometheus(jobs: dict[str, dict[str, object]]) -> str:
     states = [record["state"] for record in jobs.values()]
-    if any(s in ("scrape_down", "scrape_partial") for s in states):
+    # A target can be DOWN even if the same job includes an UNKNOWN target.
+    # Preserve explicit negative evidence instead of allowing UNKNOWN to hide it.
+    if any(
+        record["state"] in ("scrape_down", "scrape_partial")
+        or (
+            int(record["targets_total"]) > int(record["targets_up"])
+            + int(record["targets_unverified"])
+        )
+        for record in jobs.values()
+    ):
         return "FAIL"
     if states and all(s == "scrape_up" for s in states):
         return "PASS"
