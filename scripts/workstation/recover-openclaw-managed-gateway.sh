@@ -46,10 +46,12 @@ if systemctl --user is-active --quiet "${UNIT}"; then
   echo "repair=blocked_gateway_still_active"
   exit 2
 fi
-if [[ -f "${DB}" ]] && fuser -s "${DB}" 2>/dev/null; then
-  echo "repair=blocked_sqlite_still_owned"
-  exit 2
-fi
+for database_file in "${DB}" "${DB}-wal" "${DB}-shm"; do
+  if [[ -f "${database_file}" ]] && fuser -s "${database_file}" 2>/dev/null; then
+    echo "repair=blocked_sqlite_still_owned"
+    exit 2
+  fi
+done
 
 # Select the already installed 2026.10.7 package for the service.
 # The updater rejected the old-to-new npm install as foreign-destination;
@@ -62,10 +64,12 @@ if ! "${NODE}" "${CLI}" --version | grep -Eq '^OpenClaw 2026\.10\.7([[:space:]]|
   echo "repair=blocked_selected_package_not_verified"
   exit 2
 fi
-if [[ -f "${DB}" ]] && fuser -s "${DB}" 2>/dev/null; then
-  echo "repair=blocked_sqlite_owned_after_selection"
-  exit 2
-fi
+for database_file in "${DB}" "${DB}-wal" "${DB}-shm"; do
+  if [[ -f "${database_file}" ]] && fuser -s "${database_file}" 2>/dev/null; then
+    echo "repair=blocked_sqlite_owned_after_selection"
+    exit 2
+  fi
+done
 
 systemctl --user start "${UNIT}"
 if ! systemctl --user is-active --quiet "${UNIT}"; then
