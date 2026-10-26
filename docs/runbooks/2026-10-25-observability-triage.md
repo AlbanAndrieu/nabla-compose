@@ -33,6 +33,54 @@ Le code est versionné dans la PR #285 ; **le runtime LAN n'a pas
 été sollicité par l'agent**. Les anciennes preuves ne remplacent pas
 le nouveau rapport.
 
+## Pack de diagnostic LAN — 26 octobre 2026
+
+Un seul script regroupe les jobs Prometheus `baseline` et `remaining`
+(**scope `all`**) et compare deux relevés Akvorado sur une fenêtre
+bornée. Il n'exécute **aucune réparation ni redémarrage**.
+
+Depuis la workstation LAN dans un checkout à jour de la branche/PR :
+
+```bash
+cd ~/w/nabla-compose
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh --observe-seconds 20
+```
+
+Depuis le shell TrueNAS (checkout canonique) :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh --observe-seconds 20
+```
+
+Le script fonctionne **sans `sudo`**. Il utilise les URLs fixes
+`172.17.0.24:9090`, `:31057`, `:31058`, une connexion de
+5 secondes et des tailles de réponse bornées. Rapport JSON
+sur disque avec mode 0600 sous `~/.local/state/nabla/observability`
+(mode 0700 du dossier). Ne jamais transmettre les secrets ni
+les sorties de commandes `docker inspect` intégrales.
+
+Les états sont **0=PASS, 1=FAIL, 2=UNVERIFIED**. Un FAIL
+de scrape indique un défaut de collecte, pas forcément une
+application DOWN. Akvorado `NEW_INSERT_BATCHES_ROWS_UNVERIFIED`
+prouve uniquement une variation des compteurs de lots ; le SQL
+ClickHouse doit être confirmé séparément avec un compte lecture seule.
+
+**Détails ciblés facultatifs (lecture seule) :**
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 20
+python3 scripts/truenas/check-akvorado-metadata-config.py --check
+```
+
+La dernière commande nécessite `PyYAML` et valide uniquement
+la configuration déclarative. Les commandes réseau supposent
+l'accès LAN ; ne pas interpréter un timeout externe comme un incident
+des Apps. Pour une réception SQL, compléter avec les scripts
+Akvorado existants et une requête `SELECT` bornée, sans créer
+ni effacer de données.
+
 ## Diagnostic unique, lecture seule
 
 Sur **TrueNAS**, dans le checkout Compose :
