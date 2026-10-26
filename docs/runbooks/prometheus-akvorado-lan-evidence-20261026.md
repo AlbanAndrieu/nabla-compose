@@ -32,9 +32,8 @@ un certificat Cloudflare.
 ```bash
 cd /mnt/cpool/compose/nabla-compose
 
-sudo python3 scripts/truenas/collect-observability-evidence.py \
-  --check --scope remaining --observe-seconds 20 \
-  --report-dir /mnt/cpool/var/nabla/observability
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh \
+  --observe-seconds 20
 ```
 
 Équivalent si `just` est installé dans l'espace utilisateur :
@@ -43,8 +42,9 @@ sudo python3 scripts/truenas/collect-observability-evidence.py \
 just observability-evidence-lan
 ```
 
-Le rapport est sauvegardé sous
-`/mnt/cpool/var/nabla/observability/observability-*.json`
+Le script utilise `--scope all` pour les dix jobs uniques du périmètre
+baseline + remaining. Le rapport est sauvegardé dans
+`~/.local/state/nabla/observability/observability-*.json`
 (mode `0600`, dossier propriétaire `0700`). Si les permissions
 ne sont pas conformes ou si le chemin comporte un lien symbolique,
 la sauvegarde échoue sans modifier le dossier existant.
@@ -53,7 +53,7 @@ Le verdict global est volontairement **UNVERIFIED** même si les lots Akvorado a
 
 Le JSON inclut les états et **uniquement les catégories** suivantes :
 
-- **Prometheus** : sept jobs ciblés (`docling`, `fastapi_sample`,
+- **Prometheus** : dix jobs ciblés, dont les sept restants (`docling`, `fastapi_sample`,
   `haproxy`, `litellm_hermes`, `opensearch`,
   `opensearch-security`, `postgres_exporter`). Pour chacun :
   `scrape_up`, `scrape_down`, `scrape_partial`,
@@ -140,8 +140,8 @@ Si le checkout existe sur la workstation et peut joindre
 
 ```bash
 cd ~/w/nabla-compose
-python3 scripts/truenas/collect-observability-evidence.py \
-  --check --scope remaining --observe-seconds 20
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh \
+  --observe-seconds 20
 ```
 
 La comparaison TrueNAS/workstation différencie un défaut de chemin
