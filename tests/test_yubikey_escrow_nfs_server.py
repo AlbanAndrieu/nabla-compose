@@ -49,7 +49,7 @@ class Contracts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d) / 'secret'
             root.mkdir()
-            program='EXPECTED_NAME = "backup.age"\\n' + m.REMOTE_PROBE.replace(
+            program='EXPECTED_NAME = "backup.age"\n' + m.REMOTE_PROBE.replace(
                 "Path('/mnt/cpool/backup/lab/secret')", f'Path({str(root)!r})')
             for exists, expected in [(False, 'SERVER_EXPECTED_COPY_MISSING'),
                                      (True, 'SERVER_EXPECTED_COPY_REGULAR_NONEMPTY')]:
