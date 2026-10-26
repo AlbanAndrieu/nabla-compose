@@ -863,6 +863,19 @@ truenas-lifecycle-recovery-test:
     bash -n scripts/truenas/deploy-scrutiny.sh
     python3 -m pytest -q tests/test_truenas_lifecycle_recovery.py tests/test_fastapi_prometheus_credential_contract.py tests/test_fastapi_metrics_source_triage.py
 
+# Classify one LiteLLM auth failure JSON without printing key hashes or IPs.
+litellm-dashboard-auth-test:
+    python3 -m pytest -q tests/test_litellm_dashboard_auth_failure.py
+
+# Validate DefectDojo private login HTML with TLS verification and pinned LAN SNI.
+defectdojo-login-lan:
+    bash scripts/workstation/check-defectdojo-login-lan.sh --check
+
+# Offline DefectDojo login and LiteLLM dashboard regression tests.
+private-login-contracts:
+    bash -n scripts/workstation/check-defectdojo-login-lan.sh
+    python3 -m pytest -q tests/test_defectdojo_login_lan_probe.py tests/test_litellm_dashboard_auth_failure.py
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
