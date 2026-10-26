@@ -42,7 +42,7 @@ bash scripts/truenas/observe-prometheus-akvorado-lan.sh \
 just observability-evidence-lan
 ```
 
-Le script utilise `--scope all` pour les dix jobs uniques du périmètre
+Le script utilise `--scope all` pour les huit jobs uniques du périmètre
 baseline + remaining. Le rapport est sauvegardé dans
 `~/.local/state/nabla/observability/observability-*.json`
 (mode `0600`, dossier propriétaire `0700`). Si les permissions
@@ -53,7 +53,7 @@ Le verdict global est volontairement **UNVERIFIED** même si les lots Akvorado a
 
 Le JSON inclut les états et **uniquement les catégories** suivantes :
 
-- **Prometheus** : dix jobs ciblés, dont les sept restants (`docling`, `fastapi_sample`,
+- **Prometheus** : huit jobs ciblés, dont les sept restants (`docling`, `fastapi_sample`,
   `haproxy`, `litellm_hermes`, `opensearch`,
   `opensearch-security`, `postgres_exporter`). Pour chacun :
   `scrape_up`, `scrape_down`, `scrape_partial`,
