@@ -429,6 +429,23 @@ ne pas supprimer, renommer ou finaliser ce fichier sans migration dédiée.
 > seule la preuve du credential chargé et de l'authentification manque.
 > Ne pas finaliser les chemins hérités sur cette seule base.
 
+## Vaultwarden — erreurs CLI bornées et secrets non exposés (26 octobre)
+
+Le client `render_from_bitwarden.py` n'imprime plus `stderr`
+d'une commande `bw` qui échoue. Ces erreurs peuvent contenir
+des identifiants, chemins, valeurs ou URL sensibles.
+Seuls l'opération (`bw list`, `bw sync`) et son code de
+retour sont conservés. Délai maximum : 60 secondes.
+`BW_SESSION` est transmis **uniquement** aux appels qui
+en ont besoin ; les opérations de configuration ne l'héritent
+plus depuis le shell de l'opérateur.
+
+Les tests de contrat couvrent le refus de fuite, l'expiration
+de délai et l'isolation de session. Aucun mot de passe n'a
+été changé, aucun `bw sync` réel n'a été exécuté par l'agent.
+Une comparaison Vaultwarden ↔ runtime reste obligatoire avant
+la clôture de la migration DefectDojo, Code et OpenRAG.
+
 ## Gates obligatoires avant `--finalize openrag`
 
 1. Restaurer les **identifiants existants** depuis leur source
