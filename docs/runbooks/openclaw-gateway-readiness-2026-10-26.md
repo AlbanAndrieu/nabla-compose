@@ -47,3 +47,58 @@ Le script de reprise imprime désormais ces diagnostics s'il ne reçoit pas de r
 Sources :
 - https://docs.openclaw.ai/gateway/health
 - https://github.com/openclaw/openclaw/issues/183599 (régression possible non attribuée à cette instance)
+
+
+## 21:42 — Échec du processus, pas de l'admission HTTP
+
+Nouvelle preuve Workstation : les neuf contrats du diagnostic readiness
+passent, puis l'exécution réelle retourne
+\`gateway_service=failed\`, \`healthz_status=unreachable\`,
+\`startupz_status=unreachable\`, \`readyz_status=unreachable\`,
+\`gateway_verdict=service_not_active\`.
+Cette preuve signifie que le service user n'est pas opérationnel.
+Les canaux ne peuvent pas être diagnostiqués via HTTP tant que le
+processus ne reste pas vivant. Ne pas relancer \`openclaw update\`,
+ne pas recréer de staging et ne pas redémarrer en boucle.
+
+### Diagnostic du démarrage (lecture seule)
+
+Ajout à la PR #285 :
+\`scripts/workstation/diagnose-openclaw-gateway-service-failure.py\`
+et recette \`just openclaw-gateway-service-failure\`.
+Elle lit des champs **bornés et autorisés** de
+\`systemctl --user show\` : état, sous-état, résultat, code de sortie,
+nombre de redémarrages et identité binaire/paquet attendue.
+Elle classe jusqu'à 160 lignes de journal user sur les 30 dernières
+minutes en familles prédéfinies, notamment \`state_owner_contention\`,
+\`state_migration\`, \`node_runtime\`, \`port_conflict\`,
+\`missing_dependency\`, \`filesystem_permission\`,
+\`configuration\`, \`plugin_initialization\`,
+\`authentication\`, \`out_of_memory\`.
+Elle **ne publie pas** le journal brut, les valeurs de secrets, les
+fichiers SQLite, les noms des agents ou les chemins privés.
+Une correspondance de journal n'est qu'un indice, pas une preuve
+définitive de causalité.
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git fetch origin fix/code-password-dotenv-fixture-20261026
+WT="$(mktemp -d /tmp/nabla-oc-failed.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/code-password-dotenv-fixture-20261026
+cd "$WT"
+python3 -m unittest discover -s tests \
+  -p 'test_openclaw_gateway_service_failure.py' -v
+just openclaw-gateway-service-failure
+\`\`\`
+
+Le sélecteur ne s'exécute **pas** dans cette procédure. Les réparations
+dépendront du résultat de systemd et du journal classifié ; ne jamais
+supprimer \`openclaw.sqlite\`, \`-wal\`, \`-shm\` ou forcer une migration
+sur la seule base du code d'erreur HTTP.
+
+Le recovery existant fournit désormais le diagnostic systemd en cas
+d'échec du \`systemctl --user start\` ou de perte de l'activité après
+une sonde \`/readyz\`, sans refaire l'installation ni redémarrer le
+Gateway automatiquement.
