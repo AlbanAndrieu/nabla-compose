@@ -94,6 +94,19 @@ class EvidenceCollectorTests(unittest.TestCase):
         self.assertEqual(report["akvorado"]["status"], "UNVERIFIED")
         self.assertEqual(report["status"], "UNVERIFIED")
 
+    def test_mixed_prometheus_down_and_unknown_stays_failed(self):
+        report = module.PROM.assess_targets({
+            "status": "success",
+            "data": {"activeTargets": [
+                {"labels": {"job": "fastapi_sample"}, "health": "down",
+                 "lastError": "HTTP status 401 token=HIDDEN"},
+                {"labels": {"job": "fastapi_sample"}, "health": "unknown"},
+            ]},
+        })
+        self.assertEqual(report["fastapi_sample"]["state"], "scrape_unverified")
+        self.assertEqual(module.state_for_prometheus(report), "FAIL")
+        self.assertNotIn("HIDDEN", str(report))
+
     def test_invalid_akvorado_counter_is_not_success(self):
         with (
             mock.patch.object(
