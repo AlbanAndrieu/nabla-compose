@@ -19,7 +19,7 @@ La version **v0.7.1** du projet upstream décrit le MCP intégré dans
 Le MCP contient **aussi** `openrag_ingest` et `openrag_delete_document`.
 Ne jamais proposer tous ces outils à un agent public.
 
-## Diagnostic hors LAN immédiatement disponible
+## Diagnostic Git et connectivité contrôlée (LAN rétabli)
 
 Depuis le checkout de la PR #285 :
 
@@ -31,7 +31,21 @@ Ce contrôle ne lit que les fichiers Compose versionnés et ne contacte
 aucun service. `declared` signifie seulement que le contrat existe.
 `bababou_private_retrieval=not_verified` est normal.
 
-**Quand le LAN revient**, depuis TrueNAS uniquement :
+**LAN rétabli — depuis la workstation**, le mode SSH exécute les
+sondes depuis `fastapi-sample` **sans copier le dépôt ou un secret** sur
+TrueNAS. Le port SSH vient de `~/.ssh/config` (opérateur : `9922`) :
+
+```bash
+python3 scripts/truenas/diagnose-fastapi-ai-chain.py \
+  --check --runtime --ssh-target albandrieu@172.17.0.24
+```
+
+Si le compte SSH ne dispose pas du groupe Docker, essayer l'option
+**explicite** `--ssh-sudo`, qui appelle `sudo -n docker` et ne fonctionne
+que si `sudo` non interactif est déjà autorisé. Ne pas modifier les
+permissions du socket Docker pour faire réussir la sonde.
+
+Depuis une session **locale sur TrueNAS** :
 
 ```bash
 sudo python3 scripts/truenas/diagnose-fastapi-ai-chain.py --check --runtime
