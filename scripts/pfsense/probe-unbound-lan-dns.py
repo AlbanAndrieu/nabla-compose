@@ -53,8 +53,9 @@ def resolver_ip(text: str) -> str:
         addr = ipaddress.IPv4Address(text)
     except ipaddress.AddressValueError as exc:
         raise argparse.ArgumentTypeError("expected numeric IPv4 resolver address") from exc
-    if addr.is_multicast or addr.is_unspecified or addr.is_loopback:
-        raise argparse.ArgumentTypeError("expected a LAN IPv4 resolver")
+    if (not addr.is_private or addr.is_multicast or addr.is_unspecified
+            or addr.is_loopback or addr.is_link_local):
+        raise argparse.ArgumentTypeError("expected a private LAN IPv4 resolver")
     return str(addr)
 
 
