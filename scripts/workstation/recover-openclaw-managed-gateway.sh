@@ -80,8 +80,13 @@ for database_file in "${DB}" "${DB}-wal" "${DB}-shm"; do
   fi
 done
 
-systemctl --user start "${UNIT}"
+if ! systemctl --user start "${UNIT}"; then
+  python3 "${HERE}/diagnose-openclaw-gateway-service-failure.py" || true
+  echo "repair=gateway_start_failed"
+  exit 2
+fi
 if ! systemctl --user is-active --quiet "${UNIT}"; then
+  python3 "${HERE}/diagnose-openclaw-gateway-service-failure.py" || true
   echo "repair=gateway_start_unverified"
   exit 2
 fi
@@ -99,6 +104,9 @@ if [[ "${ready}" != 1 ]]; then
   # A live service can fail readiness due to channel, SQLite admission,
   # or plugin recovery. Never restart again or expose raw HTTP responses.
   python3 "${HERE}/diagnose-openclaw-gateway-readiness.py" || true
+  if ! systemctl --user is-active --quiet "${UNIT}"; then
+    python3 "${HERE}/diagnose-openclaw-gateway-service-failure.py" || true
+  fi
   echo "repair=gateway_readiness_unverified"
   exit 2
 fi
