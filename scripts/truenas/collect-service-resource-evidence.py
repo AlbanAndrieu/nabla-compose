@@ -157,7 +157,8 @@ def mounted_datasets(containers, zfs):
         out = command(["docker", "inspect", "--format",
                        "{{.Id}}\t{{json .Mounts}}", *batch], 14)
         if out is None:
-            continue
+            # Without every mount inspection, absence of a dataset is unknown.
+            return None
         for line in out.splitlines():
             cid, sep, raw = line.partition("\t")
             if not sep or cid not in batch:
@@ -319,7 +320,17 @@ def main() -> int:
         print(json.dumps({"schema": "nabla-service-resources/v1",
                           "status": "unverified", "error_class": type(error).__name__}))
         return 2
-    print(json.dumps(snapshot, indent=2, sort_keys=True, allow_nan=False))
+    if args.output is not None:
+        print(json.dumps({
+            "schema": snapshot["schema"],
+            "report": str(args.output),
+            "services_count": len(snapshot["services"]),
+            "unmapped_container_count": snapshot["unmapped_container_count"],
+            "observed_at_utc": snapshot["observed_at_utc"],
+            "collection": snapshot["collection"],
+        }, sort_keys=True))
+    else:
+        print(json.dumps(snapshot, indent=2, sort_keys=True, allow_nan=False))
     return 0 if snapshot["collection"]["docker"] == "observed" else 2
 
 
