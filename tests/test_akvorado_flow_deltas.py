@@ -190,7 +190,7 @@ class AkvoradoDeltaTest(unittest.TestCase):
     def test_negative_metadata_errors_do_not_count_as_history(self):
         observed = (
             'akvorado_outlet_core_flows_errors_total'
-            '{error="metadata missing",exporter="172.17.0.1"} -5\\n'
+            '{error="metadata missing",exporter="172.17.0.1"} -5\n'
         )
         result = MODULE.exporter_metadata_evidence(observed)
         self.assertEqual(result["configured"], 0)
