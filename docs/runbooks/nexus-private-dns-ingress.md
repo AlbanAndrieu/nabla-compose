@@ -463,6 +463,60 @@ d'une fenêtre d'interruption. La commande officielle
 avec arrêt/recréation, qui peut tirer des images ; ne pas
 l'exécuter comme simple contrôle de labels. Ne pas éditer `.ix-apps`
 et ne pas recréer la Custom App.
+## Gate 6 — include exact, checkout Nexus propre et réseau présent
+
+**Nouveau relevé opérateur :**
+
+- `sudo midclt call app.config nexus | jq '.include'` retourne
+  `["/mnt/cpool/compose/nabla-compose/apps/nexus/compose.yml"]`.
+  Le wrapper pointe bien vers le fichier Git attendu.
+- `git -C /mnt/cpool/compose/nabla-compose status --short -- apps/nexus`
+  ne retourne rien : aucun changement local signalé **dans ce scope**
+  (pas une garantie de propreté du reste du checkout).
+- `sudo docker network inspect traefik_network --format '{{.Name}}'`
+  retourne `traefik_network` : le réseau existe.
+
+**Décision :** il n'est pas nécessaire de recréer la Custom App ni
+de corriger son `include`. Le rendu contient déjà la route privée
+mais `traefik.enable=false`, alors que le conteneur actif ne
+contient pas ces labels : réconciliation du runtime attendue.
+
+L'opérateur **annonce le redémarrage de Nexus**, mais aucune sortie
+du redémarrage/redéploiement n'est encore disponible. Ne pas marquer
+la réconciliation `PASS` avant une nouvelle inspection. Un
+`docker restart nexus` n'applique **aucun nouveau label** ; seul
+le déploiement géré par TrueNAS avec recréation de conteneur peut
+appliquer le nouveau modèle rendu. Cette opération peut interrompre
+le service Nexus : fenêtre de maintenance et rollback requis.
+
+### Gate après opération (sans nouvelle mutation)
+
+```bash
+sudo midclt call app.query |
+  jq '.[] | select(.name == "nexus") | {name, state}'
+
+sudo docker inspect nexus --format '{{json .Config.Labels}}' |
+  jq '{enabled: .["traefik.enable"],
+       rule: .["traefik.http.routers.nexus-private.rule"],
+       service: .["traefik.http.routers.nexus-private.service"]}'
+
+curl --noproxy '*' --connect-timeout 3 --max-time 15 \
+  -sS -o /dev/null -w 'backend=%{http_code}\n' \
+  http://172.17.0.24:8081/
+
+curl --noproxy '*' --connect-timeout 3 --max-time 15 \
+  -sS -o /dev/null \
+  --resolve nexus.int.albandrieu.com:443:172.17.0.24 \
+  -w 'ingress=%{http_code} tls=%{ssl_verify_result}\n' \
+  https://nexus.int.albandrieu.com/
+```
+
+Si les labels du rendu apparaissent avec `enabled=false`,
+la synchronisation Compose → Docker a progressé, mais le routeur
+privé **doit rester inactif** ; un `404` HTTPS ne suffit pas
+à conclure à une nouvelle panne. La prochaine opération de
+configuration, distincte du redéploiement, sera de décider
+du `true` uniquement après le contrôle d'isolation WAN.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
