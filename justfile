@@ -512,6 +512,13 @@ pfsense-unbound-lan-dns-test:
     python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
     python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
 
+# CrowdSec central: exercises shell classification with mocked Loki responses.
+# Offline only: no Docker, SSH, runtime mutation or GitHub CI.
+crowdsec-loki-evidence-test:
+    bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
+    python3 -m py_compile tests/test_crowdsec_loki_evidence_contract.py
+    python3 tests/test_crowdsec_loki_evidence_contract.py -v
+
 # Fail closed on stale/different worktrees: direct execution cannot report
 # 0 tests as success when the expected test module is absent.
 nexus-private-ingress-test:
