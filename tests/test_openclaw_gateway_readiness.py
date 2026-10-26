@@ -75,6 +75,29 @@ class GatewayReadinessContracts(unittest.TestCase):
         self.assertIn("gateway_verdict=startup_pending_or_failed", out.getvalue())
         self.assertIn("startup_phase=starting", out.getvalue())
 
+    def test_readiness_failure_does_not_trigger_update_restart_or_backup(self):
+        recovery = SOURCE.parent / "recover-openclaw-managed-gateway.sh"
+        raw = recovery.read_text(encoding="utf-8")
+        self.assertIn("repair=active_gateway_not_restarted", raw)
+        self.assertIn("diagnose-openclaw-gateway-readiness.py", raw)
+        self.assertIn('if systemctl --user is-active --quiet "${UNIT}"; then', raw)
+        self.assertNotIn('"${CLI}" update ', raw)
+        self.assertNotIn("backup-openclaw.sh", raw)
+        self.assertNotIn("doctor --fix", raw)
+
+    def test_unknown_http_error_body_is_not_printed(self):
+        answers = {"healthz": ("200", {}),
+                   "startupz": ("200", {"status": "started"}),
+                   "readyz": ("503", {"secret": "sk-DO-NOT-PRINT",
+                                        "failing": ["discord-private"]})}
+        with patch.object(mod, "service_status", return_value="active"), \
+             patch.object(mod, "probe", side_effect=lambda route: answers[route]), \
+             contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(mod.main(), 2)
+        self.assertNotIn("DO-NOT-PRINT", out.getvalue())
+        self.assertNotIn("discord-private", out.getvalue())
+        self.assertIn("readiness_blocker=channel_or_other", out.getvalue())
+
     def test_probe_refuses_non_allowlisted_routes_without_io(self):
         with self.assertRaises(ValueError):
             mod.probe("http://example.com/secret")
