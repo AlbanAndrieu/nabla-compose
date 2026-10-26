@@ -1147,6 +1147,8 @@ openclaw-gateway-node-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_service_failure.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_gateway_doctor_lint.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_start_once.py' -v
+    bash -n scripts/workstation/start-openclaw-gateway-once.sh
     bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
 
 # Read-only. Distinguish HTTP liveness, startup and admission readiness
@@ -1163,6 +1165,12 @@ openclaw-gateway-service-failure:
 # structured lint as sanitized categories for EX_CONFIG 78.
 openclaw-gateway-doctor-lint:
     python3 scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py
+
+# Explicit one-time operator recovery after exit 78. No retry or npm.
+# Run only after checking Doctor's structured findings; active units
+# are diagnosed, not stopped or restarted.
+openclaw-gateway-start-once:
+    bash scripts/workstation/start-openclaw-gateway-once.sh --once
 
 # Explicit scoped hardening when the Node 24.22.1 npm package is
 # group-writable because of workstation umask 0002. Never chmod shared
