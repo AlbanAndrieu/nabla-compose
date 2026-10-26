@@ -174,6 +174,49 @@ Une erreur `http_401` après montage signifie une authentification
 non acceptée (éventuellement FastAPI démarré avant la mise à jour de
 `.env.secrets`), pas un fichier secret inexistant.
 
+## Réception runtime : clé chargée, bind monté, Prometheus timeout (26/10)
+
+Les trois premières étapes de réception ont été exécutées :
+
+| Contrôle | Preuve |
+| --- | --- |
+| Secret hôte | `credential_ready=true` |
+| Environnement conteneur FastAPI | `METRICS_RUNTIME_PRESENT=true` |
+| Bind Docker Prometheus | `METRICS_SECRET_MOUNT_PRESENT=true` |
+| Cible Prometheus `/api/v1/targets` | `TimeoutError` après 5 s |
+
+**Interprétation stricte :** ces trois présences ne prouvent pas que
+la clé **chargée** par FastAPI est identique au secret lu par Prometheus
+ni que `up{job="fastapi_sample"}=1`. Le timeout sur la consultation
+de l'API Prometheus ne permet pas non plus de conclure à un HTTP 401
+du job. Ne pas corriger une authentification supposée ni recréer
+les conteneurs sans identifier d'abord leur état.
+
+Pour limiter le diagnostic pendant une forte pression mémoire,
+exécuter directement sur l'hôte TrueNAS, checkout #285 actualisé :
+
+```bash
+sudo python3 scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check
+```
+
+Cette sonde lit uniquement les métadonnées Docker et compare les
+statuts **sans lire le corps** des endpoints locaux Prometheus
+`127.0.0.1:9090/-/ready` et `/api/v1/targets?state=active`.
+Chaque requête a un timeout de 3 s. Elle ne consulte ni labels,
+ni `lastError`, ni valeur d'environnement, ni journaux bruts.
+`scrape_accepted=false` reste obligatoire même lorsque readiness,
+montage et API répondent 200. En dernier, exécuter le classifieur
+complet `scripts/prometheus/diagnose-failed-scrapes.py --check`
+pour attester le vrai job.
+
+Si `prometheus.state=restarting/exited`, contrôler l'OOM et les
+compteurs de redémarrage avant toute modification. Si
+`readiness=http_200` mais `targets=timeout`, investiguer
+la pression mémoire/CPU/TSDB, pas les clés. Si
+`targets=http_200`, relancer ensuite le classifieur de scrapes ;
+un corps JSON énorme ou une forte charge peut expliquer un délai
+de lecture distinct de la réception des en-têtes.
+
 ## Incident de montage du 26 octobre 2026
 
 `app_lifecycle.log` confirme une erreur de démarrage Prometheus
