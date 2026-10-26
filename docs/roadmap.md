@@ -370,6 +370,20 @@ Actions :
   transport confirmé**. La preuve S3 `NOERROR` sur les deux
   DNS à 20:49 CET est antérieure à ce second relevé ;
   l'état de connexion peut avoir changé entre temps.
+  **Nouveau relevé 21:18 CET :** workstation `eno1=172.17.0.57/24`,
+  routes directement vers `.1` et `.24` ; ICMP 2/2 de chaque côté
+  (moyennes 0,498 ms / 0,166 ms), ARP `REACHABLE` et connexions
+  TCP à `.1:10443`, `.24:8081`, `.24:443` réussies.
+  **Transport LAN joignable pendant ce relevé**, sans conclusion sur
+  DNS port 53 ni sur HTTP/TLS applicatifs ; les anciens timeouts
+  peuvent être intermittents ou propres aux protocoles.
+  Prochain contrôle : DNS UDP **et** TCP sur S3 (témoin) et Nexus
+  (cible) vers les deux résolveurs, puis HTTP direct et HTTPS SNI.
+  **Nouveau test Nexus dans le worktree opérateur :** `Ran 0 tests`
+  signifie **NOT_RUN**, pas PASS. Le fichier existe dans la PR.
+  La recette ajoutée `just nexus-private-ingress-test` refuse
+  un fichier absent et exécute directement les **4 contrats**
+  sur HEAD récent. Rejouer depuis un worktree mis à jour.
   Ne pas activer le routeur privé ni publier du DNS public
   `*.int`, et ne redémarrer aucun service pour ce triage.
   [Runbook Nexus](runbooks/nexus-private-dns-ingress.md).
