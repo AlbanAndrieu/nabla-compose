@@ -107,7 +107,7 @@ def current_unit_matches_expected():
     # Node 24 installation. A patch upgrade must not look like tampering.
     # Never emit ExecStart, home directory, or unit environment.
     found = re.search(
-        r"(?P<root>/\\.local/share/mise/installs/node/24\\.\\d+\\.\\d+)/bin/node",
+        r"(?P<root>/\.local/share/mise/installs/node/24\.\d+\.\d+)/bin/node",
         text,
     )
     if not found:
