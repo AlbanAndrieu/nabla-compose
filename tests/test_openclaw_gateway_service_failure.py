@@ -131,16 +131,37 @@ class OpenClawServiceFailureTests(unittest.TestCase):
     def test_file_log_sample_is_bounded_and_owner_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)
-            file = folder / "openclaw-2026-10-26.log"
-            file.write_text("private key sk-NEVER-SHARE\\nnewer database schema")
-            file.chmod(0o600)
             folder.chmod(0o700)
-            with patch.object(mod, "Path", wraps=Path) as p, \
+            file = folder / "openclaw-2026-10-26.log"
+            file.write_text("private key sk-NEVER-SHARE\nnewer database schema")
+            file.chmod(0o600)
+            constructor = lambda value: folder if value == "/tmp/openclaw" else Path(value)
+            with patch.object(mod, "Path", side_effect=constructor), \
                  patch.object(mod.time, "time", return_value=file.stat().st_mtime):
-                # The unit accepts only fixed /tmp locations; unit test the
-                # policy independently of real runtime data.
-                self.assertEqual(mod.classify_journal(file.read_text().splitlines()),
-                                 "newer_database_schema")
+                lines, source = mod.file_log_sample()
+            self.assertEqual(source, "private_file_tail")
+            self.assertEqual(mod.classify_journal(lines), "newer_database_schema")
+
+    def test_file_log_refuses_symlink_or_group_writable_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            folder.chmod(0o700)
+            secret = folder / "private"
+            secret.write_text("newer database schema")
+            candidate = folder / "openclaw-2026-10-26.log"
+            candidate.symlink_to(secret)
+            constructor = lambda value: folder if value == "/tmp/openclaw" else Path(value)
+            with patch.object(mod, "Path", side_effect=constructor):
+                lines, source = mod.file_log_sample()
+            self.assertIsNone(lines)
+            self.assertEqual(source, "no_safe_file_logs")
+            candidate.unlink()
+            candidate.write_text("newer database schema")
+            candidate.chmod(0o666)
+            with patch.object(mod, "Path", side_effect=constructor):
+                lines, source = mod.file_log_sample()
+            self.assertIsNone(lines)
+
 
     def test_journal_patterns_do_not_reveal_private_tokens(self):
         props = {"ActiveState": "failed", "SubState": "failed",
