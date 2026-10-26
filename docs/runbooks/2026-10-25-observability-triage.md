@@ -37,6 +37,36 @@ pour agréger la classification des états. Ne pas afficher de DSN, clés,
 logs bruts, headers Authorization ni chemins privés. Éviter les
 scrapes manuels supplémentaires vers pfSense.
 
+### H-05 — erreurs de scrape et statut non vérifié (code du 26 octobre)
+
+Le classificateur `scripts/prometheus/diagnose-failed-scrapes.py`
+ne transforme plus `health=unknown`, vide ou inattendu en `DOWN`.
+Il publie `scrape_unverified` et `targets_unverified`, ainsi que
+des domaines redigés `auth`, `http`, `tcp`, `dns`, `tls`,
+`timeout`, `network` ou `unverified`. Le code HTTP 401/403
+signifie **problème d'autorisation du scrape**, pas arrêt du
+service applicatif. `no_active_target` signifie un job absent
+des cibles actives, pas une cible DOWN.
+
+Le diagnostic reste fixé à l'API Prometheus du LAN ; aucun
+`lastError`, label, chemin privé ou token n'est imprimé.
+Ces catégories sont des **preuves de collecte**, pas de
+disponibilité métier ni une autorisation de modifier les secrets.
+Le relevé historique `21/28 UP` n'est pas actualisé faute de LAN.
+
+### H-06 — compteurs Akvorado invalides
+
+`scripts/truenas/diagnose-akvorado-flow.py` refuse désormais
+les compteurs négatifs ou non finis (`1e999` par exemple) comme
+preuve de lots ClickHouse. Les fenêtres concernées sont classées
+`COUNTER_INVALID_INCONCLUSIVE` ; le contrôle
+`--fail-on-blocked` échoue fermement et la procédure
+`--require-inserts` ne peut pas conclure à une insertion sur
+ces entrées invalides. Les métadonnées NetFlow, les ifIndex
+réellement reçus et la présence de lignes SQL récentes restent
+**NOT_VERIFIED**. Les tests synthétiques n'impliquent pas
+un redémarrage Akvorado, Kafka ou ClickHouse.
+
 ### Prometheus / Pyroscope
 
 Si Prometheus redémarre :
