@@ -972,6 +972,18 @@ truenas-service-resources:
 truenas-service-resources-test:
     python3 -m pytest -q tests/test_service_resource_evidence.py
 
+# Read-only: classify a DefectDojo app stuck in DEPLOYING without printing logs.
+defectdojo-deploying-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check
+
+# Read-only: classify bounded recent initializer/backend logs, no raw lines.
+defectdojo-deploying-log-classes:
+    sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check --include-log-classes
+
+# Read-only Vaultwarden cache vs root runtime equality as the unlocked operator.
+vaultwarden-runtime-parity:
+    python3 scripts/secrets/compare_vaultwarden_runtime_readonly.py --check --app defectdojo
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
