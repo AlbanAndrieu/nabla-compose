@@ -507,7 +507,9 @@ renvoie un état borné de non-vérification, sans tentative en boucle.
 Les sorties conservent **`status=NO-GO`**,
 `archive_opened=false`, `remote_write_performed=false`,
 `restoration_verified=false` et `decryption_attempted=false`.
-**11 tests hermétiques PASS en environnement agent**, mais le
+**12 tests hermétiques PASS en environnement agent**, dont un
+qui exécute réellement le Python distant sur un répertoire
+synthétique pour vérifier les réponses `MISSING` et `REGULAR_NONEMPTY`, mais le
 probe SSH réel et la suite sur la workstation restent
 **NOT_RUN** au moment de la création.
 Ne pas traiter une réponse `SERVER_EXPECTED_COPY_MISSING` comme
