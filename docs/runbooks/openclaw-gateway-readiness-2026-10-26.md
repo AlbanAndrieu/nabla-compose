@@ -421,3 +421,27 @@ documentées ; ne pas conclure que la base est corrompue.
 Aucune nouvelle sauvegarde, réinstallation npm, \`doctor --fix\`,
 réparation de plugins, \`kill\`, \`systemctl restart\` ou modification
 SQLite n'est réalisée.
+
+
+### Précision : fichiers de verrou natifs OpenClaw
+
+Le contrôle du détenteur examine aussi les fichiers réguliers
+\`state.*.lock\` du répertoire
+\`$OPENCLAW_STATE_DIR/state/locks/openclaw-state-owners/\`.
+OpenClaw peut utiliser ces fichiers de verrou **en plus** de
+\`openclaw.sqlite\`, \`-wal\`, \`-shm\`. Un PID qui ne détient plus
+de descripteur SQLite peut encore détenir un verrou natif.
+Les chemins sont limités, sans symlink et contrôlés par propriétaire.
+
+Les sorties supplémentaires sont
+\`native_lock_inventory=present|none_observed|unverified\`,
+\`state_openers=present|none_observed|unknown\`,
+\`logged_holder_in_state_openers=yes|no|unknown\` et
+\`state_owner_diagnosis=<code fixe>\`.
+Même \`none_observed\` **n'autorise pas** le nettoyage d'un
+fichier de location ni ne prouve qu'un bail n'existe plus.
+Les identifiants de PID restent volontairement non affichés.
+
+Voir la documentation OpenClaw relative aux fichiers de lock natifs
+et au contrôle d'admission de la base :
+https://github.com/openclaw/openclaw/blob/main/docs/reference/database-schemas.md
