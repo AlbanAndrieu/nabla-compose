@@ -38,13 +38,17 @@ services:
     networks: ["traefik_network"]
     labels:
       com.albandrieu.nabla.entity-ref: component:default/nexus
-    # Additional Traefik labels stay disabled until the ingress authority is migrated.
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.nexus.rule=Host(`nexus.int.albandrieu.com`)"
-    #   - "traefik.http.routers.nexus.entrypoints=websecure"
-    #   - "traefik.http.routers.nexus.tls.certresolver=letsencrypt"
-    #   - "traefik.http.routers.nexus.service=nexus"
+      # Disabled until DNS, TLS and reverse-proxy ownership are verified.
+      # Explicit opt-in during reviewed TrueNAS redeploy; does not change
+      # the public nexus.albandrieu.com route.
+      traefik.enable: "${NEXUS_PRIVATE_INGRESS_ENABLED:-false}"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.nexus-private.rule: "Host(`nexus.int.albandrieu.com`)"
+      traefik.http.routers.nexus-private.entrypoints: websecure
+      traefik.http.routers.nexus-private.tls.certresolver: letsencrypt
+      traefik.http.routers.nexus-private.service: nexus-private
+      traefik.http.services.nexus-private.loadbalancer.server.scheme: http
+      traefik.http.services.nexus-private.loadbalancer.server.port: "8081"
 
 networks:
   traefik_network:
