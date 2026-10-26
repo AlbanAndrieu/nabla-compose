@@ -22,6 +22,21 @@ if docker inspect redis --format '{{.State.Running}}' 2>/dev/null | grep -qx tru
 else
   diag_fail 'Redis indisponible'
 fi
+# Docker Compose needs BOTH env_file paths before container creation.
+# Validate the non-secret metadata path independently; a correct .env.secrets
+# does not compensate for a missing .env.
+runtime_metadata="/mnt/cpool/secrets/runtime/defectdojo/.env"
+if [[ ! -f "${runtime_metadata}" || -L "${runtime_metadata}" ]]; then
+  diag_fail 'DefectDojo non-secret runtime .env missing or unsafe'
+elif (( EUID == 0 )); then
+  if python3 "${ROOT}/scripts/truenas/prepare-defectdojo-runtime-env.py" --inspect >/dev/null; then
+    diag_ok 'DefectDojo non-secret runtime metadata is root:root 0600'
+  else
+    diag_fail 'DefectDojo non-secret runtime metadata invalid; normalize the copied .env.example'
+  fi
+else
+  diag_warn 'DefectDojo metadata permissions not attested without sudo'
+fi
 if [[ -f /mnt/cpool/secrets/runtime/defectdojo/.env.secrets ]]; then
   if [[ "$(stat -c '%U:%G %a' /mnt/cpool/secrets/runtime/defectdojo/.env.secrets)" == 'root:root 600' ]]; then
     diag_ok 'Secrets runtime présents et permissions correctes'
