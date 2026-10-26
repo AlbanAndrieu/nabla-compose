@@ -123,14 +123,14 @@ def test_ssh_sudo_and_explicit_port_are_opt_in(monkeypatch):
     def fake_ssh(command, **kwargs):
         calls.append((command, kwargs))
         return SimpleNamespace(returncode=0, stdout=json.dumps({
-            "runtime": "docker_unavailable_or_probe_failed",
-        }), stderr="")
+            "runtime": "sudo_noninteractive_denied",
+        }), stderr="private SSH stderr must not be shown")
 
     monkeypatch.setattr(module.subprocess, "run", fake_ssh)
     result = module.inspect_ssh_runtime(
         "albandrieu@172.17.0.24", port=9922, sudo=True,
     )
-    assert result == {"runtime": "docker_unavailable_or_probe_failed"}
+    assert result == {"runtime": "sudo_noninteractive_denied"}
     command, kwargs = calls[0]
     assert command[command.index("-p") + 1] == "9922"
     assert "sudo" in kwargs["input"] and "'-n'" in kwargs["input"]
@@ -180,3 +180,81 @@ def test_ssh_is_disabled_when_requested_without_target(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         module.main(["--check", "--runtime", "--ssh-sudo"])
     assert exc.value.code == 2
+
+
+
+def test_openrag_search_never_uses_unverified_health_url():
+    assert "/search/health" not in module.READ_ONLY_PROBE
+    assert '"openrag_search"] = "not_tested_requires_auth"' in module.READ_ONLY_PROBE
+    assert "not_tested_requires_auth" in module.HTTP_CODES
+
+
+@pytest.mark.parametrize(("stderr", "expected"), [
+    ("permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock", "docker_socket_denied"),
+    ("sudo: a password is required", "sudo_noninteractive_denied"),
+    ("Cannot connect to the Docker daemon at unix:///var/run/docker.sock", "docker_daemon_unavailable"),
+    ("Error response from daemon: No such container: fastapi-sample", "fastapi_container_missing"),
+    ("Container fastapi-sample is not running", "fastapi_container_not_running"),
+    ('OCI runtime exec failed: exec: "python3": executable file not found', "fastapi_container_python_missing"),
+    ("private error must not be exposed", "docker_exec_failed"),
+])
+def test_remote_bootstrap_classifies_docker_stderr_without_exposing_it(
+    tmp_path, stderr, expected,
+):
+    import os
+    import subprocess
+    import sys
+    import json
+
+    folder = tmp_path / "bin"
+    folder.mkdir()
+    docker = folder / "docker"
+    docker.write_text("#!/bin/sh\n" + "echo " + repr(stderr) + " >&2\n" + "exit 1\n")
+    docker.chmod(0o700)
+    environment = {**os.environ, "PATH": str(folder) + os.pathsep + os.environ.get("PATH", "")}
+    finished = subprocess.run(
+        [sys.executable, "-c", module.build_remote_probe(["docker"])],
+        env=environment, capture_output=True, text=True, timeout=5,
+    )
+    assert finished.returncode == 0
+    assert json.loads(finished.stdout) == {"runtime": expected}
+    assert stderr not in finished.stdout
+
+
+def test_remote_bootstrap_success_does_not_claim_private_search(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    folder = tmp_path / "bin"
+    folder.mkdir()
+    docker = folder / "docker"
+    statuses = {key: "http_200" for key in module.SERVICES}
+    statuses["openrag_search"] = "not_tested_requires_auth"
+    docker.write_text("#!/bin/sh\nprintf '%s\\n' " + repr(json.dumps(statuses)) + "\n")
+    docker.chmod(0o700)
+    environment = {**os.environ, "PATH": str(folder) + os.pathsep + os.environ.get("PATH", "")}
+    completed = subprocess.run(
+        [sys.executable, "-c", module.build_remote_probe(["docker"])],
+        env=environment, capture_output=True, text=True, timeout=5,
+    )
+    assert completed.returncode == 0
+    assert json.loads(completed.stdout) == statuses
+
+
+def test_runtime_remote_cannot_inject_arbitrary_state(monkeypatch):
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: SimpleNamespace(
+        returncode=0,
+        stdout=json.dumps({"runtime": "SECRET_OR_UNKNOWN_REMOTE_COMMAND"}),
+        stderr="not for logs",
+    ))
+    assert module.inspect_ssh_runtime("albandrieu@172.17.0.24") == {
+        "runtime": "remote_report_invalid"
+    }
+
+
+def test_bounded_remediation_codes_cover_remote_errors():
+    assert module.REMOTE_FAILURE_STATES.issubset(set(module.RUNTIME_NEXT_CHECK))
+    assert module.RUNTIME_NEXT_CHECK["docker_socket_denied"] == (
+        "use_ssh_sudo_only_if_already_authorized"
+    )
