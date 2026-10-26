@@ -480,6 +480,32 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## LiteLLM UI / DefectDojo / Prometheus — réception 26 octobre
+
+- **LiteLLM :** le 401 observé appartient à `litellm-dashboard` avec
+  zéro token et une session expirée le 25/10 à 20:35:59 UTC.
+  **Session navigateur**, pas une clé fournisseur ou service invalide.
+  Correctif opérateur : fermer les onglets LiteLLM, se déconnecter et
+  se reconnecter. Classification locale par
+  `diagnose-litellm-dashboard-auth.py`. Upstream #35789/#35791
+  référence le défaut de SpendLogs sur les routes d'information.
+  Pas de rotation des clés métier ni de redeploy.
+- **DefectDojo :** ancienne preuve HTTP 200 après redirection et
+  TLS validé, mais disponibilité du **login actuellement NOT_VERIFIED**.
+  `check-defectdojo-login-lan.sh --check` teste l'URL exacte via
+  HTTPS/SNI vers TrueNAS et refuse les certificats non valides ;
+  aucun domaine `.int` exposé au public.
+- **Prometheus :** jeton métriques installé `credential_ready`, App
+  redéployée et quatre conteneurs annoncés RUNNING. Malgré cela,
+  `172.17.0.24:9090/-/ready` refuse les connexions.
+  **Montage réparé ; API non rétablie**. Diagnostic du listener et
+  du process via `diagnose-prometheus-targets.sh --check`, sans
+  toucher au TSDB ni au secret.
+- **Qualité :** 12 tests synthétiques locaux PASS sur les nouveaux
+  classificateurs LiteLLM et DefectDojo ; suite GitHub complète et
+  validation LAN encore NOT_VERIFIED.
+  [Runbook](runbooks/2026-10-26-litellm-ui-session-defectdojo-prometheus.md).
+
 ## P0 — Échecs TrueNAS lifecycle du 26 octobre : Scrutiny / Prometheus
 
 - **Scrutiny :** `app.up` bloque sur
