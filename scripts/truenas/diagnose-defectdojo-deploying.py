@@ -143,7 +143,8 @@ DEPENDENT_CONTAINERS = (
 def stack_ready(containers: dict[str, dict[str, object]], http: str) -> bool:
     """Runtime transport gate, not an authenticated login or worker-task E2E."""
     initializer = containers.get("defectdojo-initializer", {})
-    if initializer.get("state") != "exited" or initializer.get("exit_code") != 0:
+    if (initializer.get("state") != "exited" or initializer.get("exit_code") != 0
+            or initializer.get("oom_killed") is True):
         return False
     if http not in SUCCESS_HTTP:
         return False
@@ -171,12 +172,12 @@ def next_action(containers: dict[str, dict[str, object]], http: str) -> str:
         return "initializer_completed_check_uwsgi_dependency"
     if django.get("state") == "running" and front.get("state") != "running":
         return "uwsgi_running_check_frontend_container_start"
+    if django.get("state") == "running" and front.get("state") == "running" and http == "UNREACHABLE":
+        return "check_host_port_binding_and_docker_network"
     if (django.get("state") == "running" and front.get("state") == "running"
             and any(containers.get(name, {}).get("state") != "running"
                     for name in ("defectdojo-celeryworker", "defectdojo-celerybeat"))):
         return "check_celery_worker_and_beat_state"
-    if django.get("state") == "running" and front.get("state") == "running" and http == "UNREACHABLE":
-        return "check_host_port_binding_and_docker_network"
     return "inspect_init_backend_and_host_pressure_no_db_reset"
 
 
