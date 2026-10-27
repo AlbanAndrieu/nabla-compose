@@ -12,82 +12,103 @@ pour « 3 à 5 articles » est **`--top 5`**. Le statut
 La panne du digest n'est pas une preuve du `API rate limit reached`
 affiché dans le chat `main` : incidents à instruire séparément.
 
-## Préflight en lecture seule (PR #289)
+## Cause racine : intégration incompatible dans le skill v3.16.0
 
-Depuis la Workstation, sur une copie à jour de la branche #289 :
+Le code public officiel du tag `v3.16.0` confirme la contradiction :
+
+- `SKILL.md` propose `ITEMS_PER_SECTION = 3-5` pour le digest quotidien.
+- `references/digest-prompt.md` contient
+  `summarize-merged.py --top <ITEMS_PER_SECTION>`.
+- `scripts/summarize-merged.py` définit `--top` en `type=int`.
+
+Le placeholder éditorial `3-5` devient donc un argument CLI invalide.
+**Notre recommandation précédente d'ajouter `--top 5` au cron
+était insuffisante** : elle dupliquait une règle déjà gérée par le
+template du skill et ne supprimait pas l'instruction source.
+
+L'installation locale n'a pas encore été identifiée par son hash de
+template. Le tag `v3.16.0` est une cause **confirmée dans le code
+public**, pas une preuve que ce tag précis est celui du poste.
+La branche principale actuelle de draco-agent/tech-news-digest utilise
+`--top 30` pour le résumé intermédiaire et traite
+`ITEMS_PER_SECTION` comme paramètre indicatif historique.
+Ne pas assimiler une branche principale non épinglée à une version
+ClawHub installée ou approuvée.
+
+Sources :
+- https://github.com/draco-agent/tech-news-digest/blob/v3.16.0/SKILL.md
+- https://github.com/draco-agent/tech-news-digest/blob/v3.16.0/references/digest-prompt.md
+- https://github.com/draco-agent/tech-news-digest/blob/v3.16.0/scripts/summarize-merged.py
+
+## Preuves Workstation et nouveau contrôle (PR #289)
 
 ```bash
 just openclaw-digest-top-test
 just openclaw-digest-top-check
 ```
 
-Le premier gate exécute des contrats synthétiques hors ligne.
-Le second consulte le **seul** job connu
-`7ed5dd9a-da30-479f-b0eb-4cc494fb4966` par
-`openclaw cron get <id>` via l'installation Node/OpenClaw 24.22.1.
-Il ne publie ni texte du prompt, ni secrets, ni destinataires, ni
-sortie brute. Il refuse un ID ou un nom de job différent.
-Un code de sortie 2 signifie que l'argument reste invalide, absent
-ou que l'état runtime n'est pas vérifiable. Il **ne modifie pas** le job.
+La Workstation a validé **8/8**, puis **10/10 tests** sur les
+versions successives. Dernier contrôle avant ce durcissement :
+`cron_job_read=structured`,
+`digest_top_argument=multiple_top_arguments`, `exit=2`.
+Le cron récent contenait deux mentions explicatives de `--top 5`,
+ce qui a créé un **faux positif** du premier diagnostic. Ni une
+double invocation du script ni un 429 ne sont démontrés.
 
-### Résultat réel Workstation (27 octobre)
+Le nouveau contrôle lit en lecture seule le job connu par
+`openclaw cron get` et le fichier local fixe
+`~/.openclaw/workspace/skills/tech-news-digest/references/digest-prompt.md`
+avec vérifications propriétaire/type/mode/taille. Aucun prompt, clé,
+destinataire ou template brut n'est imprimé. Aucune requête de modèle,
+exécution cron, modification runtime ou redémarrage n'est faite.
 
-- `openclaw-digest-top-test` : **8/8 PASS** sur la première version.
-- `cron_job_read=structured` : le job exact a été retrouvé.
-- `digest_top_argument=no_explicit_top_argument` :
-  le prompt stocké **n'a pas** d'option littérale `--top`.
-- `openclaw-digest-top-check` a quitté avec le code **2 par prudence**.
-  Ce n'est ni un échec du Gateway ni une preuve de quota atteint.
-- Aucun job modifié ; aucune inférence exécutée.
+Les nouveaux codes de diagnostic :
+- `skill_template_range_int_mismatch` : template local transmet
+  `<ITEMS_PER_SECTION>` à `--top` alors que la valeur cron est
+  une plage ; **sortie 2 attendue**.
+- `skill_template_integer_valid` : template local utilise le
+  placeholder avec une valeur entière ; validation statique OK.
+- `skill_template_fixed_integer` : template local emploie un entier
+  explicite indépendant de la plage ; validation statique OK.
+- `skill_template_unavailable` : template absent ou lecture refusée ;
+  ne pas supposer une version du skill.
+- `skill_template_top_unverified` : politique inconnue ; fail closed.
 
-**Analyse :** le message d'erreur rapporte que l'agent a invoqué
-`summarize-merged.py` avec un intervalle, mais cet argument n'était
-pas littéralement présent dans sa définition de tâche. Une consigne
-en langage naturel ou une décision de l'agent au moment de l'exécution
-peut donc expliquer l'erreur ; le prompt complet n'a pas été publié,
-donc le mécanisme exact n'est pas attesté.
+La suite Python a été portée à **16 tests** ; cette nouvelle suite
+n'est **pas encore attestée exécutée sur la Workstation**.
 
-**Durcissement du préflight dans cette PR :** classification
-`natural_language_top_range` lorsque « 3-5 » ou « 3–5 » est
-présent en texte sans `--top`, `no_explicit_top_argument` lorsque
-l'option manque sans cette plage, `ambiguous_mixed_top_guidance`
-lorsqu'un `--top 5` coexiste avec une plage contradictoire,
-`invalid_top_range` pour un `--top` explicitement invalide, et
-`valid_top_five` uniquement pour un `--top 5` isolé et cohérent.
-La sortie reste expurgée. Le code 2 pour les autres cas est **prévu**
-(fail closed). Les nouveaux contrats doivent encore être exécutés
-localement.
+## Correction du digest sans toucher au Gateway
 
-Il s'agit d'une analyse **statique des instructions** : même une
-sortie `valid_top_five` ne garantit pas que le modèle invoquera
-réellement la commande attendue.
+**Solution immédiate sans modifier le skill installé (v3.16.0) :**
+dans l'interface OpenClaw, conserver le prompt officiel et modifier
+uniquement `ITEMS_PER_SECTION = 3-5` en
+`ITEMS_PER_SECTION = 5`. Supprimer les paragraphes supplémentaires
+introduits pour imposer `--top 5` : la source de vérité redevient
+`digest-prompt.md`. Inconvénient : cette version aura une valeur
+fixe de 5 éléments par rubrique plutôt qu'une plage flexible.
+Conserver toutes les autres variables et la destination.
 
-## Correction minimale du job existant
+**Solution durable pour conserver la plage éditoriale 3–5 :**
+corriger le template versionné du skill pour utiliser un entier
+distinct (p. ex. `--top 5` ou un nombre de candidats de récupération
+plus large) tout en laissant `ITEMS_PER_SECTION = 3-5` dans le cron.
+Préparer ce correctif dans la gestion déclarative de la Workstation ;
+une édition locale non versionnée peut être écrasée lors d'une
+mise à jour. Examiner préalablement l'édition et les changements
+de version du skill ; pas de mise à jour automatique.
 
-Dans **OpenClaw → Automations / Cron → daily-tech-news-digest → Edit** :
+La commande de validation statique doit passer avant toute nouvelle
+exécution programmée, mais **ne garantit pas** le succès éditorial,
+l'accès aux sources, ni la livraison. Ne pas forcer `cron run`,
+modifier SQLite, augmenter les budgets, changer les clés ou redémarrer
+le Gateway pour cette erreur.
 
-1. Conserver la cadence, le fuseau, le modèle `litellm-cron/gpt-4.1-mini`
-   et la destination de livraison.
-2. Conserver les chemins, sources et autres options de la tâche ;
-   imposer **la commande `summarize-merged.py` avec `--top 5`**.
-   Ne pas remplacer le prompt complet par cette instruction seule.
-3. Ajouter une contrainte explicite : « Pour `summarize-merged.py`,
-   passer exactement un nombre entier à `--top` : utiliser
-   `--top 5`. Ne jamais remplacer ce nombre par une plage.
-   Si la génération échoue, signaler l'échec ; une livraison du message
-   d'erreur ne constitue pas une synthèse réussie. »
-4. Enregistrer uniquement les instructions, puis exécuter
-   `just openclaw-digest-top-check` de nouveau.
-
-La CLI OpenClaw documente `cron get <job-id>` et
-`cron edit <job-id> --message`, mais ce dernier peut exposer
-le prompt complet dans les arguments du processus. Préférer la
-modification depuis l'interface locale sécurisée, sans recopier le
-texte privé dans les logs, un ticket ou le terminal.
-
-**Ne pas** modifier directement SQLite, lancer `cron run`,
-relancer l'inférence, redémarrer le Gateway, changer les clés
-virtuelles LiteLLM ou augmenter les budgets pour ce symptôme.
+**Chat `main` séparé :** une réponse à « Hello » reprenant un
+ancien transcript peut provenir du contexte de session conservé.
+Depuis le chat, utiliser `/new` (message isolé) pour ouvrir une
+session fraîche en archivant l'ancienne ; ne pas appeler
+`openclaw reset` ni effacer la base SQLite. Ce test peut entraîner
+une inférence au message suivant, pas à l'envoi de `/new` lui-même.
 
 ## Constat réseau LiteLLM (hors cause directe du digest)
 
@@ -110,11 +131,12 @@ une preuve du 429 et ne permet pas d'identifier l'appelant.
 
 ## Critère DONE
 
-- La définition runtime de `daily-tech-news-digest` contient
-  un `--top` entier explicite (cible 5).
+- La paire **paramètre cron + template installé** ne substitue
+  jamais une plage à un argument CLI entier.
 - Les contrats `openclaw-digest-top-test` passent localement.
 - Une exécution **planifiée ultérieure** génère un vrai résumé,
   avec sources et statut de traitement, et le livre.
 - L'absence de 429 pour le chat `main` reste un **autre** critère.
 
-Référence CLI : https://docs.openclaw.ai/cli/cron
+Références : https://docs.openclaw.ai/cli/cron et
+https://docs.openclaw.ai/tools/slash-commands
