@@ -656,7 +656,7 @@ if [[ -f scripts/truenas/accept-fastapi-ai-connectivity.py ]]; then
     # Fixed-code report only. Never echo container env, model output or secrets.
     if jq -e '.component == "fastapi_ai_acceptance" and .raw_secrets_printed == false' \
          >/dev/null 2>&1 <<<"${ai_report:-}"; then
-        jq -c '{litellm,litellm_model,litellm_inference,ollama,
+        jq -c '{litellm,litellm_proxy_liveness,litellm_key_format,litellm_model,litellm_inference,ollama,
           openrag_backend,openrag_frontend,openrag_mcp,
           openrag_integration,openrag_private_retrieval,acceptance}' \
           <<<"${ai_report}"
