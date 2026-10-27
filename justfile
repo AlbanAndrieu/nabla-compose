@@ -1220,6 +1220,23 @@ workstation-dnssec-test:
     python3 -m py_compile scripts/workstation/diagnose-dnssec-chain.py tests/test_diagnose_dnssec_chain.py
     python3 -m unittest discover -s tests -p 'test_diagnose_dnssec_chain.py' -v
 
+# No mutation: inspect per-link DNSSEC NTA and normal (validated) private lookup.
+workstation-dnssec-nta-check:
+    python3 scripts/workstation/recover-split-dns-nta.py --check
+
+# Offline tests; no network and no sudo.
+workstation-dnssec-nta-test:
+    python3 -m py_compile scripts/workstation/recover-split-dns-nta.py tests/test_recover_split_dns_nta.py
+    python3 -m unittest discover -s tests -p 'test_recover_split_dns_nta.py' -v
+
+# Explicit runtime-only negative trust anchor for private zone; not persistent.
+workstation-dnssec-nta-try:
+    python3 scripts/workstation/recover-split-dns-nta.py --apply --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
+
+# Explicit rollback; refuses if existing/additional NTAs would be lost.
+workstation-dnssec-nta-rollback:
+    python3 scripts/workstation/recover-split-dns-nta.py --remove --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
+
 # Hermetic NSS differential test suite, no network, no sudo, no pytest.
 workstation-nss-path-test:
     python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
