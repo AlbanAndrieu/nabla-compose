@@ -23,6 +23,9 @@ MAX_JSON = 1024 * 1024
 TOP_PATTERN = re.compile(r'(?<!\S)--top(?:\s+|=)(?:["\']?)([^\s"\']+)')
 INVALID_RANGE = re.compile(r"^\d+[-\u2013\u2014]\d+$")
 INTEGER = re.compile(r"^[0-9]+$")
+# Detect the specific natural-language range which caused the 27 Oct failure.
+# Do not try to interpret arbitrary dates, version numbers or prompt contents.
+NATURAL_TOP_RANGE = re.compile(r"(?<![0-9])3\s*[-\u2013\u2014]\s*5(?![0-9])")
 
 
 def owned_file(path: Path) -> bool:
@@ -60,16 +63,21 @@ def classify_job(job: dict | None) -> tuple[str, str]:
         return "unexpected_payload", "unverified"
     values = TOP_PATTERN.findall(message)
     if not values:
-        return "no_explicit_top_argument", "unverified"
+        return ("natural_language_top_range" if NATURAL_TOP_RANGE.search(message)
+                else "no_explicit_top_argument"), "5"
     if len(values) != 1:
-        return "multiple_top_arguments", "unverified"
+        return "multiple_top_arguments", "5"
     value = values[0]
     if INVALID_RANGE.fullmatch(value):
-        return "invalid_top_range", "five"
+        return "invalid_top_range", "5"
     if INTEGER.fullmatch(value):
-        return ("valid_top_five" if int(value) == 5 else "valid_other_integer",
-                "five")
-    return "invalid_top_value", "five"
+        if int(value) != 5:
+            return "valid_other_integer", "5"
+        # Mixing an explicit --top 5 with a 3-5 range is ambiguous to an agent.
+        if NATURAL_TOP_RANGE.search(message):
+            return "ambiguous_mixed_top_guidance", "5"
+        return "valid_top_five", "5"
+    return "invalid_top_value", "5"
 
 
 def read_runtime(node: Path = NODE, cli: Path = CLI) -> tuple[str, dict | None]:
@@ -114,8 +122,8 @@ def main(argv=None) -> int:
     print("cron_job_modified=false")
     print("model_requests_sent=0")
     print("task_prompt_printed=false")
-    return 0 if state == "structured" and classification in (
-        "valid_top_five", "valid_other_integer") else 2
+    # Passing contracts is not proof a model will follow its prompt or a job will deliver.
+    return 0 if state == "structured" and classification == "valid_top_five" else 2
 
 
 if __name__ == "__main__":
