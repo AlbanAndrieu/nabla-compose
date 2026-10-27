@@ -147,6 +147,35 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
+## P0 — Gate Ansible rôle introuvable (28/10, réception suivante)
+
+Depuis le **bon worktree** Ansible
+(`f71c2f9`, branche Draft #15),
+`test_homelab_dns_gate.py` **13/13 PASS** ;
+`check_homelab_dns_gate.py --dry-run` a confirmé
+garde DNS **8/8 PASS**, dispatcher **17/17 PASS**,
+puis a **bloqué avant le dry-run** :
+`Could not find specified file in role, its 'tasks/' is not usable`.
+Cette fois l'échec précis provient de
+`import_role: name: ../` dans
+`playbooks/homelab-dns.yml`, pas d'un défaut DNS.
+Le message `direnv .envrc is blocked` est
+secondaire et n'appelle aucune approbation automatique.
+
+**Fix versionné [skip ci] dans**
+[ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+`import_tasks: ../tasks/network_split_dns.yml`
+avec `vars_files: ../defaults/main.yml` ;
+résolution explicite du fichier `src` du dispatcher
+hors du contexte rôle ; désormais **14 tests
+de la gate** (nouveau contrat des chemins).
+**Restant :** nouvelle exécution locale des 14
+tests, 8/8 garde, 17/17 dispatcher et
+`ansible-playbook --list-tasks / --check --diff`
+avec tâches DNS réellement sélectionnées ;
+aucun Ansible apply encore réalisé.
+[Runbook](runbooks/workstation-split-dns-recovery.md).
+
 ## P0 — Ansible preflight vide : correction du contrôle de découverte (28/10)
 
 La dernière exécution opérateur a affiché **`Ran 0 tests`**,
