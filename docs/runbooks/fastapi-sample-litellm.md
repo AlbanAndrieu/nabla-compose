@@ -103,6 +103,76 @@ leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
 
+## Incident `BLOCKED` et emplacement de la vraie clé upstream (réception opérateur)
+
+L'opérateur a exécuté `--target truenas --native-truenas --apply`.
+Résultat `BLOCKED: configuration, transport or secure-storage failure`.
+L'inventaire de `~/.local/share/nabla-compose` ne comporte
+**pas** le répertoire `fastapi-litellm`. Ceci n'atteste
+**aucune création** d'une clé de premier saut ni de
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` ; une réponse HTTP
+ambiguë après création sur le proxy reste possible et impose
+un contrôle de l'alias **dans le proxy émetteur**, sans
+relancer aveuglément.
+
+Le journal joint montre en parallèle **4 erreurs sur
+6 tests natifs** : `TypeError: main() takes 0 positional arguments
+but 1 was given`. Corrigé par l'entrée testable
+`main(argv=None)` qui passe la liste au parseur, sans
+changer la ligne de commande opérateur. **Tests à rejouer**.
+
+### Clé demandée : `LITELLM_FASTAPI_WORKSTATION_API_KEY`
+
+- **Émetteur : LiteLLM Workstation**, non TrueNAS.
+- **Alias émetteur :** `fastapi-sample-upstream`.
+- **Modèle :** `qwen`.
+- **Fichier transitoire créé uniquement après succès** :
+  `~/.local/share/nabla-compose/fastapi-litellm/workstation.key`
+  **sur la Workstation** (dossier 0700, fichier 0600).
+- **Vaultwarden :** `nabla/prod/litellm`, champ masqué
+  `LITELLM_FASTAPI_WORKSTATION_API_KEY`.
+- **Consommateur :** LiteLLM TrueNAS, fichier
+  `/mnt/cpool/secrets/runtime/litellm/.env.secrets`.
+
+Avant de créer la clé, contrôler la liste des **Virtual Keys du
+proxy LiteLLM Workstation** (conteneur `litellm-litellm-1`)
+et l'absence de l'alias `fastapi-sample-upstream`.
+Une absence dans Vaultwarden ou dans le fichier transitoire
+ne prouve pas l'absence en base LiteLLM. Si le proxy contient
+déjà l'alias, gérer/revoir cette identité, pas de nouveau
+`--apply`.
+
+**Sur Workstation uniquement**, après contrôle de l'alias,
+saisir la clé **master Workstation** en mémoire dans une
+session terminal privée, pas la master TrueNAS :
+
+```bash
+(
+  set -e
+  set +x
+  umask 077
+  read -rsp 'Master key LiteLLM Workstation: ' LITELLM_MASTER_KEY
+  printf '\n'
+  export LITELLM_MASTER_KEY
+  python3 scripts/workstation/provision-fastapi-litellm-keys.py \
+    --target workstation --apply
+)
+```
+
+Le code appelle la seule API de gestion **loopback
+Workstation** `http://127.0.0.1:4000/key/generate`,
+avec le scope `qwen`, plafond 8 USD à vie,
+5 RPM, 15 000 TPM et une requête parallèle.
+Il doit afficher `status=created target=workstation model=qwen`
+sans secret. Il ne copie pas automatiquement la clé
+dans Vaultwarden ni dans TrueNAS. En cas d'échec HTTP
+après une tentative, inspecter l'alias sur le proxy
+**avant** de réessayer (risque de clé orpheline).
+
+**Ne jamais utiliser `--native-truenas` pour cette
+clé Workstation** : cette option est réservée au
+premier saut FastAPI → TrueNAS, pour une clé différente.
+
 ## Provisionner la clé **émise par LiteLLM TrueNAS** (mode natif)
 
 **Distinction de sécurité impérative :**
