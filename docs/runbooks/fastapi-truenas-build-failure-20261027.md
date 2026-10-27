@@ -171,13 +171,16 @@ rmdir "$WT"
 git -c submodule.recurse=false worktree add --detach "$WT" \
   origin/fix/nexus-wan-haproxy-acl-evidence-20261027
 
+test_status=0
 (
+  set -e
   cd "$WT"
   bash -n scripts/truenas/update-fastapi-sample.sh
   python3 -m unittest discover -s tests \
     -p 'test_fastapi_build_failure_*py' -v
-)
+) || test_status=$?
 git worktree remove "$WT"
+test "$test_status" -eq 0
 ~~~
 
 Ces commandes sont locales et ne déclenchent aucune CI, requête au registre, build ou redeploy. Le script complet de déploiement **n'est pas lancé pendant la recette de tests**.
