@@ -166,11 +166,18 @@ La PR #289 ajoute au script `scripts/truenas/update-fastapi-sample.sh` les prote
 ~~~bash
 cd /mnt/cpool/compose/nabla-compose
 git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
-git switch fix/nexus-wan-haproxy-acl-evidence-20261027
-git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+WT="$(mktemp -d /tmp/nabla-fastapi-quota.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach "$WT" \
+  origin/fix/nexus-wan-haproxy-acl-evidence-20261027
 
-bash -n scripts/truenas/update-fastapi-sample.sh
-python3 -m unittest discover -s tests -p 'test_fastapi_build_failure_*py' -v
+(
+  cd "$WT"
+  bash -n scripts/truenas/update-fastapi-sample.sh
+  python3 -m unittest discover -s tests \
+    -p 'test_fastapi_build_failure_*py' -v
+)
+git worktree remove "$WT"
 ~~~
 
 Ces commandes sont locales et ne déclenchent aucune CI, requête au registre, build ou redeploy. Le script complet de déploiement **n'est pas lancé pendant la recette de tests**.
