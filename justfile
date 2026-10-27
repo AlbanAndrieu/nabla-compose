@@ -637,6 +637,11 @@ litellm-workstation-auth-contracts:
     bash -n scripts/quality/run-python-with-jsonschema-local.sh
     python3 -m unittest discover -s tests -p 'test_fastapi_litellm_native_truenas.py' -v
     bash scripts/quality/run-pytest-local.sh -q tests/test_fastapi_litellm_wiring.py
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_workstation_inventory.py' -v
+
+# Workstation-only: value-blind read-only local proxy/alias audit. No models or key creation.
+litellm-workstation-fastapi-key-inventory:
+    python3 scripts/workstation/diagnose-fastapi-litellm-workstation-key.py --check
 
 # TrueNAS-only: offline scope + target validation, no key creation or network.
 litellm-truenas-fastapi-provision-check:
