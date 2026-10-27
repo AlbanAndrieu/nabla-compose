@@ -16,24 +16,27 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING` et login admin HTTP acceptés ; HTTPS direct SNI/TLS sur TrueNAS `LOGIN_HTML_READY`, DNS Pi-hole + pfSense A `172.17.0.24`, Traefik `running`, labels et réseau OK ; **31/31 tests TLS PASS opérateur** | Workstation ne résout pas le nom privé (`ping: Name or service not known`) : comparer `dig @pfSense` et `getent` sur le **client**, puis rétablir DNS NetworkManager/systemd-resolved (ancien drift Quad9). Vaultwarden/runtime restent DRIFT/UNVERIFIED |
+| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin accepté ; HTTPS direct TrueNAS `LOGIN_HTML_READY` ; 31 contrats du diagnostic HTTPS **PASS**. Workstation : `dig @pfSense` OK mais DNS `eno1` effectif Quad9 (`NETWORKMANAGER_VS_RESOLVED`) ; override `resolvectl dns=172.17.0.1` + `~int.albandrieu.com` restaure `getent=172.17.0.24` et HTTPS 302/TLS valide sur le client | Correction DNS locale **temporaire** ; identifier l'auteur de l'override (`hide-location` présent mais causalité inconnue), persister la politique NetworkManager puis vérifier HTTPS Web réellement connecté ; Vaultwarden/runtime encore DRIFT/UNVERIFIED |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
 | H-08 | Vaultwarden | `code`/`openrag` absents du cache CLI ; DefectDojo : 5 secrets MATCH, `DD_ADMIN_USER=DRIFT`, mot de passe coffre absent/vide | `bw sync`, vérifier l'item source, puis rapprocher le mot de passe Django avec runtime et coffre sans journaliser de secret |
 | H-09 | RAM TrueNAS | 61 Gio total, 7,3 Gio disponibles avant la reprise ; Netdata et Graylog arrêtés | Baseline PSI/mémoire/OOM sans attribuer causalement le pic à ces services |
 
-**Prochaine étape prioritaire :** réparer la **résolution DNS de la workstation**
-sans ajouter un Host Override pfSense ni toucher au DNS Forwarder.
-Sur la workstation, exécuter `just pfsense-wifi-path`,
-`dig @172.17.0.1 defectdojo.int.albandrieu.com A`,
-`getent ahostsv4 defectdojo.int.albandrieu.com`,
-`resolvectl dns eno1` et `resolvectl domain eno1`.
-L'ancienne divergence NetworkManager → Quad9 est documentée dans
-[le runbook DNS](runbooks/2026-10-25-pfsense-wifi-dns-root-cause.md).
-Ne pas perturber DefectDojo/Traefik : le HTTPS fonctionne déjà sur TrueNAS.
-Ensuite seulement, rapprocher les identifiants Django fonctionnels
-de `.env.secrets` et Vaultwarden, sans helper `--apply` aveugle.
+**Prochaine étape prioritaire :** rendre **persistante** la politique DNS
+de la workstation, car le dépannage `resolvectl` a corrigé le
+`getent` / HTTPS mais peut être écrasé par NetworkManager, VPN ou
+le hook `hide-location`. Le chemin exact d'écriture Quad9 reste
+`NOT_VERIFIED`, malgré `hide-location.service enabled` ciblant `eno1`.
+Ne modifier ni pfSense (DNS Resolver déjà OK), ni Pi-hole ni Traefik.
+Le diagnostic local a échoué **avant** la correction, comme attendu,
+et la recette workstation passe **après**.
+Le Python `mise` 3.14.9 n'a pas `pytest` :
+`just defectdojo-workstation-dns-test` utilise désormais
+`unittest` standard, **pas encore exécuté par l'opérateur**.
+[Runbook de réception](runbooks/defectdojo-private-ingress-acceptance.md).
+Ensuite, réconcilier Django/runtime/Vaultwarden, sans
+`--apply` qui écraserait le hash fonctionnel.
 Les corrections de diagnostic DefectDojo restent en code `[skip ci]` ;
 tests ciblés locaux à exécuter au HEAD réel.
 
