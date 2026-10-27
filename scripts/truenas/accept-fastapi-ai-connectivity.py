@@ -187,7 +187,7 @@ def inspect(*, inference_smoke: bool = False) -> dict[str, object]:
         return safe_failure("invalid_probe_report")
     if type(data.get("ollama_models_available")) is not bool:
         return safe_failure("invalid_probe_report")
-    if any(data[key] not in STATE_CODES for key in FIELDS):
+    if any(not isinstance(data[key], str) or data[key] not in STATE_CODES for key in FIELDS):
         return safe_failure("invalid_probe_report")
     return {**data, "raw_secrets_printed": False}
 
