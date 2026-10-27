@@ -156,6 +156,30 @@ class BuildFailureClassifierContract(unittest.TestCase):
                 os.close(fd)
             os.unlink(name)
 
+    def test_cli_failure_shape_only_emits_fixed_fields(self) -> None:
+        fd, name = tempfile.mkstemp(prefix="tmp.", dir="/tmp")
+        secret = "BEARER_SECRET_MUST_NEVER_BE_PRINTED_882"
+        try:
+            os.write(fd, (
+                "ERROR: failed to solve: unexpected response from sender "
+                "https://example.invalid/" + secret + "\n"
+            ).encode())
+            os.close(fd)
+            fd = -1
+            import io
+            with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+                code = subject.main(["--check", "--failure-shape", "--log", name])
+            self.assertEqual(code, 0)
+            response = json.loads(output.getvalue())
+            self.assertEqual(response["terminal_marker_style"], "solve")
+            self.assertFalse(response["raw_log_printed"])
+            self.assertNotIn(secret, output.getvalue())
+            self.assertNotIn("example.invalid", output.getvalue())
+        finally:
+            if fd != -1:
+                os.close(fd)
+            os.unlink(name)
+
     def test_failure_shape_does_not_include_unrecognized_log_text(self) -> None:
         report = subject.failure_shape(
             "ERROR: failed to solve: PRIVATE_ACCOUNT_ID_XYZ SECRET_PASSWORD_123\n"
