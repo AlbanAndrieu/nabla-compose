@@ -634,6 +634,14 @@ nexus-private-ingress-test:
     test -f tests/test_pfsense_haproxy_policy_audit.py
     python3 -m py_compile scripts/pfsense/audit-haproxy-ingress.py tests/test_pfsense_haproxy_policy_audit.py
     python3 tests/test_pfsense_haproxy_policy_audit.py -v
+    test -f tests/test_ingress_public_dns_evidence.py
+    python3 -m py_compile scripts/ingress/collect-public-dns-evidence.py tests/test_ingress_public_dns_evidence.py
+    python3 tests/test_ingress_public_dns_evidence.py -v
+
+# Read-only: public DNS from two independent public recursors.
+# Output can be merged into the optional external evidence JSON.
+ingress-public-dns-evidence:
+    python3 scripts/ingress/collect-public-dns-evidence.py
 
 # Read-only: compare current generated pfSense HAProxy with the reviewed,
 # redacted 2026-10-27 baseline. Unverified DNS/Tunnel/PF is NOT success.
