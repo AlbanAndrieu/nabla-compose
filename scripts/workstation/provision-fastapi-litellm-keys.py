@@ -2,7 +2,8 @@
 """Provision two model-scoped LiteLLM virtual keys without exposing tokens.
 
 Default is offline --check; --apply is a deliberate local operator action.
-The TrueNAS endpoint requires a local SSH tunnel to its loopback.
+The TrueNAS endpoint supports SSH loopback forwarding or explicit guarded
+native TrueNAS execution.
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ import stat
 import subprocess
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/fastapi-sample/litellm-key-policy.json"
@@ -110,7 +111,7 @@ def provision(policy: dict, target: str, output: Path, *,
     if not master.startswith("sk-"):
         raise ValueError("dedicated proxy administrator secret missing")
     if os.geteuid() == 0:
-        raise ValueError("must run as the unprivileged workstation operator")
+        raise ValueError("must run as the unprivileged operator on the selected host")
     verify_directory(output.parent)
     output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     verify_directory(output.parent)
@@ -126,8 +127,8 @@ def provision(policy: dict, target: str, output: Path, *,
             data=json.dumps(payload(policy, target)).encode(),
         )
         # No redirect to a non-loopback URL and no token in command arguments.
-        # HTTP loopback is intentional; TrueNAS must be reached via SSH.
-        with build_opener(NoRedirect()).open(request, timeout=15) as response:
+        # HTTP loopback only; a TrueNAS tunnel or verified native host is required.
+        with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=15) as response:
             if response.geturl() != endpoint + "/key/generate":
                 raise ValueError("key-generation endpoint redirected")
             result = json.load(response)
