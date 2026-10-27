@@ -19,21 +19,21 @@ BASE = {
     "name": "PFSENSE_FIREWALL",
     "ip_address": "172.17.0.24",
     "type": "curl",
-    "valid": True,
+    "revoked": False,
     "last_pull": "2026-10-27T21:46:28Z",
 }
 FIREWALL = {
     "name": EXPECTED_NAME,
     "ip_address": EXPECTED_IP,
     "type": "crowdsec-firewall-bouncer",
-    "valid": True,
+    "revoked": False,
     "last_pull": "2026-10-27T22:35:27Z",
 }
 LEGACY = {
     "name": "pfsense-firewall",
     "ip_address": EXPECTED_IP,
     "type": "crowdsec-firewall-bouncer",
-    "valid": True,
+    "revoked": False,
     "last_pull": "2026-09-25T22:55:08Z",
 }
 
@@ -88,8 +88,12 @@ class CrowdSecBouncerProvenanceTest(unittest.TestCase):
     def test_missing_poll_is_not_accepted(self) -> None:
         self.check([BASE, {**FIREWALL, "last_pull": None}], False)
 
-    def test_invalid_registration_is_not_accepted(self) -> None:
-        self.check([BASE, {**FIREWALL, "valid": False}], False)
+    def test_revoked_registration_is_not_accepted(self) -> None:
+        self.check([BASE, {**FIREWALL, "revoked": True}], False)
+
+    def test_absent_revoked_flag_fails_closed(self) -> None:
+        record = {key: value for key, value in FIREWALL.items() if key != "revoked"}
+        self.check([BASE, record], False)
 
     def test_duplicate_matches_are_not_accepted(self) -> None:
         self.check([BASE, FIREWALL, FIREWALL], False)
@@ -100,6 +104,8 @@ class CrowdSecBouncerProvenanceTest(unittest.TestCase):
         self.assertIn("crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED", script)
         self.assertIn("crowdsec_pfsense_bouncer_pull_provenance=LAN_IP_AND_FIREWALL_USER_AGENT_OBSERVED", script)
         self.assertIn("PF decision application not yet verified", script)
+        self.assertIn("and .revoked == false", script)
+        self.assertNotIn("and .valid == true", script)
         self.assertIn("base bouncer registration has no pull; checking IP-suffixed", script)
         self.assertNotIn('error "pfSense firewall bouncer is registered but has not polled the central LAPI"', script)
         self.assertNotIn("cscli decisions add", script)
