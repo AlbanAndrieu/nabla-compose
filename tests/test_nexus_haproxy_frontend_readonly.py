@@ -96,6 +96,22 @@ class NexusHaproxyFrontendReadonly(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("invalid HAProxy backend name", r.stderr)
 
+    def test_current_nexus_route_uses_traefik_not_missing_legacy_backend(self):
+        # Model the current 27/10 HAProxy route: Nexus goes to Traefik,
+        # whereas the previously referenced direct backend is gone.
+        current = CONFIG.replace(
+            "use_backend prod_front-traefik-https_ipvANY if int aclcrt_main_Web_HTTPS",
+            "use_backend prod_front-traefik-https_ipvANY if nexus aclcrt_main_Web_HTTPS",
+        ).split('backend nexus-albandrieu_ipvANY', 1)[0]
+        result = self.run_script(current, "--backend", "prod_front-traefik-https_ipvANY")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("nexus_declared_backend=prod_front-traefik-https_ipvANY", result.stdout)
+        self.assertIn("backend_server=truenas target=172.17.0.24:443", result.stdout)
+        self.assertIn("wan_rejection=NOT_VERIFIED", result.stdout)
+        stale = self.run_script(current, "--backend", "nexus-albandrieu_ipvANY")
+        self.assertNotEqual(stale.returncode, 0)
+        self.assertIn("backend 'nexus-albandrieu_ipvANY' not found", stale.stdout)
+
     def test_shell_parses_and_no_runtime_mutations(self):
         shell = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("midclt call", shell)
