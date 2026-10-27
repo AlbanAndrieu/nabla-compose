@@ -306,7 +306,19 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   L'intégration MCP OpenRAG reste `not_wired_pending_private_acl`.
 - [x] Ajouter dans #289 `accept-fastapi-ai-connectivity.py` et son test local
   pour produire uniquement des codes de transport/auth (sans secrets).
-  Exécution sur TrueNAS toujours non prouvée ; voir
+- [x] Réseaux `intranet` et `traefik_network` disponibles ; upgrade SHA
+  `0266f20d` lancé sur TrueNAS et arrivé à **3/6, base Python en cache**.
+  Le build et l'acceptation finale ne sont **pas encore confirmés**.
+- [x] Tests IA initiaux : 9 méthodes, 4 FAIL et 1 ERROR. Corrigé dans la
+  PR #289 : contrôle du type JSON avant test d'appartenance à un set ;
+  assertions de non-divulgation basées sur un rapport fixe, pas sur le
+  mot générique `secret`.
+- [ ] Rejouer les 9 tests d'acceptation IA corrigés depuis un worktree
+  isolé **après la fin** de l'upgrade en cours ; ne pas relancer le
+  déploiement et ne pas effacer les changements du sous-module.
+- [ ] Relever le résultat final de l'upgrade (6/6), puis l'état réellement
+  observé de LiteLLM, Ollama et OpenRAG. La connexion MCP/ACL OpenRAG
+  reste un chantier distinct. Voir
   [recette IA après déploiement](runbooks/fastapi-truenas-ai-acceptance-20261027.md).
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
