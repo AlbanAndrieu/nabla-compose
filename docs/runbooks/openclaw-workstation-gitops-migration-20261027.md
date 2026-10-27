@@ -235,6 +235,78 @@ additionnelles si nécessaire.
 (`openclaw-heartbeat-modes-test`) n'ont pas encore été exécutés
 sur le poste. Ne pas présenter `--apply` comme déjà effectué.
 
+## Réception des permissions et décision de nettoyage — 27/10, suivi PR #289
+
+**Preuves reçues après le lot de 51/51 PASS :**
+`openclaw-heartbeat-modes-test` = **6/6 PASS**.
+Le `--check` révèle exactement
+`workspace_before_fix=needs_mode_0600`,
+`nabla_legacy_heartbeat=symlinked_parent` et
+`openclaw_august_archive=needs_mode_0600`.
+L'`--apply` original a **refusé toute modification**
+(`files_mode_updated=0`) conformément au garde all-or-nothing.
+Le contrôle des copies reste rouge : 3 permissions trop larges.
+**Ne pas présenter `0600` comme déjà appliqué.**
+
+Le garde de fichiers a été ajusté **uniquement** pour
+`nabla_legacy_heartbeat`, qui peut traverser un symlink de
+checkout : validation du propriétaire du lien (root ou
+utilisateur), nom final attendu, chemin canonique invariant,
+type régulier, owner, nlink unique et identité inode avant
+`fchmod(0600)`. Les chemins de la copie `.before-fix` et
+de l'archive n'acceptent toujours aucun parent symlink.
+Deux tests supplémentaires couvrent ces contrats ; **ils
+n'ont pas encore été exécutés sur Workstation**.
+
+```bash
+just openclaw-heartbeat-modes-test
+just openclaw-heartbeat-modes-check
+# Après inspection des trois sources : mutation ciblée autorisée par l'opérateur.
+just openclaw-heartbeat-modes-apply
+just openclaw-heartbeat-copies-check
+```
+
+L'opérateur accepte désormais la perte de **l'historique des
+sessions OpenClaw** pour nettoyer `cron`. Préserver
+credentials, profils, modèles, automatisations et réglages.
+
+La CLI officielle supporte `openclaw sessions cleanup`
+avec `--agent cron`, `--dry-run` et `--enforce` ;
+le plan et l'application peuvent passer par le Gateway
+actif sans modifier directement SQLite. Les nouvelles
+recettes versionnées suivent cette méthode :
+```bash
+just openclaw-cron-session-maintenance-test
+just openclaw-cron-session-maintenance-check
+# Hors job cron actif, après lecture des compteurs et autorisation explicite :
+just openclaw-cron-session-maintenance-apply
+just openclaw-cron-parent-check
+```
+
+Le wrapper n'imprime ni identifiants, ni chemins de magasins,
+ni transcripts ; il refuse un résultat qui référence un
+autre agent ou plusieurs stores. Le nettoyage appliqué respecte
+la rétention déjà configurée. Il **ne garantit pas** la purge de
+toutes les 21 sessions et ne recrée jamais
+`agent:cron:main`. Pour des suppressions plus directes,
+`openclaw sessions delete <key> --agent cron --dry-run`
+doit être utilisé uniquement avec des clés vérifiées, et
+`--yes` après revue du plan ; jamais `openclaw reset --scope
+config+creds+sessions`, qui détruirait aussi configuration et
+credentials.
+
+La cause précise du manque de session parent dans l'UI
+nécessite une investigation distincte si une nouvelle conversation
+`cron` ne peut pas être ouverte depuis l'interface après
+la maintenance. Aucune commande destructive n'a été exécutée
+sur la Workstation par cette PR.
+
+**Roadmap canonique :**
+[OpenClaw Workstation](../openclaw-workstation-roadmap.md)
+(P0 LiteLLM, P1 sessions/permissions, P2 GitOps/HEARTBEAT,
+P3 cutover TrueNAS). Elle est également liée dans
+`docs/roadmap.md`.
+
 ## P1 — Migration non secrète de `nabla`
 
 Commande d'inventaire :
