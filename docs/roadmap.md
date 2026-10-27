@@ -404,43 +404,38 @@ Actions :
   backend toujours **200**, HTTPS privé toujours **404 / TLS 0**.
   L'écart de labels **est résolu** ; le 404 privé est le
   résultat attendu du routeur délibérément inactif.
-- [ ] **Nexus / P0 — isoler le Host privé sur le frontend WAN :**
-  La Custom App TrueNAS `nexus` est RUNNING ; DNS privé confirmé,
-  backend direct `172.17.0.24:8081` HTTP 200 et labels Traefik
-  réellement appliqués avec `traefik.enable=false`.
-  Depuis le LAN, le HTTPS privé reste HTTP 404 avec TLS valide.
-  Tests locaux opérateur `just nexus-private-ingress-test`
-  **14/14 PASS** (5 Nexus + 9 inspecteur), worktree à HEAD
-  `acee4b5f` au moment de la validation ; les nouveaux tests
-  ajoutés ensuite ne sont pas encore exécutés sur le dernier HEAD.
-  **Preuve HAProxy la plus récente (27/10) :** frontend
-  `main_Web_HTTPS`, ACL `nexus` exacte (ligne 89),
-  `aclcrt_main_Web_HTTPS` (ligne 94), Host stocké dans
-  `txn.txnhost` (ligne 96) et **ligne 128** :
+- [ ] **Nexus P0 — refuser le Host privé au frontend WAN pfSense :**
+  **Réception opérateur le 27/10 :** `just nexus-private-ingress-test`
+  **15/15 PASS** (5 contrats Nexus + 10 inspecteur),
+  HEAD `7300e891` ; frontend `main_Web_HTTPS`.
+  ACL `nexus` ligne 89 ; route spécifique Nexus ligne 128
   `use_backend prod_front-traefik-https_ipvANY if nexus
-  aclcrt_main_Web_HTTPS`. Les routes plus génériques vers
-  Traefik suivent aux lignes 132–133.
-  **Le relevé antérieur vers `nexus-albandrieu_ipvANY`
-  est obsolète.** L'inspection `--backend nexus-albandrieu_ipvANY`
-  échoue correctement avec « backend not found », ce qui ne
-  démontre aucune panne Nexus et ne doit pas entraîner la
-  recréation de cet ancien backend.
-  Nouveau gate en lecture seule :
-  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh
-  --backend prod_front-traefik-https_ipvANY`. Il confirme
-  la cible actuelle du backend Traefik ; le filtre expose
-  `nexus_declared_backend` lorsque le Host exact est routé.
-  Aucun `http-request deny/return` n'a été affiché dans
-  ce frontend. Source LAN du test vers l'IP publique,
-  NAT reflection possible : **WAN_REJECTION_NOT_VERIFIED**.
-  Avant l'activation du routeur Nexus privé, configurer
-  un refus du Host exact **sur le frontend WAN** via l'UI
-  pfSense avec rollback, sans bloquer `s3.int.albandrieu.com`
-  ni `nexus.albandrieu.com`. Un test extérieur indépendant
-  serait la meilleure validation complémentaire.
-  Ne pas redéployer Nexus ni modifier HAProxy/Traefik
-  pendant ce gate en lecture seule.
-  [Runbook](runbooks/nexus-private-dns-ingress.md).
+  aclcrt_main_Web_HTTPS`. Backend Traefik déclaré ligne 311 :
+  `backend_server=traefik-https target=172.17.0.24:443`,
+  `backend_mode=http`. **Chaîne HAProxy → Traefik confirmée**
+  dans la configuration générée. L'ancien backend
+  `nexus-albandrieu_ipvANY` est absent ; ne pas le recréer.
+  TrueNAS Nexus RUNNING, backend :8081 HTTP 200,
+  routeur Traefik privé toujours `traefik.enable=false` ;
+  HTTPS privé 404 avec TLS valide est attendu à ce stade.
+  **Blocage :** aucun `http-request deny/return` dans
+  l'extrait frontend ; protection WAN effective non démontrée
+  (`WAN_REJECTION_NOT_VERIFIED`). Le test vers l'IP publique
+  depuis le LAN peut utiliser NAT reflection et n'établit
+  pas le refus depuis Internet.
+  Prochaine étape **indépendante de Nexus** : préparer via
+  l'UI pfSense HAProxy une ACL Host exacte
+  `nexus_private_wan` + action `http-request deny` (403)
+  dans `main_Web_HTTPS`, **avant le backend** ; vérifier la
+  configuration générée et la syntaxe, le reload effectif,
+  puis les chemins publics non régressés.
+  Ne pas bloquer l'exception `s3.int.albandrieu.com` ni
+  `nexus.albandrieu.com`. Prévoir sauvegarde et rollback.
+  Le nouveau Gate 11 du [runbook](runbooks/nexus-private-dns-ingress.md)
+  définit les commandes et critères de réception.
+  N'activer `NEXUS_PRIVATE_INGRESS_ENABLED=true` qu'après
+  preuve acceptable du contrôle d'accès WAN et vérification
+  du modèle Compose rendu ; déployer Nexus seul ensuite.
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
   viser au moins **128 Mio free+inactive** en régime ordinaire,
