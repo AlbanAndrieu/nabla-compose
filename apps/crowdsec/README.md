@@ -130,12 +130,15 @@ sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
 sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
 ```
 
-Le mode `--apply` doit être lancé **explicitement**. Il ne
+Le mode `--apply` doit être lancé **explicitement**, seulement
+après lecture du diagnostic des variables existantes. Il ne
 fonctionne que si le fichier privé est absent et si
 `PFSENSE_FIREWALL` n'a jamais été interrogé (`last_pull` vide).
-Il remplace **l'enregistrement inutilisé** avec
-`docker exec crowdsec cscli bouncers delete/add -o raw`,
-écrit **sans l'afficher** la nouvelle clé au fichier
+Il génère d'abord une clé avec `openssl rand -hex 32`,
+l'enregistre **avant** toute suppression d'identité, puis
+remplace **l'enregistrement inutilisé** au moyen de
+`cscli bouncers delete` et de `cscli bouncers add --key`
+(sans lire ni imprimer la sortie du CLI), en conservant la clé dans le fichier
 `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
 (root:root 0600), et ne modifie **pas** pfSense.
 Le fichier reste sur TrueNAS. Ne le commiter ou envoyer
