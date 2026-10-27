@@ -103,6 +103,104 @@ leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
 
+## Provisionner la clé **émise par LiteLLM TrueNAS** (mode natif)
+
+**Distinction de sécurité impérative :**
+la clé virtuelle émise par **TrueNAS LiteLLM** a pour
+alias `fastapi-sample-staging`. Elle authentifie
+`FastAPI Sample → TrueNAS LiteLLM`, et doit être
+stockée comme `LITELLM_API_KEY` dans l'item Vaultwarden
+`nabla/prod/sample-litellm`, puis dans
+`/mnt/cpool/secrets/runtime/sample/.env.secrets`.
+
+Elle **NE REMPLACE PAS**
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` : ce dernier
+credential doit être reconnu par **LiteLLM Workstation**,
+car la route TrueNAS `fastapi-qwen` appelle le
+`qwen` distant sur `172.17.0.57:4000`.
+Créer une clé de ce nom **dans TrueNAS LiteLLM**
+ne lui donne pas les droits d'accès au proxy Workstation.
+Les deux proxies contrôlent leur propre base de clés.
+
+**Demande opérateur :** créer la clé dans LiteLLM
+**TrueNAS**. Le provisionneur existant supporte désormais
+`--native-truenas` : il appelle uniquement
+`http://127.0.0.1:4000/key/generate` **depuis
+TrueNAS après vérification de `midclt`**.
+Ce mode refuse `--target workstation` et refuse
+tout hôte ne présentant pas l'identité TrueNAS.
+Le mécanisme distant par tunnel SSH sur
+`127.0.0.1:14000` reste disponible séparément.
+
+**Étape 1 — contrôles locaux, sans clé générée :**
+
+```bash
+# Console TrueNAS ; checkout de la PR #289 à jour.
+just litellm-workstation-auth-contracts
+just litellm-truenas-fastapi-provision-check
+```
+
+**Étape 2 — dans l'interface LiteLLM TrueNAS :**
+contrôler dans `Virtual Keys` qu'il n'existe
+pas déjà d'alias `fastapi-sample-staging`.
+La présence ou l'absence de cet alias dans
+**Vaultwarden** ne suffit pas à constater
+l'existence de la clé dans le proxy.
+En cas de clé déjà créée ou d'état de la
+base incertain, **ne pas lancer --apply**.
+
+**Étape 3 — génération locale sur TrueNAS :**
+
+La clé master **TrueNAS** est fournie de manière
+privée à l'opérateur non root ; elle ne doit
+être placée ni en argument CLI, ni dans Git,
+ni en clair dans les logs. Exemple dans un
+terminal interactif privé, sans `set -x` :
+
+```bash
+(
+  set -e
+  umask 077
+  read -rsp 'Master key LiteLLM TrueNAS: ' LITELLM_TRUENAS_MASTER_KEY
+  printf '\n'
+  export LITELLM_TRUENAS_MASTER_KEY
+
+  python3 scripts/workstation/provision-fastapi-litellm-keys.py \
+    --target truenas --native-truenas --apply
+)
+```
+
+Cette commande exige une authentification administrateur
+valide sur le proxy local et une base LiteLLM saine.
+Elle crée une clé restreinte à `fastapi-qwen` :
+`key_alias=fastapi-sample-staging`,
+`max_budget=8 USD` à vie, 5 RPM,
+15000 TPM et une requête concurrente.
+La valeur est écrite **uniquement** dans
+`~/.local/share/nabla-compose/fastapi-litellm/truenas.key`
+du compte opérateur TrueNAS, avec mode `0600`.
+Aucune valeur n'est imprimée et aucun conteneur
+n'est redémarré. Une erreur HTTP ambiguë peut
+laisser une clé orpheline créée : inspecter la
+liste des clés LiteLLM **avant toute relance**.
+
+**Étape 4 — déploiement distinct, NON automatisé :**
+sauvegarder la nouvelle valeur comme champ masqué
+`LITELLM_API_KEY` dans `nabla/prod/sample-litellm`
+dans le dossier Vaultwarden `TrueNAS`.
+Ensuite, vérifier les autres champs déjà présents
+et préparer une matérialisation *non destructive*
+de `sample/.env.secrets`. Ne pas écraser les
+identifiants DB, pfSense, Redis ou autres services
+dans ce fichier. Tester les limites de modèles/budget
+depuis l'API de gestion avant d'activer le consumer.
+
+**Garde finale :** une clé `fastapi-sample-staging`
+créée dans TrueNAS ne rend **pas** la route
+`fastapi-qwen` disponible tant que la clé
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` manque
+sur le second saut TrueNAS → Workstation.
+
 ## LiteLLM secret materialization (single item, no master-key reuse)
 
 The canonical Vaultwarden item for TrueNAS LiteLLM is now `nabla/prod/litellm`.
