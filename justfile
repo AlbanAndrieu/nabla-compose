@@ -669,6 +669,13 @@ pfsense-unbound-lan-dns-test:
 # Offline only: no Docker, SSH, runtime mutation or GitHub CI.
 # CrowdSec central LAPI cutover checks from workstation; no pfSense changes.
 # Preflight WARNs while the old engine is intentionally still running.
+# Offline contract gate: tests only parser/auth shell syntax, no SSH.
+crowdsec-bouncer-config-test:
+    bash -n scripts/workstation/verify-crowdsec-pfsense.sh
+    sh -n scripts/pfsense/check-central-crowdsec-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_bouncer_url_parser.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_bouncer_url_parser.py' -v
+
 crowdsec-pfsense-preflight:
     bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
 
