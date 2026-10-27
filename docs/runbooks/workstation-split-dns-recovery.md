@@ -115,6 +115,80 @@ Exécuter depuis la **même workstation** :
 - DNS confirmé mais requêtes lentes : collecter des séries horodatées ;
   ne pas déclarer pfSense DOWN sur une mesure isolée.
 
+## Réception opérateur — 27 octobre, 22:24 CET
+
+Une nouvelle exécution **sur la workstation**, depuis
+`cd ~/w/nabla-compose`, confirme les points suivants :
+
+- `just workstation-split-dns-test` : **16/16 PASS**
+  (deux exécutions successives, sans pytest).
+- Avant application : profil NM `MATCH`, route
+  `PERSISTED`, résolveur `MATCH`, domaine `ROUTED`,
+  pfSense UDP et TCP `A_CONFIRMED (0.0s)`, mais
+  **`client_nss=UNRESOLVED (14.0s)`**. La classification
+  `CLIENT_PRIVATE_SPLIT_DNS_PATH` / exit 1 est correcte.
+- L'opérateur a exécuté explicitement
+  `just workstation-split-dns-repair`. L'outil a réappliqué
+  le profil local, vidé le cache et contrôlé le résultat :
+  **`client_nss=A_CONFIRMED (2.0s)`, `diagnosis=PASS`**.
+- Le `just workstation-split-dns-check` suivant : **PASS**,
+  `client_nss=A_CONFIRMED (5.2s)` et avertissement
+  **`WARN: NSS query slow despite success`**.
+- Les unités `hide-location.timer` et `hide-location.service`
+  restent `disabled`. Le profil `~int.albandrieu.com`
+  est maintenant `PERSISTED`.
+- Contrôle direct pfSense `dig +tcp @172.17.0.1
+  defectdojo.int.albandrieu.com A` à **22:24:07 CET** :
+  **NOERROR**, réponse A `172.17.0.24`, **27 ms**.
+  Les vérifications internes de l'outil classent aussi UDP
+  et TCP `A_CONFIRMED` lors de ces exécutions.
+
+**Bilan :** la réparation locale est acceptée **au runtime** ;
+la configuration est écrite dans NetworkManager et non
+`resolvconf`. Le précédent timeout UDP isolé n'est pas
+reproduit durant ce contrôle ; ne pas le classer « résolu
+définitivement » ni « pfSense DOWN ». Le **délai NSS
+variable** (14 s KO, 2 s OK, 5,2 s OK) reste un sujet de
+performance/intermittence : décomposer avec des mesures
+contemporaines, mais ne pas inverser les statuts DNS qui
+ont effectivement répondu.
+
+### Diagnostic read-only si la lenteur NSS réapparaît
+
+Depuis la workstation, sans nouveau `--apply` tant que
+la configuration continue de répondre :
+
+```bash
+cd ~/w/nabla-compose
+just workstation-split-dns-check
+
+# Comparer directement au même instant les couches DNS et NSS :
+dig +time=3 +tries=1 @172.17.0.1 \
+  defectdojo.int.albandrieu.com A +stats
+dig +tcp +time=3 +tries=1 @172.17.0.1 \
+  defectdojo.int.albandrieu.com A +stats
+time resolvectl query -4 defectdojo.int.albandrieu.com
+time getent ahostsv4 defectdojo.int.albandrieu.com
+
+# Inspecter les DNS et domaines effectivement associés au lien.
+resolvectl status eno1
+grep '^hosts:' /etc/nsswitch.conf
+readlink -f /etc/resolv.conf
+```
+
+**Interprétation :** direct pfSense rapide, mais
+`resolvectl` lent → examiner le routage DNS du système et
+les requêtes répétées. `resolvectl` rapide mais
+`getent` lent → examiner NSS. Si les trois chemins
+ralentissent ou expirent ensemble, rechercher des évènements
+réseau/pfSense du même instant.
+
+**Acceptation persistante finale encore non prouvée :**
+vérifier après un redémarrage contrôlé de la workstation
+que NetworkManager applique `172.17.0.1` et
+`~int.albandrieu.com`, que `hide-location` reste
+désactivé et que `getent`/Chrome restent opérationnels.
+
 ## Validation DONE
 
 Confirmer que hide-location est désactivé, que le profil NM
