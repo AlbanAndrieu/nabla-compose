@@ -100,6 +100,37 @@ def require_native_truenas() -> None:
         raise ValueError("native TrueNAS host is not verified")
 
 
+def require_workstation_litellm() -> None:
+    """Forbid minting Workstation keys on a TrueNAS or unverified Docker host."""
+    try:
+        response = subprocess.run(
+            ["midclt", "call", "system.version"], capture_output=True,
+            check=False, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        response = None
+    if response is not None and response.returncode == 0 and len(response.stdout) <= 192:
+        version = response.stdout.decode("ascii", errors="replace").strip().strip('"')
+        if re.fullmatch(r"TrueNAS[-_][A-Za-z0-9._+-]{1,100}", version):
+            raise ValueError("workstation target cannot be minted from TrueNAS")
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "name=litellm",
+             "--filter", "status=running", "--format", "{{.Names}}"],
+            capture_output=True, check=False, timeout=6,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError("cannot attest Workstation LiteLLM container") from None
+    if result.returncode or result.stderr or len(result.stdout) > 2048:
+        raise ValueError("cannot attest Workstation LiteLLM container")
+    names = result.stdout.decode("ascii", errors="replace").splitlines()
+    if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name)
+           for name in names):
+        raise ValueError("unexpected Docker discovery output")
+    if names.count("litellm-litellm-1") != 1 or "litellm" in names:
+        raise ValueError("Workstation LiteLLM container not verified")
+
+
 def provision(policy: dict, target: str, output: Path, *,
               endpoint_override: str | None = None) -> None:
     """Reserve the secret destination before calling /key/generate."""
@@ -175,6 +206,8 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("native TrueNAS mode cannot issue workstation keys")
             require_native_truenas()
             endpoint_override = "http://127.0.0.1:4000"
+        if args.target == "workstation" and args.apply:
+            require_workstation_litellm()
         output = key_file(args.target)
         verify_directory(output.parent)
         if output.is_symlink():
