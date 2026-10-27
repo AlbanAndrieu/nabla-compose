@@ -69,6 +69,8 @@ result = {
     "component": "fastapi_ai_acceptance",
     "litellm": "not_tested",
     "litellm_key": "not_configured",
+    "litellm_proxy_liveness": "not_tested",
+    "litellm_key_format": "not_tested",
     "litellm_model": "not_verified",
     "litellm_inference": "not_requested",
     "ollama": "not_tested",
@@ -83,6 +85,14 @@ expected_base = "http://172.17.0.24:4000"
 url = os.environ.get("LITELLM_URL", "").rstrip("/")
 model = os.environ.get("DEFAULT_CHAT_MODEL", "")
 key = os.environ.get("LITELLM_API_KEY", "").strip()
+if url == expected_base:
+    result["litellm_proxy_liveness"], _ = get(
+        expected_base + "/health/liveliness", read_body=False
+    )
+result["litellm_key_format"] = (
+    "sk_prefix" if key.startswith("sk-")
+    else "missing" if not key else "unexpected_format"
+)
 if url != expected_base or model != "fastapi-qwen":
     result["litellm"] = "config_mismatch"
 elif not key:
@@ -143,12 +153,14 @@ print(json.dumps(result, sort_keys=True))
 STATE_CODES = frozenset((
     "not_tested", "not_requested", "not_configured", "not_verified",
     "not_wired_pending_private_acl", "missing_key", "present",
+    "sk_prefix", "unexpected_format", "missing",
     "config_mismatch", "visible", "not_visible", "invalid_response",
     "response_received", "blocked_model_not_visible", "invalid_json",
     "response_too_large", "dns_failure", "timeout", "transport_error",
 )) | frozenset("http_" + str(n) for n in range(100, 600))
 KEYS = frozenset((
-    "component", "litellm", "litellm_key", "litellm_model",
+    "component", "litellm", "litellm_key",
+    "litellm_proxy_liveness", "litellm_key_format", "litellm_model",
     "litellm_inference", "ollama", "ollama_models_available",
     "openrag_backend", "openrag_frontend", "openrag_mcp",
     "openrag_integration", "openrag_private_retrieval",
