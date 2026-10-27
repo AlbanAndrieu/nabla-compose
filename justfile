@@ -605,10 +605,11 @@ litellm-workstation-auth-contracts:
     bash scripts/quality/run-pytest-local.sh -q tests/test_litellm_dashboard_auth_failure.py
     python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
     python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
+    bash -n scripts/quality/run-python-with-jsonschema-local.sh
 
 # Vaultwarden check runs as an unlocked unprivileged operator; no secret values printed.
 litellm-fastapi-upstream-source-check:
-    python3 scripts/secrets/check-litellm-fastapi-upstream-source.py --check
+    bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-litellm-fastapi-upstream-source.py --check
 
 # TrueNAS-only: no model calls or secret output, no service restart.
 litellm-workstation-upstream-auth-check:
