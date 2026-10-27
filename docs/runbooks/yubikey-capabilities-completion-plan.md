@@ -487,3 +487,30 @@ Pas de changement des destinataires SOPS ou de PIV82. Le test
 KeePassXC/OTP2 reste reporté.
 
 [Procédure](yubikey-software-recovery-20261026.md).
+
+## NFS age — nouvelle copie chiffrée effectivement créée (27/10/2026)
+
+**Preuve opérateur** : après **12/12 tests de précontrôle PASS**
+sur workstation, l'exécution volontaire et supervisée
+`create-yubikey-escrow-nfs-copy.py --copy` a retourné
+`ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`,
+`new_copy_verified=true`, `existing_destination_overwritten=false`,
+`source_decryption_performed=false`, `restore_verified=false`.
+La duplication **des octets chiffrés** sur l'export NFS
+est donc **DONE** pour ce jalon. Ne pas réexécuter `--copy`.
+
+**Priorité suivante dans PR #289** : contrôle post-copie
+indépendant avec `just yubikey-escrow-postcopy-test`,
+`just yubikey-escrow-postcopy-check`, puis
+`just yubikey-escrow-postcopy-verify` en lecture seule.
+Ce contrôle compare une nouvelle fois les octets chiffrés,
+vérifie la visibilité côté TrueNAS et refuse de qualifier
+les ACL NFSv4 ou la restauration de validées sans preuve.
+Tests du nouvel outil sur workstation : **NOT_RUN**.
+
+**Toujours NO-GO** : indépendance réelle des supports et
+identités de récupération, ACL natives NFSv4, déchiffrement
+age, restauration SOPS, génération PIV82 et rotation de
+destinataires. KeePassXC/OTP2 demeure différé.
+
+[Runbook](yubikey-software-recovery-20261026.md).
