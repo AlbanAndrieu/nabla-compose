@@ -11,7 +11,7 @@
 
 | Chantier | Code | Validation locale | Validation runtime |
 | --- | --- | --- | --- |
-| Auth /v1/models | Probe OpenRAG corrigé ; classifieur `MISSING_CLIENT_API_KEY`, préflight upstream fail-closed | 16/16 LiteLLM + 18/18 OpenRAG PASS avant extension du préflight | Nouvel appel sans clé depuis TrueNAS ; clés runtime et auteur SDK non attribués |
+| Auth /v1/models | Sonde OpenRAG corrigée ; préflight avec identité TrueNAS vérifiée | **31/31** derniers tests opérateur PASS avant correctif hôte ; nouveaux tests à exécuter | Appel sans clé non attribué ; conteneur FastAPI upstream sur TrueNAS à contrôler |
 | Récupération ancienne config `nabla` | Inventaire limité aux politiques, pas de secrets | 5/5 PASS ; fichiers disponibles dans clone git-crypt déverrouillé | Pas de copie ou application |
 | Digest | Manifeste non secret et diagnostic du skill | 3/3 manifeste PASS ; diagnostic upstream 16 tests non revalidés après dernière édition | Job réel conservé ; réussite éditoriale à confirmer |
 | Sessions `cron` | Diagnostic complet, maintenance native `--dry-run`/`--enforce` | 5/5 parent + 6/6 maintenance PASS | **ACCEPTED maintenance** : 21 → 21, `pruned=0` ; parent toujours absent |
@@ -72,134 +72,66 @@ just litellm-workstation-upstream-auth-check
 variables sont non vides ; il ne prouve pas validité, scopes
 ou injection d'un Bearer sur le client fautif.
 
-## P0 — Nouveau préflight sur TrueNAS (27/10, dernier relevé)
+## P0 — Correction de provenance des hôtes (27 octobre)
 
-**Commande exécutée sur TrueNAS :**
-`just litellm-workstation-upstream-auth-check`.
+**Rectification de l'opérateur :** `litellm-litellm-1` est le
+conteneur **Workstation**, et non TrueNAS. Les diagnostics
+précédents ont mélangé des relevés de deux machines : leurs
+conclusions attribuant `litellm-litellm-1` à TrueNAS sont
+**invalidées**. Il est incorrect de corriger les labels ou
+les noms Docker à l'aveugle sans identifier d'abord l'hôte.
 
-Résultat reçu :
-- `workstation_liveliness=http_200` : Workstation LiteLLM joignable.
-- `truenas_litellm_env.container=unavailable` : interrogation
-  `docker exec litellm python3 -c ...` infructueuse ou rejetée.
-- `truenas_upstream_key_state=unverified`,
-  `truenas_litellm_sdk_version=unverified` : ni clés ni SDK prouvés.
-- `model_requests_sent=0`, `runtime_mutated=false` ;
-  code de sortie **2 attendu (fail closed)**.
+**Preuves réellement reçues :**
 
-**Important :** `container=unavailable` ne prouve **PAS**
-`LITELLM_IDE_API_KEY` absente et ne révèle pas le client de
-`GET /v1/models` sans clé. Ne pas corriger une variable privée
-sur la seule base de ce résultat.
+| Preuve | Portée |
+| --- | --- |
+| `litellm-litellm-1` Up 3 days healthy | Workstation, confirmé par l'opérateur |
+| `litellm` Up 24 hours healthy, autre relevé | Conteneur à confirmer depuis une session TrueNAS |
+| `docker exec litellm` : `LITELLM_IDE_API_KEY=present`, `LITELLM_FASTAPI_WORKSTATION_API_KEY=absent` | Valeur observée dans un conteneur nommé `litellm` ; **provenance machine à attester** |
+| `GET /v1/models` : `No api key passed in.`, 0 token, source `172.17.0.24` | Client exact toujours non attribué |
+| Dernier contrat `just litellm-workstation-auth-contracts` | **31/31 tests PASS** (3 OpenRAG + 8 pytest + 20 unittest), **avant** le correctif d'identité hôte |
 
-**Correction de l'outil #289 :** diagnostic `failure_class`
-sur la sortie d'erreur Docker **non imprimée**, états
-`container_not_found`, `container_not_running`,
-`docker_permission_denied`, `docker_daemon_unavailable`,
-`python3_missing_in_container`, `probe_python_failed`,
-ou `docker_exec_failed`. L'état du conteneur nommé `litellm`
-est obtenu séparément via `docker inspect --format
-'{{.State.Status}}'`, sans environnement et sans modèle.
-Des contrats offline testent la syntaxe du probe et les
-classes d'échecs ; **nouvelles validations non encore reçues**.
+**Correctif fail-closed #289 :**
+- Appeler `midclt call system.version` et vérifier une version
+  `TrueNAS-...` **avant toute découverte Docker ou requête HTTP**.
+  Sans preuve, `host_context=unverified_not_inspected` et code 2 ;
+  aucune inspection de la Workstation n'est confondue avec TrueNAS.
+- Sur TrueNAS vérifié uniquement, sélectionner la seule instance
+  **running nommée exactement `litellm`**. Le nom
+  `litellm-litellm-1` est exclu du sélecteur TrueNAS.
+  Les vérifications du statut, des clés présentes/absentes et
+  de la version SDK utilisent le même identifiant interne,
+  jamais imprimé.
+- Les valeurs des deux variables restent privées. Un résultat
+  `missing_runtime_upstream_key` prouvera l'absence d'au
+  moins une valeur **dans le conteneur TrueNAS réellement
+  sélectionné**, mais ne prouvera pas l'identité du
+  client `/v1/models`.
+- Aucun auto-provisionnement, rotation, redémarrage Docker,
+  changement de proxy ou bascule de routes.
 
 ```bash
-# Sur un checkout TrueNAS à jour de la branche #289 :
+# Tests locaux d'abord, sans réseau ni mutation :
 just litellm-workstation-auth-contracts
+
+# Cette commande est STRICTEMENT pour une console TrueNAS :
 just litellm-workstation-upstream-auth-check
 ```
 
-**Gates P0 :** lire `truenas_docker_container_status` et
-`truenas_litellm_env.failure_class`. Corriger d'abord le
-conteneur cible, l'état Docker ou la présence de Python avant
-de tester les secrets. L'attribution du client LiteLLM SDK et
-la résolution de la trace 401 restent distinctes.
-
-## P0 — Cause du préflight isolée : ancien conteneur arrêté
-
-**Preuve TrueNAS :**
-
-```text
-litellm-litellm-1   Up 3 days (healthy)
-litellm             Exited (0) 3 months ago
-```
-
-`docker inspect --format '{{.State.Status}}' litellm`
-retourne `exited`. Le diagnostic précédent exécutait
-`docker exec litellm ...` et inspectait la **mauvaise instance**.
-Le diagnostic `container_not_running` était donc correct pour
-l'ancien conteneur, mais **sans relation directe démontrée**
-avec l'absence d'authentification sur Workstation.
-
-**Correctif PR #289 :** découverte de la **seule instance running**
-dont les labels Docker Compose sont
-`com.docker.compose.project=litellm` et
-`com.docker.compose.service=litellm`. Les appels `inspect`,
-`exec` (présence des variables) et version SDK utilisent le
-**même identifiant de conteneur** découvert ; les ID et secrets
-ne sont jamais imprimés. Si plusieurs instances sont running,
-aucune instance n'est retenue et le contrôle échoue fermé.
-Le legacy `litellm` arrêté n'est jamais sélectionné. Ce
-changement ne renomme, ne démarre ni ne supprime un conteneur.
-
-```bash
-# Après mise à jour du checkout de la PR :
-just litellm-workstation-auth-contracts
-# Sur TrueNAS uniquement :
-just litellm-workstation-upstream-auth-check
-```
-
-**Preuve attendue :**
+**Attendu sur TrueNAS :**
+`host_context=truenas_verified`,
 `truenas_container_selection=selected`,
-`truenas_docker_container_name=litellm-litellm-1`,
-`truenas_docker_container_status=running`. Il restera
-à distinguer `all_present_unvalidated` de
-`missing_runtime_upstream_key` et à corréler l'appel
-`GET /v1/models` au bon processus SDK. La réponse
-`HTTP 200` de liveness Workstation n'est pas une preuve
-de succès d'une requête authentifiée.
+`truenas_docker_container_name=litellm`,
+`truenas_docker_container_status=running`.
+Un résultat `host_context=unverified_not_inspected` appelle
+d'abord une vérification de l'hôte et du middleware, **pas
+une modification des secrets**.
 
-## P0 — Label Compose project non confirmé (dernier relevé TrueNAS)
-
-Le checkout #289 corrigé a été exécuté sur TrueNAS :
-`just litellm-workstation-auth-contracts` **29/29 tests PASS**
-(3 OpenRAG + 8 pytest auth + 18 upstream unittest).
-Le probe runtime v3 a cependant retourné
-`truenas_container_selection=compose_running_container_not_found`,
-`truenas_docker_container_status=not_inspected`,
-`truenas_upstream_key_state=unverified` et
-`workstation_liveliness=http_200`. Le prédicat
-`com.docker.compose.project=litellm` + `service=litellm`
-ne correspond donc à **aucun conteneur running visible
-par Docker dans ce contexte**. Cela ne signifie pas que le
-conteneur `litellm-litellm-1`, observé healthy précédemment,
-ait disparu : projet/labels TrueNAS probablement différents.
-
-**Fix v3 de découverte dans la PR :** ne plus imposer
-`project=litellm`. Découvrir via `docker ps` avec
-`name=litellm`, `status=running`, valider une
-**seule** ligne Docker avec le nom complet
-`litellm-litellm-N`. Ignorer les noms différents
-(`litellm-dashboard`, etc.) mais refuser toute ligne
-malformée ou plusieurs candidats. Ne jamais cibler
-le `litellm` legacy seul. `docker inspect`, présence
-des variables et version SDK restent attachés au **même ID**.
-Le résultat versionné publie
-`truenas_selection_method=unique_running_exact_name`.
-Aucune clé, aucun conteneur et aucune requête modèle modifiés.
-
-**Prochaine preuve runtime** (après synchronisation du HEAD
-de #289) :
-
-```bash
-just litellm-workstation-auth-contracts
-just litellm-workstation-upstream-auth-check
-```
-
-L'état `selected/running` ne prouvera pas à lui seul
-l'authentification de `GET /v1/models` ; interpréter
-ensuite les deux états de clés et la version SDK.
-Les nouveaux contrats de découverte par nom n'ont pas
-encore été exécutés sur TrueNAS.
+La suite modifiée pour ce correctif n'est pas encore attestée
+exécutée. L'enquête P0 continue ensuite sur la provenance
+de la clé FastAPI, sa matérialisation depuis Vaultwarden
+dans le fichier privé TrueNAS, et l'identité du client SDK
+sans Bearer.
 
 ## P0 — Stabiliser LiteLLM Workstation
 
