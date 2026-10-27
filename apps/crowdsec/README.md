@@ -3,6 +3,100 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception opérationnelle — 27 octobre, 21:53 Europe/Paris
+
+**Preuves exécutées par l'opérateur sur TrueNAS et pfSense :**
+
+| Contrôle | Observation |
+| --- | --- |
+| TrueNAS `diagnose-crowdsec-cutover.sh --runtime` | **0 erreur / 1 warning** (aucune décision centrale active) |
+| App `crowdsec` | RUNNING, conteneur `healthy`, image `crowdsecurity/crowdsec:v1.8.1` |
+| Scenario `firewallservices/pf-scan-multi_ports` | désactivé et fichier absent |
+| LAPI et métriques LAN | `172.17.0.24:8084` et `:6060` disponibles |
+| Logs pfSense via Loki | `CANONICAL_CONFIRMED`, métrique `cs_lokisource_hits_total=940` |
+| Décisions LAPI centrale | **0** |
+| TrueNAS `--check` | **1 erreur / 2 warnings** : secret manquant/illisible, aucune décision, `last_pull=<none>` |
+| `PFSENSE_FIREWALL` dans la LAPI centrale | enregistré, mais **aucun pull** |
+| Workstation `just crowdsec-pfsense-preflight` | **0 erreur / 2 warnings** : moteur legacy encore actif, bouncer sur LAPI locale |
+| pfSense → TrueNAS | TCP `172.17.0.24:8084` accessible |
+| Tables PF de la chaîne locale | **8 620 IPv4 + 17 IPv6 = 8 637 entrées** |
+| Clé pfSense actuelle vers LAPI TrueNAS | `central_lapi_http=403` (**rejetée**) |
+
+**Décision : NO-GO.** Le rejet `403` sur `/v1/decisions`
+indique que la clé pfSense actuellement utilisée avec
+`http://172.17.0.1:8089` **n'est pas acceptée** par
+la LAPI centrale. La documentation CrowdSec confirme
+qu'une clé de bouncer absente/invalide renvoie `403` sur
+cet endpoint : https://docs.crowdsec.net/docs/local_api/bouncers/.
+Le problème n'est ni la connectivité TCP, ni l'ingestion
+Loki, ni le scénario désactivé.
+
+Ne pas confondre `cscli bouncers list` avec un coffre :
+**une clé enregistrée n'est pas récupérable via cette commande**.
+Consulter https://docs.crowdsec.net/u/user_guides/bouncers_configuration/.
+
+### Nouveau Gate B1 — authentifier une clé candidate SANS changer pfSense
+
+Récupérer la **clé exacte de la LAPI TrueNAS** dans un
+emplacement approuvé (sauvegarde privée, coffre déjà autorisé),
+puis restaurer *hors Git* le fichier runtime
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`,
+contenant `BOUNCER_KEY_PFSENSE_FIREWALL`,
+avec des droits `root:root 0600`. Cette restauration
+requiert une procédure opérateur approuvée : **ne pas
+inventer ni recopier la clé de la LAPI pfSense locale**.
+
+Après restauration, sur TrueNAS uniquement :
+
+```bash
+sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+```
+
+Réception nécessaire : `central_candidate_auth=ACCEPTED`,
+et bouncer enregistré sous le nom contrôlé
+`PFSENSE_FIREWALL` (`last_pull` peut être renseigné
+par la probe, qui demande les décisions en lecture seule).
+Le script lit la clé **en mémoire**, exige `0600` et
+utilise `curl --config -` sur stdin. Il ne l'affiche
+ni ne l'inclut en argument de processus. Ne pas
+activer `set -x` dans ce contexte.
+
+Si la clé n'est plus disponible, faire approuver une
+**réémission séparée**, de préférence sous un nouveau
+nom de bouncer afin de préserver la référence
+`PFSENSE_FIREWALL` pour audit. CrowdSec accepte
+`cscli bouncers add NOM` et indique que la clé produite
+**doit être conservée immédiatement** ; elle ne pourra
+pas être relue. Il est possible d'utiliser
+`CROWDSEC_BOUNCER_NAME=NOM` pour la réception TrueNAS
+de cette nouvelle inscription. Ne pas créer/supprimer
+une inscription, générer une clé, exporter un secret ou
+modifier pfSense automatiquement : l'action est une
+**rotation de credentials nécessitant approbation**.
+
+### Nouveau Gate B2 — pas de perte silencieuse de remédiation
+
+Le bouncer pfSense possède encore **8 637 entrées PF**
+alimentées par la LAPI locale, alors que la LAPI centrale
+ne propose **aucune décision active**. Un changement
+immédiat de LAPI peut donc retirer les anciennes
+protections au prochain rafraîchissement. **Ne pas
+interpréter une table PF soudainement vide comme une
+migration réussie.**
+
+Avant cutover, relever les nombres de décisions locales
+et centrales, leur origine et leur durée de vie, et
+définir comment maintenir la protection pendant
+la transition sans importer aveuglément des bannissements
+périmés. Prévoir une validation contrôlée d'une décision
+centrale (IP de test non critique) et de son expiration,
+puis `last_pull` et application à PF. Aucun ban de test
+n'est créé par cette PR.
+
+**État git TrueNAS :** `tree=dirty`. Ne pas déployer
+le checkout TrueNAS avant revue de ses différences ;
+les scripts présentés sont en lecture seule.
 ## Reprise du 27 octobre — GO/NO-GO avant pfSense Small
 
 La migration n'est **pas réceptionnée** au dernier relevé :
