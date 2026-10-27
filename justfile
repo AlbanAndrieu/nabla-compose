@@ -621,6 +621,7 @@ litellm-workstation-auth-contracts:
     python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
     bash -n scripts/quality/run-python-with-jsonschema-local.sh
     python3 -m unittest discover -s tests -p 'test_fastapi_litellm_native_truenas.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_fastapi_litellm_wiring.py
 
 # TrueNAS-only: offline scope + target validation, no key creation or network.
 litellm-truenas-fastapi-provision-check:
