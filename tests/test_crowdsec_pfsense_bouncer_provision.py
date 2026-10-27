@@ -60,6 +60,7 @@ source "$script" "$@"
 """
             env = os.environ.copy()
             env["CROWDSEC_SECRET_FILE"] = str(secrets)
+            env["CROWDSEC_CONTAINER"] = "crowdsec"  # Isolate host-specific settings.
             value = "null" if last_pull is None else '"' + last_pull + '"'
             env["FAKE_REGISTRATIONS"] = '[{"name":"PFSENSE_FIREWALL","last_pull":' + value + '}]'
             return subprocess.run(
