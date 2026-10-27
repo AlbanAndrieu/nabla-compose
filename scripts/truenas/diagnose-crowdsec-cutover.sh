@@ -273,14 +273,14 @@ elif [[ -n "${container_id:-}" ]]; then
     '[.[]? | select(.name == $name
        and .ip_address == $ip
        and .type == "crowdsec-firewall-bouncer"
-       and .valid == true
+       and .revoked == false
        and (.last_pull // "") != "")] | length == 1' \
     <<<"${bouncer_json:-[]}" >/dev/null 2>&1; then
     printf 'crowdsec_pfsense_bouncer_pull_provenance=LAN_IP_AND_FIREWALL_USER_AGENT_OBSERVED\n'
     ok "pfSense-origin firewall bouncer polled central LAPI (PF decision application not yet verified)"
   elif [[ "${MODE}" == "--accept" ]]; then
     printf 'crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED\n'
-    error "pfSense-origin bouncer pull not proven; base registration curl last_pull is insufficient"
+    error "pfSense-origin bouncer pull not proven; check revoked=false, IP, client type and last_pull (curl probe is insufficient)"
   else
     printf 'crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED\n'
     warn "pfSense-origin bouncer pull not yet proven; expected before cutover"
