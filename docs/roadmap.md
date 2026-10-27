@@ -141,7 +141,8 @@ ce périmètre.
 - **DONE :** copie age chiffrée NFS créée, égalité des octets contrôlée, visibilité TrueNAS confirmée et inspection ACL NFS4 du fichier réalisée (droits effectifs encore à revoir).
 - **DONE :** SanDisk physique de récupération reconnectée, LUKS2 monté, identité age X25519 historique attestée.
 - **DONE :** déchiffrement réel de la nouvelle copie NFS avec l'identité USB et récupération de la clé SOPS attendue ; **fixture YAML SOPS chiffrée et déchiffrée avec succès** (`PASS: SOPS recovery with USB-backed escrow`).
-- **P0 restant :** éliminer le point unique de défaillance de l'identité privée sur SanDisk par un support indépendant et une preuve de récupération ; toute création/copie de secret exige une autorisation distincte.
+- **P0 DONE (28/10, preuve opérateur) :** sauvegarde de l'identité privée USB protégée par phrase secrète indépendante sur workstation + TrueNAS NFS. 14/14 tests de sauvegarde et 13/13 de restauration PASS ; copies chiffrées identiques ; déchiffrement des deux archives et destinataire age historique confirmés (`BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`). Aucun test SOPS de production dans cette séquence.
+- **Suivi PRA à attester :** conservation de la phrase secrète hors de la SanDisk et vérification du débranchement physique durant un exercice de restauration ; l'outil de restauration, lui, ne dépend pas du support USB. Ne pas relancer la sauvegarde.
 - **P1 restant :** attester les accès ACL NFS4 effectifs du fichier et de ses parents. Aucun provisioning YubiKey, changement de destinataires SOPS, redéploiement ou copie `--copy` automatique.
 
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
