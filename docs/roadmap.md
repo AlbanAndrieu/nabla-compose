@@ -409,6 +409,15 @@ Actions :
   prêt. Une fenêtre de bascule explicite est requise. Réception : diagnostic TrueNAS `--accept` et
   workstation `--accept` (tables PF et `last_pull`), sans générer
   de nouvelle clé ni publier le port 8084 sur WAN.
+  **Reprise 27/10 :** le relevé fourni concerne HAProxy et DNS,
+  pas une nouvelle preuve CrowdSec. L'ancien moteur pfSense est
+  désormais un **warning** dans le mode `--preflight` et reste
+  une erreur en `--accept`. Recettes read-only :
+  `just crowdsec-pfsense-preflight` et
+  `just crowdsec-pfsense-accept`. Une authentification centrale
+  `central_lapi_http=200`, une clé approuvée et `last_pull`
+  central sont nécessaires avant de conclure au cutover.
+  Si clé absente/incorrecte : **NO-GO**, sans rotation implicite.
   [Guide central CrowdSec](../apps/crowdsec/README.md).
 - [x] **Nexus / DNS, rendu TrueNAS et runtime réconciliés (26/10) :**
   DNS privé **8/8 PASS** ; backend direct `172.17.0.24:8081`
