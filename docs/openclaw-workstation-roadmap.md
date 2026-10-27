@@ -24,6 +24,44 @@ le fonctionnement effectif du Gateway ni l'authentification de
 `/v1/models`. Chaque `ACCEPTED runtime` requiert une nouvelle
 preuve datée sur la machine concernée.
 
+## Décision P0 — Conserver l'identité FastAPI upstream (27/10)
+
+**Décision opérateur : CONSERVER** `LITELLM_FASTAPI_WORKSTATION_API_KEY`,
+sans réutiliser `LITELLM_IDE_API_KEY` ni la master key.
+Chaîne d'autorité attendue (noms de fichiers et de champs uniquement,
+**aucune valeur secrète dans Git**) :
+
+- LiteLLM Workstation : clé virtuelle `fastapi-sample-upstream`,
+  autorisée uniquement pour `qwen`, définie par la politique
+  `config/fastapi-sample/litellm-key-policy.json`.
+- Source de référence : Vaultwarden, item `nabla/prod/litellm`,
+  champ masqué `LITELLM_FASTAPI_WORKSTATION_API_KEY`.
+- Cache runtime TrueNAS : `/mnt/cpool/secrets/runtime/litellm/.env.secrets`
+  (root:root 0600), injecté via `apps/litellm/compose.yml:env_file`.
+- Fichier de transit **facultatif et non attesté** sur Workstation :
+  `~/.local/share/nabla-compose/fastapi-litellm/workstation.key`.
+- Consommateur : route `fastapi-qwen` dans
+  `apps/litellm/config.yaml`, proxifiée sur Workstation
+  `172.17.0.57:4000/v1`.
+
+**Dernière preuve runtime TrueNAS attestée** : version
+`TrueNAS-26.0.0-BETA.2`, conteneur `litellm`
+`selected/running`, version SDK `1.106.4`,
+`LITELLM_IDE_API_KEY=present` mais
+`LITELLM_FASTAPI_WORKSTATION_API_KEY=absent`.
+Contrats **33/33 PASS** (3 OpenRAG, 8 pytest, 22 upstream),
+préflight runtime code 2 **correctement fail-closed**.
+
+**Prochaine action P0 : inventaire en lecture seule** du champ
+Vaultwarden, de son rendu dans le fichier TrueNAS et de
+l'injection au service. Ne pas supposer que la clé existe déjà
+sur Workstation. Si absente à la source, appliquer le runbook
+`docs/runbooks/fastapi-sample-litellm.md` pour un
+provisionnement *scope qwen*, budget plafonné et validation
+du proxy, uniquement après revue du risque de doublon.
+Ne pas exécuter `--install` / `--apply` ou redéployer
+sur une simple preuve de variable manquante.
+
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
 - **PERMISSIONS ACCEPTED runtime :** nouvelle suite `8/8 PASS`,
