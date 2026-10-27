@@ -82,6 +82,31 @@ le gate complet sur TrueNAS reste à exécuter.
 L'ancien nom `pfsense-firewall` a un dernier appel daté du 25 septembre ;
 ne pas le supprimer sans étude de sa provenance et de son usage.
 
+**P0 PF : corrélation automatisée en lecture seule (28/10).**
+Le script `scripts/workstation/observe-crowdsec-pf-decision.py`
+mémorise sur la workstation une baseline privée des décisions LAPI
+et des entrées PF historiques, puis suit les **nouvelles décisions
+naturelles IPv4** du moteur central jusqu'à leur application et
+disparition dans `crowdsec_blacklists`. Il vérifie également le
+fonctionnement du bouncer et l'absence du moteur pfSense local.
+`just crowdsec-pf-natural-test` : **15/15 tests offline PASS**
+sur l'environnement d'agent. Ces tests sont également inclus dans
+`just crowdsec-bouncer-config-test`, dont la validation totale
+sur le nouveau HEAD reste à faire (31 anciens + 15 nouveaux).
+Les étapes opérateur sont exclusivement à lancer **sur la workstation** :
+
+```bash
+just crowdsec-pf-natural-baseline
+just crowdsec-pf-natural-observe
+```
+
+**Aucune baseline runtime n'a encore été collectée par l'agent**.
+Avec 0 décision centrale dans le dernier relevé, le cycle est
+`PF_DECISION_CYCLE_NOT_VERIFIED`. Le script n'ajoute et ne retire
+aucune décision. Les snapshots offline ne peuvent jamais produire
+un `PF_DECISION_CYCLE_PASS` live. Les fichiers de preuve contiennent
+des IP sensibles et restent uniquement dans le stockage privé local.
+
 **Réception P0 encore ouverte :** [procédure de preuve d'une décision
 nouvelle et de son retrait dans PF](../../docs/runbooks/crowdsec-pfsense-decision-provenance.md).
 La procédure commence en lecture seule ; toute décision synthétique est
