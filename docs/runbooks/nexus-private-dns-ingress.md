@@ -927,8 +927,10 @@ déclaration comme une réception WAN.
 La condition `if nexus aclcrt_main_Web_HTTPS` est une
 **conjonction** : toutes les ACL doivent correspondre.
 D'après le dernier relevé, l'ACL `aclcrt_main_Web_HTTPS`
-correspond au Host Nexus, mais elle dépend du routage/certificat
-et pourrait évoluer. Le nom `nexus` était déjà utilisé pour
+compare aussi `txn.txnhost` avec une expression régulière de
+nom de domaine. Elle est distincte de l'ACL Nexus et
+pourrait évoluer ; son nom ne signifie pas qu'elle valide
+le certificat TLS. Le nom `nexus` était déjà utilisé pour
 le routage `use_backend ... if nexus ...` : modifier cette ACL
 peut également modifier les critères de sélection du backend.
 Une ACL indépendante est plus simple à auditer :
