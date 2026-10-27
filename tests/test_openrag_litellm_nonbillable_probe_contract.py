@@ -26,7 +26,7 @@ class OpenRagLiteLLMProbeContract(unittest.TestCase):
     def test_contract_protects_secrets_and_preserves_lifecycle_gate(self):
         self.assertIn("OPENRAG_STARTUP_PREFLIGHT=BLOCKED", self.text)
         self.assertIn("No key or model request.", self.text)
-        self.assertRegex(self.text, r"litellm_status=\\\"\\$\\(http_code")
+        self.assertIn('litellm_status="$(http_code', self.text)
         self.assertNotIn("Authorization: Bearer", self.text)
 
 if __name__ == "__main__":
