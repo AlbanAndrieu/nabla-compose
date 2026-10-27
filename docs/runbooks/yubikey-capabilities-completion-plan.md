@@ -580,3 +580,41 @@ distincte. Pour la procédure détaillée, voir
 identités de récupération indépendantes,
 PIV82/PIV9A/OTP2 et rotation des destinataires SOPS.
 KeePassXC reporté. Pas de nouvelle copie NFS.
+
+## Gate age / SOPS — logiciel présent, en-tête à classifier (27/10/2026)
+
+**Nouvelle preuve workstation :**
+`just yubikey-software-recovery-check` retourne
+`SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED`,
+`synthetic_software_roundtrip_verified=false`,
+`real_escrow_restoration_verified=false`,
+`status=NO-GO`.
+Le mode de contrôle n'exécute aucun binaire age/SOPS
+autre que sa recherche dans `PATH`. Le roundtrip synthétique
+PASS plus ancien reste distinct de ce contrôle.
+
+**Étape P1 de préparation :** déterminer la catégorie de
+destinataire dans l'en-tête age, **sans déchiffrement**,
+à l'aide de `just yubikey-escrow-age-header-{test,check,inspect}`
+ajouté dans PR #289. Le mode `--inspect` exige un acquittement
+et lit au maximum 8 Kio de l'archive locale, sans imprimer
+les arguments ou identifiants des destinataires. Familles
+de sortie : `PASSPHRASE_SCRYPT`, `X25519_IDENTITY`,
+`SSH_IDENTITY`, `PLUGIN_OR_OTHER_IDENTITY` ou
+`MIXED_OR_MULTIPLE_METHODS`. Cette classification
+ne prouve pas que le MAC age est valide ou que le moyen
+de déchiffrement correspondant est disponible.
+
+**13/13 tests hermétiques PASS localement dans
+l'environnement agent**, publication des blobs identiques
+à la version testée, validation sur workstation encore
+`NOT_RUN`. Après classification, préparer séparément
+une restauration age/SOPS réelle avec secrets strictement
+hors stdout/historique GitHub/CI et répertoire isolé `0700`.
+
+**NO-GO** pour restauration effective, preuve de récupération
+indépendante, PIV82/PIV9A/OTP2 et changement de destinataires
+SOPS ; KeePassXC reste reporté. Ne plus relancer la copie
+NFS déjà vérifiée.
+
+[Procédure](yubikey-software-recovery-20261026.md).
