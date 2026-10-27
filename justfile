@@ -631,6 +631,14 @@ litellm-truenas-fastapi-provision-check:
 litellm-fastapi-upstream-source-check:
     bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-litellm-fastapi-upstream-source.py --check
 
+# Vaultwarden Sample key source only. Uses existing unlocked operator session.
+litellm-fastapi-sample-source-check:
+    bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-fastapi-litellm-sample-source.py --check
+
+# Root-owned env files and Docker config, read-only comparison; no key values shown.
+litellm-fastapi-runtime-keys-check:
+    sudo python3 scripts/truenas/check-fastapi-litellm-runtime-keys.py --check
+
 # TrueNAS-only: no model calls or secret output, no service restart.
 litellm-workstation-upstream-auth-check:
     sudo python3 scripts/truenas/diagnose-workstation-litellm-upstream-auth.py --check
