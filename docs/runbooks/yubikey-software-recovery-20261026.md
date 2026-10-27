@@ -1319,3 +1319,66 @@ sauvegarde de la clé privée de récupération.
 OTP2, aucune rotation des destinataires SOPS, aucun
 `luksFormat` ni `init-identity`. KeePassXC
 demeure reporté. **Ne pas relancer `--copy`.**
+
+## Support SanDisk non résolu par /dev/disk/by-uuid — preuve workstation du 27/10
+
+**Preuve fournie par l'opérateur** après récupération de la branche
+#289 : `just yubikey-escrow-usb-status` a exécuté la commande
+`manage-age-escrow-usb.sh --check`, puis répondu
+**`LUKS UUID device not found`**, avec **code de retour 1**.
+Ce résultat signifie strictement que
+`/dev/disk/by-uuid/<UUID_LUKS_ATTENDU>` n'a pas été résolu
+comme périphérique bloc. Il **ne prouve pas** que la
+SanDisk est physiquement absente ou définitivement perdue :
+la partition, le lien `udev` ou les métadonnées
+de l'inventaire peuvent être indisponibles.
+
+**Action décidée :** ne pas tenter `--open`, `--close`,
+`--init-identity`, `cryptsetup`, `mkfs`, un reset
+ou une nouvelle identité age. Maintenir en l'état les
+deux copies de ciphertext précédemment vérifiées sur
+workstation et NFS.
+
+### Diagnostic de découverte redacted, exclusivement lecture seule
+
+La recette `just yubikey-escrow-usb-status` pointe désormais
+sur `scripts/workstation/diagnose-age-escrow-usb-presence.py --check`.
+Elle effectue **un inventaire `lsblk -J` borné**
+et vérifie l'existence du lien `udev` correspondant à
+l'UUID LUKS historique, sans ouvrir le périphérique,
+sans `sudo`, sans monter/déverrouiller et sans lire
+l'identité age. Elle n'imprime **aucun UUID, chemin
+de périphérique, nom de mapper, point de montage, clé ni secret**.
+Le script historique reste accessible en lecture seule via
+`just yubikey-escrow-usb-legacy-check` si nécessaire ;
+celui-ci peut imprimer des données `lsblk` locales.
+
+```bash
+# Dans le worktree de la PR #289 actualisé :
+just yubikey-escrow-usb-test
+just yubikey-escrow-usb-status
+```
+
+Les états possibles incluent :
+
+| `state` | Interprétation et suite |
+| --- | --- |
+| `ESCROW_UUID_NOT_ENUMERATED` | Aucun UUID correspondant dans la vue `lsblk` actuelle ; vérifier en privé si la SanDisk est connectée et reconnue, sans conclure à une perte |
+| `ESCROW_LUKS_PRESENT_UDEV_LINK_MISSING` | Partition LUKS attendue visible par `lsblk` mais lien `/dev/disk/by-uuid` absent ; examiner `udev` en lecture seule |
+| `ESCROW_LUKS_LOCKED` | Périphérique identifié et verrouillé ; **ne pas déverrouiller automatiquement** |
+| `ESCROW_LUKS_UNLOCKED_NOT_MOUNTED` | Mapper ouvert, volume non monté ; aucune modification automatique |
+| `ESCROW_LUKS_UNLOCKED_MOUNTED` | Mapper ouvert et volume monté ; la présence/validité de la clé privée age reste à vérifier séparément |
+| `ESCROW_UUID_UNEXPECTED_FSTYPE` ou `ESCROW_UUID_AMBIGUOUS` | Métadonnées contradictoires ; diagnostic manuel nécessaire |
+| `LSBLK_INVENTORY_UNAVAILABLE` | Commande `lsblk` indisponible, sortie malformée ou inventaire trop grand |
+
+**Qualité :** 13 contrats synthétiques ajoutés
+(`tests/test_age_escrow_usb_presence.py`). Leur
+exécution complète sur workstation et la nouvelle
+lecture `lsblk` réelle restent **NOT_RUN** lors de
+la publication du correctif ; aucun CI payant exécuté.
+
+**Gate inchangé :** en l'absence de disponibilité
+vérifiée de l'identité privée de récupération,
+aucun nouvel essai `age -d`, aucune restauration
+SOPS, aucune modification PIV82/PIV9A/OTP2 et
+aucune nouvelle copie `--copy`. KeePassXC reporté.
