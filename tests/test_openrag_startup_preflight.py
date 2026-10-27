@@ -47,7 +47,7 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
         'curl() {\n'
         '  case "$*" in\n'
         '    *7860*) printf "200" ;;\n'
-        '    *4000*) printf "401" ;;\n'
+        '    *4000*) printf "200" ;;\n'
         '    *5001*) printf "000" ;;\n'
         '    *) return 99 ;;\n'
         '  esac\n'
@@ -78,7 +78,7 @@ def test_startup_preflight_does_not_mutate_or_reveal_secrets(
         assert "openrag_component=openrag-backend" in output
         assert "openrag_component=openrag-frontend" in output
     assert "docling_ingestion_prerequisite=unavailable" in output
-    assert "litellm_transport=reachable models_auth=required_not_verified" in output
+    assert "litellm_liveliness=HTTP_200 models_auth=not_tested" in output
     assert sentinel not in output
     assert "app.start" not in output
     assert "OPENRAG_STARTUP_PREFLIGHT" in output
