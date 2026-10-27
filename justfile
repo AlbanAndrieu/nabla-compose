@@ -505,6 +505,14 @@ openclaw-digest-top-test:
 openclaw-digest-top-check:
     python3 scripts/workstation/diagnose-openclaw-digest-top.py
 
+# Read-only cron-parent session catalog: no transcript output or SQLite mutation.
+openclaw-cron-parent-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-cron-parent.py tests/test_openclaw_cron_parent.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_parent.py' -v
+
+openclaw-cron-parent-check:
+    python3 scripts/workstation/diagnose-openclaw-cron-parent.py
+
 # Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
 openclaw-nabla-migration-test:
     python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
