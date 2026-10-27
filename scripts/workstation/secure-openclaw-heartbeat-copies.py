@@ -78,13 +78,15 @@ def reconcile(entries, *, apply: bool) -> tuple[dict, int]:
             if valid:
                 for path, fd, identity in opened:
                     try:
-                        os.fchmod(fd, 0o600)
+                        # Avoid touching ctime if already private.
+                        if stat.S_IMODE(os.fstat(fd).st_mode) != 0o600:
+                            os.fchmod(fd, 0o600)
+                            changed += 1
                         current = path.lstat()
                         if ((current.st_dev, current.st_ino) != identity
                                 or stat.S_IMODE(os.fstat(fd).st_mode) != 0o600):
                             valid = False
                             break
-                        changed += 1
                     except OSError:
                         valid = False
                         break
