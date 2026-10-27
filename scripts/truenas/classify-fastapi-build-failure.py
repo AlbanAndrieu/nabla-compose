@@ -34,9 +34,9 @@ RULES = (
     Rule("apt_package", r"apt-get .* failed|unable to locate package|failed to fetch .*debian|dpkg: error", "check_builder_apt_cache_and_debian_mirror"),
     Rule("dockerfile_copy", r"failed to calculate checksum|not found: .*dockerfile|failed to compute cache key", "check_docker_context_submodules_and_ignore_rules"),
     Rule("builder_unavailable", r"cannot connect to the docker daemon|failed to solve: rpc error|context canceled|buildkit.*unavailable", "inspect_docker_builder_readonly"),
-    Rule("filesystem_permissions", r"permission denied|operation not permitted|read-only file system|\\bEACCES\\b|\\bEPERM\\b", "inspect_builder_mount_permissions_readonly"),
+    Rule("filesystem_permissions", r"permission denied|operation not permitted|read-only file system|\bEACCES\b|\bEPERM\b", "inspect_builder_mount_permissions_readonly"),
     Rule("dependency_fetch", r"failed to download|failed to fetch|failed to get|download failed|failed to connect to|connection reset by peer", "inspect_package_mirror_or_registry_connectivity"),
-    Rule("build_step_nonzero", r"failed to solve: process [^\\r\\n]{0,1024} did not complete successfully|executor failed running|process did not complete successfully|exit status [1-9][0-9]*", "inspect_failed_build_step_privately"),
+    Rule("build_step_nonzero", r"failed to solve: process [^\r\n]{0,1024} did not complete successfully|executor failed running|process did not complete successfully|exit status [1-9][0-9]*", "inspect_failed_build_step_privately"),
     Rule("buildkit_generic_failure", r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR: failed to build", "inspect_buildkit_failure_privately"),
 )
 LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9_-]{6,20}\Z")
@@ -93,35 +93,35 @@ def private_tail(path: str) -> tuple[str | None, str]:
 
 def buildkit_failure_context(content: str) -> dict[str, object]:
     """Fixed vocabulary only. Never expose commands, log lines, URLs or paths."""
-    failure_ids = re.findall(r"(?m)^#([0-9]{1,5}) ERROR(?::|\\s|$)", content)
+    failure_ids = re.findall(r"(?m)^#([0-9]{1,5}) ERROR(?::|\s|$)", content)
     stage, operation = "unknown", "unknown"
     if failure_ids:
         step_id = failure_ids[-1]
         headers = re.findall(
             r"(?m)^#" + re.escape(step_id)
-            + r" \\[(dependency-metadata|builder|production)(?: [0-9]+/[0-9]+)?\\] ([^\\r\\n]{0,512})",
+            + r" \[(dependency-metadata|builder|production)(?: [0-9]+/[0-9]+)?\] ([^\r\n]{0,512})",
             content,
         )
         if headers:
             stage, command = headers[-1]
-            if re.search(r"\\buv sync\\b", command):
+            if re.search(r"\buv sync\b", command):
                 operation = "uv_sync"
-            elif re.search(r"\\bapt-get\\b", command):
+            elif re.search(r"\bapt-get\b", command):
                 operation = "apt"
-            elif re.search(r"\\bnormalize-dependency-metadata\\b|\\bnormalize_dependency_metadata\\b", command):
+            elif re.search(r"\bnormalize-dependency-metadata\b|\bnormalize_dependency_metadata\b", command):
                 operation = "dependency_metadata"
-            elif re.match(r"^COPY\\b", command):
+            elif re.match(r"^COPY\b", command):
                 operation = "copy"
-            elif re.match(r"^FROM\\b", command):
+            elif re.match(r"^FROM\b", command):
                 operation = "image"
-            elif re.match(r"^RUN\\b", command):
+            elif re.match(r"^RUN\b", command):
                 operation = "other_run"
     return {
         "failure_stage": stage,
         "failure_operation": operation,
         "buildkit_failure_marker": bool(
             re.search(
-                r"(?m)^#[0-9]{1,5} ERROR(?::|\\s|$)|failed to solve:|^ERROR:|error response from daemon:",
+                r"(?m)^#[0-9]{1,5} ERROR(?::|\s|$)|failed to solve:|^ERROR:|error response from daemon:",
                 content,
                 flags=re.I,
             )
