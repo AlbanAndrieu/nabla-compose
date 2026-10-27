@@ -92,6 +92,51 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
+## P0 — Private split-DNS DNSSEC NTA experiment (27/10)
+
+**Diagnostic confirmé sur deux cycles (workstation) :**
+`just workstation-dnssec-test` **13/13 PASS** ;
+`private_validated=TIMEOUT 4s` deux fois,
+`private_no_validation=A_CONFIRMED 0s` deux fois,
+`public_validated=A_CONFIRMED`, pfSense
+`RRSIG=yes, AD=yes` sur domaine public signé
+et `dnssec-failed.org` SERVFAIL. Le chemin de
+**validation DNSSEC de la zone privée** est
+le défaut reproduit. Pas de preuve complète
+d'une zone privée non signée ni de cause
+des erreurs DNSSEC publiques.
+
+**Implémentation préparée sans activation :**
+`just workstation-dnssec-nta-test`,
+`just workstation-dnssec-nta-check`,
+`just workstation-dnssec-nta-try` et
+`just workstation-dnssec-nta-rollback`.
+`resolvectl nta eno1 int.albandrieu.com` uniquement
+en opt-in, avec refus si le lien/profil ou les NTA
+existantes sont incompatibles ; rollback des
+seules NTA prévues, sans modification de
+`DNSSEC=yes`, DoT, pfSense ou du DNS public.
+
+**Persistence distincte dans**
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+fichier `.negative` pour `int.albandrieu.com`,
+opt-in désactivé par défaut, rollback explicite,
+handler seulement quand le fichier change.
+**Attention :** le fichier scoped au domaine
+est applicable sur *tous les liens*, à l'inverse
+du test runtime `eno1`. Validation VPN
+nécessaire avant activation.
+Tests complémentaires **10 tests Compose et 1 test
+Ansible** ajoutés mais pas encore exécutés.
+
+[Runbook de reprise](runbooks/workstation-split-dns-recovery.md).
+**Gate pour déclarer DONE :** NTA runtime,
+réponses validées et NSS rapides, DNSSEC public
+toujours OK, maintien après redémarrage avec
+persistance Ansible explicitement autorisée.
+Continuer à surveiller séparément les erreurs
+DNSSEC sur les domaines publics.
+
 ## P0 — DNSSEC résolveur workstation (preuves 27/10 23:01 CET)
 
 Le journal transmis par l'opérateur confirme
