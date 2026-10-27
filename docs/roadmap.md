@@ -282,9 +282,21 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   avant toute tentative d'upgrade. Ne pas supposer le HTTP 429 levé.
 - [ ] Auditer les applications TrueNAS arrêtées et leurs réseaux après prune,
   sans redémarrage global.
-- [ ] Traiter le 429 (quota de pulls vs anti-abus) : attendre une récupération
-  ou authentifier le client Docker effectif ; puis un seul pull ciblé,
-  avant un seul build du SHA immuable. Pas de mirror/daemon restart global.
+- [x] Docker Hub : `sudo docker login` réussi, identité `root:root` / `0600`,
+  `sudo docker pull python:3.13-slim-trixie` réussi. Le digest observé
+  commence par `sha256:b3575dcf816c` ; cela ne valide pas les autres pulls du build.
+- [ ] Redéployer exactement le SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742`
+  depuis le checkout TrueNAS canonique après validation des tests et réseaux.
+- [ ] Confirmer la clé virtuelle LiteLLM de FastAPI en runtime via
+  `GET /v1/models` (alias `fastapi-qwen` visible), puis l'upstream workstation
+  avec un smoke d'inférence synthétique explicite et une vérification de budget.
+- [ ] Confirmer depuis FastAPI l'API Ollama `:30068`, la santé OpenRAG backend
+  et frontend, puis différencier disponibilité réseau et autorisation RAG.
+  L'intégration MCP OpenRAG reste `not_wired_pending_private_acl`.
+- [x] Ajouter dans #289 `accept-fastapi-ai-connectivity.py` et son test local
+  pour produire uniquement des codes de transport/auth (sans secrets).
+  Exécution sur TrueNAS toujours non prouvée ; voir
+  [recette IA après déploiement](runbooks/fastapi-truenas-ai-acceptance-20261027.md).
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
   immuable et exiger la recette 6/6.
