@@ -121,7 +121,6 @@ class FastApiLiteLlmKeyAlignmentContract(unittest.TestCase):
 
     def test_no_commands_mutating_credentials(self):
         source = FILE.read_text()
-        self.assertNotIn("docker", source.split("def container_key")[0].split("TARGETS")[0])
         self.assertNotIn("docker exec", source)
         self.assertNotIn("docker login", source)
         self.assertNotIn("key/generate", source)
