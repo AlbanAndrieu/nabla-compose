@@ -52,6 +52,35 @@ Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/na
 sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
 ce périmètre.
 
+## Suite NSS / systemd-resolved — preuve du 27 octobre à 22:51 CET
+
+L'opérateur a exécuté `just workstation-nss-path-test` :
+**11/11 PASS** sur les contrats v1, puis
+`just workstation-nss-path` : `resolved_native=TIMEOUT 6s`,
+`stub_udp=NO_ANSWER 2s`, `nss_dns=A_CONFIRMED 3,4s`,
+`nss_resolve=NO_ANSWER 0s`,
+`nss_default=TIMEOUT 6s`. **Incident intermittent multi-couche** :
+l'ancien diagnostic « NSS seul » n'est pas soutenu par ce
+relevé. La sonde `stub_udp` v1 utilisait `dig +short`,
+dont le statut ne distingue pas SERVFAIL/NODATA/timeout.
+
+**Action versionnée dans Compose PR #289 :** diagnostic
+`workstation-nss-path` v2 avec réponse stub et codes RCODE,
+signaux individuels indépendants de la classification primaire,
+plusieurs échantillons bornés
+(`just workstation-nss-path-samples` :
+`--samples 2 --timeout 3`) et tests de non-régression
+complémentaires. **Nouvelle suite locale à exécuter** au HEAD ;
+ne pas présenter les nouveaux tests comme PASS.
+[Runbook DNS](runbooks/workstation-split-dns-recovery.md).
+
+**Décision :** observer les journaux
+`systemd-resolved` et le chemin stub. `DNSOverTLS=opportunistic`
+et `DNSSEC=yes/supported` sont des paramètres relevés,
+**pas des causes établies**. Aucun changement DNSSEC,
+DoT, pfSense, `nsswitch.conf` ou système proposé tant
+que les RCODE et les échantillons ne sont pas disponibles.
+
 ## Diagnostic NSS différentiel — 27 octobre
 
 **Preuve opérateur la plus récente :** le profil NetworkManager
