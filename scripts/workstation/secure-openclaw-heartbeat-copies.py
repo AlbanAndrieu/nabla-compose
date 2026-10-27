@@ -24,13 +24,25 @@ SOURCES = (
 )
 
 
-def source_check(path: Path, expected_basename: str):
-    """Return (status, fd, inode) with no content read and no path output."""
+def source_check(path: Path, expected_basename: str, *, allow_parent_link: bool = False):
+    """Return (status, fd, inode) without reading content or printing paths.
+
+    Only the legacy nabla checkout may traverse owner/root-controlled parent
+    links. The final file is never allowed to be a symlink.
+    """
     if path.name != expected_basename:
         return "unexpected_filename", None, None
     try:
-        if any(parent.is_symlink() for parent in path.parents):
+        parent_links = [parent for parent in path.parents if parent.is_symlink()]
+        if parent_links and not allow_parent_link:
             return "symlinked_parent", None, None
+        if parent_links and any(link.lstat().st_uid not in (0, os.geteuid())
+                                for link in parent_links):
+            return "untrusted_parent_link", None, None
+        # Bind the lexical path to a stable canonical destination before open.
+        canonical = path.resolve(strict=True)
+        if canonical.name != expected_basename:
+            return "unexpected_resolved_filename", None, None
         before = path.lstat()
         if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
             return "unsafe_type_or_link", None, None
@@ -42,6 +54,7 @@ def source_check(path: Path, expected_basename: str):
         current = os.fstat(fd)
         if (not stat.S_ISREG(current.st_mode) or current.st_nlink != 1
                 or current.st_uid != os.geteuid()
+                or path.resolve(strict=True) != canonical
                 or (current.st_dev, current.st_ino) != (before.st_dev, before.st_ino)):
             os.close(fd)
             return "changed_or_unsafe", None, None
@@ -59,7 +72,8 @@ def reconcile(entries, *, apply: bool) -> tuple[dict, int]:
     with ExitStack() as stack:
         opened = []
         for role, path, basename in entries:
-            status, fd, identity = source_check(path, basename)
+            status, fd, identity = source_check(
+                path, basename, allow_parent_link=(role == "nabla_legacy_heartbeat"))
             rows.append({"role": role, "state": status})
             if fd is not None:
                 stack.callback(os.close, fd)
@@ -72,7 +86,9 @@ def reconcile(entries, *, apply: bool) -> tuple[dict, int]:
             # Recheck all identities before the first operation.
             for path, fd, identity in opened:
                 current = path.lstat()
-                if (current.st_dev, current.st_ino) != identity:
+                if ((current.st_dev, current.st_ino) != identity
+                        or (path.resolve(strict=True).stat().st_dev,
+                            path.resolve(strict=True).stat().st_ino) != identity):
                     valid = False
                     break
             if valid:
@@ -84,6 +100,8 @@ def reconcile(entries, *, apply: bool) -> tuple[dict, int]:
                             changed += 1
                         current = path.lstat()
                         if ((current.st_dev, current.st_ino) != identity
+                                or (path.resolve(strict=True).stat().st_dev,
+                                    path.resolve(strict=True).stat().st_ino) != identity
                                 or stat.S_IMODE(os.fstat(fd).st_mode) != 0o600):
                             valid = False
                             break
