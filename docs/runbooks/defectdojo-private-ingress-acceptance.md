@@ -2,6 +2,84 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Réception complémentaire du 27 octobre — HTTPS TrueNAS OK, client workstation DNS KO
+
+L'opérateur a exécuté `diagnose-defectdojo-https-route.py --check` depuis
+TrueNAS avec résultat :
+
+- `dns_pfsense=PRIVATE_A_CONFIRMED`, `dns_pihole=PRIVATE_A_CONFIRMED` ;
+- `origin=LOGIN_HTML_READY`, `https=LOGIN_HTML_READY` avec certificat
+  validé par `curl --resolve` (pas de `-k`) ;
+- `traefik_container=running`, `traefik_host_https=PUBLISHED_443`,
+  `shared_proxy_network=SHARED`, `router_labels=DECLARED`.
+
+**Acceptation :** le routage TLS/SNI Traefik et la page de login sont
+fonctionnels **depuis TrueNAS**. La workstation retourne toutefois
+`ping: ... Name or service not known`. Cela localise le problème
+résiduel sur le **chemin de résolution du client**, sous réserve de
+confirmer `dig @pfSense` depuis cette même machine.
+
+Le PTR affiché par `ping` sur TrueNAS (`bitwarden.albandrieu.com`)
+est une résolution inverse de `172.17.0.24` ; il ne change
+pas la réponse A ni la route DefectDojo.
+
+Le **runbook du 25 octobre**
+[`2026-10-25-pfsense-wifi-dns-root-cause.md`](2026-10-25-pfsense-wifi-dns-root-cause.md)
+documente déjà une divergence sur `eno1` : DHCP/profil NetworkManager
+`172.17.0.1`, mais `systemd-resolved` indiquait Quad9 et
+`getent` ne résolvait pas `*.int.albandrieu.com`.
+Une automatisation ancienne d'`ansible-workstation`
+(`hide-location.sh`, `hide-location.service`) peut modifier
+`resolvectl dns`, **sans preuve de causalité à ce jour**.
+
+### Workstation — comparaison sur le même client (lecture seule)
+
+```bash
+cd ~/w/nabla-compose
+just pfsense-wifi-path
+
+dig +time=2 +tries=1 +short @172.17.0.1 defectdojo.int.albandrieu.com A
+dig +time=2 +tries=1 +short @172.17.0.24 defectdojo.int.albandrieu.com A
+
+resolvectl dns eno1
+resolvectl domain eno1
+getent ahostsv4 defectdojo.int.albandrieu.com
+
+# TLS/SNI sans recours au résolveur système ; aucune session utilisateur.
+curl --noproxy '*' --connect-timeout 3 --max-time 10 \
+  --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
+  -sS -o /dev/null \
+  -w 'https=%{http_code} tls=%{ssl_verify_result}\\n' \
+  https://defectdojo.int.albandrieu.com/login
+```
+
+Le diagnostic workstation `bash scripts/workstation/diagnose-defectdojo-lan.sh --check`
+compare désormais aussi `getent ahostsv4` à l'adresse attendue.
+Même si `dig @pfSense` et `curl --resolve` sont verts, un échec
+NSS retourne `CLIENT_PRIVATE_SPLIT_DNS_PATH` et exit 1 :
+**ne plus annoncer un PASS du navigateur quand le nom échoue sur le client.**
+
+### Remédiation : couche locale seulement
+
+- Si `dig @172.17.0.1` échoue **depuis workstation**, examiner LAN,
+  pare-feu/VPN, UDP/TCP port 53 et la réponse de ce même résolveur.
+- Si `dig @172.17.0.1` retourne `172.17.0.24` mais `getent`
+  échoue, inspecter `resolvectl`, NetworkManager, NSS,
+  VPN/DoH et éventuel override `hide-location` ; **ne pas
+  reconfigurer pfSense DNS Forwarder (dnsmasq)**. Cette architecture
+  utilise DNS Resolver (Unbound) + Domain Override vers Pi-hole.
+- `/etc/hosts` peut servir uniquement de contournement temporaire.
+  Pour prouver le HTTPS sans mutation, **préférer `curl --resolve`**.
+- Corriger durablement la **source de la configuration DNS locale**
+  (profil NetworkManager/automation) seulement après avoir prouvé
+  l'auteur de la divergence. Aucun changement automatique pfSense,
+  Pi-hole, Traefik, DefectDojo, ni `/etc/hosts`.
+
+**Tests opérateur :** suite HTTPS TrueNAS `31 passed in 0.20s`
+sur la branche actuelle au moment de l'exécution. Cela ne valide pas
+encore le nouveau contrat workstation, dont les tests synthétiques
+restent à exécuter après mise à jour de cette PR.
+
 ## Réception 27 octobre — login HTTP validé, HTTPS privé non validé
 
 Le compte `admin` a été **authentifié avec succès** par l'opérateur
