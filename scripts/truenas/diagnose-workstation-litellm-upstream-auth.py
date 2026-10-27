@@ -2,12 +2,13 @@
 """Read-only TrueNAS LiteLLM -> Workstation LiteLLM auth preflight.
 
 Does NOT send protected model requests, call models or read credential values.
-Uses a fixed Docker container and two fixed environment variable *names*.
+Resolves the sole running Docker Compose project=litellm service=litellm instance.\nNever targets stopped legacy containers or reads secret values.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -48,12 +49,50 @@ def failure_class(returncode: int, stderr: bytes) -> str:
     return "unexpected_stderr" if returncode == 0 else "docker_exec_failed"
 
 
-def inspect_docker_target() -> str:
+# Compose labels are assigned by Docker Compose, and remain stable when
+# TrueNAS creates a generated name (litellm-litellm-1) rather than legacy litellm.
+COMPOSE_SELECTOR = (
+    "label=com.docker.compose.project=litellm",
+    "label=com.docker.compose.service=litellm",
+)
+CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\\|(litellm-litellm-[1-9][0-9]*|litellm)")
+
+
+def discover_running_container() -> tuple[str, str | None, str | None]:
+    """Return (state, Docker ID, fixed-format name); never print IDs.
+
+    Select only ONE live Compose container with both trusted labels.
+    No fallback to the stopped legacy 'litellm' container is permitted.
+    """
+    command = ["docker", "ps", "--filter", COMPOSE_SELECTOR[0],
+               "--filter", COMPOSE_SELECTOR[1], "--filter", "status=running",
+               "--format", "{{.ID}}|{{.Names}}"]
+    try:
+        result = subprocess.run(command, capture_output=True,
+                                check=False, timeout=8)
+    except (OSError, subprocess.TimeoutExpired):
+        return "docker_discovery_unavailable", None, None
+    if result.returncode:
+        return failure_class(result.returncode, result.stderr), None, None
+    if result.stderr or len(result.stdout) > 1024:
+        return "docker_discovery_unverified", None, None
+    lines = result.stdout.decode("ascii", errors="replace").splitlines()
+    if not lines:
+        return "compose_running_container_not_found", None, None
+    if len(lines) != 1:
+        return "compose_running_container_ambiguous", None, None
+    match = CONTAINER_ROW.fullmatch(lines[0])
+    if match is None:
+        return "compose_container_identity_unverified", None, None
+    return "selected", match.group(1), match.group(2)
+
+
+def inspect_docker_target(container_id: str = "litellm") -> str:
     """Only inspect container running state, not Docker Env or secret mounts."""
     try:
         result = subprocess.run(
             ["docker", "inspect", "--type", "container", "--format",
-             "{{.State.Status}}", "litellm"],
+             "{{.State.Status}}", container_id],
             capture_output=True, check=False, timeout=8
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -68,10 +107,10 @@ def inspect_docker_target() -> str:
     return "docker_inspect_unverified"
 
 
-def check_container() -> dict:
+def check_container(container_id: str = "litellm") -> dict:
     try:
         cp = subprocess.run(
-            ["docker", "exec", "litellm", "python3", "-c", PRESENCE_SCRIPT],
+            ["docker", "exec", container_id, "python3", "-c", PRESENCE_SCRIPT],
             capture_output=True, check=False, timeout=8
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -92,9 +131,9 @@ def check_container() -> dict:
     return {"container": "observed", "key_presence": state}
 
 
-def check_sdk_version() -> str:
+def check_sdk_version(container_id: str = "litellm") -> str:
     """Fingerprint only the LiteLLM package version; never inspect credentials."""
-    command = ["docker", "exec", "litellm", "python3", "-c",
+    command = ["docker", "exec", container_id, "python3", "-c",
                "from importlib.metadata import version; print(version('litellm'))"]
     try:
         result = subprocess.run(command, capture_output=True,
@@ -137,17 +176,26 @@ def classify_upstream_keys(container: dict) -> str:
 
 
 def report() -> dict:
-    container = check_container()
+    selection, container_id, selected_name = discover_running_container()
+    docker_status = (inspect_docker_target(container_id) if container_id is not None
+                     else "not_inspected")
+    should_inspect = selection == "selected" and docker_status == "running"
+    container = (check_container(container_id) if should_inspect
+                 else {"container": "unavailable", "key_presence": "unverified",
+                       "failure_class": "container_selection_or_state_unverified"})
+    sdk = check_sdk_version(container_id) if should_inspect else "unverified"
     return {
-        "schema": "nabla-litellm-upstream-auth-preflight/v2",
+        "schema": "nabla-litellm-upstream-auth-preflight/v3",
         "proxy_target": "workstation_litellm",
+        "truenas_container_selection": selection,
+        "truenas_docker_container_name": selected_name if should_inspect else "unverified",
+        "truenas_docker_container_status": docker_status,
         "truenas_litellm_env": container,
-        "truenas_docker_container_status": inspect_docker_target(),
         "truenas_upstream_key_state": classify_upstream_keys(container),
         "workstation_liveliness": check_liveliness(),
         "origin_of_previous_missing_key_event": "not_yet_attributed",
         "suspected_component": "truenas_litellm_or_other_sdk_unverified",
-        "truenas_litellm_sdk_version": check_sdk_version(),
+        "truenas_litellm_sdk_version": sdk,
         "reported_failure_user_agent_version": "1.106.4",
         "protected_models_endpoint_queried": False,
         "model_requests_sent": 0,
@@ -164,7 +212,7 @@ def main(argv=None) -> int:
     print(json.dumps(record, sort_keys=True))
     # Never return green when any declared upstream key is missing.
     # All-present means presence only, not that the key is valid or in scope.
-    return 0 if (record["truenas_upstream_key_state"] == "all_present_unvalidated"
+    return 0 if (record["truenas_container_selection"] == "selected"\n                 and record["truenas_docker_container_status"] == "running"\n                 and record["truenas_upstream_key_state"] == "all_present_unvalidated"
                  and record["workstation_liveliness"] == "http_200") else 2
 
 
