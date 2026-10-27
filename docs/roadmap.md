@@ -404,36 +404,42 @@ Actions :
   backend toujours **200**, HTTPS privé toujours **404 / TLS 0**.
   L'écart de labels **est résolu** ; le 404 privé est le
   résultat attendu du routeur délibérément inactif.
-- [ ] **Nexus / P0 — contrôler l'exposition du routage HAProxy direct :**
-  TrueNAS a réconcilié ses labels (`traefik.enable=false`) ;
-  Nexus direct `172.17.0.24:8081` = HTTP 200 ; HTTPS privé
-  via Traefik = 404/TLS valide, comme attendu.
-  Frontend pfSense actif renommé **`main_Web_HTTPS`**.
-  Nouvelle preuve opérateur 27/10 : `just nexus-private-ingress-test`
-  **11/11 PASS (5 Nexus + 6 inspecteur)**. ACL ligne 89 :
-  `nexus var(txn.txnhost) -m str -i nexus.int.albandrieu.com` ;
-  ligne 94 : regex `aclcrt_main_Web_HTTPS` conforme à ce Host ;
-  ligne 96 : Host chargé dans `txn.txnhost` ;
-  ligne 128 : `use_backend nexus-albandrieu_ipvANY if nexus
-  aclcrt_main_Web_HTTPS`. La route Nexus **précède**
-  les routes génériques Traefik (lignes 132–133) :
-  **la réponse 404 depuis l'IP WAN, testée sur le LAN,
-  pourrait venir du backend dédié, pas de Traefik**.
-  Aucun `http-request deny/return` n'apparaît dans
-  l'extrait de ce frontend. Les contrôles PF/NAT/WAN ne sont
-  pas démontrés : **WAN_REJECTION_NOT_VERIFIED** et
-  **WAN_EXPOSURE_POSSIBLE**. Ne pas activer le routeur privé.
-  PR #289 : inspecteur SSH readonly enrichi d'une option
-  `--backend nexus-albandrieu_ipvANY` pour afficher seulement
-  les cibles `server` / adresse:port du backend (secrets exclus).
-  Nouveaux tests de cette option **à exécuter localement**
-  (`just nexus-private-ingress-test`).
-  Suite : vérifier cible backend et frontend WAN actif,
-  préparer une ACL HAProxy de refus de ce seul Host via l'UI
-  pfSense, valider le rechargement/rollback et préserver
-  `s3.int.albandrieu.com` et `nexus.albandrieu.com`.
-  Un test hors LAN reste souhaitable. Seule ensuite l'activation
-  Traefik privée sera autorisable en fenêtre de maintenance.
+- [ ] **Nexus / P0 — isoler le Host privé sur le frontend WAN :**
+  La Custom App TrueNAS `nexus` est RUNNING ; DNS privé confirmé,
+  backend direct `172.17.0.24:8081` HTTP 200 et labels Traefik
+  réellement appliqués avec `traefik.enable=false`.
+  Depuis le LAN, le HTTPS privé reste HTTP 404 avec TLS valide.
+  Tests locaux opérateur `just nexus-private-ingress-test`
+  **14/14 PASS** (5 Nexus + 9 inspecteur), worktree à HEAD
+  `acee4b5f` au moment de la validation ; les nouveaux tests
+  ajoutés ensuite ne sont pas encore exécutés sur le dernier HEAD.
+  **Preuve HAProxy la plus récente (27/10) :** frontend
+  `main_Web_HTTPS`, ACL `nexus` exacte (ligne 89),
+  `aclcrt_main_Web_HTTPS` (ligne 94), Host stocké dans
+  `txn.txnhost` (ligne 96) et **ligne 128** :
+  `use_backend prod_front-traefik-https_ipvANY if nexus
+  aclcrt_main_Web_HTTPS`. Les routes plus génériques vers
+  Traefik suivent aux lignes 132–133.
+  **Le relevé antérieur vers `nexus-albandrieu_ipvANY`
+  est obsolète.** L'inspection `--backend nexus-albandrieu_ipvANY`
+  échoue correctement avec « backend not found », ce qui ne
+  démontre aucune panne Nexus et ne doit pas entraîner la
+  recréation de cet ancien backend.
+  Nouveau gate en lecture seule :
+  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh
+  --backend prod_front-traefik-https_ipvANY`. Il confirme
+  la cible actuelle du backend Traefik ; le filtre expose
+  `nexus_declared_backend` lorsque le Host exact est routé.
+  Aucun `http-request deny/return` n'a été affiché dans
+  ce frontend. Source LAN du test vers l'IP publique,
+  NAT reflection possible : **WAN_REJECTION_NOT_VERIFIED**.
+  Avant l'activation du routeur Nexus privé, configurer
+  un refus du Host exact **sur le frontend WAN** via l'UI
+  pfSense avec rollback, sans bloquer `s3.int.albandrieu.com`
+  ni `nexus.albandrieu.com`. Un test extérieur indépendant
+  serait la meilleure validation complémentaire.
+  Ne pas redéployer Nexus ni modifier HAProxy/Traefik
+  pendant ce gate en lecture seule.
   [Runbook](runbooks/nexus-private-dns-ingress.md).
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
