@@ -618,3 +618,49 @@ SOPS ; KeePassXC reste reporté. Ne plus relancer la copie
 NFS déjà vérifiée.
 
 [Procédure](yubikey-software-recovery-20261026.md).
+
+## X25519 confirmé ; PRA USB historique réutilisable (27/10/2026)
+
+**Validation workstation au 27/10** : test de l'en-tête age
+**13/13 PASS**, `HEADER_INSPECTION_READY`,
+puis `AGE_V1_HEADER_TYPE_HINT_ONLY` avec
+`recipient_family_hint=X25519_IDENTITY` et
+`stanza_count=1`. Aucune tentative de
+déchiffrement n'a eu lieu avec ce nouveau diagnostic.
+
+**Réconciliation nécessaire avec le PRA existant :**
+[`sops-age-usb-disaster-recovery.md`](sops-age-usb-disaster-recovery.md)
+consigne une **restauration age réussie le 17 octobre 2026** :
+une archive chiffrée de l'identité SOPS a été déchiffrée
+avec l'identité de récupération age X25519 stockée sur
+USB SanDisk LUKS2, puis un test de fixture SOPS a réussi.
+Il serait inexact de résumer **tout** le projet comme
+n'ayant jamais eu de restauration réelle ; l'état
+`NO-GO` porte désormais sur la **nouvelle copie NFS**
+du 27/10 (non retestée en restauration) et sur
+l'indépendance non prouvée de la **clé privée de
+récupération USB**.
+
+**Prochaine étape unique, sans déchiffrement :
+`just yubikey-escrow-usb-status`.**
+La commande réutilise `manage-age-escrow-usb.sh --check`
+en lecture seule, n'ouvre aucun support chiffré,
+ne génère aucun secret et retourne l'état verrouillé
+ou monté de la SanDisk connue. Validation réelle sur
+workstation : `NOT_RUN`.
+
+Si USB déjà monté, préparer et autoriser séparément
+la reprise des scripts existants
+`verify-sops-age-escrow.sh` et
+`test-sops-usb-recovery.sh` sur la nouvelle
+copie chiffrée, après vérification des accès,
+du stockage `/dev/shm` et de l'absence
+de divulgation de clé dans les logs.
+**Ne pas inventer un nouveau mécanisme de déchiffrement.**
+
+**Reste NO-GO** : support de récupération
+indépendant de la SanDisk, test de restauration de
+la **nouvelle** copie NFS, preuve de l'accès effectif
+aux dossiers NFS4, toute mutation PIV82/PIV9A/OTP2
+ou rotation SOPS. KeePassXC reporté ; ne jamais
+réexécuter `--copy`.
