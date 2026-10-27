@@ -112,6 +112,24 @@ class NexusHaproxyFrontendReadonly(unittest.TestCase):
         self.assertNotEqual(stale.returncode, 0)
         self.assertIn("backend 'nexus-albandrieu_ipvANY' not found", stale.stdout)
 
+    def test_operator_nexus_deny_uses_host_capture_before_403(self):
+        # 27/10 operator-provided HAProxy ACL and deny, not a WAN test.
+        current = CONFIG.replace(
+            "acl nexus_private_wan var(txn.txnhost) -m str -i nexus.int.albandrieu.com",
+            r"acl nexus var(txn.txnhost) -m reg -i ^nexus\.int\.albandrieu\.com(:[0-9]{1,5})?$",
+        ).replace(
+            "http-request deny deny_status 403 if nexus_private_wan",
+            "http-request deny deny_status 403 if nexus aclcrt_main_Web_HTTPS",
+        )
+        result = self.run_script(current)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("type=acl", result.stdout)
+        self.assertIn("if nexus aclcrt_main_Web_HTTPS", result.stdout)
+        host_capture = result.stdout.index("set-var(txn.txnhost)")
+        http_deny = result.stdout.index("http-request deny deny_status 403")
+        self.assertLess(host_capture, http_deny)
+        self.assertIn("wan_rejection=NOT_VERIFIED", result.stdout)
+
     def test_shell_parses_and_no_runtime_mutations(self):
         shell = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("midclt call", shell)
