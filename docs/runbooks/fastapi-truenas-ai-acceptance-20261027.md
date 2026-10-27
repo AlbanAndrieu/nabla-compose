@@ -6,27 +6,54 @@ L'ancien build du SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742` a écho
 
 Pas d'accès d'exécution SSH/TrueNAS depuis la PR GitHub. Le déploiement doit être lancé par l'opérateur dans le checkout canonique ; **ne pas déployer depuis un worktree temporaire**, car l'outil TrueNAS attache le chemin absolu du fichier Compose.
 
-## Retour TrueNAS du 27/10 — build 3/6 en cours et validation IA corrigée
+## Retour TrueNAS : FastAPI 1.25.0 en service — seule l'authentification IA reste bloquée
 
-Preuves issues de la dernière sortie opérateur : réseaux `intranet` et `traefik_network` présents ; branche Compose mise à jour en avance rapide ; sous-module `fastapi-sample` marqué `M` après changement de SHA par l'upgrade (ne pas faire de `git reset --hard` pour « nettoyer ») ; le processus d'upgrade a atteint **3/6, image Python en cache**, puis l'opérateur a indiqué « en cours ». **La réussite du build, des étapes 4–6 et du runtime n'est pas encore prouvée.** Ne pas lancer un second upgrade et ne pas modifier le checkout canonique pendant cette construction.
+**Preuve opérateur :** build terminé ; réseau observateur v2 et allowlist OK ; `app.update` et `app.redeploy` réussis ; `fastapi-sample` running, HTTP `/health=200`, santé applicative **4/4**, version **1.25.0** ; digest de l'image exécutée identique à celui de l'image sélectionnée. `build_revision=null` : **l'empreinte Git de l'image n'est pas attestée**, malgré le checkout de `0266f20d7ff1278bf7dd36ac15a22618d04b3742` au build. Le gitlink parent reste sur `441d0a7e` : ne pas faire de `git reset --hard` du sous-module et ne pas enregistrer automatiquement ce changement.
 
-Test `python3 -m unittest discover -s tests -p 'test_fastapi_ai_connectivity_acceptance.py' -v` sur le précédent checkout : 9 méthodes, **4 FAIL / 1 ERROR**, les autres passent. Causes établies :
-- Le validateur `inspect()` faisait `data[key] not in STATE_CODES` sans contrôle de type. Un JSON imbriqué à la place d'une chaîne provoquait `TypeError: unhashable type: 'dict'`. **Correctif Git :** exiger `isinstance(data[key], str)` avant toute recherche dans `STATE_CODES`.
-- Les tests interdisaient la sous-chaîne `secret`, alors que le champ de sortie fixe `raw_secrets_printed=false` contient légitimement ce mot. **Correctif Git :** vérifier le rapport de repli fixe exact et l'absence de la valeur canari `secret-in-stderr`.
+Les intégrations sont indépendantes :
 
-Les correctifs sont publiés sur la PR #289 en `[skip ci]`. Leurs **tests complets sur TrueNAS restent à rejouer**, après la fin du processus d'upgrade actuel. Exécuter la recette de tests ci-dessous dans un *worktree isolé*. Le script en cours peut encore utiliser l'ancien code d'audit IA et générer un warning non bloquant à l'étape 6/6. **Ne pas confondre un warning IA avec un échec du build, et ne pas annoncer LiteLLM/OpenRAG opérationnels sans sortie du rapport.**
+| Intégration | Observation depuis FastAPI | Conclusion |
+| --- | --- | --- |
+| Prometheus/Gatus | `gatus_up=1`, 85 échantillons synthétiques | Contrat observateur accessible, **pas** 85 succès de sondes |
+| pfSense RBAC | 7/7 | Contrôle privilégié OK |
+| Ollama TrueNAS | HTTP 200 | API joignable ; génération non testée |
+| OpenRAG backend/frontend | HTTP 200 / 200 | API joignables ; recherche/ACL non testées |
+| OpenRAG MCP | HTTP 406 | Endpoint joignable ; négociation de contenu et autorisation MCP non validées |
+| LiteLLM TrueNAS | **HTTP 401** via la clé FastAPI `LITELLM_API_KEY` | Accès au modèle `fastapi-qwen` non authentifié ; aucune inférence |
 
-Après terminaison de l'upgrade, contrôles lecture seule :
+**Ne redéployer ni FastAPI ni les autres services à ce stade.** Le déploiement FastAPI lui-même est achevé. L'investigation P0 se limite à LiteLLM et aux clés virtuelles. Ne pas confondre un 401 avec une panne réseau : une réponse HTTP 401 provient d'un serveur qui a répondu.
 
-```bash
-sudo docker inspect fastapi-sample \
-  --format 'state={{.State.Status}} image={{.Image}}'
-curl -sS -o /dev/null -w 'health_http=%{http_code}\n' \
-  --connect-timeout 2 --max-time 7 http://127.0.0.1:8091/health
-sudo midclt call app.query '[["id","=","sample"]]' | jq -c '[.[] | {id,state}]'
-```
+### Diagnostic LiteLLM ciblé — aucune donnée secrète affichée
 
-Si l'upgrade est terminé, si les contrôles sont bons et **seulement après validation des tests mis à jour**, exécuter l'audit `sudo python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check` depuis le checkout canonique synchronisé. Ne pas déclencher `--inference-smoke` automatiquement.
+Le proxy est déclaré sur `http://172.17.0.24:4000` et le modèle attendu est `fastapi-qwen`. La version du diagnostic sur la PR #289 distingue maintenant `litellm_proxy_liveness` (un GET public de santé) et `litellm_key_format` (simple classe `sk_prefix`/`unexpected_format`/`missing`), sans afficher la clé ni son hash. Les tests initiaux du script IA avaient 9 méthodes, **4 FAIL et 1 ERROR**, dus à un type JSON non validé et une assertion trop large du mot `secret`. Correctifs publiés en `[skip ci]` ; nouveaux tests incluant le 401 et liveness **encore à exécuter en local**.
+
+~~~bash
+cd /mnt/cpool/compose/nabla-compose
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+python3 -m unittest discover -s tests -p 'test_fastapi_ai_connectivity_acceptance.py' -v
+sudo python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check
+~~~
+
+La sortie doit rester du JSON à valeurs bornées, sans `LITELLM_API_KEY` et sans sortie de logs. `litellm=http_401` avec `litellm_proxy_liveness=http_200` et `litellm_key_format=sk_prefix` signifie que la requête authentifiée a été rejetée malgré un proxy vivant et une clé de forme attendue ; **cela n'établit pas si la clé est révoquée, expirée, inconnue en base, bloquée par budget ou refusée pour une autre raison**.
+
+### Vérifier l'enregistrement de la clé virtuelle, puis l'upstream
+
+1. Dans l'administration de **LiteLLM TrueNAS**, rechercher la clé virtuelle dédiée `fastapi-sample-staging` (ou l'alias effectivement provisionné), en **lecture seule**. Vérifier : état actif/expiration, autorisation **uniquement** `fastapi-qwen`, `max_budget=8` **USD à vie** (`budget_duration=null`), RPM 5, TPM 15000, `max_parallel_requests=1`. L'alias de modèle dans `config.yaml` ne prouve pas la clé en base.
+2. Vérifier dans Vaultwarden l'item `nabla/prod/sample-litellm`, champ masqué `LITELLM_API_KEY`, et son import dans **le fichier canonique Sample existant** `/mnt/cpool/secrets/runtime/sample/.env.secrets`, sans imprimer les valeurs. Vérifier les permissions du fichier et son état de matérialisation ; une clé présente en mémoire ne garantit pas qu'elle correspond à celle en base.
+3. Ensuite seulement, vérifier la chaîne d'upstream **LiteLLM TrueNAS → LiteLLM workstation** via le diagnostic déjà présent :
+
+   ~~~bash
+   sudo python3 scripts/truenas/diagnose-workstation-litellm-upstream-auth.py --check
+   ~~~
+
+   Le runbook `docs/runbooks/fastapi-sample-litellm.md` documente une preuve antérieure de `LITELLM_FASTAPI_WORKSTATION_API_KEY=absent` dans le conteneur LiteLLM TrueNAS : **reconfirmer** ce fait. L'absence empêcherait le relais vers `qwen`, même après résolution du 401 FastAPI. Si le secret est absent, investiguer d'abord sa source Vaultwarden avec `just litellm-fastapi-upstream-source-check` dans une session non-root déverrouillée. Aucun secret ne doit être ajouté à la main ou remplacé par une clé IDE/master.
+
+4. Si l'alias ou la clé applicative n'existe pas, **ne pas générer automatiquement une seconde clé**. Inspecter les clés orphelines et les éventuelles entrées de la base, puis suivre le provisionneur `scripts/workstation/provision-fastapi-litellm-keys.py` avec un plan contrôlé, stockage Vaultwarden et budget vérifié. N'utiliser `--apply` qu'après attestation de l'identité et des droits d'administration, sans loguer la clé.
+
+La documentation LiteLLM décrit `GET /key/info` comme un endpoint administratif qui requiert une clé master, et signale que l'authentification des clés dépend de la base PostgreSQL. Ne pas placer une clé dans un paramètre d'URL ou dans l'historique shell et ne jamais utiliser la clé master comme clé applicative FastAPI.
+
+Sources : https://docs.litellm.ai/docs/proxy/virtual_keys et https://docs.litellm.ai/docs/proxy/prod .
 
 ## Préflight lecture seule
 
