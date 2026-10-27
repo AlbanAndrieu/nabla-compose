@@ -21,6 +21,15 @@
   (`172.17.0.24`, 21:46:28Z) du vrai bouncer
   `PFSENSE_FIREWALL@172.17.0.1` (`172.17.0.1`,
   `crowdsec-firewall-bouncer`, 22:35:27Z).
+- **Correctifs diagnostiques après exécution TrueNAS :** ancien gate
+  `just crowdsec-bouncer-config-test` arrêté sur 6 erreurs de
+  connexion `127.0.0.1:8084` dans les fixtures du test d'authentification.
+  Les tests injectent maintenant un client `curl` explicite sans réseau.
+  L'ancien contrôle de provenance a rejeté le bouncer suffixé avec
+  `last_pull=22:47:47Z` parce qu'il exigeait `valid=true` (absent
+  du JSON de CrowdSec 1.8.1). Correction : `revoked=false` +
+  nom/IP/type/date. **9/9 scénarios du prédicat `jq` PASS en local ;
+  gate `just` et réception runtime du nouveau HEAD non encore exécutés.**
 - **P0 ouvert — application/révocation PF :** 0 décision centrale active ;
   4 074 entrées historiques observées en PF. Il faut attester une
   **même nouvelle IP** dans LAPI puis PF, et sa disparition des deux
