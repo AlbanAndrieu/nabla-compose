@@ -66,6 +66,25 @@ curl --noproxy '*' -sS -o /dev/null -w 'ws_liveliness=%{http_code}\n' \
   --max-time 5 http://172.17.0.57:4000/health/liveliness
 ```
 
+Depuis une console TrueNAS sur un checkout mis à jour de #289,
+un contrôle supplémentaire du conteneur LiteLLM **sans extraction
+des valeurs** :
+
+```bash
+just litellm-workstation-upstream-auth-check
+```
+
+Le résultat contient uniquement la présence de
+`LITELLM_IDE_API_KEY` et de
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` dans le conteneur
+`litellm` TrueNAS, puis la liveness du proxy Workstation.
+Cette vérification n'attribue pas automatiquement la trace
+`litellm/1.106.4`. Si la clé manque, corriger sa
+matérialisation privée et son injection dans le conteneur
+**après revue explicite**, sans copier la valeur dans Git, la
+sortie de terminal ou un ticket. Ne pas recréer le service
+pour une simple preuve d'absence.
+
 Une réussite confirme un processus/réseau, pas la validité des
 clés virtuelles OpenClaw ni la liste des modèles. Identifier
 ensuite le client qui appelle `/v1/models` sans `Authorization`.
