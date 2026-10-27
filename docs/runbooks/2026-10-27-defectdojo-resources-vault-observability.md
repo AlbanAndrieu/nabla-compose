@@ -1,5 +1,124 @@
 # 27 octobre 2026 — Ressources RUNNING, DefectDojo DEPLOYING, Vaultwarden et H-05/H-06
 
+## Réception actualisée — preuves opérateur du 27/10 (18:47–18:53 UTC)
+
+Ces résultats **supplantent l'ancien état `DEPLOYING`** pour DefectDojo.
+Ils restent des preuves ponctuelles, pas des SLA.
+
+### DefectDojo restauré sans réinitialisation de base
+
+- Avant reprise : aucun job TrueNAS `app.*` DefectDojo `RUNNING`/`WAITING` ;
+  initializer `exited(0)`, quatre dépendants `created`.
+- Reprise manuelle ciblée : `docker start defectdojo-uwsgi`,
+  `docker start defectdojo`, puis `docker start` des deux Celery ;
+  **aucun `app.redeploy` ni `DROP DATABASE`**.
+- `python manage.py changepassword admin` : **mot de passe changé avec succès**
+  dans Django (la commande mutante a bien changé le hash, indépendamment
+  du champ `database_modified=false` émis par le diagnostic read-only).
+- Diagnostic après reprise : `app_state=RUNNING`, `origin_http=200`,
+  initializer `exited(0)`, uWSGI/Nginx/Celery Worker/Celery Beat
+  `running`, aucun `OOMKilled` signalé pour ces conteneurs.
+  Ce résultat ne valide **ni un login Web authentifié**, ni un E2E Celery,
+  ni la persistance du démarrage après le prochain cycle TrueNAS.
+- La première requête HTTP après `docker start defectdojo` renvoyait
+  `curl (7)`/`000` ; la sonde suivante a répondu 200. La disponibilité
+  a donc été observée **après** les démarrages, sans attribuer la cause
+  de cette transition à un composant particulier.
+
+**Correctif code sur PR #289 :** `diagnose-defectdojo-deploying.py`
+requiert désormais initializer `exited(0)`, quatre dépendants `running`,
+HTTP accepté, et `app_state=RUNNING` avant de considérer le **transport**
+prêt ; `admin_login=NOT_VERIFIED` demeure explicite.
+Les tests ciblés sont versionnés ; **exécution locale au HEAD à confirmer**.
+Critère de clôture : `stack_transport_state=READY_FOR_AUTH_CHECK`,
+login Web validé, mot de passe effectif cohérent avec
+`.env.secrets`/Vaultwarden, puis stabilité après cycle TrueNAS contrôlé.
+
+### Inventaire RUNNING (capture 18:49:37 UTC)
+
+- `resources-20261027T184909Z.json` : **143** conteneurs RUNNING,
+  **91 mappés** au catalogue, **52 non mappés**, `inventory_complete=true`.
+- `services_count=151` ; GPU `unavailable` sur TrueNAS, pas 0 MiB.
+- Rapport privé local sous `/mnt/cpool/var/nabla/service-resources/`.
+  **Ne pas committer le JSON** ; ne pas présenter les 151 entités
+  comme autant de services RUNNING.
+- Cette capture précède le démarrage manuel des quatre dépendants
+  DefectDojo : **refaire l'inventaire après stabilisation**, sans
+  soustraire mécaniquement les comptes des deux captures.
+
+### Mémoire et services arrêtés
+
+Avant le redémarrage ciblé, `free -h` indique environ **61 Gio**
+de RAM totale, **7,3 Gio disponibles** et aucun swap configuré.
+L'opérateur indique avoir arrêté **Netdata et Graylog** puis observé
+une stabilisation de la mémoire. Il n'existe pas de preuve causale de
+leur contribution individuelle aux pics passés.
+Pour établir la tendance sans réactiver ces services :
+
+```bash
+sudo python3 scripts/truenas/diagnose-truenas-pressure.py \
+  --check --observe-seconds 20 --skip-docker
+```
+
+Évaluer PSI mémoire/I/O, variation de `MemAvailable`,
+`oom_kill` et direct reclaim. Ne pas modifier l'ARC ZFS,
+réactiver Netdata/Graylog ni imposer de limite mémoire sur cette seule
+observation.
+
+### H-05 Prometheus et H-06 Akvorado (18:47:38 UTC)
+
+- `diagnose-fastapi-prometheus-runtime.py --check` :
+  Prometheus `running`, `/-/ready=200`, API targets `200`,
+  clé FastAPI présente et montage secret présent/lisible.
+  `scrape_accepted=false` dans ce préflight signifie
+  **non vérifié par ce script**, pas échec authentifié.
+- Relevé de **huit jobs nommés** : **3 scrape_up**
+  (`docling`, `fastapi_sample`, `pfsense_exporter`) ;
+  **5 scrape_down** : `haproxy`, `opensearch`,
+  `opensearch-security`, `postgres_exporter` = `tcp_refused` ;
+  `litellm_hermes` = `http_401`.
+  Aucun statut global du reste du parc Prometheus ne peut être
+  inféré de ces huit jobs.
+- Akvorado sur 20 s : **6 nouveaux flux**,
+  `metadata_missing +6`, `metadata_provider_errors +12`,
+  `clickhouse_batches +0`, `kafka_messages +1` ;
+  `akvorado_sql_rows=NOT_VERIFIED`.
+  L'ingestion ClickHouse n'est **pas acceptée**.
+- Ordre de diagnostic : classer la disponibilité réelle des quatre
+  exporters TCP, corriger séparément l'auth du job `litellm_hermes`,
+  puis vérifier les métadonnées d'interface Akvorado et démontrer
+  les nouveaux inserts ClickHouse. **Pas de redéploiement général.**
+
+### Vaultwarden / sources de vérité : encore à réconcilier
+
+- `code`, `openrag` : `VAULT_ITEM_MISSING` selon **le cache
+  local de la CLI Bitwarden**, pas une preuve d'absence côté serveur.
+- `defectdojo` : cinq secrets applicatifs `MATCH`,
+  `DD_ADMIN_USER=DRIFT`, `DD_ADMIN_PASSWORD=UNVERIFIED`
+  (`VAULT_FIELD_MISSING_OR_EMPTY`) dans le cache CLI.
+- Après le changement interactif Django, **la parité avec le runtime
+  `.env.secrets` n'est pas connue**. Le mot de passe Django n'est pas
+  relu depuis l'environnement au login.
+- En session privée et déverrouillée (sans afficher de secret) :
+
+```bash
+bw sync
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --check
+VENV_PYTHON="$HOME/.cache/nabla-compose/dev-venv/bin/python"
+for app in code openrag defectdojo; do
+  "$VENV_PYTHON" scripts/secrets/compare_vaultwarden_runtime_readonly.py \
+    --check --app "$app"
+done
+```
+
+Un état `PASSWORD_MISMATCH` impose de choisir **une seule valeur**
+entre mot de passe Django nouvellement établi et secret runtime,
+puis de réconcilier Vaultwarden. Ne pas faire un `--apply`
+automatique qui écraserait le mot de passe fraîchement choisi.
+Pour `code`/`openrag` toujours manquants après `bw sync`,
+inspecter le dossier et le nom d'item déclarés dans
+`config/secrets/manifest.json` avant toute création/duplication.
+
 ## Statut de collecte du catalogue
 
 Le référentiel Backstage v2 versionné comporte **154 entités**, dont
