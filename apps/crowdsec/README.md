@@ -3,6 +3,95 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Reprise du 27 octobre — GO/NO-GO avant pfSense Small
+
+La migration n'est **pas réceptionnée** au dernier relevé :
+la LAPI CrowdSec TrueNAS est saine, et Loki reçoit les événements
+pfSense, mais la connexion du bouncer pfSense à cette LAPI
+n'est pas démontrée. Le précédent bouncer utilisait
+`http://172.17.0.1:8089` (LAPI locale) ; l'enregistrement
+`PFSENSE_FIREWALL` côté central avait `last_pull=<none>`.
+Le fichier privé
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
+était alors absent/illisible. Aucun nouveau diagnostic CrowdSec
+n'a été communiqué dans le relevé du 27/10 consacré à HAProxy.
+**NE PAS arrêter le moteur local sur ces seules preuves.**
+
+### Gate A — préflight TrueNAS en lecture seule
+
+Sur **TrueNAS** (pas sur pfSense, sans afficher aucune clé) :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+```
+
+Critères : app RUNNING/healthy, LAPI LAN `:8084`, Loki pfSense
+canonique confirmé, scénario de boucle désactivé ;
+`--check` doit confirmer le fichier secret `0600`, la variable
+`BOUNCER_KEY_PFSENSE_FIREWALL` et **exactement un** bouncer
+`PFSENSE_FIREWALL`. Un `last_pull` vide est attendu avant
+activation et doit être contrôlé après bascule ; il ne prouve
+pas à lui seul une authentification préalable réussie.
+Un échec de clé/secret est **NO-GO**. Ne jamais régénérer,
+copier dans Git ou afficher la clé pendant un diagnostic.
+
+### Gate B — préflight pfSense et authentification centrale
+
+Depuis la **workstation**, avec l'accès SSH existant :
+
+```bash
+# En preflight, moteur local RUNNING = warning, pas échec.
+just crowdsec-pfsense-preflight
+
+# Probe authentifié de la LAPI centrale avec la clé du bouncer
+# pfSense actuel. Lit la clé depuis sa configuration, sans l'afficher.
+# Un HTTP 403 signifie que la clé actuelle appartient probablement
+# à l'ancienne LAPI et ne peut pas servir au cutover telle quelle.
+ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s \
+  < scripts/pfsense/check-central-crowdsec-bouncer.sh
+```
+
+La probe doit retourner `central_lapi_http=200`. Si elle
+retourne 401/403, **arrêter ici** : retrouver dans un coffre
+approuvé la clé enregistrée sur TrueNAS, ou prévoir une rotation
+explicite, séparée et réversible. Le préflight pfSense confirme
+seulement l'état actuel des tables PF et l'accès réseau.
+
+### Gate C — bascule contrôlée (opérateur, mutation hors du diagnostic)
+
+Après A/B sans blocage et sauvegarde de la configuration pfSense :
+
+1. Conserver les tables et la fonction firewall bouncer actives.
+2. Faire pointer uniquement le bouncer pfSense vers
+   `http://172.17.0.24:8084` avec **la clé centrale validée**.
+3. Contrôler l'authentification, puis le `last_pull` réel
+   dans `cscli bouncers list` sur TrueNAS.
+4. Passer pfSense en mode Small : arrêter le **Security Engine**
+   et ses traitements locaux, sans désactiver la remédiation PF.
+5. Exécuter les réceptions **en lecture seule** :
+
+   ```bash
+   # TrueNAS
+   sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+
+   # workstation
+   just crowdsec-pfsense-accept
+   ```
+
+6. Valider une décision non dangereuse réellement délivrée
+   par la LAPI centrale et observée dans la table PF,
+   puis son expiration/retrait. Ne jamais utiliser l'IP LAN
+   de pfSense, TrueNAS ou de la workstation pour ce test.
+
+**Rollback :** restaurer les paramètres bouncer/pfSense
+préservés et vérifier les tables PF. Ne pas réactiver
+automatiquement l'ancien moteur sans retirer le scénario
+`firewallservices/pf-scan-multi_ports`, responsable
+des boucles CPU historiques. Les scripts de diagnostic
+et les recettes `just` sont **read-only** ; aucune bascule
+pfSense ne s'exécute depuis cette PR.
 ## Target architecture
 
 ```text
