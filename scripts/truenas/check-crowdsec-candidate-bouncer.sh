@@ -29,7 +29,7 @@ key="$(awk '
 ' "${SECRET_FILE}")"
 # Reject unsupported quoting, invalid multiline values or injection into
 # curl config syntax; standard CrowdSec tokens use printable ASCII.
-if [[ -z "${key}" || "${key}" == *$'\n'* || "${key}" == *$'\r'* || "${key}" == *'\"'* || "${key}" == *'\\'* || "${key}" =~ [[:cntrl:]] ]]; then
+if [[ -z "${key}" || "${key}" == *$'\n'* || "${key}" == *$'\r'* || "${key}" == *'"'* || "${key}" == *'\'* || "${key}" =~ [[:cntrl:]] ]]; then
   unset key
   echo 'central_candidate_auth=NO_GO_INVALID_SECRET_FORMAT'
   exit 2
