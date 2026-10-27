@@ -75,3 +75,38 @@ def test_cli_redacts_all_identifiers(tmp_path, capsys):
     assert "EXPIRED_DASHBOARD_SESSION" in output
     assert "SECRET_KEY_HASH" not in output
     assert "requester_ip" not in output
+
+
+def test_missing_client_key_is_not_quota_or_provider_error():
+    failure = {
+        "status": "failure",
+        "user_agent": "litellm/1.106.4",
+        "requester_ip_address": "172.17.0.24",
+        "litellm_call_id": "PRIVATE-DO-NOT-PUBLISH",
+        "user_api_key": None,
+        "usage_object": {"total_tokens": 0, "prompt_tokens": 0},
+        "error_information": {
+            "error_message": "No api key passed in.",
+            "error_rate_limit_type": None,
+            "error_code": "",
+        },
+    }
+    output = MODULE.classify(failure)
+    assert output["classification"] == "MISSING_CLIENT_API_KEY"
+    assert output["provider_auth_failure"] is False
+    assert "quota" not in output["next_action"]
+    rendered = json.dumps(output)
+    for private in ("172.17.0.24", "PRIVATE-DO-NOT-PUBLISH", "litellm/1.106.4"):
+        assert private not in rendered
+
+
+def test_missing_key_classification_refuses_contradictory_evidence():
+    failure = {
+        "user_api_key": "NONREAL",
+        "usage_object": {"total_tokens": 0},
+        "error_information": {"error_message": "No api key passed in."},
+    }
+    assert MODULE.classify(failure)["classification"] == "UNVERIFIED"
+    failure["user_api_key"] = None
+    failure["usage_object"]["total_tokens"] = 4
+    assert MODULE.classify(failure)["classification"] == "UNVERIFIED"
