@@ -422,21 +422,36 @@ Actions :
   TrueNAS Nexus RUNNING, backend :8081 HTTP 200,
   routeur Traefik privé toujours `traefik.enable=false` ;
   HTTPS privé 404 avec TLS valide est attendu à ce stade.
-  **Blocage :** aucun `http-request deny/return` dans
-  l'extrait frontend ; protection WAN effective non démontrée
-  (`WAN_REJECTION_NOT_VERIFIED`). Le test vers l'IP publique
-  depuis le LAN peut utiliser NAT reflection et n'établit
-  pas le refus depuis Internet.
-  Prochaine étape **indépendante de Nexus** : préparer via
-  l'UI pfSense HAProxy une ACL Host exacte
-  `nexus_private_wan` + action `http-request deny` (403)
-  dans `main_Web_HTTPS`, **avant le backend** ; vérifier la
-  configuration générée et la syntaxe, le reload effectif,
-  puis les chemins publics non régressés.
-  Ne pas bloquer l'exception `s3.int.albandrieu.com` ni
-  `nexus.albandrieu.com`. Prévoir sauvegarde et rollback.
-  Le nouveau Gate 11 du [runbook](runbooks/nexus-private-dns-ingress.md)
-  définit les commandes et critères de réception.
+  **Nouvelle règle signalée par l'opérateur (27/10) :**
+  `acl nexus var(txn.txnhost) -m reg -i
+  ^nexus\\.int\\.albandrieu\\.com(:[0-9]{1,5})?$`
+  et `http-request deny deny_status 403 if nexus
+  aclcrt_main_Web_HTTPS`.
+  **Statut : OPERATOR_RULE_REPORTED / EFFECTIVE_DENY_NOT_VERIFIED.**
+  L'ACL `nexus` est aussi utilisée pour le routage du
+  backend Traefik ; une ACL distincte `nexus_private_wan`
+  et un `deny ... if nexus_private_wan` sont recommandés
+  pour isoler la politique d'accès du routage.
+  **Condition bloquante :** la directive
+  `http-request set-var(txn.txnhost) hdr(host)` doit précéder
+  le `http-request deny` dans le frontend réellement généré.
+  L'ACL additionnelle `aclcrt_main_Web_HTTPS` impose une
+  conjonction inutile et peut fragiliser le refus.
+  Relever le frontend `main_Web_HTTPS` après application avec
+  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh
+  --backend prod_front-traefik-https_ipvANY` et vérifier
+  les numéros de lignes/conditions de l'ACL et du deny.
+  Tester depuis la workstation la réponse du frontend via
+  `--resolve nexus.int.albandrieu.com:443:82.66.4.247`
+  (403 attendu si HAProxy refuse), puis la route LAN directe
+  `--resolve ...:443:172.17.0.24` (404 possible tant que
+  Traefik est désactivé). Un 403 via NAT reflection n'est
+  **pas** une validation depuis un client WAN.
+  Conserver `s3.int.albandrieu.com` et
+  `nexus.albandrieu.com`, vérifier le reload HAProxy,
+  les règles WAN réelles et le rollback. Le
+  [Gate 12 du runbook](runbooks/nexus-private-dns-ingress.md)
+  contient la réception à effectuer.
   N'activer `NEXUS_PRIVATE_INGRESS_ENABLED=true` qu'après
   preuve acceptable du contrôle d'accès WAN et vérification
   du modèle Compose rendu ; déployer Nexus seul ensuite.
