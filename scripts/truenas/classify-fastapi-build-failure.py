@@ -37,6 +37,13 @@ RULES = (
     Rule("filesystem_permissions", r"permission denied|operation not permitted|read-only file system|\bEACCES\b|\bEPERM\b", "inspect_builder_mount_permissions_readonly"),
     Rule("dependency_fetch", r"failed to download|failed to fetch|failed to get|download failed|failed to connect to|connection reset by peer", "inspect_package_mirror_or_registry_connectivity"),
     Rule("build_step_nonzero", r"(?:failed to solve: )?process [^\r\n]{0,1024} did not complete successfully|executor failed running|process did not complete successfully|exit status [1-9][0-9]*", "inspect_failed_build_step_privately"),
+    Rule("dockerfile_missing", r"failed to read dockerfile|open dockerfile: no such file or directory|cannot locate specified dockerfile", "check_compose_dockerfile_path_readonly"),
+    Rule("dockerfile_parse", r"dockerfile parse error|unknown instruction:|failed to parse dockerfile", "check_dockerfile_syntax_offline"),
+    Rule("base_image_metadata", r"failed to resolve source metadata|failed to authorize:|failed to fetch anonymous token|failed to do request: head", "inspect_base_image_metadata_and_registry_readonly"),
+    Rule("build_context_invalid", r"unable to prepare context|failed to read context|failed to load build context|failed to walk", "inspect_compose_build_context_readonly"),
+    Rule("compose_service_invalid", r"no such service:|invalid compose project|service [^\\r\\n]{0,120} has neither an image nor a build context", "check_compose_target_service_readonly"),
+    Rule("image_reference_invalid", r"invalid reference format|invalid tag [^\\r\\n]{0,120}|manifest unknown|manifest not found|pull access denied", "check_image_reference_or_manifest_readonly"),
+    Rule("buildkit_cache", r"failed to load cache key|failed to export cache|failed to import cache|failed to prepare extraction snapshot", "check_builder_cache_state_readonly"),
     Rule("buildkit_generic_failure", r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR: failed to build", "inspect_buildkit_failure_privately"),
 )
 LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9_-]{6,20}\Z")
