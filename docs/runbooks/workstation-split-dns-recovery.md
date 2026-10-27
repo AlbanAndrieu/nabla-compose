@@ -266,6 +266,76 @@ Même quand le diagnostic global DNS affiche `PASS`,
 un avertissement `NSS query slow` reste un problème
 de performance non résolu.
 
+## Incident simultané resolved/stub/NSS — 27 octobre, 22:51 CET
+
+Nouvelle exécution opérateur des recettes NSS :
+
+- `just workstation-nss-path-test` : **11/11 PASS**, version
+  initiale du contrat différentiel `v1` ; les tests ajoutés
+  depuis restent **à exécuter**.
+- `resolved_native=TIMEOUT (6.0s)` : la voie native
+  `systemd-resolved` ne répond pas dans le délai imparti.
+- `stub_udp=NO_ANSWER (2.0s)` : **v1** utilisait
+  `dig +short` et ne distinguait pas `SERVFAIL`,
+  `NXDOMAIN`, `NOERROR` sans A et absence de réponse DNS.
+- `nss_dns=A_CONFIRMED (3.4s)` : la résolution glibc
+  `nss-dns` forcée réussit, mais lentement.
+- `nss_resolve=NO_ANSWER (0.0s)` : le module forcé
+  n'a pas répondu ; son installation/disponibilité n'est
+  **pas confirmée**.
+- `nss_default=TIMEOUT (6.0s)` : la chaîne `hosts:`
+  normale échoue également.
+
+**Conclusion :** la précédente hypothèse « défaut NSS seul »
+est insuffisante : `systemd-resolved` natif a aussi expiré
+sur ce relevé. Il est possible que plusieurs couches soient
+affectées ou que leur état change entre les probes
+séquentielles. Aucun résultat ne justifie de modifier
+`nsswitch.conf`, la configuration DNSSEC, DNS-over-TLS,
+ou pfSense à l'aveugle.
+
+### Correctif de diagnostic, sans mutation
+
+`scripts/workstation/diagnose-nss-resolution.py` **v2** :
+
+- analyse la réponse détaillée du stub DNS avec
+  `dig +nocmd +noall +comments +answer` afin de
+  distinguer `RCODE_SERVFAIL`, `RCODE_NXDOMAIN`,
+  `RCODE_REFUSED`, `NO_A_ANSWER`,
+  `NO_DNS_RESPONSE` et `TIMEOUT` ;
+- conserve **tous les signaux individuels** même lorsque
+  la panne native resolved est la première classification ;
+- propose `--samples 2 --timeout 3`, sondes séquentielles
+  avec délais bornés, pour repérer un symptôme intermittent ;
+- interdit `PASS` si le stub ou `nss-dns` forcé est
+  défaillant malgré une réponse positive de `getent` par défaut ;
+- ne modifie aucun service ni aucune configuration.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-nss-path-test
+just workstation-nss-path-samples
+
+# Observations complémentaires en lecture seule :
+resolvectl status eno1
+resolvectl statistics
+systemctl status systemd-resolved --no-pager
+journalctl -u systemd-resolved --since '-15 min' --no-pager
+```
+
+**Piste à vérifier, pas une attribution :** le relevé
+`resolvectl status eno1` affichait
+`DNSOverTLS=opportunistic` et `DNSSEC=yes/supported`.
+Selon [la documentation systemd](https://www.freedesktop.org/software/systemd/man/resolved.conf.html),
+le mode opportuniste tente le transport DNS-over-TLS et
+revient à une autre voie si le serveur ne le supporte pas.
+Ce mécanisme peut générer une latence de négociation,
+mais aucun journal ne confirme que c'est la cause ici.
+**Ne pas désactiver DNSSEC ou DoT pour tester à l'aveugle.**
+Attendre les codes de réponse du stub et les événements
+contemporains de `systemd-resolved`.
+
 ## Validation DONE
 
 Confirmer que hide-location est désactivé, que le profil NM
