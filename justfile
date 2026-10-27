@@ -559,6 +559,10 @@ nexus-private-ingress-test:
     test -f tests/test_nexus_private_ingress_contract.py
     python3 -m py_compile tests/test_nexus_private_ingress_contract.py
     python3 tests/test_nexus_private_ingress_contract.py -v
+    test -f tests/test_nexus_haproxy_frontend_readonly.py
+    bash -n scripts/workstation/inspect-nexus-haproxy-frontend.sh
+    python3 -m py_compile tests/test_nexus_haproxy_frontend_readonly.py
+    python3 tests/test_nexus_haproxy_frontend_readonly.py -v
 
 pfsense-unbound-capture:
     bash scripts/pfsense/capture-unbound-snapshot.sh --check
