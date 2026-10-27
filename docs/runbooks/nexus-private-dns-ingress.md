@@ -820,6 +820,95 @@ frontends exposés. Ensuite seulement, activer le routeur
 Traefik privé pour les clients qui se connectent **directement**
 au LAN `172.17.0.24:443` ; valider de nouveau Nexus HTTP,
 HTTPS privé et Nexus public. Aucune mutation n'est effectuée ici.
+## Gate 11 — chaîne HAProxy → Traefik confirmée, filtrage WAN à appliquer
+
+**Relevé de la workstation, 27 octobre 2026 (HEAD `7300e891`) :**
+
+| Test / composant | Résultat |
+| --- | --- |
+| `just nexus-private-ingress-test` | **15/15 PASS** (5 Nexus, 10 inspecteur) |
+| Frontend HAProxy | `main_Web_HTTPS`, ligne 47 |
+| ACL Nexus | `nexus.int.albandrieu.com`, ligne 89 |
+| Routage spécifique | `use_backend prod_front-traefik-https_ipvANY if nexus aclcrt_main_Web_HTTPS`, ligne 128 |
+| Backend déclaré | `nexus_declared_backend=prod_front-traefik-https_ipvANY` |
+| Définition backend | `backend=prod_front-traefik-https_ipvANY`, ligne 311 |
+| Cible effective déclarée | `backend_server=traefik-https target=172.17.0.24:443` |
+| Règle de refus HTTP Nexus sur frontend | **NON OBSERVÉE dans cet extrait** |
+| Rejet effectif WAN | `WAN_REJECTION_NOT_VERIFIED` |
+
+Le relevé confirme la **topologie déclarée** depuis HAProxy jusqu'à
+Traefik. Il ne prouve pas qu'une requête issue d'Internet
+atteint réellement le frontend : une politique pfSense/PF/NAT
+peut encore bloquer ce trafic. Il ne démontre pas non plus
+la prise en compte de la configuration par le processus HAProxy
+actif. Le précédent `404` envoyé depuis le LAN à l'adresse
+WAN demeure **non concluant sur l'isolation WAN**.
+
+### Changement à préparer dans pfSense (non appliqué)
+
+Dans **Services → HAProxy → Frontends → `main_Web_HTTPS`**,
+préparer une ACL **nouvelle et spécifique** au Host privé Nexus,
+puis l'associer à une action **HTTP request deny** avant
+la sélection du backend. L'exemple HAProxy attendu à vérifier
+après rendu du paquet pfSense est :
+
+```haproxy
+acl nexus_private_wan req.hdr(host) -m reg -i ^nexus\.int\.albandrieu\.com(:[0-9]{1,5})?$
+http-request deny deny_status 403 if nexus_private_wan
+```
+
+Le motif ignore la casse et tolère un port explicite dans
+le Host. L'exemple doit être transposé aux champs ACL/action
+de la version du paquet HAProxy réellement installée ;
+**ne pas éditer `/var/etc/haproxy/haproxy.cfg` à la main**.
+Si le paquet offre une action de refus standard mais pas
+le champ `deny_status`, le code 403 est normalement la
+réponse par défaut de `http-request deny`.
+
+**Restrictions de changement :**
+
+- Ne pas utiliser une règle générique bloquant `*.int` :
+  `s3.int.albandrieu.com` reste une exception publique.
+- Conserver `nexus.albandrieu.com` et les autres backends publics.
+- Vérifier que `main_Web_HTTPS` est bien le frontend qui
+  écoute sur WAN `:443`, et inventorier les autres frontends
+  publics applicables avant d'accepter la protection.
+- Sauvegarder la configuration pfSense et disposer d'un rollback
+  avant Apply ; aucune action réseau n'est exécutée par ce runbook.
+
+### Réception après application par l'opérateur
+
+1. Vérifier la configuration HAProxy **générée** et la syntaxe
+   selon le paquet installé ; confirmer `acl nexus_private_wan`
+   et `http-request deny ... if nexus_private_wan` dans
+   le frontend `main_Web_HTTPS`, dans le bon ordre.
+2. Confirmer le rechargement du processus HAProxy et qu'il
+   exécute la configuration courante.
+3. Depuis la workstation, **LAN vers IP publique** :
+
+   ```bash
+   curl --noproxy '*' --connect-timeout 3 --max-time 10 -sS \
+     --resolve nexus.int.albandrieu.com:443:82.66.4.247 \
+     -o /dev/null -w 'edge_http=%{http_code} tls=%{ssl_verify_result}\n' \
+     https://nexus.int.albandrieu.com/
+   ```
+
+   Un éventuel `403` cohérent avec la règle confirme une
+   réponse du chemin local vers le frontal, **pas** une
+   démonstration indépendante du rejet des clients WAN
+   (NAT reflection possible). Conserver `WAN_REJECTION_NOT_VERIFIED`
+   sans contrôle extérieur ou preuve réseau équivalente.
+4. Confirmer que `s3.int.albandrieu.com` et
+   `nexus.albandrieu.com` continuent à suivre leur chemin
+   habituel ; distinguer réponses attendues 401/403 applicatives
+   des erreurs d'acheminement.
+5. **Seulement après les validations d'isolation**, envisager
+   l'activation `NEXUS_PRIVATE_INGRESS_ENABLED=true` dans
+   le rendu TrueNAS, puis un redéploiement **Nexus seul**.
+   Vérifier l'HTTPS privé **directement sur** `172.17.0.24:443`
+   par `--resolve` pour éviter le frontal WAN.
+
+**État final de cette étape : `PENDING_WAN_DENY`**.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
