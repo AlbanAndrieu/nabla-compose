@@ -99,6 +99,24 @@ class BuildFailureClassifierContract(unittest.TestCase):
             with self.subTest(state=state):
                 self.assertEqual(subject.classify(log)["state"], state)
 
+    def test_early_buildkit_failures_have_fixed_specific_codes(self) -> None:
+        cases = (
+            ("failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory", "dockerfile_missing"),
+            ("failed to solve: dockerfile parse error on line 4", "dockerfile_parse"),
+            ("failed to solve: failed to resolve source metadata for docker.io/example/private:tag", "base_image_metadata"),
+            ("failed to solve: unable to prepare context: path not found", "build_context_invalid"),
+            ("no such service: not-the-real-name", "compose_service_invalid"),
+            ("failed to solve: invalid reference format", "image_reference_invalid"),
+            ("failed to solve: failed to load cache key", "buildkit_cache"),
+        )
+        for message, expected in cases:
+            with self.subTest(expected=expected):
+                result = subject.classify(message)
+                self.assertEqual(result["state"], expected)
+                self.assertTrue(result["next_check"].startswith(("check_", "inspect_")))
+                self.assertNotIn("docker.io", json.dumps(result))
+                self.assertNotIn("not-the-real-name", json.dumps(result))
+
     def test_no_failure_marker_stays_unclassified(self) -> None:
         report = subject.classify("BuildKit progress: 55% completed")
         self.assertEqual(report["state"], "unclassified_build_failure")
