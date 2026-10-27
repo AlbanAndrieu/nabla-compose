@@ -16,39 +16,36 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin et HTTPS direct SNI/TLS validés, 31 tests HTTPS PASS ; DNS direct pfSense/Pi-hole OK. Workstation : 2/2 contrats DNS PASS mais Chrome NXDOMAIN ; **cause prouvée** par logs : `hide-location.service` exécutait répétitivement `resolvectl dns eno1 9.9.9.9 149.112.112.112` entre 21:21 et 21:34 CET | **Arrêter et désactiver le timer + service utilisateur**, rétablir DNS `172.17.0.1` et `~int.albandrieu.com`, valider `resolvectl query` / `getent` / Chrome. [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) force la désactivation par défaut (Draft, non appliquée). Secrets runtime/Vaultwarden encore DRIFT |
+| H-03 | DefectDojo | **ACCEPTED** : TrueNAS `RUNNING`, login HTTP admin validé, HTTPS direct TLS et Traefik OK (31/31 tests), workstation DNS `resolvectl/getent=172.17.0.24`, client `just defectdojo-workstation-dns-check` PASS, interface HTTPS **opérationnelle dans Chrome** ; cause racine confirmée `hide-location` écrivant Quad9 et unités timer/service désormais **disabled** ; Ansible offline 7/7 PASS | Finaliser la **persistance** de `~int.albandrieu.com` dans le profil NetworkManager `Wired eno1` (config DNS `172.17.0.1` déjà enregistrée), valider `nmcli device reapply` et après redémarrage ; examiner `resolvectl query` lent (10–22 s) ; synchroniser secrets Django/runtime/Vaultwarden sans reset du hash. [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) Draft, code non déployé |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
 | H-08 | Vaultwarden | `code`/`openrag` absents du cache CLI ; DefectDojo : 5 secrets MATCH, `DD_ADMIN_USER=DRIFT`, mot de passe coffre absent/vide | `bw sync`, vérifier l'item source, puis rapprocher le mot de passe Django avec runtime et coffre sans journaliser de secret |
 | H-09 | RAM TrueNAS | 61 Gio total, 7,3 Gio disponibles avant la reprise ; Netdata et Graylog arrêtés | Baseline PSI/mémoire/OOM sans attribuer causalement le pic à ces services |
 
-**Prochaine étape prioritaire :** rendre **persistante** la politique DNS
-de la workstation, car le dépannage `resolvectl` a corrigé le
-`getent` / HTTPS mais peut être écrasé par NetworkManager, VPN ou
-le hook `hide-location`. **La cause est maintenant attestée par les logs sudo** :
-le service lançait `resolvectl dns eno1 9.9.9.9 149.112.112.112`
-à répétition entre 21:21 et 21:34 CET. L'utilisateur a autorisé la
-**désactivation** du service et de son timer. Appliquer
-`systemctl --user disable --now hide-location.timer hide-location.service`
-à la workstation, puis rétablir le DNS et tester `resolvectl query`
-et `getent` ; aucune commande distante n'a été exécutée par l'agent.
-Ne modifier ni pfSense (DNS Resolver déjà OK), ni Pi-hole ni Traefik.
-Le diagnostic local a échoué **avant** la correction, comme attendu,
-et la recette workstation passe **après**.
-Le Python `mise` 3.14.9 n'a pas `pytest` :
-`just defectdojo-workstation-dns-test` utilise désormais
-`unittest` standard, **2/2 PASS opérateur**. Le contrôle live
-`just defectdojo-workstation-dns-check` échoue légitimement tant
-que Quad9 reste le résolveur effectif de `eno1`.
-La remédiation versionnée appartient désormais à
-[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
-Draft et **non déployée**.
+**Prochaine étape prioritaire :** enregistrer la route DNS privée
+`~int.albandrieu.com` dans le profil NetworkManager `Wired eno1`,
+puis vérifier `nmcli device reapply eno1` sans reconnexion complète.
+Le DNS `172.17.0.1` et `ipv4.ignore-auto-dns=yes` étaient déjà
+persistés dans ce profil. Le contournement `resolvectl dns/domain`
+n'est pas une configuration durable.
+
+**Incident résolu côté accès utilisateur :** `hide-location.service`
+écrivait périodiquement Quad9 ; l'opérateur a désactivé **service
+et timer**, restauré le DNS pfSense, confirmé `getent` et
+`just defectdojo-workstation-dns-check` PASS et ouvert
+DefectDojo avec Chrome. `ansible-workstation` PR #15 contient
+désormais la désactivation déclarative par défaut ;
+**7/7 tests unitaires PASS** sur le commit d'avant l'ajout
+de cette note de documentation, mais l'Ansible **n'a pas été appliqué**.
+
+La résolution `resolvectl query` reste lente (22,5 s puis 10,7 s) :
+comparer `dig +stats @172.17.0.1` au chemin `systemd-resolved`.
+Ne pas modifier `/etc/resolv.conf`, les fichiers legacy
+`/etc/resolvconf/resolv.conf.d`, pfSense/Unbound ni Traefik
+sur la base de cet incident clos. Les secrets Django/runtime/
+Vaultwarden restent un chantier séparé.
 [Runbook de réception](runbooks/defectdojo-private-ingress-acceptance.md).
-Ensuite, réconcilier Django/runtime/Vaultwarden, sans
-`--apply` qui écraserait le hash fonctionnel.
-Les corrections de diagnostic DefectDojo restent en code `[skip ci]` ;
-tests ciblés locaux à exécuter au HEAD réel.
 
 [Preuves et séquence de réception](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
 
