@@ -26,6 +26,99 @@
   **nouvelle** de TrueNAS est appliquée dans PF. Un probe d'authentification
   peut lui-même actualiser la date de `last_pull`.
 
+## Option A automatisée — suivi naturel sans mutation (28 octobre 2026)
+
+La workstation est l'**orchestrateur de lecture** : elle interroge TrueNAS
+via SSH (`172.17.0.24:9922`) et pfSense séparément via SSH.
+**TrueNAS ne contacte pas pfSense en SSH.** Aucune commande ne crée
+ni supprime de décision, et aucun `pfctl -T add/delete/flush` n'est lancé.
+
+Avant toute observation, établir une baseline **sur la workstation**,
+avec la clé SSH vers TrueNAS et les droits `sudo -n docker exec`
+pour la seule lecture centrale :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+
+just crowdsec-pf-natural-test
+just crowdsec-pf-natural-baseline
+```
+
+La commande `baseline` lit `cscli decisions list --limit 0 -o json`,
+`pfctl -t crowdsec_blacklists -T show` et l'état pfSense Small
+(bouncer actif, ancien moteur local absent).
+Elle mémorise les identifiants de décisions et le contenu initial de
+la table PF pour **exclure les entrées historiques**.
+Le fichier de preuve reste **local à la workstation** dans
+`~/.local/state/nabla-compose/crowdsec-pf-natural-cycle.json`
+(dossier `0700`, fichier `0600`, adresses IP potentiellement sensibles).
+Il n'est jamais envoyé dans GitHub ni inclus dans les journaux partagés.
+Une baseline existante **n'est pas écrasée**.
+
+Lors des observations suivantes, sur **la même workstation** :
+
+```bash
+just crowdsec-pf-natural-observe
+```
+
+Relancer après l'apparition d'une nouvelle décision naturelle, pendant
+sa durée, puis après sa disparition. **Aucune tâche de fond n'est
+installée par la PR.** Pour être éligible, la décision doit provenir
+du moteur (`origin=crowdsec`), être de type `ban`, de portée
+`Ip`, cibler une IPv4 globale, être non simulée, et ne pas figurer
+dans la baseline centrale/PF. L'application peut être observée
+immédiatement ou lors d'un relevé ultérieur. Le verdict `PASS` exige :
+
+1. décision nouvelle absente des décisions et tables historiques ;
+2. même IP observée simultanément dans la LAPI et la table PF ;
+3. décision disparue de la LAPI **et** correspondance PF disparue ;
+4. bouncer pfSense toujours actif, ancien moteur toujours absent.
+
+`NOT_VERIFIED` est **normal** si aucune décision n'est encore née.
+D'autres états indiquent `PF_APPLICATION_NOT_OBSERVED`,
+`PF_APPLIED_AWAITING_REMOVAL`,
+`PF_STILL_PRESENT_AFTER_LAPI_REMOVAL` et
+`BAN_EXPIRED_BEFORE_PF_PROOF`. Les IP des candidates ne sont
+**pas affichées par défaut** : elles sont étiquetées par un
+hash salé propre à cette baseline. L'option `--reveal-ip` existe
+pour un diagnostic local, sans partager son résultat.
+
+En cas de refus SSH/`sudo -n` TrueNAS, la commande échoue avec
+`NOT_VERIFIED` (code 2). Ne pas assouplir les droits sudo
+globalement. Une voie alternative permet d'utiliser des
+snapshots transférés de manière sécurisée via
+`--central-json`, `--pf-table-file` et `--pf-health-file`,
+mais **ce mode OFFLINE ne constitue jamais une preuve runtime** :
+il rend `SIMULATED_PASS_NOT_RUNTIME_VERIFIED` au mieux et ne
+peut pas être mélangé avec une baseline LIVE.
+
+<details>
+<summary>Exécution directe et paramètres SSH (workstation)</summary>
+
+```bash
+python3 scripts/workstation/observe-crowdsec-pf-decision.py baseline \
+  --truenas-ssh albandrieu@172.17.0.24 --truenas-port 9922 \
+  --pfsense-ssh home.albandrieu.com
+
+python3 scripts/workstation/observe-crowdsec-pf-decision.py observe
+```
+
+Variables `CROWDSEC_TRUENAS_SSH`,
+`CROWDSEC_TRUENAS_SSH_PORT`, `PFSENSE_SSH_TARGET`,
+`PFSENSE_SSH_PORT` acceptées. Les deux accès SSH utilisent
+`BatchMode=yes`, des délais bornés et aucune demande de mot
+de passe interactive.
+
+</details>
+
+**Limites :** l'existence d'une IP dans une table PF ne prouve pas
+qu'une règle PF bloque réellement un paquet WAN. Une validation
+ultérieure de la référence à cette table dans les règles actives
+et, si nécessaire, un test depuis un WAN indépendant restent requis.
+Une corrélation temporelle ne prouve pas non plus à elle seule
+la causalité du bouncer.
+
 ## Option A — observation naturelle, sans mutation (préférée)
 
 1. **TrueNAS** : attendre une décision `ban` IPv4 réellement nouvelle ;
