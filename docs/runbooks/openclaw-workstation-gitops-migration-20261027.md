@@ -207,13 +207,17 @@ Le texte d'erreur seul ne prouve pas la cause exacte.
 
 Lecture seule sur Workstation :
 ```bash
-openclaw sessions --agent cron --limit 25 --json |
-  python3 -c 'import json,sys; d=json.load(sys.stdin); rows=d.get("sessions", d.get("entries", [])); print("cron_store_parsed=true"); print("cron_main_present="+str(any(isinstance(r,dict) and (r.get("key") or r.get("sessionKey"))=="agent:cron:main" for r in rows)).lower())'
+just openclaw-cron-parent-test
+just openclaw-cron-parent-check
 ```
 
-Si la liste est paginée, une absence dans 25 entrées n'est
-**pas** une preuve de suppression ; augmenter la limite
-prudemment. Consulter les sessions réelles du job via l'UI
+Le diagnostic lit uniquement les métadonnées de 100 sessions
+maximum pour l'agent `cron`. Il n'affiche **aucune** clé ni
+transcription. `cron_main_reference=absent_in_bounded_sample`
+est une absence **dans l'échantillon**, pas une preuve de
+suppression. `session_sample_exhaustive=false` indique la
+pagination. Même une présence de la clé n'atteste pas que
+le lien parent-enfant de l'UI soit correct. Consulter les sessions réelles du job via l'UI
 Automations et son historique, pas `/chat/cron` par défaut.
 Ne pas appeler `/new` sur un lien dont le parent n'est pas
 résolu, ni effacer session SQLite/WAL/SHM. Ne pas re-jouer
