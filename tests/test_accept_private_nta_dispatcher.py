@@ -38,9 +38,9 @@ class DispatcherAcceptanceTests(unittest.TestCase):
     def test_dispatcher_must_be_root_owned_and_private(self):
         good = SimpleNamespace(st_mode=stat.S_IFREG | 0o700, st_uid=0, st_gid=0)
         bad = SimpleNamespace(st_mode=stat.S_IFREG | 0o775, st_uid=0, st_gid=0)
-        with mock.patch.object(probe.DISPATCHER, "lstat", return_value=good):
+        with mock.patch.object(Path, "lstat", return_value=good):
             self.assertTrue(probe.expected_dispatcher())
-        with mock.patch.object(probe.DISPATCHER, "lstat", return_value=bad):
+        with mock.patch.object(Path, "lstat", return_value=bad):
             self.assertFalse(probe.expected_dispatcher())
 
     def test_readonly_happy_path_does_not_mutate(self):
