@@ -804,15 +804,16 @@ restauration **est DONE**, pas un simple contrôle
 de métadonnées. Il ne prouve pas une récupération
 avec perte du support USB.
 
-**Prochaine étape P0** : test de fixture
-SOPS isolée via le script déjà présent
-`test-sops-usb-recovery.sh` avec **la même
-nouvelle archive NFS** et le support USB
-présent ; le script exécute de nouveau
-un déchiffrement age dans `/dev/shm`, puis
-un roundtrip SOPS sur données synthétiques.
-**NOT_RUN** pour cette nouvelle copie :
-ne pas annoncer PASS sans sortie réelle.
+**Étape P0 — DONE le 27/10/2026** :
+`test-sops-usb-recovery.sh` a été exécuté
+sur **la même nouvelle archive NFS** et
+la SanDisk d'origine déjà branchée/montée.
+Résultat opérateur : `PASS: SOPS recovery
+with USB-backed escrow`. Le script a récupéré
+l'identité SOPS puis réussi un chiffrement et
+un déchiffrement **SOPS synthétiques**.
+Ce PASS ne valide pas un document SOPS de
+production ni une récupération sans SanDisk.
 
 **Étapes différées** : attester une copie
 réellement indépendante de l'identité privée
@@ -822,3 +823,17 @@ PIV82/PIV9A/OTP2, rotation des destinataires
 SOPS et KeePassXC. Ne pas relancer `--copy`.
 
 [Procédure et preuve](yubikey-software-recovery-20261026.md).
+
+
+## Bilan de clôture — récupération age/SOPS validée (27/10/2026)
+
+- **DONE :** duplication NFS chiffrée, comparaison binaire, présence TrueNAS et inventaire NFS4 du fichier.
+- **DONE :** SanDisk physique reconnectée, LUKS2/ext4 monté, métadonnées de l'identité X25519 et correspondance du destinataire historique.
+- **DONE :** déchiffrement réel de la nouvelle copie NFS dans le tmpfs privé ; identité SOPS historique restaurée et destinataire public confirmé.
+- **DONE :** `PASS: SOPS recovery with USB-backed escrow` avec une fixture synthétique chiffrée et déchiffrée depuis l'identité restaurée.
+- **P0 ouvert :** protéger le principal point de défaillance, l'unique identité privée de récupération sur SanDisk, par un plan de copie **indépendante** et une preuve de récupération séparément autorisées. Aucune copie de clé privée n'a été exécutée ici.
+- **P1 ouvert :** attester les ACL NFS4 **effectives** du fichier et de ses répertoires parents, pas seulement les ACE de fichier.
+
+**Différé :** restauration d'un document SOPS de production, provisioning PIV82/PIV9A/OTP2, rotation de destinataires SOPS, KeePassXC et toute nouvelle copie NFS. Ne pas relancer `--copy`.
+
+[Runbook détaillé](yubikey-software-recovery-20261026.md).
