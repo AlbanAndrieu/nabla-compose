@@ -147,6 +147,63 @@ liveness/readiness 200 au bon vantage point ; requêtes
 `openclaw-main` réellement échouées et quotas analysés
 séparément ; Workstation reste le modèle de vérité jusqu'au cutover.
 
+## TrueNAS — filtre Compose project trop strict, seconde correction
+
+Relevé opérateur après première correction de découverte :
+
+- `just litellm-workstation-auth-contracts` :
+  **29/29 PASS** (3 OpenRAG, 8 pytest, 18 upstream).
+- `just litellm-workstation-upstream-auth-check` :
+  `truenas_container_selection=compose_running_container_not_found`,
+  `truenas_docker_container_status=not_inspected`,
+  `truenas_upstream_key_state=unverified`,
+  `workstation_liveliness=http_200`, code 2.
+
+Le filtre `com.docker.compose.project=litellm` n'a renvoyé
+aucun service running. Un projet Docker Compose créé par TrueNAS
+peut avoir un autre nom ou être géré différemment.
+**Le nom du projet et ses labels ne sont pas encore attestés** :
+ne pas présenter cette hypothèse comme la cause prouvée du
+`No api key passed in.` sur le proxy Workstation.
+
+**Correction de code supplémentaire [skip ci] :**
+`docker ps --filter name=litellm --filter status=running
+--format '{{.ID}}|{{.Names}}'` fournit uniquement des noms et
+identifiants internes ; le parser n'accepte comme candidat
+que `litellm-litellm-N` (N entier positif), exige une seule
+instance et refuse les lignes malformées. Les noms voisins
+(`litellm-dashboard`, etc.) ne deviennent jamais candidats.
+Le conteneur hérité `litellm` **ne peut plus servir de
+cible implicite**, même via les helpers Python ; toutes les
+inspections utilisent l'ID découvert, non imprimé.
+Liveness Workstation et absence de secrets dans les sorties
+sont conservées. Pas de modification de conteneur ou secrets.
+
+```bash
+# Sur le checkout TrueNAS mis à jour :
+just litellm-workstation-auth-contracts
+just litellm-workstation-upstream-auth-check
+```
+
+Si la sélection échoue encore, inspecter **uniquement** les
+métadonnées pertinentes (jamais `docker inspect` complet) :
+```bash
+sudo docker ps --filter name=litellm --filter status=running \
+  --format 'table {{.Names}}\\t{{.Status}}'
+sudo docker inspect --type container \
+  --format '{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}' \
+  litellm-litellm-1
+```
+Aucune valeur de `Env` n'est affichée. La deuxième commande
+indique les éventuels labels pour expliquer le drift mais ne
+constitue pas un contrôle des secrets.
+
+Une sélection `selected/running` ne signifie
+toujours **pas** que le client `GET /v1/models`
+utilise une clé : le diagnostic vérifie uniquement
+la **présence** des variables d'upstream, sans
+envoi de requête au catalogue.
+
 ## TrueNAS — conteneur LiteLLM actif identifié, ancien conteneur arrêté
 
 **Relevé opérateur :** `sudo docker ps -a --filter name=litellm`
