@@ -526,6 +526,14 @@ openclaw-cron-parent-test:
 openclaw-cron-parent-check:
     python3 scripts/workstation/diagnose-openclaw-cron-parent.py
 
+# Local-only: inventory historical HEARTBEAT copies by metadata, never extract archive.
+openclaw-heartbeat-copies-test:
+    python3 -m py_compile scripts/workstation/inspect-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_copies.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_copies.py' -v
+
+openclaw-heartbeat-copies-check:
+    python3 scripts/workstation/inspect-openclaw-heartbeat-copies.py --check
+
 # Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
 openclaw-nabla-migration-test:
     python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
