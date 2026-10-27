@@ -1382,3 +1382,51 @@ vérifiée de l'identité privée de récupération,
 aucun nouvel essai `age -d`, aucune restauration
 SOPS, aucune modification PIV82/PIV9A/OTP2 et
 aucune nouvelle copie `--copy`. KeePassXC reporté.
+
+## Relevé workstation : USB non énuméré et faux positif de test corrigé (27/10/2026)
+
+**Nouveau retour opérateur après `just yubikey-escrow-usb-test` et
+`just yubikey-escrow-usb-status` :**
+
+- Suite initiale : **12/13 tests PASS**, un seul échec :
+  `test_invocation_is_single_redacted_lsblk_read`.
+  L'assertion `assertNotIn("private", output)` détectait
+  **le nom de champ JSON** `private_age_identity_read`
+  (avec la valeur `false`), sans qu'aucune donnée privée
+  ait été divulguée. Il s'agissait d'un **faux positif du test**,
+  pas d'un échec de la protection ni d'une lecture de clé.
+- Diagnostic réel : `state=ESCROW_UUID_NOT_ENUMERATED`,
+  `luks_uuid_link_present=false`,
+  `private_age_identity_read=false`,
+  `luks_unlock_attempted=false`,
+  `disk_mutation_performed=false`,
+  `status=NO-GO`. L'UUID LUKS attendu n'apparaît
+  **pas dans l'inventaire `lsblk` actuel**, et le lien
+  `udev` correspondant n'est pas disponible.
+  **Aucune preuve de perte matérielle définitive.**
+
+**Correction dans PR #289 :**
+l'assertion de non-divulgation compare désormais des
+valeurs d'UUID et de chemins réels, et non le terme
+générique `private` utilisé par la structure du rapport.
+Un nouveau test utilise un point de montage et un mapper
+**synthétiques** pour vérifier qu'ils ne sont jamais
+repris dans la sortie. **14 tests définis ; revalidation
+workstation encore NOT_RUN**.
+
+```bash
+# Dans le worktree PR #289 mis à jour :
+just yubikey-escrow-usb-test
+just yubikey-escrow-usb-status
+```
+
+Si `ESCROW_UUID_NOT_ENUMERATED` reste inchangé,
+vérifier **en privé et localement** la connexion physique
+de la SanDisk et la détection par le noyau.
+Après reconnexion éventuelle, relancer uniquement
+le diagnostic read-only. **Ne pas exécuter**
+`--open`, `--init-identity`, `cryptsetup`,
+`luksFormat` ou `--copy` pour corriger une absence
+de périphérique. La restauration age/SOPS depuis
+la nouvelle sauvegarde NFS reste bloquée en l'absence
+de l'identité USB réellement disponible.
