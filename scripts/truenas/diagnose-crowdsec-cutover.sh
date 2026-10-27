@@ -249,10 +249,11 @@ elif [[ -n "${container_id:-}" ]]; then
       printf 'crowdsec_bouncer_last_pull_provenance=NOT_VERIFIED\n'
       warn "central registration has last_pull, but a credential preflight may set it; verify a post-cutover pfSense-origin pull and PF remediation separately"
       ok "central bouncer registration has at least one authenticated LAPI read"
-    elif [[ "${MODE}" == "--accept" ]]; then
-      error "pfSense firewall bouncer is registered but has not polled the central LAPI"
     else
-      warn "pfSense firewall bouncer is registered but has not polled yet; expected before cutover"
+      # Base registration may remain untouched when the firewall bouncer
+      # polls through the IP-suffixed registration. Do not fail acceptance
+      # until the separate pfSense-origin record has been evaluated.
+      warn "base bouncer registration has no pull; checking IP-suffixed pfSense firewall registration independently"
     fi
   else
     error "expected exactly one ${BOUNCER_NAME} bouncer registration, found ${bouncer_count}"
