@@ -476,6 +476,15 @@ openclaw-429-triage-no-admin:
     python3 scripts/workstation/diagnose-openclaw-litellm-429.py
     python3 scripts/workstation/openclaw-route-metadata.py
 
+# Job definition audit only: GET cron metadata, never run/edit the job or models.
+# A nonzero check is expected until the live job has an explicit integer --top.
+openclaw-digest-top-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-digest-top.py tests/test_openclaw_digest_top.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_top.py' -v
+
+openclaw-digest-top-check:
+    python3 scripts/workstation/diagnose-openclaw-digest-top.py
+
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
