@@ -620,6 +620,11 @@ litellm-workstation-auth-contracts:
     python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
     python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
     bash -n scripts/quality/run-python-with-jsonschema-local.sh
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_native_truenas.py' -v
+
+# TrueNAS-only: offline scope + target validation, no key creation or network.
+litellm-truenas-fastapi-provision-check:
+    python3 scripts/workstation/provision-fastapi-litellm-keys.py --target truenas --native-truenas --check
 
 # Vaultwarden check runs as an unlocked unprivileged operator; no secret values printed.
 litellm-fastapi-upstream-source-check:
