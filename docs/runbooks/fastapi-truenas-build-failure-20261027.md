@@ -74,6 +74,14 @@ Dernière classification opérateur à partir du journal réel : `state=buildkit
 
 **Suite en lecture seule :** relever `stat -c 'size_bytes=%s' /tmp/tmp.ngofCbFlgw`, puis examiner une preuve privée plus ciblée localement si le journal existe et la classification ne progresse pas. Ne transmettre ni extrait, ni URL, ni argument BuildKit, ni secret. Maintenir le conteneur précédent et ne pas relancer de build tant que le diagnostic n'est pas exploitable.
 
+## Journal complet : 1324 octets (preuve opérateur)
+
+Le journal privé `/tmp/tmp.ngofCbFlgw` fait **1324 octets**. Le classifieur lit jusqu'à 4 Mio, donc **aucune troncature de ce journal** n'explique `failure_stage=unknown` ou `buildkit_generic_failure`. L'échec précis n'est toujours pas démontré. Ne pas augmenter encore la fenêtre de lecture.
+
+De nouvelles règles reconnaissent les erreurs de Dockerfile absent ou invalide, les métadonnées d'image de base, le contexte de build, la sélection du service Compose, une référence d'image invalide et les erreurs de cache. Les sorties restent des codes fixes et ne comprennent ni texte de journal, ni chemin, ni URL.
+
+Réexécuter la classification au HEAD de la branche #289, sans `sudo` (UID 1000) et transmettre uniquement le JSON. Si l'état reste `buildkit_generic_failure`, la prochaine action est une inspection **locale et privée** de l'erreur terminale avec l'opérateur, sans coller de ligne brute ni transmettre le journal ; l'étape `3/6` reste fermée pour tout redéploiement.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
