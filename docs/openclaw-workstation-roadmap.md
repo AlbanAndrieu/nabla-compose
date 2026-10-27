@@ -62,6 +62,55 @@ du proxy, uniquement après revue du risque de doublon.
 Ne pas exécuter `--install` / `--apply` ou redéployer
 sur une simple preuve de variable manquante.
 
+### Dernier contrôle du fichier de secrets LiteLLM
+
+La commande opérateur exécutée **avec sudo** :
+
+```bash
+sudo grep -qE '^LITELLM_FASTAPI_WORKSTATION_API_KEY=.+' \
+  /mnt/cpool/secrets/runtime/litellm/.env.secrets
+```
+
+a abouti à `Clé absente ou fichier inaccessible`. La condition
+regroupe plusieurs cas : fichier absent ou inaccessible,
+variable non déclarée, ligne précédée de `export`/espaces,
+valeur vide. **On ne peut donc pas conclure à l'absence
+de la clé dans Vaultwarden ni même à l'absence du fichier.**
+La variable est en revanche **absente du conteneur TrueNAS**
+d'après le préflight v4 reçu : hôte `truenas_verified`,
+cible `litellm` running, variable FastAPI `absent`,
+IDE `present`, SDK `1.106.4`, liveness Workstation
+`http_200`, exit 2 (fail closed). Les **33/33 tests de
+contrat** étaient PASS (3 OpenRAG + 8 auth pytest +
+22 upstream unittest).
+
+**Prochain gate P0 = provenance**, sans rotation :
+1. Inspecter le type/propriétaire/mode du fichier canonique
+   via `sudo stat` ; ne pas en afficher les valeurs.
+2. Compter uniquement les déclarations de la clé dans ce
+   fichier (zéro, une, doublons) avec une commande
+   expurgée ; distinguer source manquante et injection
+   conteneur obsolète.
+3. Via une session Vaultwarden déverrouillée **non root**,
+   vérifier l'existence du champ
+   `nabla/prod/litellm:LITELLM_FASTAPI_WORKSTATION_API_KEY`
+   sans afficher sa valeur. L'opération
+   `python3 scripts/secrets/materialize_runtime.py --app
+   litellm --verify` est en lecture seule sur la cible,
+   mais peut échouer pour une autre divergence du même item.
+4. Si la source existe, préparer la matérialisation complète
+   en conservant les autres champs et vérifier l'injection
+   avant redéploiement manuel. Si elle n'existe pas,
+   inspecter le provisionnement Workstation existant
+   avant de générer une clé scoped `qwen`.
+
+**Interdit à ce stade :** `--install`, `--apply`,
+redémarrage automatique du conteneur, affichage des
+secrets, recours à la master key, déploiement TrueNAS.
+La panne `GET /v1/models` sans Bearer reste
+**non attribuée** : ne pas l'imputer automatiquement
+à cette absence de variable.
+
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
 - **PERMISSIONS ACCEPTED runtime :** nouvelle suite `8/8 PASS`,
