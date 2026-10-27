@@ -158,7 +158,7 @@ def display(cfg: dict[str, str], state: dict[str, str], result: str) -> None:
     if state["nss"] != "A_CONFIRMED":
         print("  NEXT: compare getent, /etc/nsswitch.conf and systemd-resolved; --resolve HTTPS is not DNS proof")
     elif float(state["nss_sec"]) > 5:
-        print("  WARN: NSS query slow despite success; compare fresh dig UDP/TCP times and resolved route before diagnosing pfSense")
+        print("  WARN: NSS query slow despite success; run 'just workstation-nss-path' to isolate glibc NSS vs 127.0.0.53 stub (do not restart pfSense)")
     if result == "PRIVATE_ROUTE_NOT_PERSISTED":
         print("  NEXT: persist ~int.albandrieu.com in NetworkManager (do not edit resolv.conf)")
 
