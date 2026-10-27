@@ -3,6 +3,106 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception CrowdSec Small — 27 octobre 2026 (état le plus récent)
+
+**Le bouncer pfSense a réussi sa bascule sur la LAPI TrueNAS.**
+Les sections qui suivent détaillent les incidents et procédures
+**historiques**, et ne doivent pas provoquer de nouvelle rotation.
+
+| Contrôle | Dernière preuve opérateur |
+| --- | --- |
+| LAPI TrueNAS | CrowdSec 1.8.1 RUNNING/healthy sur `172.17.0.24:8084` |
+| Fichier clé `BOUNCER_KEY_PFSENSE_FIREWALL` | Présent en `0600` |
+| Authentification candidate | `central_candidate_auth=ACCEPTED` |
+| TrueNAS `diagnose-crowdsec-cutover.sh --check` | **0 échec, 2 warnings**, dont 0 décision centrale et provenance `last_pull` indéterminée |
+| Enregistrement central | `PFSENSE_FIREWALL last_pull=2026-10-27T21:46:28.639134705Z`, origine **NOT_VERIFIED** |
+| Moteur CrowdSec local pfSense | Absent |
+| Firewall bouncer | En cours, `api_url=http://172.17.0.24:8084` |
+| `just crowdsec-pfsense-accept` | **0 échec / 0 warning** |
+| Tables PF | `crowdsec_blacklists=4033`, `crowdsec6_blacklists=52` (total **4085**) |
+| Authentification bouncer pfSense → LAPI | `central_lapi_http=200`, `central_lapi_auth=ACCEPTED` |
+
+**Statut : SMALL_BOUNCER_CUTOVER_PASS.** Cela valide la connectivité,
+l'authentification et l'état du bouncer, sans attribuer les
+4085 entrées PF aux décisions centrales (0 décision centrale
+dans le dernier diagnostic). Cette preuve reste à corréler à
+une nouvelle décision et son application/expiration dans PF.
+Les anciennes décisions PF peuvent subsister temporairement ;
+leur nombre seul ne prouve pas une reconstruction par TrueNAS.
+
+### Erreur de formulaire « Agent user/password required »
+
+Le paquet officiel pfSense vérifie les champs
+`remote_agent_user`, `remote_agent_password` et
+`remote_fw_bouncer_api_key` **dès que `enable_lapi` est désactivé**,
+sans tester `enable_agent`. La validation est donc imposée
+même en Small (Log Processor OFF) :
+
+- [Source pfSense `crowdsec.inc` — `crowdsec_validate_form`](https://github.com/crowdsecurity/pfSense-pkg-crowdsec/blob/main/security/pfSense-pkg-crowdsec/files/usr/local/pkg/crowdsec.inc)
+- [Définition des champs dans `crowdsec.xml`](https://github.com/crowdsecurity/pfSense-pkg-crowdsec/blob/main/security/pfSense-pkg-crowdsec/files/usr/local/pkg/crowdsec.xml)
+
+Les champs GUI ne correspondent pas automatiquement aux
+variables de shell `CROWDSEC_REMOTE_API_USER` et
+`CROWDSEC_REMOTE_API_PASSWORD`. Le login/password machine
+est distinct de la clé bouncer : **ne pas mettre la clé
+`BOUNCER_KEY_PFSENSE_FIREWALL` dans Agent password**.
+Ne pas employer le login machine `truenas` si son identité
+est déjà utilisée par le moteur TrueNAS. Si la GUI persiste
+à exiger ces champs et qu'aucun login dédié n'existe, créer
+un compte **distinct** `pfsense-small` sur la LAPI centrale.
+Il sera validé mais **non sollicité** tant que Log Processor
+pfSense reste OFF. Cette création est facultative si les
+paramètres déjà enregistrés continuent de fonctionner.
+
+Dans le conteneur TrueNAS, inspection read-only :
+
+```bash
+sudo docker exec crowdsec cscli machines list
+```
+
+Pour enregistrer un nouveau compte dédié uniquement si
+l'interface ne peut pas sauvegarder autrement :
+
+```bash
+# Création ponctuelle : mot de passe automatique dans un fichier
+# éphémère *dans le conteneur*, jamais dans Git ou la conversation.
+sudo docker exec crowdsec sh -c \
+  'umask 077; cscli machines add pfsense-small --auto -f /tmp/pfsense-small-credentials.yaml'
+
+# Consulter localement le fichier privé et saisir login/password
+# dans les champs GUI Agent user / Agent password.
+sudo docker exec crowdsec sh -c \
+  'cat /tmp/pfsense-small-credentials.yaml'
+
+# Une fois les champs pfSense sauvegardés, supprimer le fichier
+# éphémère dans le conteneur ; conserver le secret dans
+# un coffre approuvé si nécessaire.
+sudo docker exec crowdsec rm -f /tmp/pfsense-small-credentials.yaml
+```
+
+Les valeurs du fichier sont **secrètes** : ne pas partager
+le résultat des commandes `cat` ni les sauvegarder dans Git.
+Conserver Remediation Component ON, Log Processor OFF et
+Local API OFF. L'API Machine peut publier des décisions :
+ne jamais partager cette identité avec le compte TrueNAS.
+
+**Prochaine étape de validation (lecture seule) :**
+
+```bash
+# Workstation :
+just crowdsec-pfsense-accept
+ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s \
+  < scripts/pfsense/check-central-crowdsec-bouncer.sh
+
+# TrueNAS :
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+sudo docker exec crowdsec cscli bouncers list
+```
+
+Après avoir obtenu la preuve d'un `last_pull` actualisé
+**par le bouncer pfSense** et le statut des nouvelles décisions,
+le chantier peut être clos sans migrer les anciennes tables PF.
+
 ## Incident de provisionnement et récupération des variables — 27 octobre
 
 **Relevé réel de l'opérateur :**
