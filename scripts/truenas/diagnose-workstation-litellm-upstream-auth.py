@@ -59,13 +59,30 @@ def check_liveliness() -> str:
         return "unavailable"
 
 
+def classify_upstream_keys(container: dict) -> str:
+    """Presence is a necessary prerequisite, never a successful auth proof."""
+    if container.get("container") != "observed":
+        return "unverified"
+    states = container.get("key_presence")
+    if not isinstance(states, dict) or set(states) != set(KEYS):
+        return "unverified"
+    if any(states.get(key) not in {"present", "absent"} for key in KEYS):
+        return "unverified"
+    return "all_present_unvalidated" if all(
+        states[key] == "present" for key in KEYS
+    ) else "missing_runtime_upstream_key"
+
+
 def report() -> dict:
+    container = check_container()
     return {
-        "schema": "nabla-litellm-upstream-auth-preflight/v1",
+        "schema": "nabla-litellm-upstream-auth-preflight/v2",
         "proxy_target": "workstation_litellm",
-        "truenas_litellm_env": check_container(),
+        "truenas_litellm_env": container,
+        "truenas_upstream_key_state": classify_upstream_keys(container),
         "workstation_liveliness": check_liveliness(),
         "origin_of_previous_missing_key_event": "not_yet_attributed",
+        "suspected_component": "truenas_litellm_or_other_sdk_unverified",
         "protected_models_endpoint_queried": False,
         "model_requests_sent": 0,
         "secret_values_printed": False,
@@ -79,7 +96,9 @@ def main(argv=None) -> int:
     p.parse_args(argv)
     record = report()
     print(json.dumps(record, sort_keys=True))
-    return 0 if (record["truenas_litellm_env"]["container"] == "observed"
+    # Never return green when any declared upstream key is missing.
+    # All-present means presence only, not that the key is valid or in scope.
+    return 0 if (record["truenas_upstream_key_state"] == "all_present_unvalidated"
                  and record["workstation_liveliness"] == "http_200") else 2
 
 
