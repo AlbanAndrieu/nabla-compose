@@ -52,6 +52,34 @@ Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/na
 sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
 ce périmètre.
 
+## Réception split-DNS — 27 octobre, 22:24 CET
+
+**RUNTIME ACCEPTED (hors post-reboot) :** l'opérateur a exécuté
+`just workstation-split-dns-test` **16/16 PASS** (deux fois).
+Le premier `--check` a classé la résolution NSS
+`UNRESOLVED (14.0s)`, malgré le DNS pfSense UDP/TCP confirmé.
+Après l'exécution explicitement autorisée de
+`just workstation-split-dns-repair`, le résultat est
+`diagnosis=PASS` et `client_nss=A_CONFIRMED (2.0s)`.
+Un contrôle supplémentaire est **PASS** avec NSS
+`A_CONFIRMED (5.2s)` et avertissement de latence.
+NetworkManager `MATCH`, route privée `PERSISTED`,
+resolved `MATCH/ROUTED`, unités `hide-location` désactivées.
+La requête DNS pfSense **TCP directe** a répondu en **27 ms**
+à 22:24:07 CET ; les probes du script ont confirmé UDP et TCP
+sur le même poste. L'ancienne expiration UDP n'est **pas
+reproduite** à cet instant, mais les performances NSS
+restent variables.
+
+**Reste à terminer :** réception après redémarrage de la
+workstation (persistance au démarrage), puis diagnostic de
+latence `resolvectl` vs `getent` si elle reste supérieure
+à 5 secondes. Aucun redémarrage pfSense, changement de
+proxy ou redéploiement TrueNAS justifié.
+[Runbook transverse](runbooks/workstation-split-dns-recovery.md)
+et [propriétaire Ansible](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+La synchronisation des secrets DefectDojo/Vaultwarden est indépendante.
+
 ## Dernière réception runtime — 27 octobre 2026 (18:47–18:53 UTC)
 
 Les preuves les plus récentes priment sur les descriptions historiques
@@ -59,7 +87,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | **ACCEPTED** : TrueNAS `RUNNING`, login HTTP admin validé, HTTPS direct TLS et Traefik OK (31/31 tests), workstation DNS `resolvectl/getent=172.17.0.24`, client `just defectdojo-workstation-dns-check` PASS, interface HTTPS **opérationnelle dans Chrome** ; cause racine confirmée `hide-location` écrivant Quad9 et unités timer/service désormais **disabled** ; Ansible offline 7/7 PASS | Finaliser la **persistance** de `~int.albandrieu.com` dans le profil NetworkManager `Wired eno1` (config DNS `172.17.0.1` déjà enregistrée), valider `nmcli device reapply` et après redémarrage ; examiner `resolvectl query` lent (10–22 s) ; synchroniser secrets Django/runtime/Vaultwarden sans reset du hash. [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) Draft, code non déployé |
+| H-03 | DefectDojo | **ACCEPTED en runtime LAN** : TrueNAS login/HTTPS/TLS/Traefik déjà validés, interface Chrome fonctionnelle ; split-DNS `Wired eno1` persistant dans NetworkManager, `hide-location` timer/service disabled, `just workstation-split-dns-test` **16/16 PASS**, réparation explicite et contrôles suivants **diagnosis=PASS**, pfSense UDP/TCP `A_CONFIRMED`, TCP direct **27 ms** | **Post-reboot NOT_VERIFIED**, variabilité NSS `14s FAIL → 2s PASS → 5,2s PASS` à investiguer si répétée, antécédent UDP/53 timeout ponctuel non reproduit. Secrets Django/runtime/Vaultwarden encore DRIFT ; [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) Draft, code non déployé |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
