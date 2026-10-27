@@ -58,7 +58,8 @@ class BuildFailureClassifierContract(unittest.TestCase):
             "#12 DONE 42.0s\n"
             "#19 ERROR: permission denied\n"
         )
-        self.assertEqual(result["state"], "unclassified_build_failure")
+        self.assertEqual(result["state"], "filesystem_permissions")
+        self.assertNotIn("uv_dependency", result["matched_categories"])
 
     def test_safe_mkstemp_names_with_underscore_and_dash_are_accepted(self) -> None:
         fd, name = tempfile.mkstemp(prefix="tmp._", suffix="-x", dir="/tmp")
