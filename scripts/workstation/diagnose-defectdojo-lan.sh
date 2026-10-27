@@ -31,7 +31,7 @@ if [[ "$system_dns_ok" == true ]]; then
   echo "PASS: workstation system resolver matches private TrueNAS edge"
 else
   echo "WARN: CLIENT_PRIVATE_SPLIT_DNS_PATH: pfSense DNS works but system resolver does not" >&2
-  echo "NEXT: compare resolvectl dns/domain eno1, NetworkManager and VPN/DoH; do not edit pfSense" >&2
+  echo "NEXT: compare resolvectl dns eno1, resolvectl domain eno1, NetworkManager and VPN/DoH; do not edit pfSense" >&2
 fi
 echo '==> HTTPS via explicit private edge with correct SNI and Host'
 # Do not follow redirects or disclose response bodies, cookies or tokens.
