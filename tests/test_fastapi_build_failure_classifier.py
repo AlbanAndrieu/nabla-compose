@@ -40,6 +40,36 @@ class BuildFailureClassifierContract(unittest.TestCase):
                 self.assertIn(code, result["matched_categories"])
                 self.assertRegex(result["next_check"], r"^[a-z0-9_]+$")
 
+    def test_buildkit_uv_command_does_not_override_copy_failure(self) -> None:
+        log = (
+            "#12 [builder 4/7] RUN uv sync --frozen --no-install-project\n"
+            "#12 DONE 45.2s\n"
+            "#18 ERROR: failed to calculate checksum of ref: not found\n"
+        )
+        result = subject.classify(log)
+        self.assertEqual(result["state"], "dockerfile_copy")
+        self.assertNotIn("uv_dependency", result["matched_categories"])
+
+    def test_successful_uv_stage_does_not_create_failure_category(self) -> None:
+        result = subject.classify(
+            "#12 [builder 4/7] RUN uv sync --frozen\n"
+            "#12 DONE 42.0s\n"
+            "#19 ERROR: permission denied\n"
+        )
+        self.assertEqual(result["state"], "unclassified_build_failure")
+
+    def test_safe_mkstemp_names_with_underscore_and_dash_are_accepted(self) -> None:
+        fd, name = tempfile.mkstemp(prefix="tmp._", suffix="-x", dir="/tmp")
+        try:
+            os.write(fd, b"no space left on device\n")
+            os.close(fd)
+            fd = -1
+            self.assertEqual(subject.check(name)["state"], "disk_full")
+        finally:
+            if fd != -1:
+                os.close(fd)
+            os.unlink(name)
+
     def test_priority_oom_over_generic_uv_failure(self) -> None:
         result = subject.classify("uv sync --frozen\nout of memory\nexit code: 137")
         self.assertEqual(result["state"], "oom_or_killed")
