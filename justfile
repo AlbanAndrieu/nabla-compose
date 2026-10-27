@@ -146,10 +146,19 @@ yubikey-escrow-age-header-check:
 yubikey-escrow-age-header-inspect:
     python3 scripts/workstation/inspect-yubikey-escrow-age-header.py --inspect --acknowledge INSPECT_EXISTING_ENCRYPTED_AGE_HEADER_ONLY
 
-# Existing SanDisk LUKS2 escrow: inspect device and mount state only.
-# No USB unlock, age identity read, decryption, token access, or mutation.
-# The UUID is the documented LUKS partition UUID, not the ext4 UUID.
+# Existing SanDisk LUKS2 escrow: identify UUID from redacted lsblk metadata.
+# No USB unlock, age identity read, decryption, mount or mutation.
 yubikey-escrow-usb-status:
+    python3 scripts/workstation/diagnose-age-escrow-usb-presence.py --check
+
+# Synthetic USB discovery contracts. No real USB, LUKS, age key or sudo used.
+yubikey-escrow-usb-test:
+    python3 -m py_compile scripts/workstation/diagnose-age-escrow-usb-presence.py tests/test_age_escrow_usb_presence.py
+    python3 -m unittest discover -s tests -p 'test_age_escrow_usb_presence.py' -v
+
+# Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
+# Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
+yubikey-escrow-usb-legacy-check:
     bash scripts/workstation/manage-age-escrow-usb.sh --luks-uuid 3742c7b9-ccb7-4b5e-b1db-18bcf916c548 --check
 
 # Private terminal prompts for two existing .age backups. Does not print paths,
