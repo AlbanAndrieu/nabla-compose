@@ -34,6 +34,24 @@ résultats contemporains, ne pas annoncer Unbound DOWN sur un essai.
 La réparation locale est volontairement bloquée si UDP pfSense
 n'est pas vérifié, car elle ne répare pas Unbound.
 
+## Roadmaps spécialisées — responsabilités et priorités
+
+- **OpenClaw Workstation** : [roadmap dédiée](openclaw-workstation-roadmap.md),
+  mise à jour le 27/10 avec **51/51 tests locaux**, puis **6/6 tests**
+  de permissions PASS, catalogue `cron` complet de 21 sessions sans
+  `agent:cron:main`, nettoyage de sessions accepté **uniquement
+  pour leur historique**, GitOps hors secrets et rectification du
+  parent symlink `nabla` à vérifier. La maintenance n'est pas encore
+  exécutée ; les modèles/identités LiteLLM TrueNAS ne sont pas basculés.
+- Le suivi de l'authentification Workstation LiteLLM reste
+  **P0 OpenClaw** : trace `/v1/models` sans clé attribuable
+  à un client TrueNAS encore non identifié ; la correction de sonde
+  OpenRAG est versionnée mais non attestée déployée.
+
+Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/nabla-compose/pull/289)
+sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
+ce périmètre.
+
 ## Dernière réception runtime — 27 octobre 2026 (18:47–18:53 UTC)
 
 Les preuves les plus récentes priment sur les descriptions historiques
