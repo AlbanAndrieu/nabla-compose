@@ -64,7 +64,7 @@ run_docker() {
     return 1
 }
 dockerhub_cooldown_active() { [[ "${COOLDOWN_ACTIVE}" == true ]]; }
-docker_client_config_present() { [[ "${HAS_CLIENT_CONFIG}" == true ]]; }
+dockerhub_client_auth_configured() { [[ "${HAS_CLIENT_CONFIG}" == true ]]; }
 """
         cases = (
             (False, False, False, False, False, False, 73),  # avoid anonymous 429
@@ -120,6 +120,62 @@ fail() { exit 73; }
                         check=False,
                     )
                     self.assertEqual(result.returncode, expected, result.stderr)
+
+    def test_dockerhub_auth_declaration_is_not_generic_config_presence(self):
+        function = self._shell_function("dockerhub_client_auth_configured")
+        cases = (
+            ({}, False),
+            ({"auths": {"ghcr.io": {"auth": "synthetic"}}}, False),
+            ({"auths": {"https://index.docker.io/v1/": {}}}, False),
+            ({"auths": {"https://index.docker.io/v1/": {"auth": "synthetic"}}}, True),
+            ({"credHelpers": {"registry-1.docker.io": "pass"}}, True),
+            ({"credsStore": "pass"}, True),
+        )
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config.json"
+            for payload, expected in cases:
+                with self.subTest(config=tuple(payload)):
+                    config.write_text(json.dumps(payload))
+                    config.chmod(0o600)
+                    env = {**os.environ, "DOCKER_CONFIG": directory}
+                    result = subprocess.run(
+                        ["bash", "-c", (
+                            "set -euo pipefail\n"
+                            "DOCKER=(docker)\n" + function +
+                            "\ndockerhub_client_auth_configured\n"
+                        )],
+                        env=env, capture_output=True, text=True,
+                        timeout=5, check=False,
+                    )
+                    self.assertEqual(result.returncode == 0, expected, result.stderr)
+                    self.assertEqual(result.stdout, "")
+
+    def test_rate_limit_state_record_is_private(self):
+        function = self._shell_function("record_dockerhub_429")
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            marker = state / "dockerhub-429"
+            env = {
+                **os.environ,
+                "DOCKERHUB_RATE_STATE_DIR": str(state),
+                "DOCKERHUB_RATE_MARKER": str(marker),
+            }
+            result = subprocess.run(
+                ["bash", "-c", (
+                    "set -euo pipefail\n"
+                    "fail() { exit 73; }\n"
+                    "summary_warn() { :; }\n" +
+                    function + "\nrecord_dockerhub_429\n"
+                )],
+                env=env, capture_output=True, text=True,
+                timeout=5, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(marker.stat().st_uid, os.getuid())
+            self.assertLess(abs(int(marker.read_text().strip()) - int(time.time())), 5)
+            self.assertEqual(result.stdout, "")
 
     def test_quota_guard_precedes_build_and_does_not_restart_services(self):
         script = (ROOT / "scripts/truenas/update-fastapi-sample.sh").read_text()
