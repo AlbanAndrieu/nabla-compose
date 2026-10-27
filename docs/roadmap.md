@@ -24,6 +24,31 @@ est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
 leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
 pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
+## P0 — Échec du build FastAPI TrueNAS #380 (27 octobre 2026)
+
+- **Preuve :** la construction du commit FastAPI 0266f20d a échoué à
+  l'étape 3/6. Le conteneur précédent a été conservé ; le safe mode
+  du nouveau commit **n'est donc pas déployé**.
+- **Journal privé :** /tmp/tmp.ngofCbFlgw (0600) ; ne pas imprimer,
+  copier, annexer ni transmettre le contenu.
+- **Analyse Git :** Dockerfile fa13c08d = Dockerfile 0266f20d,
+  blob SHA 9c1e1da90c66612ec65001e01d9115956b18104a.
+  La cause exacte du build n'est pas encore connue.
+- [x] PR Compose #289 : nouveau classifieur de journal privé à
+  codes fixes, intégré au script de déploiement sur échec ;
+  aucune lecture de secret dans les sorties.
+- [ ] Exécuter depuis TrueNAS le classifieur sur le journal
+  existant et relever son JSON ; vérifier disque/RAM/uv/réseau
+  selon le code, sans relancer le build.
+- [ ] Vérifier l'état du conteneur précédent et son endpoint health.
+- [ ] Une fois la cause identifiée, déployer un unique SHA
+  immuable et exiger la recette 6/6.
+- [ ] **UI :** comparer normal et safe seulement après activation
+  réelle du commit 0266f20d ou ultérieur ; les deux tests
+  main_thread_unresponsive ont précédé le build échoué.
+
+[Runbook du build privé](runbooks/fastapi-truenas-build-failure-20261027.md).
+
 ## P0 — Reprise FastAPI / IA / Bababou sans LAN (26 octobre 2026)
 
 **Accès au LAN rétabli : 26 octobre 2026, déclaration opérateur.**
