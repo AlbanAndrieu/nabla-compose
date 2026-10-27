@@ -86,9 +86,11 @@ class ScopedWorkstationKeyInventoryTests(unittest.TestCase):
             self.assertEqual(mod.alias_state(), "alias_absent_confirmed")
 
     def test_header_injection_or_bearer_prefix_is_rejected_without_http(self):
+        # NUL cannot be stored in os.environ. Mock the lookup instead so the
+        # control-character guard is exercised before any HTTP request.
         for key in ("Bearer sk-SYNTHETIC", "with\nnewline", "with\rCR", "with\x00NUL"):
             with self.subTest(label=repr(key)), \
-                 patch.dict(os.environ, {"LITELLM_MASTER_KEY": key}), \
+                 patch.object(mod.os, "getenv", return_value=key), \
                  patch.object(mod, "fetch_json") as fetch:
                 self.assertEqual(mod.alias_state(), "admin_credential_invalid_transport")
                 fetch.assert_not_called()
