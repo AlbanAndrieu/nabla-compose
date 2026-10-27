@@ -2,6 +2,61 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Nouvelle régression DNS observée — 27 octobre, 21:27 CET
+
+Dernière preuve de l'opérateur après la validation initiale :
+
+- `just defectdojo-workstation-dns-test` : **2/2 PASS**, bibliothèque
+  standard `unittest`, sans `pytest`.
+- `just defectdojo-workstation-dns-check` : **FAIL attendu**,
+  `CLIENT_PRIVATE_SPLIT_DNS_PATH` : `dig @pfSense` retourne bien
+  `172.17.0.24`, mais le résolveur NSS de la workstation ne répond plus.
+- `resolvectl dns eno1` est **redevenu Quad9**
+  (`9.9.9.9 149.112.112.112`) alors que le device
+  NetworkManager est toujours `172.17.0.1`.
+- `resolvectl domain eno1` conserve `~int.albandrieu.com` ;
+  le domaine est donc correct, mais transmis au mauvais serveur.
+- Chrome : `DNS_PROBE_FINISHED_NXDOMAIN` pour l'URL HTTPS privée.
+- `hide-location.service` inactive (oneshot), enabled,
+  `ExecMainStartTimestamp=2026-10-27 21:27:01 CET`,
+  et `hide-location.timer` enabled.
+  **Corrélation temporelle, pas encore preuve que ce service écrit Quad9.**
+  Le rapport du script installé disait `sets_quad9=False` ;
+  conserver cette réserve.
+
+**Ownership et correction future :**
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+prépare une protection du hook `hide-location` lorsqu'il opère sur le LAN
+pfSense et une réconciliation de `network_split_dns.yml` qui réapplique
+le profil lorsqu'il est correct mais que `systemd-resolved` a dérivé.
+La PR est Draft, opt-in Ansible désactivé par défaut, et **aucune correction
+Ansible n'a été appliquée à cette workstation**.
+
+Pour restaurer **temporairement** le poste, sans modification pfSense :
+
+```bash
+sudo resolvectl dns eno1 172.17.0.1
+sudo resolvectl domain eno1 '~int.albandrieu.com'
+sudo resolvectl flush-caches
+getent ahostsv4 defectdojo.int.albandrieu.com
+```
+
+Pour rechercher l'écrivain DNS avant tout arrêt de timer, en lecture seule :
+
+```bash
+systemctl --user list-timers --all hide-location.timer
+journalctl --user -u hide-location.service \
+  --since '2026-10-27 21:20:00' --until '2026-10-27 21:35:00' \
+  --no-pager -o short-iso
+nmcli -g IP4.DNS device show eno1
+resolvectl dns eno1
+```
+
+Un échec du navigateur après `getent` rétabli doit être vérifié
+séparément côté **Secure DNS / DoH de Chrome**, notamment si un
+fournisseur DNS public personnalisé contourne le résolveur système.
+Ne pas retoucher Traefik, HAProxy, pfSense ou les identifiants Django.
+
 ## Réception workstation — 27 octobre, résolution DNS rétablie temporairement
 
 **Avant correction (workstation `eno1`) :**
