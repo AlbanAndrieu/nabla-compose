@@ -28,6 +28,15 @@ class CronParentTests(unittest.TestCase):
         self.assertEqual(report["cron_main_reference"], "absent_in_bounded_sample")
         self.assertIs(report["session_sample_exhaustive"], False)
 
+    def test_exhaustive_missing_parent_is_not_session_corruption_proof(self):
+        report = mod.classify(json.dumps({
+            "sessions": [{"key": "cron:synthetic-job"}],
+            "hasMore": False
+        }).encode())
+        self.assertEqual(report["cron_main_reference"],
+                         "absent_in_reported_complete_catalog")
+        self.assertIs(report["session_sample_exhaustive"], True)
+
     def test_unknown_schema_refuses_negative_claim(self):
         report = mod.classify(json.dumps({"data": []}).encode())
         self.assertEqual(report["cron_main_reference"], "unverified")
