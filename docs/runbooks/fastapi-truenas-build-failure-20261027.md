@@ -37,7 +37,7 @@ Le contrôle ci-dessous ne révèle **que des métadonnées**, jamais le contenu
 ~~~bash
 stat -c 'owner_uid=%u mode=%a links=%h type=%F' /tmp/tmp.ngofCbFlgw
 id -u
-sudo sh -c 'printf "sudo_original_uid=%s\\n" "${SUDO_UID:-unset}"'
+sudo sh -c 'printf "sudo_original_uid=%s\n" "${SUDO_UID:-unset}"'
 ~~~
 
 Utiliser la **dernière version de la branche #289** avant de réessayer le classifieur ; huit tests seulement indiquent un checkout ancien, avant l'ajout des nouveaux cas. Si `owner_uid` diffère de `0` et de l'UID d'origine transmis par `sudo`, ne pas faire de `chown`, `chmod`, ni désactiver le contrôle ; investiguer d'abord quel compte a créé le journal. Un `mode` plus large que `600`, un lien symbolique ou un autre type de fichier reste bloquant.
