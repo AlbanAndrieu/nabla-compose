@@ -583,10 +583,15 @@ openclaw-nabla-migration-check:
 
 # Classify only the known auth error; never disable LiteLLM model authentication.
 litellm-workstation-auth-contracts:
-    python3 -m py_compile scripts/truenas/diagnose-workstation-litellm-upstream-auth.py tests/test_workstation_litellm_upstream_auth_preflight.py
+    python3 -m py_compile scripts/truenas/diagnose-workstation-litellm-upstream-auth.py tests/test_workstation_litellm_upstream_auth_preflight.py scripts/secrets/check-litellm-fastapi-upstream-source.py tests/test_litellm_fastapi_upstream_source.py
     python3 -m unittest discover -s tests -p 'test_openrag_litellm_nonbillable_probe_contract.py' -v
     bash scripts/quality/run-pytest-local.sh -q tests/test_litellm_dashboard_auth_failure.py
     python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
+    python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
+
+# Vaultwarden check runs as an unlocked unprivileged operator; no secret values printed.
+litellm-fastapi-upstream-source-check:
+    python3 scripts/secrets/check-litellm-fastapi-upstream-source.py --check
 
 # TrueNAS-only: no model calls or secret output, no service restart.
 litellm-workstation-upstream-auth-check:
