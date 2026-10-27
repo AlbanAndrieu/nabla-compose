@@ -88,9 +88,11 @@ git worktree remove "$WT"
 test "$test_status" -eq 0
 ```
 
-## Redéployer un seul SHA FastAPI — uniquement depuis le checkout canonique
+## Recette historique de l'upgrade (déjà exécutée : NE PAS relancer)
 
-Après validation du statut Git et des réseaux, mettre à jour la branche Compose (ne pas écraser les changements locaux), puis :
+**Archive de procédure seulement.** L'upgrade du SHA ci-dessous est déjà terminé 6/6. Garder ces commandes pour une future intervention contrôlée, pas pour corriger le seul HTTP 401 LiteLLM. Aucun rebuild ni redéploiement de FastAPI ou de LiteLLM n'est requis pour les diagnostics lecture seule.
+
+Pour un déploiement futur uniquement, vérifier le statut Git et les réseaux avant de synchroniser la branche Compose :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
