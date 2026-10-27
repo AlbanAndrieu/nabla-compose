@@ -96,7 +96,7 @@ class Contracts(unittest.TestCase):
             state=m.create_encrypted_copy(self.file,'private.age')
         self.assertEqual(state,'COPY_UNVERIFIED_NO_RETRY')
         self.assertEqual(list(self.target.iterdir()),[])
-        self.assertEqual(self.file.read_bytes(),b'Only synthetic encrypted fixture\\n'*3)
+        self.assertEqual(self.file.read_bytes(),b'Only synthetic encrypted fixture\n'*3)
 
     def test_stage_mode_mismatch_fails_before_publishing(self):
         real_fstat=os.fstat
