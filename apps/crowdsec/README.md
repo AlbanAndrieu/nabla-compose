@@ -14,21 +14,31 @@ Les sections qui suivent détaillent les incidents et procédures
 | LAPI TrueNAS | CrowdSec 1.8.1 RUNNING/healthy sur `172.17.0.24:8084` |
 | Fichier clé `BOUNCER_KEY_PFSENSE_FIREWALL` | Présent en `0600` |
 | Authentification candidate | `central_candidate_auth=ACCEPTED` |
-| TrueNAS `diagnose-crowdsec-cutover.sh --check` | **0 échec, 2 warnings**, dont 0 décision centrale et provenance `last_pull` indéterminée |
-| Enregistrement central | `PFSENSE_FIREWALL last_pull=2026-10-27T21:46:28.639134705Z`, origine **NOT_VERIFIED** |
+| TrueNAS `diagnose-crowdsec-cutover.sh --accept` (ancien script) | **0 échec, 2 warnings** : 0 décision centrale et enregistrement de base `curl` non probant |
+| Enregistrement de base | `PFSENSE_FIREWALL`, `172.17.0.24`, client `curl`, `last_pull=21:46:28Z` : **sonde locale TrueNAS seulement** |
+| Enregistrement bouncer réel | `PFSENSE_FIREWALL@172.17.0.1`, source `172.17.0.1`, type `crowdsec-firewall-bouncer`, `last_pull=22:35:27Z` : **lecture LAPI pfSense attestée par métadonnées** |
 | Moteur CrowdSec local pfSense | Absent |
 | Firewall bouncer | En cours, `api_url=http://172.17.0.24:8084` |
 | `just crowdsec-pfsense-accept` | **0 échec / 0 warning** |
-| Tables PF | `crowdsec_blacklists=4033`, `crowdsec6_blacklists=52` (total **4085**) |
+| Tables PF | **4 074** entrées au dernier contrôle workstation (4 022 IPv4 + 52 IPv6), provenance des règles **non établie** |
 | Authentification bouncer pfSense → LAPI | `central_lapi_http=200`, `central_lapi_auth=ACCEPTED` |
 
 **Statut : SMALL_BOUNCER_CUTOVER_PASS.** Cela valide la connectivité,
 l'authentification et l'état du bouncer, sans attribuer les
-4085 entrées PF aux décisions centrales (0 décision centrale
+entrées PF existantes aux décisions centrales (0 décision centrale
 dans le dernier diagnostic). Cette preuve reste à corréler à
 une nouvelle décision et son application/expiration dans PF.
 Les anciennes décisions PF peuvent subsister temporairement ;
 leur nombre seul ne prouve pas une reconstruction par TrueNAS.
+
+**Contrôle renforcé au prochain pull Git :** le mode `--accept` exige désormais
+l'enregistrement `PFSENSE_FIREWALL@172.17.0.1`, un `last_pull`,
+`ip_address=172.17.0.1`, `type=crowdsec-firewall-bouncer`, `valid=true`.
+Le `last_pull` du client `curl` TrueNAS ne suffit plus. Ce contrôle prouve
+l'interrogation de la LAPI depuis pfSense selon les métadonnées fournies
+par CrowdSec, **pas** l'application ou l'expiration des bans dans PF.
+L'ancien nom `pfsense-firewall` a un dernier appel daté du 25 septembre ;
+ne pas le supprimer sans étude de sa provenance et de son usage.
 
 **Réception P0 encore ouverte :** [procédure de preuve d'une décision
 nouvelle et de son retrait dans PF](../../docs/runbooks/crowdsec-pfsense-decision-provenance.md).
