@@ -187,6 +187,22 @@ Ces commandes sont locales et ne déclenchent aucune CI, requête au registre, b
 
 Pour éviter de répéter le HTTP 429 dans l'état actuel, préparer une authentification Docker Hub **dans le contexte effectif `sudo docker`**, avec un magasin d'identifiants sécurisé. Ne pas écrire de jeton dans l'historique shell, dans Compose ou dans le dépôt. Après rétablissement de l'accès, choisir un unique SHA FastAPI immuable et lancer une seule mise à jour. Ne pas exécuter `docker system prune` pour résoudre un quota.
 
+## Recette locale validée et connexion Docker Hub (27 octobre 2026)
+
+L'opérateur a exécuté les contrôles locaux sur un worktree détaché `3eb2d963` : `bash -n scripts/truenas/update-fastapi-sample.sh` **PASS**, suite Python de classification + intégration **35/35 PASS (0,054 s)**, puis suppression propre du worktree. La sortie `argparse` observée dans `test_run_cli_without_log_never_leaks` est attendue : le test vérifie le rejet d'un argument `--log` manquant.
+
+`sudo docker login` a également retourné **Login Succeeded**, avec un avertissement : les identifiants de `root` sont actuellement stockés **sans chiffrement** dans `/root/.docker/config.json`. Ne pas imprimer, copier, annexer ou committer ce fichier. Vérifier son propriétaire et ses permissions sans lire le contenu :
+
+~~~bash
+sudo stat -c 'owner=%U:%G mode=%a' /root/.docker/config.json
+~~~
+
+Le mode attendu est `600`, propriétaire `root:root`. Si le mode est trop permissif, corriger uniquement celui-ci de façon ciblée ; **ne pas lancer un `docker logout` ni écraser `config.json` avant d'avoir préparé un credential helper**. Les helpers `docker-credential-pass` et `docker-credential-secretservice` sont décrits dans la documentation officielle, mais demandent une configuration compatible avec un environnement TrueNAS sans session graphique. La migration des secrets de `root` reste une action séparée. Source : https://docs.docker.com/reference/cli/docker/login/.
+
+La connexion par navigateur (`device code`) peut produire une entrée `identitytoken` dans le fichier de configuration au lieu d'un simple champ `auth`. Le préflight de l'upgrade reconnaît désormais les deux sans imprimer leur valeur. Tests locaux ciblés des filtres `jq` : `auth`, `identitytoken`, `credHelpers`, `credsStore` et configuration étrangère sont correctement discriminés. Cette validation de filtres ne prouve pas encore la levée du HTTP 429.
+
+**Attention aux versions :** les 35 tests PASS concernent le SHA `3eb2d963`. La branche PR #289 contient depuis un correctif de prise en charge de `identitytoken`, puis une mise à jour de ce runbook ; exécuter à nouveau les mêmes tests en worktree au nouveau HEAD avant de déployer. Aucun nouveau pull Docker Hub, build, redéploiement ni GitHub Actions n'a été effectué par l'assistant.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
