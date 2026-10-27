@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "description": "Expected access policy, not proof of live Cloudflare/DNS/pfSense firewall enforcement. Unknown evidence must never be called PASS.",
+  "haproxy_frontend": "main_Web_HTTPS",
+  "generated_snapshot": "docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg",
+  "evidence_contract": {
+    "cloudflare_tunnel": "host-to-origin routing and Access policy must be read from Cloudflare config/API; no inferred status",
+    "public_dns": "external authoritative A/AAAA/CNAME evidence; LAN split DNS is not public reachability",
+    "firewall": "pfSense PF/NAT generated active rules and source-specific external probes, not HAProxy alone",
+    "haproxy": "compare generated configuration; live process/reload and WAN provenance separately"
+  },
+  "hosts": [
+    {
+      "hostname": "nexus.int.albandrieu.com",
+      "intent": "private",
+      "haproxy": "deny",
+      "public_dns": "absent",
+      "cloudflare_tunnel": "absent",
+      "firewall": "block_direct_wan_origin",
+      "lan": "traefik",
+      "reason": "Nexus LAN route only; observed 403 from workstation via public IP does not prove WAN reachability policy"
+    },
+    {
+      "hostname": "vault.int.albandrieu.com",
+      "intent": "private",
+      "haproxy": "deny",
+      "public_dns": "absent",
+      "cloudflare_tunnel": "absent",
+      "firewall": "block_direct_wan_origin",
+      "lan": "unverified",
+      "reason": "ACL present in generated HAProxy but deny not observed; generic int backend fallback is a risk"
+    },
+    {
+      "hostname": "vaultwarden.int.albandrieu.com",
+      "intent": "private_legacy",
+      "haproxy": "deny",
+      "public_dns": "absent",
+      "cloudflare_tunnel": "absent",
+      "firewall": "block_direct_wan_origin",
+      "lan": "unverified",
+      "reason": "Legacy private alias, not the public Cloudflare Tunnel hostname"
+    },
+    {
+      "hostname": "s3.int.albandrieu.com",
+      "intent": "REVIEW_REQUIRED",
+      "haproxy": "REVIEW",
+      "public_dns": "REVIEW",
+      "cloudflare_tunnel": "absent",
+      "firewall": "REVIEW",
+      "lan": "traefik",
+      "reason": "POLICY CONFLICT: config/public-int-dns-exceptions.txt says internal; docs/dns-ingress-ownership.md and apps/garage/compose.yml describe intentional public ingress. No automatic allow or denial decision."
+    },
+    {
+      "hostname": "hello.int.albandrieu.com",
+      "intent": "temporary_public_exception",
+      "haproxy": "allow",
+      "public_dns": "allow_exception",
+      "cloudflare_tunnel": "not_required_for_direct_ingress",
+      "firewall": "review_direct_443",
+      "lan": "traefik",
+      "reason": "Only reviewed temporary public *.int exception in config/public-int-dns-exceptions.txt"
+    },
+    {
+      "hostname": "nexus.albandrieu.com",
+      "intent": "public_independent_route",
+      "haproxy": "unverified",
+      "public_dns": "unverified",
+      "cloudflare_tunnel": "unverified",
+      "firewall": "unverified",
+      "lan": "unverified",
+      "reason": "Do not couple private Nexus Host denial to public Nexus hostname"
+    },
+    {
+      "hostname": "vaultwarden.albandrieu.com",
+      "intent": "public_with_access",
+      "haproxy": "not_owner",
+      "public_dns": "review",
+      "cloudflare_tunnel": "require_access_policy",
+      "firewall": "block_direct_wan_origin",
+      "lan": "unverified",
+      "reason": "Compose describes Cloudflare Tunnel as owner; Cloudflare Access enforcement not attested by generated HAProxy config"
+    }
+  ]
+}
