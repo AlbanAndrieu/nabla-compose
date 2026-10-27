@@ -1665,17 +1665,30 @@ historique attendue. La copie NFS est donc récupérable
 Ce succès ne prouve pas que l'identité USB dispose
 d'une sauvegarde privée indépendante.
 
-### Dernière validation de la chaîne SOPS : fixture synthétique
+### Validation exécutée de la chaîne SOPS : fixture synthétique — PASS (27/10/2026)
 
-**Prochaine opération distincte, locale et opt-in :**
-réutiliser `test-sops-usb-recovery.sh` avec la même
-unique archive NFS et la même identité USB. Ce script
-relit et **déchiffre réellement** l'archive dans
-`/dev/shm` (temporaire privé), puis chiffre et
-déchiffre une **fixture YAML sans donnée de production**
-avec SOPS en forçant l'identité restaurée via
-`SOPS_AGE_KEY_FILE`. Il ne modifie pas l'identité
-SOPS de la workstation et ne modifie pas le support USB.
+**Preuve opérateur sur la nouvelle archive NFS :**
+après le PASS de `verify-sops-age-escrow.sh`, le
+contrôle `test-sops-usb-recovery.sh` a été exécuté
+avec la **même archive NFS** et l'identité de la SanDisk
+d'origine, physiquement branchée, déverrouillée et montée.
+Le shell a vérifié l'unicité de l'archive et `/dev/shm`
+en `tmpfs`, puis le script a retourné :
+
+```text
+✅ PASS: SOPS recovery with USB-backed escrow
+```
+
+**DONE :** le script a déchiffré l'archive age,
+retrouvé l'identité privée SOPS en mémoire temporaire,
+chiffré un YAML synthétique et déchiffré cette fixture
+avec `SOPS_AGE_KEY_FILE` fixé à l'identité restaurée.
+Il ne s'agit **pas** d'une preuve de déchiffrement
+d'un document SOPS de production. Le script ne vise
+pas à modifier la configuration SOPS de la workstation.
+
+**Commande d'acceptation historique (déjà exécutée,
+ne pas répéter sans nécessité) :**
 
 ```bash
 # Prérequis : brancher physiquement la SanDisk d'origine,
@@ -1699,14 +1712,14 @@ bash scripts/workstation/test-sops-usb-recovery.sh \
 SOPS_FIXTURE_CHECK
 ```
 
-**Critère DONE du prochain jalon :** sortie
-`PASS: SOPS recovery with USB-backed escrow`,
-avec sortie 0, sans plaintext ni identité en journal.
-Il s'agira d'un aller-retour SOPS **synthétique**
-avec une identité réellement restaurée depuis
-la nouvelle copie, et non d'un déchiffrement
-de documents SOPS de production. Ne pas annoncer
-ce PASS avant réception de la preuve.
+**Critère DONE satisfait :** la sortie du test SOPS
+sur la nouvelle archive NFS est `PASS: SOPS recovery
+with USB-backed escrow`. Chaîne de récupération
+age → identité SOPS → fixture SOPS **PASS**.
+Aucun plaintext ni identité privée n'a été transmis
+dans le résultat communiqué. Le test est isolé et
+synthétique ; il ne simule pas la perte de la SanDisk
+ou de la workstation.
 
 **Risques restant ouverts :** la clé privée de
 récupération X25519 sur SanDisk est un point
