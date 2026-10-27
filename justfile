@@ -205,6 +205,20 @@ yubikey-escrow-postcopy-check:
 yubikey-escrow-postcopy-verify:
     python3 scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py --verify --acknowledge RECHECK_EXISTING_AGE_ESCROW_CIPHERTEXT_AND_TRUENAS
 
+# TrueNAS native ACL metadata inspection, synthetic-only test.
+yubikey-escrow-acl-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-truenas-acl.py tests/test_yubikey_escrow_truenas_acl.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_truenas_acl.py' -v
+
+# Check expected NFS mount and unique encrypted source file; no SSH.
+yubikey-escrow-acl-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-truenas-acl.py --check
+
+# Read native ACL metadata via TrueNAS filesystem.getacl over trusted SSH.
+# Never prints raw ACL, account identifiers or encrypted bytes.
+yubikey-escrow-acl-probe:
+    python3 scripts/workstation/inspect-yubikey-escrow-truenas-acl.py --probe --acknowledge INSPECT_EXISTING_TRUENAS_AGE_ESCROW_ACL_READONLY
+
 # Explicit supervised read-only TrueNAS snapshot metadata inventory via SSH.
 # Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
 yubikey-escrow-history-probe:
