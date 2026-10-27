@@ -510,7 +510,7 @@ python3 -m unittest discover -s tests \
   -p 'test_homelab_dns_nta_dispatcher.py' -v
 ```
 
-**Statut des nouveaux tests :** 13 contrats du dispatcher
+**Statut des nouveaux tests :** 17 contrats du dispatcher
 écrits, **non exécutés sur la workstation**.
 Le script et le rôle Ansible n'ont pas été appliqués.
 La dernière preuve DNSSEC publique est limitée au
