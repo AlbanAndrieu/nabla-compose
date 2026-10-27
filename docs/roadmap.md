@@ -9,6 +9,28 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## Dernière réception runtime — 27 octobre 2026 (18:47–18:53 UTC)
+
+Les preuves les plus récentes priment sur les descriptions historiques
+`DEPLOYING` / `UNREACHABLE` du 26 et début 27 octobre.
+
+| Priorité | Domaine | Preuve | Reste à terminer |
+| --- | --- | --- | --- |
+| H-03 | DefectDojo | TrueNAS `RUNNING`, initializer `exited(0)`, uWSGI/Nginx/Celery tous `running`, HTTP `:31085/login=200`, `changepassword admin` réussi | Login Web, parité Django/runtime/Vaultwarden et stabilité du cycle TrueNAS **NOT_VERIFIED** |
+| H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
+| H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
+| H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
+| H-08 | Vaultwarden | `code`/`openrag` absents du cache CLI ; DefectDojo : 5 secrets MATCH, `DD_ADMIN_USER=DRIFT`, mot de passe coffre absent/vide | `bw sync`, vérifier l'item source, puis rapprocher le mot de passe Django avec runtime et coffre sans journaliser de secret |
+| H-09 | RAM TrueNAS | 61 Gio total, 7,3 Gio disponibles avant la reprise ; Netdata et Graylog arrêtés | Baseline PSI/mémoire/OOM sans attribuer causalement le pic à ces services |
+
+**Prochaine étape prioritaire :** authentification DefectDojo et
+réconciliation Vaultwarden **sans supprimer la base**. Ne pas
+recommencer `changepassword` si le mot de passe choisi fonctionne.
+Les corrections de diagnostic DefectDojo restent en code `[skip ci]` ;
+tests ciblés locaux à exécuter au HEAD réel.
+
+[Preuves et séquence de réception](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
 ## Convention de suivi
 
 - **DONE (code)** : implémentation versionnée et contrôle ciblé identifié ;
