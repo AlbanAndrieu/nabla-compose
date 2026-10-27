@@ -67,9 +67,13 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [x] PR Compose #289 : nouveau classifieur de journal privé à
   codes fixes, intégré au script de déploiement sur échec ;
   aucune lecture de secret dans les sorties.
-- [ ] Exécuter depuis TrueNAS le classifieur sur le journal
-  existant et relever son JSON ; vérifier disque/RAM/uv/réseau
-  selon le code, sans relancer le build.
+- [x] Classifieur exécuté sur TrueNAS : journal privé vérifié
+  `UID=1000`, `0600`, un lien ; `unsafe_log_owner` corrigé.
+  La première analyse retourne `unclassified_build_failure`, aucun secret divulgué.
+- [ ] Rejouer le classifieur enrichi (échecs BuildKit génériques,
+  permissions, résolution de dépendances, étape à codes fixes),
+  puis relever uniquement le JSON. Si toujours inconclusif, diagnostiquer
+  localement la signature du défaut sans imprimer le journal.
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
   immuable et exiger la recette 6/6.
