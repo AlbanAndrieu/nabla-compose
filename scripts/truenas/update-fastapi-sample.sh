@@ -288,7 +288,7 @@ record_dockerhub_429() {
         fail "Could not create private Docker Hub cooldown marker"
     printf '%s\n' "$(date +%s)" >"${tempfile}"
     mv -f -T -- "${tempfile}" "${DOCKERHUB_RATE_MARKER}"
-    summary_warn "Docker Hub HTTP 429: cooldown saved locally; no automatic retry. Existing runtime preserved."
+    summary_warn "Docker Hub HTTP 429: cooldown saved locally; no automatic retry or container replacement attempted."
 }
 
 dockerhub_429_in_log() {
