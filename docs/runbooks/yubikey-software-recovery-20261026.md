@@ -1635,3 +1635,84 @@ Ils doivent être revus avant leur prochaine exécution.
 récupération USB, validation effective des ACL natives
 des répertoires NFS, toute écriture PIV82/PIV9A/OTP2,
 rotation des destinataires SOPS et copie NFS supplémentaire.
+
+
+## Restauration age du nouveau ciphertext NFS : PASS (27 octobre 2026)
+
+**Preuve réelle fournie par l'opérateur sur la workstation :**
+
+- La SanDisk de récupération d'origine est **physiquement branchée**,
+  déverrouillée et montée au chemin confirmé.
+- Le script shell de contrôle a sélectionné **une seule** archive
+  `*.age` située à la racine du partage NFS
+  `/media/backup/lab/secret/` (pas le fichier historique
+  du sous-dossier `keepass/`).
+- La condition `findmnt ... /dev/shm == tmpfs` a été franchie.
+- `scripts/workstation/verify-sops-age-escrow.sh` a produit :
+
+```text
+PASS: TrueNAS encrypted backup decrypted with USB key and recovered original SOPS public recipient.
+NOTE: this verifies identity recovery, not full SOPS decrypt; test fixture separately.
+```
+
+**Conclusion DONE :** la **nouvelle copie chiffrée NFS
+du 27 octobre 2026**, déjà vérifiée octet par octet
+et vue sur TrueNAS, a réellement été déchiffrée par
+l'identité USB age X25519 ; le destinataire public de
+l'identité SOPS récupérée correspond à la référence
+historique attendue. La copie NFS est donc récupérable
+**avec le support et l'identité USB actuellement disponibles**.
+Ce succès ne prouve pas que l'identité USB dispose
+d'une sauvegarde privée indépendante.
+
+### Dernière validation de la chaîne SOPS : fixture synthétique
+
+**Prochaine opération distincte, locale et opt-in :**
+réutiliser `test-sops-usb-recovery.sh` avec la même
+unique archive NFS et la même identité USB. Ce script
+relit et **déchiffre réellement** l'archive dans
+`/dev/shm` (temporaire privé), puis chiffre et
+déchiffre une **fixture YAML sans donnée de production**
+avec SOPS en forçant l'identité restaurée via
+`SOPS_AGE_KEY_FILE`. Il ne modifie pas l'identité
+SOPS de la workstation et ne modifie pas le support USB.
+
+```bash
+# Prérequis : brancher physiquement la SanDisk d'origine,
+# déjà déverrouillée et montée ; ne pas utiliser set -x.
+bash <<'SOPS_FIXTURE_CHECK'
+set -Eeuo pipefail
+umask 077
+shopt -s nullglob
+archives=(/media/backup/lab/secret/*.age)
+(( ${#archives[@]} == 1 )) || {
+  echo "Archive NFS absente ou ambiguë : arrêt"
+  exit 2
+}
+[[ "$(findmnt -n -o FSTYPE -T /dev/shm)" == tmpfs ]] || {
+  echo "tmpfs requis : arrêt"
+  exit 2
+}
+bash scripts/workstation/test-sops-usb-recovery.sh \
+  --backup "${archives[0]}" \
+  --usb-identity "/run/media/albandrieu/NABLA_ESCROW/age-escrow/recovery-identity.txt"
+SOPS_FIXTURE_CHECK
+```
+
+**Critère DONE du prochain jalon :** sortie
+`PASS: SOPS recovery with USB-backed escrow`,
+avec sortie 0, sans plaintext ni identité en journal.
+Il s'agira d'un aller-retour SOPS **synthétique**
+avec une identité réellement restaurée depuis
+la nouvelle copie, et non d'un déchiffrement
+de documents SOPS de production. Ne pas annoncer
+ce PASS avant réception de la preuve.
+
+**Risques restant ouverts :** la clé privée de
+récupération X25519 sur SanDisk est un point
+unique de défaillance tant que sa seconde copie
+indépendante n'est pas vérifiée ; les ACL effectives
+des répertoires NFS4 ne sont pas entièrement
+attestées. PIV82/PIV9A/OTP2, destinataires SOPS,
+KeePassXC et création d'une nouvelle copie NFS
+restent hors périmètre.
