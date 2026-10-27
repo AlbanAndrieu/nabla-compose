@@ -3,12 +3,19 @@
 BEGIN {
   found = 0
   emitted = 0
+  backend_found = 0
+  backend_servers = 0
 }
 $1 == "frontend" || $1 == "listen" || $1 == "backend" {
   active = ($1 == "frontend" && $2 == frontend)
+  backend_active = (backend_name != "" && $1 == "backend" && $2 == backend_name)
   if (active) {
     found = 1
     printf "frontend=%s line=%d\n", $2, NR
+  }
+  if (backend_active) {
+    backend_found = 1
+    printf "backend=%s line=%d\n", $2, NR
   }
   next
 }
@@ -43,11 +50,31 @@ active && $1 == "default_backend" {
   emitted++
   next
 }
+# Optional backend inspection prints ONLY named server and address/port.
+# Do not print full server lines: they can contain sensitive options.
+backend_active && $1 == "mode" {
+  if ($2 == "http" || $2 == "tcp") printf "backend_mode=%s\n", $2
+  next
+}
+backend_active && $1 == "server" {
+  backend_servers++
+  target = $3
+  if (length(target) > 160 || target ~ /[=@/?#]/) target = "<redacted>"
+  printf "backend_server=%s target=%s\n", $2, target
+  next
+}
 END {
   if (!found) {
     printf "ERROR: frontend '%s' not found; no ACL conclusion possible\n", frontend
     exit 3
   }
   printf "frontend_rules_sampled=%d\n", emitted
+  if (backend_name != "") {
+    if (!backend_found) {
+      printf "ERROR: backend '%s' not found; backend target unknown\n", backend_name
+      exit 4
+    }
+    if (!backend_servers) print "backend_target=NOT_OBSERVED"
+  }
   print "wan_rejection=NOT_VERIFIED (configuration sample only)"
 }
