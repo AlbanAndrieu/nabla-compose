@@ -61,10 +61,17 @@ def inventory(root: Path) -> dict:
                 "secrets_copied": False, "runtime_changed": False}
     rows = []
     for name, category in REVIEW.items():
-        # No content read for personal identities, private source lists, or topics.
+        # Refuse symlink path components (git-crypt repos can be untrusted).
+        # No content read for identities, private source lists, or topics.
         restricted = category in ("private_identity_do_not_publish",
                                   "review_private_sources", "review_private_topics")
-        status = file_state(root / name, inspect_magic=not restricted)
+        source = root / name
+        parents = list(source.parents)
+        parents = parents[:parents.index(root)] if root in parents else []
+        if any(part.is_symlink() for part in parents):
+            status = "unsafe_parent_symlink"
+        else:
+            status = file_state(source, inspect_magic=not restricted)
         rows.append({"role": name, "policy": category, "source_status": status,
                      "auto_publish": False})
     return {
