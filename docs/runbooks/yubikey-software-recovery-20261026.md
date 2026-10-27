@@ -1729,3 +1729,90 @@ des répertoires NFS4 ne sont pas entièrement
 attestées. PIV82/PIV9A/OTP2, destinataires SOPS,
 KeePassXC et création d'une nouvelle copie NFS
 restent hors périmètre.
+
+
+## Sauvegarde indépendante de l'identité privée age USB — mise en œuvre
+
+**Autorisation opérateur :** créer une sauvegarde **chiffrée avec
+une phrase secrète indépendante** de l'identité age privée X25519
+présente sur la SanDisk originale, puis conserver le ciphertext
+sur la workstation et TrueNAS.
+
+**Prérequis obligatoires :**
+- **Brancher physiquement la SanDisk de récupération d'origine**
+  sur la workstation, déjà déverrouillée et montée.
+- L'identité age USB a déjà passé ses contrôles LUKS2, ext4,
+  propriétaire, taille et mode `0600`.
+- Vérifier que le partage NFS attendu est monté et accessible.
+  **Ne pas créer une sauvegarde sur le disque local** en pensant
+  qu'il s'agit du partage TrueNAS.
+- Utiliser une phrase secrète **forte, nouvelle et indépendante**
+  de la SanDisk et du mot de passe LUKS ; la conserver dans
+  un coffre de mots de passe **récupérable sans cette SanDisk**.
+  Si `age -p` propose une phrase secrète aléatoire,
+  l'enregistrer immédiatement dans ce coffre.
+  Ne jamais la transmettre dans GitHub, ChatGPT, les logs
+  ou un argument de commande.
+
+**Protection apportée par le nouveau script :**
+`scripts/workstation/backup-usb-age-identity.py` n'ouvre
+le fichier d'identité USB qu'au moment de lancer
+`age -p` avec la source transmise via un descripteur
+de lecture seule. Il crée des **fichiers chiffrés**
+dans deux sous-dossiers privés distincts :
+
+- Workstation : `~/.local/share/nabla/usb-recovery-backups/`.
+- TrueNAS, via le NFS vérifié :
+  `/media/backup/lab/secret/usb-recovery-backups/`.
+
+Ces répertoires sont nouveaux, mode `0700`, fichiers
+mode `0600`, nom commun horodaté. Le script exige
+le NFS attendu, des fichiers réguliers sans symlink,
+deux systèmes de fichiers différents, une exécution
+**interactive** et l'acquittement explicite.
+Il chiffre **avant** de copier sur NFS ;
+il n'écrit jamais de clé en clair sur workstation/TrueNAS.
+Il contrôle égalité binaire et SHA-256 de **ces seuls
+ciphertexts**, puis publie sans écrasement.
+Un exemplaire existant ou un transfert incomplet
+requiert revue avant relance (aucun overwrite).
+
+```bash
+# 1. SanDisk d'origine PHYSIQUEMENT BRANCHÉE et montée.
+# 2. Contrôles synthétiques sans aucune identité privée :
+just yubikey-usb-identity-backup-test
+
+# 3. Préflight metadata-only, aucune création :
+just yubikey-usb-identity-backup-check
+
+# 4. Autorisation déjà donnée par l'opérateur pour la sauvegarde.
+#    Exécuter en terminal interactif ; age -p demande la phrase secrète.
+just yubikey-usb-identity-backup
+```
+
+**Critère d'écriture DONE, à vérifier avec la sortie opérateur :**
+`state=ENCRYPTED_LOCAL_AND_NFS_BACKUPS_IDENTICAL`,
+`encrypted_copy_local_and_nfs_verified=true`.
+La copie est **NOT_RUN** sur la workstation à la date
+de publication de cette procédure : seuls le script
+et les tests hermétiques sont livrés.
+
+**Critère de PRA définitif non encore satisfait :**
+tester la **restauration d'une copie chiffrée**
+avec la phrase secrète en l'absence de la SanDisk,
+dans un `/dev/shm` privé, comparer le destinataire
+age public restauré à la référence X25519,
+nettoyer le temporaire, puis vérifier une archive
+SOPS existante sans altérer les clés originales.
+Le contrôle de copie binaire seul ne prouve pas
+la capacité à retrouver la phrase secrète.
+
+**Ne pas confondre** les deux exemplaires identiques
+du ciphertext avec deux méthodes de récupération
+cryptographiquement indépendantes : ils nécessitent
+la **même phrase secrète externe**. Planifier des
+snapshots TrueNAS, puis une copie hors-ligne/offsite
+quand le stockage et le PRA sont validés.
+Ne pas relancer `--copy` de l'archive SOPS NFS
+existante. Aucun formatage, provisionnement PIV/OTP
+ou rotation SOPS n'est nécessaire ici.
