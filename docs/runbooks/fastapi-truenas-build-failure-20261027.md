@@ -82,6 +82,22 @@ De nouvelles règles reconnaissent les erreurs de Dockerfile absent ou invalide,
 
 Réexécuter la classification au HEAD de la branche #289, sans `sudo` (UID 1000) et transmettre uniquement le JSON. Si l'état reste `buildkit_generic_failure`, la prochaine action est une inspection **locale et privée** de l'erreur terminale avec l'opérateur, sans coller de ligne brute ni transmettre le journal ; l'étape `3/6` reste fermée pour tout redéploiement.
 
+## Dernière classification : échec générique sur le journal entier
+
+La nouvelle exécution du 27 octobre retourne toujours `state=buildkit_generic_failure`, `failure_stage=unknown`, `failure_operation=unknown`, `buildkit_failure_marker=true` et `raw_log_printed=false`, malgré les signatures supplémentaires. Le journal mesure **1324 octets** : il est lu intégralement. **Ne pas ajouter d'autres catégories au hasard.**
+
+Pour caractériser le message terminal sans publier son texte ni aucun secret, lancer uniquement la nouvelle option `--failure-shape` du classifieur **depuis le même UID 1000 propriétaire du log** :
+
+~~~bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/classify-fastapi-build-failure.py |
+  python3 - --check --failure-shape --log /tmp/tmp.ngofCbFlgw
+~~~
+
+La sortie est un JSON à champs fixes : `terminal_marker_style`, `terminal_keyword_codes` (seuls termes techniques d'une liste prédéfinie), `error_marker_count`, `numbered_error_count`, `buildkit_step_headers_present`, `ansi_escapes_present`. L'option est facultative et ne change pas le résultat standard du classifieur. Ne pas communiquer le journal, d'empreinte cryptographique du journal, d'extrait de commande, d'URL, ni de chemin provenant du journal. Si le diagnostic structurel ne suffit pas, la **lecture humaine de l'erreur doit rester locale à TrueNAS** : en communiquer uniquement une catégorie reformulée, non un extrait.
+
+Aucun appel Docker, aucune CI et aucun redéploiement ne font partie de cette opération.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
