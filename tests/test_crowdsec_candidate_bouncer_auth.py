@@ -25,7 +25,6 @@ class CandidateBouncerAuthTests(unittest.TestCase):
                 "CROWDSEC_CENTRAL_LAPI_URL": "http://127.0.0.1:8084",
                 "FAKE_CURL_CODE": str(http),
             })
-            env.pop("CROWDSEC_CURL_BIN", None)
             # stdin is consumed by the function, and no outbound request is
             # issued. No script is executed from the temporary directory.
             cmd = [
@@ -110,7 +109,7 @@ class CandidateBouncerAuthTests(unittest.TestCase):
 
     def test_transport_is_a_mock_not_a_live_localhost_probe(self):
         # Deliberately supply a localhost URL with no listening service.
-        # The injected executable must return its synthetic status directly.
+        # The Bash mock must return its synthetic status without network traffic.
         result = self.check_auth(
             "BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\n", http=403
         )
