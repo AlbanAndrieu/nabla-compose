@@ -212,6 +212,20 @@ yubikey-usb-identity-nfs4-acl-check:
 yubikey-usb-identity-nfs4-acl-probe:
     python3 scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py --probe --acknowledge INSPECT_NEW_USB_IDENTITY_BACKUP_NFS4_ACLS_READONLY
 
+# Hermetic TrueNAS mode-boundary checks; no actual server or ciphertext access.
+yubikey-usb-identity-server-modes-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-identity-backup-server-modes.py tests/test_usb_identity_backup_server_modes.py
+    python3 -m unittest discover -s tests -p 'test_usb_identity_backup_server_modes.py' -v
+
+# Metadata-only local readiness, no SSH and no original SanDisk.
+yubikey-usb-identity-server-modes-check:
+    python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --check
+
+# Strict read-only SSH evidence of server 0700/0600 and owner consistency.
+# No UID, GID, private paths, raw ACEs or ciphertext bytes printed.
+yubikey-usb-identity-server-modes-probe:
+    python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --probe --acknowledge INSPECT_USB_AGE_BACKUP_TRUENAS_MODES_READONLY
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
