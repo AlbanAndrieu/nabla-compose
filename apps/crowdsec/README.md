@@ -33,6 +33,10 @@ Bash** chargées dans le même interpréteur, sans mutation, sans Docker
 réel et sans exécutable dans `/tmp`. Une reproduction isolée confirme
 les trois parcours de vérification `--check` : inscription inutilisée,
 inscription utilisée (refus de rotation) et secret déjà présent.
+La suite du provisionneur complète, y compris le contrôle statique
+contre les mutations et la vérification du script, passe **5/5 tests**
+sur une copie locale isolée. Le contrôle statique a été corrigé pour
+ne plus s'auto-détecter dans son propre code.
 **La recette Just entière sur le nouveau HEAD reste à confirmer.**
 L'opération `--apply` n'est ni nécessaire ni autorisée par ce diagnostic ;
 le secret existant doit être conservé.
