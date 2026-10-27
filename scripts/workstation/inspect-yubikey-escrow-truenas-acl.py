@@ -188,7 +188,9 @@ def main(argv: list[str] | None = None) -> int:
     }, sort_keys=True))
     if args.check:
         return 0 if mount == "EXPECTED_NFS_EXPORT_MOUNTED" and filename else 3
-    return 0 if result["state"] in ALLOWED else 3
+    return 0 if result["state"] in ("ACL_NATIVE_REVIEW_REQUIRED",
+                                     "ACL_POTENTIAL_NONOWNER_DATA_ALLOW",
+                                     "ACL_TYPE_NOT_NFS4") else 3
 
 
 if __name__ == "__main__":
