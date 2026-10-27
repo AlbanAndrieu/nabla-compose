@@ -62,7 +62,7 @@ def test_system_dns_not_hidden_by_explicit_curl_resolve(
     assert proc.returncode == status, (proc.stdout, proc.stderr)
     assert signal in (proc.stdout + proc.stderr)
     assert "PASS: TLS certificate trusted" in proc.stdout
-    assert "172.17.0.24" in proc.stdout or status == 1
+    assert "PASS: private DNS points to TrueNAS edge" in proc.stdout
     if status:
         assert "FAIL: direct HTTPS works only with DNS override" in proc.stderr
 
