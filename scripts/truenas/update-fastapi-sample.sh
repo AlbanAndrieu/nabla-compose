@@ -307,7 +307,7 @@ dockerhub_client_auth_configured() {
     filter='
       (((.auths // {}) | to_entries) |
        any(.[]; (.key | test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i"))
-           and ((.value.auth // "") | length > 0)))
+           and (((.value.auth // .value.identitytoken // .value.identityToken // "") | length) > 0)))
       or (((.credHelpers // {}) | keys) |
        any(.[]; test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i")))
       or ((.credsStore // "") | length > 0)
