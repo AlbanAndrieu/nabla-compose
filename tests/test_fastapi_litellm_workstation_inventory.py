@@ -70,8 +70,34 @@ class ScopedWorkstationKeyInventoryTests(unittest.TestCase):
         self.assertEqual(fetch.call_args.kwargs["credential"], "sk-SYNTHETIC")
         with patch.dict(os.environ, {"LITELLM_MASTER_KEY": "sk-SYNTHETIC"}), \
              patch.object(mod, "fetch_json", return_value=(
-                "http_200", {"keys": [], "total": 0})):
+                "http_200", {"keys": [], "total_count": 0})):
             self.assertEqual(mod.alias_state(), "alias_absent_confirmed")
+
+    def test_nonstandard_admin_token_is_validated_by_proxy_not_prefix(self):
+        with patch.dict(os.environ, {"LITELLM_MASTER_KEY": "LOCAL-SYNTHETIC-MASTER"}), \
+             patch.object(mod, "fetch_json", return_value=(
+                "http_401", None)) as fetch:
+            result = mod.alias_state()
+        self.assertEqual(result, "key_list_http_401")
+        self.assertEqual(fetch.call_args.kwargs["credential"], "LOCAL-SYNTHETIC-MASTER")
+        with patch.dict(os.environ, {"LITELLM_MASTER_KEY": "LOCAL-SYNTHETIC-MASTER"}), \
+             patch.object(mod, "fetch_json", return_value=(
+                "http_200", {"keys": [], "total_count": 0})):
+            self.assertEqual(mod.alias_state(), "alias_absent_confirmed")
+
+    def test_header_injection_or_bearer_prefix_is_rejected_without_http(self):
+        for key in ("Bearer sk-SYNTHETIC", "with\nnewline", "with\rCR", "with\x00NUL"):
+            with self.subTest(label=repr(key)), \
+                 patch.dict(os.environ, {"LITELLM_MASTER_KEY": key}), \
+                 patch.object(mod, "fetch_json") as fetch:
+                self.assertEqual(mod.alias_state(), "admin_credential_invalid_transport")
+                fetch.assert_not_called()
+
+    def test_missing_total_count_cannot_confirm_absence(self):
+        with patch.dict(os.environ, {"LITELLM_MASTER_KEY": "sk-SYNTHETIC"}), \
+             patch.object(mod, "fetch_json", return_value=(
+                 "http_200", {"keys": [], "total": 0})):
+            self.assertEqual(mod.alias_state(), "alias_unverified_not_confirmed_absent")
 
     def test_alias_present_returns_fixed_state_only(self):
         value = {"key_alias": mod.ALIAS, "key": "sk-DO-NOT-PRINT"}
