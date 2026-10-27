@@ -101,6 +101,44 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
+## Réception DNSSEC privé — NTA runtime PASS, persistance par lien à valider
+
+**Réception opérateur (27/10, workstation) :**
+`just workstation-dnssec-nta-test` **10/10 PASS**.
+Avant NTA, `validated_private=UNVERIFIED (5,0 s)`.
+Après le `--apply` explicitement lancé :
+`runtime_applied=true`, `validated_private=A_CONFIRMED (0,2 s)`,
+`resolvectl query -4 defectdojo.int.albandrieu.com`
+**33,4 ms** et `getent ahostsv4` retourne
+`172.17.0.24`. `cloudflare.com` : **43,1 ms,
+DNSSEC authenticated=yes**, attestant que la
+validation publique reste active pour ce domaine.
+`just workstation-nss-path` : **PASS**, mais NSS
+par défaut **4,8 s** malgré les sondes DNS forcées
+immédiates ; optimisation NSS toujours ouverte.
+
+**Prochaine action P0 :** pérenniser la NTA uniquement
+pour `eno1` et le profil `Wired eno1`, sans étendre
+l'exception aux VPN. La [PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+contient désormais un dispatcher NetworkManager
+**opt-in false par défaut**, avec rollback indépendant,
+déclenché seulement pour `up`/`dhcp4-change`/`reapply`.
+Il contrôle le DNS pfSense `172.17.0.1` et le
+routage `~int.albandrieu.com`. La solution initiale
+fichier `.negative` global est **déconseillée**
+pour un poste avec VPN, car elle affecte toutes
+les interfaces ; elle demeure inactive par défaut.
+
+**Validation restante :** exécuter les
+**13 tests offline** du dispatcher Ansible
+(nouveaux, non encore exécutés), vérifier la
+liste des tâches tagguées `dns`, déployer
+seulement après opt-in, réappliquer le lien
+et vérifier DNS privé, DNSSEC public et
+restauration après reboot. Aucun apply
+Ansible ni restart pfSense/TrueNAS effectué.
+[Runbook inter-dépôts](runbooks/workstation-split-dns-recovery.md).
+
 ## P0 — Private split-DNS DNSSEC NTA experiment (27/10)
 
 **Diagnostic confirmé sur deux cycles (workstation) :**
@@ -279,7 +317,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | **ACCEPTED en runtime LAN** : TrueNAS login/HTTPS/TLS/Traefik déjà validés, interface Chrome fonctionnelle ; split-DNS `Wired eno1` persistant dans NetworkManager, `hide-location` timer/service disabled, `just workstation-split-dns-test` **16/16 PASS**, réparation explicite et contrôles suivants **diagnosis=PASS**, pfSense UDP/TCP `A_CONFIRMED`, TCP direct **27 ms** | **Post-reboot NOT_VERIFIED**, variabilité NSS `14s FAIL → 2s PASS → 5,2s PASS` à investiguer si répétée, antécédent UDP/53 timeout ponctuel non reproduit. Secrets Django/runtime/Vaultwarden encore DRIFT ; [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) Draft, code non déployé |
+| H-03 | DefectDojo | **ACCEPTED runtime LAN** : TLS/Traefik/Chrome, workstation split-DNS persistent NM ; **NTA par lien `eno1` runtime appliquée avec succès**, nom privé validé sans bypass (33,4 ms), `getent` répond, DNSSEC public `cloudflare.com` authentifié (43,1 ms), **10/10 tests NTA PASS** | **Persistence de NTA après reboot NON VALIDÉE** : dispatcher NM opt-in dans [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15), 13 tests offline à recevoir puis apply ciblé ; NSS défaut encore **4,8s** malgré DNS forcé rapide ; synchronisation des secrets Django/Vaultwarden séparée |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
