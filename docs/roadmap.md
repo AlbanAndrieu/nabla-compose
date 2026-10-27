@@ -202,6 +202,20 @@ n'est disponible.
 | H-03 | DefectDojo | **Preuve plus récente 26/10 :** frontend/uWSGI RUNNING ; DNS privé/HTTPS TLS vérifiés ; depuis workstation, `curl --location` retourne `http=200 redirects=1 tls=0` | **Transport + page HTTP accessibles** ; authentification Django et parcours utilisateur **NOT_VERIFIED**. Aucun redeploy nécessaire à cette preuve |
 | H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS ; comparaison réelle 00:40:15→00:40:22 validée, PID 2611 stable et hashes MATCH**. | **P0 :** nouvelle sonde DNS LAN bornée dans PR #285 (73/73 tests déclarés PASS par opérateur avant les derniers changements ; nouvelle gate de 18 tests LAN à exécuter localement) ; capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; précontrôler DNS split valide et mesurer 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
 
+**H-03 / reprise du compte admin (27/10, PR #289) :** la preuve récente
+`DEPLOYING` / uWSGI non disponible ne doit pas être effacée par
+l'ancien HTTP 200 du 26/10. Le compte Django historique `admin` existe
+au dernier inventaire, mais `DD_ADMIN_USER=DRIFT` et
+`DD_ADMIN_PASSWORD=UNVERIFIED` dans la comparaison Vaultwarden.
+**Voie courte retenue :** lorsque `defectdojo-uwsgi` est `running`,
+utiliser `sudo docker exec -it defectdojo-uwsgi python manage.py changepassword admin`
+dans un TTY privé, puis mettre à jour l'entrée Vaultwarden existante
+et tester le login. Si uWSGI est absent, lancer les diagnostics
+`diagnose-defectdojo-deploying.py` et
+`diagnose-defectdojo-postgres-waits.py` ; pas de DROP DB ni de
+redéploiement répété. **RUNTIME / LOGIN NOT_VERIFIED.**
+[Procédure courte](runbooks/defectdojo-admin-access-recovery.md).
+
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
   `diagnose-openrag-dependencies.sh --check` et
