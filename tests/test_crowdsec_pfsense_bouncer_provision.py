@@ -23,26 +23,47 @@ class ProvisionUnusedBouncerTests(unittest.TestCase):
             if existing_file:
                 secrets.write_text("BOUNCER_KEY_PFSENSE_FIREWALL=EXISTING_SECRET\n")
                 secrets.chmod(0o600)
-            docker = tmp / "docker"
-            docker.write_text(
-                "#!/bin/sh\n"
-                "case \"$1\" in\n"
-                "  inspect) echo healthy ;;\n"
-                "  exec)\n"
-                "    if [ \"$5\" != list ]; then echo 'MUTATION_REQUESTED' >&2; exit 9; fi\n"
-                "    printf '%s\\n' \"$FAKE_REGISTRATIONS\" ;;\n"
-                "  *) echo 'UNEXPECTED_DOCKER_ACTION' >&2; exit 9 ;;\n"
-                "esac\n",
-                encoding="utf-8",
-            )
-            docker.chmod(0o700)
+            # The original external Docker fake fails on TrueNAS mounts
+            # that disallow executing temporary files. Use shell functions
+            # in the Bash interpreter which sources the unchanged script.
+            # Stub timeout too: an external timeout cannot invoke a function.
+            mock = """docker() {
+  case "$1" in
+    inspect)
+      [[ "$#" == 4 && "$2" == crowdsec && "$3" == --format ]] || {
+        printf 'UNEXPECTED_DOCKER_INSPECT\\n' >&2; return 9;
+      }
+      printf 'healthy\\n'
+      ;;
+    exec)
+      [[ "$#" == 7 && "$2" == crowdsec && "$3" == cscli &&
+         "$4" == bouncers && "$5" == list && "$6" == -o &&
+         "$7" == json ]] || {
+        printf 'MUTATION_REQUESTED\\n' >&2; return 9;
+      }
+      printf '%s\\n' "$FAKE_REGISTRATIONS"
+      ;;
+    *) printf 'MUTATION_REQUESTED\\n' >&2; return 9 ;;
+  esac
+}
+timeout() {
+  [[ "$#" -ge 3 && ( "$1" == 10 || "$1" == 12 ) &&
+     "$2" == docker ]] || {
+    printf 'UNEXPECTED_TIMEOUT\\n' >&2; return 9;
+  }
+  shift 2
+  docker "$@"
+}
+script="$1"
+shift
+source "$script" "$@"
+"""
             env = os.environ.copy()
-            env["PATH"] = directory + os.pathsep + env["PATH"]
             env["CROWDSEC_SECRET_FILE"] = str(secrets)
             value = "null" if last_pull is None else '"' + last_pull + '"'
             env["FAKE_REGISTRATIONS"] = '[{"name":"PFSENSE_FIREWALL","last_pull":' + value + '}]'
             return subprocess.run(
-                ["bash", str(SCRIPT), "--check"],
+                ["bash", "-c", mock, "crowdsec-docker-mock", str(SCRIPT), "--check"],
                 text=True, capture_output=True, cwd=ROOT,
                 env=env, timeout=8,
             )
@@ -63,6 +84,13 @@ class ProvisionUnusedBouncerTests(unittest.TestCase):
         r = self.run_check(existing_file=True)
         self.assertEqual(r.returncode, 0)
         self.assertIn("credential_state=EXISTS", r.stdout)
+
+    def test_check_mode_never_executes_external_docker(self):
+        source = Path(__file__).read_text(encoding="utf-8")
+        self.assertIn('source "$script" "$@"', source)
+        self.assertIn('"$2" == docker', source)
+        self.assertIn("MUTATION_REQUESTED", source)
+        self.assertNotIn('docker = tmp / "docker"', source)
 
     def test_apply_requires_root_and_explicit_mode(self):
         source = SCRIPT.read_text(encoding="utf-8")
