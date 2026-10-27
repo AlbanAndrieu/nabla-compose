@@ -16,6 +16,7 @@ import stat
 import subprocess
 import sys
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -131,6 +132,47 @@ def require_workstation_litellm() -> None:
         raise ValueError("Workstation LiteLLM container not verified")
 
 
+def valid_admin_credential(value: str) -> bool:
+    """Validate safe HTTP header transport, never infer auth from a sk- prefix."""
+    return (bool(value) and bool(value.strip()) and len(value) <= 4096
+            and not value.startswith("Bearer ")
+            and not any(ch in value for ch in (chr(13), chr(10), chr(0))))
+
+
+def require_absent_key_alias(endpoint: str, alias: str, master: str) -> None:
+    """Read-only management auth + duplicate guard before POST /key/generate.
+
+    Never print or persist the admin list response. Ambiguity blocks writes.
+    """
+    query = urlencode({
+        "key_alias": alias, "return_full_object": "true",
+        "size": "20", "page": "1",
+    })
+    url = endpoint + "/key/list?" + query
+    request = Request(url, method="GET", headers={
+        "Accept": "application/json",
+        "Authorization": "Bearer " + master,
+    })
+    with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=8) as response:
+        if response.status != 200 or response.geturl() != url:
+            raise ValueError("admin listing transport not verified")
+        raw = response.read(262144 + 1)
+        if len(raw) > 262144:
+            raise ValueError("admin listing response oversized")
+        data = json.loads(raw)
+    if not isinstance(data, dict) or not isinstance(data.get("keys"), list):
+        raise ValueError("admin listing schema unverified")
+    keys = data["keys"]
+    if (len(keys) > 20 or
+            any(not isinstance(item, dict) for item in keys)):
+        raise ValueError("admin listing schema unverified")
+    if any(item.get("key_alias") == alias for item in keys):
+        raise ValueError("alias exists: refusing duplicate generation")
+    # Only exact-alias query with explicit total_count=0 proves absence.
+    if keys or data.get("total_count") != 0:
+        raise ValueError("alias absence not proven")
+
+
 def provision(policy: dict, target: str, output: Path, *,
               endpoint_override: str | None = None) -> None:
     """Reserve the secret destination before calling /key/generate."""
@@ -139,13 +181,16 @@ def provision(policy: dict, target: str, output: Path, *,
     if endpoint not in ("http://127.0.0.1:4000", "http://127.0.0.1:14000"):
         raise ValueError("proxy management endpoint must remain loopback")
     master = os.getenv(entry["master_env"], "")
-    if not master.startswith("sk-"):
-        raise ValueError("dedicated proxy administrator secret missing")
+    if not valid_admin_credential(master):
+        raise ValueError("dedicated proxy administrator credential unavailable")
     if os.geteuid() == 0:
         raise ValueError("must run as the unprivileged operator on the selected host")
     verify_directory(output.parent)
     output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     verify_directory(output.parent)
+    # Do not POST unless the proxy authenticates this admin and certifies
+    # the scoped alias is absent in its own database.
+    require_absent_key_alias(endpoint, entry["key_alias"], master)
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(output, flags, 0o600)
     created = False
