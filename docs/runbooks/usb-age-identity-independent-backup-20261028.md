@@ -199,6 +199,40 @@ restent nécessaires pour une garantie d'autorisation effective.
 Aucun `chmod`, `chown`, `setacl`, `midclt filesystem.setacl`,
 changement ZFS ou restauration de secret n'est autorisé.
 
+### Vérification complémentaire des modes sur le serveur — à exécuter
+
+Un contrôle dédié, sans relancer la sauvegarde, vérifie la barrière des
+**modes Unix effectifs sur TrueNAS**. Il interroge uniquement `lstat`
+sur des chemins fixes, par SSH strict, sans extraire d'ACE :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just yubikey-usb-identity-server-modes-test
+just yubikey-usb-identity-server-modes-check
+just yubikey-usb-identity-server-modes-probe
+```
+
+Conditions attendues côté **serveur** :
+- `nfs_export` : répertoire présent ;
+- `secret_directory` : mode `0700` ;
+- `backup_directory` : mode `0700` ;
+- `encrypted_archive` : mode `0600`, fichier régulier non lié ;
+- même propriétaire numérique pour les **trois éléments sensibles**,
+  sans afficher UID/GID.
+
+Le contrôle ne lit pas les octets de l'archive, ni la clé USB, ni la
+phrase secrète. Résultat attendu : `MODE_BOUNDARY_OBSERVED` et
+`private_mode_boundary_observed=true`. Dans tous les cas,
+`effective_nfs4_authorization_verified=false` et
+`nfs_identity_mapping_verified=false`. Un échec ne déclenche aucune
+correction automatique des ACL.
+
+**État du nouveau contrôle :** script, tests et recettes ajoutés à la
+PR #289 ; tests workstation et sondes réelles **NOT_RUN**, en attente
+de preuve opérateur. Le contrôle d'inventaire précédent reste acquis
+avec son avertissement au niveau export.
+
 Référence : [TrueNAS SCALE 26 — ACL](https://www.truenas.com/docs/scale/26/datasets/permissions/configuringacls/).
 
 **Ne pas relancer `--backup` :** les archives existent et le script refuse
