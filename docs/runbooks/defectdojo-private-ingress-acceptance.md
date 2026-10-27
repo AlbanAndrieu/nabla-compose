@@ -1,5 +1,17 @@
 # DefectDojo private ingress — acceptance after PR #257
 
+**DNS privé workstation (référence inter-dépôts pour les agents) :**
+[workstation-split-dns-recovery.md](workstation-split-dns-recovery.md),
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+Le split-DNS persistant est possédé par ansible-workstation ;
+ce dépôt possède seulement le diagnostic/rattrapage local
+(`just workstation-split-dns-check`, `-test`, `-repair`).
+Après réparation du drift Quad9, une requête DNS directe
+vers pfSense en UDP/53 a également expiré, malgré
+un `resolvectl query` réussi en 11,5 s : mesurer UDP et TCP
+séparément, ne pas classer cette latence comme une panne Traefik.
+
+
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
 ## Nouvelle régression DNS observée — 27 octobre, 21:27 CET
