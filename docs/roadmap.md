@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **26 octobre 2026**. Source d'autorité pour le travail restant
+> Mise à jour : **27 octobre 2026**. Source d'autorité pour le travail restant
 > dans `nabla-compose`. Ce document décrit des **décisions et gates**,
 > pas une preuve de fonctionnement des services.
 >
@@ -8,6 +8,35 @@
 > est conservé, octet pour octet (blob Git identique à l'ancien `docs/roadmap.md`).
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
+
+## P0 CrowdSec pfSense Small — état du 27 octobre (preuve la plus récente)
+
+- **DONE — runtime central :** TrueNAS CrowdSec 1.8.1 healthy ;
+  LAPI LAN :8084, métriques :6060, acquisition Loki pfSense confirmée
+  (`cs_lokisource_hits_total=940`), scénario
+  `firewallservices/pf-scan-multi_ports` désactivé, secret `0600`.
+- **DONE — connectivité/remédiateur :** moteur local pfSense arrêté,
+  bouncer firewall actif et authentifié sur TrueNAS. La liste centrale
+  distingue le probe `curl` `PFSENSE_FIREWALL` de TrueNAS
+  (`172.17.0.24`, 21:46:28Z) du vrai bouncer
+  `PFSENSE_FIREWALL@172.17.0.1` (`172.17.0.1`,
+  `crowdsec-firewall-bouncer`, 22:35:27Z).
+- **P0 ouvert — application/révocation PF :** 0 décision centrale active ;
+  4 074 entrées historiques observées en PF. Il faut attester une
+  **même nouvelle IP** dans LAPI puis PF, et sa disparition des deux
+  couches. Ne pas attribuer les tables historiques à la LAPI centrale.
+- **Gates dans la PR #289 :** `diagnose-crowdsec-cutover.sh --accept`
+  exige maintenant une provenance pfSense IP + User-Agent et refuse
+  le `last_pull` de `curl` comme preuve. Tests hermétiques intégrés à
+  `just crowdsec-bouncer-config-test`, **exécution sur le dernier
+  HEAD non encore attestée**. [Runbook PF](runbooks/crowdsec-pfsense-decision-provenance.md).
+- **P0 ingress inchangé :** refus explicites HAProxy pour S3,
+  ses sous-domaines et Vault ; retirer le DNS public S3, contrôler
+  Cloudflare Tunnel/Access et PF/NAT depuis WAN indépendant.
+
+Les passages historiques ci-dessous signalant un cutover « bloqué »
+décrivent des états **antérieurs** et sont supplantés par cette section.
+Ne pas réémettre de clé et ne pas relancer le provisionneur `--apply`.
 
 ## Dépendance inter-dépôts : DNS privé de la workstation
 
