@@ -30,13 +30,37 @@ sortie brute. Il refuse un ID ou un nom de job différent.
 Un code de sortie 2 signifie que l'argument reste invalide, absent
 ou que l'état runtime n'est pas vérifiable. Il **ne modifie pas** le job.
 
-États attendus : `invalid_top_range` si le prompt contient
-littéralement `--top 3-5`, `valid_top_five` s'il contient
-`--top 5`, `no_explicit_top_argument` si la plage est formulée
-seulement en langage naturel. Une instruction en langage naturel
-(« top 3-5 ») peut produire la même erreur sans être détectée comme
-argument littéral ; le préflight ne prétend pas auditer les décisions
-du modèle.
+### Résultat réel Workstation (27 octobre)
+
+- `openclaw-digest-top-test` : **8/8 PASS** sur la première version.
+- `cron_job_read=structured` : le job exact a été retrouvé.
+- `digest_top_argument=no_explicit_top_argument` :
+  le prompt stocké **n'a pas** d'option littérale `--top`.
+- `openclaw-digest-top-check` a quitté avec le code **2 par prudence**.
+  Ce n'est ni un échec du Gateway ni une preuve de quota atteint.
+- Aucun job modifié ; aucune inférence exécutée.
+
+**Analyse :** le message d'erreur rapporte que l'agent a invoqué
+`summarize-merged.py` avec un intervalle, mais cet argument n'était
+pas littéralement présent dans sa définition de tâche. Une consigne
+en langage naturel ou une décision de l'agent au moment de l'exécution
+peut donc expliquer l'erreur ; le prompt complet n'a pas été publié,
+donc le mécanisme exact n'est pas attesté.
+
+**Durcissement du préflight dans cette PR :** classification
+`natural_language_top_range` lorsque « 3-5 » ou « 3–5 » est
+présent en texte sans `--top`, `no_explicit_top_argument` lorsque
+l'option manque sans cette plage, `ambiguous_mixed_top_guidance`
+lorsqu'un `--top 5` coexiste avec une plage contradictoire,
+`invalid_top_range` pour un `--top` explicitement invalide, et
+`valid_top_five` uniquement pour un `--top 5` isolé et cohérent.
+La sortie reste expurgée. Le code 2 pour les autres cas est **prévu**
+(fail closed). Les nouveaux contrats doivent encore être exécutés
+localement.
+
+Il s'agit d'une analyse **statique des instructions** : même une
+sortie `valid_top_five` ne garantit pas que le modèle invoquera
+réellement la commande attendue.
 
 ## Correction minimale du job existant
 
@@ -44,13 +68,14 @@ Dans **OpenClaw → Automations / Cron → daily-tech-news-digest → Edit** :
 
 1. Conserver la cadence, le fuseau, le modèle `litellm-cron/gpt-4.1-mini`
    et la destination de livraison.
-2. Dans **les instructions de la tâche**, remplacer toute commande
-   `summarize-merged.py --top 3-5` par
-   `summarize-merged.py --top 5`.
-3. Ajouter une contrainte explicite : « `--top` accepte seulement
-   un entier. Utiliser `--top 5`. Ne jamais transmettre `3-5`.
-   Si la génération échoue, signaler l'erreur et ne pas présenter
-   un résumé vide comme une réussite. »
+2. Conserver les chemins, sources et autres options de la tâche ;
+   imposer **la commande `summarize-merged.py` avec `--top 5`**.
+   Ne pas remplacer le prompt complet par cette instruction seule.
+3. Ajouter une contrainte explicite : « Pour `summarize-merged.py`,
+   passer exactement un nombre entier à `--top` : utiliser
+   `--top 5`. Ne jamais remplacer ce nombre par une plage.
+   Si la génération échoue, signaler l'échec ; une livraison du message
+   d'erreur ne constitue pas une synthèse réussie. »
 4. Enregistrer uniquement les instructions, puis exécuter
    `just openclaw-digest-top-check` de nouveau.
 
