@@ -738,3 +738,23 @@ Le résultat réel reste
 Maintenir `NO-GO` pour la restauration de la
 copie NFS du 27/10, les mutations PIV/SOPS
 et toute duplication supplémentaire de l'archive.
+
+
+## SanDisk USB reconnectée — contrôle de métadonnées à suivre
+
+Le 27 octobre, l'opérateur a reconnecté physiquement le support de
+récupération d'origine. Le diagnostic lecture seule confirme
+`ESCROW_LUKS_UNLOCKED_MOUNTED` et la présence du lien UUID attendu.
+Rappeler systématiquement de **brancher le support USB physique**
+avant de rechercher son UUID.
+
+Prochain gate de la PR #289 :
+`just yubikey-escrow-usb-identity-test`, puis
+`just yubikey-escrow-usb-identity-check`.
+Ces commandes vérifient les métadonnées du support et
+de l'identité de récupération sans lire la clé ni déchiffrer
+l'archive. Treize tests nouveaux sont à valider sur workstation.
+
+Les copies chiffrées restent vérifiées. La restauration depuis
+la nouvelle copie NFS, les modifications matérielles et toute
+rotation des destinataires restent suspendues.
