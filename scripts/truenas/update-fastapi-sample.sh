@@ -300,12 +300,25 @@ dockerhub_429_in_log() {
         >/dev/null 2>&1 <<<"${classification}"
 }
 
-# Presence of a client config is only a hint; it does NOT prove login validity.
-docker_client_config_present() {
+# Check only a Docker Hub credential declaration in the selected client context.
+# Never print credential bytes. Credential helpers may still be unavailable.
+dockerhub_client_auth_configured() {
+    local filter
+    filter='
+      (((.auths // {}) | to_entries) |
+       any(.[]; (.key | test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i"))
+           and ((.value.auth // "") | length > 0)))
+      or (((.credHelpers // {}) | keys) |
+       any(.[]; test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i")))
+      or ((.credsStore // "") | length > 0)
+    '
     if [[ "${DOCKER[0]}" == sudo ]]; then
-        sudo -H sh -c 'test -s "$HOME/.docker/config.json"'
+        sudo -H sh -c 'test -s "$HOME/.docker/config.json"' &&
+            sudo -H jq -e "${filter}" /root/.docker/config.json >/dev/null 2>&1
     else
-        test -s "${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+        local config="${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+        [[ -s "${config}" ]] &&
+            jq -e "${filter}" "${config}" >/dev/null 2>&1
     fi
 }
 
@@ -321,12 +334,12 @@ guard_dockerhub_base_build() {
     if [[ "${REFRESH_BASE_IMAGES}" == false ]] &&
         run_docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
         summary_ok "Python Docker base image present in selected daemon cache"
-    elif docker_client_config_present; then
-        summary_warn "Python base image absent; Docker client config exists but authentication is NOT verified."
+    elif dockerhub_client_auth_configured; then
+        summary_warn "Python base image absent; a Docker Hub credential declaration exists but authentication is NOT verified."
     elif [[ "${ALLOW_ANONYMOUS_BASE_PULL}" == true ]]; then
         summary_warn "Anonymous Docker Hub base image access explicitly allowed; rate limits may recur."
     else
-        fail "Python base image absent and selected Docker client has no config; refusing anonymous Docker Hub request. Authenticate the selected client or explicitly set FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL=true."
+        fail "Python base image absent and selected Docker client has no Docker Hub credential declaration; refusing anonymous Docker Hub request. Authenticate the selected client or explicitly set FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL=true."
     fi
     if [[ "${REFRESH_BASE_IMAGES}" == true ]]; then
         summary_warn "Base-image refresh requested; additional registry requests may count toward quota."
