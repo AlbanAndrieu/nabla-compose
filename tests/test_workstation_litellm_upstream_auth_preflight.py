@@ -46,6 +46,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                     "LITELLM_IDE_API_KEY": "present",
                     "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
              contextlib.redirect_stdout(io.StringIO()) as capture:
             code = mod.main(["--check"])
         output = capture.getvalue()
@@ -63,6 +64,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         with patch.object(mod, "check_container", return_value={
                 "container": "observed", "key_presence": keys}), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
              contextlib.redirect_stdout(io.StringIO()) as captured:
             code = mod.main(["--check"])
         self.assertEqual(code, 2)
@@ -79,12 +81,21 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
             "container": "unavailable", "key_presence": "unverified"}),
             "unverified")
 
+    def test_litellm_sdk_fingerprint_returns_only_semver(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=0, stderr=b"", stdout=b"1.106.4\n")):
+            self.assertEqual(mod.check_sdk_version(), "1.106.4")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=0, stderr=b"", stdout=b"SECRET value\n")):
+            self.assertEqual(mod.check_sdk_version(), "unverified")
+
     def test_unreachable_proxy_blocks_green_result(self):
         with patch.object(mod, "check_container", return_value={
                     "container": "observed", "key_presence": {
                         "LITELLM_IDE_API_KEY": "present",
                         "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
              patch.object(mod, "check_liveliness", return_value="unavailable"), \
+             patch.object(mod, "check_sdk_version", return_value="unverified"), \
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(mod.main(["--check"]), 2)
 
