@@ -136,6 +136,66 @@ def buildkit_failure_context(content: str) -> dict[str, object]:
     }
 
 
+# Fixed public vocabulary only; matches are evaluated on the final error marker,
+# not arbitrary successful build steps. Never output source words or line content.
+TERMINAL_TERMS = (
+    "sender", "receiver", "frontend", "solver", "vertex", "llb", "snapshotter",
+    "containerd", "daemon", "buildx", "worker", "driver", "grpc", "rpc",
+    "manifest", "registry", "repository", "image", "digest", "blob",
+    "overlay", "mount", "snapshot", "filesystem", "directory", "path",
+    "network", "proxy", "connection", "certificate", "timeout", "tls", "dns",
+    "dependency", "package", "python", "git", "uv", "pip", "apt",
+    "permission", "access", "unauthorized", "denied", "forbidden",
+    "configuration", "compose", "dockerfile", "argument", "option",
+    "invalid", "unsupported", "unknown", "missing", "unexpected",
+    "cache", "export", "import", "unavailable", "closed",
+    "sender", "handshake", "context", "request", "response",
+)
+TERMINAL_TERMS = tuple(dict.fromkeys(TERMINAL_TERMS))
+
+
+def failure_shape(content: str) -> dict[str, object]:
+    """Fingerprint the terminal error using *only* a finite public vocabulary."""
+    lines = content[-READ_TAIL_BYTES:].splitlines()
+    markers = []
+    for line in lines:
+        if re.search(
+            r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR:",
+            line, flags=re.I,
+        ):
+            markers.append(line)
+    terminal = markers[-1] if markers else ""
+    if re.search(r"failed to solve:", terminal, flags=re.I):
+        style = "solve"
+    elif re.match(r"^#[0-9]{1,5} ERROR:", terminal):
+        style = "numbered"
+    elif re.search(r"error response from daemon:", terminal, flags=re.I):
+        style = "daemon"
+    elif re.match(r"^ERROR:", terminal, flags=re.I):
+        style = "plain_error"
+    else:
+        style = "none"
+
+    # Only code literals taken from TERMINAL_TERMS can appear in the output.
+    codes = [
+        term for term in TERMINAL_TERMS
+        if re.search(r"\b" + re.escape(term) + r"\b", terminal, flags=re.I)
+    ]
+    return {
+        "terminal_marker_style": style,
+        "terminal_keyword_codes": codes,
+        "error_marker_count": min(len(markers), 100),
+        "numbered_error_count": min(
+            sum(bool(re.match(r"^#[0-9]{1,5} ERROR:", line)) for line in lines), 100
+        ),
+        "buildkit_step_headers_present": any(
+            bool(re.match(r"^#[0-9]{1,5} \[", line)) for line in lines
+        ),
+        "ansi_escapes_present": "\x1b[" in content,
+        "raw_log_printed": False,
+    }
+
+
 def classify(content: str) -> dict[str, object]:
     """Return only fixed error categories; all free-form text is discarded."""
     # Truncate before regex, to protect the diagnostic itself under pressure.
@@ -161,7 +221,7 @@ def classify(content: str) -> dict[str, object]:
     }
 
 
-def check(path: str) -> dict[str, object]:
+def check(path: str, *, include_failure_shape: bool = False) -> dict[str, object]:
     content, status = private_tail(path)
     if content is None:
         return {
@@ -171,6 +231,8 @@ def check(path: str) -> dict[str, object]:
             "raw_log_printed": False,
         }
     result = classify(content)
+    if include_failure_shape:
+        result.update(failure_shape(content))
     return {"component": "fastapi_truenas_build",
             "raw_log_printed": False, **result}
 
@@ -179,8 +241,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True)
     parser.add_argument("--log", required=True, help="Private /tmp/tmp.* from failed build")
+    parser.add_argument("--failure-shape", action="store_true", help="Only fixed-code terminal error metadata; no raw text")
     args = parser.parse_args(argv)
-    print(json.dumps(check(args.log), sort_keys=True))
+    print(json.dumps(check(args.log, include_failure_shape=args.failure_shape), sort_keys=True))
     return 0
 
 
