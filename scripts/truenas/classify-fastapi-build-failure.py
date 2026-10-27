@@ -44,6 +44,7 @@ RULES = (
     Rule("compose_service_invalid", r"no such service:|invalid compose project|service [^\r\n]{0,120} has neither an image nor a build context", "check_compose_target_service_readonly"),
     Rule("image_reference_invalid", r"invalid reference format|invalid tag [^\r\n]{0,120}|manifest unknown|manifest not found|pull access denied", "check_image_reference_or_manifest_readonly"),
     Rule("buildkit_cache", r"failed to load cache key|failed to export cache|failed to import cache|failed to prepare extraction snapshot", "check_builder_cache_state_readonly"),
+    Rule("registry_request_failure", r"unexpected status from (?:HEAD|GET|POST|PUT) request", "inspect_registry_request_status_and_image_cache_readonly"),
     Rule("buildkit_generic_failure", r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR: failed to build", "inspect_buildkit_failure_privately"),
 )
 LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9_-]{6,20}\Z")
@@ -106,12 +107,14 @@ def buildkit_failure_context(content: str) -> dict[str, object]:
         step_id = failure_ids[-1]
         headers = re.findall(
             r"(?m)^#" + re.escape(step_id)
-            + r" \[(dependency-metadata|builder|production)(?: [0-9]+/[0-9]+)?\] ([^\r\n]{0,512})",
+            + r" \[(dependency-metadata|builder|production|internal)(?: [0-9]+/[0-9]+)?\] ([^\r\n]{0,512})",
             content,
         )
         if headers:
             stage, command = headers[-1]
-            if re.search(r"\buv sync\b", command):
+            if re.match(r"^load metadata for\b", command):
+                operation = "image_metadata"
+            elif re.search(r"\buv sync\b", command):
                 operation = "uv_sync"
             elif re.search(r"\bapt-get\b", command):
                 operation = "apt"
@@ -154,6 +157,48 @@ TERMINAL_TERMS = (
 TERMINAL_TERMS = tuple(dict.fromkeys(TERMINAL_TERMS))
 
 
+def registry_request_details(terminal: str) -> dict[str, object]:
+    """Expose only fixed enums and a bounded HTTP code, never registry URLs."""
+    context = {
+        "registry_provider": "unknown",
+        "registry_image": "unknown",
+        "registry_request_method": "unknown",
+        "registry_http_status": None,
+        "registry_http_class": "unknown",
+    }
+    match = re.search(
+        r"\b(HEAD|GET|POST|PUT)\s+request\b", terminal, flags=re.I
+    )
+    if not match or not re.search(r"\bunexpected\s+status\s+from\b", terminal, re.I):
+        return context
+    context["registry_request_method"] = match.group(1).upper()
+    # Match fixed known hosts/repositories; do not output the raw URL or tag.
+    if re.search(r"(?:registry-1\.docker\.io|docker\.io)/", terminal, re.I):
+        context["registry_provider"] = "docker_hub"
+    elif re.search(r"ghcr\.io/", terminal, re.I):
+        context["registry_provider"] = "github_container_registry"
+    if re.search(r"/library/python(?:/|:)", terminal, re.I):
+        context["registry_image"] = "official_python"
+    # The status must follow a colon and conclude the terminal error,
+    # optionally followed by a simple HTTP reason phrase.
+    code_match = re.search(
+        r":\s*([45][0-9]{2})(?:\s+[A-Za-z][A-Za-z -]{0,80})?\s*$",
+        terminal,
+    )
+    if code_match:
+        status = int(code_match.group(1))
+        context["registry_http_status"] = status
+        context["registry_http_class"] = (
+            "rate_limited" if status == 429
+            else "authorization" if status in (401, 403)
+            else "not_found" if status == 404
+            else "timeout" if status == 408
+            else "upstream_or_proxy_error" if status >= 500
+            else "other_client_error"
+        )
+    return context
+
+
 def failure_shape(content: str) -> dict[str, object]:
     """Fingerprint the terminal error using *only* a finite public vocabulary."""
     lines = content[-READ_TAIL_BYTES:].splitlines()
@@ -182,6 +227,7 @@ def failure_shape(content: str) -> dict[str, object]:
         if re.search(r"\b" + re.escape(term) + r"\b", terminal, flags=re.I)
     ]
     return {
+        **registry_request_details(terminal),
         "terminal_marker_style": style,
         "terminal_keyword_codes": codes,
         "error_marker_count": min(len(markers), 100),
