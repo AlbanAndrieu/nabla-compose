@@ -189,6 +189,57 @@ class BuildFailureClassifierContract(unittest.TestCase):
         self.assertNotIn("PRIVATE_ACCOUNT_ID_XYZ", json.dumps(report))
         self.assertNotIn("SECRET_PASSWORD_123", json.dumps(report))
 
+    def test_registry_request_status_and_internal_metadata_stage(self) -> None:
+        cases = (
+            (429, "rate_limited"),
+            (401, "authorization"),
+            (403, "authorization"),
+            (404, "not_found"),
+            (500, "upstream_or_proxy_error"),
+            (503, "upstream_or_proxy_error"),
+        )
+        for status, klass in cases:
+            with self.subTest(status=status):
+                log = (
+                    "#2 [internal] load metadata for docker.io/library/python:3.13-slim-trixie\n"
+                    "#2 ERROR: unexpected status from HEAD request to "
+                    "https://registry-1.docker.io/v2/library/python/manifests/"
+                    "secret-tag: " + str(status) + " HTTP Problem\n"
+                    "ERROR: failed to solve: unexpected status from HEAD request to "
+                    "https://registry-1.docker.io/v2/library/python/manifests/"
+                    "secret-tag: " + str(status) + " HTTP Problem\n"
+                )
+                standard = subject.classify(log)
+                self.assertEqual(standard["state"], "registry_request_failure")
+                self.assertEqual(standard["failure_stage"], "internal")
+                self.assertEqual(standard["failure_operation"], "image_metadata")
+                shape = subject.failure_shape(log)
+                self.assertEqual(shape["registry_provider"], "docker_hub")
+                self.assertEqual(shape["registry_image"], "official_python")
+                self.assertEqual(shape["registry_request_method"], "HEAD")
+                self.assertEqual(shape["registry_http_status"], status)
+                self.assertEqual(shape["registry_http_class"], klass)
+                self.assertNotIn("secret-tag", json.dumps(shape))
+                self.assertNotIn("registry-1.docker.io", json.dumps(shape))
+
+    def test_registry_shape_fails_closed_on_other_text(self) -> None:
+        data = subject.registry_request_details(
+            "ERROR: failed to solve: https://custom.invalid:403/path"
+        )
+        self.assertEqual(data["registry_request_method"], "unknown")
+        self.assertIsNone(data["registry_http_status"])
+        self.assertEqual(data["registry_provider"], "unknown")
+
+    def test_registry_request_method_without_code(self) -> None:
+        report = subject.failure_shape(
+            "ERROR: failed to solve: unexpected status from GET request "
+            "to https://registry-1.docker.io/v2/library/python/manifests/secret\n"
+        )
+        self.assertEqual(report["registry_http_status"], None)
+        self.assertEqual(report["registry_request_method"], "GET")
+        self.assertEqual(report["registry_provider"], "docker_hub")
+        self.assertNotIn("secret", json.dumps(report))
+
     def test_no_failure_marker_stays_unclassified(self) -> None:
         report = subject.classify("BuildKit progress: 55% completed")
         self.assertEqual(report["state"], "unclassified_build_failure")
