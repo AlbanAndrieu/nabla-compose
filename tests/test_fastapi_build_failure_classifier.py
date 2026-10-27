@@ -72,6 +72,50 @@ class BuildFailureClassifierContract(unittest.TestCase):
                 os.close(fd)
             os.unlink(name)
 
+    def test_buildkit_step_is_summarized_without_raw_command_or_secrets(self) -> None:
+        secret = "CANARY_PRIVATE_BEARER_84912"
+        log = (
+            "#41 [builder 6/8] RUN uv sync --frozen\n"
+            "#41 ERROR: process \"/bin/sh -c opaque-command\" did not complete successfully: exit code: 1\n"
+            "private-url=https://operator:" + secret + "@internal.invalid/\n"
+        )
+        report = subject.classify(log)
+        self.assertEqual(report["state"], "build_step_nonzero")
+        self.assertEqual(report["failure_stage"], "builder")
+        self.assertEqual(report["failure_operation"], "uv_sync")
+        self.assertTrue(report["buildkit_failure_marker"])
+        self.assertNotIn(secret, json.dumps(report))
+        self.assertNotIn("internal.invalid", json.dumps(report))
+        self.assertNotIn("opaque-command", json.dumps(report))
+
+    def test_new_failure_categories_are_fixed_codes(self) -> None:
+        samples = (
+            ("#11 ERROR: permission denied", "filesystem_permissions"),
+            ("ERROR: failed to download artifact", "dependency_fetch"),
+            ("failed to solve: unknown backend error", "buildkit_generic_failure"),
+        )
+        for log, state in samples:
+            with self.subTest(state=state):
+                self.assertEqual(subject.classify(log)["state"], state)
+
+    def test_no_failure_marker_stays_unclassified(self) -> None:
+        report = subject.classify("BuildKit progress: 55% completed")
+        self.assertEqual(report["state"], "unclassified_build_failure")
+        self.assertFalse(report["buildkit_failure_marker"])
+        self.assertEqual(report["failure_stage"], "unknown")
+        self.assertEqual(report["failure_operation"], "unknown")
+
+    def test_public_metadata_has_only_fixed_codes(self) -> None:
+        log = (
+            "#9 [production 2/10] COPY --from=internal.example/private_token ./secret\n"
+            "#9 ERROR: access denied\n"
+        )
+        report = subject.classify(log)
+        self.assertEqual(report["failure_stage"], "production")
+        self.assertEqual(report["failure_operation"], "copy")
+        self.assertNotIn("internal.example", json.dumps(report))
+        self.assertNotIn("private_token", json.dumps(report))
+
     def test_sudo_original_owner_is_authorized_only_for_root(self) -> None:
         with mock.patch.object(subject.os, "geteuid", return_value=0):
             with mock.patch.dict(subject.os.environ, {"SUDO_UID": "123456"}, clear=True):
@@ -90,7 +134,7 @@ class BuildFailureClassifierContract(unittest.TestCase):
     def test_sudo_invoker_owned_private_log_is_classified_without_disclosure(self) -> None:
         fd, name = tempfile.mkstemp(prefix="tmp.", dir="/tmp")
         try:
-            os.write(fd, b"failed to solve: no space left on device\\n")
+            os.write(fd, b"failed to solve: no space left on device\n")
             os.close(fd)
             fd = -1
             actual = os.stat(name)
