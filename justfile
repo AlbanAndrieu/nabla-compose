@@ -538,6 +538,19 @@ openclaw-heartbeat-copies-test:
 openclaw-heartbeat-copies-check:
     python3 scripts/workstation/inspect-openclaw-heartbeat-copies.py --check
 
+# No content reads, no file mode changes. Explicit mode-only apply is separate.
+openclaw-heartbeat-modes-test:
+    python3 -m py_compile scripts/workstation/secure-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_mode_repair.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_mode_repair.py' -v
+
+openclaw-heartbeat-modes-check:
+    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --check
+
+# Opt-in permission-only change to owner 0600 on three existing, verified files.
+# This never extracts or changes the archive content or Gateway/session state.
+openclaw-heartbeat-modes-apply:
+    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --apply
+
 # Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
 openclaw-nabla-migration-test:
     python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
