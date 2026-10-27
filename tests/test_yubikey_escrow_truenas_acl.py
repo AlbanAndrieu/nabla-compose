@@ -114,6 +114,19 @@ class Contracts(unittest.TestCase):
         self.assertFalse(parsed["acl_entries_disclosed"])
         self.assertNotIn("private.age",out.getvalue())
 
+    def test_inaccessible_acl_fails_closed_without_printing_private_data(self):
+        base=SimpleNamespace(check_mount=lambda:"EXPECTED_NFS_EXPORT_MOUNTED",
+                             local_expected_filename=lambda root:("SOURCE_UNIQUE_AGE_FOUND","private.age"),
+                             LOCAL_SOURCE=Path("/mock"))
+        with patch.object(m,'load_base',return_value=base), \
+             patch.object(m,'query_acl',return_value={
+                 "state":"ACL_READ_UNAVAILABLE","acltype":"UNKNOWN","trivial":None,
+                 "ace_count":None,"potential_nonowner_read_allow_count":None,
+             }),redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(m.main(["--probe","--acknowledge",m.ACK]),3)
+        self.assertEqual(json.loads(out.getvalue())["status"],"NO-GO")
+        self.assertNotIn("private.age",out.getvalue())
+
     def test_remote_real_python_with_synthetic_acl_fixtures(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
