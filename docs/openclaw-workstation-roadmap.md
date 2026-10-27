@@ -180,6 +180,47 @@ une clé virtuelle orpheline/doublon. La décision
 reste : **conserver** une clé distincte scoped `qwen`
 sans réutiliser la clé IDE/master.
 
+### Génération demandée sur TrueNAS : frontière entre les deux clés
+
+L'opérateur demande de **générer dans LiteLLM TrueNAS**.
+Le provisionneur prend désormais en charge le mode explicite
+`--target truenas --native-truenas --apply`, qui contacte
+le port **local** `127.0.0.1:4000/key/generate` seulement
+après preuve `midclt call system.version`. Il crée la
+clé `fastapi-sample-staging` pour le premier saut
+**FastAPI Sample → LiteLLM TrueNAS**, sans afficher
+sa valeur (fichier de transition privé `truenas.key`).
+Cette clé sera enregistrée dans Vaultwarden
+`nabla/prod/sample-litellm` sous `LITELLM_API_KEY`
+lors d'un cutover ultérieur validé. Politique :
+`fastapi-qwen`, plafond 8 USD à vie, 5 RPM,
+15 000 TPM, concurrence 1.
+
+**ATTENTION :** la variable manquante
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` est une clé
+**émise par LiteLLM Workstation**, que TrueNAS doit
+ensuite consommer pour son second saut. Créer une
+clé virtuelle dans LiteLLM TrueNAS ne la rend pas
+valide sur Workstation. Cet incident P0 reste donc
+ouvert même après création de la clé de premier saut.
+
+La PR #289 prépare le code et le runbook,
+**pas une génération runtime** (aucune connexion SSH
+ou gestion admin LiteLLM disponible depuis l'agent).
+Avant `--apply`, vérifier l'absence de l'alias
+`fastapi-sample-staging` dans l'interface **LiteLLM
+TrueNAS** ; l'absence dans Vaultwarden n'est pas
+une preuve suffisante. La clé master utilisée doit
+être celle de **TrueNAS** et reste privée. Aucune
+réutilisation de clé IDE, master ou Workstation
+comme secret applicatif.
+
+Le code de génération utilise désormais un opener
+sans proxy HTTP ambiant et sans suivi de redirection.
+La suite de contrats natifs TrueNAS et du routage
+à deux proxies est à recevoir après exécution locale.
+`--apply` n'a **pas** été exécuté par cet agent.
+
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
 - **PERMISSIONS ACCEPTED runtime :** nouvelle suite `8/8 PASS`,
