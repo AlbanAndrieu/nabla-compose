@@ -9,7 +9,30 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
-## P0 CrowdSec pfSense Small — état du 27 octobre (preuve la plus récente)
+## P0 CrowdSec pfSense Small — réception locale du 28 octobre 2026
+
+- **DONE — gate CrowdSec complet sur TrueNAS (preuve opérateur du 28/10) :**
+  `just crowdsec-bouncer-config-test` **31/31 PASS**, code de sortie
+  compatible avec une exécution réussie (aucune erreur dans le relevé) :
+  parser URL **5/5** ; candidat bouncer **11/11** ;
+  provisionnement hermétique **5/5** ; provenance pfSense **10/10**.
+  Les `bash -n` et `py_compile` de la recette passent également.
+  Cette preuve concerne **ce gate ciblé**, pas le quality gate global
+  de `nabla-compose` ni un redéploiement.
+  HEAD TrueNAS testé après fast-forward : `5f1cd05b`.
+- **DONE — authentification et interrogation LAPI** : dernier
+  `diagnose-crowdsec-cutover.sh --accept` fourni auparavant :
+  **failures=0 warnings=2**, bouncer
+  `PFSENSE_FIREWALL@172.17.0.1` à `172.17.0.1`,
+  `last_pull=2026-10-27T23:12:07Z`. Pas de nouvelle exécution
+  du diagnostic dans le relevé du gate actuel.
+- **P0 NON VÉRIFIÉ — cycle de remédiation PF** : toujours 0 décision
+  centrale au dernier diagnostic. Le gate et le `last_pull` ne
+  prouvent ni l'ajout d'une nouvelle décision dans PF ni son retrait.
+  Préférer une nouvelle décision naturelle et suivre la même IP
+  dans LAPI puis `crowdsec_blacklists` jusqu'à disparition. Toute
+  décision synthétique requiert autorisation explicite.
+
 
 - **DONE — runtime central :** TrueNAS CrowdSec 1.8.1 healthy ;
   LAPI LAN :8084, métriques :6060, acquisition Loki pfSense confirmée
@@ -33,7 +56,8 @@
   nom/IP/type/date. **9/9 scénarios du prédicat `jq` confirmés
   précédemment, et 9/9 scénarios de la sonde candidate reproduits
   localement avec le mock Bash ; gate complet `just` et réception
-  runtime du nouveau HEAD non encore exécutés sur TrueNAS.**
+  runtime déjà PASS sur un relevé précédent ; le gate complet du
+  28/10 est maintenant **31/31 PASS**.**
 - **Gate TrueNAS (exécution utilisateur, 28/10 local) :**
   `test_crowdsec_bouncer_url_parser.py` **5/5 PASS** ;
   `test_crowdsec_candidate_bouncer_auth.py` **11/11 PASS** ;
@@ -45,7 +69,8 @@
   des 3 parcours read-only : **3/3 PASS** ; la suite complète du
   provisionneur est aussi **5/5 PASS sur une copie isolée** des
   fichiers versionnés (correction d'une assertion auto-référente).
-  Gate complet TrueNAS encore à réexécuter.
+  **Supplanté :** gate CrowdSec complet TrueNAS **31/31 PASS** sur
+  `5f1cd05b` (28/10).
 - **Réception runtime pfSense désormais PASS au 27/10 23:12:07 UTC :**
   `diagnose-crowdsec-cutover.sh --accept` **0 erreur, 2 warnings** ;
   `PFSENSE_FIREWALL@172.17.0.1`, IP 172.17.0.1, type firewall,
@@ -59,7 +84,7 @@
   exige maintenant une provenance pfSense IP + User-Agent et refuse
   le `last_pull` de `curl` comme preuve. Tests hermétiques intégrés à
   `just crowdsec-bouncer-config-test`, **exécution sur le dernier
-  HEAD non encore attestée**. [Runbook PF](runbooks/crowdsec-pfsense-decision-provenance.md).
+  HEAD `5f1cd05b` : **31/31 PASS**. [Runbook PF](runbooks/crowdsec-pfsense-decision-provenance.md).
 - **P0 ingress inchangé :** refus explicites HAProxy pour S3,
   ses sous-domaines et Vault ; retirer le DNS public S3, contrôler
   Cloudflare Tunnel/Access et PF/NAT depuis WAN indépendant.
