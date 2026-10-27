@@ -441,6 +441,106 @@ avec rollback et validation du comportement
 DNSSEC de pfSense avant toute réduction de
 l'authentification.
 
+## 23:XX CET — Validation DNSSEC privée isolée, expérience NTA ciblée
+
+L'utilisateur a exécuté `just workstation-dnssec-test` :
+**13/13 PASS**. Runtime `just workstation-dnssec-check`
+deux cycles cohérents :
+
+| Sonde | Cycle 1 | Cycle 2 |
+|---|---|---|
+| `private_validated` | TIMEOUT 4 s | TIMEOUT 4 s |
+| `private_no_validation` | A_CONFIRMED 0 s | A_CONFIRMED 0 s |
+| `public_validated` | A_CONFIRMED 0 s | A_CONFIRMED 0 s |
+| `pfsense_signed_a` | ANSWER / RRSIG=yes / AD=yes | pareil |
+| `pfsense_parent_ds` | ANSWER / RRSIG=yes / AD=yes | pareil |
+| `pfsense_dnssec_bogus` | SERVFAIL | SERVFAIL |
+
+La différence répétée entre validation normale et
+`--validate=no` **sur DefectDojo privé** établit
+le chemin DNSSEC de cette zone comme cause probable
+des timeouts. Les signatures publiques DNSSEC reçues
+via pfSense invalident l'hypothèse simple « Unbound
+ne transmet aucune signature ». Les données n'attestent
+pas encore que les enregistrements de la zone privée
+sont effectivement dépourvus de RRSIG.
+
+**Correction privilégiée :** *Negative Trust Anchor* (NTA)
+`int.albandrieu.com` pour une zone privée non
+signée sous domaine public, au lieu de `DNSSEC=no`
+sur tous les noms. Source système :
+[resolvectl nta](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
+et [Negative Trust Anchors](https://www.freedesktop.org/software/systemd/man/latest/dnssec-trust-anchors.d.html).
+
+### Étape locale, opt-in et réversible
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-nta-test
+
+# Inspection seulement ; exit 1 possible tant que DNSSEC privé expire
+just workstation-dnssec-nta-check || true
+
+# Action explicitement autorisée : NTA uniquement sur eno1.
+# Refuse si le profil n'est pas Wired eno1, DNS != 172.17.0.1,
+# zone route-only absente ou ancres NTA supplémentaires existantes.
+just workstation-dnssec-nta-try
+
+# Contrôler une requête validée sans --validate=no puis NSS/HTTPS.
+resolvectl query -4 defectdojo.int.albandrieu.com
+getent ahostsv4 defectdojo.int.albandrieu.com
+resolvectl query -4 cloudflare.com
+just workstation-nss-path
+just defectdojo-workstation-dns-check
+```
+
+**Rollback explicite, seulement si l'ancre du lien était
+initialement vide et qu'aucune autre ancre n'a été ajoutée :**
+
+```bash
+just workstation-dnssec-nta-rollback
+```
+
+Le retour en arrière efface la liste des NTA du lien
+uniquement si elle contient exactement `int.albandrieu.com`.
+Le script n'édite pas de fichier, ne modifie pas
+`DNSSEC=yes`, ne change pas DoT, ne redémarre
+ni pfSense ni `systemd-resolved`. Cette NTA **runtime
+n'est pas persistante** ; aucun succès au runtime
+n'est affirmé avant l'exécution opérateur.
+
+### Persistance Ansible, distincte du test runtime
+
+Propriétaire :
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+`tasks/network_dnssec_nta.yml`.
+Le rôle possède deux flags séparés désactivés par défaut :
+`workstation_split_dns_persistent_nta_enabled=false`
+et `workstation_split_dns_persistent_nta_remove_enabled=false`.
+Il crée/supprime seulement le fichier
+`/etc/dnssec-trust-anchors.d/90-nabla-int-albandrieu.negative`
+avec le domaine `int.albandrieu.com`.
+Attention, **le fichier est limité à la zone DNS mais
+s'applique à tous les liens du poste**, contrairement
+à la NTA runtime de `eno1`. Ne l'activer qu'après
+validation de l'impact sur les VPN et autres interfaces.
+Le handler redémarre `systemd-resolved` uniquement
+si cette configuration change. Rollback explicite prévu.
+
+**Nouveaux tests :** `tests/test_recover_split_dns_nta.py`
+comporte **10 tests offline**, écrits mais non
+exécutés à ce stade. Ansible ajoute un huitième
+test de contrat NTA, également à recevoir.
+
+**Risque non clos :** les nombreux messages
+`DNSSEC validation failed: no-signature` sur
+des domaines **publics** ne sont pas nécessairement
+résolus par cette exception de zone privée.
+Observer séparément DNSSEC public et les compteurs
+`Bogus` sans remettre en cause les réponses
+DNSSEC publiques déjà confirmées.
+
 ## Validation DONE
 
 Confirmer que hide-location est désactivé, que le profil NM
