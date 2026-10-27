@@ -161,11 +161,20 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   de résolution. Suspicion de requête vers le registre de l'image Python.
 - [x] Diagnostic complet : `internal/image_metadata`,
   `docker_hub/official_python`, méthode `HEAD`, HTTP `429`.
-  Le test du cache renvoie `cached=no_or_access_error` : état du cache
-  **non attesté** tant que l'accès au daemon n'est pas vérifié.
-- [ ] Vérifier en lecture seule le contexte Docker effectif (user vs sudo),
-  l'accessibilité du daemon, l'existence du cache et la configuration
-  d'authentification. Aucun secret dans les sorties.
+  Le premier test `cached=no_or_access_error` était ambigu.
+- [x] Après `docker system prune`, préflight opérateur confirmé :
+  `docker_daemon=accessible`, `python_cache=absent`,
+  `build_client=sudo_candidate`, `sudo_docker_config=missing`.
+  Le prune n'efface pas les limites Docker Hub ; certains conteneurs
+  arrêtés et réseaux inutilisés ont aussi été supprimés.
+- [x] PR Compose #289 : garde-fou avant build local sans cache et sans
+  déclaration d'identifiants Docker Hub, délai local après 429,
+  pas de retry automatique ni de fallback après un pull limité.
+  La protection ne sera active sur TrueNAS qu'avec le checkout mis à jour.
+- [ ] Valider `bash -n`, tests hermétiques quota et classification en local
+  sur la branche PR #289, sans GitHub Actions ni build Docker.
+- [ ] Auditer les applications TrueNAS arrêtées et leurs réseaux après prune,
+  sans redémarrage global.
 - [ ] Traiter le 429 (quota de pulls vs anti-abus) : attendre une récupération
   ou authentifier le client Docker effectif ; puis un seul pull ciblé,
   avant un seul build du SHA immuable. Pas de mirror/daemon restart global.
