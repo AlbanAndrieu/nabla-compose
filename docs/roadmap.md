@@ -42,8 +42,10 @@
   **pas dans le runtime**). Correction [skip ci] : simuler `docker`
   **et `timeout` dans le même interpréteur Bash**, sans exécutable
   temporaire et sans appel Docker réel. Vérification isolée
-  des 3 parcours read-only : **3/3 PASS**, gate complet TrueNAS
-  encore à réexécuter.
+  des 3 parcours read-only : **3/3 PASS** ; la suite complète du
+  provisionneur est aussi **5/5 PASS sur une copie isolée** des
+  fichiers versionnés (correction d'une assertion auto-référente).
+  Gate complet TrueNAS encore à réexécuter.
 - **Réception runtime pfSense désormais PASS au 27/10 23:12:07 UTC :**
   `diagnose-crowdsec-cutover.sh --accept` **0 erreur, 2 warnings** ;
   `PFSENSE_FIREWALL@172.17.0.1`, IP 172.17.0.1, type firewall,
