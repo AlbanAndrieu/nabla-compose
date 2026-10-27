@@ -99,7 +99,9 @@ def read() -> tuple[dict[str, str], dict[str, str]]:
     cfg = profile()
     udp, udps = dig(False)
     tcp, tcps = dig(True)
+    nss_start = time.monotonic()
     sysname = nss()
+    nss_sec = time.monotonic() - nss_start
     units = {}
     for unit in ("hide-location.timer", "hide-location.service"):
         ok, val, _ = call(["systemctl", "--user", "is-enabled", unit])
@@ -110,6 +112,7 @@ def read() -> tuple[dict[str, str], dict[str, str]]:
         "udp_sec": f"{udps:.1f}",
         "tcp_sec": f"{tcps:.1f}",
         "nss": sysname,
+        "nss_sec": f"{nss_sec:.1f}",
         **units,
     }
     return cfg, state
@@ -146,7 +149,7 @@ def display(cfg: dict[str, str], state: dict[str, str], result: str) -> None:
     print("WORKSTATION_SPLIT_DNS v1")
     print(f"  nm_profile={nm} private_route={route} resolved_link={link} resolved_domain={domain}")
     print(f"  pfsense_udp={state['udp']} ({state['udp_sec']}s) pfsense_tcp={state['tcp']} ({state['tcp_sec']}s)")
-    print(f"  client_nss={state['nss']} legacy_timer={state['hide-location.timer']} legacy_service={state['hide-location.service']}")
+    print(f"  client_nss={state['nss']} ({state['nss_sec']}s) legacy_timer={state['hide-location.timer']} legacy_service={state['hide-location.service']}")
     print(f"  diagnosis={result}")
     if state["udp"] != "A_CONFIRMED":
         print("  NEXT: pfSense Unbound UDP/53 direct did not confirm; inspect DNS Resolver, firewall, packet loss or intermittent service, NOT just local split-DNS")
@@ -154,6 +157,8 @@ def display(cfg: dict[str, str], state: dict[str, str], result: str) -> None:
         print("  NEXT: UDP/TCP answers differ; investigate protocol-specific transport or DNS listener")
     if state["nss"] != "A_CONFIRMED":
         print("  NEXT: compare getent, /etc/nsswitch.conf and systemd-resolved; --resolve HTTPS is not DNS proof")
+    elif float(state["nss_sec"]) > 5:
+        print("  WARN: NSS query slow despite success; compare fresh dig UDP/TCP times and resolved route before diagnosing pfSense")
     if result == "PRIVATE_ROUTE_NOT_PERSISTED":
         print("  NEXT: persist ~int.albandrieu.com in NetworkManager (do not edit resolv.conf)")
 
