@@ -161,8 +161,22 @@ Les tâches sont séparées :
 **Git** versionne le non-secret : agent policies, prompts
 révisés, catalogues de capacités, modèles autorisés,
 horaires et identifiants logiques de jobs, tests et runbooks.
-Éviter la copie brute de `~/.openclaw` : c'est aussi de la
-donnée runtime.
+La première politique déclarative est
+`apps/openclaw/workstation/cron/daily-tech-news-digest.policy.json`.
+Elle référence le skill et le modèle, garde `ITEMS_PER_SECTION=5`
+en attendant validation du template local et met
+`agent_id=verify_runtime_agent` tant que le champ runtime
+n'est pas prouvé. Son état `review_only_no_automatic_reconcile`
+n'entraîne **aucune création ni modification** du cron.
+
+```bash
+just openclaw-digest-gitops-test
+```
+
+Les destinataires Discord/email restent volontairement privés et
+sont des références d'environnement, jamais des valeurs à copier
+dans le Git public. Éviter la copie brute de `~/.openclaw` :
+c'est aussi de la donnée runtime.
 
 **Reconcile local-first** : pour les cron OpenClaw, lire la
 définition de tâche (identité/planification/modèle et hash
