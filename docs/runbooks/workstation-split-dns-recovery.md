@@ -441,6 +441,52 @@ avec rollback et validation du comportement
 DNSSEC de pfSense avant toute réduction de
 l'authentification.
 
+## Gate Ansible à zéro tâche : résultat invalide, corrigé dans le dépôt propriétaire
+
+Le 28/10, l'opérateur a tenté les commandes Ansible
+du playbook générique, mais `unittest discover` a rendu
+`Ran 0 tests`, `--list-tasks --tags dns` était vide,
+et `--check` n'a exécuté que `Gathering Facts` :
+**aucune validation DNS n'a eu lieu.**
+Ce log est compatible avec un mauvais répertoire,
+un checkout obsolète ou un sélecteur de tags erroné.
+Ne pas inférer une convergence à partir de `ok=1`
+ou `changed=0`.
+
+La [PR ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+contient maintenant :
+`playbooks/homelab-dns.yml` (import statique
+**uniquement** de `tasks/network_split_dns.yml`) ;
+`scripts/check_homelab_dns_gate.py` (vérification
+du dépôt, **8+17 tests découverts**, refus si zéro
+test, et liste des tâches DNS non vide) ;
+`tests/test_homelab_dns_gate.py` (13 cas,
+**non encore exécutés**).
+
+La commande sécurisée utilise un worktree Ansible
+dédié, depuis un checkout `ansible-workstation`
+correctement synchronisé :
+
+```bash
+cd /workspace/users/albandrieu30/ansible-workstation
+git fetch origin fix/preserve-homelab-split-dns-20261027
+WT="$(mktemp -d /tmp/ansible-dns-gate.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/preserve-homelab-split-dns-20261027
+cd "$WT"
+python3 -m unittest discover -s tests -p 'test_homelab_dns_gate.py' -v
+python3 scripts/check_homelab_dns_gate.py
+python3 scripts/check_homelab_dns_gate.py --dry-run
+```
+
+**Ces commandes n'installent pas le dispatcher**.
+Elles n'exécutent pas de `--apply` et ne modifient
+pas `systemd-resolved`, NetworkManager, pfSense
+ni TrueNAS. La NTA runtime privée est déjà
+opérationnelle ; ne pas la supprimer durant
+la réception du gate Ansible.
+
 ## Réception complémentaire — dispatcher Ansible 17/17 PASS (28/10, 00:06 CET)
 
 La workstation a exécuté `python3 -m unittest discover -s tests
