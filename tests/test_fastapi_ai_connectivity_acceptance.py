@@ -116,6 +116,17 @@ class FastApiAiConnectivityContract(unittest.TestCase):
         self.assertEqual(result["runtime"], "container_missing_or_docker_denied")
         self.assertNotIn("PRIVATE_SUDO_ERROR_TOKEN", json.dumps(result))
 
+    def test_upgrade_hooks_read_only_ai_validation_after_redeploy(self):
+        deployment = (ROOT / "scripts/truenas/update-fastapi-sample.sh").read_text()
+        self.assertIn("accept-fastapi-ai-connectivity.py --check", deployment)
+        self.assertLess(
+            deployment.index("step '5/6' 'Redeploy staging and verify health'"),
+            deployment.index("ai_connectivity_state='not-run'"),
+        )
+        self.assertNotIn("--inference-smoke", deployment)
+        self.assertIn("OpenRAG HTTP available", deployment)
+        self.assertIn('AI transports=%s', deployment)
+
     def test_probe_uses_pinned_local_urls_and_no_redirect_or_proxy(self):
         text = subject.CONTAINER_PROBE
         self.assertIn('expected_base = "http://172.17.0.24:4000"', text)
