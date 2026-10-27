@@ -52,6 +52,33 @@ Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/na
 sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
 ce périmètre.
 
+## Diagnostic NSS différentiel — 27 octobre
+
+**Preuve opérateur la plus récente :** le profil NetworkManager
+et la zone privée sont toujours conformes ; DNS pfSense UDP/TCP
+`A_CONFIRMED (0.0s)`. Pourtant `getent` dans la sonde met
+**12,4 s** et la commande interactive `getent ahostsv4`
+met **25,030 s sans résultat**, tandis que `resolvectl query -4`
+répond en **149 ms**. `nsswitch.conf` utilise
+`files mdns4_minimal [NOTFOUND=return] dns mymachines` ;
+la cible de `/etc/resolv.conf` est le stub systemd-resolved.
+**Panne intermittente de la chaîne NSS/glibc**, origine précise
+non prouvée. Ne pas remettre en cause Unbound sans données
+supplémentaires ni changer les DNS de la workstation.
+
+**Code [skip ci] dans PR #289 :** la recette
+`just workstation-nss-path` compare les chemins
+`resolvectl`, `dig @127.0.0.53`,
+`getent -s hosts:dns`, `getent -s hosts:resolve`
+et `getent` normal, avec délai individuel borné.
+`just workstation-nss-path-test` contient les tests
+hors ligne sans pytest. Tests **à exécuter localement**,
+pas de statut PASS annoncé pour la nouvelle suite.
+[Runbook canonique](runbooks/workstation-split-dns-recovery.md).
+Une éventuelle mutation NSS doit être déclarative dans
+[ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation),
+seulement après confirmation du module responsable.
+
 ## Réception split-DNS — 27 octobre, 22:24 CET
 
 **RUNTIME ACCEPTED (hors post-reboot) :** l'opérateur a exécuté
