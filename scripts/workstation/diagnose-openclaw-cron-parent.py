@@ -53,8 +53,9 @@ def classify(raw: bytes) -> dict:
     exhaustive = has_more is False
     return {
         "cron_session_catalog": "structured",
-        "cron_main_reference": "present" if TARGET in known
-            else "absent_in_bounded_sample",
+        "cron_main_reference": ("present" if TARGET in known
+                                else "absent_in_reported_complete_catalog" if exhaustive
+                                else "absent_in_bounded_sample"),
         "session_sample_count": len(known),
         "session_sample_exhaustive": exhaustive if type(has_more) is bool else "unverified",
     }
