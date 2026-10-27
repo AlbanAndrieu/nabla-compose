@@ -98,6 +98,33 @@ def test_django_credential_only_via_stdin_and_output_sanitized(monkeypatch, mode
     assert json.loads(input_data)["password"] == "existing-secret-never-log"
 
 
+def test_initializer_can_sync_existing_admin_before_uwsgi(monkeypatch):
+    module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
+    calls = []
+
+    def fake_run(cmd, *, input, **kwargs):
+        calls.append((cmd, input))
+        return SimpleNamespace(returncode=0, stdout='{"state":"PASSWORD_UPDATED"}')
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    credentials = {"DD_ADMIN_USER": "admin", "DD_ADMIN_PASSWORD": "TEST_PASSWORD_PRIVATE"}
+    assert module.run_django(credentials, "apply", "defectdojo-initializer") == "PASSWORD_UPDATED"
+    command, payload = calls[0]
+    assert command[:4] == ["docker", "exec", "-i", "defectdojo-initializer"]
+    assert "TEST_PASSWORD_PRIVATE" not in str(command)
+    assert json.loads(payload)["password"] == "TEST_PASSWORD_PRIVATE"
+
+
+def test_unknown_container_is_not_executed(monkeypatch):
+    module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs:
+                        (_ for _ in ()).throw(AssertionError("no exec allowed")))
+    assert module.run_django(
+        {"DD_ADMIN_USER": "admin", "DD_ADMIN_PASSWORD": "TEST"},
+        "apply", "postgres",
+    ) == "DJANGO_UNAVAILABLE"
+
+
 def test_nonjson_django_output_is_unverified(monkeypatch):
     module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
     monkeypatch.setattr(module.subprocess, "run",
