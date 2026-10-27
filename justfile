@@ -654,6 +654,15 @@ pfsense-unbound-lan-dns-test:
 
 # CrowdSec central: exercises shell classification with mocked Loki responses.
 # Offline only: no Docker, SSH, runtime mutation or GitHub CI.
+# CrowdSec central LAPI cutover checks from workstation; no pfSense changes.
+# Preflight WARNs while the old engine is intentionally still running.
+crowdsec-pfsense-preflight:
+    bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
+
+# Post-cutover only: engine stopped, remote LAPI URL, PF bouncer healthy.
+crowdsec-pfsense-accept:
+    bash scripts/workstation/verify-crowdsec-pfsense.sh --accept
+
 crowdsec-loki-evidence-test:
     bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
     python3 -m py_compile tests/test_crowdsec_loki_evidence_contract.py
