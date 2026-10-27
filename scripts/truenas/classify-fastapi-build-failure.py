@@ -36,7 +36,7 @@ RULES = (
     Rule("builder_unavailable", r"cannot connect to the docker daemon|failed to solve: rpc error|context canceled|buildkit.*unavailable", "inspect_docker_builder_readonly"),
     Rule("filesystem_permissions", r"permission denied|operation not permitted|read-only file system|\bEACCES\b|\bEPERM\b", "inspect_builder_mount_permissions_readonly"),
     Rule("dependency_fetch", r"failed to download|failed to fetch|failed to get|download failed|failed to connect to|connection reset by peer", "inspect_package_mirror_or_registry_connectivity"),
-    Rule("build_step_nonzero", r"failed to solve: process [^\r\n]{0,1024} did not complete successfully|executor failed running|process did not complete successfully|exit status [1-9][0-9]*", "inspect_failed_build_step_privately"),
+    Rule("build_step_nonzero", r"(?:failed to solve: )?process [^\r\n]{0,1024} did not complete successfully|executor failed running|process did not complete successfully|exit status [1-9][0-9]*", "inspect_failed_build_step_privately"),
     Rule("buildkit_generic_failure", r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR: failed to build", "inspect_buildkit_failure_privately"),
 )
 LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9_-]{6,20}\Z")
