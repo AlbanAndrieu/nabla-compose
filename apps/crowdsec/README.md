@@ -160,8 +160,11 @@ Après A/B sans blocage et sauvegarde de la configuration pfSense :
 1. Conserver les tables et la fonction firewall bouncer actives.
 2. Faire pointer uniquement le bouncer pfSense vers
    `http://172.17.0.24:8084` avec **la clé centrale validée**.
-3. Contrôler l'authentification, puis le `last_pull` réel
-   dans `cscli bouncers list` sur TrueNAS.
+3. Contrôler l'authentification, puis observer un **nouveau**
+   `last_pull` sur TrueNAS **après la bascule**, corrélé à une
+   requête du bouncer pfSense. Une probe préalable de la clé
+   candidate peut **elle-même renseigner `last_pull`** :
+   la seule présence de cette valeur ne prouve pas le cutover.
 4. Passer pfSense en mode Small : arrêter le **Security Engine**
    et ses traitements locaux, sans désactiver la remédiation PF.
 5. Exécuter les réceptions **en lecture seule** :
