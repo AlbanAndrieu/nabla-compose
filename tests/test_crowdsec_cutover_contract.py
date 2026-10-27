@@ -195,6 +195,13 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertNotRegex(text, r"(?m)^\\s*(?:service|pfctl).*\\b(?:restart|start|add|delete)\\b")
         self.assertNotIn("cscli bouncers add", text)
 
+    def test_crowdsec_preflight_does_not_require_legacy_engine_stopped(self) -> None:
+        source = PFSENSE_VERIFY.read_text(encoding="utf-8")
+        self.assertIn('if [ "${mode}" = "--preflight" ]; then', source)
+        self.assertIn("legacy local CrowdSec Security Engine still running; expected before controlled cutover", source)
+        self.assertIn("Small-mode acceptance requires it stopped", source)
+        self.assertIn('crowdsec_bouncer_api_url=%s', source)
+
     def test_pfsense_small_compat_wrapper_is_explicit_and_executable(self) -> None:
         text = PFSENSE_VERIFY_COMPAT.read_text(encoding="utf-8")
         self.assertIn("scripts/workstation/verify-crowdsec-pfsense.sh", text)
