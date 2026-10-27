@@ -166,6 +166,23 @@ yubikey-escrow-usb-identity-test:
     python3 -m py_compile scripts/workstation/inspect-age-escrow-usb-identity.py tests/test_age_escrow_usb_identity_metadata.py
     python3 -m unittest discover -s tests -p 'test_age_escrow_usb_identity_metadata.py' -v
 
+# Independent recovery of the original SanDisk's private age identity.
+# CAUTION: --backup prompts interactively for an INDEPENDENT passphrase.
+# Source USB must be physically connected, unlocked and mounted.
+# No raw identity written locally or to TrueNAS, no overwrite.
+yubikey-usb-identity-backup-test:
+    python3 -m py_compile scripts/workstation/backup-usb-age-identity.py tests/test_usb_age_identity_independent_backup.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_identity_independent_backup.py' -v
+
+# Read-only metadata and destination check. No key opened or written.
+yubikey-usb-identity-backup-check:
+    python3 scripts/workstation/backup-usb-age-identity.py --check
+
+# EXPLICIT opt-in to write one age -p encrypted backup on workstation and TrueNAS.
+# Requires a true interactive terminal. Never feed secrets via environment/argv.
+yubikey-usb-identity-backup:
+    python3 scripts/workstation/backup-usb-age-identity.py --backup --acknowledge CREATE_NEW_PASSPHRASE_ENCRYPTED_USB_IDENTITY_BACKUPS
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
