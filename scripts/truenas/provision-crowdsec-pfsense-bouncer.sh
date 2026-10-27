@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # TrueNAS only. Explicit --apply replaces UNUSED PFSENSE_FIREWALL central credential.
+# Key is generated and stored BEFORE deleting/reissuing the registration.
 # Key stays in protected root-only runtime file. No pfSense changes.
 set -euo pipefail
 set +x
@@ -18,7 +19,7 @@ container="${CROWDSEC_CONTAINER:-crowdsec}"
 file="${CROWDSEC_SECRET_FILE:-/mnt/cpool/secrets/runtime/crowdsec/.env.secrets}"
 [[ "$container" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || { echo 'ERROR: invalid container' >&2; exit 2; }
 [[ "$file" == /*/.env.secrets ]] || { echo 'ERROR: invalid runtime secret path' >&2; exit 2; }
-for program in docker jq timeout mktemp chmod chown install ln; do
+for program in docker jq timeout mktemp chmod chown install ln openssl; do
   command -v "$program" >/dev/null || { echo "ERROR: missing tool $program" >&2; exit 2; }
 done
 if [[ "$mode" == --apply && "$(id -u)" != 0 ]]; then
@@ -52,29 +53,40 @@ fi
 dir="${file%/*}"
 install -d -m 0700 -o root -g root -- "$dir"
 [[ ! -e "$file" && ! -L "$file" ]] || { echo 'ERROR: secret concurrently created' >&2; exit 2; }
-if [[ "$count" == 1 ]]; then
-  timeout 12 docker exec "$container" cscli bouncers delete "$name" >/dev/null || {
-    echo 'ERROR: old unused bouncer could not be removed' >&2; exit 2;
-  }
-fi
-# -o raw prevents the generated token from being displayed in terminal output.
-key="$(timeout 12 docker exec "$container" cscli bouncers add "$name" -o raw 2>/dev/null)" || {
-  echo 'ERROR: central bouncer registration failed' >&2; exit 1;
-}
-if [[ ! "$key" =~ ^[A-Za-z0-9_-]{20,128}$ ]]; then
-  unset key
-  echo 'ERROR: unexpected key format; no runtime file written' >&2
-  exit 2
-fi
+# Generate OUR token first; CrowdSec --output raw may output additional text,
+# therefore never parse its result as the key. The --key flag is documented.
+# Persist the key BEFORE changing the registration so a CLI error cannot lose it.
+key="$(openssl rand -hex 32)" || { echo 'ERROR: key generation failed' >&2; exit 2; }
+[[ "$key" =~ ^[a-f0-9]{64}$ ]] || { unset key; echo 'ERROR: invalid generated token' >&2; exit 2; }
 tmp="$(mktemp "$dir/.env.secrets.XXXXXX")"
 trap '[[ -z "${tmp:-}" ]] || rm -f -- "$tmp"' EXIT
 printf 'BOUNCER_KEY_PFSENSE_FIREWALL=%s\n' "$key" > "$tmp"
-unset key
 chmod 0600 "$tmp"
 chown root:root "$tmp"
-# Atomic creation: hard link refuses a concurrently created destination.
-ln -- "$tmp" "$file" || { echo 'ERROR: refusing to overwrite runtime secret' >&2; exit 2; }
+# Atomic creation refuses to overwrite a concurrently created destination.
+ln -- "$tmp" "$file" || { unset key; echo 'ERROR: secret already exists' >&2; exit 2; }
 rm -f -- "$tmp"
 tmp=''
+echo 'credential_state=STAGED root:root 0600'
+
+if [[ "$count" == 1 ]]; then
+  timeout 12 docker exec "$container" cscli bouncers delete "$name" >/dev/null 2>&1 || {
+    unset key
+    echo 'NO_GO: unused central registration was not deleted; candidate key safely staged' >&2
+    exit 2
+  }
+fi
+
+# Send token to container on STDIN rather than host/docker process argv.
+# Inner sh invokes documented cscli --key, swallowing CLI text (which can
+# otherwise disclose the token). Do not enable shell tracing or print it.
+if ! printf '%s\n' "$key" |
+  timeout 12 docker exec -i "$container" sh -c \
+    'IFS= read -r candidate || exit 2; cscli bouncers add PFSENSE_FIREWALL --key "$candidate" >/dev/null 2>&1'; then
+  unset key
+  echo 'NO_GO: central bouncer add failed; root-only candidate file is retained for recovery' >&2
+  exit 2
+fi
+unset key
 echo 'credential_state=CREATED root:root 0600; bouncer=PFSENSE_FIREWALL'
 echo 'next=sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh'
