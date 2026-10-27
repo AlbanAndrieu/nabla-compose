@@ -64,6 +64,26 @@ class PfsenseHaproxyPolicyContracts(unittest.TestCase):
         hosts = {h["hostname"]: h for h in r["hosts"]}
         self.assertEqual(hosts["s3.int.albandrieu.com"]["other_layers"]["public_dns"], "VIOLATION")
 
+    def test_s3_root_only_deny_does_not_cover_bucket_subdomains(self):
+        existing = "http-request deny deny_status 403  if  nexus aclcrt_main_Web_HTTPS"
+        root_only = self.source.replace(
+            existing, existing + "\n\thttp-request deny deny_status 403 if s3", 1
+        )
+        hosts = {h["hostname"]: h for h in audit_module.audit(root_only, self.policy, {})["hosts"]}
+        self.assertEqual(
+            hosts["s3.int.albandrieu.com"]["haproxy"],
+            "VIOLATION_S3_BUCKET_HOSTS_NOT_DENIED",
+        )
+        wildcard = root_only.replace(
+            r"^s3\.int\.albandrieu\.com(:[0-9]{1,5})?$",
+            r"^([^.]+\.)*s3\.int\.albandrieu\.com(:[0-9]{1,5})?$", 1
+        )
+        hosts = {h["hostname"]: h for h in audit_module.audit(wildcard, self.policy, {})["hosts"]}
+        self.assertEqual(
+            hosts["s3.int.albandrieu.com"]["haproxy"],
+            "DECLARED_DENY_NOT_WAN_PROOF",
+        )
+
     def test_generated_tabs_are_parsed_for_nexus_vault_s3(self):
         # Historical regression: pfSense uses tabs for ACL separation.
         acl_lines = [line for line in self.source.splitlines() if line.lstrip().startswith("acl")]
