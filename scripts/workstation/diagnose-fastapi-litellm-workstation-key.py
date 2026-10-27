@@ -120,7 +120,7 @@ def alias_state() -> str:
     # The caller may have an explicitly configured, non-standard master key.
     # Let the proxy validate it via an authenticated read-only GET.
     if (not key.strip() or len(key) > 4096
-            or any(ch in key for ch in ("\\r", "\\n", "\\x00"))
+            or any(ch in key for ch in (chr(13), chr(10), chr(0)))
             or key.startswith("Bearer ")):
         return "admin_credential_invalid_transport"
     query = urlencode({"key_alias": ALIAS, "return_full_object": "true",
