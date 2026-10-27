@@ -804,6 +804,21 @@ crowdsec-bouncer-config-test:
     bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
     python3 -m py_compile tests/test_crowdsec_pfsense_bouncer_provenance.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pfsense_bouncer_provenance.py' -v
+    python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
+
+# Workstation only: two independent SSH reads (TrueNAS LAPI and pfSense PF).
+# Stores PRIVATE evidence in ~/.local/state/nabla-compose (0700/0600).
+# Natural bans only. Neither command creates/deletes decisions or PF entries.
+crowdsec-pf-natural-baseline:
+    python3 scripts/workstation/observe-crowdsec-pf-decision.py baseline
+
+crowdsec-pf-natural-observe:
+    python3 scripts/workstation/observe-crowdsec-pf-decision.py observe
+
+crowdsec-pf-natural-test:
+    python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
 
 # TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
 # PFSENSE_FIREWALL registration and securely writes its root-only credential.
