@@ -19,6 +19,7 @@ class MigrationAuditTests(unittest.TestCase):
             dest = root / "workspace"
             dest.mkdir(mode=0o700)
             (dest / "HEARTBEAT.md").write_bytes(mod.GITCRYPT_MAGIC + b"encrypted fake")
+            (dest / "HEARTBEAT.md").chmod(0o600)  # independent of caller umask
             result = mod.inventory(root)
             heartbeat = next(x for x in result["known_files"] if x["role"] == "workspace/HEARTBEAT.md")
             self.assertEqual(heartbeat["source_status"], "gitcrypt_locked")
@@ -38,6 +39,7 @@ class MigrationAuditTests(unittest.TestCase):
             parent = root / "workspace"
             parent.mkdir()
             (parent / "USER.md").write_text("PRIVATE-CANARY")
+            (parent / "USER.md").chmod(0o600)  # independent of caller umask
             result = mod.inventory(root)
             record = next(x for x in result["known_files"] if x["role"] == "workspace/USER.md")
             self.assertEqual(record["source_status"], "present_not_inspected")
