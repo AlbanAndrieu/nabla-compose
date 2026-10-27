@@ -24,7 +24,13 @@ if [[ ! "$LAPI" =~ ^http://[A-Za-z0-9.:-]+$ ]]; then
   echo 'central_candidate_auth=NO_GO_INVALID_LAPI_URL'
   exit 2
 fi
-command -v curl >/dev/null || { echo 'central_candidate_auth=NOT_VERIFIED_NO_CURL'; exit 2; }
+# Explicit executable path for hermetic tests. Production uses the normal
+# resolved curl; no mock is enabled unless the invoking environment sets it.
+CURL_BIN="${CROWDSEC_CURL_BIN:-curl}"
+command -v "${CURL_BIN}" >/dev/null 2>&1 || {
+  echo 'central_candidate_auth=NOT_VERIFIED_NO_CURL'
+  exit 2
+}
 
 if [[ "$SOURCE" == 'environment' ]]; then
   # Must run in the invoking shell's exported environment, NOT through sudo
@@ -71,7 +77,7 @@ http_code="$(
     printf 'output = "/dev/null"\n'
     printf 'silent\nshow-error\nconnect-timeout = 3\nmax-time = 8\n'
     printf 'write-out = "%%{http_code}"\n'
-  } | curl --config -
+  } | "${CURL_BIN}" --config -
 )" || {
   unset key
   echo 'central_candidate_auth=NOT_VERIFIED_TRANSPORT'
