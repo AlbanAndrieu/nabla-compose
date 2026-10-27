@@ -545,3 +545,38 @@ preuve de moyen de récupération indépendant, modification PIV82,
 PIV9A, OTP2 et destinataires SOPS. KeePassXC reste reporté.
 
 [Runbook de récupération](yubikey-software-recovery-20261026.md).
+
+## Audit ACL NFS4 natif — 10/10 PASS, restauration isolée prochaine étape (27/10/2026)
+
+**Résultat workstation :**
+`just yubikey-escrow-acl-test` **10/10 PASS** et
+`just yubikey-escrow-acl-probe` :
+`acltype=NFS4`, `trivial=true`, `ace_count=3`,
+`potential_nonowner_read_allow_count=0`,
+`ACL_NATIVE_REVIEW_REQUIRED`.
+Il s'agit d'une preuve favorable **d'inventaire du fichier**,
+pas de l'accès effectif : `nfs4_acl_verified=false`.
+La politique ACL du répertoire et de ses parents reste
+à revoir pour les identités NFS autorisées.
+
+**État du chantier :**
+copie chiffrée NFS créée sans remplacement, comparaison binaire
+positive à deux reprises, présence serveur TrueNAS et mode
+POSIX `0600` prouvés. **DONE pour duplication et readback**.
+
+**Jalon suivant à haut levier :** préparer **un plan
+de restauration réelle age/SOPS isolée**, sans aucune
+transmission de secret. Confirmer d'abord en privé le
+mécanisme réel de déchiffrement de l'archive age
+(identité/destinataire ou mot de passe), puis prévoir
+`umask 077`, espace local `0700`, jamais de
+plaintext sur stdout/terminal/log/CI, aucune mutation
+d'archive ou de fichier SOPS original.
+Ne pas exécuter de déchiffrement réel sans approbation
+distincte. Pour la procédure détaillée, voir
+[yubikey-software-recovery-20261026.md](yubikey-software-recovery-20261026.md).
+
+**NO-GO** toujours pour récupération réelle,
+identités de récupération indépendantes,
+PIV82/PIV9A/OTP2 et rotation des destinataires SOPS.
+KeePassXC reporté. Pas de nouvelle copie NFS.
