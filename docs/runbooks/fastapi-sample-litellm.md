@@ -103,6 +103,87 @@ leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
 
+## Diagnostic post-échec `--apply` sur Workstation (sans nouveau POST)
+
+Nouvelle preuve opérateur : les **6 tests natifs TrueNAS PASS**,
+mais `python3 scripts/workstation/provision-fastapi-litellm-keys.py
+--target workstation --apply` retourne `BLOCKED:
+configuration, transport or secure-storage failure`.
+Aucun fichier ni alias en base n'a été attesté.
+L'ancienne exception groupée ne permet pas d'attribuer
+la cause au secret master, au port, au runtime, aux
+permissions ou à la base. Un POST déjà effectué peut
+avoir créé une clé orpheline : **ne pas réessayer --apply**
+avant l'inventaire.
+
+**Nouveau diagnostic strictement en lecture seule** :
+`just litellm-workstation-fastapi-key-inventory`.
+Cette commande lit seulement la politique, les
+métadonnées du chemin privé, le nom du conteneur
+Docker local et l'état HTTP de `/health/liveliness`.
+Un `midclt` TrueNAS positif refuse toute connexion
+au proxy ; l'identité **exacte et running**
+`litellm-litellm-1` est requise sur Workstation.
+Aucun POST, aucun modèle, aucun secret imprimé.
+
+Sans `LITELLM_MASTER_KEY` dans l'environnement, le
+diagnostic affiche `admin_credential_not_provided`
+et **n'interroge pas la liste des clés**. Avec
+l'administrateur Workstation fourni dans un sous-shell
+privé, le diagnostic effectue un **GET** filtré et
+borné `/key/list?key_alias=fastapi-sample-upstream`,
+sans afficher le JSON, les hashes ni le credential :
+
+```bash
+# Sur la Workstation, utilisateur habituel, checkout PR synchronisé.
+git pull --ff-only
+python3 -m unittest discover -s tests \
+  -p 'test_fastapi_litellm_workstation_inventory.py' -v
+just litellm-workstation-fastapi-key-inventory
+
+# Si le proxy local est atteste et fonctionnel et que
+# l'inventaire d'alias necessite le privilege admin :
+(
+  set -e
+  set +x
+  umask 077
+  read -rsp 'Master key LiteLLM Workstation: ' LITELLM_MASTER_KEY
+  printf '\n'
+  export LITELLM_MASTER_KEY
+  just litellm-workstation-fastapi-key-inventory
+)
+```
+
+Interprétation :
+
+- `host_context=truenas_not_workstation` ou
+  `workstation_container_not_attested` : mauvaise
+  machine ou conteneur ; **ne pas lancer --apply**.
+- `key_file_state=unsafe_directory` : permissions
+  ou propriétaire du chemin personnel incorrect ;
+  aucune connexion admin n'a été tentée.
+- `proxy_liveliness=unreachable` : port
+  `127.0.0.1:4000` absent ou inaccessible depuis
+  cet hôte ; ce n'est **pas** une preuve de clé incorrecte.
+- `alias_state=key_list_http_401` ou `key_list_http_403` :
+  autorisation de gestion refusée ; aucune valeur révélée.
+- `alias_state=alias_exists` : **stop**, inspecter
+  l'alias et restaurer/rotater selon la politique,
+  plutôt que de créer une deuxième identité.
+- `alias_state=alias_absent_confirmed` : un
+  inventaire filtré avec `total=0` a confirmé
+  l'absence **dans cette base LiteLLM**.
+- `alias_state=alias_unverified_not_confirmed_absent`
+  ou `key_list_unverified_schema` : réponse ne
+  permettant pas de conclure ; passer par
+  l'interface administrateur avant tout POST.
+
+Le diagnostic retourne des métadonnées de sécurité
+uniquement ; sa réussite ne valide **ni** la clé
+administrateur **ni** le droit de relancer `--apply`.
+Après confirmation de l'absence de l'alias, reprendre
+le provisionnement Workstation scoped `qwen`.
+
 ## Incident `BLOCKED` et emplacement de la vraie clé upstream (réception opérateur)
 
 L'opérateur a exécuté `--target truenas --native-truenas --apply`.
