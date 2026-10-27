@@ -156,6 +156,16 @@ yubikey-escrow-usb-test:
     python3 -m py_compile scripts/workstation/diagnose-age-escrow-usb-presence.py tests/test_age_escrow_usb_presence.py
     python3 -m unittest discover -s tests -p 'test_age_escrow_usb_presence.py' -v
 
+# Original SanDisk MUST already be physically connected and LUKS unlocked.
+# Only inspect metadata of expected recovery age identity on the known ext4.
+yubikey-escrow-usb-identity-check:
+    python3 scripts/workstation/inspect-age-escrow-usb-identity.py --check
+
+# Synthetic-only metadata gate (never reads a real USB age identity).
+yubikey-escrow-usb-identity-test:
+    python3 -m py_compile scripts/workstation/inspect-age-escrow-usb-identity.py tests/test_age_escrow_usb_identity_metadata.py
+    python3 -m unittest discover -s tests -p 'test_age_escrow_usb_identity_metadata.py' -v
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
