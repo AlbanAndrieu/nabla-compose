@@ -893,3 +893,84 @@ les ACL POSIX/NFSv4, puis le déchiffrement et la restauration
 `age/SOPS` dans un emplacement isolé. L'indépendance de
 récupération reste à prouver. PIV82, modifications SOPS,
 PIV9A et OTP2 restent non autorisés ; KeePassXC demeure reporté.
+
+## Création effective de la copie age sur NFS et contrôle post-copie (#289)
+
+**Preuve d'exécution réelle fournie par l'opérateur le 27/10/2026 :**
+le programme `create-yubikey-escrow-nfs-copy.py --copy` avec
+l'acquittement explicite a retourné :
+
+- `state=ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`
+- `new_copy_verified=true`
+- `existing_destination_overwritten=false`
+- `source_decryption_performed=false`
+- `independent_age_identity_verified=false`
+- `restore_verified=false`
+- `status=NO-GO`
+
+**Conclusion :** une nouvelle copie NFS des *octets chiffrés* a été
+publiée sans écraser l'ancien fichier et vérifiée identique à la
+source au moment de l'opération. Cette preuve n'atteste pas
+l'indépendance physique du support, les ACL NFSv4, la possibilité
+de déchiffrer le fichier ni la récupération d'un secret SOPS.
+**Ne pas lancer une deuxième fois `--copy`** : le nom final est
+désormais censé exister.
+
+### Contrôle post-copie, exclusivement en lecture seule
+
+Ajout dans PR #289 :
+`scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py`.
+
+```bash
+# Dans le worktree de la PR #289 mis à jour :
+just yubikey-escrow-postcopy-test
+just yubikey-escrow-postcopy-check
+```
+
+Le `--check` confirme **uniquement les métadonnées** :
+montage NFS attendu, paire `.age` non ambiguë, fichiers réguliers
+et uniques (un lien matériel chacun), propriétaire local et mode
+POSIX strictement `0600`. Il n'ouvre pas les octets du fichier,
+ne contacte pas TrueNAS et ne modifie rien.
+État attendu : `PAIR_METADATA_READY_ACL_UNVERIFIED`.
+
+Si ce précontrôle passe, l'exécution suivante est une
+**vérification indépendante et explicite en lecture seule** :
+
+```bash
+just yubikey-escrow-postcopy-verify
+```
+
+La commande compare les octets chiffrés à nouveau, puis interroge
+par SSH la présence d'un fichier régulier non vide **du même nom**
+dans le répertoire TrueNAS correspondant. La connexion impose
+l'authentification non interactive et une clé SSH hôte connue.
+La sortie ne contient ni nom privé, ni chemin, ni contenu
+chiffré ni empreinte.
+
+**État positif attendu** :
+`POSTCOPY_CIPHERTEXT_AND_SERVER_VISIBLE_ACL_UNVERIFIED`.
+Il confirme la concordance des copies et leur visibilité via les
+deux accès. **Il ne valide pas les ACL NFSv4 ni la restauration**.
+Si le test échoue, ne pas supprimer ni recréer l'archive : examiner
+le résultat, l'export et les permissions.
+
+### ACL et récupération réelle — jalons séparés
+
+- Contrôler les ACL du fichier et du répertoire côté TrueNAS via
+  l'outil local approprié au dataset (ACL NFSv4/native ZFS) ;
+  `getfacl` du client POSIX ne suffit pas nécessairement.
+  Ne publier ni ACE privées ni chemins complets.
+- Vérifier que le support de sauvegarde dispose d'un mécanisme
+  indépendant de récupération et de rétention.
+- Préparer ensuite **une restauration supervisée age/SOPS dans un
+  emplacement privé et isolé**, en gardant la clé age et tout
+  contenu déchiffré hors des journaux, arguments de commande et PR.
+- Ne pas modifier PIV82, PIV9A, OTP2 ni les destinataires SOPS.
+  KeePassXC reste reporté.
+
+**Validation logiciel en cours :** les tests du nouvel outil
+post-copie ont été ajoutés dans #289. Ils doivent encore être
+exécutés sur la workstation ; ne pas les compter comme PASS
+avant de recevoir leurs résultats. Aucune action de restauration
+ni de changement de secret n'a été effectuée par cet outil.
