@@ -16,20 +16,24 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING`, initializer `exited(0)`, uWSGI/Nginx/Celery `running`, HTTP local 200 ; `admin` Django `check_password=True` et login Web réel sur `http://172.17.0.24:31085/dashboard` **VALIDÉS** (LastPass obsolète) | HTTPS privé `defectdojo.int.albandrieu.com` inaccessible dans le navigateur : diagnostiquer DNS → port 443 → Traefik labels/réseau/TLS ; parité runtime/Vaultwarden encore **DRIFT/UNVERIFIED** |
+| H-03 | DefectDojo | TrueNAS `RUNNING` et login admin HTTP acceptés ; HTTPS direct SNI/TLS sur TrueNAS `LOGIN_HTML_READY`, DNS Pi-hole + pfSense A `172.17.0.24`, Traefik `running`, labels et réseau OK ; **31/31 tests TLS PASS opérateur** | Workstation ne résout pas le nom privé (`ping: Name or service not known`) : comparer `dig @pfSense` et `getent` sur le **client**, puis rétablir DNS NetworkManager/systemd-resolved (ancien drift Quad9). Vaultwarden/runtime restent DRIFT/UNVERIFIED |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
 | H-08 | Vaultwarden | `code`/`openrag` absents du cache CLI ; DefectDojo : 5 secrets MATCH, `DD_ADMIN_USER=DRIFT`, mot de passe coffre absent/vide | `bw sync`, vérifier l'item source, puis rapprocher le mot de passe Django avec runtime et coffre sans journaliser de secret |
 | H-09 | RAM TrueNAS | 61 Gio total, 7,3 Gio disponibles avant la reprise ; Netdata et Graylog arrêtés | Baseline PSI/mémoire/OOM sans attribuer causalement le pic à ces services |
 
-**Prochaine étape prioritaire :** rétablir l'HTTPS privé DefectDojo
-sans changer le compte Django ni créer de route HAProxy WAN. Le DNS LAN
-doît viser directement TrueNAS :443/Traefik. Exécuter en lecture seule
-`sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check`
-puis corriger uniquement le composant attesté. Réconcilier ensuite
-les credentials **fonctionnels** dans `.env.secrets` et Vaultwarden,
-sans exécuter le helper `--apply` contre le nouveau hash Django.
+**Prochaine étape prioritaire :** réparer la **résolution DNS de la workstation**
+sans ajouter un Host Override pfSense ni toucher au DNS Forwarder.
+Sur la workstation, exécuter `just pfsense-wifi-path`,
+`dig @172.17.0.1 defectdojo.int.albandrieu.com A`,
+`getent ahostsv4 defectdojo.int.albandrieu.com`,
+`resolvectl dns eno1` et `resolvectl domain eno1`.
+L'ancienne divergence NetworkManager → Quad9 est documentée dans
+[le runbook DNS](runbooks/2026-10-25-pfsense-wifi-dns-root-cause.md).
+Ne pas perturber DefectDojo/Traefik : le HTTPS fonctionne déjà sur TrueNAS.
+Ensuite seulement, rapprocher les identifiants Django fonctionnels
+de `.env.secrets` et Vaultwarden, sans helper `--apply` aveugle.
 Les corrections de diagnostic DefectDojo restent en code `[skip ci]` ;
 tests ciblés locaux à exécuter au HEAD réel.
 
