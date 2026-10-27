@@ -1204,6 +1204,10 @@ workstation-split-dns-test:
 workstation-nss-path:
     python3 scripts/workstation/diagnose-nss-resolution.py --check
 
+# Two sequential, bounded samples help distinguish intermittent native/stub/NSS faults.
+workstation-nss-path-samples:
+    python3 scripts/workstation/diagnose-nss-resolution.py --check --samples 2 --timeout 3
+
 # Hermetic NSS differential test suite, no network, no sudo, no pytest.
 workstation-nss-path-test:
     python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
