@@ -42,6 +42,10 @@ active && $1 == "tcp-request" {
 }
 active && $1 == "use_backend" {
   printf "line=%d type=backend_route %s\n", NR, $0
+  if ($3 == "if" && $4 == "nexus") {
+    # This reports a declared route, not proof it received WAN traffic.
+    printf "nexus_declared_backend=%s\n", $2
+  }
   emitted++
   next
 }
