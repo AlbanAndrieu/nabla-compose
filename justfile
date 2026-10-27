@@ -505,6 +505,10 @@ openclaw-digest-top-test:
 openclaw-digest-top-check:
     python3 scripts/workstation/diagnose-openclaw-digest-top.py
 
+# Static non-secret digest manifest: no cron creation, delivery or inference.
+openclaw-digest-gitops-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
+
 # Read-only cron-parent session catalog: no transcript output or SQLite mutation.
 openclaw-cron-parent-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-cron-parent.py tests/test_openclaw_cron_parent.py
