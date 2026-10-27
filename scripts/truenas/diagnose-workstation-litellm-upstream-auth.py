@@ -2,7 +2,7 @@
 """Read-only TrueNAS LiteLLM -> Workstation LiteLLM auth preflight.
 
 Does NOT send protected model requests, call models or read credential values.
-Resolves the sole running Docker Compose project=litellm service=litellm instance.
+Resolves the unique running TrueNAS Compose LiteLLM service by strict name.
 Never targets stopped legacy containers or reads secret values.
 """
 from __future__ import annotations
@@ -50,24 +50,23 @@ def failure_class(returncode: int, stderr: bytes) -> str:
     return "unexpected_stderr" if returncode == 0 else "docker_exec_failed"
 
 
-# Compose labels are assigned by Docker Compose, and remain stable when
-# TrueNAS creates a generated name (litellm-litellm-1) rather than legacy litellm.
-COMPOSE_SELECTOR = (
-    "label=com.docker.compose.project=litellm",
-    "label=com.docker.compose.service=litellm",
-)
-CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm-litellm-[1-9][0-9]*|litellm)")
+# TrueNAS can use a generated Compose project name rather than the
+# literal "litellm". Therefore project=litellm is NOT a reliable filter.
+# Accept only the canonical service container name observed by the operator.
+# Never select the stopped/legacy bare "litellm" container.
+CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm-litellm-[1-9][0-9]*)")
 
 
 def discover_running_container() -> tuple[str, str | None, str | None]:
-    """Return (state, Docker ID, fixed-format name); never print IDs.
+    """Return (state, Docker ID, exact name) without printing Docker IDs.
 
-    Select only ONE live Compose container with both trusted labels.
-    No fallback to the stopped legacy 'litellm' container is permitted.
+    Select one running, exact-name TrueNAS Compose service container. The
+    narrow name filter is for discovery only; regex enforces the full name.
+    Reject ambiguity and do not fall back to the bare legacy container.
     """
-    command = ["docker", "ps", "--filter", COMPOSE_SELECTOR[0],
-               "--filter", COMPOSE_SELECTOR[1], "--filter", "status=running",
-               "--format", "{{.ID}}|{{.Names}}"]
+    command = ["docker", "ps", "--filter", "name=litellm",
+               "--filter", "status=running", "--format",
+               "{{.ID}}|{{.Names}}"]
     try:
         result = subprocess.run(command, capture_output=True,
                                 check=False, timeout=8)
@@ -75,17 +74,19 @@ def discover_running_container() -> tuple[str, str | None, str | None]:
         return "docker_discovery_unavailable", None, None
     if result.returncode:
         return failure_class(result.returncode, result.stderr), None, None
-    if result.stderr or len(result.stdout) > 1024:
+    if result.stderr or len(result.stdout) > 4096:
         return "docker_discovery_unverified", None, None
     lines = result.stdout.decode("ascii", errors="replace").splitlines()
-    if not lines:
+    candidates = []
+    for line in lines:
+        match = CONTAINER_ROW.fullmatch(line)
+        if match is not None:
+            candidates.append((match.group(1), match.group(2)))
+    if not candidates:
         return "compose_running_container_not_found", None, None
-    if len(lines) != 1:
+    if len(candidates) != 1:
         return "compose_running_container_ambiguous", None, None
-    match = CONTAINER_ROW.fullmatch(lines[0])
-    if match is None:
-        return "compose_container_identity_unverified", None, None
-    return "selected", match.group(1), match.group(2)
+    return "selected", candidates[0][0], candidates[0][1]
 
 
 def inspect_docker_target(container_id: str = "litellm") -> str:
@@ -189,6 +190,7 @@ def report() -> dict:
         "schema": "nabla-litellm-upstream-auth-preflight/v3",
         "proxy_target": "workstation_litellm",
         "truenas_container_selection": selection,
+        "truenas_selection_method": "unique_running_exact_name",
         "truenas_docker_container_name": selected_name if should_inspect else "unverified",
         "truenas_docker_container_status": docker_status,
         "truenas_litellm_env": container,
