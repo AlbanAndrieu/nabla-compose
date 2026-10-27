@@ -27,9 +27,27 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         self.assertEqual((state, container_id, name),
                          ("selected", "0123456789ab", "litellm-litellm-1"))
         self.assertEqual(commands[0][0:2], ["docker", "ps"])
-        self.assertIn("label=com.docker.compose.project=litellm", commands[0])
-        self.assertIn("label=com.docker.compose.service=litellm", commands[0])
+        self.assertIn("name=litellm", commands[0])
         self.assertIn("status=running", commands[0])
+        self.assertFalse(any("com.docker.compose.project=" in item
+                             for item in commands[0]))
+        self.assertFalse(any("com.docker.compose.service=" in item
+                             for item in commands[0]))
+
+    def test_unrelated_named_containers_do_not_block_one_exact_name(self):
+        rows = (b"0123456789ab|litellm-dashboard\\n"
+                b"abcdefabcdef|litellm-litellm-1\\n"
+                b"987654321abc|litellm-helper\\n")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=rows, stderr=b"")):
+            self.assertEqual(mod.discover_running_container(),
+                             ("selected", "abcdefabcdef", "litellm-litellm-1"))
+
+    def test_legacy_bare_running_container_is_not_a_safe_fallback(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=b"0123456789ab|litellm\\n", stderr=b"")):
+            self.assertEqual(mod.discover_running_container(),
+                             ("compose_running_container_not_found", None, None))
 
     def test_no_running_compose_proxy_refuses_old_exited_container(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
