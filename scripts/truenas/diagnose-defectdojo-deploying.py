@@ -133,10 +133,34 @@ def local_http() -> str:
     return "UNVERIFIED"
 
 
+SUCCESS_HTTP = {"200", "301", "302", "303", "307", "308"}
+DEPENDENT_CONTAINERS = (
+    "defectdojo-uwsgi", "defectdojo-celeryworker",
+    "defectdojo-celerybeat", "defectdojo",
+)
+
+
+def stack_ready(containers: dict[str, dict[str, object]], http: str) -> bool:
+    """Runtime transport gate, not an authenticated login or worker-task E2E."""
+    initializer = containers.get("defectdojo-initializer", {})
+    if initializer.get("state") != "exited" or initializer.get("exit_code") != 0:
+        return False
+    if http not in SUCCESS_HTTP:
+        return False
+    return all(
+        containers.get(name, {}).get("state") == "running"
+        and containers.get(name, {}).get("oom_killed") is not True
+        and containers.get(name, {}).get("health") not in ("unhealthy", "unverified")
+        for name in DEPENDENT_CONTAINERS
+    )
+
+
 def next_action(containers: dict[str, dict[str, object]], http: str) -> str:
     init = containers["defectdojo-initializer"]
     django = containers["defectdojo-uwsgi"]
     front = containers["defectdojo"]
+    if stack_ready(containers, http):
+        return "stack_running_verify_admin_login_and_vaultwarden_parity"
     if init.get("oom_killed") or django.get("oom_killed") or front.get("oom_killed"):
         return "inspect_host_memory_pressure_and_oom_before_any_restart"
     if init.get("state") == "running":
@@ -147,6 +171,10 @@ def next_action(containers: dict[str, dict[str, object]], http: str) -> str:
         return "initializer_completed_check_uwsgi_dependency"
     if django.get("state") == "running" and front.get("state") != "running":
         return "uwsgi_running_check_frontend_container_start"
+    if (django.get("state") == "running" and front.get("state") == "running"
+            and any(containers.get(name, {}).get("state") != "running"
+                    for name in ("defectdojo-celeryworker", "defectdojo-celerybeat"))):
+        return "check_celery_worker_and_beat_state"
     if django.get("state") == "running" and front.get("state") == "running" and http == "UNREACHABLE":
         return "check_host_port_binding_and_docker_network"
     return "inspect_init_backend_and_host_pressure_no_db_reset"
@@ -176,7 +204,15 @@ def diagnose(include_logs: bool) -> dict[str, object]:
             if code == 0 else ["LOGS_UNVERIFIED"]
         )
         result["initializer_log_progress_is_exit_proof"] = False
+    ready = stack_ready(containers, result["origin_http"])
+    result["stack_transport_state"] = (
+        "READY_FOR_AUTH_CHECK" if ready and result["app_state"] == "RUNNING"
+        else "INCOMPLETE_OR_UNVERIFIED"
+    )
+    result["admin_login"] = "NOT_VERIFIED"
     result["next_check"] = next_action(containers, result["origin_http"])
+    if ready and result["app_state"] != "RUNNING":
+        result["next_check"] = "check_truenas_app_state_stabilization"
     return result
 
 
@@ -188,8 +224,7 @@ def main() -> int:
     args = parser.parse_args()
     report = diagnose(args.include_log_classes)
     print(json.dumps(report, sort_keys=True, indent=2))
-    good = (report["app_state"] == "RUNNING"
-            and report["origin_http"] in ("200", "301", "302", "303", "307", "308"))
+    good = report["stack_transport_state"] == "READY_FOR_AUTH_CHECK"
     return 0 if good else 2
 
 
