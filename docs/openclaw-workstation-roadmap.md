@@ -11,7 +11,7 @@
 
 | Chantier | Code | Validation locale | Validation runtime |
 | --- | --- | --- | --- |
-| Auth /v1/models | Sonde OpenRAG corrigée ; préflight avec identité TrueNAS vérifiée | **31/31** derniers tests opérateur PASS avant correctif hôte ; nouveaux tests à exécuter | Appel sans clé non attribué ; conteneur FastAPI upstream sur TrueNAS à contrôler |
+| Auth /v1/models | Sonde OpenRAG corrigée ; préflight TrueNAS vérifié ; contrôle source Vaultwarden | **39/39 PASS** avant correction `jsonschema` ; nouvel essai à recevoir | Workstation HTTP 200 ; conteneur TrueNAS running ; FastAPI scoped key absente du fichier et du conteneur ; Vaultwarden non interrogé |
 | Récupération ancienne config `nabla` | Inventaire limité aux politiques, pas de secrets | 5/5 PASS ; fichiers disponibles dans clone git-crypt déverrouillé | Pas de copie ou application |
 | Digest | Manifeste non secret et diagnostic du skill | 3/3 manifeste PASS ; diagnostic upstream 16 tests non revalidés après dernière édition | Job réel conservé ; réussite éditoriale à confirmer |
 | Sessions `cron` | Diagnostic complet, maintenance native `--dry-run`/`--enforce` | 5/5 parent + 6/6 maintenance PASS | **ACCEPTED maintenance** : 21 → 21, `pruned=0` ; parent toujours absent |
@@ -141,6 +141,44 @@ un état fermé, sans valeur secrète. Nouveau contrat offline
   avant tout provisionnement, pour éviter les doublons.
 - Pas de changement de secrets, pas de nouvelle clé,
   pas de redémarrage et pas de cutover automatique.
+
+### Diagnostic Vaultwarden bloqué sur dépendance Python (relevé opérateur)
+
+`git pull` puis `just litellm-workstation-auth-contracts`
+ont validé **39/39 PASS** (3 OpenRAG, 8 pytest LiteLLM,
+22 upstream, 6 source Vaultwarden). Le premier
+`just litellm-fastapi-upstream-source-check` a
+échoué **avant toute connexion Vaultwarden**, lors
+de l'import `jsonschema` introuvable sous
+`python3`. **Aucune preuve que la clé ait jamais
+été provisionnée ou qu'elle soit absente de Vaultwarden.**
+La politique Git et les emplacements ne sont pas des
+preuves de génération de clé.
+
+**Correctif [skip ci] :** recherche de `jsonschema`
+dans des environnements Python locaux **déjà installés**,
+d'abord `NABLA_SECRETS_PYTHON`, puis
+`.venv/bin/python`, puis Pythons système,
+sans paquet global, GitHub CI, mutation de secret
+ou création de clé. Échec fermé et consignes de
+`uv sync --group test --locked --offline` si le
+cache de dépendances le permet. Le script direct
+classe l'absence du module en
+`python_dependency_unavailable`, sans traceback ;
+un test offline additionnel couvre ce cas (test
+non encore exécuté depuis ce correctif).
+
+**Prochaine preuve immédiate** :
+`just litellm-fastapi-upstream-source-check`
+en session opérateur Vaultwarden existante et,
+depuis la Workstation, le `--target workstation
+--check` du provisionneur FastAPI (lecture seule,
+pas de réseau). Avant une génération éventuelle,
+contrôler l'alias `fastapi-sample-upstream`
+dans la base LiteLLM Workstation, pour empêcher
+une clé virtuelle orpheline/doublon. La décision
+reste : **conserver** une clé distincte scoped `qwen`
+sans réutiliser la clé IDE/master.
 
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
