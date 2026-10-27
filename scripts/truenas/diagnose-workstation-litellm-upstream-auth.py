@@ -2,8 +2,8 @@
 """Read-only TrueNAS LiteLLM -> Workstation LiteLLM auth preflight.
 
 Does NOT send protected model requests, call models or read credential values.
-Resolves the unique running TrueNAS Compose LiteLLM service by strict name.
-Never targets stopped legacy containers or reads secret values.
+Verifies TrueNAS identity before selecting the literal TrueNAS 'litellm' container.
+Never inspects workstation Docker state or reads secret values.
 """
 from __future__ import annotations
 
@@ -29,6 +29,25 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def truenas_host_state() -> str:
+    """Check the appliance via its native middleware; no hostname/IP guessing.
+
+    Workstation systems must not inspect their own Docker containers as if
+    they were TrueNAS. Fail closed when the middleware proof is unavailable.
+    """
+    try:
+        result = subprocess.run(
+            ["midclt", "call", "system.version"],
+            capture_output=True, check=False, timeout=8
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "unverified"
+    if result.returncode != 0 or result.stderr or len(result.stdout) > 192:
+        return "unverified"
+    value = result.stdout.decode("ascii", errors="replace").strip().strip('"')
+    return "verified" if re.fullmatch(r"TrueNAS[-_][A-Za-z0-9._+-]{1,100}", value) else "unverified"
+
+
 def failure_class(returncode: int, stderr: bytes) -> str:
     """Classify Docker failures with fixed labels; never expose raw stderr."""
     if len(stderr) > 16384:
@@ -50,21 +69,15 @@ def failure_class(returncode: int, stderr: bytes) -> str:
     return "unexpected_stderr" if returncode == 0 else "docker_exec_failed"
 
 
-# TrueNAS can use a generated Compose project name rather than the
-# literal "litellm". Therefore project=litellm is NOT a reliable filter.
-# Accept only the canonical service container name observed by the operator.
-# Never select the stopped/legacy bare "litellm" container.
-CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm-litellm-[1-9][0-9]*)")
+# This command is TrueNAS-only and runs only after truenas_host_state().
+# The user identified "litellm-litellm-1" as WORKSTATION, not TrueNAS.
+# On TrueNAS, the exact "litellm" name is an observed running service.
+CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm)")
 DOCKER_PS_ROW = re.compile(r"[0-9a-f]{12,64}\|[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 
 def discover_running_container() -> tuple[str, str | None, str | None]:
-    """Return (state, Docker ID, exact name) without printing Docker IDs.
-
-    Select one running, exact-name TrueNAS Compose service container. The
-    narrow name filter is for discovery only; regex enforces the full name.
-    Reject ambiguity and do not fall back to the bare legacy container.
-    """
+    """Select only TrueNAS running 'litellm', never similarly named services."""
     command = ["docker", "ps", "--filter", "name=litellm",
                "--filter", "status=running", "--format",
                "{{.ID}}|{{.Names}}"]
@@ -86,9 +99,9 @@ def discover_running_container() -> tuple[str, str | None, str | None]:
         if match is not None:
             candidates.append((match.group(1), match.group(2)))
     if not candidates:
-        return "compose_running_container_not_found", None, None
+        return "truenas_running_container_not_found", None, None
     if len(candidates) != 1:
-        return "compose_running_container_ambiguous", None, None
+        return "truenas_running_container_ambiguous", None, None
     return "selected", candidates[0][0], candidates[0][1]
 
 
@@ -181,6 +194,35 @@ def classify_upstream_keys(container: dict) -> str:
 
 
 def report() -> dict:
+    host = truenas_host_state()
+    base = {
+        "schema": "nabla-litellm-upstream-auth-preflight/v4",
+        "host_context": "truenas_verified" if host == "verified" else "unverified_not_inspected",
+        "proxy_target": "workstation_litellm",
+        "truenas_selection_method": "truenas_only_exact_litellm",
+        "workstation_liveliness": "not_checked",
+        "origin_of_previous_missing_key_event": "not_yet_attributed",
+        "suspected_component": "truenas_litellm_or_other_sdk_unverified",
+        "reported_failure_user_agent_version": "1.106.4",
+        "protected_models_endpoint_queried": False,
+        "model_requests_sent": 0,
+        "secret_values_printed": False,
+        "runtime_mutated": False,
+    }
+    if host != "verified":
+        # No Docker or network operation on an unverified host.
+        return {
+            **base, "truenas_container_selection": "not_inspected",
+            "truenas_docker_container_name": "unverified",
+            "truenas_docker_container_status": "not_inspected",
+            "truenas_litellm_env": {
+                "container": "unavailable", "key_presence": "unverified",
+                "failure_class": "host_context_unverified",
+            },
+            "truenas_upstream_key_state": "unverified",
+            "truenas_litellm_sdk_version": "unverified",
+        }
+
     selection, container_id, selected_name = discover_running_container()
     docker_status = (inspect_docker_target(container_id) if container_id is not None
                      else "not_inspected")
@@ -190,23 +232,14 @@ def report() -> dict:
                        "failure_class": "container_selection_or_state_unverified"})
     sdk = check_sdk_version(container_id) if should_inspect else "unverified"
     return {
-        "schema": "nabla-litellm-upstream-auth-preflight/v3",
-        "proxy_target": "workstation_litellm",
+        **base,
         "truenas_container_selection": selection,
-        "truenas_selection_method": "unique_running_exact_name",
         "truenas_docker_container_name": selected_name if should_inspect else "unverified",
         "truenas_docker_container_status": docker_status,
         "truenas_litellm_env": container,
         "truenas_upstream_key_state": classify_upstream_keys(container),
         "workstation_liveliness": check_liveliness(),
-        "origin_of_previous_missing_key_event": "not_yet_attributed",
-        "suspected_component": "truenas_litellm_or_other_sdk_unverified",
         "truenas_litellm_sdk_version": sdk,
-        "reported_failure_user_agent_version": "1.106.4",
-        "protected_models_endpoint_queried": False,
-        "model_requests_sent": 0,
-        "secret_values_printed": False,
-        "runtime_mutated": False,
     }
 
 
@@ -218,7 +251,8 @@ def main(argv=None) -> int:
     print(json.dumps(record, sort_keys=True))
     # Never return green when any declared upstream key is missing.
     # All-present means presence only, not that the key is valid or in scope.
-    return 0 if (record["truenas_container_selection"] == "selected"
+    return 0 if (record["host_context"] == "truenas_verified"
+                 and record["truenas_container_selection"] == "selected"
                  and record["truenas_docker_container_status"] == "running"
                  and record["truenas_upstream_key_state"] == "all_present_unvalidated"
                  and record["workstation_liveliness"] == "http_200") else 2
