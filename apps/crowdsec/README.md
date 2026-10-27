@@ -37,6 +37,21 @@ l'enregistrement `PFSENSE_FIREWALL@172.17.0.1`, un `last_pull`,
 Le `last_pull` du client `curl` TrueNAS ne suffit plus. Ce contrôle prouve
 l'interrogation de la LAPI depuis pfSense selon les métadonnées fournies
 par CrowdSec, **pas** l'application ou l'expiration des bans dans PF.
+
+**Correctif du 27/10 après réception TrueNAS :** la première version du
+filtre JSON contrôlait `valid=true`, champ **absent** de `cscli bouncers
+list -o json` en CrowdSec **v1.8.1**. La colonne CLI « Valid » est dérivée
+de `revoked`. Le filtre exige désormais `revoked=false` (champ présent)
+avec le nom, l'IP, le type et `last_pull`; une valeur absente fait échouer
+l'acceptation. [Modèle upstream v1.8.1](https://github.com/crowdsecurity/crowdsec/blob/v1.8.1/cmd/crowdsec-cli/clibouncer/bouncers.go).
+
+La suite `test_crowdsec_candidate_bouncer_auth.py` échouait sur TrueNAS :
+six cas tentaient une connexion réelle à `127.0.0.1:8084`, au lieu
+d'utiliser le faux `curl`. Le contrôle acceptant un exécutable explicite
+`CROWDSEC_CURL_BIN` en environnement, le test le renseigne avec son
+faux client éphémère. **Ne jamais définir cette variable lors d'un
+contrôle d'authentification réel**, et ne pas utiliser ces tests comme
+preuve de disponibilité réseau.
 L'ancien nom `pfsense-firewall` a un dernier appel daté du 25 septembre ;
 ne pas le supprimer sans étude de sa provenance et de son usage.
 
