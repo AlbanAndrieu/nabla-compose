@@ -3,8 +3,12 @@
 **Objet :** distinguer DNS, résolution du poste, Traefik et Nexus pour
 `https://nexus.int.albandrieu.com/`. Le succès de
 `https://nexus.albandrieu.com/` ne valide pas ce chemin privé.
-**État du 26/10 : DNS et backend validés ; rendu TrueNAS connu,
-routeur privé volontairement désactivé et conteneur non réconcilié.**
+**État au 27/10 :** DNS privé et backend OK ; TrueNAS a
+réconcilié les labels Docker après redéploiement Nexus.
+Le routeur privé est **volontairement désactivé**
+(`traefik.enable=false`, HTTPS privé 404 / TLS OK).
+**WAN_REJECTION_NOT_VERIFIED** : la revue de la règle HAProxy
+bloquant exactement `nexus.int.albandrieu.com` est en cours.
 Ne pas toucher au chemin public ni publier de DNS `*.int` sur Cloudflare.
 
 ## Chaîne attendue
