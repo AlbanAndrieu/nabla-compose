@@ -128,6 +128,9 @@ fail() { exit 73; }
             ({"auths": {"ghcr.io": {"auth": "synthetic"}}}, False),
             ({"auths": {"https://index.docker.io/v1/": {}}}, False),
             ({"auths": {"https://index.docker.io/v1/": {"auth": "synthetic"}}}, True),
+            ({"auths": {"https://index.docker.io/v1/": {"identitytoken": "synthetic"}}}, True),
+            ({"auths": {"https://index.docker.io/v1/": {"auth": "", "identitytoken": "synthetic"}}}, True),
+            ({"auths": {"https://index.docker.io/v1/": {"auth": "", "identitytoken": ""}}}, False),
             ({"credHelpers": {"registry-1.docker.io": "pass"}}, True),
             ({"credsStore": "pass"}, True),
         )
