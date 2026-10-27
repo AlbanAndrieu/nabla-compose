@@ -55,7 +55,7 @@ services:
       kind: object-storage
       category: data
       url: https://s3.int.albandrieu.com
-      description: S3-compatible object storage exposed directly through pfSense HAProxy, TLS re-encryption and Traefik on TrueNAS.
+      description: S3-compatible object storage for LAN clients only via internal DNS and Traefik on TrueNAS. Deny the S3 hostname on public pfSense HAProxy; Garage WebUI is a separate public Tunnel hostname.
       runtime:
         provider: truenas-app
         containerService: garage
@@ -63,7 +63,7 @@ services:
         - target: traefik
           type: exposedBy
           strength: required
-          description: Traefik routes the direct s3.int.albandrieu.com S3 ingress to Garage :3900 after pfSense HAProxy TLS re-encryption.
+          description: Traefik serves the LAN-only s3.int.albandrieu.com S3 ingress to Garage :3900. External HAProxy must deny this Host; do not publish the S3 API on WAN.
           evidence:
             - apps/garage/compose.yml:traefik.http.routers.garage-s3.rule
             - apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port
