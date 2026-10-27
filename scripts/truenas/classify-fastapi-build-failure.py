@@ -41,8 +41,8 @@ RULES = (
     Rule("dockerfile_parse", r"dockerfile parse error|unknown instruction:|failed to parse dockerfile", "check_dockerfile_syntax_offline"),
     Rule("base_image_metadata", r"failed to resolve source metadata|failed to authorize:|failed to fetch anonymous token|failed to do request: head", "inspect_base_image_metadata_and_registry_readonly"),
     Rule("build_context_invalid", r"unable to prepare context|failed to read context|failed to load build context|failed to walk", "inspect_compose_build_context_readonly"),
-    Rule("compose_service_invalid", r"no such service:|invalid compose project|service [^\\r\\n]{0,120} has neither an image nor a build context", "check_compose_target_service_readonly"),
-    Rule("image_reference_invalid", r"invalid reference format|invalid tag [^\\r\\n]{0,120}|manifest unknown|manifest not found|pull access denied", "check_image_reference_or_manifest_readonly"),
+    Rule("compose_service_invalid", r"no such service:|invalid compose project|service [^\r\n]{0,120} has neither an image nor a build context", "check_compose_target_service_readonly"),
+    Rule("image_reference_invalid", r"invalid reference format|invalid tag [^\r\n]{0,120}|manifest unknown|manifest not found|pull access denied", "check_image_reference_or_manifest_readonly"),
     Rule("buildkit_cache", r"failed to load cache key|failed to export cache|failed to import cache|failed to prepare extraction snapshot", "check_builder_cache_state_readonly"),
     Rule("buildkit_generic_failure", r"failed to solve:|error response from daemon:|^#[0-9]{1,5} ERROR:|^ERROR: failed to build", "inspect_buildkit_failure_privately"),
 )
