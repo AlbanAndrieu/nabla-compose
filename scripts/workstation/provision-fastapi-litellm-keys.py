@@ -155,7 +155,7 @@ def provision(policy: dict, target: str, output: Path, *,
             output.unlink(missing_ok=True)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
@@ -166,7 +166,7 @@ def main() -> int:
         help="on TrueNAS only: use the native proxy on 127.0.0.1:4000 "
              "instead of the workstation SSH tunnel on 127.0.0.1:14000",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         policy = load_policy()
         endpoint_override = None
