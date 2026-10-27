@@ -74,7 +74,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
 
     def test_docker_inspect_reports_only_fixed_status(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
-                 returncode=0, stderr=b"", stdout=b"running\\n")):
+                 returncode=0, stderr=b"", stdout=b"running\n")):
             self.assertEqual(mod.inspect_docker_target(), "running")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=1, stderr=b"Error: No such object: litellm", stdout=b"")):
