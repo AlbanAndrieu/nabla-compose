@@ -664,3 +664,42 @@ la **nouvelle** copie NFS, preuve de l'accès effectif
 aux dossiers NFS4, toute mutation PIV82/PIV9A/OTP2
 ou rotation SOPS. KeePassXC reporté ; ne jamais
 réexécuter `--copy`.
+
+## USB de récupération — lien UUID LUKS absent, inventaire lsblk nécessaire (27/10/2026)
+
+**Dernier résultat réel :** `just yubikey-escrow-usb-status`
+sur workstation a donné `LUKS UUID device not found`
+(ancien script basé uniquement sur le lien
+`/dev/disk/by-uuid`, exit 1). **Ce n'est pas une preuve
+de perte matérielle** du support SanDisk : la présence
+dans `lsblk` et l'état `udev` n'avaient pas été
+contrôlés séparément.
+
+**Prochaine action unique, lecture seule :**
+`just yubikey-escrow-usb-test` puis
+`just yubikey-escrow-usb-status` après mise à jour
+de la branche #289. La nouvelle recette réalise un
+inventaire `lsblk` redacted pour distinguer
+partition LUKS non énumérée, UUID visible sans
+lien udev, volume verrouillé, mapper ouvert ou
+volume monté. Aucun `sudo`, déverrouillage,
+clé privée, PIV ou montage. Le script historique
+reste disponible dans
+`just yubikey-escrow-usb-legacy-check`.
+
+**13 tests hermétiques écrits, exécution workstation
+`NOT_RUN`** ; aucune CI payante déclenchée.
+La restauration depuis la nouvelle copie NFS reste
+suspendue jusqu'à identification de l'identité USB.
+Ne jamais régénérer une identité X25519 incompatible
+avec l'ancien destinataire et ne pas reformater le
+seul support de récupération connu.
+
+**Maintenir :** duplication ciphertext et contrôle
+TrueNAS déjà `DONE`, PRA USB historique du 17/10
+conservé comme preuve, restauration depuis la copie
+du 27/10 `NO-GO`, indépendance de l'identité USB
+non prouvée, PIV82/PIV9A/OTP2 et changements
+SOPS non autorisés. KeePassXC reporté.
+
+[Procédure](yubikey-software-recovery-20261026.md).
