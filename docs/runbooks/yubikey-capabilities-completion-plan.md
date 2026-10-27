@@ -837,3 +837,51 @@ SOPS et KeePassXC. Ne pas relancer `--copy`.
 **Différé :** restauration d'un document SOPS de production, provisioning PIV82/PIV9A/OTP2, rotation de destinataires SOPS, KeePassXC et toute nouvelle copie NFS. Ne pas relancer `--copy`.
 
 [Runbook détaillé](yubikey-software-recovery-20261026.md).
+
+
+## Sauvegardes chiffrées de la clé age USB : implémentation livrée, exécution en attente
+
+**Autorisation opérateur accordée :** protéger l'identité
+de récupération X25519 d'origine avec `age -p`
+(phrase secrète externe), puis conserver le même
+ciphertext sur **workstation et TrueNAS**.
+Ne jamais copier la clé privée en clair sur ces supports.
+
+**Livré dans #289 [skip ci]** :
+`backup-usb-age-identity.py`,
+`test_usb_age_identity_independent_backup.py`
+et les recettes
+`just yubikey-usb-identity-backup-test`,
+`just yubikey-usb-identity-backup-check`
+et `just yubikey-usb-identity-backup`.
+
+Le contrôle de montage vérifie le NFS attendu.
+Le script refuse les fichiers préexistants,
+les symlinks, les répertoires non privés,
+les deux copies sur le même système de fichiers
+et les lancements non interactifs. La source
+USB reste inchangée, les fichiers publiés sont
+chiffrés et vérifiés identiques, sans écrasement.
+
+**État réel : BACKUP_NOT_EXECUTED sur workstation.**
+Le test hermétique a été validé dans un
+environnement local isolé ; l'exécution sur
+le montage TrueNAS réel est à effectuer par
+l'opérateur avec la SanDisk **physiquement
+branchée, déverrouillée et montée**.
+
+**Done intermédiaire :** copies chiffrées sur
+workstation et TrueNAS byte-identiques,
+passphrase indépendante conservée hors de
+la SanDisk. **Done PRA final :** déchiffrement
+d'une copie en RAM dans un scénario de perte
+de la SanDisk, destinataire public X25519
+retrouvé et restauration testée ; non validé
+par la seule égalité de fichiers.
+
+**Reste ouvert :** preuve ACL NFS4 effective,
+snapshots/rétention et un emplacement offsite.
+Ne pas modifier PIV82/OTP2, les destinataires
+SOPS ni la précédente archive `--copy`.
+
+[Procédure](yubikey-software-recovery-20261026.md).
