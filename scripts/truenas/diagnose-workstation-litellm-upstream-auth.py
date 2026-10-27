@@ -2,7 +2,8 @@
 """Read-only TrueNAS LiteLLM -> Workstation LiteLLM auth preflight.
 
 Does NOT send protected model requests, call models or read credential values.
-Resolves the sole running Docker Compose project=litellm service=litellm instance.\nNever targets stopped legacy containers or reads secret values.
+Resolves the sole running Docker Compose project=litellm service=litellm instance.
+Never targets stopped legacy containers or reads secret values.
 """
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ COMPOSE_SELECTOR = (
     "label=com.docker.compose.project=litellm",
     "label=com.docker.compose.service=litellm",
 )
-CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\\|(litellm-litellm-[1-9][0-9]*|litellm)")
+CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm-litellm-[1-9][0-9]*|litellm)")
 
 
 def discover_running_container() -> tuple[str, str | None, str | None]:
@@ -212,7 +213,9 @@ def main(argv=None) -> int:
     print(json.dumps(record, sort_keys=True))
     # Never return green when any declared upstream key is missing.
     # All-present means presence only, not that the key is valid or in scope.
-    return 0 if (record["truenas_container_selection"] == "selected"\n                 and record["truenas_docker_container_status"] == "running"\n                 and record["truenas_upstream_key_state"] == "all_present_unvalidated"
+    return 0 if (record["truenas_container_selection"] == "selected"
+                 and record["truenas_docker_container_status"] == "running"
+                 and record["truenas_upstream_key_state"] == "all_present_unvalidated"
                  and record["workstation_liveliness"] == "http_200") else 2
 
 
