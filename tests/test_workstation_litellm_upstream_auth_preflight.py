@@ -16,6 +16,82 @@ spec.loader.exec_module(mod)
 
 
 class WorkstationUpstreamAuthTests(unittest.TestCase):
+    def test_selects_only_running_compose_proxy_not_stopped_legacy(self):
+        rows = b"0123456789ab|litellm-litellm-1\n"
+        commands = []
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            return SimpleNamespace(returncode=0, stdout=rows, stderr=b"")
+        with patch.object(mod.subprocess, "run", side_effect=fake_run):
+            state, container_id, name = mod.discover_running_container()
+        self.assertEqual((state, container_id, name),
+                         ("selected", "0123456789ab", "litellm-litellm-1"))
+        self.assertEqual(commands[0][0:2], ["docker", "ps"])
+        self.assertIn("label=com.docker.compose.project=litellm", commands[0])
+        self.assertIn("label=com.docker.compose.service=litellm", commands[0])
+        self.assertIn("status=running", commands[0])
+
+    def test_no_running_compose_proxy_refuses_old_exited_container(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=b"", stderr=b"")):
+            self.assertEqual(mod.discover_running_container(),
+                             ("compose_running_container_not_found", None, None))
+
+    def test_multiple_running_proxies_are_ambiguous_and_block_inference(self):
+        rows = (b"0123456789ab|litellm-litellm-1\n"
+                b"abcdefabcdef|litellm-litellm-2\n")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=rows, stderr=b"")):
+            self.assertEqual(mod.discover_running_container(),
+                             ("compose_running_container_ambiguous", None, None))
+
+    def test_rejects_unexpected_container_name_or_invalid_id(self):
+        for row in (b"0123456789ab|some-other-service\n",
+                    b"invalid-id|litellm-litellm-1\n",
+                    b"0123456789ab|litellm-litellm-1\nPRIVATE\n"):
+            with self.subTest(row=row[:16]), patch.object(
+                    mod.subprocess, "run", return_value=SimpleNamespace(
+                        returncode=0, stdout=row, stderr=b"")):
+                status = mod.discover_running_container()[0]
+                self.assertNotEqual(status, "selected")
+
+    def test_selected_id_is_used_for_all_docker_checks_without_key_output(self):
+        container_id = "0123456789ab"
+        commands = []
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            if command[1] == "inspect":
+                return SimpleNamespace(returncode=0, stdout=b"running\n", stderr=b"")
+            if command[1] == "exec" and "import os;" in command[-1]:
+                return SimpleNamespace(returncode=0, stderr=b"",
+                                       stdout=(b"LITELLM_IDE_API_KEY=present\n"
+                                               b"LITELLM_FASTAPI_WORKSTATION_API_KEY=present\n"))
+            return SimpleNamespace(returncode=0, stdout=b"1.106.4\n", stderr=b"")
+        with patch.object(mod, "discover_running_container", return_value=(
+                 "selected", container_id, "litellm-litellm-1")), \
+             patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stdout(io.StringIO()) as sink:
+            status = mod.main(["--check"])
+        self.assertEqual(status, 0)
+        self.assertEqual(len(commands), 3)
+        self.assertTrue(all(cmd[2 if cmd[1] == "exec" else -1] == container_id
+                            for cmd in commands))
+        self.assertNotIn(container_id, sink.getvalue())
+        self.assertIn('"truenas_docker_container_name": "litellm-litellm-1"',
+                      sink.getvalue())
+
+    def test_absent_selected_target_never_executes_docker(self):
+        with patch.object(mod, "discover_running_container", return_value=(
+                 "compose_running_container_not_found", None, None)), \
+             patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod.subprocess, "run") as run, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            status = mod.main(["--check"])
+        self.assertEqual(status, 2)
+        run.assert_not_called()
+        self.assertIn("compose_running_container_not_found", output.getvalue())
+
     def test_fixed_container_presence_without_value_readback(self):
         commands = []
         def fake_run(args, **kwargs):
@@ -98,6 +174,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                  "container": "observed", "key_presence": {
                     "LITELLM_IDE_API_KEY": "present",
                     "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
@@ -117,6 +194,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         }
         with patch.object(mod, "check_container", return_value={
                 "container": "observed", "key_presence": keys}), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
@@ -149,6 +227,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                     "container": "observed", "key_presence": {
                         "LITELLM_IDE_API_KEY": "present",
                         "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
              patch.object(mod, "check_liveliness", return_value="unavailable"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="unverified"), \
