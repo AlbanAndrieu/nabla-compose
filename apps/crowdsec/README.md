@@ -33,7 +33,7 @@ leur nombre seul ne prouve pas une reconstruction par TrueNAS.
 
 **Contrôle renforcé au prochain pull Git :** le mode `--accept` exige désormais
 l'enregistrement `PFSENSE_FIREWALL@172.17.0.1`, un `last_pull`,
-`ip_address=172.17.0.1`, `type=crowdsec-firewall-bouncer`, `valid=true`.
+`ip_address=172.17.0.1`, `type=crowdsec-firewall-bouncer`, `revoked=false`.
 Le `last_pull` du client `curl` TrueNAS ne suffit plus. Ce contrôle prouve
 l'interrogation de la LAPI depuis pfSense selon les métadonnées fournies
 par CrowdSec, **pas** l'application ou l'expiration des bans dans PF.
@@ -46,12 +46,17 @@ avec le nom, l'IP, le type et `last_pull`; une valeur absente fait échouer
 l'acceptation. [Modèle upstream v1.8.1](https://github.com/crowdsecurity/crowdsec/blob/v1.8.1/cmd/crowdsec-cli/clibouncer/bouncers.go).
 
 La suite `test_crowdsec_candidate_bouncer_auth.py` échouait sur TrueNAS :
-six cas tentaient une connexion réelle à `127.0.0.1:8084`, au lieu
-d'utiliser le faux `curl`. Le contrôle acceptant un exécutable explicite
-`CROWDSEC_CURL_BIN` en environnement, le test le renseigne avec son
-faux client éphémère. **Ne jamais définir cette variable lors d'un
-contrôle d'authentification réel**, et ne pas utiliser ces tests comme
-preuve de disponibilité réseau.
+six cas tentaient une connexion réelle à `127.0.0.1:8084`. Une tentative
+intermédiaire utilisait un exécutable fictif dans `/tmp`, mais son
+invocation échouait avec `NOT_VERIFIED_NO_CURL` (cause exacte des
+restrictions d'exécution sur TrueNAS non attestée). Les tests utilisent
+désormais une **fonction Bash `curl` locale**, définie dans le même
+interpréteur puis chargent le script avec
+`script="$1"; shift; source "$script" "$@"`.
+Aucun exécutable temporaire ni réseau n'est nécessaire. La variable
+d'injection `CROWDSEC_CURL_BIN` a été retirée du script de production.
+La reproduction locale vérifie 9 scénarios sans trafic réseau ;
+le gate complet sur TrueNAS reste à exécuter.
 L'ancien nom `pfsense-firewall` a un dernier appel daté du 25 septembre ;
 ne pas le supprimer sans étude de sa provenance et de son usage.
 
