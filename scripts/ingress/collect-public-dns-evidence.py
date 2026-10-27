@@ -49,19 +49,26 @@ def resolve_query(name: str, resolver: str, rrtype: str) -> str:
 def collect(hosts: list[str], resolvers=DEFAULT_RESOLVERS) -> dict[str, str]:
     requests = [(h, server, rrtype) for h in hosts for server in resolvers
                 for rrtype in QUERY_TYPES]
-    observations: dict[str, list[str]] = {h: [] for h in hosts}
+    observations: dict[tuple[str, str], list[str]] = {
+        (h, server): [] for h in hosts for server in resolvers
+    }
     with ThreadPoolExecutor(max_workers=8) as pool:
         values = list(pool.map(lambda x: resolve_query(x[0], x[1], x[2]), requests))
-    for (host, _, _), state in zip(requests, values):
-        observations[host].append(state)
+    for (host, resolver, _), state in zip(requests, values):
+        observations[(host, resolver)].append(state)
     result: dict[str, str] = {}
-    for host, states in observations.items():
-        if not states or any(x == "unknown" for x in states):
-            result[host] = "unknown"
-        elif any(x == "present" for x in states):
-            result[host] = "present"
-        else:
-            result[host] = "absent"
+    for host in hosts:
+        resolver_states = []
+        for resolver in resolvers:
+            states = observations[(host, resolver)]
+            if not states or any(x == "unknown" for x in states):
+                resolver_states.append("unknown")
+            elif any(x == "present" for x in states):
+                resolver_states.append("present")
+            else:
+                resolver_states.append("absent")
+        # Disagreement between public recursors is not a verified absence.
+        result[host] = resolver_states[0] if len(set(resolver_states)) == 1 else "unknown"
     return result
 
 
