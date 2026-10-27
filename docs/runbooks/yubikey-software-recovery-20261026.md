@@ -1444,3 +1444,79 @@ le diagnostic read-only. **Ne pas exécuter**
 de périphérique. La restauration age/SOPS depuis
 la nouvelle sauvegarde NFS reste bloquée en l'absence
 de l'identité USB réellement disponible.
+
+## SanDisk reconnectée, montée et identité USB à contrôler (27/10/2026)
+
+**Preuve opérateur après reconnexion physique de la SanDisk d'escrow** :
+
+- Le support d'origine a été **rebranché physiquement à la workstation**.
+  Il s'agissait bien du prérequis absent des premiers essais.
+- `just yubikey-escrow-usb-status` :
+  `state=ESCROW_LUKS_UNLOCKED_MOUNTED`,
+  `luks_uuid_link_present=true`,
+  `private_age_identity_read=false`,
+  `luks_unlock_attempted=false`,
+  `disk_mutation_performed=false`, `status=NO-GO`.
+- **Point de montage déclaré par l'opérateur :**
+  `/run/media/albandrieu/NABLA_ESCROW`.
+  Le diagnostic antérieur confirme le montage du volume LUKS,
+  **pas encore** l'existence ou la compatibilité de son identité age.
+
+**Instruction à répéter dans toute future procédure USB** :
+**brancher physiquement la SanDisk d'escrow d'origine avant
+d'exécuter les commandes de contrôle.** Si le diagnostic ne
+voit pas l'UUID attendu, vérifier d'abord la connexion du support ;
+ne pas interpréter immédiatement ce résultat comme une perte
+d'identité ou une panne `udev`.
+
+### Précontrôle de l'identité de récupération, sans lire sa valeur
+
+Le nouveau programme
+`scripts/workstation/inspect-age-escrow-usb-identity.py`
+corrobore l'UUID LUKS de la partition connue avec son unique
+enfant `crypt` monté sur ext4 à l'emplacement attendu ;
+il vérifie ensuite **uniquement les métadonnées** du fichier
+`age-escrow/recovery-identity.txt` du support monté.
+Le contrôle refuse un lien symbolique, un mauvais propriétaire,
+un mode différent de `0600`, un nombre de liens autre que 1,
+une taille vide ou démesurée. Aucun octet du fichier n'est ouvert.
+
+```bash
+# 1. Brancher physiquement la SanDisk d'origine.
+# 2. Vérifier qu'elle est déjà déverrouillée et montée.
+just yubikey-escrow-usb-status
+
+# 3. Tests synthétiques, sans accès à la clé privée USB.
+just yubikey-escrow-usb-identity-test
+
+# 4. Métadonnées locales uniquement, sans déchiffrement :
+just yubikey-escrow-usb-identity-check
+```
+
+Résultats positifs attendus :
+`usb_state=USB_LUKS_MOUNT_MATCHED`,
+`mount_state=USB_EXPECTED_EXT4_MOUNT_PRESENT`,
+`identity_state=USB_IDENTITY_METADATA_PRESENT`.
+Même après succès,
+`identity_private_content_read=false`,
+`identity_recipient_derived=false`,
+`restore_verified=false` et `status=NO-GO`
+restent exacts.
+
+**13 nouveaux contrats hermétiques sont ajoutés dans PR #289 ;
+leur exécution réelle sur workstation reste NOT_RUN.**
+La revue des permissions est une étape de préparation ;
+elle ne démontre pas que la clé X25519 présente est
+celle permettant le déchiffrement de l'archive NFS.
+Ne pas afficher de contenu de clé, de destinataire privé,
+d'argument age ni de trace de déchiffrement dans la PR.
+
+**Après succès du contrôle de métadonnées :** préparer
+séparément, avec approbation explicite, la validation
+de l'identité de récupération existante en comparant
+son destinataire public au destinataire historique.
+Le déchiffrement réel de la nouvelle copie NFS via
+les scripts de PRA existants reste un jalon indépendant.
+Aucune écriture, aucun `cryptsetup open`,
+`--init-identity`, `--copy`, modification YubiKey,
+rotation SOPS ou test KeePassXC n'est nécessaire.
