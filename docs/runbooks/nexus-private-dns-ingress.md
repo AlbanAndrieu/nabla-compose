@@ -3,8 +3,12 @@
 **Objet :** distinguer DNS, résolution du poste, Traefik et Nexus pour
 `https://nexus.int.albandrieu.com/`. Le succès de
 `https://nexus.albandrieu.com/` ne valide pas ce chemin privé.
-**État du 26/10 : DNS et backend validés ; rendu TrueNAS connu,
-routeur privé volontairement désactivé et conteneur non réconcilié.**
+**État au 27/10 :** DNS privé et backend OK ; TrueNAS a
+réconcilié les labels Docker après redéploiement Nexus.
+Le routeur privé est **volontairement désactivé**
+(`traefik.enable=false`, HTTPS privé 404 / TLS OK).
+**WAN_REJECTION_NOT_VERIFIED** : la revue de la règle HAProxy
+bloquant exactement `nexus.int.albandrieu.com` est en cours.
 Ne pas toucher au chemin public ni publier de DNS `*.int` sur Cloudflare.
 
 ## Chaîne attendue
@@ -645,6 +649,109 @@ vers un backend par défaut ne constitue pas un refus.
    l'interpolation produit `traefik.enable="true"` ; vérifier
    le rendu, puis la réconciliation TrueNAS. Le Host doit alors
    être routable en LAN ; tester également le Nexus public.
+## Gate 9 — HAProxy réel : ACL de l'ancien nom, routeur Traefik potentiellement générique
+
+**Preuve opérateur du 27 octobre**, obtenue en SSH sur pfSense
+depuis la workstation par filtrage de `/var/etc/haproxy/haproxy.cfg` :
+
+```text
+section=fWeb_HTTPS listener443=yes
+section=fWeb_HTTPS acl=acl nexus-albandrieu var(txn.txnhost) -m str -i nexus-albandrieu.int.albandrieu.com
+section=fWeb_HTTPS route=use_backend prod_front-traefik-https_ipvANY if int aclcrt_fWeb_HTTPS
+section=fWeb_HTTPS route=use_backend prod_front-traefik-https_ipvANY if aclcrt_fWeb_HTTPS
+```
+
+Le précédent extrait contenait aussi des routes ciblées `hello`
+et `dozzle`. Aucune directive `http-request deny` ou `return`
+n'y a été imprimée. Le filtre utilisé **ne remontait pas**
+la définition de l'ACL `int`, de `aclcrt_fWeb_HTTPS`, ni la
+création de `var(txn.txnhost)` ; ce n'est pas une preuve exhaustive
+de la politique du frontend ou de la configuration en mémoire.
+
+**Distinction des noms :**
+
+- **Cible voulue :** `nexus.int.albandrieu.com` (routeur Traefik
+  déclaré et DNS privé conforme).
+- **ACL historique observée :**
+  `nexus-albandrieu.int.albandrieu.com` (nom différent).
+  Sa seule présence ne prouve ni un refus ni un routage du nom
+  voulu ; ne pas la supprimer sans identifier ses utilisateurs.
+- **Routes possibles :** `if int aclcrt_fWeb_HTTPS` et
+  `if aclcrt_fWeb_HTTPS` peuvent envoyer un Host privé à
+  Traefik. Le résultat du test `curl --resolve` depuis le
+  LAN sur l'IP publique était HTTP 404 / TLS 0, et Traefik
+  répond déjà 404 sur LAN car `traefik.enable=false`.
+  **WAN_REJECTION_NOT_VERIFIED** demeure bloquant.
+
+### Compléter l'audit sans machine externe
+
+Exécuter sur la workstation avec l'accès pfSense SSH existant.
+Le filtre ne sort que les directives pertinentes du frontend ;
+il n'imprime ni clés privées, ni binds/certificats, ni secrets de
+contenu de requêtes :
+
+```bash
+ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s <<'HAPROXY_NEXUS_FRONTEND_READONLY'
+set -eu
+cfg=/var/etc/haproxy/haproxy.cfg
+[ -r "$cfg" ] || { echo "ERROR: no readable HAProxy cfg" >&2; exit 2; }
+awk '
+  $1 == "frontend" || $1 == "backend" || $1 == "listen" {
+    active=($1 == "frontend" && $2 == "fWeb_HTTPS")
+  }
+  active && $1 == "acl" &&
+    ($2 == "int" || $2 == "aclcrt_fWeb_HTTPS" || $2 ~ /nexus/) {
+    printf "line=%d type=acl %s\n", NR, $0
+  }
+  active && $1 == "http-request" &&
+    ($2 ~ /^set-var\(txn\.txnhost\)/ ||
+     $2 == "deny" || $2 == "return" || $2 == "allow") {
+    printf "line=%d type=http_rule %s\n", NR, $0
+  }
+  active && $1 == "tcp-request" && $2 ~ /^(connection|content)$/ {
+    printf "line=%d type=tcp_rule %s\n", NR, $0
+  }
+  active && $1 == "use_backend" {
+    printf "line=%d type=backend_route %s\n", NR, $0
+  }
+  active && $1 == "default_backend" {
+    printf "line=%d type=default_backend %s\n", NR, $0
+  }
+' "$cfg"
+HAPROXY_NEXUS_FRONTEND_READONLY
+```
+
+Si cette sortie contient des domaines, ACL ou IP que l'opérateur
+considère sensibles, les masquer avant tout partage. Cette sortie
+ne prouve pas encore la provenance WAN du trafic hairpin.
+
+### Remédiation à préparer, pas à appliquer ici
+
+Configurer depuis l'UI du paquet pfSense HAProxy **sur le
+frontend WAN `fWeb_HTTPS`**, et non dans le fichier généré :
+
+```haproxy
+acl nexus_private_wan var(txn.txnhost) -m str -i nexus.int.albandrieu.com
+http-request deny deny_status 403 if nexus_private_wan
+```
+
+**Exemple conceptuel**, à valider contre la ligne réelle qui
+alimente `txn.txnhost`. Si cette variable n'est pas normalisée
+(casse, `:443`), ajuster la règle avec l'expression adaptée
+au runtime HAProxy. L'action de refus doit être effective
+avant le routage vers le backend Traefik, et ne pas toucher
+`s3.int.albandrieu.com` ni le domaine Nexus public. En
+présence d'autres frontends publics, vérifier leur couverture
+séparément. Conserver un export/rollback pfSense, tester
+la syntaxe du HAProxy généré et vérifier son rechargement.
+**Ne pas interpréter un HTTP 404 Traefik comme un 403 HAProxy.**
+
+Après preuve de cette politique, seulement, préparer le
+`traefik.enable=true` pour Nexus et son redéploiement TrueNAS
+contrôlé ; l'accès LAN doit alors donner une réponse applicative
+plutôt qu'un 404 de routeur. Un test hors LAN, s'il est
+réalisable plus tard depuis un réseau mobile, restera
+la meilleure preuve de bout en bout du refus WAN.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
