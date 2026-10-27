@@ -3,9 +3,9 @@
 # Supports offline --fixture for hermetic tests. No pfSense mutation.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd -- "\${SCRIPT_DIR}/../.." && pwd)"
-AWK_SOURCE="\${ROOT}/scripts/pfsense/inspect-nexus-haproxy-frontend.awk"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+AWK_SOURCE="${ROOT}/scripts/pfsense/inspect-nexus-haproxy-frontend.awk"
 FRONTEND="main_Web_HTTPS"
 FIXTURE=""
 
@@ -44,8 +44,8 @@ if [[ -n "$FIXTURE" ]]; then
   exec awk -v "frontend=$FRONTEND" -f "$AWK_SOURCE" "$FIXTURE"
 fi
 
-SSH_TARGET="\${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-SSH_PORT="\${PFSENSE_SSH_PORT:-}"
+SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
+SSH_PORT="${PFSENSE_SSH_PORT:-}"
 [[ "$SSH_TARGET" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$ ]] || {
   printf 'ERROR: invalid SSH target\n' >&2; exit 2;
 }
@@ -59,5 +59,5 @@ fi
 command -v ssh >/dev/null || { printf 'ERROR: ssh is unavailable\n' >&2; exit 2; }
 # Portable awk program is read from stdin (-f -). The frontend value is
 # validated above; the generated pfSense HAProxy config is read, not changed.
-ssh "\${SSH_ARGS[@]}" "$SSH_TARGET" \
+ssh "${SSH_ARGS[@]}" "$SSH_TARGET" \
   "awk -v frontend=$FRONTEND -f - /var/etc/haproxy/haproxy.cfg" < "$AWK_SOURCE"
