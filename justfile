@@ -1208,6 +1208,15 @@ workstation-nss-path:
 workstation-nss-path-samples:
     python3 scripts/workstation/diagnose-nss-resolution.py --check --samples 2 --timeout 3
 
+# Read-only DNSSEC validation comparison: no settings changed, no sudo.
+workstation-dnssec-check:
+    python3 scripts/workstation/diagnose-dnssec-chain.py --check --samples 2 --timeout 4
+
+# Offline checks: stub/upstream signatures and per-query validation controls.
+workstation-dnssec-test:
+    python3 -m py_compile scripts/workstation/diagnose-dnssec-chain.py tests/test_diagnose_dnssec_chain.py
+    python3 -m unittest discover -s tests -p 'test_diagnose_dnssec_chain.py' -v
+
 # Hermetic NSS differential test suite, no network, no sudo, no pytest.
 workstation-nss-path-test:
     python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
