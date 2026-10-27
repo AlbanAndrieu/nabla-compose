@@ -505,6 +505,27 @@ Actions :
   `central_lapi_http=200`, une clé approuvée et `last_pull`
   central sont nécessaires avant de conclure au cutover.
   Si clé absente/incorrecte : **NO-GO**, sans rotation implicite.
+  **Décision opérateur postérieure :** accepter la reconstruction
+  progressive des remédiations PF à partir des décisions centrales
+  (sans migration des 8 637 anciens blocages).
+  Le bouncer central existant `PFSENSE_FIREWALL` est inscrit
+  mais n'a jamais été sollicité (`last_pull=<none>`) et la clé
+  de l'ancienne LAPI pfSense est rejetée par TrueNAS (403).
+  **Chemin court :** réémettre cette inscription inutilisée
+  depuis TrueNAS uniquement avec
+  `sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --check`
+  puis l'option explicite `--apply`; la nouvelle clé va
+  dans `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
+  (root:root 0600, aucune sortie secret). Valider
+  `central_candidate_auth=ACCEPTED`, puis configurer
+  `Services → CrowdSec` sur pfSense : Remote LAPI
+  `http://172.17.0.24:8084`, conserver Remediation Component,
+  désactiver Log Processor et Local API. Valider
+  `--accept` et `central_lapi_http=200`; tables PF vides
+  tolérées pendant la reconstruction centrale.
+  Aucun changement runtime n'a été effectué par la PR ;
+  nouveau contrôle local `just crowdsec-bouncer-config-test`
+  contient les tests d'émission de clé à exécuter.
   **Réception CrowdSec 27/10 21:53 :**
   sur TrueNAS, `--runtime` **0 erreur / 1 warning**,
   CrowdSec 1.8.1 RUNNING/healthy, LAPI :8084 et métriques :6060,
