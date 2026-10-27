@@ -16,7 +16,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin accepté ; HTTPS direct TrueNAS `LOGIN_HTML_READY` ; 31 contrats du diagnostic HTTPS **PASS**. Workstation : `dig @pfSense` OK mais DNS `eno1` effectif Quad9 (`NETWORKMANAGER_VS_RESOLVED`) ; override `resolvectl dns=172.17.0.1` + `~int.albandrieu.com` restaure `getent=172.17.0.24` et HTTPS 302/TLS valide sur le client | Correction DNS locale **temporaire** ; identifier l'auteur de l'override (`hide-location` présent mais causalité inconnue), persister la politique NetworkManager puis vérifier HTTPS Web réellement connecté ; Vaultwarden/runtime encore DRIFT/UNVERIFIED |
+| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin et HTTPS direct TrueNAS validés ; 31 contrats HTTPS PASS. Workstation : DNS pfSense direct OK, diagnostic DNS `unittest` **2/2 PASS** ; après un contournement `resolvectl` temporaire, le DNS actif `eno1` **redevient Quad9** (même avec `~int.albandrieu.com`), Chrome NXDOMAIN | Correction persistante dans [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) (Draft, non appliquée) ; confirmer le processus qui réécrit le DNS, puis valider le login HTTPS navigateur ; secrets runtime/Vaultwarden DRIFT |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
@@ -33,7 +33,12 @@ Le diagnostic local a échoué **avant** la correction, comme attendu,
 et la recette workstation passe **après**.
 Le Python `mise` 3.14.9 n'a pas `pytest` :
 `just defectdojo-workstation-dns-test` utilise désormais
-`unittest` standard, **pas encore exécuté par l'opérateur**.
+`unittest` standard, **2/2 PASS opérateur**. Le contrôle live
+`just defectdojo-workstation-dns-check` échoue légitimement tant
+que Quad9 reste le résolveur effectif de `eno1`.
+La remédiation versionnée appartient désormais à
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+Draft et **non déployée**.
 [Runbook de réception](runbooks/defectdojo-private-ingress-acceptance.md).
 Ensuite, réconcilier Django/runtime/Vaultwarden, sans
 `--apply` qui écraserait le hash fonctionnel.
