@@ -127,6 +127,80 @@ now requires it and has **no repo-local .env fallback**. Do not use the old
 item name or provision new credentials under it. If the fields have not yet
 been moved in Vaultwarden, this deployment intentionally remains unavailable.
 
+## Contrôle ciblé de la clé upstream (réception TrueNAS, 27/10/2026)
+
+**Preuves vérifiées** : TrueNAS version `26.0.0-BETA.2`,
+service Docker `litellm` running, champ d'environnement
+`LITELLM_FASTAPI_WORKSTATION_API_KEY=absent`. Le fichier
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` est
+**présent, régulier, root:root, 0600, 5457 octets**.
+Le compteur `awk` des déclarations du nom exact (tolérant
+espaces initiaux et `export`) est **zéro**.
+
+La cause de cette absence dans le conteneur est donc
+**en amont de Docker** : aucune déclaration de ce nom dans
+le fichier canonique. Ces contrôles ne démontrent **pas**
+que la clé virtuelle scoped `qwen` existe en Vaultwarden
+ou sur Workstation. La route `fastapi-qwen` reste
+incomplète ; ne pas substituer la clé IDE ou master.
+
+### Prochaine preuve : source Vaultwarden, sans valeurs
+
+Sur TrueNAS, dans la **session de l'opérateur non root**,
+avec le client Bitwarden configuré au serveur HTTPS déclaré
+et `BW_SESSION` déjà déverrouillée :
+
+```bash
+just litellm-fastapi-upstream-source-check
+```
+
+La commande utilise `scripts/secrets/check-litellm-fastapi-upstream-source.py`
+pour vérifier uniquement le champ caché
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` de l'item exact
+`nabla/prod/litellm` dans le dossier `TrueNAS`
+déclaré au manifeste. Le client valide également l'origine
+du serveur et le dossier, sans imprimer le document ni
+aucune valeur. Elle ne crée, n'importe, ne matérialise
+et ne modifie aucun secret ou service. Le client `bw`
+peut actualiser son cache local lors de `sync` ;
+cela ne change pas le secret côté serveur.
+
+États `field_state` :
+- `field_present_nonempty_hidden` : valeur cachée non vide
+  présente **à la source**, mais pas encore injectée ;
+- `field_absent`, `field_empty`, `field_duplicate`,
+  `field_not_hidden`, `field_invalid_format` :
+  corriger d'abord la source, après une revue ciblée ;
+- `vaultwarden_session_unavailable`,
+  `vaultwarden_unverified`, `manifest_mismatch` :
+  un prérequis d'inventaire est manquant ; ne pas
+  en déduire l'absence du secret.
+
+Le code de sortie est 0 **uniquement** pour un champ caché
+unique et non vide, 2 dans les autres cas.
+Il n'atteste ni la validité des permissions de la clé
+virtuelle sur Workstation, ni son budget effectif.
+
+Sur **Workstation uniquement**, la vérification offline
+de la copie de transit, si nécessaire, est :
+
+```bash
+python3 scripts/workstation/provision-fastapi-litellm-keys.py \
+  --target workstation --check
+```
+
+`status=already_provisioned` prouve uniquement
+l'existence et les permissions du fichier local ;
+cela n'atteste pas que la clé soit encore valide
+dans le proxy. `status=not_provisioned` n'exclut
+pas une clé déjà créée dans LiteLLM ou stockée
+directement dans Vaultwarden.
+
+**Ne pas exécuter `--apply`, `--install`, redéployer
+le proxy ni recopier les secrets manuellement tant que
+la source autorisée et les impacts sur le fichier
+canonique existant n'ont pas été validés.**
+
 ## Gates before deployment
 
 1. **Workstation** : `qwen` exists and accepts a small
