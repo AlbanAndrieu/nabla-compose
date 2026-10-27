@@ -52,6 +52,38 @@ utilise `ssl verify none` ; la connexion backend est chiffrée
 mais le certificat n'est pas authentifié. Prévoir une
 vérification TLS séparée du contrôle d'accès.
 
+## Remédiation à préparer dans pfSense (aucune règle appliquée ici)
+
+Sur le frontend WAN `main_Web_HTTPS`, créer **de nouvelles ACL**
+indépendantes des ACL de routage. Rendu HAProxy cible à valider
+après configuration dans l'UI pfSense :
+
+```haproxy
+acl s3_private_wan req.hdr(host) -m reg -i ^([^.]+\.)*s3\.int\.albandrieu\.com(:[0-9]{1,5})?$
+acl vault_private_wan req.hdr(host) -m reg -i ^vault\.int\.albandrieu\.com(:[0-9]{1,5})?$
+acl vaultwarden_legacy_private_wan req.hdr(host) -m reg -i ^vaultwarden\.int\.albandrieu\.com(:[0-9]{1,5})?$
+http-request deny deny_status 403 if s3_private_wan
+http-request deny deny_status 403 if vault_private_wan
+http-request deny deny_status 403 if vaultwarden_legacy_private_wan
+```
+
+Ces règles bloquent les Host privés sur le frontal WAN sans
+bloquer les connexions LAN directes à TrueNAS Traefik. Le
+motif S3 couvre aussi les hostnames bucket, puisque le routeur
+Traefik Garage accepte `*.s3.int.albandrieu.com`.
+Le frontal ne doit pas confondre ces noms avec
+`garage.albandrieu.com` (WebUI publique sous Access).
+
+**Avant Apply :** exporter la configuration pfSense, vérifier
+l'ordre des règles et la syntaxe HAProxy, identifier les
+utilisateurs actuels de S3/OpenTofu, préparer le rollback.
+**Après Apply :** contrôler le chargement HAProxy, le 403 du
+Host S3 et de ses sous-domaines depuis le chemin d'entrée WAN,
+le 200/403 S3 applicatif attendu depuis le LAN, et l'absence
+de régression de `garage.albandrieu.com`, Hello et Nexus public.
+Un 403 depuis LAN via IP publique n'est pas une preuve
+de protection depuis une source WAN externe. Vérifier les
+enregistrements DNS publics avec l'autorité et les CNAME.
 ## Diagnostic depuis le snapshot (sans réseau)
 
 ```bash
