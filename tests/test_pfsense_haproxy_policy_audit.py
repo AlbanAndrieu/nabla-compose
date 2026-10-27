@@ -67,7 +67,7 @@ class PfsenseHaproxyPolicyContracts(unittest.TestCase):
     def test_generated_tabs_are_parsed_for_nexus_vault_s3(self):
         # Historical regression: pfSense uses tabs for ACL separation.
         acl_lines = [line for line in self.source.splitlines() if line.lstrip().startswith("acl")]
-        self.assertTrue(any("\\t" in x for x in acl_lines))
+        self.assertTrue(any(chr(9) in x for x in acl_lines))
         r = audit_module.audit(self.source, self.policy, {})
         hosts = {h["hostname"]: h for h in r["hosts"]}
         self.assertIn("nexus", hosts["nexus.int.albandrieu.com"]["acl_names"])
