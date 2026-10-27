@@ -66,6 +66,14 @@ git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/clas
 
 Le propriétaire du journal est le même UID que l'utilisateur courant : **pas besoin de sudo** dans ce cas. Pour vérifier les nouveaux contrats avec le checkout à jour, exécuter `python3 -m unittest discover -s tests -p 'test_fastapi_build_failure_classifier.py' -v`. Ne publier que le JSON. Si `unclassified_build_failure` persiste, contrôler localement **la présence et la taille du journal** sans communiquer son contenu ; le diagnostic reste bloqué tant qu'aucune cause observable n'est identifiée. Ne pas relancer le builder pour obtenir de nouvelles preuves, ni effectuer un redéploiement concurrent.
 
+## Cause exacte du refus de propriétaire et preuve BuildKit actuelle
+
+**`unsafe_log_owner` était un faux positif du classifieur, pas une permission Docker incorrecte.** Le shell de déploiement lance `log="$(mktemp)"` dans `build_fastapi_sample()`, ce qui crée le fichier `0600` au nom de l'utilisateur opérateur (UID 1000). Ensuite, `run_build_attempt()` écrit le résultat de `run_docker` dans ce fichier. L'exécution éventuelle du client Docker avec `sudo` ne change **pas** le propriétaire du journal. L'ancien test de sécurité `st_uid in (0, os.geteuid())` refusait l'UID 1000 lorsque le diagnostic était exécuté en EUID 0. Avec `SUDO_UID=1000` validé, ou simplement avec Python exécuté par l'utilisateur propriétaire, le journal est lu sans modifier les droits.
+
+Dernière classification opérateur à partir du journal réel : `state=buildkit_generic_failure`, `buildkit_failure_marker=true`, `failure_stage=unknown`, `failure_operation=unknown`, `raw_log_printed=false`. Elle atteste une signature d'erreur générique BuildKit, **pas la cause racine**. Une étape inconnue peut résulter d'une sortie BuildKit sans identifiant `#N ERROR` corrélable, ou du fait que le classifieur lit uniquement les 4 derniers Mio. Ne pas déduire un OOM ou un problème `uv` sans preuve.
+
+**Suite en lecture seule :** relever `stat -c 'size_bytes=%s' /tmp/tmp.ngofCbFlgw`, puis examiner une preuve privée plus ciblée localement si le journal existe et la classification ne progresse pas. Ne transmettre ni extrait, ni URL, ni argument BuildKit, ni secret. Maintenir le conteneur précédent et ne pas relancer de build tant que le diagnostic n'est pas exploitable.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
