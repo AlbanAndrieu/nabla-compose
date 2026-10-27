@@ -91,7 +91,7 @@ source "$script" "$@"
         self.assertIn('source "$script" "$@"', source)
         self.assertIn('"$2" == docker', source)
         self.assertIn("MUTATION_REQUESTED", source)
-        self.assertNotIn('docker = tmp / "docker"', source)
+        self.assertNotRegex(source, r"(?m)^\s+docker\s*=\s*tmp\s*/")
 
     def test_apply_requires_root_and_explicit_mode(self):
         source = SCRIPT.read_text(encoding="utf-8")
