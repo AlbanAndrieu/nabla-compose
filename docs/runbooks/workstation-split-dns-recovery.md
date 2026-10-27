@@ -441,6 +441,83 @@ avec rollback et validation du comportement
 DNSSEC de pfSense avant toute réduction de
 l'authentification.
 
+## Réception NTA réussie — 27 octobre (workstation)
+
+L'opérateur a exécuté `just workstation-dnssec-nta-test` :
+**10/10 PASS**. Avant essai : `nta_state=EMPTY`,
+`validated_private=UNVERIFIED (5,0s)`.
+
+Après `just workstation-dnssec-nta-try` (action
+explicite) : `runtime_applied=true`, puis
+`validated_private=A_CONFIRMED (0,2s)`.
+La requête validée normale
+`resolvectl query -4 defectdojo.int.albandrieu.com`
+a répondu `172.17.0.24` en **33,4 ms** ;
+`getent ahostsv4` renvoie également l'A privé.
+La requête `resolvectl query -4 cloudflare.com`
+a répondu en **43,1 ms**, avec
+`Data is authenticated: yes`, confirmant
+DNSSEC pour le domaine public testé.
+
+`just workstation-nss-path` : **PASS**,
+`resolved_native`, `stub_udp`,
+`nss_dns` répondent immédiatement ;
+`nss_default=A_CONFIRMED (4,8s)` reste
+**trop lent**, séparément de DNSSEC privé.
+Le module `nss_resolve=NO_ANSWER` n'est pas
+concluant s'il n'est pas installé.
+
+**Conclusion :** la NTA runtime sur `eno1`
+résout le défaut privé reproductible et
+ne désactive pas DNSSEC pour `cloudflare.com`.
+Elle disparaîtra probablement lors d'une
+réinitialisation réseau/redémarrage,
+puisqu'elle n'a pas été persistée.
+
+### Persistance recommandée dans Ansible
+
+La [PR ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+contient maintenant une alternative *par interface*
+au fichier `.negative` global :
+`files/networkmanager-homelab-nta-dispatcher.sh`,
+`tasks/network_dnssec_nta_dispatcher.yml`.
+La nouvelle option `workstation_split_dns_nta_dispatcher_enabled=false`
+est **désactivée par défaut**, avec rollback explicite
+`workstation_split_dns_nta_dispatcher_remove_enabled=false`.
+Le dispatcher agit seulement pour
+`Wired eno1` / `eno1`, DNS `172.17.0.1`
+et `~int.albandrieu.com`, événements
+`up`, `dhcp4-change`, `reapply`.
+Contrairement au fichier `.negative`, il ne
+touche pas aux NTA des autres interfaces/VPN.
+
+Pour réagir au prochain changement de profil :
+une fois seulement **après une application Ansible autorisée**,
+`sudo nmcli device reapply eno1`
+déclenche l'événement `reapply` (documenté).
+Puis vérifier `resolvectl nta eno1`,
+`getent` et `resolvectl query -4 cloudflare.com`.
+
+**À tester côté Ansible avant activation :**
+
+```bash
+cd /tmp/ansible-dns-pr15.TGvM0O
+git fetch origin fix/preserve-homelab-split-dns-20261027
+git merge --ff-only origin/fix/preserve-homelab-split-dns-20261027
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_guard_contract.py' -v
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_nta_dispatcher.py' -v
+```
+
+**Statut des nouveaux tests :** 13 contrats du dispatcher
+écrits, **non exécutés sur la workstation**.
+Le script et le rôle Ansible n'ont pas été appliqués.
+La dernière preuve DNSSEC publique est limitée au
+domaine `cloudflare.com` ; les anciens logs
+`no-signature` concernant d'autres domaines
+restent un chantier distinct.
+
 ## 23:XX CET — Validation DNSSEC privée isolée, expérience NTA ciblée
 
 L'utilisateur a exécuté `just workstation-dnssec-test` :
