@@ -24,12 +24,16 @@
 - **Correctifs diagnostiques après exécution TrueNAS :** ancien gate
   `just crowdsec-bouncer-config-test` arrêté sur 6 erreurs de
   connexion `127.0.0.1:8084` dans les fixtures du test d'authentification.
-  Les tests injectent maintenant un client `curl` explicite sans réseau.
+  Les tests définissent maintenant une fonction Bash `curl` locale,
+  sans exécutable temporaire ni accès réseau ; `shift` préserve les
+  arguments attendus lorsque le script est chargé avec `source`.
   L'ancien contrôle de provenance a rejeté le bouncer suffixé avec
   `last_pull=22:47:47Z` parce qu'il exigeait `valid=true` (absent
   du JSON de CrowdSec 1.8.1). Correction : `revoked=false` +
-  nom/IP/type/date. **9/9 scénarios du prédicat `jq` PASS en local ;
-  gate `just` et réception runtime du nouveau HEAD non encore exécutés.**
+  nom/IP/type/date. **9/9 scénarios du prédicat `jq` confirmés
+  précédemment, et 9/9 scénarios de la sonde candidate reproduits
+  localement avec le mock Bash ; gate complet `just` et réception
+  runtime du nouveau HEAD non encore exécutés sur TrueNAS.**
 - **P0 ouvert — application/révocation PF :** 0 décision centrale active ;
   4 074 entrées historiques observées en PF. Il faut attester une
   **même nouvelle IP** dans LAPI puis PF, et sa disparition des deux
