@@ -2027,3 +2027,78 @@ si une cause autre qu'une permission user-owned reste non résolue.
 Le premier démarrage 2026.10.7 peut toujours provoquer une migration
 SQLite/plugin non automatiquement réversible. Les tests ajoutés
 ne sont **pas encore validés sur la Workstation** au nouveau HEAD.
+
+
+## 27 octobre — Gateway sain, chat bloqué par « API rate limit reached »
+
+Après \`openclaw doctor --fix\`, le service user et les sondes
+\`/healthz\`, \`/startupz\`, \`/readyz\` et \`/\` répondent HTTP 200.
+L'interface graphique est accessible dans le navigateur. Un
+\`curl\` direct de \`/chat/main\` continue à renvoyer HTTP 404 même
+avec \`Accept: text/html\`. **Cette différence ne démontre aucune
+panne du Gateway** : l'interface est une SPA, et un lien chargé
+depuis son routeur client n'est pas équivalent à un GET direct.
+Le contrôle fonctionnel dans le navigateur prime pour la navigation.
+
+Le chat affiche en revanche « API rate limit reached. Please try
+again later. » : **la chaîne modèle n'est pas encore rétablie**.
+Ne pas conclure qu'il s'agit de LiteLLM sur la seule base du texte :
+le refus peut provenir du cache d'indisponibilité d'un profil
+OpenClaw, du budget ou des quotas RPM/TPM de la clé LiteLLM,
+des limites d'équipe/modèle, d'une saturation du routeur ou du
+fournisseur en amont. Voir :
+- https://docs.openclaw.ai/cli/models
+- https://docs.openclaw.ai/concepts/model-failover
+- https://docs.litellm.ai/docs/proxy/users
+- https://litellm.vercel.app/docs/proxy/error_reference
+
+**Diagnostic réutilisé et enrichi dans la PR #285** :
+\`just openclaw-429-triage\` compare en lecture seule les
+identités de clés disponibles, consulte éventuellement le
+budget d'une clé LiteLLM avec \`--admin\` sur le **loopback
+workstation uniquement** (si \`LITELLM_MASTER_KEY\` est disponible),
+affiche les routes statiques main/cron, puis exécute
+\`openclaw models status --agent main --json\` et
+\`--agent cron --json\` avec le CLI pinné en Node 24.22.1.
+Les motifs sont classés en codes fixes \`rate_limit\`,
+\`billing\`, \`auth\`, \`runtime\`, \`cooldown_other\` et \`unknown\`
+depuis \`auth.unusableProfiles\`. Les profils, messages, URL
+avec jetons, erreurs brutes, JSON, noms de secrets et clés API
+ne sont jamais imprimés.
+
+\`models status --json\` **ne sonde pas les modèles** et n'envoie
+pas de requête de génération ni d'embedding ; OpenClaw peut
+toutefois interroger des endpoints d'usage fournisseur en
+lecture seule. Ne pas substituer \`models status --probe\`
+qui tenterait des appels aux modèles et pourrait consommer
+du budget ou ajouter des 429.
+
+**Procédure locale (sans relancer de demandes chat)** :
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git fetch origin fix/code-password-dotenv-fixture-20261026
+WT="$(mktemp -d /tmp/nabla-openclaw-429.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/code-password-dotenv-fixture-20261026
+cd "$WT"
+just openclaw-429-triage-test
+just openclaw-429-triage
+\`\`\`
+
+Si le rapport signale \`main_rate_limit_profiles\` positif,
+attendre l'expiration du délai exact, ou vérifier les
+fallbacks autorisés. Si le budget de la clé effective est
+\`exhausted\`, analyser la fenêtre de remise à zéro avant
+toute augmentation manuelle. Si les profils sont disponibles
+mais la source du 429 reste \`unverified\`, corréler une
+requête déjà échouée avec les journaux/proxy de LiteLLM
+et les en-têtes \`retry-after\`, \`rate_limit_type\`,
+\`reset_at\` (sans créer de nouvelle requête inférence).
+
+**Interdictions P0 :** ne pas changer les clés et budgets,
+ne pas supprimer les enregistrements de cooldown, ne pas
+forcer un modèle plus cher, ne pas relancer \`doctor --fix\`,
+ne pas réinstaller OpenClaw et ne pas redémarrer le Gateway.
+La sauvegarde déjà réalisée reste inchangée.
