@@ -98,6 +98,28 @@ La sortie est un JSON à champs fixes : `terminal_marker_style`, `terminal_keywo
 
 Aucun appel Docker, aucune CI et aucun redéploiement ne font partie de cette opération.
 
+## Diagnostic ciblé du registre Python — preuve structurée
+
+La dernière sortie réelle du classifieur `--failure-shape` contient les mots techniques fixes **registry**, **python**, **unexpected**, **request**. Elle suggère un échec de requête vers un registre lors de la résolution d'une image Python, mais ni le statut HTTP ni l'URL effective ne sont prouvés. Le `Dockerfile` au SHA FastAPI `0266f20d` utilise `python:3.13-slim-trixie` dans les trois étapes et `ghcr.io/astral-sh/uv:0.8.14` dans une instruction `COPY --from`.
+
+Le classifieur `--failure-shape` a été enrichi : `registry_provider` et `registry_image` ne sont que des catégories fixes sur motifs connus, `registry_request_method` vaut `HEAD`, `GET`, `POST`, `PUT` ou `unknown`, `registry_http_status` est un code HTTP 4xx/5xx ou `null`, et `registry_http_class` distingue notamment `rate_limited`, `authorization`, `not_found` et `upstream_or_proxy_error`. Aucun hôte, chemin, tag, URL ou message d'erreur n'est imprimé. Les erreurs `[internal] load metadata for` peuvent désormais être identifiées comme une étape `image_metadata` si l'identifiant BuildKit correspond.
+
+~~~bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/classify-fastapi-build-failure.py |
+  python3 - --check --failure-shape --log /tmp/tmp.ngofCbFlgw
+~~~
+
+Si le code HTTP est `429`, rechercher la limitation Docker Hub sans relancer les pulls. Si `401/403`, revoir localement l'authentification du registre et les règles du proxy ; pour `404`, contrôler la référence de l'image ; pour `5xx`, privilégier la santé du registre et la configuration proxy. Un `429` peut correspondre à différentes limites ; le code seul ne prouve pas laquelle. Ne pas exécuter de `docker pull` ou `docker build` pour établir cette preuve.
+
+Contrôle passif éventuel du cache local, sans accès réseau :
+
+~~~bash
+docker image inspect python:3.13-slim-trixie --format 'cached=yes' 2>/dev/null || printf 'cached=no\\n'
+~~~
+
+Le diagnostic reste bloquant pour le déploiement tant que l'échec exact de requête n'est pas attribué.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
