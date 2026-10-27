@@ -541,6 +541,33 @@ Actions :
   `central_lapi_http=200`, une clé approuvée et `last_pull`
   central sont nécessaires avant de conclure au cutover.
   Si clé absente/incorrecte : **NO-GO**, sans rotation implicite.
+  **Incident de clé 27/10 (NO-GO temporaire) :** ancien
+  `PFSENSE_FIREWALL` supprimé par le premier provisionneur,
+  `cscli bouncers add -o raw` a ensuite renvoyé un format
+  rejeté (`unexpected key format`) : la clé nouvellement
+  créée n'a pas été conservée, le fichier runtime reste absent
+  et le bouncer pfSense continue à utiliser `:8089` (HTTP 403
+  contre la LAPI centrale). Tests Small post-cutover :
+  **2 échecs attendus**, moteur local actif et mauvaise URL ;
+  PF local encore 8 582 entrées.
+  Le script est corrigé : génération `openssl rand -hex 32`,
+  stockage root:root 0600 **avant** de toucher l'inscription,
+  puis `cscli bouncers add --key` sur l'entrée standard Docker.
+  **Avant toute nouvelle émission**, tenter la récupération
+  depuis les variables TrueNAS existantes :
+  `CROWDSEC_BOUNCER_API_KEY` (bouncer candidat),
+  `BOUNCER_KEY_TRAEFIK` (clé Traefik distincte),
+  `CROWDSEC_LOCAL_API_PASSWORD` (compte machine, **pas**
+  une clé de bouncer). Probe read-only :
+  `bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
+  --env CROWDSEC_BOUNCER_API_KEY` avec variable exportée ;
+  `central_candidate_auth=ACCEPTED` ne prouve pas l'identité
+  du bouncer. Alias d'import Vaultwarden :
+  `CROWDSEC_PFSENSE_BOUNCER_KEY` dans manifest.json.
+  `just crowdsec-bouncer-config-test` étendu à **19 tests**
+  (anciens 11 PASS, 8 nouveaux non relancés par l'opérateur).
+  Les opérations restent locales/readonly tant que la clé
+  et l'inscription centrale ne sont pas réconciliées.
   **Décision opérateur postérieure :** accepter la reconstruction
   progressive des remédiations PF à partir des décisions centrales
   (sans migration des 8 637 anciens blocages).
