@@ -103,6 +103,80 @@ leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
 
+## Workstation : credential sans préfixe `sk-`, inventaire non exécuté
+
+**Réception opérateur :**
+- `test_fastapi_litellm_workstation_inventory.py` : **9/9 PASS** ;
+- `host_context=workstation_verified`,
+  conteneur exact `litellm-litellm-1`,
+  `proxy_liveliness=http_200`, `key_file_state=absent` ;
+- premier diagnostic sans master :
+  `alias_state=admin_credential_not_provided` ;
+- second diagnostic avec saisie privée :
+  `alias_state=admin_credential_unexpected_format`.
+  L'ancien code rejetait tout credential ne commençant
+  pas par `sk-` **avant** d'effectuer le GET ;
+  aucune preuve sur l'alias `fastapi-sample-upstream`
+  ou sur les permissions du credential n'était disponible.
+
+**Correctif [skip ci] :**
+- Le diagnostic n'impose plus `sk-` à la valeur
+  d'entrée ; il refuse toujours les entrées vides,
+  trop longues, les caractères de contrôle et
+  la duplication de `Bearer `. Seul LiteLLM peut
+  valider l'autorisation du credential, via
+  `GET /key/list` au proxy loopback attesté
+  (aucune génération, aucun secret affiché).
+- Pour conclure à une absence, le champ de réponse
+  LiteLLM est **`total_count=0`**, et non `total=0`,
+  avec `keys=[]` sous un filtre d'alias exact.
+  Toute autre réponse vide reste `unverified`.
+- Le provisionneur `--apply` utilise désormais
+  une preuve **GET admin authentifiée + absence
+  exacte de l'alias** dans la base du bon proxy
+  AVANT tout POST. Une réponse 401/403, un alias
+  existant ou un format de liste inconnu bloque
+  la génération ; le seul préfixe ne prouve pas
+  une authentification. Les clés non standard
+  peuvent être utilisées uniquement si le proxy
+  lui-même les accepte en admin.
+- Nouveaux tests de transport, de schéma
+  `total_count`, d'interdiction de POST si
+  l'absence de l'alias n'est pas prouvée.
+  **Ils restent à exécuter localement.**
+
+### Contrôle immédiat de l'authentification, sans valeur affichée
+
+Sur Workstation (pas TrueNAS), après mise à jour de
+la PR et avec la master **effective du proxy Workstation** :
+
+```bash
+git pull --ff-only
+python3 -m unittest discover -s tests \
+  -p 'test_fastapi_litellm_workstation_inventory.py' -v
+python3 -m unittest discover -s tests \
+  -p 'test_fastapi_litellm_native_truenas.py' -v
+(
+  set -e
+  set +x
+  umask 077
+  read -rsp 'Master key LiteLLM Workstation: ' LITELLM_MASTER_KEY
+  printf '\n'
+  export LITELLM_MASTER_KEY
+  just litellm-workstation-fastapi-key-inventory
+)
+```
+
+Résultats principaux :
+`alias_exists` → **ne pas générer de nouvelle clé** ;
+`alias_absent_confirmed` → absence prouvée sous
+l'identité administrateur interrogée ;
+`key_list_http_401` / `key_list_http_403` →
+clé saisie non autorisée pour l'inventaire (vérifier
+la provenance du secret **Workstation**, sans
+réutiliser le mot de passe UI ou la master TrueNAS).
+Seuls des statuts expurgés peuvent être publiés.
+
 ## Diagnostic post-échec `--apply` sur Workstation (sans nouveau POST)
 
 Nouvelle preuve opérateur : les **6 tests natifs TrueNAS PASS**,
