@@ -2,6 +2,7 @@
 import contextlib
 import importlib.util
 import io
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -40,12 +41,64 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
             returncode=1, stderr=b"SECRET", stdout=b"")):
             self.assertEqual(mod.check_container()["key_presence"], "unverified")
 
+    def test_presence_script_syntax_and_exact_output(self):
+        env = {
+            "LITELLM_IDE_API_KEY": "SYNTHETIC-ONLY",
+            "LITELLM_FASTAPI_WORKSTATION_API_KEY": "",
+        }
+        result = subprocess.run(
+            ["python3", "-c", mod.PRESENCE_SCRIPT],
+            capture_output=True, check=False, env=env, timeout=3,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertEqual(result.stdout.splitlines(), [
+            b"LITELLM_IDE_API_KEY=present",
+            b"LITELLM_FASTAPI_WORKSTATION_API_KEY=absent",
+        ])
+
+    def test_failure_classes_do_not_echo_docker_stderr(self):
+        samples = [
+            (b"permission denied while trying to connect to Docker daemon", "docker_permission_denied"),
+            (b"Cannot connect to the Docker daemon", "docker_daemon_unavailable"),
+            (b"Error: No such container: litellm", "container_not_found"),
+            (b"Error: container is not running", "container_not_running"),
+            (b"OCI runtime exec failed: executable file not found in $PATH", "python3_missing_in_container"),
+            (b"SyntaxError: unexpected end", "probe_python_failed"),
+            (b"PRIVATE-DO-NOT-PRINT", "docker_exec_failed"),
+        ]
+        for msg, expected in samples:
+            with self.subTest(expected=expected):
+                result = mod.failure_class(1, msg)
+                self.assertEqual(result, expected)
+                self.assertNotIn("PRIVATE", result)
+
+    def test_docker_inspect_reports_only_fixed_status(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=0, stderr=b"", stdout=b"running\\n")):
+            self.assertEqual(mod.inspect_docker_target(), "running")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=1, stderr=b"Error: No such object: litellm", stdout=b"")):
+            self.assertEqual(mod.inspect_docker_target(), "container_not_found")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=0, stderr=b"", stdout=b"PRIVATE-ENV=secret")):
+            self.assertEqual(mod.inspect_docker_target(), "docker_inspect_unverified")
+
+    def test_container_failure_class_is_safe(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=1, stderr=b"OCI runtime exec failed: executable file not found",
+                stdout=b"")):
+            value = mod.check_container()
+        self.assertEqual(value["container"], "unavailable")
+        self.assertEqual(value["failure_class"], "python3_missing_in_container")
+        self.assertNotIn("OCI", str(value))
+
     def test_report_is_non_mutating_and_redacted(self):
         with patch.object(mod, "check_container", return_value={
                  "container": "observed", "key_presence": {
                     "LITELLM_IDE_API_KEY": "present",
                     "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
              contextlib.redirect_stdout(io.StringIO()) as capture:
             code = mod.main(["--check"])
@@ -64,6 +117,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         with patch.object(mod, "check_container", return_value={
                 "container": "observed", "key_presence": keys}), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
+             patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
              contextlib.redirect_stdout(io.StringIO()) as captured:
             code = mod.main(["--check"])
@@ -95,6 +149,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                         "LITELLM_IDE_API_KEY": "present",
                         "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
              patch.object(mod, "check_liveliness", return_value="unavailable"), \
+             patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="unverified"), \
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(mod.main(["--check"]), 2)
