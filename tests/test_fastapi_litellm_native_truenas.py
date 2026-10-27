@@ -2,11 +2,12 @@
 import contextlib
 import importlib.util
 import io
+import json
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "scripts/workstation/provision-fastapi-litellm-keys.py"
@@ -105,6 +106,78 @@ class TrueNASNativeProvisionerContracts(unittest.TestCase):
         provision.assert_not_called()
         self.assertIn("BLOCKED", errors.getvalue())
         self.assertNotIn("SYNTHETIC-PRIVATE-DATA", errors.getvalue())
+
+    def test_admin_credential_validation_does_not_assume_sk_prefix(self):
+        self.assertTrue(mod.valid_admin_credential("CUSTOM-SYNTHETIC-MASTER"))
+        self.assertTrue(mod.valid_admin_credential("sk-SYNTHETIC"))
+        for value in ("", " ", "Bearer sk-SYNTHETIC", "a\nb", "a\rb",
+                      "a\x00b"):
+            with self.subTest(value=repr(value)):
+                self.assertFalse(mod.valid_admin_credential(value))
+
+    def test_admin_get_verifies_alias_absence_before_write(self):
+        response = MagicMock()
+        response.status = 200
+        response.read.return_value = json.dumps({
+            "keys": [], "total_count": 0, "total_pages": 0,
+        }).encode()
+        response.geturl.side_effect = lambda: request_info["url"]
+        manager = MagicMock()
+        manager.__enter__.return_value = response
+        opened = MagicMock()
+        opened.open.return_value = manager
+        request_info = {}
+        def capture(request, timeout=0):
+            self.assertEqual(request.get_method(), "GET")
+            self.assertNotIn("CUSTOM-SYNTHETIC-MASTER", request.full_url)
+            self.assertIn("key_alias=fastapi-sample-upstream", request.full_url)
+            request_info["url"] = request.full_url
+            return manager
+        opened.open.side_effect = capture
+        with patch.object(mod, "build_opener", return_value=opened):
+            mod.require_absent_key_alias("http://127.0.0.1:4000",
+                                         "fastapi-sample-upstream",
+                                         "CUSTOM-SYNTHETIC-MASTER")
+        self.assertEqual(opened.open.call_count, 1)
+
+    def test_admin_get_blocks_alias_duplicate_and_uncertain_pagination(self):
+        for data in (
+            {"keys": [{"key_alias": "fastapi-sample-upstream"}], "total_count": 1},
+            {"keys": [], "total": 0},
+            {"keys": [], "total_count": 1},
+            {"keys": [{"key_alias": "other"}], "total_count": 1},
+        ):
+            with self.subTest(result=data):
+                response = MagicMock()
+                response.status = 200
+                response.read.return_value = json.dumps(data).encode()
+                response.geturl.side_effect = lambda: request_info["url"]
+                opened = MagicMock()
+                manager = MagicMock()
+                manager.__enter__.return_value = response
+                request_info = {}
+                def capture(request, timeout=0):
+                    request_info["url"] = request.full_url
+                    return manager
+                opened.open.side_effect = capture
+                with patch.object(mod, "build_opener", return_value=opened):
+                    with self.assertRaises(ValueError):
+                        mod.require_absent_key_alias("http://127.0.0.1:4000",
+                                                     "fastapi-sample-upstream",
+                                                     "CUSTOM-SYNTHETIC-MASTER")
+
+    def test_admin_read_failure_never_calls_key_generation(self):
+        policy = mod.load_policy()
+        with patch.dict("os.environ", {"LITELLM_MASTER_KEY": "CUSTOM-SYNTHETIC-MASTER"}), \
+             patch.object(mod, "verify_directory"), \
+             patch.object(mod, "require_absent_key_alias",
+                          side_effect=ValueError("alias absence unverified")), \
+             patch.object(mod.os, "open") as os_open, \
+             patch("pathlib.Path.mkdir"):
+            with self.assertRaises(ValueError):
+                mod.provision(policy, "workstation",
+                              Path("/tmp/should-not-be-written/workstation.key"))
+        os_open.assert_not_called()
 
     def test_host_mode_rejects_non_loopback_override_before_creating_key(self):
         policy = mod.load_policy()
