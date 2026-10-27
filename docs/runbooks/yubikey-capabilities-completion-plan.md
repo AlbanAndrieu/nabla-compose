@@ -514,3 +514,34 @@ age, restauration SOPS, génération PIV82 et rotation de
 destinataires. KeePassXC/OTP2 demeure différé.
 
 [Runbook](yubikey-software-recovery-20261026.md).
+
+## Post-copie NFS / TrueNAS confirmé ; ACL natif prochain gate (27/10/2026)
+
+**Preuve reçue depuis la workstation :**
+`just yubikey-escrow-postcopy-test` **10/10 PASS** ;
+`just yubikey-escrow-postcopy-check` a validé le mode
+POSIX `0600` et la paire de fichiers. Le contrôle explicite
+`just yubikey-escrow-postcopy-verify` a confirmé
+`ciphertext_identical=true`, `server_visibility_verified=true`,
+`server_state=SERVER_EXPECTED_COPY_REGULAR_NONEMPTY`
+et `POSTCOPY_CIPHERTEXT_AND_SERVER_VISIBLE_ACL_UNVERIFIED`.
+La duplication et la vérification binaire sont donc **DONE**.
+**Ne pas relancer la création NFS.**
+
+**Prochain jalon : audit des ACL natives côté TrueNAS**.
+Le script `inspect-yubikey-escrow-truenas-acl.py` de la PR #289
+interroge `filesystem.getacl` via un SSH autorisé, en lecture
+seule, et retourne uniquement des compteurs/états anonymisés.
+Il distingue ACL NFS4 / POSIX, relevé disponible / indisponible
+et ACE candidates de lecture hors propriétaire. Le résultat
+ne calcule pas les droits effectifs ; `nfs4_acl_verified=false`
+reste toujours le défaut. `just yubikey-escrow-acl-test`,
+`just yubikey-escrow-acl-check`, puis
+`just yubikey-escrow-acl-probe` après validation des contrats.
+**10 tests hermétiques ajoutés, NOT_RUN sur workstation**.
+
+**NO-GO toujours** pour déchiffrement/restauration age/SOPS réelle,
+preuve de moyen de récupération indépendant, modification PIV82,
+PIV9A, OTP2 et destinataires SOPS. KeePassXC reste reporté.
+
+[Runbook de récupération](yubikey-software-recovery-20261026.md).
