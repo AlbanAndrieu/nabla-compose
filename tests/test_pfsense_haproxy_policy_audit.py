@@ -51,11 +51,28 @@ class PfsenseHaproxyPolicyContracts(unittest.TestCase):
         self.assertEqual(hosts["vaultwarden.int.albandrieu.com"]["haproxy"], "VIOLATION_NO_EXACT_ACL")
         self.assertGreaterEqual(r["requires_attention"], 3)
 
-    def test_s3_conflict_is_not_auto_allowed(self):
+    def test_s3_private_requires_explicit_deny(self):
         r = audit_module.audit(self.source, self.policy, {})
         hosts = {h["hostname"]: h for h in r["hosts"]}
-        self.assertEqual(hosts["s3.int.albandrieu.com"]["haproxy"], "POLICY_CONFLICT_REVIEW")
+        self.assertEqual(hosts["s3.int.albandrieu.com"]["haproxy"], "VIOLATION_NO_EXPLICIT_DENY")
         self.assertEqual(hosts["hello.int.albandrieu.com"]["haproxy"], "DECLARED_ALLOW")
+        self.assertEqual(self.policy["hosts"][3]["intent"], "private")
+
+    def test_public_s3_dns_is_policy_violation_not_exception(self):
+        evidence = {"public_dns": {"s3.int.albandrieu.com": "present"}}
+        r = audit_module.audit(self.source, self.policy, evidence)
+        hosts = {h["hostname"]: h for h in r["hosts"]}
+        self.assertEqual(hosts["s3.int.albandrieu.com"]["other_layers"]["public_dns"], "VIOLATION")
+
+    def test_generated_tabs_are_parsed_for_nexus_vault_s3(self):
+        # Historical regression: pfSense uses tabs for ACL separation.
+        acl_lines = [line for line in self.source.splitlines() if line.lstrip().startswith("acl")]
+        self.assertTrue(any("\\t" in x for x in acl_lines))
+        r = audit_module.audit(self.source, self.policy, {})
+        hosts = {h["hostname"]: h for h in r["hosts"]}
+        self.assertIn("nexus", hosts["nexus.int.albandrieu.com"]["acl_names"])
+        self.assertIn("vault", hosts["vault.int.albandrieu.com"]["acl_names"])
+        self.assertIn("s3", hosts["s3.int.albandrieu.com"]["acl_names"])
 
     def test_other_layers_unknown_not_success(self):
         r = audit_module.audit(self.source, self.policy, {})
