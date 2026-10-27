@@ -44,6 +44,14 @@ class CandidateBouncerAuthTests(unittest.TestCase):
         self.assertIn("central_candidate_auth=ACCEPTED", r.stdout)
         self.assertNotIn("TEST_TOKEN_NEVER_ECHO", r.stdout + r.stderr)
 
+    def test_quoted_candidate_keys_are_supported(self):
+        for value in ('"TEST_TOKEN_NEVER_ECHO"', "'TEST_TOKEN_NEVER_ECHO'"):
+            with self.subTest(value_style=value[0]):
+                result = self.check_auth("BOUNCER_KEY_PFSENSE_FIREWALL=" + value + "\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("central_candidate_auth=ACCEPTED", result.stdout)
+                self.assertNotIn("TEST_TOKEN_NEVER_ECHO", result.stdout + result.stderr)
+
     def test_rejected_candidate_key(self):
         r = self.check_auth("BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\n", http=403)
         self.assertEqual(r.returncode, 1)
