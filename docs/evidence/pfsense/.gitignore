@@ -1,0 +1,9 @@
+# Raw configs contain operational topology and may include secrets.
+# Commit only reviewed, sanitized *.generated.redacted.cfg evidence.
+*.raw.cfg
+*.live.cfg
+*.local.cfg
+haproxy.cfg
+config.xml
+*.pem
+*.key
