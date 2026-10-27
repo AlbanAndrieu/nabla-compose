@@ -779,3 +779,75 @@ workstation sont encore NOT_RUN**.
 
 **Statut inchangé : `NO-GO` global**, KeePassXC/OTP2 reporté,
 OpenPGP privé non prouvé, restauration réelle age/SOPS non effectuée.
+
+## Transfert de suivi dans PR #289 — précontrôle NFS validé (27/10/2026)
+
+La PR **#285 a été fusionnée dans `master`**. Les scripts YubiKey
+font donc déjà partie de la branche de base. À la demande de
+l'opérateur, les améliorations suivantes sont poursuivies dans la
+PR de suivi **#289** sans déplacer, supprimer ni réécrire ses
+modifications existantes concernant pfSense, HAProxy et Nexus.
+
+**Preuve opérateur sur workstation :**
+`git fetch origin fix/code-password-dotenv-fixture-20261026`,
+`git merge --ff-only`, puis :
+
+- `just yubikey-escrow-copy-test` : **9/9 PASS** ;
+- `just yubikey-escrow-copy-check` :
+  `state=READY_TO_CREATE_ENCRYPTED_COPY`,
+  `new_copy_verified=false`, `restore_verified=false`,
+  `independent_age_identity_verified=false`,
+  `source_decryption_performed=false`,
+  `existing_destination_overwritten=false`, `status=NO-GO`.
+
+Ces résultats sont des preuves de **préparation**, pas de copie.
+**Aucune écriture NFS ni restauration age/SOPS réelle** n'a été
+effectuée par cette exécution.
+
+### Durcissement du fichier NFS temporaire
+
+Le programme `create-yubikey-escrow-nfs-copy.py` exige désormais,
+**avant de publier le nom final**, `os.fchmod(stage_fd, 0o600)`
+et une vérification via `os.fstat` :
+
+- fichier temporaire régulier appartenant à l'utilisateur ;
+- mode POSIX strictement `0600` ;
+- un seul lien matériel et une taille égale à la source ;
+- si ce contrôle échoue, aucune destination finale n'est publiée.
+
+Deux tests supplémentaires couvrent l'échec de `fchmod`
+et les permissions temporaires non conformes.
+La suite étendue compte **11 tests**, mais son exécution sur
+workstation est encore `NOT_RUN` pour ces changements.
+
+**Limite :** NFSv4 peut comporter des ACL additionnelles ;
+un mode POSIX `0600` ne prouve pas à lui seul l'absence de droits
+définis par une ACL. Contrôler localement les ACL côté client
+et TrueNAS après publication ; ne pas publier leurs détails sensibles.
+
+### Validation à effectuer avant toute copie
+
+Dans un worktree propre de **PR #289**, sans toucher au checkout
+actif qui contient peut-être d'autres modifications :
+
+```bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+
+just yubikey-escrow-copy-test
+just yubikey-escrow-copy-check
+```
+
+Si `READY_TO_CREATE_ENCRYPTED_COPY` est confirmé, la commande
+`--copy` **reste facultative et distincte**, documentée plus haut.
+Ne l'exécuter qu'après décision explicite de créer la copie
+chiffrée sur l'export NFS attendu. **Ne jamais relancer à
+l'aveugle après un résultat partiel** : l'archive peut déjà
+exister sous son nom final, et l'outil doit alors refuser
+tout écrasement.
+
+Le jalon suivant sera la validation d'égalité binaire, de
+visibilité côté TrueNAS et des ACL, puis une restauration age/SOPS
+isolée et prouvée. Les autres restrictions sont maintenues :
+aucune écriture PIV82, PIV9A, OTP2 ou modification de destinataires
+SOPS ; le test KeePassXC reste reporté.
