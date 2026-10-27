@@ -111,6 +111,37 @@ La panne `GET /v1/models` sans Bearer reste
 **non attribuée** : ne pas l'imputer automatiquement
 à cette absence de variable.
 
+### Clé FastAPI upstream : source canonique incomplète — preuve finale
+
+**TrueNAS runtime :** `/mnt/cpool/secrets/runtime/litellm/.env.secrets`
+est un fichier régulier `root:root 0600`, taille 5457 octets.
+La vérification tolérant les espaces initiaux et `export`
+retourne `fastapi_key_declaration_count=0`.
+Le fichier est lisible mais **ne contient aucune déclaration**
+de `LITELLM_FASTAPI_WORKSTATION_API_KEY` : on ne
+peut pas imputer ce cas à un `env_file` Docker mal chargé.
+Le conteneur TrueNAS `litellm` est running, la clé IDE
+est présente et la clé FastAPI absente.
+
+**Nouveau gate [skip ci]** : `just litellm-fastapi-upstream-source-check`
+depuis une session opérateur non root avec Vaultwarden
+déverrouillé. Le script lit le champ caché exact de
+`nabla/prod/litellm`, dossier `TrueNAS`, renvoie
+un état fermé, sans valeur secrète. Nouveau contrat offline
+`tests/test_litellm_fastapi_upstream_source.py` intégré
+à `just litellm-workstation-auth-contracts`. Tests
+**non encore exécutés** ; derniers tests déjà reçus
+33/33 PASS avant cette extension.
+
+- Si la source est présente, vérifier les écarts avec
+  la matérialisation existante avant toute installation
+  (les autres clés du même fichier doivent être conservées).
+- Si la source manque, contrôler la copie transitoire de
+  Workstation puis la clé virtuelle `fastapi-sample-upstream`
+  avant tout provisionnement, pour éviter les doublons.
+- Pas de changement de secrets, pas de nouvelle clé,
+  pas de redémarrage et pas de cutover automatique.
+
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
 - **PERMISSIONS ACCEPTED runtime :** nouvelle suite `8/8 PASS`,
