@@ -3,6 +3,7 @@ import contextlib
 import importlib.util
 import io
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -47,7 +48,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
             "LITELLM_FASTAPI_WORKSTATION_API_KEY": "",
         }
         result = subprocess.run(
-            ["python3", "-c", mod.PRESENCE_SCRIPT],
+            [sys.executable, "-c", mod.PRESENCE_SCRIPT],
             capture_output=True, check=False, env=env, timeout=3,
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
