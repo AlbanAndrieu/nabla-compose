@@ -22,7 +22,10 @@ key="$(awk '
   /^BOUNCER_KEY_PFSENSE_FIREWALL=/ {
     sub(/^[^=]*=/, "")
     sub(/\r$/, "")
-    if (substr($0,1,1)=="\"" && substr($0,length($0),1)=="\"")
+    first=substr($0,1,1)
+    last=substr($0,length($0),1)
+    single=sprintf("%c",39)
+    if (length($0)>=2 && first==last && (first=="\"" || first==single))
       $0=substr($0,2,length($0)-2)
     print
   }
