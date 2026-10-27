@@ -66,12 +66,17 @@
 - Distinguer panne réelle, sonde indisponible et diagnostic non exécuté.
 
 ### 📊 Workboard, tâches, issues et projets
-- Source prioritaire : **commande CLI documentée** `openclaw tasks list`
-  uniquement si disponible dans la version installée, et si l'exécution
-  est autorisée et non mutante ; ne pas ajouter `--plain`
-  (incompatibilité signalée dans l'ancienne politique).
-- Si la CLI ne fournit pas de commande `tasks` ou échoue :
-  `Workboard : non vérifié`, jamais une liste inventée.
+- Distinguer **Workboard** (cartes d'activité) et **Tasks**
+  (exécutions en arrière-plan). Ce sont deux registres différents.
+- Pour les cartes Workboard, utiliser `openclaw workboard list`
+  uniquement si le plugin est déjà activé et compatible.
+- Pour les exécutions en cours et terminées, utiliser
+  `openclaw tasks list` et ses filtres documentés, sans `--plain`.
+- Lire uniquement : ne jamais invoquer `workboard dispatch`,
+  `workboard move`, `tasks cancel` ou `tasks maintenance --apply`
+  lors d'un briefing.
+- Si la CLI ou le plugin est absent, écrire `Workboard : non vérifié`
+  et/ou `Tasks : non vérifié`, jamais une liste inventée.
 - Tâches : `<nombre ou Non vérifié>`.
 - En cours : `<nombre ou Non vérifié>`.
 - Issues : `<nombre ou Non vérifié>`.
