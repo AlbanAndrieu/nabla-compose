@@ -55,6 +55,30 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         self.assertIn('"origin_of_previous_missing_key_event": "not_yet_attributed"', output)
         self.assertIn('"runtime_mutated": false', output)
 
+    def test_missing_upstream_key_is_blocking_even_when_proxy_liveness_is_200(self):
+        keys = {
+            "LITELLM_IDE_API_KEY": "present",
+            "LITELLM_FASTAPI_WORKSTATION_API_KEY": "absent",
+        }
+        with patch.object(mod, "check_container", return_value={
+                "container": "observed", "key_presence": keys}), \
+             patch.object(mod, "check_liveliness", return_value="http_200"), \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            code = mod.main(["--check"])
+        self.assertEqual(code, 2)
+        self.assertIn('"truenas_upstream_key_state": "missing_runtime_upstream_key"',
+                      captured.getvalue())
+        self.assertIn('"origin_of_previous_missing_key_event": "not_yet_attributed"',
+                      captured.getvalue())
+
+    def test_unknown_env_schema_is_not_green(self):
+        self.assertEqual(mod.classify_upstream_keys({
+            "container": "observed", "key_presence": {"random": "present"}}),
+            "unverified")
+        self.assertEqual(mod.classify_upstream_keys({
+            "container": "unavailable", "key_presence": "unverified"}),
+            "unverified")
+
     def test_unreachable_proxy_blocks_green_result(self):
         with patch.object(mod, "check_container", return_value={
                     "container": "observed", "key_presence": {
