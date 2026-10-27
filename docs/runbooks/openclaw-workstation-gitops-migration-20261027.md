@@ -172,6 +172,69 @@ contenu de l'archive sur un canal public. Le mode archive
 `0644` précédemment observé nécessite une revue locale avant
 `chmod 600` par le propriétaire. Aucune permission n'a été modifiée.
 
+## Validation Workstation actualisée — 27 octobre
+
+Les nouveaux résultats communiqués par l'opérateur :
+
+| Gate | Tests attestés |
+| --- | ---: |
+| `openclaw-nabla-migration-test` | 5/5 PASS |
+| `openclaw-cron-parent-test` | 5/5 PASS |
+| `openclaw-legacy-heartbeat-test` | 3/3 PASS |
+| `openclaw-heartbeat-copies-test` | 4/4 PASS |
+| `litellm-workstation-auth-contracts` | 3/3 unittest + 8/8 pytest + 5/5 unittest PASS |
+| `truenas-openrag-startup-test` | 3/3 unittest + 15/15 pytest PASS |
+
+**Total : 51/51 tests exécutés PASS.** `pytest 9.1.1` a
+été installé dans `/tmp/nabla-pytest-venv` ; les recettes ciblées
+ont passé en utilisant `NABLA_PYTEST_PYTHON`. Cela valide des
+contrats locaux, **pas** l'état de LiteLLM TrueNAS ou Workstation
+en production.
+
+**Session cron** : le nouveau rapport est
+`cron_main_reference=absent_in_reported_complete_catalog`,
+`session_sample_count=21`, `session_sample_exhaustive=true`.
+La session `agent:cron:main` est absente du catalogue CLI
+annoncé complet. Cette preuve est cohérente avec l'échec de
+`/new` dans `/chat/cron`, sans démontrer de corruption SQLite.
+Ne pas supprimer une base ni réinitialiser le Gateway.
+
+**Seul gate rouge** : `openclaw-heartbeat-copies-check`
+renvoie 2 car les trois fichiers existent avec des permissions
+insuffisantes :
+- `HEARTBEAT.md.before-fix` : `unsafe_writable_by_others`
+- `nabla` historique `HEARTBEAT.md` : `readable_by_others`
+- archive `openclaw-2026-08-04_0220.tar.gz` :
+  `readable_by_others` (taille 993378302 octets).
+
+La sécurité de ces fichiers se corrige par **une opération de
+métadonnées**. Cette PR ajoute un garde hors ligne, distinct
+de l'inventaire non mutateur, pour appliquer `0600` uniquement
+aux trois chemins et uniquement après validation de leurs
+propriétaires, types, inodes, unicité et liens symboliques :
+
+```bash
+just openclaw-heartbeat-modes-test
+just openclaw-heartbeat-modes-check
+# Choix opérateur explicite, après avoir examiné le check :
+just openclaw-heartbeat-modes-apply
+just openclaw-heartbeat-copies-check
+```
+
+`--apply` est **opt-in** : il refuse une sauvegarde absente,
+un lien symbolique, un hardlink, un fichier qui ne lui appartient
+pas ou un nom imprévu. Il vérifie les identifiants des fichiers
+ouverts avant `fchmod(0600)` et n'extrait jamais le tar.
+Il ne restaure pas les prompts ni le heartbeat runtime.
+Le mode 0600 n'empêche pas le propriétaire ou root de lire
+les fichiers ; il supprime l'accès des autres utilisateurs par
+les permissions classiques. Examiner séparément les ACL
+additionnelles si nécessaire.
+
+**Important :** les nouveaux tests du garde de permissions
+(`openclaw-heartbeat-modes-test`) n'ont pas encore été exécutés
+sur le poste. Ne pas présenter `--apply` comme déjà effectué.
+
 ## P1 — Migration non secrète de `nabla`
 
 Commande d'inventaire :
