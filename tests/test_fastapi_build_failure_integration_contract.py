@@ -14,7 +14,7 @@ class BuildFailureIntegrationContract(unittest.TestCase):
         self.assertIn("if run_build_attempt", block)
         self.assertIn("diag_fail 'FastAPI Sample image build failed; existing runtime was preserved.'", block)
         self.assertIn("classify-fastapi-build-failure.py", block)
-        self.assertIn('--check --log "${log}"', block)
+        self.assertIn('--check --failure-shape --log "${log}"', block)
         self.assertIn('return "${rc}"', block)
         self.assertNotIn('cat "${log}"', block)
         self.assertNotIn('tail -n "${BUILD_LOG_TAIL}" "${log}"', block)
