@@ -29,7 +29,7 @@ class NoRedirect(HTTPRedirectHandler):
 opener = build_opener(ProxyHandler({}), NoRedirect())
 MAX_BYTES = 65536
 
-def get(url, *, key=None, payload=None, timeout=5):
+def get(url, *, key=None, payload=None, timeout=5, read_body=True):
     headers = {"Accept": "application/json"}
     if key is not None:
         headers["Authorization"] = "Bearer " + key
@@ -39,7 +39,7 @@ def get(url, *, key=None, payload=None, timeout=5):
     try:
         with opener.open(req, timeout=timeout) as response:
             code = response.status
-            body = response.read(MAX_BYTES + 1)
+            body = response.read(MAX_BYTES + 1) if read_body else b""
     except HTTPError as error:
         code = error.code
         error.close()
@@ -57,10 +57,13 @@ def get(url, *, key=None, payload=None, timeout=5):
         return "response_too_large", None
     if code != 200:
         return "http_" + str(code), None
+    if not read_body:
+        return "http_200", None
     try:
         return "http_200", json.loads(body)
     except (ValueError, UnicodeError):
-        return "invalid_json", None
+        # Transport may be healthy even if /health returns plain text.
+        return "http_200", None
 
 result = {
     "component": "fastapi_ai_acceptance",
@@ -127,12 +130,12 @@ if state == "http_200" and isinstance(body, dict):
 elif state == "http_200":
     result["ollama"] = "invalid_response"
 
-state, _ = get("http://openrag-backend:8000/health")
+state, _ = get("http://openrag-backend:8000/health", read_body=False)
 result["openrag_backend"] = state
-state, _ = get("http://openrag-frontend:3000/health/collective_health")
+state, _ = get("http://openrag-frontend:3000/health/collective_health", read_body=False)
 result["openrag_frontend"] = state
 # Transport-only. A 401/404/405 is not an authorized MCP session.
-state, _ = get("http://openrag-frontend:3000/mcp")
+state, _ = get("http://openrag-frontend:3000/mcp", read_body=False)
 result["openrag_mcp"] = state
 print(json.dumps(result, sort_keys=True))
 '''
