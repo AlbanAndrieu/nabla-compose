@@ -229,18 +229,21 @@ def run(args: argparse.Namespace) -> int:
     if args.action == "baseline" and (path.exists() or path.is_symlink()):
         raise EvidenceError("baseline already exists; refusing to overwrite evidence")
     state = load_state(path) if args.action == "observe" else None
+    source_mode = "OFFLINE" if (args.central_json or args.pf_table_file or args.pf_health_file) else "LIVE"
+    if state is not None and state.get("source_mode") != source_mode:
+        raise EvidenceError("cannot mix live and offline evidence in one baseline")
     # Both sources must be collected successfully before a state transition.
     bans = natural_bans(decisions_snapshot(args))
     networks = pf_networks(pf_snapshot(args))
     pf_health_snapshot(args)
     if args.action == "baseline":
-        state = {"schema": 1, "baseline_at": utc_now(),
+        state = {"schema": 1, "baseline_at": utc_now(), "source_mode": source_mode,
                  "salt": secrets.token_hex(16), "baseline_pf": networks,
                  "baseline_decisions": sorted(bans),
                  "baseline_values": sorted({d["ip"] for d in bans.values()}),
                  "tracked": {}}
         save_state(path, state)
-        print(f"crowdsec_pf_baseline=READY pf_networks={len(networks)} natural_bans={len(bans)}")
+        print(f"crowdsec_pf_baseline=READY source_mode={source_mode} pf_networks={len(networks)} natural_bans={len(bans)}")
         print("pf_decision_cycle=NOT_VERIFIED reason=AWAITING_NEW_NATURAL_BAN")
         return 0
     assert state is not None
@@ -287,7 +290,9 @@ def run(args: argparse.Namespace) -> int:
     for event in events:
         print(event)
     complete = any(v["completed"] for v in tracked.values())
-    print("pf_decision_cycle=" + ("PF_DECISION_CYCLE_PASS" if complete else "NOT_VERIFIED"))
+    verdict = ("PF_DECISION_CYCLE_PASS" if source_mode == "LIVE" else
+               "SIMULATED_PASS_NOT_RUNTIME_VERIFIED") if complete else "NOT_VERIFIED"
+    print("pf_decision_cycle=" + verdict)
     return 0
 
 
