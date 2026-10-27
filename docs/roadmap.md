@@ -459,6 +459,35 @@ Actions :
   preuve acceptable du contrôle d'accès WAN et vérification
   du modèle Compose rendu ; déployer Nexus seul ensuite.
 
+- [ ] **Ingress P0 — audit HAProxy/DNS/Tunnel/PF, refus privés :**
+  Snapshot fourni `/var/etc/haproxy/haproxy.cfg` généré
+  le **27/10 à 20:47**, conservé expurgé dans
+  `docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg`
+  (non déployable, IP WAN/bureau et références certificats masquées).
+  Référence déclarative : `config/ingress-access-policy.json`.
+  `scripts/pfsense/audit-haproxy-ingress.py` compare l'état
+  généré actuel au snapshot via SSH en lecture seule
+  (`just pfsense-haproxy-policy-live`), classe
+  séparément HAProxy / DNS public / Tunnel / PF et
+  refuse d'inférer PASS de preuves absentes.
+  `scripts/ingress/collect-public-dns-evidence.py` sonde
+  deux résolveurs publics (A/AAAA/CNAME), distingue
+  timeout/désaccord de l'absence DNS réelle.
+  **Faits du snapshot :** Nexus 403 déclaré, refus
+  HAProxy **absent pour `vault.int.albandrieu.com`** ;
+  alias `vaultwarden.int.albandrieu.com` sans ACL dédiée ;
+  `s3.int.albandrieu.com` sans refus et politique
+  **CONTRADICTOIRE** entre
+  `config/public-int-dns-exceptions.txt` (interne) et
+  `docs/dns-ingress-ownership.md`/Garage Compose (public).
+  Backend HAProxy Traefik TLS `verify none` à durcir
+  séparément. **Aucune règle WAN/DNS/Tunnel/Firewall
+  n'a été modifiée par cet audit.**
+  Prochaines actions : arbitrage S3 avec clients OpenTofu ;
+  refus explicite Vault/alias privé ; preuves Cloudflare
+  Tunnel+Access, DNS externe, PF/NAT et test WAN indépendant.
+  Suivi détaillé :
+  [runbook d'exposition](runbooks/pfsense-ingress-exposure-policy.md).
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
   viser au moins **128 Mio free+inactive** en régime ordinaire,
   aucune chute prolongée sous 64 Mio, et zéro nouvel OOM Unbound.
