@@ -52,6 +52,17 @@ Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/na
 sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
 ce périmètre.
 
+### Escrow YubiKey / age / SOPS — récupération validée le 27/10
+
+- **DONE :** copie age chiffrée NFS créée, égalité des octets contrôlée, visibilité TrueNAS confirmée et inspection ACL NFS4 du fichier réalisée (droits effectifs encore à revoir).
+- **DONE :** SanDisk physique de récupération reconnectée, LUKS2 monté, identité age X25519 historique attestée.
+- **DONE :** déchiffrement réel de la nouvelle copie NFS avec l'identité USB et récupération de la clé SOPS attendue ; **fixture YAML SOPS chiffrée et déchiffrée avec succès** (`PASS: SOPS recovery with USB-backed escrow`).
+- **P0 restant :** éliminer le point unique de défaillance de l'identité privée sur SanDisk par un support indépendant et une preuve de récupération ; toute création/copie de secret exige une autorisation distincte.
+- **P1 restant :** attester les accès ACL NFS4 effectifs du fichier et de ses parents. Aucun provisioning YubiKey, changement de destinataires SOPS, redéploiement ou copie `--copy` automatique.
+
+[Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
+[Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
+
 ## P0 — DNSSEC résolveur workstation (preuves 27/10 23:01 CET)
 
 Le journal transmis par l'opérateur confirme
