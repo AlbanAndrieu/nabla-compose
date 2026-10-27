@@ -713,8 +713,9 @@ L'unique échec provenait de la chaîne générique
 `private_age_identity_read=false` du JSON.
 **Aucune clé privée n'a été exposée.** Le test a été
 corrigé dans PR #289 et renforcé par une fixture
-de chemins de montage sensibles ; **14 tests à
-revalider sur workstation**.
+de chemins de montage sensibles. **Revalidation
+workstation le 27/10 : 14/14 PASS** ; le test
+des chemins de montage privés est positif.
 
 **État du support réel** :
 `ESCROW_UUID_NOT_ENUMERATED`,
@@ -725,10 +726,15 @@ sans preuve que la SanDisk soit perdue.
 la connexion physique et le support détecté,
 sans déverrouillage ni génération d'identité.
 
-**Action suivante** :
-`just yubikey-escrow-usb-test` sur la nouvelle
-révision, puis `just yubikey-escrow-usb-status`
-en lecture seule. Maintenir `NO-GO` pour la
-restauration de la copie NFS du 27/10,
-les mutations PIV/SOPS et la duplication
-déjà terminée de l'archive.
+**Action suivante** : vérifier localement
+la connexion physique de la SanDisk et sa
+détection par le noyau Linux, sans exposer
+les détails du périphérique. Après éventuelle
+reconnexion, relancer **uniquement**
+`just yubikey-escrow-usb-status` en lecture seule.
+Le résultat réel reste
+`ESCROW_UUID_NOT_ENUMERATED` avec
+`luks_uuid_link_present=false` (sortie 3 attendue).
+Maintenir `NO-GO` pour la restauration de la
+copie NFS du 27/10, les mutations PIV/SOPS
+et toute duplication supplémentaire de l'archive.
