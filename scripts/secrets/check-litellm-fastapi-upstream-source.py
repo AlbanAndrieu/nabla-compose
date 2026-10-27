@@ -12,7 +12,16 @@ import json
 import os
 from pathlib import Path
 
-from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
+# The repo's pinned jsonschema dependency may live only in .venv.
+# Missing dependencies must never be reported as a missing Vaultwarden key.
+try:
+    from render_from_bitwarden import BitwardenClient, SecretsError, load_manifest
+except ModuleNotFoundError as exc:
+    if exc.name is None or exc.name.split(".", 1)[0] != "jsonschema":
+        raise
+    BitwardenClient = None
+    SecretsError = RuntimeError
+    load_manifest = None
 
 MANIFEST = Path(__file__).resolve().parents[2] / "config/secrets/manifest.json"
 APP = "litellm"
@@ -49,6 +58,8 @@ def check() -> str:
         return "unprivileged_operator_required"
     if not os.environ.get("BW_SESSION"):
         return "vaultwarden_session_unavailable"
+    if load_manifest is None or BitwardenClient is None:
+        return "python_dependency_unavailable"
 
     # Schema and field metadata must agree with the declared contract.
     manifest = load_manifest(MANIFEST)
