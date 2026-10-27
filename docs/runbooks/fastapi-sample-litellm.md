@@ -144,6 +144,60 @@ que la clé virtuelle scoped `qwen` existe en Vaultwarden
 ou sur Workstation. La route `fastapi-qwen` reste
 incomplète ; ne pas substituer la clé IDE ou master.
 
+### Reprise après `ModuleNotFoundError: jsonschema`
+
+Réception opérateur : 39 tests de contrat PASS
+(3 OpenRAG + 8 LiteLLM auth + 22 upstream + 6 sources
+Vaultwarden), mais le lancement initial
+`just litellm-fastapi-upstream-source-check`
+avec `python3` a échoué sur
+`ModuleNotFoundError: No module named 'jsonschema'`.
+**La clé n'a pas été recherchée en Vaultwarden.**
+Le dépôt déclare déjà `jsonschema==4.22.0`
+dans `pyproject.toml`, groupe `test`.
+Cela ne justifie pas la création d'une nouvelle clé.
+
+La recette utilise désormais
+`scripts/quality/run-python-with-jsonschema-local.sh`
+pour choisir un interpréteur **déjà disponible**
+(`NABLA_SECRETS_PYTHON` puis `.venv/bin/python`,
+puis les Pythons installés). Aucun package n'est
+installé automatiquement. Si aucun n'est prêt, le
+diagnostic s'arrête et propose
+`uv sync --group test --locked --offline` **uniquement
+si les wheels sont déjà dans le cache**, ou de
+renseigner `NABLA_SECRETS_PYTHON` avec un environnement
+de confiance. L'appel direct avec un interpréteur
+dépourvu de `jsonschema` classe l'échec comme
+`python_dependency_unavailable` et évite le traceback
+(et surtout toute interprétation `field_absent`).
+Le nouveau test de ce cas est à exécuter ; aucun
+runtime n'a été modifié par cette correction Git.
+
+**Statut de provisionnement : inconnu / probablement
+jamais terminé.** `0` déclaration dans le fichier
+TrueNAS et l'absence dans le processus confirment un
+chaînon manquant, **pas** l'absence de la clé virtuelle
+dans la base Workstation. Ne jamais utiliser
+`--apply` avant d'avoir contrôlé le fichier de
+transit et l'alias dans la base du proxy Workstation.
+
+Sur Workstation, l'inventaire **offline sans
+`jsonschema`** peut être exécuté immédiatement :
+
+```bash
+python3 scripts/workstation/provision-fastapi-litellm-keys.py \
+  --target workstation --check
+```
+
+Il n'interroge pas le proxy. Si la copie locale
+n'existe pas, rechercher l'alias
+`fastapi-sample-upstream` dans l'administration
+du proxy Workstation **sans créer de clé
+supplémentaire**. Si la copie existe, son état
+`already_provisioned` ne garantit ni validité,
+ni budget, ni présence en Vaultwarden.
+
 ### Prochaine preuve : source Vaultwarden, sans valeurs
 
 Sur TrueNAS, dans la **session de l'opérateur non root**,
