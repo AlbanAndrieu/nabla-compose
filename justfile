@@ -537,7 +537,8 @@ openclaw-nabla-migration-check:
 # Classify only the known auth error; never disable LiteLLM model authentication.
 litellm-workstation-auth-contracts:
     python3 -m py_compile scripts/truenas/diagnose-workstation-litellm-upstream-auth.py tests/test_workstation_litellm_upstream_auth_preflight.py
-    python3 -m pytest -q tests/test_litellm_dashboard_auth_failure.py tests/test_openrag_litellm_nonbillable_probe_contract.py
+    python3 -m unittest discover -s tests -p 'test_openrag_litellm_nonbillable_probe_contract.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_litellm_dashboard_auth_failure.py
     python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
 
 # TrueNAS-only: no model calls or secret output, no service restart.
@@ -838,7 +839,8 @@ truenas-openrag-startup-check:
 truenas-openrag-startup-test:
     bash -n scripts/truenas/diagnose-openrag-startup.sh
     bash -n scripts/truenas/reconcile-openrag-opensearch-secret.sh
-    python3 -m pytest -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py tests/test_openrag_litellm_nonbillable_probe_contract.py
+    python3 -m unittest discover -s tests -p 'test_openrag_litellm_nonbillable_probe_contract.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py
 
 # Read-only host preflight; --apply remains a separate, explicit operator action.
 truenas-prometheus-config-check:
