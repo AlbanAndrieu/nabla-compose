@@ -3,7 +3,7 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
-## Réception CrowdSec Small — 27 octobre 2026 (état le plus récent)
+## Réception CrowdSec Small — 27–28 octobre 2026
 
 **Le bouncer pfSense a réussi sa bascule sur la LAPI TrueNAS.**
 Les sections qui suivent détaillent les incidents et procédures
@@ -37,7 +37,11 @@ La suite du provisionneur complète, y compris le contrôle statique
 contre les mutations et la vérification du script, passe **5/5 tests**
 sur une copie locale isolée. Le contrôle statique a été corrigé pour
 ne plus s'auto-détecter dans son propre code.
-**La recette Just entière sur le nouveau HEAD reste à confirmer.**
+**Gate `just crowdsec-bouncer-config-test` exécuté sur TrueNAS le
+28/10 : 31/31 PASS** (URL 5/5, authentification 11/11,
+provisionneur 5/5, provenance 10/10), avec contrôles Bash/Python OK.
+Preuve opérateur sur le HEAD `5f1cd05b` après `git pull --ff-only`.
+Cela valide la recette locale, pas le cycle de remédiation PF.
 L'opération `--apply` n'est ni nécessaire ni autorisée par ce diagnostic ;
 le secret existant doit être conservé.
 
