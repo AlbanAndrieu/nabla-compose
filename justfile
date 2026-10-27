@@ -526,6 +526,10 @@ openclaw-cron-parent-test:
 openclaw-cron-parent-check:
     python3 scripts/workstation/diagnose-openclaw-cron-parent.py
 
+# Historical schedules retained as a reviewed proposal; heartbeat stays dormant.
+openclaw-legacy-heartbeat-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
+
 # Local-only: inventory historical HEARTBEAT copies by metadata, never extract archive.
 openclaw-heartbeat-copies-test:
     python3 -m py_compile scripts/workstation/inspect-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_copies.py
