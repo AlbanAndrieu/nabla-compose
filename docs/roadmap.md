@@ -352,12 +352,26 @@ Actions :
   donne **HTTP 404 / tls=0**. L'IP cible est publique, mais
   la source reste LAN ; un NAT reflection peut changer le chemin :
   **WAN_REJECTION_NOT_VERIFIED**. Aucun poste externe disponible.
-  Auditer la configuration **effective** HAProxy sur pfSense,
-  frontend WAN et ACL Host/SNI Nexus + action de refus avant backend.
-  Préserver l'exception `s3.int.albandrieu.com`.
-  Après revue, un téléphone sur réseau mobile avec client capable
-  de forcer Host/SNI peut fournir le test externe manquant.
-  Ne pas attribuer le 404 au frontal sans preuve.
+  **Relevé HAProxy pfSense du 27/10 (lecture seule) :**
+  `fWeb_HTTPS` écoute sur :443. ACL existante
+  `nexus-albandrieu var(txn.txnhost) -m str -i
+  nexus-albandrieu.int.albandrieu.com` : **nom différent**
+  du Host cible `nexus.int.albandrieu.com` et aucune action de
+  refus démontrée. Routes vers Traefik :
+  `use_backend prod_front-traefik-https_ipvANY if int aclcrt_fWeb_HTTPS`
+  et `if aclcrt_fWeb_HTTPS` ; correspondance exacte non connue
+  sans la définition des ACL `int` et `aclcrt_fWeb_HTTPS`.
+  L'extraction initiale ne montre aucun `http-request deny`,
+  mais ce n'est pas un audit exhaustif.
+  **WAN_REJECTION_NOT_VERIFIED / P0 sécurité bloquant.**
+  Prochaine action : extraire seulement les règles du frontend
+  WAN, dont `txn.txnhost`, `int`, `aclcrt_fWeb_HTTPS`,
+  `http-request deny/return` et les routes de backend ; préparer
+  depuis l'UI pfSense une ACL de refus pour **le Host cible**,
+  à valider avant tout `traefik.enable=true`. Préserver
+  `s3.int.albandrieu.com`, le site Nexus public et le rollback.
+  Un essai hors LAN reste souhaitable ; le `404` hairpin
+  ne démontre aucun blocage WAN.
   Après cette preuve : préparer l'opt-in Compose `true` via
   une source de configuration approuvée, puis un seul
   redéploiement Nexus contrôlé avec rollback ; vérifier
