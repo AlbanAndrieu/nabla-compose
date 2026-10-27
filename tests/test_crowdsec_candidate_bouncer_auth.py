@@ -16,21 +16,24 @@ class CandidateBouncerAuthTests(unittest.TestCase):
             secret = directory / ".env.secrets"
             secret.write_text(payload, encoding="utf-8")
             secret.chmod(mode)
-            fake_curl = directory / "curl"
-            fake_curl.write_text(
-                '#!/bin/sh\ncat >/dev/null\nprintf "%s" "${FAKE_CURL_CODE:-200}"\n',
-                encoding="utf-8",
-            )
-            fake_curl.chmod(0o700)
+            # Define a Bash mock function in the same interpreter that sources
+            # the script. TrueNAS /tmp may be mounted noexec, so a temporary
+            # executable is not a portable way to mock curl.
             env = dict(os.environ)
             env.update({
-                "PATH": str(directory) + os.pathsep + os.environ["PATH"],
                 "CROWDSEC_SECRET_FILE": str(secret),
                 "CROWDSEC_CENTRAL_LAPI_URL": "http://127.0.0.1:8084",
                 "FAKE_CURL_CODE": str(http),
-                "CROWDSEC_CURL_BIN": str(fake_curl),
             })
-            cmd = ["bash", str(SCRIPT)]
+            env.pop("CROWDSEC_CURL_BIN", None)
+            # stdin is consumed by the function, and no outbound request is
+            # issued. No script is executed from the temporary directory.
+            cmd = [
+                "bash", "-c",
+                'curl() { cat >/dev/null; printf "%s" "${FAKE_CURL_CODE:-200}"; }\n'
+                'source "$1" "${@:2}"',
+                "crowdsec-curl-mock", str(SCRIPT),
+            ]
             if env_name is not None:
                 cmd.extend(["--env", env_name])
                 if env_value is not None:
@@ -118,8 +121,9 @@ class CandidateBouncerAuthTests(unittest.TestCase):
         syntax = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('"${CURL_BIN}" --config -', source)
-        self.assertIn("CROWDSEC_CURL_BIN", source)
+        self.assertIn("curl --config -", source)
+        self.assertNotIn("CROWDSEC_CURL_BIN", source)
+        self.assertIn('source "$1" "${@:2}"', Path(__file__).read_text(encoding="utf-8"))
         self.assertNotIn("curl -H", source)
         for forbidden in ("cscli bouncers add", "cscli bouncers delete", "service crowdsec", "docker restart", "pfctl -T", "midclt call"):
             self.assertNotIn(forbidden, source)
