@@ -1,5 +1,14 @@
 # Nexus — diagnostic DNS/HTTPS privé (26 octobre 2026)
 
+**Référence de sécurité commune au 27/10 :**
+[Politique d'exposition HAProxy, Tunnel, DNS et PF](pfsense-ingress-exposure-policy.md)
+et [instantané HAProxy expurgé](../evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg).
+Le nouveau snapshot (20:47) montre `acl nexus` / `http-request deny`,
+mais aussi `acl vault` et `acl s3` **sans refus**, avec une route
+Traefik générique vers `*.int`. L'accès S3 public ou privé est
+**contradictoire entre les sources** ; ne pas clore ce conflit en
+se fondant sur le seul fonctionnement DNS.
+
 **Objet :** distinguer DNS, résolution du poste, Traefik et Nexus pour
 `https://nexus.int.albandrieu.com/`. Le succès de
 `https://nexus.albandrieu.com/` ne valide pas ce chemin privé.
