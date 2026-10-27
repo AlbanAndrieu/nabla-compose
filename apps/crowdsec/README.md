@@ -30,6 +30,11 @@ une nouvelle décision et son application/expiration dans PF.
 Les anciennes décisions PF peuvent subsister temporairement ;
 leur nombre seul ne prouve pas une reconstruction par TrueNAS.
 
+**Réception P0 encore ouverte :** [procédure de preuve d'une décision
+nouvelle et de son retrait dans PF](../../docs/runbooks/crowdsec-pfsense-decision-provenance.md).
+La procédure commence en lecture seule ; toute décision synthétique est
+optionnelle et nécessite un accord explicite de l'opérateur.
+
 ### Erreur de formulaire « Agent user/password required »
 
 Le paquet officiel pfSense vérifie les champs
