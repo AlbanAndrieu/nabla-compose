@@ -30,7 +30,7 @@ class CandidateBouncerAuthTests(unittest.TestCase):
             cmd = [
                 "bash", "-c",
                 'curl() { cat >/dev/null; printf "%s" "${FAKE_CURL_CODE:-200}"; }\n'
-                'source "$1" "${@:2}"',
+                'script="$1"; shift; source "$script" "$@"',
                 "crowdsec-curl-mock", str(SCRIPT),
             ]
             if env_name is not None:
@@ -122,7 +122,7 @@ class CandidateBouncerAuthTests(unittest.TestCase):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("curl --config -", source)
         self.assertNotIn("CROWDSEC_CURL_BIN", source)
-        self.assertIn('source "$1" "${@:2}"', Path(__file__).read_text(encoding="utf-8"))
+        self.assertIn('script="$1"; shift; source "$script" "$@"', Path(__file__).read_text(encoding="utf-8"))
         self.assertNotIn("curl -H", source)
         for forbidden in ("cscli bouncers add", "cscli bouncers delete", "service crowdsec", "docker restart", "pfctl -T", "midclt call"):
             self.assertNotIn(forbidden, source)
