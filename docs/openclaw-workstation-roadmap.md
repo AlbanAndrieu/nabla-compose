@@ -221,6 +221,52 @@ La suite de contrats natifs TrueNAS et du routage
 à deux proxies est à recevoir après exécution locale.
 `--apply` n'a **pas** été exécuté par cet agent.
 
+### P0 Workstation LiteLLM — échec `--apply` non attribué, inventaire sans POST
+
+**Nouvelle preuve opérateur** : 6/6 tests du provisionneur natif
+TrueNAS PASS, puis `provision-fastapi-litellm-keys.py
+--target workstation --apply` → `BLOCKED:
+configuration, transport or secure-storage failure`.
+Cet ancien message regroupe toutes les erreurs. Il ne
+prouve **ni** une création **ni** une absence de la clé
+dans la base du proxy Workstation. Le succès d'une
+écriture `workstation.key` reste non attesté.
+**Interdiction de relancer --apply sans inventaire.**
+
+**Correctifs PR #289 [skip ci] :**
+- Script de diagnostic read-only
+  `scripts/workstation/diagnose-fastapi-litellm-workstation-key.py`
+  via `just litellm-workstation-fastapi-key-inventory`.
+  Vérifie d'abord l'identité Workstation (refuse
+  `midclt` TrueNAS ; requiert le conteneur Docker
+  exact `litellm-litellm-1` running), puis l'état
+  du fichier personnel sans lire sa valeur, HTTP
+  `/health/liveliness` et éventuellement un
+  GET `/key/list` filtré avec la master Workstation,
+  **sans afficher le JSON de gestion ni les clés**.
+  Aucune inférence, aucune génération, aucun POST.
+- Provisionneur renforcé : un futur `--target workstation
+  --apply` bloque avant génération si l'hôte/
+  conteneur exact ne peut pas être attesté.
+- Tests offline ajoutés pour refus TrueNAS, refus
+  de l'hôte inconnu, absence d'alias non confirmée,
+  refus de secrets dans l'output et contrôle sans POST.
+  **Non exécutés** depuis ces changements.
+
+**Prochaine action unique** : exécuter
+`just litellm-workstation-fastapi-key-inventory`
+sur Workstation après `git pull --ff-only`,
+puis, si local proxy attesté, relancer
+**ce seul inventaire GET** dans une session
+où `LITELLM_MASTER_KEY` Workstation est fournie
+privément. En cas de `alias_exists`, pas de
+nouveau provisioning (risque de clé orpheline).
+Un `alias_absent_confirmed` avec proxy 200 et
+répertoire sécurisé permettra d'envisager une
+nouvelle génération `qwen` avec le budget limité.
+Ne pas afficher, copier dans Git, ou envoyer
+`LITELLM_MASTER_KEY`.
+
 ## Réception opérateur — permissions et sessions (27/10, soirée)
 
 - **PERMISSIONS ACCEPTED runtime :** nouvelle suite `8/8 PASS`,
