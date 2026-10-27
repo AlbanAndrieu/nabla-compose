@@ -1059,3 +1059,73 @@ n'est prévue.
 
 Aucune écriture PIV82/PIV9A/OTP2, ni changement de destinataire
 SOPS. KeePassXC reste reporté.
+
+## Preuve ACL NFS4 triviale et préparation de récupération isolée (27/10/2026)
+
+**Preuve réelle fournie par la workstation au commit de PR
+`7300e891`** :
+
+- `just yubikey-escrow-acl-test` : compilation OK,
+  **10/10 tests PASS**.
+- `just yubikey-escrow-acl-check` :
+  `EXPECTED_NFS_EXPORT_MOUNTED`,
+  `SOURCE_UNIQUE_AGE_FOUND`, `state=NOT_PROBED`.
+- `just yubikey-escrow-acl-probe` :
+  `acltype=NFS4`, `trivial=true`,
+  `ace_count=3`,
+  `potential_nonowner_read_allow_count=0`,
+  `state=ACL_NATIVE_REVIEW_REQUIRED`,
+  `nfs4_acl_verified=false`, `status=NO-GO`.
+
+**Conclusion permise :** TrueNAS a fourni une ACL native NFS4
+`trivial` comportant trois ACE. Le filtre du script n'a
+trouvé aucune ACE `ALLOW` explicite accordant la lecture
+de données hors propriétaire. Ce relevé est **favorable**, mais
+ne prouve pas à lui seul la politique d'accès effective :
+l'ordre et les `DENY`, les ACL des répertoires parents,
+l'identité des comptes/NFS et les autorisations indirectes
+restent à apprécier. Ne pas modifier l'ACL automatiquement et
+ne pas interpréter `trivial=true` comme une certification.
+
+### Préparer la preuve de récupération réelle age/SOPS
+
+Les deux copies du **même ciphertext** ont été comparées
+et vues côté TrueNAS. Le prochain jalon est la récupération
+**supervisée et isolée** d'une identité de déchiffrement utilisable,
+puis le contrôle d'un objet SOPS représentatif mais autorisé.
+Il ne faut pas essayer de deviner la méthode de chiffrement de
+l'archive `.age` : présence d'une identité, d'un mot de passe
+ou d'un destinataire spécifique **non vérifiée** à ce stade.
+
+**Gate de préparation, sans lire ni déchiffrer de secret :**
+
+1. Confirmer localement `just yubikey-software-recovery-check`
+   et `just yubikey-escrow-postcopy-check` ; ne pas réexécuter
+   `--copy`.
+2. Confirmer les ACL natives du **répertoire `secret` et de
+   ses parents** sur TrueNAS et les identités autorisées,
+   sans copier les ACE ou UID/GID dans GitHub.
+3. Choisir en privé la méthode et les justificatifs réels de
+   déchiffrement de l'archive `.age`. Ne transmettre **ni clé,
+   ni mot de passe, ni contenu déchiffré** à l'agent ou à la PR.
+4. Prévoir un répertoire de travail local temporaire, privé
+   (`umask 077`, mode `0700`), sur un support non exporté,
+   avec sortie de déchiffrement redirigée **vers un fichier
+   protégé, jamais stdout, logs, arguments de processus,
+   shell tracing ou historique**.
+5. Définir un contrôle de restauration qui n'expose que des
+   booléens bornés (identité age utilisable, fichier SOPS
+   autorisé récupérable) ; inspecter et détruire proprement
+   les copies temporaires sous supervision après validation.
+
+**Aucune opération de récupération réelle n'a été exécutée
+dans ce suivi.** La restauration doit être autorisée séparément,
+avec le mécanisme age exact et les protections de ses sorties
+confirmés ; l'ancien roundtrip de clés SOPS jetables n'atteste pas
+la restauration du secret utilisateur. Deux copies d'un même
+ciphertext n'équivalent pas à deux identités de récupération
+indépendantes.
+
+**NO-GO maintenu** pour validation de restauration réelle,
+provisionnement PIV82, modification des destinataires SOPS,
+PIV9A, OTP2 ; KeePassXC demeure reporté.
