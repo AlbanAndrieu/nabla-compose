@@ -109,7 +109,7 @@ class CandidateBouncerAuthTests(unittest.TestCase):
         # Deliberately supply a localhost URL with no listening service.
         # The injected executable must return its synthetic status directly.
         result = self.check_auth(
-            "BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\\n", http=403
+            "BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\n", http=403
         )
         self.assertIn("central_candidate_auth=REJECTED", result.stdout)
         self.assertNotIn("Failed to connect", result.stderr)
