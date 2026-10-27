@@ -688,6 +688,13 @@ crowdsec-bouncer-config-test:
     sh -n scripts/pfsense/check-central-crowdsec-bouncer.sh
     python3 -m py_compile tests/test_crowdsec_bouncer_url_parser.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_bouncer_url_parser.py' -v
+    bash -n scripts/truenas/check-crowdsec-candidate-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_candidate_bouncer_auth.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_candidate_bouncer_auth.py' -v
+
+# On TrueNAS only, sudo/known private runtime secret; no pfSense changes.
+crowdsec-candidate-auth-check:
+    sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
 
 crowdsec-pfsense-preflight:
     bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
