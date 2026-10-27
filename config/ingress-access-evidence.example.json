@@ -1,0 +1,24 @@
+{
+  "description": "Optional independent evidence. Each value: present, absent, allow, deny or unknown. Unknown is NOT success. Do not invent or assert unperformed checks.",
+  "public_dns": {
+    "nexus.int.albandrieu.com": "unknown",
+    "vault.int.albandrieu.com": "unknown",
+    "vaultwarden.int.albandrieu.com": "unknown",
+    "s3.int.albandrieu.com": "unknown",
+    "hello.int.albandrieu.com": "unknown"
+  },
+  "cloudflare_tunnel": {
+    "nexus.int.albandrieu.com": "unknown",
+    "vault.int.albandrieu.com": "unknown",
+    "vaultwarden.int.albandrieu.com": "unknown",
+    "s3.int.albandrieu.com": "unknown",
+    "hello.int.albandrieu.com": "unknown"
+  },
+  "firewall": {
+    "nexus.int.albandrieu.com": "unknown",
+    "vault.int.albandrieu.com": "unknown",
+    "vaultwarden.int.albandrieu.com": "unknown",
+    "s3.int.albandrieu.com": "unknown",
+    "hello.int.albandrieu.com": "unknown"
+  }
+}
