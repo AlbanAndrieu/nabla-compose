@@ -278,6 +278,13 @@ build_fastapi_sample() {
     fi
 
     diag_fail 'FastAPI Sample image build failed; existing runtime was preserved.'
+    # Never print raw BuildKit/uv logs: they can include build arguments,
+    # registry URLs or credentials. Emit only a fixed-code classification.
+    if command -v python3 >/dev/null 2>&1 &&
+        [[ -f scripts/truenas/classify-fastapi-build-failure.py ]]; then
+        python3 scripts/truenas/classify-fastapi-build-failure.py \
+            --check --log "${log}" || true
+    fi
     diag_info "Private Docker build evidence: ${log} (0600; may contain secrets)"
     return "${rc}"
 }
