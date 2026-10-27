@@ -28,6 +28,7 @@ class CandidateBouncerAuthTests(unittest.TestCase):
                 "CROWDSEC_SECRET_FILE": str(secret),
                 "CROWDSEC_CENTRAL_LAPI_URL": "http://127.0.0.1:8084",
                 "FAKE_CURL_CODE": str(http),
+                "CROWDSEC_CURL_BIN": str(fake_curl),
             })
             cmd = ["bash", str(SCRIPT)]
             if env_name is not None:
@@ -104,11 +105,21 @@ class CandidateBouncerAuthTests(unittest.TestCase):
                 self.assertEqual(r.returncode, 2)
                 self.assertIn("NO_GO_INVALID_SECRET_FORMAT", r.stdout)
 
+    def test_transport_is_a_mock_not_a_live_localhost_probe(self):
+        # Deliberately supply a localhost URL with no listening service.
+        # The injected executable must return its synthetic status directly.
+        result = self.check_auth(
+            "BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\\n", http=403
+        )
+        self.assertIn("central_candidate_auth=REJECTED", result.stdout)
+        self.assertNotIn("Failed to connect", result.stderr)
+
     def test_shell_syntax_and_no_mutation(self):
         syntax = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True)
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("curl --config -", source)
+        self.assertIn('"${CURL_BIN}" --config -', source)
+        self.assertIn("CROWDSEC_CURL_BIN", source)
         self.assertNotIn("curl -H", source)
         for forbidden in ("cscli bouncers add", "cscli bouncers delete", "service crowdsec", "docker restart", "pfctl -T", "midclt call"):
             self.assertNotIn(forbidden, source)
