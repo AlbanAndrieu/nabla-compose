@@ -149,6 +149,34 @@ Ne pas imprimer `config.json` ; il peut contenir des identifiants ou pointeurs d
 
 Aucune modification du daemon global TrueNAS, du Dockerfile, de pfSense, des services Nexus/DefectDojo ni de configuration DNS n'est nécessaire à ce stade. Un proxy pull-through Nexus ou un miroir Docker Hub peut être évalué ultérieurement pour limiter les téléchargements, mais **pas configuré dans cette intervention** (impacts multi-services). Documentation Docker : https://docs.docker.com/docker-hub/usage/manage/ ; https://docs.docker.com/docker-hub/image-library/mirror/ .
 
+## Prévention automatique du quota dans l'upgrade FastAPI (PR #289)
+
+Après `docker system prune`, l'opérateur a confirmé : `docker_daemon=accessible`, `python_cache=absent`, `build_client=sudo_candidate`, `sudo_docker_config=missing`. La commande `prune` a supprimé des conteneurs arrêtés, des réseaux inutilisés, des images orphelines et le cache BuildKit. Elle **ne réinitialise pas** le quota Docker Hub. Les réseaux supprimés (`pyroscope_default`, `ix-redis_default`, `traefik_default`, `nabla-compose_default`, etc.) n'étaient utilisés par aucun conteneur en cours au moment du prune, mais une application arrêtée peut nécessiter une reconstruction de son réseau à sa reprise. Auditer les apps TrueNAS séparément, sans relancer tous les services.
+
+La PR #289 ajoute au script `scripts/truenas/update-fastapi-sample.sh` les protections suivantes :
+
+1. Le script vérifie l'accès au démon Docker **dans le contexte client sélectionné**. Il distingue cache de l'image `python:3.13-slim-trixie`, déclaration d'identifiants Docker Hub et absence de configuration. Il ne lit jamais les secrets en stdout.
+2. Si l'image n'est pas en cache et qu'aucune déclaration d'identifiants Docker Hub n'existe, **le build local échoue avant tout appel au registre**, sauf avec `FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL=true`. Une déclaration d'identifiants n'atteste pas à elle seule une session valide.
+3. Avec `FASTAPI_SAMPLE_REFRESH_BASE_IMAGES=true`, la présence d'une image en cache ne suffit pas : le script exige aussi la déclaration d'identifiants ou une autorisation explicite de téléchargement anonyme. Le mode par défaut reste `false`.
+4. Sur un nouvel échec **Docker Hub HTTP 429** détecté par le classifieur, le script enregistre un marqueur privé (`0600`) sous `${XDG_STATE_HOME:-$HOME/.local/state}/nabla/fastapi-sample/dockerhub-429`. Il bloque tout **nouveau build local** pendant 21600 secondes (6 heures), sauf avec `FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN=true`. Cela est un délai de prudence, **pas** une durée officiellement garantie de levée de l'anti-abus.
+5. Un pull de release qui retourne HTTP 429 ne déclenche **jamais** de build local de repli. Aucun retry automatique sur un échec BuildKit contenant la preuve Docker Hub 429 ; l'image précédente est conservée tant que le script n'a pas atteint les étapes de remplacement.
+
+### Recette locale avant une nouvelle tentative
+
+~~~bash
+cd /mnt/cpool/compose/nabla-compose
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git switch fix/nexus-wan-haproxy-acl-evidence-20261027
+git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+
+bash -n scripts/truenas/update-fastapi-sample.sh
+python3 -m unittest discover -s tests -p 'test_fastapi_build_failure_*py' -v
+~~~
+
+Ces commandes sont locales et ne déclenchent aucune CI, requête au registre, build ou redeploy. Le script complet de déploiement **n'est pas lancé pendant la recette de tests**.
+
+Pour éviter de répéter le HTTP 429 dans l'état actuel, préparer une authentification Docker Hub **dans le contexte effectif `sudo docker`**, avec un magasin d'identifiants sécurisé. Ne pas écrire de jeton dans l'historique shell, dans Compose ou dans le dépôt. Après rétablissement de l'accès, choisir un unique SHA FastAPI immuable et lancer une seule mise à jour. Ne pas exécuter `docker system prune` pour résoudre un quota.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
