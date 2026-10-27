@@ -223,6 +223,86 @@ L'incident `GET /v1/models` sans Bearer, source
 dans TrueNAS ne prouve pas automatiquement que ce
 client SDK a émis l'appel.
 
+## P0 — Diagnostiquer la présence de la clé FastAPI upstream sans la dévoiler
+
+**Preuves reçues depuis TrueNAS** : `midclt call system.version`
+= `TrueNAS-26.0.0-BETA.2`, conteneur `litellm`
+running, SDK `1.106.4`, `LITELLM_IDE_API_KEY=present`,
+`LITELLM_FASTAPI_WORKSTATION_API_KEY=absent`, liveness
+Workstation `http_200` ; 33 tests de contrats PASS.
+Le `grep -qE '^LITELLM_FASTAPI_WORKSTATION_API_KEY=.+'`
+sur `/mnt/cpool/secrets/runtime/litellm/.env.secrets`
+échoue mais ne précise pas si le fichier manque, est
+inaccessible, ou si la ligne est absente / sous une
+forme dotenv différente.
+
+**Étape 1 — métadonnées de fichier seulement :**
+
+```bash
+FILE=/mnt/cpool/secrets/runtime/litellm/.env.secrets
+sudo stat -c 'file=%F owner=%U:%G mode=%a bytes=%s' -- "$FILE" \
+  || echo 'file=missing_or_inaccessible'
+```
+
+Le fichier de secrets canonique doit être un fichier
+régulier `root:root 0600`. Si ce gate échoue,
+ne pas lire les valeurs.
+
+**Étape 2 — présence du nom de variable, aucune valeur :**
+
+```bash
+FILE=/mnt/cpool/secrets/runtime/litellm/.env.secrets
+sudo awk '
+  /^[[:space:]]*(#|$)/ { next }
+  {
+    line=$0
+    sub(/^[[:space:]]*/, "", line)
+    sub(/^export[[:space:]]+/, "", line)
+    if (line ~ /^LITELLM_FASTAPI_WORKSTATION_API_KEY[[:space:]]*=/) n++
+  }
+  END { print "fastapi_key_declaration_count=" n+0 }
+' "$FILE"
+```
+
+Ne pas afficher la ligne de secret, les valeurs, ni
+`docker inspect` complet. Une déclaration unique ne
+prouve ni une valeur non vide ni un credential valide.
+Si les métadonnées sont mauvaises, stopper avant
+l'étape 2.
+
+**Étape 3 — Vaultwarden, sans sudo ni valeur à l'écran :**
+
+Le manifeste `config/secrets/manifest.json` établit
+l'item exact `nabla/prod/litellm`, champ masqué
+`LITELLM_FASTAPI_WORKSTATION_API_KEY`.
+Sous un compte opérateur ayant déjà déverrouillé
+Vaultwarden, `python3 scripts/secrets/materialize_runtime.py
+--app litellm --verify` compare le rendu de cet item au
+fichier canonique **sans installation ni redémarrage**.
+Il vérifie tout l'item : un échec ne doit pas être
+attribué automatiquement à ce champ. Ne pas
+utiliser `--install` pour corriger une différence
+avant d'avoir examiné les impacts sur les autres
+credentials du même fichier.
+
+**Décision :**
+- Déclaration manquante au fichier **et** champ
+  présent en Vaultwarden : préparer un rendu complet
+  avec revue des différences et rollback.
+- Déclaration présente au fichier mais absente du
+  conteneur : investiguer le chargement `env_file`
+  et le redéploiement (uniquement après décision).
+- Champ absent dans Vaultwarden : vérifier le fichier
+  de provisionnement privé de la Workstation
+  `~/.local/share/nabla-compose/fastapi-litellm/workstation.key`
+  et la clé virtuelle `fastapi-sample-upstream` avant
+  toute génération de clé (risque de doublon).
+- Ne pas réutiliser la master key ni `LITELLM_IDE_API_KEY`
+  comme clé `fastapi-qwen`.
+
+Ce diagnostic n'attribue pas l'appel `GET /v1/models`
+sans Bearer : la provenance SDK doit être établie à part.
+
 ## Réception Workstation — preuves de tests du 27/10
 
 L'opérateur a exécuté les premiers nouveaux gates :
