@@ -147,6 +147,59 @@ liveness/readiness 200 au bon vantage point ; requêtes
 `openclaw-main` réellement échouées et quotas analysés
 séparément ; Workstation reste le modèle de vérité jusqu'au cutover.
 
+## TrueNAS → Workstation : inspection Docker indisponible (dernier relevé)
+
+Le dernier `just litellm-workstation-upstream-auth-check`
+exécuté sur TrueNAS a retourné
+`workstation_liveliness=http_200` mais
+`truenas_litellm_env.container=unavailable`,
+`key_presence=unverified`, `truenas_litellm_sdk_version=unverified`,
+et exit 2. Il prouve seulement la connexion à
+LiteLLM Workstation. Il ne prouve aucune valeur de clé absente.
+Le probe original regroupait tout échec de
+`docker exec litellm python3 -c ...` en une seule classe,
+sans afficher la cause.
+
+**Correctif de diagnostic dans #289 :**
+- `docker inspect --type container --format '{{.State.Status}}' litellm`
+  fournit uniquement un état allowlisté. Aucune entrée `Env`
+  ni secret Docker inspecté ou imprimé.
+- La requête `docker exec` retourne désormais un
+  `failure_class` fermé, déduit de `stderr` en mémoire :
+  `docker_permission_denied`, `docker_daemon_unavailable`,
+  `container_not_found`, `container_not_running`,
+  `python3_missing_in_container`, `probe_python_failed`
+  ou `docker_exec_failed`.
+- Pas de redémarrage ou de contournement de l'authentification.
+  Si la requête Docker échoue, le statut reste rouge.
+
+Relancer après synchronisation du code :
+```bash
+just litellm-workstation-auth-contracts
+just litellm-workstation-upstream-auth-check
+```
+
+Si le diagnostic reste ambigu, exécuter directement sur TrueNAS
+ces **deux commandes métadonnées uniquement**, sans afficher
+les variables d'environnement :
+
+```bash
+sudo docker ps -a --filter name=litellm --format 'table {{.Names}}\t{{.Status}}'
+sudo docker inspect --type container --format '{{.State.Status}}' litellm
+```
+
+Interprétation : `container_not_found` implique de vérifier
+le nom réel du conteneur ; `container_not_running` implique
+un problème de lifecycle ; `python3_missing_in_container`
+implique un probe non compatible avec l'image ; un `exec`
+non autorisé doit être réparé par les permissions Docker,
+pas par une master key LiteLLM.
+**Ne pas appeler `docker inspect litellm` sans `--format`** :
+le JSON complet peut contenir les valeurs de `Env`.
+
+Référence Docker :
+https://docs.docker.com/reference/cli/docker/container/exec
+
 ## Réception Workstation — preuves de tests du 27/10
 
 L'opérateur a exécuté les premiers nouveaux gates :
