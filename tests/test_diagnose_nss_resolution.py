@@ -72,12 +72,14 @@ class NSSPathTest(unittest.TestCase):
             commands.append((argv, timeout))
             return sample()
         with mock.patch.object(nss, "run", side_effect=fake_run):
-            self.assertEqual(len(nss.probe(6)), 5)
+            with mock.patch.object(nss, "stub_dns_probe", return_value=sample()) as stub:
+                self.assertEqual(len(nss.probe(6)), 5)
+                stub.assert_called_once_with(6)
         self.assertEqual([x[0][0] for x in commands],
-                         ["resolvectl", "dig", "getent", "getent", "getent"])
-        self.assertEqual(commands[2][0][:3], ["getent", "-s", "hosts:dns"])
-        self.assertEqual(commands[3][0][:3], ["getent", "-s", "hosts:resolve"])
-        self.assertEqual([x[1] for x in commands], [6, 4, 6, 6, 6])
+                         ["resolvectl", "getent", "getent", "getent"])
+        self.assertEqual(commands[1][0][:3], ["getent", "-s", "hosts:dns"])
+        self.assertEqual(commands[2][0][:3], ["getent", "-s", "hosts:resolve"])
+        self.assertEqual([x[1] for x in commands], [6, 6, 6, 6])
 
     def test_timeout_distinct_from_no_answer(self):
         with mock.patch.object(nss.subprocess, "run", side_effect=subprocess.TimeoutExpired(["getent"], 2)):
@@ -85,6 +87,55 @@ class NSSPathTest(unittest.TestCase):
         with mock.patch.object(nss.subprocess, "run",
                                return_value=subprocess.CompletedProcess([], 2, "", "")):
             self.assertEqual(nss.run(["getent"], 2).status, "NO_ANSWER")
+
+    def test_stub_dns_rcodes_are_preserved(self):
+        for rcode in ("SERVFAIL", "NXDOMAIN", "REFUSED"):
+            output = ";; ->>HEADER<<- opcode: QUERY, status: " + rcode + ", id: 1\\n"
+            with self.subTest(rcode=rcode), mock.patch.object(
+                nss.subprocess, "run",
+                return_value=subprocess.CompletedProcess([], 0, output, ""),
+            ):
+                self.assertEqual(nss.stub_dns_probe(3).status, "RCODE_" + rcode)
+
+    def test_stub_empty_noerror_distinct_from_no_response(self):
+        header = ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\\n"
+        with mock.patch.object(
+            nss.subprocess, "run",
+            return_value=subprocess.CompletedProcess([], 0, header, ""),
+        ):
+            self.assertEqual(nss.stub_dns_probe(3).status, "NO_A_ANSWER")
+        with mock.patch.object(
+            nss.subprocess, "run",
+            return_value=subprocess.CompletedProcess([], 9, "", "connection timeout"),
+        ):
+            self.assertEqual(nss.stub_dns_probe(3).status, "NO_DNS_RESPONSE")
+
+    def test_stub_correct_answer(self):
+        output = (
+            ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\\n"
+            "defectdojo.int.albandrieu.com. 0 IN A 172.17.0.24\\n"
+        )
+        with mock.patch.object(
+            nss.subprocess, "run",
+            return_value=subprocess.CompletedProcess([], 0, output, ""),
+        ):
+            self.assertEqual(nss.stub_dns_probe(3).status, "A_CONFIRMED")
+
+    def test_repeated_probes_preserve_per_sample_signals(self):
+        failing = good()
+        failing["resolved_native"] = sample("TIMEOUT", 3)
+        failing["stub_udp"] = sample("RCODE_SERVFAIL", 0.1)
+        failing["nss_default"] = sample("TIMEOUT", 3)
+        with mock.patch.object(nss, "probe", side_effect=[failing, good()]):
+            with mock.patch.object(nss, "hosts_chain", return_value="hosts: files dns"):
+                with mock.patch.object(nss, "stub_config", return_value="SYSTEMD_STUB"):
+                    with mock.patch.object(sys, "argv", [str(FILE), "--check", "--samples", "2", "--timeout", "3"]):
+                        with contextlib.redirect_stdout(io.StringIO()) as stream:
+                            self.assertEqual(nss.main(), 1)
+        output = stream.getvalue()
+        self.assertIn("diagnosis=INTERMITTENT_RESOLUTION", output)
+        self.assertIn("sample_1.stub_udp=RCODE_SERVFAIL", output)
+        self.assertIn("sample_2.diagnosis=PASS", output)
 
     def test_readonly_no_configuration_mutations(self):
         src = FILE.read_text()
