@@ -1087,6 +1087,16 @@ defectdojo-admin-password-apply:
 defectdojo-private-route-check:
     sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
 
+# No pytest dependency: portable workstation split-DNS regression contracts.
+defectdojo-workstation-dns-test:
+    bash -n scripts/workstation/diagnose-defectdojo-lan.sh
+    python3 -m py_compile tests/test_defectdojo_workstation_lan_dns.py
+    python3 -m unittest discover -s tests -p 'test_defectdojo_workstation_lan_dns.py' -v
+
+# Verify both pfSense DNS and the actual workstation system resolver.
+defectdojo-workstation-dns-check:
+    bash scripts/workstation/diagnose-defectdojo-lan.sh --check
+
 # Hermetic suite: no LAN, root, database or secret access required.
 defectdojo-recovery-test:
     python3 -m pytest -q tests/test_defectdojo_existing_admin_reconcile.py tests/test_defectdojo_https_route_triage.py tests/test_defectdojo_runtime_credential_contract.py
