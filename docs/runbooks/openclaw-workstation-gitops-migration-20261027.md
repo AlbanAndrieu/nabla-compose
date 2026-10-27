@@ -227,12 +227,23 @@ just openclaw-cron-parent-check
 
 Le diagnostic lit uniquement les métadonnées de 100 sessions
 maximum pour l'agent `cron`. Il n'affiche **aucune** clé ni
-transcription. `cron_main_reference=absent_in_bounded_sample`
-est une absence **dans l'échantillon**, pas une preuve de
-suppression. `session_sample_exhaustive=false` indique la
-pagination. Même une présence de la clé n'atteste pas que
-le lien parent-enfant de l'UI soit correct. Consulter les sessions réelles du job via l'UI
-Automations et son historique, pas `/chat/cron` par défaut.
+transcription.
+
+**Preuve Workstation du 27/10 :** `cron_session_catalog=structured`,
+`session_sample_count=21`, `session_sample_exhaustive=true`,
+`cron_main_reference=absent_in_bounded_sample`.
+La liste complète retournée par la CLI **ne contient donc pas**
+`agent:cron:main`. Le diagnostic révisé la classifie
+`absent_in_reported_complete_catalog`; il garde
+`absent_in_bounded_sample` si le catalogue est paginé.
+Cela soutient l'explication de `unknown parent session`,
+**sans établir une corruption SQLite ou un bug de LiteLLM**.
+
+Consulter les sessions du digest via l'historique de l'automation,
+pas via `/chat/cron`. Pour converser avec l'agent `cron`,
+partir d'une **nouvelle conversation créée depuis l'UI**
+si la version installée prend en charge cette opération ;
+ne pas réutiliser la vieille URL d'une session absente.
 Ne pas appeler `/new` sur un lien dont le parent n'est pas
 résolu, ni effacer session SQLite/WAL/SHM. Ne pas re-jouer
 `doctor --fix` simplement pour résoudre cette URL.
