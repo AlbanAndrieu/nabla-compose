@@ -120,6 +120,35 @@ class Contracts(unittest.TestCase):
         self.assertFalse((self.target/'private.age').exists())
         self.assertEqual(list(self.target.iterdir()),[])
 
+    def test_stage_mode_is_normalized_before_any_ciphertext_write(self):
+        events=[]
+        real_fstat=os.fstat
+        real_fchmod=os.fchmod
+        real_write=os.write
+        target_stat=self.target.stat()
+        def distinct_dev(fd):
+            st=real_fstat(fd)
+            if st.st_ino==target_stat.st_ino and stat.S_ISDIR(st.st_mode):
+                return SimpleNamespace(st_mode=st.st_mode,st_dev=st.st_dev+1)
+            return st
+        def recorded_chmod(fd,mode):
+            events.append(('chmod',mode))
+            return real_fchmod(fd,mode)
+        def recorded_write(fd,data):
+            events.append(('write',len(data)))
+            return real_write(fd,data)
+        with patch.object(m,'TARGET',self.target), \
+             patch.object(m,'load',side_effect=self.module_loader), \
+             patch.object(m.os,'fstat',side_effect=distinct_dev), \
+             patch.object(m.os,'fchmod',side_effect=recorded_chmod), \
+             patch.object(m.os,'write',side_effect=recorded_write):
+            state=m.create_encrypted_copy(self.file,'private.age')
+        self.assertEqual(state,'ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED')
+        self.assertEqual(events[0],('chmod',0o600))
+        self.assertTrue(any(kind=='write' for kind,_ in events))
+        self.assertGreaterEqual(sum(kind=='chmod' for kind,_ in events),2)
+        self.assertEqual((self.target/'private.age').read_bytes(),self.file.read_bytes())
+
     def test_same_filesystem_blocks_creation(self):
         with patch.object(m,'TARGET',self.target),patch.object(m,'load',side_effect=self.module_loader):
             result=m.create_encrypted_copy(self.file,'private.age')
