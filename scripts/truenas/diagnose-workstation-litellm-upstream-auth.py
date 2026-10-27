@@ -40,7 +40,7 @@ def failure_class(returncode: int, stderr: bytes) -> str:
         return "container_not_found"
     if "container" in message and "not running" in message:
         return "container_not_running"
-    if ("executable file not found" in message or "exec: \\"python3\\"" in message
+    if ("executable file not found" in message or 'exec: "python3"' in message
             or "python3: not found" in message):
         return "python3_missing_in_container"
     if "syntaxerror" in message or "traceback (most recent call last)" in message:
