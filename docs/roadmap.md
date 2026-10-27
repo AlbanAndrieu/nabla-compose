@@ -98,7 +98,9 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   copier, annexer ni transmettre le contenu.
 - **Analyse Git :** Dockerfile fa13c08d = Dockerfile 0266f20d,
   blob SHA 9c1e1da90c66612ec65001e01d9115956b18104a.
-  La cause exacte du build n'est pas encore connue.
+  **Cause immédiate prouvée :** Docker Hub HTTP 429 lors du HEAD
+  sur les métadonnées de l'image officielle Python ; la nature pull quota
+  ou limite anti-abus reste à distinguer.
 - [x] PR Compose #289 : nouveau classifieur de journal privé à
   codes fixes, intégré au script de déploiement sur échec ;
   aucune lecture de secret dans les sorties.
@@ -111,9 +113,16 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [x] Empreinte terminale recueillie : `registry`, `python`,
   `unexpected`, `request` ; une erreur BuildKit numérotée et un marqueur
   de résolution. Suspicion de requête vers le registre de l'image Python.
-- [ ] Extraire uniquement le code HTTP, la méthode et le fournisseur
-  catégorisé (`--failure-shape` étendu), puis attribuer le défaut de registre
-  avant tout nouveau build. Pas d'URL ni de jeton dans les sorties.
+- [x] Diagnostic complet : `internal/image_metadata`,
+  `docker_hub/official_python`, méthode `HEAD`, HTTP `429`.
+  Le test du cache renvoie `cached=no_or_access_error` : état du cache
+  **non attesté** tant que l'accès au daemon n'est pas vérifié.
+- [ ] Vérifier en lecture seule le contexte Docker effectif (user vs sudo),
+  l'accessibilité du daemon, l'existence du cache et la configuration
+  d'authentification. Aucun secret dans les sorties.
+- [ ] Traiter le 429 (quota de pulls vs anti-abus) : attendre une récupération
+  ou authentifier le client Docker effectif ; puis un seul pull ciblé,
+  avant un seul build du SHA immuable. Pas de mirror/daemon restart global.
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
   immuable et exiger la recette 6/6.
