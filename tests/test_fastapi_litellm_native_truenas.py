@@ -76,6 +76,36 @@ class TrueNASNativeProvisionerContracts(unittest.TestCase):
                          "http://127.0.0.1:4000")
         self.assertEqual(provision.call_args.args[1], "truenas")
 
+    def test_workstation_apply_requires_exact_docker_identity(self):
+        def fake_run(cmd, **kwargs):
+            if cmd[0] == "midclt":
+                raise FileNotFoundError()
+            return SimpleNamespace(
+                returncode=0, stdout=b"litellm-litellm-1\n", stderr=b""
+            )
+        with patch.object(mod.subprocess, "run", side_effect=fake_run):
+            mod.require_workstation_litellm()
+        def wrong_run(cmd, **kwargs):
+            if cmd[0] == "midclt":
+                return SimpleNamespace(
+                    returncode=0, stdout=b"TrueNAS-26.0.0-BETA.2\n", stderr=b""
+                )
+            raise AssertionError("Docker cannot be inspected on verified TrueNAS")
+        with patch.object(mod.subprocess, "run", side_effect=wrong_run):
+            with self.assertRaises(ValueError):
+                mod.require_workstation_litellm()
+
+    def test_workstation_host_unverified_blocks_apply_before_provision(self):
+        with patch.object(mod, "require_workstation_litellm",
+                          side_effect=ValueError("SYNTHETIC-PRIVATE-DATA")), \
+             patch.object(mod, "provision") as provision, \
+             contextlib.redirect_stderr(io.StringIO()) as errors:
+            rc = mod.main(["--target", "workstation", "--apply"])
+        self.assertEqual(rc, 2)
+        provision.assert_not_called()
+        self.assertIn("BLOCKED", errors.getvalue())
+        self.assertNotIn("SYNTHETIC-PRIVATE-DATA", errors.getvalue())
+
     def test_host_mode_rejects_non_loopback_override_before_creating_key(self):
         policy = mod.load_policy()
         with self.assertRaises(ValueError):
