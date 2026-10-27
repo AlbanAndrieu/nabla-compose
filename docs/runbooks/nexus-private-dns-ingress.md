@@ -909,7 +909,7 @@ réponse par défaut de `http-request deny`.
    par `--resolve` pour éviter le frontal WAN.
 
 **État final de cette étape : `PENDING_WAN_DENY`**.
-## Gate 12 — ACL de refus Nexus déclarée par l'opérateur, à réceptionner
+## Gate 12 — ACL Nexus effective sur le chemin LAN, preuve WAN restante
 
 **Nouveau relevé déclaratif de l'opérateur (27 octobre 2026) :**
 
@@ -992,22 +992,28 @@ curl --noproxy '*' --connect-timeout 3 --max-time 10 \
   https://nexus.int.albandrieu.com/
 ```
 
-**Réception attendue si le paquet a appliqué la règle :**
-l'inspecteur doit montrer l'ACL adéquate et une ligne
-`http-request set-var(txn.txnhost) hdr(host)` située
-**avant** `http-request deny ... if ...` dans
-`main_Web_HTTPS`. Un `403` sur l'IP publique depuis le LAN
-serait compatible avec le refus frontal, tandis que
-Traefik LAN peut encore répondre `404` avec
-`traefik.enable=false`. En revanche, **un seul HTTP 403**
-ne prouve ni quel composant a répondu, ni le rejet d'un
-client Internet : corroborer la provenance HAProxy par
-sa configuration/log ou un test extérieur indépendant.
+**Réception observée sur le chemin LAN :** la configuration
+extrait `set-var` à la ligne 96 **avant** le `deny` à la ligne 117,
+et le test TLS valide renvoie `edge_http=403`. Cette combinaison
+valide le comportement attendu sur **ce chemin**. Elle ne prouve
+pas, sans trace HAProxy ou essai depuis une autre origine,
+le rejet d'un client Internet. Traefik LAN peut encore
+répondre `404` avec `traefik.enable=false` ; ce contrôle direct
+reste à relever après la nouvelle règle.
+
+**Prochaine réception de sécurité :** confirmer que le processus
+HAProxy a effectivement chargé la configuration et que les
+politiques PF/NAT autorisent l'accès au frontal WAN seulement
+selon les règles prévues. Tester une vraie source WAN si possible
+(par exemple un téléphone en données mobiles avec Wi-Fi/VPN coupés).
+Sans cette preuve, garder `WAN_REJECTION_NOT_VERIFIED` même si
+le `403` est stable depuis la workstation.
 
 Vérifier que `nexus.albandrieu.com` et l'exception publique
-`s3.int.albandrieu.com` restent disponibles. Ne pas
-activer le routeur Nexus privé avant confirmation du
-frontend WAN, de sa configuration chargée et du rollback.
+`s3.int.albandrieu.com` restent disponibles. Le relevé partagé
+ne comprend pas ces tests de non-régression. Ne pas activer
+le routeur Nexus privé avant confirmation du frontend WAN,
+de sa configuration chargée et du rollback.
 ## Préflight en lecture seule sur la workstation
 
 Exécuter et garder les résultats séparés :
