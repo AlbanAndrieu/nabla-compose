@@ -2,6 +2,86 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Réception 27 octobre — login HTTP validé, HTTPS privé non validé
+
+Le compte `admin` a été **authentifié avec succès** par l'opérateur
+sur `http://172.17.0.24:31085/dashboard`.
+La vérification en shell Django a retourné `password_matches=True`,
+`active=True`, `staff=True` et `superuser=True` ; le helper
+`--interactive-check` retourne aussi `PASSWORD_MATCH`.
+La tentative de connexion antérieure utilisait une valeur
+obsolète enregistrée dans LastPass. **Ne pas changer à nouveau le mot
+de passe, ni recréer l'utilisateur.**
+
+Le nom `https://defectdojo.int.albandrieu.com/` reste non disponible
+dans le navigateur. Le HTTPS **n'est pas considéré comme DOWN**
+sans classification de DNS, TCP, TLS, Host/SNI et Traefik.
+Dans la topologie actuelle, le DNS interne `*.int.albandrieu.com`
+doit résoudre `172.17.0.24` et une connexion LAN au port 443 rejoint
+**Traefik directement**, pas HAProxy pfSense.
+pfSense/HAProxy concerne le frontal WAN/rechiffrement et les
+exceptions publiques ; n'ajouter aucune ACL/route publique pour
+débloquer DefectDojo.
+
+### Étape unique de diagnostic (lecture seule)
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+```
+
+Le script teste maintenant :
+- l'origine HTTP Nginx `:31085` et le HTTPS direct
+  `--resolve defectdojo.int.albandrieu.com:443:172.17.0.24`
+  (TLS vérifié, sans `-k`, sans suivre les redirections) ;
+- le DNS privé Pi-hole `172.17.0.24` et pfSense/Unbound `172.17.0.1` ;
+- l'état Traefik, sa publication `:443`, le réseau `traefik_network`
+  partagé avec DefectDojo, et les **labels réellement déployés**
+  (pas seulement ceux dans Git) ;
+- la classification des erreurs curl : refus TCP, timeout,
+  handshake TLS et certificat non fiable sont distincts.
+
+### Décider selon `next_layer`
+
+| Résultat | Action ciblée |
+| --- | --- |
+| `SPLIT_DNS` | Corriger le nom privé dans Pi-hole/Unbound uniquement après preuve du resolver fautif |
+| `TRAEFIK_CONTAINER` ou `TRAEFIK_443_BINDING` | Comparer TrueNAS App Traefik, écoute `:443` et bindings, sans redémarrage général |
+| `TRAEFIK_NETWORK` | Comparer les réseaux actifs des deux conteneurs et le rendu Compose TrueNAS ; ne pas créer un nouveau réseau |
+| `TRAEFIK_RUNTIME_LABELS` | Contrôler l'include TrueNAS, le modèle rendu et les labels Docker ; un `git pull` ne change pas les labels d'un conteneur déjà créé |
+| `TRAEFIK_TLS_ROUTER` | Distinguer erreur de certificat, 404 Host/router, 502 upstream ou timeout ; corriger seulement la couche attestée |
+| `DJANGO_LOGIN_AUTHENTICATION` et HTTPS login 200/30x | Transport serveur HTTPS accessible depuis TrueNAS ; si le navigateur échoue, examiner le résolveur et le proxy **du client** |
+
+En cas de `TRAEFIK_RUNTIME_LABELS`, ne pas lancer automatiquement
+`app.redeploy defectdojo` : la réconciliation TrueNAS peut recréer
+la stack et relancer l'initializer. Commencer par les métadonnées
+en lecture seule :
+
+```bash
+sudo docker inspect defectdojo --format '{{json .Config.Labels}}' |
+  jq 'with_entries(select(.key | startswith("traefik.")))'
+
+sudo docker inspect defectdojo --format '{{json .NetworkSettings.Networks}}' |
+  jq 'keys'
+
+sudo midclt call app.config defectdojo |
+  jq '{include: .include}'
+```
+
+L'App déclare dans `apps/defectdojo/compose.yml` les labels
+`traefik.enable=true`, Host exact, `websecure`, TLS et
+`loadbalancer.server.port=8080` sur `traefik_network`.
+Leur **présence au runtime n'est pas encore attestée** par le
+relevé opérateur. La correction doit éviter d'exposer une route
+privée sur le WAN ou d'affaiblir TLS.
+
+**Travail séparé :** le coffre Vaultwarden et `.env.secrets`
+restent non alignés sur le nouveau mot de passe Django.
+Synchroniser uniquement après avoir conservé la valeur qui
+fonctionne (LastPass ne constitue pas la source canonique).
+Ne pas écraser le hash Django par l'ancien secret runtime.
+
 ## Évidence LAN à 20:51 CET le 26 octobre 2026
 
 Les deux requêtes DNS ont réussi :
