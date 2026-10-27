@@ -105,6 +105,26 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
+## Réception dispatcher DNSSEC — 28 octobre 2026, 00:06 CET
+
+**Ansible workstation : 17/17 tests offline PASS (0,907 s)**
+sur `tests/test_homelab_dns_nta_dispatcher.py` : gestion
+des événements NetworkManager, dérive du DNS/profil et
+préservation des NTA tierces validées en simulation.
+L'essai runtime préalable reste accepté :
+DefectDojo privé **33,4 ms** sans bypass DNSSEC ;
+`cloudflare.com` DNSSEC authentifié **43,1 ms**.
+
+**P0 restant :** exécuter les **8 tests** de
+`test_homelab_dns_guard_contract.py` sur le HEAD de
+[ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+puis inspecter `ansible-playbook ... --list-tasks --tags dns`
+et `--check --diff --tags dns` avec opt-in dispatcher.
+**Aucun Ansible apply, aucun reboot, aucune installation
+du hook ni validation post-reboot**. L'option de NTA
+persistante globale par `.negative` reste désactivée.
+[Runbook](runbooks/workstation-split-dns-recovery.md).
+
 ## Réception DNSSEC privé — NTA runtime PASS, persistance par lien à valider
 
 **Réception opérateur (27/10, workstation) :**
@@ -135,7 +155,7 @@ les interfaces ; elle demeure inactive par défaut.
 
 **Validation restante :** exécuter les
 **17 tests offline** du dispatcher Ansible
-(nouveaux, non encore exécutés), vérifier la
+(**17/17 PASS** le 28/10, 00:06 CET), vérifier la
 liste des tâches tagguées `dns`, déployer
 seulement après opt-in, réappliquer le lien
 et vérifier DNS privé, DNSSEC public et
@@ -321,7 +341,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | **ACCEPTED runtime LAN** : TLS/Traefik/Chrome, workstation split-DNS persistent NM ; **NTA par lien `eno1` runtime appliquée avec succès**, nom privé validé sans bypass (33,4 ms), `getent` répond, DNSSEC public `cloudflare.com` authentifié (43,1 ms), **10/10 tests NTA PASS** | **Persistence de NTA après reboot NON VALIDÉE** : dispatcher NM opt-in dans [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15), 17 tests offline à recevoir puis apply ciblé ; NSS défaut encore **4,8s** malgré DNS forcé rapide ; synchronisation des secrets Django/Vaultwarden séparée |
+| H-03 | DefectDojo | **ACCEPTED runtime LAN** : TLS/Traefik/Chrome, workstation split-DNS persistent NM ; **NTA par lien `eno1` runtime appliquée avec succès**, nom privé validé sans bypass (33,4 ms), `getent` répond, DNSSEC public `cloudflare.com` authentifié (43,1 ms), **10/10 tests NTA PASS** | **Persistence de NTA après reboot NON VALIDÉE** : dispatcher NM opt-in dans [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15), 17/17 tests dispatcher PASS ; autres contrats Ansible et dry-run à recevoir avant apply ; NSS défaut encore **4,8s** malgré DNS forcé rapide ; synchronisation des secrets Django/Vaultwarden séparée |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
