@@ -55,6 +55,7 @@ def failure_class(returncode: int, stderr: bytes) -> str:
 # Accept only the canonical service container name observed by the operator.
 # Never select the stopped/legacy bare "litellm" container.
 CONTAINER_ROW = re.compile(r"([0-9a-f]{12,64})\|(litellm-litellm-[1-9][0-9]*)")
+DOCKER_PS_ROW = re.compile(r"[0-9a-f]{12,64}\|[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 
 def discover_running_container() -> tuple[str, str | None, str | None]:
@@ -79,6 +80,8 @@ def discover_running_container() -> tuple[str, str | None, str | None]:
     lines = result.stdout.decode("ascii", errors="replace").splitlines()
     candidates = []
     for line in lines:
+        if DOCKER_PS_ROW.fullmatch(line) is None:
+            return "docker_discovery_unverified", None, None
         match = CONTAINER_ROW.fullmatch(line)
         if match is not None:
             candidates.append((match.group(1), match.group(2)))
