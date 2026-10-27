@@ -85,6 +85,49 @@ matérialisation privée et son injection dans le conteneur
 sortie de terminal ou un ticket. Ne pas recréer le service
 pour une simple preuve d'absence.
 
+**Suivi P0 après un nouvel événement sans clé (soir du 27/10) :**
+
+Le précédent préflight pouvait retourner `0` avec une clé
+absente : il est maintenant **fail closed**. Le code
+`truenas_upstream_key_state=missing_runtime_upstream_key`
+signifie que l'une des deux variables de clé requises
+est vide/absente dans le processus LiteLLM TrueNAS.
+`all_present_unvalidated` signifie seulement **présence**,
+pas validité ni scope. Si la clé manque, corriger la
+matérialisation du fichier privé
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`,
+la correspondance du modèle dans `/app/config.yaml` et le
+démarrage du conteneur après une revue des changements.
+Ne pas afficher le fichier ni coller de valeurs de clé.
+
+Le diagnostic publie aussi
+`truenas_litellm_sdk_version` (ex. `1.106.4`)
+depuis le conteneur `litellm`, sans modèle ni secret.
+Comparer à l'UA `litellm/1.106.4` de la trace
+`GET /v1/models` reçue par Workstation. Même si la
+version est égale, **l'instance appelante n'est pas prouvée** :
+le même SDK peut tourner dans un autre conteneur TrueNAS.
+
+**Séquence d'attribution sans inférence :**
+1. Sur TrueNAS uniquement : exécuter
+   `just litellm-workstation-upstream-auth-check`.
+2. Si `missing_runtime_upstream_key`, vérifier l'injection du
+   secret en privé dans le conteneur et la configuration déclarée ;
+   ne pas désactiver la protection de `/v1/models`.
+3. Si `all_present_unvalidated`, examiner le consommateur
+   qui génère la requête de catalogue, ses logs à l'instant
+   du `litellm_call_id`, et la présence effective d'un
+   header Bearer **sans en publier la valeur**. Une
+   correspondance de version n'est qu'un indice.
+4. Après correction runtime et déploiement contrôlé, prouver
+   qu'aucun nouvel échec du même type n'arrive sur une
+   période d'observation. Ne pas modifier les budgets
+   OpenClaw pour une erreur de transport sans clé.
+
+Source externe : https://docs.litellm.ai/docs/proxy/docker_quick_start
+pour l'injection via `os.environ/...` et la séparation
+entre clés de provider et clé d'appel au proxy.
+
 Une réussite confirme un processus/réseau, pas la validité des
 clés virtuelles OpenClaw ni la liste des modèles. Identifier
 ensuite le client qui appelle `/v1/models` sans `Authorization`.
@@ -306,6 +349,26 @@ sur la Workstation par cette PR.
 (P0 LiteLLM, P1 sessions/permissions, P2 GitOps/HEARTBEAT,
 P3 cutover TrueNAS). Elle est également liée dans
 `docs/roadmap.md`.
+
+## Dernière recette sessions / sauvegardes — reçue du poste
+
+- `just openclaw-heartbeat-modes-test` : **8/8 PASS**.
+- `--apply` des modes : **3 fichiers changés, 3 en 0600**.
+- `just openclaw-heartbeat-copies-check` : **3 `private`**,
+  aucune extraction ou lecture du contenu ; permissions ACCEPTED.
+- `just openclaw-cron-session-maintenance-test` : **6/6 PASS**.
+- `--dry-run` et `--apply` maintenance cron :
+  `beforeCount=21`, `afterCount=21`, `pruned=0`.
+  Nettoyage **exécuté avec résultat no-op**, pas une purge.
+- `agent:cron:main` reste absent du catalogue exhaustif ;
+  pas de réparation de session attestée.
+- Nouveau défaut LiteLLM sans clé encore présent ; séparer
+  ce problème de la maintenance des sessions.
+
+Le **runbook OpenClaw dédié** et
+`docs/openclaw-workstation-roadmap.md` remplacent les gates
+historiques non atteints ; ne pas réappliquer `fchmod`
+simplement pour faire passer une recette déjà validée.
 
 ## P1 — Migration non secrète de `nabla`
 
