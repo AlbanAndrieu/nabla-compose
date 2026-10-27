@@ -191,6 +191,20 @@ yubikey-escrow-copy-test:
 yubikey-escrow-copy-check:
     python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py --check
 
+# Existing age escrow postcopy contracts only. Never touches the real files.
+yubikey-escrow-postcopy-test:
+    python3 -m py_compile scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py tests/test_yubikey_escrow_nfs_postcopy.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_postcopy.py' -v
+
+# Metadata-only gate: no encrypted data reads, no SSH, no writes.
+yubikey-escrow-postcopy-check:
+    python3 scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py --check
+
+# Explicitly rereads ciphertext and checks TrueNAS visibility via read-only
+# SSH. Does not prove NFSv4 ACL or age/SOPS restoration.
+yubikey-escrow-postcopy-verify:
+    python3 scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py --verify --acknowledge RECHECK_EXISTING_AGE_ESCROW_CIPHERTEXT_AND_TRUENAS
+
 # Explicit supervised read-only TrueNAS snapshot metadata inventory via SSH.
 # Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
 yubikey-escrow-history-probe:
