@@ -10,6 +10,12 @@ DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"
 IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"
 REFRESH_BASE_IMAGES="${FASTAPI_SAMPLE_REFRESH_BASE_IMAGES:-false}"
 VERBOSE_LOGS="${FASTAPI_SAMPLE_VERBOSE_LOGS:-false}"
+# Guard registry traffic after Docker Hub 429; no automatic pull/build retries.
+DOCKERHUB_COOLDOWN_SECONDS="${FASTAPI_SAMPLE_DOCKERHUB_COOLDOWN_SECONDS:-21600}"
+ALLOW_ANONYMOUS_BASE_PULL="${FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL:-false}"
+OVERRIDE_DOCKERHUB_COOLDOWN="${FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN:-false}"
+DOCKERHUB_RATE_STATE_DIR="${FASTAPI_SAMPLE_DOCKERHUB_RATE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/nabla/fastapi-sample}"
+DOCKERHUB_RATE_MARKER="${DOCKERHUB_RATE_STATE_DIR}/dockerhub-429"
 BUILD_LOG_TAIL="${FASTAPI_SAMPLE_BUILD_LOG_TAIL:-80}"
 DEPLOY_LOG_TAIL="${FASTAPI_SAMPLE_DEPLOY_LOG_TAIL:-40}"
 CANONICAL_ENV_ROOT="${FASTAPI_SAMPLE_ENV_ROOT:-/mnt/cpool/secrets/runtime/sample}"
@@ -88,6 +94,14 @@ case "${VERBOSE_LOGS}" in
     true | false) ;;
     *) fail "FASTAPI_SAMPLE_VERBOSE_LOGS must be true or false" ;;
 esac
+
+for value in "${ALLOW_ANONYMOUS_BASE_PULL}" "${OVERRIDE_DOCKERHUB_COOLDOWN}"; do
+    [[ "${value}" == true || "${value}" == false ]] ||
+        fail 'FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL and FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN must be true or false'
+done
+[[ "${DOCKERHUB_COOLDOWN_SECONDS}" =~ ^[0-9]{1,5}$ ]] &&
+    ((DOCKERHUB_COOLDOWN_SECONDS >= 60 && DOCKERHUB_COOLDOWN_SECONDS <= 86400)) ||
+    fail 'FASTAPI_SAMPLE_DOCKERHUB_COOLDOWN_SECONDS must be 60..86400'
 
 [[ "${BUILD_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
     fail "FASTAPI_SAMPLE_BUILD_LOG_TAIL must be a positive integer"
@@ -237,6 +251,78 @@ verify_prometheus_observer_contract() {
         "${gatus_up}" "${service_samples}"
 }
 
+# Local state only, never Docker daemon settings. A 429 cannot be fixed by
+# pruning BuildKit cache: do not retry until expiry or explicit operator override.
+dockerhub_cooldown_active() {
+    local started now owner mode
+    [[ -e "${DOCKERHUB_RATE_MARKER}" || -L "${DOCKERHUB_RATE_MARKER}" ]] || return 1
+    [[ -f "${DOCKERHUB_RATE_MARKER}" && ! -L "${DOCKERHUB_RATE_MARKER}" ]] ||
+        fail "Unsafe Docker Hub cooldown marker; refusing registry traffic"
+    owner="$(stat -c '%u' "${DOCKERHUB_RATE_MARKER}")"
+    mode="$(stat -c '%a' "${DOCKERHUB_RATE_MARKER}")"
+    [[ "${owner}" == "$(id -u)" && "${mode}" == 600 ]] ||
+        fail "Unsafe Docker Hub cooldown marker ownership/mode"
+    IFS= read -r started <"${DOCKERHUB_RATE_MARKER}" || true
+    [[ "${started:-}" =~ ^[0-9]{10,12}$ ]] ||
+        fail "Invalid Docker Hub cooldown marker"
+    now="$(date +%s)"
+    (( now < started + DOCKERHUB_COOLDOWN_SECONDS ))
+}
+
+record_dockerhub_429() {
+    local tempfile
+    (umask 077; mkdir -p -- "${DOCKERHUB_RATE_STATE_DIR}") ||
+        fail "Could not prepare private Docker Hub cooldown directory"
+    [[ -d "${DOCKERHUB_RATE_STATE_DIR}" && ! -L "${DOCKERHUB_RATE_STATE_DIR}" ]] ||
+        fail "Unsafe Docker Hub cooldown directory"
+    tempfile="$(mktemp "${DOCKERHUB_RATE_STATE_DIR}/.dockerhub-429.XXXXXX")" ||
+        fail "Could not create private Docker Hub cooldown marker"
+    printf '%s\n' "$(date +%s)" >"${tempfile}"
+    mv -f -T -- "${tempfile}" "${DOCKERHUB_RATE_MARKER}"
+    summary_warn "Docker Hub HTTP 429: cooldown saved locally; no automatic retry. Existing runtime preserved."
+}
+
+dockerhub_429_in_log() {
+    local classification
+    [[ -f scripts/truenas/classify-fastapi-build-failure.py ]] || return 1
+    classification="$(python3 scripts/truenas/classify-fastapi-build-failure.py \
+        --check --failure-shape --log "$1" 2>/dev/null)" || return 1
+    jq -e '.registry_provider == "docker_hub" and .registry_http_status == 429' \
+        >/dev/null 2>&1 <<<"${classification}"
+}
+
+# Presence of a client config is only a hint; it does NOT prove login validity.
+docker_client_config_present() {
+    if [[ "${DOCKER[0]}" == sudo ]]; then
+        sudo -H sh -c 'test -s "$HOME/.docker/config.json"'
+    else
+        test -s "${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+    fi
+}
+
+guard_dockerhub_base_build() {
+    run_docker info >/dev/null 2>&1 ||
+        fail "Docker daemon unavailable in selected build client; no build attempted"
+    if dockerhub_cooldown_active; then
+        if [[ "${OVERRIDE_DOCKERHUB_COOLDOWN}" != true ]]; then
+            fail "Docker Hub 429 cooldown active: refusing remote image resolution. Check registry quota/anti-abuse; set FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN=true only after remediation."
+        fi
+        summary_warn "Operator explicitly overrides Docker Hub 429 cooldown (single build only)."
+    fi
+    if run_docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
+        summary_ok "Python Docker base image present in selected daemon cache"
+    elif docker_client_config_present; then
+        summary_warn "Python base image absent; Docker client config exists but authentication is NOT verified."
+    elif [[ "${ALLOW_ANONYMOUS_BASE_PULL}" == true ]]; then
+        summary_warn "Anonymous Docker Hub base image access explicitly allowed; rate limits may recur."
+    else
+        fail "Python base image absent and selected Docker client has no config; refusing anonymous Docker Hub request. Authenticate the selected client or explicitly set FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL=true."
+    fi
+    if [[ "${REFRESH_BASE_IMAGES}" == true ]]; then
+        summary_warn "Base-image refresh requested; additional registry requests may count toward quota."
+    fi
+}
+
 run_build_attempt() {
     local log="$1"
 
@@ -263,7 +349,9 @@ build_fastapi_sample() {
         rc="$?"
     fi
 
-    if grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
+    # A quota failure is not transient BuildKit frontend failure; never retry it.
+    if ! dockerhub_429_in_log "${log}" &&
+        grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
         printf 'WARN: Docker BuildKit frontend closed unexpectedly; retrying the same cache-preserving build once.\n' >&2
         sleep 2
         if run_build_attempt "${log}"; then
@@ -284,6 +372,9 @@ build_fastapi_sample() {
         [[ -f scripts/truenas/classify-fastapi-build-failure.py ]]; then
         python3 scripts/truenas/classify-fastapi-build-failure.py \
             --check --failure-shape --log "${log}" || true
+    fi
+    if dockerhub_429_in_log "${log}"; then
+        record_dockerhub_429
     fi
     diag_info "Private Docker build evidence: ${log} (0600; may contain secrets)"
     return "${rc}"
@@ -396,6 +487,7 @@ if [[ "${image_source}" == "local-build" ]]; then
     build_args+=(fastapi-sample)
 
     step '3/6' 'Build image before replacing runtime'
+    guard_dockerhub_base_build
     build_fastapi_sample
 fi
 
