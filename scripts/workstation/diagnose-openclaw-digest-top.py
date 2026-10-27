@@ -19,10 +19,14 @@ JOB_NAME = "daily-tech-news-digest"
 NODE_ROOT = Path.home() / ".local/share/mise/installs/node/24.22.1"
 NODE = NODE_ROOT / "bin/node"
 CLI = NODE_ROOT / "lib/node_modules/openclaw/openclaw.mjs"
+SKILL_TEMPLATE = (Path.home() / ".openclaw/workspace/skills/tech-news-digest/"
+                  "references/digest-prompt.md")
 MAX_JSON = 1024 * 1024
 TOP_PATTERN = re.compile(r'(?<!\S)--top(?:\s+|=)(?:["\']?)([^\s"\']+)')
 INVALID_RANGE = re.compile(r"^\d+[-\u2013\u2014]\d+$")
 INTEGER = re.compile(r"^[0-9]+$")
+ITEMS_PARAMETER = re.compile(r"(?m)^\s*-\s*ITEMS_PER_SECTION\s*=\s*([^\s]+)")
+FIXED_TOP = re.compile(r"(?<!\S)--top\s+([0-9]+)(?![0-9])")
 # Detect the specific natural-language range which caused the 27 Oct failure.
 # Do not try to interpret arbitrary dates, version numbers or prompt contents.
 NATURAL_TOP_RANGE = re.compile(r"(?<![0-9])3\s*[-\u2013\u2014]\s*5(?![0-9])")
@@ -50,7 +54,7 @@ def decode_job(raw: bytes) -> dict | None:
     return job if isinstance(job, dict) else None
 
 
-def classify_job(job: dict | None) -> tuple[str, str]:
+def classify_job(job: dict | None, skill_template: str | None = None) -> tuple[str, str]:
     if job is None:
         return "unavailable", "unverified"
     if job.get("id") != JOB_ID or job.get("name") != JOB_NAME:
@@ -61,11 +65,26 @@ def classify_job(job: dict | None) -> tuple[str, str]:
     message = payload.get("message")
     if not isinstance(message, str) or not message:
         return "unexpected_payload", "unverified"
+    # When the cron references a skill, inspect the authoritative template.
+    # An explanatory '--top 5' appended to cron cannot override its script.
+    if "references/digest-prompt.md" in message:
+        params = ITEMS_PARAMETER.findall(message)
+        if len(params) != 1:
+            return "skill_items_parameter_unverified", "5"
+        items = params[0]
+        if skill_template is None:
+            return "skill_template_unavailable", "5"
+        if "--top <ITEMS_PER_SECTION>" in skill_template:
+            return ("skill_template_integer_valid" if INTEGER.fullmatch(items)
+                    else "skill_template_range_int_mismatch"), "5"
+        if FIXED_TOP.search(skill_template):
+            return "skill_template_fixed_integer", "5"
+        return "skill_template_top_unverified", "5"
     values = TOP_PATTERN.findall(message)
     if not values:
         return ("natural_language_top_range" if NATURAL_TOP_RANGE.search(message)
                 else "no_explicit_top_argument"), "5"
-    if len(values) != 1:
+    if len(set(values)) != 1:
         return "multiple_top_arguments", "5"
     value = values[0]
     if INVALID_RANGE.fullmatch(value):
@@ -109,21 +128,45 @@ def read_fixture(path: Path) -> tuple[str, dict | None]:
     return ("structured" if job is not None else "invalid_report"), job
 
 
+def read_skill_template(path: Path = SKILL_TEMPLATE) -> tuple[str, str | None]:
+    """Read only an owner-controlled regular Markdown file, never print content."""
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                    or info.st_mode & 0o022 or info.st_size > MAX_JSON
+                    or info.st_nlink != 1):
+                return "unsafe_file", None
+            raw = os.read(fd, MAX_JSON + 1)
+        finally:
+            os.close(fd)
+        if not raw or len(raw) > MAX_JSON:
+            return "invalid_file", None
+        return "available", raw.decode("utf-8")
+    except (OSError, UnicodeError):
+        return "unavailable", None
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", type=Path, help="Offline private job JSON fixture")
     args = parser.parse_args(argv)
     state, job = read_fixture(args.fixture) if args.fixture else read_runtime()
-    classification, recommendation = classify_job(job)
+    template_state, template = read_skill_template()
+    classification, recommendation = classify_job(job, template)
     print("openclaw_digest_audit=read_only")
     print("cron_job_read=" + state)
+    print("skill_template_read=" + template_state)
     print("digest_top_argument=" + classification)
     print("recommended_integer_top=" + recommendation)
     print("cron_job_modified=false")
     print("model_requests_sent=0")
     print("task_prompt_printed=false")
     # Passing contracts is not proof a model will follow its prompt or a job will deliver.
-    return 0 if state == "structured" and classification == "valid_top_five" else 2
+    valid = ("valid_top_five", "skill_template_integer_valid",
+             "skill_template_fixed_integer")
+    return 0 if state == "structured" and classification in valid else 2
 
 
 if __name__ == "__main__":
