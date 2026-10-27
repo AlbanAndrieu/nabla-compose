@@ -66,7 +66,16 @@ class NaturalDecisionCycle(unittest.TestCase):
         self.snapshot([], '9.9.9.9\n')
         done = self.run_command('observe')
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertIn('pf_decision_cycle=PF_DECISION_CYCLE_PASS', done.stdout)
+        self.assertIn('pf_decision_cycle=SIMULATED_PASS_NOT_RUNTIME_VERIFIED', done.stdout)
+
+    def test_offline_snapshots_cannot_claim_live_runtime_proof(self):
+        self.baseline()
+        self.snapshot([ban()], '9.9.9.9\n8.8.8.8\n')
+        self.run_command('observe')
+        self.snapshot([], '9.9.9.9\n')
+        done = self.run_command('observe')
+        self.assertIn('SIMULATED_PASS_NOT_RUNTIME_VERIFIED', done.stdout)
+        self.assertNotIn('pf_decision_cycle=PF_DECISION_CYCLE_PASS', done.stdout)
 
     def test_no_candidate_stays_not_verified(self):
         self.baseline()
