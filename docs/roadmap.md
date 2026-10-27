@@ -404,50 +404,36 @@ Actions :
   backend toujours **200**, HTTPS privé toujours **404 / TLS 0**.
   L'écart de labels **est résolu** ; le 404 privé est le
   résultat attendu du routeur délibérément inactif.
-- [ ] **Nexus / isolation WAN avant activation privée :**
-  pfSense HAProxy ré-encrypte vers l'entrypoint public partagé
-  Traefik `websecure` : **une résolution DNS privée ne protège
-  pas ce routeur contre un Host/SNI injecté depuis WAN**.
-  Nouveau test workstation **depuis le LAN** :
-  `curl --resolve nexus.int.albandrieu.com:443:82.66.4.247`
-  donne **HTTP 404 / tls=0**. L'IP cible est publique, mais
-  la source reste LAN ; un NAT reflection peut changer le chemin :
-  **WAN_REJECTION_NOT_VERIFIED**. Aucun poste externe disponible.
-  **Relevé HAProxy pfSense du 27/10 (lecture seule) :**
-  `fWeb_HTTPS` écoute sur :443. ACL existante
-  `nexus-albandrieu var(txn.txnhost) -m str -i
-  nexus-albandrieu.int.albandrieu.com` : **nom différent**
-  du Host cible `nexus.int.albandrieu.com` et aucune action de
-  refus démontrée. Routes vers Traefik :
-  `use_backend prod_front-traefik-https_ipvANY if int aclcrt_fWeb_HTTPS`
-  et `if aclcrt_fWeb_HTTPS` ; correspondance exacte non connue
-  sans la définition des ACL `int` et `aclcrt_fWeb_HTTPS`.
-  L'extraction initiale ne montre aucun `http-request deny`,
-  mais ce n'est pas un audit exhaustif.
-  **Correction de cible :** frontend renommé par l'opérateur
-  `fWeb_HTTPS` → **`main_Web_HTTPS`**. Le premier diagnostic
-  complémentaire AWK a échoué sur une condition multiligne
-  (`syntax error at source line 6`) : ce n'est **pas** une
-  conclusion sur HAProxy. Le relevé précédent de `fWeb_HTTPS`
-  est désormais **historique**, non une preuve du nouveau frontend.
-  **WAN_REJECTION_NOT_VERIFIED / P0 sécurité bloquant.**
-  PR #289 : inspecteur POSIX AWK en lecture seule via SSH
-  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh`
-  ciblant par défaut `main_Web_HTTPS`, avec échec explicite si
-  ce frontend est absent. Contrats hors ligne intégrés à
-  `just nexus-private-ingress-test`.
-  Contrôler `txn.txnhost`, ACL `int`, `aclcrt_*`,
-  `http-request deny/return` et les routes de backend ;
-  préparer depuis l'UI pfSense une ACL de refus sur le Host
-  `nexus.int.albandrieu.com`, à valider avant tout
-  `traefik.enable=true`. Préserver `s3.int.albandrieu.com`,
-  le Nexus public et le rollback. Un essai hors LAN reste
-  souhaitable ; le `404` hairpin ne démontre aucun blocage WAN.
-  Après cette preuve : préparer l'opt-in Compose `true` via
-  une source de configuration approuvée, puis un seul
-  redéploiement Nexus contrôlé avec rollback ; vérifier
-  à nouveau backend 200, HTTPS privé, TLS et Nexus public.
-  **Route publique non retestée dans ce relevé : NOT_VERIFIED.**
+- [ ] **Nexus / P0 — contrôler l'exposition du routage HAProxy direct :**
+  TrueNAS a réconcilié ses labels (`traefik.enable=false`) ;
+  Nexus direct `172.17.0.24:8081` = HTTP 200 ; HTTPS privé
+  via Traefik = 404/TLS valide, comme attendu.
+  Frontend pfSense actif renommé **`main_Web_HTTPS`**.
+  Nouvelle preuve opérateur 27/10 : `just nexus-private-ingress-test`
+  **11/11 PASS (5 Nexus + 6 inspecteur)**. ACL ligne 89 :
+  `nexus var(txn.txnhost) -m str -i nexus.int.albandrieu.com` ;
+  ligne 94 : regex `aclcrt_main_Web_HTTPS` conforme à ce Host ;
+  ligne 96 : Host chargé dans `txn.txnhost` ;
+  ligne 128 : `use_backend nexus-albandrieu_ipvANY if nexus
+  aclcrt_main_Web_HTTPS`. La route Nexus **précède**
+  les routes génériques Traefik (lignes 132–133) :
+  **la réponse 404 depuis l'IP WAN, testée sur le LAN,
+  pourrait venir du backend dédié, pas de Traefik**.
+  Aucun `http-request deny/return` n'apparaît dans
+  l'extrait de ce frontend. Les contrôles PF/NAT/WAN ne sont
+  pas démontrés : **WAN_REJECTION_NOT_VERIFIED** et
+  **WAN_EXPOSURE_POSSIBLE**. Ne pas activer le routeur privé.
+  PR #289 : inspecteur SSH readonly enrichi d'une option
+  `--backend nexus-albandrieu_ipvANY` pour afficher seulement
+  les cibles `server` / adresse:port du backend (secrets exclus).
+  Nouveaux tests de cette option **à exécuter localement**
+  (`just nexus-private-ingress-test`).
+  Suite : vérifier cible backend et frontend WAN actif,
+  préparer une ACL HAProxy de refus de ce seul Host via l'UI
+  pfSense, valider le rechargement/rollback et préserver
+  `s3.int.albandrieu.com` et `nexus.albandrieu.com`.
+  Un test hors LAN reste souhaitable. Seule ensuite l'activation
+  Traefik privée sera autorisable en fenêtre de maintenance.
   [Runbook](runbooks/nexus-private-dns-ingress.md).
 
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
