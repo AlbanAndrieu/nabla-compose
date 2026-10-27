@@ -541,6 +541,37 @@ Actions :
   `central_lapi_http=200`, une clé approuvée et `last_pull`
   central sont nécessaires avant de conclure au cutover.
   Si clé absente/incorrecte : **NO-GO**, sans rotation implicite.
+  **Réception pfSense Small — 27/10, DERNIER ÉTAT :**
+  `central_candidate_auth=ACCEPTED`, fichier bouncer
+  TrueNAS présent avec droits `0600`, LAPI centrale healthy,
+  `--check` TrueNAS **failures=0 warnings=2** ;
+  enregistrement `PFSENSE_FIREWALL last_pull=2026-10-27T21:46:28Z`
+  (provenance non attestée, un préflight peut l'actualiser).
+  Workstation `just crowdsec-pfsense-accept`
+  **failures=0 warnings=0**, moteur pfSense local absent,
+  bouncer actif sur `http://172.17.0.24:8084`,
+  tables PF 4033 IPv4 + 52 IPv6 = **4085** entrées.
+  Probe pfSense `central_lapi_http=200`,
+  `central_lapi_auth=ACCEPTED`.
+  **SMALL_BOUNCER_CUTOVER_PASS** : ne plus réémettre la
+  clé ni relancer `--apply` ; acceptation du bouncer acquis.
+  Les entrées PF existantes ne prouvent cependant pas
+  leur origine centrale, alors que LAPI annonce zéro
+  décision active : reste à attester un polling pfSense
+  post-bascule et l'application/retrait d'une décision.
+  **Erreur GUI pfSense spécifique :**
+  le paquet `crowdsec_validate_form` exige
+  `remote_agent_user` et `remote_agent_password` dès que
+  `enable_lapi` est OFF, **même avec Log Processor OFF**.
+  Le besoin est administratif (validation de la GUI),
+  indépendant du bouncer déjà authentifié. Vérifier
+  `sudo docker exec crowdsec cscli machines list` ;
+  si nécessaire, créer une machine dédiée `pfsense-small`
+  sur TrueNAS (sans réutiliser le login machine `truenas`),
+  renseigner ses credentials en GUI, garder Agent OFF.
+  `CROWDSEC_REMOTE_API_USER/PASSWORD` dans le shell n'est
+  pas une liaison automatique avec les champs pfSense.
+  [Runbook CrowdSec](../apps/crowdsec/README.md).
   **Incident de clé 27/10 (NO-GO temporaire) :** ancien
   `PFSENSE_FIREWALL` supprimé par le premier provisionneur,
   `cscli bouncers add -o raw` a ensuite renvoyé un format
