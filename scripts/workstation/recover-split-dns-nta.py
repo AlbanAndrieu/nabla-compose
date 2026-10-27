@@ -117,6 +117,9 @@ def main() -> int:
     lookup, duration = check_validated()
     print(f"  validated_private={'A_CONFIRMED' if lookup else 'UNVERIFIED'} ({duration:.1f}s)")
     print("  persistent=false")
+    if args.remove:
+        print("  diagnosis=ROLLBACK_CONFIRMED; DNSSEC validation can fail on the private zone until NTA is re-added")
+        return 0
     print("  next=verify NSS and public DNSSEC; use Ansible for persistence")
     return 0 if lookup else 1
 
