@@ -197,6 +197,21 @@ yubikey-usb-identity-restore-check:
 yubikey-usb-identity-restore-verify:
     python3 scripts/workstation/verify-usb-age-identity-independent-backup.py --verify --acknowledge VERIFY_BOTH_PASSPHRASE_ENCRYPTED_USB_IDENTITY_BACKUPS
 
+# Synthetic-only 4-level NFS4 ACL inventory contracts; no real SSH or secrets.
+yubikey-usb-identity-nfs4-acl-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py tests/test_usb_identity_backup_nfs4_acl.py
+    python3 -m unittest discover -s tests -p 'test_usb_identity_backup_nfs4_acl.py' -v
+
+# Local metadata-only preflight on EXISTING workstation and NFS ciphertext.
+# Does not use USB, read archive data or invoke SSH.
+yubikey-usb-identity-nfs4-acl-check:
+    python3 scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py --check
+
+# Explicit remote TrueNAS filesystem.getacl inventory via pinned SSH.
+# Does not inspect raw ACE output locally or claim effective authorization.
+yubikey-usb-identity-nfs4-acl-probe:
+    python3 scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py --probe --acknowledge INSPECT_NEW_USB_IDENTITY_BACKUP_NFS4_ACLS_READONLY
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
