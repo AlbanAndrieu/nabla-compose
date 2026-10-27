@@ -19,6 +19,7 @@ import sys
 
 SOURCE = Path("/mnt/cpool/secrets/runtime/defectdojo/.env.secrets")
 CONTAINER = "defectdojo-uwsgi"
+ALLOWED_CONTAINERS = ("defectdojo-uwsgi", "defectdojo-initializer")
 ACK = "I_APPROVE_EXISTING_DEFECTDOJO_ADMIN_PASSWORD_SYNC"
 REQUIRED = ("DD_ADMIN_USER", "DD_ADMIN_PASSWORD")
 MAX_BYTES = 32 * 1024
@@ -104,7 +105,9 @@ def parse_runtime_secret(path: Path = SOURCE, *, require_root_metadata: bool = T
     return {key: found[key] for key in REQUIRED}
 
 
-def run_django(credentials: dict[str, str], operation: str) -> str:
+def run_django(credentials: dict[str, str], operation: str, container: str = CONTAINER) -> str:
+    if container not in ALLOWED_CONTAINERS:
+        return "DJANGO_UNAVAILABLE"
     payload = json.dumps({
         "username": credentials["DD_ADMIN_USER"],
         "password": credentials["DD_ADMIN_PASSWORD"],
@@ -112,7 +115,7 @@ def run_django(credentials: dict[str, str], operation: str) -> str:
     })
     try:
         proc = subprocess.run(
-            ["docker", "exec", "-i", CONTAINER, "python", "manage.py", "shell", "-c", DJANGO],
+            ["docker", "exec", "-i", container, "python", "manage.py", "shell", "-c", DJANGO],
             input=payload,
             capture_output=True,
             text=True,
@@ -143,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--apply", action="store_true")
     p.add_argument("--acknowledge")
+    p.add_argument("--container", choices=ALLOWED_CONTAINERS, default=CONTAINER,
+                   help="use initializer only while it is running and uWSGI is unavailable")
     args = p.parse_args(argv)
     if os.geteuid() != 0:
         p.error("root required for protected runtime secret read")
@@ -158,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
                         str(exc).startswith("SOURCE_") else type(exc).__name__,
         }))
         return 2
-    state = run_django(credential, "apply" if args.apply else "check")
+    state = run_django(credential, "apply" if args.apply else "check", args.container)
     print(json.dumps({
         "component": "defectdojo_admin_password",
         "mode": "apply" if args.apply else "check",
