@@ -62,10 +62,19 @@ réalisées** séparé des actions proposées.
 
 L'ancienne procédure prescrivait `openclaw tasks list`
 **sans `--plain`** en haut de fichier, mais la section
-briefing reprenait `--plain`. Préférer l'invocation non formatée
-et vérifier `openclaw tasks --help` sur la CLI installée.
-L'absence de la sous-commande doit être signalée, pas contournée
-par un autre outil pouvant muter l'état.
+briefing reprenait `--plain`. La CLI actuelle distingue
+deux registres : `openclaw tasks list` liste les exécutions
+durables ; `openclaw workboard list` liste les cartes du
+plugin Workboard. Présenter les deux séparément lorsque
+ces fonctions existent dans la version installée, sans
+activer ni redémarrer automatiquement le plugin.
+
+Références :
+https://docs.openclaw.ai/fr/cli/tasks
+https://docs.openclaw.ai/cli/workboard
+
+L'absence de l'une des sous-commandes doit être signalée,
+pas contournée par un outil qui pourrait muter l'état.
 
 Le texte de la source la plus récente contenait aussi un
 résultat d'authentification Gmail obsolescent et une exclusion
