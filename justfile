@@ -713,6 +713,14 @@ crowdsec-bouncer-config-test:
     bash -n scripts/truenas/check-crowdsec-candidate-bouncer.sh
     python3 -m py_compile tests/test_crowdsec_candidate_bouncer_auth.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_candidate_bouncer_auth.py' -v
+    bash -n scripts/truenas/provision-crowdsec-pfsense-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_pfsense_bouncer_provision.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pfsense_bouncer_provision.py' -v
+
+# TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
+# PFSENSE_FIREWALL registration and securely writes its root-only credential.
+crowdsec-bouncer-provision-check:
+    sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --check
 
 # On TrueNAS only, sudo/known private runtime secret; no pfSense changes.
 crowdsec-candidate-auth-check:
