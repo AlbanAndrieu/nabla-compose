@@ -83,7 +83,7 @@ class Contracts(unittest.TestCase):
     def test_invocation_is_single_redacted_lsblk_read(self):
         reply = SimpleNamespace(returncode=0, stdout=json.dumps(disk()).encode())
         with patch.object(m.subprocess, "run", return_value=reply) as runner, \
-             patch.object(m.UUID_LINK, "is_block_device", return_value=True), \
+             patch.object(m, "UUID_LINK", SimpleNamespace(is_block_device=lambda: True)), \
              redirect_stdout(io.StringIO()) as out:
             self.assertEqual(m.main(["--check"]), 0)
         invoked = runner.call_args.args[0]
@@ -103,7 +103,7 @@ class Contracts(unittest.TestCase):
     def test_empty_inventory_is_nonzero_and_no_claim_of_absent_usb(self):
         reply = SimpleNamespace(returncode=0, stdout=b'{"blockdevices":[]}')
         with patch.object(m.subprocess, "run", return_value=reply), \
-             patch.object(m.UUID_LINK, "is_block_device", return_value=False), \
+             patch.object(m, "UUID_LINK", SimpleNamespace(is_block_device=lambda: False)), \
              redirect_stdout(io.StringIO()) as out:
             self.assertEqual(m.main(["--check"]), 3)
         self.assertEqual(json.loads(out.getvalue())["state"],
