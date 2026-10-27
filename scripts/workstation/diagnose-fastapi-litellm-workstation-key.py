@@ -117,9 +117,14 @@ def alias_state() -> str:
     key = os.getenv("LITELLM_MASTER_KEY", "")
     if not key:
         return "admin_credential_not_provided"
-    if not key.startswith("sk-"):
-        return "admin_credential_unexpected_format"
-    query = urlencode({"key_alias": ALIAS, "return_full_object": "true", "size": "100"})
+    # The caller may have an explicitly configured, non-standard master key.
+    # Let the proxy validate it via an authenticated read-only GET.
+    if (not key.strip() or len(key) > 4096
+            or any(ch in key for ch in ("\\r", "\\n", "\\x00"))
+            or key.startswith("Bearer ")):
+        return "admin_credential_invalid_transport"
+    query = urlencode({"key_alias": ALIAS, "return_full_object": "true",
+                       "size": "20", "page": "1"})
     state, data = fetch_json("/key/list?" + query, credential=key)
     if state != "http_200":
         return "key_list_" + state
@@ -134,9 +139,10 @@ def alias_state() -> str:
         return "alias_duplicate"
     if len(exact) == 1:
         return "alias_exists"
-    # A filtered result might omit aliases or be paginated, so empty rows
-    # are only authoritative if the server explicitly reports total=0.
-    if rows == [] and data.get("total") == 0:
+    # LiteLLM /key/list uses total_count, not "total".
+    # The exact-alias filter and explicit zero count must both be supported.
+    # Otherwise, do not treat an empty page as proof of absence.
+    if rows == [] and data.get("total_count") == 0:
         return "alias_absent_confirmed"
     return "alias_unverified_not_confirmed_absent"
 
