@@ -143,7 +143,7 @@ ce périmètre.
 - **DONE :** déchiffrement réel de la nouvelle copie NFS avec l'identité USB et récupération de la clé SOPS attendue ; **fixture YAML SOPS chiffrée et déchiffrée avec succès** (`PASS: SOPS recovery with USB-backed escrow`).
 - **P0 DONE (28/10, preuve opérateur) :** sauvegarde de l'identité privée USB protégée par phrase secrète indépendante sur workstation + TrueNAS NFS. 14/14 tests de sauvegarde et 13/13 de restauration PASS ; copies chiffrées identiques ; déchiffrement des deux archives et destinataire age historique confirmés (`BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`). Aucun test SOPS de production dans cette séquence.
 - **Suivi PRA à attester :** conservation de la phrase secrète hors de la SanDisk et vérification du débranchement physique durant un exercice de restauration ; l'outil de restauration, lui, ne dépend pas du support USB. Ne pas relancer la sauvegarde.
-- **P1 restant :** attester les accès ACL NFS4 effectifs du fichier et de ses parents. Aucun provisioning YubiKey, changement de destinataires SOPS, redéploiement ou copie `--copy` automatique.
+- **P1 en cours (28/10) :** nouvelle sonde d'inventaire ACL NFS4 (4 niveaux : export, `secret`, répertoire de sauvegarde, fichier chiffré) avec 11/11 tests synthétiques PASS ; sondes workstation/TrueNAS réelles **NOT_RUN**. La sonde ne prouve pas les accès effectifs. Suite : exécuter `just yubikey-usb-identity-nfs4-acl-check` puis `just yubikey-usb-identity-nfs4-acl-probe`, analyser les ACE et l'identité NFS selon les résultats. Aucune correction ACL automatique, ni provisioning YubiKey, rotation SOPS ou `--copy`.
 
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
