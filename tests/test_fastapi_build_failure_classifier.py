@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
@@ -65,6 +67,49 @@ class BuildFailureClassifierContract(unittest.TestCase):
             os.close(fd)
             fd = -1
             self.assertEqual(subject.check(name)["state"], "disk_full")
+        finally:
+            if fd != -1:
+                os.close(fd)
+            os.unlink(name)
+
+    def test_sudo_original_owner_is_authorized_only_for_root(self) -> None:
+        with mock.patch.object(subject.os, "geteuid", return_value=0):
+            with mock.patch.dict(subject.os.environ, {"SUDO_UID": "123456"}, clear=True):
+                self.assertEqual(subject.allowed_log_owners(), {0, 123456})
+        with mock.patch.object(subject.os, "geteuid", return_value=5001):
+            with mock.patch.dict(subject.os.environ, {"SUDO_UID": "123456"}, clear=True):
+                self.assertEqual(subject.allowed_log_owners(), {0, 5001})
+
+    def test_sudo_original_owner_rejects_invalid_uid(self) -> None:
+        with mock.patch.object(subject.os, "geteuid", return_value=0):
+            for sudo_uid in ("", "someone", "-1", "4294967296", "123abc"):
+                with self.subTest(sudo_uid=sudo_uid):
+                    with mock.patch.dict(subject.os.environ, {"SUDO_UID": sudo_uid}, clear=True):
+                        self.assertEqual(subject.allowed_log_owners(), {0})
+
+    def test_sudo_invoker_owned_private_log_is_classified_without_disclosure(self) -> None:
+        fd, name = tempfile.mkstemp(prefix="tmp.", dir="/tmp")
+        try:
+            os.write(fd, b"failed to solve: no space left on device\\n")
+            os.close(fd)
+            fd = -1
+            actual = os.stat(name)
+            fake_owner = 123456
+            fake_metadata = SimpleNamespace(
+                st_mode=actual.st_mode,
+                st_nlink=actual.st_nlink,
+                st_uid=fake_owner,
+                st_size=actual.st_size,
+            )
+            with mock.patch.object(subject.os, "fstat", return_value=fake_metadata):
+                with mock.patch.object(subject.os, "geteuid", return_value=0):
+                    with mock.patch.dict(subject.os.environ, {"SUDO_UID": str(fake_owner)}, clear=True):
+                        accepted = subject.check(name)
+                    with mock.patch.dict(subject.os.environ, {"SUDO_UID": "123457"}, clear=True):
+                        rejected = subject.check(name)
+            self.assertEqual(accepted["state"], "disk_full")
+            self.assertIs(accepted["raw_log_printed"], False)
+            self.assertEqual(rejected["state"], "unsafe_log_owner")
         finally:
             if fd != -1:
                 os.close(fd)
