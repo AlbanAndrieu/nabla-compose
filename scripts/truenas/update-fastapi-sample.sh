@@ -313,8 +313,9 @@ dockerhub_client_auth_configured() {
       or ((.credsStore // "") | length > 0)
     '
     if [[ "${DOCKER[0]}" == sudo ]]; then
-        sudo -H sh -c 'test -s "$HOME/.docker/config.json"' &&
-            sudo -H jq -e "${filter}" /root/.docker/config.json >/dev/null 2>&1
+        # Resolve the selected sudo client's HOME instead of assuming /root.
+        sudo -H sh -c 'test -s "$HOME/.docker/config.json" &&
+            jq -e "$1" "$HOME/.docker/config.json" >/dev/null 2>&1' sh "${filter}"
     else
         local config="${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
         [[ -s "${config}" ]] &&
