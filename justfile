@@ -1337,6 +1337,7 @@ workstation-dnssec-dispatcher-test:
 # On failure, restore the private NTA only when the LAN profile still matches.
 workstation-dnssec-dispatcher-exercise:
     sudo python3 scripts/workstation/accept-private-nta-dispatcher.py --exercise --acknowledge I_APPROVE_NTA_REAPPLY_SMOKE
+
 # Hermetic NSS differential test suite, no network, no sudo, no pytest.
 workstation-nss-path-test:
     python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
