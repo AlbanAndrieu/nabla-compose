@@ -9,6 +9,31 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## Dépendance inter-dépôts : DNS privé de la workstation
+
+**Runbook canonique pour les agents :**
+[workstation-split-dns-recovery.md](runbooks/workstation-split-dns-recovery.md).
+La configuration **persistante** (profil NetworkManager, domaine
+route-only, arrêt du hook hide-location) appartient au dépôt
+[ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation),
+[PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+Ce dépôt nabla-compose contient le diagnostic et la recette de reprise :
+`just workstation-split-dns-check`,
+`just workstation-split-dns-test` et
+`just workstation-split-dns-repair` (**application explicite**).
+Les recettes Just s'exécutent depuis le checkout **nabla-compose**,
+pas depuis le worktree ansible-workstation.
+
+**Évidence nouvelle après acceptation Chrome :** `nmcli device reapply eno1`
+conserve le DNS `172.17.0.1` et `~int.albandrieu.com` ;
+`getent` retourne `172.17.0.24`, mais une requête directe UDP
+`dig @172.17.0.1` a expiré et `resolvectl query -4` a répondu
+en 11,5 s. **Ne pas confondre panne UDP pfSense intermittente
+avec ancien override Quad9** : comparer UDP/TCP, collecter des
+résultats contemporains, ne pas annoncer Unbound DOWN sur un essai.
+La réparation locale est volontairement bloquée si UDP pfSense
+n'est pas vérifié, car elle ne répare pas Unbound.
+
 ## Dernière réception runtime — 27 octobre 2026 (18:47–18:53 UTC)
 
 Les preuves les plus récentes priment sur les descriptions historiques
