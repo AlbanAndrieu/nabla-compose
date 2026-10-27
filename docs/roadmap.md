@@ -52,6 +52,48 @@ Ces points sont documentés dans la [PR #289](https://github.com/AlbanAndrieu/na
 sans modifier les priorités TrueNAS/pfSense/DefectDojo hors de
 ce périmètre.
 
+## P0 — DNSSEC résolveur workstation (preuves 27/10 23:01 CET)
+
+Le journal transmis par l'opérateur confirme
+**1 141 erreurs `DNSSEC validation failed: no-signature`**
+dans l'extrait (plusieurs domaines publics, notamment
+`com DS`, `github.com`, `google.com`,
+`chatgpt.com`). `resolvectl statistics`
+montre **46 468 Bogus**, **5 077 timeouts**
+et **716 115 transactions** cumulatives depuis
+le démarrage de `systemd-resolved` du 24/10.
+Le lien `eno1` est `DNSSEC=yes/supported`,
+`DNSOverTLS=opportunistic`, amont
+`172.17.0.1` et `~int.albandrieu.com`.
+La validation DNSSEC locale est **une piste
+prioritaire étayée** pour les timeouts
+`resolved_native` et NSS, mais le défaut
+de transmission des signatures ou d'authentification
+n'est pas encore localisé.
+
+**Code source [skip ci], PR #289 :**
+`scripts/workstation/diagnose-dnssec-chain.py`,
+`just workstation-dnssec-check` et
+`just workstation-dnssec-test`.
+Contraste entre requêtes normales et
+`resolvectl query --validate=no` (désactivation
+uniquement pour la requête, pas pour le réseau),
+attestation `RRSIG` et `com DS` via pfSense
+`dig +dnssec`, plus réponse `dnssec-failed.org`.
+**13 contrats offline** ajoutés, pas encore
+exécutés sur la workstation. Le diagnostic
+effectue deux cycles courts et ne mute aucun
+paramètre de sécurité.
+[Runbook DNS inter-dépôts](runbooks/workstation-split-dns-recovery.md),
+[Ansible owner #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+
+**Gate :** prouver le contraste de validation et
+la présence/absence des signatures côté pfSense,
+puis décider d'une correction **scopée** et
+réversible déclarée dans `ansible-workstation`.
+Pas de désactivation DNSSEC globale, de DNS public,
+de restart Unbound ni de modification NSS sans preuve.
+
 ## Suite NSS / systemd-resolved — preuve du 27 octobre à 22:51 CET
 
 L'opérateur a exécuté `just workstation-nss-path-test` :
