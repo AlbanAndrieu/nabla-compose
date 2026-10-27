@@ -120,6 +120,12 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             r"(?m)^\\s*(?:sudo\\s+)?service\\s+\\S+\\s+restart\\b",
         )
 
+    def test_central_last_pull_is_not_misreported_as_pfsense_origin(self) -> None:
+        text = DIAGNOSE.read_text(encoding="utf-8")
+        self.assertIn("crowdsec_bouncer_last_pull_provenance=NOT_VERIFIED", text)
+        self.assertIn("a credential preflight may set it", text)
+        self.assertIn("verify a post-cutover pfSense-origin pull", text)
+
     def test_deployer_is_scoped_fail_closed_and_never_mutates_pfsense(self) -> None:
         text = DEPLOY.read_text(encoding="utf-8")
 
