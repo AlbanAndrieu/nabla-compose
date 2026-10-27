@@ -199,7 +199,7 @@ restent nécessaires pour une garantie d'autorisation effective.
 Aucun `chmod`, `chown`, `setacl`, `midclt filesystem.setacl`,
 changement ZFS ou restauration de secret n'est autorisé.
 
-### Vérification complémentaire des modes sur le serveur — à exécuter
+### ✅ Vérification complémentaire des modes sur le serveur — PASS opérateur 28/10
 
 Un contrôle dédié, sans relancer la sauvegarde, vérifie la barrière des
 **modes Unix effectifs sur TrueNAS**. Il interroge uniquement `lstat`
@@ -228,10 +228,36 @@ phrase secrète. Résultat attendu : `MODE_BOUNDARY_OBSERVED` et
 `nfs_identity_mapping_verified=false`. Un échec ne déclenche aucune
 correction automatique des ACL.
 
-**État du nouveau contrôle :** script, tests et recettes ajoutés à la
-PR #289 ; tests workstation et sondes réelles **NOT_RUN**, en attente
-de preuve opérateur. Le contrôle d'inventaire précédent reste acquis
-avec son avertissement au niveau export.
+**Preuve opérateur reçue le 28/10/2026 :** `git pull --ff-only`
+(`Already up to date`), compilation Python PASS, **9/9 tests hermétiques PASS**,
+`--check` : `BACKUP_RESTORATION_PREFLIGHT_READY` et
+`server_probe_state=NOT_PROBED` ; `--probe` :
+`server_probe_state=MODE_INVENTORY_RECORDED`,
+`status=MODE_BOUNDARY_OBSERVED`, `private_mode_boundary_observed=true`,
+`sensitive_owner_uniform=true`. Les quatre niveaux TrueNAS confirment :
+
+| Niveau | Métadonnée serveur | Statut |
+| --- | --- | --- |
+| `nfs_export` | Répertoire présent | **PASS** |
+| `secret_directory` | Mode exact `0700` | **PASS** |
+| `backup_directory` | Mode exact `0700` | **PASS** |
+| `encrypted_archive` | Mode exact `0600`, fichier régulier | **PASS** |
+
+**DONE : barrière de modes privés côté serveur.** Les trois éléments
+sensibles appartiennent au même UID, dont la valeur n'a pas été divulguée.
+L'avertissement ACL sur la racine NFS reste consigné : il **n'impose pas**
+un changement de droits sur cette racine. Le programme n'a ni lu les
+archives ni modifié les fichiers.
+
+**Limites maintenues :** `effective_nfs4_authorization_verified=false`,
+`nfs_identity_mapping_verified=false` et
+`passphrase_access_verified=false`. Les bits `0700/0600` ne
+prouvent pas à eux seuls les droits effectifs d'un client NFS privilégié,
+le mappage UID/GID sur l'export, ni les restrictions `maproot/mapall`
+et `root_squash`. Aucun test d'accès négatif avec une identité de test
+n'a été effectué. Ces derniers contrôles requièrent une procédure distincte
+et **lecture seule**, sans exposer le fichier chiffré.
+
 
 Référence : [TrueNAS SCALE 26 — ACL](https://www.truenas.com/docs/scale/26/datasets/permissions/configuringacls/).
 
