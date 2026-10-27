@@ -1,5 +1,69 @@
 # Workstation split-DNS — référence inter-dépôts et reprise rapide
 
+## Réception définitive de l'événement NetworkManager — 28 octobre 2026
+
+**État actuel : INSTALLÉ + RÉAPPLICATION NTA CONFIRMÉE.**
+Preuves opérateur sur `~/w/nabla-compose` :
+
+- `just workstation-dnssec-dispatcher-test` :
+  **17/17 tests hors ligne PASS en 0,016 s** ;
+- premier `just workstation-dnssec-dispatcher-check` :
+  `lan_profile=MATCH`,
+  `dispatcher=ROOT_EXECUTABLE`,
+  `link_nta=EXPECTED_ONLY`,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED` ;
+- `just workstation-dnssec-dispatcher-exercise` :
+  `private_nta_temporarily_cleared=true`,
+  `nm_reapply=PASS`,
+  **`nta_restored_by_event=PASS`**,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED`,
+  **`diagnosis=PASS_REAPPLY_PERSISTENCE`** ;
+- deux contrôles read-only supplémentaires :
+  `lan_profile=MATCH`,
+  `dispatcher=ROOT_EXECUTABLE`,
+  `link_nta=EXPECTED_ONLY`,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED`.
+
+**Démontré :** le dispatcher persistant installé sur la
+workstation **recrée la NTA privée après une vraie
+réapplication NetworkManager** ; il ne s'agit plus
+seulement de constater une ancre manuelle antérieure.
+La validation DNSSEC publique de `cloudflare.com`
+est conservée. Ni pfSense, ni Unbound, ni la politique
+DNSSEC globale n'ont été modifiés.
+
+**Seule vérification restante pour la persistance
+inter-reboot :** après le **prochain reboot contrôlé**,
+lancer **uniquement en lecture seule** :
+
+```bash
+cd ~/w/nabla-compose
+just workstation-dnssec-dispatcher-check
+```
+
+Attendu :
+`lan_profile=MATCH`,
+`dispatcher=ROOT_EXECUTABLE`,
+`link_nta=EXPECTED_ONLY`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`.
+Ne pas relancer `--exercise` pour cette étape,
+et ne pas redémarrer uniquement pour cette preuve.
+Une validation au boot n'est **pas encore disponible**.
+
+La latence NSS glibc antérieure
+(`nss_default=A_CONFIRMED (4,8s)`) reste
+à surveiller séparément de la réparation
+du DNSSEC privé ; idem pour les journaux
+DNSSEC publics `no-signature` historiques.
+
+---
+
+
+
 ## Réception installation Dispatcher + test d'événement contrôlé — 28 octobre
 
 L'opérateur a installé le dispatcher depuis le bon
