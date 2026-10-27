@@ -68,7 +68,7 @@ def test_private_source_and_destination_symlinks_fail_closed(tmp_path: Path) -> 
     assert module.inspect(source, target, require_root=False) == "destination_symlink_refused"
     source_link = tmp_path / "source-link.env"
     source_link.symlink_to(source)
-    assert module.inspect(source_link, target, require_root=False) == "source_missing_insecure_or_invalid"
+    assert module.inspect(source_link, target, require_root=False) == "source_symlink_refused"
 
 
 def test_source_world_readable_and_destination_writable_are_refused(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_source_world_readable_and_destination_writable_are_refused(tmp_path: Pa
     target.write_text("a" * 64 + "\n")
     target.chmod(0o640)
     source.chmod(0o644)
-    assert module.inspect(source, target, require_root=False) == "source_missing_insecure_or_invalid"
+    assert module.inspect(source, target, require_root=False) == "source_permissions_insecure"
     source.chmod(0o600)
     target.chmod(0o660)
     assert module.inspect(source, target, require_root=False) == "destination_metadata_invalid"

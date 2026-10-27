@@ -31,6 +31,213 @@ entourée de guillemets. Il refuse les doublons, les symlinks, les
 fichiers source trop permissifs et les valeurs non conformes.
 Il ne copie aucune autre variable du fichier `.env.secrets`.
 
+## Diagnostic précis de la source (26 octobre 2026)
+
+Le relevé opérateur initial est
+`source_missing_insecure_or_invalid`. Cette ancienne catégorie est
+ambiguë et ne suffit **pas** à décider de modifier un secret.
+
+Depuis la version de `reconcile-fastapi-metrics-credential.py` apportée
+dans la PR #285, la commande `--check` est toujours **read-only** :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+Elle renvoie un seul code `state` et un `next_check` à vocabulaire
+fermé. Principales distinctions :
+
+| État | Contrôle sans secret |
+| --- | --- |
+| `source_file_missing` | Le fichier canonique n'est pas visible depuis TrueNAS ; vérifier le chemin et le montage |
+| `source_owner_not_root` | Contrôler le propriétaire avant une action sur les permissions |
+| `source_permissions_insecure` | Vérifier les droits ; refuser accès au monde et écriture au groupe |
+| `source_symlink_refused` | Le fichier est un lien symbolique ; vérifier la chaîne de matérialisation |
+| `source_key_missing` | La déclaration exacte `METRICS_SCRAPE_KEY` n'a pas été trouvée |
+| `source_key_duplicated` | Plusieurs déclarations ; conserver une seule source d'autorité |
+| `source_key_format_invalid` | Valeur non conforme : **64 caractères hexadécimaux** |
+| `source_read_unavailable` | La lecture sécurisée n'a pas abouti |
+| `credential_not_installed` | La source est validée ; installer le secret Prometheus avec approbation |
+| `destination_directory_unavailable` | La source est validée ; vérifier le répertoire Prometheus privé |
+
+Le préflight exige un fichier source régulier, non symlinké, non
+hardlinké, de propriétaire root sur TrueNAS et lisible en sécurité.
+Les modes `0600` et `0640` sont recevables. La valeur doit être
+un hexadécimal de 256 bits, conformément au générateur
+`secrets.token_hex(32)`.
+
+Si nécessaire, l'opérateur peut vérifier **seulement les métadonnées**
+sans jamais lire les valeurs :
+
+```bash
+sudo stat -c 'source_type=%F source_owner_uid=%u source_mode=%a source_links=%h' \
+  /mnt/cpool/secrets/runtime/sample/.env.secrets
+```
+
+Si `source_key_missing` est rapporté, vérifier dans l'éditeur privé
+l'orthographe du nom et la présence de la ligne, **sans** utiliser
+`cat`, `grep` avec la valeur, `set -x` ou une capture de terminal.
+Ne pas afficher la clé dans GitHub, ChatGPT, Slack, une URL ou des logs.
+
+Tant que l'état source est en échec, ne pas utiliser `--apply`, ne pas
+recréer FastAPI et ne pas tenter le redéploiement de Prometheus.
+
+## Preuve contradictoire du 26 octobre — source absente puis visible
+
+L'opérateur signale deux fois `source_file_missing` sur le provisionneur,
+puis `sudo stat` signale le fichier absent tandis qu'un `ls -l` voit
+ensuite un fichier **root:root, 0600, 6496 octets** dans le chemin
+attendu. Il est **interdit d'inférer la présence de la clé, une panne ZFS
+ou une erreur de droits** à partir de ces relevés non simultanés.
+
+Faire d'abord les trois contrôles **dans la même session SSH TrueNAS**,
+depuis le worktree à jour, sans afficher le contenu du fichier :
+
+```bash
+hostname
+sudo stat -c 'type=%F uid=%u gid=%g mode=%a links=%h size=%s' \
+  /mnt/cpool/secrets/runtime/sample/.env.secrets
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+Si `stat` trouve le fichier mais `--check` le considère toujours absent,
+vérifier que le Python exécuté et le chemin canonique correspondent,
+puis rechercher une variation du mountpoint (pas de restart/reboot).
+Si la source est validée, le script doit produire un **état de destination**
+tel que `credential_not_installed` ou `credential_ready`.
+
+Il ne faut pas exécuter le provisionneur depuis le système de fichiers
+de la workstation en pensant inspecter celui de TrueNAS. Le port SSH
+défini sur la workstation est `9922` ; ouvrir d'abord une session SSH
+vers `albandrieu@172.17.0.24` pour identifier sans ambiguïté l'hôte
+d'exécution. Les valeurs de clés restent toujours privées.
+
+## Source métriques désormais validée (nouveau relevé opérateur, 26/10)
+
+Les trois commandes exécutées **dans la même session sur TrueNAS**
+produisent les preuves suivantes : `hostname=truenas`,
+`stat=regular file, uid=0, gid=0, mode=0600, links=1, size=6496`,
+et le provisionneur annonce désormais **`credential_not_installed`**
+(`next_check=install_credential_with_explicit_operator_approval`).
+
+**Conclusion :** le fichier `sample/.env.secrets` et la ligne de clé
+dédiée passent les validations d'accès et de format. Ne pas régénérer
+`METRICS_SCRAPE_KEY`. L'étape bloquante restante est **l'installation
+du fichier secret pour Prometheus** et la correspondance avec
+l'environnement effectivement chargé par FastAPI.
+
+Après approbation explicite de l'opérateur, le script actuel peut
+préparer le seul répertoire privé manquant puis installer le secret :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py \
+  --apply --acknowledge I_APPROVE_FASTAPI_SCRAPE_CREDENTIAL_INSTALL
+```
+
+Contrôler ensuite, séparément :
+
+```bash
+sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
+```
+
+`credential_ready` valide uniquement les **fichiers**. Vérifier le
+jeton actif de FastAPI et déployer/recréer Prometheus avec son bind
+contrôlé avant de réclamer `scrape_up`. Ne pas afficher ni comparer
+les valeurs des clés en terminal.
+
+## Nouvelle preuve d'installation : `credential_ready` (26/10)
+
+L'opérateur a exécuté sur TrueNAS `--apply` avec confirmation,
+puis `--check`. Les deux retours incluent
+`state=credential_ready`, `credential_ready=true` et
+`next_check=verify_fastapi_container_loaded_key_and_prometheus_mount`.
+
+**Clôturé :** fichier secret Prometheus privé installé et validé.
+**Ouvert :** identité effective de la variable FastAPI, montage Docker
+Prometheus, relecture du job et `up{job="fastapi_sample"}=1`.
+Ne pas réexécuter `--apply` ni renouveler la clé.
+
+Après stabilisation mémoire TrueNAS, utiliser les contrôles déjà
+définis plus bas pour la présence de la variable FastAPI et la
+configuration Prometheus, sans afficher les valeurs. Pour obtenir
+la classification réelle du job depuis le LAN :
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check
+```
+
+Ne pas redémarrer Prometheus uniquement parce que le fichier source
+est valide. Le montage `/run/secrets/fastapi-sample-metrics.key`
+nécessite une recréation du conteneur seulement s'il n'est pas
+présent dans le conteneur **effectivement lancé**.
+Une erreur `http_401` après montage signifie une authentification
+non acceptée (éventuellement FastAPI démarré avant la mise à jour de
+`.env.secrets`), pas un fichier secret inexistant.
+
+## Réception runtime : clé chargée, bind monté, Prometheus timeout (26/10)
+
+Les trois premières étapes de réception ont été exécutées :
+
+| Contrôle | Preuve |
+| --- | --- |
+| Secret hôte | `credential_ready=true` |
+| Environnement conteneur FastAPI | `METRICS_RUNTIME_PRESENT=true` |
+| Bind Docker Prometheus | `METRICS_SECRET_MOUNT_PRESENT=true` |
+| Cible Prometheus `/api/v1/targets` | `TimeoutError` après 5 s |
+
+**Interprétation stricte :** ces trois présences ne prouvent pas que
+la clé **chargée** par FastAPI est identique au secret lu par Prometheus
+ni que `up{job="fastapi_sample"}=1`. Le timeout sur la consultation
+de l'API Prometheus ne permet pas non plus de conclure à un HTTP 401
+du job. Ne pas corriger une authentification supposée ni recréer
+les conteneurs sans identifier d'abord leur état.
+
+Pour limiter le diagnostic pendant une forte pression mémoire,
+exécuter directement sur l'hôte TrueNAS, checkout #285 actualisé :
+
+```bash
+sudo python3 scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check
+```
+
+Cette sonde lit uniquement les métadonnées Docker et compare les
+statuts **sans lire le corps** des endpoints locaux Prometheus
+`127.0.0.1:9090/-/ready` et `/api/v1/targets?state=active`.
+Chaque requête a un timeout de 3 s. Elle ne consulte ni labels,
+ni `lastError`, ni valeur d'environnement, ni journaux bruts.
+`scrape_accepted=false` reste obligatoire même lorsque readiness,
+montage et API répondent 200. En dernier, exécuter le classifieur
+complet `scripts/prometheus/diagnose-failed-scrapes.py --check`
+pour attester le vrai job.
+
+Si `prometheus.state=restarting/exited`, contrôler l'OOM et les
+compteurs de redémarrage avant toute modification. Si
+`readiness=http_200` mais `targets=timeout`, investiguer
+la pression mémoire/CPU/TSDB, pas les clés. Si
+`targets=http_200`, relancer ensuite le classifieur de scrapes ;
+un corps JSON énorme ou une forte charge peut expliquer un délai
+de lecture distinct de la réception des en-têtes.
+
+## Incident de montage du 26 octobre 2026
+
+`app_lifecycle.log` confirme une erreur de démarrage Prometheus
+sur le bind source manquant
+`/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key`.
+Ce n'est pas encore un échec d'autorisation de scrape FastAPI :
+le conteneur Prometheus ne démarre pas.
+
+Le provisionneur de la PR #285 traite désormais ce cas précis :
+pendant le `--apply` confirmé, si seul le dossier privé
+`/mnt/cpool/prometheus/secrets` manque, il le crée en
+`root:568`, mode `0750`, sans créer d'autres dossiers parents
+et sans suivre de lien symbolique. Il installe ensuite la clé
+`METRICS_SCRAPE_KEY` de FastAPI avec `root:568 0640` dans
+`fastapi-sample-metrics.key`. `--check` reste sans mutation.
+
+Après `credential_ready`, `app.redeploy prometheus` est requis
+pour reprendre le conteneur et monter le fichier. La réussite du
+montage ne prouve pas que le jeton corresponde à la configuration
+FastAPI actuellement chargée.
+
 ## Procédure TrueNAS
 
 Le checkout Compose doit inclure les changements de la PR #280.

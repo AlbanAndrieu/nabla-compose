@@ -372,6 +372,47 @@ class SecretsRendererTests(TestCase):
         self.assertEqual(child_env["BW_SESSION"], "session-secret")
 
     @mock.patch.object(renderer.subprocess, "run")
+    def test_bw_metadata_call_does_not_inherit_session(self, run: mock.Mock) -> None:
+        run.return_value.stdout = "https://vaultwarden.example.test"
+        client = renderer.BitwardenClient(
+            session="operator-session", server="https://vaultwarden.example.test",
+        )
+        with mock.patch.dict(os.environ, {"BW_SESSION": "ambient-session"}):
+            client._run("config", "server")
+        self.assertNotIn("BW_SESSION", run.call_args.kwargs["env"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 60)
+
+    @mock.patch.object(renderer.subprocess, "run")
+    def test_bw_failure_does_not_repeat_sensitive_stderr(self, run: mock.Mock) -> None:
+        failure = renderer.subprocess.CalledProcessError(
+            14, ["bw", "list", "items"],
+            output="login.password=PRIVATE",
+            stderr="SECRET_URL=https://secret PRIVATE_BW_SESSION",
+        )
+        run.side_effect = failure
+        client = renderer.BitwardenClient(
+            session="operator-session", server="https://vaultwarden.example.test",
+        )
+        with self.assertRaises(renderer.SecretsError) as caught:
+            client._run("list", "items", with_session=True)
+        self.assertEqual(str(caught.exception), "Bitwarden CLI list failed; exit=14")
+        self.assertNotIn("PRIVATE", str(caught.exception))
+        self.assertIsNone(caught.exception.__cause__)
+
+    @mock.patch.object(renderer.subprocess, "run")
+    def test_bw_timeout_returns_sanitized_status(self, run: mock.Mock) -> None:
+        run.side_effect = renderer.subprocess.TimeoutExpired(
+            ["bw", "sync"], 60, output="PASSWORD=PRIVATE", stderr="PRIVATE",
+        )
+        client = renderer.BitwardenClient(
+            session="operator-session", server="https://vaultwarden.example.test",
+        )
+        with self.assertRaises(renderer.SecretsError) as caught:
+            client._run("sync", with_session=True)
+        self.assertEqual(str(caught.exception), "Bitwarden CLI sync timed out")
+        self.assertIsNone(caught.exception.__cause__)
+
+    @mock.patch.object(renderer.subprocess, "run")
     def test_item_lookup_is_scoped_to_folder(self, run: mock.Mock) -> None:
         run.return_value.stdout = json.dumps(
             [{"name": "TOKEN", "folderId": "folder-id", "login": {"password": "x"}}]

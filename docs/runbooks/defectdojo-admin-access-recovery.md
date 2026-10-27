@@ -4,6 +4,73 @@
 Custom App `defectdojo`, conteneur Django `defectdojo-uwsgi`,
 base PostgreSQL partagée. **Ne pas recréer la base ni relancer l'initializer.**
 
+## Reprise confirmée le 26 octobre 2026
+
+**Réseau :** les requêtes A vers pfSense `172.17.0.1` et Pi-hole
+`172.17.0.24` sont toutes deux `NOERROR -> 172.17.0.24`.
+L'interface HTTP `172.17.0.24:31085` répond mais le nom HTTPS privé
+est inaccessible depuis la workstation. Ne pas modifier le DNS interne :
+isoler le défaut Traefik/TLS avec
+`sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check`.
+
+**Environnement :** `app_lifecycle.log` à 21:00:02 révèle un
+`.env` non sensible absent. L'opérateur a copié
+`apps/defectdojo/.env.example` vers le chemin canonique ; la copie peut
+avoir conservé son propriétaire utilisateur. Contrôler puis normaliser
+**uniquement ce fichier** :
+
+```bash
+sudo python3 scripts/truenas/prepare-defectdojo-runtime-env.py --inspect
+sudo python3 scripts/truenas/prepare-defectdojo-runtime-env.py --apply
+sudo python3 scripts/truenas/prepare-defectdojo-runtime-env.py --inspect
+```
+
+Le mode `--apply` accepte le contenu metadata de `.env.example`,
+contrôle les clés autorisées et remet `root:root 0600`. Il ne modifie
+**jamais** `.env.secrets`, dont l'opérateur a modifié
+`DD_ADMIN_USER` et `DD_ADMIN_PASSWORD`. `DD_INITIALIZE=true`
+dans `env_file` ne contrôle pas directement l'interpolation
+`${DD_INITIALIZE}` du Compose initializer. Ne pas utiliser
+l'initializer pour réinitialiser un compte déjà présent en base.
+
+**Admin Django :** l'inventaire du 23 octobre démontrait un compte
+`admin` existant. Modifier `DD_ADMIN_PASSWORD` dans un env_file
+n'affecte pas le hash PostgreSQL de ce compte. Le nouveau helper
+lit le secret canonique privé, sans imprimer le mot de passe :
+
+```bash
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --check
+```
+
+- `PASSWORD_MATCH` : la nouvelle valeur est déjà celle du compte Django.
+- `PASSWORD_MISMATCH` : synchroniser le **compte existant seulement** :
+
+```bash
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py \
+  --apply --acknowledge I_APPROVE_EXISTING_DEFECTDOJO_ADMIN_PASSWORD_SYNC
+```
+
+Le helper passe le secret à `docker exec -i` **via stdin**,
+jamais via les arguments ou les logs. Il n'enregistre qu'un résultat
+allowlisté et ne recrée ni utilisateur ni superuser. Il refuse
+`DD_ADMIN_USER` différent de `admin`, les doublons,
+les secrets dont les permissions ne sont pas `root:root 0600`,
+ou un compte Django absent/inactif/non-admin.
+
+**Vaultwarden :** l'entrée `TrueNAS/nabla/prod/defectdojo` n'a pas
+été revérifiée après l'édition manuelle. Confirmer
+`login.username=admin`, puis synchroniser `login.password`
+avec la valeur réellement choisie. Cette étape est distincte :
+le helper Django ne modifie pas Vaultwarden. Une future
+matérialisation depuis un coffre obsolète peut écraser le secret
+canonique et recréer la divergence.
+
+**HTTPS :** depuis le LAN, `diagnose-defectdojo-https-route.py --check`
+compare HTTP `:31085` et TLS/SNI `:443`, ainsi que
+l'état de `traefik`, les labels et `traefik_network`.
+Un échec 404, 502 ou de certificat doit être corrigé côté ingress,
+pas par une rotation du compte Django.
+
 ## 1. Source d'autorité du secret initial
 
 La source canonique déclarative est `config/secrets/manifest.json` :

@@ -268,3 +268,222 @@ déjà démontrée (SSHSIG), login SSH distant non testé ; OpenPGP
 répond publiquement mais pas de preuve de clé privée ; PIV82 non
 provisionné ; récupération SOPS/GPG/PostgreSQL réelle et escrows non
 vérifiés. Ces chantiers gardent leurs critères de validation propres.
+
+## Transfert vers PR #285 — récupération age/SOPS validée, escrows à inventorier (26/10/2026)
+
+Le test KeePassXC/OTP2 est **reporté à la demande de l'opérateur** ;
+la seule observation actuelle reste `PROGRAMMED_TYPE_UNVERIFIED`.
+Pas de nouveau challenge, aucune reprogrammation.
+
+**Validation opérateur déjà obtenue** sur `feat/yubikey-software-recovery-20261026` :
+`just yubikey-software-recovery-test` **9/9 PASS** ;
+`just yubikey-software-recovery-check` :
+`SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED` ;
+`just yubikey-software-recovery-run` :
+`AGE_AND_SOPS_SYNTHETIC_ROUNDTRIP_PASS`, avec
+`synthetic_software_roundtrip_verified=true`.
+Cela démontre le roundtrip synthétique avec des binaires réels du
+poste, **pas** la récupération d'une sauvegarde personnelle.
+
+**Consolidation demandée dans PR #285** : reprise des mêmes blobs
+de script et de 9 tests age/SOPS depuis #287, en préservant les
+corrections secrètes de la PR #285. Ajout d'un collecteur facultatif
+`yubikey-escrow-pair-inspect` à saisie masquée, sans chemins en
+arguments ou logs, ni accès aux contenus. Les 8 contrats hermétiques
+de cet outil sont **PASS en environnement agent** ; une exécution
+de métadonnées sur les deux vrais escrows reste **NOT_RUN**.
+
+**Prochaines preuves séparées :**
+- Sélectionner deux archives `.age` déjà existantes sur la workstation.
+- Observer `TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED` (stat-only),
+  sans confondre plusieurs filesystems avec deux supports physiques.
+- Vérifier la récupération indépendante de chaque copie dans un
+  environnement isolé, sans publication des secrets.
+- Lancer une restauration isolée GPG/PostgreSQL seulement après
+  validation des prérequis, avec preuve expurgée.
+- Autoriser ensuite, phase par phase, PIV82/age (génération, attestation,
+  certificat et roundtrip matériel), en préservant PIV9A et OTP2.
+
+Voir [runbook de récupération synthétique et escrows](yubikey-software-recovery-20261026.md).
+
+## Deux emplacements age connus — preuve opérateur et recherche automatique (26/10/2026)
+
+Le logiciel a désormais un mode `--discover` qui examine uniquement
+les deux répertoires suivants (sans récursion et sans ouverture du contenu) :
+
+- `~/.local/share/nabla/age-backups/`
+- `/media/backup/lab/secret/`
+
+La découverte fait correspondre les fichiers `.age` **par nom
+identique** dans les deux répertoires. Elle refuse de choisir une paire
+si plusieurs noms correspondent et ne suit aucun lien symbolique.
+`just yubikey-escrow-pair-discover` renvoie seulement un statut
+JSON, sans afficher les noms ni chemins.
+`just yubikey-escrow-pair-inspect` propose la paire unique après
+confirmation `[o/N]`, sinon conserve la saisie manuelle masquée.
+Les tests hermétiques de cette interface sont passés de **8 à 17**
+et attendent une validation sur la workstation.
+
+**Preuve utilisateur** : même chemin fourni deux fois
+→ `SAME_FILE`, refus correct. Après copie `cp` vers le support monté,
+deux inspections des deux chemins ont renvoyé
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED`.
+La copie destination apparaît en `-rw-------+` et contient
+389 octets. Cela ne prouve ni identité des contenus, ni supports
+physiquement indépendants, ni déchiffrement/restore.
+L'ACL `+` devra être contrôlée localement.
+
+**Suite** : vérifier l'identité binaire de la copie puis restaurer en
+environnement isolé à partir du support de sauvegarde, sans exposer
+la clé age ou le texte déchiffré. Aucune génération PIV82 ou mutation
+SOPS autorisée à ce stade. Test KeePassXC/OTP2 toujours reporté.
+
+## Escrow chiffré — deux copies repérées et comparaison de contenu à faire (26/10/2026)
+
+**Preuve opérateur au HEAD `41e2b099` :** découverte de la
+copie locale et de la copie sur support monté
+`TWO_FILES_DIFFERENT_FILESYSTEMS_UNVERIFIED` par
+`just yubikey-escrow-pair-discover`, puis la même classification
+confirmée après réponse `o` à `just yubikey-escrow-pair-inspect`.
+**17/17 tests de la découverte PASS sur workstation.**
+
+La prochaine preuve est l'égalité **octet par octet** des deux
+archives `.age` chiffrées, sans clé, sans déchiffrement ni
+publication de hash. Nouveau programme :
+`compare-yubikey-escrow-pair-readonly.py`, recette explicite
+`just yubikey-escrow-compare-run`, avec contrôle et
+**11/11 tests hermétiques PASS en environnement agent**.
+Le test des **vraies copies** reste `NOT_RUN`.
+
+Une réponse `ENCRYPTED_COPIES_IDENTICAL_RESTORE_UNVERIFIED` permettra
+de considérer la copie chiffrée comme identique au moment du contrôle,
+mais **pas** comme récupérable, indépendante physiquement ou source
+d'une seconde identité age. L'ACL `+` sur la destination et la
+restauration réelle doivent encore être vérifiées.
+
+La génération PIV82 et les changements de destinataires SOPS restent
+**NO-GO**. Le test KeePassXC/OTP2 demeure reporté.
+
+[Procédure](yubikey-software-recovery-20261026.md).
+
+## Escrows — diagnostic de découverte et comparaison manuelle (26/10/2026)
+
+La suite du comparateur a **11/11 PASS sur la workstation**, et son
+précontrôle `--check` confirme qu'aucun contenu n'est lu. Mais le
+premier `just yubikey-escrow-compare-run` réel a renvoyé
+`DISCOVERY_NO_MATCHING_PAIR`, avec
+`encrypted_content_read_attempted=false`.
+Ce résultat ne signifie pas que les archives diffèrent ou sont
+indéchiffrables : aucune comparaison de contenu n'a eu lieu.
+
+Le collecteur et le comparateur partagent l'inventaire des répertoires
+`~/.local/share/nabla/age-backups` et `/media/backup/lab/secret`.
+Pour distinguer HOME incohérent, dossier manquant, absence de fichier
+ou absence de nom commun, exécuter le nouveau
+`just yubikey-escrow-pair-diagnose`. Il produit uniquement les
+états des deux répertoires, les compteurs bornés de fichiers `.age`
+et le nombre de noms correspondants. Aucun chemin n'est publié.
+
+Si la découverte reste absente malgré l'existence des fichiers,
+`just yubikey-escrow-compare-manual` permet une sélection par
+saisie terminale masquée, sous le même contrôle de métadonnées,
+avec autorisation explicite. La comparaison **lit les contenus
+chiffrés**, sans déchiffrer, écrire ou afficher les fichiers.
+Les contrats ont été étendus à **22 tests d'inventaire** et
+**18 tests de comparaison** ; la validation complète de ces nouveaux
+contrats sur workstation est `NOT_RUN`.
+
+**Toujours NO-GO** pour la restauration réelle, l'identité d'un
+second moyen de récupération age, toute écriture PIV82 et toute
+modification du SOPS de production. KeePassXC/OTP2 reste reporté.
+
+[Diagnostic et procédure](yubikey-software-recovery-20261026.md).
+
+## Escrow NFS — copie absente côté serveur, snapshots à examiner (26/10/2026)
+
+La workstation a validé **12/12 contrats** du probe NFS/TrueNAS ;
+`SERVER_EXPECTED_COPY_MISSING` a été observé depuis le serveur
+dans `/mnt/cpool/backup/lab/secret`. Le fichier est également absent
+de la vue cliente NFS, tandis que la source locale `.age`
+reste identifiable. **La disparition permanente n'est pas démontrée.**
+
+Nouveau jalon non destructif : `just yubikey-escrow-history-test`,
+`just yubikey-escrow-history-check`, puis
+`just yubikey-escrow-history-probe` supervisé.
+Le programme examine les métadonnées de trois racines de snapshots
+ZFS candidates, **au plus 32 entrées par racine**, sans scan récursif
+général, contenu privé ou commande ZFS à privilèges.
+**10 tests hermétiques PASS dans l'environnement agent** ;
+preuve workstation réelle `NOT_RUN`.
+
+L'ordre des opérations reste : identifier la copie/snapshot
+historique éventuel → confirmer intégrité → restaurer
+dans un espace isolé → vérifier les moyens de récupération.
+Aucun rollback ZFS, copie, changement de destinataire SOPS ni
+provisionnement PIV82 autorisé. KeePassXC/OTP2 reste différé.
+
+Voir [runbook](yubikey-software-recovery-20261026.md).
+
+## Suite au probe des snapshots ZFS — pagination contrôlée (27/10/2026)
+
+**Résultat opérateur (version initiale) :** `just
+yubikey-escrow-history-test` **10/10 PASS** ;
+`just yubikey-escrow-history-probe` :
+`roots_accessible=3`, `snapshots_checked=96`,
+`candidate_copies=0`, `SNAPSHOT_HISTORY_INCOMPLETE`.
+Le programme a atteint son plafond de 32 snapshots dans
+chacune des trois racines ; il n'a pas prouvé l'absence
+des sauvegardes au-delà des entrées vérifiées.
+
+**Correctif livré** : pages de 32 snapshots par racine, en
+ordre lexicographique inverse des noms (pas nécessairement
+chronologique), jusqu'à 32 pages/1 024 entrées inventoriées
+par racine. `just yubikey-escrow-history-page 1` permet
+d'avancer explicitement. Suivre `next_page` seulement
+si la réponse l'autorise ; ne pas lancer de boucle non bornée.
+Un répertoire qui dépasse 1 024 entrées garde
+`inventory_truncated=true` : rien n'est déclaré complet.
+**14/14 tests PASS dans l'environnement agent** ;
+exécution paginée sur workstation encore `NOT_RUN`.
+
+**Étape suivante :** valider la pagination sur workstation,
+inspecter les pages suivantes si nécessaire, puis seulement
+préparer une récupération autorisée depuis un snapshot candidat
+dans un espace isolé. Aucune lecture des archives, copie,
+restauration ou modification matérielle n'est intégrée au
+probe. Maintenir `NO-GO` pour PIV82 et la restauration réelle ;
+KeePassXC/OTP2 reste reporté.
+
+[Procédure détaillée](yubikey-software-recovery-20261026.md).
+
+## Escrow age — 120 snapshots sans candidat, copie NFS contrôlée préparée (27/10/2026)
+
+**Preuve workstation** : `just yubikey-escrow-history-test`
+**14/14 PASS**. Page 0 : 96 snapshots, 0 candidat, page suivante
+disponible. Page 1 : 24 snapshots, 0 candidat,
+`more_pages=false`, `next_page=null`,
+`inventory_truncated=false`. **120 entrées examinées dans les trois
+racines connues** ; la recherche a terminé ses pages sans retrouver
+le nom de l'archive attendu. Cela n'exclut pas d'autres datasets,
+supports ni une variation des snapshots entre les probes.
+
+**Priorité suivante : créer une copie chiffrée NFS**, mais
+uniquement après précontrôle. Le script
+`create-yubikey-escrow-nfs-copy.py` est ajouté à #285 avec
+`just yubikey-escrow-copy-test` et
+`just yubikey-escrow-copy-check`. **9/9 contrats synthétiques
+PASS local agent** ; workstation encore `NOT_RUN`.
+Il vérifie la source, le montage NFS et l'absence de destination.
+La copie réelle reste une commande Python **séparée, facultative
+et opt-in**, avec nom temporaire 0600, publication atomique sans
+écrasement, `fsync` et comparaison octet par octet. Aucune
+écriture n'a été effectuée par l'agent.
+
+**Conditions d'acceptation** : copie chiffrée créée et identique,
+puis visibilité depuis le client et TrueNAS, ACL contrôlées,
+déchiffrement age et récupération SOPS réels séparément démontrés.
+Une simple copie binaire **n'est pas un escrow récupérable prouvé**.
+Pas de changement des destinataires SOPS ou de PIV82. Le test
+KeePassXC/OTP2 reste reporté.
+
+[Procédure](yubikey-software-recovery-20261026.md).

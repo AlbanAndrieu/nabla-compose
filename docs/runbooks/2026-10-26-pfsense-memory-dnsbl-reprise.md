@@ -151,3 +151,206 @@ du chemin de rechargement restent à investiguer.
 
 Ne pas relancer l'optimisation PHP-FPM et ne pas provoquer
 un nouveau cycle pfBlockerNG pour obtenir cette mesure.
+
+## Continuation PR #285 — sonde DNS LAN bornée (à exécuter au prochain cycle)
+
+**Source** : la PR #280 est fusionnée ; le suivi s'effectue
+dans [la PR #285](https://github.com/AlbanAndrieu/nabla-compose/pull/285).
+Cette PR contient aussi un correctif indépendant du test de
+secrets canonique du service Code : vérifier les deux périmètres
+avant fusion.
+
+### Pourquoi une sonde supplémentaire ?
+
+Le comparateur local a établi la stabilité du PID 2611
+**entre 00:40:15 et 00:40:22 le 26 octobre**.
+Il n'a pas mesuré la disponibilité DNS du LAN pendant le
+stop/start Unbound associé à pfBlockerNG vers **00:04**.
+Les futurs relevés de PID, même encadrant le cron, ne
+quantifieront pas seuls les requêtes DNS perdues.
+
+Le nouveau script `scripts/pfsense/probe-unbound-lan-dns.py`
+utilise `dig` directement contre l'IP DNS explicite
+`172.17.0.1`, depuis un client autorisé sur le LAN.
+Il **n'utilise pas** la résolution de la workstation
+(`systemd-resolved`) pour rejoindre pfSense.
+Il n'ouvre ni SSH, ni API pfSense, et n'installe aucun service.
+
+### Validation locale initiale (hors réseau)
+
+```bash
+just pfsense-unbound-lan-dns-test
+just pfsense-unbound-restart-test
+```
+
+La recette LAN contient maintenant **18 tests offline**,
+incluant les scénarios d'IPv4 attendue, Pi-hole et échecs échantillonnés.
+La gate Unbound inclut cette recette. Les résultats antérieurs
+**73/73 PASS** concernent une version précédente, et ne
+valident pas les derniers correctifs. Rejouer les deux recettes
+localement ; ne pas annoncer de nouveau total PASS avant exécution.
+Le correctif Code déjà présent dans cette PR possède une
+gate distincte à valider avant fusion.
+
+### Vérification d'une minute avant la prochaine fenêtre
+
+Choisir un nom privé **réellement résolu en A par pfSense**.
+La zone documentée est `int.albandrieu.com`, transmise par
+Unbound à Pi-hole sur TrueNAS `172.17.0.24:53`.
+Ne plus utiliser `nexus-albanandrieu.int` : ce nom issu d'un
+ancien inventaire a renvoyé **45 NXDOMAIN/45** le 26 octobre,
+alors que **45/45 requêtes publiques étaient OK**. Il n'avait
+pas été vérifié avant la mesure.
+
+Exemple **historique** plus conforme à la topologie :
+`s3.int.albandrieu.com` (A `172.17.0.24` dans un diagnostic
+antérieur). **Vérifier son état actuel** avant de le retenir :
+
+```bash
+dig +tries=1 +time=2 @172.17.0.1 s3.int.albandrieu.com A
+dig +tries=1 +time=2 @172.17.0.24 s3.int.albandrieu.com A
+```
+
+Si les deux renvoient **l'IPv4 attendue**, depuis la workstation :
+
+```bash
+PFSENSE_PRIVATE_DNS_NAME=s3.int.albandrieu.com \
+PFSENSE_PRIVATE_DNS_EXPECTED_IP=172.17.0.24 \
+  just pfsense-unbound-lan-dns-watch
+```
+
+`172.17.0.24` est ici une **valeur historique candidate**.
+La vérifier avec `dig` sur les deux résolveurs avant d'exécuter la
+recette. Le script impose une IPv4 privée attendue, fournie explicitement,
+et ne la déduit jamais de la réponse DNS à vérifier.
+
+Si le premier renvoie `NXDOMAIN` et le second `NOERROR`
+avec `172.17.0.24`, examiner le Domain Override Unbound de
+`int.albandrieu.com` vers Pi-hole. Si les deux renvoient
+`NXDOMAIN`, vérifier la publication du nom côté Pi-hole et
+les politiques de filtrage. Ne rien modifier à ce stade.
+
+La recette effectue **45 prélèvements**, espacés au
+mieux de **2 secondes**, avec **2 requêtes A par prélèvement**
+(une publique `example.com`, une privée fournie par l'opérateur).
+Elle s'achève normalement en environ **90 secondes** hors
+ralentissements/timeouts et émet `dns_watch_result=...`.
+Elle est bornée à 60 prélèvements et à un délai de dig
+configurable de 1 à 5 secondes, sans boucle infinie.
+**Précontrôle obligatoire :** la résolution publique et la réponse A
+privée de pfSense doivent être `OK` ; cette dernière doit contenir
+**l'IPv4 explicitement attendue**. Si la réponse privée est invalide,
+une troisième requête interroge directement Pi-hole `172.17.0.24` :
+- Pi-hole `OK` et pfSense en échec (public `OK`) :
+  `SPLIT_DNS_FAILURE` ; vérifier le Domain Override.
+- Pi-hole et pfSense sans l'A attendu : `BASELINE_INVALID` ;
+  vérifier le nom, la zone et l'IPv4 de référence.
+- Échec du nom public au précontrôle : `BASELINE_INVALID` ;
+  vérifier la connectivité sans conclure à une panne Unbound.
+
+Dans chaque cas la sonde affiche
+`dns_sampling=SKIPPED_INVALID_PREFLIGHT` et sort en **code 2**.
+Les prélèvements ne commencent **jamais** sans précontrôle valide.
+Un échec au précontrôle ne constitue pas une coupure mesurée
+pendant le cron.
+
+**Suivi du 26/10 20:49 CET :** l'opérateur a confirmé
+`s3.int.albandrieu.com A=172.17.0.24` sur pfSense
+(`NOERROR`, 55 ms) et Pi-hole (`NOERROR`, 0 ms).
+La première requête `example.com` du précontrôle a cependant
+retourné `TIMEOUT`, tandis que le nom privé était `OK` ;
+le script a justement évité 45 mesures sur une baseline publique
+non établie. Cet événement ne démontre **ni panne globale Unbound,
+ni erreur DNS privée**.
+
+Dans la PR #285, une **seule relance** de la requête publique est
+autorisée pour `TIMEOUT`, `SERVFAIL` ou `QUERY_ERROR`.
+Si la seconde réponse est `OK`, le script affiche
+`dns_preflight_warning=PUBLIC_RECOVERED_AFTER_ONE_RETRY`
+et poursuit avec une référence temporairement récupérée :
+l'échec initial reste visible. Si les deux échouent alors que le
+privé est `OK`, retour code 2 avec
+`PUBLIC_DNS_BASELINE_UNAVAILABLE` (pas `BASELINE_INVALID`
+du nom privé) et **aucun prélèvement**. Les erreurs
+`NXDOMAIN` publiques ne font pas l'objet d'une relance.
+Le budget normal est désormais **2 à 4 requêtes de préflight**
+(public initial + éventuelle relance, privé pfSense,
+éventuel Pi-hole), sans retry pendant les 45 prélèvements.
+Les nouveaux tests sont à exécuter localement ; l'opérateur a
+validé les **18/18 précédents** et la gate Unbound **82/82**
+avant cet ajout.
+
+Le programme effectue **2 à 4 requêtes de précontrôle + 90
+requêtes maximum** pendant les 45 prélèvements par défaut.
+Le résolveur Pi-hole est interrogé seulement si nécessaire.
+Un code retour `1` **après un précontrôle réussi et un
+bilan de prélèvements** indique qu'au moins une requête
+DNS a échoué pendant la surveillance.
+
+Pour couvrir le cron d'environ 00:04, démarrer la commande
+vers **00:03:35–00:03:45**, heure locale du Netgate.
+Si le chronogramme pfBlockerNG change, adapter la fenêtre.
+Pendant la même fenêtre, ne pas modifier PHP-FPM, Snort,
+pfBlockerNG, CrowdSec, Unbound ni les règles DNS.
+
+### Interprétation du résultat
+
+Le script produit pour chaque prélèvement un horodatage
+avec offset local, les états `public_dns` et `private_dns`,
+les durées de requête, puis des compteurs :
+`public_fail`, `private_fail`, `both_fail` et les plus
+longues **séquences d'échantillons défaillants**.
+Il distingue `OK`, `TIMEOUT`, `NXDOMAIN`, `SERVFAIL`,
+`REFUSED`, `NO_A_ANSWER`, `A_MISMATCH`, etc.
+Après précontrôle valide : `SPLIT_DNS_FAILURE` signale un échec
+privé seul, `DNS_OUTAGE_OBSERVED` signale au moins un prélèvement
+où les **deux** requêtes séquentielles ont expiré, et
+`DNS_FAILURE_OBSERVED` regroupe les autres échecs.
+Cette catégorisation est une observation de prélèvements,
+pas une preuve de durée de panne ni d'une cause particulière.
+
+`dns_downtime_seconds=NOT_MEASURED_ONLY_SAMPLED` est
+intentionnel. Si la sonde échoue à des instants successifs,
+elle démontre des requêtes perdues pendant la fenêtre,
+**pas** la durée exacte et continue de la panne. Une absence
+d'échec ne prouve pas qu'une microcoupure n'a pas eu lieu
+entre deux échantillons. Aucun nom, réponse A ou log
+brut n'est imprimé, seuls les états agrégés sont conservés.
+
+### Suite après la sonde
+
+1. Capturer l'état Unbound **avant** le cron avec
+   `just pfsense-unbound-capture`.
+2. Exécuter la mesure LAN à l'heure approximative prévue.
+3. Capturer **après** le cron avec la même recette.
+4. Comparer les deux vrais `snapshot_saved` via
+   `just pfsense-unbound-compare`.
+5. Corréler les horodatages des éventuels échecs DNS
+   avec les nouveaux PID, marqueurs pfBlockerNG et OOM.
+6. En l'absence de coupure, conserver le stop/start comme
+   dette de continuité à surveiller, sans le traiter
+   d'office comme une panne utilisateur.
+
+**Aucune action corrective sur l'appliance n'est nécessaire
+pour exécuter ou valider ces scripts.**
+
+### Correctif après la mesure du 26 octobre 20:09–20:10 CET
+
+La mesure opérateur avec l'ancien nom `nexus-albanandrieu.int`
+a observé **45/45 réponses publiques OK**, **45/45 NXDOMAIN
+sur le nom privé**, **aucun timeout**, **aucun SERVFAIL** et
+`both_fail=0`. Cela indique qu'Unbound répondait pendant
+la fenêtre, mais ne trouvait pas le nom privé interrogé.
+Ce test ne couvre pas le cron de **00:04** : la mesure
+a eu lieu vers **20:09–20:10 CET**.
+
+La version de la sonde dans la **PR #285** inclut désormais
+une vérification préalable. Si le nom privé retourne `NXDOMAIN` dès le départ, la sonde
+interroge aussi Pi-hole. Elle retourne `BASELINE_INVALID`
+si le nom manque sur les deux résolveurs, ou
+`SPLIT_DNS_FAILURE` si Pi-hole possède l'A attendu.
+Dans les deux cas, elle **n'échantillonne pas** et ne conclut pas
+à une panne temporelle d'Unbound.
+
+L'ancien exemple `nexus-albanandrieu.int` ne doit plus
+être proposé pour les contrôles de disponibilité DNS LAN.

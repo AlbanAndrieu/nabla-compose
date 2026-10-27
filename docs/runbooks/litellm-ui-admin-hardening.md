@@ -37,6 +37,27 @@ The second command requires the optional SSH forward `127.0.0.1:14000 -> 127.0.0
 
 Budget migration remains a separate change: copy policy intent only; **do not transfer historical consumption or reset state**.
 
+## Incident session dashboard du 26 octobre 2026
+
+Une erreur `401 Authentication Error - Expired Key` avec
+`user_api_key_team_id=litellm-dashboard`, zéro token et navigateur
+Linux correspond à une **clé de session UI périmée**. Cela ne
+prouve aucun échec de `LITELLM_IDE_API_KEY`, OpenClaw ou FastAPI.
+Un onglet ancien peut continuer d'interroger les routes du dashboard
+et polluer les `SpendLogs` avec de faux appels LLM
+(upstream [#35789](https://github.com/BerriAI/litellm/issues/35789),
+[PR #35791](https://github.com/BerriAI/litellm/pull/35791)).
+
+Réparation : fermer tous les onglets `/ui`, effectuer Logout,
+puis se connecter avec le compte nominatif. Si la session est
+toujours réutilisée, effacer uniquement les données de site LiteLLM.
+Ne pas tourner les clés métier, désactiver l'expiration, ou
+redémarrer le proxy pour une session navigateur.
+
+Contrat offline : `python3 scripts/truenas/diagnose-litellm-dashboard-auth.py
+--check --input /chemin/prive/evenement.json`; la sortie ne divulgue
+aucun hash de clé ni adresse IP.
+
 ## Post-merge runtime validation — PR #258
 
 PR #257 has been merged and the operator restarted the TrueNAS LiteLLM app. Previous check output still says `runtime_setting=not_verified` because the checker observes **declared Git configuration**, Cloudflare Access redirect, and basic process health; none proves the application has loaded the setting or rejects environment credentials.

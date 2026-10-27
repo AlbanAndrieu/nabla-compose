@@ -19,6 +19,103 @@ Suricata eve.json ────────────────────�
 
 This removes CrowdSec parsing, scenarios, SQLite/LAPI work and CAPI synchronization from the resource-constrained pfSense appliance while keeping packet remediation at the firewall.
 
+## Relevé opérateur — 26 octobre 2026 : bascule non autorisée
+
+Les diagnostics ont été exécutés sans modification de service.
+Le checkout TrueNAS affiche `head=de24ee7ae0cf`, `tree=dirty` :
+éviter tout déploiement depuis cette copie avant revue de ses différences.
+
+| Contrôle | Résultat observé |
+| --- | --- |
+| TrueNAS CrowdSec 1.8.1 | App RUNNING, conteneur running/healthy |
+| LAPI TrueNAS `172.17.0.24:8084` | Listener OK ; `cscli lapi status` OK |
+| Scénario `pf-scan-multi_ports` | Désactivé et fichier absent |
+| Metrics `172.17.0.24:6060` | OK ; `cs_lokisource_hits_total=940` |
+| Loki | `/ready=200`, query canonique `device=pfsense` **intermittente** (échec puis succès) |
+| Décisions TrueNAS | `crowdsec_active_decisions=0` |
+| Fichier secret bouncer TrueNAS | `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets` absent ou illisible |
+| Bouncer TrueNAS `PFSENSE_FIREWALL` | Inscrit, `last_pull=<none>` |
+| pfSense Security Engine | Processus local **running** (pas Small) |
+| pfSense firewall bouncer | **running**, URL `http://172.17.0.1:8089` (LAPI locale) |
+| pfSense → TrueNAS LAPI | TCP `172.17.0.24:8084` joignable |
+| Tables PF pfSense | `crowdsec_blacklists=9399`, `crowdsec6_blacklists=22` |
+
+**Réception : BLOQUÉE.** La table PF à 9 421 entrées reflète
+le bouncer encore relié à la **LAPI locale** ; elle ne démontre
+aucune remédiation provenant de TrueNAS. Ne pas arrêter le moteur
+local maintenant : ce serait un changement de la chaîne de protection
+sans bouncer central fonctionnel ni rollback validé.
+
+La requête Loki canonique a échoué lors de `--runtime` puis a
+réussi lors de `--check`, alors que le compteur source valait 940.
+Cela ne prouve pas une anomalie permanente de la règle Alloy.
+Le diagnostic du dépôt fait désormais **une relance bornée** de
+la requête exacte avant d'attribuer l'échec à la classification.
+Une relance réussie conserve un warning ; deux échecs puis des
+événements non-smoke provoquent un ERROR.
+
+### Réception complémentaire : contrats et classification Loki
+
+Le checkout de l'opérateur a exécuté sans erreur :
+
+- `just crowdsec-loki-evidence-test` : **5/5 PASS** ;
+- `just nexus-private-ingress-test` : **4/4 PASS**.
+
+Depuis TrueNAS, la requête agrégée, sans lecture des messages :
+
+```bash
+curl --noproxy '*' -fsSG \
+  'http://172.17.0.24:3100/loki/api/v1/query' \
+  --data-urlencode \
+  'query=sum by (device) (count_over_time({job="pfsense",app!="nabla-smoke"}[30m]))' |
+  jq '.data.result | map({labels: .metric, count: .value[1]})'
+```
+
+retourne une unique série `{device="pfsense"}` avec **1 247
+événements** sur la fenêtre de 30 minutes interrogée. Cela valide
+la présence du label canonique dans ce relevé. Cela ne mesure ni
+les événements totalement perdus avant Loki, ni l'absence de
+microcoupures, ni une nouvelle décision CrowdSec.
+
+**Conséquence opérationnelle :** aucune modification d'Alloy n'est
+justifiée par l'échec ponctuel antérieur de la requête canonique.
+La relance bornée du diagnostic signale une récupération, sans
+transformer un échec persistant en succès. Les tests hors ligne
+ne valident pas la configuration du bouncer pfSense, qui reste
+connecté à la LAPI locale. Ne pas exécuter le cutover tant que
+la clé centrale et `last_pull` ne sont pas confirmés.
+### Séquence de décision avant la bascule
+
+1. **Stabiliser les preuves** sur TrueNAS (lecture seule) :
+   `sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --runtime`.
+   En cas de warning Loki, interroger les compteurs/labels, sans
+   modifier Alloy ni vider les journaux.
+2. **Retrouver la clé centralisée existante** `PFSENSE_FIREWALL`
+   dans une source approuvée. Contrôler les chemins/permissions
+   sans afficher la valeur. Le `api_key` du bouncer qui parle à
+   `172.17.0.1:8089` peut appartenir à **une autre LAPI** ;
+   ne pas présumer qu'il correspond à la clé enregistrée sur TrueNAS.
+   La présence d'une inscription `PFSENSE_FIREWALL` sans `last_pull`
+   ne suffit pas à prouver la possession de sa clé.
+3. **Ne provisionner le fichier** `root:root 0600`
+   `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
+   que par un transfert approuvé, après vérification de l'identité
+   et de l'absence de doublon. Aucune génération ou rotation de
+   clé automatique.
+4. **Exécuter `--check`** ; exiger zéro échec sur le secret,
+   la classification Loki et l'enregistrement du bouncer.
+5. **En fenêtre de migration approuvée**, faire pointer le seul
+   bouncer pfSense vers `http://172.17.0.24:8084`, conserver
+   sa remédiation active, retirer le moteur local, puis valider
+   les deux `--accept` et le `last_pull` central.
+   Préparer au préalable le retour à la configuration LAPI locale
+   et documenter l'état des tables PF.
+
+Le moteur TrueNAS fonctionne, mais **nous ne déclarons pas
+la migration terminée** sans la preuve d'une décision centrale
+réellement appliquée au niveau du pare-feu. Ne jamais tester
+avec une IP de gestion critique ou introduire un ban factice
+sans un plan de retour arrière.
 ## Current incident mitigation — 2026-10-10
 
 The pfSense read-only diagnostic now proves the problematic path rather than

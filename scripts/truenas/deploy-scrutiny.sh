@@ -192,6 +192,17 @@ render_scrutiny_compose() {
   rm -f "${override}"
 }
 
+verify_scrutiny_compose_secret_path() {
+  local rendered="$1"
+  local canonical="/mnt/cpool/secrets/runtime/scrutiny/.env.secrets"
+  local obsolete="/mnt/cpool/scrutiny/.env.secrets"
+
+  [[ "${rendered}" == *"${canonical}"* ]] ||
+    fail "Scrutiny rendered Compose omitted canonical runtime secret path"
+  [[ "${rendered}" != *"${obsolete}"* ]] ||
+    fail "Scrutiny rendered Compose still references obsolete legacy secret path"
+}
+
 reconcile_app_string() {
   local app_id="$1"
   local compose_yaml="$2"
@@ -288,7 +299,9 @@ if [[ "${MODE}" == "--check" ]]; then
   scrutiny_state="$(app_state "${SCRUTINY_APP_ID}")"
 
   verify_influx_runtime
-  render_scrutiny_compose >/dev/null
+  scrutiny_compose="$(render_scrutiny_compose)"
+  verify_scrutiny_compose_secret_path "${scrutiny_compose}"
+  printf 'Scrutiny rendered env_file=canonical; stored TrueNAS Custom App may still require reconciliation.\n'
 
   case "${scrutiny_state}" in
     RUNNING)
@@ -334,6 +347,8 @@ verify_influx_runtime
 reset_scrutiny_sqlite_if_requested
 
 scrutiny_compose="$(render_scrutiny_compose)"
+verify_scrutiny_compose_secret_path "${scrutiny_compose}"
+printf 'Reconciling stored TrueNAS Scrutiny Custom App with canonical runtime secret.\n'
 if ! reconcile_app_string "${SCRUTINY_APP_ID}" "${scrutiny_compose}"; then
   printf 'Scrutiny reconcile failed; collecting runtime evidence.\n' >&2
   if [[ -f scripts/truenas/diagnose-scrutiny.sh ]]; then

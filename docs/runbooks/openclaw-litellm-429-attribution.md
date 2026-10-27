@@ -1770,3 +1770,260 @@ dans sa période de cooldown 24 h.
 
 Les nouveaux tests et le runtime n'ont pas encore été exécutés
 sur la Workstation au HEAD contenant cette correction.
+
+
+## 2026-10-26 — correction directe du Gateway Node (PR #285)
+
+Rapport de l'opérateur pour \`openclaw update\` :
+- \`preflight-node-runtime-incompatible\` : système
+  \`/usr/bin/node\` à **24.16.0** ; OpenClaw 2026.10.7 requiert
+  Node \`>=24.22.1 <25 || >=26.12.1\` ;
+- unité user Gateway encore propriétaire du paquet
+  \`~/.local/share/mise/installs/node/24.18.1/lib/node_modules/openclaw\` ;
+- nouveau Node \`24.22.1\` installé sous mise ; shell OpenClaw
+  \`2026.10.7\` installé dans un **autre préfixe** ;
+- erreur de propriété SQLite sur le processus Gateway 3713 lors
+  de l'exécution d'autres commandes OpenClaw ; pas une corruption
+  démontrée. Ne pas supprimer la base, son WAL ni ses fichiers de lock ;
+- avertissements \`pacman\` non bloquants sous Ubuntu ;
+  l'inventaire de sauvegarde des plugins codex/discord/matrix/whatsapp
+  est inconnu ; risque de réversibilité accepté par l'opérateur,
+  qui **ne souhaite pas de sauvegarde de projet supplémentaire**.
+
+**Décision : abandonner le staging npm pour ce correctif.** Conserver
+le paquet contrôlé par le Gateway actuel, et remplacer uniquement
+l'exécutable Node dans l'unité systemd. Effectuer ensuite l'update
+de **ce même paquet** via son \`openclaw.mjs\` exécuté avec Node
+24.22.1. La CLI du shell ne décide plus de la racine cible.
+
+Scripts versionnés :
+- \`scripts/workstation/repair-openclaw-gateway-node.py\` :
+  plan et création contrôlée d'un drop-in systemd user
+  \`25-nabla-node-runtime-compat.conf\`, en mode \`0600\`. Préserve
+  \`--max-old-space-size=16053\`, le paquet du service, le port
+  18789 et toutes les autres unités/définitions. Refuse le service
+  actif, les installations inconnues, une version Node inadéquate,
+  les symlinks et les chemins group-writable. Ne sauvegarde rien.
+- \`scripts/workstation/recover-openclaw-managed-gateway.sh --apply\` :
+  vérifie les prérequis ; stoppe proprement **l'unique** unité user
+  connue ; exige l'absence d'un propriétaire observable sur le SQLite
+  via \`fuser -s\` ; applique le drop-in ; exécute
+  \`node@24.22.1 <ancien-openclaw.mjs> update --tag 2026.10.7
+  --yes --no-restart\` ; vérifie la version ; refuse de redémarrer
+  sur échec ; démarre uniquement après mise à jour réussie ;
+  vérifie \`is-active\` et \`http://127.0.0.1:18789/readyz\`
+  sans requête LLM.
+
+**Commandes Workstation :**
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just openclaw-gateway-node-test
+just openclaw-gateway-node-plan
+just openclaw-gateway-node-update
+\`\`\`
+
+La commande \`-update\` est **mutante et peut provoquer un downtime**.
+Si un autre script de sauvegarde est encore actif, terminer ou arrêter
+proprement ce script avant d'exécuter la reprise ; ne pas lancer deux
+opérations OpenClaw simultanément. Le programme ne crée aucune
+sauvegarde supplémentaire ; l'updater natif peut conserver ses propres
+éléments internes de récupération, qui ne sont pas gérés ici.
+
+**Échec** : le Gateway peut rester **arrêté** si la migration, les
+plugins ou le contrôle de version échouent. Ne pas relancer
+automatiquement l'ancien paquet sur un état SQLite potentiellement
+migré. Investiguer \`openclaw update status --json\` sous le bon
+runtime et vérifier \`systemctl --user status\` sans publier les
+secrets. Pas de \`rm -rf\`, de \`sudo npm install -g\`, de
+\`doctor --fix\` automatisé, ni d'opération de modèle payante.
+
+Les tests unitaires sont synthétiques, exécutables localement sans CI.
+Le nouveau parcours n'est **pas** encore validé par un update réel sur
+la Workstation au HEAD de cette PR.
+
+Documentation :
+- https://docs.openclaw.ai/cli/update
+- https://docs.openclaw.ai/cli/update/how-updates-run
+
+
+## 2026-10-26 — PR #285 : sélectionner l'installation existante (sans npm)
+
+**Preuve fournie par l'opérateur :** après correction du Node systemd,
+\`node_runtime_switch=applied\` puis \`openclaw update\` a échoué en
+\`global-install-foreign-destination\`, sans installation. Le service
+systemd référence toujours
+\`mise/installs/node/24.18.1/lib/node_modules/openclaw/openclaw.mjs\`,
+mais Node est désormais \`mise/.../24.22.1/bin/node\`. L'updater
+voit **déjà** un paquet et un launcher OpenClaw sous
+\`mise/.../24.22.1\` et interdit de les écraser : ce refus est normal.
+L'updater a quitté avant le redémarrage ; le Gateway est supposé arrêté
+jusqu'à vérification. Un ancien smoke de \`litellm-main/gpt-4.1\`
+a réussi, inutile de le répéter.
+
+**Décision : arrêter d'invoquer \`openclaw update\` et de créer des
+staging npm.** Choisir directement l'installation vérifiée
+\`openclaw@2026.10.7\` du Node 24.22.1 comme propriétaire du Gateway.
+
+La nouvelle commande \`just openclaw-gateway-select-installed\` :
+1. Vérifie le manifeste \`package.json\` (nom/version/bin), l'entrée
+   \`openclaw.mjs\`, le propriétaire et les permissions du paquet,
+   et la CLI sous Node 24.22.1.
+2. Arrête uniquement \`openclaw-gateway.service\` s'il tourne.
+3. Refuse la mutation si \`openclaw.sqlite\`, \`-wal\` ou \`-shm\`
+   reste détenu selon \`fuser\`.
+4. Modifie atomiquement **le seul drop-in 25 déjà possédé par cette
+   réparation**, en remplaçant le chemin JS 24.18.1 par 24.22.1.
+   Conserve l'exécutable Node 24.22.1, le port 18789, les flags
+   mémoire et les autres unités/variables.
+5. Vérifie le \`systemctl --user show ... ExecStart\` après
+   \`daemon-reload\`. En cas d'échec, restaure les octets de l'ancienne
+   définition en mémoire ; aucun fichier de sauvegarde n'est créé.
+6. Vérifie à nouveau la CLI et l'absence de propriétaire SQLite, puis
+   démarre le Gateway et contrôle \`/readyz\` (loopback).
+
+**Aucun** \`npm install\`, \`openclaw update\`, \`doctor --fix\`,
+nouveau staging, backup de projet, modèle payant, rotation de clés ou
+réindexation n'est réalisé. La mise en route 2026.10.7 peut appliquer
+des migrations SQLite/plugins **non garanties réversibles**.
+L'utilisateur accepte l'absence de nouvelle sauvegarde ; ne pas
+réinstaller/revenir à 2026.9.5 automatiquement si la migration échoue.
+
+Commandes dans un nouveau worktree de la branche PR #285 :
+
+\`\`\`bash
+just openclaw-gateway-node-test
+just openclaw-gateway-node-plan
+just openclaw-gateway-select-installed
+\`\`\`
+
+Le nom historique \`openclaw-gateway-node-update\` reste un alias
+mais **n'exécute désormais aucune mise à jour npm**.
+Le runbook antérieur relatif à l'updater a été remplacé par cette
+procédure pour le conflit de préfixes.
+
+**Critère de fin :**
+\`package_selection=verified\`,
+\`repair=existing_gateway_installation_healthy\`,
+\`node_runtime=24.22.1\`,
+\`openclaw_release=2026.10.7\`,
+\`npm_install_attempted=false\`.
+Puis vérifier les canaux et les index mémoire par les diagnostics
+OpenClaw en lecture seule. La seule disponibilité HTTP ne prouve
+pas la fonctionnalité de tous les plugins.
+
+Tests synthétiques ajoutés et scripts inspectés dans la PR ;
+**validation réelle du Gateway non encore faite par l'agent**.
+
+
+## 26 octobre 2026 — PR #285, 9 tests synthétiques échoués, aucune activation
+
+Nouvelle preuve opérateur : `just openclaw-gateway-node-test` a
+produit **14 PASS / 9 FAIL (23 tests)**. La procédure fail-fast ne s'est
+pas poursuivie vers `openclaw-gateway-node-plan` ni
+`openclaw-gateway-select-installed`. Aucun nouveau démarrage Gateway,
+aucun appel npm et aucune modification de SQLite dans cette exécution.
+
+Les échecs de sélection ont une cause commune : la fixture créait
+`package.json` par `write_text()` avec le `umask 0002` de la
+Workstation. Le fichier avait donc le mode `0664`, tandis que le
+contrat de production refuse expressément un fichier npm
+**group-writable**. La fixture est corrigée avec `chmod 0600`.
+Un contrat supplémentaire prouve que le mode npm standard `0644`
+reste accepté et un autre que `0664` est rejeté. Les contrôles de
+propriétaire, manifest, symlink, version et destination npm sont
+inchangés.
+
+L'autre échec était un **faux positif de test** :
+`assertNotIn("npm install", contents)` détectait le texte
+« npm install » dans un commentaire du shell. Le test inspecte
+maintenant uniquement les lignes exécutables du script.
+Il ne provoque pas d'opération npm.
+
+La recette locale `just openclaw-gateway-node-test` lance désormais
+les tests deux fois : avec le `umask` courant, puis sous
+`umask 0002`. Les deux modes `0600` et `0644` ont aussi été
+contrôlés dans une reproduction filesystem minimale exécutée
+par l'agent ; **la suite intégrale au dernier HEAD doit encore
+être validée sur la Workstation**.
+
+Reprise depuis la branche de PR #285, dans un nouveau worktree :
+
+```bash
+just openclaw-gateway-node-test
+just openclaw-gateway-node-plan
+just openclaw-gateway-select-installed
+```
+
+Ne pas relancer `openclaw update` : le paquet 2026.10.7 existe
+déjà et l'updater refuse à raison
+`global-install-foreign-destination`. La sélection systemd du
+paquet existant est le seul changement souhaité. Elle ne crée pas
+de sauvegarde et ne lance pas de modèle. Le premier démarrage sous
+la nouvelle version peut provoquer une migration non réversible.
+
+
+## 26 octobre 2026 — sélection 2026.10.7 bloquée au contrôle du paquet
+
+Preuve Workstation : après correction de la fixture npm, **26/26 tests
+PASS avec le umask courant et 26/26 PASS avec umask 0002**. Le plan
+reste en échec avant toute activation :
+
+```text
+target_release=2026.10.7
+existing_package_verified=no
+gateway_running=no
+owned_dropin=no
+already_selected=no
+no_npm_install=true
+no_backup=true
+```
+
+Le champ `owned_dropin=no` découle aussi du paquet non vérifié : ce
+n'est **pas** une preuve indépendante de dérive systemd. La cause
+précise du refus n'était pas observable dans l'ancien script.
+Aucune sélection du paquet ni démarrage du Gateway n'a été exécuté
+par cette tentative.
+
+**Correction PR #285 :** `--select-installed-plan` imprime désormais
+`existing_package_check=<raison>` où `raison` appartient à un
+vocabulaire fixe. Exemples :
+- `node_root_group_write`, `package_root_group_write`,
+  `manifest_group_write` ou `entry_group_write` :
+  une permission group/other-writable sur un des quatre chemins
+  exacts du paquet cible ;
+- `package_name_mismatch`, `package_version_mismatch`,
+  `package_bin_mismatch` ou `cli_version_unverified` :
+  **pas** un défaut de permissions, ne pas retoucher le paquet ;
+- `*_unsafe_type_or_owner`, `package_metadata_unavailable`,
+  `manifest_size` : vérifier la structure sans contourner le garde-fou.
+
+Pour l'ancienne valeur possible `umask 0002`, une recette séparée
+`just openclaw-gateway-package-permissions` supprime seulement le
+bit write group/other des **quatre ressources user-owned** :
+racine Node 24.22.1, dossier npm `openclaw`, `package.json` et
+`openclaw.mjs`. Elle vérifie d'abord l'ancien drop-in user
+exactement possédé, le Gateway arrêté, le type/propriétaire de chaque
+ressource, puis le manifeste (nom/version/bin) par ouverture
+`O_NOFOLLOW`. Elle ne modifie aucun autre `node_modules`, aucune
+autre application, aucun secret, aucune clé, aucun index SQLite.
+Si le paquet est étranger ou symlink, elle bloque **sans chmod**.
+Le résultat `package_check=verified` conditionne la suite.
+
+**Exécution avec garde-fous depuis un worktree frais de la PR #285 :**
+
+```bash
+just openclaw-gateway-node-test
+just openclaw-gateway-package-permissions
+just openclaw-gateway-node-plan
+just openclaw-gateway-select-installed
+```
+
+Cette procédure ne réinstalle pas OpenClaw, ne lance pas
+`openclaw update`, ne crée pas de nouvelle sauvegarde et ne
+consomme aucun appel LLM. La sélection et le démarrage sont bloqués
+si une cause autre qu'une permission user-owned reste non résolue.
+Le premier démarrage 2026.10.7 peut toujours provoquer une migration
+SQLite/plugin non automatiquement réversible. Les tests ajoutés
+ne sont **pas encore validés sur la Workstation** au nouveau HEAD.

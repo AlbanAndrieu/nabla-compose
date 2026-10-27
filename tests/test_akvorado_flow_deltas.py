@@ -62,6 +62,47 @@ class AkvoradoDeltaTest(unittest.TestCase):
         self.assertEqual(status, "COUNTER_RESET_INCONCLUSIVE")
         self.assertEqual(delta, {})
 
+    def test_negative_counter_never_proves_new_inserts(self):
+        before = metrics(10, 0, -2)
+        after = metrics(12, 0, 3)
+        status, delta = MODULE.assess_deltas(before, after)
+        self.assertEqual(status, "COUNTER_INVALID_INCONCLUSIVE")
+        self.assertEqual(delta, {})
+
+    def test_overflow_counter_never_proves_insert_activity(self):
+        before = metrics(10, 0, 0)
+        after = metrics(12, 0, "1e999")
+        status, delta = MODULE.assess_deltas(before, after)
+        self.assertEqual(status, "COUNTER_INVALID_INCONCLUSIVE")
+        self.assertEqual(delta, {})
+
+    def test_initial_snapshot_negative_is_inconclusive(self):
+        self.assertEqual(
+            MODULE.classify_outlet(metrics(5, 5, -1)),
+            "METRICS_INVALID_INCONCLUSIVE",
+        )
+        self.assertNotIn(
+            "akvorado_outlet_clickhouse_flow_per_batch_count=-1",
+            MODULE.summarize_metrics(metrics(5, 5, -1), "outlet"),
+        )
+
+    def test_fail_on_blocked_rejects_invalid_new_counters(self):
+        output = io.StringIO()
+        with (
+            patch.object(MODULE, "fetch", side_effect=[
+                "", metrics(10, 0, 0), metrics(12, 0, -1)
+            ]),
+            patch.object(MODULE.time, "sleep"),
+            patch.object(MODULE.sys, "argv", [
+                "diagnose-akvorado-flow.py",
+                "--fail-on-blocked", "--observe-seconds", "1",
+            ]),
+            redirect_stdout(output),
+        ):
+            result = MODULE.main()
+        self.assertEqual(result, 1)
+        self.assertIn("COUNTER_INVALID_INCONCLUSIVE", output.getvalue())
+
     def test_kafka_received_not_sql_success(self):
         status, _ = MODULE.assess_deltas(metrics(10, 10, 0), metrics(10, 10, 0, kafka=3))
         self.assertEqual(status, "NEW_KAFKA_MESSAGES_PROCESSING_UNVERIFIED")
@@ -131,6 +172,28 @@ class AkvoradoDeltaTest(unittest.TestCase):
             result = MODULE.main()
         self.assertEqual(result, 0)
         self.assertIn("NEW_INSERT_BATCHES_ROWS_UNVERIFIED", output.getvalue())
+
+    def test_akvorado_fetch_rejects_unapproved_host(self):
+        with patch.object(MODULE.OPENER, "open") as opener:
+            with self.assertRaises(ValueError):
+                MODULE.fetch("http://example.invalid/metrics")
+            opener.assert_not_called()
+
+    def test_akvorado_fetch_uses_no_proxy_and_no_redirect(self):
+        self.assertTrue(any(isinstance(handler, MODULE.NoRedirect)
+                            for handler in MODULE.OPENER.handlers))
+        proxies = [handler for handler in MODULE.OPENER.handlers
+                   if isinstance(handler, MODULE.ProxyHandler)]
+        self.assertEqual(len(proxies), 1)
+        self.assertEqual(proxies[0].proxies, {})
+
+    def test_negative_metadata_errors_do_not_count_as_history(self):
+        observed = (
+            'akvorado_outlet_core_flows_errors_total'
+            '{error="metadata missing",exporter="172.17.0.1"} -5\n'
+        )
+        result = MODULE.exporter_metadata_evidence(observed)
+        self.assertEqual(result["configured"], 0)
 
     def test_sensitive_labels_are_not_returned(self):
         text = metrics(1, 1, 0).replace(

@@ -346,11 +346,17 @@ service consumers does not accidentally remove persistence.
 Follow `apps/influxdb/README.md`. InfluxDB must be healthy on
 `127.0.0.1:31055` before restarting the standalone Scrutiny service.
 
-Scrutiny receives only its sensitive InfluxDB token from:
+Scrutiny receives its InfluxDB token from the canonical secret path:
 
 ```text
-/mnt/cpool/scrutiny/.env.secrets
+/mnt/cpool/secrets/runtime/scrutiny/.env.secrets
 ```
+
+The former `/mnt/cpool/scrutiny/.env.secrets` is a legacy migration
+source, **not** the runtime path. If a TrueNAS App still references it,
+reconcile the saved Custom App Compose with
+`SCRUTINY_CUTOVER_APPROVED=1 bash scripts/truenas/deploy-scrutiny.sh --apply`.
+A plain redeploy reuses the old stored configuration.
 
 with:
 

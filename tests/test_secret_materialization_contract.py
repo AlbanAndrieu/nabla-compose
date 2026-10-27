@@ -56,7 +56,11 @@ class SecretMaterializationContractTests(unittest.TestCase):
         comparator = (
             ROOT / "scripts" / "secrets" / "compare_dotenv_sources.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("! python3 -c 'import dotenv, jsonschema'", script)
+        self.assertIn("python3 -c 'import dotenv, jsonschema'", script)
+        self.assertIn('operator="${SUDO_USER:-}"', script)
+        self.assertIn('getent passwd -- "${operator}"', script)
+        self.assertIn('runner=(sudo -H -u "${operator}" -- "${operator_python}")', script)
+        self.assertIn('if ((${#runner[@]} == 0)); then', script)
         self.assertIn("semantic dotenv comparison unavailable", script)
         self.assertIn('if ((result > 1)); then', script)
         self.assertIn('exit 2', script)

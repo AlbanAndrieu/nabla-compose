@@ -16,10 +16,23 @@
   sondes en lecture seule, preuves minimales, interdictions et décisions.
 - **[Diagnostics opérateur spécialisés](2026-10-25-homelab-operator-diagnostics.md)** —
   Gatus, Prometheus et vérifications isolées, sans déploiement.
+- **[FastAPI IA/RAG Bababou](fastapi-truenas-ai-bababou-20261026.md)** —
+  topologie LiteLLM/Ollama/OpenRAG, recherche OWNER filtrée, vérifications
+  hors LAN et gates avant ingestion du corpus.
+- **[Rapport LAN Prometheus + Akvorado](prometheus-akvorado-lan-evidence-20261026.md)** —
+  commande unique, preuves JSON privées, classes FAIL/UNVERIFIED et diagnostics ciblés.
+- **[LiteLLM UI 401 / DefectDojo login / Prometheus API](2026-10-26-litellm-ui-session-defectdojo-prometheus.md)** —
+  session navigateur expirée, URL login privée et diagnostic du port 9090.
+- **[27 octobre — ressources RUNNING et reprise DefectDojo/Vaultwarden/observabilité](2026-10-27-defectdojo-resources-vault-observability.md)** —
+  CPU/RAM/ZFS, couverture des conteneurs, initializer bloqué, parité et sondes H-05/H-06.
+- **[DefectDojo — mémoire TrueNAS et reset DB éventuel](2026-10-26-defectdojo-memory-db-reset.md)** —
+  MemAvailable/PSI/ARC/OOM, mémoire des conteneurs, inventaire SQL en lecture seule.
+- **[Reprise Scrutiny / Prometheus (26 octobre)](2026-10-26-scrutiny-prometheus-lifecycle-recovery.md)** —
+  secret canonique, bind metrics et triage des erreurs TrueNAS.
 - **[Triage observabilité](2026-10-25-observability-triage.md)** —
   causes instrumentées, exporter PostgreSQL et Auth FastAPI.
 - **[Secret FastAPI → Prometheus](fastapi-prometheus-scrape-secret-20261026.md)** —
-  provisionner le jeton dédié, vérifier UID 568 et accepter le scrape sans fuite.
+  provisionnement du jeton dédié, UID 568 et réception du scrape.
 - **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
   contrats statiques hors ligne et limitations de la preuve.
 - **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —

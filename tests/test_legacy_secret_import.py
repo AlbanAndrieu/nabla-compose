@@ -75,7 +75,7 @@ class LegacySecretImportTests(unittest.TestCase):
             }],
         }
         values, supplied = legacy.collect_values(
-            spec, legacy.parse_dotenv("PASSWORD='existing-example'\\n")
+            spec, legacy.parse_dotenv("PASSWORD='existing-example'\n")
         )
         self.assertEqual(values, {"PASSWORD": "existing-example"})
         self.assertEqual(supplied, {"CODE_PASSWORD"})
@@ -93,7 +93,7 @@ class LegacySecretImportTests(unittest.TestCase):
             legacy.collect_values(
                 spec,
                 legacy.parse_dotenv(
-                    "PASSWORD=first\\nCODE_PASSWORD=second\\n"
+                    "PASSWORD=first\nCODE_PASSWORD=second\n"
                 ),
             )
 

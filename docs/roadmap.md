@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **25 octobre 2026**. Source d'autorité pour le travail restant
+> Mise à jour : **26 octobre 2026**. Source d'autorité pour le travail restant
 > dans `nabla-compose`. Ce document décrit des **décisions et gates**,
 > pas une preuve de fonctionnement des services.
 >
@@ -23,6 +23,131 @@ Sur la base du relevé opérateur du 25 octobre, l'ordre de diagnostic actif
 est **Prometheus → OpenRAG → Akvorado**. Sentry et DefectDojo ont passé
 leurs sondes ciblées mais leur E2E reste à confirmer. La sécurité mémoire
 pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
+
+## P0 — Reprise FastAPI / IA / Bababou sans LAN (26 octobre 2026)
+
+**Accès au LAN rétabli : 26 octobre 2026, déclaration opérateur.**
+La configuration Git reste distincte de la santé réelle des conteneurs :
+reprendre d'abord les contrôles en lecture seule, puis les tests avec
+identités restreintes. Aucun déploiement, redémarrage, appel à un modèle
+payant ni ingestion de `cpool/bababou` sans validation dédiée.
+Continuer en PR #285, local-first et commits `[skip ci]`.
+
+| Liaison / chantier | Source Git vérifiée | Statut / prochaine preuve |
+| --- | --- | --- |
+| FastAPI TrueNAS → LiteLLM | `LITELLM_URL=http://172.17.0.24:4000`, `DEFAULT_CHAT_MODEL=fastapi-qwen` ; la sonde exécutée dans FastAPI retourne `litellm=http_200` | **HTTP REACHABLE / AUTH NOT_VERIFIED** : clé scoped, modèle réellement exposé, upstream workstation et tool calling restent à valider |
+| LiteLLM TrueNAS → workstation | `apps/litellm/config.yaml`: `fastapi-qwen` vers `LITELLM_WORKSTATION_API_BASE` / `LITELLM_FASTAPI_WORKSTATION_API_KEY` | **CONFIGURED / RUNTIME NOT_VERIFIED** ; l'upstream GPU n'est pas un repli TrueNAS garanti |
+| Ollama TrueNAS | Depuis FastAPI : `GET http://172.17.0.24:30068/api/tags` retourne **HTTP 200** | **HTTP REACHABLE / MODELS NOT_VERIFIED** : HTTP 200 ne prouve ni un modèle chargé ni le fallback FastAPI |
+| FastAPI → OpenRAG | Backend `openrag-backend:8000/health` retourne **HTTP 200** depuis FastAPI ; frontend `/mcp` reste `unverified` et la recherche filtrée reste `not_tested_requires_auth` | **BACKEND REACHABLE / MCP NOT_VERIFIED** : diagnostiquer frontend, auth X-API-Key et `filter_id` privé. PR FastAPI #378 fusionnée, code seulement |
+| OpenRAG → Bababou | `apps/openrag/compose.yml`: `cpool/bababou` monté read-only dans le backend sur `/mnt/bababou` | **MOUNT DECLARED / INDEX NOT_VERIFIED** : valider l'index privé séparé, sélection autorisée, recherche citée et suppression avant usage |
+| Diagnostics Prometheus | `credential_ready=true`, `METRICS_RUNTIME_PRESENT=true`, `METRICS_SECRET_MOUNT_PRESENT=true` ; `diagnose-failed-scrapes.py --check` échoue avec **`TimeoutError`** sur l’API cible | **SOURCE/RUNTIME/MOUNT PRESENT / SCRAPE UNVERIFIED** : lancer `sudo python3 scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check` directement sur TrueNAS ; classifier readiness et cible sans exposer les secrets ni redémarrer Prometheus |
+
+**Dernières preuves (26/10, suite) :** FastAPI confirme la
+présence de `METRICS_SCRAPE_KEY` dans son processus ; Docker confirme
+le bind `/run/secrets/fastapi-sample-metrics.key` dans Prometheus,
+sans lecture de valeur. Cependant `/api/v1/targets` **expire après
+5 secondes** : ni `scrape_up` ni un échec d'authentification ne sont
+établis. La sonde SSH `--ssh-sudo`, auparavant HTTP 200 pour trois
+composants IA, retourne ensuite `ssh_unavailable_or_unauthorized`.
+Ne pas inférer l'état des services de ces échecs réseau intermittents.
+Utiliser sur TrueNAS `sudo python3
+scripts/truenas/diagnose-fastapi-ai-chain.py --check --runtime` pour
+éviter l'étape SSH et `sudo python3
+scripts/truenas/diagnose-fastapi-prometheus-runtime.py --check` pour
+classer séparément Prometheus `/-/ready`, l'API cible et Docker.
+Les deux outils ne modifient pas les services.
+
+**Preuves opérateur actualisées (26/10) :** le secret Prometheus est
+`credential_ready` après installation ; sans `--ssh-sudo`, Docker refuse
+l'accès au socket (`docker_socket_denied`). Avec `--ssh-sudo`, les
+sondes exécutées **depuis le conteneur FastAPI** donnent
+`litellm=http_200`, `ollama=http_200`,
+`openrag_backend=http_200`, `openrag_mcp=unverified`,
+`openrag_search=not_tested_requires_auth`. Aucune clé, requête de
+modèle ni recherche privée n'a été validée. **Ne pas redéployer le
+homelab pour un simple HTTP 200 ; confirmer les contrats actifs.**
+
+**Avancement code en cours :** la PR Compose #285 fournit
+`scripts/truenas/diagnose-fastapi-ai-chain.py --check` (inventaire Git
+hors LAN), et son mode `--runtime` opt-in quand l'accès est rétabli.
+La PR FastAPI #378 fournit un chemin de recherche OWNER-only, sans
+activation automatique, plus des tests de refus. L'OpenRAG v0.7.1 upstream
+déclare `/mcp` et `openrag_search(filter_id)`, mais l'image réellement
+déployée reste à vérifier. **Aucun résultat Bababou n'a été consulté.**
+
+**Gates de livraison IA (code ≠ runtime).**
+- [x] **FastAPI → LiteLLM**, configuration déclarée : URL TrueNAS `:4000`,
+  alias `fastapi-qwen` et fichier `sample/.env.secrets` non suivi par Git.
+  Les clés virtuelles, le budget et les capacités de tool calling restent
+  **NOT_VERIFIED** tant que le LAN est inaccessible.
+- [x] **OpenRAG lecture OWNER**, implémentation privée en PR FastAPI #378 :
+  `POST /private/ops/ai/bababou/search` appelle seulement
+  `openrag_search` avec un `filter_id` imposé côté serveur.
+  Le chemin général `/run` ne reçoit pas le corpus privé.
+- [ ] **Activer le client MCP** : résoudre le vrai `/mcp` et sa politique
+  d'authentification sur l'image OpenRAG déployée, configurer
+  `MCP_CLIENTS` et `OPENRAG_BABABOU_FILTER_ID` comme secrets
+  contrôlés. Ne pas supposer qu'une clé `X-API-Key` est effectivement
+  exigée par OpenRAG 0.7.1 sans preuve.
+- [ ] **Sélection de corpus** : vérifier filtre, index distinct, ACL,
+  citations/page et suppression, puis indexer uniquement les documents
+  Bababou explicitement autorisés. Le montage ZFS read-only ne signifie
+  pas indexation.
+- [ ] **Confidentialité de l'inférence** : le modèle `fastapi-qwen`
+  utilise actuellement l'upstream workstation `172.17.0.57:4000/v1`.
+  Ne jamais lui envoyer des extraits Bababou avant vérification du
+  traitement local, de la rétention des prompts et de l'absence
+  de trace Langfuse / tiers. Pour le corpus privé, privilégier
+  un modèle Ollama TrueNAS validé et une identité LiteLLM dédiée ;
+  ne pas activer un fallback inter-modèles non contrôlé.
+- [ ] **E2E différé** : sur LAN rétabli, vérifier d'abord la résolution
+  réseau et les réponses saines, ensuite les clés et scopes, puis un
+  document synthétique avec citations, enfin un sous-ensemble privé
+  approuvé. Toujours refuser et classer `UNVERIFIED` hors de ces preuves.
+
+**Accès et confidentialité du corpus.** Le montage ZFS ne crée ni index
+ni API de recherche. La recherche Bababou doit exiger une identité OWNER
+ou service scoped, une séparation de corpus et des citations. Ne pas
+exposer le corpus privé sur `/run` public ni à FastAPI Cloud, `nabla-site-alban`,
+un endpoint RAG anonyme ou des logs LLM/Langfuse. Sans ACL validée,
+afficher `NOT_VERIFIED` au lieu de répondre à partir de documents privés.
+
+**Limite de preuve runtime :** la copie du secret est prête,
+mais le `METRICS_SCRAPE_KEY` effectivement chargé par FastAPI,
+le montage `/run/secrets/fastapi-sample-metrics.key` dans
+Prometheus et le scrape `up{job="fastapi_sample"}=1` restent
+**NOT_VERIFIED**. La recherche Bababou reste bloquée sur
+authentification, filtre et index privé.
+
+**Diagnostics améliorés (code PR #285)** : la sonde SSH distingue désormais
+`docker_socket_denied`, `sudo_noninteractive_denied`,
+`docker_daemon_unavailable`, `fastapi_container_missing`,
+`fastapi_container_not_running`, `fastapi_container_python_missing`,
+`docker_cli_missing`, `docker_exec_failed` et
+`probe_output_invalid`. Une option `--ssh-sudo` est disponible **uniquement
+si** le compte possède déjà les droits `sudo -n docker`.
+Le faux `GET /search/health` OpenRAG est supprimé :
+`openrag_search=not_tested_requires_auth` tant qu'une recherche
+authentifiée, filtrée et autorisée n'est pas exercée.
+Les statuts restent des preuves de transport et non d'accès au corpus.
+
+Un HTTP 401/403 sur MCP ou LiteLLM confirme seulement la barrière
+d'accès ; il faut une preuve *authentifiée* de la bonne clé et du bon
+modèle pour passer à ACCEPTED.
+
+**Gate de reprise LAN, dans cet ordre :** (1) réseau/service LiteLLM et
+clé dédiée ; (2) modèle `fastapi-qwen` et capacité tool-calling ;
+(3) Ollama TrueNAS `/api/tags` sans texte généré ;
+(4) OpenRAG backend/OpenSearch/Langflow/Docling ;
+(5) découverte MCP/API réelle et droits du corpus ;
+(6) recherche de document synthétique et citations ;
+(7) sous-ensemble privé Bababou explicitement approuvé. Aucune
+indexation, rotation, diffusion de PII ou redéploiement automatique.
+
+[Architecture RAG](runbooks/rag-bababou-poc-architecture.md) ·
+[LiteLLM FastAPI](runbooks/fastapi-sample-litellm.md) ·
+[Diagnostics OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md) ·
+[Acceptation FastAPI IA/RAG](runbooks/fastapi-truenas-ai-bababou-20261026.md).
 
 ## P0 — TrueNAS redevient réactif après arrêt de Netdata (26 octobre)
 
@@ -73,9 +198,9 @@ n'est disponible.
 | ID | Domaine | Dernière preuve datée, sans extrapolation | Condition d'acceptation |
 | --- | --- | --- | --- |
 | H-01 | OpenRAG | Quatre gates OpenRAG du triage `PASS` ; secret OpenRAG/LiteLLM `ready=true` et mot de passe déclaré identique dans deux candidats ; conteneur OpenSearch exact distinct non encore attesté | App `RUNNING`, backend et frontend `running+healthy`, authentifications Langflow/OpenSearch et modèles LiteLLM testés |
-| H-02 | Sentry | **Dernière preuve 26/10 :** `sentry-consumers` PASS, mais `sentry-recovery-preflight` FAIL ; cause exacte non vérifiée (le titre « credential preflight » n'est pas une preuve) | Vérifier séparément les trois préflights secrets et l'état Sentry, puis smoke E2E sans initialisation ni rotation |
-| H-03 | DefectDojo | **Dernière preuve 26/10 :** frontend/uWSGI en cours d'exécution, origine HTTP 302, Pi-hole+Unbound A privé conforme, DNS public sans A, HTTPS TLS vérifié 302 depuis TrueNAS et workstation | Réseau/ingress PASS ; vérifier le rendu de la page de connexion et l'authentification Django. Aucun redeploy |
-| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS ; comparaison réelle 00:40:15→00:40:22 validée, PID 2611 stable et hashes MATCH**. | **P0 :** capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; contrôler indisponibilité DNS pendant 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
+| H-02 | Sentry | **Preuve plus récente 26/10 :** `recover-sentry-deploying.sh --check` valide les secrets système/Relay, l'utilisateur ClickHouse `sentry`, le migrator et `diagnose-sentry exit=0 ok=14 failed=0 warnings=0` | **Préflight + diagnostic PASS** ; ingestion d'un nouvel événement Relay → Kafka → Snuba → ClickHouse **NOT_VERIFIED**, sans nouveau redeploy |
+| H-03 | DefectDojo | **Preuve plus récente 26/10 :** frontend/uWSGI RUNNING ; DNS privé/HTTPS TLS vérifiés ; depuis workstation, `curl --location` retourne `http=200 redirects=1 tls=0` | **Transport + page HTTP accessibles** ; authentification Django et parcours utilisateur **NOT_VERIFIED**. Aucun redeploy nécessaire à cette preuve |
+| H-04 | pfSense / Unbound | **Deux mécanismes prouvés** : OOM noyau (dernier visible **25/10 22:12 CET** avant cutover PHP-FPM) et **nouveau PID Unbound `19252` → `2611`, lancé le 26/10 à 00:04:32 CET** pendant les marqueurs pfBlockerNG stop (~00:04:25) / start (~00:04:37) ; sortie DNSBL Python 00:04:30. **Hashes Unbound + INI legacy inchangés** depuis 23:56 ; Unbound Control REACHABLE à 00:12, free+inactive ~167 Mio, pas de nouvel OOM dans la fenêtre retenue. Profil PHP-FPM 4/30/1/2/500 confirmé précédemment, Snort AC-BNFA. **65/65 tests offline initiaux PASS, puis 56/56 Unbound PASS ; 64/64 Unbound/capture/compare PASS ; comparaison réelle 00:40:15→00:40:22 validée, PID 2611 stable et hashes MATCH**. | **P0 :** nouvelle sonde DNS LAN bornée dans PR #285 (73/73 tests déclarés PASS par opérateur avant les derniers changements ; nouvelle gate de 18 tests LAN à exécuter localement) ; capture/compare fiable et reconstitution des changements antérieurs ; diagnostiquer pourquoi pfBlockerNG `3.2.17_1` exige un stop/start même sans modification des deux fichiers vérifiés ; précontrôler DNS split valide et mesurer 00:04 (non mesurée). **P1 :** identifier le pic RAM / `php_pfb` lors des OOM, stabiliser marge mémoire sous cron Snort et documenter bouncer CrowdSec. **P2 :** confirmer accès GUI/pfREST, DNS privé LAN. |
 
 Actions :
 - [ ] **H-01 :** exécuter `diagnose-openrag-startup.sh --check`,
@@ -149,14 +274,97 @@ Actions :
   `just pfsense-feed-pressure-check`. Ne désactiver une liste
   supplémentaire que si elle est redondante/obsolète et si
   la couverture IP/DNSBL est documentée.
-- [ ] **H-04 / CrowdSec P1 — état de l'application firewall :**
-  audit du 25/10 : `crowdsec.engine=running` et
-  `crowdsec.firewall_bouncer=stopped_or_unknown` ; arrêt volontaire
-  rapporté par l'opérateur. Les décisions de blocage peuvent ne plus
-  être appliquées localement. Ne pas réactiver le bouncer pendant la
-  mesure mémoire ; documenter le gain et restaurer la couverture lors
-  d'une fenêtre dédiée. Vérifier également
-  `service.pfb_filter=0` (helper filterlog absent).
+- [ ] **H-04 / CrowdSec P1 — nouvelle preuve runtime du 26/10 :**
+  ancien audit du 25/10 `firewall_bouncer=stopped_or_unknown`
+  **supplanté par une preuve directe**. Sur pfSense :
+  moteur local **RUNNING**, bouncer **RUNNING**, API locale
+  `http://172.17.0.1:8089` ; deux tables PF présentes avec
+  **9399 + 22 = 9421 entrées**. Ces remédiations ne viennent
+  **pas** du moteur TrueNAS (LAPI centrale : zéro décision,
+  bouncer `PFSENSE_FIREWALL` enregistré mais `last_pull=<none>`).
+  Ne pas arrêter le moteur pfSense tant que la connexion centrale
+  n'est pas fonctionnelle : préserver les règles en vigueur.
+  `service.pfb_filter=0` demeure une observation à revoir.
+  TrueNAS CrowdSec 1.8.1 RUNNING/healthy ; LAPI `172.17.0.24:8084`
+  et métriques `:6060` accessibles ; mauvais scénario désactivé.
+  **Bloqueurs :** secret de cutover absent/illisible et mode Large
+  toujours actif. La requête Loki `device=pfsense` a échoué dans
+  le premier diagnostic puis réussi dans le second ; compteur
+  `cs_lokisource_hits_total=940`. Correctif code PR #285 :
+  **une relance bornée**, warning si récupérée, erreur si
+  classification toujours absente. Ne pas changer Alloy sur la
+  seule preuve du premier essai.
+  **Preuve opérateur ultérieure :**
+  `just crowdsec-loki-evidence-test` **5/5 PASS** ;
+  `just nexus-private-ingress-test` **4/4 PASS**.
+  Loki `sum by (device) (count_over_time({job="pfsense",app!="nabla-smoke"}[30m]))`
+  retourne **1 247 événements, tous agrégés dans la série
+  `device=pfsense`** sur la fenêtre observée. La classification
+  canonique fonctionne dans ce relevé ; ne pas modifier Alloy.
+  La cause de l'échec ponctuel précédent reste inconnue ; conserver
+  la relance bornée et surveiller sa classe de résultat.
+  Tests exécutés dans le checkout de l'opérateur, **pas
+  automatiquement sur chaque nouveau HEAD concurrent**.
+  [Runbook CrowdSec](../apps/crowdsec/README.md).
+
+- [ ] **H-04 / CrowdSec central TrueNAS → pfSense Small :**
+  architecture déjà déclarée dans `apps/crowdsec/compose.yml`
+  (moteur central v1.8.1 + LAPI LAN `172.17.0.24:8084` ;
+  scénario `firewallservices/pf-scan-multi_ports` désactivé).
+  **Preuves runtime disponibles, cutover toujours bloqué :**
+  TrueNAS app RUNNING/healthy, LAPI `:8084` OK, scénario risqué
+  désactivé, Loki `device=pfsense` confirmé par 1 247 événements ;
+  `--runtime` avait néanmoins échoué une fois lors de la vérification
+  Loki. `--check` échoue sur le secret absent/illisible ; bouncer
+  central inscrit sans `last_pull`. Côté pfSense, `--preflight`
+  confirme moteur local encore actif, bouncer connecté à
+  `172.17.0.1:8089` et tables PF actives. Rejouer `--runtime`
+  après intégration de la relance bornée, sans modifier de service.
+  Ne basculer qu'après confirmation de la clé existante
+  `BOUNCER_KEY_PFSENSE_FIREWALL` (valeur non affichée), de l'identité
+  du bouncer et de la connectivité LAPI depuis pfSense.
+  **Ne pas arrêter le moteur ni le bouncer local actuellement
+  actifs** avant d'avoir une API distante authentifiée et un rollback
+  prêt. Une fenêtre de bascule explicite est requise. Réception : diagnostic TrueNAS `--accept` et
+  workstation `--accept` (tables PF et `last_pull`), sans générer
+  de nouvelle clé ni publier le port 8084 sur WAN.
+  [Guide central CrowdSec](../apps/crowdsec/README.md).
+- [x] **Nexus / DNS, rendu TrueNAS et runtime réconciliés (26/10) :**
+  DNS privé **8/8 PASS** ; backend direct `172.17.0.24:8081`
+  **HTTP 200** ; HTTPS privé **404 avec TLS vérifié**.
+  TrueNAS Custom App `ix-nexus` inclut exactement
+  `/mnt/cpool/compose/nabla-compose/apps/nexus/compose.yml` ;
+  aucun changement local signalé dans `apps/nexus` ;
+  `traefik_network` existe. Le rendu TrueNAS contient les labels
+  `nexus-private` avec `traefik.enable="false"`.
+  **Après redémarrage/réconciliation opérateur**, TrueNAS
+  `nexus=RUNNING`, labels effectivement appliqués au conteneur
+  (`enabled="false"`, règle Host et service `nexus-private`),
+  backend toujours **200**, HTTPS privé toujours **404 / TLS 0**.
+  L'écart de labels **est résolu** ; le 404 privé est le
+  résultat attendu du routeur délibérément inactif.
+- [ ] **Nexus / isolation WAN avant activation privée :**
+  pfSense HAProxy ré-encrypte vers l'entrypoint public partagé
+  Traefik `websecure` : **une résolution DNS privée ne protège
+  pas ce routeur contre un Host/SNI injecté depuis WAN**.
+  Nouveau test workstation **depuis le LAN** :
+  `curl --resolve nexus.int.albandrieu.com:443:82.66.4.247`
+  donne **HTTP 404 / tls=0**. L'IP cible est publique, mais
+  la source reste LAN ; un NAT reflection peut changer le chemin :
+  **WAN_REJECTION_NOT_VERIFIED**. Aucun poste externe disponible.
+  Auditer la configuration **effective** HAProxy sur pfSense,
+  frontend WAN et ACL Host/SNI Nexus + action de refus avant backend.
+  Préserver l'exception `s3.int.albandrieu.com`.
+  Après revue, un téléphone sur réseau mobile avec client capable
+  de forcer Host/SNI peut fournir le test externe manquant.
+  Ne pas attribuer le 404 au frontal sans preuve.
+  Après cette preuve : préparer l'opt-in Compose `true` via
+  une source de configuration approuvée, puis un seul
+  redéploiement Nexus contrôlé avec rollback ; vérifier
+  à nouveau backend 200, HTTPS privé, TLS et Nexus public.
+  **Route publique non retestée dans ce relevé : NOT_VERIFIED.**
+  [Runbook](runbooks/nexus-private-dns-ingress.md).
+
 - [ ] **H-04 / capacité P2 — preuve et seuils :**
   viser au moins **128 Mio free+inactive** en régime ordinaire,
   aucune chute prolongée sous 64 Mio, et zéro nouvel OOM Unbound.
@@ -236,11 +444,91 @@ Actions :
   `restart_assessment=NO_PID_CHANGE_IN_THIS_INTERVAL`.
   **Une stabilité sur 7 secondes à 00:40 ne réfute pas** le
   redémarrage pfBlockerNG observé à 00:04.
-- [ ] **H-04 / disponibilité réelle du DNS lors des cycles DNSBL :**
-  encadrer un futur cron par deux captures séparées et
-  sonder le DNS public/privé depuis un client LAN ;
-  mesurer l'interruption éventuelle et sa durée. Ne pas
-  provoquer de restart/rebuild DNSBL artificiel.
+- [ ] **H-04 / disponibilité DNS LAN au cycle DNSBL :**
+  sonde workstation `scripts/pfsense/probe-unbound-lan-dns.py`
+  dans **PR #285**. Premier essai réel du **26/10 20:09–20:10**
+  sur `172.17.0.1` : **45/45 DNS publics OK**, **45/45
+  `NXDOMAIN` privés** avec l'ancien nom non vérifié
+  `nexus-albanandrieu.int`, **0 timeout / 0 SERVFAIL**.
+  Cela **ne prouve pas une panne Unbound** : le nom privé
+  était une mauvaise baseline. La zone canonique actuelle
+  est **`int.albandrieu.com` via Pi-hole TrueNAS**.
+  **Correctif en PR #285 :** précontrôle A public + privé
+  avec **IPv4 attendue obligatoire** (pas seulement `NOERROR`).
+  Si le contrôle privé pfSense échoue, diagnostic Pi-hole :
+  `BASELINE_INVALID` si référence non confirmée, ou
+  `SPLIT_DNS_FAILURE` si l'A attendu existe sur Pi-hole.
+  Code de sortie 2 et **aucun prélèvement** dans les deux cas.
+  Après baseline valide : `SPLIT_DNS_FAILURE` (privé seul),
+  `DNS_OUTAGE_OBSERVED` (deux timeouts au même prélèvement)
+  ou `DNS_FAILURE_OBSERVED` (autres erreurs).
+  Vérifier `s3.int.albandrieu.com` et son IPv4 réelle sur
+  pfSense `172.17.0.1` et Pi-hole `172.17.0.24` avant
+  l'observation du cron vers **00:04** ; captures avant/après.
+  **P0 ouvert : aucune durée de panne DNS mesurée.**
+- [ ] **H-04 / gate collecteur LAN + précontrôle :**
+  `just pfsense-unbound-lan-dns-test` **9/9 PASS opérateur**
+  et `just pfsense-unbound-restart-test` **73/73 PASS**
+  le **26/10** (voir journal de validation).
+  Le relevé opérateur du **26/10** confirme **18/18 tests LAN**
+  et **82/82 tests Unbound PASS** sur HEAD `dca3bb4e`.
+  Le contrôle DNS réel à 20:49 CET confirme
+  `s3.int.albandrieu.com → 172.17.0.24` via pfSense et Pi-hole.
+  Le premier préflight public `example.com` a expiré
+  (`TIMEOUT`), avec le privé `OK`. Aucun échantillon n'a démarré.
+  **Correction PR #285 :** au plus une relance publique transitoire ;
+  résultat `PUBLIC_DNS_BASELINE_UNAVAILABLE` si le public reste
+  indisponible. L'échec initial reste signalé si la relance passe.
+  **Gate opérateur récente : 22/22 tests DNS LAN PASS et
+  86/86 tests Unbound PASS** (les 22 tests LAN sont inclus dans
+  la gate Unbound, pas additionnés). Test Nexus privé : **2/2 PASS**
+  sur le code précédent. Ces tests ne valident pas le runtime LAN.
+  Après la mise à jour documentaire ci-dessous, rejouer les
+  tests ciblés et le contrat Nexus à **3 cas**.
+  [Runbook H-04](runbooks/2026-10-26-pfsense-memory-dnsbl-reprise.md).
+- [ ] **Nexus / DNS privé / ingress :** le public
+  `nexus.albandrieu.com` est déclaré accessible par l'opérateur,
+  `nexus.int.albandrieu.com` ne l'est pas encore. Compose expose
+  `172.17.0.24:8081`, mais les labels Traefik privés étaient
+  commentés. La PR #285 prépare le routeur et son service `:8081`,
+  **désactivés par défaut**, sans modifier la route publique.
+  **Nouveau relevé opérateur :** `dig @172.17.0.24` et
+  `dig @172.17.0.1` ont tous deux expiré pour Nexus, ainsi
+  que `curl` HTTP direct sur `:8081` et HTTPS `:443`
+  (`http=000`). Cela **ne prouve ni NXDOMAIN, ni défaut TLS,
+  ni panne certaine des deux appliances**. Classer
+  `LAN_TRANSPORT_UNVERIFIED` et vérifier d'abord les routes
+  et la connectivité depuis la même workstation (Gate 0
+  du runbook), puis séparer DNS Pi-hole/Unbound, NSS,
+  HTTP direct et HTTPS SNI/TLS **uniquement une fois le
+  transport confirmé**. La preuve S3 `NOERROR` sur les deux
+  DNS à 20:49 CET est antérieure à ce second relevé ;
+  l'état de connexion peut avoir changé entre temps.
+  **Nouveau relevé 21:18 CET :** workstation `eno1=172.17.0.57/24`,
+  routes directement vers `.1` et `.24` ; ICMP 2/2 de chaque côté
+  (moyennes 0,498 ms / 0,166 ms), ARP `REACHABLE` et connexions
+  TCP à `.1:10443`, `.24:8081`, `.24:443` réussies.
+  **Transport LAN joignable pendant ce relevé**, sans conclusion sur
+  DNS port 53 ni sur HTTP/TLS applicatifs ; les anciens timeouts
+  peuvent être intermittents ou propres aux protocoles.
+  **Gate DNS et tests confirmée par l'opérateur :** worktree neuf
+  au commit `ebbacf8a`, `just nexus-private-ingress-test`
+  **4/4 PASS** (corrige le précédent `Ran 0 tests`).
+  Les huit interrogations DNS `dig` sont **8/8 PASS**
+  (pfSense/Pi-hole × UDP/TCP × S3/Nexus), toutes
+  `NOERROR A 172.17.0.24`. **Le nom privé Nexus existe déjà.**
+  Origine de cet A dans Pi-hole non attribuée : une réponse
+  autoritative ne prouve pas que les labels Traefik du conteneur
+  sont actifs. Ne pas créer un A doublon ni modifier Unbound.
+  **Prochain contrôle :** `getent` workstation,
+  `curl http://172.17.0.24:8081/` et HTTPS avec
+  `--resolve nexus.int.albandrieu.com:443:172.17.0.24`
+  pour isoler application, routeur Traefik et certificat.
+  **P1 ouvert :** réponse HTTP/TLS et labels réellement
+  déployés non vérifiés après les tests DNS. Conserver
+  `NEXUS_PRIVATE_INGRESS_ENABLED=false` par défaut,
+  ne pas redéployer ni publier de DNS public `*.int`.
+  [Runbook Nexus](runbooks/nexus-private-dns-ingress.md).
 - [ ] **H-04 / causalité des modifications antérieures :**
   corréler upgrades/paramètres pfBlockerNG, Snort et DHCP/DNS,
   bouncer CrowdSec, changement PHP-FPM et reboot/restore aux
@@ -268,6 +556,22 @@ Les contrôles regroupés sont décrits dans
 Les procédures spécialisées restent dans
 [le répertoire des runbooks](runbooks/README.md).
 
+## Code — dernière réception TrueNAS (26 octobre 2026)
+
+- Fichier `/mnt/cpool/secrets/runtime/code/.env.secrets` :
+  UID/GID `0:0`, mode `0600`, taille `39` octets.
+- Dry-run depuis **ce fichier canonique** : `mapped=1/1`,
+  clé acceptée par l'importeur, sans divulgation de valeur.
+- Gate `--check code` : Backstage/dataset PASS ; arrêt sur le
+  comparateur dotenv car Python système n'a pas `python-dotenv`.
+  PR #285 corrige le fallback avec le venv de `SUDO_USER` non-root.
+- Risque résiduel : `.env` staged peut contenir l'ancien
+  `CODE_PASSWORD` alors que le legacy `.env` a été nettoyé.
+  Comparer les sources avant toute correction ciblée ;
+  **ne pas utiliser `--restage code`**.
+- Élément Vaultwarden `nabla/prod/code` absent au dernier contrôle ;
+  import `--apply` distinct, après revue de la source.
+  Pas de rotation, de finalisation ni de redeploy.
 ## Code / secret migration — dernier changement déclaré (26 octobre)
 
 - **Tests validés sur TrueNAS :** comparateur + renderer de secrets
@@ -362,6 +666,313 @@ quatre sessions déjà conservées, puis contrôles ciblés service par service.
 Aucun redéploiement, aucune application de vague et aucune utilisation de
 GitHub Actions n'est compris dans ce relevé.
 
+## Réception opérateur du 27 octobre — ressources/DefectDojo/Vaultwarden
+
+- **Ressources TrueNAS : collecte réellement exécutée.**
+  Instantané privé horodaté `2026-10-26T23:37:27Z` :
+  **144 conteneurs RUNNING**, **92 mappés** à l'identité
+  Backstage, **52 non mappés**, `inventory_complete=true`,
+  **151 entités Component/Resource** ; GPU
+  `unavailable` sur TrueNAS. Le JSON est stocké sous
+  `/mnt/cpool/var/nabla/service-resources/resources-20261026T233659Z.json`
+  et **n'a pas été transmis à l'agent**. N'affirmer aucune
+  consommation CPU/RAM/ZFS individuelle sans lire ce rapport.
+  Le prochain collecteur inclut `compose_project`,
+  `compose_service` et `mapping_issue` pour réconcilier
+  les 52 non-mappés. Le flag `shared_by_services`
+  tient désormais compte des consommateurs non mappés.
+- **DefectDojo initializer :** la capture des logs prouve
+  l'accès PostgreSQL dès 21:04:30, une connexion test réussie,
+  les triggers pghistory à 22:25, **aucune migration
+  restante**, et `Admin user already exists; skipping first-boot
+  setup`. Dernière ligne transmise :
+  `Initializing non-standard permissions`. Aucun code
+  de sortie fourni : la fin réussie ou le blocage réel
+  **non vérifié**. Contrôler Docker status/OOM/exit et
+  `diagnose-defectdojo-postgres-waits.py --check`
+  sans réinitialiser la base.
+- **Vaultwarden CLI :** `code` et `openrag` retournent
+  `VAULT_ITEM_NOT_UNIQUE`, ambigu (manquant/doublon).
+  Nouveau classificateur différencie absent, déplacé et
+  dupliqué ; `defectdojo` : **5 MATCH**,
+  `DD_ADMIN_USER=DRIFT`,
+  `DD_ADMIN_PASSWORD=UNVERIFIED`.
+  Le complément `unverified_reasons` dit quel côté
+  manque/est vide, sans dévoiler la valeur.
+  Garder le compte Django `admin` historique.
+- **FastAPI/observabilité :** `update-fastapi-sample.sh`
+  a confirmé les deux fichiers d'environnement identiques,
+  checkout du commit `fa13c08db05ce8ce086d2366e1f35706913f05be`
+  et **démarrage de l'étape 3/6 de build Docker** ;
+  aucun succès de build/déploiement encore prouvé.
+  Les diagnostics Prometheus/Akvorado ont été lancés, mais
+  leurs résultats sont **non fournis / en cours**.
+  Éviter de paralléliser d'autres builds/redeploys sous
+  pression mémoire.
+- **Changements :** scripts/read-only + tests ajoutés dans
+  PR #285 avec `[skip ci]`, **aucune quality gate
+  exécutée**. [Runbook](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
+## P0 — Dernière demande : CPU/RAM/stockage RUNNING + DefectDojo DEPLOYING (27 octobre)
+
+- **État réel : pas de collecte runtime complète effectuée par l'agent.**
+  Le catalogue v2 contient **154 entités / 151 Component/Resource**
+  et **141 mappings Compose**, pas des consommations attestées.
+  Le collecteur `collect-service-resource-evidence.py` capture
+  maintenant dans une seule mesure `docker stats` CPU
+  (% d'un cœur, peut dépasser 100), RAM, GPU attribuable,
+  taille de couche Docker et datasets ZFS ; `coverage` signale
+  les conteneurs RUNNING mappés/non mappés et l'exhaustivité.
+  Il publie un JSON privé et daté, **pas une mesure figée
+  dans le catalogue Git**. Les cartes OWNER du site PR #262
+  acceptent le CPU en plus de la RAM/GPU/stockage.
+- **DefectDojo actuellement DEPLOYING : HTTP origine :31085
+  et HTTPS privé tous deux indisponibles** (réception opérateur).
+  Nouveau `diagnose-defectdojo-deploying.py --check` :
+  app.query, état/OOM/exit des cinq conteneurs, priorité au
+  `defectdojo-initializer` avant uWSGI ; classes de logs
+  optionnelles et privées. Éviter le reset DB, les redéploiements
+  répétés et la rotation admin avant diagnostic.
+- **Vaultwarden :** `compare_vaultwarden_runtime_readonly.py
+  --check --app <code|openrag|defectdojo>` contrôle présence
+  et égalité des valeurs du cache CLI contre les secrets
+  runtime, sans les afficher. Pas de sync/rotation ; vraie
+  parité du serveur et résolution des `DRIFT` restantes à
+  vérifier depuis le LAN.
+- **Prometheus / Akvorado :** diagnostic readiness distinct de
+  l'inventaire des scrapes et des deltas NetFlow ; la dernière
+  preuve de rejets actifs `metadata missing` n'est pas
+  résolue et les insertions SQL restent à confirmer.
+- **État de validation :** modifications et contrats versionnés,
+  **aucun test ni quality gate exécuté dans cette passe**.
+  [Runbook du 27 octobre](runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+
+## P0 — OOM global avéré / catalogue des capacités par service (26 octobre)
+
+- **Incident confirmé :** relevé initial `MemAvailable ≈2 Gio/62 Gio`,
+  PSI à 5 min `some=23,35 %` / `full=19,65 %`, swap absent.
+  Plusieurs `global_oom` ont tué des processus JVM, Python,
+  Obsidian et **2 QEMU** entre 21:27 et 22:18. Vérifier Talos/VM
+  avant de relancer la flotte. Lien causal Netdata/DefectDojo
+  **non démontré** (Netdata ~572 Mio, initializer ~129 Mio au snapshot).
+- **Contributeurs observés :** MongoDB ~9,55 Gio ; plusieurs JVM,
+  OpenSearch, Docling, Graylog et autres services consomment
+  chacun des centaines de Mio à plusieurs Gio. Échantillon
+  Docker distinct d'un pic et non une preuve causale.
+- **Collecte versionnée :**
+  `scripts/truenas/collect-service-resource-evidence.py` produit
+  `nabla-service-resources/v1`, une projection privée horodatée
+  Backstage/Compose avec `memory.working_set_bytes`,
+  `gpu.process_memory_bytes` et
+  `storage.writable_layer_bytes` + datasets ZFS partagés.
+  Valeur `null/unverified` si GPU distant, donnée absente ou
+  mapping non vérifiable. Pas de duplication permanente de cAdvisor.
+- **UI OWNER :** la branche
+  `nabla-site-alban:feat/homelab-service-resource-snapshots-20261026`
+  accepte un import JSON local et affiche RAM/GPU/ZFS dans
+  les cards. Mesures périmées après 30 minutes. Aucun upload
+  SERVICE/public ; collecte automatique OWNER à planifier.
+- **Qualité :** tests hermétiques
+  `tests/test_service_resource_evidence.py` ajoutés ;
+  exécution locale complète et collecte sur TrueNAS **à confirmer**.
+  [Runbook d'inventaire](runbooks/2026-10-26-homelab-service-resource-inventory.md).
+
+## P0 — Pression mémoire TrueNAS après redémarrage DefectDojo (26 octobre)
+
+- **Symptôme :** opérateur rapporte une disponibilité RAM très faible
+  depuis le redémarrage DefectDojo. **OOM et attribution à DefectDojo
+  NON CONFIRMÉS** : distinguer ZFS ARC récupérable et pression réelle
+  via `MemAvailable`, PSI, swap, cgroup OOM et statistiques Docker.
+- **Instrumentation versionnée :**
+  `scripts/truenas/diagnose-defectdojo-memory-pressure.py --check
+  --observe-seconds 20` produit un JSON sans secrets avec
+  `defectdojo_total_bytes`, ARC, PSI et delta OOM sur 20 secondes.
+  Baseline puis arrêt ciblé de DefectDojo pour comparer, jamais
+  arrêt global PostgreSQL ou limitation de l'ARC sans preuve.
+- **Option DB :** DefectDojo déclaré non utilisé par l'opérateur ;
+  n'en déduire aucune absence de données d'intégration.
+  `inspect-defectdojo-db-reset.py --check` inventorie
+  **uniquement** la base `defectdojo` (finding/product/
+  engagement/test) et les sessions dans PostgreSQL partagé.
+  **AUCUN DROP** ni régénération de clé. Si la base est vierge :
+  backup isolé + reset ciblé distinct après accord.
+- **Dimensionnement :** la documentation officielle DefectDojo
+  donne un ordre de grandeur minimum de **8 Go de RAM**
+  (base distincte) et des réglages uWSGI (4 processus, 4 threads
+  par défaut). Ne pas attribuer une mémoire saturée aux tables
+  PostgreSQL sans preuve ; une réinitialisation ne réduit pas
+  automatiquement l'empreinte des workers.
+- **Tests :** contrats hermétiques `test_defectdojo_memory_pressure.py`
+  et `test_defectdojo_db_reset_inventory.py` versionnés.
+  **Runtime TrueNAS NOT_VERIFIED**, pas de validation OOM réelle.
+  [Runbook mémoire et remise à zéro](runbooks/2026-10-26-defectdojo-memory-db-reset.md).
+
+## P0 — DefectDojo : DNS sain, HTTPS indisponible, admin désynchronisé
+
+- **DNS privé : prouvé OK le 26/10 à 20:51 CET** :
+  pfSense/Unbound `172.17.0.1` et Pi-hole `172.17.0.24`
+  renvoient tous deux `NOERROR A 172.17.0.24`.
+- **HTTP origine : répond sur `:31085`** ; domaine HTTPS
+  inaccessible depuis la workstation. Le diagnostic
+  `scripts/truenas/diagnose-defectdojo-https-route.py --check`
+  localise la panne entre TLS/SNI, labels Traefik, réseau Docker
+  et backend sans afficher de secrets. **HTTPS NOT_VERIFIED**.
+- **Lifecycle :** à 21:00:02, `app.up` échoue sur
+  `/mnt/cpool/secrets/runtime/defectdojo/.env` absent ;
+  l'opérateur l'a copié depuis `.env.example`.
+  `prepare-defectdojo-runtime-env.py --inspect/--apply`
+  valide et normalise uniquement ce metadata en `root:root 0600`,
+  sans toucher aux secrets.
+- **Compte admin Django :** nouveau `DD_ADMIN_PASSWORD` ajouté
+  manuellement dans `.env.secrets` ; le hash PostgreSQL du compte
+  historique `admin` ne change pas automatiquement.
+  `reconcile-defectdojo-admin-password.py --check`
+  diagnostique la parité. `--apply --acknowledge` synchronise
+  uniquement le compte existant, sans créer de superuser ni
+  redémarrer. **Login réel et Vaultwarden NOT_VERIFIED**.
+- **À faire après reprise :** contrôler la parité avec l'entrée
+  Vaultwarden `TrueNAS/nabla/prod/defectdojo` (login.username
+  réel `admin`) avant une future régénération.
+  [Runbook](runbooks/defectdojo-admin-access-recovery.md).
+
+## LiteLLM UI / DefectDojo / Prometheus — réception 26 octobre
+
+- **LiteLLM :** le 401 observé appartient à `litellm-dashboard` avec
+  zéro token et une session expirée le 25/10 à 20:35:59 UTC.
+  **Session navigateur**, pas une clé fournisseur ou service invalide.
+  Correctif opérateur : fermer les onglets LiteLLM, se déconnecter et
+  se reconnecter. Classification locale par
+  `diagnose-litellm-dashboard-auth.py`. Upstream #35789/#35791
+  référence le défaut de SpendLogs sur les routes d'information.
+  Pas de rotation des clés métier ni de redeploy.
+- **DefectDojo :** ancienne preuve HTTP 200 après redirection et
+  TLS validé, mais disponibilité du **login actuellement NOT_VERIFIED**.
+  `check-defectdojo-login-lan.sh --check` teste l'URL exacte via
+  HTTPS/SNI vers TrueNAS et refuse les certificats non valides ;
+  aucun domaine `.int` exposé au public.
+- **Prometheus :** jeton métriques installé `credential_ready`, App
+  redéployée et quatre conteneurs annoncés RUNNING. Malgré cela,
+  `172.17.0.24:9090/-/ready` refuse les connexions.
+  **Montage réparé ; API non rétablie**. Diagnostic du listener et
+  du process via `diagnose-prometheus-targets.sh --check`, sans
+  toucher au TSDB ni au secret.
+- **Qualité :** 12 tests synthétiques locaux PASS sur les nouveaux
+  classificateurs LiteLLM et DefectDojo ; suite GitHub complète et
+  validation LAN encore NOT_VERIFIED.
+  [Runbook](runbooks/2026-10-26-litellm-ui-session-defectdojo-prometheus.md).
+
+## P0 — Échecs TrueNAS lifecycle du 26 octobre : Scrutiny / Prometheus
+
+- **Scrutiny :** `app.up` bloque sur
+  `/mnt/cpool/scrutiny/.env.secrets`, une **ancienne définition
+  enregistrée dans TrueNAS**. Le fichier canonique
+  `/mnt/cpool/secrets/runtime/scrutiny/.env.secrets` est déjà présent
+  (319 octets, `root:root 0600`). Le helper
+  `deploy-scrutiny.sh` valide désormais le chemin du Compose rendu
+  avant `--apply`, puis réconcilie le Custom App et les devices SMART.
+  **Reprise runtime non exécutée.**
+- **Prometheus :** démarrage échoué à cause du bind absent
+  `/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key` ;
+  cela explique l'exception `URLError` de la collecte.
+  `reconcile-fastapi-metrics-credential.py --apply --acknowledge`
+  prépare le dossier privé `root:568 0750` s'il manque puis installe
+  **le jeton FastAPI existant** avec `root:568 0640`.
+  Un redémarrage ciblé reste nécessaire ; résultat non vérifié.
+- **Journal :** `triage-app-lifecycle-log.py` classe les erreurs
+  récentes sans afficher les messages ni traiter les incidents
+  historiques comme des pannes actuelles. Les incidents datés de
+  septembre/début octobre nécessitent `app.query` avant action.
+- **Akvorado :** nouveau relevé opérateur :
+  `delta_received_flows=2`, `delta_metadata_missing=2`,
+  `delta_clickhouse_batches=0`. Le blocage des métadonnées est
+  désormais **prouvé actif**, vérifier l'Orchestrator/Outlet
+  réellement configuré et les ifIndex des flux.
+- [Runbook de reprise ciblée](runbooks/2026-10-26-scrutiny-prometheus-lifecycle-recovery.md).
+  Nouveaux tests hors LAN : `just truenas-lifecycle-recovery-test`.
+  **Tests GitHub/local checkout non exécutés par l'agent.**
+
+## H-05 / H-06 — collecte LAN unifiée (code PR #285, 26 octobre)
+
+- **Point d'entrée :** `scripts/truenas/collect-observability-evidence.py`
+  et `just observability-evidence-lan`. En lecture seule, ces
+  outils collectent les sept scrapes Prometheus restants et deux
+  instantanés de métriques Akvorado, sans accès aux secrets ni au SQL.
+- **Sortie :** rapport JSON avec horodatage, classes d'erreur et deltas
+  `received_flows`, `metadata_missing`, Kafka, lots ClickHouse ;
+  aucun `lastError`, label, endpoint brut ou token n'est conservé.
+  Dossier de preuves privé en mode `0700`, fichier `0600`.
+- **Statuts :** `PASS` (preuve instrumentée concluante),
+  `FAIL` (scrape DOWN/partial ou rejets metadata actifs),
+  `UNVERIFIED` (cible absente/inconnue, mesure inaccessible,
+  activité de lots sans preuve SQL). L'absence de lignes SQL
+  vérifiées reste explicitement `sql_rows=NOT_VERIFIED`.
+- **Qualité :** contrats synthétiques créés dans
+  `tests/test_collect_observability_evidence.py` ;
+  `just observability-evidence-test` et tests H-05/H-06
+  **à exécuter sur le checkout complet**. Aucune CI payante lancée.
+- **Exécution LAN différée :** aucun résultat live inventé.
+  [Runbook de collecte et commandes](runbooks/prometheus-akvorado-lan-evidence-20261026.md).
+
+## Prometheus + Akvorado — campagne LAN préparée (26 octobre)
+
+- **Point d'entrée unique :** `scripts/truenas/observe-prometheus-akvorado-lan.sh`
+  (sans sudo) agrège baseline + sept scrapes restants et deux snapshots
+  Akvorado espacés de 1 à 60 secondes ; écrit un JSON privé 0600.
+  `--scope all` dans `collect-observability-evidence.py`
+  supprime les doublons de jobs. Synthèse `PASS/FAIL/UNVERIFIED`.
+- **Commandes opérateur :** voir
+  [runbook observabilité](runbooks/2026-10-25-observability-triage.md).
+  L'agent n'a pas observé le LAN : les scrapes courants, les erreurs
+  de métadonnées et les lignes ClickHouse sont **NOT_VERIFIED**.
+- **Critère de clôture :** Prometheus vérifié pour chaque job configuré ;
+  Akvorado deux fenêtres sans rejets actifs et preuve SQL de nouvelles
+  lignes, distincte du compteur de lots. Ne pas promouvoir le
+  status Akvorado `UNVERIFIED` à `PASS` sans SQL.
+- **Qualité :** test unitaire du scope `all` ajouté ; validation
+  sur le HEAD du checkout de l'opérateur encore requise.
+
+## H-05 / H-06 — durcissement des diagnostics hors LAN (26 octobre)
+
+- **Prometheus (code livré dans PR #285) :** `health=unknown`,
+  vide ou inattendu ne sera plus décompté comme `scrape_down` :
+  `scrape_unverified`, `targets_unverified` et
+  `failure_domains` distinguent `auth` (HTTP 401/403),
+  `http`, `tcp`, `dns`, `tls`, `timeout`, `network`
+  et `unverified`. Les labels, URLs et messages bruts restent
+  exclus du rapport. **Pas de nouveau scrape LAN** ; les 21/28
+  du 25/10 sont des données historiques, pas une preuve live.
+- **Akvorado (code livré dans PR #285) :** les compteurs négatifs
+  ou non finis sont `COUNTER_INVALID_INCONCLUSIVE` au lieu de
+  fournir de fausses preuves de nouvelles insertions. `--fail-on-blocked`
+  considère cet état comme une défaillance de preuve ; les nouveaux
+  lots SQL et le mapping NetFlow/ifIndex restent **NOT_VERIFIED**.
+- **Validation agent :** 9 tests synthétiques de la logique isolée
+  **PASS** dans le conteneur de l'agent. Tests ciblés versionnés
+  en PR ; leur exécution sur le checkout Git complet **NOT_RUN**.
+  Aucune CI GitHub, aucun changement de secret ou de service.
+
+## Suites P1 sans quality gate — changements du 26 octobre
+
+- **Vaultwarden** : appels `bw` limités à 60 s ;
+  aucune sortie `stderr`/secret incluse dans les erreurs
+  Python ; `BW_SESSION` réservé aux appels authentifiés.
+  Parité du coffre avec les secrets runtime encore à contrôler
+  depuis une session opérateur déverrouillée.
+- **Prometheus/Akvorado** : `diagnose-akvorado-flow.py` ne suit
+  plus les redirections ni les proxies, n'appelle que les
+  endpoints LAN explicitement déclarés et refuse les compteurs
+  historiques négatifs. Le défaut actif `metadata missing`
+  reste ouvert ; les lignes SQL récentes sont non vérifiées.
+- **OpenClaw** : le diagnostic systemd tolère les mises à jour
+  de Node 24 sous `mise` lorsque le binaire et le module
+  OpenClaw correspondent à la **même version**.
+- **YubiKey** : la comparaison des deux fichiers `.age`
+  refuse les permissions groupe/autres et les parents
+  symboliques avant ouverture. Aucune preuve de restauration.
+- Tests de non-régression ajoutés aux quatre thèmes mais
+  **pas exécutés**, conformément à la demande « pas de
+  quality gate ». Aucun service ou secret runtime modifié.
+
 ## P1 — Corriger les causes instrumentées
 
 | ID | Domaine | Fait établi | Reste à prouver |
@@ -378,23 +989,18 @@ Actions :
   `--check --scope remaining` limité aux sept cibles précédemment DOWN,
   recommandations statiques sans URLs ni secrets.
   [Reprise ciblée](runbooks/2026-10-25-critical-acceptance-followup.md).
-- [x] **H-05 (code, PR #280) :** déclarer `authorization.type=Bearer`
-  et `authorization.credentials_file` pour le seul job
-  `fastapi_sample`. Préparer le bind mount en lecture seule,
-  avec `create_host_path=false`, sans mettre la clé dans Git.
-- [x] **H-05 (code, PR #280) :** ajouter le provisionneur TrueNAS
-  `reconcile-fastapi-metrics-credential.py` avec `--check` (lecture seule),
-  `--apply` sur validation explicite et contrôle `root:568/0640`.
-  Reprendre l'unique clé depuis le `.env.secrets` déjà renseigné.
+- [ ] **H-05 / rapprochement avec master #286 :** le job
+  `fastapi_sample` a un contrat Bearer + `credentials_file`,
+  et le provisionneur TrueNAS `reconcile-fastapi-metrics-credential.py`
+  a été accepté côté code. L'opérateur a observé
+  `credential_ready=true` ; vérifier encore que FastAPI a chargé la
+  clé, que Prometheus monte le secret et que
+  `fastapi_sample: state=scrape_up targets_up=1` est confirmé.
   [Procédure](runbooks/fastapi-prometheus-scrape-secret-20261026.md).
-- [ ] **H-05 (runtime) :** exécuter le provisionneur sur TrueNAS,
-  confirmer que le conteneur FastAPI a chargé `METRICS_SCRAPE_KEY`,
-  puis déployer la nouvelle définition Prometheus avec montage.
-  Terminer avec `fastapi_sample=scrape_up`. Aucun de ces événements
-  n'est démontré par le seul commit.
-- [ ] **H-05 (autres cibles) :** classer chaque échec `DNS`, `TLS`,
-  `HTTP`, `TCP` ou `auth` sans exposition des secrets. L'exporter
-  `postgres_exporter:9187` refusé ne démontre pas une panne PostgreSQL.
+- [ ] **H-05 / autres cibles :** classer chaque échec `DNS`, `TLS`,
+  `HTTP`, `TCP` ou `auth` sans exposer de secret.
+  `postgres_exporter:9187` refusé ne prouve pas
+  `PostgreSQL:5432` indisponible.
 - [ ] **H-06 :** comparer la configuration Akvorado effectivement montée,
   le metadata provider, les compteurs sur deux fenêtres et ClickHouse ;
   ne pas élargir le tracking pfSense sans décision.

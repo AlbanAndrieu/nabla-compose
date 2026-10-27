@@ -88,19 +88,50 @@ requires_nonempty_materialization() {
 
 env_files_equivalent() {
   local app="$1" left="$2" right="$3" result=0
+  local operator="" operator_home="" operator_python=""
+  local -a runner=()
+
   cmp -s "${left}" "${right}" && return 0
-  # Byte differences do NOT prove a semantic difference. Never confuse a
-  # missing Python dependency or parse error with a confirmed secret drift.
-  if [[ ! -f "${DOTENV_COMPARE}" ]] ||
-     ! python3 -c 'import dotenv, jsonschema' >/dev/null 2>&1; then
-    printf 'BLOCKED: semantic dotenv comparison unavailable; no credential divergence established.\n' >&2
+  [[ -f "${DOTENV_COMPARE}" ]] || {
+    printf 'BLOCKED: semantic dotenv comparator missing; no credential divergence established.\n' >&2
+    exit 2
+  }
+
+  # System Python is trusted if its imports are complete. On TrueNAS the
+  # dependencies normally live in the invoking operator's private venv.
+  if python3 -c 'import dotenv, jsonschema' >/dev/null 2>&1; then
+    runner=(python3)
+  else
+    # Never execute a home-owned Python interpreter with root privileges.
+    operator="${SUDO_USER:-}"
+    if [[ -n "${operator}" && "${operator}" != "root" ]] &&
+      command -v getent >/dev/null 2>&1 &&
+      command -v sudo >/dev/null 2>&1; then
+      operator_home="$(getent passwd -- "${operator}" | awk -F: '{print $6}')"
+      if [[ "${operator_home}" == /* && "${operator_home}" != "/" ]]; then
+        operator_python="${operator_home}/.cache/nabla-compose/dev-venv/bin/python"
+        if [[ -x "${operator_python}" ]] &&
+          sudo -H -u "${operator}" -- "${operator_python}" \
+            -c 'import dotenv, jsonschema' >/dev/null 2>&1; then
+          runner=(sudo -H -u "${operator}" -- "${operator_python}")
+        fi
+      fi
+    fi
+  fi
+
+  if ((${#runner[@]} == 0)); then
+    printf 'BLOCKED: semantic dotenv comparison unavailable (system Python and operator venv); no credential divergence established.\n' >&2
     exit 2
   fi
-  python3 "${DOTENV_COMPARE}" \
+
+  # Operator venv runs without root; its bounded reader can sudo-cat the
+  # exact, approved source paths. Never put secret values into argv/logs.
+  "${runner[@]}" "${DOTENV_COMPARE}" \
     --app "${app}" \
     --left "${left}" \
     --right "${right}" \
     >/dev/null 2>&1 || result=$?
+
   if ((result > 1)); then
     printf 'BLOCKED: semantic dotenv comparison could not be verified; preserve both sources.\n' >&2
     exit 2

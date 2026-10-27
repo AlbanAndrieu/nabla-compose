@@ -122,6 +122,114 @@ yubikey-postgres-fixture-test:
     bash -n scripts/workstation/verify-postgres-fixture-recovery.sh
     python3 -m unittest discover -s tests -p 'test_yubikey_postgres_fixture_recovery.py' -v
 
+# Isolated software-only age/SOPS roundtrip, never uses any real escrow,
+# private identity, .sops.yaml or YubiKey; key generated in temp directory.
+yubikey-software-recovery-test:
+    python3 -m py_compile scripts/workstation/verify-yubikey-software-age-sops-fixture.py tests/test_yubikey_software_age_sops_fixture.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_software_age_sops_fixture.py' -v
+
+# Tools presence only, no software crypto and no hardware.
+yubikey-software-recovery-check:
+    python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --check
+
+# Private terminal prompts for two existing .age backups. Does not print paths,
+# read data, decrypt, require USB, or assert physical independence.
+yubikey-escrow-pair-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-pair-interactive.py tests/test_yubikey_escrow_pair_interactive.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_pair_interactive.py' -v
+
+# No paths collected or files accessed.
+yubikey-escrow-pair-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --check
+
+# Auto-discover matching *.age basenames only in known local source and
+# mounted-backup directories. Read-only stat checks, no paths printed.
+yubikey-escrow-pair-discover:
+    python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --discover
+
+# Report only directory availability, bounded age-file counts and whether the
+# effective HOME matches the current account. No filenames or file contents.
+yubikey-escrow-pair-diagnose:
+    python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --diagnose
+
+# Validate TrueNAS NFS visibility contracts without contacting workstation
+# mounts, archive data, SSH services, or real credentials.
+yubikey-escrow-nfs-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-nfs-server.py tests/test_yubikey_escrow_nfs_server.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_server.py' -v
+
+# Inspect mount-source identity and local age basename metadata only.
+# No remote network access.
+yubikey-escrow-nfs-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-server.py --check
+
+# Optional server-side read-only metadata query via existing SSH credentials;
+# enforces known_hosts; no password prompt, key, age decryption or write.
+yubikey-escrow-nfs-probe:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-server.py --probe --ssh-target albandrieu@172.17.0.24 --acknowledge INSPECT_NFS_SERVER_METADATA_ONLY
+
+# Snapshot history check: 3 dataset-level roots, 32 snapshots per root per
+# page, at most 1024 directory entries inventoried per root per probe.
+# No archive content read, no write, no privileged ZFS command.
+yubikey-escrow-history-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-nfs-history.py tests/test_yubikey_escrow_nfs_history.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_history.py' -v
+
+# Local preflight only: no SSH, ZFS queries, age reads or hardware access.
+yubikey-escrow-history-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --check
+
+# Contracts only. Runs a simulated write on a temporary local directory,
+# never real NFS, existing backup or YubiKey.
+yubikey-escrow-copy-test:
+    python3 -m py_compile scripts/workstation/create-yubikey-escrow-nfs-copy.py tests/test_yubikey_escrow_nfs_copy.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_copy.py' -v
+
+# Metadata-only check; does not open archive contents or create files.
+# No automatic "copy-run" recipe: writing requires a separately supervised
+# explicit command documented in the recovery runbook.
+yubikey-escrow-copy-check:
+    python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py --check
+
+# Explicit supervised read-only TrueNAS snapshot metadata inventory via SSH.
+# Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
+yubikey-escrow-history-probe:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --probe --acknowledge INSPECT_AGE_ESCROW_ZFS_HISTORY_ONLY
+
+# Continue to the next bounded window, e.g.:
+# just yubikey-escrow-history-page 1
+# Page 0..31, lexicographic snapshot-name order (not chronological).
+yubikey-escrow-history-page page:
+    python3 scripts/workstation/inspect-yubikey-escrow-nfs-history.py --probe --page {{page}} --acknowledge INSPECT_AGE_ESCROW_ZFS_HISTORY_ONLY
+
+# Synthetic contracts only, never touch real backups or YubiKeys.
+yubikey-escrow-compare-test:
+    python3 -m py_compile scripts/workstation/compare-yubikey-escrow-pair-readonly.py tests/test_yubikey_escrow_pair_compare.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_pair_compare.py' -v
+
+# No backup read, no device probe.
+yubikey-escrow-compare-check:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --check
+
+# Explicitly READ two existing encrypted backups, compare byte-for-byte,
+# never print contents or digests, never decrypt or change anything.
+yubikey-escrow-compare-run:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --compare --acknowledge COMPARE_EXISTING_ENCRYPTED_ESCROWS
+
+# Optional: manual pairing with two hidden TTY prompts when automatic
+# discovery misses. Same metadata gate, no decrypted content or writes.
+yubikey-escrow-compare-manual:
+    python3 scripts/workstation/compare-yubikey-escrow-pair-readonly.py --compare-manual --acknowledge COMPARE_EXISTING_ENCRYPTED_ESCROWS
+
+# Explicitly request private local paths via hidden interactive TTY prompts.
+# Never reads content or proves decryption. Returns NO-GO even on success.
+yubikey-escrow-pair-inspect:
+    python3 scripts/workstation/inspect-yubikey-escrow-pair-interactive.py --inspect --acknowledge INSPECT_EXISTING_ESCROW_METADATA
+
+# Explicit synthetic test with disposable age key and JSON only.
+yubikey-software-recovery-run:
+    python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --run --acknowledge SYNTHETIC_SOFTWARE_ONLY
+
 yubikey-postgres-fixture-check:
     bash scripts/workstation/verify-postgres-fixture-recovery.sh --check
 
@@ -404,6 +512,8 @@ pfsense-unbound-restart-test:
     bash -n scripts/pfsense/diagnose-unbound-restart-cause.sh
     bash -n scripts/pfsense/sample-oom-pressure.sh
     bash -n scripts/pfsense/console.sh
+    python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
+    python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_restart_cause_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_oom_sampler_contract.py' -v
@@ -426,6 +536,30 @@ pfsense-memory-window:
 
 # One safe read-only SSH capture, persisted in a private workstation directory.
 # It prints the exact saved path for use as PFSENSE_BEFORE/PFSENSE_AFTER.
+# Workstation-only, bounded A-record probes to explicit pfSense resolver.
+# Run from LAN shortly before the next scheduled DNSBL stop/start.
+# Caller must choose an actual split-DNS name; no default hidden domain.
+pfsense-unbound-lan-dns-watch:
+    python3 scripts/pfsense/probe-unbound-lan-dns.py --check --resolver 172.17.0.1 --public-name example.com --private-name "${PFSENSE_PRIVATE_DNS_NAME:?set PFSENSE_PRIVATE_DNS_NAME to a verified LAN-only FQDN}" --private-expected-ip "${PFSENSE_PRIVATE_DNS_EXPECTED_IP:?set PFSENSE_PRIVATE_DNS_EXPECTED_IP to the verified IPv4 A value}" --pihole-resolver 172.17.0.24 --samples 45 --interval-seconds 2 --timeout-seconds 1
+
+pfsense-unbound-lan-dns-test:
+    python3 -m py_compile scripts/pfsense/probe-unbound-lan-dns.py
+    python3 -m unittest discover -s tests -p 'test_pfsense_lan_dns_watch.py' -v
+
+# CrowdSec central: exercises shell classification with mocked Loki responses.
+# Offline only: no Docker, SSH, runtime mutation or GitHub CI.
+crowdsec-loki-evidence-test:
+    bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
+    python3 -m py_compile tests/test_crowdsec_loki_evidence_contract.py
+    python3 tests/test_crowdsec_loki_evidence_contract.py -v
+
+# Fail closed on stale/different worktrees: direct execution cannot report
+# 0 tests as success when the expected test module is absent.
+nexus-private-ingress-test:
+    test -f tests/test_nexus_private_ingress_contract.py
+    python3 -m py_compile tests/test_nexus_private_ingress_contract.py
+    python3 tests/test_nexus_private_ingress_contract.py -v
+
 pfsense-unbound-capture:
     bash scripts/pfsense/capture-unbound-snapshot.sh --check
 
@@ -776,6 +910,99 @@ migration-session-triage-test:
     python3 -m py_compile scripts/truenas/triage-migration-session.py tests/test_migration_session_triage.py
     python3 -m unittest discover -s tests -p 'test_migration_session_triage.py' -v
 
+# Unified, redacted H-05/H-06 report: LAN-only; never restarts services.
+# Exit 0 = PASS, 1 = confirmed scrape/metadata fault, 2 = UNVERIFIED.
+observability-evidence-lan:
+    sudo python3 scripts/truenas/collect-observability-evidence.py --check --scope remaining --observe-seconds 20 --report-dir /mnt/cpool/var/nabla/observability
+
+# No LAN or Docker required: synthetic Prometheus/Akvorado contract checks.
+observability-evidence-test:
+    python3 -m unittest discover -s tests -p 'test_collect_observability_evidence.py' -v
+    python3 -m pytest -q tests/test_prometheus_failed_scrapes_diagnostic.py tests/test_akvorado_flow_deltas.py
+
+# Classify the latest TrueNAS lifecycle failures; log text is never printed.
+truenas-lifecycle-recent:
+    sudo python3 scripts/truenas/triage-app-lifecycle-log.py --check --since 2026-10-20
+
+# Repair stored Scrutiny app definition, preserving its existing InfluxDB token.
+truenas-scrutiny-reconcile:
+    sudo env SCRUTINY_CUTOVER_APPROVED=1 bash scripts/truenas/deploy-scrutiny.sh --apply
+
+# Install existing FastAPI metrics token into the Prometheus bind source.
+truenas-prometheus-metrics-credential-install:
+    sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --apply --acknowledge I_APPROVE_FASTAPI_SCRAPE_CREDENTIAL_INSTALL
+
+# Offline scripts and fixtures: no TrueNAS API or secrets.
+truenas-lifecycle-recovery-test:
+    bash -n scripts/truenas/deploy-scrutiny.sh
+    python3 -m pytest -q tests/test_truenas_lifecycle_recovery.py tests/test_fastapi_prometheus_credential_contract.py tests/test_fastapi_metrics_source_triage.py
+
+# Classify one LiteLLM auth failure JSON without printing key hashes or IPs.
+litellm-dashboard-auth-test:
+    python3 -m pytest -q tests/test_litellm_dashboard_auth_failure.py
+
+# Validate DefectDojo private login HTML with TLS verification and pinned LAN SNI.
+defectdojo-login-lan:
+    bash scripts/workstation/check-defectdojo-login-lan.sh --check
+
+# Offline DefectDojo login and LiteLLM dashboard regression tests.
+private-login-contracts:
+    bash -n scripts/workstation/check-defectdojo-login-lan.sh
+    python3 -m pytest -q tests/test_defectdojo_login_lan_probe.py tests/test_litellm_dashboard_auth_failure.py
+
+# Canonical DefectDojo non-secret metadata: check without mutation.
+defectdojo-runtime-env-inspect:
+    sudo python3 scripts/truenas/prepare-defectdojo-runtime-env.py --inspect
+
+# Compare existing Django admin password hash with canonical runtime secret.
+defectdojo-admin-password-check:
+    sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --check
+
+# Explicitly update the EXISTING admin hash from canonical secrets, not Vaultwarden.
+defectdojo-admin-password-apply:
+    sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --apply --acknowledge I_APPROVE_EXISTING_DEFECTDOJO_ADMIN_PASSWORD_SYNC
+
+# Read-only HTTP origin vs HTTPS SNI, Traefik labels and Docker network.
+defectdojo-private-route-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+
+# Hermetic suite: no LAN, root, database or secret access required.
+defectdojo-recovery-test:
+    python3 -m pytest -q tests/test_defectdojo_existing_admin_reconcile.py tests/test_defectdojo_https_route_triage.py tests/test_defectdojo_runtime_credential_contract.py
+
+# Investigate TrueNAS memory pressure, ZFS ARC and DefectDojo container working sets.
+truenas-defectdojo-memory-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-memory-pressure.py --check --observe-seconds 20
+
+# Inspect only the DefectDojo database in shared PostgreSQL (no DROP/CREATE).
+truenas-defectdojo-db-reset-plan:
+    sudo python3 scripts/truenas/inspect-defectdojo-db-reset.py --check
+
+# Fixture-only tests: no Docker, SQL, LAN or TrueNAS API calls.
+truenas-defectdojo-memory-test:
+    python3 -m pytest -q tests/test_defectdojo_memory_pressure.py tests/test_defectdojo_db_reset_inventory.py
+
+# One-shot private Backstage-aligned RAM/GPU/ZFS resource inventory (never runs in CI).
+truenas-service-resources:
+    sudo install -d -o root -g root -m 0700 /mnt/cpool/var/nabla/service-resources
+    sudo python3 scripts/truenas/collect-service-resource-evidence.py --check --host truenas --output "/mnt/cpool/var/nabla/service-resources/resources-$(date -u +%Y%m%dT%H%M%SZ).json"
+
+# Hermetic resource identity/memory/storage/GPU contracts; no LAN or Docker.
+truenas-service-resources-test:
+    python3 -m pytest -q tests/test_service_resource_evidence.py
+
+# Read-only: classify a DefectDojo app stuck in DEPLOYING without printing logs.
+defectdojo-deploying-check:
+    sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check
+
+# Read-only: classify bounded recent initializer/backend logs, no raw lines.
+defectdojo-deploying-log-classes:
+    sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check --include-log-classes
+
+# Read-only Vaultwarden cache vs root runtime equality as the unlocked operator.
+vaultwarden-runtime-parity:
+    python3 scripts/secrets/compare_vaultwarden_runtime_readonly.py --check --app defectdojo
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
@@ -979,3 +1206,71 @@ openclaw-upgrade-local-all:
     just openclaw-upgrade-local-activate
     just openclaw-upgrade-local-verify
 
+
+# OpenClaw 2026.10.7: repair managed service Node only, not the npm stage.
+# No project backup, no CI runner, no LiteLLM model requests.
+openclaw-gateway-node-test:
+    python3 -m py_compile scripts/workstation/repair-openclaw-gateway-node.py tests/test_repair_openclaw_gateway_node.py scripts/workstation/diagnose-openclaw-gateway-readiness.py tests/test_openclaw_gateway_readiness.py scripts/workstation/diagnose-openclaw-gateway-service-failure.py tests/test_openclaw_gateway_service_failure.py scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py tests/test_openclaw_gateway_doctor_lint.py scripts/workstation/diagnose-openclaw-gateway-listener.py tests/test_openclaw_gateway_listener.py scripts/workstation/diagnose-openclaw-state-owner.py tests/test_openclaw_state_owner.py
+    bash -n scripts/workstation/recover-openclaw-managed-gateway.sh
+    python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_readiness.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_service_failure.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_state_owner.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_doctor_lint.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_start_once.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_gateway_listener.py' -v
+    bash -n scripts/workstation/start-openclaw-gateway-once.sh
+    bash -c "umask 0002; python3 -m unittest discover -s tests -p 'test_repair_openclaw_gateway_node.py' -v"
+
+# Read-only. Distinguish HTTP liveness, startup and admission readiness
+# without exposing channel identities, database contents or secrets.
+openclaw-gateway-readiness:
+    python3 scripts/workstation/diagnose-openclaw-gateway-readiness.py
+
+# Read-only TCP listener, IPv4/IPv6 loopback and UI root diagnosis.
+# Does not restart the Gateway, probe models or expose raw responses.
+openclaw-gateway-listener:
+    python3 scripts/workstation/diagnose-openclaw-gateway-listener.py
+
+# Read-only classification of failed systemd process and recent journal.
+# Exposes only fixed codes; never prints actual log lines or credentials.
+openclaw-gateway-service-failure:
+    python3 scripts/workstation/diagnose-openclaw-gateway-service-failure.py
+
+# Read-only: correlate last logged state owner with live /proc PID and
+# fuser owners of SQLite, WAL and SHM. Historical logs alone are not proof.
+openclaw-state-owner:
+    python3 scripts/workstation/diagnose-openclaw-state-owner.py
+
+# Read-only, no repairs or model requests: parse pinned OpenClaw Doctor
+# structured lint as sanitized categories for EX_CONFIG 78.
+openclaw-gateway-doctor-lint:
+    python3 scripts/workstation/diagnose-openclaw-gateway-doctor-lint.py
+
+# Explicit one-time operator recovery after exit 78. No retry or npm.
+# Run only after checking Doctor's structured findings; active units
+# are diagnosed, not stopped or restarted.
+openclaw-gateway-start-once:
+    bash scripts/workstation/start-openclaw-gateway-once.sh --once
+
+# Explicit scoped hardening when the Node 24.22.1 npm package is
+# group-writable because of workstation umask 0002. Never chmod shared
+# paths or reinstall packages. Requires an owned user systemd drop-in.
+openclaw-gateway-package-permissions:
+    python3 scripts/workstation/repair-openclaw-gateway-node.py --harden-installed-permissions
+
+# Read-only: print a fixed error category if package verification fails.
+openclaw-gateway-node-plan:
+    python3 scripts/workstation/repair-openclaw-gateway-node.py --select-installed-plan
+
+# The next step does NOT invoke npm or openclaw update. It selects the
+# existing, independently validated OpenClaw 2026.10.7 installation
+# under mise Node 24.22.1 for the managed systemd Gateway.
+# No project backup, model request, new staged installation or CI.
+openclaw-gateway-select-installed:
+    bash scripts/workstation/recover-openclaw-managed-gateway.sh --apply
+
+# Backwards-compatible recipe name; the operation is package selection,
+# not a package-manager update. Retained for existing workstation commands.
+openclaw-gateway-node-update:
+    just openclaw-gateway-select-installed

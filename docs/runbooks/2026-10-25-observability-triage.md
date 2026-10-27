@@ -21,6 +21,66 @@ diagnostic. Le détail DNS appartient au
 
 Ces constats sont datés. Ne pas les présenter comme états live actuels.
 
+## Collecte unifiée prête pour le LAN (26 octobre)
+
+Le nouveau [runbook Prometheus/Akvorado](prometheus-akvorado-lan-evidence-20261026.md)
+regroupe les sept scrapes restants et les deltas Inlet/Outlet dans
+un JSON expurgé via
+`scripts/truenas/collect-observability-evidence.py`.
+La commande `just observability-evidence-lan` exécute une fenêtre
+bornée de 20 secondes et stocke le rapport en privé.
+Le code est versionné dans la PR #285 ; **le runtime LAN n'a pas
+été sollicité par l'agent**. Les anciennes preuves ne remplacent pas
+le nouveau rapport.
+
+## Pack de diagnostic LAN — 26 octobre 2026
+
+Un seul script regroupe les jobs Prometheus `baseline` et `remaining`
+(**scope `all`**) et compare deux relevés Akvorado sur une fenêtre
+bornée. Il n'exécute **aucune réparation ni redémarrage**.
+
+Depuis la workstation LAN dans un checkout à jour de la branche/PR :
+
+```bash
+cd ~/w/nabla-compose
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh --observe-seconds 20
+```
+
+Depuis le shell TrueNAS (checkout canonique) :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+bash scripts/truenas/observe-prometheus-akvorado-lan.sh --observe-seconds 20
+```
+
+Le script fonctionne **sans `sudo`**. Il utilise les URLs fixes
+`172.17.0.24:9090`, `:31057`, `:31058`, une connexion de
+5 secondes et des tailles de réponse bornées. Rapport JSON
+sur disque avec mode 0600 sous `~/.local/state/nabla/observability`
+(mode 0700 du dossier). Ne jamais transmettre les secrets ni
+les sorties de commandes `docker inspect` intégrales.
+
+Les états sont **0=PASS, 1=FAIL, 2=UNVERIFIED**. Un FAIL
+de scrape indique un défaut de collecte, pas forcément une
+application DOWN. Akvorado `NEW_INSERT_BATCHES_ROWS_UNVERIFIED`
+prouve uniquement une variation des compteurs de lots ; le SQL
+ClickHouse doit être confirmé séparément avec un compte lecture seule.
+
+**Détails ciblés facultatifs (lecture seule) :**
+
+```bash
+python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
+python3 scripts/truenas/diagnose-akvorado-flow.py --strict --fail-on-blocked --observe-seconds 20
+python3 scripts/truenas/check-akvorado-metadata-config.py --check
+```
+
+La dernière commande nécessite `PyYAML` et valide uniquement
+la configuration déclarative. Les commandes réseau supposent
+l'accès LAN ; ne pas interpréter un timeout externe comme un incident
+des Apps. Pour une réception SQL, compléter avec les scripts
+Akvorado existants et une requête `SELECT` bornée, sans créer
+ni effacer de données.
+
 ## Diagnostic unique, lecture seule
 
 Sur **TrueNAS**, dans le checkout Compose :
@@ -36,6 +96,36 @@ Lancer le point d'entrée consolidé décrit dans
 pour agréger la classification des états. Ne pas afficher de DSN, clés,
 logs bruts, headers Authorization ni chemins privés. Éviter les
 scrapes manuels supplémentaires vers pfSense.
+
+### H-05 — erreurs de scrape et statut non vérifié (code du 26 octobre)
+
+Le classificateur `scripts/prometheus/diagnose-failed-scrapes.py`
+ne transforme plus `health=unknown`, vide ou inattendu en `DOWN`.
+Il publie `scrape_unverified` et `targets_unverified`, ainsi que
+des domaines redigés `auth`, `http`, `tcp`, `dns`, `tls`,
+`timeout`, `network` ou `unverified`. Le code HTTP 401/403
+signifie **problème d'autorisation du scrape**, pas arrêt du
+service applicatif. `no_active_target` signifie un job absent
+des cibles actives, pas une cible DOWN.
+
+Le diagnostic reste fixé à l'API Prometheus du LAN ; aucun
+`lastError`, label, chemin privé ou token n'est imprimé.
+Ces catégories sont des **preuves de collecte**, pas de
+disponibilité métier ni une autorisation de modifier les secrets.
+Le relevé historique `21/28 UP` n'est pas actualisé faute de LAN.
+
+### H-06 — compteurs Akvorado invalides
+
+`scripts/truenas/diagnose-akvorado-flow.py` refuse désormais
+les compteurs négatifs ou non finis (`1e999` par exemple) comme
+preuve de lots ClickHouse. Les fenêtres concernées sont classées
+`COUNTER_INVALID_INCONCLUSIVE` ; le contrôle
+`--fail-on-blocked` échoue fermement et la procédure
+`--require-inserts` ne peut pas conclure à une insertion sur
+ces entrées invalides. Les métadonnées NetFlow, les ifIndex
+réellement reçus et la présence de lignes SQL récentes restent
+**NOT_VERIFIED**. Les tests synthétiques n'impliquent pas
+un redémarrage Akvorado, Kafka ou ClickHouse.
 
 ### Prometheus / Pyroscope
 
@@ -69,35 +159,16 @@ avec `env_file.format: raw`, `required: true` et listener
 
 ### FastAPI /metrics et cloud
 
-**Preuve opérateur du 26 octobre :** `METRICS_SCRAPE_KEY` a été ajouté
-à `/mnt/cpool/secrets/runtime/sample/.env.secrets`. Le diagnostic
-distant fonctionne via SSH port `9922` (OpenSSH local), et confirme
-`GET /metrics` **HTTP 401 sans credentials**. L'application refuse
-l'anonyme ; son conteneur n'a pas encore été attesté avec la nouvelle clé.
-
-Le job Prometheus `fastapi_sample` utilise désormais, **dans la PR #280**,
-`authorization.type=Bearer` et
-`authorization.credentials_file=/run/secrets/fastapi-sample-metrics.key`.
-Un bind mount en lecture seule prépare ce fichier côté conteneur.
-**Le déploiement et l'installation du secret restent à faire.**
-
-La [procédure dédiée](fastapi-prometheus-scrape-secret-20261026.md)
-décrit la vérification, l'installation explicite du fichier privé
-(`root:568`, `0640`), la validation de l'environnement FastAPI, le
-redéploiement contrôlé et la preuve `fastapi_sample=scrape_up`.
-
-Avant de modifier Prometheus, exécuter sur TrueNAS :
-
-```bash
-sudo python3 scripts/truenas/reconcile-fastapi-metrics-credential.py --check
-```
-
-Ce contrôle **n'écrit rien** et ne révèle pas la clé. Un résultat
-`credential_ready` atteste la correspondance des **deux fichiers**,
-pas la configuration effective des conteneurs. Ne pas mettre le secret
-dans Git, ne pas réutiliser `DIAGNOSTICS_ACCESS_KEY`, ne pas rendre
-`/metrics` public. Pour FastAPI Cloud, utiliser une clé distincte
-uniquement si un scraper Cloud est explicitement prévu.
+La clé dédiée `METRICS_SCRAPE_KEY` est documentée pour FastAPI
+staging ([FastAPI #376](https://github.com/AlbanAndrieu/fastapi-sample/pull/376)).
+Le changement `master` #286 a ajouté `authorization.type=Bearer`
+et `authorization.credentials_file` au job `fastapi_sample` ainsi
+que le montage privé prévu pour l'UID 568. Le relevé opérateur
+atteste `credential_ready=true` **pour le fichier installé**, pas
+que FastAPI a rechargé la clé ni que Prometheus scrape correctement.
+Attendre un contrôle explicite de l'environnement conteneur et
+`fastapi_sample=scrape_up`. Ne pas rendre `/metrics` public.
+[Procédure](fastapi-prometheus-scrape-secret-20261026.md).
 
 Un HTTP 403 sur le snapshot FastAPI Cloud est un problème d'autorisation
 distinct. Consulter le

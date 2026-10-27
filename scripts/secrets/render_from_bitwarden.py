@@ -82,6 +82,8 @@ class BitwardenClient:
     ) -> str:
         command = ["bw", *args]
         child_env = os.environ.copy()
+        # An ambient unlocked session must not cross into metadata-only calls.
+        child_env.pop("BW_SESSION", None)
         if with_session:
             child_env["BW_SESSION"] = self.session
 
@@ -93,14 +95,20 @@ class BitwardenClient:
                 text=True,
                 env=child_env,
                 input=input_text,
+                timeout=60,
             )
-        except FileNotFoundError as exc:
-            raise SecretsError("Bitwarden CLI `bw` was not found in PATH") from exc
+        except FileNotFoundError:
+            raise SecretsError("Bitwarden CLI unavailable") from None
+        except subprocess.TimeoutExpired:
+            raise SecretsError(f"Bitwarden CLI {args[0]} timed out") from None
         except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or "").strip()
+            # stderr/stdout can include URLs, session tokens, secret fields.
+            # Preserve only the bounded operation name and return code.
+            code = exc.returncode
+            exit_code = code if isinstance(code, int) and 0 <= code <= 255 else "unknown"
             raise SecretsError(
-                f"Bitwarden CLI command failed: {stderr or args[0]}"
-            ) from exc
+                f"Bitwarden CLI {args[0]} failed; exit={exit_code}"
+            ) from None
         return result.stdout.strip()
 
     def verify(self) -> None:

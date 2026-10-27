@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from urllib.request import ProxyHandler, build_opener
 import re
 import time
 import sys
@@ -49,7 +50,11 @@ def summarize_metrics(data: str, component: str) -> list[str]:
                 continue
         # Never print exporter labels, Kafka broker identities, paths or raw samples.
         if name.endswith(("_total", "_count", "_sum")):
-            results[name] = results.get(name, 0.0) + float(value)
+            numeric = float(value)
+            # Negative and nonfinite counters are invalid telemetry, not
+            # evidence of healthy flow ingestion.
+            if math.isfinite(numeric) and numeric >= 0:
+                results[name] = results.get(name, 0.0) + numeric
     return [f"{key}={val:g}" for key, val in sorted(results.items())]
 
 
@@ -68,7 +73,8 @@ def exporter_metadata_evidence(data: str) -> dict[str, float]:
         if labels.get("error") != "metadata missing":
             continue
         value = float(match.group(3))
-        if not math.isfinite(value):
+        if not math.isfinite(value) or value < 0:
+            # An invalid cumulative counter cannot support a historical claim.
             continue
         exporter = labels.get("exporter")
         key = "configured" if exporter == "172.17.0.1" else (
@@ -93,7 +99,10 @@ def classify_outlet(data: str) -> str:
             if name == "akvorado_outlet_core_flows_errors_total":
                 if dict(LABEL.findall(labels or "")).get("error") != "metadata missing":
                     continue
-            values[name] = values.get(name, 0) + float(value)
+            numeric = float(value)
+            if not math.isfinite(numeric) or numeric < 0:
+                return "METRICS_INVALID_INCONCLUSIVE"
+            values[name] = values.get(name, 0) + numeric
     received = values.get("akvorado_outlet_core_received_flows_total", 0)
     missing = values.get("akvorado_outlet_core_flows_errors_total", 0)
     if received > 0 and missing >= received and values.get("akvorado_outlet_clickhouse_flow_per_batch_count", 0) == 0:
@@ -128,8 +137,8 @@ def outlet_counters(data: str) -> dict[str, float]:
             if dict(LABEL.findall(raw_labels or "")).get("error") != "metadata missing":
                 continue
         value = float(raw_value)
-        if not math.isfinite(value):
-            continue
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("invalid Akvorado counter sample")
         label = names[name]
         values[label] = values.get(label, 0.0) + value
     return values
@@ -137,7 +146,10 @@ def outlet_counters(data: str) -> dict[str, float]:
 
 def assess_deltas(before: str, after: str) -> tuple[str, dict[str, float]]:
     """Classify NEW events, never conflate historical counters and current health."""
-    baseline, current = outlet_counters(before), outlet_counters(after)
+    try:
+        baseline, current = outlet_counters(before), outlet_counters(after)
+    except ValueError:
+        return "COUNTER_INVALID_INCONCLUSIVE", {}
     # A missing metric is not the number zero. Require ClickHouse and core
     # families on both scrapes before claiming any ingestion result.
     required = {"received_flows", "metadata_missing", "clickhouse_batches"}
@@ -167,8 +179,22 @@ def assess_deltas(before: str, after: str) -> tuple[str, dict[str, float]]:
 
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Do not follow an Akvorado response to an uncontrolled destination."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Never honor environment HTTP proxies for LAN-only metrics.
+OPENER = build_opener(ProxyHandler({}), NoRedirect())
+
+
 def fetch(url: str) -> str:
-    with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310 local fixed endpoints
+    if url not in ENDPOINTS.values():
+        raise ValueError("Akvorado endpoint not approved")
+    request = urllib.request.Request(url, headers={"Accept": "text/plain"})
+    with OPENER.open(request, timeout=5) as response:
         data = response.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
         raise ValueError("metrics response exceeds 2 MiB")
@@ -251,6 +277,7 @@ def main() -> int:
             "METRICS_MISSING_INCONCLUSIVE",
             "METRICS_CHANGED_INCONCLUSIVE",
             "COUNTER_RESET_INCONCLUSIVE",
+            "COUNTER_INVALID_INCONCLUSIVE",
         }
     ):
         failures += 1
