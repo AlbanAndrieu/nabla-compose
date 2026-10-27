@@ -115,7 +115,7 @@ Si le code HTTP est `429`, rechercher la limitation Docker Hub sans relancer les
 Contrôle passif éventuel du cache local, sans accès réseau :
 
 ~~~bash
-docker image inspect python:3.13-slim-trixie --format 'cached=yes' 2>/dev/null || printf 'cached=no\\n'
+docker image inspect python:3.13-slim-trixie --format 'cached=yes' 2>/dev/null || printf 'cached=no\n'
 ~~~
 
 Le diagnostic reste bloquant pour le déploiement tant que l'échec exact de requête n'est pas attribué.
