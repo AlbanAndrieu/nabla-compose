@@ -166,10 +166,40 @@ et, si autorisé, un test d'accès négatif avec identité de test
 dédiée. Cette sonde ne réalise aucun test d'accès, ne lit aucune
 archive et ne contacte pas le support USB.
 
-**État réel TrueNAS : NOT_RUN** jusqu'à réception de la sortie
-du contrôle opérateur. Aucun `chmod`, `chown`, `setacl`,
-`midclt filesystem.setacl`, modification ZFS ou restauration
-de secret ne fait partie de cette étape.
+### Preuve réelle TrueNAS du 28/10 — inventaire PASS, politique à revoir
+
+**Workstation, après mise à jour de la PR #289 :**
+- `just yubikey-usb-identity-nfs4-acl-test` : **11/11 PASS**.
+- `just yubikey-usb-identity-nfs4-acl-check` : `BACKUP_RESTORATION_PREFLIGHT_READY`.
+- `just yubikey-usb-identity-nfs4-acl-probe` :
+  `acl_probe_state=ACL_INVENTORY_RECORDED`, SSH et les quatre
+  `filesystem.getacl` TrueNAS répondent ; aucune écriture ni lecture age.
+- `nfs_export` : `NFS4`, `trivial=true`, 3 ACE,
+  `POTENTIAL_NONOWNER_ALLOW`, compteur **1**.
+- `secret_directory`, `backup_directory`, `encrypted_archive` :
+  `NFS4`, `trivial=true`, 3 ACE chacun,
+  `NFS4_REVIEW_REQUIRED`, compteur non propriétaire **0**.
+
+**Interprétation correcte du code retour 3 :** la sonde a **réussi
+son inventaire**, mais le contrôle strict échoue dès qu'une autorisation
+non propriétaire potentielle est détectée, même au niveau export.
+Ce n'est ni un échec de connexion SSH ni une preuve d'exfiltration.
+Une ACE au niveau `nfs_export` ne donne pas automatiquement accès à
+l'archive si les répertoires sensibles interdisent la traversée.
+Un `trivial=true` signifie que la politique ACL peut être représentée
+sans perte par les bits de mode, mais ne prouve pas à lui seul la
+résistance à un mauvais mappage d'identités NFS.
+
+**Disposition : REVIEW_REQUIRED, pas de correction ACL autorisée.**
+La prochaine vérification doit seulement confirmer sur le **serveur**
+les modes `0700` des deux répertoires sensibles et `0600` de
+l'archive, ainsi que la cohérence des propriétaires, sans imprimer
+leurs valeurs. L'identité NFS effective et un test d'accès négatif
+restent nécessaires pour une garantie d'autorisation effective.
+Aucun `chmod`, `chown`, `setacl`, `midclt filesystem.setacl`,
+changement ZFS ou restauration de secret n'est autorisé.
+
+Référence : [TrueNAS SCALE 26 — ACL](https://www.truenas.com/docs/scale/26/datasets/permissions/configuringacls/).
 
 **Ne pas relancer `--backup` :** les archives existent et le script refuse
 de les écraser. Garder `--copy`, la rotation SOPS, OTP2 et PIV9A/PIV82
