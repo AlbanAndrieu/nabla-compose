@@ -50,6 +50,22 @@ git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/clas
 
 Ne communiquer que le JSON de classification. Le journal reste strictement local à TrueNAS.
 
+## État réel du 27 octobre : échec non classé
+
+La recette opérateur a confirmé que `/tmp/tmp.ngofCbFlgw` est un fichier régulier privé (`owner_uid=1000`, `mode=600`, `links=1`). L'invocateur `sudo` a aussi l'UID 1000. Avec le classifieur corrigé, l'ouverture réussit mais la sortie demeure `state=unclassified_build_failure`, `matched_categories=[]`, `raw_log_printed=false`.
+
+**Cela n'établit pas la cause du build.** Le classifieur enrichi analyse les derniers **4 Mio** d'un journal de **20 Mio maximum**, traite plus de signatures BuildKit, et indique `buildkit_failure_marker`, `failure_stage` et `failure_operation`. Ces champs sont des codes de vocabulaire fixe. `unknown` signifie que la corrélation avec l'identifiant BuildKit de l'étape n'est pas prouvée. `build_step_nonzero` ne signifie pas nécessairement une dépendance défectueuse.
+
+### Prochaine recette sans build
+
+~~~bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/classify-fastapi-build-failure.py |
+  python3 - --check --log /tmp/tmp.ngofCbFlgw
+~~~
+
+Le propriétaire du journal est le même UID que l'utilisateur courant : **pas besoin de sudo** dans ce cas. Pour vérifier les nouveaux contrats avec le checkout à jour, exécuter `python3 -m unittest discover -s tests -p 'test_fastapi_build_failure_classifier.py' -v`. Ne publier que le JSON. Si `unclassified_build_failure` persiste, contrôler localement **la présence et la taille du journal** sans communiquer son contenu ; le diagnostic reste bloqué tant qu'aucune cause observable n'est identifiée. Ne pas relancer le builder pour obtenir de nouvelles preuves, ni effectuer un redéploiement concurrent.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
@@ -63,6 +79,10 @@ Ne communiquer que le JSON de classification. Le journal reste strictement local
 | apt_package | cache apt et disponibilité du miroir Debian |
 | dockerfile_copy | sous-modules et contexte du build |
 | builder_unavailable | état du daemon Docker |
+| filesystem_permissions | droits du contexte ou des montages du builder |
+| dependency_fetch | liaison vers les miroirs/référentiels de dépendances |
+| build_step_nonzero | analyser en privé l'étape signalée, sans présumer de la cause |
+| buildkit_generic_failure | erreur Docker générale, classification détaillée encore manquante |
 | unclassified_build_failure | vérification privée plus ciblée sans partage du log |
 
 La catégorie est indicative. En cas de plusieurs signatures, la priorité protège contre les erreurs génériques qui masquent un OOM ou un disque plein.
