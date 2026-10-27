@@ -114,6 +114,16 @@ def create_encrypted_copy(source: Path, name: str) -> str:
                 view = view[wrote:]
         if not unchanged(source_fd, srcstat):
             return 'SOURCE_CHANGED_DURING_COPY'
+        # NFSv4 may inherit ACLs. Normalize the POSIX mode explicitly,
+        # and refuse publication when the staging file does not remain 0600.
+        os.fchmod(stage_fd, 0o600)
+        staged = os.fstat(stage_fd)
+        if (not stat.S_ISREG(staged.st_mode)
+                or stat.S_IMODE(staged.st_mode) != 0o600
+                or staged.st_uid != os.getuid()
+                or staged.st_nlink != 1
+                or staged.st_size != srcstat.st_size):
+            return 'STAGE_PERMISSIONS_OR_SIZE_UNVERIFIED'
         os.fsync(stage_fd)
         os.close(stage_fd)
         stage_fd = None
