@@ -105,6 +105,26 @@ Le DNS privé correct **n'est pas une règle de pare-feu**.
 L'absence de DNS public ne prouve pas que l'on ne peut pas
 atteindre HAProxy par IP publique en forçant Host/SNI.
 
+### Collecteur DNS public versionné
+
+```bash
+# Depuis la workstation : lecture de deux résolveurs publics.
+just ingress-public-dns-evidence
+
+# Conserver seulement les observations DNS dans un fichier temporaire.
+python3 scripts/ingress/collect-public-dns-evidence.py \
+  > /tmp/ingress-public-dns-evidence.json
+
+# Injecter l'observation DNS dans l'audit multi-couche.
+python3 scripts/pfsense/audit-haproxy-ingress.py \
+  --evidence /tmp/ingress-public-dns-evidence.json
+```
+
+Le collecteur vérifie A, AAAA et CNAME via 1.1.1.1 et 9.9.9.9 ;
+une erreur réseau, une réponse SERVFAIL ou une divergence entre
+résolveurs est classée **unknown**, pas « absent ». Il n'affirme
+rien sur les règles HAProxy, PF, Tunnel ou Access.
+
 ### Cloudflare Tunnel + Access
 
 Réutiliser l'outil existant `scripts/cloudflare/diagnose-cloudflare-api.py`
