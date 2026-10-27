@@ -90,7 +90,7 @@ class NSSPathTest(unittest.TestCase):
 
     def test_stub_dns_rcodes_are_preserved(self):
         for rcode in ("SERVFAIL", "NXDOMAIN", "REFUSED"):
-            output = ";; ->>HEADER<<- opcode: QUERY, status: " + rcode + ", id: 1\\n"
+            output = ";; ->>HEADER<<- opcode: QUERY, status: " + rcode + ", id: 1\n"
             with self.subTest(rcode=rcode), mock.patch.object(
                 nss.subprocess, "run",
                 return_value=subprocess.CompletedProcess([], 0, output, ""),
@@ -98,7 +98,7 @@ class NSSPathTest(unittest.TestCase):
                 self.assertEqual(nss.stub_dns_probe(3).status, "RCODE_" + rcode)
 
     def test_stub_empty_noerror_distinct_from_no_response(self):
-        header = ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\\n"
+        header = ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\n"
         with mock.patch.object(
             nss.subprocess, "run",
             return_value=subprocess.CompletedProcess([], 0, header, ""),
@@ -112,8 +112,8 @@ class NSSPathTest(unittest.TestCase):
 
     def test_stub_correct_answer(self):
         output = (
-            ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\\n"
-            "defectdojo.int.albandrieu.com. 0 IN A 172.17.0.24\\n"
+            ";; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1\n"
+            "defectdojo.int.albandrieu.com. 0 IN A 172.17.0.24\n"
         )
         with mock.patch.object(
             nss.subprocess, "run",
