@@ -30,12 +30,12 @@ RULES = (
     Rule("network_timeout", r"tls handshake timeout|i/o timeout|connection timed out|operation timed out|network is unreachable", "check_builder_registry_transport_and_proxy"),
     Rule("registry_auth", r"401 unauthorized|403 forbidden|denied: requested access|authentication required", "check_registry_auth_privately_without_printing_token"),
     Rule("tls_certificate", r"certificate verify failed|x509: certificate|certificate signed by unknown authority", "check_registry_ca_and_container_clock"),
-    Rule("uv_dependency", r"uv sync|failed to resolve dependencies|no solution found|lockfile needs to be updated|package metadata", "check_uv_lock_and_dependency_build_offline"),
+    Rule("uv_dependency", r"uv sync[^\r\n]{0,200}(?:failed|error|exit code)|failed to resolve dependencies|no solution found|lockfile needs to be updated|(?:failed|error)[^\r\n]{0,100}package metadata", "check_uv_lock_and_dependency_build_offline"),
     Rule("apt_package", r"apt-get .* failed|unable to locate package|failed to fetch .*debian|dpkg: error", "check_builder_apt_cache_and_debian_mirror"),
     Rule("dockerfile_copy", r"failed to calculate checksum|not found: .*dockerfile|failed to compute cache key", "check_docker_context_submodules_and_ignore_rules"),
     Rule("builder_unavailable", r"cannot connect to the docker daemon|failed to solve: rpc error|context canceled|buildkit.*unavailable", "inspect_docker_builder_readonly"),
 )
-LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9]{6,20}\Z")
+LOG_NAME = re.compile(r"tmp[.][A-Za-z0-9_-]{6,20}\Z")
 MAX_FILE_BYTES = 20 * 1024 * 1024
 READ_TAIL_BYTES = 1024 * 1024
 VALID_CODES = frozenset(rule.code for rule in RULES)
