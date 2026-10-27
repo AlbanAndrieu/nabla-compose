@@ -120,6 +120,16 @@ class HomelabSplitDNSRecoveryTest(unittest.TestCase):
             ["sudo", "resolvectl", "flush-caches"],
         ])
 
+    def test_check_mode_calls_no_mutation(self):
+        import sys
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--check"]):
+            with mock.patch.object(dns, "read", return_value=(good_profile(), good_state())):
+                with mock.patch.object(dns, "apply") as repair:
+                    with contextlib.redirect_stdout(io.StringIO()) as output:
+                        self.assertEqual(dns.main(), 0)
+                    repair.assert_not_called()
+                    self.assertIn("diagnosis=PASS", output.getvalue())
+
     def test_cli_apply_requires_exact_ack_before_any_probe(self):
         import sys
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--apply"]):
