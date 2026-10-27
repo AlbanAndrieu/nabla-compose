@@ -422,6 +422,37 @@ Actions :
   `central_lapi_http=200`, une clé approuvée et `last_pull`
   central sont nécessaires avant de conclure au cutover.
   Si clé absente/incorrecte : **NO-GO**, sans rotation implicite.
+  **Réception CrowdSec 27/10 21:53 :**
+  sur TrueNAS, `--runtime` **0 erreur / 1 warning**,
+  CrowdSec 1.8.1 RUNNING/healthy, LAPI :8084 et métriques :6060,
+  Loki canonique confirmé (940 hits), scenario dangereux désactivé,
+  **0 décision active**. `--check` : **1 erreur / 2 warnings**
+  (fichier `/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
+  absent/illisible, `PFSENSE_FIREWALL last_pull=<none>`).
+  Workstation `just crowdsec-pfsense-preflight` :
+  **0 erreur / 2 warnings**, moteur local actif, bouncer sur
+  `http://172.17.0.1:8089`, TCP TrueNAS :8084 joignable,
+  **8 620 IPv4 + 17 IPv6 = 8 637 remédiations PF locales**.
+  Probe authentifiée de la clé pfSense actuelle vers
+  TrueNAS : **`central_lapi_http=403`**.
+  **NO-GO : ne pas désactiver l'ancien moteur ni changer
+  la source du bouncer**, le serveur central n'offre encore
+  aucune décision et sa clé dédiée n'est pas prouvée.
+  Nouveau Gate candidat `sudo bash
+  scripts/truenas/check-crowdsec-candidate-bouncer.sh` :
+  lit seulement le fichier privé 0600, vérifie la clé centrale
+  sans l'afficher ; sortie requise `central_candidate_auth=ACCEPTED`.
+  Récupérer la clé centrale dans un coffre approuvé ou préparer
+  une **réémission distincte autorisée**, avec sauvegarde et
+  rollback. Prévoir la conservation des remédiations PF pendant
+  le changement de LAPI (8 637 entrées locales vs 0 centrale).
+  Gate offline `just crowdsec-bouncer-config-test` :
+  tests URL pfSense et authentification candidate simulée.
+  Réexécuter `--check`, `--accept` TrueNAS/workstation et
+  attester `last_pull` et une décision centrale appliquée
+  puis expirée dans PF avant de clôturer la migration.
+  Ces nouveaux tests sont **NON EXÉCUTÉS** dans la sortie
+  opérateur disponible ; aucune mutation de runtime.
   [Guide central CrowdSec](../apps/crowdsec/README.md).
 - [x] **Nexus / DNS, rendu TrueNAS et runtime réconciliés (26/10) :**
   DNS privé **8/8 PASS** ; backend direct `172.17.0.24:8081`
