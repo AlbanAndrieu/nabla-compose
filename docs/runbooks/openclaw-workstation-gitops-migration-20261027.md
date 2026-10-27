@@ -104,6 +104,74 @@ liveness/readiness 200 au bon vantage point ; requêtes
 `openclaw-main` réellement échouées et quotas analysés
 séparément ; Workstation reste le modèle de vérité jusqu'au cutover.
 
+## Réception Workstation — preuves de tests du 27/10
+
+L'opérateur a exécuté les premiers nouveaux gates :
+
+- `just litellm-workstation-auth-contracts` et
+  `just truenas-openrag-startup-test` : **bloqués car**
+  `python3` pointe sur mise Python **3.14.9 sans `pytest`**.
+  Aucun échec de test métier prouvé. Les gates sont maintenant
+  équipés de `scripts/quality/run-pytest-local.sh` qui sélectionne
+  un interpréteur déjà équipé de pytest ou émet une instruction de
+  venv sans installer automatiquement de paquet.
+- `openclaw-nabla-migration-test` : 3/5 PASS, deux erreurs
+  `unsafe_writable_permissions` dues aux fixtures nouvellement
+  créées avec le `umask` local. **Les deux tests configurent
+  désormais explicitement le mode 0600.**
+  `openclaw-nabla-migration-check` a terminé et trouvé
+  les anciens fichiers de politique disponibles, sans contenu copié.
+- `openclaw-digest-gitops-test` : 3/3 PASS.
+- `openclaw-cron-parent-test` : 4/4 PASS ;
+  `openclaw-cron-parent-check` : catalogue de 21 entrées,
+  `hasMore=false`, aucune session `agent:cron:main`.
+  Un test supplémentaire couvre ce catalogue exhaustif.
+
+Les corrections GitHub ont été enregistrées après ces tests :
+**leur nouvelle exécution locale n'est pas encore attestée**.
+
+### Environnement pytest local
+
+Ne pas installer pytest dans le Python `mise` global, ni
+solliciter les GitHub Actions pour ces contrôles. Si aucun Python
+local avec pytest n'est disponible :
+
+```bash
+python3 -m venv /tmp/nabla-pytest-venv
+/tmp/nabla-pytest-venv/bin/python -m pip install pytest
+NABLA_PYTEST_PYTHON=/tmp/nabla-pytest-venv/bin/python just litellm-workstation-auth-contracts
+NABLA_PYTEST_PYTHON=/tmp/nabla-pytest-venv/bin/python just truenas-openrag-startup-test
+```
+
+L'installation de pytest requiert un index Python disponible et
+une validation locale de la dépendance ; elle **ne change aucun
+conteneur ni service**. Les contrats stdlib n'ont pas besoin de pytest.
+Ne pas déclarer tous les tests `PASS` tant que les suites pytest
+n'ont pas été exécutées.
+
+### Sauvegardes HEARTBEAT — inventaire sans extraction
+
+L'opérateur a retrouvé le `HEARTBEAT.md` git-crypt dans le clone
+`nabla`, `~/.openclaw/workspace/HEARTBEAT.md.before-fix` et
+une archive ancienne `openclaw-2026-08-04_0220.tar.gz`.
+Les détails de restauration sont sous
+`apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md`.
+
+```bash
+just openclaw-heartbeat-copies-test
+just openclaw-heartbeat-copies-check
+```
+
+Le contrôle **ne lit aucun contenu**, n'inspecte pas le contenu
+tar et ne déchiffre aucune clé. Il retourne 2 lorsqu'un fichier
+présent est lisible par d'autres utilisateurs ou si aucune copie
+n'a été trouvée. Si l'archive n'est pas sous
+`~/openclaw-backups/`, lancer le script directement en passant
+`--archive /chemin/prive/existant`, sans afficher la liste du
+contenu de l'archive sur un canal public. Le mode archive
+`0644` précédemment observé nécessite une revue locale avant
+`chmod 600` par le propriétaire. Aucune permission n'a été modifiée.
+
 ## P1 — Migration non secrète de `nabla`
 
 Commande d'inventaire :
