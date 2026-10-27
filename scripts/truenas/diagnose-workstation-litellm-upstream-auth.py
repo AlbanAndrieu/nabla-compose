@@ -92,7 +92,7 @@ def discover_running_container() -> tuple[str, str | None, str | None]:
     return "selected", candidates[0][0], candidates[0][1]
 
 
-def inspect_docker_target(container_id: str = "litellm") -> str:
+def inspect_docker_target(container_id: str) -> str:
     """Only inspect container running state, not Docker Env or secret mounts."""
     try:
         result = subprocess.run(
@@ -112,7 +112,7 @@ def inspect_docker_target(container_id: str = "litellm") -> str:
     return "docker_inspect_unverified"
 
 
-def check_container(container_id: str = "litellm") -> dict:
+def check_container(container_id: str) -> dict:
     try:
         cp = subprocess.run(
             ["docker", "exec", container_id, "python3", "-c", PRESENCE_SCRIPT],
@@ -136,7 +136,7 @@ def check_container(container_id: str = "litellm") -> dict:
     return {"container": "observed", "key_presence": state}
 
 
-def check_sdk_version(container_id: str = "litellm") -> str:
+def check_sdk_version(container_id: str) -> str:
     """Fingerprint only the LiteLLM package version; never inspect credentials."""
     command = ["docker", "exec", container_id, "python3", "-c",
                "from importlib.metadata import version; print(version('litellm'))"]
