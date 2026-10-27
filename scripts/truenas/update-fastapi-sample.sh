@@ -138,6 +138,15 @@ verify_runtime_env_pair() {
 }
 
 step '1/6' 'Validate runtime secrets'
+# docker system prune can remove stopped staging containers and unused networks.
+# A clean build cannot guarantee restoration of a container that was pruned.
+if existing_container_state="$(run_docker inspect "${CONTAINER}" --format '{{.State.Status}}' 2>/dev/null)"; then
+    [[ "${existing_container_state}" == running ]] ||
+        summary_warn "FastAPI staging container is ${existing_container_state}; previous runtime is not confirmed running."
+else
+    summary_warn "FastAPI staging container not found; docker system prune may have removed it."
+fi
+
 verify_runtime_env_pair ".env"
 verify_runtime_env_pair ".env.secrets"
 
@@ -309,7 +318,8 @@ guard_dockerhub_base_build() {
         fi
         summary_warn "Operator explicitly overrides Docker Hub 429 cooldown (single build only)."
     fi
-    if run_docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
+    if [[ "${REFRESH_BASE_IMAGES}" == false ]] &&
+        run_docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
         summary_ok "Python Docker base image present in selected daemon cache"
     elif docker_client_config_present; then
         summary_warn "Python base image absent; Docker client config exists but authentication is NOT verified."
