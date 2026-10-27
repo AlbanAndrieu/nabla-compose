@@ -85,6 +85,39 @@ class PermissionRepairTests(unittest.TestCase):
             _, status = mod.reconcile(entries, apply=True)
             self.assertEqual(status, 2)
 
+    def test_legacy_parent_symlink_is_verified_before_chmod(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "real" / "nabla"
+            source.mkdir(parents=True)
+            alias = root / "checkout"
+            alias.symlink_to(source, target_is_directory=True)
+            entries = self.fixtures(source)
+            entries[0][1].chmod(0o644)
+            entries[1] = (entries[1][0], alias / "HEARTBEAT.md", entries[1][2])
+            entries[1][1].chmod(0o644)
+            entries[2][1].chmod(0o644)
+            report, status = mod.reconcile(entries, apply=True)
+            self.assertEqual(status, 0, report)
+            self.assertEqual(report["files_mode_updated"], 3)
+            self.assertEqual(stat.S_IMODE((source / "HEARTBEAT.md").stat().st_mode), 0o600)
+
+    def test_nonlegacy_parent_symlink_still_blocks_apply(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "real"
+            source.mkdir()
+            alias = root / "link"
+            alias.symlink_to(source, target_is_directory=True)
+            entries = self.fixtures(source)
+            entries[0][1].chmod(0o644)
+            entries[0] = (entries[0][0], alias / "HEARTBEAT.md.before-fix",
+                          entries[0][2])
+            report, status = mod.reconcile(entries, apply=True)
+            self.assertEqual(status, 2)
+            self.assertEqual(report["files_mode_updated"], 0)
+            self.assertEqual(stat.S_IMODE((source / "HEARTBEAT.md.before-fix").stat().st_mode), 0o644)
+
     def test_unexpected_owner_blocks_change(self):
         with tempfile.TemporaryDirectory() as td:
             entries = self.fixtures(Path(td))
