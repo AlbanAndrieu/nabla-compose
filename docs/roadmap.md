@@ -553,15 +553,33 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   6/6 terminé, FastAPI 1.25.0, 4/4 healthy, digest image cohérent,
   observateur et allowlist OK ; sous-module gitlink parent encore sur
   `441d0a7e`, sans commit automatique.
-- [ ] P0 IA : `GET /v1/models` via clé FastAPI retourne **LiteLLM 401**
-  (`litellm_model=not_verified`). Tester sans secrets la santé du proxy et
-  le format de la clé, puis vérifier dans LiteLLM la clé virtuelle dédiée
-  `fastapi-sample-staging`, son scope `fastapi-qwen`, sa validité en base et
-  son budget **8 USD à vie** avant tout re-provisionnement.
-  Ne pas utiliser la clé master ou IDE comme contournement.
-- [ ] Après autorisation LiteLLM, contrôler la présence de
-  `LITELLM_FASTAPI_WORKSTATION_API_KEY` côté TrueNAS LiteLLM, puis un
-  smoke d'inférence synthétique opt-in via Workstation `qwen`.
+- [x] Les **11 tests d'acceptation IA** passent sur TrueNAS.
+  `litellm_proxy_liveness=http_200`, `litellm_key=present`,
+  `litellm_key_format=sk_prefix`, mais `GET /v1/models` **HTTP 401**.
+- [x] Auth upstream TrueNAS vérifiée : service `litellm` running,
+  `LITELLM_FASTAPI_WORKSTATION_API_KEY=absent`,
+  `LITELLM_IDE_API_KEY=present` et liveliness workstation HTTP 200.
+  **Deux blocages indépendants** : clé consommateur refusée et clé de
+  relais absente. Aucun appel de modèle n'a été envoyé.
+- [x] Ajout dans la PR #289 de sondes lecture seule :
+  `check-fastapi-litellm-runtime-keys.py` (présence, permissions et
+  comparaison valeur-en-mémoire sans divulgation) et
+  `check-fastapi-litellm-sample-source.py` (source Vaultwarden
+  `nabla/prod/sample-litellm` sans lecture publiée).
+- [ ] Exécuter les tests locaux des deux nouveaux diagnostics ;
+  comparer la présence de chaque secret entre Vaultwarden, fichier canonique
+  et conteneur. **Attention : l'item `sample-litellm` est distinct du
+  fichier runtime `sample/.env.secrets` ; pas de remplacement aveugle.**
+- [ ] Vérifier dans la base LiteLLM TrueNAS la clé dédiée
+  `fastapi-sample-staging`, son scope `fastapi-qwen`, sa validité,
+  expiration et son budget **8 USD à vie** avant tout re-provisionnement.
+  Ne pas utiliser les clés master ou IDE comme contournement.
+- [ ] Restaurer uniquement la clé dédiée upstream
+  `LITELLM_FASTAPI_WORKSTATION_API_KEY` après vérification de sa source ;
+  prévoir si nécessaire un redéploiement ciblé de LiteLLM TrueNAS
+  **après** revue, sans toucher à FastAPI/Ollama/OpenRAG.
+- [ ] Une fois les deux clés autorisées, un seul smoke d'inférence
+  synthétique opt-in vers workstation `qwen`.
 - [x] Connectivité observée depuis le conteneur FastAPI : Ollama
   HTTP 200 ; OpenRAG backend et frontend HTTP 200 ; MCP HTTP 406
   (transport, pas authentification). Prometheus/Gatus `gatus_up=1`,
