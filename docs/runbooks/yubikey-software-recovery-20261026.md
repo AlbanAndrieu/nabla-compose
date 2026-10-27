@@ -974,3 +974,88 @@ post-copie ont été ajoutés dans #289. Ils doivent encore être
 exécutés sur la workstation ; ne pas les compter comme PASS
 avant de recevoir leurs résultats. Aucune action de restauration
 ni de changement de secret n'a été effectuée par cet outil.
+
+## Validation post-copie indépendante — résultat workstation et gate ACL TrueNAS (27/10/2026)
+
+**Nouvelles preuves workstation sur PR #289 :**
+`just yubikey-escrow-postcopy-test` **10/10 PASS** ;
+`just yubikey-escrow-postcopy-check` :
+`PAIR_METADATA_READY_ACL_UNVERIFIED`,
+`posix_0600_verified=true`, sans lire de contenu.
+Le `just yubikey-escrow-postcopy-verify`, avec acquittement
+explicite, a renvoyé :
+
+- `state=POSTCOPY_CIPHERTEXT_AND_SERVER_VISIBLE_ACL_UNVERIFIED`
+- `ciphertext_identical=true` ;
+- `server_state=SERVER_EXPECTED_COPY_REGULAR_NONEMPTY`,
+  `server_visibility_verified=true` ;
+- `posix_0600_verified=true` ;
+- `nfs4_acl_verified=false`, `restore_verified=false`,
+  `independent_recovery_verified=false`, `status=NO-GO`.
+
+**Jalon DONE :** le fichier chiffré a été copié vers NFS,
+la relecture binaire sur deux systèmes de fichiers a réussi et
+TrueNAS voit le fichier correspondant. Aucun troisième fichier
+ni nouvelle identité age n'a été créé. **Ne pas relancer `--copy`.**
+
+### Nouveau gate ACL natif TrueNAS : audit sans exposition des ACE
+
+La méthode de lecture seule
+`filesystem.getacl` de TrueNAS retourne le type d'ACL (`NFS4`,
+`POSIX1E` ou `DISABLED`), le caractère trivial et les ACE.
+Le script `scripts/workstation/inspect-yubikey-escrow-truenas-acl.py`
+appelle `midclt call filesystem.getacl` **directement sur TrueNAS**
+via le SSH préalablement configuré, sans `sudo`.
+Il ne publie **aucune ACE brute**, identité d'utilisateur ou groupe,
+nom d'archive, chemin, permission détaillée ou sortie d'erreur.
+
+Source : [documentation de l'API TrueNAS 25.10, `filesystem.getacl`](https://api.truenas.com/v25.10/api_methods_filesystem.getacl.html).
+
+```bash
+# Tests synthétiques ; aucune connexion TrueNAS :
+just yubikey-escrow-acl-test
+
+# Précontrôle montage/source locale, sans ouvrir les archives ni SSH :
+just yubikey-escrow-acl-check
+
+# Inventaire ACL natif côté serveur via SSH, en lecture seule :
+just yubikey-escrow-acl-probe
+```
+
+Le résultat se limite à `acltype`, `trivial`, `ace_count`
+et `potential_nonowner_read_allow_count`, avec états bornés :
+
+| État | Signification et suite |
+| --- | --- |
+| `ACL_NATIVE_REVIEW_REQUIRED` | ACL NFS4 lisible ; aucune règle non-propriétaire avec lecture de données repérée par ce filtre simple ; **pas une preuve d'absence d'accès indirect** |
+| `ACL_POTENTIAL_NONOWNER_DATA_ALLOW` | Au moins une ACE `ALLOW` non-propriétaire candidate donne potentiellement lecture ; demander une revue ACL avec ordre, DENY et héritage |
+| `ACL_TYPE_NOT_NFS4` | ACL non NFS4 ; analyser le type effectivement configuré sur le dataset |
+| `ACL_READ_UNAVAILABLE` / `SSH_ACL_UNAVAILABLE` | Méthode/permissions/SSH non accessibles, aucune conclusion ACL |
+| `ACL_RESPONSE_UNVERIFIED` | Structure renvoyée inattendue, refus de conclure |
+
+Le compteur d'ACE candidates **n'est pas un calcul d'accès effectif**.
+Il ne résout pas les DENY, l'héritage complet, les ACL de répertoire,
+les comptes ou les droits du serveur NFS.
+Même si la collecte réussit, l'outil retourne toujours
+`nfs4_acl_verified=false`, `restore_verified=false`,
+`status=NO-GO`. La conformité ACL doit être évaluée
+manuellement à partir de la politique du dataset et des identités
+autorisées ; les détails ne doivent pas être copiés dans la PR.
+
+**Qualité :** dix tests hermétiques ajoutés, dont des exemples
+synthétiques d'ACL NFS4 avec `owner@` et `everyone@`.
+Ces nouveaux contrats et la sonde réelle sur workstation sont
+encore **NOT_RUN**. Aucune mutation TrueNAS, chmod distant,
+écriture NFS, lecture du contenu age ou opération YubiKey
+n'est prévue.
+
+### Prochaine clôture
+
+1. Vérifier les ACL réelles du fichier et du répertoire, puis
+   confirmer les identités NFS autorisées.
+2. Préparer une restauration age/SOPS avec une procédure
+   supervisée et un espace isolé, sans afficher la clé privée.
+3. Démontrer un accès de récupération indépendant avant PIV82.
+
+Aucune écriture PIV82/PIV9A/OTP2, ni changement de destinataire
+SOPS. KeePassXC reste reporté.
