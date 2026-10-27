@@ -2027,3 +2027,73 @@ si une cause autre qu'une permission user-owned reste non résolue.
 Le premier démarrage 2026.10.7 peut toujours provoquer une migration
 SQLite/plugin non automatiquement réversible. Les tests ajoutés
 ne sont **pas encore validés sur la Workstation** au nouveau HEAD.
+
+
+## 27 octobre 2026 — Reprise du 429 OpenClaw dans PR #289
+
+**Périmètre :** la migration OpenClaw 2026.10.7 et ses bases SQLite
+ont été réparées avec \`openclaw doctor --fix\`.
+Preuves Workstation : service \`active/running\`, Node mise 24.22.1,
+\`/healthz=200\`, \`/startupz=200\`, \`/readyz=200\`, UI \`/=200\`.
+L'utilisateur ouvre l'interface et voit
+\`API rate limit reached. Please try again later.\`.
+La requête directe \`curl\` vers \`/chat/main\` renvoie 404, même
+avec \`Accept: text/html\`. **Cette divergence ne constitue pas
+une panne HTTP du Gateway** puisque le chat s'ouvre dans le navigateur.
+Le 429 n'est pas encore attribué.
+
+La PR #285 est fermée. Les deux fichiers non intégrés à \`master\`
+(\`diagnose-openclaw-model-cooldowns.py\` et
+\`test_openclaw_model_cooldowns.py\`) sont repris sur **PR #289**.
+Les diagnostics historiques LiteLLM et la cartographie de routage
+sont conservés. Aucun changement n'est apporté aux travaux Nexus,
+DefectDojo et YubiKey contenus dans cette PR.
+
+### Exécution locale en lecture seule
+
+\`\`\`bash
+cd ~/w/nabla-compose
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+WT="$(mktemp -d /tmp/nabla-openclaw-pr289.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+cd "$WT"
+just openclaw-429-triage-test
+just openclaw-429-triage-no-admin
+\`\`\`
+
+Si le master key LiteLLM est déjà disponible dans un environnement
+sûr, exécuter ensuite \`just openclaw-429-triage\` pour les
+métadonnées \`/key/info\` sur **127.0.0.1:4000 uniquement**.
+Ne pas imprimer la clé, ni appeler \`/v1/chat/completions\`,
+\`embeddings\` ou \`models status --probe\`.
+
+**Lecture des résultats** :
+
+- \`main_auth_cooldown_attribution=has_rate_limit\` : au moins un
+  profil du \`main\` est signalé inutilisable pour cause de quota ou
+  de cooldown. Cela n'identifie pas à lui seul le fournisseur.
+- \`main_key_budget_state=exhausted\` : épuisement du budget
+  de la clé LiteLLM vérifiée par l'API admin.
+  \`below_cap\` **n'exclut pas** RPM, TPM, équipe, modèle ou
+  fournisseur amont.
+- \`main_gateway_effective_identity=unverified\` : il ne faut
+  pas confondre la clé exportée par le shell avec la clé
+  réellement utilisée par le Gateway systemd.
+- \`http_429_origin=unverified_requires_failed_request_metadata\` :
+  le code effectif de la requête échouée reste nécessaire pour
+  attribuer sans ambiguïté le 429 à OpenClaw, LiteLLM ou upstream.
+
+**Interdictions de diagnostic** : ne pas relancer \`openclaw update\`
+ou \`doctor --fix\`, ne pas redémarrer le service, ne pas augmenter
+arbitrairement RPM/TPM/budget, ne pas effacer les profils de cooldown,
+ne pas recopier les secrets en clair et ne pas générer d'appels LLM
+payants pour tester une hypothèse.
+
+**Done P1 :** classer la couche responsable du 429 avec une preuve
+non sensible (état cooldown, identité effective, métadonnées quotas
+et/ou extrait structuré du statut de la requête échouée), puis
+appliquer uniquement le correctif correspondant. Le Gateway HTTP
+sain constitue une étape déjà validée et ne doit pas être remis
+en cause sur la base du \`404\` curl du deep link.
