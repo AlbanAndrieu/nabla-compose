@@ -515,7 +515,13 @@ openclaw-nabla-migration-check:
 
 # Classify only the known auth error; never disable LiteLLM model authentication.
 litellm-workstation-auth-contracts:
+    python3 -m py_compile scripts/truenas/diagnose-workstation-litellm-upstream-auth.py tests/test_workstation_litellm_upstream_auth_preflight.py
     python3 -m pytest -q tests/test_litellm_dashboard_auth_failure.py tests/test_openrag_litellm_nonbillable_probe_contract.py
+    python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
+
+# TrueNAS-only: no model calls or secret output, no service restart.
+litellm-workstation-upstream-auth-check:
+    sudo python3 scripts/truenas/diagnose-workstation-litellm-upstream-auth.py --check
 
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
