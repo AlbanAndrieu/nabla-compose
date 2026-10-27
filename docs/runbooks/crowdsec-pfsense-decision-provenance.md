@@ -9,6 +9,17 @@
 - LAPI centrale TrueNAS : `172.17.0.24:8084`; bouncer pfSense actif,
   authentifié (HTTP 200), moteur CrowdSec local pfSense arrêté.
 - Dernier diagnostic central : **0 décision active**.
+- Bouncer pfSense observé dans `cscli bouncers list` :
+  `PFSENSE_FIREWALL@172.17.0.1`, IP `172.17.0.1`, type
+  `crowdsec-firewall-bouncer`, `last_pull=2026-10-27T22:35:27Z`.
+  C'est distinct de `PFSENSE_FIREWALL` (appel `curl` TrueNAS
+  `172.17.0.24`, `last_pull=21:46:28Z`) et de l'ancien
+  `pfsense-firewall` (dernier appel le 25 septembre).
+  L'identité observée prouve un accès LAPI attribuable à pfSense
+  selon l'IP et le User-Agent, **sans prouver une application PF**.
+- La nouvelle réception `--accept` contrôle strictement ces métadonnées
+  sur l'enregistrement suffixé, sans mutation, plutôt que d'attribuer le
+  `last_pull` du client `curl` à pfSense.
 - Les tables `crowdsec_blacklists` et `crowdsec6_blacklists` contiennent
   des milliers d'entrées historiques. Leur présence, leur variation
   (4 085 puis 4 074) et un `last_pull` ne prouvent pas qu'une décision
