@@ -180,7 +180,8 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "nc -z -w 3",
             "legacy local LAPI",
             'sub(/^[^:]*:[[:space:]]*/, "", line)',
-            'gsub(/^["\\\\047]|["\\\\047]$/, "", line)',
+            'single=sprintf("%c",39)',
+            'if (length(line) >= 2 && first == last',
         ):
             self.assertIn(expected, text)
 
