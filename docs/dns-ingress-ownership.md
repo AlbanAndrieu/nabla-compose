@@ -1,5 +1,15 @@
 # DNS and ingress ownership
 
+> **Conflit de politique S3 constaté le 27 octobre 2026 :**
+> `config/public-int-dns-exceptions.txt` classe `s3.int.albandrieu.com`
+> comme interne, alors que la présente architecture et
+> `apps/garage/compose.yml` décrivent encore un accès WAN direct.
+> Cette divergence **n'est pas résolue** et ne doit pas être
+> considérée comme une exception approuvée. Consulter
+> [l'audit d'exposition multi-couche](runbooks/pfsense-ingress-exposure-policy.md)
+> et `config/ingress-access-policy.json` avant toute publication,
+> suppression de DNS ou modification HAProxy/PF/Traefik.
+
 This document separates DNS publication from request routing. A DNS component
 decides **where a hostname resolves**. HAProxy and Traefik decide **what happens
 after a client has connected**; they do not publish DNS records.
