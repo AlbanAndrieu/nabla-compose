@@ -918,11 +918,28 @@ acl nexus var(txn.txnhost) -m reg -i ^nexus\.int\.albandrieu\.com(:[0-9]{1,5})?$
 http-request deny deny_status 403 if nexus aclcrt_main_Web_HTTPS
 ```
 
-**Statut : `OPERATOR_RULE_REPORTED / EFFECTIVE_DENY_NOT_VERIFIED`.**
-La règle est signalée comme ajoutée dans pfSense, mais nous n'avons
-pas encore la preuve que le paquet l'a régénérée et chargée ni
-l'ordre réel des directives HTTP. Ne pas considérer cette
-déclaration comme une réception WAN.
+**Réception 27/10 : `LAN_HAIRPIN_DENY_OBSERVED / WAN_REJECTION_NOT_VERIFIED`.**
+Le relevé *effectivement généré* pour `main_Web_HTTPS` a confirmé :
+
+```text
+line=89  acl nexus var(txn.txnhost) -m reg -i ^nexus\.int\.albandrieu\.com(:[0-9]{1,5})?$
+line=94  aclcrt_main_Web_HTTPS ... nom *.int.albandrieu.com
+line=96  http-request set-var(txn.txnhost) hdr(host)
+line=117 http-request deny deny_status 403 if nexus aclcrt_main_Web_HTTPS
+edge_http=403 tls=0
+```
+
+La variable `txn.txnhost` est initialisée **avant** le refus.
+Le passage observé de **404 à 403** sur le chemin
+`workstation LAN → 82.66.4.247:443` est cohérent avec
+l'application de la règle. Le test reste toutefois une requête
+**émise depuis le LAN** (NAT reflection possible). L'extrait
+et le code HTTP ne prouvent ni la provenance du 403 par les logs,
+ni le rejet effectif d'une source WAN indépendante.
+
+**Conclusion :** réception **du chemin LAN vers le frontend : PASS**.
+Preuve d'isolation WAN : **NON VÉRIFIÉE** ; ne pas activer
+`traefik.enable=true` sur cette seule base.
 
 La condition `if nexus aclcrt_main_Web_HTTPS` est une
 **conjonction** : toutes les ACL doivent correspondre.
