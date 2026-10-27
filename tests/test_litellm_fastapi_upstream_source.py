@@ -3,6 +3,8 @@ import contextlib
 import importlib.util
 import io
 import os
+import json
+import subprocess
 from pathlib import Path
 import sys
 import types
@@ -111,6 +113,24 @@ class FastApiUpstreamSourceTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(mod.main(["--check"]), 2)
         self.assertIn('"field_state": "field_absent"', out.getvalue())
+
+
+    def test_missing_jsonschema_returns_dependency_class_without_traceback(self):
+        env = dict(os.environ)
+        env["BW_SESSION"] = "SYNTHETIC-SESSION-NO-NETWORK"
+        # -S disables site-packages so the import cannot see jsonschema.
+        result = subprocess.run(
+            [sys.executable, "-S", str(SRC), "--check"],
+            env=env, capture_output=True, text=True, timeout=5, check=False
+        )
+        self.assertEqual(result.returncode, 2)
+        data = json.loads(result.stdout)
+        self.assertEqual(data["field_state"], "python_dependency_unavailable")
+        self.assertEqual(data["service_runtime_mutated"], False)
+        self.assertEqual(data["secret_values_printed"], False)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertNotIn("SYNTHETIC-SESSION-NO-NETWORK", result.stdout)
+        self.assertNotIn("SYNTHETIC-SESSION-NO-NETWORK", result.stderr)
 
     def test_secret_provider_exception_is_redacted(self):
         with patch.object(mod, "check", side_effect=mod.SecretsError(
