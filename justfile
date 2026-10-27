@@ -518,6 +518,18 @@ openclaw-digest-top-check:
 openclaw-digest-gitops-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
 
+# Native cron-agent session cleanup; report is redacted, no direct SQLite edits.
+openclaw-cron-session-maintenance-test:
+    python3 -m py_compile scripts/workstation/openclaw-cron-session-maintenance.py tests/test_openclaw_cron_session_maintenance.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_session_maintenance.py' -v
+
+openclaw-cron-session-maintenance-check:
+    python3 scripts/workstation/openclaw-cron-session-maintenance.py --check
+
+# Opt-in, native Gateway maintenance; only agent 'cron', not the main agent.
+openclaw-cron-session-maintenance-apply:
+    python3 scripts/workstation/openclaw-cron-session-maintenance.py --apply
+
 # Read-only cron-parent session catalog: no transcript output or SQLite mutation.
 openclaw-cron-parent-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-cron-parent.py tests/test_openclaw_cron_parent.py
