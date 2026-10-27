@@ -807,17 +807,20 @@ effectuée par cette exécution.
 ### Durcissement du fichier NFS temporaire
 
 Le programme `create-yubikey-escrow-nfs-copy.py` exige désormais,
-**avant de publier le nom final**, `os.fchmod(stage_fd, 0o600)`
-et une vérification via `os.fstat` :
+**avant toute écriture des octets chiffrés**, `os.fchmod(stage_fd, 0o600)`
+et une vérification via `os.fstat`. Une deuxième vérification est
+effectuée **après l'écriture, avant de publier le nom final** :
 
 - fichier temporaire régulier appartenant à l'utilisateur ;
-- mode POSIX strictement `0600` ;
-- un seul lien matériel et une taille égale à la source ;
+- mode POSIX strictement `0600` à chaque étape ;
+- un seul lien matériel et une taille initialement nulle ;
+- taille finale égale à celle de la source ;
 - si ce contrôle échoue, aucune destination finale n'est publiée.
 
-Deux tests supplémentaires couvrent l'échec de `fchmod`
-et les permissions temporaires non conformes.
-La suite étendue compte **11 tests**, mais son exécution sur
+Trois tests supplémentaires couvrent l'échec de `fchmod`,
+les permissions temporaires non conformes et l'ordre des opérations
+(`chmod` avant le premier `write`).
+La suite étendue compte **12 tests**, mais son exécution sur
 workstation est encore `NOT_RUN` pour ces changements.
 
 **Limite :** NFSv4 peut comporter des ACL additionnelles ;
