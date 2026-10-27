@@ -14,14 +14,28 @@ Les sections qui suivent détaillent les incidents et procédures
 | LAPI TrueNAS | CrowdSec 1.8.1 RUNNING/healthy sur `172.17.0.24:8084` |
 | Fichier clé `BOUNCER_KEY_PFSENSE_FIREWALL` | Présent en `0600` |
 | Authentification candidate | `central_candidate_auth=ACCEPTED` |
-| TrueNAS `diagnose-crowdsec-cutover.sh --accept` (ancien script) | **0 échec, 2 warnings** : 0 décision centrale et enregistrement de base `curl` non probant |
+| TrueNAS `diagnose-crowdsec-cutover.sh --accept` (27/10, 23:12 UTC) | **0 erreur / 2 warnings** ; provenance pfSense **LAN_IP_AND_FIREWALL_USER_AGENT_OBSERVED** |
 | Enregistrement de base | `PFSENSE_FIREWALL`, `172.17.0.24`, client `curl`, `last_pull=21:46:28Z` : **sonde locale TrueNAS seulement** |
-| Enregistrement bouncer réel | `PFSENSE_FIREWALL@172.17.0.1`, source `172.17.0.1`, type `crowdsec-firewall-bouncer`, `last_pull=22:35:27Z` : **lecture LAPI pfSense attestée par métadonnées** |
+| Enregistrement bouncer réel | `PFSENSE_FIREWALL@172.17.0.1`, IP `172.17.0.1`, type `crowdsec-firewall-bouncer`, `last_pull=2026-10-27T23:12:07Z` : **lecture LAPI pfSense attestée** |
 | Moteur CrowdSec local pfSense | Absent |
 | Firewall bouncer | En cours, `api_url=http://172.17.0.24:8084` |
 | `just crowdsec-pfsense-accept` | **0 échec / 0 warning** |
 | Tables PF | **4 074** entrées au dernier contrôle workstation (4 022 IPv4 + 52 IPv6), provenance des règles **non établie** |
 | Authentification bouncer pfSense → LAPI | `central_lapi_http=200`, `central_lapi_auth=ACCEPTED` |
+
+**Gate local CrowdSec — correction du 28/10 :** 5/5 tests URL et
+11/11 tests d'authentification passent désormais directement sur TrueNAS.
+La suite du provisionneur avait encore 2 échecs sur 4 à cause du faux
+exécutable `docker` lancé via `timeout` dans un dossier temporaire ;
+cela n'indique aucune panne du conteneur en production.
+Les tests simulent maintenant **`docker` et `timeout` par des fonctions
+Bash** chargées dans le même interpréteur, sans mutation, sans Docker
+réel et sans exécutable dans `/tmp`. Une reproduction isolée confirme
+les trois parcours de vérification `--check` : inscription inutilisée,
+inscription utilisée (refus de rotation) et secret déjà présent.
+**La recette Just entière sur le nouveau HEAD reste à confirmer.**
+L'opération `--apply` n'est ni nécessaire ni autorisée par ce diagnostic ;
+le secret existant doit être conservé.
 
 **Statut : SMALL_BOUNCER_CUTOVER_PASS.** Cela valide la connectivité,
 l'authentification et l'état du bouncer, sans attribuer les
