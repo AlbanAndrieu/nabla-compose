@@ -1129,3 +1129,91 @@ indépendantes.
 **NO-GO maintenu** pour validation de restauration réelle,
 provisionnement PIV82, modification des destinataires SOPS,
 PIV9A, OTP2 ; KeePassXC demeure reporté.
+
+## Preflight de restauration réelle — outils présents et inspection age limitée (27/10/2026)
+
+**Dernière preuve opérateur sur workstation :**
+
+```
+just yubikey-software-recovery-check
+state=SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED
+synthetic_software_roundtrip_verified=false
+real_escrow_restoration_verified=false
+piv82_decrypt_verified=false
+status=NO-GO
+```
+
+Cela **prouve seulement** que `age`, `age-keygen` et
+`sops` sont disponibles à l'emplacement attendu par le
+script. Cette invocation n'a exécuté ni roundtrip logiciel
+synthétique ni déchiffrement de l'archive réelle.
+Un précédent roundtrip synthétique PASS reste une preuve distincte
+et historique, **pas** une restauration du secret utilisateur.
+
+### Classifier sans déchiffrer les stanzas age
+
+La spécification `age-encryption.org/v1` dispose d'un en-tête
+texte avec stanzas de destinataires avant le contenu chiffré.
+Le nouveau `scripts/workstation/inspect-yubikey-escrow-age-header.py`
+examine uniquement ce type d'en-tête. Il ne doit pas être
+interprété comme validant son MAC, l'identité effective ou
+la récupération du contenu.
+Source : https://c2sp.org/age@main
+
+```bash
+# Dans un worktree à jour de PR #289 :
+just yubikey-escrow-age-header-test
+just yubikey-escrow-age-header-check
+
+# Lecture optionnelle de 8 Kio maximum de ciphertext, aucun déchiffrement :
+just yubikey-escrow-age-header-inspect
+```
+
+Le contrôle `--check` inspecte **uniquement les métadonnées**
+de l'archive locale et du montage NFS connu. Le mode
+`--inspect` exige l'acquittement
+`INSPECT_EXISTING_ENCRYPTED_AGE_HEADER_ONLY`, puis réutilise
+`secure_open` (propriétaire local, fichier régulier 0600
+ou plus restrictif, absence de lien symbolique, métadonnées stables).
+Il lit au plus **8 192 octets** depuis l'archive locale,
+sans copie, écriture ou déchiffrement.
+
+Les sorties ne contiennent **aucun identifiant de destinataire,
+sel scrypt, argument de stanza, nom de fichier, chemin,
+contenu d'en-tête brut ou donnée chiffrée**.
+Elles peuvent inclure ces seuls états/familles :
+
+| `recipient_family_hint` | Interprétation limitée |
+| --- | --- |
+| `PASSPHRASE_SCRYPT` | En-tête suggérant une archive chiffrée avec une phrase secrète |
+| `X25519_IDENTITY` | En-tête suggérant une identité age X25519 |
+| `SSH_IDENTITY` | En-tête suggérant un destinataire SSH |
+| `PLUGIN_OR_OTHER_IDENTITY` | Stanza spécialisée ou inconnue : ne pas supposer qu'une YubiKey est nécessaire |
+| `MIXED_OR_MULTIPLE_METHODS` | Plusieurs catégories de destinataires : déterminer les exigences hors logs |
+| `null` | En-tête non identifié, incomplet ou armuré non analysé |
+
+**État attendu pour un fichier v1 binaire reconnu** :
+`AGE_V1_HEADER_TYPE_HINT_ONLY`. Un fichier armuré est
+signalé `ARMORED_AGE_UNINSPECTED`, sans décodage.
+`status=NO-GO`, `recovery_method_verified=false` et
+`real_escrow_restoration_verified=false` restent toujours
+maintenus : le contrôle d'en-tête n'effectue **aucune authentification
+cryptographique** du MAC ni aucune récupération.
+
+**Qualité : 13/13 tests synthétiques PASS en environnement agent**,
+dont scrypt, X25519, SSH/multiple, plugin inconnu, en-tête
+incomplet/armuré, présence d'un seul fichier, permissions,
+acquittement, lecture bornée et absence de données privées en
+sortie. Les deux blobs GitHub correspondent aux fichiers
+testés localement. Exécution sur archive réelle workstation :
+**NOT_RUN** à la publication.
+
+**Étape suivante :** selon l'indication de famille, identifier
+**en privé** l'identité, le plugin ou la passphrase réellement
+disponible. La prochaine preuve de restauration doit disposer
+d'une autorisation spécifique, d'un support temporaire local
+`0700`/`umask 077`, d'une sortie déchiffrée dans un
+fichier protégé, et d'un nettoyage sous supervision.
+Ne jamais publier de plaintext, de clé age ou de passphrase.
+Ne pas modifier les originaux, les destinataires SOPS,
+les slots YubiKey ou l'escrow NFS existant.
