@@ -6,6 +6,28 @@ L'ancien build du SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742` a écho
 
 Pas d'accès d'exécution SSH/TrueNAS depuis la PR GitHub. Le déploiement doit être lancé par l'opérateur dans le checkout canonique ; **ne pas déployer depuis un worktree temporaire**, car l'outil TrueNAS attache le chemin absolu du fichier Compose.
 
+## Retour TrueNAS du 27/10 — build 3/6 en cours et validation IA corrigée
+
+Preuves issues de la dernière sortie opérateur : réseaux `intranet` et `traefik_network` présents ; branche Compose mise à jour en avance rapide ; sous-module `fastapi-sample` marqué `M` après changement de SHA par l'upgrade (ne pas faire de `git reset --hard` pour « nettoyer ») ; le processus d'upgrade a atteint **3/6, image Python en cache**, puis l'opérateur a indiqué « en cours ». **La réussite du build, des étapes 4–6 et du runtime n'est pas encore prouvée.** Ne pas lancer un second upgrade et ne pas modifier le checkout canonique pendant cette construction.
+
+Test `python3 -m unittest discover -s tests -p 'test_fastapi_ai_connectivity_acceptance.py' -v` sur le précédent checkout : 9 méthodes, **4 FAIL / 1 ERROR**, les autres passent. Causes établies :
+- Le validateur `inspect()` faisait `data[key] not in STATE_CODES` sans contrôle de type. Un JSON imbriqué à la place d'une chaîne provoquait `TypeError: unhashable type: 'dict'`. **Correctif Git :** exiger `isinstance(data[key], str)` avant toute recherche dans `STATE_CODES`.
+- Les tests interdisaient la sous-chaîne `secret`, alors que le champ de sortie fixe `raw_secrets_printed=false` contient légitimement ce mot. **Correctif Git :** vérifier le rapport de repli fixe exact et l'absence de la valeur canari `secret-in-stderr`.
+
+Les correctifs sont publiés sur la PR #289 en `[skip ci]`. Leurs **tests complets sur TrueNAS restent à rejouer**, après la fin du processus d'upgrade actuel. Exécuter la recette de tests ci-dessous dans un *worktree isolé*. Le script en cours peut encore utiliser l'ancien code d'audit IA et générer un warning non bloquant à l'étape 6/6. **Ne pas confondre un warning IA avec un échec du build, et ne pas annoncer LiteLLM/OpenRAG opérationnels sans sortie du rapport.**
+
+Après terminaison de l'upgrade, contrôles lecture seule :
+
+```bash
+sudo docker inspect fastapi-sample \
+  --format 'state={{.State.Status}} image={{.Image}}'
+curl -sS -o /dev/null -w 'health_http=%{http_code}\n' \
+  --connect-timeout 2 --max-time 7 http://127.0.0.1:8091/health
+sudo midclt call app.query '[["id","=","sample"]]' | jq -c '[.[] | {id,state}]'
+```
+
+Si l'upgrade est terminé, si les contrôles sont bons et **seulement après validation des tests mis à jour**, exécuter l'audit `sudo python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check` depuis le checkout canonique synchronisé. Ne pas déclencher `--inference-smoke` automatiquement.
+
 ## Préflight lecture seule
 
 ```bash
