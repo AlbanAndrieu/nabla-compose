@@ -102,6 +102,75 @@ dans les sorties. Le script de restauration ne dépend pas de l'USB.
 - Aucune restauration d'un document SOPS de production, ni simulation de
   perte de workstation/NFS, n'a été effectuée dans cette séquence.
 
+## Contrôle suivant — phrase secrète indépendante et ACL NFS4
+
+### Phrase secrète — attestation humaine, sans saisir de secret
+
+**État : À ATTESTER.** Les restaurations prouvent que la phrase secrète
+était disponible pendant la vérification, **pas** qu'elle survivra à la perte
+de la SanDisk, de la workstation ou de TrueNAS.
+
+Contrôles à confirmer localement, sans afficher de valeur ni nom de coffre :
+
+1. La phrase secrète `age -p` est enregistrée **hors de la SanDisk**.
+2. L'accès au stockage de cette phrase ne dépend ni de la clé privée
+   sauvegardée, ni de la workstation, ni du LUKS de la SanDisk.
+3. Une panne du NAS TrueNAS n'empêche pas **à elle seule** d'accéder à la
+   phrase : un Vaultwarden hébergé uniquement sur ce TrueNAS ne garantit
+   pas l'indépendance recherchée.
+4. Une consultation depuis un support indépendant a effectivement été
+   testée, sans copier la valeur dans des logs, GitHub ou ChatGPT.
+
+**Seule confirmation exploitable dans la PR :** quatre booléens
+`true/false` et la date du contrôle ; aucune phrase secrète, identifiant,
+URL de coffre ou emplacement physique.
+
+### ACL NFS4 — inventaire en lecture seule de la nouvelle archive
+
+La précédente recette `yubikey-escrow-acl-probe` porte sur **l'ancienne**
+archive à la racine du partage NFS. Pour **la nouvelle** archive
+`usb-recovery-identity-*.age`, utiliser :
+
+```bash
+# Aucun USB requis. 11 tests hermétiques locaux, sans SSH.
+just yubikey-usb-identity-nfs4-acl-test
+
+# Vérifie le montage NFS et les deux fichiers chiffrés par métadonnées.
+just yubikey-usb-identity-nfs4-acl-check
+
+# Opt-in en lecture seule : SSH existant + TrueNAS filesystem.getacl.
+just yubikey-usb-identity-nfs4-acl-probe
+```
+
+Le programme parcourt **quatre niveaux fixes** sur TrueNAS :
+`nfs_export`, `secret_directory`, `backup_directory`,
+`encrypted_archive`. Pour chacun : type d'ACL, bit `trivial`,
+nombre d'ACE et nombre d'autorisations **non propriétaires
+potentielles** (sans révéler les identités des principaux ou les ACE).
+
+- `NFS4_REVIEW_REQUIRED` : métadonnées NFS4 valides, aucun
+  `ALLOW` non propriétaire détecté par l'heuristique ; il faut
+  quand même une revue effective.
+- `POTENTIAL_NONOWNER_ALLOW` : un droit de lecture/traversée
+  non propriétaire potentiel a été détecté ; **ne pas modifier
+  automatiquement** les ACL.
+- `NON_NFS4_ACL`, `ACL_SCHEMA_UNVERIFIED`,
+  `ACL_READ_UNAVAILABLE` et `UNTRUSTED_PATH` :
+  constat insuffisant, arrêt en échec contrôlé.
+
+Même avec code retour 0, `status=REVIEW_REQUIRED` et
+`effective_nfs4_authorization_verified=false` : pour une
+**preuve effective**, il faut corréler l'identité NFS réelle,
+les groupes, l'ordre `ALLOW` / `DENY`, les chemins traversés
+et, si autorisé, un test d'accès négatif avec identité de test
+dédiée. Cette sonde ne réalise aucun test d'accès, ne lit aucune
+archive et ne contacte pas le support USB.
+
+**État réel TrueNAS : NOT_RUN** jusqu'à réception de la sortie
+du contrôle opérateur. Aucun `chmod`, `chown`, `setacl`,
+`midclt filesystem.setacl`, modification ZFS ou restauration
+de secret ne fait partie de cette étape.
+
 **Ne pas relancer `--backup` :** les archives existent et le script refuse
 de les écraser. Garder `--copy`, la rotation SOPS, OTP2 et PIV9A/PIV82
 hors périmètre. PR #289 toujours sans automerge.
