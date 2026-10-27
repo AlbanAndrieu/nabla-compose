@@ -27,6 +27,47 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def failure_class(returncode: int, stderr: bytes) -> str:
+    """Classify Docker failures with fixed labels; never expose raw stderr."""
+    if len(stderr) > 16384:
+        return "stderr_oversized"
+    message = stderr.decode("utf-8", errors="replace").lower()
+    if "permission denied" in message or "access is denied" in message:
+        return "docker_permission_denied"
+    if "cannot connect to the docker daemon" in message or "daemon is not running" in message:
+        return "docker_daemon_unavailable"
+    if "no such container" in message or "no such object" in message:
+        return "container_not_found"
+    if "container" in message and "not running" in message:
+        return "container_not_running"
+    if ("executable file not found" in message or "exec: \\"python3\\"" in message
+            or "python3: not found" in message):
+        return "python3_missing_in_container"
+    if "syntaxerror" in message or "traceback (most recent call last)" in message:
+        return "probe_python_failed"
+    return "unexpected_stderr" if returncode == 0 else "docker_exec_failed"
+
+
+def inspect_docker_target() -> str:
+    """Only inspect container running state, not Docker Env or secret mounts."""
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--type", "container", "--format",
+             "{{.State.Status}}", "litellm"],
+            capture_output=True, check=False, timeout=8
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "docker_inspect_unavailable"
+    if result.returncode != 0:
+        return failure_class(result.returncode, result.stderr)
+    if result.stderr or len(result.stdout) > 64:
+        return "docker_inspect_unverified"
+    status = result.stdout.decode("ascii", errors="replace").strip()
+    if status in ("running", "exited", "restarting", "created", "paused", "dead", "removing"):
+        return status
+    return "docker_inspect_unverified"
+
+
 def check_container() -> dict:
     try:
         cp = subprocess.run(
@@ -35,8 +76,12 @@ def check_container() -> dict:
         )
     except (OSError, subprocess.TimeoutExpired):
         return {"container": "unavailable", "key_presence": "unverified"}
-    if cp.returncode != 0 or len(cp.stdout) > 512 or cp.stderr:
-        return {"container": "unavailable", "key_presence": "unverified"}
+    if cp.returncode != 0 or cp.stderr:
+        return {"container": "unavailable", "key_presence": "unverified",
+                "failure_class": failure_class(cp.returncode, cp.stderr)}
+    if len(cp.stdout) > 512:
+        return {"container": "unexpected_schema", "key_presence": "unverified",
+                "failure_class": "stdout_oversized"}
     lines = cp.stdout.decode("ascii", errors="replace").splitlines()
     expected = {name + "=present" for name in KEYS} | {name + "=absent" for name in KEYS}
     if len(lines) != len(KEYS) or any(line not in expected for line in lines):
@@ -97,6 +142,7 @@ def report() -> dict:
         "schema": "nabla-litellm-upstream-auth-preflight/v2",
         "proxy_target": "workstation_litellm",
         "truenas_litellm_env": container,
+        "truenas_docker_container_status": inspect_docker_target(),
         "truenas_upstream_key_state": classify_upstream_keys(container),
         "workstation_liveliness": check_liveliness(),
         "origin_of_previous_missing_key_event": "not_yet_attributed",
