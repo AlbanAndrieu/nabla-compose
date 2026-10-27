@@ -3,6 +3,103 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Incident de provisionnement et récupération des variables — 27 octobre
+
+**Relevé réel de l'opérateur :**
+
+```text
+central_registration=PFSENSE_FIREWALL last_pull=<none>
+credential_state=MISSING; unused registration eligible for --apply
+level=info msg="bouncer 'PFSENSE_FIREWALL' deleted successfully"
+ERROR: unexpected key format; no runtime file written
+central_candidate_auth=NO_GO_MISSING_SECRET_FILE
+```
+
+Le premier `--apply` a **supprimé** l'inscription inutilisée,
+puis `cscli bouncers add -o raw` a créé une nouvelle inscription,
+mais le parseur de sortie a rejeté la chaîne retournée.
+**Aucune clé n'a été enregistrée** dans
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`.
+La nouvelle clé aléatoire n'est pas récupérable par
+`cscli bouncers list` : cette sortie ne donne pas les secrets.
+Le bouncer pfSense reste connecté à sa **LAPI locale :8089**.
+
+### Variables existantes : ne pas confondre machines et bouncers
+
+| Nom | Utilisation |
+| --- | --- |
+| `CROWDSEC_LOCAL_API_PASSWORD` | Password du compte *machine* CrowdSec, pas une clé bouncer |
+| `CROWDSEC_BOUNCER_API_KEY` | Candidate bouncer centrale ; identifier sa source et tester son authentification |
+| `BOUNCER_KEY_TRAEFIK` | Identité de bouncer **Traefik** ; ne pas l'attribuer implicitement à pfSense |
+| `BOUNCER_KEY_PFSENSE_FIREWALL` | Nom canonique attendu par le Compose et l'audit pfSense |
+| `CROWDSEC_PFSENSE_BOUNCER_KEY` | Alias d'import Vaultwarden dans `config/secrets/manifest.json` |
+
+`CROWDSEC_BOUNCER_API_KEY` n'est **pas** automatiquement le
+nom reconnu par l'entrypoint CrowdSec pour enregistrer
+`PFSENSE_FIREWALL`. L'entrypoint attend
+`BOUNCER_KEY_<identité>`, ou une inscription créée
+par `cscli`. Cf. documentation de l'image officielle :
+https://github.com/crowdsecurity/crowdsec/blob/master/build/docker/README.md.
+
+Depuis la **session TrueNAS** qui possède ces variables :
+
+```bash
+# Vérifier la présence, sans afficher la valeur.
+for name in CROWDSEC_LOCAL_API_PASSWORD CROWDSEC_BOUNCER_API_KEY \
+            BOUNCER_KEY_TRAEFIK BOUNCER_KEY_PFSENSE_FIREWALL; do
+  if [ -n "${!name:-}" ]; then echo "$name=PRESENT";
+  else echo "$name=ABSENT"; fi
+done
+
+# Si la variable candidate existe déjà dans ta session, l'exporter
+# et la tester SANS sudo (sudo ne propage pas toujours l'environnement).
+export CROWDSEC_BOUNCER_API_KEY
+bash scripts/truenas/check-crowdsec-candidate-bouncer.sh \
+  --env CROWDSEC_BOUNCER_API_KEY
+
+# Inventaire des noms injectés dans le conteneur : aucun secret affiché.
+sudo docker inspect crowdsec --format '{{range .Config.Env}}{{println .}}{{end}}' |
+  awk -F= '$1 ~ /^(CROWDSEC_LOCAL_API_PASSWORD|CROWDSEC_BOUNCER_API_KEY|BOUNCER_KEY_TRAEFIK|BOUNCER_KEY_PFSENSE_FIREWALL)$/ {print $1 "=PRESENT"}'
+
+# Enregistrement des identités centrales (aucune clé divulguée).
+sudo docker exec crowdsec cscli bouncers list
+```
+
+`central_candidate_auth=ACCEPTED` signifie seulement **clé valide
+sur la LAPI centrale**, pas identité automatiquement reconnue
+comme `PFSENSE_FIREWALL` ; vérifier la registration avant
+d'envisager sa réutilisation. En particulier, ne pas recopier
+la clé Traefik dans pfSense sans décision explicite de partager
+cette identité.
+
+### Correction du provisionneur après incident
+
+Le script `scripts/truenas/provision-crowdsec-pfsense-bouncer.sh`
+ne parse plus la réponse `-o raw` : il **génère d'abord** une clé
+avec `openssl rand -hex 32`, écrit le fichier privé root:root
+`0600` et **ensuite seulement** renouvelle l'inscription
+`PFSENSE_FIREWALL` avec l'option officielle `--key`.
+La clé transite par l'entrée standard vers Docker et n'est
+jamais imprimée ; le retour de `cscli` est masqué. En cas
+d'échec de registration, le fichier de clé est conservé.
+Il ne faut pas relancer l'ancienne version du script.
+
+Après vérification du gate local et seulement si aucune clé
+existante n'est réutilisable :
+
+```bash
+just crowdsec-bouncer-config-test
+sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --check
+sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --apply
+sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
+```
+
+En cas d'échec après `credential_state=STAGED`,
+ne pas refaire `--apply` : examiner l'inscription centrale
+et la clé protégée enregistrée, puis reprendre de manière
+ciblée. Aucun moteur pfSense ne doit être arrêté avant
+l'authentification du nouveau bouncer.
+
 ## Chemin court accepté — réémission de la clé centrale et pfSense Small
 
 Décision opérateur du 27 octobre : **les tables de remédiation pfSense
