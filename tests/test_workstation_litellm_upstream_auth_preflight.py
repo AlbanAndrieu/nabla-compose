@@ -109,7 +109,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=b"1.106.4\n", stderr=b"")
         with patch.object(mod, "truenas_host_state", return_value="verified"), \
              patch.object(mod, "discover_running_container", return_value=(
-                 "selected", container_id, "litellm-litellm-1")), \
+                 "selected", container_id, "litellm")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod.subprocess, "run", side_effect=fake_run), \
              contextlib.redirect_stdout(io.StringIO()) as sink:
