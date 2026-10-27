@@ -3,6 +3,98 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Chemin court accepté — réémission de la clé centrale et pfSense Small
+
+Décision opérateur du 27 octobre : **les tables de remédiation pfSense
+n'ont pas à être copiées dans CrowdSec TrueNAS**. Le moteur central
+reconstruira ses décisions à partir des nouvelles détections et
+du flux de renseignement qu'il reçoit. Le bouncer PF se
+synchronisera progressivement. Il peut y avoir une **fenêtre
+de protection réduite** contre les IP anciennement bloquées.
+Cette conséquence est acceptée ; elle n'exige pas un import des
+8 637 anciennes entrées PF.
+
+Le dernier contrôle : CrowdSec TrueNAS RUNNING/healthy, LAPI LAN
+accessible, Loki confirmé, mais fichier secret bouncer absent
+et clé pfSense historique refusée par la LAPI centrale (`403`).
+L'enregistrement central `PFSENSE_FIREWALL` a
+`last_pull=<none>`. La réémission de **cet enregistrement inutilisé**
+est donc la voie la plus courte ; nul besoin de créer un deuxième
+bouncer ou de redéployer l'App TrueNAS.
+
+### Étape 1 — enregistrer la nouvelle clé sur TrueNAS
+
+Depuis le checkout courant de la PR #289 sur **TrueNAS** :
+
+```bash
+sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --check
+sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --apply
+sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --check
+```
+
+Le mode `--apply` doit être lancé **explicitement**. Il ne
+fonctionne que si le fichier privé est absent et si
+`PFSENSE_FIREWALL` n'a jamais été interrogé (`last_pull` vide).
+Il remplace **l'enregistrement inutilisé** avec
+`docker exec crowdsec cscli bouncers delete/add -o raw`,
+écrit **sans l'afficher** la nouvelle clé au fichier
+`/mnt/cpool/secrets/runtime/crowdsec/.env.secrets`
+(root:root 0600), et ne modifie **pas** pfSense.
+Le fichier reste sur TrueNAS. Ne le commiter ou envoyer
+sur aucun canal de conversation. Si la génération échoue,
+le script s'arrête et ne modifie pas le moteur ni le bouncer
+pfSense : diagnostiquer uniquement l'enregistrement central.
+
+**Go** lorsque `central_candidate_auth=ACCEPTED` et le
+nouveau `--check` ne signale plus d'erreur.
+
+### Étape 2 — passer pfSense en mode Small
+
+Depuis **Services → CrowdSec** dans pfSense :
+
+1. Sauvegarder la configuration actuelle.
+2. Configurer Remote LAPI : `http://172.17.0.24:8084`
+   avec la nouvelle clé provenant du fichier privé TrueNAS.
+3. Conserver **Remediation Component** activé.
+4. Désactiver **Log Processor** et **Local API**.
+5. Enregistrer/appliquer la configuration CrowdSec.
+
+Ne pas installer de paquet sur TrueNAS ou copier
+le fichier de secrets dans Git. La commande
+`ssh ... < scripts/pfsense/check-central-crowdsec-bouncer.sh`
+doit alors renvoyer `central_lapi_http=200` ; auparavant,
+elle renvoyait 403 avec l'ancienne clé. Le trafic syslog
+reste acquis via Loki sur TrueNAS.
+
+### Étape 3 — réception simplifiée
+
+Depuis la workstation :
+
+```bash
+just crowdsec-pfsense-accept
+ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s \
+  < scripts/pfsense/check-central-crowdsec-bouncer.sh
+```
+
+Depuis TrueNAS :
+
+```bash
+sudo bash scripts/truenas/diagnose-crowdsec-cutover.sh --accept
+```
+
+Vérifier que le bouncer pfSense est actif, que son URL
+est la LAPI centrale et que **le moteur local a cessé**.
+`last_pull` doit être renouvelé après la bascule ; une probe
+sur TrueNAS peut elle-même le renseigner et ne doit pas
+être confondue avec une requête de pfSense.
+**Des tables PF temporairement vides sont désormais
+acceptables** puisque la LAPI centrale avait zéro décision ;
+elles devront ensuite être alimentées par de nouvelles décisions
+centrales réelles. Ne pas fabriquer de bannissement sur les IP
+de gestion. Si l'authentification échoue, restaurer la
+configuration CrowdSec pfSense sauvegardée.
+
 ## Réception opérationnelle — 27 octobre, 21:53 Europe/Paris
 
 **Preuves exécutées par l'opérateur sur TrueNAS et pfSense :**
