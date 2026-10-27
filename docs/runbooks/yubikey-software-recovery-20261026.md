@@ -1520,3 +1520,49 @@ les scripts de PRA existants reste un jalon indépendant.
 Aucune écriture, aucun `cryptsetup open`,
 `--init-identity`, `--copy`, modification YubiKey,
 rotation SOPS ou test KeePassXC n'est nécessaire.
+
+## Preuve du contrôle X25519 USB : 12/12 tests PASS (27 octobre 2026)
+
+**Dernière exécution workstation** : compilation de
+`verify-age-escrow-usb-recipient.py` et de sa suite
+de tests **PASS** ; `12/12` tests synthétiques
+**PASS**. Le contrôle `--check` a retourné
+`USB_IDENTITY_READY_FOR_RECIPIENT_CHECK`,
+`private_identity_read_attempted=false`,
+`public_recipient_compared_to_historical=false`,
+`public_recipient_matches_historical=null`,
+`decryption_attempted=false`,
+`restore_verified=false`, `status=NO-GO`.
+
+Cette preuve valide seulement la préparation de
+l'attestation : **le destinataire public de l'identité
+USB n'a pas encore été calculé ni comparé**.
+La SanDisk originale doit être **physiquement branchée**,
+déverrouillée et montée avant les prochaines étapes.
+
+La commande distincte ci-dessous est **facultative
+et nécessite l'autorisation explicite de l'opérateur**.
+Elle lit localement la clé privée age depuis le support
+USB, sans l'imprimer ; elle demande à `age-keygen -y`
+d'en dériver uniquement le destinataire public, puis
+compare le résultat à la référence historique en
+mémoire, sans imprimer le destinataire public non plus.
+
+```bash
+python3 scripts/workstation/verify-age-escrow-usb-recipient.py \
+  --verify \
+  --acknowledge DERIVE_EXISTING_USB_AGE_PUBLIC_RECIPIENT_ONLY
+```
+
+Résultat positif attendu :
+`USB_PUBLIC_RECIPIENT_MATCHES_HISTORICAL`,
+`public_recipient_matches_historical=true`.
+Même si cette attestation passe, elle **ne prouve pas**
+que la copie chiffrée NFS du 27/10 est déchiffrable ;
+aucun déchiffrement age/SOPS ni opération PIV n'est
+réalisé. Le contrôle de récupération depuis la nouvelle
+copie NFS nécessitera une autorisation et une
+procédure isolée séparées.
+
+**Ne pas réexécuter `--copy`, ne pas régénérer la
+clé USB et ne pas modifier PIV82, OTP2 ou SOPS.**
