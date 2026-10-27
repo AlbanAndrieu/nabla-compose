@@ -132,6 +132,20 @@ yubikey-software-recovery-test:
 yubikey-software-recovery-check:
     python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --check
 
+# Synthetic-only encrypted header parser contracts, no real secret or NFS.
+yubikey-escrow-age-header-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-age-header.py tests/test_yubikey_escrow_age_header.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_age_header.py' -v
+
+# Stat-only local source preflight. Does NOT read the ciphertext header.
+yubikey-escrow-age-header-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-age-header.py --check
+
+# Reads only the first 8192 bytes of the existing encrypted file. Does NOT
+# decrypt, display recipient arguments, expose secrets, copy or write data.
+yubikey-escrow-age-header-inspect:
+    python3 scripts/workstation/inspect-yubikey-escrow-age-header.py --inspect --acknowledge INSPECT_EXISTING_ENCRYPTED_AGE_HEADER_ONLY
+
 # Private terminal prompts for two existing .age backups. Does not print paths,
 # read data, decrypt, require USB, or assert physical independence.
 yubikey-escrow-pair-test:
