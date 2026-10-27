@@ -4,6 +4,54 @@
 Custom App `defectdojo`, conteneur Django `defectdojo-uwsgi`,
 base PostgreSQL partagée. **Ne pas recréer la base ni relancer l'initializer.**
 
+## Reprise rapide du compte existant `admin` — 27 octobre 2026
+
+**Décision : réinitialiser le mot de passe Django du compte `admin`, sans
+supprimer le compte ni la base PostgreSQL.** Le compte `admin` a été
+observé dans Django le 23 octobre ; le nouveau mot de passe placé dans
+`.env.secrets` n'a pas modifié son hash. DefectDojo n'a pas été utilisé
+manuellement, mais des findings ou intégrations éventuels n'ont pas
+été exclus. Supprimer la base impose de refaire les migrations et
+n'accélère pas la réparation d'un simple mot de passe.
+
+Depuis **TrueNAS**, une seule intervention sur le compte après le
+contrôle de disponibilité :
+
+```bash
+# 1. Lecture seule : une réinitialisation est impossible si uWSGI est absent.
+sudo docker inspect defectdojo-uwsgi --format '{{.State.Status}}'
+
+# 2. Uniquement si le résultat est « running », dans un terminal privé.
+# Django demande le mot de passe de façon interactive, sans argument secret.
+sudo docker exec -it defectdojo-uwsgi python manage.py changepassword admin
+```
+
+Si uWSGI est absent, en `restarting` ou bloqué après l'initializer,
+**ne pas supprimer `admin`, ne pas recréer `defectdojo` et ne pas
+redéployer en boucle**. Exécuter uniquement :
+
+```bash
+sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check --include-log-classes
+sudo python3 scripts/truenas/diagnose-defectdojo-postgres-waits.py --check
+```
+
+Le mot de passe défini par `changepassword` est opérationnel en base
+sans redémarrage. **Mettre à jour ensuite l'entrée Vaultwarden existante
+`TrueNAS/nabla/prod/defectdojo`** (`login.username=admin`,
+`login.password`), puis vérifier la connexion dans une session privée.
+Le dernier contrôle de parité indiquait
+`DD_ADMIN_USER=DRIFT` et `DD_ADMIN_PASSWORD=UNVERIFIED` :
+le compte `nabla` déclaré par le bootstrap ne doit pas être supposé
+exister dans Django. Le helper automatisé
+`reconcile-defectdojo-admin-password.py` refuse délibérément cette
+dérive ; le changement interactif ci-dessus est donc la voie courte.
+Ne jamais afficher les secrets ou recopier le mot de passe dans Git.
+
+**Gate DONE :** uWSGI répond, `changepassword admin` réussit,
+connexion authentifiée à l'UI réussie et secret Vaultwarden mis à jour.
+La disponibilité runtime et la connexion réelle ne sont
+**pas vérifiées par cette modification documentaire**.
+
 ## Reprise confirmée le 26 octobre 2026
 
 **Réseau :** les requêtes A vers pfSense `172.17.0.1` et Pi-hole
