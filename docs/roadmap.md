@@ -483,14 +483,21 @@ Actions :
   **Faits du snapshot :** Nexus 403 déclaré, refus
   HAProxy **absent pour `vault.int.albandrieu.com`** ;
   alias `vaultwarden.int.albandrieu.com` sans ACL dédiée ;
-  `s3.int.albandrieu.com` sans refus et politique
-  **CONTRADICTOIRE** entre
-  `config/public-int-dns-exceptions.txt` (interne) et
-  `docs/dns-ingress-ownership.md`/Garage Compose (public).
+  `s3.int.albandrieu.com` sans refus. **Décision confirmée le
+  27/10 : S3 reste privé LAN ; Garage WebUI public est un
+  service distinct (Cloudflare Tunnel + Access).**
+  Les anciennes descriptions publiques ont été corrigées.
   Backend HAProxy Traefik TLS `verify none` à durcir
   séparément. **Aucune règle WAN/DNS/Tunnel/Firewall
   n'a été modifiée par cet audit.**
-  Prochaines actions : arbitrage S3 avec clients OpenTofu ;
+  **Dernier diagnostic DNS : `s3.int.albandrieu.com=present`
+  chez les résolveurs publics ; après correction du parseur
+  HAProxy (tabulations), le gate doit signaler explicitement
+  `VIOLATION_NO_EXPLICIT_DENY` pour S3/Vault et non un faux
+  `VIOLATION_NO_EXACT_ACL` pour Nexus.**
+  Prochaines actions : supprimer la publication S3 via un changement
+  DNS revu avec clients OpenTofu ; ajouter un refus Host S3
+  sur le frontend WAN ;
   refus explicite Vault/alias privé ; preuves Cloudflare
   Tunnel+Access, DNS externe, PF/NAT et test WAN indépendant.
   Suivi détaillé :
