@@ -72,7 +72,11 @@ def encrypted_pair() -> tuple[str, tuple[Path, Path] | None]:
         matches = []
         for directory in (LOCAL_DIR, NFS_DIR):
             with os.scandir(directory) as entries:
-                names = [entry.name for entry in entries]
+                names = []
+                for entry in entries:
+                    names.append(entry.name)
+                    if len(names) > 128:
+                        return "BACKUPS_ABSENT_OR_AMBIGUOUS", None
             if len(names) != 1 or not NAME.fullmatch(names[0]):
                 return "BACKUPS_ABSENT_OR_AMBIGUOUS", None
             archive = directory / names[0]
