@@ -72,6 +72,55 @@ class DigestTopContract(unittest.TestCase):
             self.assertNotIn("SECRET", output)
             self.assertNotIn("Discord", output)
 
+    def test_original_skill_v316_range_argument_is_incompatible(self):
+        prompt = ("Read <SKILL_DIR>/references/digest-prompt.md.\n"
+                  "- ITEMS_PER_SECTION = 3-5\n"
+                  "For summarize-merged.py use --top 5.\n"
+                  "The --top flag only accepts an integer.")
+        template = ("Report Generation\n"
+                    "python3 <SKILL_DIR>/scripts/summarize-merged.py "
+                    "--input /tmp/td-merged.json --top <ITEMS_PER_SECTION>")
+        state, expected = audit.classify_job(self.job(prompt), template)
+        self.assertEqual(state, "skill_template_range_int_mismatch")
+        self.assertEqual(expected, "5")
+
+    def test_original_skill_v316_accepts_single_integer_parameter(self):
+        prompt = ("Read <SKILL_DIR>/references/digest-prompt.md\n"
+                  "- ITEMS_PER_SECTION = 5\n")
+        template = "python3 summarize-merged.py --top <ITEMS_PER_SECTION>"
+        self.assertEqual(audit.classify_job(self.job(prompt), template)[0],
+                         "skill_template_integer_valid")
+
+    def test_newer_skill_fixed_retrieval_top_is_distinct_from_output_range(self):
+        prompt = ("Read <SKILL_DIR>/references/digest-prompt.md\n"
+                  "- ITEMS_PER_SECTION = 3-5\n")
+        template = "Get a candidate overview: summarize-merged.py --top 30"
+        self.assertEqual(audit.classify_job(self.job(prompt), template)[0],
+                         "skill_template_fixed_integer")
+
+    def test_reference_without_readable_skill_template_is_unverified(self):
+        prompt = ("Read <SKILL_DIR>/references/digest-prompt.md\n"
+                  "- ITEMS_PER_SECTION = 3-5\n")
+        self.assertEqual(audit.classify_job(self.job(prompt), None)[0],
+                         "skill_template_unavailable")
+
+    def test_duplicate_advisory_top_five_is_not_duplicate_shell_argument(self):
+        prompt = "Use --top 5. Remember that --top 5 is an integer."
+        self.assertEqual(audit.classify_job(self.job(prompt))[0],
+                         "valid_top_five")
+
+    def test_template_read_is_private_and_no_symlink(self):
+        with tempfile.TemporaryDirectory() as root:
+            template = Path(root) / "digest-prompt.md"
+            template.write_text("summarize-merged.py --top 30\n")
+            template.chmod(0o600)
+            self.assertEqual(audit.read_skill_template(template)[0], "available")
+            template.chmod(0o666)
+            self.assertEqual(audit.read_skill_template(template)[0], "unsafe_file")
+            link = Path(root) / "symlink.md"
+            link.symlink_to(template)
+            self.assertEqual(audit.read_skill_template(link)[0], "unavailable")
+
     def test_wrong_job_and_payload_rejected(self):
         self.assertEqual(audit.classify_job(self.job("--top 3-5", name="other"))[0],
                          "wrong_job")
