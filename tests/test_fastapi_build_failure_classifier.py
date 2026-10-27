@@ -117,6 +117,54 @@ class BuildFailureClassifierContract(unittest.TestCase):
                 self.assertNotIn("docker.io", json.dumps(result))
                 self.assertNotIn("not-the-real-name", json.dumps(result))
 
+    def test_failure_shape_uses_only_fixed_vocabulary(self) -> None:
+        secret = "PRIVATE_TOKEN_DO_NOT_COPY_XY123"
+        content = (
+            "#5 [builder 2/6] RUN command --password " + secret + "\n"
+            "#5 ERROR: opaque execution " + secret + "\n"
+            "ERROR: failed to solve: unexpected response from sender at "
+            "https://example.invalid/" + secret + "\n"
+        )
+        report = subject.failure_shape(content)
+        self.assertEqual(report["terminal_marker_style"], "solve")
+        self.assertEqual(report["error_marker_count"], 2)
+        self.assertEqual(report["numbered_error_count"], 1)
+        self.assertTrue(report["buildkit_step_headers_present"])
+        self.assertIn("sender", report["terminal_keyword_codes"])
+        self.assertIn("response", report["terminal_keyword_codes"])
+        self.assertNotIn(secret, json.dumps(report))
+        self.assertNotIn("example.invalid", json.dumps(report))
+        self.assertFalse(report["raw_log_printed"])
+
+    def test_failure_shape_is_opt_in_and_retains_owner_check(self) -> None:
+        fd, name = tempfile.mkstemp(prefix="tmp.", dir="/tmp")
+        try:
+            os.write(fd, b"ERROR: failed to solve: unexpected response from sender\n")
+            os.close(fd)
+            fd = -1
+            standard = subject.check(name)
+            detailed = subject.check(name, include_failure_shape=True)
+            self.assertNotIn("terminal_marker_style", standard)
+            self.assertEqual(detailed["terminal_marker_style"], "solve")
+            self.assertIs(detailed["raw_log_printed"], False)
+            os.chmod(name, 0o644)
+            unsafe = subject.check(name, include_failure_shape=True)
+            self.assertEqual(unsafe["state"], "unsafe_log_permissions")
+            self.assertNotIn("terminal_keyword_codes", unsafe)
+        finally:
+            if fd != -1:
+                os.close(fd)
+            os.unlink(name)
+
+    def test_failure_shape_does_not_include_unrecognized_log_text(self) -> None:
+        report = subject.failure_shape(
+            "ERROR: failed to solve: PRIVATE_ACCOUNT_ID_XYZ SECRET_PASSWORD_123\n"
+        )
+        self.assertEqual(report["terminal_marker_style"], "solve")
+        self.assertEqual(report["terminal_keyword_codes"], [])
+        self.assertNotIn("PRIVATE_ACCOUNT_ID_XYZ", json.dumps(report))
+        self.assertNotIn("SECRET_PASSWORD_123", json.dumps(report))
+
     def test_no_failure_marker_stays_unclassified(self) -> None:
         report = subject.classify("BuildKit progress: 55% completed")
         self.assertEqual(report["state"], "unclassified_build_failure")
