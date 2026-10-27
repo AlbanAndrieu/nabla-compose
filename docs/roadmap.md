@@ -34,6 +34,21 @@
   précédemment, et 9/9 scénarios de la sonde candidate reproduits
   localement avec le mock Bash ; gate complet `just` et réception
   runtime du nouveau HEAD non encore exécutés sur TrueNAS.**
+- **Gate TrueNAS (exécution utilisateur, 28/10 local) :**
+  `test_crowdsec_bouncer_url_parser.py` **5/5 PASS** ;
+  `test_crowdsec_candidate_bouncer_auth.py` **11/11 PASS** ;
+  `test_crowdsec_pfsense_bouncer_provision.py` **2/4 PASS**
+  (deux fixtures `docker inspect` échouent dans le mock,
+  **pas dans le runtime**). Correction [skip ci] : simuler `docker`
+  **et `timeout` dans le même interpréteur Bash**, sans exécutable
+  temporaire et sans appel Docker réel. Vérification isolée
+  des 3 parcours read-only : **3/3 PASS**, gate complet TrueNAS
+  encore à réexécuter.
+- **Réception runtime pfSense désormais PASS au 27/10 23:12:07 UTC :**
+  `diagnose-crowdsec-cutover.sh --accept` **0 erreur, 2 warnings** ;
+  `PFSENSE_FIREWALL@172.17.0.1`, IP 172.17.0.1, type firewall,
+  `revoked=false`, appel 23:12:07Z ; 0 décision centrale.
+  Ce contrôle prouve une lecture LAPI, **pas** l'activation PF.
 - **P0 ouvert — application/révocation PF :** 0 décision centrale active ;
   4 074 entrées historiques observées en PF. Il faut attester une
   **même nouvelle IP** dans LAPI puis PF, et sa disparition des deux
