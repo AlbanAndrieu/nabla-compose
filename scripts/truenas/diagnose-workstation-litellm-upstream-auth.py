@@ -47,6 +47,24 @@ def check_container() -> dict:
     return {"container": "observed", "key_presence": state}
 
 
+def check_sdk_version() -> str:
+    """Fingerprint only the LiteLLM package version; never inspect credentials."""
+    command = ["docker", "exec", "litellm", "python3", "-c",
+               "from importlib.metadata import version; print(version('litellm'))"]
+    try:
+        result = subprocess.run(command, capture_output=True,
+                                check=False, timeout=8)
+    except (OSError, subprocess.TimeoutExpired):
+        return "unverified"
+    if result.returncode != 0 or result.stderr or len(result.stdout) > 64:
+        return "unverified"
+    value = result.stdout.decode("ascii", errors="replace").strip()
+    # Strict version fingerprint; never echo arbitrary process output.
+    import re
+    return value if re.fullmatch(r"[0-9]+(?:\\.[0-9]+){1,3}(?:[-+][a-zA-Z0-9.]+)?",
+                                value) else "unverified"
+
+
 def check_liveliness() -> str:
     opener = build_opener(ProxyHandler({}), NoRedirect())
     request = Request(PROXY + "/health/liveliness")
@@ -83,6 +101,8 @@ def report() -> dict:
         "workstation_liveliness": check_liveliness(),
         "origin_of_previous_missing_key_event": "not_yet_attributed",
         "suspected_component": "truenas_litellm_or_other_sdk_unverified",
+        "truenas_litellm_sdk_version": check_sdk_version(),
+        "reported_failure_user_agent_version": "1.106.4",
         "protected_models_endpoint_queried": False,
         "model_requests_sent": 0,
         "secret_values_printed": False,
