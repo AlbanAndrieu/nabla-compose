@@ -147,6 +147,59 @@ liveness/readiness 200 au bon vantage point ; requêtes
 `openclaw-main` réellement échouées et quotas analysés
 séparément ; Workstation reste le modèle de vérité jusqu'au cutover.
 
+## TrueNAS — conteneur LiteLLM actif identifié, ancien conteneur arrêté
+
+**Relevé opérateur :** `sudo docker ps -a --filter name=litellm`
+identifie `litellm-litellm-1` `Up 3 days (healthy)` et
+`litellm` `Exited (0) 3 months ago`. L'inspection
+`sudo docker inspect --type container --format
+'{{.State.Status}}' litellm` confirme `exited`.
+**Cause du préflight Docker précédent identifiée** :
+il avait codé en dur `litellm`, donc inspectait
+l'ancien conteneur. La requête vers le proxy Workstation
+répondait déjà `http_200` ; aucune variable runtime
+du véritable conteneur `litellm-litellm-1` n'avait
+encore été inspectée.
+
+**Correction versionnée :**
+1. Sélectionner `docker ps` filtré par les labels officiels
+   Docker Compose `com.docker.compose.project=litellm` et
+   `com.docker.compose.service=litellm`, plus
+   `status=running`. Les labels sélectionnent le service,
+   pas une chaîne de sous-nom arbitraire.
+2. Exiger **une seule** instance running avec identifiant
+   Docker hexadécimal et nom attendu (p. ex.
+   `litellm-litellm-1`). Refuser les doublons, sorties
+   malformées et changements d'état.
+3. Inspecter son seul champ `.State.Status`, puis
+   utiliser le **même ID interne** pour `docker exec`
+   des deux noms de variables autorisés et la version
+   du SDK. Ne jamais afficher l'ID, `Env` ou une clé.
+4. Conserver un exit 2 si aucun conteneur valide n'est
+   découvert, si les clés manquent, ou si Workstation
+   n'est pas vivant. Un état `all_present_unvalidated`
+   reste une preuve de présence et **non** d'authentification.
+5. Pas de `docker start litellm`, `docker rename`,
+   `docker compose up` ni modification d'image pour
+   résoudre le problème de diagnostic.
+
+```bash
+# Contrats locaux d'abord, sans appel modèle :
+just litellm-workstation-auth-contracts
+# Depuis TrueNAS après synchronisation #289 :
+just litellm-workstation-upstream-auth-check
+```
+
+Les diagnostics versionnés précédents de ce même runbook
+restent utiles comme historique, mais toute référence à
+`docker exec litellm` et `inspect litellm` désigne
+désormais un **conteneur arrêté**, pas l'instance active.
+
+Référence : https://docs.docker.com/reference/compose-file/services/
+(labels `com.docker.compose.project` / `service`) et
+https://docs.docker.com/reference/cli/docker/container/ls
+(filtres label/status).
+
 ## TrueNAS → Workstation : inspection Docker indisponible (dernier relevé)
 
 Le dernier `just litellm-workstation-upstream-auth-check`
