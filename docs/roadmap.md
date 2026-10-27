@@ -16,16 +16,20 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING`, initializer `exited(0)`, uWSGI/Nginx/Celery tous `running`, HTTP `:31085/login=200`, `changepassword admin` réussi | Login Web, parité Django/runtime/Vaultwarden et stabilité du cycle TrueNAS **NOT_VERIFIED** |
+| H-03 | DefectDojo | TrueNAS `RUNNING`, initializer `exited(0)`, uWSGI/Nginx/Celery `running`, HTTP local 200 ; `admin` Django `check_password=True` et login Web réel sur `http://172.17.0.24:31085/dashboard` **VALIDÉS** (LastPass obsolète) | HTTPS privé `defectdojo.int.albandrieu.com` inaccessible dans le navigateur : diagnostiquer DNS → port 443 → Traefik labels/réseau/TLS ; parité runtime/Vaultwarden encore **DRIFT/UNVERIFIED** |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
 | H-08 | Vaultwarden | `code`/`openrag` absents du cache CLI ; DefectDojo : 5 secrets MATCH, `DD_ADMIN_USER=DRIFT`, mot de passe coffre absent/vide | `bw sync`, vérifier l'item source, puis rapprocher le mot de passe Django avec runtime et coffre sans journaliser de secret |
 | H-09 | RAM TrueNAS | 61 Gio total, 7,3 Gio disponibles avant la reprise ; Netdata et Graylog arrêtés | Baseline PSI/mémoire/OOM sans attribuer causalement le pic à ces services |
 
-**Prochaine étape prioritaire :** authentification DefectDojo et
-réconciliation Vaultwarden **sans supprimer la base**. Ne pas
-recommencer `changepassword` si le mot de passe choisi fonctionne.
+**Prochaine étape prioritaire :** rétablir l'HTTPS privé DefectDojo
+sans changer le compte Django ni créer de route HAProxy WAN. Le DNS LAN
+doît viser directement TrueNAS :443/Traefik. Exécuter en lecture seule
+`sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check`
+puis corriger uniquement le composant attesté. Réconcilier ensuite
+les credentials **fonctionnels** dans `.env.secrets` et Vaultwarden,
+sans exécuter le helper `--apply` contre le nouveau hash Django.
 Les corrections de diagnostic DefectDojo restent en code `[skip ci]` ;
 tests ciblés locaux à exécuter au HEAD réel.
 
