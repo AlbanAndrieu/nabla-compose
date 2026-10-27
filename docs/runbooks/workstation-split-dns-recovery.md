@@ -441,6 +441,54 @@ avec rollback et validation du comportement
 DNSSEC de pfSense avant toute réduction de
 l'authentification.
 
+## 28 octobre — Gate Ansible bloque sur `import_role: ../`, correction ciblée
+
+Nouvelles preuves fournies par l'opérateur depuis un
+worktree `ansible-workstation` détaché au commit
+`f71c2f9` :
+
+- `test_homelab_dns_gate.py` : **13/13 PASS** ;
+- `scripts/check_homelab_dns_gate.py --dry-run` :
+  garde split-DNS **8/8 PASS** et tests dispatcher **17/17 PASS** ;
+- **FAIL** avant toute commande `--check` :
+  `Could not find specified file in role, its 'tasks/' is not usable`.
+  L'ancien playbook ciblé utilisait
+  `ansible.builtin.import_role: name: ../` ;
+  la sélection de tâches était donc impossible ;
+- `direnv .envrc is blocked` indique seulement
+  qu'un nouveau worktree nécessite une approbation
+  indépendante pour charger ce fichier ; **pas besoin
+  de `direnv allow` pour diagnostiquer Ansible**.
+
+La [PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+remplace l'import erroné par
+`ansible.builtin.import_tasks: ../tasks/network_split_dns.yml`,
+charge `vars_files: ../defaults/main.yml` et résout
+le `src` dispatcher pour un rôle complet ou un
+playbook ciblé. Les **14 tests de la gate**, dont
+le nouveau contrat de chemin, restent **à exécuter
+sur le HEAD corrigé**. Aucun déploiement réseau.
+
+Depuis le **même worktree déjà créé**, sans
+`git worktree add` supplémentaire :
+
+```bash
+git fetch origin fix/preserve-homelab-split-dns-20261027
+git merge --ff-only origin/fix/preserve-homelab-split-dns-20261027
+
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_gate.py' -v
+python3 scripts/check_homelab_dns_gate.py --dry-run
+```
+
+**Done de la gate uniquement** : 14/14 tests
+du script gate, 8/8 garde DNS, 17/17 dispatcher,
+`--list-tasks` mentionnant les tâches DNS et
+`--check --diff` avec zéro échec.
+**La NTA runtime fonctionne déjà mais le dispatcher
+n'est pas installé** et le statut post-reboot
+reste non vérifié.
+
 ## Gate Ansible à zéro tâche : résultat invalide, corrigé dans le dépôt propriétaire
 
 Le 28/10, l'opérateur a tenté les commandes Ansible
