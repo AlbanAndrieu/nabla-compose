@@ -10,7 +10,7 @@ SCRIPT = ROOT / "scripts/truenas/check-crowdsec-candidate-bouncer.sh"
 
 
 class CandidateBouncerAuthTests(unittest.TestCase):
-    def check_auth(self, payload, mode=0o600, http=200):
+    def check_auth(self, payload, mode=0o600, http=200, env_name=None, env_value=None):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
             secret = directory / ".env.secrets"
@@ -29,8 +29,15 @@ class CandidateBouncerAuthTests(unittest.TestCase):
                 "CROWDSEC_CENTRAL_LAPI_URL": "http://127.0.0.1:8084",
                 "FAKE_CURL_CODE": str(http),
             })
+            cmd = ["bash", str(SCRIPT)]
+            if env_name is not None:
+                cmd.extend(["--env", env_name])
+                if env_value is not None:
+                    env[env_name] = env_value
+                else:
+                    env.pop(env_name, None)
             return subprocess.run(
-                ["bash", str(SCRIPT)],
+                cmd,
                 cwd=ROOT,
                 env=env,
                 capture_output=True,
@@ -51,6 +58,29 @@ class CandidateBouncerAuthTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("central_candidate_auth=ACCEPTED", result.stdout)
                 self.assertNotIn("TEST_TOKEN_NEVER_ECHO", result.stdout + result.stderr)
+
+    def test_existing_exported_crowdsec_bouncer_key_authenticates(self):
+        result = self.check_auth("", env_name="CROWDSEC_BOUNCER_API_KEY", env_value="TEST_TOKEN_NEVER_ECHO")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("central_candidate_auth=ACCEPTED", result.stdout)
+        self.assertIn("central_candidate_identity=UNVERIFIED", result.stdout)
+        self.assertNotIn("TEST_TOKEN_NEVER_ECHO", result.stdout + result.stderr)
+
+    def test_traefik_bouncer_candidate_is_separate(self):
+        result = self.check_auth("", env_name="BOUNCER_KEY_TRAEFIK", env_value="TRAEFIK_TEST_NEVER_ECHO")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("central_candidate_identity=UNVERIFIED", result.stdout)
+        self.assertNotIn("TRAEFIK_TEST_NEVER_ECHO", result.stdout + result.stderr)
+
+    def test_machine_password_is_not_accepted_as_bouncer_key(self):
+        result = self.check_auth("", env_name="CROWDSEC_LOCAL_API_PASSWORD", env_value="MACHINE_PASSWORD")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("NO_GO_UNSUPPORTED_ENV_NAME", result.stdout)
+
+    def test_missing_exported_key_is_reported_without_leak(self):
+        result = self.check_auth("", env_name="CROWDSEC_BOUNCER_API_KEY", env_value=None)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("NO_GO_ENV_UNSET_OR_NOT_EXPORTED", result.stdout)
 
     def test_rejected_candidate_key(self):
         r = self.check_auth("BOUNCER_KEY_PFSENSE_FIREWALL=TEST_TOKEN_NEVER_ECHO\n", http=403)
