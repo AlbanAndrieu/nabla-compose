@@ -163,41 +163,49 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
-## P0 — Dispatcher DNSSEC installé : réception de l'événement reapply restante (28/10)
+## DONE — DNSSEC privé : dispatcher NetworkManager et reapply acceptés (28/10)
 
-**L'opérateur a réellement appliqué** le playbook
-DNS-only de [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
-depuis le bon worktree, avec
-`ok=12 changed=1 failed=0 skipped=9`.
-Le fichier NetworkManager dispatcher
-`/etc/NetworkManager/dispatcher.d/90-nabla-private-dnssec-nta`
-est maintenant exécutable et installé sur la workstation.
-Après application, `resolvectl nta eno1`
-→ `int.albandrieu.com`; DefectDojo privé
-`172.17.0.24` **25,3 ms** ; DNSSEC public
-`cloudflare.com` authentifié en **56,2 ms**.
+**Preuve opérateur complète, sans GitHub Actions :**
+`just workstation-dnssec-dispatcher-test` :
+**17/17 tests PASS (0,016 s)** ; le contrôle read-only,
+puis l'exercice borné de `resolvectl nta eno1 ""` +
+`nmcli device reapply eno1` ont réussi.
+La sonde a confirmé successivement :
 
-**Statut P0 : INSTALLÉ, DNS VALIDÉ, REAPPLY ET REBOOT
-NON VÉRIFIÉS.** Les mesures actuelles peuvent
-toujours refléter la NTA manuelle précédente.
+- `lan_profile=MATCH`, `dispatcher=ROOT_EXECUTABLE`,
+  `link_nta=EXPECTED_ONLY` sur `eno1` ;
+- `private_nta_temporarily_cleared=true`,
+  `nm_reapply=PASS`, **`nta_restored_by_event=PASS`** ;
+- `private_dns=PASS` pour DefectDojo privé et
+  `public_dnssec=AUTHENTICATED` pour `cloudflare.com` ;
+- **`diagnosis=PASS_REAPPLY_PERSISTENCE`** ;
+- nouvelle vérification read-only : mêmes états PASS,
+  y compris un second `just workstation-dnssec-dispatcher-check`.
 
-**Prochain gate retenu dans Compose PR #289 [skip ci] :**
-`just workstation-dnssec-dispatcher-test`
-(**17 contrats offline nouveaux, à exécuter**),
-`just workstation-dnssec-dispatcher-check`
-(lecture seule), puis
-`just workstation-dnssec-dispatcher-exercise`
-(acte explicite avec garde stricte, NTA privée
-effacée brièvement et `nmcli device reapply eno1`,
-rollback borné si la NTA ne revient pas),
-enfin nouveau `-check`.
-Aucun restart service ni désactivation DNSSEC globale.
-Critère : `nta_restored_by_event=PASS`,
+**Conclusions :** la NTA `int.albandrieu.com` n'était plus
+seulement héritée du réglage manuel : sa recréation par
+l'événement NetworkManager `reapply` est réellement prouvée.
+Le script persistant est installé via
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+sans exception DNSSEC pour les autres interfaces.
+Pas de mutation pfSense/Unbound, de politique DNSSEC globale
+ou de redémarrage forcé.
+
+**Seul gate restant pour fermer la persistance inter-reboot :**
+après **le prochain redémarrage planifié**, exécuter
+depuis `nabla-compose` **sans** `--exercise` :
+`just workstation-dnssec-dispatcher-check`.
+Attendu : `lan_profile=MATCH`,
+`dispatcher=ROOT_EXECUTABLE`,
+`link_nta=EXPECTED_ONLY`,
 `private_dns=PASS`,
 `public_dnssec=AUTHENTICATED`.
-Persistance post-reboot ensuite au **prochain
-reboot planifié**, avec seulement `-check`
-après redémarrage. [Runbook](runbooks/workstation-split-dns-recovery.md).
+Ne pas provoquer de reboot maintenant ; ne pas répéter
+l'exercice mutateur. Le risque de latence `getent` NSS
+par défaut (4,8 s dans une mesure antérieure) et les
+messages DNSSEC historiques sur les domaines publics
+restent des sujets **séparés**.
+[Runbook](runbooks/workstation-split-dns-recovery.md).
 
 ## P0 — Gate Ansible DNS validée sur l'hôte — 28 octobre 2026
 
