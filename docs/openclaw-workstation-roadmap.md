@@ -158,6 +158,49 @@ just litellm-workstation-upstream-auth-check
 `HTTP 200` de liveness Workstation n'est pas une preuve
 de succès d'une requête authentifiée.
 
+## P0 — Label Compose project non confirmé (dernier relevé TrueNAS)
+
+Le checkout #289 corrigé a été exécuté sur TrueNAS :
+`just litellm-workstation-auth-contracts` **29/29 tests PASS**
+(3 OpenRAG + 8 pytest auth + 18 upstream unittest).
+Le probe runtime v3 a cependant retourné
+`truenas_container_selection=compose_running_container_not_found`,
+`truenas_docker_container_status=not_inspected`,
+`truenas_upstream_key_state=unverified` et
+`workstation_liveliness=http_200`. Le prédicat
+`com.docker.compose.project=litellm` + `service=litellm`
+ne correspond donc à **aucun conteneur running visible
+par Docker dans ce contexte**. Cela ne signifie pas que le
+conteneur `litellm-litellm-1`, observé healthy précédemment,
+ait disparu : projet/labels TrueNAS probablement différents.
+
+**Fix v3 de découverte dans la PR :** ne plus imposer
+`project=litellm`. Découvrir via `docker ps` avec
+`name=litellm`, `status=running`, valider une
+**seule** ligne Docker avec le nom complet
+`litellm-litellm-N`. Ignorer les noms différents
+(`litellm-dashboard`, etc.) mais refuser toute ligne
+malformée ou plusieurs candidats. Ne jamais cibler
+le `litellm` legacy seul. `docker inspect`, présence
+des variables et version SDK restent attachés au **même ID**.
+Le résultat versionné publie
+`truenas_selection_method=unique_running_exact_name`.
+Aucune clé, aucun conteneur et aucune requête modèle modifiés.
+
+**Prochaine preuve runtime** (après synchronisation du HEAD
+de #289) :
+
+```bash
+just litellm-workstation-auth-contracts
+just litellm-workstation-upstream-auth-check
+```
+
+L'état `selected/running` ne prouvera pas à lui seul
+l'authentification de `GET /v1/models` ; interpréter
+ensuite les deux états de clés et la version SDK.
+Les nouveaux contrats de découverte par nom n'ont pas
+encore été exécutés sur TrueNAS.
+
 ## P0 — Stabiliser LiteLLM Workstation
 
 - [x] Corriger le GET anonyme `/v1/models` du diagnostic OpenRAG
