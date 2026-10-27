@@ -93,12 +93,33 @@ class Contracts(unittest.TestCase):
         self.assertEqual(runner.call_count, 1)
         report = json.loads(out.getvalue())
         self.assertEqual(report["state"], "ESCROW_LUKS_LOCKED")
-        for sensitive in (m.EXPECTED_LUKS_UUID, "/dev/sdz", "/dev/mapper",
-                          "private"):
+        # Compare actual identifiers/paths, not generic words appearing in
+        # deliberately descriptive JSON field names.
+        for sensitive in (m.EXPECTED_LUKS_UUID, "/dev/sdz", "/dev/mapper"):
             self.assertNotIn(sensitive, out.getvalue())
         self.assertFalse(report["private_age_identity_read"])
         self.assertFalse(report["luks_unlock_attempted"])
         self.assertFalse(report["disk_mutation_performed"])
+
+    def test_private_mountpoint_and_mapper_are_redacted(self):
+        secret_mount = "/run/media/testuser/MY_PRIVATE_USB_ESCROW"
+        secret_mapper = "/dev/mapper/my_private_recovery_key"
+        child = {"name": secret_mapper, "type": "crypt", "fstype": "ext4",
+                 "mountpoints": [secret_mount]}
+        inventory = disk(children=[child])
+        reply = SimpleNamespace(returncode=0,
+                                stdout=json.dumps(inventory).encode())
+        with patch.object(m.subprocess, "run", return_value=reply), \
+             patch.object(m, "UUID_LINK",
+                          SimpleNamespace(is_block_device=lambda: True)), \
+             redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(m.main(["--check"]), 0)
+        report = json.loads(out.getvalue())
+        self.assertEqual(report["state"], "ESCROW_LUKS_UNLOCKED_MOUNTED")
+        self.assertFalse(report["device_paths_disclosed"])
+        self.assertFalse(report["device_identifiers_disclosed"])
+        for identifier in (secret_mount, secret_mapper, m.EXPECTED_LUKS_UUID):
+            self.assertNotIn(identifier, out.getvalue())
 
     def test_empty_inventory_is_nonzero_and_no_claim_of_absent_usb(self):
         reply = SimpleNamespace(returncode=0, stdout=b'{"blockdevices":[]}')
