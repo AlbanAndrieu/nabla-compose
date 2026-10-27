@@ -148,6 +148,42 @@ ce périmètre.
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
 
+## P0 — Dispatcher DNSSEC installé : réception de l'événement reapply restante (28/10)
+
+**L'opérateur a réellement appliqué** le playbook
+DNS-only de [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+depuis le bon worktree, avec
+`ok=12 changed=1 failed=0 skipped=9`.
+Le fichier NetworkManager dispatcher
+`/etc/NetworkManager/dispatcher.d/90-nabla-private-dnssec-nta`
+est maintenant exécutable et installé sur la workstation.
+Après application, `resolvectl nta eno1`
+→ `int.albandrieu.com`; DefectDojo privé
+`172.17.0.24` **25,3 ms** ; DNSSEC public
+`cloudflare.com` authentifié en **56,2 ms**.
+
+**Statut P0 : INSTALLÉ, DNS VALIDÉ, REAPPLY ET REBOOT
+NON VÉRIFIÉS.** Les mesures actuelles peuvent
+toujours refléter la NTA manuelle précédente.
+
+**Prochain gate retenu dans Compose PR #289 [skip ci] :**
+`just workstation-dnssec-dispatcher-test`
+(**17 contrats offline nouveaux, à exécuter**),
+`just workstation-dnssec-dispatcher-check`
+(lecture seule), puis
+`just workstation-dnssec-dispatcher-exercise`
+(acte explicite avec garde stricte, NTA privée
+effacée brièvement et `nmcli device reapply eno1`,
+rollback borné si la NTA ne revient pas),
+enfin nouveau `-check`.
+Aucun restart service ni désactivation DNSSEC globale.
+Critère : `nta_restored_by_event=PASS`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`.
+Persistance post-reboot ensuite au **prochain
+reboot planifié**, avec seulement `-check`
+après redémarrage. [Runbook](runbooks/workstation-split-dns-recovery.md).
+
 ## P0 — Gate Ansible DNS validée sur l'hôte — 28 octobre 2026
 
 **Réception opérateur définitive du preflight sur le worktree
@@ -472,7 +508,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | **ACCEPTED runtime LAN** : TLS/Traefik/Chrome, workstation split-DNS persistent NM ; **NTA par lien `eno1` runtime appliquée avec succès**, nom privé validé sans bypass (33,4 ms), `getent` répond, DNSSEC public `cloudflare.com` authentifié (43,1 ms), **10/10 tests NTA PASS** | **Persistence de NTA après reboot NON VALIDÉE** : dispatcher NM opt-in dans [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15), 17/17 dispatcher PASS, 8/8 garde PASS, 14/14 gate PASS ; Ansible `--list-tasks` PASS et dry-run PASS, `changed=1` prévu ; dispatcher à installer sur action explicite ; NSS défaut encore **4,8s** malgré DNS forcé rapide ; synchronisation des secrets Django/Vaultwarden séparée |
+| H-03 | DefectDojo | **ACCEPTED runtime LAN** : TLS/Traefik/Chrome, workstation split-DNS persistent NM ; **NTA par lien `eno1` runtime appliquée avec succès**, nom privé validé sans bypass (33,4 ms), `getent` répond, DNSSEC public `cloudflare.com` authentifié (43,1 ms), **10/10 tests NTA PASS** | **Persistence de NTA après reboot NON VALIDÉE** : dispatcher NM opt-in dans [Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15), 17/17 dispatcher PASS, 8/8 garde PASS, 14/14 gate PASS ; Ansible `--list-tasks` et dry-run PASS ; **dispatcher installé et DNS privé/public validés**, reapply/reboot à confirmer ; NSS défaut encore **4,8s** malgré DNS forcé rapide ; synchronisation des secrets Django/Vaultwarden séparée |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
