@@ -100,6 +100,8 @@ class CrowdSecBouncerProvenanceTest(unittest.TestCase):
         self.assertIn("crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED", script)
         self.assertIn("crowdsec_pfsense_bouncer_pull_provenance=LAN_IP_AND_FIREWALL_USER_AGENT_OBSERVED", script)
         self.assertIn("PF decision application not yet verified", script)
+        self.assertIn("base bouncer registration has no pull; checking IP-suffixed", script)
+        self.assertNotIn('error "pfSense firewall bouncer is registered but has not polled the central LAPI"', script)
         self.assertNotIn("cscli decisions add", script)
         self.assertNotIn("cscli decisions delete", script)
         p = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True, check=False)
