@@ -1816,3 +1816,34 @@ quand le stockage et le PRA sont validés.
 Ne pas relancer `--copy` de l'archive SOPS NFS
 existante. Aucun formatage, provisionnement PIV/OTP
 ou rotation SOPS n'est nécessaire ici.
+
+## ✅ Acceptation des sauvegardes indépendantes de la SanDisk — 28/10/2026
+
+La preuve workstation du 28/10 **remplace l'état NOT_RUN** de la section
+historique « Sauvegarde indépendante de l'identité privée USB » :
+
+- `just yubikey-usb-identity-backup-test` : **14/14 PASS**.
+- `just yubikey-usb-identity-restore-test` : **13/13 PASS**.
+- Précontrôle de sauvegarde : `BACKUP_PREFLIGHT_READY`.
+- Écriture supervisée : `ENCRYPTED_LOCAL_AND_NFS_BACKUPS_IDENTICAL`
+  et `encrypted_copy_local_and_nfs_verified=true`.
+- Précontrôle de restauration : `BACKUP_RESTORATION_PREFLIGHT_READY`.
+- Restauration de **chaque copie chiffrée** :
+  `BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`,
+  `two_encrypted_backups_restored=true` et
+  `historical_public_recipient_matched=true`.
+
+**DONE :** deux copies chiffrées cohérentes sur workstation et NFS TrueNAS,
+deux restaurations cryptographiques réussies ; la clé USB d'origine n'est
+pas utilisée par l'outil de restauration.
+
+**Toujours à attester :** SanDisk physiquement débranchée pendant un
+exercice PRA ; conservation de la phrase secrète accessible sans SanDisk ;
+ACL NFS4 effectives des fichiers et des répertoires parents. Ce résultat ne
+prouve pas le déchiffrement d'un document SOPS de production.
+
+Le détail des commandes et de leurs limites est conservé dans
+[`usb-age-identity-independent-backup-20261028.md`](usb-age-identity-independent-backup-20261028.md).
+Ne pas recommencer la sauvegarde : l'opération initiale est terminée et
+la protection anti-écrasement doit rester active. Aucun `--copy`, aucune
+rotation SOPS, aucune mutation PIV/OTP.
