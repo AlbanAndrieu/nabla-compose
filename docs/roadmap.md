@@ -26,6 +26,20 @@
   `PFSENSE_FIREWALL@172.17.0.1` à `172.17.0.1`,
   `last_pull=2026-10-27T23:12:07Z`. Pas de nouvelle exécution
   du diagnostic dans le relevé du gate actuel.
+- **Implémenté — preuve naturelle PF sans mutation (PR #289) :**
+  `scripts/workstation/observe-crowdsec-pf-decision.py` et recettes
+  `just crowdsec-pf-natural-baseline`,
+  `just crowdsec-pf-natural-observe` (sur la workstation).
+  Baseline privée `0700/0600`, exclusion des décisions et IP PF
+  historiques, recherche d'un `origin=crowdsec / ban / Ip` global
+  non simulé et comparaison de **la même IP** avant/pendant/après.
+  Vérification de l'état Small pfSense en lecture seule.
+  Les données OFFLINE n'autorisent pas un verdict PASS runtime.
+  **15/15 tests hermétiques PASS** en environnement d'agent,
+  nouvellement inclus dans le gate ciblé (46 tests au total) ;
+  **gate 46/46 non encore exécuté sur TrueNAS**.
+  Aucune baseline réelle, nouvelle décision ou remédiation PF
+  attestée dans la session d'agent.
 - **P0 NON VÉRIFIÉ — cycle de remédiation PF** : toujours 0 décision
   centrale au dernier diagnostic. Le gate et le `last_pull` ne
   prouvent ni l'ajout d'une nouvelle décision dans PF ni son retrait.
