@@ -786,3 +786,39 @@ PIV82, OTP2, PIV9A, rotations SOPS, KeePassXC
 et copie NFS supplémentaire demeurent suspendus.
 
 [Preuve et procédure](yubikey-software-recovery-20261026.md).
+
+
+## Restauration de l'identité SOPS depuis la nouvelle copie NFS : DONE (27/10/2026)
+
+**Nouvelle preuve workstation, réussite effective** :
+le script historique `verify-sops-age-escrow.sh`
+a déchiffré l'unique archive age créée à la
+racine du partage NFS. L'identité X25519
+provenait de la SanDisk originale
+**physiquement branchée et déjà montée**.
+La sortie confirme :
+`PASS: TrueNAS encrypted backup decrypted with USB key and recovered original SOPS public recipient.`
+L'identité SOPS retrouvée correspond au
+destinataire public historique. Ce jalon de
+restauration **est DONE**, pas un simple contrôle
+de métadonnées. Il ne prouve pas une récupération
+avec perte du support USB.
+
+**Prochaine étape P0** : test de fixture
+SOPS isolée via le script déjà présent
+`test-sops-usb-recovery.sh` avec **la même
+nouvelle archive NFS** et le support USB
+présent ; le script exécute de nouveau
+un déchiffrement age dans `/dev/shm`, puis
+un roundtrip SOPS sur données synthétiques.
+**NOT_RUN** pour cette nouvelle copie :
+ne pas annoncer PASS sans sortie réelle.
+
+**Étapes différées** : attester une copie
+réellement indépendante de l'identité privée
+de récupération USB, revoir l'accès effectif
+des dossiers NFS4, et maintenir les gels
+PIV82/PIV9A/OTP2, rotation des destinataires
+SOPS et KeePassXC. Ne pas relancer `--copy`.
+
+[Procédure et preuve](yubikey-software-recovery-20261026.md).
