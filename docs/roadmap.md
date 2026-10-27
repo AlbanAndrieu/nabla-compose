@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **27 octobre 2026**. Source d'autorité pour le travail restant
+> Mise à jour : **28 octobre 2026**. Source d'autorité pour le travail restant
 > dans `nabla-compose`. Ce document décrit des **décisions et gates**,
 > pas une preuve de fonctionnement des services.
 >
@@ -9,7 +9,34 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
-## P0 CrowdSec pfSense Small — réception locale du 28 octobre 2026
+## P0 CrowdSec pfSense Small — baseline LIVE établie le 28 octobre 2026
+
+- **DONE — gate ciblé workstation :** `just crowdsec-pf-natural-test`
+  **15/15 PASS**, puis `just crowdsec-bouncer-config-test` **46/46 PASS**
+  sur `nabla-compose`, HEAD utilisateur `ba5aa198` après fast-forward.
+  Décompte : URL 5, authentification 11, provisionneur 5,
+  provenance 10, cycle PF 15. Les contrôles Bash/Python du gate passent.
+  Ce n'est **pas** le quality gate global du dépôt.
+- **DONE — baseline réelle en lecture seule :**
+  `just crowdsec-pf-natural-baseline` a retourné
+  `crowdsec_pf_baseline=READY source_mode=LIVE pf_networks=4016 natural_bans=0`.
+  Les accès indépendants à TrueNAS et à pfSense, ainsi que le contrôle
+  de l'état pfSense Small, ont réussi. La baseline privée est locale
+  à la workstation et **ne doit pas être régénérée ni publiée**.
+- **P0 en attente d'événement :** le premier
+  `just crowdsec-pf-natural-observe` a retourné
+  `pf_decision_cycle=NOT_VERIFIED reason=NO_ELIGIBLE_NEW_NATURAL_BAN`.
+  Ce n'est **pas une panne** : aucune décision naturelle nouvelle ne
+  peut encore démontrer le cycle LAPI → PF → retrait.
+  Refaire seulement `just crowdsec-pf-natural-observe` depuis la
+  même workstation quand une décision naturelle apparaît.
+  Aucun ban synthétique ou `cscli decisions add/delete` n'a été exécuté.
+- **À ne pas déduire :** les 4 016 *réseaux IPv4* dans la baseline PF
+  ne correspondent pas directement à l'ancien décompte combiné IPv4/IPv6 ;
+  leur présence ne prouve ni leur origine CrowdSec centrale,
+  ni qu'une règle PF les applique à des paquets WAN.
+
+## Historique CrowdSec — étapes validées ou supplantées
 
 - **DONE — gate CrowdSec complet sur TrueNAS (preuve opérateur du 28/10) :**
   `just crowdsec-bouncer-config-test` **31/31 PASS**, code de sortie
