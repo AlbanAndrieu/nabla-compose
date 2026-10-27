@@ -323,6 +323,23 @@ guard_dockerhub_base_build() {
     fi
 }
 
+# A 429 from a release registry must not trigger another pull via local build.
+RELEASE_PULL_RATE_LIMITED=false
+run_release_image_pull() {
+    local image="$1" log
+    RELEASE_PULL_RATE_LIMITED=false
+    log="$(mktemp)"
+    if run_docker pull "${image}" >"${log}" 2>&1; then
+        rm -f -- "${log}"
+        return 0
+    fi
+    if grep -Eiq '(^|[^0-9])429([^0-9]|$)|too many requests|toomanyrequests|pull rate limit' "${log}"; then
+        RELEASE_PULL_RATE_LIMITED=true
+    fi
+    diag_info "Private release-pull failure evidence: ${log} (0600)"
+    return 1
+}
+
 run_build_attempt() {
     local log="$1"
 
@@ -459,12 +476,14 @@ run_docker compose -f apps/sample/compose.yml config --quiet --no-interpolate --
 image_source="local-build"
 if [[ "${DEPLOY_MODE}" != "build" && ( "${release_ref}" == true || "${release_image_explicit}" == true ) ]]; then
     printf 'Trying immutable release image: %s\n' "${release_image}"
-    if run_docker pull "${release_image}"; then
+    if run_release_image_pull "${release_image}"; then
         if [[ "${release_image}" != "${runtime_image}" ]]; then
             run_docker tag "${release_image}" "${runtime_image}"
         fi
         image_source="release-pull"
         printf 'Using prebuilt release image for immutable release ref; local Python dependency build skipped.\n'
+    elif [[ "${RELEASE_PULL_RATE_LIMITED}" == true ]]; then
+        fail 'Release registry returned HTTP 429; refusing fallback to a local Docker Hub build. Existing runtime preserved.'
     elif [[ "${DEPLOY_MODE}" == "pull" ]]; then
         fail "release image pull failed in pull-only mode: ${release_image}"
     else
