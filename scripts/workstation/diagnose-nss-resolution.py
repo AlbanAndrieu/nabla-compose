@@ -123,9 +123,12 @@ def classify(samples: dict[str, Sample], slow_seconds: float = 5.0) -> str:
             return "NSS_DEFAULT_CHAIN_SLOW_OR_BROKEN"
         if not successful(stub):
             return "RESOLVED_STUB_UDP_SLOW_OR_BROKEN"
-        if not successful(dns):
-            return "NSS_DNS_PATH_SLOW_OR_BROKEN"
-        return "NSS_DEFAULT_UNVERIFIED"
+        return "NSS_DNS_PATH_SLOW_OR_BROKEN"
+    # A good default-chain result cannot mask another failed probe.
+    if not successful(stub):
+        return "RESOLVED_STUB_UDP_SLOW_OR_BROKEN"
+    if not successful(dns):
+        return "NSS_DNS_PATH_SLOW_OR_BROKEN"
     return "PASS"
 
 
