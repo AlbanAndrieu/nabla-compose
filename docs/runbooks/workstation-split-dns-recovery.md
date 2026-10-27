@@ -189,6 +189,83 @@ que NetworkManager applique `172.17.0.1` et
 `~int.albandrieu.com`, que `hide-location` reste
 désactivé et que `getent`/Chrome restent opérationnels.
 
+## Régression NSS isolée — 27 octobre, après 22:24 CET
+
+L'opérateur a refait le contrôle sur la workstation :
+
+- `just workstation-split-dns-check` :
+  `nm_profile=MATCH`, `private_route=PERSISTED`,
+  `resolved_link=MATCH`, `resolved_domain=ROUTED`,
+  DNS pfSense UDP/TCP `A_CONFIRMED (0.0s)`.
+  Mais `client_nss=A_CONFIRMED (12.4s)` : **DNS correct,
+  NSS très lent** malgré `diagnosis=PASS`.
+- `time resolvectl query -4 defectdojo.int.albandrieu.com` :
+  **0,149 s**, réponse A `172.17.0.24` sur `eno1`.
+- `time getent ahostsv4 defectdojo.int.albandrieu.com` :
+  **25,030 s**, **aucune réponse imprimée**.
+- `resolvectl status eno1` : DNS `172.17.0.1`,
+  domaine `~int.albandrieu.com`, `DNSOverTLS=opportunistic`,
+  `DNSSEC=yes/supported`, `DefaultRoute=yes`.
+- Ligne `hosts:` antérieurement relevée :
+  `files mdns4_minimal [NOTFOUND=return] dns mymachines`.
+- `/etc/resolv.conf` est un lien vers le stub généré
+  `/run/systemd/resolve/stub-resolv.conf`.
+
+**Interprétation :** la résolution directe et la couche
+`systemd-resolved` native répondent vite à cet instant,
+tandis que le chemin `getent`/glibc NSS peut atteindre
+25 s sans réponse. Il est **incorrect** d'attribuer cette
+mesure à pfSense ou de considérer l'ensemble des fonctions
+DNS défaillantes. Aucun changement de DNS n'est justifié
+tant que le split-DNS de NetworkManager est intact.
+
+### Diagnostic différentiel en une commande (lecture seule)
+
+```bash
+cd ~/w/nabla-compose
+just workstation-nss-path-test
+just workstation-nss-path
+```
+
+Source : `scripts/workstation/diagnose-nss-resolution.py`.
+Cinq chemins distincts, chacun avec un timeout individuel,
+sans modifier de fichier de configuration :
+
+1. `resolvectl query -4` : API native `systemd-resolved`.
+2. `dig @127.0.0.53` : stub DNS UDP local.
+3. `getent -s hosts:dns ahostsv4` : forcer le module
+   NSS `nss-dns`, sans les autres modules de `hosts:`.
+4. `getent -s hosts:resolve ahostsv4` : forcer
+   `nss-resolve` (optionnel et potentiellement absent).
+5. `getent ahostsv4` : chaîne glibc `hosts:` réelle.
+
+La commande classe entre
+`NSS_DEFAULT_CHAIN_SLOW_OR_BROKEN`,
+`RESOLVED_STUB_UDP_SLOW_OR_BROKEN`,
+`NSS_DNS_PATH_SLOW_OR_BROKEN`,
+`RESOLVED_NATIVE_SLOW_OR_UNVERIFIED`, ou `PASS`.
+Un module `nss-resolve` absent **ne suffit pas** pour
+déclarer une panne. La classification se fonde
+d'abord sur le chemin NSS par défaut et la comparaison
+avec le résolveur natif.
+
+**Attention :** `getent -s` impose un module NSS
+uniquement pour cette commande. Il ne modifie pas
+`/etc/nsswitch.conf`. Ne pas ajouter `resolve`
+ni retirer `mdns4_minimal` de `hosts:` tant
+que les résultats des modules forcés ne démontrent
+pas où le délai apparaît. Si `nss-resolve` est
+disponible et plus rapide, préparer une correction
+déclarative et réversible **dans ansible-workstation**,
+avec sauvegarde des valeurs d'origine.
+
+**Critère de clôture :** `just workstation-nss-path`
+répond rapidement via la chaîne NSS par défaut,
+sur plusieurs essais séparés et après redémarrage.
+Même quand le diagnostic global DNS affiche `PASS`,
+un avertissement `NSS query slow` reste un problème
+de performance non résolu.
+
 ## Validation DONE
 
 Confirmer que hide-location est désactivé, que le profil NM
