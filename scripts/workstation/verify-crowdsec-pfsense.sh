@@ -141,7 +141,13 @@ else
         line=$0
         sub(/^[^:]*:[[:space:]]*/, "", line)
         sub(/[[:space:]]+$/, "", line)
-        gsub(/^["\\047]|["\\047]$/, "", line)
+        # awk string quoting on FreeBSD does not interpret \\047 uniformly.
+        # Strip matching double/single YAML quotes without touching the URL.
+        first=substr(line,1,1)
+        last=substr(line,length(line),1)
+        single=sprintf("%c",39)
+        if (length(line) >= 2 && first == last && (first == "\"" || first == single))
+          line=substr(line,2,length(line)-2)
         print line
         exit
       }
