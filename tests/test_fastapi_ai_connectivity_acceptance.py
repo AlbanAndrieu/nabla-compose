@@ -73,7 +73,7 @@ class FastApiAiConnectivityContract(unittest.TestCase):
         )
         result = subject.inspect()
         self.assertTrue(result["raw_secrets_printed"] is False)
-        self.assertNotIn("secret", json.dumps(result))
+        self.assertNotIn("secret-in-stderr", json.dumps(result))
         cmd = execute.call_args.args[0]
         self.assertEqual(cmd[:3], ["docker", "exec", "--env"])
         self.assertIn("FASTAPI_AI_INFERENCE_SMOKE=0", cmd)
@@ -98,14 +98,23 @@ class FastApiAiConnectivityContract(unittest.TestCase):
             '{"unexpected":"secret"}',
             json.dumps({**report(), "litellm": "secret-private-model"}),
             json.dumps({**report(), "openrag_mcp": {"untrusted": True}}),
+            json.dumps({**report(), "litellm": ["http_200"]}),
+            json.dumps({**report(), "ollama": None}),
+            json.dumps({**report(), "openrag_backend": 200}),
         ):
             with self.subTest(output=output[:15]):
                 execute.return_value = subprocess.CompletedProcess(
                     [], 0, stdout=output,
                 )
                 result = subject.inspect()
-                self.assertEqual(result["runtime"], "invalid_probe_report")
-                self.assertNotIn("secret", json.dumps(result))
+                self.assertEqual(
+                    result,
+                    {
+                        "component": "fastapi_ai_acceptance",
+                        "runtime": "invalid_probe_report",
+                        "raw_secrets_printed": False,
+                    },
+                )
 
     @mock.patch.object(subject.subprocess, "run")
     def test_docker_denial_never_prints_stderr(self, execute):
