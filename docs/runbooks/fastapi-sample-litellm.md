@@ -103,6 +103,55 @@ leaking values in CI, `docker inspect` or shell history. Remove the
 operator transitional key files only after Vaultwarden and runtime
 materialization are independently verified.
 
+## Réception suivante : absence de l'alias confirmée, test NUL corrigé
+
+**Preuves runtime Workstation :**
+`test_fastapi_litellm_native_truenas.py` = **12/12 PASS**.
+`test_fastapi_litellm_workstation_inventory.py` :
+**11 tests PASS**, **1 erreur du banc de test** Python
+3.14 sur `patch.dict(os.environ, {"LITELLM_MASTER_KEY":
+"with\\x00NUL"})`. `os.environ` refuse un octet NUL
+avant l'appel au validateur : ce n'est pas un échec
+du proxy ni du code de filtrage du credential.
+Le test utilise désormais un **mock de `os.getenv`**
+pour vérifier tous les formats interdits en restant
+hors environnement système et sans réseau.
+La variante de mock a été vérifiée localement ;
+la suite complète reste à rejouer sur Workstation.
+
+L'inventaire Workstation avec credential fourni en
+sous-shell a produit :
+```text
+host_context=workstation_verified
+proxy_liveliness=http_200
+key_file_state=absent
+alias_state=alias_absent_confirmed
+runtime_mutated=false
+secret_values_printed=false
+```
+
+**Décision opérationnelle :** l'absence de l'alias
+`fastapi-sample-upstream` est confirmée dans la
+base du proxy Workstation interrogé. Après succès
+de la suite de tests corrigée, **une unique tentative**
+`--target workstation --apply` est autorisée
+par la demande de génération de l'opérateur.
+Le provisionneur doit refaire l'inventaire
+authentifié `/key/list` avant d'émettre
+`POST /key/generate`, bloquer tout doublon
+et écrire la nouvelle clé dans un fichier privé
+`~/.local/share/nabla-compose/fastapi-litellm/workstation.key`
+(mode 0600). En cas de BLOCKED, ne pas
+relancer sans un nouveau contrôle de l'alias.
+
+**Ce bloc documente une décision ; aucune clé n'est
+générée ni injectée par la modification Git.**
+Après émission, transférer la valeur sans l'afficher
+dans le champ masqué `LITELLM_FASTAPI_WORKSTATION_API_KEY`
+de `nabla/prod/litellm`; la matérialisation
+du `.env.secrets` TrueNAS et le redéploiement
+restent des étapes distinctes.
+
 ## Workstation : credential sans préfixe `sk-`, inventaire non exécuté
 
 **Réception opérateur :**
