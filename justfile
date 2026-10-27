@@ -505,6 +505,18 @@ openclaw-digest-top-test:
 openclaw-digest-top-check:
     python3 scripts/workstation/diagnose-openclaw-digest-top.py
 
+# Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
+openclaw-nabla-migration-test:
+    python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_nabla_migration_audit.py' -v
+
+openclaw-nabla-migration-check:
+    python3 scripts/workstation/audit-openclaw-nabla-migration.py --check
+
+# Classify only the known auth error; never disable LiteLLM model authentication.
+litellm-workstation-auth-contracts:
+    python3 -m pytest -q tests/test_litellm_dashboard_auth_failure.py tests/test_openrag_litellm_nonbillable_probe_contract.py
+
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
     python3 -m py_compile scripts/workstation/diagnose-openclaw-secrets-plan.py scripts/workstation/cutover-openclaw-cron-secret.py tests/test_openclaw_secrets_plan_diagnostic.py tests/test_openclaw_gateway_cron_env_contract.py tests/test_openclaw_cron_secret_cutover.py
@@ -790,7 +802,7 @@ truenas-openrag-startup-check:
 truenas-openrag-startup-test:
     bash -n scripts/truenas/diagnose-openrag-startup.sh
     bash -n scripts/truenas/reconcile-openrag-opensearch-secret.sh
-    python3 -m pytest -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py
+    python3 -m pytest -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py tests/test_openrag_litellm_nonbillable_probe_contract.py
 
 # Read-only host preflight; --apply remains a separate, explicit operator action.
 truenas-prometheus-config-check:
