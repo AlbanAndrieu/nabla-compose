@@ -114,6 +114,50 @@ conteneur cible, l'état Docker ou la présence de Python avant
 de tester les secrets. L'attribution du client LiteLLM SDK et
 la résolution de la trace 401 restent distinctes.
 
+## P0 — Cause du préflight isolée : ancien conteneur arrêté
+
+**Preuve TrueNAS :**
+
+```text
+litellm-litellm-1   Up 3 days (healthy)
+litellm             Exited (0) 3 months ago
+```
+
+`docker inspect --format '{{.State.Status}}' litellm`
+retourne `exited`. Le diagnostic précédent exécutait
+`docker exec litellm ...` et inspectait la **mauvaise instance**.
+Le diagnostic `container_not_running` était donc correct pour
+l'ancien conteneur, mais **sans relation directe démontrée**
+avec l'absence d'authentification sur Workstation.
+
+**Correctif PR #289 :** découverte de la **seule instance running**
+dont les labels Docker Compose sont
+`com.docker.compose.project=litellm` et
+`com.docker.compose.service=litellm`. Les appels `inspect`,
+`exec` (présence des variables) et version SDK utilisent le
+**même identifiant de conteneur** découvert ; les ID et secrets
+ne sont jamais imprimés. Si plusieurs instances sont running,
+aucune instance n'est retenue et le contrôle échoue fermé.
+Le legacy `litellm` arrêté n'est jamais sélectionné. Ce
+changement ne renomme, ne démarre ni ne supprime un conteneur.
+
+```bash
+# Après mise à jour du checkout de la PR :
+just litellm-workstation-auth-contracts
+# Sur TrueNAS uniquement :
+just litellm-workstation-upstream-auth-check
+```
+
+**Preuve attendue :**
+`truenas_container_selection=selected`,
+`truenas_docker_container_name=litellm-litellm-1`,
+`truenas_docker_container_status=running`. Il restera
+à distinguer `all_present_unvalidated` de
+`missing_runtime_upstream_key` et à corréler l'appel
+`GET /v1/models` au bon processus SDK. La réponse
+`HTTP 200` de liveness Workstation n'est pas une preuve
+de succès d'une requête authentifiée.
+
 ## P0 — Stabiliser LiteLLM Workstation
 
 - [x] Corriger le GET anonyme `/v1/models` du diagnostic OpenRAG
