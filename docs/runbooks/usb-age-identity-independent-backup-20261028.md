@@ -71,6 +71,37 @@ Si une étape échoue : arrêter. Ne pas supprimer les archives, les réécrire,
 faire tourner les clés, modifier PIV9A/PIV82/OTP2 ou relancer la sauvegarde.
 Conserver l'état `NO-GO` et diagnostiquer uniquement en lecture seule.
 
-**État de publication :** scripts et tests ajoutés dans la PR. La création
-réelle des deux copies et leur restauration sur workstation doivent encore
-être attestées par les sorties opérateur, sans secrets.
+## ✅ Preuve d'acceptation workstation — 28/10/2026
+
+L'opérateur a transmis la sortie des commandes après `git pull --ff-only`
+sur la branche de la PR #289 :
+
+| Contrôle | Preuve | État |
+| --- | --- | --- |
+| `just yubikey-usb-identity-backup-test` | 14 tests, `OK` | **PASS** |
+| `just yubikey-usb-identity-restore-test` | 13 tests, `OK` | **PASS** |
+| `just yubikey-usb-identity-backup-check` | `BACKUP_PREFLIGHT_READY` | **PASS** |
+| `just yubikey-usb-identity-backup` | `ENCRYPTED_LOCAL_AND_NFS_BACKUPS_IDENTICAL`, copie vérifiée `true` | **PASS** |
+| `just yubikey-usb-identity-restore-check` | `BACKUP_RESTORATION_PREFLIGHT_READY` | **PASS** |
+| `just yubikey-usb-identity-restore-verify` | `BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`, restauration `true` | **PASS** |
+
+**DONE :** création d'une archive chiffrée localement et d'une copie chiffrée
+identique sur le montage NFS TrueNAS ; restauration cryptographique séparée
+des deux copies ; conformité du destinataire public historique.
+**27/27 tests hermétiques PASS**, sans CI GitHub. Aucun secret n'a été fourni
+dans les sorties. Le script de restauration ne dépend pas de l'USB.
+
+**Limites non attestées :**
+- Le transcript ne confirme pas le **débranchement physique** de la SanDisk
+  avant l'essai de restauration ; ne pas revendiquer un exercice PRA complet
+  « sans SanDisk » au niveau opérateur.
+- La **conservation durable de la phrase secrète** dans un support accessible
+  indépendamment de la SanDisk n'est pas prouvée. Ne jamais publier sa valeur.
+- Les droits NFS4 effectifs du fichier et de ses répertoires parents restent
+  à auditer séparément.
+- Aucune restauration d'un document SOPS de production, ni simulation de
+  perte de workstation/NFS, n'a été effectuée dans cette séquence.
+
+**Ne pas relancer `--backup` :** les archives existent et le script refuse
+de les écraser. Garder `--copy`, la rotation SOPS, OTP2 et PIV9A/PIV82
+hors périmètre. PR #289 toujours sans automerge.
