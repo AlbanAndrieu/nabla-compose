@@ -41,6 +41,21 @@ READ_TAIL_BYTES = 1024 * 1024
 VALID_CODES = frozenset(rule.code for rule in RULES)
 
 
+def allowed_log_owners() -> set[int]:
+    """Authorize root/current UID and the original sudo invoker, not arbitrary users."""
+    euid = os.geteuid()
+    owners = {0, euid}
+    if euid == 0:
+        sudo_uid = os.environ.get("SUDO_UID", "")
+        # sudo provides SUDO_UID for the caller; reject malformed/out-of-range
+        # values and never trust it in an unprivileged process.
+        if re.fullmatch(r"[0-9]{1,10}", sudo_uid):
+            original_uid = int(sudo_uid)
+            if 0 < original_uid < 2**32:
+                owners.add(original_uid)
+    return owners
+
+
 def private_tail(path: str) -> tuple[str | None, str]:
     """Open only /tmp/mktemp logs with no symlinks or permission drift."""
     candidate = Path(path)
@@ -60,7 +75,7 @@ def private_tail(path: str) -> tuple[str | None, str]:
             return None, "unsafe_log_type"
         if (stat.S_IMODE(metadata.st_mode) & 0o077) != 0:
             return None, "unsafe_log_permissions"
-        if metadata.st_uid not in (0, os.geteuid()):
+        if metadata.st_uid not in allowed_log_owners():
             return None, "unsafe_log_owner"
         if metadata.st_size > MAX_FILE_BYTES:
             return None, "log_too_large"
