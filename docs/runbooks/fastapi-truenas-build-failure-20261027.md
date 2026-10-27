@@ -50,7 +50,7 @@ git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/clas
 
 Ne communiquer que le JSON de classification. Le journal reste strictement local à TrueNAS.
 
-## État réel du 27 octobre : échec non classé
+## Étape intermédiaire du diagnostic : échec initialement non classé
 
 La recette opérateur a confirmé que `/tmp/tmp.ngofCbFlgw` est un fichier régulier privé (`owner_uid=1000`, `mode=600`, `links=1`). L'invocateur `sudo` a aussi l'UID 1000. Avec le classifieur corrigé, l'ouverture réussit mais la sortie demeure `state=unclassified_build_failure`, `matched_categories=[]`, `raw_log_printed=false`.
 
@@ -66,7 +66,7 @@ git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/clas
 
 Le propriétaire du journal est le même UID que l'utilisateur courant : **pas besoin de sudo** dans ce cas. Pour vérifier les nouveaux contrats avec le checkout à jour, exécuter `python3 -m unittest discover -s tests -p 'test_fastapi_build_failure_classifier.py' -v`. Ne publier que le JSON. Si `unclassified_build_failure` persiste, contrôler localement **la présence et la taille du journal** sans communiquer son contenu ; le diagnostic reste bloqué tant qu'aucune cause observable n'est identifiée. Ne pas relancer le builder pour obtenir de nouvelles preuves, ni effectuer un redéploiement concurrent.
 
-## Cause exacte du refus de propriétaire et preuve BuildKit actuelle
+## Origine du faux refus de propriétaire et preuve BuildKit intermédiaire
 
 **`unsafe_log_owner` était un faux positif du classifieur, pas une permission Docker incorrecte.** Le shell de déploiement lance `log="$(mktemp)"` dans `build_fastapi_sample()`, ce qui crée le fichier `0600` au nom de l'utilisateur opérateur (UID 1000). Ensuite, `run_build_attempt()` écrit le résultat de `run_docker` dans ce fichier. L'exécution éventuelle du client Docker avec `sudo` ne change **pas** le propriétaire du journal. L'ancien test de sécurité `st_uid in (0, os.geteuid())` refusait l'UID 1000 lorsque le diagnostic était exécuté en EUID 0. Avec `SUDO_UID=1000` validé, ou simplement avec Python exécuté par l'utilisateur propriétaire, le journal est lu sans modifier les droits.
 
@@ -98,27 +98,56 @@ La sortie est un JSON à champs fixes : `terminal_marker_style`, `terminal_keywo
 
 Aucun appel Docker, aucune CI et aucun redéploiement ne font partie de cette opération.
 
-## Diagnostic ciblé du registre Python — preuve structurée
+## Diagnostic confirmé — HTTP 429 Docker Hub sur l'image Python
 
-La dernière sortie réelle du classifieur `--failure-shape` contient les mots techniques fixes **registry**, **python**, **unexpected**, **request**. Elle suggère un échec de requête vers un registre lors de la résolution d'une image Python, mais ni le statut HTTP ni l'URL effective ne sont prouvés. Le `Dockerfile` au SHA FastAPI `0266f20d` utilise `python:3.13-slim-trixie` dans les trois étapes et `ghcr.io/astral-sh/uv:0.8.14` dans une instruction `COPY --from`.
+**Preuve opérateur du 27 octobre 2026** : journal complet de 1324 octets, privé (UID 1000, permissions 0600) ; `state=registry_request_failure`, `failure_stage=internal`, `failure_operation=image_metadata`, `registry_provider=docker_hub`, `registry_image=official_python`, `registry_request_method=HEAD`, `registry_http_status=429`, `registry_http_class=rate_limited`, `raw_log_printed=false`. La référence de l'image de base dans le Dockerfile est `python:3.13-slim-trixie` et elle est utilisée par trois étapes de build. **Cause immédiate de l'échec du build : limitation HTTP 429 côté Docker Hub**. Le gel du navigateur de `/api` est un autre défaut ; son correctif #380 n'a pas été déployé sur TrueNAS.
 
-Le classifieur `--failure-shape` a été enrichi : `registry_provider` et `registry_image` ne sont que des catégories fixes sur motifs connus, `registry_request_method` vaut `HEAD`, `GET`, `POST`, `PUT` ou `unknown`, `registry_http_status` est un code HTTP 4xx/5xx ou `null`, et `registry_http_class` distingue notamment `rate_limited`, `authorization`, `not_found` et `upstream_or_proxy_error`. Aucun hôte, chemin, tag, URL ou message d'erreur n'est imprimé. Les erreurs `[internal] load metadata for` peuvent désormais être identifiées comme une étape `image_metadata` si l'identifiant BuildKit correspond.
+Le code 429 ne suffit pas à établir s'il s'agit du **quota de pulls** (fenêtre de 6 heures) ou de la **limitation anti-abus** (nombre de requêtes élevé, valable même pour les comptes authentifiés). Docker distingue les deux par le corps de réponse ; le classifieur ne l'affiche pas. Éviter les boucles de tentatives et les `pull --all-tags`. Sources : https://docs.docker.com/docker-hub/troubleshoot/ ; https://docs.docker.com/docker-hub/usage/pulls/ ; https://docs.docker.com/docker-hub/usage/ .
 
-~~~bash
-git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
-git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/classify-fastapi-build-failure.py |
-  python3 - --check --failure-shape --log /tmp/tmp.ngofCbFlgw
-~~~
-
-Si le code HTTP est `429`, rechercher la limitation Docker Hub sans relancer les pulls. Si `401/403`, revoir localement l'authentification du registre et les règles du proxy ; pour `404`, contrôler la référence de l'image ; pour `5xx`, privilégier la santé du registre et la configuration proxy. Un `429` peut correspondre à différentes limites ; le code seul ne prouve pas laquelle. Ne pas exécuter de `docker pull` ou `docker build` pour établir cette preuve.
-
-Contrôle passif éventuel du cache local, sans accès réseau :
+### Préflight strictement en lecture seule — aucune requête au registre
 
 ~~~bash
-docker image inspect python:3.13-slim-trixie --format 'cached=yes' 2>/dev/null || printf 'cached=no\n'
+if sudo docker info >/dev/null 2>&1; then
+  echo "docker_daemon=accessible"
+  if sudo docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
+    echo "python_base_image_cache=present"
+  else
+    echo "python_base_image_cache=absent"
+  fi
+else
+  echo "docker_daemon=unavailable"
+fi
+
+# Identifie quel client serait utilisé par run_docker dans le script :
+if docker info >/dev/null 2>&1; then
+  echo "build_docker_client=user"
+else
+  echo "build_docker_client=sudo_candidate"
+fi
+
+# Ne vérifie que l'existence de la configuration, PAS l'authentification effective.
+if test -s "${HOME}/.docker/config.json"; then
+  echo "user_docker_config=present"
+else
+  echo "user_docker_config=missing"
+fi
+if sudo sh -c 'test -s "${HOME}/.docker/config.json"'; then
+  echo "sudo_docker_config=present"
+else
+  echo "sudo_docker_config=missing"
+fi
 ~~~
 
-Le diagnostic reste bloquant pour le déploiement tant que l'échec exact de requête n'est pas attribué.
+Ne pas imprimer `config.json` ; il peut contenir des identifiants ou pointeurs de coffre. La présence du fichier ne prouve pas que Docker Hub est authentifié. `cached=no_or_access_error` vu précédemment **ne prouve pas** l'absence d'image : distinguer l'accès au daemon de la présence de l'image avec les deux premières commandes.
+
+### Récupération ciblée, après attribution du type de 429
+
+1. **Pull quota :** attendre le renouvellement de la fenêtre de six heures ou, après intervention explicite de l'opérateur, authentifier le **même client Docker** que `run_docker` dans un contexte de configuration protégé. Ne pas mettre un token dans une commande ou dans `compose.yml`. `sudo docker` peut utiliser un autre magasin d'identifiants que `docker`.
+2. **Anti-abus :** réduire le trafic sortant et laisser expirer le blocage ; une connexion Docker Hub ne garantit pas de lever ce type de 429. Inspecter les pollers ou builds répétés du homelab avant de modifier le réseau.
+3. **Une fois le 429 levé :** effectuer au plus un `docker pull python:3.13-slim-trixie` avec le client effectif. Vérifier l'image dans le cache avant un seul déploiement du SHA immuable `0266f20d7ff1278bf7dd36ac15a22618d04b3742`. Ce pull **télécharge une image** et n'appartient pas au préflight en lecture seule.
+4. **Acceptation :** vérifier l'étape 6/6, l'endpoint /health et la provenance de l'image, puis comparer `node scripts/diagnose-production-api-ui-freeze.mjs truenas` et `node scripts/diagnose-production-api-ui-freeze.mjs truenas --safe` depuis un checkout FastAPI contenant #380. Ne pas attribuer une réussite UI au seul HTTP 200.
+
+Aucune modification du daemon global TrueNAS, du Dockerfile, de pfSense, des services Nexus/DefectDojo ni de configuration DNS n'est nécessaire à ce stade. Un proxy pull-through Nexus ou un miroir Docker Hub peut être évalué ultérieurement pour limiter les téléchargements, mais **pas configuré dans cette intervention** (impacts multi-services). Documentation Docker : https://docs.docker.com/docker-hub/usage/manage/ ; https://docs.docker.com/docker-hub/image-library/mirror/ .
 
 ## Causes classées et actions de lecture seule
 
