@@ -245,7 +245,9 @@ elif [[ -n "${container_id:-}" ]]; then
     printf 'crowdsec_bouncer_%s\n' "${bouncer_status}"
     last_pull="$(jq -r --arg name "${BOUNCER_NAME}" '.[] | select(.name == $name) | (.last_pull // "")' <<<"${bouncer_json}")"
     if [[ -n "${last_pull}" ]]; then
-      ok "pfSense firewall bouncer has polled the central LAPI"
+      printf 'crowdsec_bouncer_last_pull_provenance=NOT_VERIFIED\n'
+      warn "central registration has last_pull, but a credential preflight may set it; verify a post-cutover pfSense-origin pull and PF remediation separately"
+      ok "central bouncer registration has at least one authenticated LAPI read"
     elif [[ "${MODE}" == "--accept" ]]; then
       error "pfSense firewall bouncer is registered but has not polled the central LAPI"
     else
