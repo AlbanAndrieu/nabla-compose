@@ -37,11 +37,40 @@ class DigestTopContract(unittest.TestCase):
 
     def test_unknown_and_multiple_fail_closed(self):
         self.assertEqual(audit.classify_job(self.job("top 3-5 stories"))[0],
+                         "natural_language_top_range")
+        self.assertEqual(audit.classify_job(self.job("3–5 articles, run the digest"))[0],
+                         "natural_language_top_range")
+        self.assertEqual(audit.classify_job(self.job("top five stories"))[0],
                          "no_explicit_top_argument")
         self.assertEqual(audit.classify_job(self.job("--top 5 then --top 3-5"))[0],
                          "multiple_top_arguments")
         self.assertEqual(audit.classify_job(self.job("--top arbitrary"))[0],
                          "invalid_top_value")
+
+    def test_explicit_five_cannot_coexist_with_unresolved_range(self):
+        status, expected = audit.classify_job(self.job(
+            "Collect 3-5 articles, invoke summarize-merged.py --top 5"))
+        self.assertEqual(status, "ambiguous_mixed_top_guidance")
+        self.assertEqual(expected, "5")
+        self.assertEqual(audit.classify_job(self.job(
+            "Use summarize-merged.py --top 5 and no numeric ranges"))[0],
+            "valid_top_five")
+
+    def test_absent_explicit_top_fails_closed_without_printing_prompt(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = self.fixture(root)
+            source.write_text(json.dumps(self.job(
+                "Select 3-5 news, private-token-SECRET, notify Discord")))
+            source.chmod(0o600)
+            with contextlib.redirect_stdout(io.StringIO()) as captured:
+                code = audit.main(["--fixture", str(source)])
+            self.assertEqual(code, 2)
+            output = captured.getvalue()
+            self.assertIn("digest_top_argument=natural_language_top_range", output)
+            self.assertIn("recommended_integer_top=5", output)
+            self.assertIn("task_prompt_printed=false", output)
+            self.assertNotIn("SECRET", output)
+            self.assertNotIn("Discord", output)
 
     def test_wrong_job_and_payload_rejected(self):
         self.assertEqual(audit.classify_job(self.job("--top 3-5", name="other"))[0],
