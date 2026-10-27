@@ -440,9 +440,11 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 
 ## P0 — Échec du build FastAPI TrueNAS #380 (27 octobre 2026)
 
-- **Preuve :** la construction du commit FastAPI 0266f20d a échoué à
-  l'étape 3/6. Le conteneur précédent a été conservé ; le safe mode
-  du nouveau commit **n'est donc pas déployé**.
+- **Incident historique :** le premier build FastAPI 0266f20d était bloqué
+  par Docker Hub 429. **Déploiement ultérieur 6/6 réussi** sur TrueNAS :
+  FastAPI 1.25.0, conteneur running, `/health` HTTP 200, santé 4/4.
+  L'identité de l'image Docker est vérifiée, mais
+  `build_revision=null` ne prouve pas le SHA compilé.
 - **Journal privé :** /tmp/tmp.ngofCbFlgw (0600) ; ne pas imprimer,
   copier, annexer ni transmettre le contenu.
 - **Analyse Git :** Dockerfile fa13c08d = Dockerfile 0266f20d,
@@ -490,19 +492,29 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [x] Docker Hub : `sudo docker login` réussi, identité `root:root` / `0600`,
   `sudo docker pull python:3.13-slim-trixie` réussi. Le digest observé
   commence par `sha256:b3575dcf816c` ; cela ne valide pas les autres pulls du build.
-- [ ] Redéployer exactement le SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742`
-  depuis le checkout TrueNAS canonique après validation des tests et réseaux.
-- [ ] Confirmer la clé virtuelle LiteLLM de FastAPI en runtime via
-  `GET /v1/models` (alias `fastapi-qwen` visible), puis l'upstream workstation
-  avec un smoke d'inférence synthétique explicite et une vérification de budget.
-- [ ] Confirmer depuis FastAPI l'API Ollama `:30068`, la santé OpenRAG backend
-  et frontend, puis différencier disponibilité réseau et autorisation RAG.
-  L'intégration MCP OpenRAG reste `not_wired_pending_private_acl`.
+- [x] Upgrade exécuté par l'opérateur avec `FASTAPI_SAMPLE_REF=0266f20d7ff1278bf7dd36ac15a22618d04b3742` :
+  6/6 terminé, FastAPI 1.25.0, 4/4 healthy, digest image cohérent,
+  observateur et allowlist OK ; sous-module gitlink parent encore sur
+  `441d0a7e`, sans commit automatique.
+- [ ] P0 IA : `GET /v1/models` via clé FastAPI retourne **LiteLLM 401**
+  (`litellm_model=not_verified`). Tester sans secrets la santé du proxy et
+  le format de la clé, puis vérifier dans LiteLLM la clé virtuelle dédiée
+  `fastapi-sample-staging`, son scope `fastapi-qwen`, sa validité en base et
+  son budget **8 USD à vie** avant tout re-provisionnement.
+  Ne pas utiliser la clé master ou IDE comme contournement.
+- [ ] Après autorisation LiteLLM, contrôler la présence de
+  `LITELLM_FASTAPI_WORKSTATION_API_KEY` côté TrueNAS LiteLLM, puis un
+  smoke d'inférence synthétique opt-in via Workstation `qwen`.
+- [x] Connectivité observée depuis le conteneur FastAPI : Ollama
+  HTTP 200 ; OpenRAG backend et frontend HTTP 200 ; MCP HTTP 406
+  (transport, pas authentification). Prometheus/Gatus `gatus_up=1`,
+  `synthetic_samples=85`, pfSense RBAC 7/7.
+- [ ] OpenRAG : prévoir un client MCP et les ACL privées avant de
+  déclarer l'intégration fonctionnelle ou de tester la recherche privée.
 - [x] Ajouter dans #289 `accept-fastapi-ai-connectivity.py` et son test local
   pour produire uniquement des codes de transport/auth (sans secrets).
-- [x] Réseaux `intranet` et `traefik_network` disponibles ; upgrade SHA
-  `0266f20d` lancé sur TrueNAS et arrivé à **3/6, base Python en cache**.
-  Le build et l'acceptation finale ne sont **pas encore confirmés**.
+- [x] Réseaux `intranet` / `traefik_network` présents ; build complété ;
+  déploiement 6/6 et santé FastAPI confirmés par l'opérateur.
 - [x] Tests IA initiaux : 9 méthodes, 4 FAIL et 1 ERROR. Corrigé dans la
   PR #289 : contrôle du type JSON avant test d'appartenance à un set ;
   assertions de non-divulgation basées sur un rapport fixe, pas sur le
@@ -510,9 +522,9 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [ ] Rejouer les 9 tests d'acceptation IA corrigés depuis un worktree
   isolé **après la fin** de l'upgrade en cours ; ne pas relancer le
   déploiement et ne pas effacer les changements du sous-module.
-- [ ] Relever le résultat final de l'upgrade (6/6), puis l'état réellement
-  observé de LiteLLM, Ollama et OpenRAG. La connexion MCP/ACL OpenRAG
-  reste un chantier distinct. Voir
+- [x] Rapport final 6/6 reçu : FastAPI running HTTP 200, LiteLLM 401,
+  Ollama 200, OpenRAG backend/frontend 200, OpenRAG MCP 406.
+  La connexion MCP/ACL OpenRAG reste un chantier distinct. Voir
   [recette IA après déploiement](runbooks/fastapi-truenas-ai-acceptance-20261027.md).
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
