@@ -1217,3 +1217,105 @@ fichier protégé, et d'un nettoyage sous supervision.
 Ne jamais publier de plaintext, de clé age ou de passphrase.
 Ne pas modifier les originaux, les destinataires SOPS,
 les slots YubiKey ou l'escrow NFS existant.
+
+## Preuve X25519 du 27 octobre et reprise du PRA USB du 17 octobre
+
+**Résultat opérateur du 27/10/2026 dans #289** :
+
+- `just yubikey-escrow-age-header-test` : **13/13 PASS**.
+- `just yubikey-escrow-age-header-check` :
+  `HEADER_INSPECTION_READY`, aucun octet lu.
+- `just yubikey-escrow-age-header-inspect` :
+  `AGE_V1_HEADER_TYPE_HINT_ONLY`,
+  `recipient_family_hint=X25519_IDENTITY`,
+  `stanza_count=1`,
+  `archive_decryption_attempted=false`,
+  `real_escrow_restoration_verified=false`, `status=NO-GO`.
+
+**Découverte de preuve historique à conserver :** le runbook
+[`sops-age-usb-disaster-recovery.md`](sops-age-usb-disaster-recovery.md)
+documente, au **17/10/2026**, le déchiffrement réussi de
+l'archive `sops-age-identity-20261017T183615Z.age` depuis
+l'ancien emplacement TrueNAS `secret/keepass/`, avec l'identité
+age X25519 de récupération **indépendante de l'identité SOPS**,
+conservée sur une SanDisk LUKS2. Un second script a utilisé
+l'identité SOPS ainsi récupérée pour réussir un roundtrip
+**SOPS synthétique isolé** (`PASS: SOPS recovery with
+USB-backed escrow`). Ce sont de vraies preuves de récupération
+de l'identité age SOPS **à cette date** ; ce n'est pas un
+déchiffrement d'un document SOPS de production.
+
+La **copie NFS du 27/10** a été créée et relue dans
+`/media/backup/lab/secret/` (sans le sous-dossier
+`keepass` du PRA historique). Le contenu chiffré concorde
+avec la source locale et la présence TrueNAS est confirmée,
+mais **aucune restauration n'a encore été rejouée depuis
+cette nouvelle copie**. Une stanza `X25519` ne permet
+pas d'affirmer à elle seule qu'elle correspond à la même
+identité USB ; ne pas afficher l'identifiant de la stanza.
+
+### P0 — vérifier l'état du support USB, sans déchiffrement
+
+```bash
+# Depuis le worktree PR #289 actualisé, lecture seule :
+just yubikey-escrow-usb-status
+```
+
+Cette recette réutilise **le script préexistant**
+`manage-age-escrow-usb.sh --check` avec l'UUID de
+partition LUKS déjà documenté. Elle identifie le support
+et indique `Locked`, `Unlocked but not mounted`
+ou `Unlocked and mounted`. Aucun `cryptsetup open`,
+formatage, montage, création de clé, YubiKey ni
+déchiffrement n'est exécuté. Ne pas publier le
+`lsblk` détaillé si des identifiants privés figurent
+dans la sortie ; communiquer seulement l'état du support.
+
+Si la clé USB n'est pas présente, **ne pas déduire que
+la récupération est impossible** : signaler `USB_ABSENT`
+et reporter le test réel. Si elle est déjà déverrouillée et
+montée, vérifier localement sa clé de récupération
+`age-escrow/recovery-identity.txt` en mode `0600`,
+sans l'ouvrir dans un éditeur ou imprimer sa valeur.
+La présence d'un fichier ne prouve pas sa compatibilité
+avec cette archive.
+
+### P1 — rejouer le PRA historique sur la copie actuelle (autorisation séparée)
+
+**Il existe déjà deux scripts :**
+
+1. `scripts/workstation/verify-sops-age-escrow.sh` :
+   déchiffre une archive age à l'aide de l'identité USB
+   dans un répertoire `/dev/shm` privé et compare le
+   destinataire public de l'identité SOPS récupérée au
+   destinataire SOPS attendu. Ce script réalise un
+   **véritable déchiffrement de l'archive**.
+2. `scripts/workstation/test-sops-usb-recovery.sh` :
+   restaure à nouveau l'identité SOPS dans `/dev/shm`,
+   chiffre puis déchiffre **une fixture SOPS synthétique**
+   avec cette identité, sans écraser la configuration
+   réelle.
+
+Avant utilisation, contrôler avec l'opérateur le bon
+fichier de backup (nouvel emplacement à la racine
+`secret/`, pas l'ancien `secret/keepass/`),
+le bon montage USB et l'état du `tmpfs`. N'exécuter
+ces scripts **qu'après autorisation explicite d'un
+déchiffrement réel**, en vérifiant leurs protections de
+journalisation et leur nettoyage. Ne jamais insérer
+de clé ou mot de passe dans Git, la conversation,
+les arguments de processus ou les logs.
+
+**Critère DONE de ce nouveau jalon** : le même test
+d'identité X25519 USB / archive NFS créée le 27/10
+réussit et la fixture SOPS se déchiffre dans
+l'environnement isolé. Même alors, il reste à vérifier
+une seconde copie **de l'identité de récupération USB**
+et les ACL NFS4 effectives des répertoires. Deux
+copies du même ciphertext ne remplacent pas la
+sauvegarde de la clé privée de récupération.
+
+**Maintien NO-GO** : aucune écriture PIV82, PIV9A,
+OTP2, aucune rotation des destinataires SOPS, aucun
+`luksFormat` ni `init-identity`. KeePassXC
+demeure reporté. **Ne pas relancer `--copy`.**
