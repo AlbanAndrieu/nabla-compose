@@ -57,6 +57,25 @@ allowlisté et ne recrée ni utilisateur ni superuser. Il refuse
 les secrets dont les permissions ne sont pas `root:root 0600`,
 ou un compte Django absent/inactif/non-admin.
 
+**Reprise accélérée lorsque uWSGI n'a pas démarré :**
+le helper peut désormais exécuter la même mise à jour du compte existant
+depuis `defectdojo-initializer`, à condition que ce conteneur soit
+encore `running`. Cette option ne recrée pas la base :
+
+```bash
+sudo docker inspect -f '{{.State.Status}}' defectdojo-initializer
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py \
+  --container defectdojo-initializer --check
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py \
+  --container defectdojo-initializer --apply \
+  --acknowledge I_APPROVE_EXISTING_DEFECTDOJO_ADMIN_PASSWORD_SYNC
+```
+
+Si le conteneur initializer est `exited` ou si Django ne répond pas,
+ne pas interpréter `DJANGO_UNAVAILABLE` comme une erreur de mot de
+passe ; examiner le déploiement avant de poursuivre. La commande ne
+change que le hash PostgreSQL du compte `admin` existant.
+
 **Vaultwarden :** l'entrée `TrueNAS/nabla/prod/defectdojo` n'a pas
 été revérifiée après l'édition manuelle. Confirmer
 `login.username=admin`, puis synchroniser `login.password`
