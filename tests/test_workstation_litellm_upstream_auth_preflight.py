@@ -16,8 +16,30 @@ spec.loader.exec_module(mod)
 
 
 class WorkstationUpstreamAuthTests(unittest.TestCase):
-    def test_selects_only_running_compose_proxy_not_stopped_legacy(self):
-        rows = b"0123456789ab|litellm-litellm-1\n"
+    def test_host_context_requires_native_truenas_middleware_proof(self):
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=b'"TrueNAS-26.0.0"\n', stderr=b"")):
+            self.assertEqual(mod.truenas_host_state(), "verified")
+        with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=b"Ubuntu-24.04\n", stderr=b"")):
+            self.assertEqual(mod.truenas_host_state(), "unverified")
+        with patch.object(mod.subprocess, "run", side_effect=OSError):
+            self.assertEqual(mod.truenas_host_state(), "unverified")
+
+    def test_workstation_context_never_inspects_docker_or_calls_proxy(self):
+        with patch.object(mod, "truenas_host_state", return_value="unverified"), \
+             patch.object(mod.subprocess, "run") as runner, \
+             patch.object(mod, "check_liveliness") as health, \
+             contextlib.redirect_stdout(io.StringIO()) as capture:
+            code = mod.main(["--check"])
+        self.assertEqual(code, 2)
+        runner.assert_not_called()
+        health.assert_not_called()
+        self.assertIn('"host_context": "unverified_not_inspected"', capture.getvalue())
+        self.assertIn('"workstation_liveliness": "not_checked"', capture.getvalue())
+
+    def test_selects_only_running_true_nas_litellm_name(self):
+        rows = b"0123456789ab|litellm\n"
         commands = []
         def fake_run(command, **kwargs):
             commands.append(command)
@@ -25,7 +47,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         with patch.object(mod.subprocess, "run", side_effect=fake_run):
             state, container_id, name = mod.discover_running_container()
         self.assertEqual((state, container_id, name),
-                         ("selected", "0123456789ab", "litellm-litellm-1"))
+                         ("selected", "0123456789ab", "litellm"))
         self.assertEqual(commands[0][0:2], ["docker", "ps"])
         self.assertIn("name=litellm", commands[0])
         self.assertIn("status=running", commands[0])
@@ -36,32 +58,32 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
 
     def test_unrelated_named_containers_do_not_block_one_exact_name(self):
         rows = (b"0123456789ab|litellm-dashboard\n"
-                b"abcdefabcdef|litellm-litellm-1\n"
+                b"abcdefabcdef|litellm\n"
                 b"987654321abc|litellm-helper\n")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                 returncode=0, stdout=rows, stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
-                             ("selected", "abcdefabcdef", "litellm-litellm-1"))
+                             ("selected", "abcdefabcdef", "litellm"))
 
-    def test_legacy_bare_running_container_is_not_a_safe_fallback(self):
+    def test_workstation_compose_container_must_not_be_a_truenas_target(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
-                returncode=0, stdout=b"0123456789ab|litellm\n", stderr=b"")):
+                returncode=0, stdout=b"0123456789ab|litellm-litellm-1\n", stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
-                             ("compose_running_container_not_found", None, None))
+                             ("truenas_running_container_not_found", None, None))
 
-    def test_no_running_compose_proxy_refuses_old_exited_container(self):
+    def test_no_running_truenas_proxy_is_blocked(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                 returncode=0, stdout=b"", stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
-                             ("compose_running_container_not_found", None, None))
+                             ("truenas_running_container_not_found", None, None))
 
-    def test_multiple_running_proxies_are_ambiguous_and_block_inference(self):
-        rows = (b"0123456789ab|litellm-litellm-1\n"
-                b"abcdefabcdef|litellm-litellm-2\n")
+    def test_duplicate_running_truenas_proxy_is_ambiguous(self):
+        rows = (b"0123456789ab|litellm\n"
+                b"abcdefabcdef|litellm\n")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                 returncode=0, stdout=rows, stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
-                             ("compose_running_container_ambiguous", None, None))
+                             ("truenas_running_container_ambiguous", None, None))
 
     def test_rejects_unexpected_container_name_or_invalid_id(self):
         for row in (b"0123456789ab|some-other-service\n",
@@ -85,7 +107,8 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                                        stdout=(b"LITELLM_IDE_API_KEY=present\n"
                                                b"LITELLM_FASTAPI_WORKSTATION_API_KEY=present\n"))
             return SimpleNamespace(returncode=0, stdout=b"1.106.4\n", stderr=b"")
-        with patch.object(mod, "discover_running_container", return_value=(
+        with patch.object(mod, "truenas_host_state", return_value="verified"), \
+             patch.object(mod, "discover_running_container", return_value=(
                  "selected", container_id, "litellm-litellm-1")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod.subprocess, "run", side_effect=fake_run), \
@@ -96,19 +119,20 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         self.assertTrue(all(cmd[2 if cmd[1] == "exec" else -1] == container_id
                             for cmd in commands))
         self.assertNotIn(container_id, sink.getvalue())
-        self.assertIn('"truenas_docker_container_name": "litellm-litellm-1"',
+        self.assertIn('"truenas_docker_container_name": "litellm"',
                       sink.getvalue())
 
     def test_absent_selected_target_never_executes_docker(self):
-        with patch.object(mod, "discover_running_container", return_value=(
-                 "compose_running_container_not_found", None, None)), \
+        with patch.object(mod, "truenas_host_state", return_value="verified"), \
+             patch.object(mod, "discover_running_container", return_value=(
+                 "truenas_running_container_not_found", None, None)), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod.subprocess, "run") as run, \
              contextlib.redirect_stdout(io.StringIO()) as output:
             status = mod.main(["--check"])
         self.assertEqual(status, 2)
         run.assert_not_called()
-        self.assertIn("compose_running_container_not_found", output.getvalue())
+        self.assertIn("truenas_running_container_not_found", output.getvalue())
 
     def test_fixed_container_presence_without_value_readback(self):
         commands = []
@@ -192,7 +216,8 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                  "container": "observed", "key_presence": {
                     "LITELLM_IDE_API_KEY": "present",
                     "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
-             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
+             patch.object(mod, "truenas_host_state", return_value="verified"), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
@@ -212,7 +237,8 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
         }
         with patch.object(mod, "check_container", return_value={
                 "container": "observed", "key_presence": keys}), \
-             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
+             patch.object(mod, "truenas_host_state", return_value="verified"), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm")), \
              patch.object(mod, "check_liveliness", return_value="http_200"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="1.106.4"), \
@@ -245,7 +271,8 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                     "container": "observed", "key_presence": {
                         "LITELLM_IDE_API_KEY": "present",
                         "LITELLM_FASTAPI_WORKSTATION_API_KEY": "present"}}), \
-             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm-litellm-1")), \
+             patch.object(mod, "truenas_host_state", return_value="verified"), \
+             patch.object(mod, "discover_running_container", return_value=("selected", "aabbccddeeff", "litellm")), \
              patch.object(mod, "check_liveliness", return_value="unavailable"), \
              patch.object(mod, "inspect_docker_target", return_value="running"), \
              patch.object(mod, "check_sdk_version", return_value="unverified"), \
