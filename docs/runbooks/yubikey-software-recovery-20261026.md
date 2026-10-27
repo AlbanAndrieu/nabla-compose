@@ -854,3 +854,42 @@ visibilité côté TrueNAS et des ACL, puis une restauration age/SOPS
 isolée et prouvée. Les autres restrictions sont maintenues :
 aucune écriture PIV82, PIV9A, OTP2 ou modification de destinataires
 SOPS ; le test KeePassXC reste reporté.
+
+## Preuve de validation workstation #289 — gate de copie chiffrée (27/10/2026)
+
+**Preuve opérateur au worktree détaché HEAD `124b23ef`** :
+`just yubikey-escrow-copy-test` a réussi **12/12 tests**,
+y compris les trois contrats ajoutés dans #289
+(`fchmod` en erreur, refus du mode temporaire non conforme,
+`fchmod` avant la première écriture). Le
+`just yubikey-escrow-copy-check` a renvoyé
+`state=READY_TO_CREATE_ENCRYPTED_COPY`,
+`new_copy_verified=false`, `restore_verified=false`,
+`independent_age_identity_verified=false`,
+`existing_destination_overwritten=false` et `status=NO-GO`.
+
+**Clôture :** les gates de préparation, de non-écrasement et de
+permission POSIX sont validés sur la workstation. Ce statut
+**ne confirme pas** qu'une seconde copie chiffrée existe ;
+le script a seulement examiné les métadonnées et aucun contenu
+`.age` n'a encore été copié ou déchiffré dans ce jalon.
+
+**Étape opérateur distincte, uniquement après décision d'écrire
+sur le partage NFS attendu** (dans le worktree #289) :
+
+```bash
+python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py \
+  --copy --acknowledge CREATE_NEW_ENCRYPTED_AGE_ESCROW_NFS_COPY
+```
+
+État attendu en cas de réussite complète :
+`ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`.
+En cas d'échec ou d'état partiel, **ne pas répéter la création** :
+inspecter d'abord la destination et les éventuels fichiers de transit,
+sans jamais effacer une copie publiée susceptible d'être utile.
+
+Après copie, valider le fichier côté NFS et TrueNAS,
+les ACL POSIX/NFSv4, puis le déchiffrement et la restauration
+`age/SOPS` dans un emplacement isolé. L'indépendance de
+récupération reste à prouver. PIV82, modifications SOPS,
+PIV9A et OTP2 restent non autorisés ; KeePassXC demeure reporté.
