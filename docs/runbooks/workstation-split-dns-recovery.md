@@ -1,5 +1,91 @@
 # Workstation split-DNS — référence inter-dépôts et reprise rapide
 
+## Réception installation Dispatcher + test d'événement contrôlé — 28 octobre
+
+L'opérateur a installé le dispatcher depuis le bon
+worktree de [la PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+`ansible-playbook ... playbooks/homelab-dns.yml --tags dns`
+→ **ok=12, changed=1, failed=0, skipped=9**.
+La présence du fichier exécutable root-owned a été
+confirmée par `sudo test -x`.
+
+**Résultats DNS après l'installation :**
+`resolvectl nta eno1` contient
+`int.albandrieu.com` ; DefectDojo privé
+`172.17.0.24` résout en **25,3 ms** ;
+`cloudflare.com` public résout en **56,2 ms**
+et est `Data is authenticated: yes`.
+Ces résultats valident l'installation et les
+résolutions, pas encore le déclenchement réel
+du dispatcher lors d'un événement `reapply`
+ni la restauration après reboot.
+
+### Réception post-installation conservant DNSSEC public
+
+Le nouveau script
+`scripts/workstation/accept-private-nta-dispatcher.py`
+a trois recettes Just, aucune CI GitHub :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-dispatcher-test
+just workstation-dnssec-dispatcher-check
+just workstation-dnssec-dispatcher-exercise
+just workstation-dnssec-dispatcher-check
+```
+
+Les **17 nouveaux tests offline** de l'acceptation
+(autorisation explicite, propriétaire root et
+mode du script, mauvais profil, NTA étrangère,
+réapplication et rollback sûr, DNSSEC public)
+sont **écrits, pas encore exécutés sur le poste**.
+
+`-check` est strictement en lecture seule.
+`-exercise` est une opération **explicite** exécutée
+en root. Elle exige que `eno1` appartienne au profil
+`Wired eno1`, que le DNS soit uniquement pfSense
+`172.17.0.1` et que `~int.albandrieu.com`
+soit présent. Elle refuse une NTA manquante
+ou supplémentaire et exige un dispatcher
+`root:root` exécutable et non accessible
+à un groupe ou aux autres.
+Elle vide **temporairement** la seule liste
+NTA connue de `eno1`, appelle
+`nmcli device reapply eno1`, puis attend
+la restauration de `int.albandrieu.com`.
+Si l'événement ne la restaure pas,
+le script tente un **rollback borné** :
+il réapplique uniquement la NTA privée
+initiale si le lien reste conforme, et
+ne touche jamais à d'autres NTA.
+Un reapply peut perturber brièvement
+la connectivité du LAN : ne pas lancer
+durant un accès réseau critique.
+
+Critères :
+`nta_restored_by_event=PASS`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`,
+`diagnosis=PASS_REAPPLY_PERSISTENCE`.
+Si ces états ne sont pas présents,
+conserver le chantier ouvert et
+recueillir les journaux du service
+`NetworkManager-dispatcher` plutôt
+que de désactiver DNSSEC globalement.
+La référence officielle NetworkManager
+reconnaît l'événement `reapply` et fournit
+`CONNECTION_ID` au dispatcher.
+
+Le test **post-reboot** reste distinct :
+au prochain redémarrage contrôlé,
+`just workstation-dnssec-dispatcher-check`
+doit réussir sans ajouter manuellement
+la NTA. Cela constituera la preuve
+de persistance définitive.
+
+
+
 ## Réception de la gate Ansible — 28 octobre : PASS, déploiement toujours en attente
 
 La nouvelle preuve utilisateur vient du worktree
