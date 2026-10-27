@@ -2,7 +2,7 @@
 
 ## Preuves et limites
 
-L'ancien build du SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742` a échoué sur Docker Hub HTTP 429. L'opérateur a ensuite confirmé `sudo docker login` réussi, `/root/.docker/config.json` root:root 0600 et le pull réussi de `python:3.13-slim-trixie` (digest `sha256:b3575dcf816cdacc5292df77a6e3e59b8941631078373a045efa2ac1e9c5c3b2`). Les 35 tests du garde-fou sont PASS pour le SHA Compose précédemment testé, mais **les nouveaux tests IA de cette branche restent à exécuter**.
+L'ancien build du SHA FastAPI `0266f20d7ff1278bf7dd36ac15a22618d04b3742` a échoué sur Docker Hub HTTP 429. L'opérateur a ensuite confirmé `sudo docker login` réussi, `/root/.docker/config.json` root:root 0600 et le pull réussi de `python:3.13-slim-trixie` (digest `sha256:b3575dcf816cdacc5292df77a6e3e59b8941631078373a045efa2ac1e9c5c3b2`). Les 35 tests du garde-fou ont été validés précédemment ; les **11 tests d'acceptation IA sont désormais PASS** d'après la dernière recette opérateur. Les nouveaux tests d'alignement des secrets dans cette PR n'ont pas encore été exécutés sur TrueNAS.
 
 Pas d'accès d'exécution SSH/TrueNAS depuis la PR GitHub. Le déploiement doit être lancé par l'opérateur dans le checkout canonique ; **ne pas déployer depuis un worktree temporaire**, car l'outil TrueNAS attache le chemin absolu du fichier Compose.
 
@@ -36,6 +36,40 @@ sudo python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check
 ~~~
 
 La sortie doit rester du JSON à valeurs bornées, sans `LITELLM_API_KEY` et sans sortie de logs. `litellm=http_401` avec `litellm_proxy_liveness=http_200` et `litellm_key_format=sk_prefix` signifie que la requête authentifiée a été rejetée malgré un proxy vivant et une clé de forme attendue ; **cela n'établit pas si la clé est révoquée, expirée, inconnue en base, bloquée par budget ou refusée pour une autre raison**.
+
+### Preuve du 27/10/2026 : deux secrets distincts à corriger
+
+La dernière recette de l'opérateur confirme **11/11 tests PASS** (contrats FastAPI IA). L'audit `--check` indique :
+- FastAPI → LiteLLM TrueNAS : `litellm_proxy_liveness=http_200`, `litellm_key=present`, `litellm_key_format=sk_prefix`, mais `/v1/models=http_401`. **Ce 401 concerne la clé consommateur FastAPI** ; l'URL et le proxy sont joignables, mais l'authentification/autorisation n'est pas prouvée.
+- LiteLLM TrueNAS → workstation : `truenas_verified`, conteneur exact `litellm` running, `LITELLM_FASTAPI_WORKSTATION_API_KEY=absent`, `LITELLM_IDE_API_KEY=present`, workstation liveliness `http_200`. **Le relais dédié est impossible avec la configuration actuelle** ; il ne faut pas substituer la clé IDE.
+
+Deux nouvelles sondes *strictement lecture seule* sont livrées dans #289 :
+- `check-fastapi-litellm-runtime-keys.py` : exécuté avec `sudo`, inspecte les permissions root:root/0600 et la présence des deux champs dans les fichiers canoniques, puis compare **en mémoire uniquement** leur valeur aux variables configurées dans les deux conteneurs. Aucune valeur, taille, empreinte, réponse Docker brute ou variable d'environnement n'est publiée. Ses codes `file_key_absent`, `container_key_absent`, `different`, `match` distinguent la matérialisation du runtime. **`match` ne prouve PAS l'enregistrement de la clé en LiteLLM.** Les fichiers secrets multi-lignes / interpolés restent `not_comparable`, sans supposer un échec.
+- `check-fastapi-litellm-sample-source.py` : exécuté **sans sudo** avec un `BW_SESSION` déverrouillé, cherche uniquement l'item Vaultwarden `nabla/prod/sample-litellm`, champ masqué `LITELLM_API_KEY`, sans imprimer la valeur. La vérification upstream existe déjà pour `nabla/prod/litellm`, champ `LITELLM_FASTAPI_WORKSTATION_API_KEY`.
+
+~~~bash
+cd /mnt/cpool/compose/nabla-compose
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+
+python3 -m unittest discover -s tests -p 'test_fastapi_litellm_*py' -v
+sudo python3 scripts/truenas/check-fastapi-litellm-runtime-keys.py --check
+
+# À lancer uniquement avec une session Vaultwarden déjà déverrouillée,
+# dans la session de l'opérateur non root.
+just litellm-fastapi-sample-source-check
+just litellm-fastapi-upstream-source-check
+~~~
+
+**Interprétation :**
+- `file_key_absent` et `container_key_absent` pour la clé upstream : elle n'est pas dans le fichier canonique ni dans le conteneur ; rechercher d'abord la source Vaultwarden ou le provisionnement manquant.
+- `file_key_present` mais `container_key_absent` ou `different` : le secret fichier et le runtime sont désynchronisés. Une mise à jour du conteneur **LiteLLM uniquement** peut devenir nécessaire après validation du fichier et des dépendances, mais pas pendant ce diagnostic.
+- `LITELLM_API_KEY:match` pour FastAPI avec `/v1/models=401` : la valeur runtime correspond au fichier, mais la clé reste refusée par LiteLLM. Vérifier alias `fastapi-sample-staging`, expiration, revocation, modèle autorisé et budget dans la **base active** du proxy TrueNAS.
+- `field_present_nonempty_hidden` côté Vaultwarden : le champ source existe, sans preuve que le proxy l'accepte ; `field_absent` ou `field_empty` identifie la source manquante.
+
+**Attention :** `sample-litellm` est un item **séparé** dans le manifeste, tandis que FastAPI consomme `/mnt/cpool/secrets/runtime/sample/.env.secrets` contenant aussi d'autres credentials. Ne pas exécuter aveuglément `materialize_runtime.py --app sample-litellm --install` en pensant fusionner le champ dans le fichier de Sample : le matérialiseur écrit dans `/mnt/cpool/secrets/runtime/sample-litellm/.env.secrets`, **pas** dans le fichier consommé par FastAPI. Ne jamais écraser le fichier Sample entier avec ce seul champ. Planifier une fusion minimale et vérifiée seulement après contrôle de la source.
+
+Aucune rotation, génération de clé, actualisation de conteneur, appel de modèle, copie de secret ou action Bitwarden mutante n'est lancée par ces sondes. Les **nouveaux tests de contrat** restent à exécuter sur TrueNAS.
 
 ### Vérifier l'enregistrement de la clé virtuelle, puis l'upstream
 
