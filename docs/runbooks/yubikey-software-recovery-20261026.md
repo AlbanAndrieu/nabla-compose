@@ -1411,8 +1411,22 @@ valeurs d'UUID et de chemins réels, et non le terme
 générique `private` utilisé par la structure du rapport.
 Un nouveau test utilise un point de montage et un mapper
 **synthétiques** pour vérifier qu'ils ne sont jamais
-repris dans la sortie. **14 tests définis ; revalidation
-workstation encore NOT_RUN**.
+repris dans la sortie.
+
+**Revalidation workstation effectuée le 27 octobre 2026 :**
+`just yubikey-escrow-usb-test` : **14/14 PASS**,
+compilation Python PASS, y compris le test de
+masquage du mapper et du chemin de montage privés.
+`just yubikey-escrow-usb-status` :
+`state=ESCROW_UUID_NOT_ENUMERATED`,
+`luks_uuid_link_present=false`,
+`private_age_identity_read=false`,
+`luks_unlock_attempted=false`,
+`disk_mutation_performed=false`,
+`status=NO-GO`, code de sortie 3 **attendu**.
+La correction du faux positif est donc validée ;
+le support reste non identifié par UUID dans la vue
+`lsblk` de cette exécution.
 
 ```bash
 # Dans le worktree PR #289 mis à jour :
