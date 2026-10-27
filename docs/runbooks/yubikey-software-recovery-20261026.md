@@ -1566,3 +1566,72 @@ procédure isolée séparées.
 
 **Ne pas réexécuter `--copy`, ne pas régénérer la
 clé USB et ne pas modifier PIV82, OTP2 ou SOPS.**
+
+
+## Attestation USB X25519 confirmée et prochain gate de restauration (27/10/2026)
+
+**Preuve réellement exécutée sur la workstation :**
+`verify-age-escrow-usb-recipient.py --verify` avec acquittement
+`DERIVE_EXISTING_USB_AGE_PUBLIC_RECIPIENT_ONLY` retourne :
+
+- `state=USB_PUBLIC_RECIPIENT_MATCHES_HISTORICAL` ;
+- `private_identity_read_attempted=true` ;
+- `public_recipient_compared_to_historical=true` ;
+- `public_recipient_matches_historical=true` ;
+- `private_identity_disclosed=false`,
+  `public_recipient_disclosed=false` ;
+- `decryption_attempted=false`, `restore_verified=false`,
+  `sops_configuration_changed=false`,
+  `usb_mount_or_unlock_performed=false`, `status=NO-GO`.
+
+**DONE** : le moyen de récupération historique sur la SanDisk
+physiquement rebranchée et montée a été identifié ;
+son destinataire public correspond à la référence déjà documentée.
+Ne pas confondre cette preuve avec l'aptitude à déchiffrer la
+**nouvelle copie NFS** : la stanza X25519 de son en-tête
+n'a pas été comparée cryptographiquement à cette identité.
+
+### Prochain jalon — restauration depuis la nouvelle copie NFS
+
+Les scripts existants
+`scripts/workstation/verify-sops-age-escrow.sh` et
+`scripts/workstation/test-sops-usb-recovery.sh`
+sont réutilisables **après autorisation distincte du
+déchiffrement réel**. Ne pas les exécuter automatiquement.
+
+1. **Brancher physiquement la SanDisk de récupération d'origine**,
+   puis vérifier qu'elle est déjà déverrouillée et montée.
+2. Vérifier que l'unique copie chiffrée créée dans le dossier
+   NFS courant est accessible, et non confondue avec
+   l'ancienne archive `secret/keepass/`.
+   Réutiliser l'inventaire et le comparateur déjà validés ;
+   ne pas relancer `--copy`.
+3. Vérifier que `/dev/shm` est réellement en `tmpfs` ;
+   que les commandes `age`, `age-keygen` et `sops`
+   sont disponibles ; que `umask 077` est appliqué.
+4. Seulement après approbation de restauration : utiliser
+   `verify-sops-age-escrow.sh` sur la **nouvelle** archive
+   et la **clé USB déjà attestée**. Ce script écrit
+   temporairement l'identité SOPS déchiffrée sur `/dev/shm`,
+   compare son seul destinataire public attendu, et
+   élimine son fichier temporaire au départ normal du script.
+   Son succès prouve la récupération de l'identité SOPS
+   mais pas un document SOPS de production.
+5. Après cette preuve, exécuter séparément le test
+   `test-sops-usb-recovery.sh` avec une fixture SOPS
+   synthétique isolée ; ne pas utiliser un document
+   confidentiel de production pour la première répétition.
+
+**Point de vigilance sur les scripts historiques** : des
+erreurs de `age` ou `sops` peuvent apparaître sur stderr ;
+ne pas utiliser `set -x`, CI, capture de terminal
+partagée ou envoi automatique des sorties brutes.
+Les scripts réalisent un déchiffrement réel et créent
+temporairement une **clé privée** dans `tmpfs`.
+Ils doivent être revus avant leur prochaine exécution.
+
+**Restent NO-GO :** restauration depuis la nouvelle NFS
+(non encore essayée), indépendance de la clé privée de
+récupération USB, validation effective des ACL natives
+des répertoires NFS, toute écriture PIV82/PIV9A/OTP2,
+rotation des destinataires SOPS et copie NFS supplémentaire.
