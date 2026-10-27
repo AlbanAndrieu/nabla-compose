@@ -38,9 +38,9 @@ class Contracts(unittest.TestCase):
             return fd, os.fstat(fd)
         return SimpleNamespace(
             secure_open=secure,
-            unchanged=lambda fd, before:
+            unchanged=lambda fd, before: (
                 os.fstat(fd).st_size == before.st_size and
-                os.fstat(fd).st_mtime_ns == before.st_mtime_ns,
+                os.fstat(fd).st_mtime_ns == before.st_mtime_ns),
         )
 
     def test_check_only_inspects_existing_mount_and_metadata(self):
