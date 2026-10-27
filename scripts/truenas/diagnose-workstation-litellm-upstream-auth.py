@@ -61,7 +61,7 @@ def check_sdk_version() -> str:
     value = result.stdout.decode("ascii", errors="replace").strip()
     # Strict version fingerprint; never echo arbitrary process output.
     import re
-    return value if re.fullmatch(r"[0-9]+(?:\\.[0-9]+){1,3}(?:[-+][a-zA-Z0-9.]+)?",
+    return value if re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}(?:[-+][a-zA-Z0-9.]+)?",
                                 value) else "unverified"
 
 
