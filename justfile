@@ -428,14 +428,24 @@ openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
 
 
 
-# Read-only 429 attribution. No chat, embeddings, resets or key mutations.
+# Read-only 429 attribution: OpenClaw auth cooldown vs LiteLLM budget/key.
+# No chat, embeddings, RPM reset, systemd restart or secret disclosures.
 openclaw-429-triage-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py scripts/workstation/diagnose-openclaw-model-cooldowns.py tests/test_openclaw_model_cooldowns.py
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_model_cooldowns.py' -v
 
-# The --admin flag only queries hashed virtual key metadata on LiteLLM loopback.
+# Inference-free. CLI models status MAY query provider usage metadata.
+# --admin only queries hashed virtual key metadata on loopback LiteLLM.
 openclaw-429-triage:
+    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
     python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
+    python3 scripts/workstation/openclaw-route-metadata.py
+
+# Lightweight path when LiteLLM master key is not exported.
+openclaw-429-triage-no-admin:
+    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
+    python3 scripts/workstation/diagnose-openclaw-litellm-429.py
     python3 scripts/workstation/openclaw-route-metadata.py
 
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
