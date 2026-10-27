@@ -642,6 +642,29 @@ else
     summary_warn 'pfSense auth-smoke module unavailable (optional)'
 fi
 
+# Optional, strictly bounded AI acceptance from inside the running Sample
+# container. Does not generate a completion or read private OpenRAG documents.
+ai_connectivity_state='not-run'
+if [[ -f scripts/truenas/accept-fastapi-ai-connectivity.py ]]; then
+    if ai_report="$(python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check 2>/dev/null)"; then
+        summary_ok 'AI connectivity: scoped LiteLLM model visible, Ollama and OpenRAG HTTP available'
+        ai_connectivity_state='ok'
+    else
+        summary_warn 'AI connectivity incomplete: LiteLLM auth/model or Ollama/OpenRAG transport needs follow-up'
+        ai_connectivity_state='warning'
+    fi
+    # Fixed-code report only. Never echo container env, model output or secrets.
+    if jq -e '.component == "fastapi_ai_acceptance" and .raw_secrets_printed == false' \
+         >/dev/null 2>&1 <<<"${ai_report:-}"; then
+        jq -c '{litellm,litellm_model,litellm_inference,ollama,
+          openrag_backend,openrag_frontend,openrag_mcp,
+          openrag_integration,openrag_private_retrieval,acceptance}' \
+          <<<"${ai_report}"
+    fi
+else
+    summary_warn 'AI acceptance script unavailable in this checkout'
+fi
+
 quiet_step 'Canonical Sample runtime env post-check' sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
@@ -650,7 +673,7 @@ runtime_version="$(jq -r '.release_version // .version // "unknown"' <<<"${versi
 diag_section '6/6' 'FastAPI Sample · final acceptance'
 diag_ok "staging :8091 | version ${runtime_version} | app HTTP ${health_status}"
 printf 'Git ref: %s (%s) · image: %s\n' "${REF}" "${runtime_sha:0:12}" "${runtime_image}"
-printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s\n' "${prometheus_state}" "${pfsense_state}"
+printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s | AI transports=%s\n' "${prometheus_state}" "${pfsense_state}" "${ai_connectivity_state}"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
     summary_warn "Parent gitlink ${pinned_sha:0:12} differs from checkout ${runtime_sha:0:12}. Not automatically staged."
 fi
