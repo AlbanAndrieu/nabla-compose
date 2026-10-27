@@ -42,13 +42,13 @@
     },
     {
       "hostname": "s3.int.albandrieu.com",
-      "intent": "REVIEW_REQUIRED",
-      "haproxy": "REVIEW",
-      "public_dns": "REVIEW",
+      "intent": "private",
+      "haproxy": "deny",
+      "public_dns": "absent",
       "cloudflare_tunnel": "absent",
-      "firewall": "REVIEW",
+      "firewall": "block_direct_wan_origin",
       "lan": "traefik",
-      "reason": "POLICY CONFLICT: config/public-int-dns-exceptions.txt says internal; docs/dns-ingress-ownership.md and apps/garage/compose.yml describe intentional public ingress. No automatic allow or denial decision."
+      "reason": "Operator confirmed Garage S3 API LAN-only 2026-10-27. Public Garage WebUI is separate hostname and origin. Current HAProxy S3 ACL lacks deny; public DNS observed present: both are security gaps, NOT exceptions."
     },
     {
       "hostname": "hello.int.albandrieu.com",
@@ -59,6 +59,16 @@
       "firewall": "review_direct_443",
       "lan": "traefik",
       "reason": "Only reviewed temporary public *.int exception in config/public-int-dns-exceptions.txt"
+    },
+    {
+      "hostname": "garage.albandrieu.com",
+      "intent": "public_ui_with_access",
+      "haproxy": "not_owner",
+      "public_dns": "review",
+      "cloudflare_tunnel": "require_access_policy",
+      "firewall": "block_direct_wan_origin",
+      "lan": "not_applicable",
+      "reason": "Garage WebUI :3909 intentionally public via Cloudflare Tunnel; confirm Access policy and do not equate to private S3 API :3900."
     },
     {
       "hostname": "nexus.albandrieu.com",
