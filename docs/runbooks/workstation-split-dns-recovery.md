@@ -336,6 +336,111 @@ mais aucun journal ne confirme que c'est la cause ici.
 Attendre les codes de réponse du stub et les événements
 contemporains de `systemd-resolved`.
 
+## P0 — Validation DNSSEC de la workstation, preuve du 27/10 à 23:01 CET
+
+**Preuve fournie par l'opérateur :** `resolvectl status eno1`
+continue d'indiquer `DNS 172.17.0.1`,
+`~int.albandrieu.com`, `DNSSEC=yes/supported` et
+`DNSOverTLS=opportunistic`. Le service
+`systemd-resolved` est en cours d'exécution depuis
+le 24/10 (pas un crash soudain). `resolvectl statistics`
+affiche **716 115 transactions**, **5 077 timeouts**,
+**803 failure responses** et **46 468 verdicts DNSSEC
+`Bogus`**, compteurs **cumulatifs** depuis le
+démarrage du service.
+
+Le journal `systemd-resolved` fourni contient
+**1 141 événements `DNSSEC validation failed: no-signature`**
+sur la période visible (notamment 22:47–23:01 CET) :
+`github.com`, `google.com`, `chatgpt.com`,
+`telegram.org`, `dropbox.com`, ainsi que
+des recherches `com IN DS` et `org IN DS`.
+C'est une **preuve d'échec actif de la validation DNSSEC
+sur de nombreux domaines publics**, pas seulement
+`defectdojo.int.albandrieu.com`.
+C'est compatible avec les `TIMEOUT` intermittents
+de `resolved_native` et `getent`, sans prouver
+quel maillon élimine les signatures ou provoque
+la latence. Unbound/pfSense et les éventuels
+intermédiaires ne sont pas reconnus responsables
+à ce stade.
+
+**Règle de diagnostic :** ne pas remplacer
+`172.17.0.1` par un DNS public, ne pas éditer
+`/etc/resolv.conf`, ne pas modifier `nsswitch.conf`
+et ne pas désactiver DNSSEC/DNS-over-TLS globalement
+sans vérifier les signatures DNSSEC côté pfSense.
+
+### Test différentiel DNSSEC en lecture seule
+
+Le script `scripts/workstation/diagnose-dnssec-chain.py`
+compare dans deux cycles bornés :
+
+- `resolvectl query -4 defectdojo.int.albandrieu.com`
+  avec et sans `--validate=no` ;
+- la résolution `cloudflare.com` (domaine public
+  DNSSEC-signé) avec et sans `--validate=no` ;
+- `dig @172.17.0.1 cloudflare.com A +dnssec`
+  et `dig @172.17.0.1 com DS +dnssec` pour vérifier
+  les réponses `RRSIG` ;
+- `dig @172.17.0.1 dnssec-failed.org A +dnssec`
+  pour observer `SERVFAIL` sur une zone volontairement
+  invalide (indice de validation amont, pas preuve
+  suffisante à lui seul).
+
+`--validate=no` ne désactive DNSSEC **que sur la
+requête contrôlée** ; ce n'est pas une reconfiguration
+du lien ni du service `systemd-resolved`.
+Un contraste répété « validated KO / bypass OK »
+désigne le chemin de validation locale comme
+**suspect**, mais ne détermine pas à lui seul
+pourquoi les signatures sont absentes.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-test
+just workstation-dnssec-check
+```
+
+Les **13 tests offline** ont été ajoutés mais sont
+**à exécuter sur la workstation** ; ne pas
+les présenter comme PASS avant réception.
+`workstation-dnssec-check` n'exécute ni
+`sudo`, ni mutation, ni reset de statistiques,
+ni redémarrage de `systemd-resolved`.
+
+**Interprétation après réception :**
+
+- Upstream pfSense `ANSWER` sans `RRSIG` alors
+  que l'en-tête demande DNSSEC (`DO=1`) :
+  examiner la configuration Unbound (forwarder,
+  filtrage des réponses, signatures transmises).
+- `pfsense_dnssec_bogus=RCODE_SERVFAIL` :
+  cohérent avec une validation en amont, mais ne
+  garantit pas que chaque réponse DNSSEC soit
+  correctement transmise au poste.
+- `resolved` validé KO et `--validate=no` OK
+  dans les deux cycles : validation locale
+  **fortement suspecte**.
+- Les deux modes KO : problème non isolé à DNSSEC ;
+  rechercher les timeouts/transactions et journaux
+  contemporains.
+- Tous les contrôles PASS : incident intermittent
+  non reproduit à cet instant, continuer la
+  surveillance sans modifier la configuration.
+
+**Source technique :**
+[Ubuntu DNSSEC troubleshooting](https://ubuntu.com/server/docs/how-to/networking/dnssec-troubleshooting/),
+[resolvectl --validate](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
+et [resolved.conf DNSSEC](https://www.freedesktop.org/software/systemd/man/latest/resolved.conf.html).
+La **correction persistante**, si justifiée
+par une mesure comparée, doit être préparée
+dans [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+avec rollback et validation du comportement
+DNSSEC de pfSense avant toute réduction de
+l'authentification.
+
 ## Validation DONE
 
 Confirmer que hide-location est désactivé, que le profil NM
