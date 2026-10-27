@@ -31,6 +31,16 @@ class NexusPrivateIngressContract(unittest.TestCase):
         self.assertNotIn("midclt call -j app.redeploy", text)
 
 
+    def test_real_wan_acl_is_not_inferred_from_hairpin_404(self):
+        runbook = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("WAN_REJECTION_NOT_VERIFIED", runbook)
+        self.assertIn("nexus-albandrieu.int.albandrieu.com", runbook)
+        self.assertIn("nexus.int.albandrieu.com", runbook)
+        self.assertIn("Gate 9 — HAProxy réel", runbook)
+        self.assertIn("http-request deny deny_status 403", runbook)
+        self.assertIn("s3.int.albandrieu.com", runbook)
+        self.assertIn("Traefik", runbook)
+
     def test_timeout_is_transport_unknown_not_missing_nexus_record(self):
         text = RUNBOOK.read_text(encoding="utf-8")
         self.assertIn("Gate 0 — transport LAN avant DNS et Nexus", text)
