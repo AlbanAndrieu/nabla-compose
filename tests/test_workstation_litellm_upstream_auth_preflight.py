@@ -35,9 +35,9 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                              for item in commands[0]))
 
     def test_unrelated_named_containers_do_not_block_one_exact_name(self):
-        rows = (b"0123456789ab|litellm-dashboard\\n"
-                b"abcdefabcdef|litellm-litellm-1\\n"
-                b"987654321abc|litellm-helper\\n")
+        rows = (b"0123456789ab|litellm-dashboard\n"
+                b"abcdefabcdef|litellm-litellm-1\n"
+                b"987654321abc|litellm-helper\n")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                 returncode=0, stdout=rows, stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
@@ -45,7 +45,7 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
 
     def test_legacy_bare_running_container_is_not_a_safe_fallback(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
-                returncode=0, stdout=b"0123456789ab|litellm\\n", stderr=b"")):
+                returncode=0, stdout=b"0123456789ab|litellm\n", stderr=b"")):
             self.assertEqual(mod.discover_running_container(),
                              ("compose_running_container_not_found", None, None))
 
