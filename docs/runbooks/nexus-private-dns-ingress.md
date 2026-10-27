@@ -683,52 +683,51 @@ de la politique du frontend ou de la configuration en mémoire.
   répond déjà 404 sur LAN car `traefik.enable=false`.
   **WAN_REJECTION_NOT_VERIFIED** demeure bloquant.
 
-### Compléter l'audit sans machine externe
+### Compléter l'audit sans machine externe — frontend renommé
 
-Exécuter sur la workstation avec l'accès pfSense SSH existant.
-Le filtre ne sort que les directives pertinentes du frontend ;
-il n'imprime ni clés privées, ni binds/certificats, ni secrets de
-contenu de requêtes :
+**Rectificatif du 27 octobre :** l'opérateur a renommé le frontend
+HAProxy `fWeb_HTTPS` en **`main_Web_HTTPS`**. Le premier filtre
+`awk` communiqué a échoué sur pfSense avec `syntax error at source
+line 6` (condition multiligne coupée après `active && (`).
+**Aucune preuve ACL n'a été collectée par cette commande** : ne pas
+l'interpréter comme un frontend sans route ou sans refus.
+
+Le script versionné utilise un programme AWK **POSIX** dont
+chaque condition est sur une seule ligne, et cible
+`main_Web_HTTPS` **par défaut**. Il s'exécute via le SSH existant
+depuis la workstation, sans transfert persistant vers pfSense :
 
 ```bash
-ssh -o BatchMode=yes -o ConnectTimeout=8 home.albandrieu.com sh -s <<'HAPROXY_NEXUS_FRONTEND_READONLY'
-set -eu
-cfg=/var/etc/haproxy/haproxy.cfg
-[ -r "$cfg" ] || { echo "ERROR: no readable HAProxy cfg" >&2; exit 2; }
-awk '
-  $1 == "frontend" || $1 == "backend" || $1 == "listen" {
-    active=($1 == "frontend" && $2 == "fWeb_HTTPS")
-  }
-  active && $1 == "acl" &&
-    ($2 == "int" || $2 == "aclcrt_fWeb_HTTPS" || $2 ~ /nexus/) {
-    printf "line=%d type=acl %s\n", NR, $0
-  }
-  active && $1 == "http-request" &&
-    ($2 ~ /^set-var\(txn\.txnhost\)/ ||
-     $2 == "deny" || $2 == "return" || $2 == "allow") {
-    printf "line=%d type=http_rule %s\n", NR, $0
-  }
-  active && $1 == "tcp-request" && $2 ~ /^(connection|content)$/ {
-    printf "line=%d type=tcp_rule %s\n", NR, $0
-  }
-  active && $1 == "use_backend" {
-    printf "line=%d type=backend_route %s\n", NR, $0
-  }
-  active && $1 == "default_backend" {
-    printf "line=%d type=default_backend %s\n", NR, $0
-  }
-' "$cfg"
-HAPROXY_NEXUS_FRONTEND_READONLY
+# Actualiser cette branche de la PR #289 au préalable.
+bash scripts/workstation/inspect-nexus-haproxy-frontend.sh
+
+# Contrat hermétique, aucun SSH :
+just nexus-private-ingress-test
 ```
 
-Si cette sortie contient des domaines, ACL ou IP que l'opérateur
-considère sensibles, les masquer avant tout partage. Cette sortie
-ne prouve pas encore la provenance WAN du trafic hairpin.
+Le script lit seulement `/var/etc/haproxy/haproxy.cfg`.
+Il expose les ACL utiles (`int`, `aclcrt_*`, Nexus), les
+règles `http-request set-var(txn.txnhost)` et `deny/return`,
+les éventuelles règles `tcp-request`, `use_backend` et
+`default_backend` du **frontend exact**, sans imprimer les
+binds/certificats, les headers ni les sections backend.
+Il échoue avec un code non nul si le frontend demandé n'existe
+pas, au lieu de conclure à une politique absente.
+
+Le résultat `wan_rejection=NOT_VERIFIED` est volontaire :
+l'inspection ciblée d'un fichier généré n'est pas la preuve
+d'un refus WAN effectif. Vérifier la normalisation de Host,
+l'ordre des directives, le rechargement HAProxy et les
+frontends WAN supplémentaires, sans changer les services.
+
+Pour examiner exceptionnellement l'ancien frontend, utiliser
+`--frontend fWeb_HTTPS` (pas le défaut actuel).
+Ne pas partager les noms d'ACL ou de domaines sensibles.
 
 ### Remédiation à préparer, pas à appliquer ici
 
 Configurer depuis l'UI du paquet pfSense HAProxy **sur le
-frontend WAN `fWeb_HTTPS`**, et non dans le fichier généré :
+frontend WAN `main_Web_HTTPS`**, et non dans le fichier généré :
 
 ```haproxy
 acl nexus_private_wan var(txn.txnhost) -m str -i nexus.int.albandrieu.com
