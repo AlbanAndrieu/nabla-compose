@@ -2,6 +2,88 @@
 
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
 
+## Réception workstation — 27 octobre, résolution DNS rétablie temporairement
+
+**Avant correction (workstation `eno1`) :**
+
+- DHCP DNS, DNS du profil NetworkManager et DNS du device :
+  **`172.17.0.1`**.
+- `resolvectl dns eno1` : **`9.9.9.9 149.112.112.112`** ;
+  `resolvectl domain eno1` : `int.albandrieu.com` (domaine
+  de recherche, pas `~int.albandrieu.com`).
+- `dig @172.17.0.1 defectdojo.int.albandrieu.com A` :
+  **`172.17.0.24`** ; résolution système / `getent` : échec.
+- `just pfsense-wifi-path` : **`CLIENT_PRIVATE_SPLIT_DNS_PATH`**
+  et **`runtime_dns_drift=NETWORKMANAGER_VS_RESOLVED`**.
+  Le retour `exit 1` de Just est attendu quand le diagnostic détecte
+  une anomalie, ce n'est pas une panne du script.
+- `hide-location.service` : `loaded`, `enabled`,
+  `started_recorded=True`, hook `resolvectl_dns=True`,
+  `targets_interface=True`, **`sets_quad9=False`**.
+  Cela prouve un risque de modification locale, pas **quel service**
+  a effectivement remplacé le DNS par Quad9.
+
+**Correction opérateur temporaire déjà appliquée :**
+
+```bash
+sudo resolvectl dns eno1 172.17.0.1
+sudo resolvectl domain eno1 '~int.albandrieu.com'
+sudo resolvectl flush-caches
+getent ahostsv4 defectdojo.int.albandrieu.com
+```
+
+`getent` a ensuite retourné **`172.17.0.24`**.
+`bash scripts/workstation/diagnose-defectdojo-lan.sh --check`
+a confirmé `PASS` sur DNS pfSense, résolution système,
+réponse HTTPS 302, certificat TLS vérifié, et redirection
+sur la même origine. Son test `curl --resolve` contourne
+le DNS du client ; la preuve DNS du client provient de `getent`
+séparément. **Le login Web HTTPS authentifié n'a pas encore été
+confirmé par l'opérateur.**
+
+**Résolution permanente : en attente.** Les modifications manuelles
+`resolvectl` peuvent être écrasées par la prochaine
+réactivation NetworkManager, un VPN, une commande `resolvectl`
+externe ou une automatisation comme `hide-location`.
+Sur la workstation, inspecter sans mutation :
+
+```bash
+nmcli -g GENERAL.CONNECTION device show eno1
+nmcli -g IP4.DNS device show eno1
+resolvectl dns eno1
+resolvectl domain eno1
+systemctl --user show hide-location.service \
+  --property=LoadState,UnitFileState,ActiveState,ExecMainStartTimestamp \
+  --no-pager
+systemctl --user is-enabled hide-location.timer
+```
+
+Sur le profil NetworkManager **réellement actif**, préserver
+`ipv4.dns=172.17.0.1`, `ipv4.ignore-auto-dns=yes`, et prévoir
+la route DNS de domaine `ipv4.dns-search=~int.albandrieu.com`
+sans écraser les autres domaines légitimes, **après identification
+de l'auteur de l'override**. NetworkManager sait distinguer
+un domaine de routage `~...` d'un domaine de recherche ;
+une modification du profil seule ne neutralise pas un script
+qui réécrit ensuite `systemd-resolved`.
+Éviter un `nmcli connection up` non planifié sur la liaison utilisée
+pour la session SSH/remote.
+
+**Quality gate :** la nouvelle suite `test_defectdojo_workstation_lan_dns.py`
+était d'abord écrite pour `pytest`, absent du Python
+`mise` 3.14.9 (`No module named pytest`).
+Elle a été portée vers **`unittest` de la bibliothèque standard**
+dans la PR #289. Vérifier cette version au HEAD Git :
+
+```bash
+python3 -m unittest discover -s tests \
+  -p 'test_defectdojo_workstation_lan_dns.py' -v
+```
+
+Aucun package n'a besoin d'être installé et la CI GitHub reste
+désactivée. **Ce nouveau contrat stdlib n'est pas encore validé
+sur la workstation.**
+
 ## Réception complémentaire du 27 octobre — HTTPS TrueNAS OK, client workstation DNS KO
 
 L'opérateur a exécuté `diagnose-defectdojo-https-route.py --check` depuis
