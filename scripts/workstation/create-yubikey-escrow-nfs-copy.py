@@ -100,6 +100,15 @@ def create_encrypted_copy(source: Path, name: str) -> str:
         stage_fd = os.open(stage_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                            os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=dest_fd)
         stage_created = True
+        # Normalize inherited POSIX permissions before writing any ciphertext.
+        # This does not independently attest NFSv4 ACL entries.
+        os.fchmod(stage_fd, 0o600)
+        initially = os.fstat(stage_fd)
+        if (not stat.S_ISREG(initially.st_mode)
+                or stat.S_IMODE(initially.st_mode) != 0o600
+                or initially.st_uid != os.getuid()
+                or initially.st_nlink != 1 or initially.st_size != 0):
+            return 'STAGE_PERMISSIONS_OR_SIZE_UNVERIFIED'
         remaining = srcstat.st_size
         while remaining:
             block = os.read(source_fd, min(CHUNK, remaining))
