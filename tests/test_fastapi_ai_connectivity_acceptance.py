@@ -22,6 +22,8 @@ def report(*, litellm="http_200", model="visible", ollama="http_200",
         "component": "fastapi_ai_acceptance",
         "litellm": litellm,
         "litellm_key": "present",
+        "litellm_proxy_liveness": "http_200",
+        "litellm_key_format": "sk_prefix",
         "litellm_model": model,
         "litellm_inference": inference,
         "ollama": ollama,
@@ -117,6 +119,30 @@ class FastApiAiConnectivityContract(unittest.TestCase):
                 )
 
     @mock.patch.object(subject.subprocess, "run")
+    def test_litellm_401_stays_distinct_from_proxy_liveness(self, execute):
+        rejected = {
+            **report(litellm="http_401", model="not_verified"),
+            "litellm_proxy_liveness": "http_200",
+            "litellm_key_format": "sk_prefix",
+        }
+        execute.return_value = subprocess.CompletedProcess(
+            [], 0, stdout=json.dumps(rejected),
+        )
+        result = subject.inspect()
+        self.assertEqual(result["litellm"], "http_401")
+        self.assertEqual(result["litellm_proxy_liveness"], "http_200")
+        self.assertEqual(result["litellm_key_format"], "sk_prefix")
+        self.assertFalse(subject.accepted(result, inference_smoke=False))
+        self.assertTrue(result["raw_secrets_printed"] is False)
+
+    def test_key_shape_probe_returns_labels_only(self):
+        source = subject.CONTAINER_PROBE
+        self.assertIn('key.startswith("sk-")', source)
+        self.assertIn('else "missing" if not key else "unexpected_format"', source)
+        self.assertNotIn('print(key)', source)
+        self.assertNotIn('repr(key)', source)
+
+    @mock.patch.object(subject.subprocess, "run")
     def test_docker_denial_never_prints_stderr(self, execute):
         execute.return_value = subprocess.CompletedProcess(
             [], 1, stdout="", stderr="PRIVATE_SUDO_ERROR_TOKEN",
@@ -142,6 +168,8 @@ class FastApiAiConnectivityContract(unittest.TestCase):
         self.assertIn("ProxyHandler({})", text)
         self.assertIn("NoRedirect", text)
         self.assertIn('"/v1/models"', text)
+        self.assertIn('"/health/liveliness"', text)
+        self.assertIn('"litellm_key_format"', text)
         self.assertIn('"fastapi-qwen"', text)
         self.assertIn("http://172.17.0.24:30068/api/tags", text)
         self.assertIn("http://openrag-backend:8000/health", text)
