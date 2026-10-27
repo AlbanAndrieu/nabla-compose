@@ -72,6 +72,48 @@ just litellm-workstation-upstream-auth-check
 variables sont non vides ; il ne prouve pas validité, scopes
 ou injection d'un Bearer sur le client fautif.
 
+## P0 — Nouveau préflight sur TrueNAS (27/10, dernier relevé)
+
+**Commande exécutée sur TrueNAS :**
+`just litellm-workstation-upstream-auth-check`.
+
+Résultat reçu :
+- `workstation_liveliness=http_200` : Workstation LiteLLM joignable.
+- `truenas_litellm_env.container=unavailable` : interrogation
+  `docker exec litellm python3 -c ...` infructueuse ou rejetée.
+- `truenas_upstream_key_state=unverified`,
+  `truenas_litellm_sdk_version=unverified` : ni clés ni SDK prouvés.
+- `model_requests_sent=0`, `runtime_mutated=false` ;
+  code de sortie **2 attendu (fail closed)**.
+
+**Important :** `container=unavailable` ne prouve **PAS**
+`LITELLM_IDE_API_KEY` absente et ne révèle pas le client de
+`GET /v1/models` sans clé. Ne pas corriger une variable privée
+sur la seule base de ce résultat.
+
+**Correction de l'outil #289 :** diagnostic `failure_class`
+sur la sortie d'erreur Docker **non imprimée**, états
+`container_not_found`, `container_not_running`,
+`docker_permission_denied`, `docker_daemon_unavailable`,
+`python3_missing_in_container`, `probe_python_failed`,
+ou `docker_exec_failed`. L'état du conteneur nommé `litellm`
+est obtenu séparément via `docker inspect --format
+'{{.State.Status}}'`, sans environnement et sans modèle.
+Des contrats offline testent la syntaxe du probe et les
+classes d'échecs ; **nouvelles validations non encore reçues**.
+
+```bash
+# Sur un checkout TrueNAS à jour de la branche #289 :
+just litellm-workstation-auth-contracts
+just litellm-workstation-upstream-auth-check
+```
+
+**Gates P0 :** lire `truenas_docker_container_status` et
+`truenas_litellm_env.failure_class`. Corriger d'abord le
+conteneur cible, l'état Docker ou la présence de Python avant
+de tester les secrets. L'attribution du client LiteLLM SDK et
+la résolution de la trace 401 restent distinctes.
+
 ## P0 — Stabiliser LiteLLM Workstation
 
 - [x] Corriger le GET anonyme `/v1/models` du diagnostic OpenRAG
