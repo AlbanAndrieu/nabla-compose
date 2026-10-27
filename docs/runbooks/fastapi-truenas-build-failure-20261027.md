@@ -28,6 +28,28 @@ Ce script ouvre seulement un fichier mktemp régulier, non symlinké, situé dir
 
 Ne pas utiliser cat, tail, grep, Docker --progress=plain, FASTAPI_SAMPLE_VERBOSE_LOGS=true, ni copier le log dans ChatGPT.
 
+## Cas `unsafe_log_owner` sous `sudo`
+
+Ce code signifie que le fichier n'a pas été lu : **aucune cause Docker n'a encore été identifiée**. Le script accepte les journaux privés appartenant à `root`, à l'UID effectif du processus, ou (seulement sous `sudo` exécuté en root) à l'UID d'origine déclaré par `SUDO_UID`. Les fichiers appartenant à un autre UID restent refusés.
+
+Le contrôle ci-dessous ne révèle **que des métadonnées**, jamais le contenu du log :
+
+~~~bash
+stat -c 'owner_uid=%u mode=%a links=%h type=%F' /tmp/tmp.ngofCbFlgw
+id -u
+sudo sh -c 'printf "sudo_original_uid=%s\\n" "${SUDO_UID:-unset}"'
+~~~
+
+Utiliser la **dernière version de la branche #289** avant de réessayer le classifieur ; huit tests seulement indiquent un checkout ancien, avant l'ajout des nouveaux cas. Si `owner_uid` diffère de `0` et de l'UID d'origine transmis par `sudo`, ne pas faire de `chown`, `chmod`, ni désactiver le contrôle ; investiguer d'abord quel compte a créé le journal. Un `mode` plus large que `600`, un lien symbolique ou un autre type de fichier reste bloquant.
+
+~~~bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git show origin/fix/nexus-wan-haproxy-acl-evidence-20261027:scripts/truenas/classify-fastapi-build-failure.py |
+  sudo python3 - --check --log /tmp/tmp.ngofCbFlgw
+~~~
+
+Ne communiquer que le JSON de classification. Le journal reste strictement local à TrueNAS.
+
 ## Causes classées et actions de lecture seule
 
 | État | Diagnostic suivant |
