@@ -431,31 +431,30 @@ Actions :
   ^nexus\\.int\\.albandrieu\\.com(:[0-9]{1,5})?$`
   et `http-request deny deny_status 403 if nexus
   aclcrt_main_Web_HTTPS`.
-  **Statut : OPERATOR_RULE_REPORTED / EFFECTIVE_DENY_NOT_VERIFIED.**
-  L'ACL `nexus` est aussi utilisée pour le routage du
-  backend Traefik ; une ACL distincte `nexus_private_wan`
-  et un `deny ... if nexus_private_wan` sont recommandés
-  pour isoler la politique d'accès du routage.
-  **Condition bloquante :** la directive
-  `http-request set-var(txn.txnhost) hdr(host)` doit précéder
-  le `http-request deny` dans le frontend réellement généré.
-  L'ACL additionnelle `aclcrt_main_Web_HTTPS` impose une
-  conjonction inutile et peut fragiliser le refus.
-  Relever le frontend `main_Web_HTTPS` après application avec
-  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh
-  --backend prod_front-traefik-https_ipvANY` et vérifier
-  les numéros de lignes/conditions de l'ACL et du deny.
-  Tester depuis la workstation la réponse du frontend via
-  `--resolve nexus.int.albandrieu.com:443:82.66.4.247`
-  (403 attendu si HAProxy refuse), puis la route LAN directe
-  `--resolve ...:443:172.17.0.24` (404 possible tant que
-  Traefik est désactivé). Un 403 via NAT reflection n'est
-  **pas** une validation depuis un client WAN.
-  Conserver `s3.int.albandrieu.com` et
-  `nexus.albandrieu.com`, vérifier le reload HAProxy,
-  les règles WAN réelles et le rollback. Le
-  [Gate 12 du runbook](runbooks/nexus-private-dns-ingress.md)
-  contient la réception à effectuer.
+  **Nouvelle réception opérateur :** le frontend généré
+  `main_Web_HTTPS` contient l'ACL Nexus regex ligne **89**,
+  `http-request set-var(txn.txnhost) hdr(host)` ligne **96**,
+  puis `http-request deny deny_status 403 if nexus
+  aclcrt_main_Web_HTTPS` ligne **117**. La workstation LAN
+  vers l'IP publique `82.66.4.247:443` obtient
+  **HTTP 403 et TLS vérifié (tls=0)**, alors que le relevé
+  précédent était 404. **LAN_HAIRPIN_DENY_OBSERVED — PASS**
+  pour le chemin testé. Les 15 tests du gate local restaient
+  PASS au relevé précédent ; le statut WAN est distinct :
+  **WAN_REJECTION_NOT_VERIFIED**.
+  L'ACL `nexus` est réutilisée pour le routage ; une ACL
+  autonome `nexus_private_wan` reste une amélioration possible,
+  mais n'est pas un blocage immédiat puisque la condition
+  présente correspond au Host attendu et le 403 est observé.
+  Poursuivre : vérifier le rechargement effectif HAProxy,
+  tester séparément `--resolve ...:443:172.17.0.24` vers
+  Traefik LAN, confirmer l'absence de régression de
+  `s3.int.albandrieu.com` et de `nexus.albandrieu.com`,
+  et confirmer le rejet depuis une source WAN réelle ou preuve
+  réseau équivalente (NAT reflection possible depuis le LAN).
+  Garder `NEXUS_PRIVATE_INGRESS_ENABLED=false` jusqu'à
+  réception de cette protection et rollback documenté.
+  [Gate 12 du runbook](runbooks/nexus-private-dns-ingress.md).
   N'activer `NEXUS_PRIVATE_INGRESS_ENABLED=true` qu'après
   preuve acceptable du contrôle d'accès WAN et vérification
   du modèle Compose rendu ; déployer Nexus seul ensuite.
