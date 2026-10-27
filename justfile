@@ -1322,6 +1322,21 @@ workstation-dnssec-nta-try:
 workstation-dnssec-nta-rollback:
     python3 scripts/workstation/recover-split-dns-nta.py --remove --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
 
+
+# Read-only: installed dispatcher, exact eno1 NTA and authenticated public DNS.
+workstation-dnssec-dispatcher-check:
+    python3 scripts/workstation/accept-private-nta-dispatcher.py --check
+
+# Offline contracts. No network configuration changes, sudo or GitHub CI.
+workstation-dnssec-dispatcher-test:
+    python3 -m py_compile scripts/workstation/accept-private-nta-dispatcher.py tests/test_accept_private_nta_dispatcher.py
+    python3 -m unittest discover -s tests -p 'test_accept_private_nta_dispatcher.py' -v
+
+# Explicit post-install acceptance: clear ONLY the exact private NTA,
+# request NetworkManager reapply, wait for its dispatcher to restore the NTA.
+# On failure, restore the private NTA only when the LAN profile still matches.
+workstation-dnssec-dispatcher-exercise:
+    sudo python3 scripts/workstation/accept-private-nta-dispatcher.py --exercise --acknowledge I_APPROVE_NTA_REAPPLY_SMOKE
 # Hermetic NSS differential test suite, no network, no sudo, no pytest.
 workstation-nss-path-test:
     python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
