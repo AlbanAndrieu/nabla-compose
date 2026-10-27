@@ -1199,6 +1199,16 @@ workstation-split-dns-test:
     python3 -m py_compile scripts/workstation/homelab-split-dns.py tests/test_homelab_split_dns_recovery.py
     python3 -m unittest discover -s tests -p 'test_homelab_split_dns_recovery.py' -v
 
+# Diagnose glibc NSS vs systemd-resolved native API vs 127.0.0.53 stub.
+# Read-only and deadline-bounded; use if getent is slow but resolvectl is fast.
+workstation-nss-path:
+    python3 scripts/workstation/diagnose-nss-resolution.py --check
+
+# Hermetic NSS differential test suite, no network, no sudo, no pytest.
+workstation-nss-path-test:
+    python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
+    python3 -m unittest discover -s tests -p 'test_diagnose_nss_resolution.py' -v
+
 # Hermetic suite: no LAN, root, database or secret access required.
 defectdojo-recovery-test:
     python3 -m pytest -q tests/test_defectdojo_existing_admin_reconcile.py tests/test_defectdojo_https_route_triage.py tests/test_defectdojo_runtime_credential_contract.py
