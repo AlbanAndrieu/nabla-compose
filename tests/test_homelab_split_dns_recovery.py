@@ -35,6 +35,7 @@ def good_state() -> dict[str, str]:
         "udp_sec": "0.1",
         "tcp_sec": "0.1",
         "nss": "A_CONFIRMED",
+        "nss_sec": "0.2",
         "hide-location.timer": "disabled",
         "hide-location.service": "disabled",
     }
@@ -119,6 +120,14 @@ class HomelabSplitDNSRecoveryTest(unittest.TestCase):
             ["sudo", "nmcli", "device", "reapply", "eno1"],
             ["sudo", "resolvectl", "flush-caches"],
         ])
+
+    def test_slow_nss_is_warned_without_misclassifying_upstream(self):
+        state = good_state()
+        state["nss_sec"] = "11.5"
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            dns.display(good_profile(), state, dns.verdict(good_profile(), state))
+        self.assertIn("diagnosis=PASS", out.getvalue())
+        self.assertIn("WARN: NSS query slow", out.getvalue())
 
     def test_check_mode_calls_no_mutation(self):
         import sys
