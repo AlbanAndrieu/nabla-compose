@@ -703,3 +703,32 @@ non prouvée, PIV82/PIV9A/OTP2 et changements
 SOPS non autorisés. KeePassXC reporté.
 
 [Procédure](yubikey-software-recovery-20261026.md).
+
+## Validation USB : 12/13 PASS, faux positif test corrigé, UUID non énuméré (27/10/2026)
+
+**Preuve workstation** : première exécution de
+`just yubikey-escrow-usb-test` **12/13 PASS**.
+L'unique échec provenait de la chaîne générique
+`private` contenue dans le **nom du champ**
+`private_age_identity_read=false` du JSON.
+**Aucune clé privée n'a été exposée.** Le test a été
+corrigé dans PR #289 et renforcé par une fixture
+de chemins de montage sensibles ; **14 tests à
+revalider sur workstation**.
+
+**État du support réel** :
+`ESCROW_UUID_NOT_ENUMERATED`,
+`luks_uuid_link_present=false`. L'UUID attendu
+n'est pas visible dans la vue `lsblk` actuelle,
+sans preuve que la SanDisk soit perdue.
+**Bloquant avant une restauration** : vérifier
+la connexion physique et le support détecté,
+sans déverrouillage ni génération d'identité.
+
+**Action suivante** :
+`just yubikey-escrow-usb-test` sur la nouvelle
+révision, puis `just yubikey-escrow-usb-status`
+en lecture seule. Maintenir `NO-GO` pour la
+restauration de la copie NFS du 27/10,
+les mutations PIV/SOPS et la duplication
+déjà terminée de l'archive.
