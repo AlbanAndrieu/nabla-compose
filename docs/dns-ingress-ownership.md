@@ -1,14 +1,16 @@
 # DNS and ingress ownership
 
-> **Conflit de politique S3 constaté le 27 octobre 2026 :**
-> `config/public-int-dns-exceptions.txt` classe `s3.int.albandrieu.com`
-> comme interne, alors que la présente architecture et
-> `apps/garage/compose.yml` décrivent encore un accès WAN direct.
-> Cette divergence **n'est pas résolue** et ne doit pas être
-> considérée comme une exception approuvée. Consulter
-> [l'audit d'exposition multi-couche](runbooks/pfsense-ingress-exposure-policy.md)
-> et `config/ingress-access-policy.json` avant toute publication,
-> suppression de DNS ou modification HAProxy/PF/Traefik.
+> **Décision confirmée le 27 octobre 2026 — Garage S3 privé :**
+> `s3.int.albandrieu.com` doit rester accessible depuis le LAN
+> (ou un réseau privé autorisé) uniquement. L'interface
+> `garage.albandrieu.com` peut être publiée via Cloudflare Tunnel
+> avec contrôle d'accès ; ce n'est **pas** l'API S3.
+> Le snapshot HAProxy 20:47 contient `acl s3` mais aucun refus
+> ciblé. Un relevé DNS public ultérieur retourne `present` :
+> **dérive à corriger**, sans supprimer automatiquement les accès
+> des clients OpenTofu ou modifier les règles WAN dans cette PR.
+> [Audit multicouche](runbooks/pfsense-ingress-exposure-policy.md).
+
 
 This document separates DNS publication from request routing. A DNS component
 decides **where a hostname resolves**. HAProxy and Traefik decide **what happens
@@ -125,7 +127,7 @@ The existing AdGuard Home application maps its container DNS port to host port
 `553`, not `53`, so it is not in the normal LAN resolver path. Kubernetes/CoreDNS
 is likewise a cluster service and is not the authority for this LAN private zone.
 
-For example, `sample.int.albandrieu.com` and the direct S3 exception
+For example, `sample.int.albandrieu.com` and the **private** S3 endpoint
 `s3.int.albandrieu.com` resolve to `172.17.0.24` on the private path. `pihole-dns-sync` derives private records from eligible Traefik
 Docker labels. AutoXpose is not the authoritative publisher for this `*.int`
 namespace.
@@ -176,32 +178,44 @@ layers behind one generic failure.
 
 ### Garage exposure boundary
 
-Garage now has three distinct public-facing surfaces with two ingress classes:
+Garage has **one private S3 API** and **separate web/admin interfaces**.
+The S3 route can remain enabled on the **LAN Traefik entrypoint**,
+but must be denied at the public HAProxy frontend (and no public DNS
+record or Tunnel ingress should publish that S3 hostname):
 
 ```text
-s3.int.albandrieu.com
-  -> public DNS -> pfSense HAProxy :443 -> TLS re-encryption
-  -> Traefik :443 -> Garage S3 :3900
+s3.int.albandrieu.com   [PRIVATE, LAN]
+  -> pfSense/Unbound -> Pi-hole private A:172.17.0.24
+  -> TrueNAS Traefik :443 -> Garage S3 :3900
 
-garage.albandrieu.com
-  -> Cloudflare Tunnel -> cloudflared
-  -> 172.17.0.24:3909 -> Garage WebUI
+garage.albandrieu.com  [PUBLIC WEB UI, Access required]
+  -> Cloudflare Tunnel -> cloudflared -> Garage WebUI :3909
 
-garage-admin.albandrieu.com
-  -> Cloudflare Tunnel -> cloudflared
-  -> 172.17.0.24:3903 -> Garage Admin API
+garage-admin.albandrieu.com [SEPARATE ADMIN API, restrictive Access]
+  -> Cloudflare Tunnel -> cloudflared -> Garage Admin :3903
 ```
 
-The WebUI and Admin API tunnel origins deliberately bypass Traefik. Their
-TrueNAS host ports stay bound to `172.17.0.24`; the tunnel is outbound-established
-by `cloudflared`, so those hostnames need no parallel WAN HAProxy route.
+The web UI and Admin API tunnel origins must be validated separately;
+admin API publication must have a reviewed authorization policy.
+**No public access to the S3 API is authorized.** For OpenTofu and
+other clients, check LAN/private-network state operations before
+removing a stray public DNS entry or changing pfSense routing.
+Use path-style S3 addressing; public wildcard bucket DNS is not
+required.
 
-The former `garage.int.albandrieu.com` and
-`garage-admin.int.albandrieu.com` Traefik routes are retired and must not be
-published publicly. Only the S3 root endpoint retains the temporary direct
-`*.int` public exception. The OpenTofu backend sets `use_path_style=true`,
-so public `*.s3.int.albandrieu.com` bucket DNS is not required. Remove the S3
-exception once every state writer uses a trusted LAN/VPN/WARP path.
+### S3 decision, evidence and remaining remediation (27 October)
+
+The earlier docs that described a "temporary direct S3 public exception"
+are superseded by the operator's explicit private-only decision.
+The 27 October DNS observer reported `s3.int.albandrieu.com=present`
+from public recursive resolvers, despite an earlier documented
+Cloudflare DNS removal on 17 October. This is **evidence of current
+public resolution**, not proof a new Cloudflare record exists:
+confirm authoritative DNS and CNAME chain before removing anything.
+Generated HAProxy has `acl s3` with no `http-request deny`, and
+its generic `int` route forwards to Traefik. Deny the S3 Host on
+`main_Web_HTTPS`, preserve LAN direct ingress and Garage WebUI,
+then verify public-DNS and WAN-refusal independently.
 
 OpenWebUI uses an outbound Cloudflare Tunnel without Traefik. Desired
 canonical route in PR #273:
