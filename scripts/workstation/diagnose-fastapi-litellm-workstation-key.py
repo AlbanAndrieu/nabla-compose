@@ -85,7 +85,8 @@ def key_file_state() -> str:
     return "present_private_unvalidated"
 
 
-def fetch_json(path: str, *, credential: str = "") -> tuple[str, object | None]:
+def fetch_json(path: str, *, credential: str = "",
+               expect_json: bool = True) -> tuple[str, object | None]:
     headers = {"Accept": "application/json"}
     if credential:
         headers["Authorization"] = "Bearer " + credential
@@ -95,6 +96,8 @@ def fetch_json(path: str, *, credential: str = "") -> tuple[str, object | None]:
         with opener.open(request, timeout=5) as response:
             if response.status != 200 or response.geturl() != PROXY + path:
                 return "unexpected_http", None
+            if not expect_json:
+                return "http_200", None
             data = response.read(262144 + 1)
             if len(data) > 262144:
                 return "unexpected_schema", None
@@ -153,9 +156,9 @@ def report() -> dict:
     }
     if identity != "workstation_verified":
         return result
-    status, _ = fetch_json("/health/liveliness")
-    # This endpoint may emit plain text (not JSON). Readiness is HTTP-only.
-    result["proxy_liveliness"] = status if status != "unexpected_schema" else "http_200"
+    status, _ = fetch_json("/health/liveliness", expect_json=False)
+    # Liveness is HTTP-only and may return non-JSON plain text.
+    result["proxy_liveliness"] = status
     if result["proxy_liveliness"] != "http_200":
         return result
     result["alias_state"] = alias_state()
