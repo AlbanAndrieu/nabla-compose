@@ -86,6 +86,18 @@ def critical_rules(source: str, frontend: str) -> list[str]:
     return [" ".join(v.split()) for v in relevant]
 
 
+def matches_s3_bucket_alias(acl_line: str, hostname: str) -> bool:
+    """True only if this ACL regex covers S3 virtual-hosted bucket requests."""
+    parts = acl_line.split()
+    try:
+        idx = parts.index("-m")
+        if parts[idx + 1] != "reg":
+            return False
+        return bool(re.fullmatch(parts[-1], "test-bucket." + hostname, flags=re.I))
+    except (ValueError, IndexError, re.error):
+        return False
+
+
 def external_checks(item: dict, evidence: dict) -> dict:
     name = item["hostname"]
     out = {}
@@ -145,6 +157,16 @@ def audit(source: str, policy: dict, evidence: dict) -> dict:
                 status = "VIOLATION_NO_EXPLICIT_DENY"
             elif not capture or min(capture) >= min(n for n, _ in applicable):
                 status = "VIOLATION_HOST_CAPTURE_ORDER"
+            elif name == "s3.int.albandrieu.com" and not any(
+                matches_s3_bucket_alias(acl_line, name)
+                and any(
+                    acl_line.split()[1] in deny_line.split(" if ", 1)[-1].split()
+                    for _, deny_line in applicable
+                )
+                for _, acl_line in matching
+            ):
+                # Garage Traefik also accepts *.s3.int bucket Host headers.
+                status = "VIOLATION_S3_BUCKET_HOSTS_NOT_DENIED"
             else:
                 status = "DECLARED_DENY_NOT_WAN_PROOF"
         elif host["haproxy"] == "REVIEW":
