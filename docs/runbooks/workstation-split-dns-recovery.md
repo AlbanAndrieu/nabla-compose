@@ -1,5 +1,40 @@
 # Workstation split-DNS — référence inter-dépôts et reprise rapide
 
+## Réception de la gate Ansible — 28 octobre : PASS, déploiement toujours en attente
+
+La nouvelle preuve utilisateur vient du worktree
+`ansible-workstation` synchronisé sur le commit `d0b93e8` :
+
+- suite `test_homelab_dns_gate.py` **14/14 PASS** ;
+- `scripts/check_homelab_dns_gate.py --dry-run` :
+  garde DNS **8/8 PASS**, dispatcher **17/17 PASS** ;
+- liste de tâches DNS **PASS** (3 marqueurs attendus) ;
+- `--check --diff` **PASS** :
+  `ok=11 changed=1 failed=0 skipped=10`.
+  Une seule création est **prévue** : le dispatcher
+  `/etc/NetworkManager/dispatcher.d/90-nabla-private-dnssec-nta`.
+  **Aucun apply effectué.**
+- Avertissement interpréteur Python `3.14` non bloquant.
+
+**Conclusion :** 39/39 tests offline et le vrai
+précontrôle Ansible sont désormais reçus.
+La NTA runtime est validée (DefectDojo privé sans bypass,
+DNSSEC public authentifié sur `cloudflare.com`).
+La NTA persistante par dispatcher
+**n'est pas installée et le reboot n'est pas testé**.
+Ne pas confondre `changed=1` en `--check`
+avec une installation réalisée.
+
+Le playbook ciblé est `playbooks/homelab-dns.yml`
+dans [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+La commande d'application et le rollback sont documentés
+dans le [runbook Ansible](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-recovery.md).
+La prochaine étape requiert une **action explicite de déploiement**,
+suivie de `resolvectl nta eno1`, vérification A privée
+et DNSSEC public, puis test de réactivation/reboot contrôlé.
+
+
+
 Mise à jour : 27 octobre 2026. **Source d'autorité de la persistance :**
 [ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation),
 [PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) (Draft).
