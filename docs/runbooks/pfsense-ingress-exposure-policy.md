@@ -16,18 +16,30 @@ brute dans Git.
 | `nexus.int.albandrieu.com` | 403 | Absent | Absent | Bloquer origine directe | Refus 403 observé depuis le LAN vers IP WAN ; WAN réel inconnu |
 | `vault.int.albandrieu.com` | Refus | Absent | Absent | Bloquer origine directe | ACL sans refus : dérive à traiter |
 | `vaultwarden.int.albandrieu.com` | Refus | Absent | Absent | Bloquer origine directe | Alias historique non couvert par ACL explicite |
-| `s3.int.albandrieu.com` | **À décider** | **À décider** | Absent | À décider | **Contradiction du dépôt, non résolue** |
+| `s3.int.albandrieu.com` | **Refus obligatoire** | **Absent attendu** | Absent | Bloquer origine directe | **Dérive : ACL sans deny ; DNS public présent au dernier relevé** |
 | `hello.int.albandrieu.com` | Exception temporaire | Exception temporaire | Pas requis | WAN 443 selon politique | Exception dans `config/public-int-dns-exceptions.txt` |
 | `nexus.albandrieu.com` | Ne pas impacter | À vérifier | À vérifier | À vérifier | Chemin public indépendant |
 | `vaultwarden.albandrieu.com` | Non propriétaire | À vérifier | Tunnel + Access attendus | Origine directe non publiée | Access non attesté |
 
-**S3 : contradiction explicite.** Le fichier
-`config/public-int-dns-exceptions.txt` impose que S3 reste interne,
-mais `docs/dns-ingress-ownership.md` et `apps/garage/compose.yml`
-décrivent S3 en ingress WAN direct pfSense → Traefik → Garage. Le
-routeur S3 Traefik est activé dans le Compose. **Ne pas convertir
-cette divergence en allow ou en deny automatique** : arbitrer
-avec les consommateurs S3/OpenTofu et valider le rollback.
+**S3 : décision définitive de l'opérateur le 27 octobre 2026.**
+L'API `s3.int.albandrieu.com` est **LAN uniquement**, sans
+exception WAN. Les anciennes descriptions publiques dans
+`docs/dns-ingress-ownership.md` et `apps/garage/compose.yml`
+étaient une confusion avec **l'interface Web Garage**
+`garage.albandrieu.com`, distincte du service S3 :3900.
+Le dernier collecteur DNS public a observé `present` pour S3
+(deux résolveurs récursifs) ; vérifier l'autorité et la chaîne
+DNS avant de supprimer une entrée. Le frontend HAProxy contient
+`acl s3` sans action `deny`, et la route générique
+`*.int` existe : bloquer le Host S3 **sur le frontend WAN**
+en conservant la route Traefik directe LAN. Ne pas modifier
+automatiquement les règles pfSense ou les clients OpenTofu.
+
+L'interface Web Garage `garage.albandrieu.com` peut être
+publiée via Cloudflare Tunnel, **avec vérification séparée
+de la politique Access**. L'API d'administration Garage
+`garage-admin.albandrieu.com` n'est pas assimilée à l'UI ;
+elle nécessite une restriction spécifique.
 
 **Vault :** la configuration fournie contient une ACL `vault`
 mais aucun refus HTTP ciblé. Une ACL seule ne bloque rien.
@@ -53,7 +65,7 @@ just pfsense-haproxy-policy-check
 
 Les états sont `DECLARED_DENY_NOT_WAN_PROOF`,
 `VIOLATION_NO_EXPLICIT_DENY`, `VIOLATION_NO_EXACT_ACL`,
-`POLICY_CONFLICT_REVIEW` ou `NOT_VERIFIED`. Les couches
+`VIOLATION_NO_EXPLICIT_DENY` ou `NOT_VERIFIED`. Les couches
 Cloudflare/DNS/PF sont inconnues sans preuve externe.
 Un échec du gate strict **n'est pas une panne de pfSense** :
 il empêche de déclarer la conformité.
@@ -176,7 +188,7 @@ doivent être vérifiés avant l'activation du routeur Nexus.
 
 ## Clôture
 
-Résoudre la contradiction S3, corriger Vault et l'alias legacy,
+Appliquer et vérifier la politique S3 privée, corriger Vault et l'alias legacy,
 valider les routes publiques conservées, collecter les preuves
 Cloudflare Tunnel/Access, DNS public et PF/NAT, puis vérifier
 l'isolation effective depuis une source WAN indépendante.
