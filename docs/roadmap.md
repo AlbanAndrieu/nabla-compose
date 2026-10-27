@@ -83,10 +83,12 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [x] Classifieur exécuté sur TrueNAS : journal privé vérifié
   `UID=1000`, `0600`, un lien ; `unsafe_log_owner` corrigé.
   La première analyse retourne `unclassified_build_failure`, aucun secret divulgué.
-- [ ] Rejouer le classifieur enrichi (échecs BuildKit génériques,
-  permissions, résolution de dépendances, étape à codes fixes),
-  puis relever uniquement le JSON. Si toujours inconclusif, diagnostiquer
-  localement la signature du défaut sans imprimer le journal.
+- [x] Classification rejouée : `buildkit_generic_failure`,
+  `failure_stage=unknown`, `failure_operation=unknown`, journal entier
+  de **1324 octets** ; cause racine toujours inconnue.
+- [ ] Recueillir une seule empreinte **structurelle** du message terminal
+  avec l'option `--failure-shape` (vocabulaire fixe sans données privées),
+  puis choisir la correction ciblée. Ne pas ajouter de regex à l'aveugle.
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
   immuable et exiger la recette 6/6.
