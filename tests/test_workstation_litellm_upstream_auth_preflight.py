@@ -118,23 +118,23 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
                 b"LITELLM_IDE_API_KEY=present\n"
                 b"LITELLM_FASTAPI_WORKSTATION_API_KEY=absent\n"))
         with patch.object(mod.subprocess, "run", side_effect=fake_run):
-            status = mod.check_container()
+            status = mod.check_container("0123456789ab")
         self.assertEqual(status["container"], "observed")
         self.assertEqual(status["key_presence"]["LITELLM_IDE_API_KEY"], "present")
         self.assertEqual(status["key_presence"]["LITELLM_FASTAPI_WORKSTATION_API_KEY"], "absent")
-        self.assertEqual(commands[0][:4], ["docker", "exec", "litellm", "python3"])
+        self.assertEqual(commands[0][:4], ["docker", "exec", "0123456789ab", "python3"])
         self.assertNotIn("/v1/models", commands[0][-1])
         self.assertNotIn("os.environ.items", commands[0][-1])
 
     def test_secret_echo_and_malformed_rows_are_not_forwarded(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
             returncode=0, stderr=b"", stdout=b"SECRET-NEVER-PRINT\n")):
-            self.assertEqual(mod.check_container()["container"], "unexpected_schema")
+            self.assertEqual(mod.check_container("0123456789ab")["container"], "unexpected_schema")
 
     def test_nonzero_docker_command_fails_closed(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
             returncode=1, stderr=b"SECRET", stdout=b"")):
-            self.assertEqual(mod.check_container()["key_presence"], "unverified")
+            self.assertEqual(mod.check_container("0123456789ab")["key_presence"], "unverified")
 
     def test_presence_script_syntax_and_exact_output(self):
         env = {
@@ -170,19 +170,19 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
     def test_docker_inspect_reports_only_fixed_status(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=0, stderr=b"", stdout=b"running\n")):
-            self.assertEqual(mod.inspect_docker_target(), "running")
+            self.assertEqual(mod.inspect_docker_target("0123456789ab"), "running")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=1, stderr=b"Error: No such object: litellm", stdout=b"")):
-            self.assertEqual(mod.inspect_docker_target(), "container_not_found")
+            self.assertEqual(mod.inspect_docker_target("0123456789ab"), "container_not_found")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=0, stderr=b"", stdout=b"PRIVATE-ENV=secret")):
-            self.assertEqual(mod.inspect_docker_target(), "docker_inspect_unverified")
+            self.assertEqual(mod.inspect_docker_target("0123456789ab"), "docker_inspect_unverified")
 
     def test_container_failure_class_is_safe(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                 returncode=1, stderr=b"OCI runtime exec failed: executable file not found",
                 stdout=b"")):
-            value = mod.check_container()
+            value = mod.check_container("0123456789ab")
         self.assertEqual(value["container"], "unavailable")
         self.assertEqual(value["failure_class"], "python3_missing_in_container")
         self.assertNotIn("OCI", str(value))
@@ -235,10 +235,10 @@ class WorkstationUpstreamAuthTests(unittest.TestCase):
     def test_litellm_sdk_fingerprint_returns_only_semver(self):
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=0, stderr=b"", stdout=b"1.106.4\n")):
-            self.assertEqual(mod.check_sdk_version(), "1.106.4")
+            self.assertEqual(mod.check_sdk_version("0123456789ab"), "1.106.4")
         with patch.object(mod.subprocess, "run", return_value=SimpleNamespace(
                  returncode=0, stderr=b"", stdout=b"SECRET value\n")):
-            self.assertEqual(mod.check_sdk_version(), "unverified")
+            self.assertEqual(mod.check_sdk_version("0123456789ab"), "unverified")
 
     def test_unreachable_proxy_blocks_green_result(self):
         with patch.object(mod, "check_container", return_value={
