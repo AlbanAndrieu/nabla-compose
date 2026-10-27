@@ -441,6 +441,46 @@ avec rollback et validation du comportement
 DNSSEC de pfSense avant toute réduction de
 l'authentification.
 
+## Réception complémentaire — dispatcher Ansible 17/17 PASS (28/10, 00:06 CET)
+
+La workstation a exécuté `python3 -m unittest discover -s tests
+-p 'test_homelab_dns_nta_dispatcher.py' -v` : **17 tests
+en 0,907 s, tous PASS**. Les cas positifs (`up`,
+`dhcp4-change`, `reapply`), négatifs (mauvaise interface,
+profil, DNS, domaine) et de rollback (ne retirer que l'ancre
+privée quand le profil change, préserver les NTA étrangères)
+sont tous validés **sur fixtures locales**.
+
+**La NTA runtime reste validée** : le DefectDojo privé
+a répondu sans `--validate=no` en **33,4 ms** et
+`cloudflare.com` avec DNSSEC authentifié en **43,1 ms**
+lors du contrôle antérieur.
+**La persistance par NetworkManager dispatcher n'a
+pas encore été appliquée**. Les 8 tests du contrat de
+split-DNS Ansible sur le HEAD récent restent à recevoir ;
+ne pas déclencher de reboot ni de changement DNS global.
+
+Prochaine commande, dans le dépôt
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+
+```bash
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_guard_contract.py' -v
+ansible-playbook playbooks/workstation.yml --list-tasks --tags dns \
+  -e workstation_split_dns_enabled=true \
+  -e workstation_split_dns_nta_dispatcher_enabled=true
+ansible-playbook playbooks/workstation.yml --check --diff --tags dns \
+  -e workstation_split_dns_enabled=true \
+  -e workstation_split_dns_nta_dispatcher_enabled=true
+```
+
+Le chemin d'exécution Ansible réel et le
+redémarrage/réapplication demeurent **NOT_VERIFIED**.
+Le `--check` ne doit ni écrire le dispatcher ni activer
+la NTA globale par fichier `.negative`.
+La roadmap et le runbook propriétaire Ansible portent
+les critères de fin et le rollback.
+
 ## Réception NTA réussie — 27 octobre (workstation)
 
 L'opérateur a exécuté `just workstation-dnssec-nta-test` :
