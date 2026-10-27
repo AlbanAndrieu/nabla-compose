@@ -16,7 +16,7 @@ Les preuves les plus récentes priment sur les descriptions historiques
 
 | Priorité | Domaine | Preuve | Reste à terminer |
 | --- | --- | --- | --- |
-| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin et HTTPS direct TrueNAS validés ; 31 contrats HTTPS PASS. Workstation : DNS pfSense direct OK, diagnostic DNS `unittest` **2/2 PASS** ; après un contournement `resolvectl` temporaire, le DNS actif `eno1` **redevient Quad9** (même avec `~int.albandrieu.com`), Chrome NXDOMAIN | Correction persistante dans [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) (Draft, non appliquée) ; confirmer le processus qui réécrit le DNS, puis valider le login HTTPS navigateur ; secrets runtime/Vaultwarden DRIFT |
+| H-03 | DefectDojo | TrueNAS `RUNNING`, login HTTP admin et HTTPS direct SNI/TLS validés, 31 tests HTTPS PASS ; DNS direct pfSense/Pi-hole OK. Workstation : 2/2 contrats DNS PASS mais Chrome NXDOMAIN ; **cause prouvée** par logs : `hide-location.service` exécutait répétitivement `resolvectl dns eno1 9.9.9.9 149.112.112.112` entre 21:21 et 21:34 CET | **Arrêter et désactiver le timer + service utilisateur**, rétablir DNS `172.17.0.1` et `~int.albandrieu.com`, valider `resolvectl query` / `getent` / Chrome. [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) force la désactivation par défaut (Draft, non appliquée). Secrets runtime/Vaultwarden encore DRIFT |
 | H-05 | Prometheus | Readiness + API targets HTTP 200, clé et secret monté ; sur 8 jobs nommés, 3 `scrape_up` (dont `fastapi_sample`), 5 `scrape_down` | 4 connexions `tcp_refused`, 1 `http_401` LiteLLM Hermes ; pas de restart global |
 | H-06 | Akvorado | +6 flux en 20 s, +6 `metadata_missing`, +12 `metadata_provider_errors`, +0 batch ClickHouse | Mapping metadata `ifIndex` puis inserts SQL **NOT_VERIFIED** |
 | H-07 | Catalogue / ressources | 143 RUNNING, 91 mappés, 52 non mappés, 151 entités déclaratives, GPU indisponible | Corriger les mappings, refaire le snapshot **après** redémarrage DefectDojo |
@@ -26,8 +26,13 @@ Les preuves les plus récentes priment sur les descriptions historiques
 **Prochaine étape prioritaire :** rendre **persistante** la politique DNS
 de la workstation, car le dépannage `resolvectl` a corrigé le
 `getent` / HTTPS mais peut être écrasé par NetworkManager, VPN ou
-le hook `hide-location`. Le chemin exact d'écriture Quad9 reste
-`NOT_VERIFIED`, malgré `hide-location.service enabled` ciblant `eno1`.
+le hook `hide-location`. **La cause est maintenant attestée par les logs sudo** :
+le service lançait `resolvectl dns eno1 9.9.9.9 149.112.112.112`
+à répétition entre 21:21 et 21:34 CET. L'utilisateur a autorisé la
+**désactivation** du service et de son timer. Appliquer
+`systemctl --user disable --now hide-location.timer hide-location.service`
+à la workstation, puis rétablir le DNS et tester `resolvectl query`
+et `getent` ; aucune commande distante n'a été exécutée par l'agent.
 Ne modifier ni pfSense (DNS Resolver déjà OK), ni Pi-hole ni Traefik.
 Le diagnostic local a échoué **avant** la correction, comme attendu,
 et la recette workstation passe **après**.
