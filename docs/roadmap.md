@@ -83,9 +83,12 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
 - [x] Classification rejouée : `buildkit_generic_failure`,
   `failure_stage=unknown`, `failure_operation=unknown`, journal entier
   de **1324 octets** ; cause racine toujours inconnue.
-- [ ] Recueillir une seule empreinte **structurelle** du message terminal
-  avec l'option `--failure-shape` (vocabulaire fixe sans données privées),
-  puis choisir la correction ciblée. Ne pas ajouter de regex à l'aveugle.
+- [x] Empreinte terminale recueillie : `registry`, `python`,
+  `unexpected`, `request` ; une erreur BuildKit numérotée et un marqueur
+  de résolution. Suspicion de requête vers le registre de l'image Python.
+- [ ] Extraire uniquement le code HTTP, la méthode et le fournisseur
+  catégorisé (`--failure-shape` étendu), puis attribuer le défaut de registre
+  avant tout nouveau build. Pas d'URL ni de jeton dans les sorties.
 - [ ] Vérifier l'état du conteneur précédent et son endpoint health.
 - [ ] Une fois la cause identifiée, déployer un unique SHA
   immuable et exiger la recette 6/6.
