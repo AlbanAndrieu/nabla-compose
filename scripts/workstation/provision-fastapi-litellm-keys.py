@@ -10,7 +10,9 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import stat
+import subprocess
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -81,9 +83,29 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def provision(policy: dict, target: str, output: Path) -> None:
+def require_native_truenas() -> None:
+    """Confirm local TrueNAS middleware before using its loopback proxy."""
+    try:
+        response = subprocess.run(
+            ["midclt", "call", "system.version"],
+            check=False, capture_output=True, timeout=8,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError("native TrueNAS host is not verified") from None
+    if response.returncode or response.stderr or len(response.stdout) > 192:
+        raise ValueError("native TrueNAS host is not verified")
+    version = response.stdout.decode("ascii", errors="replace").strip().strip('"')
+    if re.fullmatch(r"TrueNAS[-_][A-Za-z0-9._+-]{1,100}", version) is None:
+        raise ValueError("native TrueNAS host is not verified")
+
+
+def provision(policy: dict, target: str, output: Path, *,
+              endpoint_override: str | None = None) -> None:
     """Reserve the secret destination before calling /key/generate."""
     entry = policy["keys"][target]
+    endpoint = endpoint_override or entry["endpoint"]
+    if endpoint not in ("http://127.0.0.1:4000", "http://127.0.0.1:14000"):
+        raise ValueError("proxy management endpoint must remain loopback")
     master = os.getenv(entry["master_env"], "")
     if not master.startswith("sk-"):
         raise ValueError("dedicated proxy administrator secret missing")
@@ -97,7 +119,7 @@ def provision(policy: dict, target: str, output: Path) -> None:
     created = False
     try:
         request = Request(
-            entry["endpoint"] + "/key/generate",
+            endpoint + "/key/generate",
             method="POST",
             headers={"Authorization": "Bearer " + master,
                      "Content-Type": "application/json"},
@@ -106,7 +128,7 @@ def provision(policy: dict, target: str, output: Path) -> None:
         # No redirect to a non-loopback URL and no token in command arguments.
         # HTTP loopback is intentional; TrueNAS must be reached via SSH.
         with build_opener(NoRedirect()).open(request, timeout=15) as response:
-            if response.geturl() != entry["endpoint"] + "/key/generate":
+            if response.geturl() != endpoint + "/key/generate":
                 raise ValueError("key-generation endpoint redirected")
             result = json.load(response)
         key = result.get("key") if isinstance(result, dict) else None
@@ -138,9 +160,20 @@ def main() -> int:
     modes.add_argument("--check", action="store_true")
     modes.add_argument("--apply", action="store_true")
     parser.add_argument("--target", choices=TARGETS, required=True)
+    parser.add_argument(
+        "--native-truenas", action="store_true",
+        help="on TrueNAS only: use the native proxy on 127.0.0.1:4000 "
+             "instead of the workstation SSH tunnel on 127.0.0.1:14000",
+    )
     args = parser.parse_args()
     try:
         policy = load_policy()
+        endpoint_override = None
+        if args.native_truenas:
+            if args.target != "truenas":
+                raise ValueError("native TrueNAS mode cannot issue workstation keys")
+            require_native_truenas()
+            endpoint_override = "http://127.0.0.1:4000"
         output = key_file(args.target)
         verify_directory(output.parent)
         if output.is_symlink():
@@ -156,7 +189,7 @@ def main() -> int:
             print("lifetime_budget_usd=8 requested_ceiling_eur=10 reset=never")
             print("configuration_only=true network_calls=0")
             return 0
-        provision(policy, args.target, output)
+        provision(policy, args.target, output, endpoint_override=endpoint_override)
         print(f"status=created target={args.target} model={policy['keys'][args.target]['models'][0]}")
         print("key_location=private_operator_file mode=0600; key_value=suppressed")
         print("NEXT: transfer to Vaultwarden; verify /key/info, database and model allowlist")
