@@ -402,15 +402,25 @@ Actions :
   sans la définition des ACL `int` et `aclcrt_fWeb_HTTPS`.
   L'extraction initiale ne montre aucun `http-request deny`,
   mais ce n'est pas un audit exhaustif.
+  **Correction de cible :** frontend renommé par l'opérateur
+  `fWeb_HTTPS` → **`main_Web_HTTPS`**. Le premier diagnostic
+  complémentaire AWK a échoué sur une condition multiligne
+  (`syntax error at source line 6`) : ce n'est **pas** une
+  conclusion sur HAProxy. Le relevé précédent de `fWeb_HTTPS`
+  est désormais **historique**, non une preuve du nouveau frontend.
   **WAN_REJECTION_NOT_VERIFIED / P0 sécurité bloquant.**
-  Prochaine action : extraire seulement les règles du frontend
-  WAN, dont `txn.txnhost`, `int`, `aclcrt_fWeb_HTTPS`,
-  `http-request deny/return` et les routes de backend ; préparer
-  depuis l'UI pfSense une ACL de refus pour **le Host cible**,
-  à valider avant tout `traefik.enable=true`. Préserver
-  `s3.int.albandrieu.com`, le site Nexus public et le rollback.
-  Un essai hors LAN reste souhaitable ; le `404` hairpin
-  ne démontre aucun blocage WAN.
+  PR #289 : inspecteur POSIX AWK en lecture seule via SSH
+  `bash scripts/workstation/inspect-nexus-haproxy-frontend.sh`
+  ciblant par défaut `main_Web_HTTPS`, avec échec explicite si
+  ce frontend est absent. Contrats hors ligne intégrés à
+  `just nexus-private-ingress-test`.
+  Contrôler `txn.txnhost`, ACL `int`, `aclcrt_*`,
+  `http-request deny/return` et les routes de backend ;
+  préparer depuis l'UI pfSense une ACL de refus sur le Host
+  `nexus.int.albandrieu.com`, à valider avant tout
+  `traefik.enable=true`. Préserver `s3.int.albandrieu.com`,
+  le Nexus public et le rollback. Un essai hors LAN reste
+  souhaitable ; le `404` hairpin ne démontre aucun blocage WAN.
   Après cette preuve : préparer l'opt-in Compose `true` via
   une source de configuration approuvée, puis un seul
   redéploiement Nexus contrôlé avec rollback ; vérifier
