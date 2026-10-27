@@ -227,8 +227,17 @@ pfSense est un chantier indépendant. Ne traiter qu'une cause à la fois.
   déclaration d'identifiants Docker Hub, délai local après 429,
   pas de retry automatique ni de fallback après un pull limité.
   La protection ne sera active sur TrueNAS qu'avec le checkout mis à jour.
-- [ ] Valider `bash -n`, tests hermétiques quota et classification en local
-  sur la branche PR #289, sans GitHub Actions ni build Docker.
+- [x] Validation opérateur depuis TrueNAS dans un worktree détaché
+  au SHA `3eb2d963` : `bash -n` PASS, **35/35 tests PASS**,
+  nettoyage du worktree terminé, aucune CI ni build.
+- [x] Authentification Docker Hub `sudo docker login` réussie ;
+  le client privilégié dispose maintenant d'une session Docker Hub.
+  Docker a averti que les identifiants sont stockés sans chiffrement
+  dans `/root/.docker/config.json` ; protéger les droits et prévoir
+  un gestionnaire d'identifiants compatible TrueNAS.
+- [ ] Rejouer les tests locaux après les ajustements pour le login par
+  navigateur (`identitytoken`) ; vérifier la santé réelle des services
+  avant toute tentative d'upgrade. Ne pas supposer le HTTP 429 levé.
 - [ ] Auditer les applications TrueNAS arrêtées et leurs réseaux après prune,
   sans redémarrage global.
 - [ ] Traiter le 429 (quota de pulls vs anti-abus) : attendre une récupération
