@@ -26,6 +26,9 @@ def sections(config: str) -> dict[str, list[tuple[int, str]]]:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
+        # pfSense generates tabs between directives and ACL names. Normalize
+        # separators before matching: "acl\t\tnexus" is still an ACL.
+        line = " ".join(line.split())
         bits = line.split()
         if bits[0] in {"frontend", "backend", "listen"} and len(bits) > 1:
             key = bits[0] + ":" + bits[1]
