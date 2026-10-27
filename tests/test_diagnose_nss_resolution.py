@@ -137,6 +137,29 @@ class NSSPathTest(unittest.TestCase):
         self.assertIn("sample_1.stub_udp=RCODE_SERVFAIL", output)
         self.assertIn("sample_2.diagnosis=PASS", output)
 
+    def test_default_can_be_fast_while_stub_is_broken(self):
+        state = good()
+        state["stub_udp"] = sample("RCODE_SERVFAIL", 0.1)
+        self.assertEqual(nss.classify(state), "RESOLVED_STUB_UDP_SLOW_OR_BROKEN")
+
+    def test_default_can_be_fast_while_forced_nss_dns_is_slow(self):
+        state = good()
+        state["nss_dns"] = sample("TIMEOUT", 6)
+        self.assertEqual(nss.classify(state), "NSS_DNS_PATH_SLOW_OR_BROKEN")
+
+    def test_every_sample_unverified_differently_reports_multi_layer(self):
+        first = good()
+        first["resolved_native"] = sample("TIMEOUT", 4)
+        second = good()
+        second["nss_default"] = sample("TIMEOUT", 4)
+        with mock.patch.object(nss, "probe", side_effect=[first, second]):
+            with mock.patch.object(nss, "hosts_chain", return_value="hosts: files dns"):
+                with mock.patch.object(nss, "stub_config", return_value="SYSTEMD_STUB"):
+                    with mock.patch.object(sys, "argv", [str(FILE), "--samples", "2", "--timeout", "4"]):
+                        with contextlib.redirect_stdout(io.StringIO()) as out:
+                            self.assertEqual(nss.main(), 1)
+        self.assertIn("diagnosis=MULTI_LAYER_RESOLUTION_UNVERIFIED", out.getvalue())
+
     def test_readonly_no_configuration_mutations(self):
         src = FILE.read_text()
         for bad in ("nmcli connection modify", "sudo ", "resolvectl dns ", "resolvectl domain ",
