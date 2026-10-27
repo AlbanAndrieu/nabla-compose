@@ -27,6 +27,9 @@ frontend main_Web_HTTPS
     default_backend default_safe
 backend prod_front-traefik-https_ipvANY
     server truenas 172.17.0.24:443 ssl verify none password DO_NOT_OUTPUT
+backend nexus-albandrieu_ipvANY
+    mode http
+    server nexus 172.17.0.24:8081 check ssl verify none password NEXUS_SECRET_DO_NOT_OUTPUT
 """
 
 
@@ -73,6 +76,25 @@ class NexusHaproxyFrontendReadonly(unittest.TestCase):
         r = self.run_script(CONFIG, "--frontend", "main_Web_HTTPS;whoami")
         self.assertEqual(r.returncode, 2)
         self.assertIn("invalid HAProxy frontend name", r.stderr)
+
+    def test_named_nexus_backend_target_only_and_no_secrets(self):
+        r = self.run_script(CONFIG, "--backend", "nexus-albandrieu_ipvANY")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("backend=nexus-albandrieu_ipvANY", r.stdout)
+        self.assertIn("backend_mode=http", r.stdout)
+        self.assertIn("backend_server=nexus target=172.17.0.24:8081", r.stdout)
+        self.assertNotIn("NEXUS_SECRET_DO_NOT_OUTPUT", r.stdout)
+        self.assertNotIn("verify none", r.stdout)
+
+    def test_missing_named_backend_fails_closed(self):
+        r = self.run_script(CONFIG, "--backend", "not_defined")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("backend 'not_defined' not found", r.stdout)
+
+    def test_invalid_backend_is_rejected(self):
+        r = self.run_script(CONFIG, "--backend", "nexus;reboot")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("invalid HAProxy backend name", r.stderr)
 
     def test_shell_parses_and_no_runtime_mutations(self):
         shell = SCRIPT.read_text(encoding="utf-8")
