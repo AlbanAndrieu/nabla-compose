@@ -758,3 +758,31 @@ l'archive. Treize tests nouveaux sont à valider sur workstation.
 Les copies chiffrées restent vérifiées. La restauration depuis
 la nouvelle copie NFS, les modifications matérielles et toute
 rotation des destinataires restent suspendues.
+
+
+## Destinataire X25519 historique attesté sur USB (27/10/2026)
+
+**Preuve workstation :** `USB_PUBLIC_RECIPIENT_MATCHES_HISTORICAL`,
+`public_recipient_matches_historical=true` ;
+la clé privée a été lue localement par `age-keygen -y`
+mais n'a été ni publiée ni utilisée pour déchiffrer.
+Aucune mutation du support, de SOPS ou des YubiKeys.
+
+**DONE** : détection et montage SanDisk, métadonnées
+de l'identité age, correspondance du destinataire
+public X25519 historique.
+
+**P0 restant** : tester avec autorisation distincte
+la restauration réelle de l'identité SOPS à partir
+de la **nouvelle copie NFS** (et non l'ancien
+fichier du dossier `keepass`), sous `/dev/shm`
+privé, puis la fixture SOPS synthétique.
+Réutiliser les scripts du PRA existant ; vérifier
+leurs sorties d'erreur et le nettoyage des
+fichiers temporaires avant exécution.
+**P1 restant** : sauvegarde indépendante de la
+clé privée USB et revue effective ACL NFS.
+PIV82, OTP2, PIV9A, rotations SOPS, KeePassXC
+et copie NFS supplémentaire demeurent suspendus.
+
+[Preuve et procédure](yubikey-software-recovery-20261026.md).
