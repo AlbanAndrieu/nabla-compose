@@ -59,7 +59,7 @@ backend_active && $1 == "mode" {
 backend_active && $1 == "server" {
   backend_servers++
   target = $3
-  if (length(target) > 160 || target ~ /[=@/?#]/) target = "<redacted>"
+  if (length(target) > 160 || target ~ /[=@\/?#]/) target = "<redacted>"
   printf "backend_server=%s target=%s\n", $2, target
   next
 }
