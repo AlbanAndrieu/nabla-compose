@@ -1,5 +1,7 @@
 # Gouvernance d'architecture — décisions et dispatch inter-dépôts
 
+> **Décision inter-dépôts acceptée (27 octobre 2026) :** [ADR-WKS-001 — workstation Option A](adr/adr-workstation-option-a.md). Roadmap de ce dépôt : [YubiKey et intégrations workstation](roadmap-workstation-yubikey.md). Aucun effet sur l'ADR APISIX.
+
 **Propriétaire de ce registre :** nabla-compose (vue plateforme).
 **Statut :** méthode validée par le propriétaire du homelab (25 octobre 2026).
 L'ADR-0001 est accepté pour un **POC APISIX staging**, pas pour le cutover.

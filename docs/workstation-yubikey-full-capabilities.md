@@ -1,5 +1,7 @@
 # YubiKey workstation — full feature inventory and migration from nabla
 
+> **Ownership (ADR-WKS-001, 27 octobre 2026) :** ce dépôt est la source de vérité pour toutes les opérations et preuves *matérielles* YubiKey. Le bundle historique `ansible-workstation/tasks/yubikey.yml` et son template PAM sont retirés dans une PR Ansible, sans suppression de paquets ni modification du poste. `ansible-workstation` garde uniquement les politiques et dépendances OS, en mode opt-in sans mutation PAM. Voir [ADR](adr/adr-workstation-option-a.md) et [roadmap YubiKey](roadmap-workstation-yubikey.md).
+
 > **No automatic enrollment.** Keep the working KeePassXC OTP slot 2 untouched
 > on both keys (primary 23501671, backup 22916048).
 > The two devices share a verified HMAC-SHA1 response. Other applications
