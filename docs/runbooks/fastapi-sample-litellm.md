@@ -4,6 +4,79 @@
 Concerne `sample` TrueNAS uniquement, PAS le runtime public de
 `fastapi-sample.fastapicloud.dev` (pas de chemin LAN privé prouvé).
 
+## Incident Bitwarden CLI : double déverrouillage et session exposée
+
+**Nouvelle réception opérateur (28/10/2026) :**
+`bw unlock` interactif a indiqué que le coffre était
+déverrouillé et a **affiché une valeur `BW_SESSION` dans
+la sortie partagée**. Le bloc de transfert a ensuite
+relancé `SESSION="$(bw unlock --raw)"`, qui a demandé de
+nouveau le mot de passe puis a échoué sur
+`Cryptography error, The decryption operation failed`.
+Avec `set -e`, ce deuxième déverrouillage a interrompu
+le bloc **avant** `bw sync`, `bw get` ou `bw edit`.
+**Écriture Vaultwarden non attestée et probablement non
+effectuée** ; ne pas marquer le secret comme importé.
+
+**Action sécurité préalable** : le jeton `BW_SESSION`
+qui apparaît dans la sortie partagée est considéré
+compromis. Le verrouiller/invalider localement :
+`unset BW_SESSION`, `bw lock`, puis `bw logout`.
+Sur Vaultwarden Web Vault, sous les paramètres du compte,
+utiliser **Deauthorize Sessions** / **Révoquer les sessions**
+pour invalider les autres sessions d'authentification
+concernées. Cela peut déconnecter les autres appareils.
+Ne pas recopier ou publier une nouvelle session.
+
+Les clients Bitwarden CLI 2026.x font l'objet de
+signalements publics concernant des sessions produites
+par `bw unlock --raw` et des erreurs de déchiffrement.
+Ce rapprochement n'établit **pas** la cause sur cette
+Workstation : relever `bw --version` avant de changer
+le client ou son stockage local. Ne pas effacer le
+coffre chiffré ou changer le mot de passe à l'aveugle.
+
+**Reprise en lecture seule, après révocation** :
+
+```bash
+# Nouveau shell privé, sans xtrace ni publication de jetons.
+bw --version
+bw config server
+bw status | jq '{status, serverUrl}'
+
+# Un seul login interactif et capture directe de la session.
+# Ne pas exécuter un deuxième bw unlock sur une session valide.
+(
+  set -e
+  set +x
+  umask 077
+  export BW_SESSION="$(bw login --raw)"
+  test -n "$BW_SESSION"
+  bw status | jq '{status, serverUrl}'
+  bw list folders >/dev/null
+  echo 'vaultwarden_readonly=ok'
+  bw lock >/dev/null
+)
+```
+
+Si `bw login --raw` ou `bw list folders` échoue,
+ne pas réessayer en boucle. Garder la clé Workstation
+locale `0600`, identifier la version du client et
+la cause du déchiffrement avant tout `bw edit`.
+Les statuts `status=unlocked` du CLI ne suffisent pas :
+une lecture réelle du coffre doit réussir.
+
+**Précaution de transaction :** la modification
+d'un item Vaultwarden via `bw edit item` renvoie
+l'item complet ; elle peut écraser d'autres champs
+en cas de copie périmée ou modification concurrente.
+L'import ciblé de la seule clé
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` doit vérifier
+l'identité de l'item et du dossier, préserver tous les
+champs existants et contrôler le résultat après écriture.
+Aucun `materialize_runtime.py --install` ni
+redémarrage TrueNAS tant que ces preuves manquent.
+
 ## Réception Workstation — clé upstream émise et fichier privé validé (28/10/2026)
 
 **Preuves opérateur :**
