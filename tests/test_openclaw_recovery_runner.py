@@ -23,14 +23,14 @@ class ReadonlyRunnerContracts(unittest.TestCase):
             shutil.copyfile(SOURCE, target)
             fake = root / 'bin/python3'
             fake.parent.mkdir()
-            fake.write_text('#!/bin/sh\\necho simulated:$1\\ncase "$1" in *check-openclaw-runtime-alignment.py) exit 2;; esac\\nexit 0\\n'.replace('\\n','\n'))
+            fake.write_text('#!/bin/sh\necho simulated:$1\ncase "$1" in *check-openclaw-runtime-alignment.py) exit 2;; esac\nexit 0\n')
             fake.chmod(0o755)
             environment = {**os.environ, 'PATH': str(fake.parent) + ':' + os.environ['PATH']}
             result = subprocess.run(['bash', str(target)], env=environment, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 2)
             self.assertEqual(result.stdout.count('simulated:'), 4)
             self.assertIn('probe_failures=1', result.stdout)
-            fake.write_text('#!/bin/sh\\necho simulated:$1\\nexit 0\\n'.replace('\\n','\n'))
+            fake.write_text('#!/bin/sh\necho simulated:$1\nexit 0\n')
             ok = subprocess.run(['bash', str(target)], env=environment, capture_output=True, text=True, check=False)
             self.assertEqual(ok.returncode, 0)
             self.assertIn('probe_failures=0', ok.stdout)
