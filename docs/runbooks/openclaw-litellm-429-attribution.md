@@ -2097,3 +2097,9 @@ et/ou extrait structuré du statut de la requête échouée), puis
 appliquer uniquement le correctif correspondant. Le Gateway HTTP
 sain constitue une étape déjà validée et ne doit pas être remis
 en cause sur la base du `404` curl du deep link.
+
+### Références complémentaires pour l'attribution du 429
+
+- https://docs.openclaw.ai/cli/models
+- https://docs.litellm.ai/docs/proxy/users
+- https://litellm.vercel.app/docs/proxy/error_reference
