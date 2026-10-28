@@ -26,6 +26,25 @@
   **nouvelle** de TrueNAS est appliquée dans PF. Un probe d'authentification
   peut lui-même actualiser la date de `last_pull`.
 
+## Première réception LIVE — 28 octobre 2026
+
+- **Gate local workstation PASS :** `just crowdsec-pf-natural-test`
+  15/15 ; `just crowdsec-bouncer-config-test` 46/46.
+- **Baseline effectuée en lecture seule :**
+  `crowdsec_pf_baseline=READY source_mode=LIVE pf_networks=4016 natural_bans=0`.
+  La référence historique est maintenant enregistrée sur la workstation.
+- **Première observation :**
+  `pf_decision_cycle=NOT_VERIFIED reason=NO_ELIGIBLE_NEW_NATURAL_BAN`.
+  Le collecteur est prêt, mais il n'a pas encore observé de nouvelle
+  décision centrale éligible. **Ne pas conclure à une panne du bouncer.**
+
+**Action suivante uniquement :** depuis le même checkout workstation,
+exécuter `just crowdsec-pf-natural-observe` lors d'une nouvelle
+décision naturelle. **Ne plus exécuter `baseline`**, sauf procédure
+d'initialisation d'une nouvelle campagne avec archivage privé préalable.
+Ne jamais transmettre le fichier d'état à la PR, à GitHub Actions ou
+dans un échange de diagnostic : il contient des adresses IP historiques.
+
 ## Option A automatisée — suivi naturel sans mutation (28 octobre 2026)
 
 La workstation est l'**orchestrateur de lecture** : elle interroge TrueNAS
