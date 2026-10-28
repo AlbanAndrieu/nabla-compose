@@ -63,6 +63,11 @@ Pour enregistrer volontairement ces seules catégories :
 just openclaw-rate-limit-evidence-capture
 ```
 
+Quand aucun événement structuré n'est trouvé, le collecteur annonce
+`store=not_written_no_structured_events` : cela **ne prouve pas**
+l'absence de 429. En cas de journal inaccessible, le stockage n'est
+pas revendiqué et la commande échoue clairement.
+
 Le magasin est local, privé, sous
 `~/.local/state/nabla-compose/openclaw/rate-limit-events.jsonl` :
 dossier `0700`, fichier `0600`, déduplication par curseur journal

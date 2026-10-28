@@ -168,12 +168,17 @@ def main(argv=None) -> int:
             'raw_logs_printed':False,'tokens_generated':0,'store':'not_requested'}
     exit_code=0 if source!='unavailable' else 2
     if args.capture:
-        base=Path.home()/'.local/state/nabla-compose/openclaw'
-        try:
-            result['persisted_new_events']=persist(events,base)
-            result['store']='private'
-        except ValueError:
-            result['store']='blocked';exit_code=2
+        if source=='unavailable':
+            result['store']='not_written_source_unavailable'
+        elif not events:
+            result['store']='not_written_no_structured_events'
+        else:
+            base=Path.home()/'.local/state/nabla-compose/openclaw'
+            try:
+                result['persisted_new_events']=persist(events,base)
+                result['store']='private'
+            except ValueError:
+                result['store']='blocked';exit_code=2
     print(json.dumps(result,sort_keys=True))
     return exit_code
 

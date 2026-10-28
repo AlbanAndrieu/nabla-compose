@@ -120,6 +120,23 @@ class ObserverContracts(unittest.TestCase):
                 observer.persist([observer.classify(self.event())],target)
             self.assertEqual(target.parent.stat().st_mode & 0o777,original)
 
+    def test_empty_capture_does_not_claim_written_evidence(self):
+        import unittest.mock
+        with unittest.mock.patch.object(observer,'journal',return_value=('available',b'')):
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(observer.main(['--capture']),0)
+        result=json.loads(out.getvalue())
+        self.assertEqual(result['store'],'not_written_no_structured_events')
+        self.assertEqual(result['attribution'],'unverified')
+
+    def test_unavailable_journal_does_not_claim_written_evidence(self):
+        import unittest.mock
+        with unittest.mock.patch.object(observer,'journal',return_value=('unavailable',b'')):
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(observer.main(['--capture']),2)
+        result=json.loads(out.getvalue())
+        self.assertEqual(result['store'],'not_written_source_unavailable')
+
     def test_fixture_no_disclosure(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture=Path(tmp)/'data.jsonl'
