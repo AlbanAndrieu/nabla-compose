@@ -1,8 +1,61 @@
 # FastAPI Sample — LiteLLM TrueNAS → workstation Qwen
 
-**État : GitOps préparé, secrets/runtime NON PROVISIONNÉS / NON VALIDÉS.**
+**État : clé virtuelle Workstation émise le 28/10/2026 ; stockage Vaultwarden, runtime TrueNAS et chaîne FastAPI NON VALIDÉS.**
 Concerne `sample` TrueNAS uniquement, PAS le runtime public de
 `fastapi-sample.fastapicloud.dev` (pas de chemin LAN privé prouvé).
+
+## Réception Workstation — clé upstream émise et fichier privé validé (28/10/2026)
+
+**Preuves opérateur :**
+
+```text
+test_fastapi_litellm_workstation_inventory.py : 12/12 PASS
+status=created target=workstation model=qwen
+key_location=private_operator_file mode=0600; key_value=suppressed
+600 albandrieu:albandrieu /home/albandrieu/.local/share/nabla-compose/fastapi-litellm/workstation.key
+```
+
+L'identité **`fastapi-sample-upstream`** est maintenant émise
+sur **LiteLLM Workstation**, avec une clé virtuelle `qwen`
+générée par `--target workstation --apply`. Le fichier
+local `0600` est prouvé présent et privé. **Le retour
+de `/key/generate` n'est pas une preuve indépendante
+du modèle permis/budget appliqué** ; vérifier `/key/info`
+ou l'UI administrateur LiteLLM Workstation avant le cutover.
+
+**Prochaine action P0 : ajout d'un seul champ au coffre.**
+Dans Vaultwarden HTTPS canonique, item existant exact
+`nabla/prod/litellm`, dossier `TrueNAS`, créer le champ
+personnalisé **masqué**
+`LITELLM_FASTAPI_WORKSTATION_API_KEY`.
+Sa valeur provient **uniquement** du fichier local
+`~/.local/share/nabla-compose/fastapi-litellm/workstation.key`
+sur Workstation. **Ne pas recréer l'item et ne toucher
+à aucun autre champ** (master, salt, IDE, Langfuse, Redis).
+Ne pas afficher la clé dans les logs ni l'inclure
+dans les arguments CLI, messages, Git, PR ou CI.
+
+Après écriture côté coffre, exécuter une vérification
+**lecture seule** par `just litellm-fastapi-upstream-source-check`
+depuis l'opérateur non root avec `BW_SESSION` déverrouillée.
+`field_present_nonempty_hidden` atteste la présence
+d'une valeur masquée mais **pas son égalité** au fichier
+privé Workstation. Le champ est déclaré
+`critical: false` dans le manifeste ; les contrôles
+génériques de secrets ne garantissent donc pas tous
+son existence tant que ce test ciblé n'est pas fait.
+
+**TrueNAS :** le fichier
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets`
+avait `fastapi_key_declaration_count=0`, mais tous
+les autres secrets présents doivent être conservés.
+Ne pas exécuter `materialize_runtime.py --install`
+tant que le rendu complet et sa comparaison avec la
+cible n'ont pas été validés. Ne pas redémarrer LiteLLM
+avant un plan de rollback et preuve d'injection.
+Même après injection, la clé du premier saut
+`fastapi-sample-staging` (FastAPI → TrueNAS)
+reste distincte et non validée.
 
 ## Architecture et responsabilités
 
