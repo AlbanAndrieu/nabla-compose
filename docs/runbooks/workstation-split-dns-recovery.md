@@ -1,5 +1,22 @@
 # Workstation split-DNS — référence inter-dépôts et reprise rapide
 
+> **Architecture canonique et runbook opérationnel :**
+> [ansible-workstation/docs/homelab-split-dns-architecture.md](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-architecture.md).
+> **Répartition :** Ansible gère le profil `Wired eno1` et le dispatcher ;
+> Compose gère les sondes et la réception.
+>
+> **État retenu — 28/10 :** dispatcher **installé**,
+> `nta_restored_by_event=PASS`, `diagnosis=PASS_REAPPLY_PERSISTENCE`
+> sur un vrai événement NetworkManager `reapply`.
+> Le dernier contrôle read-only est
+> `lan_profile=MATCH`, `dispatcher=ROOT_EXECUTABLE`,
+> `link_nta=EXPECTED_ONLY`, `private_dns=PASS`,
+> `public_dnssec=AUTHENTICATED`, `mode=READ_ONLY`.
+> **Reste à recevoir : vérification après prochain reboot planifié.**
+> Les sections ci-dessous retraçant les échecs et états « non installé »
+> sont **historiques** et ne décrivent pas le statut courant.
+
+
 ## Réception définitive de l'événement NetworkManager — 28 octobre 2026
 
 **État actuel : INSTALLÉ + RÉAPPLICATION NTA CONFIRMÉE.**
