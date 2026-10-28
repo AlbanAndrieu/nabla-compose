@@ -98,6 +98,29 @@ la même workstation. Le fichier `0600` contient les réseaux PF
 historiques : **ne pas publier, copier ni supprimer automatiquement**.
 Le cycle de remédiation PF reste **P0 NON VÉRIFIÉ**.
 
+**Test synthétique réversible prêt (28/10, non exécuté sur le homelab) :**
+`scripts/workstation/smoke-crowdsec-pf-synthetic.py` utilise
+`203.0.113.77` (TEST-NET-3), TTL **5m** et suppression
+**par l'ID unique** de la décision créée. Il vérifie d'abord
+l'absence de décision LAPI et de correspondance PF (CIDR inclus),
+ainsi que le bouncer pfSense actif et le moteur local arrêté.
+En cas d'échec ou de Ctrl+C, il tente le nettoyage ; si l'ID
+est ambigu ou si la liaison SSH tombe, un nettoyage automatique
+ne peut pas être garanti et le statut reste `NOT_VERIFIED`.
+Ne pas utiliser `cscli decisions delete --ip`, `--all` ou
+`pfctl -T flush` pour la reprise.
+
+Les modes sont **distincts** :
+`just crowdsec-pf-synthetic-preflight` est en lecture seule,
+alors que l'action mutatrice exige une commande directe
+`--apply --confirm SYNTHETIC-203.0.113.77` sur la workstation.
+**15/15 tests simulés PASS** localement. Ce nouveau bloc est inclus
+dans `just crowdsec-bouncer-config-test` (61 tests ciblés) ;
+ce gate étendu doit être relancé sur la workstation.
+Une décision manuelle `origin=cscli` ne valide pas le détecteur
+naturel `origin=crowdsec`. Voir le runbook PF pour exécution,
+limites et reprise ciblée.
+
 **P0 PF : corrélation automatisée en lecture seule (28/10).**
 Le script `scripts/workstation/observe-crowdsec-pf-decision.py`
 mémorise sur la workstation une baseline privée des décisions LAPI
