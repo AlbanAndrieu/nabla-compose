@@ -806,6 +806,8 @@ crowdsec-bouncer-config-test:
     python3 -m unittest discover -s tests -p 'test_crowdsec_pfsense_bouncer_provenance.py' -v
     python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
+    python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
 
 # Workstation only: two independent SSH reads (TrueNAS LAPI and pfSense PF).
 # Stores PRIVATE evidence in ~/.local/state/nabla-compose (0700/0600).
@@ -819,6 +821,15 @@ crowdsec-pf-natural-observe:
 crowdsec-pf-natural-test:
     python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
+
+# Synthetic PF proof: tests and preflight are read-only. Any ban requires
+# an explicit Python --apply --confirm command, not a Just recipe.
+crowdsec-pf-synthetic-test:
+    python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
+
+crowdsec-pf-synthetic-preflight:
+    python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --preflight
 
 # TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
 # PFSENSE_FIREWALL registration and securely writes its root-only credential.
