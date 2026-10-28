@@ -173,3 +173,40 @@ node scripts/diagnose-production-api-ui-freeze.mjs truenas --safe
 ```
 
 Ne pas confondre HTTP 200 avec un navigateur interactif. Ne pas conclure qu'OpenRAG est intégré avant les ACL/MCP, les droits d'accès et les tests de recherche approuvés.
+
+
+## Correction du placement des clés — retour opérateur du 28 octobre
+
+L'opérateur indique avoir ajouté `LITELLM_FASTAPI_WORKSTATION_API_KEY` à
+`/mnt/cpool/secrets/runtime/sample/.env.secrets`. **Ce n'est pas le bon
+consommateur**. Le proxy LiteLLM TrueNAS lit exclusivement
+`/mnt/cpool/secrets/runtime/litellm/.env.secrets` pour cette clé upstream,
+tandis que Sample doit seulement posséder sa propre `LITELLM_API_KEY`.
+Le fait d'avoir ajouté la clé dans le fichier Sample ne démontre aucune
+injection dans le conteneur LiteLLM ; l'audit antérieur a confirmé
+`container_key_absent` et `file_key_absent` côté LiteLLM.
+
+Ordre de résolution sécurisé : vérification source Vaultwarden exacte
+`nabla/prod/litellm` ; validation des secrets fichier sans impression ;
+injection ciblée de la clé dans le fichier LiteLLM canonique après revue ;
+suppression du champ upstream inutile de Sample **sans effacer les autres
+valeurs**, et changement du conteneur LiteLLM seulement après
+preuve de source, identité et plan de rollback. Une correction du fichier
+n'actualise pas l'environnement d'un conteneur existant.
+
+**OPENAI_API_KEY n'est pas nécessaire pour la liaison
+FastAPI → LiteLLM TrueNAS → LiteLLM workstation.** Le code
+`nabla/deepagents/llm_factory.py` privilégie `LITELLM_URL` avec
+`LITELLM_API_KEY` ; il ne lit le token OpenAI direct qu'en l'absence de
+route LiteLLM et Azure. Ne pas inventer `OPENAI_API_KEY=XXX` ou placer
+une clé OpenAI réelle dans le fichier Sample pour réparer le 401.
+Si le besoin futur est un fournisseur OpenAI payant, provisionner
+explicitement une clé **projet dédiée** via OpenAI Platform avec contrôle
+de budget et stockage Vaultwarden. Les clés des fournisseurs OpenAI
+utilisées par le proxy LiteLLM sont gérées dans l'item
+`nabla/prod/litellm`, pas dans la collection Sample.
+
+**UI:** en parallèle, la PR FastAPI #381 a 7/7 tests Node PASS
+et le préflight indique `playwright_python_missing` sans requêtes
+réseau. Ne pas confondre le problème du lanceur Chromium avec le HTTP 401
+LiteLLM ou avec la lenteur du catalogue `/api/ui/services`.
