@@ -1703,3 +1703,11 @@ openclaw-cron-recovery-test:
 
 openclaw-cron-recovery-plan:
     python3 scripts/workstation/plan-openclaw-cron-recovery.py
+
+# Compact fail-independent read-only report. A failed probe never hides others.
+openclaw-recovery-readonly-test:
+    python3 -m py_compile tests/test_openclaw_recovery_runner.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_recovery_runner.py' -v
+
+openclaw-recovery-readonly:
+    bash scripts/workstation/openclaw-recovery-readonly.sh

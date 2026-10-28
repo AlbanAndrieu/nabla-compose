@@ -138,3 +138,17 @@ vérifié séparément (une vérification de modèle pourrait coûter des tokens
 - https://docs.openclaw.ai/help/faq-models
 - https://github.com/draco-agent/tech-news-digest/blob/v3.16.0/references/digest-prompt.md
 - https://github.com/draco-agent/tech-news-digest/blob/v3.16.0/scripts/summarize-merged.py
+
+## 5. Une commande de diagnostic transverse (sans apply)
+
+```bash
+just openclaw-recovery-readonly-test
+just openclaw-recovery-readonly
+```
+
+La recette exécute indépendamment l'alignement du runtime, les états de
+cooldown des modèles, les événements 429 structurés et le plan du digest /
+de la session principale cron. **Chaque section est tentée**, même si
+une précédente échoue. `probe_failures=0` signifie uniquement que les
+commandes ont terminé avec un code 0 ; cela ne prouve pas l'absence de
+429 ni le bon fonctionnement du chat. Les sondes restent en lecture seule.
