@@ -1,5 +1,7 @@
 # Services Homelab — roadmap active
 
+> **Workstation/YubiKey :** l'[ADR Option A](adr/adr-workstation-option-a.md) fixe les sources de vérité inter-dépôts ; seule la [roadmap YubiKey/Compose](roadmap-workstation-yubikey.md) appartient à cette roadmap. Les tâches système Ubuntu restent dans `ansible-workstation`, les dotfiles dans `dotfiles`.
+
 > Mise à jour : **28 octobre 2026**. Source d'autorité pour le travail restant
 > dans `nabla-compose`. Ce document décrit des **décisions et gates**,
 > pas une preuve de fonctionnement des services.
