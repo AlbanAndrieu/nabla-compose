@@ -8,6 +8,7 @@ Vaultwarden parity is separate and must be verified after an apply.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 from pathlib import Path
@@ -144,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
+    mode.add_argument("--interactive-check", action="store_true",
+                      help="verify typed password against Django without reading runtime secrets")
     mode.add_argument("--apply", action="store_true")
     p.add_argument("--acknowledge")
     p.add_argument("--container", choices=ALLOWED_CONTAINERS, default=CONTAINER,
@@ -153,20 +156,50 @@ def main(argv: list[str] | None = None) -> int:
         p.error("root required for protected runtime secret read")
     if args.apply and args.acknowledge != ACK:
         p.error("explicit acknowledgement required for Django password update")
-    try:
-        credential = parse_runtime_secret()
-    except (OSError, UnicodeError, ValueError) as exc:
-        print(json.dumps({
-            "component": "defectdojo_admin_password",
-            "status": "BLOCKED",
-            "category": str(exc) if isinstance(exc, ValueError) and
-                        str(exc).startswith("SOURCE_") else type(exc).__name__,
-        }))
-        return 2
+    if args.interactive_check:
+        if not (sys.stdin.isatty() and sys.stderr.isatty()):
+            print(json.dumps({
+                "component": "defectdojo_admin_password",
+                "mode": "interactive_check",
+                "status": "BLOCKED",
+                "category": "INTERACTIVE_TTY_REQUIRED",
+            }, sort_keys=True))
+            return 2
+        try:
+            # No echo, CLI arguments, environment secrets or command history.
+            supplied = getpass.getpass("Mot de passe Django admin à vérifier : ")
+        except (EOFError, KeyboardInterrupt):
+            print(json.dumps({
+                "component": "defectdojo_admin_password",
+                "mode": "interactive_check",
+                "status": "BLOCKED",
+                "category": "INTERACTIVE_INPUT_CANCELLED",
+            }, sort_keys=True))
+            return 2
+        if not supplied or len(supplied) > 512:
+            print(json.dumps({
+                "component": "defectdojo_admin_password",
+                "mode": "interactive_check",
+                "status": "BLOCKED",
+                "category": "INTERACTIVE_INPUT_INVALID",
+            }, sort_keys=True))
+            return 2
+        credential = {"DD_ADMIN_USER": "admin", "DD_ADMIN_PASSWORD": supplied}
+    else:
+        try:
+            credential = parse_runtime_secret()
+        except (OSError, UnicodeError, ValueError) as exc:
+            print(json.dumps({
+                "component": "defectdojo_admin_password",
+                "status": "BLOCKED",
+                "category": str(exc) if isinstance(exc, ValueError) and
+                            str(exc).startswith("SOURCE_") else type(exc).__name__,
+            }))
+            return 2
     state = run_django(credential, "apply" if args.apply else "check", args.container)
     print(json.dumps({
         "component": "defectdojo_admin_password",
-        "mode": "apply" if args.apply else "check",
+        "mode": "apply" if args.apply else ("interactive_check" if args.interactive_check else "check"),
         "state": state,
         "vaultwarden_parity": "NOT_VERIFIED",
         "restarted": False,

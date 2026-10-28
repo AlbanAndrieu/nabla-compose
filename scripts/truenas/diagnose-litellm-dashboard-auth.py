@@ -29,6 +29,19 @@ def classify(event: object) -> dict[str, object]:
     message = err.get("error_message", "")
     if not isinstance(message, str):
         return result
+    # Authentication was rejected before dispatch. A 0-token request without
+    # a key is not evidence of a provider quota or LiteLLM RPM/TPM exhaustion.
+    # Neither source IP nor User-Agent proves which application sent it.
+    usage = event.get("usage_object")
+    tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
+    if (message.strip() == "No api key passed in."
+            and event.get("user_api_key") is None and tokens == 0):
+        result.update(
+            classification="MISSING_CLIENT_API_KEY",
+            provider_auth_failure=False,
+            next_action="identify_client_then_use_public_liveliness_or_scoped_key",
+        )
+        return result
     code = str(err.get("error_code", ""))
     team = event.get("user_api_key_team_id")
     normalized = err.get("normalized_error")

@@ -779,3 +779,1071 @@ workstation sont encore NOT_RUN**.
 
 **Statut inchangé : `NO-GO` global**, KeePassXC/OTP2 reporté,
 OpenPGP privé non prouvé, restauration réelle age/SOPS non effectuée.
+
+## Transfert de suivi dans PR #289 — précontrôle NFS validé (27/10/2026)
+
+La PR **#285 a été fusionnée dans `master`**. Les scripts YubiKey
+font donc déjà partie de la branche de base. À la demande de
+l'opérateur, les améliorations suivantes sont poursuivies dans la
+PR de suivi **#289** sans déplacer, supprimer ni réécrire ses
+modifications existantes concernant pfSense, HAProxy et Nexus.
+
+**Preuve opérateur sur workstation :**
+`git fetch origin fix/code-password-dotenv-fixture-20261026`,
+`git merge --ff-only`, puis :
+
+- `just yubikey-escrow-copy-test` : **9/9 PASS** ;
+- `just yubikey-escrow-copy-check` :
+  `state=READY_TO_CREATE_ENCRYPTED_COPY`,
+  `new_copy_verified=false`, `restore_verified=false`,
+  `independent_age_identity_verified=false`,
+  `source_decryption_performed=false`,
+  `existing_destination_overwritten=false`, `status=NO-GO`.
+
+Ces résultats sont des preuves de **préparation**, pas de copie.
+**Aucune écriture NFS ni restauration age/SOPS réelle** n'a été
+effectuée par cette exécution.
+
+### Durcissement du fichier NFS temporaire
+
+Le programme `create-yubikey-escrow-nfs-copy.py` exige désormais,
+**avant toute écriture des octets chiffrés**, `os.fchmod(stage_fd, 0o600)`
+et une vérification via `os.fstat`. Une deuxième vérification est
+effectuée **après l'écriture, avant de publier le nom final** :
+
+- fichier temporaire régulier appartenant à l'utilisateur ;
+- mode POSIX strictement `0600` à chaque étape ;
+- un seul lien matériel et une taille initialement nulle ;
+- taille finale égale à celle de la source ;
+- si ce contrôle échoue, aucune destination finale n'est publiée.
+
+Trois tests supplémentaires couvrent l'échec de `fchmod`,
+les permissions temporaires non conformes et l'ordre des opérations
+(`chmod` avant le premier `write`).
+La suite étendue compte **12 tests**, mais son exécution sur
+workstation est encore `NOT_RUN` pour ces changements.
+
+**Limite :** NFSv4 peut comporter des ACL additionnelles ;
+un mode POSIX `0600` ne prouve pas à lui seul l'absence de droits
+définis par une ACL. Contrôler localement les ACL côté client
+et TrueNAS après publication ; ne pas publier leurs détails sensibles.
+
+### Validation à effectuer avant toute copie
+
+Dans un worktree propre de **PR #289**, sans toucher au checkout
+actif qui contient peut-être d'autres modifications :
+
+```bash
+git fetch origin fix/nexus-wan-haproxy-acl-evidence-20261027
+git merge --ff-only origin/fix/nexus-wan-haproxy-acl-evidence-20261027
+
+just yubikey-escrow-copy-test
+just yubikey-escrow-copy-check
+```
+
+Si `READY_TO_CREATE_ENCRYPTED_COPY` est confirmé, la commande
+`--copy` **reste facultative et distincte**, documentée plus haut.
+Ne l'exécuter qu'après décision explicite de créer la copie
+chiffrée sur l'export NFS attendu. **Ne jamais relancer à
+l'aveugle après un résultat partiel** : l'archive peut déjà
+exister sous son nom final, et l'outil doit alors refuser
+tout écrasement.
+
+Le jalon suivant sera la validation d'égalité binaire, de
+visibilité côté TrueNAS et des ACL, puis une restauration age/SOPS
+isolée et prouvée. Les autres restrictions sont maintenues :
+aucune écriture PIV82, PIV9A, OTP2 ou modification de destinataires
+SOPS ; le test KeePassXC reste reporté.
+
+## Preuve de validation workstation #289 — gate de copie chiffrée (27/10/2026)
+
+**Preuve opérateur au worktree détaché HEAD `124b23ef`** :
+`just yubikey-escrow-copy-test` a réussi **12/12 tests**,
+y compris les trois contrats ajoutés dans #289
+(`fchmod` en erreur, refus du mode temporaire non conforme,
+`fchmod` avant la première écriture). Le
+`just yubikey-escrow-copy-check` a renvoyé
+`state=READY_TO_CREATE_ENCRYPTED_COPY`,
+`new_copy_verified=false`, `restore_verified=false`,
+`independent_age_identity_verified=false`,
+`existing_destination_overwritten=false` et `status=NO-GO`.
+
+**Clôture :** les gates de préparation, de non-écrasement et de
+permission POSIX sont validés sur la workstation. Ce statut
+**ne confirme pas** qu'une seconde copie chiffrée existe ;
+le script a seulement examiné les métadonnées et aucun contenu
+`.age` n'a encore été copié ou déchiffré dans ce jalon.
+
+**Étape opérateur distincte, uniquement après décision d'écrire
+sur le partage NFS attendu** (dans le worktree #289) :
+
+```bash
+python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py \
+  --copy --acknowledge CREATE_NEW_ENCRYPTED_AGE_ESCROW_NFS_COPY
+```
+
+État attendu en cas de réussite complète :
+`ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`.
+En cas d'échec ou d'état partiel, **ne pas répéter la création** :
+inspecter d'abord la destination et les éventuels fichiers de transit,
+sans jamais effacer une copie publiée susceptible d'être utile.
+
+Après copie, valider le fichier côté NFS et TrueNAS,
+les ACL POSIX/NFSv4, puis le déchiffrement et la restauration
+`age/SOPS` dans un emplacement isolé. L'indépendance de
+récupération reste à prouver. PIV82, modifications SOPS,
+PIV9A et OTP2 restent non autorisés ; KeePassXC demeure reporté.
+
+## Création effective de la copie age sur NFS et contrôle post-copie (#289)
+
+**Preuve d'exécution réelle fournie par l'opérateur le 27/10/2026 :**
+le programme `create-yubikey-escrow-nfs-copy.py --copy` avec
+l'acquittement explicite a retourné :
+
+- `state=ENCRYPTED_COPY_CREATED_BYTE_VERIFIED_RESTORE_UNVERIFIED`
+- `new_copy_verified=true`
+- `existing_destination_overwritten=false`
+- `source_decryption_performed=false`
+- `independent_age_identity_verified=false`
+- `restore_verified=false`
+- `status=NO-GO`
+
+**Conclusion :** une nouvelle copie NFS des *octets chiffrés* a été
+publiée sans écraser l'ancien fichier et vérifiée identique à la
+source au moment de l'opération. Cette preuve n'atteste pas
+l'indépendance physique du support, les ACL NFSv4, la possibilité
+de déchiffrer le fichier ni la récupération d'un secret SOPS.
+**Ne pas lancer une deuxième fois `--copy`** : le nom final est
+désormais censé exister.
+
+### Contrôle post-copie, exclusivement en lecture seule
+
+Ajout dans PR #289 :
+`scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py`.
+
+```bash
+# Dans le worktree de la PR #289 mis à jour :
+just yubikey-escrow-postcopy-test
+just yubikey-escrow-postcopy-check
+```
+
+Le `--check` confirme **uniquement les métadonnées** :
+montage NFS attendu, paire `.age` non ambiguë, fichiers réguliers
+et uniques (un lien matériel chacun), propriétaire local et mode
+POSIX strictement `0600`. Il n'ouvre pas les octets du fichier,
+ne contacte pas TrueNAS et ne modifie rien.
+État attendu : `PAIR_METADATA_READY_ACL_UNVERIFIED`.
+
+Si ce précontrôle passe, l'exécution suivante est une
+**vérification indépendante et explicite en lecture seule** :
+
+```bash
+just yubikey-escrow-postcopy-verify
+```
+
+La commande compare les octets chiffrés à nouveau, puis interroge
+par SSH la présence d'un fichier régulier non vide **du même nom**
+dans le répertoire TrueNAS correspondant. La connexion impose
+l'authentification non interactive et une clé SSH hôte connue.
+La sortie ne contient ni nom privé, ni chemin, ni contenu
+chiffré ni empreinte.
+
+**État positif attendu** :
+`POSTCOPY_CIPHERTEXT_AND_SERVER_VISIBLE_ACL_UNVERIFIED`.
+Il confirme la concordance des copies et leur visibilité via les
+deux accès. **Il ne valide pas les ACL NFSv4 ni la restauration**.
+Si le test échoue, ne pas supprimer ni recréer l'archive : examiner
+le résultat, l'export et les permissions.
+
+### ACL et récupération réelle — jalons séparés
+
+- Contrôler les ACL du fichier et du répertoire côté TrueNAS via
+  l'outil local approprié au dataset (ACL NFSv4/native ZFS) ;
+  `getfacl` du client POSIX ne suffit pas nécessairement.
+  Ne publier ni ACE privées ni chemins complets.
+- Vérifier que le support de sauvegarde dispose d'un mécanisme
+  indépendant de récupération et de rétention.
+- Préparer ensuite **une restauration supervisée age/SOPS dans un
+  emplacement privé et isolé**, en gardant la clé age et tout
+  contenu déchiffré hors des journaux, arguments de commande et PR.
+- Ne pas modifier PIV82, PIV9A, OTP2 ni les destinataires SOPS.
+  KeePassXC reste reporté.
+
+**Validation logiciel en cours :** les tests du nouvel outil
+post-copie ont été ajoutés dans #289. Ils doivent encore être
+exécutés sur la workstation ; ne pas les compter comme PASS
+avant de recevoir leurs résultats. Aucune action de restauration
+ni de changement de secret n'a été effectuée par cet outil.
+
+## Validation post-copie indépendante — résultat workstation et gate ACL TrueNAS (27/10/2026)
+
+**Nouvelles preuves workstation sur PR #289 :**
+`just yubikey-escrow-postcopy-test` **10/10 PASS** ;
+`just yubikey-escrow-postcopy-check` :
+`PAIR_METADATA_READY_ACL_UNVERIFIED`,
+`posix_0600_verified=true`, sans lire de contenu.
+Le `just yubikey-escrow-postcopy-verify`, avec acquittement
+explicite, a renvoyé :
+
+- `state=POSTCOPY_CIPHERTEXT_AND_SERVER_VISIBLE_ACL_UNVERIFIED`
+- `ciphertext_identical=true` ;
+- `server_state=SERVER_EXPECTED_COPY_REGULAR_NONEMPTY`,
+  `server_visibility_verified=true` ;
+- `posix_0600_verified=true` ;
+- `nfs4_acl_verified=false`, `restore_verified=false`,
+  `independent_recovery_verified=false`, `status=NO-GO`.
+
+**Jalon DONE :** le fichier chiffré a été copié vers NFS,
+la relecture binaire sur deux systèmes de fichiers a réussi et
+TrueNAS voit le fichier correspondant. Aucun troisième fichier
+ni nouvelle identité age n'a été créé. **Ne pas relancer `--copy`.**
+
+### Nouveau gate ACL natif TrueNAS : audit sans exposition des ACE
+
+La méthode de lecture seule
+`filesystem.getacl` de TrueNAS retourne le type d'ACL (`NFS4`,
+`POSIX1E` ou `DISABLED`), le caractère trivial et les ACE.
+Le script `scripts/workstation/inspect-yubikey-escrow-truenas-acl.py`
+appelle `midclt call filesystem.getacl` **directement sur TrueNAS**
+via le SSH préalablement configuré, sans `sudo`.
+Il ne publie **aucune ACE brute**, identité d'utilisateur ou groupe,
+nom d'archive, chemin, permission détaillée ou sortie d'erreur.
+
+Source : [documentation de l'API TrueNAS 25.10, `filesystem.getacl`](https://api.truenas.com/v25.10/api_methods_filesystem.getacl.html).
+
+```bash
+# Tests synthétiques ; aucune connexion TrueNAS :
+just yubikey-escrow-acl-test
+
+# Précontrôle montage/source locale, sans ouvrir les archives ni SSH :
+just yubikey-escrow-acl-check
+
+# Inventaire ACL natif côté serveur via SSH, en lecture seule :
+just yubikey-escrow-acl-probe
+```
+
+Le résultat se limite à `acltype`, `trivial`, `ace_count`
+et `potential_nonowner_read_allow_count`, avec états bornés :
+
+| État | Signification et suite |
+| --- | --- |
+| `ACL_NATIVE_REVIEW_REQUIRED` | ACL NFS4 lisible ; aucune règle non-propriétaire avec lecture de données repérée par ce filtre simple ; **pas une preuve d'absence d'accès indirect** |
+| `ACL_POTENTIAL_NONOWNER_DATA_ALLOW` | Au moins une ACE `ALLOW` non-propriétaire candidate donne potentiellement lecture ; demander une revue ACL avec ordre, DENY et héritage |
+| `ACL_TYPE_NOT_NFS4` | ACL non NFS4 ; analyser le type effectivement configuré sur le dataset |
+| `ACL_READ_UNAVAILABLE` / `SSH_ACL_UNAVAILABLE` | Méthode/permissions/SSH non accessibles, aucune conclusion ACL |
+| `ACL_RESPONSE_UNVERIFIED` | Structure renvoyée inattendue, refus de conclure |
+
+Le compteur d'ACE candidates **n'est pas un calcul d'accès effectif**.
+Il ne résout pas les DENY, l'héritage complet, les ACL de répertoire,
+les comptes ou les droits du serveur NFS.
+Même si la collecte réussit, l'outil retourne toujours
+`nfs4_acl_verified=false`, `restore_verified=false`,
+`status=NO-GO`. La conformité ACL doit être évaluée
+manuellement à partir de la politique du dataset et des identités
+autorisées ; les détails ne doivent pas être copiés dans la PR.
+
+**Qualité :** dix tests hermétiques ajoutés, dont des exemples
+synthétiques d'ACL NFS4 avec `owner@` et `everyone@`.
+Ces nouveaux contrats et la sonde réelle sur workstation sont
+encore **NOT_RUN**. Aucune mutation TrueNAS, chmod distant,
+écriture NFS, lecture du contenu age ou opération YubiKey
+n'est prévue.
+
+### Prochaine clôture
+
+1. Vérifier les ACL réelles du fichier et du répertoire, puis
+   confirmer les identités NFS autorisées.
+2. Préparer une restauration age/SOPS avec une procédure
+   supervisée et un espace isolé, sans afficher la clé privée.
+3. Démontrer un accès de récupération indépendant avant PIV82.
+
+Aucune écriture PIV82/PIV9A/OTP2, ni changement de destinataire
+SOPS. KeePassXC reste reporté.
+
+## Preuve ACL NFS4 triviale et préparation de récupération isolée (27/10/2026)
+
+**Preuve réelle fournie par la workstation au commit de PR
+`7300e891`** :
+
+- `just yubikey-escrow-acl-test` : compilation OK,
+  **10/10 tests PASS**.
+- `just yubikey-escrow-acl-check` :
+  `EXPECTED_NFS_EXPORT_MOUNTED`,
+  `SOURCE_UNIQUE_AGE_FOUND`, `state=NOT_PROBED`.
+- `just yubikey-escrow-acl-probe` :
+  `acltype=NFS4`, `trivial=true`,
+  `ace_count=3`,
+  `potential_nonowner_read_allow_count=0`,
+  `state=ACL_NATIVE_REVIEW_REQUIRED`,
+  `nfs4_acl_verified=false`, `status=NO-GO`.
+
+**Conclusion permise :** TrueNAS a fourni une ACL native NFS4
+`trivial` comportant trois ACE. Le filtre du script n'a
+trouvé aucune ACE `ALLOW` explicite accordant la lecture
+de données hors propriétaire. Ce relevé est **favorable**, mais
+ne prouve pas à lui seul la politique d'accès effective :
+l'ordre et les `DENY`, les ACL des répertoires parents,
+l'identité des comptes/NFS et les autorisations indirectes
+restent à apprécier. Ne pas modifier l'ACL automatiquement et
+ne pas interpréter `trivial=true` comme une certification.
+
+### Préparer la preuve de récupération réelle age/SOPS
+
+Les deux copies du **même ciphertext** ont été comparées
+et vues côté TrueNAS. Le prochain jalon est la récupération
+**supervisée et isolée** d'une identité de déchiffrement utilisable,
+puis le contrôle d'un objet SOPS représentatif mais autorisé.
+Il ne faut pas essayer de deviner la méthode de chiffrement de
+l'archive `.age` : présence d'une identité, d'un mot de passe
+ou d'un destinataire spécifique **non vérifiée** à ce stade.
+
+**Gate de préparation, sans lire ni déchiffrer de secret :**
+
+1. Confirmer localement `just yubikey-software-recovery-check`
+   et `just yubikey-escrow-postcopy-check` ; ne pas réexécuter
+   `--copy`.
+2. Confirmer les ACL natives du **répertoire `secret` et de
+   ses parents** sur TrueNAS et les identités autorisées,
+   sans copier les ACE ou UID/GID dans GitHub.
+3. Choisir en privé la méthode et les justificatifs réels de
+   déchiffrement de l'archive `.age`. Ne transmettre **ni clé,
+   ni mot de passe, ni contenu déchiffré** à l'agent ou à la PR.
+4. Prévoir un répertoire de travail local temporaire, privé
+   (`umask 077`, mode `0700`), sur un support non exporté,
+   avec sortie de déchiffrement redirigée **vers un fichier
+   protégé, jamais stdout, logs, arguments de processus,
+   shell tracing ou historique**.
+5. Définir un contrôle de restauration qui n'expose que des
+   booléens bornés (identité age utilisable, fichier SOPS
+   autorisé récupérable) ; inspecter et détruire proprement
+   les copies temporaires sous supervision après validation.
+
+**Aucune opération de récupération réelle n'a été exécutée
+dans ce suivi.** La restauration doit être autorisée séparément,
+avec le mécanisme age exact et les protections de ses sorties
+confirmés ; l'ancien roundtrip de clés SOPS jetables n'atteste pas
+la restauration du secret utilisateur. Deux copies d'un même
+ciphertext n'équivalent pas à deux identités de récupération
+indépendantes.
+
+**NO-GO maintenu** pour validation de restauration réelle,
+provisionnement PIV82, modification des destinataires SOPS,
+PIV9A, OTP2 ; KeePassXC demeure reporté.
+
+## Preflight de restauration réelle — outils présents et inspection age limitée (27/10/2026)
+
+**Dernière preuve opérateur sur workstation :**
+
+```
+just yubikey-software-recovery-check
+state=SYNTHETIC_TOOLS_PRESENT_NOT_EXECUTED
+synthetic_software_roundtrip_verified=false
+real_escrow_restoration_verified=false
+piv82_decrypt_verified=false
+status=NO-GO
+```
+
+Cela **prouve seulement** que `age`, `age-keygen` et
+`sops` sont disponibles à l'emplacement attendu par le
+script. Cette invocation n'a exécuté ni roundtrip logiciel
+synthétique ni déchiffrement de l'archive réelle.
+Un précédent roundtrip synthétique PASS reste une preuve distincte
+et historique, **pas** une restauration du secret utilisateur.
+
+### Classifier sans déchiffrer les stanzas age
+
+La spécification `age-encryption.org/v1` dispose d'un en-tête
+texte avec stanzas de destinataires avant le contenu chiffré.
+Le nouveau `scripts/workstation/inspect-yubikey-escrow-age-header.py`
+examine uniquement ce type d'en-tête. Il ne doit pas être
+interprété comme validant son MAC, l'identité effective ou
+la récupération du contenu.
+Source : https://c2sp.org/age@main
+
+```bash
+# Dans un worktree à jour de PR #289 :
+just yubikey-escrow-age-header-test
+just yubikey-escrow-age-header-check
+
+# Lecture optionnelle de 8 Kio maximum de ciphertext, aucun déchiffrement :
+just yubikey-escrow-age-header-inspect
+```
+
+Le contrôle `--check` inspecte **uniquement les métadonnées**
+de l'archive locale et du montage NFS connu. Le mode
+`--inspect` exige l'acquittement
+`INSPECT_EXISTING_ENCRYPTED_AGE_HEADER_ONLY`, puis réutilise
+`secure_open` (propriétaire local, fichier régulier 0600
+ou plus restrictif, absence de lien symbolique, métadonnées stables).
+Il lit au plus **8 192 octets** depuis l'archive locale,
+sans copie, écriture ou déchiffrement.
+
+Les sorties ne contiennent **aucun identifiant de destinataire,
+sel scrypt, argument de stanza, nom de fichier, chemin,
+contenu d'en-tête brut ou donnée chiffrée**.
+Elles peuvent inclure ces seuls états/familles :
+
+| `recipient_family_hint` | Interprétation limitée |
+| --- | --- |
+| `PASSPHRASE_SCRYPT` | En-tête suggérant une archive chiffrée avec une phrase secrète |
+| `X25519_IDENTITY` | En-tête suggérant une identité age X25519 |
+| `SSH_IDENTITY` | En-tête suggérant un destinataire SSH |
+| `PLUGIN_OR_OTHER_IDENTITY` | Stanza spécialisée ou inconnue : ne pas supposer qu'une YubiKey est nécessaire |
+| `MIXED_OR_MULTIPLE_METHODS` | Plusieurs catégories de destinataires : déterminer les exigences hors logs |
+| `null` | En-tête non identifié, incomplet ou armuré non analysé |
+
+**État attendu pour un fichier v1 binaire reconnu** :
+`AGE_V1_HEADER_TYPE_HINT_ONLY`. Un fichier armuré est
+signalé `ARMORED_AGE_UNINSPECTED`, sans décodage.
+`status=NO-GO`, `recovery_method_verified=false` et
+`real_escrow_restoration_verified=false` restent toujours
+maintenus : le contrôle d'en-tête n'effectue **aucune authentification
+cryptographique** du MAC ni aucune récupération.
+
+**Qualité : 13/13 tests synthétiques PASS en environnement agent**,
+dont scrypt, X25519, SSH/multiple, plugin inconnu, en-tête
+incomplet/armuré, présence d'un seul fichier, permissions,
+acquittement, lecture bornée et absence de données privées en
+sortie. Les deux blobs GitHub correspondent aux fichiers
+testés localement. Exécution sur archive réelle workstation :
+**NOT_RUN** à la publication.
+
+**Étape suivante :** selon l'indication de famille, identifier
+**en privé** l'identité, le plugin ou la passphrase réellement
+disponible. La prochaine preuve de restauration doit disposer
+d'une autorisation spécifique, d'un support temporaire local
+`0700`/`umask 077`, d'une sortie déchiffrée dans un
+fichier protégé, et d'un nettoyage sous supervision.
+Ne jamais publier de plaintext, de clé age ou de passphrase.
+Ne pas modifier les originaux, les destinataires SOPS,
+les slots YubiKey ou l'escrow NFS existant.
+
+## Preuve X25519 du 27 octobre et reprise du PRA USB du 17 octobre
+
+**Résultat opérateur du 27/10/2026 dans #289** :
+
+- `just yubikey-escrow-age-header-test` : **13/13 PASS**.
+- `just yubikey-escrow-age-header-check` :
+  `HEADER_INSPECTION_READY`, aucun octet lu.
+- `just yubikey-escrow-age-header-inspect` :
+  `AGE_V1_HEADER_TYPE_HINT_ONLY`,
+  `recipient_family_hint=X25519_IDENTITY`,
+  `stanza_count=1`,
+  `archive_decryption_attempted=false`,
+  `real_escrow_restoration_verified=false`, `status=NO-GO`.
+
+**Découverte de preuve historique à conserver :** le runbook
+[`sops-age-usb-disaster-recovery.md`](sops-age-usb-disaster-recovery.md)
+documente, au **17/10/2026**, le déchiffrement réussi de
+l'archive `sops-age-identity-20261017T183615Z.age` depuis
+l'ancien emplacement TrueNAS `secret/keepass/`, avec l'identité
+age X25519 de récupération **indépendante de l'identité SOPS**,
+conservée sur une SanDisk LUKS2. Un second script a utilisé
+l'identité SOPS ainsi récupérée pour réussir un roundtrip
+**SOPS synthétique isolé** (`PASS: SOPS recovery with
+USB-backed escrow`). Ce sont de vraies preuves de récupération
+de l'identité age SOPS **à cette date** ; ce n'est pas un
+déchiffrement d'un document SOPS de production.
+
+La **copie NFS du 27/10** a été créée et relue dans
+`/media/backup/lab/secret/` (sans le sous-dossier
+`keepass` du PRA historique). Le contenu chiffré concorde
+avec la source locale et la présence TrueNAS est confirmée,
+mais **aucune restauration n'a encore été rejouée depuis
+cette nouvelle copie**. Une stanza `X25519` ne permet
+pas d'affirmer à elle seule qu'elle correspond à la même
+identité USB ; ne pas afficher l'identifiant de la stanza.
+
+### P0 — vérifier l'état du support USB, sans déchiffrement
+
+```bash
+# Depuis le worktree PR #289 actualisé, lecture seule :
+just yubikey-escrow-usb-status
+```
+
+Cette recette réutilise **le script préexistant**
+`manage-age-escrow-usb.sh --check` avec l'UUID de
+partition LUKS déjà documenté. Elle identifie le support
+et indique `Locked`, `Unlocked but not mounted`
+ou `Unlocked and mounted`. Aucun `cryptsetup open`,
+formatage, montage, création de clé, YubiKey ni
+déchiffrement n'est exécuté. Ne pas publier le
+`lsblk` détaillé si des identifiants privés figurent
+dans la sortie ; communiquer seulement l'état du support.
+
+Si la clé USB n'est pas présente, **ne pas déduire que
+la récupération est impossible** : signaler `USB_ABSENT`
+et reporter le test réel. Si elle est déjà déverrouillée et
+montée, vérifier localement sa clé de récupération
+`age-escrow/recovery-identity.txt` en mode `0600`,
+sans l'ouvrir dans un éditeur ou imprimer sa valeur.
+La présence d'un fichier ne prouve pas sa compatibilité
+avec cette archive.
+
+### P1 — rejouer le PRA historique sur la copie actuelle (autorisation séparée)
+
+**Il existe déjà deux scripts :**
+
+1. `scripts/workstation/verify-sops-age-escrow.sh` :
+   déchiffre une archive age à l'aide de l'identité USB
+   dans un répertoire `/dev/shm` privé et compare le
+   destinataire public de l'identité SOPS récupérée au
+   destinataire SOPS attendu. Ce script réalise un
+   **véritable déchiffrement de l'archive**.
+2. `scripts/workstation/test-sops-usb-recovery.sh` :
+   restaure à nouveau l'identité SOPS dans `/dev/shm`,
+   chiffre puis déchiffre **une fixture SOPS synthétique**
+   avec cette identité, sans écraser la configuration
+   réelle.
+
+Avant utilisation, contrôler avec l'opérateur le bon
+fichier de backup (nouvel emplacement à la racine
+`secret/`, pas l'ancien `secret/keepass/`),
+le bon montage USB et l'état du `tmpfs`. N'exécuter
+ces scripts **qu'après autorisation explicite d'un
+déchiffrement réel**, en vérifiant leurs protections de
+journalisation et leur nettoyage. Ne jamais insérer
+de clé ou mot de passe dans Git, la conversation,
+les arguments de processus ou les logs.
+
+**Critère DONE de ce nouveau jalon** : le même test
+d'identité X25519 USB / archive NFS créée le 27/10
+réussit et la fixture SOPS se déchiffre dans
+l'environnement isolé. Même alors, il reste à vérifier
+une seconde copie **de l'identité de récupération USB**
+et les ACL NFS4 effectives des répertoires. Deux
+copies du même ciphertext ne remplacent pas la
+sauvegarde de la clé privée de récupération.
+
+**Maintien NO-GO** : aucune écriture PIV82, PIV9A,
+OTP2, aucune rotation des destinataires SOPS, aucun
+`luksFormat` ni `init-identity`. KeePassXC
+demeure reporté. **Ne pas relancer `--copy`.**
+
+## Support SanDisk non résolu par /dev/disk/by-uuid — preuve workstation du 27/10
+
+**Preuve fournie par l'opérateur** après récupération de la branche
+#289 : `just yubikey-escrow-usb-status` a exécuté la commande
+`manage-age-escrow-usb.sh --check`, puis répondu
+**`LUKS UUID device not found`**, avec **code de retour 1**.
+Ce résultat signifie strictement que
+`/dev/disk/by-uuid/<UUID_LUKS_ATTENDU>` n'a pas été résolu
+comme périphérique bloc. Il **ne prouve pas** que la
+SanDisk est physiquement absente ou définitivement perdue :
+la partition, le lien `udev` ou les métadonnées
+de l'inventaire peuvent être indisponibles.
+
+**Action décidée :** ne pas tenter `--open`, `--close`,
+`--init-identity`, `cryptsetup`, `mkfs`, un reset
+ou une nouvelle identité age. Maintenir en l'état les
+deux copies de ciphertext précédemment vérifiées sur
+workstation et NFS.
+
+### Diagnostic de découverte redacted, exclusivement lecture seule
+
+La recette `just yubikey-escrow-usb-status` pointe désormais
+sur `scripts/workstation/diagnose-age-escrow-usb-presence.py --check`.
+Elle effectue **un inventaire `lsblk -J` borné**
+et vérifie l'existence du lien `udev` correspondant à
+l'UUID LUKS historique, sans ouvrir le périphérique,
+sans `sudo`, sans monter/déverrouiller et sans lire
+l'identité age. Elle n'imprime **aucun UUID, chemin
+de périphérique, nom de mapper, point de montage, clé ni secret**.
+Le script historique reste accessible en lecture seule via
+`just yubikey-escrow-usb-legacy-check` si nécessaire ;
+celui-ci peut imprimer des données `lsblk` locales.
+
+```bash
+# Dans le worktree de la PR #289 actualisé :
+just yubikey-escrow-usb-test
+just yubikey-escrow-usb-status
+```
+
+Les états possibles incluent :
+
+| `state` | Interprétation et suite |
+| --- | --- |
+| `ESCROW_UUID_NOT_ENUMERATED` | Aucun UUID correspondant dans la vue `lsblk` actuelle ; vérifier en privé si la SanDisk est connectée et reconnue, sans conclure à une perte |
+| `ESCROW_LUKS_PRESENT_UDEV_LINK_MISSING` | Partition LUKS attendue visible par `lsblk` mais lien `/dev/disk/by-uuid` absent ; examiner `udev` en lecture seule |
+| `ESCROW_LUKS_LOCKED` | Périphérique identifié et verrouillé ; **ne pas déverrouiller automatiquement** |
+| `ESCROW_LUKS_UNLOCKED_NOT_MOUNTED` | Mapper ouvert, volume non monté ; aucune modification automatique |
+| `ESCROW_LUKS_UNLOCKED_MOUNTED` | Mapper ouvert et volume monté ; la présence/validité de la clé privée age reste à vérifier séparément |
+| `ESCROW_UUID_UNEXPECTED_FSTYPE` ou `ESCROW_UUID_AMBIGUOUS` | Métadonnées contradictoires ; diagnostic manuel nécessaire |
+| `LSBLK_INVENTORY_UNAVAILABLE` | Commande `lsblk` indisponible, sortie malformée ou inventaire trop grand |
+
+**Qualité :** 13 contrats synthétiques ajoutés
+(`tests/test_age_escrow_usb_presence.py`). Leur
+exécution complète sur workstation et la nouvelle
+lecture `lsblk` réelle restent **NOT_RUN** lors de
+la publication du correctif ; aucun CI payant exécuté.
+
+**Gate inchangé :** en l'absence de disponibilité
+vérifiée de l'identité privée de récupération,
+aucun nouvel essai `age -d`, aucune restauration
+SOPS, aucune modification PIV82/PIV9A/OTP2 et
+aucune nouvelle copie `--copy`. KeePassXC reporté.
+
+## Relevé workstation : USB non énuméré et faux positif de test corrigé (27/10/2026)
+
+**Nouveau retour opérateur après `just yubikey-escrow-usb-test` et
+`just yubikey-escrow-usb-status` :**
+
+- Suite initiale : **12/13 tests PASS**, un seul échec :
+  `test_invocation_is_single_redacted_lsblk_read`.
+  L'assertion `assertNotIn("private", output)` détectait
+  **le nom de champ JSON** `private_age_identity_read`
+  (avec la valeur `false`), sans qu'aucune donnée privée
+  ait été divulguée. Il s'agissait d'un **faux positif du test**,
+  pas d'un échec de la protection ni d'une lecture de clé.
+- Diagnostic réel : `state=ESCROW_UUID_NOT_ENUMERATED`,
+  `luks_uuid_link_present=false`,
+  `private_age_identity_read=false`,
+  `luks_unlock_attempted=false`,
+  `disk_mutation_performed=false`,
+  `status=NO-GO`. L'UUID LUKS attendu n'apparaît
+  **pas dans l'inventaire `lsblk` actuel**, et le lien
+  `udev` correspondant n'est pas disponible.
+  **Aucune preuve de perte matérielle définitive.**
+
+**Correction dans PR #289 :**
+l'assertion de non-divulgation compare désormais des
+valeurs d'UUID et de chemins réels, et non le terme
+générique `private` utilisé par la structure du rapport.
+Un nouveau test utilise un point de montage et un mapper
+**synthétiques** pour vérifier qu'ils ne sont jamais
+repris dans la sortie.
+
+**Revalidation workstation effectuée le 27 octobre 2026 :**
+`just yubikey-escrow-usb-test` : **14/14 PASS**,
+compilation Python PASS, y compris le test de
+masquage du mapper et du chemin de montage privés.
+`just yubikey-escrow-usb-status` :
+`state=ESCROW_UUID_NOT_ENUMERATED`,
+`luks_uuid_link_present=false`,
+`private_age_identity_read=false`,
+`luks_unlock_attempted=false`,
+`disk_mutation_performed=false`,
+`status=NO-GO`, code de sortie 3 **attendu**.
+La correction du faux positif est donc validée ;
+le support reste non identifié par UUID dans la vue
+`lsblk` de cette exécution.
+
+```bash
+# Dans le worktree PR #289 mis à jour :
+just yubikey-escrow-usb-test
+just yubikey-escrow-usb-status
+```
+
+Si `ESCROW_UUID_NOT_ENUMERATED` reste inchangé,
+vérifier **en privé et localement** la connexion physique
+de la SanDisk et la détection par le noyau.
+Après reconnexion éventuelle, relancer uniquement
+le diagnostic read-only. **Ne pas exécuter**
+`--open`, `--init-identity`, `cryptsetup`,
+`luksFormat` ou `--copy` pour corriger une absence
+de périphérique. La restauration age/SOPS depuis
+la nouvelle sauvegarde NFS reste bloquée en l'absence
+de l'identité USB réellement disponible.
+
+## SanDisk reconnectée, montée et identité USB à contrôler (27/10/2026)
+
+**Preuve opérateur après reconnexion physique de la SanDisk d'escrow** :
+
+- Le support d'origine a été **rebranché physiquement à la workstation**.
+  Il s'agissait bien du prérequis absent des premiers essais.
+- `just yubikey-escrow-usb-status` :
+  `state=ESCROW_LUKS_UNLOCKED_MOUNTED`,
+  `luks_uuid_link_present=true`,
+  `private_age_identity_read=false`,
+  `luks_unlock_attempted=false`,
+  `disk_mutation_performed=false`, `status=NO-GO`.
+- **Point de montage déclaré par l'opérateur :**
+  `/run/media/albandrieu/NABLA_ESCROW`.
+  Le diagnostic antérieur confirme le montage du volume LUKS,
+  **pas encore** l'existence ou la compatibilité de son identité age.
+
+**Instruction à répéter dans toute future procédure USB** :
+**brancher physiquement la SanDisk d'escrow d'origine avant
+d'exécuter les commandes de contrôle.** Si le diagnostic ne
+voit pas l'UUID attendu, vérifier d'abord la connexion du support ;
+ne pas interpréter immédiatement ce résultat comme une perte
+d'identité ou une panne `udev`.
+
+### Précontrôle de l'identité de récupération, sans lire sa valeur
+
+Le nouveau programme
+`scripts/workstation/inspect-age-escrow-usb-identity.py`
+corrobore l'UUID LUKS de la partition connue avec son unique
+enfant `crypt` monté sur ext4 à l'emplacement attendu ;
+il vérifie ensuite **uniquement les métadonnées** du fichier
+`age-escrow/recovery-identity.txt` du support monté.
+Le contrôle refuse un lien symbolique, un mauvais propriétaire,
+un mode différent de `0600`, un nombre de liens autre que 1,
+une taille vide ou démesurée. Aucun octet du fichier n'est ouvert.
+
+```bash
+# 1. Brancher physiquement la SanDisk d'origine.
+# 2. Vérifier qu'elle est déjà déverrouillée et montée.
+just yubikey-escrow-usb-status
+
+# 3. Tests synthétiques, sans accès à la clé privée USB.
+just yubikey-escrow-usb-identity-test
+
+# 4. Métadonnées locales uniquement, sans déchiffrement :
+just yubikey-escrow-usb-identity-check
+```
+
+Résultats positifs attendus :
+`usb_state=USB_LUKS_MOUNT_MATCHED`,
+`mount_state=USB_EXPECTED_EXT4_MOUNT_PRESENT`,
+`identity_state=USB_IDENTITY_METADATA_PRESENT`.
+Même après succès,
+`identity_private_content_read=false`,
+`identity_recipient_derived=false`,
+`restore_verified=false` et `status=NO-GO`
+restent exacts.
+
+**13 nouveaux contrats hermétiques sont ajoutés dans PR #289 ;
+leur exécution réelle sur workstation reste NOT_RUN.**
+La revue des permissions est une étape de préparation ;
+elle ne démontre pas que la clé X25519 présente est
+celle permettant le déchiffrement de l'archive NFS.
+Ne pas afficher de contenu de clé, de destinataire privé,
+d'argument age ni de trace de déchiffrement dans la PR.
+
+**Après succès du contrôle de métadonnées :** préparer
+séparément, avec approbation explicite, la validation
+de l'identité de récupération existante en comparant
+son destinataire public au destinataire historique.
+Le déchiffrement réel de la nouvelle copie NFS via
+les scripts de PRA existants reste un jalon indépendant.
+Aucune écriture, aucun `cryptsetup open`,
+`--init-identity`, `--copy`, modification YubiKey,
+rotation SOPS ou test KeePassXC n'est nécessaire.
+
+## Preuve du contrôle X25519 USB : 12/12 tests PASS (27 octobre 2026)
+
+**Dernière exécution workstation** : compilation de
+`verify-age-escrow-usb-recipient.py` et de sa suite
+de tests **PASS** ; `12/12` tests synthétiques
+**PASS**. Le contrôle `--check` a retourné
+`USB_IDENTITY_READY_FOR_RECIPIENT_CHECK`,
+`private_identity_read_attempted=false`,
+`public_recipient_compared_to_historical=false`,
+`public_recipient_matches_historical=null`,
+`decryption_attempted=false`,
+`restore_verified=false`, `status=NO-GO`.
+
+Cette preuve valide seulement la préparation de
+l'attestation : **le destinataire public de l'identité
+USB n'a pas encore été calculé ni comparé**.
+La SanDisk originale doit être **physiquement branchée**,
+déverrouillée et montée avant les prochaines étapes.
+
+La commande distincte ci-dessous est **facultative
+et nécessite l'autorisation explicite de l'opérateur**.
+Elle lit localement la clé privée age depuis le support
+USB, sans l'imprimer ; elle demande à `age-keygen -y`
+d'en dériver uniquement le destinataire public, puis
+compare le résultat à la référence historique en
+mémoire, sans imprimer le destinataire public non plus.
+
+```bash
+python3 scripts/workstation/verify-age-escrow-usb-recipient.py \
+  --verify \
+  --acknowledge DERIVE_EXISTING_USB_AGE_PUBLIC_RECIPIENT_ONLY
+```
+
+Résultat positif attendu :
+`USB_PUBLIC_RECIPIENT_MATCHES_HISTORICAL`,
+`public_recipient_matches_historical=true`.
+Même si cette attestation passe, elle **ne prouve pas**
+que la copie chiffrée NFS du 27/10 est déchiffrable ;
+aucun déchiffrement age/SOPS ni opération PIV n'est
+réalisé. Le contrôle de récupération depuis la nouvelle
+copie NFS nécessitera une autorisation et une
+procédure isolée séparées.
+
+**Ne pas réexécuter `--copy`, ne pas régénérer la
+clé USB et ne pas modifier PIV82, OTP2 ou SOPS.**
+
+
+## Attestation USB X25519 confirmée et prochain gate de restauration (27/10/2026)
+
+**Preuve réellement exécutée sur la workstation :**
+`verify-age-escrow-usb-recipient.py --verify` avec acquittement
+`DERIVE_EXISTING_USB_AGE_PUBLIC_RECIPIENT_ONLY` retourne :
+
+- `state=USB_PUBLIC_RECIPIENT_MATCHES_HISTORICAL` ;
+- `private_identity_read_attempted=true` ;
+- `public_recipient_compared_to_historical=true` ;
+- `public_recipient_matches_historical=true` ;
+- `private_identity_disclosed=false`,
+  `public_recipient_disclosed=false` ;
+- `decryption_attempted=false`, `restore_verified=false`,
+  `sops_configuration_changed=false`,
+  `usb_mount_or_unlock_performed=false`, `status=NO-GO`.
+
+**DONE** : le moyen de récupération historique sur la SanDisk
+physiquement rebranchée et montée a été identifié ;
+son destinataire public correspond à la référence déjà documentée.
+Ne pas confondre cette preuve avec l'aptitude à déchiffrer la
+**nouvelle copie NFS** : la stanza X25519 de son en-tête
+n'a pas été comparée cryptographiquement à cette identité.
+
+### Prochain jalon — restauration depuis la nouvelle copie NFS
+
+Les scripts existants
+`scripts/workstation/verify-sops-age-escrow.sh` et
+`scripts/workstation/test-sops-usb-recovery.sh`
+sont réutilisables **après autorisation distincte du
+déchiffrement réel**. Ne pas les exécuter automatiquement.
+
+1. **Brancher physiquement la SanDisk de récupération d'origine**,
+   puis vérifier qu'elle est déjà déverrouillée et montée.
+2. Vérifier que l'unique copie chiffrée créée dans le dossier
+   NFS courant est accessible, et non confondue avec
+   l'ancienne archive `secret/keepass/`.
+   Réutiliser l'inventaire et le comparateur déjà validés ;
+   ne pas relancer `--copy`.
+3. Vérifier que `/dev/shm` est réellement en `tmpfs` ;
+   que les commandes `age`, `age-keygen` et `sops`
+   sont disponibles ; que `umask 077` est appliqué.
+4. Seulement après approbation de restauration : utiliser
+   `verify-sops-age-escrow.sh` sur la **nouvelle** archive
+   et la **clé USB déjà attestée**. Ce script écrit
+   temporairement l'identité SOPS déchiffrée sur `/dev/shm`,
+   compare son seul destinataire public attendu, et
+   élimine son fichier temporaire au départ normal du script.
+   Son succès prouve la récupération de l'identité SOPS
+   mais pas un document SOPS de production.
+5. Après cette preuve, exécuter séparément le test
+   `test-sops-usb-recovery.sh` avec une fixture SOPS
+   synthétique isolée ; ne pas utiliser un document
+   confidentiel de production pour la première répétition.
+
+**Point de vigilance sur les scripts historiques** : des
+erreurs de `age` ou `sops` peuvent apparaître sur stderr ;
+ne pas utiliser `set -x`, CI, capture de terminal
+partagée ou envoi automatique des sorties brutes.
+Les scripts réalisent un déchiffrement réel et créent
+temporairement une **clé privée** dans `tmpfs`.
+Ils doivent être revus avant leur prochaine exécution.
+
+**Restent NO-GO :** restauration depuis la nouvelle NFS
+(non encore essayée), indépendance de la clé privée de
+récupération USB, validation effective des ACL natives
+des répertoires NFS, toute écriture PIV82/PIV9A/OTP2,
+rotation des destinataires SOPS et copie NFS supplémentaire.
+
+
+## Restauration age du nouveau ciphertext NFS : PASS (27 octobre 2026)
+
+**Preuve réelle fournie par l'opérateur sur la workstation :**
+
+- La SanDisk de récupération d'origine est **physiquement branchée**,
+  déverrouillée et montée au chemin confirmé.
+- Le script shell de contrôle a sélectionné **une seule** archive
+  `*.age` située à la racine du partage NFS
+  `/media/backup/lab/secret/` (pas le fichier historique
+  du sous-dossier `keepass/`).
+- La condition `findmnt ... /dev/shm == tmpfs` a été franchie.
+- `scripts/workstation/verify-sops-age-escrow.sh` a produit :
+
+```text
+PASS: TrueNAS encrypted backup decrypted with USB key and recovered original SOPS public recipient.
+NOTE: this verifies identity recovery, not full SOPS decrypt; test fixture separately.
+```
+
+**Conclusion DONE :** la **nouvelle copie chiffrée NFS
+du 27 octobre 2026**, déjà vérifiée octet par octet
+et vue sur TrueNAS, a réellement été déchiffrée par
+l'identité USB age X25519 ; le destinataire public de
+l'identité SOPS récupérée correspond à la référence
+historique attendue. La copie NFS est donc récupérable
+**avec le support et l'identité USB actuellement disponibles**.
+Ce succès ne prouve pas que l'identité USB dispose
+d'une sauvegarde privée indépendante.
+
+### Validation exécutée de la chaîne SOPS : fixture synthétique — PASS (27/10/2026)
+
+**Preuve opérateur sur la nouvelle archive NFS :**
+après le PASS de `verify-sops-age-escrow.sh`, le
+contrôle `test-sops-usb-recovery.sh` a été exécuté
+avec la **même archive NFS** et l'identité de la SanDisk
+d'origine, physiquement branchée, déverrouillée et montée.
+Le shell a vérifié l'unicité de l'archive et `/dev/shm`
+en `tmpfs`, puis le script a retourné :
+
+```text
+✅ PASS: SOPS recovery with USB-backed escrow
+```
+
+**DONE :** le script a déchiffré l'archive age,
+retrouvé l'identité privée SOPS en mémoire temporaire,
+chiffré un YAML synthétique et déchiffré cette fixture
+avec `SOPS_AGE_KEY_FILE` fixé à l'identité restaurée.
+Il ne s'agit **pas** d'une preuve de déchiffrement
+d'un document SOPS de production. Le script ne vise
+pas à modifier la configuration SOPS de la workstation.
+
+**Commande d'acceptation historique (déjà exécutée,
+ne pas répéter sans nécessité) :**
+
+```bash
+# Prérequis : brancher physiquement la SanDisk d'origine,
+# déjà déverrouillée et montée ; ne pas utiliser set -x.
+bash <<'SOPS_FIXTURE_CHECK'
+set -Eeuo pipefail
+umask 077
+shopt -s nullglob
+archives=(/media/backup/lab/secret/*.age)
+(( ${#archives[@]} == 1 )) || {
+  echo "Archive NFS absente ou ambiguë : arrêt"
+  exit 2
+}
+[[ "$(findmnt -n -o FSTYPE -T /dev/shm)" == tmpfs ]] || {
+  echo "tmpfs requis : arrêt"
+  exit 2
+}
+bash scripts/workstation/test-sops-usb-recovery.sh \
+  --backup "${archives[0]}" \
+  --usb-identity "/run/media/albandrieu/NABLA_ESCROW/age-escrow/recovery-identity.txt"
+SOPS_FIXTURE_CHECK
+```
+
+**Critère DONE satisfait :** la sortie du test SOPS
+sur la nouvelle archive NFS est `PASS: SOPS recovery
+with USB-backed escrow`. Chaîne de récupération
+age → identité SOPS → fixture SOPS **PASS**.
+Aucun plaintext ni identité privée n'a été transmis
+dans le résultat communiqué. Le test est isolé et
+synthétique ; il ne simule pas la perte de la SanDisk
+ou de la workstation.
+
+**Risques restant ouverts :** la clé privée de
+récupération X25519 sur SanDisk est un point
+unique de défaillance tant que sa seconde copie
+indépendante n'est pas vérifiée ; les ACL effectives
+des répertoires NFS4 ne sont pas entièrement
+attestées. PIV82/PIV9A/OTP2, destinataires SOPS,
+KeePassXC et création d'une nouvelle copie NFS
+restent hors périmètre.
+
+
+## Sauvegarde indépendante de l'identité privée age USB — mise en œuvre
+
+**Autorisation opérateur :** créer une sauvegarde **chiffrée avec
+une phrase secrète indépendante** de l'identité age privée X25519
+présente sur la SanDisk originale, puis conserver le ciphertext
+sur la workstation et TrueNAS.
+
+**Prérequis obligatoires :**
+- **Brancher physiquement la SanDisk de récupération d'origine**
+  sur la workstation, déjà déverrouillée et montée.
+- L'identité age USB a déjà passé ses contrôles LUKS2, ext4,
+  propriétaire, taille et mode `0600`.
+- Vérifier que le partage NFS attendu est monté et accessible.
+  **Ne pas créer une sauvegarde sur le disque local** en pensant
+  qu'il s'agit du partage TrueNAS.
+- Utiliser une phrase secrète **forte, nouvelle et indépendante**
+  de la SanDisk et du mot de passe LUKS ; la conserver dans
+  un coffre de mots de passe **récupérable sans cette SanDisk**.
+  Si `age -p` propose une phrase secrète aléatoire,
+  l'enregistrer immédiatement dans ce coffre.
+  Ne jamais la transmettre dans GitHub, ChatGPT, les logs
+  ou un argument de commande.
+
+**Protection apportée par le nouveau script :**
+`scripts/workstation/backup-usb-age-identity.py` n'ouvre
+le fichier d'identité USB qu'au moment de lancer
+`age -p` avec la source transmise via un descripteur
+de lecture seule. Il crée des **fichiers chiffrés**
+dans deux sous-dossiers privés distincts :
+
+- Workstation : `~/.local/share/nabla/usb-recovery-backups/`.
+- TrueNAS, via le NFS vérifié :
+  `/media/backup/lab/secret/usb-recovery-backups/`.
+
+Ces répertoires sont nouveaux, mode `0700`, fichiers
+mode `0600`, nom commun horodaté. Le script exige
+le NFS attendu, des fichiers réguliers sans symlink,
+deux systèmes de fichiers différents, une exécution
+**interactive** et l'acquittement explicite.
+Il chiffre **avant** de copier sur NFS ;
+il n'écrit jamais de clé en clair sur workstation/TrueNAS.
+Il contrôle égalité binaire et SHA-256 de **ces seuls
+ciphertexts**, puis publie sans écrasement.
+Un exemplaire existant ou un transfert incomplet
+requiert revue avant relance (aucun overwrite).
+
+```bash
+# 1. SanDisk d'origine PHYSIQUEMENT BRANCHÉE et montée.
+# 2. Contrôles synthétiques sans aucune identité privée :
+just yubikey-usb-identity-backup-test
+
+# 3. Préflight metadata-only, aucune création :
+just yubikey-usb-identity-backup-check
+
+# 4. Autorisation déjà donnée par l'opérateur pour la sauvegarde.
+#    Exécuter en terminal interactif ; age -p demande la phrase secrète.
+just yubikey-usb-identity-backup
+```
+
+**Critère d'écriture DONE, à vérifier avec la sortie opérateur :**
+`state=ENCRYPTED_LOCAL_AND_NFS_BACKUPS_IDENTICAL`,
+`encrypted_copy_local_and_nfs_verified=true`.
+La copie est **NOT_RUN** sur la workstation à la date
+de publication de cette procédure : seuls le script
+et les tests hermétiques sont livrés.
+
+**Critère de PRA définitif non encore satisfait :**
+tester la **restauration d'une copie chiffrée**
+avec la phrase secrète en l'absence de la SanDisk,
+dans un `/dev/shm` privé, comparer le destinataire
+age public restauré à la référence X25519,
+nettoyer le temporaire, puis vérifier une archive
+SOPS existante sans altérer les clés originales.
+Le contrôle de copie binaire seul ne prouve pas
+la capacité à retrouver la phrase secrète.
+
+**Ne pas confondre** les deux exemplaires identiques
+du ciphertext avec deux méthodes de récupération
+cryptographiquement indépendantes : ils nécessitent
+la **même phrase secrète externe**. Planifier des
+snapshots TrueNAS, puis une copie hors-ligne/offsite
+quand le stockage et le PRA sont validés.
+Ne pas relancer `--copy` de l'archive SOPS NFS
+existante. Aucun formatage, provisionnement PIV/OTP
+ou rotation SOPS n'est nécessaire ici.
+
+## ✅ Acceptation des sauvegardes indépendantes de la SanDisk — 28/10/2026
+
+La preuve workstation du 28/10 **remplace l'état NOT_RUN** de la section
+historique « Sauvegarde indépendante de l'identité privée USB » :
+
+- `just yubikey-usb-identity-backup-test` : **14/14 PASS**.
+- `just yubikey-usb-identity-restore-test` : **13/13 PASS**.
+- Précontrôle de sauvegarde : `BACKUP_PREFLIGHT_READY`.
+- Écriture supervisée : `ENCRYPTED_LOCAL_AND_NFS_BACKUPS_IDENTICAL`
+  et `encrypted_copy_local_and_nfs_verified=true`.
+- Précontrôle de restauration : `BACKUP_RESTORATION_PREFLIGHT_READY`.
+- Restauration de **chaque copie chiffrée** :
+  `BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`,
+  `two_encrypted_backups_restored=true` et
+  `historical_public_recipient_matched=true`.
+
+**DONE :** deux copies chiffrées cohérentes sur workstation et NFS TrueNAS,
+deux restaurations cryptographiques réussies ; la clé USB d'origine n'est
+pas utilisée par l'outil de restauration.
+
+**Toujours à attester :** SanDisk physiquement débranchée pendant un
+exercice PRA ; conservation de la phrase secrète accessible sans SanDisk ;
+ACL NFS4 effectives des fichiers et des répertoires parents. Ce résultat ne
+prouve pas le déchiffrement d'un document SOPS de production.
+
+Le détail des commandes et de leurs limites est conservé dans
+[`usb-age-identity-independent-backup-20261028.md`](usb-age-identity-independent-backup-20261028.md).
+Ne pas recommencer la sauvegarde : l'opération initiale est terminée et
+la protection anti-écrasement doit rester active. Aucun `--copy`, aucune
+rotation SOPS, aucune mutation PIV/OTP.

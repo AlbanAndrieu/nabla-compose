@@ -38,4 +38,16 @@ HTTP_CODE=$(
 ) || { unset KEY; echo "ERROR: curl failed"; exit 1; }
 unset KEY
 printf 'central_lapi_http=%s\n' "${HTTP_CODE}"
-case "${HTTP_CODE}" in 200) exit 0 ;; *) exit 1 ;; esac
+case "${HTTP_CODE}" in
+  200) echo 'central_lapi_auth=ACCEPTED'; exit 0 ;;
+  401|403)
+    echo 'central_lapi_auth=REJECTED'
+    echo 'ERROR: existing pfSense bouncer key is not valid for the TrueNAS LAPI; do not change bouncer URL or stop the local engine'
+    exit 1
+    ;;
+  *)
+    echo 'central_lapi_auth=NOT_VERIFIED'
+    echo 'ERROR: unexpected LAPI response; check API status, not the key value'
+    exit 1
+    ;;
+esac

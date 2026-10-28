@@ -114,6 +114,67 @@ def test_apply_cannot_run_without_ack(monkeypatch):
         module.main(["--apply"])
 
 
+def test_interactive_check_uses_tty_and_does_not_load_runtime_secret(monkeypatch, capsys):
+    module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
+    password = "typed-password-not-from-runtime-123"
+    monkeypatch.setattr(module.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(module, "sys", SimpleNamespace(
+        stdin=SimpleNamespace(isatty=lambda: True),
+        stderr=SimpleNamespace(isatty=lambda: True),
+    ))
+    monkeypatch.setattr(module.getpass, "getpass", lambda prompt: password)
+
+    def no_file_read(*args, **kwargs):
+        raise AssertionError("interactive check must not read .env.secrets")
+
+    monkeypatch.setattr(module, "parse_runtime_secret", no_file_read)
+    calls = []
+
+    def django_check(creds, operation, container):
+        calls.append((creds, operation, container))
+        return "PASSWORD_MATCH"
+
+    monkeypatch.setattr(module, "run_django", django_check)
+    assert module.main(["--interactive-check"]) == 0
+    assert calls == [({
+        "DD_ADMIN_USER": "admin", "DD_ADMIN_PASSWORD": password,
+    }, "check", module.CONTAINER)]
+    output = capsys.readouterr().out
+    assert password not in output
+    assert '"mode": "interactive_check"' in output
+    assert '"state": "PASSWORD_MATCH"' in output
+
+
+def test_interactive_check_requires_tty_before_reading_password(monkeypatch, capsys):
+    module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
+    monkeypatch.setattr(module.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(module, "sys", SimpleNamespace(
+        stdin=SimpleNamespace(isatty=lambda: False),
+        stderr=SimpleNamespace(isatty=lambda: True),
+    ))
+    monkeypatch.setattr(
+        module.getpass, "getpass",
+        lambda prompt: pytest.fail("must not ask for a password without TTY"),
+    )
+    assert module.main(["--interactive-check"]) == 2
+    assert "INTERACTIVE_TTY_REQUIRED" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("supplied", ["", "x" * 513])
+def test_interactive_check_rejects_invalid_input(monkeypatch, capsys, supplied):
+    module = load("scripts/truenas/reconcile-defectdojo-admin-password.py")
+    monkeypatch.setattr(module.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(module, "sys", SimpleNamespace(
+        stdin=SimpleNamespace(isatty=lambda: True),
+        stderr=SimpleNamespace(isatty=lambda: True),
+    ))
+    monkeypatch.setattr(module.getpass, "getpass", lambda prompt: supplied)
+    monkeypatch.setattr(module, "run_django",
+                        lambda *args: pytest.fail("must not reach Django"))
+    assert module.main(["--interactive-check"]) == 2
+    assert "INTERACTIVE_INPUT_INVALID" in capsys.readouterr().out
+
+
 def test_metadata_inspector_recognizes_copied_template(tmp_path):
     module = load("scripts/truenas/prepare-defectdojo-runtime-env.py")
     contents = (ROOT / "apps/defectdojo/.env.example").read_text()

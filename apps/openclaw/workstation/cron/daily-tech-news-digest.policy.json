@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "daily-tech-news-digest",
+  "runtime_job_id": "7ed5dd9a-da30-479f-b0eb-4cc494fb4966",
+  "lifecycle": "review_only_no_automatic_reconcile",
+  "schedule": {
+    "expr": "0 9 * * *",
+    "timezone": "Europe/Paris",
+    "verified_at_runtime": false
+  },
+  "execution": {
+    "model": "litellm-cron/gpt-4.1-mini",
+    "isolated": true,
+    "agent_id": "verify_runtime_agent",
+    "timeout_seconds": 300
+  },
+  "skill": {
+    "name": "tech-news-digest",
+    "source": "https://clawhub.ai/dinstein/skills/tech-news-digest",
+    "version": "verify_local_installation",
+    "template": "references/digest-prompt.md"
+  },
+  "parameters": {
+    "MODE": "daily",
+    "TIME_WINDOW": "past 1-2 days",
+    "FRESHNESS": "pd",
+    "RSS_HOURS": 48,
+    "ITEMS_PER_SECTION": "5",
+    "ENRICH": true,
+    "BLOG_PICKS_COUNT": 3,
+    "LANGUAGE": "French",
+    "TEMPLATE": "discord"
+  },
+  "delivery": {
+    "channel": "discord",
+    "channel_id": "runtime_secret_or_private_config",
+    "email": "runtime_secret_or_private_config",
+    "status_condition": "validated_digest_generated_before_delivery"
+  },
+  "controls": {
+    "exclude_secrets": true,
+    "never_copy_runtime_sessions": true,
+    "manual_apply_required": true,
+    "require_idempotent_job_id_lookup": true,
+    "model_requests_during_drift_check": 0,
+    "skill_template_check_required": true
+  }
+}

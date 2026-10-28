@@ -113,8 +113,10 @@ else
   fi
 fi
 
-# Authentication and functionality MUST be proven separately. No API key used
-# here: GET /v1/models can return 401 while the transport is reachable.
+# No key or model request. The anonymous /v1/models probe generated
+# avoidable authentication failures on Workstation LiteLLM in the past.
+# Use only the advertised anonymous liveliness route. Authenticated model
+# inventory and inference remain separate, opt-in functional checks.
 http_code() {
   curl --silent --show-error --output /dev/null --max-time 6 \
     --write-out '%{http_code}' "$1" 2>/dev/null || true
@@ -125,11 +127,10 @@ if [[ "$langflow_status" == 200 ]]; then
 else
   fail_gate 'global Langflow /health_check is not HTTP 200'
 fi
-litellm_status="$(http_code 'http://172.17.0.57:4000/v1/models')"
+litellm_status="$(http_code 'http://172.17.0.57:4000/health/liveliness')"
 case "$litellm_status" in
-  200) echo 'litellm_transport=reachable models_auth=not_verified' ;;
-  401|403) echo 'litellm_transport=reachable models_auth=required_not_verified' ;;
-  *) echo 'WARN: litellm_transport=unverified; chat/embedding acceptance pending' ;;
+  200) echo 'litellm_liveliness=HTTP_200 models_auth=not_tested' ;;
+  *) echo 'WARN: litellm_liveliness=unverified; authenticated chat/embedding acceptance pending' ;;
 esac
 docling_status="$(http_code 'http://172.17.0.24:5001/ready')"
 if [[ "$docling_status" == 200 ]]; then

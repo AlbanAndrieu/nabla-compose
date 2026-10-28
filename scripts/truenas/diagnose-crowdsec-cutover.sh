@@ -48,7 +48,8 @@ LAPI_PORT="${CROWDSEC_LAPI_PORT:-8084}"
 METRICS_HOST="${CROWDSEC_METRICS_BIND_ADDRESS:-172.17.0.24}"
 METRICS_PORT="${CROWDSEC_METRICS_PORT:-6060}"
 DISABLED_SCENARIO="firewallservices/pf-scan-multi_ports"
-BOUNCER_NAME="PFSENSE_FIREWALL"
+BOUNCER_NAME="${CROWDSEC_BOUNCER_NAME:-PFSENSE_FIREWALL}"
+PFSENSE_BOUNCER_IP="${CROWDSEC_PFSENSE_BOUNCER_IP:-172.17.0.1}"
 CUTOVER_REQUIRED=true
 [[ "${MODE}" == "--runtime" ]] && CUTOVER_REQUIRED=false
 
@@ -245,14 +246,44 @@ elif [[ -n "${container_id:-}" ]]; then
     printf 'crowdsec_bouncer_%s\n' "${bouncer_status}"
     last_pull="$(jq -r --arg name "${BOUNCER_NAME}" '.[] | select(.name == $name) | (.last_pull // "")' <<<"${bouncer_json}")"
     if [[ -n "${last_pull}" ]]; then
-      ok "pfSense firewall bouncer has polled the central LAPI"
-    elif [[ "${MODE}" == "--accept" ]]; then
-      error "pfSense firewall bouncer is registered but has not polled the central LAPI"
+      printf 'crowdsec_bouncer_last_pull_provenance=NOT_VERIFIED\n'
+      warn "central registration has last_pull, but a credential preflight may set it; verify a post-cutover pfSense-origin pull and PF remediation separately"
+      ok "central bouncer registration has at least one authenticated LAPI read"
     else
-      warn "pfSense firewall bouncer is registered but has not polled yet; expected before cutover"
+      # Base registration may remain untouched when the firewall bouncer
+      # polls through the IP-suffixed registration. Do not fail acceptance
+      # until the separate pfSense-origin record has been evaluated.
+      warn "base bouncer registration has no pull; checking IP-suffixed pfSense firewall registration independently"
     fi
   else
     error "expected exactly one ${BOUNCER_NAME} bouncer registration, found ${bouncer_count}"
+  fi
+
+  # A TrueNAS curl credential preflight updates the base registration's
+  # last_pull. Only a separate IP-suffixed registration with the pfSense LAN
+  # source and firewall-bouncer User-Agent can attest a pfSense-origin read.
+  pfsense_bouncer_name="${BOUNCER_NAME}@${PFSENSE_BOUNCER_IP}"
+  pfsense_pull="$(jq -r --arg name "${pfsense_bouncer_name}" \
+    '[.[]? | select(.name == $name) | (.last_pull // "")] |
+     if length == 1 then .[0] else "" end' <<<"${bouncer_json:-[]}" 2>/dev/null || true)"
+  printf 'crowdsec_pfsense_bouncer_name=%s last_pull=%s\n' \
+    "${pfsense_bouncer_name}" "${pfsense_pull:-<none>}"
+  if jq -e --arg name "${pfsense_bouncer_name}" \
+    --arg ip "${PFSENSE_BOUNCER_IP}" \
+    '[.[]? | select(.name == $name
+       and .ip_address == $ip
+       and .type == "crowdsec-firewall-bouncer"
+       and .revoked == false
+       and (.last_pull // "") != "")] | length == 1' \
+    <<<"${bouncer_json:-[]}" >/dev/null 2>&1; then
+    printf 'crowdsec_pfsense_bouncer_pull_provenance=LAN_IP_AND_FIREWALL_USER_AGENT_OBSERVED\n'
+    ok "pfSense-origin firewall bouncer polled central LAPI (PF decision application not yet verified)"
+  elif [[ "${MODE}" == "--accept" ]]; then
+    printf 'crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED\n'
+    error "pfSense-origin bouncer pull not proven; check revoked=false, IP, client type and last_pull (curl probe is insufficient)"
+  else
+    printf 'crowdsec_pfsense_bouncer_pull_provenance=NOT_VERIFIED\n'
+    warn "pfSense-origin bouncer pull not yet proven; expected before cutover"
   fi
 fi
 

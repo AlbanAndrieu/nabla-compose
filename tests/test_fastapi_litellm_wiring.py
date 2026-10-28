@@ -47,7 +47,7 @@ def test_compose_routes_qwen_through_both_litellm_proxies():
 
 def test_key_bootstrap_never_follows_authenticated_redirects():
     src = FILE.read_text(encoding="utf-8")
-    assert "build_opener(NoRedirect()).open" in src
+    assert "build_opener(ProxyHandler({}), NoRedirect()).open" in src
     assert "return None" in src
     assert "urlopen(request" not in src
 

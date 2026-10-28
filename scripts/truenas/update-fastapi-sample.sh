@@ -10,6 +10,12 @@ DEPLOY_MODE="${FASTAPI_SAMPLE_DEPLOY_MODE:-auto}"
 IMAGE_REPOSITORY="${FASTAPI_SAMPLE_IMAGE_REPOSITORY:-ghcr.io/albanandrieu/fastapi-sample}"
 REFRESH_BASE_IMAGES="${FASTAPI_SAMPLE_REFRESH_BASE_IMAGES:-false}"
 VERBOSE_LOGS="${FASTAPI_SAMPLE_VERBOSE_LOGS:-false}"
+# Guard registry traffic after Docker Hub 429; no automatic pull/build retries.
+DOCKERHUB_COOLDOWN_SECONDS="${FASTAPI_SAMPLE_DOCKERHUB_COOLDOWN_SECONDS:-21600}"
+ALLOW_ANONYMOUS_BASE_PULL="${FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL:-false}"
+OVERRIDE_DOCKERHUB_COOLDOWN="${FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN:-false}"
+DOCKERHUB_RATE_STATE_DIR="${FASTAPI_SAMPLE_DOCKERHUB_RATE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/nabla/fastapi-sample}"
+DOCKERHUB_RATE_MARKER="${DOCKERHUB_RATE_STATE_DIR}/dockerhub-429"
 BUILD_LOG_TAIL="${FASTAPI_SAMPLE_BUILD_LOG_TAIL:-80}"
 DEPLOY_LOG_TAIL="${FASTAPI_SAMPLE_DEPLOY_LOG_TAIL:-40}"
 CANONICAL_ENV_ROOT="${FASTAPI_SAMPLE_ENV_ROOT:-/mnt/cpool/secrets/runtime/sample}"
@@ -89,6 +95,14 @@ case "${VERBOSE_LOGS}" in
     *) fail "FASTAPI_SAMPLE_VERBOSE_LOGS must be true or false" ;;
 esac
 
+for value in "${ALLOW_ANONYMOUS_BASE_PULL}" "${OVERRIDE_DOCKERHUB_COOLDOWN}"; do
+    [[ "${value}" == true || "${value}" == false ]] ||
+        fail 'FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL and FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN must be true or false'
+done
+[[ "${DOCKERHUB_COOLDOWN_SECONDS}" =~ ^[0-9]{1,5}$ ]] &&
+    ((DOCKERHUB_COOLDOWN_SECONDS >= 60 && DOCKERHUB_COOLDOWN_SECONDS <= 86400)) ||
+    fail 'FASTAPI_SAMPLE_DOCKERHUB_COOLDOWN_SECONDS must be 60..86400'
+
 [[ "${BUILD_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
     fail "FASTAPI_SAMPLE_BUILD_LOG_TAIL must be a positive integer"
 [[ "${DEPLOY_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
@@ -124,6 +138,15 @@ verify_runtime_env_pair() {
 }
 
 step '1/6' 'Validate runtime secrets'
+# docker system prune can remove stopped staging containers and unused networks.
+# A clean build cannot guarantee restoration of a container that was pruned.
+if existing_container_state="$(run_docker inspect "${CONTAINER}" --format '{{.State.Status}}' 2>/dev/null)"; then
+    [[ "${existing_container_state}" == running ]] ||
+        summary_warn "FastAPI staging container is ${existing_container_state}; previous runtime is not confirmed running."
+else
+    summary_warn "FastAPI staging container not found; docker system prune may have removed it."
+fi
+
 verify_runtime_env_pair ".env"
 verify_runtime_env_pair ".env.secrets"
 
@@ -237,6 +260,110 @@ verify_prometheus_observer_contract() {
         "${gatus_up}" "${service_samples}"
 }
 
+# Local state only, never Docker daemon settings. A 429 cannot be fixed by
+# pruning BuildKit cache: do not retry until expiry or explicit operator override.
+dockerhub_cooldown_active() {
+    local started now owner mode
+    [[ -e "${DOCKERHUB_RATE_MARKER}" || -L "${DOCKERHUB_RATE_MARKER}" ]] || return 1
+    [[ -f "${DOCKERHUB_RATE_MARKER}" && ! -L "${DOCKERHUB_RATE_MARKER}" ]] ||
+        fail "Unsafe Docker Hub cooldown marker; refusing registry traffic"
+    owner="$(stat -c '%u' "${DOCKERHUB_RATE_MARKER}")"
+    mode="$(stat -c '%a' "${DOCKERHUB_RATE_MARKER}")"
+    [[ "${owner}" == "$(id -u)" && "${mode}" == 600 ]] ||
+        fail "Unsafe Docker Hub cooldown marker ownership/mode"
+    IFS= read -r started <"${DOCKERHUB_RATE_MARKER}" || true
+    [[ "${started:-}" =~ ^[0-9]{10,12}$ ]] ||
+        fail "Invalid Docker Hub cooldown marker"
+    now="$(date +%s)"
+    (( now < started + DOCKERHUB_COOLDOWN_SECONDS ))
+}
+
+record_dockerhub_429() {
+    local tempfile
+    (umask 077; mkdir -p -- "${DOCKERHUB_RATE_STATE_DIR}") ||
+        fail "Could not prepare private Docker Hub cooldown directory"
+    [[ -d "${DOCKERHUB_RATE_STATE_DIR}" && ! -L "${DOCKERHUB_RATE_STATE_DIR}" ]] ||
+        fail "Unsafe Docker Hub cooldown directory"
+    tempfile="$(mktemp "${DOCKERHUB_RATE_STATE_DIR}/.dockerhub-429.XXXXXX")" ||
+        fail "Could not create private Docker Hub cooldown marker"
+    printf '%s\n' "$(date +%s)" >"${tempfile}"
+    mv -f -T -- "${tempfile}" "${DOCKERHUB_RATE_MARKER}"
+    summary_warn "Docker Hub HTTP 429: cooldown saved locally; no automatic retry or container replacement attempted."
+}
+
+dockerhub_429_in_log() {
+    local classification
+    [[ -f scripts/truenas/classify-fastapi-build-failure.py ]] || return 1
+    classification="$(python3 scripts/truenas/classify-fastapi-build-failure.py \
+        --check --failure-shape --log "$1" 2>/dev/null)" || return 1
+    jq -e '.registry_provider == "docker_hub" and .registry_http_status == 429' \
+        >/dev/null 2>&1 <<<"${classification}"
+}
+
+# Check only a Docker Hub credential declaration in the selected client context.
+# Never print credential bytes. Credential helpers may still be unavailable.
+dockerhub_client_auth_configured() {
+    local filter
+    filter='
+      (((.auths // {}) | to_entries) |
+       any(.[]; (.key | test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i"))
+           and ([.value.auth // "", .value.identitytoken // "", .value.identityToken // ""] | any(.[]; length > 0))))
+      or (((.credHelpers // {}) | keys) |
+       any(.[]; test("index[.]docker[.]io|registry-1[.]docker[.]io|docker[.]io"; "i")))
+      or ((.credsStore // "") | length > 0)
+    '
+    if [[ "${DOCKER[0]}" == sudo ]]; then
+        # Resolve the selected sudo client's HOME instead of assuming /root.
+        sudo -H sh -c 'test -s "$HOME/.docker/config.json" &&
+            jq -e "$1" "$HOME/.docker/config.json" >/dev/null 2>&1' sh "${filter}"
+    else
+        local config="${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+        [[ -s "${config}" ]] &&
+            jq -e "${filter}" "${config}" >/dev/null 2>&1
+    fi
+}
+
+guard_dockerhub_base_build() {
+    run_docker info >/dev/null 2>&1 ||
+        fail "Docker daemon unavailable in selected build client; no build attempted"
+    if dockerhub_cooldown_active; then
+        if [[ "${OVERRIDE_DOCKERHUB_COOLDOWN}" != true ]]; then
+            fail "Docker Hub 429 cooldown active: refusing remote image resolution. Check registry quota/anti-abuse; set FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN=true only after remediation."
+        fi
+        summary_warn "Operator explicitly overrides Docker Hub 429 cooldown (single build only)."
+    fi
+    if [[ "${REFRESH_BASE_IMAGES}" == false ]] &&
+        run_docker image inspect python:3.13-slim-trixie >/dev/null 2>&1; then
+        summary_ok "Python Docker base image present in selected daemon cache"
+    elif dockerhub_client_auth_configured; then
+        summary_warn "Python base image absent; a Docker Hub credential declaration exists but authentication is NOT verified."
+    elif [[ "${ALLOW_ANONYMOUS_BASE_PULL}" == true ]]; then
+        summary_warn "Anonymous Docker Hub base image access explicitly allowed; rate limits may recur."
+    else
+        fail "Python base image absent and selected Docker client has no Docker Hub credential declaration; refusing anonymous Docker Hub request. Authenticate the selected client or explicitly set FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL=true."
+    fi
+    if [[ "${REFRESH_BASE_IMAGES}" == true ]]; then
+        summary_warn "Base-image refresh requested; additional registry requests may count toward quota."
+    fi
+}
+
+# A 429 from a release registry must not trigger another pull via local build.
+RELEASE_PULL_RATE_LIMITED=false
+run_release_image_pull() {
+    local image="$1" log
+    RELEASE_PULL_RATE_LIMITED=false
+    log="$(mktemp)"
+    if run_docker pull "${image}" >"${log}" 2>&1; then
+        rm -f -- "${log}"
+        return 0
+    fi
+    if grep -Eiq '(^|[^0-9])429([^0-9]|$)|too many requests|toomanyrequests|pull rate limit' "${log}"; then
+        RELEASE_PULL_RATE_LIMITED=true
+    fi
+    diag_info "Private release-pull failure evidence: ${log} (0600)"
+    return 1
+}
+
 run_build_attempt() {
     local log="$1"
 
@@ -263,7 +390,9 @@ build_fastapi_sample() {
         rc="$?"
     fi
 
-    if grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
+    # A quota failure is not transient BuildKit frontend failure; never retry it.
+    if ! dockerhub_429_in_log "${log}" &&
+        grep -Fq 'frontend grpc server closed unexpectedly' "${log}"; then
         printf 'WARN: Docker BuildKit frontend closed unexpectedly; retrying the same cache-preserving build once.\n' >&2
         sleep 2
         if run_build_attempt "${log}"; then
@@ -278,6 +407,16 @@ build_fastapi_sample() {
     fi
 
     diag_fail 'FastAPI Sample image build failed; existing runtime was preserved.'
+    # Never print raw BuildKit/uv logs: they can include build arguments,
+    # registry URLs or credentials. Emit only a fixed-code classification.
+    if command -v python3 >/dev/null 2>&1 &&
+        [[ -f scripts/truenas/classify-fastapi-build-failure.py ]]; then
+        python3 scripts/truenas/classify-fastapi-build-failure.py \
+            --check --failure-shape --log "${log}" || true
+    fi
+    if dockerhub_429_in_log "${log}"; then
+        record_dockerhub_429
+    fi
     diag_info "Private Docker build evidence: ${log} (0600; may contain secrets)"
     return "${rc}"
 }
@@ -361,12 +500,14 @@ run_docker compose -f apps/sample/compose.yml config --quiet --no-interpolate --
 image_source="local-build"
 if [[ "${DEPLOY_MODE}" != "build" && ( "${release_ref}" == true || "${release_image_explicit}" == true ) ]]; then
     printf 'Trying immutable release image: %s\n' "${release_image}"
-    if run_docker pull "${release_image}"; then
+    if run_release_image_pull "${release_image}"; then
         if [[ "${release_image}" != "${runtime_image}" ]]; then
             run_docker tag "${release_image}" "${runtime_image}"
         fi
         image_source="release-pull"
         printf 'Using prebuilt release image for immutable release ref; local Python dependency build skipped.\n'
+    elif [[ "${RELEASE_PULL_RATE_LIMITED}" == true ]]; then
+        fail 'Release registry returned HTTP 429; refusing fallback to a local Docker Hub build. Existing runtime preserved.'
     elif [[ "${DEPLOY_MODE}" == "pull" ]]; then
         fail "release image pull failed in pull-only mode: ${release_image}"
     else
@@ -389,6 +530,7 @@ if [[ "${image_source}" == "local-build" ]]; then
     build_args+=(fastapi-sample)
 
     step '3/6' 'Build image before replacing runtime'
+    guard_dockerhub_base_build
     build_fastapi_sample
 fi
 
@@ -500,6 +642,29 @@ else
     summary_warn 'pfSense auth-smoke module unavailable (optional)'
 fi
 
+# Optional, strictly bounded AI acceptance from inside the running Sample
+# container. Does not generate a completion or read private OpenRAG documents.
+ai_connectivity_state='not-run'
+if [[ -f scripts/truenas/accept-fastapi-ai-connectivity.py ]]; then
+    if ai_report="$(python3 scripts/truenas/accept-fastapi-ai-connectivity.py --check 2>/dev/null)"; then
+        summary_ok 'AI connectivity: scoped LiteLLM model visible, Ollama and OpenRAG HTTP available'
+        ai_connectivity_state='ok'
+    else
+        summary_warn 'AI connectivity incomplete: LiteLLM auth/model or Ollama/OpenRAG transport needs follow-up'
+        ai_connectivity_state='warning'
+    fi
+    # Fixed-code report only. Never echo container env, model output or secrets.
+    if jq -e '.component == "fastapi_ai_acceptance" and .raw_secrets_printed == false' \
+         >/dev/null 2>&1 <<<"${ai_report:-}"; then
+        jq -c '{litellm,litellm_proxy_liveness,litellm_key_format,litellm_model,litellm_inference,ollama,
+          openrag_backend,openrag_frontend,openrag_mcp,
+          openrag_integration,openrag_private_retrieval,acceptance}' \
+          <<<"${ai_report}"
+    fi
+else
+    summary_warn 'AI acceptance script unavailable in this checkout'
+fi
+
 quiet_step 'Canonical Sample runtime env post-check' sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
@@ -508,7 +673,7 @@ runtime_version="$(jq -r '.release_version // .version // "unknown"' <<<"${versi
 diag_section '6/6' 'FastAPI Sample · final acceptance'
 diag_ok "staging :8091 | version ${runtime_version} | app HTTP ${health_status}"
 printf 'Git ref: %s (%s) · image: %s\n' "${REF}" "${runtime_sha:0:12}" "${runtime_image}"
-printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s\n' "${prometheus_state}" "${pfsense_state}"
+printf 'Checks: image identity=verified | observer=passed | Prometheus/Gatus=%s | pfSense=%s | AI transports=%s\n' "${prometheus_state}" "${pfsense_state}" "${ai_connectivity_state}"
 if [[ -n "${pinned_sha}" && "${pinned_sha}" != "${runtime_sha}" ]]; then
     summary_warn "Parent gitlink ${pinned_sha:0:12} differs from checkout ${runtime_sha:0:12}. Not automatically staged."
 fi

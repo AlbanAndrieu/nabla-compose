@@ -132,6 +132,105 @@ yubikey-software-recovery-test:
 yubikey-software-recovery-check:
     python3 scripts/workstation/verify-yubikey-software-age-sops-fixture.py --check
 
+# Synthetic-only encrypted header parser contracts, no real secret or NFS.
+yubikey-escrow-age-header-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-age-header.py tests/test_yubikey_escrow_age_header.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_age_header.py' -v
+
+# Stat-only local source preflight. Does NOT read the ciphertext header.
+yubikey-escrow-age-header-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-age-header.py --check
+
+# Reads only the first 8192 bytes of the existing encrypted file. Does NOT
+# decrypt, display recipient arguments, expose secrets, copy or write data.
+yubikey-escrow-age-header-inspect:
+    python3 scripts/workstation/inspect-yubikey-escrow-age-header.py --inspect --acknowledge INSPECT_EXISTING_ENCRYPTED_AGE_HEADER_ONLY
+
+# Existing SanDisk LUKS2 escrow: identify UUID from redacted lsblk metadata.
+# No USB unlock, age identity read, decryption, mount or mutation.
+yubikey-escrow-usb-status:
+    python3 scripts/workstation/diagnose-age-escrow-usb-presence.py --check
+
+# Synthetic USB discovery contracts. No real USB, LUKS, age key or sudo used.
+yubikey-escrow-usb-test:
+    python3 -m py_compile scripts/workstation/diagnose-age-escrow-usb-presence.py tests/test_age_escrow_usb_presence.py
+    python3 -m unittest discover -s tests -p 'test_age_escrow_usb_presence.py' -v
+
+# Original SanDisk MUST already be physically connected and LUKS unlocked.
+# Only inspect metadata of expected recovery age identity on the known ext4.
+yubikey-escrow-usb-identity-check:
+    python3 scripts/workstation/inspect-age-escrow-usb-identity.py --check
+
+# Synthetic-only metadata gate (never reads a real USB age identity).
+yubikey-escrow-usb-identity-test:
+    python3 -m py_compile scripts/workstation/inspect-age-escrow-usb-identity.py tests/test_age_escrow_usb_identity_metadata.py
+    python3 -m unittest discover -s tests -p 'test_age_escrow_usb_identity_metadata.py' -v
+
+# Independent recovery of the original SanDisk's private age identity.
+# CAUTION: --backup prompts interactively for an INDEPENDENT passphrase.
+# Source USB must be physically connected, unlocked and mounted.
+# No raw identity written locally or to TrueNAS, no overwrite.
+yubikey-usb-identity-backup-test:
+    python3 -m py_compile scripts/workstation/backup-usb-age-identity.py tests/test_usb_age_identity_independent_backup.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_identity_independent_backup.py' -v
+
+# Read-only metadata and destination check. No key opened or written.
+yubikey-usb-identity-backup-check:
+    python3 scripts/workstation/backup-usb-age-identity.py --check
+
+# EXPLICIT opt-in to write one age -p encrypted backup on workstation and TrueNAS.
+# Requires a true interactive terminal. Never feed secrets via environment/argv.
+yubikey-usb-identity-backup:
+    python3 scripts/workstation/backup-usb-age-identity.py --backup --acknowledge CREATE_NEW_PASSPHRASE_ENCRYPTED_USB_IDENTITY_BACKUPS
+
+# Hermetic checks of independent restoration; no USB, age or TrueNAS access.
+yubikey-usb-identity-restore-test:
+    python3 -m py_compile scripts/workstation/verify-usb-age-identity-independent-backup.py tests/test_usb_age_identity_independent_restore.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_identity_independent_restore.py' -v
+
+# Post-backup read-only metadata gate. Original SanDisk is NOT required.
+yubikey-usb-identity-restore-check:
+    python3 scripts/workstation/verify-usb-age-identity-independent-backup.py --check
+
+# Opt-in, interactive age decrypt twice in RAM; only public recipient compared.
+# Run only AFTER backup, preferably with original SanDisk physically disconnected.
+yubikey-usb-identity-restore-verify:
+    python3 scripts/workstation/verify-usb-age-identity-independent-backup.py --verify --acknowledge VERIFY_BOTH_PASSPHRASE_ENCRYPTED_USB_IDENTITY_BACKUPS
+
+# Synthetic-only 4-level NFS4 ACL inventory contracts; no real SSH or secrets.
+yubikey-usb-identity-nfs4-acl-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py tests/test_usb_identity_backup_nfs4_acl.py
+    python3 -m unittest discover -s tests -p 'test_usb_identity_backup_nfs4_acl.py' -v
+
+# Local metadata-only preflight on EXISTING workstation and NFS ciphertext.
+# Does not use USB, read archive data or invoke SSH.
+yubikey-usb-identity-nfs4-acl-check:
+    python3 scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py --check
+
+# Explicit remote TrueNAS filesystem.getacl inventory via pinned SSH.
+# Does not inspect raw ACE output locally or claim effective authorization.
+yubikey-usb-identity-nfs4-acl-probe:
+    python3 scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py --probe --acknowledge INSPECT_NEW_USB_IDENTITY_BACKUP_NFS4_ACLS_READONLY
+
+# Hermetic TrueNAS mode-boundary checks; no actual server or ciphertext access.
+yubikey-usb-identity-server-modes-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-identity-backup-server-modes.py tests/test_usb_identity_backup_server_modes.py
+    python3 -m unittest discover -s tests -p 'test_usb_identity_backup_server_modes.py' -v
+
+# Metadata-only local readiness, no SSH and no original SanDisk.
+yubikey-usb-identity-server-modes-check:
+    python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --check
+
+# Strict read-only SSH evidence of server 0700/0600 and owner consistency.
+# No UID, GID, private paths, raw ACEs or ciphertext bytes printed.
+yubikey-usb-identity-server-modes-probe:
+    python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --probe --acknowledge INSPECT_USB_AGE_BACKUP_TRUENAS_MODES_READONLY
+
+# Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
+# Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
+yubikey-escrow-usb-legacy-check:
+    bash scripts/workstation/manage-age-escrow-usb.sh --luks-uuid 3742c7b9-ccb7-4b5e-b1db-18bcf916c548 --check
+
 # Private terminal prompts for two existing .age backups. Does not print paths,
 # read data, decrypt, require USB, or assert physical independence.
 yubikey-escrow-pair-test:
@@ -190,6 +289,34 @@ yubikey-escrow-copy-test:
 # explicit command documented in the recovery runbook.
 yubikey-escrow-copy-check:
     python3 scripts/workstation/create-yubikey-escrow-nfs-copy.py --check
+
+# Existing age escrow postcopy contracts only. Never touches the real files.
+yubikey-escrow-postcopy-test:
+    python3 -m py_compile scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py tests/test_yubikey_escrow_nfs_postcopy.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_nfs_postcopy.py' -v
+
+# Metadata-only gate: no encrypted data reads, no SSH, no writes.
+yubikey-escrow-postcopy-check:
+    python3 scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py --check
+
+# Explicitly rereads ciphertext and checks TrueNAS visibility via read-only
+# SSH. Does not prove NFSv4 ACL or age/SOPS restoration.
+yubikey-escrow-postcopy-verify:
+    python3 scripts/workstation/verify-yubikey-escrow-nfs-postcopy.py --verify --acknowledge RECHECK_EXISTING_AGE_ESCROW_CIPHERTEXT_AND_TRUENAS
+
+# TrueNAS native ACL metadata inspection, synthetic-only test.
+yubikey-escrow-acl-test:
+    python3 -m py_compile scripts/workstation/inspect-yubikey-escrow-truenas-acl.py tests/test_yubikey_escrow_truenas_acl.py
+    python3 -m unittest discover -s tests -p 'test_yubikey_escrow_truenas_acl.py' -v
+
+# Check expected NFS mount and unique encrypted source file; no SSH.
+yubikey-escrow-acl-check:
+    python3 scripts/workstation/inspect-yubikey-escrow-truenas-acl.py --check
+
+# Read native ACL metadata via TrueNAS filesystem.getacl over trusted SSH.
+# Never prints raw ACL, account identifiers or encrypted bytes.
+yubikey-escrow-acl-probe:
+    python3 scripts/workstation/inspect-yubikey-escrow-truenas-acl.py --probe --acknowledge INSPECT_EXISTING_TRUENAS_AGE_ESCROW_ACL_READONLY
 
 # Explicit supervised read-only TrueNAS snapshot metadata inventory via SSH.
 # Does NOT use sudo/zfs CLI, restore, copy, decrypt, or export private names.
@@ -428,15 +555,127 @@ openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
 
 
 
-# Read-only 429 attribution. No chat, embeddings, resets or key mutations.
+# Read-only 429 attribution: OpenClaw auth cooldown vs LiteLLM budget/key.
+# No chat, embeddings, RPM reset, systemd restart or secret disclosures.
 openclaw-429-triage-test:
-    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-429.py tests/test_openclaw_litellm_429_diagnostic.py scripts/workstation/diagnose-openclaw-model-cooldowns.py tests/test_openclaw_model_cooldowns.py
     python3 -m unittest discover -s tests -p 'test_openclaw_litellm_429_diagnostic.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_model_cooldowns.py' -v
 
-# The --admin flag only queries hashed virtual key metadata on LiteLLM loopback.
+# Inference-free. CLI models status MAY query provider usage metadata.
+# --admin only queries hashed virtual key metadata on loopback LiteLLM.
 openclaw-429-triage:
+    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
     python3 scripts/workstation/diagnose-openclaw-litellm-429.py --admin
     python3 scripts/workstation/openclaw-route-metadata.py
+
+# Lightweight path when LiteLLM master key is not exported.
+openclaw-429-triage-no-admin:
+    python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
+    python3 scripts/workstation/diagnose-openclaw-litellm-429.py
+    python3 scripts/workstation/openclaw-route-metadata.py
+
+# Job definition audit only: GET cron metadata, never run/edit the job or models.
+# A nonzero check is expected until the live job has an explicit integer --top.
+openclaw-digest-top-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-digest-top.py tests/test_openclaw_digest_top.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_top.py' -v
+
+openclaw-digest-top-check:
+    python3 scripts/workstation/diagnose-openclaw-digest-top.py
+
+# Static non-secret digest manifest: no cron creation, delivery or inference.
+openclaw-digest-gitops-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
+
+# Native cron-agent session cleanup; report is redacted, no direct SQLite edits.
+openclaw-cron-session-maintenance-test:
+    python3 -m py_compile scripts/workstation/openclaw-cron-session-maintenance.py tests/test_openclaw_cron_session_maintenance.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_session_maintenance.py' -v
+
+openclaw-cron-session-maintenance-check:
+    python3 scripts/workstation/openclaw-cron-session-maintenance.py --check
+
+# Opt-in, native Gateway maintenance; only agent 'cron', not the main agent.
+openclaw-cron-session-maintenance-apply:
+    python3 scripts/workstation/openclaw-cron-session-maintenance.py --apply
+
+# Read-only cron-parent session catalog: no transcript output or SQLite mutation.
+openclaw-cron-parent-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-cron-parent.py tests/test_openclaw_cron_parent.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_parent.py' -v
+
+openclaw-cron-parent-check:
+    python3 scripts/workstation/diagnose-openclaw-cron-parent.py
+
+# Historical schedules retained as a reviewed proposal; heartbeat stays dormant.
+openclaw-legacy-heartbeat-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
+
+# Local-only: inventory historical HEARTBEAT copies by metadata, never extract archive.
+openclaw-heartbeat-copies-test:
+    python3 -m py_compile scripts/workstation/inspect-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_copies.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_copies.py' -v
+
+openclaw-heartbeat-copies-check:
+    python3 scripts/workstation/inspect-openclaw-heartbeat-copies.py --check
+
+# No content reads, no file mode changes. Explicit mode-only apply is separate.
+openclaw-heartbeat-modes-test:
+    python3 -m py_compile scripts/workstation/secure-openclaw-heartbeat-copies.py tests/test_openclaw_heartbeat_mode_repair.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_mode_repair.py' -v
+
+openclaw-heartbeat-modes-check:
+    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --check
+
+# Opt-in permission-only change to owner 0600 on three existing, verified files.
+# This never extracts or changes the archive content or Gateway/session state.
+openclaw-heartbeat-modes-apply:
+    python3 scripts/workstation/secure-openclaw-heartbeat-copies.py --apply
+
+# Read-only legacy git-crypt inventory: never decrypt/copy tracked OpenClaw secrets.
+openclaw-nabla-migration-test:
+    python3 -m py_compile scripts/workstation/audit-openclaw-nabla-migration.py tests/test_openclaw_nabla_migration_audit.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_nabla_migration_audit.py' -v
+
+openclaw-nabla-migration-check:
+    python3 scripts/workstation/audit-openclaw-nabla-migration.py --check
+
+# Classify only the known auth error; never disable LiteLLM model authentication.
+litellm-workstation-auth-contracts:
+    python3 -m py_compile scripts/truenas/diagnose-workstation-litellm-upstream-auth.py tests/test_workstation_litellm_upstream_auth_preflight.py scripts/secrets/check-litellm-fastapi-upstream-source.py tests/test_litellm_fastapi_upstream_source.py
+    python3 -m unittest discover -s tests -p 'test_openrag_litellm_nonbillable_probe_contract.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_litellm_dashboard_auth_failure.py
+    python3 -m unittest discover -s tests -p 'test_workstation_litellm_upstream_auth_preflight.py' -v
+    python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
+    bash -n scripts/quality/run-python-with-jsonschema-local.sh
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_native_truenas.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_fastapi_litellm_wiring.py
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_workstation_inventory.py' -v
+
+# Workstation-only: value-blind read-only local proxy/alias audit. No models or key creation.
+litellm-workstation-fastapi-key-inventory:
+    python3 scripts/workstation/diagnose-fastapi-litellm-workstation-key.py --check
+
+# TrueNAS-only: offline scope + target validation, no key creation or network.
+litellm-truenas-fastapi-provision-check:
+    python3 scripts/workstation/provision-fastapi-litellm-keys.py --target truenas --native-truenas --check
+
+# Vaultwarden check runs as an unlocked unprivileged operator; no secret values printed.
+litellm-fastapi-upstream-source-check:
+    bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-litellm-fastapi-upstream-source.py --check
+
+# Vaultwarden Sample key source only. Uses existing unlocked operator session.
+litellm-fastapi-sample-source-check:
+    bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-fastapi-litellm-sample-source.py --check
+
+# Root-owned env files and Docker config, read-only comparison; no key values shown.
+litellm-fastapi-runtime-keys-check:
+    sudo python3 scripts/truenas/check-fastapi-litellm-runtime-keys.py --check
+
+# TrueNAS-only: no model calls or secret output, no service restart.
+litellm-workstation-upstream-auth-check:
+    sudo python3 scripts/truenas/diagnose-workstation-litellm-upstream-auth.py --check
 
 # OpenClaw cron SecretRef contract: no Gateway, network, token or stored plan required.
 openclaw-cron-secret-plan-test:
@@ -548,6 +787,66 @@ pfsense-unbound-lan-dns-test:
 
 # CrowdSec central: exercises shell classification with mocked Loki responses.
 # Offline only: no Docker, SSH, runtime mutation or GitHub CI.
+# CrowdSec central LAPI cutover checks from workstation; no pfSense changes.
+# Preflight WARNs while the old engine is intentionally still running.
+# Offline contract gate: tests only parser/auth shell syntax, no SSH.
+crowdsec-bouncer-config-test:
+    bash -n scripts/workstation/verify-crowdsec-pfsense.sh
+    sh -n scripts/pfsense/check-central-crowdsec-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_bouncer_url_parser.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_bouncer_url_parser.py' -v
+    bash -n scripts/truenas/check-crowdsec-candidate-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_candidate_bouncer_auth.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_candidate_bouncer_auth.py' -v
+    bash -n scripts/truenas/provision-crowdsec-pfsense-bouncer.sh
+    python3 -m py_compile tests/test_crowdsec_pfsense_bouncer_provision.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pfsense_bouncer_provision.py' -v
+    bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
+    python3 -m py_compile tests/test_crowdsec_pfsense_bouncer_provenance.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pfsense_bouncer_provenance.py' -v
+    python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
+    python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
+
+# Workstation only: two independent SSH reads (TrueNAS LAPI and pfSense PF).
+# Stores PRIVATE evidence in ~/.local/state/nabla-compose (0700/0600).
+# Natural bans only. Neither command creates/deletes decisions or PF entries.
+crowdsec-pf-natural-baseline:
+    python3 scripts/workstation/observe-crowdsec-pf-decision.py baseline
+
+crowdsec-pf-natural-observe:
+    python3 scripts/workstation/observe-crowdsec-pf-decision.py observe
+
+crowdsec-pf-natural-test:
+    python3 -m py_compile scripts/workstation/observe-crowdsec-pf-decision.py tests/test_crowdsec_pf_decision_cycle.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
+
+# Synthetic PF proof: tests and preflight are read-only. Any ban requires
+# an explicit Python --apply --confirm command, not a Just recipe.
+crowdsec-pf-synthetic-test:
+    python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
+
+crowdsec-pf-synthetic-preflight:
+    python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --preflight
+
+# TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
+# PFSENSE_FIREWALL registration and securely writes its root-only credential.
+crowdsec-bouncer-provision-check:
+    sudo bash scripts/truenas/provision-crowdsec-pfsense-bouncer.sh --check
+
+# On TrueNAS only, sudo/known private runtime secret; no pfSense changes.
+crowdsec-candidate-auth-check:
+    sudo bash scripts/truenas/check-crowdsec-candidate-bouncer.sh
+
+crowdsec-pfsense-preflight:
+    bash scripts/workstation/verify-crowdsec-pfsense.sh --preflight
+
+# Post-cutover only: engine stopped, remote LAPI URL, PF bouncer healthy.
+crowdsec-pfsense-accept:
+    bash scripts/workstation/verify-crowdsec-pfsense.sh --accept
+
 crowdsec-loki-evidence-test:
     bash -n scripts/truenas/diagnose-crowdsec-cutover.sh
     python3 -m py_compile tests/test_crowdsec_loki_evidence_contract.py
@@ -559,6 +858,30 @@ nexus-private-ingress-test:
     test -f tests/test_nexus_private_ingress_contract.py
     python3 -m py_compile tests/test_nexus_private_ingress_contract.py
     python3 tests/test_nexus_private_ingress_contract.py -v
+    test -f tests/test_nexus_haproxy_frontend_readonly.py
+    bash -n scripts/workstation/inspect-nexus-haproxy-frontend.sh
+    python3 -m py_compile tests/test_nexus_haproxy_frontend_readonly.py
+    python3 tests/test_nexus_haproxy_frontend_readonly.py -v
+    test -f docs/evidence/pfsense/haproxy-2026-10-27.generated.redacted.cfg
+    test -f tests/test_pfsense_haproxy_policy_audit.py
+    python3 -m py_compile scripts/pfsense/audit-haproxy-ingress.py tests/test_pfsense_haproxy_policy_audit.py
+    python3 tests/test_pfsense_haproxy_policy_audit.py -v
+    test -f tests/test_ingress_public_dns_evidence.py
+    python3 -m py_compile scripts/ingress/collect-public-dns-evidence.py tests/test_ingress_public_dns_evidence.py
+    python3 tests/test_ingress_public_dns_evidence.py -v
+
+# Read-only: public DNS from two independent public recursors.
+# Output can be merged into the optional external evidence JSON.
+ingress-public-dns-evidence:
+    python3 scripts/ingress/collect-public-dns-evidence.py
+
+# Read-only: compare current generated pfSense HAProxy with the reviewed,
+# redacted 2026-10-27 baseline. Unverified DNS/Tunnel/PF is NOT success.
+pfsense-haproxy-policy-check:
+    python3 scripts/pfsense/audit-haproxy-ingress.py --strict
+
+pfsense-haproxy-policy-live:
+    python3 scripts/pfsense/audit-haproxy-ingress.py --live
 
 pfsense-unbound-capture:
     bash scripts/pfsense/capture-unbound-snapshot.sh --check
@@ -699,7 +1022,8 @@ truenas-openrag-startup-check:
 truenas-openrag-startup-test:
     bash -n scripts/truenas/diagnose-openrag-startup.sh
     bash -n scripts/truenas/reconcile-openrag-opensearch-secret.sh
-    python3 -m pytest -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py
+    python3 -m unittest discover -s tests -p 'test_openrag_litellm_nonbillable_probe_contract.py' -v
+    bash scripts/quality/run-pytest-local.sh -q tests/test_openrag_startup_preflight.py tests/test_openrag_opensearch_secret_comparator.py
 
 # Read-only host preflight; --apply remains a separate, explicit operator action.
 truenas-prometheus-config-check:
@@ -965,6 +1289,85 @@ defectdojo-admin-password-apply:
 # Read-only HTTP origin vs HTTPS SNI, Traefik labels and Docker network.
 defectdojo-private-route-check:
     sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+
+# No pytest dependency: portable workstation split-DNS regression contracts.
+defectdojo-workstation-dns-test:
+    bash -n scripts/workstation/diagnose-defectdojo-lan.sh
+    python3 -m py_compile tests/test_defectdojo_workstation_lan_dns.py
+    python3 -m unittest discover -s tests -p 'test_defectdojo_workstation_lan_dns.py' -v
+
+# Verify both pfSense DNS and the actual workstation system resolver.
+defectdojo-workstation-dns-check:
+    bash scripts/workstation/diagnose-defectdojo-lan.sh --check
+
+# Read-only pfSense DNS UDP/TCP, NetworkManager, resolved and NSS evidence.
+workstation-split-dns-check:
+    python3 scripts/workstation/homelab-split-dns.py --check
+
+# Explicit workstation-only recovery; fails closed if pfSense UDP DNS is unverified.
+workstation-split-dns-repair:
+    python3 scripts/workstation/homelab-split-dns.py --apply --acknowledge I_APPROVE_WORKSTATION_SPLIT_DNS_REPAIR
+
+# Offline standard-library tests. Does not need pytest, LAN or root.
+workstation-split-dns-test:
+    python3 -m py_compile scripts/workstation/homelab-split-dns.py tests/test_homelab_split_dns_recovery.py
+    python3 -m unittest discover -s tests -p 'test_homelab_split_dns_recovery.py' -v
+
+# Diagnose glibc NSS vs systemd-resolved native API vs 127.0.0.53 stub.
+# Read-only and deadline-bounded; use if getent is slow but resolvectl is fast.
+workstation-nss-path:
+    python3 scripts/workstation/diagnose-nss-resolution.py --check
+
+# Two sequential, bounded samples help distinguish intermittent native/stub/NSS faults.
+workstation-nss-path-samples:
+    python3 scripts/workstation/diagnose-nss-resolution.py --check --samples 2 --timeout 3
+
+# Read-only DNSSEC validation comparison: no settings changed, no sudo.
+workstation-dnssec-check:
+    python3 scripts/workstation/diagnose-dnssec-chain.py --check --samples 2 --timeout 4
+
+# Offline checks: stub/upstream signatures and per-query validation controls.
+workstation-dnssec-test:
+    python3 -m py_compile scripts/workstation/diagnose-dnssec-chain.py tests/test_diagnose_dnssec_chain.py
+    python3 -m unittest discover -s tests -p 'test_diagnose_dnssec_chain.py' -v
+
+# No mutation: inspect per-link DNSSEC NTA and normal (validated) private lookup.
+workstation-dnssec-nta-check:
+    python3 scripts/workstation/recover-split-dns-nta.py --check
+
+# Offline tests; no network and no sudo.
+workstation-dnssec-nta-test:
+    python3 -m py_compile scripts/workstation/recover-split-dns-nta.py tests/test_recover_split_dns_nta.py
+    python3 -m unittest discover -s tests -p 'test_recover_split_dns_nta.py' -v
+
+# Explicit runtime-only negative trust anchor for private zone; not persistent.
+workstation-dnssec-nta-try:
+    python3 scripts/workstation/recover-split-dns-nta.py --apply --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
+
+# Explicit rollback; refuses if existing/additional NTAs would be lost.
+workstation-dnssec-nta-rollback:
+    python3 scripts/workstation/recover-split-dns-nta.py --remove --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
+
+
+# Read-only: installed dispatcher, exact eno1 NTA and authenticated public DNS.
+workstation-dnssec-dispatcher-check:
+    python3 scripts/workstation/accept-private-nta-dispatcher.py --check
+
+# Offline contracts. No network configuration changes, sudo or GitHub CI.
+workstation-dnssec-dispatcher-test:
+    python3 -m py_compile scripts/workstation/accept-private-nta-dispatcher.py tests/test_accept_private_nta_dispatcher.py
+    python3 -m unittest discover -s tests -p 'test_accept_private_nta_dispatcher.py' -v
+
+# Explicit post-install acceptance: clear ONLY the exact private NTA,
+# request NetworkManager reapply, wait for its dispatcher to restore the NTA.
+# On failure, restore the private NTA only when the LAN profile still matches.
+workstation-dnssec-dispatcher-exercise:
+    sudo python3 scripts/workstation/accept-private-nta-dispatcher.py --exercise --acknowledge I_APPROVE_NTA_REAPPLY_SMOKE
+
+# Hermetic NSS differential test suite, no network, no sudo, no pytest.
+workstation-nss-path-test:
+    python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
+    python3 -m unittest discover -s tests -p 'test_diagnose_nss_resolution.py' -v
 
 # Hermetic suite: no LAN, root, database or secret access required.
 defectdojo-recovery-test:

@@ -40,6 +40,57 @@ def test_staged_deployment_triage(states, expected):
     assert MODULE.next_action(states, "UNREACHABLE") == expected
 
 
+def running_stack():
+    result = {
+        name: {"state": "running", "oom_killed": False, "health": "none"}
+        for name in (
+            "defectdojo-uwsgi", "defectdojo-celeryworker",
+            "defectdojo-celerybeat", "defectdojo",
+        )
+    }
+    result["defectdojo-initializer"] = {
+        "state": "exited", "exit_code": 0,
+        "oom_killed": False, "health": "none",
+    }
+    return result
+
+
+def test_running_stack_requires_every_component_and_successful_initializer():
+    stack = running_stack()
+    assert MODULE.stack_ready(stack, "200") is True
+    assert MODULE.next_action(stack, "200") == (
+        "stack_running_verify_admin_login_and_vaultwarden_parity"
+    )
+    stack["defectdojo-celeryworker"]["state"] = "created"
+    assert MODULE.stack_ready(stack, "200") is False
+    assert MODULE.next_action(stack, "200") == "check_celery_worker_and_beat_state"
+    stack["defectdojo-celeryworker"]["state"] = "running"
+    assert MODULE.stack_ready(stack, "401") is False
+    stack["defectdojo-initializer"]["oom_killed"] = True
+    assert MODULE.stack_ready(stack, "200") is False
+    stack["defectdojo-initializer"]["oom_killed"] = False
+    stack["defectdojo-uwsgi"]["health"] = "unhealthy"
+    assert MODULE.stack_ready(stack, "200") is False
+
+
+@pytest.mark.parametrize(("app_state", "expected", "next_check"), [
+    ("RUNNING", "READY_FOR_AUTH_CHECK",
+     "stack_running_verify_admin_login_and_vaultwarden_parity"),
+    ("DEPLOYING", "INCOMPLETE_OR_UNVERIFIED",
+     "check_truenas_app_state_stabilization"),
+])
+def test_runtime_transport_is_not_authentication(monkeypatch, app_state, expected, next_check):
+    stack = running_stack()
+    monkeypatch.setattr(MODULE, "container_snapshot", lambda name: stack[name])
+    monkeypatch.setattr(MODULE, "app_state", lambda: app_state)
+    monkeypatch.setattr(MODULE, "local_http", lambda: "200")
+    report = MODULE.diagnose(include_logs=False)
+    assert report["stack_transport_state"] == expected
+    assert report["next_check"] == next_check
+    assert report["admin_login"] == "NOT_VERIFIED"
+    assert report["database_modified"] is False
+
+
 def test_unknown_docker_container_is_rejected():
     with pytest.raises(ValueError):
         MODULE.container_snapshot("postgres")

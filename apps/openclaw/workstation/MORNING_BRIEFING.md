@@ -65,11 +65,38 @@
   issus d'un diagnostic autorisé ; ne pas relancer de test payant.
 - Distinguer panne réelle, sonde indisponible et diagnostic non exécuté.
 
-### 📊 Tâches, issues et projets
+### 📊 Workboard, tâches, issues et projets
+- Distinguer **Workboard** (cartes d'activité) et **Tasks**
+  (exécutions en arrière-plan). Ce sont deux registres différents.
+- Pour les cartes Workboard, utiliser `openclaw workboard list`
+  uniquement si le plugin est déjà activé et compatible.
+- Pour les exécutions en cours et terminées, utiliser
+  `openclaw tasks list` et ses filtres documentés, sans `--plain`.
+- Lire uniquement : ne jamais invoquer `workboard dispatch`,
+  `workboard move`, `tasks cancel` ou `tasks maintenance --apply`
+  lors d'un briefing.
+- Si la CLI ou le plugin est absent, écrire `Workboard : non vérifié`
+  et/ou `Tasks : non vérifié`, jamais une liste inventée.
 - Tâches : `<nombre ou Non vérifié>`.
 - En cours : `<nombre ou Non vérifié>`.
 - Issues : `<nombre ou Non vérifié>`.
+- Présenter **les changements depuis le dernier rapport vérifié**,
+  pas une invitation à boucler sur une tâche sans contrôle humain.
+- Continuer une tâche ou modifier une issue est une **action distincte**
+  exigeant une autorisation dédiée ; le briefing est en lecture seule.
 - Ne pas inférer ces comptes depuis des fichiers anciens.
+
+### 🔧 Self-healing et journal des actions
+- Actions automatiques effectivement exécutées : `<résumé horodaté ou Aucune preuve>`.
+- Vérifications uniquement proposées : `<actions non exécutées>`.
+- Sources possibles : diagnostics OpenClaw et outils d'observabilité,
+  seulement si leurs résultats récents sont disponibles.
+- Ne pas présenter `openclaw doctor`, `openclaw health`
+  ou `openclaw logs --limit 40 --plain` comme exécutés
+  en l'absence d'une preuve du collecteur.
+- Les corrections mutantes (services, mails, WhatsApp, CalDAV, fichiers)
+  nécessitent une tâche isolée, un contrôle de permissions et un
+  budget explicites ; aucun `doctor --fix` implicite.
 
 ## 🟢🟠🔴 Règles de présentation
 

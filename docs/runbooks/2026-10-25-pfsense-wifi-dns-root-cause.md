@@ -1,5 +1,18 @@
 # Diagnostic Wi-Fi / DNS — workstation, 25 octobre 2026
 
+> **Historique au 25 octobre. Preuves plus récentes du 27 octobre :**
+> l'exécuteur `hide-location.service` a **effectivement appelé**
+> `resolvectl dns eno1 9.9.9.9 149.112.112.112` à répétition,
+> attesté par sudo/journalctl. L'opérateur a désactivé le service
+> **et** le timer ; DefectDojo est désormais accessible via Chrome.
+> Une autre panne reste **non résolue** : `dig` UDP vers pfSense
+> `172.17.0.1:53` a expiré, tandis que `resolvectl query`
+> a répondu en 11,5 s. Ne pas confondre ces deux incidents.
+> **Référence à suivre :**
+> [workstation-split-dns-recovery.md](workstation-split-dns-recovery.md),
+> [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+
+
 ## P0 — Constat et niveau de preuve
 
 Le message « le Wi-Fi semble avoir des soucis » ne permet pas encore de conclure

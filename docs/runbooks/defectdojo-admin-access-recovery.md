@@ -4,6 +4,136 @@
 Custom App `defectdojo`, conteneur Django `defectdojo-uwsgi`,
 base PostgreSQL partagée. **Ne pas recréer la base ni relancer l'initializer.**
 
+## Incident du 27 octobre — Django fonctionne, login Web refusé
+
+**Preuves runtime :** TrueNAS `RUNNING`, initializer `exited(0)`,
+quatre conteneurs actifs et `origin_http=200`.
+Le changement de mot de passe interactif Django a réussi, mais
+la connexion Web au frontal **HTTP** `http://172.17.0.24:31085/`
+échoue. Le comparateur confirme `PASSWORD_MISMATCH` entre
+Django et le fichier runtime (attendu après `changepassword`).
+Vaultwarden CLI : `DD_ADMIN_USER=DRIFT` et
+`DD_ADMIN_PASSWORD=UNVERIFIED` (`VAULT_FIELD_MISSING_OR_EMPTY`).
+Ces écarts de secrets ne prouvent **pas** que le nouveau mot
+de passe Django est refusé par la vue de connexion.
+
+**Ne pas refaire `changepassword`, ni lancer
+`reconcile-defectdojo-admin-password.py --apply` :** cette dernière
+commande rétablirait le mot de passe du fichier runtime
+et remplacerait le nouveau hash Django.
+
+### Gate 1 — vérifier le mot de passe tapé, sans écrire
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo python3 scripts/truenas/reconcile-defectdojo-admin-password.py --interactive-check
+```
+
+Cette commande demande le mot de passe via le TTY sans écho,
+l'envoie à Django seulement par `docker exec -i`/stdin,
+ne lit pas `.env.secrets`, et ne fait jamais de mutation.
+`PASSWORD_MATCH` prouve la correspondance avec le hash et
+l'existence d'un compte `admin` actif/staff/superuser.
+Ce n'est pas une preuve de login Web ;
+`PASSWORD_MISMATCH` signale une différence entre le mot de
+passe **tapé dans cette commande** et le hash Django.
+En cas de `ACCOUNT_NOT_ACTIVE_ADMIN`, ne pas recréer le compte :
+examiner son statut et l'authentification Django.
+
+### Gate 2 — privilégier le HTTPS privé au port HTTP brut
+
+```bash
+# Ne suit pas les redirections et ne divulgue aucun cookie.
+curl --noproxy '*' --connect-timeout 3 --max-time 10 \
+  --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
+  --silent --show-error --output /dev/null \
+  --write-out 'https=%{http_code} tls_verify=%{ssl_verify_result}\\n' \
+  https://defectdojo.int.albandrieu.com/login
+
+# Extrait exclusivement trois valeurs booléennes non sensibles.
+sudo docker exec defectdojo-uwsgi python manage.py shell -c '
+from django.conf import settings
+for key in ("SESSION_COOKIE_SECURE", "CSRF_COOKIE_SECURE", "SECURE_SSL_REDIRECT"):
+    print(key, getattr(settings, key, None))
+'
+```
+
+Si `SESSION_COOKIE_SECURE=True`, la connexion sur
+`http://172.17.0.24:31085` peut échouer car la session nécessite HTTPS.
+Tester dans un navigateur privé via
+`https://defectdojo.int.albandrieu.com/login` avec le même mot de
+passe saisi lors de `changepassword`. Ne pas désactiver les cookies
+sécurisés ni ajouter d'exception `CSRF_TRUSTED_ORIGINS` large.
+Si HTTPS répond 404/502, revenir au diagnostic de route Traefik.
+
+### Gate 3 — si hash correct et HTTPS toujours en échec
+
+- **HTTP 403 sur POST :** contrôler CSRF, Origin, Host/SNI et cookie ;
+  pas de `curl -k` ni de bypass de sécurité.
+- **HTTP 200 après POST, formulaire réaffiché :** examiner message du
+  formulaire, comptes, backend d'authentification, éventuelle
+  limitation d'échecs et cookies de session.
+- **HTTP 502, uWSGI redémarre :** diagnostic uWSGI, OOM et logs bornés,
+  avant toute action sur le compte.
+- **HTTP 302 puis retour au login :** rechercher un cookie de session
+  `Secure` non renvoyé, un domaine de cookie incorrect et les en-têtes
+  du reverse proxy.
+
+Seulement **après un login Web validé**, synchroniser
+`login.username=admin` et `login.password` dans l'entrée
+Vaultwarden canonique, puis mettre à jour `.env.secrets` de façon
+sécurisée. Exécuter les comparateurs en lecture seule pour confirmer
+`MATCH`. Ne pas exposer les secrets, les cookies ou les sessions
+dans les preuves publiées.
+
+## Reprise rapide du compte existant `admin` — 27 octobre 2026
+
+**Décision : réinitialiser le mot de passe Django du compte `admin`, sans
+supprimer le compte ni la base PostgreSQL.** Le compte `admin` a été
+observé dans Django le 23 octobre ; le nouveau mot de passe placé dans
+`.env.secrets` n'a pas modifié son hash. DefectDojo n'a pas été utilisé
+manuellement, mais des findings ou intégrations éventuels n'ont pas
+été exclus. Supprimer la base impose de refaire les migrations et
+n'accélère pas la réparation d'un simple mot de passe.
+
+Depuis **TrueNAS**, une seule intervention sur le compte après le
+contrôle de disponibilité :
+
+```bash
+# 1. Lecture seule : une réinitialisation est impossible si uWSGI est absent.
+sudo docker inspect defectdojo-uwsgi --format '{{.State.Status}}'
+
+# 2. Uniquement si le résultat est « running », dans un terminal privé.
+# Django demande le mot de passe de façon interactive, sans argument secret.
+sudo docker exec -it defectdojo-uwsgi python manage.py changepassword admin
+```
+
+Si uWSGI est absent, en `restarting` ou bloqué après l'initializer,
+**ne pas supprimer `admin`, ne pas recréer `defectdojo` et ne pas
+redéployer en boucle**. Exécuter uniquement :
+
+```bash
+sudo python3 scripts/truenas/diagnose-defectdojo-deploying.py --check --include-log-classes
+sudo python3 scripts/truenas/diagnose-defectdojo-postgres-waits.py --check
+```
+
+Le mot de passe défini par `changepassword` est opérationnel en base
+sans redémarrage. **Mettre à jour ensuite l'entrée Vaultwarden existante
+`TrueNAS/nabla/prod/defectdojo`** (`login.username=admin`,
+`login.password`), puis vérifier la connexion dans une session privée.
+Le dernier contrôle de parité indiquait
+`DD_ADMIN_USER=DRIFT` et `DD_ADMIN_PASSWORD=UNVERIFIED` :
+le compte `nabla` déclaré par le bootstrap ne doit pas être supposé
+exister dans Django. Le helper automatisé
+`reconcile-defectdojo-admin-password.py` refuse délibérément cette
+dérive ; le changement interactif ci-dessus est donc la voie courte.
+Ne jamais afficher les secrets ou recopier le mot de passe dans Git.
+
+**Gate DONE :** uWSGI répond, `changepassword admin` réussit,
+connexion authentifiée à l'UI réussie et secret Vaultwarden mis à jour.
+La disponibilité runtime et la connexion réelle ne sont
+**pas vérifiées par cette modification documentaire**.
+
 ## Reprise confirmée le 26 octobre 2026
 
 **Réseau :** les requêtes A vers pfSense `172.17.0.1` et Pi-hole

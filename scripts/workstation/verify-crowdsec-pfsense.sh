@@ -21,8 +21,8 @@ Usage: scripts/workstation/verify-crowdsec-pfsense.sh [--preflight|--accept] [--
 Read-only workstation-side pfSense validation for CrowdSec Small/remediation-only mode.
 
 --preflight
-  Validate the local Security Engine is stopped, the firewall bouncer is
-  running, pfSense can reach the central TrueNAS LAPI, and PF tables exist.
+  Inventory the existing local engine (allowed to still run), firewall bouncer,
+  central TrueNAS LAPI TCP reachability, and existing PF tables.
   The legacy local LAPI URL is reported as a warning rather than a failure.
 
 --accept
@@ -104,7 +104,11 @@ config='/usr/local/etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml'
 
 printf '==> pfSense CrowdSec Small runtime\n'
 if pgrep -x crowdsec >/dev/null 2>&1; then
-  error 'local CrowdSec Security Engine process is running; Small mode requires it stopped'
+  if [ "${mode}" = "--preflight" ]; then
+    warn 'legacy local CrowdSec Security Engine still running; expected before controlled cutover'
+  else
+    error 'local CrowdSec Security Engine process is running; Small-mode acceptance requires it stopped'
+  fi
 else
   ok 'local CrowdSec Security Engine process is absent'
 fi
@@ -137,7 +141,13 @@ else
         line=$0
         sub(/^[^:]*:[[:space:]]*/, "", line)
         sub(/[[:space:]]+$/, "", line)
-        gsub(/^["\\047]|["\\047]$/, "", line)
+        # awk string quoting on FreeBSD does not interpret \\047 uniformly.
+        # Strip matching double/single YAML quotes without touching the URL.
+        first=substr(line,1,1)
+        last=substr(line,length(line),1)
+        single=sprintf("%c",39)
+        if (length(line) >= 2 && first == last && (first == "\"" || first == single))
+          line=substr(line,2,length(line)-2)
         print line
         exit
       }

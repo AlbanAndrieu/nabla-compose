@@ -2,7 +2,8 @@
 """Provision two model-scoped LiteLLM virtual keys without exposing tokens.
 
 Default is offline --check; --apply is a deliberate local operator action.
-The TrueNAS endpoint requires a local SSH tunnel to its loopback.
+The TrueNAS endpoint supports SSH loopback forwarding or explicit guarded
+native TrueNAS execution.
 """
 from __future__ import annotations
 
@@ -10,10 +11,13 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import stat
+import subprocess
 import sys
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.parse import urlencode
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / "config/fastapi-sample/litellm-key-policy.json"
@@ -81,32 +85,127 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def provision(policy: dict, target: str, output: Path) -> None:
+def require_native_truenas() -> None:
+    """Confirm local TrueNAS middleware before using its loopback proxy."""
+    try:
+        response = subprocess.run(
+            ["midclt", "call", "system.version"],
+            check=False, capture_output=True, timeout=8,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError("native TrueNAS host is not verified") from None
+    if response.returncode or response.stderr or len(response.stdout) > 192:
+        raise ValueError("native TrueNAS host is not verified")
+    version = response.stdout.decode("ascii", errors="replace").strip().strip('"')
+    if re.fullmatch(r"TrueNAS[-_][A-Za-z0-9._+-]{1,100}", version) is None:
+        raise ValueError("native TrueNAS host is not verified")
+
+
+def require_workstation_litellm() -> None:
+    """Forbid minting Workstation keys on a TrueNAS or unverified Docker host."""
+    try:
+        response = subprocess.run(
+            ["midclt", "call", "system.version"], capture_output=True,
+            check=False, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        response = None
+    if response is not None and response.returncode == 0 and len(response.stdout) <= 192:
+        version = response.stdout.decode("ascii", errors="replace").strip().strip('"')
+        if re.fullmatch(r"TrueNAS[-_][A-Za-z0-9._+-]{1,100}", version):
+            raise ValueError("workstation target cannot be minted from TrueNAS")
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "name=litellm",
+             "--filter", "status=running", "--format", "{{.Names}}"],
+            capture_output=True, check=False, timeout=6,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError("cannot attest Workstation LiteLLM container") from None
+    if result.returncode or result.stderr or len(result.stdout) > 2048:
+        raise ValueError("cannot attest Workstation LiteLLM container")
+    names = result.stdout.decode("ascii", errors="replace").splitlines()
+    if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name)
+           for name in names):
+        raise ValueError("unexpected Docker discovery output")
+    if names.count("litellm-litellm-1") != 1 or "litellm" in names:
+        raise ValueError("Workstation LiteLLM container not verified")
+
+
+def valid_admin_credential(value: str) -> bool:
+    """Validate safe HTTP header transport, never infer auth from a sk- prefix."""
+    return (bool(value) and bool(value.strip()) and len(value) <= 4096
+            and not value.startswith("Bearer ")
+            and not any(ch in value for ch in (chr(13), chr(10), chr(0))))
+
+
+def require_absent_key_alias(endpoint: str, alias: str, master: str) -> None:
+    """Read-only management auth + duplicate guard before POST /key/generate.
+
+    Never print or persist the admin list response. Ambiguity blocks writes.
+    """
+    query = urlencode({
+        "key_alias": alias, "return_full_object": "true",
+        "size": "20", "page": "1",
+    })
+    url = endpoint + "/key/list?" + query
+    request = Request(url, method="GET", headers={
+        "Accept": "application/json",
+        "Authorization": "Bearer " + master,
+    })
+    with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=8) as response:
+        if response.status != 200 or response.geturl() != url:
+            raise ValueError("admin listing transport not verified")
+        raw = response.read(262144 + 1)
+        if len(raw) > 262144:
+            raise ValueError("admin listing response oversized")
+        data = json.loads(raw)
+    if not isinstance(data, dict) or not isinstance(data.get("keys"), list):
+        raise ValueError("admin listing schema unverified")
+    keys = data["keys"]
+    if (len(keys) > 20 or
+            any(not isinstance(item, dict) for item in keys)):
+        raise ValueError("admin listing schema unverified")
+    if any(item.get("key_alias") == alias for item in keys):
+        raise ValueError("alias exists: refusing duplicate generation")
+    # Only exact-alias query with explicit total_count=0 proves absence.
+    if keys or data.get("total_count") != 0:
+        raise ValueError("alias absence not proven")
+
+
+def provision(policy: dict, target: str, output: Path, *,
+              endpoint_override: str | None = None) -> None:
     """Reserve the secret destination before calling /key/generate."""
     entry = policy["keys"][target]
+    endpoint = endpoint_override or entry["endpoint"]
+    if endpoint not in ("http://127.0.0.1:4000", "http://127.0.0.1:14000"):
+        raise ValueError("proxy management endpoint must remain loopback")
     master = os.getenv(entry["master_env"], "")
-    if not master.startswith("sk-"):
-        raise ValueError("dedicated proxy administrator secret missing")
+    if not valid_admin_credential(master):
+        raise ValueError("dedicated proxy administrator credential unavailable")
     if os.geteuid() == 0:
-        raise ValueError("must run as the unprivileged workstation operator")
+        raise ValueError("must run as the unprivileged operator on the selected host")
     verify_directory(output.parent)
     output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     verify_directory(output.parent)
+    # Do not POST unless the proxy authenticates this admin and certifies
+    # the scoped alias is absent in its own database.
+    require_absent_key_alias(endpoint, entry["key_alias"], master)
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(output, flags, 0o600)
     created = False
     try:
         request = Request(
-            entry["endpoint"] + "/key/generate",
+            endpoint + "/key/generate",
             method="POST",
             headers={"Authorization": "Bearer " + master,
                      "Content-Type": "application/json"},
             data=json.dumps(payload(policy, target)).encode(),
         )
         # No redirect to a non-loopback URL and no token in command arguments.
-        # HTTP loopback is intentional; TrueNAS must be reached via SSH.
-        with build_opener(NoRedirect()).open(request, timeout=15) as response:
-            if response.geturl() != entry["endpoint"] + "/key/generate":
+        # HTTP loopback only; a TrueNAS tunnel or verified native host is required.
+        with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=15) as response:
+            if response.geturl() != endpoint + "/key/generate":
                 raise ValueError("key-generation endpoint redirected")
             result = json.load(response)
         key = result.get("key") if isinstance(result, dict) else None
@@ -132,15 +231,28 @@ def provision(policy: dict, target: str, output: Path) -> None:
             output.unlink(missing_ok=True)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
     modes.add_argument("--apply", action="store_true")
     parser.add_argument("--target", choices=TARGETS, required=True)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--native-truenas", action="store_true",
+        help="on TrueNAS only: use the native proxy on 127.0.0.1:4000 "
+             "instead of the workstation SSH tunnel on 127.0.0.1:14000",
+    )
+    args = parser.parse_args(argv)
     try:
         policy = load_policy()
+        endpoint_override = None
+        if args.native_truenas:
+            if args.target != "truenas":
+                raise ValueError("native TrueNAS mode cannot issue workstation keys")
+            require_native_truenas()
+            endpoint_override = "http://127.0.0.1:4000"
+        if args.target == "workstation" and args.apply:
+            require_workstation_litellm()
         output = key_file(args.target)
         verify_directory(output.parent)
         if output.is_symlink():
@@ -156,7 +268,7 @@ def main() -> int:
             print("lifetime_budget_usd=8 requested_ceiling_eur=10 reset=never")
             print("configuration_only=true network_calls=0")
             return 0
-        provision(policy, args.target, output)
+        provision(policy, args.target, output, endpoint_override=endpoint_override)
         print(f"status=created target={args.target} model={policy['keys'][args.target]['models'][0]}")
         print("key_location=private_operator_file mode=0600; key_value=suppressed")
         print("NEXT: transfer to Vaultwarden; verify /key/info, database and model allowlist")

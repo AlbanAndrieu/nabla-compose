@@ -1,0 +1,963 @@
+# Workstation split-DNS — référence inter-dépôts et reprise rapide
+
+> **Architecture canonique et runbook opérationnel :**
+> [ansible-workstation/docs/homelab-split-dns-architecture.md](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-architecture.md).
+> **Répartition :** Ansible gère le profil `Wired eno1` et le dispatcher ;
+> Compose gère les sondes et la réception.
+>
+> **État retenu — 28/10 :** dispatcher **installé**,
+> `nta_restored_by_event=PASS`, `diagnosis=PASS_REAPPLY_PERSISTENCE`
+> sur un vrai événement NetworkManager `reapply`.
+> Le dernier contrôle read-only est
+> `lan_profile=MATCH`, `dispatcher=ROOT_EXECUTABLE`,
+> `link_nta=EXPECTED_ONLY`, `private_dns=PASS`,
+> `public_dnssec=AUTHENTICATED`, `mode=READ_ONLY`.
+> **Reste à recevoir : vérification après prochain reboot planifié.**
+> Les sections ci-dessous retraçant les échecs et états « non installé »
+> sont **historiques** et ne décrivent pas le statut courant.
+
+
+## Réception définitive de l'événement NetworkManager — 28 octobre 2026
+
+**État actuel : INSTALLÉ + RÉAPPLICATION NTA CONFIRMÉE.**
+Preuves opérateur sur `~/w/nabla-compose` :
+
+- `just workstation-dnssec-dispatcher-test` :
+  **17/17 tests hors ligne PASS en 0,016 s** ;
+- premier `just workstation-dnssec-dispatcher-check` :
+  `lan_profile=MATCH`,
+  `dispatcher=ROOT_EXECUTABLE`,
+  `link_nta=EXPECTED_ONLY`,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED` ;
+- `just workstation-dnssec-dispatcher-exercise` :
+  `private_nta_temporarily_cleared=true`,
+  `nm_reapply=PASS`,
+  **`nta_restored_by_event=PASS`**,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED`,
+  **`diagnosis=PASS_REAPPLY_PERSISTENCE`** ;
+- deux contrôles read-only supplémentaires :
+  `lan_profile=MATCH`,
+  `dispatcher=ROOT_EXECUTABLE`,
+  `link_nta=EXPECTED_ONLY`,
+  `private_dns=PASS`,
+  `public_dnssec=AUTHENTICATED`.
+
+**Démontré :** le dispatcher persistant installé sur la
+workstation **recrée la NTA privée après une vraie
+réapplication NetworkManager** ; il ne s'agit plus
+seulement de constater une ancre manuelle antérieure.
+La validation DNSSEC publique de `cloudflare.com`
+est conservée. Ni pfSense, ni Unbound, ni la politique
+DNSSEC globale n'ont été modifiés.
+
+**Seule vérification restante pour la persistance
+inter-reboot :** après le **prochain reboot contrôlé**,
+lancer **uniquement en lecture seule** :
+
+```bash
+cd ~/w/nabla-compose
+just workstation-dnssec-dispatcher-check
+```
+
+Attendu :
+`lan_profile=MATCH`,
+`dispatcher=ROOT_EXECUTABLE`,
+`link_nta=EXPECTED_ONLY`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`.
+Ne pas relancer `--exercise` pour cette étape,
+et ne pas redémarrer uniquement pour cette preuve.
+Une validation au boot n'est **pas encore disponible**.
+
+La latence NSS glibc antérieure
+(`nss_default=A_CONFIRMED (4,8s)`) reste
+à surveiller séparément de la réparation
+du DNSSEC privé ; idem pour les journaux
+DNSSEC publics `no-signature` historiques.
+
+---
+
+
+
+## Réception installation Dispatcher + test d'événement contrôlé — 28 octobre
+
+L'opérateur a installé le dispatcher depuis le bon
+worktree de [la PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+`ansible-playbook ... playbooks/homelab-dns.yml --tags dns`
+→ **ok=12, changed=1, failed=0, skipped=9**.
+La présence du fichier exécutable root-owned a été
+confirmée par `sudo test -x`.
+
+**Résultats DNS après l'installation :**
+`resolvectl nta eno1` contient
+`int.albandrieu.com` ; DefectDojo privé
+`172.17.0.24` résout en **25,3 ms** ;
+`cloudflare.com` public résout en **56,2 ms**
+et est `Data is authenticated: yes`.
+Ces résultats valident l'installation et les
+résolutions, pas encore le déclenchement réel
+du dispatcher lors d'un événement `reapply`
+ni la restauration après reboot.
+
+### Réception post-installation conservant DNSSEC public
+
+Le nouveau script
+`scripts/workstation/accept-private-nta-dispatcher.py`
+a trois recettes Just, aucune CI GitHub :
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-dispatcher-test
+just workstation-dnssec-dispatcher-check
+just workstation-dnssec-dispatcher-exercise
+just workstation-dnssec-dispatcher-check
+```
+
+Les **17 nouveaux tests offline** de l'acceptation
+(autorisation explicite, propriétaire root et
+mode du script, mauvais profil, NTA étrangère,
+réapplication et rollback sûr, DNSSEC public)
+sont **écrits, pas encore exécutés sur le poste**.
+
+`-check` est strictement en lecture seule.
+`-exercise` est une opération **explicite** exécutée
+en root. Elle exige que `eno1` appartienne au profil
+`Wired eno1`, que le DNS soit uniquement pfSense
+`172.17.0.1` et que `~int.albandrieu.com`
+soit présent. Elle refuse une NTA manquante
+ou supplémentaire et exige un dispatcher
+`root:root` exécutable et non accessible
+à un groupe ou aux autres.
+Elle vide **temporairement** la seule liste
+NTA connue de `eno1`, appelle
+`nmcli device reapply eno1`, puis attend
+la restauration de `int.albandrieu.com`.
+Si l'événement ne la restaure pas,
+le script tente un **rollback borné** :
+il réapplique uniquement la NTA privée
+initiale si le lien reste conforme, et
+ne touche jamais à d'autres NTA.
+Un reapply peut perturber brièvement
+la connectivité du LAN : ne pas lancer
+durant un accès réseau critique.
+
+Critères :
+`nta_restored_by_event=PASS`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`,
+`diagnosis=PASS_REAPPLY_PERSISTENCE`.
+Si ces états ne sont pas présents,
+conserver le chantier ouvert et
+recueillir les journaux du service
+`NetworkManager-dispatcher` plutôt
+que de désactiver DNSSEC globalement.
+La référence officielle NetworkManager
+reconnaît l'événement `reapply` et fournit
+`CONNECTION_ID` au dispatcher.
+
+Le test **post-reboot** reste distinct :
+au prochain redémarrage contrôlé,
+`just workstation-dnssec-dispatcher-check`
+doit réussir sans ajouter manuellement
+la NTA. Cela constituera la preuve
+de persistance définitive.
+
+
+
+## Réception de la gate Ansible — 28 octobre : PASS, déploiement toujours en attente
+
+La nouvelle preuve utilisateur vient du worktree
+`ansible-workstation` synchronisé sur le commit `d0b93e8` :
+
+- suite `test_homelab_dns_gate.py` **14/14 PASS** ;
+- `scripts/check_homelab_dns_gate.py --dry-run` :
+  garde DNS **8/8 PASS**, dispatcher **17/17 PASS** ;
+- liste de tâches DNS **PASS** (3 marqueurs attendus) ;
+- `--check --diff` **PASS** :
+  `ok=11 changed=1 failed=0 skipped=10`.
+  Une seule création est **prévue** : le dispatcher
+  `/etc/NetworkManager/dispatcher.d/90-nabla-private-dnssec-nta`.
+  **Aucun apply effectué.**
+- Avertissement interpréteur Python `3.14` non bloquant.
+
+**Conclusion :** 39/39 tests offline et le vrai
+précontrôle Ansible sont désormais reçus.
+La NTA runtime est validée (DefectDojo privé sans bypass,
+DNSSEC public authentifié sur `cloudflare.com`).
+La NTA persistante par dispatcher
+**n'est pas installée et le reboot n'est pas testé**.
+Ne pas confondre `changed=1` en `--check`
+avec une installation réalisée.
+
+Le playbook ciblé est `playbooks/homelab-dns.yml`
+dans [Ansible PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+La commande d'application et le rollback sont documentés
+dans le [runbook Ansible](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-recovery.md).
+La prochaine étape requiert une **action explicite de déploiement**,
+suivie de `resolvectl nta eno1`, vérification A privée
+et DNSSEC public, puis test de réactivation/reboot contrôlé.
+
+
+
+Mise à jour : 27 octobre 2026. **Source d'autorité de la persistance :**
+[ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation),
+[PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) (Draft).
+**nabla-compose possède les diagnostics et runbooks homelab**, pas le
+provisionnement de la workstation. Les agents doivent d'abord lire :
+
+- [Tâches de split-DNS](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/tasks/network_split_dns.yml)
+- [Configuration par défaut](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/defaults/main.yml)
+- [Gestion des unités hide-location](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/tasks/services.yml)
+- [Runbook de reprise Ansible](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-recovery.md)
+
+## Topologie et propriété
+
+    workstation eno1 (172.17.0.57)
+      NetworkManager profile "Wired eno1" [PERSISTANT]
+        ipv4.dns=172.17.0.1
+        ipv4.ignore-auto-dns=yes
+        ipv4.dns-search=~int.albandrieu.com
+      systemd-resolved [RUNTIME]
+        /etc/resolv.conf -> /run/systemd/resolve/stub-resolv.conf
+          pfSense Unbound 172.17.0.1:53 (UDP/TCP)
+            DNS privé -> 172.17.0.24 (Pi-hole/TrueNAS)
+              defectdojo.int.albandrieu.com -> 172.17.0.24
+                TrueNAS Traefik 443 -> DefectDojo
+
+Le LAN split-DNS n'utilise ni pfSense DNS Forwarder (dnsmasq),
+ni DNS public Cloudflare, ni HAProxy WAN. Ne jamais publier les
+noms .int à l'extérieur. Les commandes resolvectl dns/domain
+ne persistent pas les valeurs dans NetworkManager.
+Ne pas éditer /etc/resolv.conf ni les fragments historiques
+/etc/resolvconf/resolv.conf.d/head et base.
+
+## Incidents réellement observés
+
+Le 27/10, des journaux sudo ont **prouvé** que
+hide-location.service, relancé périodiquement par son timer,
+exécutait resolvectl dns eno1 9.9.9.9 149.112.112.112 entre
+21:21 et 21:34 CET. L'opérateur a désactivé les deux unités :
+is-enabled=disabled/disabled, 0 timers. Il a rétabli 172.17.0.1
+et ~int.albandrieu.com, confirmé la résolution NSS et l'interface
+DefectDojo **opérationnelle dans Chrome**. La suite Ansible 7/7
+PASS a été exécutée sur la workstation.
+
+Un reapply NetworkManager a ensuite réussi ; resolvectl et getent
+retournaient l'adresse privée correcte. L'exécution de la recette
+Just depuis le worktree ansible-workstation a produit
+« error: no justfile found » : **mauvais répertoire de travail**,
+pas un échec DNS.
+
+**Incident restant, distinct du drift Quad9 :** une requête directe
+dig UDP vers 172.17.0.1:53 a expiré après trois secondes, tandis
+que resolvectl query -4 a répondu en 11,5065 s. La réponse du
+résolveur système n'atteste pas le fonctionnement de UDP/53
+direct sur cet essai. Une seule expiration ne démontre pas une
+panne pfSense globale. Comparer DNS UDP/TCP et capture temporelle
+avant d'incriminer Unbound, le filtrage ou une surcharge.
+
+## Recettes de diagnostic et réparation
+
+Toujours commencer **dans nabla-compose** :
+
+    cd ~/w/nabla-compose
+    just workstation-split-dns-check
+    just workstation-split-dns-test
+    just defectdojo-workstation-dns-check
+
+Le premier utilise scripts/workstation/homelab-split-dns.py --check,
+en lecture seule : il compare profil NetworkManager, domaine route-only
+persistant, DNS effectif de systemd-resolved, getent/NSS,
+réponse directe de pfSense en UDP **et** TCP, statut des
+unités hide-location. Les sorties résument les états des couches et
+ne divulguent aucun secret. Sortie 0 uniquement si toutes les
+couches sont confirmées ; sortie 1 sinon.
+
+Réparation LOCALE et EXPLICITE (jamais en mode check) :
+
+    cd ~/w/nabla-compose
+    just workstation-split-dns-repair
+
+Équivalent sans Just :
+
+    python3 scripts/workstation/homelab-split-dns.py --apply --acknowledge I_APPROVE_WORKSTATION_SPLIT_DNS_REPAIR
+
+Le mode apply :
+- refuse un profil actif autre que Wired eno1, un DNS NetworkManager
+  différent de 172.17.0.1, ou une configuration DHCP DNS inattendue ;
+- refuse si pfSense UDP/53 ne confirme pas l'adresse A privée attendue ;
+- désactive service ET timer hide-location lorsqu'ils sont enabled ;
+- ajoute seulement le domaine route-only absent, avec le modificateur
+  additif +ipv4.dns-search ; conserve tous les autres domaines ;
+- exécute nmcli device reapply eno1 puis flush-caches et relance check ;
+- ne redémarre ni NetworkManager, ni pfSense, ni TrueNAS et
+  n'ajoute pas d'entrée /etc/hosts.
+
+Avant un reboot ou un changement de réseau, contrôler le profil
+et le DNS effectif. La configuration durable est celle d'Ansible PR #15,
+son activation et sa fusion restent séparées de ce runbook.
+
+## Branche de diagnostic pfSense UDP/53
+
+Si le script indique pfsense_udp=NO_RESPONSE, ne pas masquer
+l'incident par un DNS public ou une correction de fichier hosts.
+Exécuter depuis la **même workstation** :
+
+    dig +time=3 +tries=1 @172.17.0.1 defectdojo.int.albandrieu.com A +stats
+    dig +tcp +time=3 +tries=1 @172.17.0.1 defectdojo.int.albandrieu.com A +stats
+    time resolvectl query -4 defectdojo.int.albandrieu.com
+
+- UDP KO / TCP OK : suspecter le chemin UDP/53 (transit ou listener).
+- UDP KO / TCP KO : chemin direct DNS pfSense NON CONFIRMÉ ; lire Unbound,
+  règles réseau, charge et journaux contemporains.
+- UDP OK / NSS KO : examiner NetworkManager, resolved et nsswitch.
+- DNS confirmé mais requêtes lentes : collecter des séries horodatées ;
+  ne pas déclarer pfSense DOWN sur une mesure isolée.
+
+## Réception opérateur — 27 octobre, 22:24 CET
+
+Une nouvelle exécution **sur la workstation**, depuis
+`cd ~/w/nabla-compose`, confirme les points suivants :
+
+- `just workstation-split-dns-test` : **16/16 PASS**
+  (deux exécutions successives, sans pytest).
+- Avant application : profil NM `MATCH`, route
+  `PERSISTED`, résolveur `MATCH`, domaine `ROUTED`,
+  pfSense UDP et TCP `A_CONFIRMED (0.0s)`, mais
+  **`client_nss=UNRESOLVED (14.0s)`**. La classification
+  `CLIENT_PRIVATE_SPLIT_DNS_PATH` / exit 1 est correcte.
+- L'opérateur a exécuté explicitement
+  `just workstation-split-dns-repair`. L'outil a réappliqué
+  le profil local, vidé le cache et contrôlé le résultat :
+  **`client_nss=A_CONFIRMED (2.0s)`, `diagnosis=PASS`**.
+- Le `just workstation-split-dns-check` suivant : **PASS**,
+  `client_nss=A_CONFIRMED (5.2s)` et avertissement
+  **`WARN: NSS query slow despite success`**.
+- Les unités `hide-location.timer` et `hide-location.service`
+  restent `disabled`. Le profil `~int.albandrieu.com`
+  est maintenant `PERSISTED`.
+- Contrôle direct pfSense `dig +tcp @172.17.0.1
+  defectdojo.int.albandrieu.com A` à **22:24:07 CET** :
+  **NOERROR**, réponse A `172.17.0.24`, **27 ms**.
+  Les vérifications internes de l'outil classent aussi UDP
+  et TCP `A_CONFIRMED` lors de ces exécutions.
+
+**Bilan :** la réparation locale est acceptée **au runtime** ;
+la configuration est écrite dans NetworkManager et non
+`resolvconf`. Le précédent timeout UDP isolé n'est pas
+reproduit durant ce contrôle ; ne pas le classer « résolu
+définitivement » ni « pfSense DOWN ». Le **délai NSS
+variable** (14 s KO, 2 s OK, 5,2 s OK) reste un sujet de
+performance/intermittence : décomposer avec des mesures
+contemporaines, mais ne pas inverser les statuts DNS qui
+ont effectivement répondu.
+
+### Diagnostic read-only si la lenteur NSS réapparaît
+
+Depuis la workstation, sans nouveau `--apply` tant que
+la configuration continue de répondre :
+
+```bash
+cd ~/w/nabla-compose
+just workstation-split-dns-check
+
+# Comparer directement au même instant les couches DNS et NSS :
+dig +time=3 +tries=1 @172.17.0.1 \
+  defectdojo.int.albandrieu.com A +stats
+dig +tcp +time=3 +tries=1 @172.17.0.1 \
+  defectdojo.int.albandrieu.com A +stats
+time resolvectl query -4 defectdojo.int.albandrieu.com
+time getent ahostsv4 defectdojo.int.albandrieu.com
+
+# Inspecter les DNS et domaines effectivement associés au lien.
+resolvectl status eno1
+grep '^hosts:' /etc/nsswitch.conf
+readlink -f /etc/resolv.conf
+```
+
+**Interprétation :** direct pfSense rapide, mais
+`resolvectl` lent → examiner le routage DNS du système et
+les requêtes répétées. `resolvectl` rapide mais
+`getent` lent → examiner NSS. Si les trois chemins
+ralentissent ou expirent ensemble, rechercher des évènements
+réseau/pfSense du même instant.
+
+**Acceptation persistante finale encore non prouvée :**
+vérifier après un redémarrage contrôlé de la workstation
+que NetworkManager applique `172.17.0.1` et
+`~int.albandrieu.com`, que `hide-location` reste
+désactivé et que `getent`/Chrome restent opérationnels.
+
+## Régression NSS isolée — 27 octobre, après 22:24 CET
+
+L'opérateur a refait le contrôle sur la workstation :
+
+- `just workstation-split-dns-check` :
+  `nm_profile=MATCH`, `private_route=PERSISTED`,
+  `resolved_link=MATCH`, `resolved_domain=ROUTED`,
+  DNS pfSense UDP/TCP `A_CONFIRMED (0.0s)`.
+  Mais `client_nss=A_CONFIRMED (12.4s)` : **DNS correct,
+  NSS très lent** malgré `diagnosis=PASS`.
+- `time resolvectl query -4 defectdojo.int.albandrieu.com` :
+  **0,149 s**, réponse A `172.17.0.24` sur `eno1`.
+- `time getent ahostsv4 defectdojo.int.albandrieu.com` :
+  **25,030 s**, **aucune réponse imprimée**.
+- `resolvectl status eno1` : DNS `172.17.0.1`,
+  domaine `~int.albandrieu.com`, `DNSOverTLS=opportunistic`,
+  `DNSSEC=yes/supported`, `DefaultRoute=yes`.
+- Ligne `hosts:` antérieurement relevée :
+  `files mdns4_minimal [NOTFOUND=return] dns mymachines`.
+- `/etc/resolv.conf` est un lien vers le stub généré
+  `/run/systemd/resolve/stub-resolv.conf`.
+
+**Interprétation :** la résolution directe et la couche
+`systemd-resolved` native répondent vite à cet instant,
+tandis que le chemin `getent`/glibc NSS peut atteindre
+25 s sans réponse. Il est **incorrect** d'attribuer cette
+mesure à pfSense ou de considérer l'ensemble des fonctions
+DNS défaillantes. Aucun changement de DNS n'est justifié
+tant que le split-DNS de NetworkManager est intact.
+
+### Diagnostic différentiel en une commande (lecture seule)
+
+```bash
+cd ~/w/nabla-compose
+just workstation-nss-path-test
+just workstation-nss-path
+```
+
+Source : `scripts/workstation/diagnose-nss-resolution.py`.
+Cinq chemins distincts, chacun avec un timeout individuel,
+sans modifier de fichier de configuration :
+
+1. `resolvectl query -4` : API native `systemd-resolved`.
+2. `dig @127.0.0.53` : stub DNS UDP local.
+3. `getent -s hosts:dns ahostsv4` : forcer le module
+   NSS `nss-dns`, sans les autres modules de `hosts:`.
+4. `getent -s hosts:resolve ahostsv4` : forcer
+   `nss-resolve` (optionnel et potentiellement absent).
+5. `getent ahostsv4` : chaîne glibc `hosts:` réelle.
+
+La commande classe entre
+`NSS_DEFAULT_CHAIN_SLOW_OR_BROKEN`,
+`RESOLVED_STUB_UDP_SLOW_OR_BROKEN`,
+`NSS_DNS_PATH_SLOW_OR_BROKEN`,
+`RESOLVED_NATIVE_SLOW_OR_UNVERIFIED`, ou `PASS`.
+Un module `nss-resolve` absent **ne suffit pas** pour
+déclarer une panne. La classification se fonde
+d'abord sur le chemin NSS par défaut et la comparaison
+avec le résolveur natif.
+
+**Attention :** `getent -s` impose un module NSS
+uniquement pour cette commande. Il ne modifie pas
+`/etc/nsswitch.conf`. Ne pas ajouter `resolve`
+ni retirer `mdns4_minimal` de `hosts:` tant
+que les résultats des modules forcés ne démontrent
+pas où le délai apparaît. Si `nss-resolve` est
+disponible et plus rapide, préparer une correction
+déclarative et réversible **dans ansible-workstation**,
+avec sauvegarde des valeurs d'origine.
+
+**Critère de clôture :** `just workstation-nss-path`
+répond rapidement via la chaîne NSS par défaut,
+sur plusieurs essais séparés et après redémarrage.
+Même quand le diagnostic global DNS affiche `PASS`,
+un avertissement `NSS query slow` reste un problème
+de performance non résolu.
+
+## Incident simultané resolved/stub/NSS — 27 octobre, 22:51 CET
+
+Nouvelle exécution opérateur des recettes NSS :
+
+- `just workstation-nss-path-test` : **11/11 PASS**, version
+  initiale du contrat différentiel `v1` ; les tests ajoutés
+  depuis restent **à exécuter**.
+- `resolved_native=TIMEOUT (6.0s)` : la voie native
+  `systemd-resolved` ne répond pas dans le délai imparti.
+- `stub_udp=NO_ANSWER (2.0s)` : **v1** utilisait
+  `dig +short` et ne distinguait pas `SERVFAIL`,
+  `NXDOMAIN`, `NOERROR` sans A et absence de réponse DNS.
+- `nss_dns=A_CONFIRMED (3.4s)` : la résolution glibc
+  `nss-dns` forcée réussit, mais lentement.
+- `nss_resolve=NO_ANSWER (0.0s)` : le module forcé
+  n'a pas répondu ; son installation/disponibilité n'est
+  **pas confirmée**.
+- `nss_default=TIMEOUT (6.0s)` : la chaîne `hosts:`
+  normale échoue également.
+
+**Conclusion :** la précédente hypothèse « défaut NSS seul »
+est insuffisante : `systemd-resolved` natif a aussi expiré
+sur ce relevé. Il est possible que plusieurs couches soient
+affectées ou que leur état change entre les probes
+séquentielles. Aucun résultat ne justifie de modifier
+`nsswitch.conf`, la configuration DNSSEC, DNS-over-TLS,
+ou pfSense à l'aveugle.
+
+### Correctif de diagnostic, sans mutation
+
+`scripts/workstation/diagnose-nss-resolution.py` **v2** :
+
+- analyse la réponse détaillée du stub DNS avec
+  `dig +nocmd +noall +comments +answer` afin de
+  distinguer `RCODE_SERVFAIL`, `RCODE_NXDOMAIN`,
+  `RCODE_REFUSED`, `NO_A_ANSWER`,
+  `NO_DNS_RESPONSE` et `TIMEOUT` ;
+- conserve **tous les signaux individuels** même lorsque
+  la panne native resolved est la première classification ;
+- propose `--samples 2 --timeout 3`, sondes séquentielles
+  avec délais bornés, pour repérer un symptôme intermittent ;
+- interdit `PASS` si le stub ou `nss-dns` forcé est
+  défaillant malgré une réponse positive de `getent` par défaut ;
+- ne modifie aucun service ni aucune configuration.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-nss-path-test
+just workstation-nss-path-samples
+
+# Observations complémentaires en lecture seule :
+resolvectl status eno1
+resolvectl statistics
+systemctl status systemd-resolved --no-pager
+journalctl -u systemd-resolved --since '-15 min' --no-pager
+```
+
+**Piste à vérifier, pas une attribution :** le relevé
+`resolvectl status eno1` affichait
+`DNSOverTLS=opportunistic` et `DNSSEC=yes/supported`.
+Selon [la documentation systemd](https://www.freedesktop.org/software/systemd/man/resolved.conf.html),
+le mode opportuniste tente le transport DNS-over-TLS et
+revient à une autre voie si le serveur ne le supporte pas.
+Ce mécanisme peut générer une latence de négociation,
+mais aucun journal ne confirme que c'est la cause ici.
+**Ne pas désactiver DNSSEC ou DoT pour tester à l'aveugle.**
+Attendre les codes de réponse du stub et les événements
+contemporains de `systemd-resolved`.
+
+## P0 — Validation DNSSEC de la workstation, preuve du 27/10 à 23:01 CET
+
+**Preuve fournie par l'opérateur :** `resolvectl status eno1`
+continue d'indiquer `DNS 172.17.0.1`,
+`~int.albandrieu.com`, `DNSSEC=yes/supported` et
+`DNSOverTLS=opportunistic`. Le service
+`systemd-resolved` est en cours d'exécution depuis
+le 24/10 (pas un crash soudain). `resolvectl statistics`
+affiche **716 115 transactions**, **5 077 timeouts**,
+**803 failure responses** et **46 468 verdicts DNSSEC
+`Bogus`**, compteurs **cumulatifs** depuis le
+démarrage du service.
+
+Le journal `systemd-resolved` fourni contient
+**1 141 événements `DNSSEC validation failed: no-signature`**
+sur la période visible (notamment 22:47–23:01 CET) :
+`github.com`, `google.com`, `chatgpt.com`,
+`telegram.org`, `dropbox.com`, ainsi que
+des recherches `com IN DS` et `org IN DS`.
+C'est une **preuve d'échec actif de la validation DNSSEC
+sur de nombreux domaines publics**, pas seulement
+`defectdojo.int.albandrieu.com`.
+C'est compatible avec les `TIMEOUT` intermittents
+de `resolved_native` et `getent`, sans prouver
+quel maillon élimine les signatures ou provoque
+la latence. Unbound/pfSense et les éventuels
+intermédiaires ne sont pas reconnus responsables
+à ce stade.
+
+**Règle de diagnostic :** ne pas remplacer
+`172.17.0.1` par un DNS public, ne pas éditer
+`/etc/resolv.conf`, ne pas modifier `nsswitch.conf`
+et ne pas désactiver DNSSEC/DNS-over-TLS globalement
+sans vérifier les signatures DNSSEC côté pfSense.
+
+### Test différentiel DNSSEC en lecture seule
+
+Le script `scripts/workstation/diagnose-dnssec-chain.py`
+compare dans deux cycles bornés :
+
+- `resolvectl query -4 defectdojo.int.albandrieu.com`
+  avec et sans `--validate=no` ;
+- la résolution `cloudflare.com` (domaine public
+  DNSSEC-signé) avec et sans `--validate=no` ;
+- `dig @172.17.0.1 cloudflare.com A +dnssec`
+  et `dig @172.17.0.1 com DS +dnssec` pour vérifier
+  les réponses `RRSIG` ;
+- `dig @172.17.0.1 dnssec-failed.org A +dnssec`
+  pour observer `SERVFAIL` sur une zone volontairement
+  invalide (indice de validation amont, pas preuve
+  suffisante à lui seul).
+
+`--validate=no` ne désactive DNSSEC **que sur la
+requête contrôlée** ; ce n'est pas une reconfiguration
+du lien ni du service `systemd-resolved`.
+Un contraste répété « validated KO / bypass OK »
+désigne le chemin de validation locale comme
+**suspect**, mais ne détermine pas à lui seul
+pourquoi les signatures sont absentes.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-test
+just workstation-dnssec-check
+```
+
+Les **13 tests offline** ont été ajoutés mais sont
+**à exécuter sur la workstation** ; ne pas
+les présenter comme PASS avant réception.
+`workstation-dnssec-check` n'exécute ni
+`sudo`, ni mutation, ni reset de statistiques,
+ni redémarrage de `systemd-resolved`.
+
+**Interprétation après réception :**
+
+- Upstream pfSense `ANSWER` sans `RRSIG` alors
+  que l'en-tête demande DNSSEC (`DO=1`) :
+  examiner la configuration Unbound (forwarder,
+  filtrage des réponses, signatures transmises).
+- `pfsense_dnssec_bogus=RCODE_SERVFAIL` :
+  cohérent avec une validation en amont, mais ne
+  garantit pas que chaque réponse DNSSEC soit
+  correctement transmise au poste.
+- `resolved` validé KO et `--validate=no` OK
+  dans les deux cycles : validation locale
+  **fortement suspecte**.
+- Les deux modes KO : problème non isolé à DNSSEC ;
+  rechercher les timeouts/transactions et journaux
+  contemporains.
+- Tous les contrôles PASS : incident intermittent
+  non reproduit à cet instant, continuer la
+  surveillance sans modifier la configuration.
+
+**Source technique :**
+[Ubuntu DNSSEC troubleshooting](https://ubuntu.com/server/docs/how-to/networking/dnssec-troubleshooting/),
+[resolvectl --validate](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
+et [resolved.conf DNSSEC](https://www.freedesktop.org/software/systemd/man/latest/resolved.conf.html).
+La **correction persistante**, si justifiée
+par une mesure comparée, doit être préparée
+dans [ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+avec rollback et validation du comportement
+DNSSEC de pfSense avant toute réduction de
+l'authentification.
+
+## 28 octobre — Gate Ansible bloque sur `import_role: ../`, correction ciblée
+
+Nouvelles preuves fournies par l'opérateur depuis un
+worktree `ansible-workstation` détaché au commit
+`f71c2f9` :
+
+- `test_homelab_dns_gate.py` : **13/13 PASS** ;
+- `scripts/check_homelab_dns_gate.py --dry-run` :
+  garde split-DNS **8/8 PASS** et tests dispatcher **17/17 PASS** ;
+- **FAIL** avant toute commande `--check` :
+  `Could not find specified file in role, its 'tasks/' is not usable`.
+  L'ancien playbook ciblé utilisait
+  `ansible.builtin.import_role: name: ../` ;
+  la sélection de tâches était donc impossible ;
+- `direnv .envrc is blocked` indique seulement
+  qu'un nouveau worktree nécessite une approbation
+  indépendante pour charger ce fichier ; **pas besoin
+  de `direnv allow` pour diagnostiquer Ansible**.
+
+La [PR Ansible #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+remplace l'import erroné par
+`ansible.builtin.import_tasks: ../tasks/network_split_dns.yml`,
+charge `vars_files: ../defaults/main.yml` et résout
+le `src` dispatcher pour un rôle complet ou un
+playbook ciblé. Les **14 tests de la gate**, dont
+le nouveau contrat de chemin, restent **à exécuter
+sur le HEAD corrigé**. Aucun déploiement réseau.
+
+Depuis le **même worktree déjà créé**, sans
+`git worktree add` supplémentaire :
+
+```bash
+git fetch origin fix/preserve-homelab-split-dns-20261027
+git merge --ff-only origin/fix/preserve-homelab-split-dns-20261027
+
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_gate.py' -v
+python3 scripts/check_homelab_dns_gate.py --dry-run
+```
+
+**Done de la gate uniquement** : 14/14 tests
+du script gate, 8/8 garde DNS, 17/17 dispatcher,
+`--list-tasks` mentionnant les tâches DNS et
+`--check --diff` avec zéro échec.
+**La NTA runtime fonctionne déjà mais le dispatcher
+n'est pas installé** et le statut post-reboot
+reste non vérifié.
+
+## Gate Ansible à zéro tâche : résultat invalide, corrigé dans le dépôt propriétaire
+
+Le 28/10, l'opérateur a tenté les commandes Ansible
+du playbook générique, mais `unittest discover` a rendu
+`Ran 0 tests`, `--list-tasks --tags dns` était vide,
+et `--check` n'a exécuté que `Gathering Facts` :
+**aucune validation DNS n'a eu lieu.**
+Ce log est compatible avec un mauvais répertoire,
+un checkout obsolète ou un sélecteur de tags erroné.
+Ne pas inférer une convergence à partir de `ok=1`
+ou `changed=0`.
+
+La [PR ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+contient maintenant :
+`playbooks/homelab-dns.yml` (import statique
+**uniquement** de `tasks/network_split_dns.yml`) ;
+`scripts/check_homelab_dns_gate.py` (vérification
+du dépôt, **8+17 tests découverts**, refus si zéro
+test, et liste des tâches DNS non vide) ;
+`tests/test_homelab_dns_gate.py` (13 cas,
+**non encore exécutés**).
+
+La commande sécurisée utilise un worktree Ansible
+dédié, depuis un checkout `ansible-workstation`
+correctement synchronisé :
+
+```bash
+cd /workspace/users/albandrieu30/ansible-workstation
+git fetch origin fix/preserve-homelab-split-dns-20261027
+WT="$(mktemp -d /tmp/ansible-dns-gate.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/preserve-homelab-split-dns-20261027
+cd "$WT"
+python3 -m unittest discover -s tests -p 'test_homelab_dns_gate.py' -v
+python3 scripts/check_homelab_dns_gate.py
+python3 scripts/check_homelab_dns_gate.py --dry-run
+```
+
+**Ces commandes n'installent pas le dispatcher**.
+Elles n'exécutent pas de `--apply` et ne modifient
+pas `systemd-resolved`, NetworkManager, pfSense
+ni TrueNAS. La NTA runtime privée est déjà
+opérationnelle ; ne pas la supprimer durant
+la réception du gate Ansible.
+
+## Réception complémentaire — dispatcher Ansible 17/17 PASS (28/10, 00:06 CET)
+
+La workstation a exécuté `python3 -m unittest discover -s tests
+-p 'test_homelab_dns_nta_dispatcher.py' -v` : **17 tests
+en 0,907 s, tous PASS**. Les cas positifs (`up`,
+`dhcp4-change`, `reapply`), négatifs (mauvaise interface,
+profil, DNS, domaine) et de rollback (ne retirer que l'ancre
+privée quand le profil change, préserver les NTA étrangères)
+sont tous validés **sur fixtures locales**.
+
+**La NTA runtime reste validée** : le DefectDojo privé
+a répondu sans `--validate=no` en **33,4 ms** et
+`cloudflare.com` avec DNSSEC authentifié en **43,1 ms**
+lors du contrôle antérieur.
+**La persistance par NetworkManager dispatcher n'a
+pas encore été appliquée**. Les 8 tests du contrat de
+split-DNS Ansible sur le HEAD récent restent à recevoir ;
+ne pas déclencher de reboot ni de changement DNS global.
+
+Prochaine commande, dans le dépôt
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15) :
+
+```bash
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_guard_contract.py' -v
+ansible-playbook playbooks/workstation.yml --list-tasks --tags dns \
+  -e workstation_split_dns_enabled=true \
+  -e workstation_split_dns_nta_dispatcher_enabled=true
+ansible-playbook playbooks/workstation.yml --check --diff --tags dns \
+  -e workstation_split_dns_enabled=true \
+  -e workstation_split_dns_nta_dispatcher_enabled=true
+```
+
+Le chemin d'exécution Ansible réel et le
+redémarrage/réapplication demeurent **NOT_VERIFIED**.
+Le `--check` ne doit ni écrire le dispatcher ni activer
+la NTA globale par fichier `.negative`.
+La roadmap et le runbook propriétaire Ansible portent
+les critères de fin et le rollback.
+
+## Réception NTA réussie — 27 octobre (workstation)
+
+L'opérateur a exécuté `just workstation-dnssec-nta-test` :
+**10/10 PASS**. Avant essai : `nta_state=EMPTY`,
+`validated_private=UNVERIFIED (5,0s)`.
+
+Après `just workstation-dnssec-nta-try` (action
+explicite) : `runtime_applied=true`, puis
+`validated_private=A_CONFIRMED (0,2s)`.
+La requête validée normale
+`resolvectl query -4 defectdojo.int.albandrieu.com`
+a répondu `172.17.0.24` en **33,4 ms** ;
+`getent ahostsv4` renvoie également l'A privé.
+La requête `resolvectl query -4 cloudflare.com`
+a répondu en **43,1 ms**, avec
+`Data is authenticated: yes`, confirmant
+DNSSEC pour le domaine public testé.
+
+`just workstation-nss-path` : **PASS**,
+`resolved_native`, `stub_udp`,
+`nss_dns` répondent immédiatement ;
+`nss_default=A_CONFIRMED (4,8s)` reste
+**trop lent**, séparément de DNSSEC privé.
+Le module `nss_resolve=NO_ANSWER` n'est pas
+concluant s'il n'est pas installé.
+
+**Conclusion :** la NTA runtime sur `eno1`
+résout le défaut privé reproductible et
+ne désactive pas DNSSEC pour `cloudflare.com`.
+Elle disparaîtra probablement lors d'une
+réinitialisation réseau/redémarrage,
+puisqu'elle n'a pas été persistée.
+
+### Persistance recommandée dans Ansible
+
+La [PR ansible-workstation #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+contient maintenant une alternative *par interface*
+au fichier `.negative` global :
+`files/networkmanager-homelab-nta-dispatcher.sh`,
+`tasks/network_dnssec_nta_dispatcher.yml`.
+La nouvelle option `workstation_split_dns_nta_dispatcher_enabled=false`
+est **désactivée par défaut**, avec rollback explicite
+`workstation_split_dns_nta_dispatcher_remove_enabled=false`.
+Le dispatcher agit seulement pour
+`Wired eno1` / `eno1`, DNS `172.17.0.1`
+et `~int.albandrieu.com`, événements
+`up`, `dhcp4-change`, `reapply`.
+Contrairement au fichier `.negative`, il ne
+touche pas aux NTA des autres interfaces/VPN.
+
+Pour réagir au prochain changement de profil :
+une fois seulement **après une application Ansible autorisée**,
+`sudo nmcli device reapply eno1`
+déclenche l'événement `reapply` (documenté).
+Puis vérifier `resolvectl nta eno1`,
+`getent` et `resolvectl query -4 cloudflare.com`.
+
+**À tester côté Ansible avant activation :**
+
+```bash
+cd /tmp/ansible-dns-pr15.TGvM0O
+git fetch origin fix/preserve-homelab-split-dns-20261027
+git merge --ff-only origin/fix/preserve-homelab-split-dns-20261027
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_guard_contract.py' -v
+python3 -m unittest discover -s tests \
+  -p 'test_homelab_dns_nta_dispatcher.py' -v
+```
+
+**Statut des nouveaux tests :** 17 contrats du dispatcher
+écrits, **non exécutés sur la workstation**.
+Le script et le rôle Ansible n'ont pas été appliqués.
+La dernière preuve DNSSEC publique est limitée au
+domaine `cloudflare.com` ; les anciens logs
+`no-signature` concernant d'autres domaines
+restent un chantier distinct.
+
+## 23:XX CET — Validation DNSSEC privée isolée, expérience NTA ciblée
+
+L'utilisateur a exécuté `just workstation-dnssec-test` :
+**13/13 PASS**. Runtime `just workstation-dnssec-check`
+deux cycles cohérents :
+
+| Sonde | Cycle 1 | Cycle 2 |
+|---|---|---|
+| `private_validated` | TIMEOUT 4 s | TIMEOUT 4 s |
+| `private_no_validation` | A_CONFIRMED 0 s | A_CONFIRMED 0 s |
+| `public_validated` | A_CONFIRMED 0 s | A_CONFIRMED 0 s |
+| `pfsense_signed_a` | ANSWER / RRSIG=yes / AD=yes | pareil |
+| `pfsense_parent_ds` | ANSWER / RRSIG=yes / AD=yes | pareil |
+| `pfsense_dnssec_bogus` | SERVFAIL | SERVFAIL |
+
+La différence répétée entre validation normale et
+`--validate=no` **sur DefectDojo privé** établit
+le chemin DNSSEC de cette zone comme cause probable
+des timeouts. Les signatures publiques DNSSEC reçues
+via pfSense invalident l'hypothèse simple « Unbound
+ne transmet aucune signature ». Les données n'attestent
+pas encore que les enregistrements de la zone privée
+sont effectivement dépourvus de RRSIG.
+
+**Correction privilégiée :** *Negative Trust Anchor* (NTA)
+`int.albandrieu.com` pour une zone privée non
+signée sous domaine public, au lieu de `DNSSEC=no`
+sur tous les noms. Source système :
+[resolvectl nta](https://www.freedesktop.org/software/systemd/man/latest/resolvectl.html)
+et [Negative Trust Anchors](https://www.freedesktop.org/software/systemd/man/latest/dnssec-trust-anchors.d.html).
+
+### Étape locale, opt-in et réversible
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just workstation-dnssec-nta-test
+
+# Inspection seulement ; exit 1 possible tant que DNSSEC privé expire
+just workstation-dnssec-nta-check || true
+
+# Action explicitement autorisée : NTA uniquement sur eno1.
+# Refuse si le profil n'est pas Wired eno1, DNS != 172.17.0.1,
+# zone route-only absente ou ancres NTA supplémentaires existantes.
+just workstation-dnssec-nta-try
+
+# Contrôler une requête validée sans --validate=no puis NSS/HTTPS.
+resolvectl query -4 defectdojo.int.albandrieu.com
+getent ahostsv4 defectdojo.int.albandrieu.com
+resolvectl query -4 cloudflare.com
+just workstation-nss-path
+just defectdojo-workstation-dns-check
+```
+
+**Rollback explicite, seulement si l'ancre du lien était
+initialement vide et qu'aucune autre ancre n'a été ajoutée :**
+
+```bash
+just workstation-dnssec-nta-rollback
+```
+
+Le retour en arrière efface la liste des NTA du lien
+uniquement si elle contient exactement `int.albandrieu.com`.
+Le script n'édite pas de fichier, ne modifie pas
+`DNSSEC=yes`, ne change pas DoT, ne redémarre
+ni pfSense ni `systemd-resolved`. Cette NTA **runtime
+n'est pas persistante** ; aucun succès au runtime
+n'est affirmé avant l'exécution opérateur.
+
+### Persistance Ansible, distincte du test runtime
+
+Propriétaire :
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15),
+`tasks/network_dnssec_nta.yml`.
+Le rôle possède deux flags séparés désactivés par défaut :
+`workstation_split_dns_persistent_nta_enabled=false`
+et `workstation_split_dns_persistent_nta_remove_enabled=false`.
+Il crée/supprime seulement le fichier
+`/etc/dnssec-trust-anchors.d/90-nabla-int-albandrieu.negative`
+avec le domaine `int.albandrieu.com`.
+Attention, **le fichier est limité à la zone DNS mais
+s'applique à tous les liens du poste**, contrairement
+à la NTA runtime de `eno1`. Ne l'activer qu'après
+validation de l'impact sur les VPN et autres interfaces.
+Le handler redémarre `systemd-resolved` uniquement
+si cette configuration change. Rollback explicite prévu.
+
+**Nouveaux tests :** `tests/test_recover_split_dns_nta.py`
+comporte **10 tests offline**, écrits mais non
+exécutés à ce stade. Ansible ajoute un huitième
+test de contrat NTA, également à recevoir.
+
+**Risque non clos :** les nombreux messages
+`DNSSEC validation failed: no-signature` sur
+des domaines **publics** ne sont pas nécessairement
+résolus par cette exception de zone privée.
+Observer séparément DNSSEC public et les compteurs
+`Bogus` sans remettre en cause les réponses
+DNSSEC publiques déjà confirmées.
+
+## Validation DONE
+
+Confirmer que hide-location est désactivé, que le profil NM
+persiste 172.17.0.1 et ~int.albandrieu.com après reapply puis
+reboot, que getent et Chrome résolvent les services privés, et que
+dig direct UDP **et** TCP n'expire pas. Si les timeouts UDP restent,
+ouvrir un chantier pfSense/Unbound **séparé** de la reprise Chrome.

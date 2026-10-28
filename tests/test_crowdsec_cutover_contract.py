@@ -120,6 +120,12 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             r"(?m)^\\s*(?:sudo\\s+)?service\\s+\\S+\\s+restart\\b",
         )
 
+    def test_central_last_pull_is_not_misreported_as_pfsense_origin(self) -> None:
+        text = DIAGNOSE.read_text(encoding="utf-8")
+        self.assertIn("crowdsec_bouncer_last_pull_provenance=NOT_VERIFIED", text)
+        self.assertIn("a credential preflight may set it", text)
+        self.assertIn("verify a post-cutover pfSense-origin pull", text)
+
     def test_deployer_is_scoped_fail_closed_and_never_mutates_pfsense(self) -> None:
         text = DEPLOY.read_text(encoding="utf-8")
 
@@ -180,7 +186,8 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
             "nc -z -w 3",
             "legacy local LAPI",
             'sub(/^[^:]*:[[:space:]]*/, "", line)',
-            'gsub(/^["\\\\047]|["\\\\047]$/, "", line)',
+            'single=sprintf("%c",39)',
+            'if (length(line) >= 2 && first == last',
         ):
             self.assertIn(expected, text)
 
@@ -194,6 +201,13 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertTrue(PFSENSE_VERIFY.stat().st_mode & stat.S_IXUSR)
         self.assertNotRegex(text, r"(?m)^\\s*(?:service|pfctl).*\\b(?:restart|start|add|delete)\\b")
         self.assertNotIn("cscli bouncers add", text)
+
+    def test_crowdsec_preflight_does_not_require_legacy_engine_stopped(self) -> None:
+        source = PFSENSE_VERIFY.read_text(encoding="utf-8")
+        self.assertIn('if [ "${mode}" = "--preflight" ]; then', source)
+        self.assertIn("legacy local CrowdSec Security Engine still running; expected before controlled cutover", source)
+        self.assertIn("Small-mode acceptance requires it stopped", source)
+        self.assertIn('crowdsec_bouncer_api_url=%s', source)
 
     def test_pfsense_small_compat_wrapper_is_explicit_and_executable(self) -> None:
         text = PFSENSE_VERIFY_COMPAT.read_text(encoding="utf-8")

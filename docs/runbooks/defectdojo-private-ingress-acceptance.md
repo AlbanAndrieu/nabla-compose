@@ -1,6 +1,313 @@
 # DefectDojo private ingress — acceptance after PR #257
 
+**DNS privé workstation (référence inter-dépôts pour les agents) :**
+[workstation-split-dns-recovery.md](workstation-split-dns-recovery.md),
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15).
+Le split-DNS persistant est possédé par ansible-workstation ;
+ce dépôt possède seulement le diagnostic/rattrapage local
+(`just workstation-split-dns-check`, `-test`, `-repair`).
+Après réparation du drift Quad9, une requête DNS directe
+vers pfSense en UDP/53 a également expiré, malgré
+un `resolvectl query` réussi en 11,5 s : mesurer UDP et TCP
+séparément, ne pas classer cette latence comme une panne Traefik.
+
+
 This runbook follows merged PR #257. DefectDojo's Nginx frontend is configured for the internal hostname `defectdojo.int.albandrieu.com` on Traefik `websecure`; public Cloudflare DNS, AutoXpose and WAN HAProxy are **not** part of the intended path.
+
+## Nouvelle régression DNS observée — 27 octobre, 21:27 CET
+
+Dernière preuve de l'opérateur après la validation initiale :
+
+- `just defectdojo-workstation-dns-test` : **2/2 PASS**, bibliothèque
+  standard `unittest`, sans `pytest`.
+- `just defectdojo-workstation-dns-check` : **FAIL attendu**,
+  `CLIENT_PRIVATE_SPLIT_DNS_PATH` : `dig @pfSense` retourne bien
+  `172.17.0.24`, mais le résolveur NSS de la workstation ne répond plus.
+- `resolvectl dns eno1` est **redevenu Quad9**
+  (`9.9.9.9 149.112.112.112`) alors que le device
+  NetworkManager est toujours `172.17.0.1`.
+- `resolvectl domain eno1` conserve `~int.albandrieu.com` ;
+  le domaine est donc correct, mais transmis au mauvais serveur.
+- Chrome : `DNS_PROBE_FINISHED_NXDOMAIN` pour l'URL HTTPS privée.
+- `hide-location.service` inactive (oneshot), enabled,
+  `ExecMainStartTimestamp=2026-10-27 21:27:01 CET`,
+  et `hide-location.timer` enabled.
+  **Corrélation temporelle, pas encore preuve que ce service écrit Quad9.**
+  Le rapport du script installé disait `sets_quad9=False` ;
+  conserver cette réserve.
+
+**Ownership et correction future :**
+[ansible-workstation PR #15](https://github.com/AlbanAndrieu/ansible-workstation/pull/15)
+prépare une protection du hook `hide-location` lorsqu'il opère sur le LAN
+pfSense et une réconciliation de `network_split_dns.yml` qui réapplique
+le profil lorsqu'il est correct mais que `systemd-resolved` a dérivé.
+La PR est Draft, opt-in Ansible désactivé par défaut, et **aucune correction
+Ansible n'a été appliquée à cette workstation**.
+
+Pour restaurer **temporairement** le poste, sans modification pfSense :
+
+```bash
+sudo resolvectl dns eno1 172.17.0.1
+sudo resolvectl domain eno1 '~int.albandrieu.com'
+sudo resolvectl flush-caches
+getent ahostsv4 defectdojo.int.albandrieu.com
+```
+
+Pour rechercher l'écrivain DNS avant tout arrêt de timer, en lecture seule :
+
+```bash
+systemctl --user list-timers --all hide-location.timer
+journalctl --user -u hide-location.service \
+  --since '2026-10-27 21:20:00' --until '2026-10-27 21:35:00' \
+  --no-pager -o short-iso
+nmcli -g IP4.DNS device show eno1
+resolvectl dns eno1
+```
+
+Un échec du navigateur après `getent` rétabli doit être vérifié
+séparément côté **Secure DNS / DoH de Chrome**, notamment si un
+fournisseur DNS public personnalisé contourne le résolveur système.
+Ne pas retoucher Traefik, HAProxy, pfSense ou les identifiants Django.
+
+## Réception workstation — 27 octobre, résolution DNS rétablie temporairement
+
+**Avant correction (workstation `eno1`) :**
+
+- DHCP DNS, DNS du profil NetworkManager et DNS du device :
+  **`172.17.0.1`**.
+- `resolvectl dns eno1` : **`9.9.9.9 149.112.112.112`** ;
+  `resolvectl domain eno1` : `int.albandrieu.com` (domaine
+  de recherche, pas `~int.albandrieu.com`).
+- `dig @172.17.0.1 defectdojo.int.albandrieu.com A` :
+  **`172.17.0.24`** ; résolution système / `getent` : échec.
+- `just pfsense-wifi-path` : **`CLIENT_PRIVATE_SPLIT_DNS_PATH`**
+  et **`runtime_dns_drift=NETWORKMANAGER_VS_RESOLVED`**.
+  Le retour `exit 1` de Just est attendu quand le diagnostic détecte
+  une anomalie, ce n'est pas une panne du script.
+- `hide-location.service` : `loaded`, `enabled`,
+  `started_recorded=True`, hook `resolvectl_dns=True`,
+  `targets_interface=True`, **`sets_quad9=False`**.
+  Cela prouve un risque de modification locale, pas **quel service**
+  a effectivement remplacé le DNS par Quad9.
+
+**Correction opérateur temporaire déjà appliquée :**
+
+```bash
+sudo resolvectl dns eno1 172.17.0.1
+sudo resolvectl domain eno1 '~int.albandrieu.com'
+sudo resolvectl flush-caches
+getent ahostsv4 defectdojo.int.albandrieu.com
+```
+
+`getent` a ensuite retourné **`172.17.0.24`**.
+`bash scripts/workstation/diagnose-defectdojo-lan.sh --check`
+a confirmé `PASS` sur DNS pfSense, résolution système,
+réponse HTTPS 302, certificat TLS vérifié, et redirection
+sur la même origine. Son test `curl --resolve` contourne
+le DNS du client ; la preuve DNS du client provient de `getent`
+séparément. **Le login Web HTTPS authentifié n'a pas encore été
+confirmé par l'opérateur.**
+
+**Résolution permanente : en attente.** Les modifications manuelles
+`resolvectl` peuvent être écrasées par la prochaine
+réactivation NetworkManager, un VPN, une commande `resolvectl`
+externe ou une automatisation comme `hide-location`.
+Sur la workstation, inspecter sans mutation :
+
+```bash
+nmcli -g GENERAL.CONNECTION device show eno1
+nmcli -g IP4.DNS device show eno1
+resolvectl dns eno1
+resolvectl domain eno1
+systemctl --user show hide-location.service \
+  --property=LoadState,UnitFileState,ActiveState,ExecMainStartTimestamp \
+  --no-pager
+systemctl --user is-enabled hide-location.timer
+```
+
+Sur le profil NetworkManager **réellement actif**, préserver
+`ipv4.dns=172.17.0.1`, `ipv4.ignore-auto-dns=yes`, et prévoir
+la route DNS de domaine `ipv4.dns-search=~int.albandrieu.com`
+sans écraser les autres domaines légitimes, **après identification
+de l'auteur de l'override**. NetworkManager sait distinguer
+un domaine de routage `~...` d'un domaine de recherche ;
+une modification du profil seule ne neutralise pas un script
+qui réécrit ensuite `systemd-resolved`.
+Éviter un `nmcli connection up` non planifié sur la liaison utilisée
+pour la session SSH/remote.
+
+**Quality gate :** la nouvelle suite `test_defectdojo_workstation_lan_dns.py`
+était d'abord écrite pour `pytest`, absent du Python
+`mise` 3.14.9 (`No module named pytest`).
+Elle a été portée vers **`unittest` de la bibliothèque standard**
+dans la PR #289. Vérifier cette version au HEAD Git :
+
+```bash
+python3 -m unittest discover -s tests \
+  -p 'test_defectdojo_workstation_lan_dns.py' -v
+```
+
+Aucun package n'a besoin d'être installé et la CI GitHub reste
+désactivée. **Ce nouveau contrat stdlib n'est pas encore validé
+sur la workstation.**
+
+## Réception complémentaire du 27 octobre — HTTPS TrueNAS OK, client workstation DNS KO
+
+L'opérateur a exécuté `diagnose-defectdojo-https-route.py --check` depuis
+TrueNAS avec résultat :
+
+- `dns_pfsense=PRIVATE_A_CONFIRMED`, `dns_pihole=PRIVATE_A_CONFIRMED` ;
+- `origin=LOGIN_HTML_READY`, `https=LOGIN_HTML_READY` avec certificat
+  validé par `curl --resolve` (pas de `-k`) ;
+- `traefik_container=running`, `traefik_host_https=PUBLISHED_443`,
+  `shared_proxy_network=SHARED`, `router_labels=DECLARED`.
+
+**Acceptation :** le routage TLS/SNI Traefik et la page de login sont
+fonctionnels **depuis TrueNAS**. La workstation retourne toutefois
+`ping: ... Name or service not known`. Cela localise le problème
+résiduel sur le **chemin de résolution du client**, sous réserve de
+confirmer `dig @pfSense` depuis cette même machine.
+
+Le PTR affiché par `ping` sur TrueNAS (`bitwarden.albandrieu.com`)
+est une résolution inverse de `172.17.0.24` ; il ne change
+pas la réponse A ni la route DefectDojo.
+
+Le **runbook du 25 octobre**
+[`2026-10-25-pfsense-wifi-dns-root-cause.md`](2026-10-25-pfsense-wifi-dns-root-cause.md)
+documente déjà une divergence sur `eno1` : DHCP/profil NetworkManager
+`172.17.0.1`, mais `systemd-resolved` indiquait Quad9 et
+`getent` ne résolvait pas `*.int.albandrieu.com`.
+Une automatisation ancienne d'`ansible-workstation`
+(`hide-location.sh`, `hide-location.service`) peut modifier
+`resolvectl dns`, **sans preuve de causalité à ce jour**.
+
+### Workstation — comparaison sur le même client (lecture seule)
+
+```bash
+cd ~/w/nabla-compose
+just pfsense-wifi-path
+
+dig +time=2 +tries=1 +short @172.17.0.1 defectdojo.int.albandrieu.com A
+dig +time=2 +tries=1 +short @172.17.0.24 defectdojo.int.albandrieu.com A
+
+resolvectl dns eno1
+resolvectl domain eno1
+getent ahostsv4 defectdojo.int.albandrieu.com
+
+# TLS/SNI sans recours au résolveur système ; aucune session utilisateur.
+curl --noproxy '*' --connect-timeout 3 --max-time 10 \
+  --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 \
+  -sS -o /dev/null \
+  -w 'https=%{http_code} tls=%{ssl_verify_result}\\n' \
+  https://defectdojo.int.albandrieu.com/login
+```
+
+Le diagnostic workstation `bash scripts/workstation/diagnose-defectdojo-lan.sh --check`
+compare désormais aussi `getent ahostsv4` à l'adresse attendue.
+Même si `dig @pfSense` et `curl --resolve` sont verts, un échec
+NSS retourne `CLIENT_PRIVATE_SPLIT_DNS_PATH` et exit 1 :
+**ne plus annoncer un PASS du navigateur quand le nom échoue sur le client.**
+
+### Remédiation : couche locale seulement
+
+- Si `dig @172.17.0.1` échoue **depuis workstation**, examiner LAN,
+  pare-feu/VPN, UDP/TCP port 53 et la réponse de ce même résolveur.
+- Si `dig @172.17.0.1` retourne `172.17.0.24` mais `getent`
+  échoue, inspecter `resolvectl`, NetworkManager, NSS,
+  VPN/DoH et éventuel override `hide-location` ; **ne pas
+  reconfigurer pfSense DNS Forwarder (dnsmasq)**. Cette architecture
+  utilise DNS Resolver (Unbound) + Domain Override vers Pi-hole.
+- `/etc/hosts` peut servir uniquement de contournement temporaire.
+  Pour prouver le HTTPS sans mutation, **préférer `curl --resolve`**.
+- Corriger durablement la **source de la configuration DNS locale**
+  (profil NetworkManager/automation) seulement après avoir prouvé
+  l'auteur de la divergence. Aucun changement automatique pfSense,
+  Pi-hole, Traefik, DefectDojo, ni `/etc/hosts`.
+
+**Tests opérateur :** suite HTTPS TrueNAS `31 passed in 0.20s`
+sur la branche actuelle au moment de l'exécution. Cela ne valide pas
+encore le nouveau contrat workstation, dont les tests synthétiques
+restent à exécuter après mise à jour de cette PR.
+
+## Réception 27 octobre — login HTTP validé, HTTPS privé non validé
+
+Le compte `admin` a été **authentifié avec succès** par l'opérateur
+sur `http://172.17.0.24:31085/dashboard`.
+La vérification en shell Django a retourné `password_matches=True`,
+`active=True`, `staff=True` et `superuser=True` ; le helper
+`--interactive-check` retourne aussi `PASSWORD_MATCH`.
+La tentative de connexion antérieure utilisait une valeur
+obsolète enregistrée dans LastPass. **Ne pas changer à nouveau le mot
+de passe, ni recréer l'utilisateur.**
+
+Le nom `https://defectdojo.int.albandrieu.com/` reste non disponible
+dans le navigateur. Le HTTPS **n'est pas considéré comme DOWN**
+sans classification de DNS, TCP, TLS, Host/SNI et Traefik.
+Dans la topologie actuelle, le DNS interne `*.int.albandrieu.com`
+doit résoudre `172.17.0.24` et une connexion LAN au port 443 rejoint
+**Traefik directement**, pas HAProxy pfSense.
+pfSense/HAProxy concerne le frontal WAN/rechiffrement et les
+exceptions publiques ; n'ajouter aucune ACL/route publique pour
+débloquer DefectDojo.
+
+### Étape unique de diagnostic (lecture seule)
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+```
+
+Le script teste maintenant :
+- l'origine HTTP Nginx `:31085` et le HTTPS direct
+  `--resolve defectdojo.int.albandrieu.com:443:172.17.0.24`
+  (TLS vérifié, sans `-k`, sans suivre les redirections) ;
+- le DNS privé Pi-hole `172.17.0.24` et pfSense/Unbound `172.17.0.1` ;
+- l'état Traefik, sa publication `:443`, le réseau `traefik_network`
+  partagé avec DefectDojo, et les **labels réellement déployés**
+  (pas seulement ceux dans Git) ;
+- la classification des erreurs curl : refus TCP, timeout,
+  handshake TLS et certificat non fiable sont distincts.
+
+### Décider selon `next_layer`
+
+| Résultat | Action ciblée |
+| --- | --- |
+| `SPLIT_DNS` | Corriger le nom privé dans Pi-hole/Unbound uniquement après preuve du resolver fautif |
+| `TRAEFIK_CONTAINER` ou `TRAEFIK_443_BINDING` | Comparer TrueNAS App Traefik, écoute `:443` et bindings, sans redémarrage général |
+| `TRAEFIK_NETWORK` | Comparer les réseaux actifs des deux conteneurs et le rendu Compose TrueNAS ; ne pas créer un nouveau réseau |
+| `TRAEFIK_RUNTIME_LABELS` | Contrôler l'include TrueNAS, le modèle rendu et les labels Docker ; un `git pull` ne change pas les labels d'un conteneur déjà créé |
+| `TRAEFIK_TLS_ROUTER` | Distinguer erreur de certificat, 404 Host/router, 502 upstream ou timeout ; corriger seulement la couche attestée |
+| `DJANGO_LOGIN_AUTHENTICATION` et HTTPS login 200/30x | Transport serveur HTTPS accessible depuis TrueNAS ; si le navigateur échoue, examiner le résolveur et le proxy **du client** |
+
+En cas de `TRAEFIK_RUNTIME_LABELS`, ne pas lancer automatiquement
+`app.redeploy defectdojo` : la réconciliation TrueNAS peut recréer
+la stack et relancer l'initializer. Commencer par les métadonnées
+en lecture seule :
+
+```bash
+sudo docker inspect defectdojo --format '{{json .Config.Labels}}' |
+  jq 'with_entries(select(.key | startswith("traefik.")))'
+
+sudo docker inspect defectdojo --format '{{json .NetworkSettings.Networks}}' |
+  jq 'keys'
+
+sudo midclt call app.config defectdojo |
+  jq '{include: .include}'
+```
+
+L'App déclare dans `apps/defectdojo/compose.yml` les labels
+`traefik.enable=true`, Host exact, `websecure`, TLS et
+`loadbalancer.server.port=8080` sur `traefik_network`.
+Leur **présence au runtime n'est pas encore attestée** par le
+relevé opérateur. La correction doit éviter d'exposer une route
+privée sur le WAN ou d'affaiblir TLS.
+
+**Travail séparé :** le coffre Vaultwarden et `.env.secrets`
+restent non alignés sur le nouveau mot de passe Django.
+Synchroniser uniquement après avoir conservé la valeur qui
+fonctionne (LastPass ne constitue pas la source canonique).
+Ne pas écraser le hash Django par l'ancien secret runtime.
 
 ## Évidence LAN à 20:51 CET le 26 octobre 2026
 
