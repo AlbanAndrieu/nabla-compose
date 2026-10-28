@@ -99,15 +99,19 @@ def persist(events:list[dict],base:Path) -> int:
     if not events:
         return 0
     try:
-        base.mkdir(mode=0o700,parents=True,exist_ok=True)
-        # Deny symlinked or group-writable ancestors as well as private leaf.
-        for directory in (base.parents[2],base.parents[1],base.parent,base):
+        # mkdir(parents=True) creates intermediate directories with 0777
+        # masked by umask; umask 0002 can yield a group-writable 0775
+        # parent. Create every missing component with an explicit 0700.
+        # Never chmod an existing directory owned by another workflow.
+        directories=(base.parents[2],base.parents[1],base.parent,base)
+        for directory in directories:
+            if not directory.exists() and not directory.is_symlink():
+                directory.mkdir(mode=0o700)
             s=directory.lstat()
             if not stat.S_ISDIR(s.st_mode) or s.st_uid!=os.geteuid() or s.st_mode & 0o022:
                 raise ValueError('unsafe_store')
-        s=base.lstat()
-        if s.st_mode & 0o077:
-            raise ValueError('unsafe_store')
+            if directory in (base.parent,base) and s.st_mode & 0o077:
+                raise ValueError('unsafe_private_dir')
         dest=base/'rate-limit-events.jsonl'
         fd=os.open(dest,os.O_CREAT|os.O_RDWR|os.O_APPEND|os.O_NOFOLLOW,0o600)
         try:

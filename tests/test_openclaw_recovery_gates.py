@@ -96,6 +96,30 @@ class ObserverContracts(unittest.TestCase):
             with self.assertRaises(ValueError):
                 observer.persist([e],dest)
 
+    def test_private_store_creation_under_umask0002(self):
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            target=Path(tmp)/'.local/state/nabla-compose/openclaw'
+            event=observer.classify(self.event())
+            original=os.umask(0o002)
+            try:
+                self.assertEqual(observer.persist([event],target),1)
+            finally:
+                os.umask(original)
+            self.assertEqual(target.stat().st_mode & 0o777,0o700)
+            self.assertEqual(target.parent.stat().st_mode & 0o777,0o700)
+            self.assertEqual((target/'rate-limit-events.jsonl').stat().st_mode & 0o777,0o600)
+
+    def test_existing_unsafe_parent_is_not_chmodded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target=Path(tmp)/'.local/state/nabla-compose/openclaw'
+            target.parent.mkdir(parents=True)
+            target.parent.chmod(0o775)
+            original=target.parent.stat().st_mode & 0o777
+            with self.assertRaises(ValueError):
+                observer.persist([observer.classify(self.event())],target)
+            self.assertEqual(target.parent.stat().st_mode & 0o777,original)
+
     def test_fixture_no_disclosure(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture=Path(tmp)/'data.jsonl'
