@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496",
+  "catalogRevision": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -237,6 +237,35 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/apisix",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/apisix/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned standalone API gateway isolated from production ingress.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "apisix",
+        "tags": [
+          "network",
+          "api-gateway"
+        ],
+        "title": "APISIX"
+      },
+      "sourcePath": "apps/apisix/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "api-gateway"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/autokuma",
       "kind": "Component",
       "metadata": {
@@ -366,7 +395,7 @@
         "tags": [
           "productivity"
         ],
-        "title": "Bichon"
+        "title": "Bichon UI"
       },
       "sourcePath": "apps/bichon/catalog-info.yaml",
       "spec": {
@@ -1284,7 +1313,7 @@
         "tags": [
           "observability"
         ],
-        "title": "Gatus"
+        "title": "Gatus UI"
       },
       "sourcePath": "apps/gatus/catalog-info.yaml",
       "spec": {
@@ -1618,7 +1647,7 @@
           "automation",
           "iot"
         ],
-        "title": "Home Assistant"
+        "title": "Home Assistant UI"
       },
       "sourcePath": "apps/homeassistant/catalog-info.yaml",
       "spec": {

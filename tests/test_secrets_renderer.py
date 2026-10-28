@@ -23,6 +23,21 @@ with mock.patch.dict("sys.modules", {"render_from_bitwarden": renderer}):
     IMPORT_SPEC.loader.exec_module(importer)
 
 
+def clean_git_env() -> dict[str, str]:
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_PREFIX",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    return env
+
+
 class SecretsRendererTests(TestCase):
     def test_repository_manifest_is_metadata_only_and_valid(self) -> None:
         manifest_path = ROOT / "config" / "secrets" / "manifest.json"
@@ -273,6 +288,7 @@ class SecretsRendererTests(TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir) / "shared-output"
             output_dir.mkdir(mode=0o755)
+            output_dir.chmod(0o755)
             target = renderer.write_env_file(
                 app_spec=app_spec,
                 item=item,
@@ -301,6 +317,7 @@ class SecretsRendererTests(TestCase):
                 check=True,
                 capture_output=True,
                 text=True,
+                env=clean_git_env(),
             )
             target = repo / "cyberbro.env.secrets"
 
@@ -332,6 +349,7 @@ class SecretsRendererTests(TestCase):
                 check=True,
                 capture_output=True,
                 text=True,
+                env=clean_git_env(),
             )
             (repo / ".gitignore").write_text(".env.secrets\n", encoding="utf-8")
             target = repo / ".env.secrets"

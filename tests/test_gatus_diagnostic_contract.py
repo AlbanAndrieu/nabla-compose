@@ -44,7 +44,7 @@ def test_diagnostic_does_not_leak_raw_logs() -> None:
         jq = tmp_path / "jq"
         jq.write_text("""#!/usr/bin/env bash
     cat >/dev/null
-    printf 'shape=array entries=1\\n'
+    printf '1 1 0 0 0\\n'
     """)
         jq.chmod(0o755)
         # GNU `stat -c` is TrueNAS-specific; keep the metadata step host-independent.
@@ -59,7 +59,7 @@ def test_diagnostic_does_not_leak_raw_logs() -> None:
         assert "permission=1" in result.stdout
         assert "database=1" in result.stdout
         assert "fatal=1" in result.stdout
-        assert "shape=array entries=1" in result.stdout
+        assert "monitors=1 up=1 down=0 pending=0 unknown=0" in result.stdout
         assert "TOKEN_SUPER_SECRET" not in result.stdout + result.stderr
 
 
@@ -75,10 +75,12 @@ def test_deploy_check_does_not_comment_out_runuser_provenance_call() -> None:
 
 def test_gatus_apply_repairs_config_before_readiness_wait() -> None:
     deploy = (ROOT / "scripts/truenas/deploy-gatus.sh").read_text(encoding="utf-8")
-    apply_section = deploy.split('truenas_job_compact app.redeploy "${APP_ID}"', 1)[1]
-    assert apply_section.index('"${REPAIR}" --apply') < apply_section.index("truenas_wait_app_running")
-    assert "chmod" not in apply_section
-    assert "chown" not in apply_section
+    repair = deploy.index('"${REPAIR}" --apply')
+    reconcile = deploy.index('truenas_reconcile_custom_app "${APP_ID}"')
+    readiness = deploy.index("truenas_wait_app_running")
+    assert repair < reconcile < readiness
+    assert "chmod" not in deploy[repair:readiness]
+    assert "chown" not in deploy[repair:readiness]
     assert subprocess.run(
         ["bash", "-n", str(ROOT / "scripts/truenas/deploy-gatus.sh")],
         check=False,
@@ -87,5 +89,5 @@ def test_gatus_apply_repairs_config_before_readiness_wait() -> None:
 
 def test_gatus_recovery_status_header_is_not_double_escaped() -> None:
     deploy = (ROOT / "scripts/truenas/deploy-gatus.sh").read_text(encoding="utf-8")
-    assert "printf '\\\\n==> Repair generated config access before readiness wait\\\\n'" not in deploy
-    assert "printf '\\n==> Repair generated config access before readiness wait\\n'" in deploy
+    assert "printf '\\\\n==> Preflight generated Gatus config permissions\\\\n'" not in deploy
+    assert "printf '\\n==> Preflight generated Gatus config permissions\\n'" in deploy

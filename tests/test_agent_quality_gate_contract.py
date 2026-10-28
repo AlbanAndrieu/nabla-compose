@@ -274,8 +274,8 @@ class AgentQualityGateContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         mise = (ROOT / "mise.toml").read_text(encoding="utf-8")
-        self.assertIn('node = "24.18.1"', mise)
-        self.assertIn('NODE_VERSION="${NABLA_NODE_VERSION:-24.18.1}"', script)
+        self.assertIn('node = "24.22.1"', mise)
+        self.assertIn('NODE_VERSION="${NABLA_NODE_VERSION:-24.22.1}"', script)
         self.assertIn('"node@${NODE_VERSION}"', script)
         self.assertIn('ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"', script)
         self.assertIn('"node@${NODE_VERSION}" node', script)

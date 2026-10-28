@@ -12,6 +12,7 @@ RUNTIME_LAYOUT = ROOT / "docs" / "truenas-runtime-layout.md"
 COMPOSE_SKILL = ROOT / ".agents" / "skills" / "docker-compose-orchestration" / "SKILL.md"
 SECRETS_SKILL = ROOT / ".agents" / "skills" / "homelab-secrets" / "SKILL.md"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+ROADMAP_ARCHIVE = ROOT / "docs" / "archive" / "roadmap-through-2026-10-24.md"
 FIRST_WAVE = ROOT / "scripts" / "truenas" / "accept-runtime-env-first-wave.sh"
 MIGRATION_BUNDLE = ROOT / "scripts" / "check-service-migration-bundle.py"
 HOMEASSISTANT = ROOT / "apps" / "homeassistant" / "compose.yml"
@@ -78,6 +79,7 @@ def test_true_nas_runtime_layout_is_documented_and_skill_enforced() -> None:
     compose_skill = COMPOSE_SKILL.read_text(encoding="utf-8")
     secrets_skill = SECRETS_SKILL.read_text(encoding="utf-8")
     roadmap = ROADMAP.read_text(encoding="utf-8")
+    roadmap_archive = ROADMAP_ARCHIVE.read_text(encoding="utf-8")
 
     canonical_runtime = "/mnt/cpool/secrets/runtime/<service>/"
     bootstrap = "/mnt/cpool/secrets/bootstrap/vaultwarden/"
@@ -92,7 +94,8 @@ def test_true_nas_runtime_layout_is_documented_and_skill_enforced() -> None:
     assert "Whenever a service is created or materially modified" in compose_skill
     assert "Existing legacy" in compose_skill
     assert "--finalize <service>" in secrets_skill
-    assert "TrueNAS storage + runtime secret normalization" in roadmap
+    assert "archive/roadmap-through-2026-10-24.md" in roadmap
+    assert "TrueNAS storage + runtime secret normalization" in roadmap_archive
 
 
 def test_value_blind_env_inventory_classifies_secret_risk() -> None:

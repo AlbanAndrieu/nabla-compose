@@ -96,14 +96,17 @@ source "$script" "$@"
     def test_apply_requires_root_and_explicit_mode(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('mode=', source)
-        self.assertIn('[[ "$mode" == --apply', source)
+        self.assertIn('[[ "${mode}" == --apply', source)
         self.assertIn("openssl rand -hex 32", source)
         self.assertIn('cscli bouncers add PFSENSE_FIREWALL --key "$candidate"', source)
-        self.assertIn('cscli bouncers delete "$name"', source)
+        self.assertIn('cscli bouncers delete "${name}"', source)
         self.assertNotIn('key="$(timeout 12 docker exec', source)
-        self.assertLess(source.index('ln -- "$tmp" "$file"'), source.index('cscli bouncers delete "$name"'))
+        self.assertLess(
+            source.index('ln -- "${tmp}" "${file}"'),
+            source.index('cscli bouncers delete "${name}"'),
+        )
         self.assertIn("credential_state=STAGED", source)
-        self.assertIn('ln -- "$tmp" "$file"', source)
+        self.assertIn('ln -- "${tmp}" "${file}"', source)
         self.assertIn("BOUNCER_KEY_PFSENSE_FIREWALL=%s", source)
         self.assertNotIn("echo $key", source)
         self.assertNotIn('set -x\n', source)

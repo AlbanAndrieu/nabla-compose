@@ -82,9 +82,14 @@ def test_migration_ai_acceptance_runs_openrag_dependency_gate():
     wrapper = (ROOT / "scripts/truenas/finish-migrations-20261024.sh").read_text(
         encoding="utf-8"
     )
+    registry = (ROOT / "scripts/truenas/migration-diagnostic-sections.sh").read_text(
+        encoding="utf-8"
+    )
     just = (ROOT / "justfile").read_text(encoding="utf-8")
+    assert 'READONLY_REGISTRY="${ROOT}/scripts/truenas/migration-diagnostic-sections.sh"' in wrapper
+    assert 'source "${READONLY_REGISTRY}"' in wrapper
     assert ("run_check openrag-dependencies bash "
-            "scripts/truenas/diagnose-openrag-dependencies.sh --check") in wrapper
+            "scripts/truenas/diagnose-openrag-dependencies.sh --check") in registry
     assert "truenas-openrag-dependencies-check:" in just
     assert "tests/test_openrag_dependencies_diagnostic.py" in just
 

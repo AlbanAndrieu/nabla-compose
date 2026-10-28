@@ -29,7 +29,7 @@ class PrivatePDFReadinessTest(unittest.TestCase):
     def test_private_read_only_and_no_payload_extraction(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('root="/mnt/cpool/bababou"', source)
-        self.assertIn('"/mnt/bababou/$basename"', source)
+        self.assertIn('"/mnt/bababou/${basename}"', source)
         self.assertIn('head -c 5', source)
         self.assertIn('http://docling:5001/ready', source)
         self.assertIn('private_pdf_bind_read_only_not_attested', source)

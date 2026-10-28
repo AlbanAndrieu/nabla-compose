@@ -266,7 +266,7 @@ def test_true_nas_id_and_name_must_match_before_any_action():
 def test_mutation_lock_is_exclusive_and_released_on_failure(monkeypatch, tmp_path):
     """No two human or agent apply sessions may mutate TrueNAS concurrently."""
     audit_dir = tmp_path / "private-audit"
-    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", audit_dir)
+    monkeypatch.setitem(ops["main"].__globals__, "AUDIT_DIR", audit_dir)
     lock = ops["mutation_lock"]
     with lock():
         with pytest.raises(RuntimeError, match="another TrueNAS"):
@@ -286,7 +286,7 @@ def test_mutation_lock_rejects_symlinked_audit_directory(monkeypatch, tmp_path):
     target.mkdir()
     link = tmp_path / "link"
     link.symlink_to(target, target_is_directory=True)
-    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", link)
+    monkeypatch.setitem(ops["main"].__globals__, "AUDIT_DIR", link)
     with pytest.raises(RuntimeError, match="symlink"):
         with ops["mutation_lock"]():
             pytest.fail("symlink must be rejected")
@@ -374,7 +374,7 @@ def test_mutation_lock_rejects_fifo_instead_of_lock_file(monkeypatch, tmp_path):
     audit_dir = tmp_path / "private-audit"
     audit_dir.mkdir()
     os.mkfifo(audit_dir / ".catalog-v2-restart.lock", 0o600)
-    monkeypatch.setitem(ops["mutation_lock"].__globals__, "AUDIT_DIR", audit_dir)
+    monkeypatch.setitem(ops["main"].__globals__, "AUDIT_DIR", audit_dir)
     with pytest.raises(RuntimeError, match="regular file"):
         with ops["mutation_lock"]():
             pytest.fail("FIFO cannot be a coordination lock")

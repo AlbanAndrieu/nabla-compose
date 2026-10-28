@@ -317,4 +317,3 @@ split-DNS et s'assurer que les scripts de confidentialité ne remplacent
 pas le résolveur propriétaire du LAN. Elle reste conditionnée à la
 confirmation du service réellement exécuté et à l'intention de
 l'utilisateur de garder Quad9.
-

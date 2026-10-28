@@ -45,7 +45,7 @@ def test_diagnostic_never_mutates_runtime_or_shares_credentials() -> None:
 
 def test_deployer_summarizes_revision_and_scrubs_auth_smoke_output() -> None:
     script = UPDATE.read_text(encoding="utf-8")
-    assert "DEPLOYMENT SUMMARY" in script
+    assert "FastAPI Sample · final acceptance" in script
     assert "pfsense_report" in script
     assert 'summary passed=[0-9]+ total=[0-9]+ secrets_printed=no' in script
     assert "build_revision=null" in script

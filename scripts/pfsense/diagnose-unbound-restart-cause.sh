@@ -17,15 +17,18 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
-[[ "$target" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
-if [[ -n "$port" ]]; then
-  [[ "$port" =~ ^[0-9]{1,5}$ ]] && ((10#$port >= 1 && 10#$port <= 65535)) ||
-    { echo 'Invalid SSH port' >&2; exit 2; }
+[[ "${target}" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
+if [[ -n "${port}" ]]; then
+  if ! [[ "${port}" =~ ^[0-9]{1,5}$ ]] ||
+    ! ((10#${port} >= 1 && 10#${port} <= 65535)); then
+    echo 'Invalid SSH port' >&2
+    exit 2
+  fi
 fi
 args=(-o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes)
-[[ -z "$port" ]] || args+=(-p "$port")
+[[ -z "${port}" ]] || args+=(-p "${port}")
 pfsense_ui_banner "Unbound restart provenance · read-only"
-ssh "${args[@]}" "$target" '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
+ssh "${args[@]}" "${target}" '/bin/sh -s' <<'REMOTE' | pfsense_ui_render
 set -u
 # Only fixed categories are sent to the workstation. Preserve offsets at DST.
 echo '=== Current Unbound identity (not restart cause) ==='

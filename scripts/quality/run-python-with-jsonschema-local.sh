@@ -10,20 +10,20 @@ fi
 
 candidates=()
 if [[ -n "${NABLA_SECRETS_PYTHON:-}" ]]; then
-  candidates+=("$NABLA_SECRETS_PYTHON")
+  candidates+=("${NABLA_SECRETS_PYTHON}")
 fi
-candidates+=("$root/.venv/bin/python" "python3" "/usr/bin/python3"
+candidates+=("${root}/.venv/bin/python" "python3" "/usr/bin/python3"
              "python3.13" "python3.12" "python3.11")
 
 for candidate in "${candidates[@]}"; do
-  if [[ "$candidate" == */* ]]; then
-    [[ -x "$candidate" ]] || continue
-    resolved="$candidate"
+  if [[ "${candidate}" == */* ]]; then
+    [[ -x "${candidate}" ]] || continue
+    resolved="${candidate}"
   else
-    resolved="$(command -v "$candidate" 2>/dev/null)" || continue
+    resolved="$(command -v "${candidate}" 2>/dev/null)" || continue
   fi
-  if "$resolved" -c 'import jsonschema' >/dev/null 2>&1; then
-    exec "$resolved" "$@"
+  if "${resolved}" -c 'import jsonschema' >/dev/null 2>&1; then
+    exec "${resolved}" "$@"
   fi
 done
 

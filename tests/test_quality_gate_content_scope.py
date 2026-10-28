@@ -21,6 +21,7 @@ def test_metadata_only_chmod_does_not_trigger_shellcheck_on_unchanged_content():
         _git(work, "init", "-q")
         _git(work, "config", "user.email", "ci@example.invalid")
         _git(work, "config", "user.name", "CI Test")
+        _git(work, "config", "commit.gpgsign", "false")
         script = work / "legacy.sh"
         script.write_text("#!/bin/bash\necho ok\n", encoding="utf-8")
         _git(work, "add", "legacy.sh")
@@ -73,6 +74,7 @@ def test_git_diff_failure_cannot_be_reported_as_empty_quality_scope():
         _git(work, "init", "-q")
         _git(work, "config", "user.email", "ci@example.invalid")
         _git(work, "config", "user.name", "CI Test")
+        _git(work, "config", "commit.gpgsign", "false")
         tracked = work / "README.md"
         tracked.write_text("baseline\n", encoding="utf-8")
         _git(work, "add", ".")

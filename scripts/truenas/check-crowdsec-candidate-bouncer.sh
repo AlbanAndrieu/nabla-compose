@@ -11,7 +11,7 @@ if (($#)); then
   if [[ "$#" == 2 && "$1" == '--env' ]]; then
     SOURCE='environment'
     KEY_ENV="$2"
-    case "$KEY_ENV" in
+    case "${KEY_ENV}" in
       CROWDSEC_BOUNCER_API_KEY|BOUNCER_KEY_PFSENSE_FIREWALL|BOUNCER_KEY_TRAEFIK) ;;
       *) echo 'central_candidate_auth=NO_GO_UNSUPPORTED_ENV_NAME'; exit 2 ;;
     esac
@@ -20,7 +20,7 @@ if (($#)); then
     exit 2
   fi
 fi
-if [[ ! "$LAPI" =~ ^http://[A-Za-z0-9.:-]+$ ]]; then
+if [[ ! "${LAPI}" =~ ^http://[A-Za-z0-9.:-]+$ ]]; then
   echo 'central_candidate_auth=NO_GO_INVALID_LAPI_URL'
   exit 2
 fi
@@ -29,21 +29,21 @@ command -v curl >/dev/null 2>&1 || {
   exit 2
 }
 
-if [[ "$SOURCE" == 'environment' ]]; then
+if [[ "${SOURCE}" == 'environment' ]]; then
   # Must run in the invoking shell's exported environment, NOT through sudo
   # (sudo commonly drops these keys). Never print candidate values.
   key="${!KEY_ENV:-}"
-  if [[ -z "$key" ]]; then
+  if [[ -z "${key}" ]]; then
     echo 'central_candidate_auth=NO_GO_ENV_UNSET_OR_NOT_EXPORTED'
     exit 2
   fi
 else
-  if [[ ! -r "$SECRET_FILE" ]]; then
+  if [[ ! -r "${SECRET_FILE}" ]]; then
     echo 'central_candidate_auth=NO_GO_MISSING_SECRET_FILE'
     exit 2
   fi
-  mode="$(stat -c %a -- "$SECRET_FILE" 2>/dev/null || true)"
-  if [[ "$mode" != '600' ]]; then
+  mode="$(stat -c %a -- "${SECRET_FILE}" 2>/dev/null || true)"
+  if [[ "${mode}" != '600' ]]; then
     echo 'central_candidate_auth=NO_GO_SECRET_PERMISSIONS'
     exit 2
   fi
@@ -58,11 +58,11 @@ else
         $0=substr($0,2,length($0)-2)
       print
     }
-  ' "$SECRET_FILE")"
+  ' "${SECRET_FILE}")"
 fi
 # Reject unsupported quoting, invalid multiline values or injection into
 # curl config syntax; standard CrowdSec tokens use printable ASCII.
-if [[ -z "${key}" || "${key}" == *$'\n'* || "${key}" == *$'\r'* || "${key}" == *'"'* || "${key}" == *'\'* || "${key}" =~ [[:cntrl:]] ]]; then
+if [[ -z "${key}" || "${key}" == *$'\n'* || "${key}" == *$'\r'* || "${key}" == *'"'* || "${key}" == *\\* || "${key}" =~ [[:cntrl:]] ]]; then
   unset key
   echo 'central_candidate_auth=NO_GO_INVALID_SECRET_FORMAT'
   exit 2
@@ -84,7 +84,7 @@ unset key
 case "${http_code}" in
   200)
     echo 'central_candidate_auth=ACCEPTED'
-    if [[ "$SOURCE" == environment ]]; then echo 'central_candidate_identity=UNVERIFIED; authentication alone does not identify the registered bouncer'; fi
+    if [[ "${SOURCE}" == environment ]]; then echo 'central_candidate_identity=UNVERIFIED; authentication alone does not identify the registered bouncer'; fi
     exit 0 ;;
 
   401|403) echo 'central_candidate_auth=REJECTED'; exit 1 ;;

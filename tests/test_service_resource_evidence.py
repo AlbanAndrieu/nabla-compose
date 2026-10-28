@@ -22,7 +22,7 @@ REF_B = "resource:default/mongo"
 
 def test_cpu_memory_collected_in_one_bounded_docker_pass():
     from unittest.mock import patch
-    raw = "defectdojo-uwsgi\\t512MiB / 60GiB\\t125.4%\\n"
+    raw = "defectdojo-uwsgi\t512MiB / 60GiB\t125.4%\n"
     with patch.object(MODULE, "command", return_value=raw) as call:
         sample = MODULE.memory_stats()
     assert sample["defectdojo-uwsgi"] == 512 * 1024 ** 2

@@ -11,16 +11,16 @@ record="$(curl --noproxy '*' --silent --show-error --output /dev/null \
   --resolve "${HOST}:443:${EDGE}" \
   --write-out '%{http_code}|%{content_type}|%{ssl_verify_result}' \
   "${URL}" 2>/dev/null)" || { echo 'UNVERIFIED: TLS/connect unavailable'; exit 2; }
-IFS='|' read -r http mime tls <<< "$record"
-[[ "$http" =~ ^[0-9]{3}$ && "$tls" =~ ^[0-9]+$ ]] || { echo 'UNVERIFIED: malformed probe response'; exit 2; }
+IFS='|' read -r http mime tls <<< "${record}"
+[[ "${http}" =~ ^[0-9]{3}$ && "${tls}" =~ ^[0-9]+$ ]] || { echo 'UNVERIFIED: malformed probe response'; exit 2; }
 case "${mime,,}" in text/html|text/html\;*) content=html;; *) content=unverified;; esac
-printf 'defectdojo_login_http=%s tls_verify=%s content=%s\n' "$http" "$tls" "$content"
-if [[ "$tls" != 0 ]]; then echo 'FAIL: TLS verification failed'; exit 1; fi
-if [[ "$http" == 200 && "$content" == html ]]; then
+printf 'defectdojo_login_http=%s tls_verify=%s content=%s\n' "${http}" "${tls}" "${content}"
+if [[ "${tls}" != 0 ]]; then echo 'FAIL: TLS verification failed'; exit 1; fi
+if [[ "${http}" == 200 && "${content}" == html ]]; then
   echo 'PASS: login HTML served over verified HTTPS (authentication not tested)'
   exit 0
 fi
-case "$http" in
+case "${http}" in
   30[12378]) echo 'UNVERIFIED: login redirects; destination intentionally not followed'; exit 2 ;;
   401|403) echo 'UNVERIFIED: authentication boundary responded; login page inaccessible anonymously'; exit 2 ;;
   *) echo 'FAIL: private HTTPS login not served'; exit 1 ;;

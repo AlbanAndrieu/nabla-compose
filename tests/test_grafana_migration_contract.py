@@ -7,6 +7,7 @@ import stat
 ROOT = Path(__file__).resolve().parents[1]
 DIAGNOSTIC = ROOT / "scripts" / "truenas" / "diagnose-grafana-migration.sh"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+ARCHIVED_ROADMAP = ROOT / "docs" / "archive" / "roadmap-through-2026-10-24.md"
 COMPOSE = ROOT / "apps" / "grafana" / "compose.yml"
 
 
@@ -39,9 +40,11 @@ def test_compose_grafana_reuses_native_data_and_port() -> None:
     assert 'user: "${GRAFANA_UID:-568}:${GRAFANA_GID:-568}"' in compose
 
 
-def test_roadmap_sequences_grafana_before_full_observability_stack() -> None:
-    roadmap = ROADMAP.read_text(encoding="utf-8")
+def test_archived_roadmap_sequences_grafana_before_full_observability_stack() -> None:
+    active = ROADMAP.read_text(encoding="utf-8")
+    roadmap = ARCHIVED_ROADMAP.read_text(encoding="utf-8")
 
+    assert "archive/roadmap-through-2026-10-24.md" in active
     assert "diagnose-grafana-migration.sh --check" in roadmap
     assert "Grafana native → Compose migration" in roadmap
     assert "PostgreSQL, Redis, ClickHouse, InfluxDB and OpenSearch" in roadmap

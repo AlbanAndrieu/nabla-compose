@@ -6,20 +6,20 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 candidates=()
 if [[ -n "${NABLA_PYTEST_PYTHON:-}" ]]; then
-  candidates+=("$NABLA_PYTEST_PYTHON")
+  candidates+=("${NABLA_PYTEST_PYTHON}")
 fi
-candidates+=("$root/.venv/bin/python" "python3" "/usr/bin/python3" "python3.13" "python3.12" "python3.11")
+candidates+=("${root}/.venv/bin/python" "python3" "/usr/bin/python3" "python3.13" "python3.12" "python3.11")
 
 for candidate in "${candidates[@]}"; do
-  if [[ "$candidate" == */* ]]; then
-    [[ -x "$candidate" ]] || continue
-    resolved="$candidate"
+  if [[ "${candidate}" == */* ]]; then
+    [[ -x "${candidate}" ]] || continue
+    resolved="${candidate}"
   else
-    resolved="$(command -v "$candidate" 2>/dev/null)" || continue
+    resolved="$(command -v "${candidate}" 2>/dev/null)" || continue
   fi
   # The import check never installs or modifies packages.
-  if "$resolved" -c 'import pytest' >/dev/null 2>&1; then
-    exec "$resolved" -m pytest "$@"
+  if "${resolved}" -c 'import pytest' >/dev/null 2>&1; then
+    exec "${resolved}" -m pytest "$@"
   fi
 done
 

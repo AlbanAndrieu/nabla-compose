@@ -99,9 +99,10 @@ for value in "${ALLOW_ANONYMOUS_BASE_PULL}" "${OVERRIDE_DOCKERHUB_COOLDOWN}"; do
     [[ "${value}" == true || "${value}" == false ]] ||
         fail 'FASTAPI_SAMPLE_ALLOW_ANONYMOUS_BASE_PULL and FASTAPI_SAMPLE_OVERRIDE_DOCKERHUB_COOLDOWN must be true or false'
 done
-[[ "${DOCKERHUB_COOLDOWN_SECONDS}" =~ ^[0-9]{1,5}$ ]] &&
-    ((DOCKERHUB_COOLDOWN_SECONDS >= 60 && DOCKERHUB_COOLDOWN_SECONDS <= 86400)) ||
+if [[ ! "${DOCKERHUB_COOLDOWN_SECONDS}" =~ ^[0-9]{1,5}$ ]] ||
+    ((DOCKERHUB_COOLDOWN_SECONDS < 60 || DOCKERHUB_COOLDOWN_SECONDS > 86400)); then
     fail 'FASTAPI_SAMPLE_DOCKERHUB_COOLDOWN_SECONDS must be 60..86400'
+fi
 
 [[ "${BUILD_LOG_TAIL}" =~ ^[1-9][0-9]*$ ]] ||
     fail "FASTAPI_SAMPLE_BUILD_LOG_TAIL must be a positive integer"

@@ -184,8 +184,11 @@ class AkvoradoDeltaTest(unittest.TestCase):
                             for handler in MODULE.OPENER.handlers))
         proxies = [handler for handler in MODULE.OPENER.handlers
                    if isinstance(handler, MODULE.ProxyHandler)]
-        self.assertEqual(len(proxies), 1)
-        self.assertEqual(proxies[0].proxies, {})
+        # Python 3.14 omits an empty ProxyHandler from the opener because it
+        # installs no protocol methods. Older versions retain it. Both forms
+        # must remain free of configured proxy destinations.
+        self.assertLessEqual(len(proxies), 1)
+        self.assertFalse(any(handler.proxies for handler in proxies))
 
     def test_negative_metadata_errors_do_not_count_as_history(self):
         observed = (

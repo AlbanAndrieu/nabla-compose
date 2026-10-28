@@ -14,6 +14,7 @@ class ApisixContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.compose = yaml.safe_load((ROOT / "compose.yml").read_text())
+        cls.catalog = list(yaml.safe_load_all((ROOT / "catalog-info.yaml").read_text()))
         cls.config = yaml.safe_load((ROOT / "config/config.yaml").read_text())
         raw = (ROOT / "config/apisix.yaml").read_text()
         assert raw.rstrip().endswith("#END"), "APISIX hot-reload requires #END"
@@ -47,6 +48,17 @@ class ApisixContract(unittest.TestCase):
             apisix["x-nabla"]["runtime"]["containerService"], "apisix"
         )
         self.assertTrue(self.compose["networks"]["isolated"]["internal"])
+
+    def test_compose_entity_ref_resolves_to_native_catalog_component(self):
+        self.assertEqual(len(self.catalog), 1)
+        entity = self.catalog[0]
+        self.assertEqual(entity["kind"], "Component")
+        self.assertEqual(entity["metadata"]["name"], "apisix")
+        self.assertEqual(
+            entity["metadata"]["labels"]["albandrieu.com/operational-state"],
+            "planned",
+        )
+        self.assertEqual(entity["spec"]["lifecycle"], "experimental")
 
     def test_single_protected_mock_route(self):
         self.assertEqual(len(self.rules["routes"]), 1)

@@ -561,7 +561,7 @@ Terraform/OpenTofu ni dans GitHub Actions.
 ### Heartbeat et briefing
 
 `apps/openclaw/workstation/HEARTBEAT.md` est actuellement
-volontairement **non génératif** ; 
+volontairement **non génératif** ;
 `MORNING_BRIEFING.md` porte déjà le briefing détaillé et
 `openclaw-heartbeat-gitops.py` offre des modes check/apply
 avec sauvegarde. L'ancien heartbeat `nabla` est chiffré et

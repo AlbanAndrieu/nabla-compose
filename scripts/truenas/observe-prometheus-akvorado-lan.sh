@@ -20,8 +20,11 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
-[[ "${SECONDS_WINDOW}" =~ ^[0-9]+$ ]] &&
-  ((SECONDS_WINDOW >= 1 && SECONDS_WINDOW <= 60)) || { usage >&2; exit 2; }
+if ! [[ "${SECONDS_WINDOW}" =~ ^[0-9]+$ ]] ||
+  ! ((SECONDS_WINDOW >= 1 && SECONDS_WINDOW <= 60)); then
+  usage >&2
+  exit 2
+fi
 
 # Script can run from an alternate worktree and does not touch production.
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"

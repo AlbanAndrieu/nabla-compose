@@ -15,7 +15,9 @@ MISE = ROOT / "mise.toml"
 MISE_LOCK = ROOT / "mise.lock"
 JUST = ROOT / "justfile"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+ROADMAP_ARCHIVE = ROOT / "docs" / "archive" / "roadmap-through-2026-10-24.md"
 SKILL = ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+ADVANCED_DIAGNOSTICS = SKILL.parent / "references" / "advanced-diagnostics.md"
 TASK_CONTEXT = ROOT / "scripts" / "agent-task-context.py"
 
 DAGGER_STABLE = "0.21.10"
@@ -174,8 +176,13 @@ def test_dagger_requires_reviewed_lock_before_execution() -> None:
 
 def test_dagger_remains_experimental_until_parity_is_proven() -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
+    archived_roadmap = ROADMAP_ARCHIVE.read_text(encoding="utf-8")
     skill = SKILL.read_text(encoding="utf-8")
-    normalized_skill = " ".join(skill.split())
+    advanced_diagnostics = ADVANCED_DIAGNOSTICS.read_text(encoding="utf-8")
+    normalized_diagnostics = " ".join(advanced_diagnostics.split())
+
+    assert "archive/roadmap-through-2026-10-24.md" in roadmap
+    assert "advanced-diagnostics.md" in skill
 
     for expected in (
         "ShellCheck + Biome",
@@ -190,16 +197,16 @@ def test_dagger_remains_experimental_until_parity_is_proven() -> None:
         "v1.0.0-beta.15",
         "DAGGER_WORKSPACE_RELEASE",
     ):
-        assert expected in roadmap
+        assert expected in archived_roadmap
 
-    assert "Experimental Dagger PoC" in normalized_skill
-    assert "just dagger-sync" in normalized_skill
-    assert "just dagger-list" in normalized_skill
-    assert "just dagger-poc" in normalized_skill
-    assert "does not replace the canonical publication gate" in normalized_skill
-    assert "L1" in normalized_skill
-    assert "explicit Dagger `Secret` input" in normalized_skill
-    assert "this PoC never uses them as Dagger module" in normalized_skill
+    assert "Experimental Dagger PoC" in normalized_diagnostics
+    assert "just dagger-sync" in normalized_diagnostics
+    assert "just dagger-list" in normalized_diagnostics
+    assert "just dagger-poc" in normalized_diagnostics
+    assert "does not replace the canonical publication gate" in normalized_diagnostics
+    assert "L1" in normalized_diagnostics
+    assert "explicit Dagger `Secret` input" in normalized_diagnostics
+    assert "this PoC never uses them as Dagger module" in normalized_diagnostics
 
 
 def test_dagger_changes_route_to_local_first_and_current_docs_skills() -> None:

@@ -33,6 +33,7 @@ class RecoveryContract(unittest.TestCase):
         git('init', '-b', BRANCH, str(self.repo))
         git('-C', str(self.repo), 'config', 'user.name', 'Test Operator')
         git('-C', str(self.repo), 'config', 'user.email', 'operator@example.invalid')
+        git('-C', str(self.repo), 'config', 'commit.gpgsign', 'false')
         (self.repo / 'README.md').write_text('Test repo\n')
         git('-C', str(self.repo), 'add', 'README.md')
         git('-C', str(self.repo), 'commit', '-m', 'Initial')

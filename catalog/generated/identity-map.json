@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496",
+  "catalogRevision": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -35,6 +35,12 @@
       "entityRef": "component:default/akvorado-outlet",
       "evidence": "apps/akvorado/compose.yml:services.akvorado-outlet.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/akvorado/compose.yml#services/akvorado-outlet",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/apisix",
+      "evidence": "apps/apisix/compose.yml:services.apisix.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/apisix/compose.yml#services/apisix",
       "sourceType": "compose"
     },
     {

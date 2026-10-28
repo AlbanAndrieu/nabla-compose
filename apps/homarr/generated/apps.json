@@ -90,6 +90,18 @@
       "syncEligible": false
     },
     {
+      "id": "apisix",
+      "entityRef": "component:default/apisix",
+      "name": "APISIX",
+      "group": "network",
+      "sourcePath": "apps/apisix/compose.yml",
+      "composeService": "apisix",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned standalone API gateway isolated from production ingress."
+    },
+    {
       "id": "autokuma",
       "entityRef": "component:default/autokuma",
       "name": "AutoKuma",
@@ -116,7 +128,7 @@
     {
       "id": "bichon",
       "entityRef": "component:default/bichon",
-      "name": "Bichon",
+      "name": "Bichon UI",
       "group": "productivity",
       "sourcePath": "apps/bichon/compose.yml",
       "composeService": "bichon",
@@ -420,7 +432,7 @@
     {
       "id": "gatus",
       "entityRef": "component:default/gatus",
-      "name": "Gatus",
+      "name": "Gatus UI",
       "group": "observability",
       "sourcePath": "apps/gatus/compose.yml",
       "composeService": "gatus",
@@ -475,6 +487,18 @@
       "description": "Small internal Nginx service used for ingress and routing experiments."
     },
     {
+      "id": "hermes",
+      "entityRef": "component:default/hermes",
+      "name": "Hermes Agent",
+      "group": "ai",
+      "sourcePath": "apps/hermes/compose.yml",
+      "composeService": "hermes",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP."
+    },
+    {
       "id": "homarr",
       "entityRef": "component:default/homarr",
       "name": "Homarr",
@@ -501,7 +525,7 @@
     {
       "id": "homeassistant",
       "entityRef": "component:default/homeassistant",
-      "name": "Home Assistant",
+      "name": "Home Assistant UI",
       "group": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
       "composeService": "homeassistant",

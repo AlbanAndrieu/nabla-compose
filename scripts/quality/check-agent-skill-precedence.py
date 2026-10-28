@@ -86,8 +86,8 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
     "docs/roadmap.md": (
         None,
         (
-            "## P0 — Terminer la stabilisation réelle",
-            "## P1 — Dette de code et de documentation",
+            "## P0 — Accepter les services critiques",
+            "## P1 — Fiabilité des scripts et documentation",
             "archive/roadmap-through-2026-10-24.md",
             "Ask the user",
             "democratic-csi",

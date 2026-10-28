@@ -109,6 +109,11 @@ class DigestTopContract(unittest.TestCase):
         self.assertEqual(audit.classify_job(self.job(prompt))[0],
                          "valid_top_five")
 
+    def test_distinct_duplicate_top_values_still_fail_closed(self):
+        prompt = "Use --top 5. Do not use --top 4."
+        self.assertEqual(audit.classify_job(self.job(prompt))[0],
+                         "multiple_top_arguments")
+
     def test_template_read_is_private_and_no_symlink(self):
         with tempfile.TemporaryDirectory() as root:
             template = Path(root) / "digest-prompt.md"

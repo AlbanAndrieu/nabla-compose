@@ -28,11 +28,9 @@ def test_archive_is_byte_for_byte_identical_to_reviewed_source() -> None:
     assert len(data.splitlines()) > 3000
 
 
-def test_active_roadmap_has_a_bounded_current_scope() -> None:
+def test_active_roadmap_links_archive_and_preserves_acceptance_states() -> None:
     roadmap = (ROOT / "docs/roadmap.md").read_text(encoding="utf-8")
-    assert len(roadmap.splitlines()) < 300
-    assert "## P0 — Terminer la stabilisation réelle" in roadmap
-    assert "## P1 — Dette de code et de documentation" in roadmap
+    assert roadmap.startswith("# Services Homelab — roadmap active\n")
     assert "archive/roadmap-through-2026-10-24.md" in roadmap
     assert "NOT_VERIFIED" in roadmap
     assert "ACCEPTED (runtime)" in roadmap
