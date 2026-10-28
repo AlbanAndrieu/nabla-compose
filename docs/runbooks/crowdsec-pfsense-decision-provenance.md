@@ -159,62 +159,107 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
-## Option B — décision synthétique réversible (autorisation requise)
+## Option B — test synthétique réversible et borné (validation explicite)
 
-**Préconditions :** accès administrateur TrueNAS et pfSense, système sain,
-absence d'autre décision sur `203.0.113.77` (TEST-NET-3), absence de
-correspondance PF avant essai, aucune utilisation de cette adresse dans
-l'infrastructure. Cette adresse de documentation ne doit pas être une IP
-de gestion ou une IP réelle d'un utilisateur. Certaines politiques peuvent
-écarter les adresses réservées : dans ce cas le test est **inconcluant**,
-pas un échec de migration.
+**Test actif** : crée temporairement une seule décision CrowdSec sur
+`203.0.113.77` (plage documentaire TEST-NET-3) pendant **5 minutes
+maximum**, puis tente une suppression **par identifiant unique**.
+Ce test n'est pas une décision naturelle ; son résultat est nommé
+`SYNTHETIC_PF_DECISION_CYCLE_PASS` et ne modifie pas la baseline naturelle.
 
-1. **TrueNAS — lecture seule, précondition :**
+**Préconditions et NO-GO :**
+- Exécuter **sur la workstation**, dans le checkout `nabla-compose`
+  à jour. Les deux connexions SSH sont indépendantes :
+  TrueNAS `172.17.0.24:9922` et pfSense via l'alias configuré.
+- Le firewall bouncer pfSense est actif ; l'ancien moteur pfSense est
+  arrêté. Les droits `sudo -n docker exec crowdsec cscli` sont nécessaires
+  depuis la workstation.
+- Aucune décision LAPI existante sur l'IP ou sur un intervalle la
+  couvrant, **et aucune entrée PF** (même sous forme de CIDR) couvrant
+  l'IP. Sinon **NO-GO** avant toute mutation.
+- Le moteur ou le bouncer peut ignorer les adresses réservées
+  TEST-NET-3. Cela donne **NOT_VERIFIED**, pas une migration en panne.
+- Les règles PF qui réfèrent à `crowdsec_blacklists` et le blocage WAN
+  effectif restent un contrôle distinct.
 
-   ```bash
-   sudo docker exec crowdsec cscli decisions list --ip 203.0.113.77
-   ```
+### 1. Tests hermétiques (aucune connexion au homelab)
 
-2. **Workstation — lecture seule, précondition :**
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-synthetic-test
+just crowdsec-bouncer-config-test
+```
 
-   ```bash
-   ssh -T home.albandrieu.com \
-     'pfctl -v -t crowdsec_blacklists -T test 203.0.113.77'
-   ```
+### 2. Précontrôle LIVE en lecture seule
 
-   **Arrêter** si une décision ou correspondance préexiste. Conserver
-   l'état initial et prévoir l'étape 5 avant toute modification.
+```bash
+just crowdsec-pf-synthetic-preflight
+```
 
-3. **TrueNAS — mutation exceptionnelle, uniquement avec accord explicite :**
+Résultat attendu : `synthetic_preflight=PASS initial_lapi=ABSENT
+initial_pf=ABSENT pf_bouncer=RUNNING`. En cas d'échec, **arrêter**.
+Le précontrôle doit être refait automatiquement juste avant le test actif.
 
-   ```bash
-   sudo docker exec crowdsec cscli decisions add \
-     --ip 203.0.113.77 --duration 15m --type ban \
-     --reason homelab-pfsense-cutover-proof
-   ```
+### 3. Exécution active unique — confirmation explicite
 
-4. **Lecture seule, pendant la durée de la décision :**
-   vérifier l'existence de l'IP dans `cscli decisions list --ip
-   203.0.113.77`, puis le marqueur `M` de `pfctl -v -t
-   crowdsec_blacklists -T test 203.0.113.77` depuis la workstation.
-   Observer si nécessaire `sudo docker exec crowdsec cscli bouncers list`.
-   Ne pas attribuer `last_pull` à pfSense sur cette seule base.
+L'appel ci-dessous est la **seule action mutatrice autorisée** dans cette
+procédure. Elle ne modifie que la liste de décisions LAPI et laisse PF
+être mis à jour par son bouncer normal. Ne pas lancer si l'on ne souhaite
+pas créer le bannissement temporaire.
 
-5. **TrueNAS — retour arrière obligatoire, indépendamment du résultat :**
+```bash
+python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py \
+  --apply --confirm SYNTHETIC-203.0.113.77
+```
 
-   ```bash
-   sudo docker exec crowdsec cscli decisions delete --ip 203.0.113.77
-   ```
+Le script :
+1. répète le contrôle de sécurité LAPI/PF avant création ;
+2. crée un `ban` d'une durée de **5m** sur `203.0.113.77` ;
+3. relève **l'ID** du ban et recherche l'IP dans
+   `crowdsec_blacklists` par lectures SSH (CIDR inclus) ;
+4. dans une clause `finally`, supprime **uniquement cet ID**
+   avec `cscli decisions delete --id` ;
+5. recherche la disparition de la décision **et** de l'IP dans PF,
+   en vérifiant également l'état Small du bouncer.
 
-   `--ip` retire toutes les décisions visant cette IP : c'est pourquoi
-   l'étape 1 interdit de continuer si une décision préexiste.
-   Ne jamais utiliser `--all`, `pfctl -T flush` ou relancer
-   le moteur CrowdSec local pfSense.
+Les deux périodes de polling sont bornées et les retours d'erreur
+ne permettent jamais d'afficher un faux succès. `Ctrl+C` et
+`SIGTERM` déclenchent une tentative de nettoyage.
+**SIGKILL, coupure brutale ou SSH indisponible ne garantissent pas
+l'exécution du nettoyage** : la décision a un TTL de 5 minutes.
 
-6. **Lecture seule, après la propagation :** répéter `cscli decisions
-   list --ip 203.0.113.77` et `pfctl -v -t crowdsec_blacklists
-   -T test 203.0.113.77`. Vérifier l'absence de décision centrale
-   **et** de correspondance PF.
+Verdicts :
+- `synthetic_cycle=SYNTHETIC_PF_DECISION_CYCLE_PASS` :
+  ajout LAPI, apparition PF, suppression de cet ID et disparition PF observés ;
+- `synthetic_cycle=NOT_VERIFIED` :
+  absence d'application ou de retrait, preuve incomplète,
+  ambiguïté d'ID ou échec réseau. Ne pas assimiler à une panne moteur.
+
+### 4. Si le nettoyage est incertain
+
+Ne **jamais** supprimer toutes les décisions pour une IP par
+`cscli decisions delete --ip` : cela pourrait effacer une autre décision.
+Ne pas utiliser `--all`, `pfctl -T flush`, rotation de clés ou
+redémarrage du moteur pour régler cette preuve.
+
+Lire d'abord, **sur TrueNAS** :
+
+```bash
+sudo docker exec crowdsec cscli decisions list --ip 203.0.113.77
+```
+
+Si la décision est **certainement celle du test** et que son identifiant
+est connu (affiché sous `synthetic_lapi=CREATED decision_id=...`),
+l'opérateur peut effectuer une reprise ciblée sur TrueNAS :
+
+```bash
+sudo docker exec crowdsec cscli decisions delete --id <ID_UNIQUE_DU_TEST>
+```
+
+Vérifier ensuite l'absence de cette décision et l'absence de
+`203.0.113.77` dans PF. Si l'ID est incertain, **ne rien effacer** et
+attendre le TTL de 5 minutes en contrôlant l'expiration.
 
 ## Verdict et limites
 
