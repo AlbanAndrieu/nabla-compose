@@ -1,0 +1,6 @@
+[Unit]
+Description=OpenClaw sanitized Gateway 429 evidence (opt-in)
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/w/nabla-compose/scripts/workstation/observe-openclaw-rate-limits.py --capture
+NoNewPrivileges=true

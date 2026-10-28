@@ -1,5 +1,7 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
+> **Diagnostic runtime / 429 / digest / sessions (28 octobre 2026) :** [nouveaux garde-fous de récupération](runbooks/openclaw-recovery-gates-20261028.md), code en PR non déployé ; ne pas confondre les tests hors ligne et les preuves Workstation.
+>
 > Mise à jour : **27 octobre 2026** · propriétaire : **nabla-compose** ·
 > statut : **PR #289 Draft, changements non déployés**.
 > Périmètre : OpenClaw Workstation (agents `main`/`cron`), LiteLLM

@@ -1,0 +1,4 @@
+# TEMPLATE ONLY — install after workstation runtime gate PASS.
+# Requires stable checkout at %h/w/nabla-compose and Python >= 3.11.
+[Service]
+ExecStartPre=/usr/bin/python3 %h/w/nabla-compose/scripts/workstation/check-openclaw-runtime-alignment.py
