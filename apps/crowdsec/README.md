@@ -82,6 +82,22 @@ le gate complet sur TrueNAS reste à exécuter.
 L'ancien nom `pfsense-firewall` a un dernier appel daté du 25 septembre ;
 ne pas le supprimer sans étude de sa provenance et de son usage.
 
+**Réception workstation du 28/10 — gate et baseline LIVE réalisés :**
+`just crowdsec-pf-natural-test` **15/15 PASS** et
+`just crowdsec-bouncer-config-test` **46/46 PASS**
+(URL 5, auth 11, provisionneur 5, provenance 10, cycle PF 15)
+sur le HEAD `ba5aa198`.
+`just crowdsec-pf-natural-baseline` :
+`crowdsec_pf_baseline=READY source_mode=LIVE pf_networks=4016 natural_bans=0`.
+Première commande `just crowdsec-pf-natural-observe` :
+`pf_decision_cycle=NOT_VERIFIED reason=NO_ELIGIBLE_NEW_NATURAL_BAN`.
+C'est une attente **sans nouvelle décision naturelle**, pas une panne LAPI.
+Ne pas relancer `baseline` : cela tenterait d'écraser l'état initial
+(et le script la refuserait). Exécuter seulement `observe` depuis
+la même workstation. Le fichier `0600` contient les réseaux PF
+historiques : **ne pas publier, copier ni supprimer automatiquement**.
+Le cycle de remédiation PF reste **P0 NON VÉRIFIÉ**.
+
 **P0 PF : corrélation automatisée en lecture seule (28/10).**
 Le script `scripts/workstation/observe-crowdsec-pf-decision.py`
 mémorise sur la workstation une baseline privée des décisions LAPI
@@ -100,12 +116,14 @@ just crowdsec-pf-natural-baseline
 just crowdsec-pf-natural-observe
 ```
 
-**Aucune baseline runtime n'a encore été collectée par l'agent**.
-Avec 0 décision centrale dans le dernier relevé, le cycle est
-`PF_DECISION_CYCLE_NOT_VERIFIED`. Le script n'ajoute et ne retire
-aucune décision. Les snapshots offline ne peuvent jamais produire
-un `PF_DECISION_CYCLE_PASS` live. Les fichiers de preuve contiennent
-des IP sensibles et restent uniquement dans le stockage privé local.
+**Une baseline runtime a été collectée par l'opérateur sur
+la workstation (4 016 réseaux IPv4 PF, 0 ban naturel initial).**
+La première observation est `NOT_VERIFIED` :
+aucune nouvelle décision naturelle éligible. Le script n'ajoute
+et ne retire aucune décision. Les snapshots offline ne peuvent
+jamais produire un `PF_DECISION_CYCLE_PASS` live. Les fichiers
+de preuve contiennent des IP sensibles et restent uniquement
+dans le stockage privé local.
 
 **Réception P0 encore ouverte :** [procédure de preuve d'une décision
 nouvelle et de son retrait dans PF](../../docs/runbooks/crowdsec-pfsense-decision-provenance.md).
