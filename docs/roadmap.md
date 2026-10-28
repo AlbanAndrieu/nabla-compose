@@ -9,6 +9,32 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## P0 CrowdSec — validation synthétique réversible prête (28 octobre 2026)
+
+- **Implémentation versionnée, PAS encore exécutée en runtime** :
+  `scripts/workstation/smoke-crowdsec-pf-synthetic.py` pilote
+  depuis la workstation les lectures LAPI TrueNAS et PF pfSense.
+  Le mode `--preflight` reste en lecture seule. `--apply` nécessite
+  `--confirm SYNTHETIC-203.0.113.77` ; il crée au maximum une
+  décision `ban` documentée (TEST-NET-3, TTL **5 minutes**),
+  observe la même IP dans `crowdsec_blacklists`, puis supprime
+  **l'ID de décision créé uniquement** et vérifie son retrait de
+  LAPI et PF. `finally` et capture Ctrl+C/SIGTERM tentent le nettoyage.
+  Si l'ID ne peut être prouvé, aucun `delete --ip` n'est lancé ;
+  revue manuelle et expiration TTL obligatoires.
+- **Tests locaux ciblés : 15/15 PASS** en environnement isolé,
+  sans SSH ou mutation réseau. Ajoutés au gate CrowdSec
+  (`46` précédents + `15` nouveaux = **61** tests ciblés).
+  **Le gate 61/61 sur workstation n'a pas encore été exécuté.**
+  Commandes : `just crowdsec-pf-synthetic-test`,
+  `just crowdsec-pf-synthetic-preflight`, puis action explicite
+  dans le [runbook](runbooks/crowdsec-pfsense-decision-provenance.md).
+- **P0 en attente** : le ban synthétique n'a pas été créé par l'agent,
+  aucune application/retrait PF ne peut donc être revendiquée.
+  Ce test vérifie un cycle *manuel* et **ne se substitue pas**
+  à l'observation d'une décision naturelle. Une table PF alimentée
+  ne prouve pas non plus qu'une règle a bloqué du trafic WAN.
+
 ## P0 CrowdSec pfSense Small — baseline LIVE établie le 28 octobre 2026
 
 - **DONE — gate ciblé workstation :** `just crowdsec-pf-natural-test`
