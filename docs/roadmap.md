@@ -136,6 +136,28 @@ Ne pas réémettre de clé et ne pas relancer le provisionneur `--apply`.
 
 ## Dépendance inter-dépôts : DNS privé de la workstation
 
+**Architecture de référence (source de vérité du comportement) :**
+[Split-DNS, DNSSEC NTA et NetworkManager Dispatcher](https://github.com/AlbanAndrieu/ansible-workstation/blob/fix/preserve-homelab-split-dns-20261027/docs/homelab-split-dns-architecture.md).
+
+**État courant (28/10) :** le dispatcher `root:root` (`0700`) est
+installé sur la workstation. La NTA privée de `eno1` a été
+**supprimée puis restaurée par un événement réel `reapply`** :
+`nta_restored_by_event=PASS`,
+`diagnosis=PASS_REAPPLY_PERSISTENCE`. Le dernier
+`just workstation-dnssec-dispatcher-check` en lecture seule confirme :
+`lan_profile=MATCH`,
+`dispatcher=ROOT_EXECUTABLE`,
+`link_nta=EXPECTED_ONLY`,
+`private_dns=PASS`,
+`public_dnssec=AUTHENTICATED`.
+**Le contrôle après reboot reste à recevoir** :
+ne pas redémarrer uniquement pour ce test.
+
+**Attention :** les paragraphes historiques de cette roadmap
+relatifs aux timeouts `dig`, à l'override Quad9 et aux statuts
+« NTA non installée » documentent le diagnostic d'origine, **pas
+l'état actuel**.
+
 **Runbook canonique pour les agents :**
 [workstation-split-dns-recovery.md](runbooks/workstation-split-dns-recovery.md).
 La configuration **persistante** (profil NetworkManager, domaine
