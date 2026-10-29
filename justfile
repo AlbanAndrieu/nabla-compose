@@ -1677,3 +1677,37 @@ openclaw-gateway-select-installed:
 # not a package-manager update. Retained for existing workstation commands.
 openclaw-gateway-node-update:
     just openclaw-gateway-select-installed
+
+# OpenClaw local-first runtime drift gate: no update, restart or inference.
+openclaw-runtime-alignment-test:
+    python3 -m py_compile scripts/workstation/check-openclaw-runtime-alignment.py scripts/workstation/observe-openclaw-rate-limits.py tests/test_openclaw_recovery_gates.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_recovery_gates.py' -v
+
+openclaw-runtime-alignment-check:
+    python3 scripts/workstation/check-openclaw-runtime-alignment.py
+
+# Structured Gateway journal events only; unstructured 429 strings are UNKNOWN.
+openclaw-rate-limit-evidence-check:
+    python3 scripts/workstation/observe-openclaw-rate-limits.py
+
+# Explicit opt-in: private 0700 state + 0600 allowlisted JSONL, no raw logs.
+openclaw-rate-limit-evidence-capture:
+    python3 scripts/workstation/observe-openclaw-rate-limits.py --capture
+
+# Both operations are audit/plan-only; never mutate cron or session SQLite.
+openclaw-cron-recovery-test:
+    python3 -m py_compile scripts/workstation/plan-openclaw-cron-recovery.py tests/test_openclaw_cron_recovery_plan.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_cron_recovery_plan.py' -v
+    just openclaw-digest-top-test
+    just openclaw-cron-parent-test
+
+openclaw-cron-recovery-plan:
+    python3 scripts/workstation/plan-openclaw-cron-recovery.py
+
+# Compact fail-independent read-only report. A failed probe never hides others.
+openclaw-recovery-readonly-test:
+    python3 -m py_compile tests/test_openclaw_recovery_runner.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_recovery_runner.py' -v
+
+openclaw-recovery-readonly:
+    bash scripts/workstation/openclaw-recovery-readonly.sh

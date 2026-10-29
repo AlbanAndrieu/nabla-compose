@@ -1,0 +1,9 @@
+{
+  "schema": "openclaw-workstation-runtime/v1",
+  "node_version": "24.22.1",
+  "openclaw_version": "2026.10.7",
+  "systemd_unit": "openclaw-gateway.service",
+  "port": 18789,
+  "deployment": "explicit_opt_in_only",
+  "auto_upgrade_on_reboot": false
+}

@@ -18,7 +18,9 @@
     "name": "tech-news-digest",
     "source": "https://clawhub.ai/dinstein/skills/tech-news-digest",
     "version": "verify_local_installation",
-    "template": "references/digest-prompt.md"
+    "template": "references/digest-prompt.md",
+    "reviewed_upstream_tag": "v3.16.0",
+    "reviewed_template_git_blob": "d7be4d17fde5e9899cedfbfaced61e69f07351eb"
   },
   "parameters": {
     "MODE": "daily",
@@ -43,6 +45,8 @@
     "manual_apply_required": true,
     "require_idempotent_job_id_lookup": true,
     "model_requests_during_drift_check": 0,
-    "skill_template_check_required": true
+    "skill_template_check_required": true,
+    "enforce_integer_top_before_runtime_edit": true,
+    "runtime_edit_requires_explicit_approval": true
   }
 }
