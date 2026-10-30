@@ -32,9 +32,12 @@ ou `networks` au niveau partage, avec `security=DEFAULT_UNVERIFIED`.
 Les trois flags sont documentés dans la
 [roadmap transversale](roadmap-openclaw-yubikey-extraction-20261030.md).
 La sonde clients TCP/2049 a initialement retourné
-`SS_RESPONSE_UNVERIFIED` malgré 8/8 tests hermétiques PASS ;
-le parseur a ensuite été corrigé, mais la revalidation sur le NAS
-n'est **pas attestée**. La reprise doit rester read-only ; une
+`SS_RESPONSE_UNVERIFIED` ; la correction du parseur `ss` a été **revalidée**
+sur TrueNAS depuis un worktree PR #300 au SHA `245bd928` : **8/8 tests PASS**,
+`TCP_SNAPSHOT_OBSERVED`, **1 session TCP et 1 pair distinct** sur tous les
+exports NFS. Ce n'est ni un inventaire spécifique de l'export `lab` ni une
+liste exhaustive : `all_clients_enumerated=false` et
+`consumer_allowlist_verified=false`. La suite reste read-only ; une
 allowlist ne doit pas être construite depuis les seules connexions
 du moment. [Matrice d'extraction](migrations/workstation-yubikey-extraction-20261030.md).
 
