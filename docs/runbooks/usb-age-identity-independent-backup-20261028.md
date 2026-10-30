@@ -264,3 +264,70 @@ Référence : [TrueNAS SCALE 26 — ACL](https://www.truenas.com/docs/scale/26/d
 **Ne pas relancer `--backup` :** les archives existent et le script refuse
 de les écraser. Garder `--copy`, la rotation SOPS, OTP2 et PIV9A/PIV82
 hors périmètre. PR #289 toujours sans automerge.
+
+## P1 — Vérifier l'export NFS et les identités (PR #295, 30/10/2026)
+
+**Contexte :** après les preuves réelles `0700/0700/0600` et
+`MODE_BOUNDARY_OBSERVED`, les permissions locales serveur sont validées.
+Le contrôle ACL sur la racine de l'export a détecté **une autorisation
+non propriétaire potentielle** ; cela n'implique pas la capacité de lire
+les dossiers `secret` privés.
+
+**Contrôle en lecture seule ajouté dans la PR #295 :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just yubikey-usb-identity-nfs-export-test
+just yubikey-usb-identity-nfs-export-check
+just yubikey-usb-identity-nfs-export-probe
+```
+
+La SanDisk d'origine **n'est pas nécessaire**. Ne pas relancer
+`--backup`, `--copy` ou le déchiffrement : ce contrôle ne lit ni
+l'archive chiffrée ni la phrase secrète. Les tests sont hermétiques,
+sans contact réseau réel ; le `--probe` interroge une seule fois
+`sharing.nfs.query` via SSH non interactif et vérification stricte
+de la clé hôte existante. Aucun changement de partage, de dataset,
+de propriétaire ou d'ACL.
+
+**Éléments examinés**, sans publier leur contenu :
+- Correspondance **exacte** d'un unique export avec le chemin monté
+  attendu sur la workstation ; l'absence ou l'ambiguïté échoue.
+- Export actif, verrouillage du dataset, partage en lecture seule ou non.
+- Présence de filtres `hosts` et `networks` sans publier
+  adresses IP, noms DNS ou listes complètes. L'absence des deux filtres
+  déclenche `NO_NFS_HOST_OR_NETWORK_FILTER`.
+- Types de sécurité `SYS`, `KRB5`, `KRB5I`, `KRB5P`.
+  `SYS` utilise l'identité UID/GID déclarée par le client ; ce
+  protocole ne constitue pas une authentification forte du client.
+  Une liste vide est notée `DEFAULT_UNVERIFIED`, sans inférence.
+- Présence de `maproot` et `mapall`. L'analyse compare les
+  comptes de mappage à l'UID du fichier **sur le serveur**, puis
+  ne transmet que `SENSITIVE_OWNER`, `DIFFERENT_OWNER`,
+  `UNSET` ou `ACCOUNT_NOT_RESOLVED`. Aucune identité n'est divulguée.
+
+Un retour `configuration_inventory_verified=true` signifie
+**uniquement** que la configuration NFS a été lue et validée.
+`status=REVIEW_REQUIRED` reste volontaire ; un code retour 0
+ne constitue **pas** une validation des accès effectifs.
+`effective_nfs4_authorization_verified=false` et
+`nfs_identity_mapping_verified=false` ne doivent pas être modifiés
+par cette sonde. Les restrictions client et le traitement de l'identité
+root restent des éléments d'analyse ; aucun correctif automatique.
+
+**Critère de clôture partielle :** retour opérateur expurgé du
+`--probe`, analyse des éventuels `review_flags` et de
+`configuration.client_filter`, `root_mapping`, `all_mapping`
+et `security`. Une preuve d'accès négatif exige une identité
+de test distincte et une procédure explicitement autorisée ;
+ne pas employer `sudo` ou l'UID propriétaire pour la simuler.
+
+**État à la publication :** scripts et tests versionnés, exécution
+sur workstation/TrueNAS **NOT_RUN**. La phrase secrète conservée hors
+SanDisk, workstation et NAS reste **NOT_ATTESTED** ; aucune valeur
+secrète ne doit être communiquée.
+
+**Référence :**
+[TrueNAS API – partage NFS](https://api.truenas.com/v26.0/api_methods_sharing.nfs.update.html).
+
