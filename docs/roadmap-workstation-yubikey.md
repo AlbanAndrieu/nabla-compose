@@ -2,13 +2,12 @@
 
 > **Mise à jour d'autorité (30/10/2026) :** le dépôt [nabla-yubikey](https://github.com/AlbanAndrieu/nabla-yubikey) existe, sa PR #1 est Draft ; le lot des dépendances readonly y est importé. La cible des runbooks matériels/escrow est maintenant ce dépôt ; Compose garde temporairement les 84 recettes historiques jusqu'à parité des tests. Le tableau ci-dessous documente **l'état historique avant cutover**. Suivi opérationnel transversal : [roadmap OpenClaw/YubiKey](roadmap-openclaw-yubikey-extraction-20261030.md).
 
-> **30 octobre — extraction proposée, pas encore exécutée** :
-> les 84 recettes `yubikey-*` peuvent rejoindre un futur dépôt
-> `nabla-yubikey` après analyse des dépendances, suppression des
-> références sensibles et parité des tests. Les données PIV/FIDO2/OTP,
-> PIN, archives age et clés privées ne sont jamais copiées dans Git.
-> Jusqu'au cutover, `nabla-compose` reste le dépôt canonique.
-> [Plan et ADR](migrations/workstation-yubikey-extraction-20261030.md).
+> **30 octobre — extraction non encore réalisée :** le dépôt
+> [`nabla-yubikey`](https://github.com/AlbanAndrieu/nabla-yubikey) existe ;
+> sa PR #1 reste **Draft** et ne contient qu'un premier lot de diagnostics
+> de dépendances. Les 84 recettes historiques Compose restent accessibles
+> jusqu'à validation de la parité. Ne transférer aucun secret, PIN, PIV,
+> archive age ni données SOPS. [Plan et ADR](migrations/workstation-yubikey-extraction-20261030.md).
 
 
 
@@ -17,7 +16,7 @@
 | Priorité | Action | Validation / gate | État |
 | --- | --- | --- | --- |
 | P0 | Maintenir **un seul owner** pour les diagnostics OTP2, FIDO2, SSH-sk, PIV, GPG/OpenPGP, age, escrow | Tous les scripts matériels restent sous `scripts/workstation/` ; aucun write automatique | Déjà centralisé ; intégration Ansible à retirer |
-| P0 | Consolider les runbooks PIV82 et escrow en statut NO-GO tant que les preuves manquent | Deux restaurations escrow réellement indépendantes, roundtrip de récupération isolé | **Bloqué**, ne pas modifier le matériel |
+| P0 | Distinguer l'escrow age **validé** du provisioning PIV82 et du PRA restant | Deux archives chiffrées sur supports distincts, chacune restaurée et identité historique confirmée ; phrase secrète accessible hors SanDisk/workstation/NAS **non attestée** | **Sauvegarde/restauration DONE ; PIV82/PRA NO-GO**, aucune mutation matériel |
 | P0 | Contrat inter-dépôts pour PAM / dépendances YubiKey | Compose ne touche pas `/etc/pam.d` ; Ansible audite PAM sans muter | Documentation acceptée |
 | P1 | Harmoniser les commandes de préflight YubiKey dans les runbooks actifs | Un seul chemin `--readonly` sans SCD, PIN, PUK ni mutation de slots | À consolider |
 | P1 | Proposer à Ansible la liste minimale de prérequis OS sans les installer automatiquement | Matrice versions/dépendances (pcscd, libfido2, opensc, ykman) expurgée | À faire |
@@ -26,5 +25,17 @@
 | P2 | Intégrer les preuves autorisées au catalogue sécurité | Métadonnées de conformité seulement, aucune identité unique de carte | À faire |
 
 **Propriétaires des autres étapes :** `dotfiles` pour shell/terminal et `ansible-workstation` pour OS, système PAM, paquets, réseau, snapshots et sauvegarde Restic. Les runbooks hardware de Compose ne deviennent pas des rôles Ansible.
+
+**P1 NFS actuel (preuves 30/10, sans mutation) :** l'export de
+sauvegarde est actif et accessible en écriture, sans filtres `hosts`
+ou `networks` au niveau partage, avec `security=DEFAULT_UNVERIFIED`.
+Les trois flags sont documentés dans la
+[roadmap transversale](roadmap-openclaw-yubikey-extraction-20261030.md).
+La sonde clients TCP/2049 a initialement retourné
+`SS_RESPONSE_UNVERIFIED` malgré 8/8 tests hermétiques PASS ;
+le parseur a ensuite été corrigé, mais la revalidation sur le NAS
+n'est **pas attestée**. La reprise doit rester read-only ; une
+allowlist ne doit pas être construite depuis les seules connexions
+du moment. [Matrice d'extraction](migrations/workstation-yubikey-extraction-20261030.md).
 
 **Sans consentement :** aucune rotation de PIN/PUK, clé PIV AES256, changement OTP2, reset PIV, export de clés GPG ou activation PAM. Pas d'automerge ni de CI payante, tests offline avant manipulation supervisée.
