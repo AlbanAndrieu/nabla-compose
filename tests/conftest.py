@@ -18,18 +18,9 @@ import tempfile
 
 import pytest
 
-_REPOSITORY_ENV = (
-    "GIT_DIR",
-    "GIT_INDEX_FILE",
-    "GIT_WORK_TREE",
-    "GIT_COMMON_DIR",
-    "GIT_PREFIX",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-)
+from tests.git_test_env import sanitize_process_git_environment
 
-for _name in _REPOSITORY_ENV:
-    os.environ.pop(_name, None)
+sanitize_process_git_environment()
 
 _TEMPLATE_DIR = tempfile.mkdtemp(prefix="nabla-empty-git-template-")
 os.environ["GIT_TEMPLATE_DIR"] = _TEMPLATE_DIR

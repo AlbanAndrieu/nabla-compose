@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Read-only reconciliation plan: digest template and cron main session.
 
-No cron edits, session creation, database writes, model requests or secrets.
+Does not modify cron, create sessions, write databases, request models or read
+secrets.
 """
 from __future__ import annotations
 import importlib.util

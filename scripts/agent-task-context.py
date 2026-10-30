@@ -25,19 +25,24 @@ def git(*args: str, check: bool = True) -> str:
     return result.stdout.strip()
 
 
+def comparison_base() -> str:
+    configured = os.environ.get("QUALITY_BASE_REF")
+    if configured:
+        return configured
+    for candidate in ("origin/master", "master"):
+        if subprocess.run(
+            ["git", "rev-parse", "--verify", candidate],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        ).returncode == 0:
+            return candidate
+    return "HEAD"
+
+
 def changed_paths() -> list[str]:
     paths: set[str] = set()
-    base = os.environ.get("QUALITY_BASE_REF")
-    if not base:
-        for candidate in ("origin/master", "master"):
-            if subprocess.run(
-                ["git", "rev-parse", "--verify", candidate],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-            ).returncode == 0:
-                base = candidate
-                break
+    base = comparison_base()
     # A cached base may exist without sharing history with the local HEAD.
     # Missing/divergent history is not a reason to try a network fetch here.
     if base and subprocess.run(
@@ -156,11 +161,16 @@ def suggested_skills(paths: list[str]) -> list[str]:
 
 def main() -> int:
     branch = git("branch", "--show-current")
+    head = git("rev-parse", "--verify", "HEAD", check=False) or "<unborn>"
+    base = comparison_base()
     status = git("status", "--short")
     paths = changed_paths()
     skills = suggested_skills(paths)
 
     print(f"branch: {branch or '<detached>'}")
+    print(f"head: {head}")
+    print(f"comparison-base: {base}")
+    print("remote-pr-state: NOT_CHECKED (verify the selected PR before editing)")
     print("default-branch-protected: " + ("NO" if branch == "master" else "YES"))
     max_paths = int(os.environ.get("AGENT_CONTEXT_MAX_PATHS", "25"))
     if max_paths < 1:
@@ -189,9 +199,11 @@ def main() -> int:
         print("  clean")
 
     print("next:")
-    print("  1. read AGENTS.md and agent.md")
-    print("  2. load only the suggested/relevant skills")
-    print("  3. run the narrowest contract before mise run agent-fix")
+    print("  1. verify the selected PR state, branch and remote HEAD")
+    print("  2. read AGENTS.md and load only the suggested/relevant skills")
+    print("  3. run the narrowest contract, then agent-loop")
+    print("  4. run agent-fix once for branch-wide convergence")
+    print("  5. commit, then run agent-pre-push once for the complete gate")
     return 0
 
 

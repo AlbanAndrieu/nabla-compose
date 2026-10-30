@@ -29,6 +29,9 @@ def test_context_is_bounded_without_remote_git_base(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+    assert "comparison-base: refs/remotes/origin/unavailable" in result.stdout
+    assert "remote-pr-state: NOT_CHECKED" in result.stdout
+    assert "verify the selected PR state, branch and remote HEAD" in result.stdout
     assert "changed-paths: 30" in result.stdout
     assert "27 more; use git diff --name-only" in result.stdout
     assert "27 more; use git status --short" in result.stdout
