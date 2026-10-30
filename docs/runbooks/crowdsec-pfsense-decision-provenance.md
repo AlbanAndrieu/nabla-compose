@@ -159,6 +159,79 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
+## Étape suivante — audit du ruleset PF *chargé* (PR #295)
+
+**Objet :** valider que la table `crowdsec_blacklists` est
+référencée par une règle `block … in … quick … from
+<crowdsec_blacklists> to …` dans le ruleset **actif**
+de pfSense, pas seulement déclarée ou remplie.
+
+Le diagnostic `scripts/workstation/audit-crowdsec-pf-rules.py`
+est **strictement en lecture seule**. Il interroge pfSense en
+SSH (workstation uniquement) avec `pfctl -s info`,
+`pfctl -sr`, et, si disponible, `pfctl -a '*' -sr`
+pour un aperçu des ancres. Aucune lecture de secrets,
+modification de règles, suppression de table, création de
+décision, redéploiement ou rechargement PF.
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-rules-test
+just crowdsec-pf-rules-audit
+```
+
+Pour comparer à **l'interface WAN réelle connue** (exemple : `igb0`,
+à adapter seulement après vérification de l'interface pfSense) :
+
+```bash
+python3 scripts/workstation/audit-crowdsec-pf-rules.py --wan-interface igb0
+```
+
+La présence d'une interface dans une règle chargée est une
+**compatibilité structurelle**, pas une preuve de blocage.
+Le script ne déduit pas l'interface WAN de la route par défaut
+(cela serait trompeur en multi-WAN/VPN). Les résultats n'exposent
+pas les règles brutes, IP historiques, secrets, compteurs ou
+adresses WAN. Les fixtures `--info-file` et `--rules-file`
+produisent obligatoirement `source=OFFLINE` et ne se substituent
+pas à une réception réelle.
+
+**Interpréter le verdict :**
+
+- `BLOCK_RULE_LOADED` : une règle `block in quick`
+  chargée dans la portée racine fait référence à la table
+  **en source**. C'est une **preuve de configuration PF
+  chargée**, pas une preuve qu'un paquet WAN a été bloqué.
+- `ANCHOR_BLOCK_RULE_REACHABILITY_NOT_VERIFIED` :
+  règle trouvée uniquement dans la vue des ancres ;
+  confirmer que l'ancre est réellement appelée par la
+  politique chargée et évaluée dans l'ordre attendu.
+- `TABLE_REFERENCED_NO_QUICK_IN_BLOCK` :
+  référence trouvée mais pas de règle de blocage entrant
+  `quick` satisfaisant le prédicat strict.
+- `ROOT_RULE_ABSENT_ANCHORS_UNKNOWN` ou
+  `NO_CROWDSEC_IPV4_RULE_OBSERVED` : l'audit ne
+  constate pas de protection IPv4 démontrable.
+- `NOT_VERIFIED` : PF désactivé, SSH, parsing, statut
+  ou lecture impossible. Ne jamais convertir cet état
+  en `DOWN` sans autres preuves.
+
+Un `block in quick` peut être supplanté en pratique par des
+règles ou états existants (ex. `pass quick`, anti-lockout),
+ou concerner un autre chemin réseau. La vérification d'un
+**paquet effectivement bloqué sur un vrai WAN** demande
+une preuve séparée (compteur lié à la règle active, logs
+`filter.log` corrélés à un identifiant de règle, ou
+test sûr depuis un point WAN contrôlé). Ne jamais provoquer
+un bannissement de l'adresse d'administration ou désactiver
+l'anti-lockout pour obtenir cette preuve.
+
+Sources de méthode :
+- [Netgate — viewing the loaded PF ruleset](https://docs.netgate.com/pfsense/en/latest/firewall/pf-ruleset.html)
+- [CrowdSec — firewall bouncer PF and filtering rules](https://docs.crowdsec.net/u/bouncers/firewall/)
+- [Netgate — firewall logs and rule tracking IDs](https://docs.netgate.com/pfsense/en/latest/monitoring/logs/firewall.html)
+
 ## Réception synthétique LIVE — résultat opérateur du 30 octobre 2026
 
 **PASS — propagation et retrait d'une décision artificielle sur
