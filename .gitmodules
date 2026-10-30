@@ -25,10 +25,6 @@
 [submodule "langfuse"]
 	path = langfuse
 	url = https://github.com/AlbanAndrieu/langfuse.git
-[submodule "fastapi-sample"]
-	path = fastapi-sample
-	url = https://github.com/AlbanAndrieu/fastapi-sample
-
 [submodule "apps/nabla-site-alban"]
 	path = apps/nabla-site-alban
 	url = https://github.com/AlbanAndrieu/nabla-site-alban.git

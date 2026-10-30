@@ -62,6 +62,26 @@ paths = [
     '''.terraform''',
 ]
 
+# Exceptions précises pour des exemples pédagogiques Docker.
+# Ne pas exclure globalement les skills.
+filter = '''
+finding["rule_id"] == "generic-password" &&
+(
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/assets/bad-vs-good.md" &&
+    finding["line"] == "      POSTGRES_PASSWORD: supersecretpassword123"
+  ) ||
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/SKILL.md" &&
+    filter.containsAny(finding["line"], ["${DB_PASSWORD:-postgres}"])
+  ) ||
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/assets/compose-web-app.yaml" &&
+    filter.containsAny(finding["line"], ["${POSTGRES_PASSWORD:-secret}"])
+  )
+)
+'''
+
 [[rules]]
 id = "generic-api-key"
 

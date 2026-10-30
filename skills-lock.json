@@ -1,17 +1,35 @@
 {
   "version": 1,
   "skills": {
+    "cloudflare": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloudflare/SKILL.md",
+      "computedHash": "2c2f869eb520868563bba5903856a3c71972dcccba1e78459ef5006ad3b4c089"
+    },
     "docker-compose-orchestration": {
       "source": "manutej/luxor-claude-marketplace",
       "sourceType": "github",
       "skillPath": "plugins/luxor-devops-suite/skills/docker-compose-orchestration/SKILL.md",
       "computedHash": "f61af99ed5390638b98d40124bcb47837a6a2d8adcb17343a5be525989494eef"
     },
+    "docker-compose-patterns": {
+      "source": "docker/skills",
+      "sourceType": "github",
+      "skillPath": "skills/docker-compose-patterns/SKILL.md",
+      "computedHash": "391f366bb0e60f5c7c48ecc814b917e7dae797edbb58625d228cb951d7a538ee"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "89496d5dd00f4810205f351759594fc2742bf8eea85a2f2b2d1de59f4bd91576"
+    },
+    "kubernetes-specialist": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/kubernetes-specialist/SKILL.md",
+      "computedHash": "4a57967f153996cd50a8b97642707c91839b62f0647e3024a3582f81f2646e9f"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

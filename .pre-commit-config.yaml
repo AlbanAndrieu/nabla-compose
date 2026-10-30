@@ -42,6 +42,8 @@ repos:
         exclude: >-
           ^(package-lock\.json|npm-shrinkwrap\.json|poetry\.lock|Pipfile\.lock|yarn\.lock|sbom\.json|pnpm-lock\.yaml|trivy-sbom\.json)$
       - id: detect-private-key
+        name: "🔒 security · Detect private keys"
+        exclude: ^\.agents/skills/ansible-validator/scripts/scan_secrets\.sh$
 
   - repo: https://github.com/pre-commit/pre-commit.git
     rev: v4.6.2
@@ -167,8 +169,10 @@ repos:
     hooks:
       - id: developer-tooling-contract
         name: "🛠️ tooling · Validate Betterleaks and Just compatibility"
-        language: system
+        language: python
         entry: python -m unittest tests.test_dev_tooling_contract -v
+        additional_dependencies:
+          - PyYAML==6.0.3
         pass_filenames: false
         files: >-
           ^([.]pre-commit-config[.]yaml|[.]gitleaks[.]toml|[.]mega-linter[.]yml|[.]ruff[.]toml|mise[.]toml|mise[.]lock|justfile|Makefile|tests/test_dev_tooling_contract[.]py)$
