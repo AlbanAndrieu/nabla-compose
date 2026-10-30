@@ -50,6 +50,11 @@ def denial_reason(raw: bytes) -> str:
         return "docker_permission_denied"
     if "no such container" in text:
         return "container_missing"
+    if "sudo:" in text and any(x in text for x in (
+        "password is required", "a terminal is required",
+        "not allowed to execute", "not in the sudoers"
+    )):
+        return "sudo_permission_unavailable"
     return "unverified"
 
 
@@ -81,21 +86,25 @@ def workstation(hours: int) -> tuple[str, str, bytes, str]:
     return state, "user_journal" if state == "available" else "unverified", data, reason
 
 
-def truenas(hours: int) -> tuple[str, str, bytes, str]:
+def truenas(hours: int, *, use_sudo: bool = False) -> tuple[str, str, bytes, str]:
     # Strict known-host verification, no agent forwarding, no password prompt.
-    # Remote Docker read permission must already be granted; do not attempt sudo.
+    # Sudo is an explicit opt-in, never an automatic fallback or ACL change.
     command = ["ssh", "-p", PORT, "-T", "-o", "BatchMode=yes",
                "-o", "StrictHostKeyChecking=yes", "-o", "ForwardAgent=no",
                "-o", "ConnectTimeout=5", "-o", "NumberOfPasswordPrompts=0",
-               HOST, "docker", "logs", "--since", f"{hours}h",
+               HOST, *(["sudo", "-n"] if use_sudo else []),
+               "docker", "logs", "--since", f"{hours}h",
                "--tail", "300", CONTAINER_TRUENAS]
     state, data, reason = collect(command, timeout=16)
-    return state, "ssh_docker" if state == "available" else "unverified", data, reason
+    selected = "ssh_sudo_docker" if use_sudo else "ssh_docker"
+    return state, selected if state == "available" else "unverified", data, reason
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hours", type=int, default=2)
+    parser.add_argument("--truenas-sudo-logs", action="store_true",
+                        help="Explicit opt-in for existing passwordless TrueNAS sudo")
     parser.add_argument("--fixture-workstation", type=Path)
     parser.add_argument("--fixture-truenas", type=Path)
     args = parser.parse_args(argv)
@@ -117,7 +126,11 @@ def main(argv=None) -> int:
             except OSError:
                 state, source, data, reason = "unavailable", "unverified", b"", "fixture_unavailable"
         else:
-            state, source, data, reason = get(args.hours)
+            if label == "truenas":
+                state, source, data, reason = get(
+                    args.hours, use_sudo=args.truenas_sudo_logs)
+            else:
+                state, source, data, reason = get(args.hours)
         entry = {"status": state, "source": source, "access_reason": reason}
         if state == "available":
             entry.update(summarize(data))
