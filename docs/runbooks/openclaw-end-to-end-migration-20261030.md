@@ -181,3 +181,15 @@ Un unique smoke facturable, uniquement si autorisé, peut ensuite
 Références : docs/runbooks/openclaw-recovery-gates-20261028.md,
 docs/runbooks/openclaw-litellm-429-attribution.md,
 docs/runbooks/openclaw-workstation-gitops-migration-20261027.md.
+
+## Choix du transport OpenClaw -> TrueNAS
+
+Le port direct `172.17.0.24:4000` en HTTP transmet les clés virtuelles
+en clair sur le LAN. Pour une cible avec chiffrement, préférer le tunnel
+SSH vérifié `http://127.0.0.1:14000/v1` (déjà pris en charge par
+`just openclaw-truenas-tunnel-ensure`) ou une terminaison HTTPS fiable.
+Le résolveur de routes présente le tunnel comme
+`truenas_tunnel_candidate` tant que l'origine du processus SSH n'est
+pas confirmée séparément. Prévoir la persistance et la supervision du
+tunnel **avant** un cutover, sinon un reboot Workstation déconnecterait
+les deux agents. Ne pas confondre son absence avec un 429 LiteLLM.

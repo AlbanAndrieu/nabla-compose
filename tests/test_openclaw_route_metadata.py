@@ -84,6 +84,17 @@ class OpenClawRouteMetadataTests(unittest.TestCase):
         self.assertNotIn("secret-port", result.stdout + result.stderr)
         self.assertNotIn("sk-SHOULD_NOT_PRINT", result.stdout + result.stderr)
 
+    def test_truenas_tunnel_is_only_a_candidate_until_verified(self):
+        result = self.inspect({"models": {"providers": {"litellm-main": {
+            "baseUrl": "http://127.0.0.1:14000/v1",
+            "apiKey": {"source": "file", "provider": "private-main", "id": "value"},
+        }}}})
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("route_owner=truenas_tunnel_candidate", result.stdout)
+        self.assertIn("key_representation=secretref_object", result.stdout)
+        self.assertNotIn("private-main", result.stdout)
+        self.assertNotIn("14000", result.stdout)
+
     def test_missing_base_url_is_classified_without_unbound_variable(self):
         # Assert that the actual credential is hidden. Diagnostic field names
         # like memory_embedding_secretref are public and must remain visible.
