@@ -13,7 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 JUSTFILE = ROOT / "justfile"
 # Top-level recipes, including parameterized recipes (e.g. deploy target:).
-RECIPE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)(?:\\s+[^:#\\n]+)?:\\s*(?:#.*)?$")
+RECIPE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)(?:\s+[^:#\n]+)?:\s*(?:#.*)?$")
 
 
 def duplicates(source):
