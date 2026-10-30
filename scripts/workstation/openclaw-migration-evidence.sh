@@ -46,6 +46,9 @@ probe() {
     # Only known fixed-field verdicts; never expose arbitrary logs, prompts,
     # bearer tokens, request paths, identities or raw JSON.
     grep -E '^(gateway_verdict=|cooldown_coverage=|truenas_tunnel=|models_allowlist=|provisioning=|database_status=|database_connectivity=|runtime_status=|openclaw_main_quota_state=|openclaw_cron_quota_state=|digest_top_argument=|cron_main_reference=|litellm_liveliness_http=|MIGRATION_EVIDENCE )' "$tmp" | head -n 8 || :
+    # Structured diagnostics: extract ONLY fixed-name, fixed-format statuses,
+    # not entire JSON lines (which could contain other fields).
+    grep -oE '"(coverage|access_reason|alignment|digest_state|digest_action|cron_main_reference|cron_main_action|gateway_verdict)"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' "$tmp" 2>/dev/null | sort -u | head -n 8 || :
   fi
   rm -f -- "$tmp"
   if ((rc==0)); then
