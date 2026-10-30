@@ -1746,6 +1746,8 @@ openclaw-runtime-paths-test:
 
 # Run existing focused suites locally (no CI, gateway, model requests or state writes).
 openclaw-recovery-quality:
+    just openclaw-host-context-test
+    just openclaw-digest-gitops-test
     just openclaw-litellm-dual-logs-test
     just openclaw-heartbeat-restore-test
     just openclaw-runtime-paths-test
@@ -1791,3 +1793,26 @@ openclaw-migration-runbook:
 # Explicit remote sudo -n docker logs, never the default diagnostic path.
 openclaw-litellm-dual-logs-check-sudo:
     python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2 --truenas-sudo-logs
+
+# Host fingerprint is read-only. TrueNAS is never classified as Workstation.
+openclaw-host-context-test:
+    python3 -m py_compile scripts/workstation/openclaw-host-context.py tests/test_openclaw_host_context.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_host_context.py' -v
+
+openclaw-host-context:
+    python3 scripts/workstation/openclaw-host-context.py
+
+# GitOps: reconcile ONLY the existing digest cron job after private backup.
+openclaw-digest-gitops-test:
+    python3 -m py_compile scripts/workstation/reconcile-openclaw-digest-cron.py tests/test_openclaw_digest_gitops.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops.py' -v
+
+openclaw-digest-gitops-plan:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --plan
+
+openclaw-digest-gitops-check:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --check
+
+# Mutates existing job message; requires runtime hash printed by plan.
+openclaw-digest-gitops-apply expected_sha:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --apply --expected-message-sha {{expected_sha}}
