@@ -151,7 +151,8 @@ class EvidenceCollectorTests(unittest.TestCase):
 
     def test_report_is_private_without_raw_metrics(self):
         with tempfile.TemporaryDirectory() as temp:
-            directory = Path(temp) / "evidence"
+            # resolve(): macOS temp dirs live under the /var -> /private/var symlink.
+            directory = Path(temp).resolve() / "evidence"
             report = {"status": "UNVERIFIED", "prometheus": {}, "akvorado": {}}
             filename = module.save_private_report(directory, report)
             self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
@@ -160,7 +161,7 @@ class EvidenceCollectorTests(unittest.TestCase):
 
     def test_symlink_report_directory_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
-            path = Path(temp)
+            path = Path(temp).resolve()
             destination = path / "real"
             destination.mkdir()
             alias = path / "link"
@@ -170,7 +171,7 @@ class EvidenceCollectorTests(unittest.TestCase):
 
     def test_symlink_in_parent_path_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             actual = root / "actual"
             actual.mkdir()
             alias = root / "parent-link"
@@ -197,7 +198,7 @@ class EvidenceCollectorTests(unittest.TestCase):
 
     def test_existing_public_directory_is_not_accepted(self):
         with tempfile.TemporaryDirectory() as temp:
-            directory = Path(temp) / "public"
+            directory = Path(temp).resolve() / "public"
             directory.mkdir(mode=0o755)
             directory.chmod(0o755)
             with self.assertRaises(ValueError):
