@@ -81,12 +81,91 @@ def audit(use_sudo=False):
             "model_requests":0, "app_mutations":0}
 
 
+
+# TrueNAS app.query enumerates every app. This secondary audit does not rely
+# on guessed app names; it still never authorizes relocating the sandbox.
+SAFE_APP_ID = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")
+RELATIVE_LEGACY = "apps/openclaw/compose.yml"
+
+
+def nested_old_reference(value, depth=0):
+    """Search JSON structures for the exact legacy path, without emitting data."""
+    if depth > 24:
+        raise ValueError("unbounded_config_depth")
+    if isinstance(value, str):
+        return any(part in value for part in (OLD_INCLUDE, OLD_SUFFIX, RELATIVE_LEGACY))
+    if isinstance(value, list):
+        return any(nested_old_reference(item, depth + 1) for item in value)
+    if isinstance(value, dict):
+        return any(nested_old_reference(k, depth + 1) or
+                   nested_old_reference(v, depth + 1)
+                   for k, v in value.items())
+    if value is None or type(value) in (bool, int, float):
+        return False
+    raise ValueError("invalid_config_type")
+
+
+def audit_all_apps(use_sudo=False):
+    """Enumerate all currently installed TrueNAS Apps; no secrets in reports."""
+    prefix = ["sudo", "-n"] if use_sudo else []
+    version = query(prefix + ["midclt", "call", "system.version"])
+    if not isinstance(version, str) or not version.startswith("TrueNAS-"):
+        return {"host": "unverified", "sandbox_relocation":
+                "blocked_wrong_host_or_access", "read_only": True,
+                "model_requests": 0, "app_mutations": 0}
+
+    records = query(prefix + ["midclt", "call", "app.query"])
+    if not isinstance(records, list) or not 0 < len(records) <= 256:
+        return {"host": "truenas", "sandbox_relocation":
+                "unverified_app_inventory", "read_only": True,
+                "app_mutations": 0, "model_requests": 0}
+
+    ids = []
+    for entry in records:
+        if not isinstance(entry, dict):
+            break
+        app = entry.get("id")
+        if not isinstance(app, str) or not SAFE_APP_ID.fullmatch(app):
+            break
+        ids.append(app)
+    if len(ids) != len(records) or len(set(ids)) != len(ids):
+        return {"host": "truenas", "sandbox_relocation":
+                "unverified_app_inventory", "read_only": True,
+                "app_mutations": 0, "model_requests": 0}
+
+    checked = 0
+    incomplete = 0
+    observed = False
+    for app in ids:
+        config = query(prefix + ["midclt", "call", "app.config", app])
+        if not isinstance(config, dict):
+            incomplete += 1
+            continue
+        try:
+            observed |= nested_old_reference(config)
+            checked += 1
+        except (ValueError, RecursionError):
+            incomplete += 1
+    verdict = ("blocked_legacy_include_in_use" if observed else
+               "unverified_incomplete_app_scan" if incomplete else
+               "manual_review_no_app_reference_observed")
+    return {"host": "truenas", "sandbox_relocation": verdict,
+            "read_only": True, "app_inventory_count": len(ids),
+            "app_configs_checked": checked,
+            "app_configs_unverified": incomplete,
+            "old_path_reference_observed": observed,
+            "scan_scope": "truenas_app_configs_only",
+            "model_requests": 0, "app_mutations": 0}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--noninteractive-sudo", action="store_true",
                         help="Opt in to existing sudo -n rights; never prompts")
+    parser.add_argument("--all-apps", action="store_true",
+                        help="Enumerate and inspect every TrueNAS app configuration")
     args = parser.parse_args(argv)
-    result = audit(args.noninteractive_sudo)
+    result = audit_all_apps(args.noninteractive_sudo) if args.all_apps else audit(args.noninteractive_sudo)
     print(json.dumps(result, sort_keys=True))
     return 2  # Always fail closed pending full app-reference scan & review.
 
