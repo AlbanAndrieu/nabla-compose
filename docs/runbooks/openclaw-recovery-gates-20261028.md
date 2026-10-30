@@ -255,3 +255,8 @@ Le collecteur ne sauvegarde ni n'imprime les logs bruts ou credentials,
 limite la fenêtre à 1–24 heures et les 300 dernières lignes, et n'envoie
 aucune inférence. Une cause 429 n'est établie qu'après corrélation
 structurée, pas avec des compteurs de texte.
+
+Un échec d'accès affiche désormais seulement un code de raison fixe parmi
+`ssh_host_key_unverified`, `ssh_auth_denied`, `docker_permission_denied`,
+`container_missing`, `timeout`, `command_unavailable`, `log_window_oversized`
+ou `unverified`. Aucun texte d'erreur distant n'est reproduit.

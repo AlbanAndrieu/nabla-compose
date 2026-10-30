@@ -39,31 +39,49 @@ def summarize(raw: bytes) -> dict:
             "classification": "text_pattern_only_not_request_attribution"}
 
 
-def collect(command: list[str], *, timeout: int = 14) -> tuple[str, bytes]:
+def denial_reason(raw: bytes) -> str:
+    """Fixed labels only; diagnostic text may contain secrets."""
+    text = raw[:16384].decode("utf-8", "replace").lower()
+    if "host key verification failed" in text or "remote host identification has changed" in text:
+        return "ssh_host_key_unverified"
+    if "permission denied (publickey" in text or "no more authentication methods" in text:
+        return "ssh_auth_denied"
+    if "permission denied" in text and ("docker" in text or "daemon" in text):
+        return "docker_permission_denied"
+    if "no such container" in text:
+        return "container_missing"
+    return "unverified"
+
+
+def collect(command: list[str], *, timeout: int = 14) -> tuple[str, bytes, str]:
     try:
         result = subprocess.run(command, stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        return "unavailable", b""
-    if result.returncode or len(result.stdout) + len(result.stderr) > MAX_BYTES:
-        return "unavailable", b""
-    return "available", result.stdout + b"\n" + result.stderr
+    except subprocess.TimeoutExpired:
+        return "unavailable", b"", "timeout"
+    except OSError:
+        return "unavailable", b"", "command_unavailable"
+    if len(result.stdout) + len(result.stderr) > MAX_BYTES:
+        return "unavailable", b"", "log_window_oversized"
+    if result.returncode:
+        return "unavailable", b"", denial_reason(result.stderr)
+    return "available", result.stdout + b"\n" + result.stderr, "none"
 
 
-def workstation(hours: int) -> tuple[str, str, bytes]:
+def workstation(hours: int) -> tuple[str, str, bytes, str]:
     for name in CONTAINERS_LOCAL:
-        state, data = collect(["docker", "logs", "--since", f"{hours}h",
+        state, data, reason = collect(["docker", "logs", "--since", f"{hours}h",
                                "--tail", "300", name])
         if state == "available":
-            return state, "docker", data
-    state, data = collect(["journalctl", "--user", "-u", "litellm.service",
+            return state, "docker", data, "none"
+    state, data, reason = collect(["journalctl", "--user", "-u", "litellm.service",
                            "--since", f"{hours} hours ago", "-n", "300",
                            "-o", "cat", "--no-pager"])
-    return state, "user_journal" if state == "available" else "unverified", data
+    return state, "user_journal" if state == "available" else "unverified", data, reason
 
 
-def truenas(hours: int) -> tuple[str, str, bytes]:
+def truenas(hours: int) -> tuple[str, str, bytes, str]:
     # Strict known-host verification, no agent forwarding, no password prompt.
     # Remote Docker read permission must already be granted; do not attempt sudo.
     command = ["ssh", "-p", PORT, "-T", "-o", "BatchMode=yes",
@@ -71,8 +89,8 @@ def truenas(hours: int) -> tuple[str, str, bytes]:
                "-o", "ConnectTimeout=5", "-o", "NumberOfPasswordPrompts=0",
                HOST, "docker", "logs", "--since", f"{hours}h",
                "--tail", "300", CONTAINER_TRUENAS]
-    state, data = collect(command, timeout=16)
-    return state, "ssh_docker" if state == "available" else "unverified", data
+    state, data, reason = collect(command, timeout=16)
+    return state, "ssh_docker" if state == "available" else "unverified", data, reason
 
 
 def main(argv=None) -> int:
@@ -95,12 +113,12 @@ def main(argv=None) -> int:
                 if fixture.is_symlink() or fixture.stat().st_size > MAX_BYTES:
                     raise OSError("invalid_fixture")
                 data = fixture.read_bytes()
-                state, source = "available", "fixture"
+                state, source, reason = "available", "fixture", "none"
             except OSError:
-                state, source, data = "unavailable", "unverified", b""
+                state, source, data, reason = "unavailable", "unverified", b"", "fixture_unavailable"
         else:
-            state, source, data = get(args.hours)
-        entry = {"status": state, "source": source}
+            state, source, data, reason = get(args.hours)
+        entry = {"status": state, "source": source, "access_reason": reason}
         if state == "available":
             entry.update(summarize(data))
         results[label] = entry

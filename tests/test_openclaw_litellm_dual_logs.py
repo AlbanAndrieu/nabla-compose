@@ -26,10 +26,10 @@ class DualLogsTests(unittest.TestCase):
         seen=[]
         def fake(command, **kw):
             seen.append((command, kw))
-            return "available", b"ok"
+            return "available", b"ok", "none"
         with patch.object(mod, "collect", side_effect=fake):
-            state, source, _ = mod.truenas(2)
-        self.assertEqual((state,source), ("available", "ssh_docker"))
+            state, source, _, reason = mod.truenas(2)
+        self.assertEqual((state,source,reason), ("available", "ssh_docker", "none"))
         cmd=seen[0][0]
         self.assertIn("StrictHostKeyChecking=yes", cmd)
         self.assertIn("BatchMode=yes", cmd)
@@ -39,22 +39,34 @@ class DualLogsTests(unittest.TestCase):
         self.assertNotIn("-L", cmd)
 
     def test_workstation_docker_fallback_to_journal(self):
-        outputs=[("unavailable",b""),("unavailable",b""),("available",b"event")]
+        outputs=[("unavailable",b"", "container_missing"),
+                 ("unavailable",b"", "docker_permission_denied"),
+                 ("available",b"event", "none")]
         with patch.object(mod,"collect",side_effect=outputs) as calls:
-            state,source,log=mod.workstation(2)
-        self.assertEqual((state,source,log),("available","user_journal",b"event"))
+            state,source,log,reason=mod.workstation(2)
+        self.assertEqual((state,source,log,reason),("available","user_journal",b"event","none"))
         self.assertEqual(calls.call_count,3)
 
     def test_both_sources_required_for_success(self):
-        with patch.object(mod,"workstation",return_value=("available","docker",b"429 PRIVATE")), \
-             patch.object(mod,"truenas",return_value=("unavailable","unverified",b"PRIVATE")), \
+        with patch.object(mod,"workstation",return_value=("available","docker",b"429 PRIVATE","none")), \
+             patch.object(mod,"truenas",return_value=("unavailable","unverified",b"PRIVATE","docker_permission_denied")), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             status=mod.main([])
         self.assertEqual(status,2)
         report=json.loads(output.getvalue())
         self.assertEqual(report["coverage"],"partial_or_unverified")
         self.assertEqual(report["sources"]["truenas"]["status"],"unavailable")
+        self.assertEqual(report["sources"]["truenas"]["access_reason"],"docker_permission_denied")
         self.assertNotIn("PRIVATE",output.getvalue())
+
+    def test_access_denial_labels_are_redacted(self):
+        self.assertEqual(mod.denial_reason(b"Host key verification failed: PRIVATE"),
+                         "ssh_host_key_unverified")
+        self.assertEqual(mod.denial_reason(b"Permission denied (publickey): SECRET"),
+                         "ssh_auth_denied")
+        self.assertEqual(mod.denial_reason(b"permission denied while connecting to docker daemon sk-SECRET"),
+                         "docker_permission_denied")
+        self.assertEqual(mod.denial_reason(b"PRIVATE random failure"),"unverified")
 
     def test_fixture_full_coverage_zero_tokens(self):
         with tempfile.TemporaryDirectory() as tmp:
