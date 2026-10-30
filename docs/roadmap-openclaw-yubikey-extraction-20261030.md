@@ -77,6 +77,36 @@ et tous les secrets.
 
 **Sources :** [PR Compose #289 fusionnée](https://github.com/AlbanAndrieu/nabla-compose/pull/289), [runbook FastAPI/LiteLLM](runbooks/fastapi-sample-litellm.md) et [incident déverrouillage](https://github.com/AlbanAndrieu/nabla-compose/pull/289#issuecomment-6457346739). **La création locale de la clé n'atteste pas les permissions/budgets réellement appliqués par `/key/info`, ni un parcours bout en bout.**
 
+### Livraison P0 en PR #300 : preuve d'égalité coffre / clé locale
+
+- **CODED, non encore exécuté sur la Workstation :**
+  `scripts/secrets/inspect-fastapi-workstation-key-vaultwarden.py --check`,
+  recette `just litellm-fastapi-upstream-vaultwarden-compare`
+  et tests hermétiques
+  `tests/test_fastapi_workstation_vaultwarden_compare.py`.
+- Le contrôle est exclusivement **read-only** : vérification du
+  fichier local émis `workstation.key` (fichier unique, régulier,
+  non symlink, propriétaire courant, permissions `0600` et chemin
+  privé), serveur HTTPS / dossier / item canonique Vaultwarden,
+  unicité du champ et comparaison `hmac.compare_digest` en mémoire.
+- Il distingue `field_absent`,
+  `field_matches_private_key`,
+  `field_mismatch_no_overwrite` et les états de sessions,
+  permissions ou schémas non vérifiés ; ne divulgue aucune valeur,
+  session ni réponse brute du coffre. Un `bw sync` peut actualiser
+  le cache **local** du CLI, pas la donnée serveur.
+- **Aucune session n'a été révoquée depuis GitHub.**
+  Révocation de la session exposée et connexion saine en shell privé
+  à faire sur Workstation ; `bw list folders >/dev/null` doit
+  réussir avant le nouveau check. L'ajout du champ reste une
+  opération distincte après le résultat `field_absent`.
+- **NO-GO restant :** tout import automatique du fichier
+  complet `litellm/.env.secrets`, toute nouvelle clé LiteLLM,
+  modification de master/salt/IDE/Redis/Langfuse, redémarrage,
+  activation heartbeat ou cutover tant qu'un résultat
+  `field_matches_private_key` et les gates runtime ne sont
+  pas attestés.
+
 ## P0 — tâches immédiates, dans cet ordre
 
 | Ordre | Responsable | Action restante | Preuve pour DONE |
