@@ -29,6 +29,46 @@
 
 Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
 
+## CrowdSec — réception ruleset PF LIVE (30 octobre 2026)
+
+- **DONE — tests ciblés sur workstation :** `just crowdsec-pf-rules-test`
+  **21/21 PASS**, et `just crowdsec-bouncer-config-test`
+  **100/100 PASS**. `py_compile` et vérifications shell du gate
+  ont également réussi ; il ne s'agit pas du gate global.
+- **DONE — règles PF chargées :** sortie réelle de
+  `just crowdsec-pf-rules-audit` :
+  `crowdsec_pf_rules=BLOCK_RULE_LOADED source=LIVE pf=ENABLED
+  root_ipv4_block_quick_in=1 anchor_ipv4_block_quick_in=1
+  root_ipv6_block_quick_in=1 anchor_coverage=READ`.
+  Le ruleset PF actif contient donc une règle racine
+  `block in quick` utilisant `crowdsec_blacklists` comme
+  **source** ; une règle IPv6 racine et une règle IPv4
+  dans la vue des ancres ont aussi été détectées.
+  La seule présence d'une ancre n'est pas interprétée
+  comme une deuxième preuve de chemin WAN.
+- **WAN NON VÉRIFIÉ :** `wan_interface=NOT_SPECIFIED`,
+  `compatible_root_rule=NOT_CHECKED`,
+  `packet_block=NOT_VERIFIED`. Il faut identifier
+  l'interface WAN **réellement assignée** dans pfSense
+  (`Status > Interfaces` ou `Interfaces > Assignments`)
+  et relancer le même audit avec `--wan-interface <ifname>`,
+  puis seulement envisager logs/compteurs liés à une règle
+  effective. Ne pas inférer WAN depuis la route par défaut,
+  ni provoquer un bannissement d'une IP d'administration.
+- **Git local — arbre modifié :** `git pull --ff-only` a
+  été refusé car le checkout comporte des modifications
+  indexées et non indexées. Les tests et l'audit ont
+  néanmoins été exécutés sur ce checkout local ;
+  ils ne prouvent pas l'identité exacte avec la tête
+  GitHub. Privilégier l'inspection `git status --short`
+  ou un worktree propre sur la branche PR, sans `reset --hard`,
+  `clean -fd` ni `stash` implicite.
+- **Contrôles distincts encore ouverts :** blocage
+  effectif d'un paquet WAN et détection naturelle
+  `origin=crowdsec` avec baseline v2.
+  **Le cycle synthétique LAPI → PF → retrait reste PASS
+  et n'a pas besoin d'être répété.**
+
 ## CrowdSec — audit read-only des règles PF chargées (PR #295)
 
 - **CODED [skip ci]** : `scripts/workstation/audit-crowdsec-pf-rules.py`
