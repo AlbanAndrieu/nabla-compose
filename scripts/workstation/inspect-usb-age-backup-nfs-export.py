@@ -210,6 +210,8 @@ def main(argv: list[str] | None = None) -> int:
             concerns.append("NO_NFS_HOST_OR_NETWORK_FILTER")
         if record["security"] in ("SYS_ONLY", "MIXED_SYS_KERBEROS"):
             concerns.append("AUTH_SYS_ALLOWED")
+        elif record["security"] == "DEFAULT_UNVERIFIED":
+            concerns.append("NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED")
         if record["root_mapping"] == "SENSITIVE_OWNER":
             concerns.append("MAPROOT_TO_SENSITIVE_OWNER")
         if record["all_mapping"] == "SENSITIVE_OWNER":
