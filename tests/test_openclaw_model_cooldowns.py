@@ -65,7 +65,7 @@ class CooldownContracts(unittest.TestCase):
                 stdout=json.dumps(report).encode(), stderr=b"key sk-SECRET")
         with patch.object(mod.subprocess, "run", side_effect=fake_run), \
              contextlib.redirect_stdout(io.StringIO()) as capture:
-            mod.check("main", self.node, self.cli)
+            self.assertEqual(mod.check("main", self.node, self.cli), 0)
         text = capture.getvalue()
         self.assertIn("main_rate_limit_profiles=1", text)
         self.assertIn("main_unusable_profiles=2", text)
@@ -81,7 +81,7 @@ class CooldownContracts(unittest.TestCase):
         self.cli.symlink_to(self.node)
         with patch.object(mod.subprocess, "run") as invoke, \
              contextlib.redirect_stdout(io.StringIO()) as capture:
-            mod.check("cron", self.node, self.cli)
+            self.assertEqual(mod.check("cron", self.node, self.cli), 2)
         invoke.assert_not_called()
         self.assertIn("unverified_installation", capture.getvalue())
 
@@ -91,6 +91,32 @@ class CooldownContracts(unittest.TestCase):
         mode, counts = mod.summarize(report)
         self.assertEqual(mode, "available")
         self.assertEqual(counts["cooldown_other"], 1)
+
+    def test_missing_auth_profile_schema_cannot_return_success(self):
+        def fake_run(_cmd, **_kwargs):
+            return SimpleNamespace(returncode=0,
+                stdout=b'{"auth":{"status":"ok"}}', stderr=b"SECRET")
+        with patch.object(mod.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            self.assertEqual(mod.check("main", self.node, self.cli), 2)
+        self.assertIn("main_models_status=missing_unusable_profiles", captured.getvalue())
+        self.assertNotIn("SECRET", captured.getvalue())
+
+    def test_no_unusable_profiles_is_valid_empty_result(self):
+        def fake_run(_cmd, **_kwargs):
+            return SimpleNamespace(returncode=0,
+                stdout=b'{"auth":{"unusableProfiles":[]}}', stderr=b"")
+        with patch.object(mod.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            self.assertEqual(mod.check("main", self.node, self.cli), 0)
+        self.assertIn("main_rate_limit_profiles=0", captured.getvalue())
+
+    def test_main_propagates_failed_agent_and_uses_both(self):
+        with patch.object(mod, "check", side_effect=[0, 2]) as check, \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            self.assertEqual(mod.main(), 2)
+        self.assertEqual(check.call_count, 2)
+        self.assertIn("cooldown_coverage=partial_or_unverified", captured.getvalue())
 
     def test_scope_only_main_and_cron(self):
         with self.assertRaises(ValueError):

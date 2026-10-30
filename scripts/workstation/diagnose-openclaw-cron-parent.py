@@ -80,7 +80,8 @@ def main() -> int:
     report["model_requests_sent"] = 0
     report["session_keys_printed"] = False
     print(json.dumps(report, sort_keys=True))
-    return 0 if report["cron_session_catalog"] == "structured" else 2
+    # A parseable catalog is not evidence that the required parent exists.
+    return 0 if report["cron_main_reference"] == "present" else 2
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ def check(agent, node=NODE, cli=CLI):
         raise ValueError("unsupported_agent")
     if not owner_file(node) or not owner_file(cli):
         print(agent + "_models_status=unverified_installation")
-        return
+        return 2
     try:
         result = subprocess.run(
             [str(node), str(cli), "models", "status", "--agent", agent, "--json"],
@@ -105,16 +105,16 @@ def check(agent, node=NODE, cli=CLI):
         )
     except (OSError, subprocess.TimeoutExpired):
         print(agent + "_models_status=unavailable")
-        return
+        return 2
     if result.returncode != 0:
         print(agent + "_models_status=cli_failed")
-        return
+        return 2
     document = parse_document(result.stdout)
     if document is None:
         print(agent + "_models_status=invalid_report")
-        return
+        return 2
     status, counts = summarize(document)
-    print(agent + "_models_status=structured")
+    print(agent + "_models_status=" + ("structured" if status == "available" else "missing_unusable_profiles"))
     print(agent + "_unusable_profiles=" +
           (str(sum(counts.values())) if status == "available" else "unavailable"))
     for label in ("rate_limit", "billing", "auth", "runtime",
@@ -124,16 +124,18 @@ def check(agent, node=NODE, cli=CLI):
     print(agent + "_auth_cooldown_attribution=" +
           ("has_rate_limit" if counts.get("rate_limit", 0) else
            "inconclusive" if status == "unavailable" else "no_rate_limit_reported"))
+    return 0 if status == "available" else 2
 
 
 def main():
     print("openclaw_rate_limit_check=read_only")
-    for agent in AGENTS:
-        check(agent)
+    failures = sum(check(agent) != 0 for agent in AGENTS)
+    print("cooldown_coverage=" + ("complete" if failures == 0 else "partial_or_unverified"))
     print("provider_usage_metadata_may_be_queried=true")
     print("model_inference_requests_sent=0")
     print("secrets_or_profile_names_printed=false")
+    return 0 if failures == 0 else 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
