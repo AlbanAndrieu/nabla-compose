@@ -96,6 +96,27 @@ class SyntheticSmoke(unittest.TestCase):
                 return module.apply(args())
             return module.preflight(args())
 
+    def test_read_only_inspect_after_failure_clean(self):
+        f = FakeRemote()
+        with patch.object(module, 'truenas', side_effect=f.truenas), \
+             patch.object(module, 'pfsense', side_effect=f.pfsense):
+            self.assertEqual(0, module.inspect(args()))
+        self.assertEqual([], f.mutations)
+
+    def test_read_only_inspect_detects_preexisting_decision(self):
+        f = FakeRemote(preexisting=True)
+        with patch.object(module, 'truenas', side_effect=f.truenas), \
+             patch.object(module, 'pfsense', side_effect=f.pfsense):
+            self.assertEqual(0, module.inspect(args()))
+        self.assertEqual([], f.mutations)
+
+    def test_read_only_inspect_detects_pf_only(self):
+        f = FakeRemote(initial_pf=True)
+        with patch.object(module, 'truenas', side_effect=f.truenas), \
+             patch.object(module, 'pfsense', side_effect=f.pfsense):
+            self.assertEqual(0, module.inspect(args()))
+        self.assertEqual([], f.mutations)
+
     def test_preflight_readonly(self):
         f=FakeRemote()
         self.go(f, mutation=False)
