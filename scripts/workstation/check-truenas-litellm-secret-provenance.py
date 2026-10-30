@@ -112,12 +112,32 @@ else:
     sys.exit(2)
 '''
 
-def check(mode, host):
-    cmd = "sudo -n python3 -c " + shlex.quote(REMOTE) + " " + shlex.quote(mode)
+def execution_target():
+    """Inspect TrueNAS directly; never SSH back to the appliance itself."""
     try:
-        process = subprocess.run(["ssh", "-o", "BatchMode=yes",
-                                  "-o", "StrictHostKeyChecking=yes",
-                                  "-o", "ConnectTimeout=7", host, cmd],
+        result = subprocess.run(
+            ["midclt", "call", "system.version"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "workstation_ssh"
+    version = result.stdout.strip().strip('"')
+    return ("truenas_local" if result.returncode == 0 and
+            version.startswith("TrueNAS-") else "workstation_ssh")
+
+
+def check(mode, host, target="workstation_ssh"):
+    if target == "truenas_local":
+        command = ["sudo", "-n", "python3", "-c", REMOTE, mode]
+    elif target == "workstation_ssh":
+        cmd = "sudo -n python3 -c " + shlex.quote(REMOTE) + " " + shlex.quote(mode)
+        command = ["ssh", "-o", "BatchMode=yes",
+                   "-o", "StrictHostKeyChecking=yes",
+                   "-o", "ConnectTimeout=7", host, cmd]
+    else:
+        raise ValueError("unexpected_target")
+    try:
+        process = subprocess.run(command,
                                  capture_output=True, text=True, timeout=30,
                                  check=False)
     except (OSError, subprocess.TimeoutExpired):
@@ -134,8 +154,10 @@ def main():
     if args.ssh_alias != "truenas":
         parser.error("only the reviewed SSH alias 'truenas' is allowed")
     modes = ("syntax", "runtime", "database")
+    target = execution_target()
+    print("execution_target=" + target)
     with ThreadPoolExecutor(max_workers=3) as pool:
-        results = list(pool.map(lambda m: check(m, args.ssh_alias), modes))
+        results = list(pool.map(lambda m: check(m, args.ssh_alias, target), modes))
     for mode, _, output in results:
         print("section=" + mode)
         print(output)
