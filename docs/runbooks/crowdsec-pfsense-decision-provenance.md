@@ -159,6 +159,39 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
+## Réception synthétique LIVE — résultat opérateur du 30 octobre 2026
+
+**PASS — propagation et retrait d'une décision artificielle sur
+l'infrastructure réelle**. L'opérateur a relancé la commande active
+`--apply --confirm SYNTHETIC-203.0.113.77` après correction :
+```text
+synthetic_preflight=PASS initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING
+synthetic_lapi=CREATED decision_id=1531819
+synthetic_pf_application=OBSERVED
+synthetic_cleanup=PASS lapi_absent=true pf_absent=true
+synthetic_cycle=SYNTHETIC_PF_DECISION_CYCLE_PASS
+```
+
+L'adresse `203.0.113.77` appartient au bloc
+`203.0.113.0/24` **TEST-NET-3 (RFC 5737)**. Ce n'est ni
+l'adresse d'un attaquant détecté ni une IP publique routable
+attribuée à un utilisateur. Le mot *synthétique* signifie
+qu'une décision `origin=cscli` a été injectée volontairement
+dans la LAPI ; la propagation dans la table PF et le retrait
+sont **réels**, pas simulés dans les tests unitaires.
+La suppression a porté sur l'identifiant créé **1531819**,
+sans purge générale, et les deux absences ont été attestées.
+
+**Statut :** le contrôle P0 « synchronisation de décision centrale
+vers pfSense et rollback » est **DONE pour le parcours synthétique**.
+**Non démontrés par cette preuve :** création automatique d'une
+décision `origin=crowdsec` à partir de logs/scénarios et passage
+effectif d'un paquet WAN dans une règle PF active. Ces contrôles
+sont suivis séparément, sans réexécuter le smoke synthétique
+inutilement. L'ancienne baseline naturelle v1 ne constitue pas
+une preuve fiable ; une baseline v2 reste à établir si l'observation
+naturelle est poursuivie.
+
 ## Réception workstation après correction — 30 octobre 2026
 
 **Tests locaux terminés :** le module synthétique corrigé passe
