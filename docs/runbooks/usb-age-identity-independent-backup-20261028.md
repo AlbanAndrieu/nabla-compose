@@ -263,7 +263,7 @@ Référence : [TrueNAS SCALE 26 — ACL](https://www.truenas.com/docs/scale/26/d
 
 **Ne pas relancer `--backup` :** les archives existent et le script refuse
 de les écraser. Garder `--copy`, la rotation SOPS, OTP2 et PIV9A/PIV82
-hors périmètre. PR #289 toujours sans automerge.
+hors périmètre. PR #289 fusionnée ; continuation en PR #295 Draft, sans automerge.
 
 ## P1 — Vérifier l'export NFS et les identités (PR #295, 30/10/2026)
 
@@ -330,4 +330,66 @@ secrète ne doit être communiquée.
 
 **Référence :**
 [TrueNAS API – partage NFS](https://api.truenas.com/v26.0/api_methods_sharing.nfs.update.html).
+
+
+### ✅ Preuve de lecture réelle de l'export NFS — 30 octobre 2026, PR #295
+
+**Workstation :**
+- Mise à jour en avance rapide, sans réinitialiser les sous-modules locaux `n8n` / `sentry` déjà modifiés.
+- `just yubikey-usb-identity-nfs-export-test` : **8 tests PASS, 1 FAIL**. Échec de la fixture `test_synthetic_remote_export_filters_and_user_mapping` : elle déclarait encore le chemin d'export de production alors que le programme distant simulé cherchait son chemin temporaire. **Aucun échec NFS réel.**
+- `just yubikey-usb-identity-nfs-export-check` : `BACKUP_RESTORATION_PREFLIGHT_READY`.
+- `just yubikey-usb-identity-nfs-export-probe` : **`EXPORT_MATCHED`, `configuration_inventory_verified=true`**, sans lecture d'archive ni mutation.
+
+**Configuration réelle observée, expurgée :**
+
+| Propriété | État | Interprétation |
+| --- | --- | --- |
+| `enabled` | `true` | Export actif |
+| `locked` | `false` | Dataset non verrouillé |
+| `hosts_restricted` | `false` | Aucune restriction `hosts` définie dans le partage |
+| `networks_restricted` | `false` | Aucune restriction `networks` définie dans le partage |
+| `read_only` | `false` | Export autorisant l'écriture sous réserve des permissions et contrôles supplémentaires |
+| `root_mapping` / `all_mapping` | `UNSET` | Aucun compte explicite mappé ; comportement effectif non testé |
+| `security` | `DEFAULT_UNVERIFIED` | Liste de sécurité vide ; **ne prouve pas** que `AUTH_SYS` est désactivé |
+
+**Alertes réellement émises :** `NO_NFS_HOST_OR_NETWORK_FILTER`,
+`EXPORT_WRITABLE`. La version corrigée signale aussi
+`NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED` lorsqu'une liste `security`
+vide est observée ; **cette alerte supplémentaire n'a pas encore été
+réexécutée sur TrueNAS**.
+
+Les deux premières alertes constituent des écarts de durcissement de la
+configuration du partage, **pas** la preuve qu'un client non autorisé a
+monté l'export ou lu l'identité privée. La documentation de l'API TrueNAS
+indique qu'une liste `hosts` ou `networks` vide n'applique pas
+de restriction à ce niveau ; les éventuelles restrictions au niveau
+pare-feu et service NFS restent à inventorier.
+[Référence : API TrueNAS NFS](https://api.truenas.com/v25.10/api_methods_sharing.nfs.query.html).
+
+**Correctifs de code publiés dans la PR #295 :** alignement de la
+fixture sur son chemin temporaire, test de non-correspondance d'un
+export différent et test explicite pour la sécurité NFS par défaut.
+**Nouvelle suite : 10 tests définis ; exécution après correctif NOT_RUN.**
+Aucun changement de comportement sur le NAS.
+
+**Plan de durcissement à valider avant toute mutation :**
+1. Inventorier les clients réellement dépendants de cet export,
+   y compris les jobs de sauvegarde et de restauration.
+2. Préparer une liste `hosts` ou `networks` minimale couvrant
+   uniquement ces clients ; vérifier séparément le filtrage réseau NFS.
+3. Conserver l'export en lecture-écriture tant qu'un processus légitime
+   doit déposer des sauvegardes. Une transition `ro=true`
+   ou un export de lecture séparé nécessite une migration planifiée.
+4. Déterminer la sécurité NFS effectivement négociée et les
+   mappings/squash UID/GID. L'absence de `maproot`/`mapall`
+   explicite ne constitue pas une preuve d'authentification forte.
+5. Préparer un plan de retour arrière et des tests d'accès
+   depuis chaque client autorisé puis depuis un client de test
+   non autorisé, **sans lire le ciphertext privé**.
+
+**Décision : pas de `sharing.nfs.update`, `chmod`, `chown`,
+`setacl`, changement de permissions, déchiffrement ou sauvegarde
+supplémentaire** tant que l'inventaire des clients n'est pas réalisé.
+`effective_nfs4_authorization_verified=false` et
+`nfs_identity_mapping_verified=false` restent exacts.
 
