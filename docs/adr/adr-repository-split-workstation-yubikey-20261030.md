@@ -101,9 +101,14 @@ garde l'OS et l'audit **source**. Le dépôt
 [nabla-yubikey PR #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1)
 contient un premier collecteur read-only et ses tests, sans secrets.
 
-Le sous-module OpenClaw pourra être ajouté **ensuite** dans
-`apps/openclaw/nabla-openclaw` avec pin sur un commit/tag validé.
-Ne pas remplacer immédiatement `apps/openclaw/compose.yml` qui décrit
-un sandbox dépendant des volumes Workstation. Un seul Gateway doit
-faire tourner les automations/heartbeat pendant la bascule, avec
-rollback de la Workstation testé.
+**Chemin canonique retenu : `apps/openclaw` directement comme submodule.**
+Le dossier contient actuellement **18 fichiers suivis** : quatre fichiers
+sandbox (`compose.yml`, `Dockerfile`, `catalog-info.yaml`, `test-docker.sh`)
+et 14 éléments Workstation. Préalables à tout gitlink : déplacer le
+sandbox vers `apps/openclaw-sandbox/` après audit des consommateurs,
+migrer les politiques Workstation vers `nabla-openclaw/policies/`,
+conserver les wrappers Compose et prouver leur parité, puis vérifier
+`git ls-files -- apps/openclaw` vide. Le sandbox actuel monte des
+volumes Workstation et n'est pas le Gateway TrueNAS. Ne pas déplacer ou
+déployer immédiatement. Un seul Gateway doit exécuter automations et
+heartbeat pendant le cutover ; rollback Workstation validé obligatoire.
