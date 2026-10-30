@@ -22,7 +22,7 @@ class GlobalScanContracts(unittest.TestCase):
         # Real TrueNAS midclt prints an unquoted scalar, unlike JSON objects.
         proc = mod.subprocess.CompletedProcess(
             ["midclt", "call", "system.version"], 0,
-            stdout=b"TrueNAS-26.0.0-BETA.3\\n", stderr=b""
+            stdout=b"TrueNAS-26.0.0-BETA.3\n", stderr=b""
         )
         with patch.object(mod.subprocess, "run", return_value=proc) as run:
             self.assertEqual(
@@ -34,7 +34,7 @@ class GlobalScanContracts(unittest.TestCase):
     def test_midclt_json_quoted_version_remains_supported(self):
         proc = mod.subprocess.CompletedProcess(
             ["midclt", "call", "system.version"], 0,
-            stdout=b'"TrueNAS-26.0.0-BETA.2"\\n', stderr=b""
+            stdout=b'"TrueNAS-26.0.0-BETA.2"\n', stderr=b""
         )
         with patch.object(mod.subprocess, "run", return_value=proc):
             self.assertEqual(
@@ -44,10 +44,10 @@ class GlobalScanContracts(unittest.TestCase):
 
     def test_bare_text_for_other_methods_is_never_accepted(self):
         cases = [
-            (["midclt", "call", "app.query"], b"TrueNAS-26.0.0-BETA.3\\n", 0),
-            (["midclt", "call", "system.version"], b"unexpected text\\n", 0),
-            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3; touch /tmp/bad\\n", 0),
-            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3\\n", 1),
+            (["midclt", "call", "app.query"], b"TrueNAS-26.0.0-BETA.3\n", 0),
+            (["midclt", "call", "system.version"], b"unexpected text\n", 0),
+            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3; touch /tmp/bad\n", 0),
+            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3\n", 1),
         ]
         for argv, stdout, code in cases:
             with self.subTest(argv=argv, stdout=stdout, code=code):
@@ -57,10 +57,10 @@ class GlobalScanContracts(unittest.TestCase):
 
     def test_realistic_stdout_flows_through_full_readonly_audit(self):
         commands = [
-            mod.subprocess.CompletedProcess([], 0, b"TrueNAS-26.0.0-BETA.3\\n", b""),
-            mod.subprocess.CompletedProcess([], 0, b'[{"id":"sample"}]\\n', b""),
+            mod.subprocess.CompletedProcess([], 0, b"TrueNAS-26.0.0-BETA.3\n", b""),
+            mod.subprocess.CompletedProcess([], 0, b'[{"id":"sample"}]\n', b""),
             mod.subprocess.CompletedProcess([], 0,
-                b'{"custom_compose_config":{"include":[]}}\\n', b""),
+                b'{"custom_compose_config":{"include":[]}}\n', b""),
         ]
         with patch.object(mod.subprocess, "run", side_effect=commands) as run:
             result = mod.audit_all_apps()
