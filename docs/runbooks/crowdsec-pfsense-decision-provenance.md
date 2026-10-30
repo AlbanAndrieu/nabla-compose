@@ -159,6 +159,57 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
+## Incident 30 octobre — test synthétique non vérifié (PR #295)
+
+**Preuve opérateur :** tests CrowdSec 61/61 PASS, précontrôle
+`initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING`,
+puis `--apply` : `synthetic_cleanup=NOT_VERIFIED` et
+`reason=NotVerified`, sans identifiant de décision affiché.
+**Aucune conclusion d'absence ou de nettoyage n'est possible
+sur la base de ce seul résultat.**
+
+Cause de code **confirmée** dans CrowdSec 1.8.1 : la commande
+`cscli decisions list -o json` renvoie `[alert{decisions:[...]},...]`.
+L'ancienne lecture supposait `[decision,...]` et pouvait ignorer
+l'IP en précontrôle, puis ne pas retrouver l'ID de suppression.
+Le correctif du 30/10 normalise les décisions imbriquées, rejette
+toute structure inconnue et exige un `scenario` correspondant
+exactement à la raison aléatoire créée pendant ce test avant de
+supprimer un ID. Le délai d'expiration reste **5 minutes** ; le
+nettoyage sous interruption ne constitue pas une garantie.
+
+**Procédure de reprise — depuis la workstation, sans mutation :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-synthetic-test
+just crowdsec-bouncer-config-test
+just crowdsec-pf-synthetic-inspect
+```
+
+L'inspection affiche un nombre de décisions LAPI correspondant à
+`203.0.113.77`, leurs **IDs** (sans exporter le JSON brut), l'état
+de correspondance dans PF et celui du bouncer. Si
+`lapi_matches=0 pf_present=false`, aucun vestige actif du test
+n'est détecté au moment de la lecture, mais cela ne prouve pas
+l'application/retrait lors du premier essai. Si une décision ou
+une entrée PF subsiste, **NO-GO** pour une nouvelle création :
+conserver les preuves privées, identifier l'ID et la provenance,
+puis utiliser exclusivement la reprise ciblée ci-dessous.
+
+**Après inspection propre**, le précontrôle `just
+crowdsec-pf-synthetic-preflight` peut être relancé. N'exécuter
+le test `--apply` à nouveau que par décision explicite de
+l'opérateur ; aucune recette Just ne le lance.
+
+**Impact sur l'option A :** le collecteur naturel utilisait
+la même hypothèse JSON et a été corrigé. Son fichier de baseline
+historique `crowdsec-pf-natural-cycle.json` doit être conservé
+comme archive, **pas utilisé pour clôturer la preuve PF**.
+Une nouvelle baseline `crowdsec-pf-natural-cycle-v2.json` est
+nécessaire à l'observation naturelle à jour, sans toucher à v1.
+
 ## Option B — test synthétique réversible et borné (validation explicite)
 
 **Test actif** : crée temporairement une seule décision CrowdSec sur
