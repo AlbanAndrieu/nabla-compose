@@ -2,6 +2,30 @@
 
 **Statut : PROPOSED — 30 octobre 2026.** Ne déplace encore aucun fichier ni ne modifie le runtime.
 
+> **Note de synchronisation Git de la PR Compose #300 :** le
+> document ci-dessous conserve les motifs et statuts historiques
+> de la décision. Depuis sa rédaction, `ansible-workstation` #16
+> et `nabla-openclaw` #1 ont été **fusionnées** ;
+> `nabla-yubikey` #1 et `nabla-openclaw` #2 sont **Draft**.
+> Dans Compose #295 fusionnée, les 14 artefacts Workstation ont
+> quitté `apps/openclaw/` pour `ops/openclaw-workstation/` :
+> il reste **4 fichiers sandbox**. Ni le Gateway TrueNAS ni
+> le submodule `apps/openclaw` ne sont déployés. Le déplacement
+> du sandbox est **NO-GO** tant que les consommateurs `build.sh`,
+> catalogue/topologie et les Apps TrueNAS ne sont pas validés.
+> [Registre des consommateurs](../migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+> et [roadmap transversale](../roadmap-openclaw-yubikey-extraction-20261030.md).
+
+
+> **Réception de la PR #300 (Workstation, HEAD `a05a5ec2`) :**
+> `plan-repository-split.py` a observé **1 770 fichiers suivis**,
+> **375 recettes** au total, dont **87 YubiKey**, **98 OpenClaw**
+> et **15 Workstation** ; deux suites hermétiques ont réussi
+> (**3/3 + 5/5**). Le paragraphe « Constat vérifié » ci-dessous
+> conserve les **chiffres historiques de la PR #295** (1 740,
+> 370, 84) et ne décrit pas l'inventaire du HEAD testé.
+> Aucun transfert n'est autorisé par l'inventaire.
+
 ## Constat vérifié
 
 Sur la branche de la PR #295 : `justfile` compte **370 recettes**,

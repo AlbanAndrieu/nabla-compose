@@ -1,5 +1,9 @@
 # Services Homelab — roadmap active
 
+> **P0 transversal, 30/10/2026 :** [roadmap de migration OpenClaw et YubiKey inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) — priorités, propriétaires, critères de fin et rapports sans secrets. La PR Compose #295 et la PR nabla-openclaw #1 sont fusionnées ; nabla-yubikey #1 reste Draft. Les anciennes sections du présent document constituent un historique de preuves et ne doivent pas être interprétées comme un cutover réalisé.
+
+> **P0 LiteLLM/Vaultwarden, 30/10/2026 :** la clé virtuelle `fastapi-sample-upstream` a été émise sur **Workstation** (12/12 tests, fichier 0600), mais le transfert Vaultwarden a été interrompu par l'échec du second déverrouillage CLI. Une session `BW_SESSION` a été exposée et doit être invalidée. **Pas d'export TrueNAS, de nouvel `--apply`, ni de redémarrage** sans preuve des secrets. [Suivi de la frontière de responsabilité](roadmap-openclaw-yubikey-extraction-20261030.md) et [runbook LiteLLM](runbooks/fastapi-sample-litellm.md).
+
 > **Workstation/YubiKey :** l'[ADR Option A](adr/adr-workstation-option-a.md) fixe les sources de vérité inter-dépôts ; seule la [roadmap YubiKey/Compose](roadmap-workstation-yubikey.md) appartient à cette roadmap. Les tâches système Ubuntu restent dans `ansible-workstation`, les dotfiles dans `dotfiles`.
 
 > Mise à jour : **28 octobre 2026**. Source d'autorité pour le travail restant
@@ -418,7 +422,7 @@ ce périmètre.
 - **Suivi PRA à attester :** conservation de la phrase secrète hors de la SanDisk et vérification du débranchement physique durant un exercice de restauration ; l'outil de restauration, lui, ne dépend pas du support USB. Ne pas relancer la sauvegarde.
 - **P1 DONE (28/10, preuve réelle) :** ACL NFS4 inventoriées sur quatre niveaux (11/11 tests PASS). Une autorisation non propriétaire **potentielle sur l'export racine** (1), aucune sur les répertoires sensibles ni l'archive. Le contrôle complémentaire a réussi (**9/9 tests PASS**, `MODE_BOUNDARY_OBSERVED`) : `secret` et `usb-recovery-backups` en **`0700`**, archive age en **`0600`**, propriétaires sensibles cohérents. Aucune correction ACL justifiée sur la seule base de l'alerte racine ; aucune mutation réalisée.
 - **P1 — export NFS confirmé, sécurité à durcir (30/10, PR #295) :** **10/10 tests locaux PASS** après correction hermétique. Audit réel `EXPORT_MATCHED`, `configuration_inventory_verified=true`, sans secret lu : export actif, sans restriction `hosts`/`networks`, écriture permise, mappings `maproot/mapall=UNSET`, sécurité `DEFAULT_UNVERIFIED`. **Trois alertes attestées :** `NO_NFS_HOST_OR_NETWORK_FILTER`, `NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED`, `EXPORT_WRITABLE`. Les modes privés côté serveur `0700/0600` restent PASS. **Suite P1 :** inventaire des consommateurs NFS et des écritures légitimes, puis plan d'allowlist et retour arrière ; ne pas changer `ro` ni le partage avant confirmation des dépendances. Mappage/authentification et accès négatif non vérifiés ; phrase secrète de récupération indépendante NON ATTESTÉE.
-- **P1 — cartographie consommateurs NFS (30/10, PR #295) :** dépendances OpenClaw/escrow/pfSense documentées sans inventer de nouveaux clients. **8/8 tests hermétiques PASS sur workstation**, précontrôle `BACKUP_RESTORATION_PREFLIGHT_READY`. Premier essai TrueNAS : `SS_RESPONSE_UNVERIFIED`, code 3, aucun nombre de clients constaté. Cause probable : format `ss -H` à **4 colonnes** (reproduit localement) alors que le parseur en exigeait 5 ; correctif `4/5` colonnes et normalisation des pairs IPv4-mappés publié avec tests synthétiques étendus **à revalider sur workstation**. Le prochain essai restera un instantané TCP/2049 de tous les exports, **jamais** une allowlist complète. Cartographie des automounts/jobs, allowlist avec rollback et identité NFS effective toujours ouverts ; aucune mutation du partage ou des archives.
+- **P1 — cartographie consommateurs NFS revalidée (30/10, PR #300) :** dépendances OpenClaw/escrow/pfSense documentées sans inventer de nouveaux clients. Contrôle depuis un worktree isolé au SHA `245bd928` : **8/8 tests hermétiques PASS**, précontrôle `BACKUP_RESTORATION_PREFLIGHT_READY`, sonde TrueNAS **`TCP_SNAPSHOT_OBSERVED` avec 1 session TCP/2049 et 1 pair distinct**. L'ancien `SS_RESPONSE_UNVERIFIED` est résolu par le parseur `ss` acceptant 4/5 colonnes. **Attention :** sessions de tous les exports TrueNAS, pas attribution à `lab` ; `all_clients_enumerated=false`, `export_specific_clients_verified=false`, `consumer_allowlist_verified=false`. Cartographie des automounts/jobs, identité NFS effective et plan d'allowlist avec rollback restent ouverts ; aucune mutation du partage ni des archives.
 
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
@@ -2380,8 +2384,9 @@ complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
 
 Lire [la politique des skills](agent-skills-architecture.md) et
 [`AGENTS.md`](../AGENTS.md). Les skills externes
-`docker-compose-patterns` et `kubernetes-specialist` exigent une
-**approbation de l'opérateur séparément pour chaque installation**.
+`docker-compose-patterns` et `kubernetes-specialist` exigent de
+**Ask the user** : une approbation de l'opérateur séparément pour
+chaque installation.
 Respecter le stockage TrueNAS, Vaultwarden, `democratic-csi`,
 `entityRef` et `catalogRevision`. Ne pas ouvrir la production,
 assouplir TLS, supprimer des données, ni exécuter de remédiation

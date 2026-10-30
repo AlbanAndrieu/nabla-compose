@@ -15,6 +15,41 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeveloperToolingContractTests(unittest.TestCase):
+    def test_developer_tooling_hook_isolates_pyyaml(self) -> None:
+        """The Pre-commit environment, not mise's system Python, owns PyYAML."""
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        hooks = [
+            hook
+            for repository in config["repos"]
+            if repository["repo"] == "local"
+            for hook in repository["hooks"]
+            if hook["id"] == "developer-tooling-contract"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "python")
+        self.assertIn("PyYAML==6.0.3", hooks[0]["additional_dependencies"])
+
+    def test_precommit_manifest_integrity_hook_isolates_pyyaml(self) -> None:
+        """Manifest validation must not depend on the caller's mise Python."""
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        hooks = [
+            hook
+            for repository in config["repos"]
+            if repository["repo"] == "local"
+            for hook in repository["hooks"]
+            if hook["id"] == "precommit-manifest-integrity"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "python")
+        self.assertEqual(
+            hooks[0]["entry"], "python scripts/quality/check-precommit-config.py"
+        )
+        self.assertIn("PyYAML==6.0.3", hooks[0]["additional_dependencies"])
+
     def test_shellcheck_is_native_and_preserves_source_aware_lint(self) -> None:
         config = yaml.safe_load(
             (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -50,7 +85,7 @@ class DeveloperToolingContractTests(unittest.TestCase):
             if repo["repo"] == "https://github.com/betterleaks/betterleaks"
         ]
         self.assertEqual(len(betterleaks), 1)
-        self.assertEqual(betterleaks[0]["rev"], "v1.9.0")
+        self.assertEqual(betterleaks[0]["rev"], "v2.0.0-rc.5")
         hooks = betterleaks[0]["hooks"]
         self.assertEqual(len(hooks), 1)
         self.assertEqual(hooks[0]["id"], "betterleaks")

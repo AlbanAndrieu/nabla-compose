@@ -4,6 +4,87 @@
 Concerne `sample` TrueNAS uniquement, PAS le runtime public de
 `fastapi-sample.fastapicloud.dev` (pas de chemin LAN privé prouvé).
 
+## P0 sécurisé — révocation, reprise readonly et comparaison locale (PR #300)
+
+**État constaté :** la clé `fastapi-sample-upstream` a été émise
+et son fichier Workstation `workstation.key` a des permissions `0600`.
+La **révocation de la session `BW_SESSION` divulguée n'est pas attestée** ;
+la synchronisation Vaultwarden et l'injection TrueNAS ne sont pas confirmées.
+**Ne pas relancer le provisionneur LiteLLM `--apply`.**
+
+La session divulguée doit d'abord être rendue inutilisable. Sur la
+Workstation, `bw logout` termine la session CLI locale, puis
+l'opérateur doit utiliser le Web Vault pour **révoquer les sessions
+du compte**. Cette révocation peut déconnecter d'autres clients.
+Ni la fermeture du sous-shell ni `unset BW_SESSION` seuls ne prouvent
+la révocation distante. N'imprimer aucun jeton dans le terminal partagé.
+
+Après la révocation, reprendre **une seule connexion**, dans un shell
+privé. La séparation `SESSION="$(bw login --raw)"` puis
+`export BW_SESSION="$SESSION"` est volontaire : un simple
+`export BW_SESSION="$(...)"` peut masquer un exit code non nul
+dans Bash si le sous-processus échoue.
+
+```bash
+# Depuis la Workstation, checkout PR #300 synchronisé ; sans set -x.
+git pull --ff-only
+python3 -m unittest discover -s tests \
+  -p 'test_fastapi_workstation_vaultwarden_compare.py' -v
+
+bw --version
+bw config server
+bw status | jq '{status,serverUrl}'
+
+(
+  set -Eeuo pipefail
+  set +x
+  umask 077
+  SESSION="$(bw login --raw)" || exit 2
+  test -n "$SESSION" || exit 2
+  export BW_SESSION="$SESSION"
+  unset SESSION
+  trap 'bw lock >/dev/null 2>&1 || true; unset BW_SESSION' EXIT
+
+  # Ne pas afficher les éléments ni les sessions.
+  bw list folders >/dev/null
+  echo 'vaultwarden_readonly=ok'
+
+  # Test de concordance en lecture seule ; exit 2 si absent/inconnu.
+  just litellm-fastapi-upstream-vaultwarden-compare
+)
+```
+
+Ne **pas** publier la sortie brute de `bw login`, `bw unlock`,
+`bw get item`, `bw list items` ou `docker inspect`.
+Le comparateur utilise `BitwardenClient` existant pour vérifier
+le serveur HTTPS, l'état de déverrouillage, le dossier `TrueNAS`
+et l'item exact `nabla/prod/litellm`. Il vérifie localement
+la clé `workstation.key` et compare sa valeur au **champ masqué**
+`LITELLM_FASTAPI_WORKSTATION_API_KEY` en mémoire, sans afficher
+de donnée secrète ni écrire dans Vaultwarden. `bw sync` peut
+actualiser le cache **local du CLI**, mais aucune donnée distante
+n'est modifiée par ce contrôle.
+
+Résultats opérateur attendus :
+
+| `field_state` | Décision |
+| --- | --- |
+| `field_matches_private_key` | **DONE source Vaultwarden** : la clé locale et le champ masqué sont identiques |
+| `field_absent` | **P0 écriture ciblée restante** ; ne pas régénérer la clé |
+| `field_mismatch_no_overwrite` | **STOP** ; valeur existante différente, aucune substitution automatique |
+| `field_duplicate`, `field_not_hidden`, `field_empty`, `field_unverified_schema` | **STOP** ; résoudre le conflit du coffre, sans impression des valeurs |
+| `fresh_session_required`, `vaultwarden_unverified`, `private_key_unavailable` | **NO-GO** ; rétablir le prérequis, aucune interprétation de l'absence du champ |
+
+**Limite volontaire de P0 :** le comparateur ne possède pas
+de mode `--apply`. L'ajout du champ dans l'item existant doit
+être fait après réussite de l'accès readonly, sans remplacement des
+champs master/salt/IDE/Redis/Langfuse, et vérifié de nouveau
+avec le comparateur. `materialize_runtime.py --install` est
+**différé** : il remplace le fichier runtime complet, ce qui
+nécessite une comparaison et une sauvegarde préalable spécifiques.
+La validation de `/key/info`, du budget et du routage end-to-end
+est une autre étape non effectuée.
+
 ## Incident Bitwarden CLI : double déverrouillage et session exposée
 
 **Nouvelle réception opérateur (28/10/2026) :**
@@ -50,8 +131,10 @@ bw status | jq '{status, serverUrl}'
   set -e
   set +x
   umask 077
-  export BW_SESSION="$(bw login --raw)"
-  test -n "$BW_SESSION"
+  SESSION="$(bw login --raw)" || exit 2
+  test -n "$SESSION" || exit 2
+  export BW_SESSION="$SESSION"
+  unset SESSION
   bw status | jq '{status, serverUrl}'
   bw list folders >/dev/null
   echo 'vaultwarden_readonly=ok'

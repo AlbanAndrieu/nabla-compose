@@ -45,6 +45,9 @@ class MigrationEvidence(unittest.TestCase):
             self.assertEqual(result.returncode,2)
             self.assertIn("truenas_tunnel unverified_or_failed",result.stdout)
             self.assertIn("PROBE digest_top completed",result.stdout)
+            self.assertIn("PROBE dual_litellm_logs completed",result.stdout)
+            self.assertIn("PROBE truenas_virtual_keys_quota completed",result.stdout)
+            self.assertIn("PROBE model_route_metadata completed",result.stdout)
             self.assertIn("unverified_or_failed=1",result.stdout)
 
     def test_truenas_skips_workstation_only_probes(self):
@@ -69,6 +72,11 @@ class MigrationEvidence(unittest.TestCase):
             self.assertNotIn("gateway_and_runtime",result.stdout)
             self.assertIn("TrueNAS",result.stdout)
             self.assertIn("host=truenas",result.stdout)
+
+    def test_provenance_dispatch_contract_is_in_local_tests(self):
+        raw = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("probe provenance_dispatch_contract python3 -m unittest", raw)
+        self.assertIn("test_truenas_litellm_secret_provenance_dispatch.py", raw)
 
     def test_invalid_mode_never_calls_just(self):
         with tempfile.TemporaryDirectory() as tmp:

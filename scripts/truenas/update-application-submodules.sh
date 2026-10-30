@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "${ROOT}"
 MODE="${1:---check}"
-MODULES=(fastapi-sample apps/nabla-site-alban)
+MODULES=(apps/fastapi-sample apps/nabla-site-alban)
 
 case "${MODE}" in --check|--update) ;; *) echo "Usage: $0 [--check|--update]" >&2; exit 2;; esac
 # A read-only --check should explain what blocks the update rather than
@@ -58,5 +58,5 @@ for module in "${MODULES[@]}"; do
   git -C "${module}" switch --detach "$(git -C "${module}" rev-parse origin/master)"
   echo "updated=${module} sha=$(git -C "${module}" rev-parse HEAD)"
 done
-git diff --submodule=log -- fastapi-sample apps/nabla-site-alban
+git diff --submodule=log -- "${MODULES[@]}"
 echo "Review and commit the updated gitlinks in nabla-compose; no push or deployment performed."

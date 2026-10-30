@@ -46,12 +46,12 @@ repos:
         exclude: ^\.agents/skills/ansible-validator/scripts/scan_secrets\.sh$
 
   - repo: https://github.com/pre-commit/pre-commit.git
-    rev: v4.6.2
+    rev: v4.7.0
     hooks:
       - id: validate_manifest
 
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.1-1
+    rev: v3.14.1-1
     hooks:
       - id: shfmt
         name: "🐚 shell · Format shell scripts"
@@ -84,16 +84,18 @@ repos:
         exclude: '^(trunk|scripts/run-python\.sh|scripts/run-wicked\.sh|\.envrc)$'
 
   - repo: https://github.com/mrtazz/checkmake.git
-    rev: v0.3.2
+    rev: v0.3.0
     hooks:
       - id: checkmake
         name: "🐮 Makefile · Lint Makefile"
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: "v2.5.9"
+    rev: "v2.6.4"
     hooks:
       - id: biome-check
         name: "🟨 javascript · Biome check"
+        # nodeenv 1.11 cannot parse pre-release Node versions when downloading one.
+        language_version: system
         additional_dependencies: ["@biomejs/biome@2.4.12"]
         # These JSON artifacts are fully generated and checked byte-for-byte.
         # A second formatter must not compete with the canonical generator.
@@ -120,7 +122,7 @@ repos:
         args: [-c, .yamllint.yml]
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.38.0
+    rev: 0.39.0
     hooks:
       - id: check-github-workflows
         name: "🧩 github-actions · Validate workflows"
@@ -151,14 +153,14 @@ repos:
         name: "⚙️ actions · Lint GitHub workflows with actionlint"
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.30.1
+    rev: v1.31.1
     hooks:
       - id: zizmor
         name: "🛡️ actions · Audit GitHub workflows with zizmor"
         args: [--offline]
 
   - repo: https://github.com/betterleaks/betterleaks
-    rev: v1.9.0
+    rev: v2.0.0-rc.5
     hooks:
       - id: betterleaks
         name: "🔒 security · Detect secrets with Betterleaks"
@@ -564,8 +566,9 @@ repos:
 
       - id: precommit-manifest-integrity
         name: "✅ pre-commit · Reject duplicated security/quality hooks"
-        language: system
-        entry: python3 scripts/quality/check-precommit-config.py
+        language: python
+        entry: python scripts/quality/check-precommit-config.py
+        additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
           ^([.]pre-commit-config[.]yaml|scripts/quality/check-precommit-config[.]py|tests/test_precommit_integrity[.]py)$

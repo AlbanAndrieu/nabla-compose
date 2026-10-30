@@ -101,8 +101,8 @@ if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
         fi
     }
     parent="$(read_git rev-parse --short HEAD 2>/dev/null || true)"
-    pinned="$(read_git ls-files -s fastapi-sample 2>/dev/null | awk 'NR==1 {print $2}')"
-    checkout="$(read_git -C fastapi-sample rev-parse HEAD 2>/dev/null || true)"
+    pinned="$(read_git ls-files -s apps/fastapi-sample 2>/dev/null | awk 'NR==1 {print $2}')"
+    checkout="$(read_git -C apps/fastapi-sample rev-parse HEAD 2>/dev/null || true)"
     printf 'nabla-compose: %s\n' "${parent:-unavailable}"
     printf 'fastapi-sample checkout: %s\n' "${checkout:-unavailable}"
     printf 'parent gitlink: %s\n' "${pinned:-unavailable}"
@@ -116,7 +116,7 @@ if [[ -d /mnt/cpool/compose/nabla-compose/.git ]]; then
     elif [[ -n "${EXPECTED_SHA}" ]]; then
         ok 'Révision Git du checkout conforme à --expected-sha'
     else
-        master="$(read_git -C fastapi-sample rev-parse origin/master 2>/dev/null || true)"
+        master="$(read_git -C apps/fastapi-sample rev-parse origin/master 2>/dev/null || true)"
         if [[ -n "${master}" && "${checkout}" == "${master}" ]]; then
             diag_info "Le checkout correspond à origin/master : une PR ouverte n'est pas nécessairement déployée"
         fi

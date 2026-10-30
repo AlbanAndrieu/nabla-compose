@@ -683,6 +683,7 @@ litellm-workstation-auth-contracts:
     python3 -m unittest discover -s tests -p 'test_fastapi_litellm_native_truenas.py' -v
     bash scripts/quality/run-pytest-local.sh -q tests/test_fastapi_litellm_wiring.py
     python3 -m unittest discover -s tests -p 'test_fastapi_litellm_workstation_inventory.py' -v
+    python3 -m unittest discover -s tests -p 'test_fastapi_workstation_vaultwarden_compare.py' -v
 
 # Workstation-only: value-blind read-only local proxy/alias audit. No models or key creation.
 litellm-workstation-fastapi-key-inventory:
@@ -695,6 +696,11 @@ litellm-truenas-fastapi-provision-check:
 # Vaultwarden check runs as an unlocked unprivileged operator; no secret values printed.
 litellm-fastapi-upstream-source-check:
     bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/check-litellm-fastapi-upstream-source.py --check
+
+# Workstation, read-only: compare Vaultwarden hidden field with exact private 0600 key.
+# No key value, item JSON, backup file or session value is printed.
+litellm-fastapi-upstream-vaultwarden-compare:
+    bash scripts/quality/run-python-with-jsonschema-local.sh scripts/secrets/inspect-fastapi-workstation-key-vaultwarden.py --check
 
 # Vaultwarden Sample key source only. Uses existing unlocked operator session.
 litellm-fastapi-sample-source-check:

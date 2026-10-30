@@ -6,6 +6,26 @@ Le dossier `apps/openclaw` sera à terme le **submodule directement**
 avec références Python et tests adaptés. **Quatre fichiers sandbox**
 restent dans `apps/openclaw/`.
 
+**Audit des consommateurs en code (PR #300, avant toute mutation) :**
+le [registre de dépendances](../migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+identifie, au-delà de la configuration TrueNAS,
+`build.sh` qui invoque `docker compose -f apps/openclaw/compose.yml`,
+ainsi que `catalog/services.json`,
+`catalog/service-topology.json`,
+l'annotation Backstage `apps/openclaw/catalog-info.yaml`
+et les artefacts générés du catalogue. Ce sont des **références
+encore actives dans Git** à migrer de manière cohérente.
+Le sandbox monte des chemins privés de Workstation et ne doit
+pas être considéré comme un Gateway TrueNAS.
+
+**État de décision : NO-GO pour le déplacement des quatre fichiers
+et le gitlink direct `apps/openclaw`**, tant que les consommateurs
+ci-dessus, l'inventaire global des Apps TrueNAS et le rollback
+n'ont pas été réceptionnés. Le script de préflight reste
+strictement en lecture seule et retourne **2 par conception**,
+même lorsqu'aucune référence App n'est observée. Ne pas interpréter
+ce code comme un `DOWN` ni désactiver cette protection.
+
 **Attention :** le fichier Compose du sandbox peut être référencé par
 une application TrueNAS via `custom_compose_config.include`.
 Le nouveau script lit seulement `app.config` pour les deux noms
@@ -25,7 +45,7 @@ un fichier Compose autonome ou une tâche d'orchestration peut encore
 référencer le chemin historique. Le code retour reste toujours `2` :
 **aucun déplacement automatique**.
 
-Sur **TrueNAS** (après pull de la branche #295) :
+Sur **TrueNAS** (depuis un checkout contenant déjà le script, sans imposer de synchronisation Git à l'appliance) :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
@@ -93,11 +113,21 @@ quoté, sortie corrompue, commande refusée et parcours complet).
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-git pull --ff-only
+# N'effectuer aucun pull si l'arbre de travail est modifié.
+git rev-parse --short HEAD
+test -f scripts/truenas/check-openclaw-sandbox-binding.py || exit 2
 python3 -m unittest discover -s tests \
   -p 'test_openclaw_sandbox_global_binding.py' -v
 python3 scripts/truenas/check-openclaw-sandbox-binding.py --all-apps
 ```
+
+**Réception workstation PR #300 (HEAD `a05a5ec2`) :**
+le plan d'extraction a réussi avec 1 770 chemins Git et
+375 recettes Just ; les tests du planner et des politiques
+OpenClaw ont réussi **8/8**. Cette preuve **ne remplace pas**
+les tests `test_openclaw_sandbox_global_binding.py`
+ni la lecture `midclt app.config` sur TrueNAS :
+**runtime toujours NON VÉRIFIÉ**.
 
 Le second contrôle retourne toujours `2` par conception : lire
 `sandbox_relocation`, `app_inventory_count` et
