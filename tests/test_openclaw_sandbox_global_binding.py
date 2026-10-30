@@ -18,6 +18,63 @@ def app(app_id):
 
 
 class GlobalScanContracts(unittest.TestCase):
+    def test_midclt_unquoted_version_stdout_is_accepted(self):
+        # Real TrueNAS midclt prints an unquoted scalar, unlike JSON objects.
+        proc = mod.subprocess.CompletedProcess(
+            ["midclt", "call", "system.version"], 0,
+            stdout=b"TrueNAS-26.0.0-BETA.3\\n", stderr=b""
+        )
+        with patch.object(mod.subprocess, "run", return_value=proc) as run:
+            self.assertEqual(
+                mod.query(["midclt", "call", "system.version"]),
+                "TrueNAS-26.0.0-BETA.3"
+            )
+        self.assertTrue(run.called)
+
+    def test_midclt_json_quoted_version_remains_supported(self):
+        proc = mod.subprocess.CompletedProcess(
+            ["midclt", "call", "system.version"], 0,
+            stdout=b'"TrueNAS-26.0.0-BETA.2"\\n', stderr=b""
+        )
+        with patch.object(mod.subprocess, "run", return_value=proc):
+            self.assertEqual(
+                mod.query(["midclt", "call", "system.version"]),
+                "TrueNAS-26.0.0-BETA.2"
+            )
+
+    def test_bare_text_for_other_methods_is_never_accepted(self):
+        cases = [
+            (["midclt", "call", "app.query"], b"TrueNAS-26.0.0-BETA.3\\n", 0),
+            (["midclt", "call", "system.version"], b"unexpected text\\n", 0),
+            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3; touch /tmp/bad\\n", 0),
+            (["midclt", "call", "system.version"], b"TrueNAS-26.0.0-BETA.3\\n", 1),
+        ]
+        for argv, stdout, code in cases:
+            with self.subTest(argv=argv, stdout=stdout, code=code):
+                proc = mod.subprocess.CompletedProcess(argv, code, stdout, b"private error")
+                with patch.object(mod.subprocess, "run", return_value=proc):
+                    self.assertIsNone(mod.query(argv))
+
+    def test_realistic_stdout_flows_through_full_readonly_audit(self):
+        commands = [
+            mod.subprocess.CompletedProcess([], 0, b"TrueNAS-26.0.0-BETA.3\\n", b""),
+            mod.subprocess.CompletedProcess([], 0, b'[{"id":"sample"}]\\n', b""),
+            mod.subprocess.CompletedProcess([], 0,
+                b'{"custom_compose_config":{"include":[]}}\\n', b""),
+        ]
+        with patch.object(mod.subprocess, "run", side_effect=commands) as run:
+            result = mod.audit_all_apps()
+        self.assertEqual(result["host"], "truenas")
+        self.assertEqual(result["sandbox_relocation"],
+                         "manual_review_no_app_reference_observed")
+        self.assertEqual(result["app_configs_checked"], 1)
+        called = [item.args[0] for item in run.call_args_list]
+        self.assertEqual(called, [
+            ["midclt", "call", "system.version"],
+            ["midclt", "call", "app.query"],
+            ["midclt", "call", "app.config", "sample"],
+        ])
+
     def test_full_inventory_no_app_reference_is_manual_review_not_go(self):
         with patch.object(mod, "query", side_effect=[
             "TrueNAS-26.0.0-BETA.2", [app("sample"), app("openclaw")],
