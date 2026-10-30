@@ -2302,3 +2302,21 @@ Pour les chantiers durables, consulter également :
 [catalogue sécurité](service-catalog-security-graph.md) ·
 [plateforme Kubernetes](homelab-platform-migration-roadmap.md) ·
 [gestion des skills](agent-skills-architecture.md).
+
+## Séparation des dépôts (proposée — 30 octobre 2026)
+
+Le `justfile` contient 370 recettes, dont 84 YubiKey, 98 OpenClaw et
+15 Workstation. Ne pas déplacer de code tant qu'une parité des scripts
+et sorties n'est pas attestée. La répartition visée est :
+**Compose = services TrueNAS/inter-hôtes**,
+**ansible-workstation = OS et audits locaux**,
+**dotfiles = shell et unités utilisateur existantes**,
+**futur `nabla-yubikey` = diagnostics matériels et escrow client**.
+
+- [ADR de séparation proposée](adr/adr-repository-split-workstation-yubikey-20261030.md)
+- [Plan d'extraction et inventaire](migrations/workstation-yubikey-extraction-20261030.md)
+- [PR ansible-workstation #16](https://github.com/AlbanAndrieu/ansible-workstation/pull/16)
+
+**Statut : PREPARED / NO CUTOVER**. Pas de PR de migration vers
+un dépôt YubiKey inexistant, pas de duplication des secrets ni retrait
+des anciens `just yubikey-*` ou `just openclaw-*` à cette étape.
