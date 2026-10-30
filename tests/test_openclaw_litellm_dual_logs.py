@@ -66,7 +66,8 @@ class DualLogsTests(unittest.TestCase):
         self.assertEqual(calls.call_count,3)
 
     def test_both_sources_required_for_success(self):
-        with patch.object(mod,"workstation",return_value=("available","docker",b"429 PRIVATE","none")), \
+        with patch.object(mod,"detect_host",return_value="workstation"), \
+             patch.object(mod,"workstation",return_value=("available","docker",b"429 PRIVATE","none")), \
              patch.object(mod,"truenas",return_value=("unavailable","unverified",b"PRIVATE","docker_permission_denied")), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             status=mod.main([])
@@ -85,6 +86,22 @@ class DualLogsTests(unittest.TestCase):
         self.assertEqual(mod.denial_reason(b"permission denied while connecting to docker daemon sk-SECRET"),
                          "docker_permission_denied")
         self.assertEqual(mod.denial_reason(b"PRIVATE random failure"),"unverified")
+
+    def test_truenas_reads_local_logs_and_does_not_ssh_itself(self):
+        with patch.object(mod,"detect_host",return_value="truenas"), \
+             patch.object(mod,"workstation") as remote_ws, \
+             patch.object(mod,"truenas") as ssh_self, \
+             patch.object(mod,"local_truenas",return_value=("available","local_truenas_docker",b"429 PRIVATE","none")), \
+             contextlib.redirect_stdout(io.StringIO()) as capture:
+            result=mod.main(["--truenas-sudo-logs"])
+        self.assertEqual(result,2)
+        obj=json.loads(capture.getvalue())
+        self.assertEqual(obj["sources"]["workstation"]["access_reason"],
+                         "workstation_probe_required")
+        self.assertEqual(obj["sources"]["truenas"]["source"],"local_truenas_docker")
+        self.assertNotIn("PRIVATE",capture.getvalue())
+        remote_ws.assert_not_called()
+        ssh_self.assert_not_called()
 
     def test_fixture_full_coverage_zero_tokens(self):
         with tempfile.TemporaryDirectory() as tmp:
