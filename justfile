@@ -1757,3 +1757,7 @@ openclaw-migration-evidence-inventory:
 
 openclaw-migration-evidence-check:
     bash scripts/workstation/openclaw-migration-evidence.sh --diagnose
+
+# Operator instructions; printing the runbook path does not change runtime.
+openclaw-migration-runbook:
+    @echo "docs/runbooks/openclaw-end-to-end-migration-20261030.md"
