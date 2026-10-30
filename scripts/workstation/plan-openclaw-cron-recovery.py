@@ -47,12 +47,13 @@ def evaluate(digest_class,session_class,agent_state):
         digest_action='review_items_per_section_5_in_ui'
     else:
         digest_action='verify_installed_skill_and_cron'
-    if session_class=='present':
+    # An orphaned session is not proof that its owning agent is configured.
+    if agent_state=='absent':
+        session_action='review_agent_configuration_first'
+    elif agent_state=='present' and session_class=='present':
         session_action='none'
     elif agent_state=='present' and session_class=='absent_in_reported_complete_catalog':
         session_action='create_new_cron_conversation_in_ui'
-    elif agent_state=='absent':
-        session_action='review_agent_configuration_first'
     else:
         session_action='verify_agent_and_session_catalog'
     return digest_action,session_action

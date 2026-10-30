@@ -40,6 +40,10 @@ def route_owner(value):
         route = "workstation_litellm"
     elif endpoint == ("172.17.0.24", 4000):
         route = "truenas_litellm"
+    elif endpoint in (("127.0.0.1", 14000), ("localhost", 14000), ("::1", 14000)):
+        # A local port is not proof that SSH actually forwards to TrueNAS.
+        # Verify with just openclaw-truenas-tunnel-check before accepting.
+        route = "truenas_tunnel_candidate"
     elif endpoint == ("172.17.0.57", 4000):
         route = "workstation_lan_litellm"
     else:

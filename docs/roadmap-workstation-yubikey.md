@@ -1,5 +1,15 @@
 # Roadmap nabla-compose — YubiKey et intégrations workstation
 
+> **30 octobre — extraction proposée, pas encore exécutée** :
+> les 84 recettes `yubikey-*` peuvent rejoindre un futur dépôt
+> `nabla-yubikey` après analyse des dépendances, suppression des
+> références sensibles et parité des tests. Les données PIV/FIDO2/OTP,
+> PIN, archives age et clés privées ne sont jamais copiées dans Git.
+> Jusqu'au cutover, `nabla-compose` reste le dépôt canonique.
+> [Plan et ADR](migrations/workstation-yubikey-extraction-20261030.md).
+
+
+
 **Date : 27 octobre 2026**. Ceci est le volet de la roadmap **propre à Compose**, sans recopier les actions système ou shell d'autres dépôts. Décision : [ADR Option A](adr/adr-workstation-option-a.md). Références déjà existantes : [inventaire des capacités](workstation-yubikey-full-capabilities.md), [runbook secondaire cinq chantiers](runbooks/yubikey-backup-five-execution.md) et [roadmap PIV/GPG](workstation-yubikey-gpg-vault-roadmap.md).
 
 | Priorité | Action | Validation / gate | État |

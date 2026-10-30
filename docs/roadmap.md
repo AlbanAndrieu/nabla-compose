@@ -11,6 +11,188 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## P0 — FastAPI : diagnostic UI, Prometheus, LiteLLM et OpenRAG consolidé (30 octobre 2026)
+
+**Mesures opérateur du 30/10, non exécutées par cet agent :**
+- TrueNAS FastAPI /api, /api/ui/session, /api/ui/services : HTTP 200, catalogue autour de 0,52 s.
+- Staging et Cloud : HTTP 403 sur les trois routes depuis le point de test = DENIED, pas DOWN. Chromium : Playwright absent = NOT_RUN. Mode secours UI annoncé fonctionnel ; mode riche non accepté.
+- Prometheus : configuration promtool valide et identique au montage ; dernier snapshot : 22/28 UP. Six targets DOWN (haproxy, litellm_hermes HTTP 401, opensearch, opensearch-security, pihole_exporter, postgres_exporter). fastapi_sample DOWN/TCP puis UP dans deux mesures : **ne pas mélanger les instantanés**.
+- LiteLLM TrueNAS et OpenRAG HEALTHY côté readiness. LITELLM_FASTAPI_WORKSTATION_API_KEY **absente du conteneur LiteLLM** ; fichiers sources ambigus. OpenRAG MCP GET 406 : transport seulement, pas handshake. Recherche Bababou privée NOT_RUN.
+
+- [x] **CODED PR #295 :** scripts/truenas/diagnose-fastapi-stack.py ; une commande read-only pour UI, une capture unique des targets Prometheus et les contrôles IA, états PASS/FAIL/DENIED/UNVERIFIED/NOT_RUN ; mode navigateur Chromium opt-in. Les anciens scripts spécialisés restent disponibles.
+- [x] **TESTED isolé :** 18 tests unittest et py_compile PASS sur les blobs identiques au code préparé ; tests complets du dépôt et runtime du lanceur NOT_RUN.
+- [x] **Correction de diagnostic :** le prochain contrôle du job fastapi_sample suit le domaine TCP/DNS/timeout/auth observé, plutôt que de demander la clé en cas de connexion refusée.
+- [ ] **Runtime :** exécuter sur TrueNAS le lanceur en lecture seule ; corréler les scrapes depuis son snapshot unique.
+- [ ] **LiteLLM :** attribuer l'absence de clé upstream à la source Vaultwarden, au fichier runtime ou à l'environnement conteneur sans utiliser la clé IDE ni la master key.
+- [ ] **OpenRAG :** prouver les ACL privées, la négociation MCP authentifiée, le filtre corpus et la recherche sur un document synthétique autorisé.
+- [ ] **UI :** comparer les modes safe/full avec Chromium préinstallé sur une machine autorisée et le SHA réellement déployé.
+
+Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
+
+## CrowdSec — réception ruleset PF LIVE (30 octobre 2026)
+
+- **DONE — tests ciblés sur workstation :** `just crowdsec-pf-rules-test`
+  **21/21 PASS**, et `just crowdsec-bouncer-config-test`
+  **100/100 PASS**. `py_compile` et vérifications shell du gate
+  ont également réussi ; il ne s'agit pas du gate global.
+- **DONE — règles PF chargées :** sortie réelle de
+  `just crowdsec-pf-rules-audit` :
+  `crowdsec_pf_rules=BLOCK_RULE_LOADED source=LIVE pf=ENABLED
+  root_ipv4_block_quick_in=1 anchor_ipv4_block_quick_in=1
+  root_ipv6_block_quick_in=1 anchor_coverage=READ`.
+  Le ruleset PF actif contient donc une règle racine
+  `block in quick` utilisant `crowdsec_blacklists` comme
+  **source** ; une règle IPv6 racine et une règle IPv4
+  dans la vue des ancres ont aussi été détectées.
+  La seule présence d'une ancre n'est pas interprétée
+  comme une deuxième preuve de chemin WAN.
+- **WAN NON VÉRIFIÉ :** `wan_interface=NOT_SPECIFIED`,
+  `compatible_root_rule=NOT_CHECKED`,
+  `packet_block=NOT_VERIFIED`. Il faut identifier
+  l'interface WAN **réellement assignée** dans pfSense
+  (`Status > Interfaces` ou `Interfaces > Assignments`)
+  et relancer le même audit avec `--wan-interface <ifname>`,
+  puis seulement envisager logs/compteurs liés à une règle
+  effective. Ne pas inférer WAN depuis la route par défaut,
+  ni provoquer un bannissement d'une IP d'administration.
+- **Git local — arbre modifié :** `git pull --ff-only` a
+  été refusé car le checkout comporte des modifications
+  indexées et non indexées. Les tests et l'audit ont
+  néanmoins été exécutés sur ce checkout local ;
+  ils ne prouvent pas l'identité exacte avec la tête
+  GitHub. Privilégier l'inspection `git status --short`
+  ou un worktree propre sur la branche PR, sans `reset --hard`,
+  `clean -fd` ni `stash` implicite.
+- **Contrôles distincts encore ouverts :** blocage
+  effectif d'un paquet WAN et détection naturelle
+  `origin=crowdsec` avec baseline v2.
+  **Le cycle synthétique LAPI → PF → retrait reste PASS
+  et n'a pas besoin d'être répété.**
+
+## CrowdSec — audit read-only des règles PF chargées (PR #295)
+
+- **CODED [skip ci]** : `scripts/workstation/audit-crowdsec-pf-rules.py`
+  interroge en SSH depuis la workstation `pfctl -s info`,
+  `pfctl -sr` et, si possible, les ancres avec
+  `pfctl -a '*' -sr`. Recherche une règle PF chargée
+  `block … in … quick … from <crowdsec_blacklists>`.
+  Une simple table, une référence dans un commentaire,
+  une règle `pass`, un blocage `out` ou une référence
+  de destination ne sont pas acceptés comme preuve.
+  Les règles uniquement dans les ancres conservent
+  `ANCHOR_BLOCK_RULE_REACHABILITY_NOT_VERIFIED`.
+  Sortie expurgée sans ruleset brut, pas de mutation.
+- **Tests :** `tests/test_crowdsec_pf_rules_audit.py`,
+  **21 scénarios hermétiques versionnés**, recette
+  `just crowdsec-pf-rules-test`; intégration dans
+  `just crowdsec-bouncer-config-test`. Gate ciblé
+  attendu **100 tests** (79 auparavant + 21).
+  **Exécution locale de ce nouveau gate non encore attestée.**
+- **RUNTIME NON VÉRIFIÉ :** lancer
+  `just crowdsec-pf-rules-audit` sur la workstation.
+  Un éventuel `BLOCK_RULE_LOADED` démontre seulement
+  la présence d'une règle de blocage entrant `quick`
+  chargée ; **pas** le blocage réel d'un paquet WAN.
+  L'interface WAN doit être renseignée si connue,
+  sans inférence via la route par défaut.
+  Conserver la preuve précédente
+  `SYNTHETIC_PF_DECISION_CYCLE_PASS` comme DONE,
+  séparée de cette réception.
+- **Déféré :** confirmation des chemins réseau WAN
+  et logs/compteurs associés à une règle active,
+  puis observation naturelle `origin=crowdsec`
+  depuis la baseline v2, toujours distinctes du
+  test synthétique.
+
+## CrowdSec — réception synthétique LIVE PASS (30 octobre 2026)
+
+- **DONE — boucle de remédiation LAPI → PF → retrait (test contrôlé, réel) :**
+  l'opérateur a exécuté depuis la workstation
+  `scripts/workstation/smoke-crowdsec-pf-synthetic.py --apply
+  --confirm SYNTHETIC-203.0.113.77`.
+  Preflight : `initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING`.
+  CrowdSec TrueNAS a créé la décision **ID 1531819**,
+  `synthetic_pf_application=OBSERVED` a confirmé la présence de
+  l'adresse dans la table `crowdsec_blacklists` sur pfSense, puis
+  `synthetic_cleanup=PASS lapi_absent=true pf_absent=true` a
+  confirmé le retrait **des deux côtés**.
+  Verdict : **`SYNTHETIC_PF_DECISION_CYCLE_PASS`**.
+  Les sorties précédentes `NOT_VERIFIED` décrivent l'échec historique,
+  désormais supplanté pour **ce parcours synthétique**.
+- **Nature du test :** `203.0.113.77` appartient à
+  **TEST-NET-3 (RFC 5737)** : plage de documentation sans
+  propriétaire/attaquant. L'événement est artificiel
+  (`origin=cscli`) mais la création LAPI, la synchronisation PF et
+  le retrait sont des **effets runtime réels**.
+  Durée maximale de décision configurée : 5 minutes ; retrait
+  anticipé par identifiant, sans flush PF ni rotation de clé.
+- **DONE — gate local récent :** 29 tests synthétiques et
+  **79/79 tests CrowdSec ciblés PASS** sur la workstation.
+  Ce gate n'est pas le gate global du dépôt.
+- **P1 reste ouvert indépendamment :** valider les règles PF actives
+  et un blocage de trafic depuis un véritable WAN ; prouver une
+  détection naturelle `origin=crowdsec` avec baseline v2.
+  Aucune de ces deux preuves n'est apportée par le test synthétique.
+  La PR reste Draft, pas de CI GitHub Actions ni d'automerge.
+
+## P0 CrowdSec — inspection LIVE sans vestige (30 octobre 2026)
+
+- **Gate ciblé validé sur la workstation :** `just crowdsec-pf-synthetic-test`
+  **24/24 PASS**, `just crowdsec-bouncer-config-test` **74/74 PASS**
+  (5 URL, 11 authentification, 5 provisionneur, 10 provenance,
+  19 cycle naturel, 24 synthétique). Cela prouve les contrats
+  des scripts, **pas** l'application d'un ban réel dans PF.
+- **Inspection réelle en lecture seule :** `just crowdsec-pf-synthetic-inspect`
+  => `lapi_matches=0 decision_ids=none pf_present=false
+  pf_bouncer=RUNNING`. Aucun vestige *actif* sur `203.0.113.77`
+  à cet instant ; le premier essai reste non prouvé.
+- **Amélioration complémentaire du diagnostic :** classifier sans
+  exposer stderr les refus CrowdSec `ADD_DENIED_ALLOWLIST`,
+  `CLI_UNSUPPORTED_OPTION`, les permissions SSH/sudo et autres
+  échecs. **5 tests supplémentaires versionnés**, gate étendu
+  prévu **79 tests** ; nouveau gate non encore exécuté sur workstation.
+  Ne pas contourner une allowlist TEST-NET-3 à l'aveugle.
+- **Suite :** `just crowdsec-pf-synthetic-preflight` puis, seulement
+  après PASS, exécution active explicitement voulue. Baseline naturelle
+  v1 conservée ; baseline v2 à établir séparément.
+  **P0 PF reste NOT_VERIFIED**.
+
+## P0 CrowdSec — diagnostic du test synthétique (30 octobre 2026, PR #295)
+
+- **Évidence utilisateur :** `just crowdsec-pf-synthetic-test`
+  **15/15 PASS**, puis gate ciblé CrowdSec **61/61 PASS**
+  sur la workstation. `just crowdsec-pf-synthetic-preflight` :
+  `initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING`.
+  L'exécution mutatrice explicite a retourné
+  `synthetic_cleanup=NOT_VERIFIED manual_review_required=true`
+  et `synthetic_cycle=NOT_VERIFIED reason=NotVerified`,
+  **sans `synthetic_lapi=CREATED decision_id=...`**.
+  Elle ne prouve ni succès ni échec du bannissement ; l'état de
+  `203.0.113.77` doit être relu avant toute nouvelle tentative.
+- **Cause de code confirmée upstream CrowdSec v1.8.1 :**
+  `cscli decisions list -o json` renvoie une liste **d'alertes**
+  contenant `decisions[]`, pas seulement des décisions au premier
+  niveau. L'ancien parseur les ignorait au précontrôle puis échouait
+  à attribuer l'ID après `cscli decisions add`.
+- **Correctif PR #295 [skip ci] :** normalisation stricte des
+  `alerts[].decisions[]`, rejet des schémas inconnus, propriété du
+  ban vérifiée sur `origin=cscli` + `scenario=reason` aléatoire
+  + cible/type/ID ; nettoyage **uniquement par cet ID**.
+  Nouveau `just crowdsec-pf-synthetic-inspect` en lecture seule,
+  statut de phase plus précis, tests hermétiques complémentaires.
+  **Nouveaux tests pas encore exécutés sur workstation.**
+- **Impact sur le suivi naturel :** le parseur flat-only initial
+  pouvait produire un faux zéro. Nouvelle baseline au format v2,
+  **fichier séparé** `crowdsec-pf-natural-cycle-v2.json` ;
+  la baseline v1 historique en `0600` n'est ni écrasée ni
+  considérée comme preuve valide. Refaire la baseline v2 en
+  lecture seule une fois l'état du test synthétique vérifié.
+- **P0 remédiation PF : NOT_VERIFIED.** Ne pas relancer `--apply`
+  avant un `--inspect` / précontrôle propres ; aucun
+  `cscli decisions delete --ip`, changement PF ou rotation de clé.
+  La mise en évidence d'une entrée PF ne prouverait pas encore
+  le blocage d'un paquet sur une règle active.
+
 ## P0 CrowdSec — validation synthétique réversible prête (28 octobre 2026)
 
 - **Implémentation versionnée, PAS encore exécutée en runtime** :
@@ -235,7 +417,8 @@ ce périmètre.
 - **P0 DONE (28/10, preuve opérateur) :** sauvegarde de l'identité privée USB protégée par phrase secrète indépendante sur workstation + TrueNAS NFS. 14/14 tests de sauvegarde et 13/13 de restauration PASS ; copies chiffrées identiques ; déchiffrement des deux archives et destinataire age historique confirmés (`BOTH_BACKUPS_RESTORED_WITH_HISTORICAL_RECIPIENT`). Aucun test SOPS de production dans cette séquence.
 - **Suivi PRA à attester :** conservation de la phrase secrète hors de la SanDisk et vérification du débranchement physique durant un exercice de restauration ; l'outil de restauration, lui, ne dépend pas du support USB. Ne pas relancer la sauvegarde.
 - **P1 DONE (28/10, preuve réelle) :** ACL NFS4 inventoriées sur quatre niveaux (11/11 tests PASS). Une autorisation non propriétaire **potentielle sur l'export racine** (1), aucune sur les répertoires sensibles ni l'archive. Le contrôle complémentaire a réussi (**9/9 tests PASS**, `MODE_BOUNDARY_OBSERVED`) : `secret` et `usb-recovery-backups` en **`0700`**, archive age en **`0600`**, propriétaires sensibles cohérents. Aucune correction ACL justifiée sur la seule base de l'alerte racine ; aucune mutation réalisée.
-- **P1 résiduel — sécurité d'accès NFS :** `effective_nfs4_authorization_verified=false` et `nfs_identity_mapping_verified=false`. Examiner en lecture seule la configuration export (maproot/mapall, root squash, hôtes autorisés), l'identité NFS réelle et, si nécessaire, tester un accès négatif sous identité dédiée sans lire l'archive. **PRA distinct :** phrase secrète accessible sans SanDisk, workstation ni NAS toujours NON ATTESTÉE. Aucune nouvelle sauvegarde, rotation SOPS, mutation PIV/OTP ou `--copy`.
+- **P1 — export NFS confirmé, sécurité à durcir (30/10, PR #295) :** **10/10 tests locaux PASS** après correction hermétique. Audit réel `EXPORT_MATCHED`, `configuration_inventory_verified=true`, sans secret lu : export actif, sans restriction `hosts`/`networks`, écriture permise, mappings `maproot/mapall=UNSET`, sécurité `DEFAULT_UNVERIFIED`. **Trois alertes attestées :** `NO_NFS_HOST_OR_NETWORK_FILTER`, `NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED`, `EXPORT_WRITABLE`. Les modes privés côté serveur `0700/0600` restent PASS. **Suite P1 :** inventaire des consommateurs NFS et des écritures légitimes, puis plan d'allowlist et retour arrière ; ne pas changer `ro` ni le partage avant confirmation des dépendances. Mappage/authentification et accès négatif non vérifiés ; phrase secrète de récupération indépendante NON ATTESTÉE.
+- **P1 — cartographie consommateurs NFS (30/10, PR #295) :** dépendances OpenClaw/escrow/pfSense documentées sans inventer de nouveaux clients. **8/8 tests hermétiques PASS sur workstation**, précontrôle `BACKUP_RESTORATION_PREFLIGHT_READY`. Premier essai TrueNAS : `SS_RESPONSE_UNVERIFIED`, code 3, aucun nombre de clients constaté. Cause probable : format `ss -H` à **4 colonnes** (reproduit localement) alors que le parseur en exigeait 5 ; correctif `4/5` colonnes et normalisation des pairs IPv4-mappés publié avec tests synthétiques étendus **à revalider sur workstation**. Le prochain essai restera un instantané TCP/2049 de tous les exports, **jamais** une allowlist complète. Cartographie des automounts/jobs, allowlist avec rollback et identité NFS effective toujours ouverts ; aucune mutation du partage ou des archives.
 
 [Runbook et preuves](runbooks/yubikey-software-recovery-20261026.md) ·
 [Plan YubiKey](runbooks/yubikey-capabilities-completion-plan.md).
@@ -2197,11 +2380,41 @@ complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
 
 Lire [la politique des skills](agent-skills-architecture.md) et
 [`AGENTS.md`](../AGENTS.md). Les skills externes
-`docker-compose-patterns` et `kubernetes-specialist` exigent de
-**Ask the user** avant installation. Respecter le stockage TrueNAS,
-Vaultwarden, `democratic-csi`, `entityRef` et `catalogRevision`.
-Ne pas ouvrir la production, assouplir TLS, supprimer des données, ni
-exécuter de remédiation implicite pour obtenir un `PASS`.
+`docker-compose-patterns` et `kubernetes-specialist` exigent une
+**approbation de l'opérateur séparément pour chaque installation**.
+Respecter le stockage TrueNAS, Vaultwarden, `democratic-csi`,
+`entityRef` et `catalogRevision`. Ne pas ouvrir la production,
+assouplir TLS, supprimer des données, ni exécuter de remédiation
+implicite pour obtenir un `PASS`.
+
+### Skills externes à installer manuellement — suivi du 30/10/2026
+
+| Décision | Source et skill skills.sh | Environnement cible | Statut |
+| --- | --- | --- | --- |
+| TrueNAS Compose | [`docker/skills` — `docker-compose-patterns`](https://www.skills.sh/docker/skills/docker-compose-patterns) | **Workstation**, scope projet `nabla-compose` | **EN ATTENTE d'approbation + revue upstream ; aucune installation attestée** |
+| Kubernetes sur Talos | [`jeffallan/claude-skills` — `kubernetes-specialist`](https://www.skills.sh/jeffallan/claude-skills/kubernetes-specialist) | **Workstation**, scope projet `nabla-compose` | **EN ATTENTE d'approbation + revue upstream ; aucune installation attestée** |
+
+```bash
+# Workstation UNIQUEMENT — lecture du catalogue sans installation
+cd ~/w/nabla-compose
+npx skills add docker/skills --list
+npx skills add jeffallan/claude-skills --list
+
+# Futur, après consentement et revue SKILL.md/deps/sécurité :
+# npx skills add docker/skills --skill docker-compose-patterns
+# npx skills add jeffallan/claude-skills --skill kubernetes-specialist
+```
+
+Aucun **skill Talos autonome** supplémentaire n'a été approuvé dans
+cette décision : Kubernetes Specialist s'applique au *Kubernetes
+hébergé sur Talos*, mais les opérations de gestion des nœuds Talos
+restent subordonnées à `talosctl`, aux runbooks locaux, aux contrôles
+CSI NFS et aux tests du cluster. Ni `skills-lock.json` ni cette
+roadmap ne constituent la preuve d'une installation runtime.
+Aucune installation de skill sur TrueNAS/Talos, aucun déploiement,
+redémarrage, `kubectl apply` ou `helm upgrade` implicite.
+
+[Rebase PR #295 et validation locale — runbook](runbooks/pr295-rebase-skills-handoff-20261030.md).
 
 ### Contrôle local-first
 
@@ -2226,3 +2439,37 @@ Pour les chantiers durables, consulter également :
 [catalogue sécurité](service-catalog-security-graph.md) ·
 [plateforme Kubernetes](homelab-platform-migration-roadmap.md) ·
 [gestion des skills](agent-skills-architecture.md).
+
+## Séparation des dépôts (proposée — 30 octobre 2026)
+
+Le `justfile` contient 370 recettes, dont 84 YubiKey, 98 OpenClaw et
+15 Workstation. Ne pas déplacer de code tant qu'une parité des scripts
+et sorties n'est pas attestée. La répartition visée est :
+**Compose = services TrueNAS/inter-hôtes**,
+**ansible-workstation = OS et audits locaux**,
+**dotfiles = shell et unités utilisateur existantes**,
+**futur `nabla-yubikey` = diagnostics matériels et escrow client**.
+
+- [ADR de séparation proposée](adr/adr-repository-split-workstation-yubikey-20261030.md)
+- [Plan d'extraction et inventaire](migrations/workstation-yubikey-extraction-20261030.md)
+- [PR ansible-workstation #16](https://github.com/AlbanAndrieu/ansible-workstation/pull/16)
+
+**Statut : PREPARED / NO CUTOVER**. Pas de PR de migration vers
+un dépôt YubiKey inexistant, pas de duplication des secrets ni retrait
+des anciens `just yubikey-*` ou `just openclaw-*` à cette étape.
+
+## OpenClaw — PR cible fusionnée, intégration Compose encore en Draft (30 octobre 2026)
+
+[nabla-openclaw #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1)
+est **fusionnée** dans `master` (commit `dd304743`).
+La source Workstation reste active ; aucun Gateway TrueNAS n'a été
+déployé. Les contrats OpenClaw GitOps et les tests locaux du dépôt
+dédié ont été validés : cela n'atteste pas l'image ni la readiness cible.
+Dans [Compose PR #295](https://github.com/AlbanAndrieu/nabla-compose/pull/295) :
+les 14 fichiers Workstation ont été relocalisés, les quatre fichiers
+sandbox restent sous `apps/openclaw`. Exécuter sur TrueNAS
+`python3 scripts/truenas/check-openclaw-sandbox-binding.py --all-apps`
+et consulter le
+[runbook](runbooks/openclaw-sandbox-submodule-preflight-20261030.md)
+avant toute modification du include, des fichiers du sandbox ou du gitlink.
+**État : PARTIAL / NO SUBMODULE / NO DEPLOY.**

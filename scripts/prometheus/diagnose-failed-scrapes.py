@@ -145,6 +145,22 @@ def assess_targets(payload: object, jobs: tuple[str, ...] = JOBS) -> dict[str, d
     return result
 
 
+def next_check_for(job: str, record: dict[str, object]) -> str | None:
+    """Remediation follows the observed failure domain; no raw errors."""
+    if job == "fastapi_sample":
+        domains = record.get("failure_domains")
+        if isinstance(domains, list):
+            if "tcp" in domains:
+                return "verify_fastapi_metrics_listener_and_network"
+            if "dns" in domains:
+                return "verify_fastapi_metrics_scrape_dns"
+            if "timeout" in domains:
+                return "verify_fastapi_metrics_scrape_timeout"
+            if "auth" in domains:
+                return "verify_scrape_token_scope_without_logging_value"
+    return NEXT_CHECK.get(job)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -180,8 +196,9 @@ def main() -> int:
             f"failure_domains={','.join(record['failure_domains']) or 'none'} "
             f"errors={','.join(record['errors']) or 'none'}"
         )
-        if record["state"] != "scrape_up" and job in NEXT_CHECK:
-            print(f"  next_check={NEXT_CHECK[job]}")
+        next_check = next_check_for(job, record)
+        if record["state"] != "scrape_up" and next_check:
+            print(f"  next_check={next_check}")
     healthy = all(report[job]["state"] == "scrape_up" for job in jobs)
     print(
         "PASS: all selected scrapes UP"

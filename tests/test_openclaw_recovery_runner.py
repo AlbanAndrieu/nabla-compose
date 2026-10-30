@@ -28,12 +28,19 @@ class ReadonlyRunnerContracts(unittest.TestCase):
             environment = {**os.environ, 'PATH': str(fake.parent) + ':' + os.environ['PATH']}
             result = subprocess.run(['bash', str(target)], env=environment, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 2)
-            self.assertEqual(result.stdout.count('simulated:'), 4)
+            self.assertEqual(result.stdout.count('simulated:'), 5)
+            self.assertIn('probe=litellm_dual_logs result=completed', result.stdout)
             self.assertIn('probe_failures=1', result.stdout)
             fake.write_text('#!/bin/sh\necho simulated:$1\nexit 0\n')
             ok = subprocess.run(['bash', str(target)], env=environment, capture_output=True, text=True, check=False)
             self.assertEqual(ok.returncode, 0)
             self.assertIn('probe_failures=0', ok.stdout)
+            fake.write_text('#!/bin/sh\necho simulated:$*\nexit 0\n')
+            env_sudo = {**environment, 'OPENCLAW_TRUENAS_LOG_SUDO': '1'}
+            sudo = subprocess.run(['bash', str(target)], env=env_sudo,
+                                  capture_output=True, text=True, check=False)
+            self.assertEqual(sudo.returncode, 0)
+            self.assertIn('--truenas-sudo-logs', sudo.stdout)
 
 
 if __name__ == '__main__':

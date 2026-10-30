@@ -354,7 +354,7 @@ L'opérateur a retrouvé le `HEARTBEAT.md` git-crypt dans le clone
 `nabla`, `~/.openclaw/workspace/HEARTBEAT.md.before-fix` et
 une archive ancienne `openclaw-2026-08-04_0220.tar.gz`.
 Les détails de restauration sont sous
-`apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md`.
+`ops/openclaw-workstation/LEGACY_HEARTBEAT_RECOVERY.md`.
 
 ```bash
 just openclaw-heartbeat-copies-test
@@ -543,7 +543,7 @@ les symlinks. Statut normal : `review_required_no_content_copied`.
 
 | Source historique | Destination et décision |
 |---|---|
-| `workspace/AGENTS.md` | Revue privée, puis politique non secrète sous `apps/openclaw/workstation/` |
+| `workspace/AGENTS.md` | Revue privée, puis politique non secrète sous `ops/openclaw-workstation/` |
 | `workspace/SOUL.md`, `TOOLS.md` | Revue puis migration de seules règles non sensibles |
 | `workspace/IDENTITY.md`, `USER.md` | Données personnelles : ne pas publier dans `nabla-compose` |
 | `workspace/HEARTBEAT.md` | Revue hors GitHub ; ne pas réactiver automatiquement le contenu ancien |
@@ -560,7 +560,7 @@ Terraform/OpenTofu ni dans GitHub Actions.
 
 ### Heartbeat et briefing
 
-`apps/openclaw/workstation/HEARTBEAT.md` est actuellement
+`ops/openclaw-workstation/HEARTBEAT.md` est actuellement
 volontairement **non génératif** ;
 `MORNING_BRIEFING.md` porte déjà le briefing détaillé et
 `openclaw-heartbeat-gitops.py` offre des modes check/apply
@@ -584,7 +584,7 @@ Les tâches sont séparées :
 révisés, catalogues de capacités, modèles autorisés,
 horaires et identifiants logiques de jobs, tests et runbooks.
 La première politique déclarative est
-`apps/openclaw/workstation/cron/daily-tech-news-digest.policy.json`.
+`ops/openclaw-workstation/cron/daily-tech-news-digest.policy.json`.
 Elle référence le skill et le modèle, garde `ITEMS_PER_SECTION=5`
 en attendant validation du template local et met
 `agent_id=verify_runtime_agent` tant que le champ runtime

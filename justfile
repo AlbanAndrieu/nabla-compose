@@ -228,6 +228,34 @@ yubikey-usb-identity-server-modes-check:
 yubikey-usb-identity-server-modes-probe:
     python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --probe --acknowledge INSPECT_USB_AGE_BACKUP_TRUENAS_MODES_READONLY
 
+# Hermetic TrueNAS NFS export security mapping audit: no network, USB or secrets.
+yubikey-usb-identity-nfs-export-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-age-backup-nfs-export.py tests/test_usb_age_backup_nfs_export.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_backup_nfs_export.py' -v
+
+# Workstation metadata preflight only. Does not contact TrueNAS or read archives.
+yubikey-usb-identity-nfs-export-check:
+    python3 scripts/workstation/inspect-usb-age-backup-nfs-export.py --check
+
+# TrueNAS sharing.nfs.query via fixed-host SSH, with redacted status only.
+# Exit 0 attests inventory, NOT proof of effective NFS permissions.
+yubikey-usb-identity-nfs-export-probe:
+    python3 scripts/workstation/inspect-usb-age-backup-nfs-export.py --probe --acknowledge INSPECT_USB_AGE_NFS_EXPORT_MAPPING_READONLY
+
+# Synthetic read-only NFS TCP/2049 client-count contracts; no remote access.
+yubikey-usb-identity-nfs-consumers-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-age-nfs-consumers.py tests/test_usb_age_nfs_consumers.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_nfs_consumers.py' -v
+
+# Local metadata check only; no USB, SSH or ciphertext reads.
+yubikey-usb-identity-nfs-consumers-check:
+    python3 scripts/workstation/inspect-usb-age-nfs-consumers.py --check
+
+# Explicit TrueNAS remote SSH read-only ss(8) TCP/2049 snapshot.
+# Counts ALL NFS exports, NOT exact export consumers; never derive allowlist.
+yubikey-usb-identity-nfs-consumers-probe:
+    python3 scripts/workstation/inspect-usb-age-nfs-consumers.py --probe --acknowledge INSPECT_NFS_TCP_CLIENT_FOOTPRINT_READONLY
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
@@ -552,7 +580,7 @@ openclaw-truenas-master-env-check:
 # Explicit exceptional read-only GETs for a true non-sk master key.
 # Never use if format check says looks_like_reference, empty or invalid.
 openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
-    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY --allow-nonstandard-master
 
 
 
@@ -585,9 +613,11 @@ openclaw-digest-top-test:
 openclaw-digest-top-check:
     python3 scripts/workstation/diagnose-openclaw-digest-top.py
 
-# Static non-secret digest manifest: no cron creation, delivery or inference.
+# Offline static policy + GitOps reconcile tests; no cron writes or model calls.
 openclaw-digest-gitops-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
+    python3 -m py_compile scripts/workstation/reconcile-openclaw-digest-cron.py tests/test_openclaw_digest_gitops.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops.py' -v
 
 # Native cron-agent session cleanup; report is redacted, no direct SQLite edits.
 openclaw-cron-session-maintenance-test:
@@ -809,6 +839,17 @@ crowdsec-bouncer-config-test:
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
     python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
+    python3 -m py_compile scripts/workstation/audit-crowdsec-pf-rules.py tests/test_crowdsec_pf_rules_audit.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
+
+# Workstation only: verify loaded PF rules, not just populated CrowdSec tables.
+# Audit can prove root "block in quick" presence; cannot prove WAN packet drops.
+crowdsec-pf-rules-test:
+    python3 -m py_compile scripts/workstation/audit-crowdsec-pf-rules.py tests/test_crowdsec_pf_rules_audit.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
+
+crowdsec-pf-rules-audit:
+    python3 scripts/workstation/audit-crowdsec-pf-rules.py
 
 # Workstation only: two independent SSH reads (TrueNAS LAPI and pfSense PF).
 # Stores PRIVATE evidence in ~/.local/state/nabla-compose (0700/0600).
@@ -831,6 +872,10 @@ crowdsec-pf-synthetic-test:
 
 crowdsec-pf-synthetic-preflight:
     python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --preflight
+
+# Read-only inspection after a prior interrupted/ambiguous synthetic smoke.
+crowdsec-pf-synthetic-inspect:
+    python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --inspect
 
 # TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
 # PFSENSE_FIREWALL registration and securely writes its root-only credential.
@@ -1407,6 +1452,20 @@ defectdojo-deploying-log-classes:
 vaultwarden-runtime-parity:
     python3 scripts/secrets/compare_vaultwarden_runtime_readonly.py --check --app defectdojo
 
+# Consolidated FastAPI UI, Prometheus, LiteLLM and OpenRAG diagnostics.
+fastapi-stack-diagnostics:
+    python3 scripts/truenas/diagnose-fastapi-stack.py --check
+
+# Vaultwarden CLI and source item checks: no sudo, no mutations.
+fastapi-stack-vaultwarden-check:
+    python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope vaultwarden --brief
+
+fastapi-stack-diagnostics-test:
+    python3 -m py_compile scripts/truenas/diagnose-fastapi-stack.py tests/test_fastapi_stack_consolidated.py scripts/secrets/check-fastapi-litellm-sample-source.py scripts/secrets/check-litellm-fastapi-upstream-source.py
+    python3 -m unittest discover -s tests -p 'test_fastapi_stack_consolidated.py' -q
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_sample_source.py' -q
+    python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
@@ -1712,3 +1771,80 @@ openclaw-recovery-readonly-test:
 
 openclaw-recovery-readonly:
     bash scripts/workstation/openclaw-recovery-readonly.sh
+
+# Pinned runtime discovery: remains accurate after an explicitly reviewed Node upgrade.
+openclaw-runtime-paths-test:
+    python3 -m py_compile scripts/workstation/openclaw_runtime_paths.py tests/test_openclaw_runtime_paths.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_runtime_paths.py' -v
+
+# Run existing focused suites locally (no CI, gateway, model requests or state writes).
+openclaw-recovery-quality:
+    just openclaw-host-context-test
+    just openclaw-digest-gitops-test
+    just openclaw-litellm-dual-logs-test
+    just openclaw-heartbeat-restore-test
+    just openclaw-runtime-paths-test
+    just openclaw-runtime-alignment-test
+    just openclaw-429-triage-test
+    just openclaw-digest-top-test
+    just openclaw-cron-parent-test
+    just openclaw-cron-recovery-test
+    just openclaw-cron-session-maintenance-test
+    just openclaw-recovery-readonly-test
+
+# Both LiteLLM log surfaces; user journal/docker locally, fixed SSH TrueNAS:9922.
+# No prompts or secrets printed, no sudo, remote writes, inference or restarts.
+openclaw-litellm-dual-logs-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-dual-logs.py tests/test_openclaw_litellm_dual_logs.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_dual_logs.py' -v
+
+openclaw-litellm-dual-logs-check:
+    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2
+
+# Recovered legacy behavior inventory, candidate native heartbeat NOT deployed.
+openclaw-heartbeat-restore-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_restoration.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
+
+# Complete local-first evidence sweep. Never changes Gateway, LiteLLM or cron.
+openclaw-migration-evidence-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_policy_relocation.py' -v
+    python3 -m unittest discover -s tests -p 'test_justfile_recipe_contract.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_migration_evidence.py' -v
+
+openclaw-migration-evidence-tests:
+    bash scripts/workstation/openclaw-migration-evidence.sh --tests
+
+openclaw-migration-evidence-inventory:
+    bash scripts/workstation/openclaw-migration-evidence.sh --inventory
+
+openclaw-migration-evidence-check:
+    bash scripts/workstation/openclaw-migration-evidence.sh --diagnose
+
+# Operator instructions; printing the runbook path does not change runtime.
+openclaw-migration-runbook:
+    @echo "docs/runbooks/openclaw-end-to-end-migration-20261030.md"
+
+# Explicit remote sudo -n docker logs, never the default diagnostic path.
+openclaw-litellm-dual-logs-check-sudo:
+    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2 --truenas-sudo-logs
+
+# Host fingerprint is read-only. TrueNAS is never classified as Workstation.
+openclaw-host-context-test:
+    python3 -m py_compile scripts/workstation/openclaw-host-context.py tests/test_openclaw_host_context.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_host_context.py' -v
+
+openclaw-host-context:
+    python3 scripts/workstation/openclaw-host-context.py
+
+# GitOps: reconcile ONLY the existing digest cron job after private backup.
+
+openclaw-digest-gitops-plan:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --plan
+
+openclaw-digest-gitops-check:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --check
+
+# Mutates existing job message; requires runtime hash printed by plan.
+openclaw-digest-gitops-apply expected_sha:
+    python3 scripts/workstation/reconcile-openclaw-digest-cron.py --apply --expected-message-sha {{expected_sha}}

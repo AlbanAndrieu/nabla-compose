@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 JOB = "bb9757db-9559-4960-bb23-9b9770929ff1"
-TEMPLATE = Path(__file__).resolve().parents[2] / "apps/openclaw/workstation/HEARTBEAT-SCRATCH.template.md"
+TEMPLATE = Path(__file__).resolve().parents[2] / "ops/openclaw-workstation/HEARTBEAT-SCRATCH.template.md"
 BACKUP = Path("/media/backup/lab/infra/openclaw/recovery/heartbeat-scratch-before.txt")
 MOUNT = "/media/backup/lab"
 SOURCE = "nabla:/mnt/cpool/backup/lab"

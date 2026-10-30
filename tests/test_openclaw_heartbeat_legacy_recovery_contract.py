@@ -3,9 +3,9 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY = ROOT / "apps/openclaw/workstation/HEARTBEAT.md"
-BRIEF = ROOT / "apps/openclaw/workstation/MORNING_BRIEFING.md"
-RECOVERY = ROOT / "apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md"
+POLICY = ROOT / "ops/openclaw-workstation/HEARTBEAT.md"
+BRIEF = ROOT / "ops/openclaw-workstation/MORNING_BRIEFING.md"
+RECOVERY = ROOT / "ops/openclaw-workstation/LEGACY_HEARTBEAT_RECOVERY.md"
 
 
 class HeartbeatLegacyRecovery(unittest.TestCase):

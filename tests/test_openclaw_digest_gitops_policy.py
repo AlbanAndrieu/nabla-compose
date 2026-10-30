@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY = ROOT / "apps/openclaw/workstation/cron/daily-tech-news-digest.policy.json"
+POLICY = ROOT / "ops/openclaw-workstation/cron/daily-tech-news-digest.policy.json"
 
 
 class DigestPolicyContract(unittest.TestCase):

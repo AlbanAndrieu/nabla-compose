@@ -32,7 +32,7 @@ puis vérifier `ExecStart` et `/readyz`. Ne jamais lancer
 
 ### Garde systemd facultatif (PAS installé par la PR)
 
-Le modèle `apps/openclaw/workstation/systemd/30-nabla-runtime-alignment.conf.example`
+Le modèle `ops/openclaw-workstation/systemd/30-nabla-runtime-alignment.conf.example`
 peut être installé **uniquement après** un `PASS` réel, vérification que
 `%h/w/nabla-compose` est le checkout stable et revue de l'unité effective.
 Il fait échouer le démarrage si le contrat est incohérent. Ne pas activer
@@ -73,7 +73,7 @@ Le magasin est local, privé, sous
 dossier `0700`, fichier `0600`, déduplication par curseur journal
 haché. Aucune clé, prompt, réponse du fournisseur, URL ou identifiant
 de session n'est conservé. Ne pas publier les journaux bruts. Le
-timer optionnel dans `apps/openclaw/workstation/systemd/` **n'est
+timer optionnel dans `ops/openclaw-workstation/systemd/` **n'est
 pas activé** ; le vérifier d'abord au niveau runtime, sans requête
 facturable.
 
@@ -152,3 +152,111 @@ de la session principale cron. **Chaque section est tentée**, même si
 une précédente échoue. `probe_failures=0` signifie uniquement que les
 commandes ont terminé avec un code 0 ; cela ne prouve pas l'absence de
 429 ni le bon fonctionnement du chat. Les sondes restent en lecture seule.
+
+## Durcissement des preuves (30 octobre 2026)
+
+Les commandes `diagnose-openclaw-model-cooldowns.py` et
+`diagnose-openclaw-cron-parent.py` retournent maintenant un état
+**non nul** lorsque l'information essentielle manque : CLI absente,
+schéma `unusableProfiles` inaccessible, ou session principale `cron`
+non démontrée. Il est possible qu'une sortie en lecture seule
+précédemment classée `completed` apparaisse désormais `failed`
+dans l'agrégateur. Cela signale une preuve manquante ou un incident
+encore ouvert, **pas** nécessairement une nouvelle panne du Gateway.
+
+Les CLI des sondes cooldown, cron, digest et maintenance sont
+résolues par `scripts/workstation/openclaw_runtime_paths.py` en
+comparant `mise.toml` au contrat `runtime-contract.json`.
+Si les versions divergent, aucun exécutable ancien trouvé dans
+`PATH` ne doit être invoqué ; le diagnostic se déclare non vérifié.
+Le récupérateur historique d'upgrade reste explicitement versionné :
+ne pas l'exécuter comme simple sonde.
+
+Pour valider **uniquement le code** dans la Workstation :
+
+```bash
+just openclaw-recovery-quality
+```
+
+Ensuite, pour la preuve runtime (lecture seule, aucune génération
+de modèle) :
+
+```bash
+just openclaw-recovery-readonly
+```
+
+La création d'une nouvelle session `cron` est un **tour d'agent**
+pris en charge par OpenClaw (CLI `openclaw agent --agent cron` ou
+Control UI), qui consomme potentiellement des tokens. Ce n'est pas une
+conséquence de `sessions cleanup` et le présent runbook ne l'exécute
+pas. Référence : https://docs.openclaw.ai/cli/agent
+
+## Heartbeat historique — réintégration déclarative (30 octobre 2026)
+
+L'original **complet** du `HEARTBEAT.md.before-fix` et le clone git-crypt
+ne sont pas présents dans ce dépôt. Les 14 capacités ci-dessous proviennent
+de l'inventaire déjà rédigé dans `LEGACY_HEARTBEAT_RECOVERY.md` : Workboard,
+CalDAV, santé, Gmail, WhatsApp, Obsidian, doctor, documentation,
+Loki, velocity, brainstorm, briefing, digest et contrôle hebdomadaire.
+Le fichier `heartbeat-restoration.policy.json` garde les fréquences
+originelles comme **références**, sans prétendre avoir récupéré des secrets.
+
+Le candidat `HEARTBEAT-RESTORED.candidate.md` conserve une
+checklist concise en lecture seule, sans bloc `tasks:` actif : la
+configuration du monitor et les tâches planifiées natives doivent être
+revues séparément selon la version installée (le scratch en base peut
+remplacer `HEARTBEAT.md`). La politique propose 2h pour le heartbeat,
+6h pour le suivi Workboard et 12h pour les diagnostics, non activés ;
+les connecteurs privés CalDAV/Gmail/WhatsApp/Obsidian restent des jobs
+séparés et inactifs tant que leurs ACL et destinataires ne sont pas vérifiés.
+Le vrai `HEARTBEAT.md` demeure **comment-only** pour éviter un réveil
+LLM récurrent à 30 minutes. **Ne pas appliquer** le candidat avec le
+GitOps actuel : il faut d'abord attester la version OpenClaw active,
+les cooldowns et le budget, puis revoir une config effective avec
+`every=2h`, `isolatedSession=true`, `lightContext=true`,
+`skipWhenBusy=true`, `target=none` et `activeHours=08:00–22:00`
+Europe/Paris. La version OpenClaw peut utiliser un scratch en base :
+un simple fichier copié ne prouve pas son activation.
+
+```bash
+just openclaw-heartbeat-restore-test
+just openclaw-litellm-dual-logs-test
+just openclaw-litellm-dual-logs-check
+just openclaw-recovery-readonly
+```
+
+### Diagnostics des deux LiteLLM
+
+La collecte distingue explicitement :
+- **Workstation** : Docker `litellm-litellm-1` ou `litellm`, puis
+  `journalctl --user -u litellm.service` ;
+- **TrueNAS** : lecture des logs de `litellm` par SSH vers
+  `albandrieu@172.17.0.24:9922`, host key vérifiée, BatchMode et
+  agent forwarding désactivé ; jamais d'appel `sudo` automatique.
+
+Le résultat `coverage=both` exige deux sources réellement lisibles ;
+`partial_or_unverified` (code 2) interdit de conclure que l'autre proxy
+est sain ou sans erreurs. Les catégories (rate-limit, budget, auth,
+upstream, timeout) sont des **indices textuels** et ne prouvent pas
+l'identité d'un appelant ; conserver la corrélation request_id/alias
+privée pour une RCA des 429.
+
+**Préconditions SSH** : un accès clé SSH non interactif déjà autorisé,
+une host key connue, et le droit **préexistant** de lire les logs Docker
+sur TrueNAS. Ne pas placer l'utilisateur dans le groupe `docker`
+automatiquement : cette appartenance donne des privilèges importants.
+Si le compte ne peut pas lire `docker logs`, conserver `unverified` et
+privilégier l'API TrueNAS `app.container_log_follow` avec un rôle
+`APPS_READ` dédié lors d'un futur changement de transport authentifié.
+Cette API nécessite de confirmer le conteneur et un client adapté ; le
+présent diagnostic **n'invente pas** une disponibilité ou une ACL.
+
+Le collecteur ne sauvegarde ni n'imprime les logs bruts ou credentials,
+limite la fenêtre à 1–24 heures et les 300 dernières lignes, et n'envoie
+aucune inférence. Une cause 429 n'est établie qu'après corrélation
+structurée, pas avec des compteurs de texte.
+
+Un échec d'accès affiche désormais seulement un code de raison fixe parmi
+`ssh_host_key_unverified`, `ssh_auth_denied`, `docker_permission_denied`,
+`container_missing`, `timeout`, `command_unavailable`, `log_window_oversized`
+ou `unverified`. Aucun texte d'erreur distant n'est reproduit.

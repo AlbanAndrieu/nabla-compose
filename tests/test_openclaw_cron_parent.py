@@ -3,6 +3,10 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
+import contextlib
+import io
 
 SRC = Path(__file__).resolve().parents[1] / "scripts/workstation/diagnose-openclaw-cron-parent.py"
 spec = importlib.util.spec_from_file_location("cron_parent", SRC)
@@ -36,6 +40,23 @@ class CronParentTests(unittest.TestCase):
         self.assertEqual(report["cron_main_reference"],
                          "absent_in_reported_complete_catalog")
         self.assertIs(report["session_sample_exhaustive"], True)
+
+    def test_runtime_cli_missing_parent_causes_nonzero_exit(self):
+        response = {"sessions": [{"key": "agent:cron:unrelated"}], "hasMore": False}
+        fake = SimpleNamespace(returncode=0, stdout=json.dumps(response).encode())
+        with patch.object(mod, "owned_binary", return_value=True), \
+             patch.object(mod.subprocess, "run", return_value=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as captured:
+            self.assertEqual(mod.main(), 2)
+        self.assertIn("absent_in_reported_complete_catalog", captured.getvalue())
+
+    def test_runtime_cli_present_parent_succeeds(self):
+        response = {"sessions": [{"key": "agent:cron:main"}], "hasMore": False}
+        fake = SimpleNamespace(returncode=0, stdout=json.dumps(response).encode())
+        with patch.object(mod, "owned_binary", return_value=True), \
+             patch.object(mod.subprocess, "run", return_value=fake), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(mod.main(), 0)
 
     def test_unknown_schema_refuses_negative_claim(self):
         report = mod.classify(json.dumps({"data": []}).encode())

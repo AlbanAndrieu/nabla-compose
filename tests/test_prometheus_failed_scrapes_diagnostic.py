@@ -168,3 +168,17 @@ def test_fetch_is_read_only_and_origin_pinned() -> None:
     assert 'print(raw)' not in source
     for unsafe in ("docker restart", "docker exec", "docker stop", "chown", "rm -rf"):
         assert unsafe not in source
+
+
+@pytest.mark.parametrize(("domains", "expected"), [
+    (["tcp"], "verify_fastapi_metrics_listener_and_network"),
+    (["dns"], "verify_fastapi_metrics_scrape_dns"),
+    (["timeout"], "verify_fastapi_metrics_scrape_timeout"),
+    (["auth"], "verify_scrape_token_scope_without_logging_value"),
+])
+def test_fastapi_next_check_follows_failure_domain(domains, expected):
+    assert module.next_check_for("fastapi_sample", {"failure_domains": domains}) == expected
+
+
+def test_fastapi_unknown_domain_preserves_generic_next_step():
+    assert module.next_check_for("fastapi_sample", {"failure_domains": []}) == module.NEXT_CHECK["fastapi_sample"]

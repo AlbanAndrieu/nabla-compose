@@ -1,9 +1,13 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
-> **Diagnostic runtime / 429 / digest / sessions (28 octobre 2026) :** [nouveaux garde-fous de récupération](runbooks/openclaw-recovery-gates-20261028.md), code en PR non déployé ; ne pas confondre les tests hors ligne et les preuves Workstation.
+> **30 octobre 2026 — Host-aware + cron GitOps** : scripts de diagnostic Workstation/TrueNAS séparés et sorties humaines compactes ; message versionné du digest avec `ITEMS_PER_SECTION = 5`, reconciler `plan/check/apply` sécurisé sur l'ID du job existant, sans injection de secrets ni création de cron. Voir le [runbook d'application](runbooks/openclaw-gitops-cron-host-routing-20261030.md). L'apply, le heartbeat et le cutover restent non effectués sur le runtime.
+
+
+> **Heartbeat restauré en candidat (30 octobre 2026) :** inventaire de 14 fonctions historiques conservé dans `ops/openclaw-workstation/heartbeat-restoration.policy.json`, avec une checklist native courte dans `HEARTBEAT-RESTORED.candidate.md` et des cadences historiques séparées non activées. Aucun runtime activé, aucune copie des secrets des sauvegardes. Le nouveau diagnostic `just openclaw-litellm-dual-logs-check` exige l'accès distinct aux deux proxies ; un seul accessible reste `partial_or_unverified`. [Runbook](runbooks/openclaw-recovery-gates-20261028.md).
+
+> **Mise à jour du code : 30 octobre 2026.** Les PR [#289](https://github.com/AlbanAndrieu/nabla-compose/pull/289) et [#292](https://github.com/AlbanAndrieu/nabla-compose/pull/292) sont **fusionnées**. Les diagnostics d'alignement, de 429, de digest et de sessions sont versionnés mais l'activation systemd et la réparation effective du runtime ne sont **pas attestées**. Voir le [runbook dédié](runbooks/openclaw-recovery-gates-20261028.md).
 >
-> Mise à jour : **27 octobre 2026** · propriétaire : **nabla-compose** ·
-> statut : **PR #289 Draft, changements non déployés**.
+> **Durcissement en cours :** contrôles `cooldown` et `agent:cron:main` à échec fermé, chemins Node des diagnostics dérivés du contrat de version. Ne pas confondre résultat d'un test local et preuve runtime.
 > Périmètre : OpenClaw Workstation (agents `main`/`cron`), LiteLLM
 > Workstation en amont, politiques et tâches planifiées. Le runtime
 > TrueNAS et ses secrets restent distincts. Cette roadmap ne remplace
@@ -450,7 +454,7 @@ identités, credentials, automatisations et caches vectoriels.
   `openclaw tasks list` dans `MORNING_BRIEFING.md`.
 - [ ] Revoir `AGENTS.md`, `SOUL.md`, `TOOLS.md`, les skills
   et leurs dépendances, puis créer de nouvelles versions
-  expurgées dans `apps/openclaw/workstation/`.
+  expurgées dans `ops/openclaw-workstation/`.
 - [ ] Préserver `IDENTITY.md`, `USER.md`, `.env`, modèles
   de clés, profils, bases SQLite et listes de contacts/sources
   privées **hors Git public**.
@@ -500,7 +504,7 @@ just openclaw-heartbeat-modes-check
 
 Voir également [runbook GitOps/workstation](runbooks/openclaw-workstation-gitops-migration-20261027.md),
 [runbook digest](runbooks/openclaw-tech-digest-invalid-top-20261027.md)
-et [récupération heartbeat](../apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md).
+et [récupération heartbeat](../ops/openclaw-workstation/LEGACY_HEARTBEAT_RECOVERY.md).
 
 Aucun marqueur « DONE runtime » ne peut être posé à partir d'un
 `[skip ci]` ou d'un test unitaire exécuté hors de la machine.

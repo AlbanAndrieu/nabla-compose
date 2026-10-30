@@ -30,6 +30,22 @@ class NotVerified(RuntimeError):
     pass
 
 
+def classify_remote_error(stderr: bytes) -> str:
+    """Fixed labels only. Never disclose raw SSH/CLI stderr or secret values."""
+    detail = stderr[:8192].decode("utf-8", errors="replace").lower()
+    if "allowlisted by item" in detail or "is allowlisted" in detail:
+        return "ADD_DENIED_ALLOWLIST"
+    if "unknown flag" in detail or "unknown command" in detail:
+        return "CLI_UNSUPPORTED_OPTION"
+    if "permission denied" in detail or "a password is required" in detail:
+        return "SSH_OR_SUDO_PERMISSION"
+    if "no such container" in detail or "not found" in detail:
+        return "CONTAINER_OR_COMMAND_MISSING"
+    if "connection refused" in detail or "connection timed out" in detail:
+        return "CONNECTION_FAILURE"
+    return "REMOTE_COMMAND_FAILED_UNCLASSIFIED"
+
+
 def ssh(target: str, port: int, command: str, *, timeout: int = 20) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.@:-]{1,160}", target) or target.startswith("-"):
         raise NotVerified("invalid SSH destination")
@@ -41,12 +57,13 @@ def ssh(target: str, port: int, command: str, *, timeout: int = 20) -> str:
         argv += ["-p", str(port)]
     argv += [target, command]
     try:
-        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            check=False, timeout=timeout)
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         raise NotVerified("SSH read/action unavailable or timed out") from exc
     if p.returncode:
-        raise NotVerified("remote command failed; inspect SSH permissions and container health")
+        # Deterministic category only; don't print CLI stderr or command output.
+        raise NotVerified(classify_remote_error(p.stderr))
     if len(p.stdout) > MAX_OUTPUT:
         raise NotVerified("SSH output size limit exceeded")
     try:
@@ -64,17 +81,47 @@ def pfsense(args: argparse.Namespace, command: str) -> str:
     return ssh(args.pfsense_ssh, args.pfsense_port, command)
 
 
-def all_decisions(args: argparse.Namespace) -> list[dict]:
-    raw = truenas(args, "list --limit 0 -o json")
+def parse_decisions(raw: str) -> list[dict]:
+    """Normalize CrowdSec v1.8 cscli JSON (alerts[].decisions[]).
+
+    The CLI table is constructed from Alert.Decisions, while -o json outputs
+    alerts. Flat decision arrays are also accepted for older fixtures.
+    An unknown shape must never be interpreted as "no active decisions".
+    """
     try:
         data = json.loads(raw)
     except ValueError as exc:
         raise NotVerified("LAPI decision JSON malformed") from exc
     if data is None:
         return []
-    if not isinstance(data, list) or any(not isinstance(d, dict) for d in data):
-        raise NotVerified("unexpected LAPI decision JSON shape")
-    return data
+    if not isinstance(data, list):
+        raise NotVerified("unexpected LAPI JSON root (expected array)")
+    flattened = []
+    for record in data:
+        if not isinstance(record, dict):
+            raise NotVerified("non-object LAPI JSON record")
+        if "decisions" in record:
+            nested = record["decisions"]
+            if nested is None:
+                nested = []
+            if not isinstance(nested, list):
+                raise NotVerified("LAPI alert decisions are not an array")
+            for decision in nested:
+                if not isinstance(decision, dict):
+                    raise NotVerified("non-object nested LAPI decision")
+                normalized = dict(decision)
+                if record.get("simulated") is True:
+                    normalized["simulated"] = True
+                flattened.append(normalized)
+        elif {"id", "scope", "value", "origin", "type"}.issubset(record):
+            flattened.append(record)
+        else:
+            raise NotVerified("unrecognized LAPI JSON record (no decisions array)")
+    return flattened
+
+
+def all_decisions(args: argparse.Namespace) -> list[dict]:
+    return parse_decisions(truenas(args, "list --limit 0 -o json"))
 
 
 def ip_targeted(decision: dict) -> bool:
@@ -123,6 +170,28 @@ def pf_runtime_ok(args: argparse.Namespace) -> None:
         raise NotVerified("pfSense Small remediation runtime not verified")
 
 
+def inspect(args: argparse.Namespace) -> int:
+    """Read-only post-incident evidence; print IDs but no raw LAPI records."""
+    pf_runtime_ok(args)
+    records = target_decisions(args)
+    pf_present = pf_contains(args)
+    ids = []
+    for record in records:
+        try:
+            ids.append(str(decision_id(record)))
+        except NotVerified:
+            ids.append("UNKNOWN")
+    print("synthetic_inspect=READY lapi_matches=" + str(len(records)) +
+          " decision_ids=" + (",".join(ids) if ids else "none") +
+          " pf_present=" + str(pf_present).lower() +
+          " pf_bouncer=RUNNING")
+    if records or pf_present:
+        print("synthetic_cycle=NOT_VERIFIED reason=PRIOR_STATE_REQUIRES_REVIEW")
+    else:
+        print("synthetic_cycle=NOT_VERIFIED reason=NO_ACTIVE_TEST_DECISION")
+    return 0
+
+
 def preflight(args: argparse.Namespace) -> None:
     pf_runtime_ok(args)
     if target_decisions(args):
@@ -148,10 +217,12 @@ def created_decision(args: argparse.Namespace, reason: str) -> int:
     if (str(record.get("origin", "")).lower() != "cscli" or
             str(record.get("type", "")).lower() != "ban" or
             str(record.get("scope", "")).lower() != "ip" or
-            str(record.get("value", "")) != IP):
+            str(record.get("value", "")) != IP or
+            record.get("scenario") != reason or
+            record.get("simulated") is True):
         raise NotVerified("unexpected synthetic decision fields; manual cleanup required")
-    # CrowdSec CLI may omit or rewrite reason in JSON; uniqueness is from
-    # preflight absence, one resulting cscli ban and one decision ID.
+    # Never delete a decision if its random reason does not match this run.
+    # CrowdSec 1.8.1 nests decision.scenario beneath each alert.
     return decision_id(record)
 
 
@@ -171,12 +242,15 @@ def apply(args: argparse.Namespace) -> int:
     applied_pf = False
     cleanup_ok = False
     error = None
+    stage = "CREATE_REMOTE"
     try:
         created = True  # Even if SSH times out after a successful remote add.
         truenas(args, "add --ip " + IP + " --duration " + DURATION +
                 " --type ban --reason " + shlex.quote(reason))
+        stage = "IDENTIFY_NEW_DECISION"
         owned_id = created_decision(args, reason)
         print("synthetic_lapi=CREATED decision_id=" + str(owned_id))
+        stage = "AWAIT_PF_APPLICATION"
         applied_pf = wait_pf(args, True, args.poll_attempts, args.poll_seconds)
         print("synthetic_pf_application=" + ("OBSERVED" if applied_pf else "NOT_VERIFIED"))
     except (NotVerified, KeyboardInterrupt) as exc:
@@ -208,7 +282,12 @@ def apply(args: argparse.Namespace) -> int:
                 if error is None:
                     error = exc
     if error:
-        print("synthetic_cycle=NOT_VERIFIED reason=" + type(error).__name__)
+        diagnostic = ""
+        if isinstance(error, NotVerified):
+            # Every message is a fixed, authored category (no remote data).
+            diagnostic = " diagnostic=" + str(error).split(":", 1)[0].replace(" ", "_")[:64]
+        print("synthetic_cycle=NOT_VERIFIED stage=" + stage +
+              " reason=" + type(error).__name__ + diagnostic)
         return 2
     if not applied_pf or not cleanup_ok:
         print("synthetic_cycle=NOT_VERIFIED reason=PF_APPLICATION_OR_CLEANUP_NOT_PROVEN")
@@ -221,6 +300,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--preflight", action="store_true", help="read-only preflight")
+    group.add_argument("--inspect", action="store_true", help="read-only inspect after prior failed test")
     group.add_argument("--apply", action="store_true", help="create and remove one 5-minute TEST-NET-3 ban")
     parser.add_argument("--confirm", default="", help="required for --apply: " + TOKEN)
     parser.add_argument("--truenas-ssh", default=os.environ.get("CROWDSEC_TRUENAS_SSH", "albandrieu@172.17.0.24"))
@@ -236,13 +316,15 @@ def main() -> int:
         parser.error("invalid SSH port")
     if args.apply and args.confirm != TOKEN:
         parser.error("--apply requires --confirm " + TOKEN)
-    if args.preflight and args.confirm:
+    if (args.preflight or args.inspect) and args.confirm:
         parser.error("--confirm is invalid in read-only mode")
     def interrupted(_signal, _frame):
         raise KeyboardInterrupt
     if args.apply:
         signal.signal(signal.SIGTERM, interrupted)
     try:
+        if args.inspect:
+            return inspect(args)
         if args.preflight:
             preflight(args)
             print("synthetic_cycle=NOT_VERIFIED reason=NO_MUTATION_IN_PREFLIGHT")

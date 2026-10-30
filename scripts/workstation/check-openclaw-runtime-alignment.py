@@ -16,7 +16,7 @@ import subprocess
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTRACT = ROOT / 'apps/openclaw/workstation/runtime-contract.json'
+CONTRACT = ROOT / 'ops/openclaw-workstation/runtime-contract.json'
 UNIT = 'openclaw-gateway.service'
 VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 OPENCLAW_VERSION = re.compile(r'^OpenClaw\s+(\d+\.\d+\.\d+)(?:\s|$)', re.M)
@@ -33,7 +33,7 @@ def private_regular(path: Path) -> bool:
 def expected(repo: Path = ROOT) -> tuple[str, str]:
     settings = tomllib.loads((repo / 'mise.toml').read_text(encoding='utf-8'))
     node = settings['tools']['node']
-    policy = json.loads((repo / 'apps/openclaw/workstation/runtime-contract.json').read_text(encoding='utf-8'))
+    policy = json.loads((repo / 'ops/openclaw-workstation/runtime-contract.json').read_text(encoding='utf-8'))
     if not isinstance(node, str) or not VERSION.fullmatch(node):
         raise ValueError('invalid_node_pin')
     if policy.get('node_version') != node or not isinstance(policy.get('openclaw_version'), str) or not VERSION.fullmatch(policy['openclaw_version']):

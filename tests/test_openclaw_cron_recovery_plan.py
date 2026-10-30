@@ -31,6 +31,12 @@ class PlanContracts(unittest.TestCase):
         self.assertEqual(module.evaluate('unavailable','absent_in_bounded_sample','unverified'),
                          ('verify_installed_skill_and_cron','verify_agent_and_session_catalog'))
 
+    def test_orphaned_session_does_not_mask_unverified_agent(self):
+        self.assertEqual(module.evaluate('valid_top_five','present','absent')[1],
+                         'review_agent_configuration_first')
+        self.assertEqual(module.evaluate('valid_top_five','present','unverified')[1],
+                         'verify_agent_and_session_catalog')
+
     def test_agent_inventory_schema(self):
         self.assertEqual(module.configured_agent(json.dumps({'agents':[{'id':'main'},{'id':'cron'}]})),'present')
         self.assertEqual(module.configured_agent(json.dumps({'agents':[{'id':'main'}]})),'absent')

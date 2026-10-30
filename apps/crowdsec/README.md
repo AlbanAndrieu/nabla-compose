@@ -3,6 +3,151 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception des règles PF chargées — 30 octobre 2026
+
+**Gate ciblé sur la workstation : 100/100 PASS**,
+dont **21/21 tests** du nouveau diagnostic des règles.
+La commande `just crowdsec-pf-rules-audit` a produit :
+
+```text
+crowdsec_pf_rules=BLOCK_RULE_LOADED source=LIVE pf=ENABLED root_ipv4_block_quick_in=1 anchor_ipv4_block_quick_in=1 root_ipv6_block_quick_in=1 anchor_coverage=READ
+crowdsec_wan_rule=NOT_VERIFIED wan_interface=NOT_SPECIFIED compatible_root_rule=NOT_CHECKED packet_block=NOT_VERIFIED
+```
+
+**DONE — configuration PF active :** règle IPv4 racine
+`block in quick` utilisant `crowdsec_blacklists`
+en source ; règle IPv6 racine `block in quick`
+utilisant `crowdsec6_blacklists` ;
+règle IPv4 dans la vue des ancres.
+
+**Reste à démontrer :** que la règle corresponde à l'interface
+WAN effectivement assignée, puis qu'un paquet WAN soit
+bloqué (logs/compteurs/états). Le diagnostic ne reçoit
+pas d'interface WAN et ne peut pas conclure un tel blocage.
+Voir le runbook pour obtenir l'interface via pfSense
+`Status > Interfaces` sans exposer l'IP WAN.
+
+Le `git pull --ff-only` du même relevé a échoué car
+le checkout de la workstation comportait des changements
+indexés et non indexés. Les tests ont réussi **sur les
+fichiers locaux**, pas nécessairement sur la dernière tête
+GitHub ; ne pas supprimer les changements locaux.
+Un worktree détaché depuis `origin/fix/openclaw-diagnostics-fail-closed-20261030`
+permet de valider le commit PR indépendamment.
+
+## Audit suivant — règles PF chargées, lecture seule (30/10/2026)
+
+La preuve précédente `SYNTHETIC_PF_DECISION_CYCLE_PASS`
+démontre la **propagation dans la table PF et le retrait** ;
+elle ne démontre pas la présence d'une règle effective bloquant
+les paquets entrants. Le nouveau contrôle :
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-rules-test
+just crowdsec-pf-rules-audit
+```
+
+Le diagnostic exécute exclusivement des lectures SSH
+(`pfctl -s info`, `pfctl -sr`, ancres si accessibles)
+et recherche `block in quick` avec la table IPv4
+`<crowdsec_blacklists>` en **source**.
+`BLOCK_RULE_LOADED` indique une règle chargée dans la
+portée racine ; règle trouvée **uniquement en ancre**,
+absence de `quick in`, règle `pass`, erreur de transport
+ou statut PF inconnu restent non concluants.
+Aucune sortie brute de règles ou d'IP n'est publiée.
+
+**21 tests de contrat** ajoutés (`test_crowdsec_pf_rules_audit.py`),
+intégrés au gate CrowdSec (100 tests attendus).
+**Nouveau gate et audit runtime : NON EXÉCUTÉS sur workstation**
+dans cette session. Les règles peuvent être chargées mais
+n'avoir aucun effet sur un paquet WAN à cause des interfaces,
+règles précédentes ou états existants : cette preuve nécessite
+une validation distincte avec logs/compteurs/point WAN sûr.
+
+## Réception P0 CrowdSec : test synthétique LIVE réussi (30/10/2026)
+
+**DONE — boucle de remédiation centralisée (sur runtime réel) :**
+`synthetic_preflight=PASS` → création d'un ban central
+`203.0.113.77` (décision ID **1531819**) →
+`synthetic_pf_application=OBSERVED` dans la table
+`crowdsec_blacklists` pfSense →
+`synthetic_cleanup=PASS lapi_absent=true pf_absent=true`.
+Verdict : **`SYNTHETIC_PF_DECISION_CYCLE_PASS`**.
+
+L'adresse appartient à **TEST-NET-3**, bloc documentaire RFC 5737,
+pas à une victime, un attaquant ou un véritable service.
+Le mot *synthetic* décrit **la décision manuelle `origin=cscli`**,
+pas le comportement de l'infrastructure : propagation et retrait
+PF ont été réellement observés. Aucun secret n'a été renouvelé,
+aucun flush PF ni conteneur redéployé. La suppression ciblait
+l'ID exact, avec preuve de retrait des deux systèmes.
+
+**Limites indépendantes :** non vérifiés par ce test, la création
+naturelle de décision par un scénario CrowdSec et le filtrage
+effectif de paquets WAN par les règles PF. La baseline v1 reste
+archivée, une v2 doit être créée pour reprendre la preuve naturelle.
+Gate ciblé workstation **79/79 tests PASS** ; gate global inconnu.
+
+## Réception workstation CrowdSec — 30 octobre 2026
+
+- **DONE — gate ciblé après correction du JSON imbriqué :**
+  `just crowdsec-pf-synthetic-test` **24/24 PASS**,
+  `just crowdsec-bouncer-config-test` **74/74 PASS**.
+  Les tests unitaires utilisent des simulations et ne prouvent
+  pas l'application d'une décision dans le PF réel.
+- **DONE — inspection runtime en lecture seule :**
+  `just crowdsec-pf-synthetic-inspect` renvoie
+  `lapi_matches=0 decision_ids=none pf_present=false
+  pf_bouncer=RUNNING` ; aucun vestige actif détecté sur
+  `203.0.113.77`. Ce résultat **n'établit pas** l'issue
+  du test synthétique antérieur.
+- **Correctif de diagnostic supplémentaire [skip ci] :**
+  les échecs d'exécution distante sont classés dans des
+  catégories expurgées, notamment `ADD_DENIED_ALLOWLIST`.
+  Dans CrowdSec v1.8.1, `cscli decisions add` peut
+  refuser l'IP cible si elle est allowlistée ; la cause
+  du premier échec n'est **pas encore vérifiée**.
+  5 nouveaux tests versionnés ; **79 tests attendus**
+  au prochain gate local. Pas de `--bypass-allowlist`
+  automatique.
+- **P0 toujours ouvert :** `SYNTHETIC_PF_DECISION_CYCLE_PASS`
+  non observé sur le runtime. Précontrôle puis éventuelle
+  mutation explicite uniquement sur décision de l'opérateur.
+  Baseline naturelle v1 conservée, nouvelle v2 séparée.
+
+## Diagnostic du test synthétique — 30 octobre 2026 (PR #295)
+
+**Évidence workstation :** `just crowdsec-pf-synthetic-test`
+**15/15 PASS**, `just crowdsec-bouncer-config-test` **61/61 PASS**,
+précontrôle LIVE **PASS** sur `203.0.113.77`. L'exécution
+`--apply --confirm SYNTHETIC-203.0.113.77` a ensuite retourné
+`synthetic_cleanup=NOT_VERIFIED manual_review_required=true`,
+sans identifiant créé confirmé. **La réception de remédiation PF
+reste NOT_VERIFIED :** ne pas affirmer que le ban a été appliqué,
+supprimé ou jamais créé.
+
+**Cause de code confirmée par CrowdSec v1.8.1** : le JSON de
+`cscli decisions list -o json` est une collection d'alertes
+avec leurs `decisions[]` imbriquées. L'ancien parseur pouvait
+produire un faux `initial_lapi=ABSENT` et échouer à identifier
+la décision pour `delete --id` après la création. Dans #295,
+le parseur accepte et vérifie les décisions imbriquées, et le
+nettoyage exige également le `scenario` aléatoire du test
+(`origin=cscli`, ID unique, scope/IP/type exacts).
+`just crowdsec-pf-synthetic-inspect` permet de rechercher en
+lecture seule des vestiges LAPI/PF de l'essai. **Ne pas relancer
+`--apply` avant inspection et nouveau précontrôle PASS.**
+Nouveaux tests de régression à exécuter sur la workstation.
+
+**Baseline naturelle :** l'ancien collecteur souffrait de la
+même hypothèse JSON. Une baseline **v2 séparée**, avec parsing
+correct, utilise `crowdsec-pf-natural-cycle-v2.json`.
+Conserver le fichier v1 privé en archive ; ne jamais le considérer
+comme preuve d'absence de décisions historiques, ni le modifier
+automatiquement. La v2 est **NOT_YET_CAPTURED**.
+
 ## Réception CrowdSec Small — 27–28 octobre 2026
 
 **Le bouncer pfSense a réussi sa bascule sur la LAPI TrueNAS.**

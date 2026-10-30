@@ -13,12 +13,12 @@ from pathlib import Path
 import re
 import stat
 import subprocess
+from runpy import run_path
 
 JOB_ID = "7ed5dd9a-da30-479f-b0eb-4cc494fb4966"
 JOB_NAME = "daily-tech-news-digest"
-NODE_ROOT = Path.home() / ".local/share/mise/installs/node/24.22.1"
-NODE = NODE_ROOT / "bin/node"
-CLI = NODE_ROOT / "lib/node_modules/openclaw/openclaw.mjs"
+# Resolves Node from the aligned mise/runtime contract; never PATH or stale release.
+NODE, CLI = run_path(str(Path(__file__).with_name("openclaw_runtime_paths.py")))["pinned_cli_paths"]()
 SKILL_TEMPLATE = (Path.home() / ".openclaw/workspace/skills/tech-news-digest/"
                   "references/digest-prompt.md")
 MAX_JSON = 1024 * 1024
