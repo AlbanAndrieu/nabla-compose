@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import shlex
 from pathlib import Path
 import subprocess
 import sys
@@ -18,7 +20,7 @@ spec.loader.exec_module(module)
 class FakeRemote:
     def __init__(self, *, preexisting=False, initial_pf=False, apply_pf=True,
                  removal_pf=True, wrong_origin=False, fail_delete=False,
-                 fail_add=False, interrupt_after_add=False):
+                 fail_add=False, interrupt_after_add=False, wrong_scenario=False):
         self.decisions = [self.d(21, scope='Range', value='203.0.113.0/24')] if preexisting else []
         self.pf_on = initial_pf
         self.apply_pf = apply_pf
@@ -27,6 +29,7 @@ class FakeRemote:
         self.fail_delete = fail_delete
         self.fail_add = fail_add
         self.interrupt_after_add = interrupt_after_add
+        self.wrong_scenario = wrong_scenario
         self.mutations = []
 
     @staticmethod
@@ -36,12 +39,25 @@ class FakeRemote:
 
     def truenas(self, args, command):
         if command.startswith('list'):
-            return __import__('json').dumps(self.decisions)
+            # Real CrowdSec v1.8.1 emits alerts with nested decisions,
+            # not a flat decision array. Crucial to preflight/rollback.
+            alerts = [{'id': d['id'] + 100,
+                       'source': {'scope': d['scope'], 'value': d['value']},
+                       'decisions': [d],
+                       'simulated': False} for d in self.decisions]
+            return json.dumps(alerts)
         if command.startswith('add '):
             self.mutations.append('add')
             if self.fail_add:
                 raise module.NotVerified('simulated add failure')
-            self.decisions.append(self.d(42, **{'origin':'other' if self.wrong_origin else 'cscli'}))
+            argv = shlex.split(command)
+            scenario = argv[argv.index('--reason') + 1]
+            if self.wrong_scenario:
+                scenario += '-foreign'
+            self.decisions.append(self.d(42, **{
+                'origin': 'other' if self.wrong_origin else 'cscli',
+                'scenario': scenario,
+            }))
             if self.apply_pf:
                 self.pf_on = True
             if self.interrupt_after_add:
@@ -118,6 +134,42 @@ class SyntheticSmoke(unittest.TestCase):
         f=FakeRemote(wrong_origin=True)
         self.assertEqual(2,self.go(f))
         self.assertEqual(['add'],f.mutations)
+
+    def test_wrong_scenario_never_deletes_foreign_decision(self):
+        f = FakeRemote(wrong_scenario=True)
+        self.assertEqual(2, self.go(f))
+        self.assertEqual(['add'], f.mutations)
+
+    def test_nested_alerts_flatten_to_decisions(self):
+        fixture = [{'id': 900, 'simulated': False, 'source': {'scope': 'Ip'},
+                    'decisions': [{'id': 42, 'scope': 'Ip',
+                                   'value': module.IP, 'origin': 'cscli',
+                                   'scenario': 'case-1', 'type': 'ban'}]}]
+        result = module.parse_decisions(json.dumps(fixture))
+        self.assertEqual(1, len(result))
+        self.assertEqual(42, result[0]['id'])
+        self.assertEqual('case-1', result[0]['scenario'])
+
+    def test_flat_fixture_still_supported(self):
+        self.assertEqual(1, len(module.parse_decisions(json.dumps([
+            {'id': 41, 'scope': 'Ip', 'value': module.IP,
+             'origin': 'cscli', 'type': 'ban'}
+        ]))))
+
+    def test_unknown_alert_json_fails_closed(self):
+        with self.assertRaises(module.NotVerified):
+            module.parse_decisions(json.dumps([{'id': 50, 'source': {}}]))
+
+    def test_malformed_nested_decisions_fail_closed(self):
+        with self.assertRaises(module.NotVerified):
+            module.parse_decisions(json.dumps([{'id': 50, 'decisions': 'invalid'}]))
+
+    def test_simulation_marker_inherited_from_parent_alert(self):
+        result = module.parse_decisions(json.dumps([
+            {'simulated': True, 'decisions': [{'id': 15, 'scope': 'Ip',
+             'value': module.IP, 'origin': 'cscli', 'type': 'ban'}]}
+        ]))
+        self.assertIs(result[0]['simulated'], True)
 
     def test_add_transport_error_does_not_claim_pass(self):
         f=FakeRemote(fail_add=True)
