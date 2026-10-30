@@ -3,6 +3,37 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Audit suivant — règles PF chargées, lecture seule (30/10/2026)
+
+La preuve précédente `SYNTHETIC_PF_DECISION_CYCLE_PASS`
+démontre la **propagation dans la table PF et le retrait** ;
+elle ne démontre pas la présence d'une règle effective bloquant
+les paquets entrants. Le nouveau contrôle :
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-rules-test
+just crowdsec-pf-rules-audit
+```
+
+Le diagnostic exécute exclusivement des lectures SSH
+(`pfctl -s info`, `pfctl -sr`, ancres si accessibles)
+et recherche `block in quick` avec la table IPv4
+`<crowdsec_blacklists>` en **source**.
+`BLOCK_RULE_LOADED` indique une règle chargée dans la
+portée racine ; règle trouvée **uniquement en ancre**,
+absence de `quick in`, règle `pass`, erreur de transport
+ou statut PF inconnu restent non concluants.
+Aucune sortie brute de règles ou d'IP n'est publiée.
+
+**21 tests de contrat** ajoutés (`test_crowdsec_pf_rules_audit.py`),
+intégrés au gate CrowdSec (100 tests attendus).
+**Nouveau gate et audit runtime : NON EXÉCUTÉS sur workstation**
+dans cette session. Les règles peuvent être chargées mais
+n'avoir aucun effet sur un paquet WAN à cause des interfaces,
+règles précédentes ou états existants : cette preuve nécessite
+une validation distincte avec logs/compteurs/point WAN sûr.
+
 ## Réception P0 CrowdSec : test synthétique LIVE réussi (30/10/2026)
 
 **DONE — boucle de remédiation centralisée (sur runtime réel) :**
