@@ -15,7 +15,7 @@ Exécute le skill installé `tech-news-digest` avec sa référence
 
 IMPORTANT : `ITEMS_PER_SECTION` est un nombre entier, pas une plage.
 Quand le template invoque `summarize-merged.py`, utiliser exactement
-`--top 5` (et jamais `--top 3-5`).
+`--top 5` sans plage.
 
 Ne modifie ni les destinataires, ni les clés, ni la destination Discord :
 ces réglages restent exclusivement dans les champs de livraison privés
