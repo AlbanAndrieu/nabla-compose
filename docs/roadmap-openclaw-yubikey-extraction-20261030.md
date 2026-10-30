@@ -74,10 +74,51 @@ Traçabilité : [preuves et runbook USB age](runbooks/usb-age-identity-independe
 | Ordre | Responsable | Action restante | Condition |
 | --- | --- | --- | --- |
 | 6 | **OpenClaw + Compose** | Sélectionner image/digest non-root, stockage privé ZFS, ACL, réseau/egress et sauvegarde avec restauration hors prod | Contrat TrueNAS et recovery PASS ; aucune autoactivation de cron/heartbeat |
-| 7 | **Compose** | Déplacer les **4** fichiers du sandbox `apps/openclaw/` dans `apps/openclaw-sandbox/` avec revue consommateurs | `git ls-files -- apps/openclaw` vide, catalogue et scripts corrigés, tests verts |
+| 7 | **Compose** | Préparer le déplacement des **4** fichiers sandbox, après audit de `build.sh`, du catalogue, de la topologie et des includes TrueNAS ; [registre des consommateurs](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md) | **NO-GO courant** : `build.sh` et plusieurs sources du catalogue pointent encore vers `apps/openclaw/compose.yml` ; scan TrueNAS `--all-apps` et rollback non attestés |
 | 8 | **Compose** | Ajouter `nabla-openclaw` en submodule **piné** directement à `apps/openclaw` | SHA vérifié, aucune dépendance au dossier privé `~/.openclaw` |
 | 9 | **OpenClaw + Compose** | Démarrer en parallèle sur TrueNAS, sans doubles automations, puis basculer `cron` et `main` un par un | End-to-end, budgets, reprise et rollback Workstation prouvés |
 | 10 | **YubiKey + Compose** | Évaluer ensuite le lien `security/nabla-yubikey` et déprécier les recettes Compose | Parité des 84 recettes sélectionnées/compat wrappers ; pas de transfert opaque ni secrets |
+
+## Gate spécifique au submodule OpenClaw — statut actuel : NO-GO
+
+La [revue ciblée du code](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+confirme **quatre fichiers sandbox** dans `apps/openclaw/`, mais aussi
+des consommateurs actifs de l'ancien chemin :
+`build.sh` exécute encore `docker compose -f apps/openclaw/compose.yml
+up -d --build` sur la Workstation ; `catalog/services.json` et
+`catalog/service-topology.json` exposent toujours
+`sourcePath=apps/openclaw/compose.yml`, y compris des références
+de provenance. `apps/openclaw/catalog-info.yaml` conserve son
+annotation Backstage vers ce répertoire. Le sandbox monte des
+répertoires de **Workstation** ; il ne constitue pas le Gateway
+Docker TrueNAS cible.
+
+Il existe déjà un audit TrueNAS fail-closed, à réutiliser sans
+réinventer un second collecteur :
+`scripts/truenas/check-openclaw-sandbox-binding.py --all-apps`.
+Ce contrôle ne doit être lancé **que sur TrueNAS**, avec une
+lecture `midclt` autorisée ; son exit code **2 permanent** est
+intentionnel et aucun verdict n'autorise un déplacement automatique.
+Les configurations `app.config` peuvent contenir des secrets :
+ne pas publier les retours bruts.
+
+En conséquence : **ne pas effectuer le `git mv` des quatre
+fichiers, ni ajouter le submodule `apps/openclaw` dans la PR #300**.
+La prochaine PR d'implémentation devra préparer ensemble
+`build.sh`, le catalogue canonique et les artefacts générés,
+l'annotation Backstage, le chemin d'include TrueNAS et son rollback,
+puis valider le runtime avant un gitlink épinglé.
+
+Autre divergence cross-repo confirmée : le contrat
+`nabla-openclaw/deploy/truenas/target-contract.json` sur `master`
+référence encore **18** fichiers sous `apps/openclaw` ;
+cet inventaire est historique. Compose en suit désormais **4**.
+Faire corriger ce décalage dans `nabla-openclaw` avant
+d'utiliser le contrat comme condition d'entrée.
+
+**Revue du 30 octobre** : code et documentation observés dans Git ;
+aucun audit `midclt` LIVE, déplacement, run de modèle, test matériel
+ou test de restauration attestés par cette PR.
 
 ## P2 — clôture / nettoyage
 
