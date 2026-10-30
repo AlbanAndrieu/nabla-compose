@@ -85,6 +85,20 @@ class Contracts(unittest.TestCase):
         self.assertFalse(record["effective_nfs4_authorization_verified"])
         self.assertFalse(record["remote_write_performed"])
 
+    def test_unspecified_security_flavor_remains_a_review_flag(self):
+        with patch.object(m, "preflight", return_value=(
+                "BACKUP_RESTORATION_PREFLIGHT_READY", self.NAME)), \
+             patch.object(m, "probe", return_value=self.record(
+                 security="DEFAULT_UNVERIFIED")), \
+             redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(m.main(["--probe", "--acknowledge", m.ACK]), 0)
+        report = json.loads(output.getvalue())
+        self.assertTrue(report["configuration_inventory_verified"])
+        self.assertIn("NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED",
+                      report["review_flags"])
+        self.assertNotIn("AUTH_SYS_ALLOWED", report["review_flags"])
+        self.assertFalse(report["effective_nfs4_authorization_verified"])
+
     def test_unavailable_response_fails_closed(self):
         with patch.object(m, "preflight", return_value=("BACKUP_RESTORATION_PREFLIGHT_READY", self.NAME)), \
              patch.object(m, "probe", return_value=self.record(state="EXPORT_SCHEMA_UNVERIFIED")), \
