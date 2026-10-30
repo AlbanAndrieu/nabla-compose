@@ -17,6 +17,15 @@
 > et [roadmap transversale](../roadmap-openclaw-yubikey-extraction-20261030.md).
 
 
+> **Réception de la PR #300 (Workstation, HEAD `a05a5ec2`) :**
+> `plan-repository-split.py` a observé **1 770 fichiers suivis**,
+> **375 recettes** au total, dont **87 YubiKey**, **98 OpenClaw**
+> et **15 Workstation** ; deux suites hermétiques ont réussi
+> (**3/3 + 5/5**). Le paragraphe « Constat vérifié » ci-dessous
+> conserve les **chiffres historiques de la PR #295** (1 740,
+> 370, 84) et ne décrit pas l'inventaire du HEAD testé.
+> Aucun transfert n'est autorisé par l'inventaire.
+
 ## Constat vérifié
 
 Sur la branche de la PR #295 : `justfile` compte **370 recettes**,
