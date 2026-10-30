@@ -2,6 +2,8 @@
 
 > **P0 transversal, 30/10/2026 :** [roadmap de migration OpenClaw et YubiKey inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) — priorités, propriétaires, critères de fin et rapports sans secrets. La PR Compose #295 et la PR nabla-openclaw #1 sont fusionnées ; nabla-yubikey #1 reste Draft. Les anciennes sections du présent document constituent un historique de preuves et ne doivent pas être interprétées comme un cutover réalisé.
 
+> **P0 LiteLLM/Vaultwarden, 30/10/2026 :** la clé virtuelle `fastapi-sample-upstream` a été émise sur **Workstation** (12/12 tests, fichier 0600), mais le transfert Vaultwarden a été interrompu par l'échec du second déverrouillage CLI. Une session `BW_SESSION` a été exposée et doit être invalidée. **Pas d'export TrueNAS, de nouvel `--apply`, ni de redémarrage** sans preuve des secrets. [Suivi de la frontière de responsabilité](roadmap-openclaw-yubikey-extraction-20261030.md) et [runbook LiteLLM](runbooks/fastapi-sample-litellm.md).
+
 > **Workstation/YubiKey :** l'[ADR Option A](adr/adr-workstation-option-a.md) fixe les sources de vérité inter-dépôts ; seule la [roadmap YubiKey/Compose](roadmap-workstation-yubikey.md) appartient à cette roadmap. Les tâches système Ubuntu restent dans `ansible-workstation`, les dotfiles dans `dotfiles`.
 
 > Mise à jour : **28 octobre 2026**. Source d'autorité pour le travail restant
