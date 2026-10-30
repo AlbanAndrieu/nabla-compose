@@ -599,9 +599,11 @@ openclaw-digest-top-test:
 openclaw-digest-top-check:
     python3 scripts/workstation/diagnose-openclaw-digest-top.py
 
-# Static non-secret digest manifest: no cron creation, delivery or inference.
+# Offline static policy + GitOps reconcile tests; no cron writes or model calls.
 openclaw-digest-gitops-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops_policy.py' -v
+    python3 -m py_compile scripts/workstation/reconcile-openclaw-digest-cron.py tests/test_openclaw_digest_gitops.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops.py' -v
 
 # Native cron-agent session cleanup; report is redacted, no direct SQLite edits.
 openclaw-cron-session-maintenance-test:
@@ -1809,9 +1811,6 @@ openclaw-host-context:
     python3 scripts/workstation/openclaw-host-context.py
 
 # GitOps: reconcile ONLY the existing digest cron job after private backup.
-openclaw-digest-gitops-test:
-    python3 -m py_compile scripts/workstation/reconcile-openclaw-digest-cron.py tests/test_openclaw_digest_gitops.py
-    python3 -m unittest discover -s tests -p 'test_openclaw_digest_gitops.py' -v
 
 openclaw-digest-gitops-plan:
     python3 scripts/workstation/reconcile-openclaw-digest-cron.py --plan
