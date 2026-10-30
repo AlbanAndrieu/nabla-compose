@@ -37,11 +37,7 @@ continuent à être servies par Compose ; `nabla-yubikey` PR #1 est Draft.
 PASS ; modes privés serveur `0700/0700/0600` PASS ; audit de l'export
 `10/10` tests PASS avec `EXPORT_MATCHED` et trois alertes
 (`NO_NFS_HOST_OR_NETWORK_FILTER`, `NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED`,
-`EXPORT_WRITABLE`). Sonde clients TCP/2049 : `8/8` tests PASS sur
-l'**ancienne version**, essai TrueNAS `SS_RESPONSE_UNVERIFIED` (aucun
-nombre de clients vérifié). Le correctif `ss` quatre/cinq colonnes est
-versionné dans la PR #295 fusionnée, **revalidation workstation non attestée**.
-Ne pas confondre l'absence de preuve avec `0` client.
+`EXPORT_WRITABLE`). **Sonde clients TCP/2049 revalidée en worktree isolé PR #300** (SHA `245bd928`) : `8/8` tests PASS, préflight `BACKUP_RESTORATION_PREFLIGHT_READY`, `TCP_SNAPSHOT_OBSERVED` avec **1 session TCP établie et 1 pair réseau distinct** sur l'ensemble des exports TrueNAS. Le correctif `ss` quatre/cinq colonnes est donc accepté côté sonde réelle. **Aucune attribution à l'export `lab`**, ni recensement des clients intermittents : `all_clients_enumerated=false`, `consumer_allowlist_verified=false`. Ne pas transformer cet instantané en allowlist.
 
 **NO-GO :** ne pas copier les archives `.age`, les secrets SOPS ou
 l'historique Git sensible. Ne pas installer de submodule YubiKey,
