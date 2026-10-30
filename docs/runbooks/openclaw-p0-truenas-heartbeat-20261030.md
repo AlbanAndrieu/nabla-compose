@@ -23,6 +23,30 @@ pre-commit run developer-tooling-contract --all-files
 
 Le hook `developer-tooling-contract` doit disposer de `PyYAML==6.0.3` dans son environnement isolé `language: python`, et non compter sur Python 3.14 de mise. Aucun `pip install` global n'est requis. Exécuter ensuite `just quality` **localement** une fois les contrôles ciblés verts ; ne pas lancer de CI GitHub payante.
 
+## Mise à jour de diagnostic vérifiée (30 octobre, opérateur)
+
+- Hook `precommit-manifest-integrity` : même défaut PyYAML que le hook de tooling ; **corrigé dans la PR #300** par environnement `language: python` / `PyYAML==6.0.3`, avec test de non-régression.
+- Les tests unitaires Workstation reçus sont PASS : manifest tooling, 4 tests d'inventaire OpenClaw, 2 contrats heartbeat, 5/5 sondes `--tests` et 5/5 `--inventory`. Le **quality gate complet** n'a pas été retesté après le second correctif.
+- Sur TrueNAS, `/v1/models` et `/key/list` renvoient 200, deux clés virtuelles OpenClaw ont leur scope vérifié, dépenses nulles, budgets 2 chacune. Les champs `rpm_limit` / `tpm_limit` restent `not_reported` : les budgets ne prouvent **pas** la limite instantanée.
+- `LITELLM_FASTAPI_WORKSTATION_API_KEY` et `LITELLM_IDE_API_KEY` sont présentes dans le conteneur (source env encore non confirmée). Le contrôle amont reste `all_present_unvalidated`.
+- Sur la console TrueNAS, l'ancienne sonde `openclaw-truenas-secret-provenance` renvoyait trois sections `unverified` car elle tentait SSH vers `truenas` depuis TrueNAS. La PR #300 la rend **host-aware** : contrôle `midclt call system.version`, exécution `sudo -n python3 -c` locale sur l'appliance, SSH préservé depuis Workstation. Ce correctif requiert une réception runtime réelle.
+- Workstation : les journaux TrueNAS restent inaccessibles sans sudo existant, le parent `agent:cron:main` manque, et le digest est en drift entre le hash du message courant et le hash souhaité. Le tunnel SSH est vérifié ; aucun 429 récent **structuré** dans l'échantillon collecté. Les routes statiques principales pointent encore vers LiteLLM Workstation, pas TrueNAS.
+- CLI OpenClaw `2026.10.7` : commandes `automations`, `scratch --file` et `--expected-revision` confirmées ; `config validate` réussit avec **deux avertissements Slack** (mise à niveau des paramètres de plugin incomplète), pas de `doctor --fix` appliqué.
+
+### Reprise locale après mise à jour du checkout
+
+```bash
+git fetch origin docs/consolidate-openclaw-yubikey-handoff-20261030
+# Dans le worktree détaché et propre uniquement :
+git switch --detach origin/docs/consolidate-openclaw-yubikey-handoff-20261030
+pre-commit run developer-tooling-contract --all-files
+pre-commit run precommit-manifest-integrity --all-files
+python3 -m unittest discover -s tests \
+  -p 'test_truenas_litellm_secret_provenance_dispatch.py' -v
+```
+
+Sur **TrueNAS**, après avoir synchronisé le checkout d'administration avec la PR, relancer `just openclaw-truenas-secret-provenance` puis noter chaque section et son `exit`. Ne pas afficher de contenu du fichier de secrets. `sudo -n` n'octroie aucun nouveau droit ; s'il échoue, l'état reste `unverified`.
+
 ## 1. Collecte Workstation — indépendante, à échec fermé
 
 Les sondes n'envoient aucune requête de génération. Ne pas interrompre la collecte au premier code 2 : **2 signifie preuve absente / non vérifiée**, pas toujours panne.
