@@ -132,8 +132,8 @@ def main(argv=None) -> int:
         parser.error("both fixtures are required together")
     on_truenas = (not args.fixture_workstation and detect_host() == "truenas")
     if on_truenas:
-        yellow = "\\033[1;33m" if sys.stderr.isatty() and not os.environ.get("NO_COLOR") else ""
-        reset = "\\033[0m" if yellow else ""
+        yellow = "\033[1;33m" if sys.stderr.isatty() and not os.environ.get("NO_COLOR") else ""
+        reset = "\033[0m" if yellow else ""
         print(yellow + "⚠️  TrueNAS: logs locaux seulement ; la Workstation doit "
               "exécuter la collecte croisée." + reset, file=sys.stderr)
     results = {}
