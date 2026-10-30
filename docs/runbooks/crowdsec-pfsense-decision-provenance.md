@@ -159,6 +159,75 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
+## Réception du ruleset LIVE — 30 octobre 2026
+
+**Preuve opérateur depuis la workstation :** 21/21 tests
+d'audit PF PASS, et gate ciblé CrowdSec 100/100 PASS
+(`py_compile` et contrôles shell inclus).
+
+```text
+crowdsec_pf_rules=BLOCK_RULE_LOADED source=LIVE pf=ENABLED root_ipv4_block_quick_in=1 anchor_ipv4_block_quick_in=1 root_ipv6_block_quick_in=1 anchor_coverage=READ
+crowdsec_wan_rule=NOT_VERIFIED wan_interface=NOT_SPECIFIED compatible_root_rule=NOT_CHECKED packet_block=NOT_VERIFIED
+```
+
+**DONE :** une règle IPv4 `block in quick` racine
+chargée utilise `<crowdsec_blacklists>` pour sa
+source. Une règle IPv6 `block in quick` racine
+et une référence équivalente dans une ancre IPv4
+ont aussi été détectées. Les conclusions ne reposent
+plus uniquement sur une table PF alimentée.
+
+**NON VÉRIFIÉ :** compatibilité de cette règle avec
+**l'interface WAN réellement assignée**, ordre effectif
+des règles, états existants, et blocage réel de paquets.
+L'audit n'a pas reçu `--wan-interface` : il est donc
+incorrect de déclarer `WAN_PASS`.
+
+Pour relever sans mutation le nom de l'interface,
+ouvrir l'interface pfSense :
+**Status > Interfaces > WAN**, champ *Assigned Interface*
+(ex. `igb0`, `vmx0` : ce ne sont **pas** les valeurs
+observées ici). Vérifier aussi `Interfaces > Assignments`
+si plusieurs WAN/OPTx/gateways existent. Ne pas
+déduire WAN du routage par défaut ni publier les IP WAN.
+
+```bash
+# Depuis un checkout courant ou un worktree propre.
+python3 scripts/workstation/audit-crowdsec-pf-rules.py \
+  --wan-interface NOM_INTERFACE_WAN_VERIFIE
+```
+
+**Attention Git :** le `git pull --ff-only` précédent
+a été refusé à cause de modifications indexées et non
+indexées du checkout ; les 100 tests ont été exécutés
+sur ce checkout local. Afin de comparer la tête PR
+sans toucher aux changements en cours, la voie
+préférée est un worktree en lecture du code distant :
+
+```bash
+cd ~/w/nabla-compose
+git status --short --branch
+git diff --name-only
+git diff --cached --name-only
+git fetch origin fix/openclaw-diagnostics-fail-closed-20261030
+
+WT="$(mktemp -d /tmp/nabla-crowdsec-pf-rules.XXXXXX)"
+rmdir "$WT"
+git -c submodule.recurse=false worktree add --detach \
+  "$WT" origin/fix/openclaw-diagnostics-fail-closed-20261030
+(
+  cd "$WT"
+  just crowdsec-pf-rules-test
+  just crowdsec-pf-rules-audit
+)
+# Après contrôle, si le worktree ne contient aucune modification :
+# git worktree remove "$WT"
+```
+
+Ne pas utiliser `reset --hard`, `clean -fd`,
+ni un `stash` automatique sur la branche de travail ;
+le worktree d'origine doit rester intact.
+
 ## Étape suivante — audit du ruleset PF *chargé* (PR #295)
 
 **Objet :** valider que la table `crowdsec_blacklists` est
