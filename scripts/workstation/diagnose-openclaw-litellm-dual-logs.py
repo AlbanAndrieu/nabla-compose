@@ -10,9 +10,12 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
+from runpy import run_path
+import sys
 
 HOST = "albandrieu@172.17.0.24"
 PORT = "9922"
@@ -100,6 +103,21 @@ def truenas(hours: int, *, use_sudo: bool = False) -> tuple[str, str, bytes, str
     return state, selected if state == "available" else "unverified", data, reason
 
 
+def detect_host():
+    try:
+        detector = run_path(str(Path(__file__).with_name("openclaw-host-context.py")))
+        return detector["detect"]()
+    except (OSError, ValueError):
+        return "unknown"
+
+
+def local_truenas(hours: int, *, use_sudo: bool = False) -> tuple[str, str, bytes, str]:
+    cmd = (["sudo", "-n"] if use_sudo else []) + [
+        "docker", "logs", "--since", f"{hours}h", "--tail", "300", CONTAINER_TRUENAS]
+    state, data, reason = collect(cmd)
+    return state, "local_truenas_docker" if state == "available" else "unverified", data, reason
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hours", type=int, default=2)
@@ -112,10 +130,16 @@ def main(argv=None) -> int:
         parser.error("hours must be 1..24")
     if bool(args.fixture_workstation) != bool(args.fixture_truenas):
         parser.error("both fixtures are required together")
+    on_truenas = (not args.fixture_workstation and detect_host() == "truenas")
+    if on_truenas:
+        yellow = "\\033[1;33m" if sys.stderr.isatty() and not os.environ.get("NO_COLOR") else ""
+        reset = "\\033[0m" if yellow else ""
+        print(yellow + "⚠️  TrueNAS: logs locaux seulement ; la Workstation doit "
+              "exécuter la collecte croisée." + reset, file=sys.stderr)
     results = {}
     for label, get, fixture in (
         ("workstation", workstation, args.fixture_workstation),
-        ("truenas", truenas, args.fixture_truenas),
+        ("truenas", local_truenas if on_truenas else truenas, args.fixture_truenas),
     ):
         if fixture is not None:
             try:
@@ -125,6 +149,9 @@ def main(argv=None) -> int:
                 state, source, reason = "available", "fixture", "none"
             except OSError:
                 state, source, data, reason = "unavailable", "unverified", b"", "fixture_unavailable"
+        elif on_truenas and label == "workstation":
+            state, source, data, reason = (
+                "unavailable", "not_collected", b"", "workstation_probe_required")
         else:
             if label == "truenas":
                 state, source, data, reason = get(
