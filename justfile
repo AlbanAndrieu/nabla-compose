@@ -839,6 +839,17 @@ crowdsec-bouncer-config-test:
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_decision_cycle.py' -v
     python3 -m py_compile scripts/workstation/smoke-crowdsec-pf-synthetic.py tests/test_crowdsec_pf_synthetic.py
     python3 -m unittest discover -s tests -p 'test_crowdsec_pf_synthetic.py' -v
+    python3 -m py_compile scripts/workstation/audit-crowdsec-pf-rules.py tests/test_crowdsec_pf_rules_audit.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
+
+# Workstation only: verify loaded PF rules, not just populated CrowdSec tables.
+# Audit can prove root "block in quick" presence; cannot prove WAN packet drops.
+crowdsec-pf-rules-test:
+    python3 -m py_compile scripts/workstation/audit-crowdsec-pf-rules.py tests/test_crowdsec_pf_rules_audit.py
+    python3 -m unittest discover -s tests -p 'test_crowdsec_pf_rules_audit.py' -v
+
+crowdsec-pf-rules-audit:
+    python3 scripts/workstation/audit-crowdsec-pf-rules.py
 
 # Workstation only: two independent SSH reads (TrueNAS LAPI and pfSense PF).
 # Stores PRIVATE evidence in ~/.local/state/nabla-compose (0700/0600).
