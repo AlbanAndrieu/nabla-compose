@@ -32,7 +32,7 @@ puis vérifier `ExecStart` et `/readyz`. Ne jamais lancer
 
 ### Garde systemd facultatif (PAS installé par la PR)
 
-Le modèle `apps/openclaw/workstation/systemd/30-nabla-runtime-alignment.conf.example`
+Le modèle `ops/openclaw-workstation/systemd/30-nabla-runtime-alignment.conf.example`
 peut être installé **uniquement après** un `PASS` réel, vérification que
 `%h/w/nabla-compose` est le checkout stable et revue de l'unité effective.
 Il fait échouer le démarrage si le contrat est incohérent. Ne pas activer
@@ -73,7 +73,7 @@ Le magasin est local, privé, sous
 dossier `0700`, fichier `0600`, déduplication par curseur journal
 haché. Aucune clé, prompt, réponse du fournisseur, URL ou identifiant
 de session n'est conservé. Ne pas publier les journaux bruts. Le
-timer optionnel dans `apps/openclaw/workstation/systemd/` **n'est
+timer optionnel dans `ops/openclaw-workstation/systemd/` **n'est
 pas activé** ; le vérifier d'abord au niveau runtime, sans requête
 facturable.
 

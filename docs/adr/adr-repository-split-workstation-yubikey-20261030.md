@@ -112,3 +112,18 @@ conserver les wrappers Compose et prouver leur parité, puis vérifier
 volumes Workstation et n'est pas le Gateway TrueNAS. Ne pas déplacer ou
 déployer immédiatement. Un seul Gateway doit exécuter automations et
 heartbeat pendant le cutover ; rollback Workstation validé obligatoire.
+
+
+### Lot 1 — migration structurelle engagée (30 octobre 2026)
+
+Les **14 fichiers de politiques/artefacts Workstation** ont été
+transférés de `apps/openclaw/workstation/` vers
+`ops/openclaw-workstation/` dans `nabla-compose`, avec modification
+des chemins dans les scripts Python et tests associés. Les
+références précédentes à l'ancien chemin décrivent désormais la
+source historique, pas la localisation courante. Le dossier
+`apps/openclaw` conserve **quatre fichiers du sandbox** :
+`Dockerfile`, `catalog-info.yaml`, `compose.yml`, `test-docker.sh`.
+Le **futur submodule direct `apps/openclaw` n'est pas encore ajouté** :
+sa libération doit attendre la validation des références TrueNAS
+vers le sandbox. Aucune application n'a été redéployée.

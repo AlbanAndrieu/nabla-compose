@@ -61,10 +61,10 @@ aucun groupe Docker ou ACL n'est modifié.
 
 ### Source
 
-- `apps/openclaw/workstation/cron/daily-tech-news-digest.policy.json` :
+- `ops/openclaw-workstation/cron/daily-tech-news-digest.policy.json` :
   identité attendue, planification indicative, budget et séparation
   des permissions de livraison ;
-- `apps/openclaw/workstation/cron/daily-tech-news-digest.message.md` :
+- `ops/openclaw-workstation/cron/daily-tech-news-digest.message.md` :
   **message public complet**, sans identifiants ni destinataires, avec
   `- ITEMS_PER_SECTION = 5` et `--top 5` ;
 - `scripts/workstation/reconcile-openclaw-digest-cron.py` :

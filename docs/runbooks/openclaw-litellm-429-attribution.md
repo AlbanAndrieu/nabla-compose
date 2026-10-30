@@ -1050,7 +1050,7 @@ statiquement ; `docker compose config --quiet` ne garantit pas
 que LiteLLM accepte le YAML et ses modèles au démarrage.
 
 La restauration du modèle de briefing se trouve dans
-`apps/openclaw/workstation/MORNING_BRIEFING.md`. Elle est indépendante
+`ops/openclaw-workstation/MORNING_BRIEFING.md`. Elle est indépendante
 de ce diagnostic, des clés virtuelles et de la version des embeddings.
 
 

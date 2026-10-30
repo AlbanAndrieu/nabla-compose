@@ -1,7 +1,7 @@
 # OpenClaw : diagnostic et migration Workstation vers TrueNAS (30/10/2026)
 
 Source de vérité : nabla-compose. État privé : ~/.openclaw. La politique
-apps/openclaw/workstation/heartbeat-restoration.policy.json est un manifeste
+ops/openclaw-workstation/heartbeat-restoration.policy.json est un manifeste
 GitOps, pas un fichier interprété directement par OpenClaw. Ne pas créer de
 nouveau checkout ni de lien symbolique dans ~/.openclaw.
 
@@ -77,7 +77,7 @@ et les budgets avant de créer les clés virtuelles.
 
 Ne pas recopier le JSON GitOps dans ~/.openclaw et ne pas écraser le
 HEARTBEAT.md historique. Le candidat est une checklist :
-apps/openclaw/workstation/HEARTBEAT-RESTORED.candidate.md.
+ops/openclaw-workstation/HEARTBEAT-RESTORED.candidate.md.
 
 ~~~bash
 just openclaw-runtime-alignment-check
@@ -118,7 +118,7 @@ PY
 )"
 # MUTATION explicite, uniquement après feu vert et job heartbeat identifié.
 openclaw automations scratch "$HB_ID" \
-  --file apps/openclaw/workstation/HEARTBEAT-RESTORED.candidate.md \
+  --file ops/openclaw-workstation/HEARTBEAT-RESTORED.candidate.md \
   --expected-revision "$REV" --json > "$HB_DIR/apply-result.json"
 chmod 0600 "$HB_DIR/apply-result.json"
 ~~~
