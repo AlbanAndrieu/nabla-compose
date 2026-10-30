@@ -146,8 +146,8 @@ class ReadonlyKeyCompareTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue())["field_state"],
                          "field_matches_private_key")
         source = SCRIPT.read_text()
-        self.assertNotIn("bw edit", source)
-        self.assertNotIn("bw create", source)
+        self.assertNotIn('client._run("edit"', source)
+        self.assertNotIn('client._run("create"', source)
         self.assertNotIn('method="POST"', source)
         self.assertNotIn("--apply", source)
 
