@@ -153,6 +153,28 @@ def pf_runtime_ok(args: argparse.Namespace) -> None:
         raise NotVerified("pfSense Small remediation runtime not verified")
 
 
+def inspect(args: argparse.Namespace) -> int:
+    """Read-only post-incident evidence; print IDs but no raw LAPI records."""
+    pf_runtime_ok(args)
+    records = target_decisions(args)
+    pf_present = pf_contains(args)
+    ids = []
+    for record in records:
+        try:
+            ids.append(str(decision_id(record)))
+        except NotVerified:
+            ids.append("UNKNOWN")
+    print("synthetic_inspect=READY lapi_matches=" + str(len(records)) +
+          " decision_ids=" + (",".join(ids) if ids else "none") +
+          " pf_present=" + str(pf_present).lower() +
+          " pf_bouncer=RUNNING")
+    if records or pf_present:
+        print("synthetic_cycle=NOT_VERIFIED reason=PRIOR_STATE_REQUIRES_REVIEW")
+    else:
+        print("synthetic_cycle=NOT_VERIFIED reason=NO_ACTIVE_TEST_DECISION")
+    return 0
+
+
 def preflight(args: argparse.Namespace) -> None:
     pf_runtime_ok(args)
     if target_decisions(args):
@@ -203,12 +225,15 @@ def apply(args: argparse.Namespace) -> int:
     applied_pf = False
     cleanup_ok = False
     error = None
+    stage = "CREATE_REMOTE"
     try:
         created = True  # Even if SSH times out after a successful remote add.
         truenas(args, "add --ip " + IP + " --duration " + DURATION +
                 " --type ban --reason " + shlex.quote(reason))
+        stage = "IDENTIFY_NEW_DECISION"
         owned_id = created_decision(args, reason)
         print("synthetic_lapi=CREATED decision_id=" + str(owned_id))
+        stage = "AWAIT_PF_APPLICATION"
         applied_pf = wait_pf(args, True, args.poll_attempts, args.poll_seconds)
         print("synthetic_pf_application=" + ("OBSERVED" if applied_pf else "NOT_VERIFIED"))
     except (NotVerified, KeyboardInterrupt) as exc:
@@ -240,7 +265,8 @@ def apply(args: argparse.Namespace) -> int:
                 if error is None:
                     error = exc
     if error:
-        print("synthetic_cycle=NOT_VERIFIED reason=" + type(error).__name__)
+        print("synthetic_cycle=NOT_VERIFIED stage=" + stage +
+              " reason=" + type(error).__name__)
         return 2
     if not applied_pf or not cleanup_ok:
         print("synthetic_cycle=NOT_VERIFIED reason=PF_APPLICATION_OR_CLEANUP_NOT_PROVEN")
@@ -253,6 +279,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--preflight", action="store_true", help="read-only preflight")
+    group.add_argument("--inspect", action="store_true", help="read-only inspect after prior failed test")
     group.add_argument("--apply", action="store_true", help="create and remove one 5-minute TEST-NET-3 ban")
     parser.add_argument("--confirm", default="", help="required for --apply: " + TOKEN)
     parser.add_argument("--truenas-ssh", default=os.environ.get("CROWDSEC_TRUENAS_SSH", "albandrieu@172.17.0.24"))
@@ -268,13 +295,15 @@ def main() -> int:
         parser.error("invalid SSH port")
     if args.apply and args.confirm != TOKEN:
         parser.error("--apply requires --confirm " + TOKEN)
-    if args.preflight and args.confirm:
+    if (args.preflight or args.inspect) and args.confirm:
         parser.error("--confirm is invalid in read-only mode")
     def interrupted(_signal, _frame):
         raise KeyboardInterrupt
     if args.apply:
         signal.signal(signal.SIGTERM, interrupted)
     try:
+        if args.inspect:
+            return inspect(args)
         if args.preflight:
             preflight(args)
             print("synthetic_cycle=NOT_VERIFIED reason=NO_MUTATION_IN_PREFLIGHT")
