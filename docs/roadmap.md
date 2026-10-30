@@ -11,6 +11,24 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## P0 — FastAPI : diagnostic UI, Prometheus, LiteLLM et OpenRAG consolidé (30 octobre 2026)
+
+**Mesures opérateur du 30/10, non exécutées par cet agent :**
+- TrueNAS FastAPI /api, /api/ui/session, /api/ui/services : HTTP 200, catalogue autour de 0,52 s.
+- Staging et Cloud : HTTP 403 sur les trois routes depuis le point de test = DENIED, pas DOWN. Chromium : Playwright absent = NOT_RUN. Mode secours UI annoncé fonctionnel ; mode riche non accepté.
+- Prometheus : configuration promtool valide et identique au montage ; dernier snapshot : 22/28 UP. Six targets DOWN (haproxy, litellm_hermes HTTP 401, opensearch, opensearch-security, pihole_exporter, postgres_exporter). fastapi_sample DOWN/TCP puis UP dans deux mesures : **ne pas mélanger les instantanés**.
+- LiteLLM TrueNAS et OpenRAG HEALTHY côté readiness. LITELLM_FASTAPI_WORKSTATION_API_KEY **absente du conteneur LiteLLM** ; fichiers sources ambigus. OpenRAG MCP GET 406 : transport seulement, pas handshake. Recherche Bababou privée NOT_RUN.
+
+- [x] **CODED PR #295 :** scripts/truenas/diagnose-fastapi-stack.py ; une commande read-only pour UI, une capture unique des targets Prometheus et les contrôles IA, états PASS/FAIL/DENIED/UNVERIFIED/NOT_RUN ; mode navigateur Chromium opt-in. Les anciens scripts spécialisés restent disponibles.
+- [x] **TESTED isolé :** 18 tests unittest et py_compile PASS sur les blobs identiques au code préparé ; tests complets du dépôt et runtime du lanceur NOT_RUN.
+- [x] **Correction de diagnostic :** le prochain contrôle du job fastapi_sample suit le domaine TCP/DNS/timeout/auth observé, plutôt que de demander la clé en cas de connexion refusée.
+- [ ] **Runtime :** exécuter sur TrueNAS le lanceur en lecture seule ; corréler les scrapes depuis son snapshot unique.
+- [ ] **LiteLLM :** attribuer l'absence de clé upstream à la source Vaultwarden, au fichier runtime ou à l'environnement conteneur sans utiliser la clé IDE ni la master key.
+- [ ] **OpenRAG :** prouver les ACL privées, la négociation MCP authentifiée, le filtre corpus et la recherche sur un document synthétique autorisé.
+- [ ] **UI :** comparer les modes safe/full avec Chromium préinstallé sur une machine autorisée et le SHA réellement déployé.
+
+Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
+
 ## P0 CrowdSec — validation synthétique réversible prête (28 octobre 2026)
 
 - **Implémentation versionnée, PAS encore exécutée en runtime** :

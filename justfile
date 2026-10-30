@@ -1407,6 +1407,14 @@ defectdojo-deploying-log-classes:
 vaultwarden-runtime-parity:
     python3 scripts/secrets/compare_vaultwarden_runtime_readonly.py --check --app defectdojo
 
+# Consolidated FastAPI UI, Prometheus, LiteLLM and OpenRAG diagnostics.
+fastapi-stack-diagnostics:
+    python3 scripts/truenas/diagnose-fastapi-stack.py --check
+
+fastapi-stack-diagnostics-test:
+    python3 -m py_compile scripts/truenas/diagnose-fastapi-stack.py tests/test_fastapi_stack_consolidated.py
+    python3 -m unittest discover -s tests -p 'test_fastapi_stack_consolidated.py' -q
+
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
     python3 scripts/prometheus/diagnose-failed-scrapes.py --check --scope remaining
