@@ -102,3 +102,49 @@ Voir aussi la [roadmap](../roadmap.md),
 le [runbook FastAPI IA](fastapi-truenas-ai-bababou-20261026.md),
 la [recette LiteLLM](fastapi-truenas-ai-acceptance-20261027.md)
 et le [scrape Prometheus](fastapi-prometheus-scrape-secret-20261026.md).
+
+## Lire seulement les blocages (mode bref)
+
+Après les premiers diagnostics complets, éviter de recopier toutes les lignes
+PASS. La commande suivante **ne relance aucune sonde supplémentaire** :
+
+~~~bash
+cd /mnt/cpool/compose/nabla-compose-pr295-acceptance
+sudo python3 scripts/truenas/diagnose-fastapi-stack.py --check --brief
+~~~
+
+Le mode bref supprime les contrôles PASS de l'affichage et ne duplique pas
+l'absence de la clé upstream LiteLLM sous deux noms différents.
+Le rapport JSON \`--json\` et les compteurs de résumé conservent **tous**
+les enregistrements. Un refus Cloud 403, le scrape LiteLLM Hermes 401
+et la recherche OpenRAG non testée restent visibles.
+
+Le contrôle \`fastapi_metrics_auth=NOT_RUN\` signifie ici que le script
+complémentaire **appartient au dépôt FastAPI**, et non que le scrape
+\`fastapi_sample\` est DOWN. Pour l'activer en lecture seule, localiser
+le checkout FastAPI contenant effectivement
+\`scripts/truenas/diagnose-fastapi-metrics-auth.py\`, puis utiliser
+\`--fastapi-root /chemin/valide/fastapi-sample\`. Ne pas deviner un
+chemin de sous-module et ne pas déplacer des secrets.
+
+### Suite de diagnostic sans mutation de clés
+
+Le \`container_key_absent\` de
+\`LITELLM_FASTAPI_WORKSTATION_API_KEY\` est **confirmé dans le runtime**.
+Le \`file_key_ambiguous\` est volontairement conservateur : une valeur
+entre guillemets ou interpolée ne peut pas être comparée directement
+avec Docker. Ce statut **ne prouve pas** l'absence du secret source.
+La clé \`LITELLM_API_KEY\` de FastAPI est présente côté conteneur, mais
+le \`/v1/models=401\` reste un refus indépendant.
+
+Dans le checkout Compose, avec une session Vaultwarden déjà déverrouillée,
+en **compte opérateur non root** :
+
+~~~bash
+just litellm-fastapi-sample-source-check
+just litellm-fastapi-upstream-source-check
+~~~
+
+La source et le runtime peuvent être décalés. Ne pas substituer
+\`LITELLM_IDE_API_KEY\`, la clé master, ni recréer des clés ou conteneurs
+avant attribution de la source et contrôle de l'enregistrement virtuel.

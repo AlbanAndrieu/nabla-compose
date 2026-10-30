@@ -374,6 +374,35 @@ def default_fastapi_root() -> Path | None:
     return None
 
 
+def brief_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Keep actionable findings and collapse only proven duplicate causes.
+
+    All original checks remain in JSON and summary counters. In particular,
+    a missing upstream key explains both its alignment and relay failure;
+    HTTP transport 200 alone does not override the authenticated 401.
+    """
+    upstream_missing = any(
+        r.get('component') == 'litellm_upstream_key'
+        and r.get('state') == 'container_key_absent' for r in rows
+    )
+    shown_mcp = False
+    findings: list[dict[str, object]] = []
+    for record in rows:
+        if record.get('verdict') == 'PASS':
+            continue
+        component = record.get('component')
+        if upstream_missing and component == 'litellm_upstream' and (
+            record.get('state') == 'missing_runtime_upstream_key'
+        ):
+            continue
+        if component == 'ai_transport_openrag_mcp' and shown_mcp:
+            continue
+        if component == 'openrag_mcp':
+            shown_mcp = True
+        findings.append(record)
+    return findings
+
+
 def summarize(rows: list[dict[str, object]]) -> dict[str, int]:
     return {v: sum(r['verdict'] == v for r in rows) for v in VERDICTS}
 
@@ -383,6 +412,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--check', action='store_true', required=True)
     parser.add_argument('--scope', choices=('all', 'ui', 'prometheus', 'ai'), default='all')
     parser.add_argument('--json', action='store_true', help='Print redacted JSON rather than concise text')
+    parser.add_argument('--brief', action='store_true', help='Show unresolved checks only; deduplicate known causes')
     parser.add_argument('--browser', action='store_true', help='Opt-in Chromium with preinstalled Playwright only')
     parser.add_argument('--deep-prometheus', action='store_true', help='Opt-in promtool and config-bind audit')
     parser.add_argument('--fastapi-root', type=Path, help='Local FastAPI checkout for metrics and optional Chromium')
@@ -427,7 +457,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, sort_keys=True))
     else:
         print('FastAPI consolidated diagnostics | ' + decision)
-        for item in rows:
+        selected = brief_rows(rows) if args.brief else rows
+        for item in selected:
             details = ' '.join(f'{key}={value}' for key, value in item.items()
                                if key not in ('component', 'verdict', 'state'))
             print(f"{item['verdict']:10} {item['component']:33} {item['state']} {details}".rstrip())
@@ -436,6 +467,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Prometheus single snapshot: {snap['targets_up']}/{snap['targets_total']} up; "
                   f"not_up={snap['targets_not_up']}; at={snap['snapshot_utc']}")
         print('Summary ' + ' '.join(f'{v}={summary[v]}' for v in VERDICTS))
+        if args.brief:
+            print(f'Brief unresolved findings={len(selected)} (full check count preserved in JSON)')
         print('Cloud UI manual acceptance: NOT_RUN; OpenRAG private retrieval: NOT_RUN')
     return 1 if summary['FAIL'] else 2 if decision == 'INCOMPLETE' else 0
 

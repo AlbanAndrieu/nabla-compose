@@ -175,6 +175,47 @@ class ContractTests(unittest.TestCase):
                 code = stack.main(['--check', '--scope', 'ui', '--json'])
         self.assertEqual(code, 1)
 
+    def test_brief_filters_pass_and_deduplicates_only_proven_litellm_root_cause(self):
+        rows = [
+            stack.row('ui_truenas', 'PASS', 'three_http_200'),
+            stack.row('litellm_upstream_key', 'FAIL', 'container_key_absent'),
+            stack.row('litellm_upstream', 'FAIL', 'missing_runtime_upstream_key'),
+            stack.row('litellm', 'DENIED', 'authenticated_request_denied'),
+            stack.row('openrag_mcp', 'UNVERIFIED', 'mcp_handshake_not_verified'),
+            stack.row('ai_transport_openrag_mcp', 'UNVERIFIED', 'mcp_protocol_not_authenticated'),
+            stack.row('openrag_private_retrieval', 'NOT_RUN', 'private_retrieval_not_verified'),
+        ]
+        compact = stack.brief_rows(rows)
+        names = [r['component'] for r in compact]
+        self.assertNotIn('ui_truenas', names)
+        self.assertIn('litellm_upstream_key', names)
+        self.assertNotIn('litellm_upstream', names)
+        self.assertIn('litellm', names)
+        self.assertIn('openrag_mcp', names)
+        self.assertNotIn('ai_transport_openrag_mcp', names)
+        self.assertIn('openrag_private_retrieval', names)
+        self.assertEqual(stack.summarize(rows)['FAIL'], 2)
+
+    def test_brief_does_not_hide_distinct_upstream_failure(self):
+        rows = [
+            stack.row('litellm_upstream_key', 'FAIL', 'container_key_absent'),
+            stack.row('litellm_upstream', 'FAIL', 'workstation_unreachable'),
+        ]
+        self.assertEqual(len(stack.brief_rows(rows)), 2)
+
+    def test_brief_option_remains_readonly_and_reports_raw_summary(self):
+        with patch.object(stack, 'ui_http', return_value=[
+            stack.row('ui_truenas', 'PASS', 'three_http_200'),
+            stack.row('ui_cloud', 'DENIED', 'authorization_or_access_policy'),
+        ]):
+            with redirect_stdout(io.StringIO()) as output:
+                code = stack.main(['--check', '--scope', 'ui', '--brief'])
+        self.assertEqual(code, 2)
+        self.assertIn('ui_cloud', output.getvalue())
+        self.assertNotIn('ui_truenas', output.getvalue())
+        self.assertIn('PASS=1', output.getvalue())
+        self.assertIn('DENIED=1', output.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()
