@@ -94,6 +94,8 @@ repos:
     hooks:
       - id: biome-check
         name: "🟨 javascript · Biome check"
+        # nodeenv 1.11 cannot parse pre-release Node versions when downloading one.
+        language_version: system
         additional_dependencies: ["@biomejs/biome@2.4.12"]
         # These JSON artifacts are fully generated and checked byte-for-byte.
         # A second formatter must not compete with the canonical generator.
