@@ -2340,11 +2340,41 @@ complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
 
 Lire [la politique des skills](agent-skills-architecture.md) et
 [`AGENTS.md`](../AGENTS.md). Les skills externes
-`docker-compose-patterns` et `kubernetes-specialist` exigent de
-**Ask the user** avant installation. Respecter le stockage TrueNAS,
-Vaultwarden, `democratic-csi`, `entityRef` et `catalogRevision`.
-Ne pas ouvrir la production, assouplir TLS, supprimer des données, ni
-exécuter de remédiation implicite pour obtenir un `PASS`.
+`docker-compose-patterns` et `kubernetes-specialist` exigent une
+**approbation de l'opérateur séparément pour chaque installation**.
+Respecter le stockage TrueNAS, Vaultwarden, `democratic-csi`,
+`entityRef` et `catalogRevision`. Ne pas ouvrir la production,
+assouplir TLS, supprimer des données, ni exécuter de remédiation
+implicite pour obtenir un `PASS`.
+
+### Skills externes à installer manuellement — suivi du 30/10/2026
+
+| Décision | Source et skill skills.sh | Environnement cible | Statut |
+| --- | --- | --- | --- |
+| TrueNAS Compose | [`docker/skills` — `docker-compose-patterns`](https://www.skills.sh/docker/skills/docker-compose-patterns) | **Workstation**, scope projet `nabla-compose` | **EN ATTENTE d'approbation + revue upstream ; aucune installation attestée** |
+| Kubernetes sur Talos | [`jeffallan/claude-skills` — `kubernetes-specialist`](https://www.skills.sh/jeffallan/claude-skills/kubernetes-specialist) | **Workstation**, scope projet `nabla-compose` | **EN ATTENTE d'approbation + revue upstream ; aucune installation attestée** |
+
+```bash
+# Workstation UNIQUEMENT — lecture du catalogue sans installation
+cd ~/w/nabla-compose
+npx skills add docker/skills --list
+npx skills add jeffallan/claude-skills --list
+
+# Futur, après consentement et revue SKILL.md/deps/sécurité :
+# npx skills add docker/skills --skill docker-compose-patterns
+# npx skills add jeffallan/claude-skills --skill kubernetes-specialist
+```
+
+Aucun **skill Talos autonome** supplémentaire n'a été approuvé dans
+cette décision : Kubernetes Specialist s'applique au *Kubernetes
+hébergé sur Talos*, mais les opérations de gestion des nœuds Talos
+restent subordonnées à `talosctl`, aux runbooks locaux, aux contrôles
+CSI NFS et aux tests du cluster. Ni `skills-lock.json` ni cette
+roadmap ne constituent la preuve d'une installation runtime.
+Aucune installation de skill sur TrueNAS/Talos, aucun déploiement,
+redémarrage, `kubectl apply` ou `helm upgrade` implicite.
+
+[Rebase PR #295 et validation locale — runbook](runbooks/pr295-rebase-skills-handoff-20261030.md).
 
 ### Contrôle local-first
 
