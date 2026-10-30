@@ -11,6 +11,7 @@ import argparse
 from datetime import datetime, timezone
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -367,6 +368,72 @@ def openrag_dependencies() -> list[dict[str, object]]:
     return [row('openrag_dependencies', 'UNVERIFIED', 'dependency_check_unverified')]
 
 
+
+def vaultwarden_operator() -> list[dict[str, object]]:
+    """Read CLI metadata in the invoking user's shell, never as root."""
+    if os.geteuid() == 0:
+        return [row('vaultwarden_cli', 'NOT_RUN', 'unprivileged_operator_required')]
+    status, data, _ = run(['bw', 'status'], timeout=9)
+    if status == 'missing':
+        return [row('vaultwarden_cli', 'NOT_RUN', 'bw_cli_missing')]
+    if status != 'ok':
+        return [row('vaultwarden_cli', 'UNVERIFIED', 'bw_status_unavailable')]
+    vault = data.get('status')
+    if vault == 'unauthenticated':
+        return [row('vaultwarden_cli', 'DENIED', 'bw_login_required')]
+    if vault == 'locked':
+        return [row('vaultwarden_cli', 'DENIED', 'bw_unlock_required')]
+    if vault != 'unlocked':
+        return [row('vaultwarden_cli', 'UNVERIFIED', 'bw_status_unknown')]
+    if not os.environ.get('BW_SESSION'):
+        return [row('vaultwarden_cli', 'UNVERIFIED', 'bw_session_export_missing')]
+    rows = [row('vaultwarden_cli', 'PASS', 'unlocked_session_env_present')]
+    wrapper = ROOT / 'scripts/quality/run-python-with-jsonschema-local.sh'
+    if not wrapper.is_file():
+        return rows + [row('vaultwarden_sources', 'NOT_RUN', 'python_wrapper_missing')]
+    for name, filename in (
+        ('vaultwarden_sample_source', 'check-fastapi-litellm-sample-source.py'),
+        ('vaultwarden_upstream_source', 'check-litellm-fastapi-upstream-source.py'),
+    ):
+        script = ROOT / 'scripts/secrets' / filename
+        _status, result, _ = run(['bash', str(wrapper), str(script), '--check'], timeout=75)
+        field = result.get('field_state')
+        if field == 'field_present_nonempty_hidden':
+            verdict, state = 'PASS', 'hidden_field_present_metadata_only'
+        elif field in ('field_absent', 'field_empty', 'field_duplicate', 'field_not_hidden'):
+            verdict, state = 'FAIL', field
+        else:
+            verdict, state = 'UNVERIFIED', (
+                field if field in (
+                    'vaultwarden_verify_failed', 'vaultwarden_folder_failed',
+                    'vaultwarden_item_lookup_failed', 'manifest_mismatch',
+                    'python_dependency_unavailable', 'vaultwarden_unverified',
+                    'vaultwarden_session_unavailable',
+                ) else 'source_unverified'
+            )
+        rows.append(row(name, verdict, state))
+    return rows
+
+
+def vaultwarden_next_step(rows: list[dict[str, object]]) -> str | None:
+    cli = next((r for r in rows if r.get('component') == 'vaultwarden_cli'), None)
+    if cli is None:
+        return None
+    state = cli['state']
+    if state == 'unprivileged_operator_required':
+        return 'run --check --scope vaultwarden WITHOUT sudo in the operator shell'
+    if state == 'bw_login_required':
+        return 'run bw login; then export BW_SESSION="$(bw unlock --raw)"'
+    if state in ('bw_unlock_required', 'bw_session_export_missing'):
+        return 'run export BW_SESSION="$(bw unlock --raw)" in the SAME operator shell'
+    if state == 'bw_cli_missing':
+        return 'verify bw CLI and PATH without installing anything on TrueNAS'
+    if any(r.get('component', '').startswith('vaultwarden_') and r['verdict'] != 'PASS'
+           for r in rows if r is not cli):
+        return 'verify bw config server and source stage; never print secret values'
+    return None
+
+
 def default_fastapi_root() -> Path | None:
     for candidate in (
         ROOT / 'fastapi-sample',
@@ -414,7 +481,7 @@ def summarize(rows: list[dict[str, object]]) -> dict[str, int]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', required=True)
-    parser.add_argument('--scope', choices=('all', 'ui', 'prometheus', 'ai'), default='all')
+    parser.add_argument('--scope', choices=('all', 'ui', 'prometheus', 'ai', 'vaultwarden'), default='all')
     parser.add_argument('--json', action='store_true', help='Print redacted JSON rather than concise text')
     parser.add_argument('--brief', action='store_true', help='Show unresolved checks only; deduplicate known causes')
     parser.add_argument('--browser', action='store_true', help='Opt-in Chromium with preinstalled Playwright only')
@@ -438,6 +505,8 @@ def main(argv: list[str] | None = None) -> int:
                     [row('fastapi_metrics_auth', 'NOT_RUN', 'truenas_host_required')])
         if args.deep_prometheus:
             rows.extend(deep_prometheus())
+    if args.scope in ('all', 'ai', 'vaultwarden'):
+        rows.extend(vaultwarden_operator())
     if args.scope in ('all', 'ai'):
         if not verified_truenas:
             rows.append(row('ai_truenas_runtime', 'NOT_RUN', 'truenas_host_required'))
@@ -473,6 +542,9 @@ def main(argv: list[str] | None = None) -> int:
         print('Summary ' + ' '.join(f'{v}={summary[v]}' for v in VERDICTS))
         if args.brief:
             print(f'Brief unresolved findings={len(selected)} (full check count preserved in JSON)')
+        instruction = vaultwarden_next_step(rows)
+        if instruction:
+            print('Vaultwarden next: ' + instruction)
         print('Cloud UI manual acceptance: NOT_RUN; OpenRAG private retrieval: NOT_RUN')
     return 1 if summary['FAIL'] else 2 if decision == 'INCOMPLETE' else 0
 
