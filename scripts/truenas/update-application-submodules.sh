@@ -15,6 +15,22 @@ if [[ -n "${DIRTY}" ]]; then
   echo "superproject_dirty=true"
   git status --short --untracked-files=no
   echo "Review tracked changes, staged files and dirty submodules separately."
+  for module in "${MODULES[@]}"; do
+    if [[ -d "${module}" ]]; then
+      if [[ -n "$(git -C "${module}" status --porcelain)" ]]; then
+        echo "⚠️  Dirty submodule: ${module}"
+        echo "  git -C ${module} status --short"
+        echo "  # If source changes are INTENDED, stage specific files inside the child:"
+        echo "  git -C ${module} add -- <reviewed-files>"
+        echo "  git -C ${module} diff --cached --check"
+        echo "  git -C ${module} commit -m 'fix: reviewed submodule changes [skip ci]'"
+        echo "  # Only after the child commit, update the superproject gitlink:"
+        echo "  git add -- ${module}"
+        echo "  git diff --cached --submodule=log"
+        echo "  git commit -m 'chore(submodules): record reviewed ${module} pointer [skip ci]'"
+      fi
+    fi
+  done
   echo "No reset, stash, clean or submodule checkout was performed."
   if [[ "${MODE}" == "--update" ]]; then
     echo "Refusing to update a dirty superproject." >&2
