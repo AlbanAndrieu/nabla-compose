@@ -35,6 +35,7 @@ class ReadonlyRunnerContracts(unittest.TestCase):
             ok = subprocess.run(['bash', str(target)], env=environment, capture_output=True, text=True, check=False)
             self.assertEqual(ok.returncode, 0)
             self.assertIn('probe_failures=0', ok.stdout)
+            fake.write_text('#!/bin/sh\necho simulated:$*\nexit 0\n')
             env_sudo = {**environment, 'OPENCLAW_TRUENAS_LOG_SUDO': '1'}
             sudo = subprocess.run(['bash', str(target)], env=env_sudo,
                                   capture_output=True, text=True, check=False)
