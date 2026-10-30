@@ -2384,8 +2384,9 @@ complète sur le HEAD exact. **Aucune CI GitHub payante** pendant la Draft.
 
 Lire [la politique des skills](agent-skills-architecture.md) et
 [`AGENTS.md`](../AGENTS.md). Les skills externes
-`docker-compose-patterns` et `kubernetes-specialist` exigent une
-**approbation de l'opérateur séparément pour chaque installation**.
+`docker-compose-patterns` et `kubernetes-specialist` exigent de
+**Ask the user** : une approbation de l'opérateur séparément pour
+chaque installation.
 Respecter le stockage TrueNAS, Vaultwarden, `democratic-csi`,
 `entityRef` et `catalogRevision`. Ne pas ouvrir la production,
 assouplir TLS, supprimer des données, ni exécuter de remédiation
