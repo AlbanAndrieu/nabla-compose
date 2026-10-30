@@ -29,6 +29,42 @@
 
 Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
 
+## P0 CrowdSec — diagnostic du test synthétique (30 octobre 2026, PR #295)
+
+- **Évidence utilisateur :** `just crowdsec-pf-synthetic-test`
+  **15/15 PASS**, puis gate ciblé CrowdSec **61/61 PASS**
+  sur la workstation. `just crowdsec-pf-synthetic-preflight` :
+  `initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING`.
+  L'exécution mutatrice explicite a retourné
+  `synthetic_cleanup=NOT_VERIFIED manual_review_required=true`
+  et `synthetic_cycle=NOT_VERIFIED reason=NotVerified`,
+  **sans `synthetic_lapi=CREATED decision_id=...`**.
+  Elle ne prouve ni succès ni échec du bannissement ; l'état de
+  `203.0.113.77` doit être relu avant toute nouvelle tentative.
+- **Cause de code confirmée upstream CrowdSec v1.8.1 :**
+  `cscli decisions list -o json` renvoie une liste **d'alertes**
+  contenant `decisions[]`, pas seulement des décisions au premier
+  niveau. L'ancien parseur les ignorait au précontrôle puis échouait
+  à attribuer l'ID après `cscli decisions add`.
+- **Correctif PR #295 [skip ci] :** normalisation stricte des
+  `alerts[].decisions[]`, rejet des schémas inconnus, propriété du
+  ban vérifiée sur `origin=cscli` + `scenario=reason` aléatoire
+  + cible/type/ID ; nettoyage **uniquement par cet ID**.
+  Nouveau `just crowdsec-pf-synthetic-inspect` en lecture seule,
+  statut de phase plus précis, tests hermétiques complémentaires.
+  **Nouveaux tests pas encore exécutés sur workstation.**
+- **Impact sur le suivi naturel :** le parseur flat-only initial
+  pouvait produire un faux zéro. Nouvelle baseline au format v2,
+  **fichier séparé** `crowdsec-pf-natural-cycle-v2.json` ;
+  la baseline v1 historique en `0600` n'est ni écrasée ni
+  considérée comme preuve valide. Refaire la baseline v2 en
+  lecture seule une fois l'état du test synthétique vérifié.
+- **P0 remédiation PF : NOT_VERIFIED.** Ne pas relancer `--apply`
+  avant un `--inspect` / précontrôle propres ; aucun
+  `cscli decisions delete --ip`, changement PF ou rotation de clé.
+  La mise en évidence d'une entrée PF ne prouverait pas encore
+  le blocage d'un paquet sur une règle active.
+
 ## P0 CrowdSec — validation synthétique réversible prête (28 octobre 2026)
 
 - **Implémentation versionnée, PAS encore exécutée en runtime** :
