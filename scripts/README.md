@@ -26,7 +26,7 @@ worktree with Betterleaks, `just secrets-staged` scans staged diffs and
 `just secrets-history` is an explicit, potentially expensive full-history scan.
 Outputs are redacted; no online credential validation is requested.
 
-Betterleaks v1.9.0 is the sole active Pre-commit secret scanner; the existing
+Betterleaks v2.0.0-rc.5 is the sole active Pre-commit secret scanner; the existing
 `.gitleaks.toml` is intentionally retained as its compatibility policy during
 migration. Historical `gitleaks:allow` comments are still understood by
 Betterleaks. The old MegaLinter Gitleaks linter remains disabled.

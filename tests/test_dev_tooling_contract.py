@@ -85,7 +85,7 @@ class DeveloperToolingContractTests(unittest.TestCase):
             if repo["repo"] == "https://github.com/betterleaks/betterleaks"
         ]
         self.assertEqual(len(betterleaks), 1)
-        self.assertEqual(betterleaks[0]["rev"], "v1.9.0")
+        self.assertEqual(betterleaks[0]["rev"], "v2.0.0-rc.5")
         hooks = betterleaks[0]["hooks"]
         self.assertEqual(len(hooks), 1)
         self.assertEqual(hooks[0]["id"], "betterleaks")
