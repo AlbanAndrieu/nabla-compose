@@ -1,4 +1,4 @@
-# ADR — Extraire Workstation et YubiKey de nabla-compose (proposé)
+# ADR — Séparer Workstation, YubiKey et Gateway OpenClaw cible TrueNAS (proposé)
 
 **Statut : PROPOSED — 30 octobre 2026.** Ne déplace encore aucun fichier ni ne modifie le runtime.
 
@@ -35,20 +35,25 @@ potentiellement mutateur ; ne pas l'utiliser pour réaliser la migration.
    topologie, catalogues de services et règles de sécurité inter-hôtes.
    Les probes *serveur* TrueNAS restent ici.
 2. **ansible-workstation** : audits OS Ubuntu, installations contrôlées,
-   systemd `--user` OpenClaw/LiteLLM, Node/mise, DNS et réseau locaux,
-   et déploiement explicite des artefacts NON SECRETS de la Workstation.
+   Node/mise, DNS et réseau locaux, et **audit** des services
+   `systemd --user` OpenClaw/LiteLLM actuellement sur Workstation.
    Les services utilisateurs doivent être gérés sans `become: true`
    global, avec préflight de version et sauvegarde/rollback.
 3. **dotfiles** : configuration utilisateur interactive, notamment
    Starship, Terminator, configuration shell. Ne pas la copier dans Ansible.
-4. **futur dépôt dédié `nabla-yubikey` (pas encore créé)** :
+4. **`nabla-yubikey` (dépôt public créé ; PR #1 Draft)** :
    runbooks et contrôles matériels FIDO2/SSH-sk, OpenPGP,
    PIV/AES256, age/SOPS, escrow USB et backups, tests hermétiques.
    L'identité réelle, les clés privées et archives chiffrées restent
    hors des dépôts publics. Un rôle Ansible de **prérequis logiciels
    uniquement**, opt-in, peut fournir `pcscd`, `libfido2`,
    `ykman`, `opensc` sans PAM ni provisionnement matériel.
-5. Les actions nécessitant **les deux hôtes** (ex. logs LiteLLM
+5. **`nabla-openclaw` (dépôt public créé ; PR #1 Draft)** :
+   Gateway cible Docker/TrueNAS, politiques heartbeat, cron et
+   automation versionnées, image et manifeste futurs. Ne pas
+   déplacer l'état privé de `~/.openclaw` dans Git. Le sandbox
+   `apps/openclaw/compose.yml` actuel n'est PAS le Gateway cible.
+6. Les actions nécessitant **les deux hôtes** (ex. logs LiteLLM
    TrueNAS depuis OpenClaw Workstation, NFS escrow) gardent un
    contrat dans Compose ; le client local appartient au dépôt
    spécialisé, le serveur/dataset à Compose.
@@ -58,9 +63,9 @@ potentiellement mutateur ; ne pas l'utiliser pour réaliser la migration.
 | Phase | Contenu | Critère pour continuer |
 | --- | --- | --- |
 | 0 | Inventaire des chemins, recettes, import Python, shells, docs, secrets, perms et versions | Résultats reproductibles sans accès matériel |
-| 1 | `ansible-workstation` : rôle `openclaw-runtime` opt-in + audit de dérive, sans activation | CLI/Node et systemd identiques à la Workstation, `changed=0` en audit ; template 25.x neutralisé |
+| 1 | `ansible-workstation` : audit de la **source** Gateway Workstation, sans activation | CLI/Node et unité observés, `changed=0`, aucune configuration cible ; template Node25 neutralisé |
 | 2 | Contrats de probes et commandes locales dans `ansible-workstation`, diagnostics TrueNAS conservés Compose | Parité de sortie, mêmes exit codes et redaction, test LAN |
-| 3 | Créer `nabla-yubikey` (repo privé si données locales sensibles ; public seulement après revue) ; copier scripts+tests dans PR Draft | 100 % tests hermétiques YubiKey, pas de PIN/PIV/PAM, hardware checks toujours opt-in |
+| 3 | Les dépôts publics `nabla-yubikey` et `nabla-openclaw` existent ; importer scripts/politiques **par lots** en PR Draft | Tests hermétiques, scanning sensible, source Workstation intacte, aucun Gateway TrueNAS lancé |
 | 4 | Reconnecter via wrappers de compatibilité, migration des consommateurs externes | Pas de `command not found`, plus aucune importation vers l'ancien chemin, aucun secret Git |
 | 5 | Déprécier et seulement ensuite retirer les anciennes recettes/code | Validation sur deux hôtes, plan/rollback documentés et revue manuelle |
 
@@ -85,3 +90,20 @@ checkouts frères et des wrappers explicites pendant la transition.
   attestée ; les erreurs de bord restent UNKNOWN et non DOWN.
 - Commits `[skip ci]`, tests locaux seulement, PRs Draft, jamais
   de merge automatique.
+
+## Décision de cible confirmée le 30 octobre 2026
+
+OpenClaw **fonctionne aujourd'hui sur Workstation** mais doit migrer
+vers **TrueNAS**. Le référentiel Git cible est
+[nabla-openclaw PR #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1),
+non Ansible. Ansible [PR #16](https://github.com/AlbanAndrieu/ansible-workstation/pull/16)
+garde l'OS et l'audit **source**. Le dépôt
+[nabla-yubikey PR #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1)
+contient un premier collecteur read-only et ses tests, sans secrets.
+
+Le sous-module OpenClaw pourra être ajouté **ensuite** dans
+`apps/openclaw/nabla-openclaw` avec pin sur un commit/tag validé.
+Ne pas remplacer immédiatement `apps/openclaw/compose.yml` qui décrit
+un sandbox dépendant des volumes Workstation. Un seul Gateway doit
+faire tourner les automations/heartbeat pendant la bascule, avec
+rollback de la Workstation testé.

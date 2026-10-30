@@ -13,6 +13,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 RECIPES = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)(?:\s+[^:#\n]+)?:\s*(?:#.*)?$")
 YUBI = re.compile(r"(?i)(?:yubikey|(?:age|sops)[-_](?:yubi|escrow)|escrow[-_](?:age|usb|nfs)|usb[-_]identity|backup[-_]sops)")
+OPENCLAW = re.compile(r"(?i)openclaw")
 SENSITIVE = re.compile(r"(?i)(?:^|/)(?:\.sops\.yaml|secrets\.env\.sops|\.env(?:\.secrets)?|.*\.age|.*\.key)$")
 
 def classify(path: str) -> str:
@@ -24,9 +25,11 @@ def classify(path: str) -> str:
     if path.startswith("apps/openclaw/") and not path.startswith("apps/openclaw/workstation/"):
         return "retain_compose_service"
     if path.startswith("apps/openclaw/workstation/"):
-        return "candidate_ansible_workstation"
+        return "candidate_openclaw_target_review"
     if path.startswith(("scripts/workstation/", "tests/", "docs/")) and YUBI.search(path):
         return "candidate_yubikey_review"
+    if path.startswith("scripts/workstation/") and OPENCLAW.search(path):
+        return "candidate_openclaw_target_review"
     if path.startswith("scripts/workstation/"):
         return "candidate_ansible_workstation_review"
     return "retain_or_review"
@@ -58,7 +61,11 @@ def summarize(files, just_text):
     return {"schema":"nabla-repository-extraction-plan/v1",
             "read_only":True, "copy_or_delete_authorized":False,
             "tracked_paths":len(files), "candidate_groups":paths,
-            "recipe_groups":recipes, "planned_yubikey_repo_exists":"not_verified"}
+            "recipe_groups":recipes,
+            "declared_destination_repos":["AlbanAndrieu/nabla-yubikey",
+                                           "AlbanAndrieu/nabla-openclaw",
+                                           "AlbanAndrieu/ansible-workstation"],
+            "destination_access":"not_checked_offline"}
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)

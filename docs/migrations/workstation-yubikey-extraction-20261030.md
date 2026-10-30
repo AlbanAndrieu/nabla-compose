@@ -6,14 +6,14 @@ propriétaire cible, sans déplacer les fichiers. Source de décision :
 
 | Chemins Compose actuels | Cible proposée | État / restriction |
 | --- | --- | --- |
-| `scripts/workstation/diagnose-openclaw-*`, `check-openclaw-*`, `openclaw-ops.sh`, `tests/test_openclaw_*` | ansible-workstation, sous `scripts/openclaw/` et `tests/` | Découper les imports `scripts/truenas` et les fixtures du catalogue |
-| `apps/openclaw/workstation/` | ansible-workstation `policies/openclaw/` et `templates/` | Surveiller owner, fichiers `HEARTBEAT`, cron, snapshots, secrets ; ne pas copier l'état privé |
+| `scripts/workstation/diagnose-openclaw-*`, `check-openclaw-*`, `openclaw-ops.sh`, `tests/test_openclaw_*` | **nabla-openclaw** pour logique Gateway/cron cible ; **Ansible** pour audit OS de la source | Examiner les imports TrueNAS/stockage, ne pas copier le Gateway Workstation en bloc |
+| `apps/openclaw/workstation/` | **nabla-openclaw `policies/`** pour heartbeat/cron ; Ansible garde l'OS | Premières politiques importées en PR #1, inactives ; ne pas transférer les sessions ni fichiers secrets |
 | `apps/openclaw/compose.yml`, `apps/litellm/`, `scripts/truenas/*litellm*` | **Reste Compose** | Serveurs, modèles TrueNAS, clés scoped, DB, quotas, NFS |
 | `scripts/workstation/diagnose-*-dns*.py`, `workstation-split-dns-*` | ansible-workstation | Reprendre les audits existants, PAS de second collecteur équivalent |
-| `scripts/workstation/*yubikey*`, `*age-escrow*`, `*sops*` | futur nabla-yubikey | Tri manuel par effet et tests ; pas de clés, PIN ou configs chiffrées |
+| `scripts/workstation/*yubikey*`, `*age-escrow*`, `*sops*` | nabla-yubikey PR #1 | Tri manuel par effet et tests ; pas de clés, PIN ou configs chiffrées |
 | `tests/test_yubikey_*` et `docs/runbooks/yubikey-*` | futur nabla-yubikey | Transférer ensemble avec scripts, fixtures et avertissements |
 | `scripts/workstation/*nfs*escrow*` | YubiKey **client**, Compose **serveur TrueNAS** | Conserver une interface de sonde et les contrôles de ACL NFS |
-| `docs/roadmap-workstation-yubikey.md` | future roadmap YubiKey | Lien/alias d'historique dans Compose après extraction |
+| `docs/roadmap-workstation-yubikey.md` | roadmap YubiKey indépendante | Lien/alias d'historique dans Compose après extraction |
 | `secrets.env.sops`, `.sops.yaml`, `~/.openclaw/`, fichiers `*.age` privés | **Jamais copiés dans les nouveaux dépôts** | Secrets/snapshots/profiles dans le coffre existant, usage sous autorisation |
 
 ## Audit de dépendances avant tout changement
@@ -49,3 +49,15 @@ découverte `just --list` avant suppression de recettes.
   `just workstation-check` et `just yubikey-check` comme
   dispatchers **non silencieux**, mais ne doit pas importer tous
   les fichiers des nouveaux dépôts.
+
+## Dépôts réellement créés et transfert initial
+
+- [nabla-yubikey PR #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1) : collecteur autonome de dépendances avec test hermétique, aucun matériel.
+- [nabla-openclaw PR #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1) : politiques `HEARTBEAT` et digest désactivées, contrat cible TrueNAS sans image/dataset validés.
+- [ansible-workstation PR #16](https://github.com/AlbanAndrieu/ansible-workstation/pull/16) : audit `systemd --user` de la source Workstation, ancien template OpenClaw Node 25 interdit au déploiement.
+
+**Submodules :** pas de gitlink tant qu'une version reproductible et les
+conditions de déploiement ne sont pas approuvées. Proposer ensuite
+`apps/openclaw/nabla-openclaw` et un emplacement YubiKey hors du
+répertoire des applications Docker. Pas de checkout direct dans les
+datasets de runtime ni de `git submodule update --remote` automatisé.

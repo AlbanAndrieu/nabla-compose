@@ -16,13 +16,15 @@ class PlanTests(unittest.TestCase):
 
     def test_candidate_paths_do_not_auto_migrate(self):
         self.assertEqual(mod.classify("scripts/workstation/inspect-yubikey-readonly.py"),"candidate_yubikey_review")
-        self.assertEqual(mod.classify("apps/openclaw/workstation/runtime-contract.json"),"candidate_ansible_workstation")
-        self.assertEqual(mod.classify("scripts/workstation/diagnose-openclaw.sh"),"candidate_ansible_workstation_review")
+        self.assertEqual(mod.classify("apps/openclaw/workstation/runtime-contract.json"),"candidate_openclaw_target_review")
+        self.assertEqual(mod.classify("scripts/workstation/diagnose-openclaw.sh"),"candidate_openclaw_target_review")
 
     def test_summary_never_authorizes_copy(self):
         report=mod.summarize(["apps/litellm/config.yaml","scripts/workstation/inspect-yubikey.py"],
                              "yubikey-test:\n    echo test\n\nopenclaw-plan:\n    echo plan\n")
         self.assertFalse(report["copy_or_delete_authorized"])
+        self.assertEqual(report["destination_access"],"not_checked_offline")
+        self.assertEqual(len(report["declared_destination_repos"]),3)
         self.assertEqual(report["recipe_groups"]["total"],2)
         self.assertEqual(report["recipe_groups"]["yubikey"],1)
         self.assertEqual(report["candidate_groups"]["candidate_yubikey_review"],1)
