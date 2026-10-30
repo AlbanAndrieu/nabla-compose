@@ -1,0 +1,109 @@
+{
+  "schema": "openclaw-heartbeat-restoration/v1",
+  "source": "apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md",
+  "source_fidelity": "behavioral_inventory_only_private_original_not_in_repo",
+  "deployment": "candidate_not_applied",
+  "native_heartbeat": {
+    "candidate": "apps/openclaw/workstation/HEARTBEAT-RESTORED.candidate.md",
+    "required_settings": {
+      "every": "2h",
+      "lightContext": true,
+      "isolatedSession": true,
+      "skipWhenBusy": true,
+      "target": "none",
+      "activeHours": {
+        "start": "08:00",
+        "end": "22:00",
+        "timezone": "Europe/Paris"
+      }
+    },
+    "require_429_attribution_before_activation": true,
+    "cost_budget_verified": false
+  },
+  "recovered_capabilities": [
+    {
+      "name": "workboard_followup",
+      "historical_interval": "15m",
+      "target": "native_task_6h_readonly",
+      "enabled": false
+    },
+    {
+      "name": "caldav_sync",
+      "historical_interval": "30m",
+      "target": "separate_systemd_job",
+      "enabled": false
+    },
+    {
+      "name": "homelab_health",
+      "historical_interval": "1h",
+      "target": "native_task_2h_readonly",
+      "enabled": false
+    },
+    {
+      "name": "gmail_triage",
+      "historical_interval": "1h",
+      "target": "separate_authorized_connector",
+      "enabled": false
+    },
+    {
+      "name": "whatsapp_notifications",
+      "historical_interval": "1h",
+      "target": "separate_authorized_connector",
+      "enabled": false
+    },
+    {
+      "name": "obsidian_knowledge",
+      "historical_interval": "6h",
+      "target": "separate_allowlisted_import",
+      "enabled": false
+    },
+    {
+      "name": "doctor_health",
+      "historical_interval": "6h",
+      "target": "native_task_12h_readonly",
+      "enabled": false
+    },
+    {
+      "name": "docs_quality",
+      "historical_interval": "12h",
+      "target": "separate_local_quality_gate",
+      "enabled": false
+    },
+    {
+      "name": "loki_insights",
+      "historical_interval": "12h",
+      "target": "separate_redacted_collector",
+      "enabled": false
+    },
+    {
+      "name": "velocity_assessment",
+      "historical_interval": "01:00",
+      "target": "separate_budgeted_report",
+      "enabled": false
+    },
+    {
+      "name": "brainstorm_notes",
+      "historical_interval": "04:00",
+      "target": "explicit_on_demand",
+      "enabled": false
+    },
+    {
+      "name": "morning_briefing",
+      "historical_interval": "08:00",
+      "target": "MORNING_BRIEFING.md_isolated",
+      "enabled": false
+    },
+    {
+      "name": "daily_tech_digest",
+      "historical_interval": "09:00",
+      "target": "existing_daily-tech-news-digest_job",
+      "enabled": false
+    },
+    {
+      "name": "weekly_knowledge_security",
+      "historical_interval": "weekly",
+      "target": "separate_readonly_report",
+      "enabled": false
+    }
+  ]
+}
