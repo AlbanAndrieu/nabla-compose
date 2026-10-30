@@ -393,7 +393,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(kubernetes/hermes-sandbox/.*|docs/security/hermes-talos-migration[.]md|tests/test_kubernetes_hermes_sandbox_contract[.]py)$
+          ^(kubernetes/hermes-sandbox/.*|scripts/hermes/smoke-sandbox-image[.]sh|mise[.]lock|docs/security/hermes-talos-migration[.]md|tests/test_kubernetes_hermes_sandbox_contract[.]py)$
 
       - id: truenas-csi-nfs-contract
         name: "💾 kubernetes · Validate TrueNAS NFS CSI contract"
