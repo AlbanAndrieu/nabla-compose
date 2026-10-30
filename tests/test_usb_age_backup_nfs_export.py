@@ -150,7 +150,14 @@ class Contracts(unittest.TestCase):
             env.update(PATH=str(fakebin) + os.pathsep + env.get("PATH", ""),
                        FAKE_SHARE_JSON=str(data))
             def execute(shares):
-                data.write_text(json.dumps(shares), encoding="utf-8")
+                # The remote program uses the synthetic lab path, not the
+                # real TrueNAS export. Keep fixture metadata aligned with it.
+                fixtures = [
+                    {**share, "path": str(export)}
+                    if share.get("path") == "/mnt/cpool/backup/lab" else share
+                    for share in shares
+                ]
+                data.write_text(json.dumps(fixtures), encoding="utf-8")
                 proc = subprocess.run([sys.executable, "-"], input=program,
                                       text=True, capture_output=True,
                                       env=env, timeout=8)
@@ -173,6 +180,9 @@ class Contracts(unittest.TestCase):
             self.assertEqual(execute([self.sample_share(mapall_user="__absent_123")])[
                              "all_mapping"], "ACCOUNT_NOT_RESOLVED")
             self.assertEqual(execute([])["state"], "EXPORT_MISSING")
+            # An unrelated share must never match the expected lab export.
+            self.assertEqual(execute([self.sample_share(
+                path="/mnt/unrelated-share")])["state"], "EXPORT_MISSING")
             self.assertEqual(execute([self.sample_share(), self.sample_share()])[
                              "state"], "EXPORT_AMBIGUOUS")
             self.assertEqual(execute([self.sample_share(enabled=1)])[
