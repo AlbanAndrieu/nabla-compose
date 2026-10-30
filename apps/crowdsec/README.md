@@ -3,6 +3,30 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception P0 CrowdSec : test synthétique LIVE réussi (30/10/2026)
+
+**DONE — boucle de remédiation centralisée (sur runtime réel) :**
+`synthetic_preflight=PASS` → création d'un ban central
+`203.0.113.77` (décision ID **1531819**) →
+`synthetic_pf_application=OBSERVED` dans la table
+`crowdsec_blacklists` pfSense →
+`synthetic_cleanup=PASS lapi_absent=true pf_absent=true`.
+Verdict : **`SYNTHETIC_PF_DECISION_CYCLE_PASS`**.
+
+L'adresse appartient à **TEST-NET-3**, bloc documentaire RFC 5737,
+pas à une victime, un attaquant ou un véritable service.
+Le mot *synthetic* décrit **la décision manuelle `origin=cscli`**,
+pas le comportement de l'infrastructure : propagation et retrait
+PF ont été réellement observés. Aucun secret n'a été renouvelé,
+aucun flush PF ni conteneur redéployé. La suppression ciblait
+l'ID exact, avec preuve de retrait des deux systèmes.
+
+**Limites indépendantes :** non vérifiés par ce test, la création
+naturelle de décision par un scénario CrowdSec et le filtrage
+effectif de paquets WAN par les règles PF. La baseline v1 reste
+archivée, une v2 doit être créée pour reprendre la preuve naturelle.
+Gate ciblé workstation **79/79 tests PASS** ; gate global inconnu.
+
 ## Réception workstation CrowdSec — 30 octobre 2026
 
 - **DONE — gate ciblé après correction du JSON imbriqué :**
