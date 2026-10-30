@@ -37,7 +37,7 @@ class MigrationEvidence(unittest.TestCase):
                             'exit 0\n')
             fake.chmod(0o755)
             python=root/"bin/python3"
-            python.write_text("#!/bin/sh\nexit 0\n")
+            python.write_text('#!/bin/sh\ncase "$1" in *openclaw-host-context.py) echo workstation;; esac\nexit 0\n')
             python.chmod(0o755)
             env={**os.environ,"PATH":str(fake.parent)+":"+os.environ.get("PATH","")}
             result=subprocess.run(["bash",str(target),"--diagnose"],
@@ -46,6 +46,29 @@ class MigrationEvidence(unittest.TestCase):
             self.assertIn("truenas_tunnel unverified_or_failed",result.stdout)
             self.assertIn("PROBE digest_top completed",result.stdout)
             self.assertIn("unverified_or_failed=1",result.stdout)
+
+    def test_truenas_skips_workstation_only_probes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "scripts/workstation/openclaw-migration-evidence.sh"
+            target.parent.mkdir(parents=True)
+            shutil.copyfile(SOURCE, target)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            py = fake_bin / "python3"
+            py.write_text('#!/bin/sh\\ncase "$1" in *openclaw-host-context.py) echo truenas;; esac\\nexit 0\\n'.replace('\\n','\n'))
+            py.chmod(0o755)
+            just = fake_bin / "just"
+            just.write_text('#!/bin/sh\nprintf "mock:%s\\n" "$1"\nexit 0\n')
+            just.chmod(0o755)
+            env = {**os.environ, "PATH": str(fake_bin) + ":" + os.environ.get("PATH","")}
+            result = subprocess.run(["bash",str(target),"--diagnose"],
+                                    env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn("truenas_litellm_status",result.stdout)
+            self.assertNotIn("gateway_and_runtime",result.stdout)
+            self.assertIn("TrueNAS",result.stdout)
+            self.assertIn("host=truenas",result.stdout)
 
     def test_invalid_mode_never_calls_just(self):
         with tempfile.TemporaryDirectory() as tmp:
