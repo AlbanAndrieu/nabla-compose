@@ -195,15 +195,21 @@ un scrape Prometheus en panne.
 
 ## OPENRAG_API_KEY : ne pas confondre secret et authentification
 
-Le code actuellement versionné n'établit aucun consommateur
-OPENRAG_API_KEY. L'accès privé FastAPI repose sur MCP_CLIENTS, le filtre
-OPENRAG_BABABOU_FILTER_ID et une future identité autorisée.
-HTTP 406 sur GET /mcp ne prouve ni un contrôle X-API-Key ni une
-session MCP authentifiée. Un token peut être généré en terminal privé
-avec openssl rand -hex 32, mais il ne doit être considéré comme
-actif qu'après provisionnement et validation du serveur et du client.
-Le script ne génère ni ne transmet de secret. Ne jamais remplacer
-OPENRAG_ENCRYPTION_KEY ou LANGFLOW_KEY par ce token.
+La version amont OpenRAG 0.7.1 sait gérer des clés API client pour
+REST/MCP ; la documentation amont prévoit un en-tête X-API-Key et
+des clés de type orag_*. Elles sont créées/enregistrées par le
+serveur (et non de simples mots de passe aléatoires à inventer).
+Dans l'interface OpenRAG : Settings > API Keys > Create API Key,
+nommer la nouvelle clé pour FastAPI et copier une seule fois sa valeur
+dans Vaultwarden comme champ masqué, sans la transmettre dans les logs.
+Le code FastAPI actuel n'établit pas de consommateur direct
+OPENRAG_API_KEY : l'intégration privée utilise MCP_CLIENTS,
+OPENRAG_BABABOU_FILTER_ID et un header X-API-Key à configurer.
+Vérifier la politique MCP de l'image réellement déployée avant
+de remplir sample/.env.secrets : HTTP 406 sur GET /mcp ne prouve
+pas un handshake ou une authentification réussie.
+Ne pas remplacer OPENRAG_ENCRYPTION_KEY ou LANGFLOW_KEY.
+Source : https://github.com/langflow-ai/openrag/blob/main/README.md
 
 ## LiteLLM upstream : séparer les consommateurs
 
