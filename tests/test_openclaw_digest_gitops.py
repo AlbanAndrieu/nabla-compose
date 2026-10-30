@@ -63,7 +63,7 @@ class GitOpsDigestTests(unittest.TestCase):
         backup.assert_not_called()
 
     def test_apply_updates_existing_job_without_changing_delivery(self):
-        initial = job("old private content")
+        initial = job("old private content references/digest-prompt.md\n- ITEMS_PER_SECTION = 3-5")
         final = job(mod.desired_message())
         with patch.object(mod, "host", return_value="workstation"), \
              patch.object(mod, "runtime_job", side_effect=[initial, initial, final]), \
@@ -77,6 +77,20 @@ class GitOpsDigestTests(unittest.TestCase):
         self.assertNotIn("old private content",output.getvalue())
         edit.assert_called_once_with(mod.desired_message())
         backup.assert_called_once()
+
+    def test_unknown_runtime_prompt_never_overwritten(self):
+        old = job("PRIVATE instructions without expected skill contract")
+        with patch.object(mod, "host", return_value="workstation"), \
+             patch.object(mod, "runtime_job", return_value=old), \
+             patch.object(mod, "backup") as save, \
+             patch.object(mod, "cli_edit") as write, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            rc = mod.main(["--apply", "--expected-message-sha",
+                           mod.sha(old["payload"]["message"])])
+        self.assertEqual(rc, 2)
+        self.assertIn("blocked_unexpected_runtime_template", output.getvalue())
+        save.assert_not_called()
+        write.assert_not_called()
 
     def test_preservation_guard_rejects_delivery_drift(self):
         old=job("before")
