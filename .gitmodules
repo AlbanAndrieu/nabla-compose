@@ -28,3 +28,6 @@
 [submodule "apps/nabla-site-alban"]
 	path = apps/nabla-site-alban
 	url = https://github.com/AlbanAndrieu/nabla-site-alban.git
+[submodule "apps/fastapi-sample"]
+	path = apps/fastapi-sample
+	url = git@github.com:AlbanAndrieu/fastapi-sample.git
