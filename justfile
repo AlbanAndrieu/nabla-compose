@@ -228,6 +228,20 @@ yubikey-usb-identity-server-modes-check:
 yubikey-usb-identity-server-modes-probe:
     python3 scripts/workstation/inspect-usb-identity-backup-server-modes.py --probe --acknowledge INSPECT_USB_AGE_BACKUP_TRUENAS_MODES_READONLY
 
+# Hermetic TrueNAS NFS export security mapping audit: no network, USB or secrets.
+yubikey-usb-identity-nfs-export-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-age-backup-nfs-export.py tests/test_usb_age_backup_nfs_export.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_backup_nfs_export.py' -v
+
+# Workstation metadata preflight only. Does not contact TrueNAS or read archives.
+yubikey-usb-identity-nfs-export-check:
+    python3 scripts/workstation/inspect-usb-age-backup-nfs-export.py --check
+
+# TrueNAS sharing.nfs.query via fixed-host SSH, with redacted status only.
+# Exit 0 attests inventory, NOT proof of effective NFS permissions.
+yubikey-usb-identity-nfs-export-probe:
+    python3 scripts/workstation/inspect-usb-age-backup-nfs-export.py --probe --acknowledge INSPECT_USB_AGE_NFS_EXPORT_MAPPING_READONLY
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
