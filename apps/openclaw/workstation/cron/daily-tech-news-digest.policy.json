@@ -48,5 +48,16 @@
     "skill_template_check_required": true,
     "enforce_integer_top_before_runtime_edit": true,
     "runtime_edit_requires_explicit_approval": true
+  },
+  "message_source": "apps/openclaw/workstation/cron/daily-tech-news-digest.message.md",
+  "gitops": {
+    "mode": "plan_check_apply_explicit",
+    "existing_job_only": true,
+    "expected_message_sha_required": true,
+    "backup_private_permissions": "0600",
+    "no_model_requests": true,
+    "preserve_delivery": true,
+    "preserve_schedule": true,
+    "no_auto_restart": true
   }
 }
