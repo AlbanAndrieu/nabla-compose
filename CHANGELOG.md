@@ -1,3 +1,35 @@
+# [0.50.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.49.0...0.50.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **actions:** local-first budget inventory hardening ([#269](https://github.com/AlbanAndrieu/nabla-compose/issues/269)) ([420697d](https://github.com/AlbanAndrieu/nabla-compose/commit/420697dd86a49be1b36cad49457d786b478b3693))
+* **diagnostics:** distinguer authentification attendue et santé Garage/LiteLLM ([#281](https://github.com/AlbanAndrieu/nabla-compose/issues/281)) ([5578c6b](https://github.com/AlbanAndrieu/nabla-compose/commit/5578c6b0d95a6cfc21baec40980a4c3b12104f44))
+* **homelab:** diagnostics ciblés et reprise sécurisée des migrations ([#274](https://github.com/AlbanAndrieu/nabla-compose/issues/274)) ([eef5344](https://github.com/AlbanAndrieu/nabla-compose/commit/eef534487819a58f98dd73c865310a29dfd3c41e))
+* **openclaw:** gates runtime, preuves 429 et réconciliation digest/cron ([#292](https://github.com/AlbanAndrieu/nabla-compose/issues/292)) ([4dcb67d](https://github.com/AlbanAndrieu/nabla-compose/commit/4dcb67dc80f85beb7d4b4307a60b374e55ab7264))
+* **pfsense:** console regression and read-only Wi-Fi/DNS path triage ([#279](https://github.com/AlbanAndrieu/nabla-compose/issues/279)) ([4217df8](https://github.com/AlbanAndrieu/nabla-compose/commit/4217df8324be42dcdd8f21f6fa15cab0d6707a13))
+* **pfsense:** diagnose recurring Unbound OOM, pfBlockerNG and Akvorado ([#275](https://github.com/AlbanAndrieu/nabla-compose/issues/275)) ([3c4c150](https://github.com/AlbanAndrieu/nabla-compose/commit/3c4c150d00d49d977dd2373f810d6f1fa47d26e8))
+* **truenas:** fail-closed core dependency preflight from Catalog v2 ([#267](https://github.com/AlbanAndrieu/nabla-compose/issues/267)) ([2627a87](https://github.com/AlbanAndrieu/nabla-compose/commit/2627a87001f5a298e81a03f39226164e405c643f))
+* **workstation:** align OpenClaw diagnostics and local gates [skip ci] ([#293](https://github.com/AlbanAndrieu/nabla-compose/issues/293)) ([aed7a61](https://github.com/AlbanAndrieu/nabla-compose/commit/aed7a61d5ed330d2192a130d6c6ebd0c534afd54))
+
+
+### Features
+
+* **apisix:** diagnostics post-migration et tests rapides Node 22/npm 10 ([#280](https://github.com/AlbanAndrieu/nabla-compose/issues/280)) ([b96a7c3](https://github.com/AlbanAndrieu/nabla-compose/commit/b96a7c33ca965a5225082d39adba9bf3a35d9c15)), closes [hi#memory](https://github.com/hi/issues/memory)
+* **catalog:** autorité unique des icônes de services [skip ci] ([#272](https://github.com/AlbanAndrieu/nabla-compose/issues/272)) ([e9a962d](https://github.com/AlbanAndrieu/nabla-compose/commit/e9a962d80e920374ea8d209b836aad1be3fba73d))
+* **hermes:** complete Opus priority and secure cloud-key activation gates ([#270](https://github.com/AlbanAndrieu/nabla-compose/issues/270)) ([bff84e6](https://github.com/AlbanAndrieu/nabla-compose/commit/bff84e6756d81f6fa086e4def167a784a50774e1))
+* **hermes:** offline sandbox image pinned to mise.lock with smoke test [skip ci] ([#296](https://github.com/AlbanAndrieu/nabla-compose/issues/296)) ([ea25acc](https://github.com/AlbanAndrieu/nabla-compose/commit/ea25acc156f0c15308d5e752011f2ce1d786ad6c))
+* **hermes:** offline sandbox image pinned to mise.lock with smoke test [skip ci] ([#297](https://github.com/AlbanAndrieu/nabla-compose/issues/297)) ([c8c0aea](https://github.com/AlbanAndrieu/nabla-compose/commit/c8c0aea6a363ec8d67a65db9a6196fb3122e6f5b))
+* **homelab:** normaliser openwebui, ports LAN et migration contrôlée [skip ci] ([#273](https://github.com/AlbanAndrieu/nabla-compose/issues/273)) ([c3d1649](https://github.com/AlbanAndrieu/nabla-compose/commit/c3d16493ac85e270b0eb8cee1877197a43b178d5))
+* **pfsense:** LAN Unbound diagnostics and Code secret-fixture repair ([#285](https://github.com/AlbanAndrieu/nabla-compose/issues/285)) ([08a739f](https://github.com/AlbanAndrieu/nabla-compose/commit/08a739f65eec9fe25f7ef4af098a0f0e075471db)), closes [hi#resource](https://github.com/hi/issues/resource)
+* **platform:** fast concurrent Talos and bulk TrueNAS App refresh (operator gated) ([#271](https://github.com/AlbanAndrieu/nabla-compose/issues/271)) ([9905e12](https://github.com/AlbanAndrieu/nabla-compose/commit/9905e12c47b5a49e80778cf3527d0aa7216b342e))
+* **truenas:** diagnose host and Docker pressure after Netdata stop [skip ci] ([#288](https://github.com/AlbanAndrieu/nabla-compose/issues/288)) ([e20b7e6](https://github.com/AlbanAndrieu/nabla-compose/commit/e20b7e63c82cbc8a8f406400eead658c3f911a23))
+
+
+### Performance Improvements
+
+* **quality:** réduire le coût de la boucle agent [skip ci] ([#294](https://github.com/AlbanAndrieu/nabla-compose/issues/294)) ([d718a01](https://github.com/AlbanAndrieu/nabla-compose/commit/d718a018cc7cbebdc027355a68631de77c2117c2))
+
 # [0.49.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.48.0...0.49.0) (2026-10-22)
 
 
