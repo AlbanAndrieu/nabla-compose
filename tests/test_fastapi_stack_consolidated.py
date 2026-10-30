@@ -216,6 +216,60 @@ class ContractTests(unittest.TestCase):
         self.assertIn('PASS=1', output.getvalue())
         self.assertIn('DENIED=1', output.getvalue())
 
+    def test_vaultwarden_operator_requires_own_shell(self):
+        with patch.object(stack.os, 'geteuid', return_value=0):
+            with patch.object(stack, 'run', side_effect=AssertionError('no bw under sudo')):
+                result = stack.vaultwarden_operator()
+        self.assertEqual(result[0]['state'], 'unprivileged_operator_required')
+
+    def test_vaultwarden_unlocked_without_session_export(self):
+        with patch.object(stack.os, 'geteuid', return_value=1000), \
+             patch.dict(stack.os.environ, {'BW_SESSION': ''}), \
+             patch.object(stack, 'run', return_value=('ok', {
+                  'status': 'unlocked', 'serverUrl': 'PRIVATE-URL'}, '')):
+            result = stack.vaultwarden_operator()
+        self.assertEqual(result[0]['state'], 'bw_session_export_missing')
+        self.assertNotIn('PRIVATE-URL', str(result))
+        self.assertIn('bw unlock --raw', stack.vaultwarden_next_step(result))
+
+    def test_locked_cli_produces_readonly_unlock_instruction(self):
+        with patch.object(stack.os, 'geteuid', return_value=1000), \
+             patch.object(stack, 'run', return_value=('ok', {'status': 'locked'}, '')):
+            result = stack.vaultwarden_operator()
+        self.assertEqual(result[0]['verdict'], 'DENIED')
+        self.assertIn('bw unlock --raw', stack.vaultwarden_next_step(result))
+
+    def test_vaultwarden_source_metadata_stages_are_redacted(self):
+        calls = []
+        def fake_run(argv, timeout=20):
+            calls.append(argv)
+            if argv[:2] == ['bw', 'status']:
+                return ('ok', {'status': 'unlocked', 'userEmail': 'PRIVATE-EMAIL'}, '')
+            if 'check-fastapi-litellm-sample-source.py' in ' '.join(argv):
+                return ('nonzero', {'field_state': 'vaultwarden_folder_failed'}, '')
+            return ('ok', {'field_state': 'field_present_nonempty_hidden'}, '')
+        with patch.object(stack.os, 'geteuid', return_value=1000), \
+             patch.dict(stack.os.environ, {'BW_SESSION': 'PRIVATE-SESSION'}), \
+             patch.object(Path, 'is_file', return_value=True), \
+             patch.object(stack, 'run', side_effect=fake_run):
+            result = stack.vaultwarden_operator()
+        self.assertEqual([r['verdict'] for r in result], ['PASS', 'UNVERIFIED', 'PASS'])
+        self.assertEqual(result[1]['state'], 'vaultwarden_folder_failed')
+        self.assertNotIn('PRIVATE-SESSION', str(result))
+        self.assertNotIn('PRIVATE-EMAIL', str(result))
+        self.assertEqual(len(calls), 3)
+
+    def test_vaultwarden_scope_skips_runtime_and_prints_login(self):
+        with patch.object(stack, 'vaultwarden_operator',
+                          return_value=[stack.row('vaultwarden_cli', 'DENIED', 'bw_login_required')]), \
+             patch.object(stack, 'ui_http', side_effect=AssertionError('no UI')), \
+             patch.object(stack, 'prometheus', side_effect=AssertionError('no Prometheus')), \
+             patch.object(stack, 'readiness', side_effect=AssertionError('no Docker')):
+            with redirect_stdout(io.StringIO()) as out:
+                code = stack.main(['--check', '--scope', 'vaultwarden', '--brief'])
+        self.assertEqual(code, 2)
+        self.assertIn('bw login', out.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

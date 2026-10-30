@@ -1429,6 +1429,10 @@ vaultwarden-runtime-parity:
 fastapi-stack-diagnostics:
     python3 scripts/truenas/diagnose-fastapi-stack.py --check
 
+# Vaultwarden CLI and source item checks: no sudo, no mutations.
+fastapi-stack-vaultwarden-check:
+    python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope vaultwarden --brief
+
 fastapi-stack-diagnostics-test:
     python3 -m py_compile scripts/truenas/diagnose-fastapi-stack.py tests/test_fastapi_stack_consolidated.py
     python3 -m unittest discover -s tests -p 'test_fastapi_stack_consolidated.py' -q

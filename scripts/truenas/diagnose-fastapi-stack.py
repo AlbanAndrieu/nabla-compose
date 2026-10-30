@@ -368,7 +368,11 @@ def openrag_dependencies() -> list[dict[str, object]]:
 
 
 def default_fastapi_root() -> Path | None:
-    for candidate in (ROOT / 'fastapi-sample', ROOT.parent / 'fastapi-sample'):
+    for candidate in (
+        ROOT / 'fastapi-sample',
+        ROOT.parent / 'fastapi-sample',
+        Path('/mnt/cpool/compose/nabla-compose/fastapi-sample'),
+    ):
         if (candidate / 'scripts/truenas/diagnose-fastapi-metrics-auth.py').is_file():
             return candidate
     return None

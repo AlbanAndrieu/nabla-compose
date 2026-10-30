@@ -74,9 +74,19 @@ def check() -> str:
     client = BitwardenClient(
         session=os.environ["BW_SESSION"], server=manifest["server"]
     )
-    client.verify()
-    client.verify_folder(manifest["folder"]["id"], manifest["folder"]["name"])
-    return classify(client.get_exact_item(ITEM, manifest["folder"]["id"]))
+    try:
+        client.verify()
+    except (SecretsError, OSError, ValueError, TypeError, KeyError):
+        return "vaultwarden_verify_failed"
+    try:
+        client.verify_folder(manifest["folder"]["id"], manifest["folder"]["name"])
+    except (SecretsError, OSError, ValueError, TypeError, KeyError):
+        return "vaultwarden_folder_failed"
+    try:
+        item = client.get_exact_item(ITEM, manifest["folder"]["id"])
+    except (SecretsError, OSError, ValueError, TypeError, KeyError):
+        return "vaultwarden_item_lookup_failed"
+    return classify(item)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -148,3 +148,69 @@ just litellm-fastapi-upstream-source-check
 La source et le runtime peuvent être décalés. Ne pas substituer
 \`LITELLM_IDE_API_KEY\`, la clé master, ni recréer des clés ou conteneurs
 avant attribution de la source et contrôle de l'enregistrement virtuel.
+
+## Session Vaultwarden : contrôle sans sudo
+
+Depuis le worktree Compose, utiliser le shell opérateur non-root :
+
+~~~bash
+cd /mnt/cpool/compose/nabla-compose-pr295-acceptance
+just fastapi-stack-vaultwarden-check
+~~~
+
+Le lanceur lit bw status sans diffuser serverUrl, e-mail ni BW_SESSION.
+Une session CLI déverrouillée ne garantit pas l'accès aux items.
+Si l'état est bw_login_required, lancer bw login en interactif.
+Si l'état est bw_unlock_required ou bw_session_export_missing,
+lancer dans le MEME shell, sans recopier le résultat :
+
+~~~bash
+export BW_SESSION="$(bw unlock --raw)"
+~~~
+
+Le contrôle appelle les deux vérificateurs Vaultwarden déjà versionnés.
+Les états vaultwarden_verify_failed, vaultwarden_folder_failed et
+vaultwarden_item_lookup_failed désignent respectivement la vérification
+du serveur/session/sync, du dossier et de l'item exact. Aucune réponse
+brute Vaultwarden ne doit être affichée. Ne pas utiliser sudo ici :
+root n'a pas la même session CLI.
+
+## Chemins Compose et FastAPI distincts
+
+Le lanceur diagnose-fastapi-stack.py est dans nabla-compose et non
+dans fastapi-sample. Depuis un terminal ouvert dans fastapi-sample,
+utiliser son chemin ABSOLU :
+
+~~~bash
+sudo python3 /mnt/cpool/compose/nabla-compose-pr295-acceptance/scripts/truenas/diagnose-fastapi-stack.py \
+  --check --scope prometheus \
+  --fastapi-root /mnt/cpool/compose/nabla-compose/fastapi-sample \
+  --brief
+~~~
+
+Le lanceur détecte aussi ce chemin FastAPI canonique automatiquement.
+Ce chemin a été attesté par l'opérateur. Le NOT_RUN antérieur pour
+fastapi_metrics_auth désigne une découverte de fichier manquée, pas
+un scrape Prometheus en panne.
+
+## OPENRAG_API_KEY : ne pas confondre secret et authentification
+
+Le code actuellement versionné n'établit aucun consommateur
+OPENRAG_API_KEY. L'accès privé FastAPI repose sur MCP_CLIENTS, le filtre
+OPENRAG_BABABOU_FILTER_ID et une future identité autorisée.
+HTTP 406 sur GET /mcp ne prouve ni un contrôle X-API-Key ni une
+session MCP authentifiée. Un token peut être généré en terminal privé
+avec openssl rand -hex 32, mais il ne doit être considéré comme
+actif qu'après provisionnement et validation du serveur et du client.
+Le script ne génère ni ne transmet de secret. Ne jamais remplacer
+OPENRAG_ENCRYPTION_KEY ou LANGFLOW_KEY par ce token.
+
+## LiteLLM upstream : séparer les consommateurs
+
+LITELLM_FASTAPI_WORKSTATION_API_KEY présente dans le fichier
+/mnt/cpool/secrets/runtime/sample/.env.secrets n'est pas nécessairement
+présente dans le conteneur litellm. Son fichier source canonique est
+/mnt/cpool/secrets/runtime/litellm/.env.secrets. Vérifier d'abord
+la source Vaultwarden et le mapping Compose. docker restart ne
+recharge pas les variables d'environnement d'un conteneur existant :
+une recréation contrôlée peut être nécessaire après vérification.

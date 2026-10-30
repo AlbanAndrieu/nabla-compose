@@ -140,5 +140,25 @@ class FastApiUpstreamSourceTests(unittest.TestCase):
         self.assertNotIn("SECRET-NEVER-PRINT", out.getvalue())
 
 
+    def test_vaultwarden_stages_are_redacted(self):
+        manifest = {"server": "https://example.invalid",
+            "folder": {"id": "synthetic-folder", "name": "TrueNAS"},
+            "items": [{"app": mod.APP, "item": mod.ITEM,
+                       "secrets": [{"env": mod.FIELD, "field": mod.FIELD}]}]}
+        for method, expected in (
+            ("verify", "vaultwarden_verify_failed"),
+            ("verify_folder", "vaultwarden_folder_failed"),
+            ("get_exact_item", "vaultwarden_item_lookup_failed"),
+        ):
+            with self.subTest(method=method):
+                client = MagicMock()
+                getattr(client, method).side_effect = mod.SecretsError("SECRET-NEVER-PRINT")
+                with patch.object(mod.os, "geteuid", return_value=1000), \
+                     patch.dict(os.environ, {"BW_SESSION": "SYNTHETIC-SESSION"}), \
+                     patch.object(mod, "load_manifest", return_value=manifest), \
+                     patch.object(mod, "BitwardenClient", return_value=client):
+                    self.assertEqual(mod.check(), expected)
+
+
 if __name__ == "__main__":
     unittest.main()
