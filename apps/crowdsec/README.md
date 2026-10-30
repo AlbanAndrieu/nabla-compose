@@ -3,6 +3,38 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception des règles PF chargées — 30 octobre 2026
+
+**Gate ciblé sur la workstation : 100/100 PASS**,
+dont **21/21 tests** du nouveau diagnostic des règles.
+La commande `just crowdsec-pf-rules-audit` a produit :
+
+```text
+crowdsec_pf_rules=BLOCK_RULE_LOADED source=LIVE pf=ENABLED root_ipv4_block_quick_in=1 anchor_ipv4_block_quick_in=1 root_ipv6_block_quick_in=1 anchor_coverage=READ
+crowdsec_wan_rule=NOT_VERIFIED wan_interface=NOT_SPECIFIED compatible_root_rule=NOT_CHECKED packet_block=NOT_VERIFIED
+```
+
+**DONE — configuration PF active :** règle IPv4 racine
+`block in quick` utilisant `crowdsec_blacklists`
+en source ; règle IPv6 racine `block in quick`
+utilisant `crowdsec6_blacklists` ;
+règle IPv4 dans la vue des ancres.
+
+**Reste à démontrer :** que la règle corresponde à l'interface
+WAN effectivement assignée, puis qu'un paquet WAN soit
+bloqué (logs/compteurs/états). Le diagnostic ne reçoit
+pas d'interface WAN et ne peut pas conclure un tel blocage.
+Voir le runbook pour obtenir l'interface via pfSense
+`Status > Interfaces` sans exposer l'IP WAN.
+
+Le `git pull --ff-only` du même relevé a échoué car
+le checkout de la workstation comportait des changements
+indexés et non indexés. Les tests ont réussi **sur les
+fichiers locaux**, pas nécessairement sur la dernière tête
+GitHub ; ne pas supprimer les changements locaux.
+Un worktree détaché depuis `origin/fix/openclaw-diagnostics-fail-closed-20261030`
+permet de valider le commit PR indépendamment.
+
 ## Audit suivant — règles PF chargées, lecture seule (30/10/2026)
 
 La preuve précédente `SYNTHETIC_PF_DECISION_CYCLE_PASS`
