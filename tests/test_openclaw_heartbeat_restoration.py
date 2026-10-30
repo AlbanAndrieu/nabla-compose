@@ -25,8 +25,10 @@ class HeartbeatPolicyTests(unittest.TestCase):
         self.assertTrue(p['native_heartbeat']['require_429_attribution_before_activation'])
         self.assertFalse(p['native_heartbeat']['cost_budget_verified'])
         candidate=(ROOT/'HEARTBEAT-RESTORED.candidate.md').read_text()
-        for name in ('homelab-health','workboard-follow-up','security-diagnostics'):
-            self.assertIn('name: '+name,candidate)
+        self.assertIn('Gatus',candidate)
+        self.assertIn('Prometheus',candidate)
+        self.assertIn('Workboard/Tasks',candidate)
+        self.assertNotIn('\ntasks:\n',candidate)
         self.assertNotIn('openclaw doctor --fix\n',candidate)
         self.assertNotIn('gmail.send',candidate)
 

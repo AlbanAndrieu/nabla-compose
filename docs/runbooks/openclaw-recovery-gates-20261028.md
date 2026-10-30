@@ -201,8 +201,12 @@ Loki, velocity, brainstorm, briefing, digest et contrôle hebdomadaire.
 Le fichier `heartbeat-restoration.policy.json` garde les fréquences
 originelles comme **références**, sans prétendre avoir récupéré des secrets.
 
-Le candidat `HEARTBEAT-RESTORED.candidate.md` réunit trois tâches
-natives en lecture seule (2h santé, 6h Workboard, 12h diagnostics) ;
+Le candidat `HEARTBEAT-RESTORED.candidate.md` conserve une
+checklist concise en lecture seule, sans bloc `tasks:` actif : la
+configuration du monitor et les tâches planifiées natives doivent être
+revues séparément selon la version installée (le scratch en base peut
+remplacer `HEARTBEAT.md`). La politique propose 2h pour le heartbeat,
+6h pour le suivi Workboard et 12h pour les diagnostics, non activés ;
 les connecteurs privés CalDAV/Gmail/WhatsApp/Obsidian restent des jobs
 séparés et inactifs tant que leurs ACL et destinataires ne sont pas vérifiés.
 Le vrai `HEARTBEAT.md` demeure **comment-only** pour éviter un réveil
