@@ -154,13 +154,20 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue())['decision'], 'INCOMPLETE')
 
     def test_ai_outside_truenas_does_not_use_local_docker(self):
-        with patch.object(stack, 'is_truenas', return_value=False):
-            with patch.object(stack, 'readiness', side_effect=AssertionError('wrong Docker host')):
-                with redirect_stdout(io.StringIO()) as output:
-                    code = stack.main(['--check', '--scope', 'ai', '--json'])
+        with patch.object(stack, 'is_truenas', return_value=False), \
+             patch.object(stack, 'readiness', side_effect=AssertionError('wrong Docker host')), \
+             patch.object(stack, 'vaultwarden_operator',
+                          side_effect=AssertionError('bw must not run in AI scope')):
+            with redirect_stdout(io.StringIO()) as output:
+                code = stack.main(['--check', '--scope', 'ai', '--json'])
         self.assertEqual(code, 2)
-        self.assertEqual(json.loads(output.getvalue())['checks'][0]['state'],
-                         'truenas_host_required')
+        checks = json.loads(output.getvalue())['checks']
+        self.assertEqual(
+            next(item['state'] for item in checks
+                 if item['component'] == 'ai_truenas_runtime'),
+            'truenas_host_required')
+        self.assertFalse(any(item['component'].startswith('vaultwarden_')
+                             for item in checks))
 
     def test_openrag_misconfigured_is_not_pass(self):
         with patch.object(Path, 'is_file', return_value=True):
