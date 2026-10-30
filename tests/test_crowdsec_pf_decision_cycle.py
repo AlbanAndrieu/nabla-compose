@@ -77,6 +77,36 @@ class NaturalDecisionCycle(unittest.TestCase):
         self.assertIn('SIMULATED_PASS_NOT_RUNTIME_VERIFIED', done.stdout)
         self.assertNotIn('pf_decision_cycle=PF_DECISION_CYCLE_PASS', done.stdout)
 
+    def test_nested_alert_baseline_counts_existing_ban(self):
+        self.snapshot([{'id': 101, 'simulated': False,
+                        'source': {'scope': 'Ip', 'value': '8.8.8.8'},
+                        'decisions': [ban()]}], '9.9.9.9\n')
+        result = self.run_command('baseline')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('natural_bans=1', result.stdout)
+        self.assertEqual(2, json.loads(self.state.read_text())['schema'])
+
+    def test_nested_new_ban_is_detected(self):
+        self.baseline()
+        self.snapshot([{'id': 101, 'simulated': False,
+                        'decisions': [ban()]}], '9.9.9.9\n')
+        result = self.run_command('observe')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PF_APPLICATION_NOT_OBSERVED', result.stdout)
+
+    def test_unknown_alert_shape_is_not_silently_empty(self):
+        self.snapshot([{'id': 101, 'source': {'ip': '8.8.8.8'}}], '9.9.9.9\n')
+        result = self.run_command('baseline')
+        self.assertEqual(2, result.returncode)
+        self.assertFalse(self.state.exists())
+
+    def test_legacy_v1_baseline_must_not_be_trusted(self):
+        self.baseline()
+        state = json.loads(self.state.read_text())
+        state['schema'] = 1
+        self.state.write_text(json.dumps(state))
+        self.assertEqual(2, self.run_command('observe').returncode)
+
     def test_no_candidate_stays_not_verified(self):
         self.baseline()
         proc = self.run_command('observe')
