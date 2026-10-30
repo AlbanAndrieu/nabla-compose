@@ -427,3 +427,81 @@ ci-dessus pour la version corrigée. Les diagnostics ne lisent pas l'archive,
 ne modifient ni NFS ni les secrets. La phrase secrète de récupération
 indépendante demeure **NON ATTESTÉE**.
 
+
+## P1 — Recenser les consommateurs avant une allowlist NFS (PR #295)
+
+**Objectif :** réduire l'exposition de l'export partagé, sans interrompre
+les écritures de sauvegarde. Le passage `read_only=true` et toute
+modification `hosts`/`networks` sont **NO-GO** à ce stade.
+
+### Dépendances déclarées dans le code
+
+| Usage | Preuve versionnée | Nature | État d'exécution |
+| --- | --- | --- | --- |
+| Workstation Ubuntu | Montage `nabla:/mnt/cpool/backup/lab` vers `/media/backup/lab`, déjà confirmé par les contrôles précédents | Client NFS **confirmé** | Montage observé |
+| OpenClaw : archive et bases | [`scripts/workstation/backup-openclaw-nfs.py`](../../scripts/workstation/backup-openclaw-nfs.py) | **Écriture** dans `infra/openclaw` | Dépendance de code, exécution planifiée non vérifiée |
+| OpenClaw : transfert local → NFS | [`scripts/workstation/copy-openclaw-backups-nfs.sh`](../../scripts/workstation/copy-openclaw-backups-nfs.sh) | **Écriture** dans le même export | Exécution courante non vérifiée |
+| YubiKey / age / escrow | [`scripts/workstation/backup-usb-age-identity.py`](../../scripts/workstation/backup-usb-age-identity.py) | **Écriture exceptionnelle** dans `secret` | Sauvegarde exécutée et restaurée |
+| OpenClaw heartbeat | [`scripts/workstation/apply-openclaw-heartbeat-scratch.py`](../../scripts/workstation/apply-openclaw-heartbeat-scratch.py) | Restauration/écriture potentielle dans `infra/openclaw` | Ne pas exécuter pour cet audit |
+| Sauvegardes de configuration pfSense | [`docs/dns-ingress-ownership.md`](../dns-ingress-ownership.md) | Archives historiques sur le même export | Client NFS d'origine **non déterminé** |
+
+**Important :** plusieurs applications qui écrivent dans le partage
+depuis la même workstation représentent **un seul client NFS**.
+L'existence d'un script ou d'une archive sur TrueNAS ne prouve pas
+qu'une autre machine monte cet export. Aucun client supplémentaire
+n'est inventé pour construire une allowlist.
+
+### Sonde de connexions NFS, sans fuite d'adresses
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just yubikey-usb-identity-nfs-consumers-test
+just yubikey-usb-identity-nfs-consumers-check
+just yubikey-usb-identity-nfs-consumers-probe
+```
+
+- Le test est hermétique et ne contacte pas TrueNAS.
+- Le `--check` vérifie uniquement les métadonnées des deux backups
+  chiffrés existants ; aucune SanDisk ni phrase secrète nécessaire.
+- Le `--probe` utilise SSH non interactif avec
+  `StrictHostKeyChecking=yes` pour lancer **`ss` en lecture seule**
+  sur TrueNAS. Il compte les connexions TCP établies dont le port
+  serveur local est **2049**, et les adresses clientes distinctes,
+  **sans imprimer leurs valeurs**.
+- `tcp_sessions` et `unique_tcp_peers` concernent **tous les exports
+  NFS du serveur**, pas spécifiquement `lab`. Un client absent de
+  cet instantané peut être intermittent, utiliser un autre protocole,
+  avoir une session expirée ou être hors ligne.
+- Même sur PASS, `consumer_allowlist_verified=false`,
+  `all_clients_enumerated=false` et
+  `export_specific_clients_verified=false`.
+
+**État :** les nouveaux scripts et 8 tests hermétiques sont publiés,
+mais leur exécution sur la workstation et la sonde TrueNAS restent
+**NOT_RUN**. Aucun `sharing.nfs.update` ou `exportfs -r` n'est
+inclus. Cette sonde **n'autorise pas** la création automatique
+d'une allowlist à partir du seul instantané.
+
+### Conditions avant un changement d'export
+
+1. Identifier les points de montage réels et les automounts de **tous**
+   les hôtes pouvant accéder à cet export, pas seulement les sessions
+   TCP au moment du test.
+2. Relier chaque hôte à ses jobs d'écriture et à ses propriétaires ;
+   vérifier la disponibilité des restaurations et le besoin d'accès
+   après incident.
+3. Qualifier la politique `security=[]` et le mécanisme réellement
+   négocié (dont `sec=sys`), puis vérifier le traitement des UID/GID
+   et du superutilisateur sur le NAS.
+4. Préparer un changement séparé de `hosts`/`networks`, ainsi
+   qu'un plan de retour arrière hors NFS et une fenêtre de test.
+5. Effectuer un contrôle positif depuis chaque client autorisé et un
+   contrôle négatif avec identité de test indépendante, sans lire
+   les archives sensibles.
+
+**Décision GO :** seulement après inventaire exhaustif validé par
+l'opérateur et test de restauration des usages critiques. Les
+permissions `0700/0600` des dossiers privés restent intactes et
+les sauvegardes de l'identité USB ne sont pas régénérées.
+
