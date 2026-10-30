@@ -1797,6 +1797,7 @@ openclaw-heartbeat-restore-test:
 
 # Complete local-first evidence sweep. Never changes Gateway, LiteLLM or cron.
 openclaw-migration-evidence-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_policy_relocation.py' -v
     python3 -m unittest discover -s tests -p 'test_justfile_recipe_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_migration_evidence.py' -v
 

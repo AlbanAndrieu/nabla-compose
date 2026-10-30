@@ -16,8 +16,9 @@ class PlanTests(unittest.TestCase):
 
     def test_candidate_paths_do_not_auto_migrate(self):
         self.assertEqual(mod.classify("scripts/workstation/inspect-yubikey-readonly.py"),"candidate_yubikey_review")
-        self.assertEqual(mod.classify("apps/openclaw/workstation/runtime-contract.json"),"candidate_openclaw_target_review")
+        self.assertEqual(mod.classify("ops/openclaw-workstation/runtime-contract.json"),"candidate_openclaw_target_review")
         self.assertEqual(mod.classify("scripts/workstation/diagnose-openclaw.sh"),"candidate_openclaw_target_review")
+        self.assertEqual(mod.classify("apps/openclaw/compose.yml"),"retain_compose_service")
 
     def test_summary_never_authorizes_copy(self):
         report=mod.summarize(["apps/litellm/config.yaml","scripts/workstation/inspect-yubikey.py"],

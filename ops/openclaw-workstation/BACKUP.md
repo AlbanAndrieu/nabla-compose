@@ -15,7 +15,7 @@ An attempted remote content read of the old HEARTBEAT.md failed decoding;
 therefore its byte-for-byte contents have NOT been migrated or validated.
 
 Canonical **reviewed, non-secret** workstation heartbeat policy belongs here
-under `apps/openclaw/workstation/HEARTBEAT.md`. The Compose service at
+under `ops/openclaw-workstation/HEARTBEAT.md`. The Compose service at
 `apps/openclaw/compose.yml` may be a different runtime: **do not mount or
 apply workstation heartbeat policies to TrueNAS by accident**.
 
@@ -31,7 +31,7 @@ outstanding.
 
 | Tier | Contents | Destination | Policy |
 | --- | --- | --- | --- |
-| A: reviewed Git configuration | Minimal `HEARTBEAT.md`, sanitized templates, runbooks, deterministic scripts | `nabla-compose/apps/openclaw/workstation/` | Versioned; PR reviewed; no secrets or personal content |
+| A: reviewed Git configuration | Minimal `HEARTBEAT.md`, sanitized templates, runbooks, deterministic scripts | `nabla-compose/ops/openclaw-workstation/` | Versioned; PR reviewed; no secrets or personal content |
 | B: owner-controlled private Git dotfiles | Encrypted `.env`, encrypted `gateway.systemd.env`, personal `USER.md`/`SOUL.md`, identity, agent and configuration templates | Private `AlbanAndrieu/nabla` | **Retain, do not migrate or delete**; verify protection before changing |
 | D: live runtime backup | Active per-agent `openclaw-agent.sqlite`, sessions, memory database, credentials and workspace runtime | Verified encrypted OpenClaw archive/SQLite snapshot or Restic | Do not copy live SQLite/WAL raw into Git; restore drill required |
 | C: baseline infrastructure | Compose service definitions and non-secret policies | `nabla-compose/apps/openclaw/` | Existing Git workflow |
@@ -115,10 +115,10 @@ RAM, CPU, services, calendriers, Gmail, WhatsApp, alertes et tâches).
 
 **Décision :** ne pas réintroduire ces sondes coûteuses dans la boucle
 native `main` de 30 minutes. Le fichier
-`apps/openclaw/workstation/HEARTBEAT.md` reste volontairement
+`ops/openclaw-workstation/HEARTBEAT.md` reste volontairement
 comment-only pour laisser OpenClaw ignorer les tours vides.
 Le briefing complet et révisé est versionné séparément dans
-`apps/openclaw/workstation/MORNING_BRIEFING.md` :
+`ops/openclaw-workstation/MORNING_BRIEFING.md` :
 - tous les états dynamiques restent `Non vérifié` sans preuve ;
 - seules des preuves autorisées Gatus/Prometheus/FastAPI sont utilisées ;
 - les conversations exclues restent dans une configuration privée ;

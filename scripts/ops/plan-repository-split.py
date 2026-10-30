@@ -22,9 +22,9 @@ def classify(path: str) -> str:
         return "excluded_secret_or_crypto_policy"
     if path.startswith("apps/litellm/") or path.startswith("scripts/truenas/"):
         return "retain_compose_server"
-    if path.startswith("apps/openclaw/") and not path.startswith("apps/openclaw/workstation/"):
+    if path.startswith("apps/openclaw/"):
         return "retain_compose_service"
-    if path.startswith("apps/openclaw/workstation/"):
+    if path.startswith("ops/openclaw-workstation/"):
         return "candidate_openclaw_target_review"
     if path.startswith(("scripts/workstation/", "tests/", "docs/")) and YUBI.search(path):
         return "candidate_yubikey_review"

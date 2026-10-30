@@ -8,7 +8,7 @@ par OpenClaw : reason=empty-heartbeat-file, aucun appel de modèle.
 Ce fichier n'est PAS le modèle du briefing quotidien.
 Le briefing détaillé, avec météo, CPU, RAM, disque, services, Gatus,
 Prometheus, CalDAV, Gmail, WhatsApp et tâches, est versionné dans
-apps/openclaw/workstation/MORNING_BRIEFING.md et projeté dans le workspace
+ops/openclaw-workstation/MORNING_BRIEFING.md et projeté dans le workspace
 par le script GitOps.
 
 Le briefing doit être demandé explicitement ou exécuté dans une tâche
