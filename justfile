@@ -1434,8 +1434,10 @@ fastapi-stack-vaultwarden-check:
     python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope vaultwarden --brief
 
 fastapi-stack-diagnostics-test:
-    python3 -m py_compile scripts/truenas/diagnose-fastapi-stack.py tests/test_fastapi_stack_consolidated.py
+    python3 -m py_compile scripts/truenas/diagnose-fastapi-stack.py tests/test_fastapi_stack_consolidated.py scripts/secrets/check-fastapi-litellm-sample-source.py scripts/secrets/check-litellm-fastapi-upstream-source.py
     python3 -m unittest discover -s tests -p 'test_fastapi_stack_consolidated.py' -q
+    python3 -m unittest discover -s tests -p 'test_fastapi_litellm_sample_source.py' -q
+    python3 -m unittest discover -s tests -p 'test_litellm_fastapi_upstream_source.py' -q
 
 # Read-only seven-job Prometheus scrubber (no scrape URI, body or token).
 prometheus-remaining-scrapes:
