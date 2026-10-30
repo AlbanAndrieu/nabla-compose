@@ -146,7 +146,8 @@ class Contracts(unittest.TestCase):
 
     def test_synthetic_remote_export_filters_and_user_mapping(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            # macOS /var is a symlink; the remote check rightly refuses symlinked parents.
+            root = Path(temp).resolve()
             export = root / "lab"
             backups = export / "secret" / "usb-recovery-backups"
             backups.mkdir(parents=True)
