@@ -161,10 +161,12 @@ def main(argv=None):
     if old_sha != args.expected_message_sha:
         print("apply=blocked_concurrent_drift")
         return 2
-    if job.get("state", {}).get("runningAtMs"):
+    state = job.get("state")
+    if isinstance(state, dict) and state.get("runningAtMs"):
         print("apply=blocked_running_job")
         return 2
-    if sha(runtime_job()["payload"]["message"]) != old_sha:
+    current = runtime_job()
+    if current is None or sha(current["payload"]["message"]) != old_sha:
         print("apply=blocked_concurrent_drift")
         return 2
     try:
