@@ -21,6 +21,8 @@ run_probe() {
 run_probe runtime python3 scripts/workstation/check-openclaw-runtime-alignment.py
 run_probe model_cooldowns python3 scripts/workstation/diagnose-openclaw-model-cooldowns.py
 run_probe rate_limit_evidence python3 scripts/workstation/observe-openclaw-rate-limits.py
+# These two proxies must be distinguishable: local-only coverage is partial.
+run_probe litellm_dual_logs python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py
 run_probe digest_cron python3 scripts/workstation/plan-openclaw-cron-recovery.py
 
 printf '\nread_only=true model_requests=0 probe_failures=%s\n' "${failed}"

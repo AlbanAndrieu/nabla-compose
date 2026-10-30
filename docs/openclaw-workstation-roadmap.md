@@ -1,5 +1,7 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
+> **Heartbeat restauré en candidat (30 octobre 2026) :** inventaire de 14 fonctions historiques conservé dans `apps/openclaw/workstation/heartbeat-restoration.policy.json`, avec trois tâches natives à cadence réduite dans `HEARTBEAT-RESTORED.candidate.md`. Aucun runtime activé, aucune copie des secrets des sauvegardes. Le nouveau diagnostic `just openclaw-litellm-dual-logs-check` exige l'accès distinct aux deux proxies ; un seul accessible reste `partial_or_unverified`. [Runbook](runbooks/openclaw-recovery-gates-20261028.md).
+
 > **Mise à jour du code : 30 octobre 2026.** Les PR [#289](https://github.com/AlbanAndrieu/nabla-compose/pull/289) et [#292](https://github.com/AlbanAndrieu/nabla-compose/pull/292) sont **fusionnées**. Les diagnostics d'alignement, de 429, de digest et de sessions sont versionnés mais l'activation systemd et la réparation effective du runtime ne sont **pas attestées**. Voir le [runbook dédié](runbooks/openclaw-recovery-gates-20261028.md).
 >
 > **Durcissement en cours :** contrôles `cooldown` et `agent:cron:main` à échec fermé, chemins Node des diagnostics dérivés du contrat de version. Ne pas confondre résultat d'un test local et preuve runtime.

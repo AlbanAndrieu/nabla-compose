@@ -1720,6 +1720,8 @@ openclaw-runtime-paths-test:
 
 # Run existing focused suites locally (no CI, gateway, model requests or state writes).
 openclaw-recovery-quality:
+    just openclaw-litellm-dual-logs-test
+    just openclaw-heartbeat-restore-test
     just openclaw-runtime-paths-test
     just openclaw-runtime-alignment-test
     just openclaw-429-triage-test
@@ -1728,3 +1730,17 @@ openclaw-recovery-quality:
     just openclaw-cron-recovery-test
     just openclaw-cron-session-maintenance-test
     just openclaw-recovery-readonly-test
+
+# Both LiteLLM log surfaces; user journal/docker locally, fixed SSH TrueNAS:9922.
+# No prompts or secrets printed, no sudo, remote writes, inference or restarts.
+openclaw-litellm-dual-logs-test:
+    python3 -m py_compile scripts/workstation/diagnose-openclaw-litellm-dual-logs.py tests/test_openclaw_litellm_dual_logs.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_litellm_dual_logs.py' -v
+
+openclaw-litellm-dual-logs-check:
+    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2
+
+# Recovered legacy behavior inventory, candidate native heartbeat NOT deployed.
+openclaw-heartbeat-restore-test:
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_restoration.py' -v
+    python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
