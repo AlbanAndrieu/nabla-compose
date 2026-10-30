@@ -13,11 +13,11 @@ from pathlib import Path
 import re
 import stat
 import subprocess
+from runpy import run_path
 
 JOB_ID = "7ed5dd9a-da30-479f-b0eb-4cc494fb4966"
 JOB_NAME = "daily-tech-news-digest"
 # Resolves Node from the aligned mise/runtime contract; never PATH or stale release.
-from runpy import run_path
 NODE, CLI = run_path(str(Path(__file__).with_name("openclaw_runtime_paths.py")))["pinned_cli_paths"]()
 SKILL_TEMPLATE = (Path.home() / ".openclaw/workspace/skills/tech-news-digest/"
                   "references/digest-prompt.md")

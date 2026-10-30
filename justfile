@@ -1717,3 +1717,14 @@ openclaw-recovery-readonly:
 openclaw-runtime-paths-test:
     python3 -m py_compile scripts/workstation/openclaw_runtime_paths.py tests/test_openclaw_runtime_paths.py
     python3 -m unittest discover -s tests -p 'test_openclaw_runtime_paths.py' -v
+
+# Run existing focused suites locally (no CI, gateway, model requests or state writes).
+openclaw-recovery-quality:
+    just openclaw-runtime-paths-test
+    just openclaw-runtime-alignment-test
+    just openclaw-429-triage-test
+    just openclaw-digest-top-test
+    just openclaw-cron-parent-test
+    just openclaw-cron-recovery-test
+    just openclaw-cron-session-maintenance-test
+    just openclaw-recovery-readonly-test

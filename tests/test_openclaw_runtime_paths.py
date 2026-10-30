@@ -1,9 +1,9 @@
 """Offline helper tests, no workstation or Gateway required."""
-from pathlib import Path
+import importlib.util
 import json
+from pathlib import Path
 import tempfile
 import unittest
-import importlib.util
 
 SRC = Path(__file__).resolve().parents[1] / "scripts/workstation/openclaw_runtime_paths.py"
 spec = importlib.util.spec_from_file_location("oc_runtime_paths", SRC)

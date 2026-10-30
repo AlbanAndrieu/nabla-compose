@@ -152,3 +152,41 @@ de la session principale cron. **Chaque section est tentée**, même si
 une précédente échoue. `probe_failures=0` signifie uniquement que les
 commandes ont terminé avec un code 0 ; cela ne prouve pas l'absence de
 429 ni le bon fonctionnement du chat. Les sondes restent en lecture seule.
+
+## Durcissement des preuves (30 octobre 2026)
+
+Les commandes `diagnose-openclaw-model-cooldowns.py` et
+`diagnose-openclaw-cron-parent.py` retournent maintenant un état
+**non nul** lorsque l'information essentielle manque : CLI absente,
+schéma `unusableProfiles` inaccessible, ou session principale `cron`
+non démontrée. Il est possible qu'une sortie en lecture seule
+précédemment classée `completed` apparaisse désormais `failed`
+dans l'agrégateur. Cela signale une preuve manquante ou un incident
+encore ouvert, **pas** nécessairement une nouvelle panne du Gateway.
+
+Les CLI des sondes cooldown, cron, digest et maintenance sont
+résolues par `scripts/workstation/openclaw_runtime_paths.py` en
+comparant `mise.toml` au contrat `runtime-contract.json`.
+Si les versions divergent, aucun exécutable ancien trouvé dans
+`PATH` ne doit être invoqué ; le diagnostic se déclare non vérifié.
+Le récupérateur historique d'upgrade reste explicitement versionné :
+ne pas l'exécuter comme simple sonde.
+
+Pour valider **uniquement le code** dans la Workstation :
+
+```bash
+just openclaw-recovery-quality
+```
+
+Ensuite, pour la preuve runtime (lecture seule, aucune génération
+de modèle) :
+
+```bash
+just openclaw-recovery-readonly
+```
+
+La création d'une nouvelle session `cron` est un **tour d'agent**
+pris en charge par OpenClaw (CLI `openclaw agent --agent cron` ou
+Control UI), qui consomme potentiellement des tokens. Ce n'est pas une
+conséquence de `sessions cleanup` et le présent runbook ne l'exécute
+pas. Référence : https://docs.openclaw.ai/cli/agent

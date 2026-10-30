@@ -13,9 +13,9 @@ import os
 from pathlib import Path
 import stat
 import subprocess
+from runpy import run_path
 
 # Resolves Node from the aligned mise/runtime contract; never PATH or stale release.
-from runpy import run_path
 NODE, CLI = run_path(str(Path(__file__).with_name("openclaw_runtime_paths.py")))["pinned_cli_paths"]()
 MAX_OUTPUT = 512 * 1024
 FIELDS = ("beforeCount", "afterCount", "pruned", "capped", "missing", "dmScopeRetired")

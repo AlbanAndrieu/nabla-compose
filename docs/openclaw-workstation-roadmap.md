@@ -1,9 +1,8 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
-> **Diagnostic runtime / 429 / digest / sessions (28 octobre 2026) :** [nouveaux garde-fous de récupération](runbooks/openclaw-recovery-gates-20261028.md), code en PR non déployé ; ne pas confondre les tests hors ligne et les preuves Workstation.
+> **Mise à jour du code : 30 octobre 2026.** Les PR [#289](https://github.com/AlbanAndrieu/nabla-compose/pull/289) et [#292](https://github.com/AlbanAndrieu/nabla-compose/pull/292) sont **fusionnées**. Les diagnostics d'alignement, de 429, de digest et de sessions sont versionnés mais l'activation systemd et la réparation effective du runtime ne sont **pas attestées**. Voir le [runbook dédié](runbooks/openclaw-recovery-gates-20261028.md).
 >
-> Mise à jour : **27 octobre 2026** · propriétaire : **nabla-compose** ·
-> statut : **PR #289 Draft, changements non déployés**.
+> **Durcissement en cours :** contrôles `cooldown` et `agent:cron:main` à échec fermé, chemins Node des diagnostics dérivés du contrat de version. Ne pas confondre résultat d'un test local et preuve runtime.
 > Périmètre : OpenClaw Workstation (agents `main`/`cron`), LiteLLM
 > Workstation en amont, politiques et tâches planifiées. Le runtime
 > TrueNAS et ses secrets restent distincts. Cette roadmap ne remplace
