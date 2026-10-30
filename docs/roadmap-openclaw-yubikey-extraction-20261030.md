@@ -12,11 +12,31 @@
 | `ansible-workstation` | Pré-requis OS, audits source systemd/Node/mise/DNS, sécurité Ubuntu | PR #16 **fusionnée** ; audit YubiKey sans PAM | Audit OS déjà attesté, pas de provisionnement matériel |
 | `dotfiles` | Shell, Terminator, Starship, configuration utilisateur interactive | Hors transfert | Inchangé |
 
+## Dépendance P0 — LiteLLM, Vaultwarden et frontières des identités
+
+**État vérifié par les sorties opérateur, 28–30 octobre :**
+
+| Saut | Identité | Preuve disponible | Verdict |
+| --- | --- | --- | --- |
+| FastAPI Sample → LiteLLM TrueNAS | `fastapi-sample-staging` ; `LITELLM_API_KEY`, modèle `fastapi-qwen` | Tentative de génération sur TrueNAS : `BLOCKED` ; résultat en base non inspecté | **UNVERIFIED** ; pas de nouvelle tentative sans inventaire d'alias |
+| LiteLLM TrueNAS → LiteLLM Workstation | `fastapi-sample-upstream` ; `LITELLM_FASTAPI_WORKSTATION_API_KEY`, modèle `qwen` | 12/12 tests inventaire PASS ; alias absent avant émission ; `status=created target=workstation model=qwen` ; fichier privé `0600` attesté | **ISSUED_LOCAL**, pas encore `READY` |
+| Coffre Vaultwarden → runtime TrueNAS | Champ masqué dans `nabla/prod/litellm` → `/mnt/cpool/secrets/runtime/litellm/.env.secrets` | Dernier audit fichier TrueNAS : déclaration absente ; import CLI interrompu avant `bw edit` | **NOT_VERIFIED** |
+| OpenClaw main / cron → LiteLLM | Clés dédiées main/cron, distinctes de FastAPI | Attribution 429/401, budgets, modèles et identité effective à valider séparément | **NO-GO cutover** tant que les preuves manquent |
+
+**Incident sécurité, avant tout nouvel accès au coffre :** le CLI `bw unlock` a affiché dans une sortie partagée un **jeton de session**. Le second `bw unlock --raw` a échoué au déchiffrement avant toute écriture connue. **Invalider la session exposée** (verrouillage/déconnexion locale puis révocation des sessions depuis les paramètres Vaultwarden), puis vérifier le coffre en **lecture seule** dans une session renouvelée et privée. Ne publier ni `BW_SESSION`, ni JSON d'item, ni valeurs de clés ; ne pas supprimer le cache CLI ou modifier les mots de passe sur une cause non attribuée.
+
+**Responsabilités pérennes :** les serveurs/proxys LiteLLM, les modèles, les budgets, les fichiers runtime TrueNAS, les contrats de transit et la conservation Vaultwarden restent sous **Compose**. Le modèle de sécurité Ubuntu du poste relève de **Ansible** ; les routines Gateway et cron relèvent de **nabla-openclaw**. La logique de provisionnement du couple FastAPI → LiteLLM et les diagnostics cross-host ne sont **pas** des composants Gateway à migrer dans `nabla-openclaw`, ni de simples audits OS à déplacer dans `ansible-workstation`. Les chemins `scripts/workstation/provision-fastapi-litellm-keys.py`, `scripts/workstation/diagnose-fastapi-litellm-workstation-key.py` et `scripts/secrets/*bitwarden*` sont à revoir **explicitement** avant tout transfert.
+
+**Prochaine unité finissable, sans activation :** vérifier que le jeton exposé a été révoqué, confirmer par lecture seulement l'accès Vaultwarden, puis faire confirmer **l'existence et la valeur du champ masqué** par un contrôle dédié. L'installation du fichier runtime existant requiert une comparaison non destructive de **toutes** ses autres variables, un rollback et un `GO` opérateur. Ne pas réémettre `fastapi-sample-upstream`, réutiliser la master/IDE, déclencher des appels aux modèles ou relancer le gateway pour « réparer » l'absence du champ.
+
+**Sources :** [PR Compose #289 fusionnée](https://github.com/AlbanAndrieu/nabla-compose/pull/289), [runbook FastAPI/LiteLLM](runbooks/fastapi-sample-litellm.md) et [incident déverrouillage](https://github.com/AlbanAndrieu/nabla-compose/pull/289#issuecomment-6457346739). **La création locale de la clé n'atteste pas les permissions/budgets réellement appliqués par `/key/info`, ni un parcours bout en bout.**
+
 ## P0 — tâches immédiates, dans cet ordre
 
 | Ordre | Responsable | Action restante | Preuve pour DONE |
 | --- | --- | --- | --- |
-| 1 | **OpenClaw + Compose** | Attribuer les erreurs 429 (budget vs RPM/TPM vs upstream), 401/403 et modèles ; diagnostiquer **les deux** LiteLLM et les clés scoped, sans génération | Rapports Workstation/TrueNAS datés, aucun faux PASS, clés main/cron distinctes, modèle réellement disponible |
+| 0 | **Compose + Vaultwarden** | Révoquer la session CLI exposée, rétablir l'accès readonly, puis attester le champ upstream FastAPI sans régénérer la clé Workstation | Session exposée invalidée, `bw list` readonly valide, contrôle ciblé du champ masqué, aucun runtime changé |
+| 1 | **OpenClaw + Compose** | Attribuer les erreurs 429 (budget vs RPM/TPM vs upstream), 401/403 et modèles ; diagnostiquer **les deux** LiteLLM et les clés scoped **sans nouvelle génération** | Rapports Workstation/TrueNAS datés, aucun faux PASS, clés main/cron distinctes, modèle réellement disponible |
 | 2 | **OpenClaw** | Importer les scripts/contrats Gateway/cron pertinents par lots et leurs tests, en maintenant les wrappers Compose | Parité des interfaces, sorties, exit codes et redaction ; `just test` et tests Compose ciblés PASS |
 | 3 | **OpenClaw** | Réconcilier heartbeat candidat avec CLI native effectivement installée, mettre sous contrôle cadence/coût/session, séparer digest et tâches privées | `plan → sauvegarde privée → apply explicite → verify → rollback` ; 14 capacités non réactivées par défaut |
 | 4 | **YubiKey** | Migrer les collecteurs strictement readonly avec tests (host/GPG/PCSC puis FIDO2/PIV), vérifier provenance/licences et imports | Commandes `just` équivalentes sur Workstation ; aucun PIN, PUK, OTP, PIV ou données de carte dans Git |
@@ -84,7 +104,7 @@ just test && just dependencies-readonly
 
 Les sorties runtime ne sont pas attestées par la seule existence des scripts. Un `exit=2` faute d'observabilité reste `UNKNOWN/NOT_VERIFIED`, pas une panne certaine.
 
-**Sécurité non négociable :** aucun PIN/PUK/OTP2/PIV/GPG ou manipulation carte ; aucun secret, session SQLite, fichier `~/.openclaw`, identité age, archive privée ou fichier SOPS copié dans Git public ; aucune activation de clés, hausse de quotas, heartbeat ou Gateway sans gate et application explicite. Pas de CI payante, de merge automatique, de `git submodule update --remote` ni de migration implicite sur `git pull`.
+**Sécurité non négociable :** aucune réutilisation de session `BW_SESSION` exposée, aucune génération ou rotation de clé FastAPI déjà émise, aucun PIN/PUK/OTP2/PIV/GPG ou manipulation carte ; aucun secret, session SQLite, fichier `~/.openclaw`, identité age, archive privée ou fichier SOPS copié dans Git public ; aucune activation de clés, hausse de quotas, heartbeat ou Gateway sans gate et application explicite. Pas de CI payante, de merge automatique, de `git submodule update --remote` ni de migration implicite sur `git pull`.
 
 **DONE global** = deux propriétaires spécialisés réellement autonomes + tests locaux et runtime validés + Gateway TrueNAS/heartbeats sans doublons + plan de rollback éprouvé + escrow restaurable avec deux supports indépendants + Compose débarrassé des seuls doublons devenus inutiles.
 
