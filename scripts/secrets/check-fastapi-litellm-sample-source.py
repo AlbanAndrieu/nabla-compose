@@ -84,7 +84,17 @@ def check() -> str:
         return "vaultwarden_folder_failed"
     try:
         item = client.get_exact_item(ITEM, manifest["folder"]["id"])
-    except (SecretsError, OSError, ValueError, TypeError, KeyError):
+    except SecretsError as exc:
+        # Controlled error codes only: do not print or forward raw CLI output.
+        # The shared client reports exact-match counts after filtering by
+        # item name and the declared TrueNAS folder.
+        description = str(exc)
+        if description.startswith("expected exactly one Vaultwarden item"):
+            if description.endswith("found 0"):
+                return "vaultwarden_item_absent_from_folder"
+            return "vaultwarden_item_ambiguous"
+        return "vaultwarden_item_lookup_failed"
+    except (OSError, ValueError, TypeError, KeyError):
         return "vaultwarden_item_lookup_failed"
     return classify(item)
 

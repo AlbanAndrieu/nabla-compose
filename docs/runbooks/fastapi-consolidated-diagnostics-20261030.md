@@ -220,3 +220,24 @@ présente dans le conteneur litellm. Son fichier source canonique est
 la source Vaultwarden et le mapping Compose. docker restart ne
 recharge pas les variables d'environnement d'un conteneur existant :
 une recréation contrôlée peut être nécessaire après vérification.
+
+
+## Diagnostic des items manquants — pas de création automatique
+
+Le contrôleur distingue maintenant `vaultwarden_item_absent_from_folder`
+(zéro item portant le nom exact dans le dossier attendu),
+`vaultwarden_item_ambiguous` (plusieurs), et
+`vaultwarden_item_lookup_failed` (échec CLI / réponse de lecture).
+Les deux premiers exigent une correction explicite de l'organisation
+Vaultwarden ou du manifeste, **pas** une génération d'une nouvelle
+master key. Le dernier reste `UNVERIFIED` : vérifier la version CLI,
+la synchronisation et les permissions sans afficher les valeurs.
+
+La clé d'administration du proxy s'appelle `LITELLM_MASTER_KEY`
+dans le conteneur. `LITELLM_TRUENAS_MASTER_KEY` est un nom de variable
+**du shell opérateur** utilisé par les scripts workstation d'administration
+via SSH tunnel, pas un substitut de la clé upstream
+`LITELLM_FASTAPI_WORKSTATION_API_KEY`. Son ajout dans l'env_file du
+conteneur LiteLLM n'active pas de nouveau modèle et élargit inutilement
+la présence d'un secret privilégié. Ne pas faire de rotation ou
+de recréation sur cette seule base.

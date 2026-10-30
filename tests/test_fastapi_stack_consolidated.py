@@ -259,6 +259,22 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn('PRIVATE-EMAIL', str(result))
         self.assertEqual(len(calls), 3)
 
+    def test_vaultwarden_item_missing_is_fail_and_cli_failure_is_not_proven_absent(self):
+        def probe(field_state):
+            def fake_run(argv, timeout=20):
+                if argv[:2] == ['bw', 'status']:
+                    return ('ok', {'status': 'unlocked'}, '')
+                return ('nonzero', {'field_state': field_state}, '')
+            with patch.object(stack.os, 'geteuid', return_value=1000), \
+                 patch.dict(stack.os.environ, {'BW_SESSION': 'SYNTHETIC'}), \
+                 patch.object(Path, 'is_file', return_value=True), \
+                 patch.object(stack, 'run', side_effect=fake_run):
+                return stack.vaultwarden_operator()
+        absent = probe('vaultwarden_item_absent_from_folder')
+        self.assertEqual(absent[1]['verdict'], 'FAIL')
+        unverified = probe('vaultwarden_item_lookup_failed')
+        self.assertEqual(unverified[1]['verdict'], 'UNVERIFIED')
+
     def test_vaultwarden_scope_skips_runtime_and_prints_login(self):
         with patch.object(stack, 'vaultwarden_operator',
                           return_value=[stack.row('vaultwarden_cli', 'DENIED', 'bw_login_required')]), \

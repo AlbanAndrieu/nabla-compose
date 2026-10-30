@@ -400,7 +400,8 @@ def vaultwarden_operator() -> list[dict[str, object]]:
         field = result.get('field_state')
         if field == 'field_present_nonempty_hidden':
             verdict, state = 'PASS', 'hidden_field_present_metadata_only'
-        elif field in ('field_absent', 'field_empty', 'field_duplicate', 'field_not_hidden'):
+        elif field in ('field_absent', 'field_empty', 'field_duplicate', 'field_not_hidden',
+                       'vaultwarden_item_absent_from_folder', 'vaultwarden_item_ambiguous'):
             verdict, state = 'FAIL', field
         else:
             verdict, state = 'UNVERIFIED', (
