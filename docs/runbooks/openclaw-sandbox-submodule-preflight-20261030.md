@@ -72,3 +72,37 @@ Ce SHA désigne le premier contrat GitOps validé en tests locaux
 Le futur gitlink `apps/openclaw` devra épingler une révision
 réellement testée au moment de son ajout et ne pas suivre
 `master` automatiquement.
+
+## Correctif de décodage `midclt` du 30 octobre
+
+Sur TrueNAS, `midclt call system.version` peut afficher la version
+**sans guillemets JSON**, par exemple `TrueNAS-26.0.0-BETA.3`.
+L'ancienne fonction `query()` effectuait exclusivement
+`json.loads(stdout)`, rejetait cette sortie brute puis renvoyait
+`blocked_wrong_host_or_access` **avant même de lancer `app.query`**.
+Ce verdict ne constituait donc pas une preuve de mauvais hôte ou
+de permission manquante.
+
+Le correctif accepte, **pour `system.version` uniquement**, un
+identifiant TrueNAS brut validé par expression régulière bornée.
+Les listes et objets des autres méthodes conservent le parsing JSON
+strict. Le correctif ne nécessite **aucun sudo** et n'assouplit pas
+la vérification des identifiants d'applications. Des tests simulent
+désormais les sorties d'octets réelles du CLI (version brute, JSON
+quoté, sortie corrompue, commande refusée et parcours complet).
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+git pull --ff-only
+python3 -m unittest discover -s tests \
+  -p 'test_openclaw_sandbox_global_binding.py' -v
+python3 scripts/truenas/check-openclaw-sandbox-binding.py --all-apps
+```
+
+Le second contrôle retourne toujours `2` par conception : lire
+`sandbox_relocation`, `app_inventory_count` et
+`app_configs_unverified`, **pas** le seul code retour.
+Si `unverified_app_inventory` persiste, l'étape suivante est
+de diagnostiquer séparément les droits `APPS_READ` du compte
+`midclt` ; ne pas utiliser `sudo` automatiquement et ne jamais
+coller de configurations brutes sur GitHub.
