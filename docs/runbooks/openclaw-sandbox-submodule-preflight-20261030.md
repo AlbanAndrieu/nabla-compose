@@ -6,6 +6,26 @@ Le dossier `apps/openclaw` sera à terme le **submodule directement**
 avec références Python et tests adaptés. **Quatre fichiers sandbox**
 restent dans `apps/openclaw/`.
 
+**Audit des consommateurs en code (PR #300, avant toute mutation) :**
+le [registre de dépendances](../migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+identifie, au-delà de la configuration TrueNAS,
+`build.sh` qui invoque `docker compose -f apps/openclaw/compose.yml`,
+ainsi que `catalog/services.json`,
+`catalog/service-topology.json`,
+l'annotation Backstage `apps/openclaw/catalog-info.yaml`
+et les artefacts générés du catalogue. Ce sont des **références
+encore actives dans Git** à migrer de manière cohérente.
+Le sandbox monte des chemins privés de Workstation et ne doit
+pas être considéré comme un Gateway TrueNAS.
+
+**État de décision : NO-GO pour le déplacement des quatre fichiers
+et le gitlink direct `apps/openclaw`**, tant que les consommateurs
+ci-dessus, l'inventaire global des Apps TrueNAS et le rollback
+n'ont pas été réceptionnés. Le script de préflight reste
+strictement en lecture seule et retourne **2 par conception**,
+même lorsqu'aucune référence App n'est observée. Ne pas interpréter
+ce code comme un `DOWN` ni désactiver cette protection.
+
 **Attention :** le fichier Compose du sandbox peut être référencé par
 une application TrueNAS via `custom_compose_config.include`.
 Le nouveau script lit seulement `app.config` pour les deux noms
