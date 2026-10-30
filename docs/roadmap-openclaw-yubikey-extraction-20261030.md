@@ -69,6 +69,16 @@ Cette sonde n'est qu'un instantané des sessions TCP/2049 de **tous** les export
 
 Traçabilité : [preuves et runbook USB age](runbooks/usb-age-identity-independent-backup-20261028.md), [inventaire d'extraction](migrations/workstation-yubikey-extraction-20261030.md), [PR #295 fusionnée](https://github.com/AlbanAndrieu/nabla-compose/pull/295).
 
+## PR #300 — réception P0 OpenClaw au 30 octobre 2026
+
+**CODED [skip ci], réception Workstation restante :** le hook `developer-tooling-contract` dispose désormais de `PyYAML==6.0.3` en environnement Pre-commit isolé ; `openclaw-migration-evidence.sh --diagnose` inclut les journaux des **deux** LiteLLM, l'inventaire de routes et les quotas de clés TrueNAS (tests de contrat adaptés). Le candidat `HEARTBEAT-RESTORED.candidate.md` limite ses alertes aux preuves fraîches, anomalies dédupliquées, trois signaux maximum, sans requête de génération, et conserve ses 14 anciennes capacités désactivées.
+
+**Runbook opérateur complet :** [P0 logs, 429, cron, heartbeat et cutover](runbooks/openclaw-p0-truenas-heartbeat-20261030.md). Il précise les commandes indépendantes Workstation/TrueNAS, le mode `--truenas-sudo-logs` **seulement avec droit sudo préexistant**, les preuves privées `0600` et les critères de sortie.
+
+**Dernières observations apportées par l'opérateur :** Gateway `ready` (3 endpoints 200), alignement Node/service PASS, dépenses de clés sous caps ; `docker_permission_denied` côté TrueNAS, `agent:cron:main` absent sur 21 sessions, digest `skill_template_range_int_mismatch`, source effective des 429 `unverified`. `--diagnose` initial : 5 PASS, 3 unverified (avant extension à trois sondes). Aucun de ces éléments ne démontre que `gpt-4.1` ou `gpt-4.1-mini` fonctionne sur TrueNAS.
+
+**GO limité au diagnostic et aux tests locaux. NO-GO** sur redéploiement, clés, heartbeat actif, suppression du sandbox ou ajout de submodule tant que les modèles, le routage effectif, la disponibilité des logs et le rollback ne sont pas prouvés. L'environnement de rédaction n'a pas exécuté les tests dans le checkout Workstation ; ne pas écrire « PASS local » sur la seule base de modifications GitHub.
+
 ## P1 — construction et intégration
 
 | Ordre | Responsable | Action restante | Condition |
