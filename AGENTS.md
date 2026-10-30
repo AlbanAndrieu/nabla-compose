@@ -273,8 +273,11 @@ Before every `git push` or other normal remote publication from a checkout:
 
 1. Confirm the target is a dedicated non-default branch and is not `master`.
 2. Run `mise run agent-fix` after the editing batch and allow all convergence passes to finish.
+   This branch-wide step runs deterministic fixes and targeted contracts; it
+   deliberately defers the complete repository suite to `agent-pre-push`.
 3. Review deterministic generator/formatter changes and commit them with the logical change.
-4. Run `mise run agent-pre-push`; the same script is also enforced by the pre-push hook.
+4. Run `mise run agent-pre-push`; it runs the complete suite once and the same
+   script is also enforced by the pre-push hook.
 5. If `QG_AUTOFIX_APPLIED` is reported, amend/commit only those deterministic changes and rerun the same local command; do not push yet.
 6. Fix every non-autofixable formatter, linter, YAML, Compose, workflow, generated-contract, unit-test, executable-bit, destructive-diff, or security-check failure caused by the change.
 7. Verify the superproject has no uncommitted changes. Local unstaged submodule

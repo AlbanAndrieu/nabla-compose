@@ -76,7 +76,7 @@ description = "Converge deterministic fixes and run targeted changed-file contra
 run = "bash scripts/agent-quality-gate.sh --loop"
 
 [tasks.agent-fix]
-description = "Regenerate deterministic artifacts and converge local pre-commit fixes"
+description = "Converge deterministic artifacts and branch-wide targeted contracts"
 run = "bash scripts/agent-quality-gate.sh --fix"
 
 [tasks.agent-publish]
@@ -84,7 +84,7 @@ description = "Run the strict agent gate and clean-tree publication check"
 run = "bash scripts/agent-quality-gate.sh --publish"
 
 [tasks.agent-pre-push]
-description = "Converge deterministic fixes, run full local validation, and block the push if fixes still need committing"
+description = "Converge deterministic fixes, run full local validation once, and block dirty publication"
 run = "bash scripts/agent-pre-push.sh"
 
 [tasks.info]

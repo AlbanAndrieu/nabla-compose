@@ -8,6 +8,8 @@ import stat
 import tempfile
 from unittest import TestCase, main, mock
 
+from tests.git_test_env import sanitized_git_environment
+
 ROOT = Path(__file__).parents[1]
 MODULE_PATH = ROOT / "scripts" / "secrets" / "render_from_bitwarden.py"
 SPEC = importlib.util.spec_from_file_location("render_from_bitwarden", MODULE_PATH)
@@ -21,21 +23,6 @@ assert IMPORT_SPEC and IMPORT_SPEC.loader
 with mock.patch.dict("sys.modules", {"render_from_bitwarden": renderer}):
     importer = importlib.util.module_from_spec(IMPORT_SPEC)
     IMPORT_SPEC.loader.exec_module(importer)
-
-
-def clean_git_env() -> dict[str, str]:
-    env = os.environ.copy()
-    for name in (
-        "GIT_DIR",
-        "GIT_INDEX_FILE",
-        "GIT_WORK_TREE",
-        "GIT_COMMON_DIR",
-        "GIT_PREFIX",
-        "GIT_OBJECT_DIRECTORY",
-        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    ):
-        env.pop(name, None)
-    return env
 
 
 class SecretsRendererTests(TestCase):
@@ -317,7 +304,7 @@ class SecretsRendererTests(TestCase):
                 check=True,
                 capture_output=True,
                 text=True,
-                env=clean_git_env(),
+                env=sanitized_git_environment(),
             )
             target = repo / "cyberbro.env.secrets"
 
@@ -349,7 +336,7 @@ class SecretsRendererTests(TestCase):
                 check=True,
                 capture_output=True,
                 text=True,
-                env=clean_git_env(),
+                env=sanitized_git_environment(),
             )
             (repo / ".gitignore").write_text(".env.secrets\n", encoding="utf-8")
             target = repo / ".env.secrets"

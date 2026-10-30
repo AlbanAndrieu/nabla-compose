@@ -14,9 +14,11 @@ Apply the local-first publication workflow from `AGENTS.md` and `agent.md`.
 6. Use the `reviewer` subagent for a read-only regression/security pass over the
    resulting diff.
 7. Review every deterministic generator/formatter change.
-8. Once the logical batch is committed, run `mise run agent-pre-push` for the
+8. Run `mise run agent-fix` once for branch-wide deterministic convergence and
+   targeted contracts. It does not run the complete repository suite.
+9. Once the logical batch is committed, run `mise run agent-pre-push` for one
    complete repository suite and publication gate.
-9. If `QG_AUTOFIX_APPLIED` appears, review and commit/amend only those
+10. If `QG_AUTOFIX_APPLIED` appears, review and commit/amend only those
    deterministic changes and rerun `mise run agent-pre-push`.
-10. Do not push until the full local publication gate is green. Never use `--no-verify`, force-push,
+11. Do not push until the full local publication gate is green. Never use `--no-verify`, force-push,
     weaken a quality/security rule, or use GitHub Actions as the edit loop.

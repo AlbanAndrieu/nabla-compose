@@ -6,6 +6,7 @@ import re
 import stat
 import tempfile
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -114,6 +115,14 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("--tb=short --show-capture=no tests", text)
         self.assertNotIn("-m unittest discover -s tests", text)
         self.assertIn('TARGETED_LABEL="CI fast"', text)
+        self.assertIn('TARGETED_LABEL="Fix batch"', text)
+        self.assertIn("FIX_BATCH=true", text)
+        self.assertIn("Agent fix batch passed", text)
+        self.assertIn("complete suite remains deferred to agent-pre-push", text)
+        self.assertLess(
+            text.index('if [[ "${FIX_BATCH}" == true ]]'),
+            text.index("--tb=short --show-capture=no tests"),
+        )
         self.assertIn("generated_contract_scope_changed", text)
         # Nested app Compose edits must trigger topology/consumer regeneration.
         self.assertIn("apps/*/compose.yml|apps/*/compose.yaml", text)
@@ -413,6 +422,37 @@ class AgentQualityGateContractTests(unittest.TestCase):
             text.index("agent-quality-gate.sh --fix"),
             text.index("agent-quality-gate.sh --publish"),
         )
+        self.assertIn("complete suite runs once below", text)
+        self.assertIn("full tests passed once", text)
+        self.assertEqual(text.count("agent-quality-gate.sh --publish"), 1)
+
+    def test_test_package_removes_hook_git_repository_redirection(self) -> None:
+        hostile = os.environ | {
+            "GIT_DIR": "/caller/repository/.git",
+            "GIT_INDEX_FILE": "/caller/repository/.git/index",
+            "GIT_WORK_TREE": "/caller/repository",
+        }
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import os, tests; "
+                "assert all(name not in os.environ for name in "
+                "('GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE'))",
+            ],
+            cwd=ROOT,
+            env=hostile,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+
+        config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        self.assertIn(
+            "entry: python -m unittest tests.test_secrets_renderer -v",
+            config,
+        )
 
     def test_generated_contract_hooks_are_check_only_and_roadmap_aware(self) -> None:
         config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
@@ -602,6 +642,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
         skill = (
             ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
         ).read_text(encoding="utf-8")
+        self.assertLessEqual(len(skill.splitlines()), 150)
         self.assertIn("just context", skill)
         self.assertIn("just preflight", skill)
         self.assertIn("mise run agent-loop", skill)
@@ -612,6 +653,13 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn("Remote checks are evidence, not an editor", skill)
         self.assertIn("API-only fallback", skill)
         self.assertIn("optimistic file", skill)
+        for reference in (
+            "openclaw-and-hosts.md",
+            "development-environments.md",
+            "operator-recovery.md",
+            "advanced-diagnostics.md",
+        ):
+            self.assertIn(reference, skill)
 
         context = (ROOT / "scripts" / "agent-task-context.py").read_text(
             encoding="utf-8"

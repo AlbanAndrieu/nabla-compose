@@ -18,11 +18,15 @@ fi
 MODE="check"
 PUBLISH=false
 LOCAL_LOOP=false
+FIX_BATCH=false
 TARGETED_ONLY=false
 TARGETED_LABEL=""
 case "${1:-}" in
   --fix)
     MODE="fix"
+    FIX_BATCH=true
+    TARGETED_ONLY=true
+    TARGETED_LABEL="Fix batch"
     shift
     ;;
   --preflight)
@@ -53,7 +57,7 @@ Usage:
 
 Modes:
   default      strict local validation gate
-  --fix        regenerate/fix deterministic artifacts, then run the full local gate
+  --fix        regenerate/fix deterministic artifacts and run branch-wide targeted contracts
   --loop       regenerate/fix and run changed-file contracts only; use during edit iterations
   --preflight  Git-only safety gate before dependency installation/build work
   --ci         check-only changed-file gate; skips the full unit suite already required locally before push
@@ -625,6 +629,13 @@ if [[ "${TARGETED_ONLY}" != true || "${generated_contract_scope_changed}" == tru
     "${PYTHON_CMD[@]}" scripts/quality/check-site-catalog-convergence.py
 else
   printf 'ℹ️  %s mode: full catalog icon parity skipped (no catalog input changed)\n' "${TARGETED_LABEL}"
+fi
+
+if [[ "${FIX_BATCH}" == true ]]; then
+  git diff --check
+  git diff --cached --check
+  printf '✅ Agent fix batch passed: deterministic fixes and branch-wide targeted contracts converged; the complete suite remains deferred to agent-pre-push.\n'
+  exit 0
 fi
 
 if [[ "${TARGETED_ONLY}" == true ]]; then

@@ -34,6 +34,8 @@ if [[ -n "${status_before}" ]]; then
   exit 1
 fi
 
+# Converge deterministic edits and branch-wide targeted contracts first. The
+# complete suite runs once below in publication mode.
 bash scripts/agent-quality-gate.sh --fix
 
 status_after_fix="$(publication_status)"
@@ -45,4 +47,4 @@ if [[ -n "${status_after_fix}" ]]; then
 fi
 
 bash scripts/agent-quality-gate.sh --publish
-printf '✅ Local pre-push preparation gate passed: autofixers converged, full tests passed, and the superproject is clean. Local unstaged submodule checkout drift is ignored.\n'
+printf '✅ Local pre-push preparation gate passed: autofixers converged, full tests passed once, and the superproject is clean. Local unstaged submodule checkout drift is ignored.\n'
