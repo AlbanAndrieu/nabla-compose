@@ -846,6 +846,10 @@ crowdsec-pf-synthetic-test:
 crowdsec-pf-synthetic-preflight:
     python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --preflight
 
+# Read-only inspection after a prior interrupted/ambiguous synthetic smoke.
+crowdsec-pf-synthetic-inspect:
+    python3 scripts/workstation/smoke-crowdsec-pf-synthetic.py --inspect
+
 # TrueNAS only: read-only check first, explicit --apply reissues an UNUSED
 # PFSENSE_FIREWALL registration and securely writes its root-only credential.
 crowdsec-bouncer-provision-check:
