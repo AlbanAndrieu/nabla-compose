@@ -53,14 +53,16 @@ découverte `just --list` avant suppression de recettes.
 ## Dépôts réellement créés et transfert initial
 
 - [nabla-yubikey PR #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1) : collecteur autonome de dépendances avec test hermétique, aucun matériel.
-- [nabla-openclaw PR #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1) : politiques `HEARTBEAT` et digest désactivées, contrat cible TrueNAS sans image/dataset validés.
+- [nabla-openclaw PR #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1) : **fusionnée** (merge `dd304743`) ; politiques `HEARTBEAT` et digest inactives, contrat cible TrueNAS sans image/dataset validés.
 - [ansible-workstation PR #16](https://github.com/AlbanAndrieu/ansible-workstation/pull/16) : audit `systemd --user` de la source Workstation, ancien template OpenClaw Node 25 interdit au déploiement.
 
 **Submodules :** chemin canonique OpenClaw : `apps/openclaw` directement.
-Ce chemin contient **18 fichiers suivis** ; il faudra auparavant déplacer
-les quatre éléments sandbox vers `apps/openclaw-sandbox/`, migrer les
-14 éléments Workstation vers le dépôt dédié ou leurs remplaçants, et
-corriger toutes les références/scripts/tests. Le submodule ne sera ajouté
+Ce chemin ne contient plus que **quatre fichiers suivis** (sandbox) :
+les 14 artefacts Workstation ont déjà été relocalisés temporairement
+sous `ops/openclaw-workstation/`, et leurs scripts/tests ont été adaptés.
+Le déplacement des quatre fichiers restants vers `apps/openclaw-sandbox/`
+reste bloqué en attendant le préflight TrueNAS global et la revue
+des consommateurs. Le submodule ne sera ajouté
 qu'après parité locale, avec un commit testé épinglé. Emplacement YubiKey
 proposé : `security/nabla-yubikey`, séparé des applications Docker.
 Pas de checkout direct dans les datasets de runtime, ni de

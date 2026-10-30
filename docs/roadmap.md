@@ -2352,3 +2352,19 @@ et sorties n'est pas attestée. La répartition visée est :
 **Statut : PREPARED / NO CUTOVER**. Pas de PR de migration vers
 un dépôt YubiKey inexistant, pas de duplication des secrets ni retrait
 des anciens `just yubikey-*` ou `just openclaw-*` à cette étape.
+
+## OpenClaw — PR cible fusionnée, intégration Compose encore en Draft (30 octobre 2026)
+
+[nabla-openclaw #1](https://github.com/AlbanAndrieu/nabla-openclaw/pull/1)
+est **fusionnée** dans `master` (commit `dd304743`).
+La source Workstation reste active ; aucun Gateway TrueNAS n'a été
+déployé. Les contrats OpenClaw GitOps et les tests locaux du dépôt
+dédié ont été validés : cela n'atteste pas l'image ni la readiness cible.
+Dans [Compose PR #295](https://github.com/AlbanAndrieu/nabla-compose/pull/295) :
+les 14 fichiers Workstation ont été relocalisés, les quatre fichiers
+sandbox restent sous `apps/openclaw`. Exécuter sur TrueNAS
+`python3 scripts/truenas/check-openclaw-sandbox-binding.py --all-apps`
+et consulter le
+[runbook](runbooks/openclaw-sandbox-submodule-preflight-20261030.md)
+avant toute modification du include, des fichiers du sandbox ou du gitlink.
+**État : PARTIAL / NO SUBMODULE / NO DEPLOY.**
