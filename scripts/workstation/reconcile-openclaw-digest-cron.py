@@ -161,6 +161,12 @@ def main(argv=None):
     if old_sha != args.expected_message_sha:
         print("apply=blocked_concurrent_drift")
         return 2
+    # Only migrate the known affected skill contract. A different private
+    # message may contain custom instructions; do not overwrite it blindly.
+    if (before.count("ITEMS_PER_SECTION = 3-5") != 1
+            or "references/digest-prompt.md" not in before):
+        print("apply=blocked_unexpected_runtime_template_review_in_ui")
+        return 2
     state = job.get("state")
     if isinstance(state, dict) and state.get("runningAtMs"):
         print("apply=blocked_running_job")
