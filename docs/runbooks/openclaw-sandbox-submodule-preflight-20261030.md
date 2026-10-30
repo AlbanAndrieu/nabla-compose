@@ -45,7 +45,7 @@ un fichier Compose autonome ou une tâche d'orchestration peut encore
 référencer le chemin historique. Le code retour reste toujours `2` :
 **aucun déplacement automatique**.
 
-Sur **TrueNAS** (après pull de la branche #295) :
+Sur **TrueNAS** (depuis un checkout contenant déjà le script, sans imposer de synchronisation Git à l'appliance) :
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
@@ -113,11 +113,21 @@ quoté, sortie corrompue, commande refusée et parcours complet).
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-git pull --ff-only
+# N'effectuer aucun pull si l'arbre de travail est modifié.
+git rev-parse --short HEAD
+test -f scripts/truenas/check-openclaw-sandbox-binding.py || exit 2
 python3 -m unittest discover -s tests \
   -p 'test_openclaw_sandbox_global_binding.py' -v
 python3 scripts/truenas/check-openclaw-sandbox-binding.py --all-apps
 ```
+
+**Réception workstation PR #300 (HEAD `a05a5ec2`) :**
+le plan d'extraction a réussi avec 1 770 chemins Git et
+375 recettes Just ; les tests du planner et des politiques
+OpenClaw ont réussi **8/8**. Cette preuve **ne remplace pas**
+les tests `test_openclaw_sandbox_global_binding.py`
+ni la lecture `midclt app.config` sur TrueNAS :
+**runtime toujours NON VÉRIFIÉ**.
 
 Le second contrôle retourne toujours `2` par conception : lire
 `sandbox_relocation`, `app_inventory_count` et
