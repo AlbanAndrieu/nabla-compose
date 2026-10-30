@@ -554,3 +554,46 @@ Ne pas utiliser `sharing.nfs.update`, `ro=true`, une allowlist
 dérivée des sessions TCP, `chmod`, `--copy` ou `--backup`
 avant l'inventaire complet des consommateurs.
 
+## ✅ Acceptation réelle du correctif ss — worktree PR #300, 30/10/2026
+
+**Preuve opérateur**, depuis un worktree détaché propre créé à partir de
+`origin/docs/consolidate-openclaw-yubikey-handoff-20261030` au commit
+`245bd928` :
+
+| Commande | Résultat constaté |
+| --- | --- |
+| `just yubikey-usb-identity-nfs-consumers-test` | **8/8 tests PASS** en 0,272 s ; compilation Python PASS |
+| `just yubikey-usb-identity-nfs-consumers-check` | `BACKUP_RESTORATION_PREFLIGHT_READY` ; `NOT_PROBED` |
+| `just yubikey-usb-identity-nfs-consumers-probe` | **`TCP_SNAPSHOT_OBSERVED`**, sortie JSON expurgée ; aucun secret ni adresse publié |
+
+**Instantané serveur :** `tcp_sessions=1` et
+`unique_tcp_peers=1`, TCP/2049, tous exports NFS TrueNAS confondus.
+Le code retour est maintenant réussi : le précédent
+`SS_RESPONSE_UNVERIFIED` (parseur `ss` pré-correctif)
+est **résolu à ce point d'observation**.
+
+**Limites inchangées :** `scope=ALL_NFS_EXPORTS_TCP2049_ONLY`,
+`all_clients_enumerated=false`,
+`export_specific_clients_verified=false` et
+`consumer_allowlist_verified=false`. Le pair observé ne peut pas
+être attribué à l'export `lab` sur ce seul relevé. Les montages
+intermittents, les clients hors ligne, les jobs planifiés et la
+configuration pare-feu restent hors de ce contrôle. Les trois
+avertissements précédents sur le partage
+(`NO_NFS_HOST_OR_NETWORK_FILTER`,
+`NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED`,
+`EXPORT_WRITABLE`) demeurent **ouverts**.
+
+**Décision :** preuve de fonctionnement de la sonde clôturée,
+**pas** preuve de sécurité effective de l'export. Ne pas modifier
+`sharing.nfs.update`, `ro`, `hosts`, `networks`,
+`chmod`, `setacl`, les archives age ou les clés SOPS.
+La prochaine étape sûre est l'inventaire des montages/autofs et des
+écritures légitimes sur tous les hôtes, puis une proposition
+d'allowlist et rollback. L'attestation d'accès indépendant à la
+phrase secrète demeure **NON ATTESTÉE**.
+
+Cette section **remplace les statuts `NOT_RUN` des sections antérieures**
+pour la sonde NFS TCP *après correction*. Les observations antérieures
+restent conservées comme historique d'incident.
+
