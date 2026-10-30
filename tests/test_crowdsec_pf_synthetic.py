@@ -228,6 +228,34 @@ class SyntheticSmoke(unittest.TestCase):
         with self.assertRaises(module.NotVerified):
             module.ssh('-oProxyCommand=bad', 9922, 'true')
 
+    def test_error_classification_allowlist_without_disclosing_item(self):
+        msg = b"203.0.113.77 is allowlisted by item secret_name, use --bypass-allowlist"
+        self.assertEqual("ADD_DENIED_ALLOWLIST", module.classify_remote_error(msg))
+        self.assertNotIn("secret_name", module.classify_remote_error(msg))
+
+    def test_error_classification_rejects_unsupported_cli(self):
+        self.assertEqual("CLI_UNSUPPORTED_OPTION",
+                         module.classify_remote_error(b"Error: unknown flag: --ip"))
+
+    def test_error_classification_permission(self):
+        self.assertEqual("SSH_OR_SUDO_PERMISSION",
+                         module.classify_remote_error(b"sudo: a password is required"))
+
+    def test_error_classification_is_fixed_not_raw(self):
+        secret = b"new unknown exception with key=TOPSECRET"
+        self.assertEqual("REMOTE_COMMAND_FAILED_UNCLASSIFIED",
+                         module.classify_remote_error(secret))
+        self.assertNotIn("TOPSECRET", module.classify_remote_error(secret))
+
+    def test_ssh_does_not_copy_stderr_to_exception(self):
+        result = subprocess.CompletedProcess(args=["ssh"], returncode=1,
+                                             stdout=b"", stderr=b"allowlisted by item PRIVATE")
+        with patch.object(module.subprocess, "run", return_value=result):
+            with self.assertRaises(module.NotVerified) as observed:
+                module.ssh("example.net", 9922, "readonly")
+        self.assertEqual("ADD_DENIED_ALLOWLIST", str(observed.exception))
+        self.assertNotIn("PRIVATE", str(observed.exception))
+
     def test_reserved_target_constant(self):
         self.assertEqual('203.0.113.77',module.IP)
         self.assertEqual('SYNTHETIC-203.0.113.77',module.TOKEN)
