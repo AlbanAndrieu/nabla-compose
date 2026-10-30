@@ -3,6 +3,33 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Réception workstation CrowdSec — 30 octobre 2026
+
+- **DONE — gate ciblé après correction du JSON imbriqué :**
+  `just crowdsec-pf-synthetic-test` **24/24 PASS**,
+  `just crowdsec-bouncer-config-test` **74/74 PASS**.
+  Les tests unitaires utilisent des simulations et ne prouvent
+  pas l'application d'une décision dans le PF réel.
+- **DONE — inspection runtime en lecture seule :**
+  `just crowdsec-pf-synthetic-inspect` renvoie
+  `lapi_matches=0 decision_ids=none pf_present=false
+  pf_bouncer=RUNNING` ; aucun vestige actif détecté sur
+  `203.0.113.77`. Ce résultat **n'établit pas** l'issue
+  du test synthétique antérieur.
+- **Correctif de diagnostic supplémentaire [skip ci] :**
+  les échecs d'exécution distante sont classés dans des
+  catégories expurgées, notamment `ADD_DENIED_ALLOWLIST`.
+  Dans CrowdSec v1.8.1, `cscli decisions add` peut
+  refuser l'IP cible si elle est allowlistée ; la cause
+  du premier échec n'est **pas encore vérifiée**.
+  5 nouveaux tests versionnés ; **79 tests attendus**
+  au prochain gate local. Pas de `--bypass-allowlist`
+  automatique.
+- **P0 toujours ouvert :** `SYNTHETIC_PF_DECISION_CYCLE_PASS`
+  non observé sur le runtime. Précontrôle puis éventuelle
+  mutation explicite uniquement sur décision de l'opérateur.
+  Baseline naturelle v1 conservée, nouvelle v2 séparée.
+
 ## Diagnostic du test synthétique — 30 octobre 2026 (PR #295)
 
 **Évidence workstation :** `just crowdsec-pf-synthetic-test`
