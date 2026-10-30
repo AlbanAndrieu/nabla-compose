@@ -2,6 +2,52 @@
 
 > **Point d'entrée de coordination pour `nabla-compose`**. Le détail des tâches et les commandes propres à chaque outil appartiennent à ses roadmaps dédiées : [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/migration.md) et [YubiKey](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1). Les PRs Draft de consolidation peuvent précéder leur fusion : [OpenClaw #2](https://github.com/AlbanAndrieu/nabla-openclaw/pull/2), [YubiKey #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1). Les docs historiques restent consultables mais ne priment pas sur ce tableau.
 
+## Réception locale du plan d'extraction — 30 octobre 2026
+
+**Preuve fournie depuis la Workstation, sur un worktree isolé de
+la branche de la PR #300 (`HEAD=a05a5ec2`)** :
+`python3 scripts/ops/plan-repository-split.py` a réussi et
+retourné `schema=nabla-repository-extraction-plan/v1`,
+`tracked_paths=1770`, `read_only=true`,
+`copy_or_delete_authorized=false`, et
+`destination_access=not_checked_offline`.
+`test_repository_split_plan.py` : **3/3 PASS** ;
+`test_openclaw_policy_relocation.py` : **5/5 PASS**.
+**Total : 8/8 tests locaux ciblés PASS.** Ce résultat ne
+constitue ni gate global ni diagnostic TrueNAS, et ne prouve
+aucune disponibilité d'un dépôt de destination.
+
+| Groupe d'inventaire | Nombre au HEAD testé |
+| --- | ---: |
+| Fichiers Git suivis | 1 770 |
+| Candidats YubiKey à revoir | 106 |
+| Candidats OpenClaw à revoir | 84 |
+| Candidats Workstation/Ansible à revoir | 36 |
+| Fichiers serveur Compose conservés | 187 |
+| Fichiers `apps/openclaw/` sandbox conservés | 4 |
+| Fichiers exclus par motif sensible/crypto | 2 |
+| Autres, conservés ou à revoir | 1 351 |
+| **Recettes Just totales** | **375** |
+| Recettes `yubikey-*` / `openclaw-*` / `workstation-*` | **87 / 98 / 15** |
+
+Les groupes de chemins décrivent des **candidats identifiés
+par motifs**, jamais une autorisation de copie. Les **87**
+recettes YubiKey et **375** recettes totales remplacent
+uniquement les comptages opérationnels **84/370** de l'ADR
+historique ; ils n'impliquent pas que trois fonctions ont
+été migrées ou qu'une recette correspond à un service.
+
+**Gate de suite :** sur TrueNAS, exécuter en lecture seule
+`python3 scripts/truenas/check-openclaw-sandbox-binding.py
+--all-apps` depuis un checkout vérifié. Cette commande
+retourne **2 volontairement** : inspecter le champ
+`sandbox_relocation` et les compteurs, sans publier les
+configurations brutes. Même une inspection complète sans
+référence ne lève pas à elle seule le **NO-GO** du sandbox :
+`build.sh`, catalogue et topologie pointent encore vers
+l'ancien `compose.yml`. Préserver Gateway Workstation
+et tous les secrets.
+
 ## Avancement vérifié dans les dépôts
 
 | Dépôt | Propriété pérenne | Git / statut | Runtime |
