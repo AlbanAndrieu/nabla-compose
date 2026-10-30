@@ -38,6 +38,24 @@ class DualLogsTests(unittest.TestCase):
         self.assertNotIn("sudo", cmd)
         self.assertNotIn("-L", cmd)
 
+    def test_sudo_is_explicit_and_ssh_remains_strict(self):
+        commands = []
+        def fake(command, **kw):
+            commands.append(command)
+            return "available", b"ok", "none"
+        with patch.object(mod, "collect", side_effect=fake):
+            state, source, _, reason = mod.truenas(2, use_sudo=True)
+        self.assertEqual((state, source, reason),
+                         ("available", "ssh_sudo_docker", "none"))
+        self.assertEqual(commands[0][-9:-7], ["sudo", "-n"])
+        self.assertIn("StrictHostKeyChecking=yes", commands[0])
+        self.assertIn("BatchMode=yes", commands[0])
+        self.assertEqual(mod.denial_reason(b"sudo: a password is required"),
+                         "sudo_permission_unavailable")
+        with patch.object(mod, "collect", side_effect=fake):
+            mod.truenas(2)
+        self.assertNotIn("sudo", commands[1])
+
     def test_workstation_docker_fallback_to_journal(self):
         outputs=[("unavailable",b"", "container_missing"),
                  ("unavailable",b"", "docker_permission_denied"),
