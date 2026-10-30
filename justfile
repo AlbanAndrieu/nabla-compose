@@ -242,6 +242,20 @@ yubikey-usb-identity-nfs-export-check:
 yubikey-usb-identity-nfs-export-probe:
     python3 scripts/workstation/inspect-usb-age-backup-nfs-export.py --probe --acknowledge INSPECT_USB_AGE_NFS_EXPORT_MAPPING_READONLY
 
+# Synthetic read-only NFS TCP/2049 client-count contracts; no remote access.
+yubikey-usb-identity-nfs-consumers-test:
+    python3 -m py_compile scripts/workstation/inspect-usb-age-nfs-consumers.py tests/test_usb_age_nfs_consumers.py
+    python3 -m unittest discover -s tests -p 'test_usb_age_nfs_consumers.py' -v
+
+# Local metadata check only; no USB, SSH or ciphertext reads.
+yubikey-usb-identity-nfs-consumers-check:
+    python3 scripts/workstation/inspect-usb-age-nfs-consumers.py --check
+
+# Explicit TrueNAS remote SSH read-only ss(8) TCP/2049 snapshot.
+# Counts ALL NFS exports, NOT exact export consumers; never derive allowlist.
+yubikey-usb-identity-nfs-consumers-probe:
+    python3 scripts/workstation/inspect-usb-age-nfs-consumers.py --probe --acknowledge INSPECT_NFS_TCP_CLIENT_FOOTPRINT_READONLY
+
 # Legacy existing LUKS UUID script, check-only mode; may display lsblk data.
 # Prefer the redacted yubikey-escrow-usb-status recipe for routine triage.
 yubikey-escrow-usb-legacy-check:
