@@ -11,6 +11,7 @@ propriétaire cible, sans déplacer les fichiers. Source de décision :
 | `scripts/workstation/diagnose-openclaw-*`, `check-openclaw-*`, `openclaw-ops.sh`, `tests/test_openclaw_*` | **nabla-openclaw** pour logique Gateway/cron cible ; **Ansible** pour audit OS de la source | Examiner les imports TrueNAS/stockage, ne pas copier le Gateway Workstation en bloc |
 | `apps/openclaw/workstation/` | **nabla-openclaw `policies/`** pour heartbeat/cron ; Ansible garde l'OS | Premières politiques importées en PR #1, inactives ; ne pas transférer les sessions ni fichiers secrets |
 | `apps/openclaw/compose.yml`, `apps/litellm/`, `scripts/truenas/*litellm*` | **Reste Compose** | Serveurs, modèles TrueNAS, clés scoped, DB, quotas, NFS |
+| `scripts/workstation/provision-fastapi-litellm-keys.py`, `scripts/workstation/diagnose-fastapi-litellm-workstation-key.py`, `scripts/secrets/*bitwarden*` | **Compose / frontière FastAPI–LiteLLM–Vaultwarden** | **Exception explicite : ne pas transférer à OpenClaw ni à Ansible**. Clé Workstation `fastapi-sample-upstream` émise, Vaultwarden/runtime TrueNAS encore non vérifiés ; préserver le contrôle anti-doublon et les secrets existants |
 | `scripts/workstation/diagnose-*-dns*.py`, `workstation-split-dns-*` | ansible-workstation | Reprendre les audits existants, PAS de second collecteur équivalent |
 | `scripts/workstation/*yubikey*`, `*age-escrow*`, `*sops*` | nabla-yubikey PR #1 | Tri manuel par effet et tests ; pas de clés, PIN ou configs chiffrées |
 | `tests/test_yubikey_*` et `docs/runbooks/yubikey-*` | futur nabla-yubikey | Transférer ensemble avec scripts, fixtures et avertissements |
@@ -46,6 +47,27 @@ l'historique Git sensible. Ne pas installer de submodule YubiKey,
 supprimer les recettes historiques, restreindre l'export NFS ou toucher
 aux YubiKeys avant les validations séparées. La conservation de la
 phrase secrète hors SanDisk/workstation/TrueNAS n'est pas encore attestée.
+
+### Frontière d'identité FastAPI/LiteLLM avant extraction
+
+Le nom `scripts/workstation/` ne constitue **pas** une preuve de propriété
+`ansible-workstation`. Le planificateur `plan-repository-split.py`
+produit des **candidats nominaux** : ses catégories
+`candidate_ansible_workstation_review` et
+`candidate_openclaw_target_review` n'autorisent
+pas le transfert automatique des identités de service.
+Les deux scripts FastAPI/LiteLLM énumérés ci-dessus ont
+une responsabilité **transversale Compose**, indépendamment
+de l'emplacement de leur exécution sur Ubuntu.
+
+Distinguer la clé virtuelle **émise par Workstation LiteLLM**
+(`fastapi-sample-upstream`, modèle `qwen`, valeur consommée
+par TrueNAS), de la clé **émise par TrueNAS LiteLLM**
+(`fastapi-sample-staging`, modèle `fastapi-qwen`, valeur
+consommée par FastAPI). Seule la première est attestée
+générée le 28/10 ; aucune migration Git ou activation
+automatique n'est une preuve de son injection TrueNAS.
+[Suivi P0](../roadmap-openclaw-yubikey-extraction-20261030.md).
 
 ## Audit de dépendances avant tout changement
 
