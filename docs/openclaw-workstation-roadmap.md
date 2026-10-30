@@ -1,5 +1,8 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
+> **30 octobre 2026 — Host-aware + cron GitOps** : scripts de diagnostic Workstation/TrueNAS séparés et sorties humaines compactes ; message versionné du digest avec `ITEMS_PER_SECTION = 5`, reconciler `plan/check/apply` sécurisé sur l'ID du job existant, sans injection de secrets ni création de cron. Voir le [runbook d'application](runbooks/openclaw-gitops-cron-host-routing-20261030.md). L'apply, le heartbeat et le cutover restent non effectués sur le runtime.
+
+
 > **Heartbeat restauré en candidat (30 octobre 2026) :** inventaire de 14 fonctions historiques conservé dans `apps/openclaw/workstation/heartbeat-restoration.policy.json`, avec une checklist native courte dans `HEARTBEAT-RESTORED.candidate.md` et des cadences historiques séparées non activées. Aucun runtime activé, aucune copie des secrets des sauvegardes. Le nouveau diagnostic `just openclaw-litellm-dual-logs-check` exige l'accès distinct aux deux proxies ; un seul accessible reste `partial_or_unverified`. [Runbook](runbooks/openclaw-recovery-gates-20261028.md).
 
 > **Mise à jour du code : 30 octobre 2026.** Les PR [#289](https://github.com/AlbanAndrieu/nabla-compose/pull/289) et [#292](https://github.com/AlbanAndrieu/nabla-compose/pull/292) sont **fusionnées**. Les diagnostics d'alignement, de 429, de digest et de sessions sont versionnés mais l'activation systemd et la réparation effective du runtime ne sont **pas attestées**. Voir le [runbook dédié](runbooks/openclaw-recovery-gates-20261028.md).
