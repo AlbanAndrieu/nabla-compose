@@ -153,7 +153,14 @@ def main(argv=None):
     if missing_models:
         return 2
     if existing["keys"]:
-        print("provisioning=blocked_existing_keys_require_reconciliation")
+        # Existing virtual keys must NEVER be regenerated. The scope and
+        # budget can be established by GET /key/info using key hashes only.
+        # Both plan and apply become read-only no-ops when they match.
+        state = quota_audit(master, env)
+        if state == 0:
+            print("provisioning=already_present_verified_noop")
+            return 0
+        print("provisioning=blocked_existing_keys_unverified")
         return 2
     if not args.apply:
         print("provisioning=planned")

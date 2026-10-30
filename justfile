@@ -552,7 +552,7 @@ openclaw-truenas-master-env-check:
 # Explicit exceptional read-only GETs for a true non-sk master key.
 # Never use if format check says looks_like_reference, empty or invalid.
 openclaw-truenas-model-keys-tunnel-dedicated-nonstandard:
-    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    python3 scripts/workstation/preflight-truenas-litellm-openclaw.py --tunnel --master-env LITELLM_TRUENAS_MASTER_KEY --allow-nonstandard-master
 
 
 

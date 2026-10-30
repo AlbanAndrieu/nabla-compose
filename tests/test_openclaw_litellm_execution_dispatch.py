@@ -192,6 +192,58 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertEqual(calls, [("/v1/models", None), ("/key/list", None)])
 
 
+
+    def test_existing_keys_verified_make_plan_and_apply_idempotent(self):
+        paths = []
+        import hashlib
+
+        def fake(path, master, body=None):
+            paths.append((path, body))
+            if path == "/v1/models":
+                return 200, {"data": [{"id": "workstation-qwen"}, {"id": "qwen"}]}
+            if path == "/key/list":
+                return 200, {"keys": ["hashed-main", "hashed-cron"]}
+            if path.startswith("/key/info?key="):
+                main_hash = hashlib.sha256(self.env[
+                    "LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()
+                main = path.endswith(main_hash)
+                return 200, {"info": {"models": ["workstation-qwen", "qwen"]
+                                      if main else ["workstation-qwen"],
+                                      "max_budget": 2, "spend": 0.0}}
+            raise AssertionError("No mutation allowed: " + path)
+
+        for args in ([], ["--apply"]):
+            paths.clear()
+            with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+                 patch.object(self.provisioner, "request", side_effect=fake), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                result = self.provisioner.main(args)
+            self.assertEqual(result, 0)
+            self.assertEqual(len(paths), 4)
+            self.assertTrue(all(body is None for _, body in paths))
+            self.assertIn("provisioning=already_present_verified_noop", output.getvalue())
+            self.assertNotIn("SYNTHETIC", output.getvalue())
+
+    def test_existing_mismatched_keys_block_apply_without_post(self):
+        paths = []
+        def fake(path, master, body=None):
+            paths.append((path, body))
+            if path == "/v1/models":
+                return 200, {"data": [{"id": "workstation-qwen"}, {"id": "qwen"}]}
+            if path == "/key/list":
+                return 200, {"keys": ["existing"]}
+            if path.startswith("/key/info?key="):
+                return 200, {"info": {"models": ["workstation-qwen"],
+                                      "max_budget": 2, "spend": 0.0}}
+            raise AssertionError("Unexpected mutation")
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            result = self.provisioner.main(["--apply"])
+        self.assertEqual(result, 2)
+        self.assertTrue(all(body is None for _, body in paths))
+        self.assertIn("provisioning=blocked_existing_keys_unverified", output.getvalue())
+
     def test_quota_audit_reports_budget_and_scope_without_exposing_keys(self):
         calls = []
         def info(path, master, body=None):
