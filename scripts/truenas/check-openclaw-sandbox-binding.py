@@ -24,9 +24,20 @@ def query(args):
         return None
     if run.returncode != 0 or not (0 < len(run.stdout) <= MAX_BYTES):
         return None
+    # midclt prints JSON for dicts/lists, but some scalar method results
+    # (including TrueNAS 26 system.version) are printed as bare strings.
+    # Only accept a bounded, exact unquoted version for this one method;
+    # never treat arbitrary text or diagnostics as successful JSON.
     try:
         return json.loads(run.stdout)
     except (ValueError, UnicodeError):
+        if args[-1] == "system.version":
+            try:
+                raw = run.stdout.decode("utf-8").strip()
+            except UnicodeError:
+                return None
+            if re.fullmatch(r"TrueNAS-[A-Za-z0-9][A-Za-z0-9._-]{1,79}", raw):
+                return raw
         return None
 
 
