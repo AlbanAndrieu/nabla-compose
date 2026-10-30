@@ -15,6 +15,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeveloperToolingContractTests(unittest.TestCase):
+    def test_developer_tooling_hook_isolates_pyyaml(self) -> None:
+        """The Pre-commit environment, not mise's system Python, owns PyYAML."""
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        hooks = [
+            hook
+            for repository in config["repos"]
+            if repository["repo"] == "local"
+            for hook in repository["hooks"]
+            if hook["id"] == "developer-tooling-contract"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "python")
+        self.assertIn("PyYAML==6.0.3", hooks[0]["additional_dependencies"])
+
     def test_shellcheck_is_native_and_preserves_source_aware_lint(self) -> None:
         config = yaml.safe_load(
             (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
