@@ -18,6 +18,35 @@ propriétaire cible, sans déplacer les fichiers. Source de décision :
 | `docs/roadmap-workstation-yubikey.md` | roadmap YubiKey indépendante | Lien/alias d'historique dans Compose après extraction |
 | `secrets.env.sops`, `.sops.yaml`, `~/.openclaw/`, fichiers `*.age` privés | **Jamais copiés dans les nouveaux dépôts** | Secrets/snapshots/profiles dans le coffre existant, usage sous autorisation |
 
+## Lot 2 — contrat précis de l'escrow age/NFS après #295 (sans extraction)
+
+Cette table est un **plan**, pas un déplacement de fichiers. Les commandes
+continuent à être servies par Compose ; `nabla-yubikey` PR #1 est Draft.
+
+| Fichier actuel (Compose) | Responsabilité cible | Gate avant transfert |
+| --- | --- | --- |
+| `scripts/workstation/backup-usb-age-identity.py`, `verify-usb-age-identity-independent-backup.py` et leurs tests | **nabla-yubikey** : client USB/age, sauvegarde/restauration explicite | Préserver les garde-fous anti-écrasement, les confirmations interactives, le schéma JSON et les deux restaurations prouvées ; ne copier aucun ciphertext |
+| `scripts/workstation/inspect-usb-identity-backup-nfs4-acl.py` et `inspect-usb-identity-backup-server-modes.py` | **Compose** : preuve serveur TrueNAS ACL et modes NFS4 ; interface client possible dans YubiKey | Maintenir la compatibilité SSH et la sortie expurgée ; aucun `setacl` ou `chmod` |
+| `scripts/workstation/inspect-usb-age-backup-nfs-export.py` et `inspect-usb-age-nfs-consumers.py` | **Compose** : export, service et clients NFS sur TrueNAS ; aucun fork divergent dans YubiKey | `sharing.nfs.query` et `ss` strictement read-only, sortie sans adresses/UID, état `REVIEW_REQUIRED` sans acceptation d'une allowlist |
+| `scripts/workstation/backup-openclaw-nfs.py`, `copy-openclaw-backups-nfs.sh` | **Compose / OpenClaw** selon le runtime source/cible, pas YubiKey | Identifier les processus autorisés à écrire dans `infra/openclaw` ; ne jamais rendre le partage `ro` sans migration validée |
+| Recettes `yubikey-usb-identity-*` dans `justfile` | **Wrappers Compose conservés** jusqu'à parité des commandes YubiKey | `just --list`, schéma, codes retour, tests hermétiques et diagnostics réels concordants, sans CI payante |
+
+**Évidence reçue (30/10/2026) :** backups et deux restaurations cryptographiques
+PASS ; modes privés serveur `0700/0700/0600` PASS ; audit de l'export
+`10/10` tests PASS avec `EXPORT_MATCHED` et trois alertes
+(`NO_NFS_HOST_OR_NETWORK_FILTER`, `NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED`,
+`EXPORT_WRITABLE`). Sonde clients TCP/2049 : `8/8` tests PASS sur
+l'**ancienne version**, essai TrueNAS `SS_RESPONSE_UNVERIFIED` (aucun
+nombre de clients vérifié). Le correctif `ss` quatre/cinq colonnes est
+versionné dans la PR #295 fusionnée, **revalidation workstation non attestée**.
+Ne pas confondre l'absence de preuve avec `0` client.
+
+**NO-GO :** ne pas copier les archives `.age`, les secrets SOPS ou
+l'historique Git sensible. Ne pas installer de submodule YubiKey,
+supprimer les recettes historiques, restreindre l'export NFS ou toucher
+aux YubiKeys avant les validations séparées. La conservation de la
+phrase secrète hors SanDisk/workstation/TrueNAS n'est pas encore attestée.
+
 ## Audit de dépendances avant tout changement
 
 Exécuter en local depuis le checkout Compose, sans requêtes GitHub ni
