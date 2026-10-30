@@ -31,6 +31,25 @@ class DeveloperToolingContractTests(unittest.TestCase):
         self.assertEqual(hooks[0]["language"], "python")
         self.assertIn("PyYAML==6.0.3", hooks[0]["additional_dependencies"])
 
+    def test_precommit_manifest_integrity_hook_isolates_pyyaml(self) -> None:
+        """Manifest validation must not depend on the caller's mise Python."""
+        config = yaml.safe_load(
+            (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        )
+        hooks = [
+            hook
+            for repository in config["repos"]
+            if repository["repo"] == "local"
+            for hook in repository["hooks"]
+            if hook["id"] == "precommit-manifest-integrity"
+        ]
+        self.assertEqual(len(hooks), 1)
+        self.assertEqual(hooks[0]["language"], "python")
+        self.assertEqual(
+            hooks[0]["entry"], "python scripts/quality/check-precommit-config.py"
+        )
+        self.assertIn("PyYAML==6.0.3", hooks[0]["additional_dependencies"])
+
     def test_shellcheck_is_native_and_preserves_source_aware_lint(self) -> None:
         config = yaml.safe_load(
             (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
