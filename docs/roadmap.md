@@ -29,6 +29,28 @@
 
 Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
 
+## P0 CrowdSec — inspection LIVE sans vestige (30 octobre 2026)
+
+- **Gate ciblé validé sur la workstation :** `just crowdsec-pf-synthetic-test`
+  **24/24 PASS**, `just crowdsec-bouncer-config-test` **74/74 PASS**
+  (5 URL, 11 authentification, 5 provisionneur, 10 provenance,
+  19 cycle naturel, 24 synthétique). Cela prouve les contrats
+  des scripts, **pas** l'application d'un ban réel dans PF.
+- **Inspection réelle en lecture seule :** `just crowdsec-pf-synthetic-inspect`
+  => `lapi_matches=0 decision_ids=none pf_present=false
+  pf_bouncer=RUNNING`. Aucun vestige *actif* sur `203.0.113.77`
+  à cet instant ; le premier essai reste non prouvé.
+- **Amélioration complémentaire du diagnostic :** classifier sans
+  exposer stderr les refus CrowdSec `ADD_DENIED_ALLOWLIST`,
+  `CLI_UNSUPPORTED_OPTION`, les permissions SSH/sudo et autres
+  échecs. **5 tests supplémentaires versionnés**, gate étendu
+  prévu **79 tests** ; nouveau gate non encore exécuté sur workstation.
+  Ne pas contourner une allowlist TEST-NET-3 à l'aveugle.
+- **Suite :** `just crowdsec-pf-synthetic-preflight` puis, seulement
+  après PASS, exécution active explicitement voulue. Baseline naturelle
+  v1 conservée ; baseline v2 à établir séparément.
+  **P0 PF reste NOT_VERIFIED**.
+
 ## P0 CrowdSec — diagnostic du test synthétique (30 octobre 2026, PR #295)
 
 - **Évidence utilisateur :** `just crowdsec-pf-synthetic-test`
