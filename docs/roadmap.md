@@ -29,6 +29,37 @@
 
 Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
 
+## CrowdSec — réception synthétique LIVE PASS (30 octobre 2026)
+
+- **DONE — boucle de remédiation LAPI → PF → retrait (test contrôlé, réel) :**
+  l'opérateur a exécuté depuis la workstation
+  `scripts/workstation/smoke-crowdsec-pf-synthetic.py --apply
+  --confirm SYNTHETIC-203.0.113.77`.
+  Preflight : `initial_lapi=ABSENT initial_pf=ABSENT pf_bouncer=RUNNING`.
+  CrowdSec TrueNAS a créé la décision **ID 1531819**,
+  `synthetic_pf_application=OBSERVED` a confirmé la présence de
+  l'adresse dans la table `crowdsec_blacklists` sur pfSense, puis
+  `synthetic_cleanup=PASS lapi_absent=true pf_absent=true` a
+  confirmé le retrait **des deux côtés**.
+  Verdict : **`SYNTHETIC_PF_DECISION_CYCLE_PASS`**.
+  Les sorties précédentes `NOT_VERIFIED` décrivent l'échec historique,
+  désormais supplanté pour **ce parcours synthétique**.
+- **Nature du test :** `203.0.113.77` appartient à
+  **TEST-NET-3 (RFC 5737)** : plage de documentation sans
+  propriétaire/attaquant. L'événement est artificiel
+  (`origin=cscli`) mais la création LAPI, la synchronisation PF et
+  le retrait sont des **effets runtime réels**.
+  Durée maximale de décision configurée : 5 minutes ; retrait
+  anticipé par identifiant, sans flush PF ni rotation de clé.
+- **DONE — gate local récent :** 29 tests synthétiques et
+  **79/79 tests CrowdSec ciblés PASS** sur la workstation.
+  Ce gate n'est pas le gate global du dépôt.
+- **P1 reste ouvert indépendamment :** valider les règles PF actives
+  et un blocage de trafic depuis un véritable WAN ; prouver une
+  détection naturelle `origin=crowdsec` avec baseline v2.
+  Aucune de ces deux preuves n'est apportée par le test synthétique.
+  La PR reste Draft, pas de CI GitHub Actions ni d'automerge.
+
 ## P0 CrowdSec — inspection LIVE sans vestige (30 octobre 2026)
 
 - **Gate ciblé validé sur la workstation :** `just crowdsec-pf-synthetic-test`
