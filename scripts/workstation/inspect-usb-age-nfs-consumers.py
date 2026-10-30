@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         "scope": "ALL_NFS_EXPORTS_TCP2049_ONLY",
         "consumer_allowlist_verified": False,
         "export_specific_clients_verified": False,
-        "intermittent_clients_excluded": False,
+        "all_clients_enumerated": False,
         "client_addresses_disclosed": False,
         "archive_opened": False,
         "remote_write_performed": False,
