@@ -65,6 +65,7 @@ if [[ "${mode}" == --tests ]]; then
   probe truenas_virtual_key_contracts just openclaw-truenas-virtual-keys-test
   probe migration_inventory_contracts just openclaw-nabla-migration-test
   probe attribution_contracts just openclaw-429-attribution-test
+  probe provenance_dispatch_contract python3 -m unittest discover -s tests -p test_truenas_litellm_secret_provenance_dispatch.py -v
 elif [[ "${HOST}" == truenas ]]; then
   if [[ "${mode}" == --inventory ]]; then
     probe truenas_secret_provenance just openclaw-truenas-secret-provenance
