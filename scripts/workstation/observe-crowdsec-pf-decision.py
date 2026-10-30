@@ -112,10 +112,32 @@ def natural_bans(raw: str) -> dict[str, dict[str, str]]:
         decoded = []
     if not isinstance(decoded, list):
         raise EvidenceError("unexpected decisions JSON shape (not an array)")
+    # CrowdSec 1.8.1 cscli -o json returns ALERTS with nested decisions;
+    # flat decisions are accepted for compatibility. An unrecognized record
+    # must not silently become natural_bans=0.
+    decisions: list[dict] = []
+    for record in decoded:
+        if not isinstance(record, dict):
+            raise EvidenceError("unexpected central record")
+        if "decisions" in record:
+            nested = record["decisions"]
+            if nested is None:
+                nested = []
+            if not isinstance(nested, list):
+                raise EvidenceError("nested decisions must be an array")
+            for decision in nested:
+                if not isinstance(decision, dict):
+                    raise EvidenceError("invalid nested central decision")
+                item = dict(decision)
+                if record.get("simulated") is True:
+                    item["simulated"] = True
+                decisions.append(item)
+        elif {"id", "scope", "value", "origin", "type"}.issubset(record):
+            decisions.append(record)
+        else:
+            raise EvidenceError("unrecognized central JSON record; refusing false zero")
     bans: dict[str, dict[str, str]] = {}
-    for decision in decoded:
-        if not isinstance(decision, dict):
-            raise EvidenceError("unexpected central decision record")
+    for decision in decisions:
         if (str(decision.get("type", "")).lower() != "ban" or
             str(decision.get("scope", "")).lower() != "ip" or
             str(decision.get("origin", "")).lower() != "crowdsec" or
@@ -162,7 +184,7 @@ def matches(ip: str, networks: list[str]) -> bool:
 
 def default_state_path() -> Path:
     root = os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
-    return Path(root) / "nabla-compose" / "crowdsec-pf-natural-cycle.json"
+    return Path(root) / "nabla-compose" / "crowdsec-pf-natural-cycle-v2.json"
 
 
 def validate_state_dir(path: Path, create: bool) -> None:
@@ -186,7 +208,7 @@ def load_state(path: Path) -> dict:
         state = json.loads(read_bounded(path))
     except ValueError as exc:
         raise EvidenceError("state file JSON is invalid") from exc
-    if (not isinstance(state, dict) or state.get("schema") != 1 or
+    if (not isinstance(state, dict) or state.get("schema") != 2 or
         not isinstance(state.get("baseline_pf"), list) or
         not isinstance(state.get("baseline_decisions"), list) or
         not isinstance(state.get("tracked"), dict) or
@@ -237,7 +259,7 @@ def run(args: argparse.Namespace) -> int:
     networks = pf_networks(pf_snapshot(args))
     pf_health_snapshot(args)
     if args.action == "baseline":
-        state = {"schema": 1, "baseline_at": utc_now(), "source_mode": source_mode,
+        state = {"schema": 2, "baseline_at": utc_now(), "source_mode": source_mode,
                  "salt": secrets.token_hex(16), "baseline_pf": networks,
                  "baseline_decisions": sorted(bans),
                  "baseline_values": sorted({d["ip"] for d in bans.values()}),
