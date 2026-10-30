@@ -1783,3 +1783,7 @@ openclaw-migration-evidence-check:
 # Operator instructions; printing the runbook path does not change runtime.
 openclaw-migration-runbook:
     @echo "docs/runbooks/openclaw-end-to-end-migration-20261030.md"
+
+# Explicit remote sudo -n docker logs, never the default diagnostic path.
+openclaw-litellm-dual-logs-check-sudo:
+    python3 scripts/workstation/diagnose-openclaw-litellm-dual-logs.py --hours 2 --truenas-sudo-logs
