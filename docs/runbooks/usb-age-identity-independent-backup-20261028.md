@@ -393,3 +393,37 @@ supplémentaire** tant que l'inventaire des clients n'est pas réalisé.
 `effective_nfs4_authorization_verified=false` et
 `nfs_identity_mapping_verified=false` restent exacts.
 
+
+### ✅ Acceptation de l'audit export NFS — preuve workstation du 30/10/2026
+
+La deuxième exécution après correction a réellement produit :
+
+- `just yubikey-usb-identity-nfs-export-test` : **10 tests PASS / 10** (`0.552 s`).
+- `just yubikey-usb-identity-nfs-export-check` :
+  `BACKUP_RESTORATION_PREFLIGHT_READY`.
+- `just yubikey-usb-identity-nfs-export-probe` :
+  `probe_state=EXPORT_MATCHED`,
+  `configuration_inventory_verified=true`,
+  `status=REVIEW_REQUIRED`.
+
+Les trois alertes **réellement observées**, après déploiement du correctif,
+sont `NO_NFS_HOST_OR_NETWORK_FILTER`,
+`NFS_SECURITY_FLAVOR_DEFAULT_UNVERIFIED` et `EXPORT_WRITABLE`.
+
+**Signification :** l'export est actif, non verrouillé, sans restriction
+`hosts` ou `networks` déclarée, ouvert aux écritures NFS selon les droits
+effectifs ; les mappings explicites `maproot` et `mapall` ne sont pas
+configurés. La liste `security=[]` ne démontre pas que `AUTH_SYS` est
+désactivé. Les contrôles antérieurs `0700/0600` du serveur restent PASS,
+mais il faut analyser l'authentification des clients et leur accès effectif.
+
+**Décision :** garder l'export tel quel tant que la liste des consommateurs
+et leurs besoins en écriture sont inconnus. Un `ro=true` global ou une
+allowlist improvisée risque de casser les sauvegardes légitimes.
+Préparer une liste de clients et un rollback avant toute mutation.
+
+Cette preuve **remplace** les mentions `NOT_RUN` et `8 PASS / 1 FAIL`
+ci-dessus pour la version corrigée. Les diagnostics ne lisent pas l'archive,
+ne modifient ni NFS ni les secrets. La phrase secrète de récupération
+indépendante demeure **NON ATTESTÉE**.
+
