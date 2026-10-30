@@ -1712,3 +1712,8 @@ openclaw-recovery-readonly-test:
 
 openclaw-recovery-readonly:
     bash scripts/workstation/openclaw-recovery-readonly.sh
+
+# Pinned runtime discovery: remains accurate after an explicitly reviewed Node upgrade.
+openclaw-runtime-paths-test:
+    python3 -m py_compile scripts/workstation/openclaw_runtime_paths.py tests/test_openclaw_runtime_paths.py
+    python3 -m unittest discover -s tests -p 'test_openclaw_runtime_paths.py' -v

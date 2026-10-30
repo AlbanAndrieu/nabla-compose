@@ -16,9 +16,9 @@ import subprocess
 
 AGENTS = ("main", "cron")
 MAX_JSON = 1048576
-ENTRY_ROOT = Path.home() / ".local/share/mise/installs/node/24.22.1"
-NODE = ENTRY_ROOT / "bin/node"
-CLI = ENTRY_ROOT / "lib/node_modules/openclaw/openclaw.mjs"
+# Resolves Node from the aligned mise/runtime contract; never PATH or stale release.
+from runpy import run_path
+NODE, CLI = run_path(str(Path(__file__).with_name("openclaw_runtime_paths.py")))["pinned_cli_paths"]()
 
 REASONS = (
     ("rate_limit", ("rate_limit", "rate limit", "429", "throttled",

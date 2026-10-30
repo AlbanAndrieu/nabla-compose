@@ -8,9 +8,9 @@ from pathlib import Path
 import stat
 import subprocess
 
-NODE_ROOT = Path.home() / ".local/share/mise/installs/node/24.22.1"
-NODE = NODE_ROOT / "bin/node"
-CLI = NODE_ROOT / "lib/node_modules/openclaw/openclaw.mjs"
+# Resolves Node from the aligned mise/runtime contract; never PATH or stale release.
+from runpy import run_path
+NODE, CLI = run_path(str(Path(__file__).with_name("openclaw_runtime_paths.py")))["pinned_cli_paths"]()
 LIMIT = 100
 MAX_BYTES = 1024 * 1024
 TARGET = "agent:cron:main"
