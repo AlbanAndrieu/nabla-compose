@@ -30,6 +30,22 @@ class NotVerified(RuntimeError):
     pass
 
 
+def classify_remote_error(stderr: bytes) -> str:
+    """Fixed labels only. Never disclose raw SSH/CLI stderr or secret values."""
+    detail = stderr[:8192].decode("utf-8", errors="replace").lower()
+    if "allowlisted by item" in detail or "is allowlisted" in detail:
+        return "ADD_DENIED_ALLOWLIST"
+    if "unknown flag" in detail or "unknown command" in detail:
+        return "CLI_UNSUPPORTED_OPTION"
+    if "permission denied" in detail or "a password is required" in detail:
+        return "SSH_OR_SUDO_PERMISSION"
+    if "no such container" in detail or "not found" in detail:
+        return "CONTAINER_OR_COMMAND_MISSING"
+    if "connection refused" in detail or "connection timed out" in detail:
+        return "CONNECTION_FAILURE"
+    return "REMOTE_COMMAND_FAILED_UNCLASSIFIED"
+
+
 def ssh(target: str, port: int, command: str, *, timeout: int = 20) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.@:-]{1,160}", target) or target.startswith("-"):
         raise NotVerified("invalid SSH destination")
@@ -41,12 +57,13 @@ def ssh(target: str, port: int, command: str, *, timeout: int = 20) -> str:
         argv += ["-p", str(port)]
     argv += [target, command]
     try:
-        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            check=False, timeout=timeout)
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         raise NotVerified("SSH read/action unavailable or timed out") from exc
     if p.returncode:
-        raise NotVerified("remote command failed; inspect SSH permissions and container health")
+        # Deterministic category only; don't print CLI stderr or command output.
+        raise NotVerified(classify_remote_error(p.stderr))
     if len(p.stdout) > MAX_OUTPUT:
         raise NotVerified("SSH output size limit exceeded")
     try:
@@ -265,8 +282,12 @@ def apply(args: argparse.Namespace) -> int:
                 if error is None:
                     error = exc
     if error:
+        diagnostic = ""
+        if isinstance(error, NotVerified):
+            # Every message is a fixed, authored category (no remote data).
+            diagnostic = " diagnostic=" + str(error).split(":", 1)[0].replace(" ", "_")[:64]
         print("synthetic_cycle=NOT_VERIFIED stage=" + stage +
-              " reason=" + type(error).__name__)
+              " reason=" + type(error).__name__ + diagnostic)
         return 2
     if not applied_pf or not cleanup_ok:
         print("synthetic_cycle=NOT_VERIFIED reason=PF_APPLICATION_OR_CLEANUP_NOT_PROVEN")
