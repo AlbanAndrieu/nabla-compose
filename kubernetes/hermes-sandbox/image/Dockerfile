@@ -2,7 +2,7 @@
 # Offline homelab checks only: git, just, pre-commit, docker-compose config.
 # No kubectl, no Docker daemon/CLI, no credentials. Tool versions and
 # checksums mirror mise.lock; update both together.
-FROM python:3.14.9-slim-bookworm
+FROM python:3.14.10-slim-bookworm
 LABEL name="hermes-homelab-sandbox" \
       version="0.1.0"
 

@@ -1,4 +1,6 @@
-FROM python:3.14.9-slim-bookworm
+FROM python:3.14.10-slim-bookworm
+LABEL name="dsomm-baseline" \
+      version="0.1.0"
 
 ARG DSOMM_BASELINE_REF=3255561bc9162e335d2c79b72e12b1478075e610
 

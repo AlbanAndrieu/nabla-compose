@@ -26,8 +26,8 @@ def test_mise_lock_has_verified_new_platform_assets():
     assert mise["tools"]["aqua:siderolabs/talos"] == "1.14.4"
     assert talos["version"] == "1.14.4"
     assert talos["specifiers"] == ["1.14.4"]
-    assert python["version"] == "3.14.9"
-    assert python["specifiers"] == ["3.14.9"]
+    assert python["version"] == "3.14.10"
+    assert python["specifiers"] == ["3.14.10"]
     for platform in ("linux-arm64", "linux-arm64-musl", "linux-x64",
                      "linux-x64-musl", "macos-arm64", "macos-x64", "windows-x64"):
         t = talos[f"platforms.{platform}"]
@@ -36,7 +36,7 @@ def test_mise_lock_has_verified_new_platform_assets():
         assert re.fullmatch(checksum, t["checksum"])
         assert re.fullmatch(checksum, p["checksum"])
         assert "/v1.14.4/" in t["url"]
-        assert "/20261021/cpython-3.14.9+20261021-" in p["url"]
+        assert "/20261026/cpython-3.14.10+20261026-" in p["url"]
     assert not any("v1.13.9" in str(x) for x in (value for key, value in talos.items() if key.startswith("platforms.")))
     assert not any("3.14.8" in str(x) for x in (value for key, value in python.items() if key.startswith("platforms.")))
 
@@ -50,7 +50,7 @@ def test_platform_versions_match_mise_and_talos_pins():
     assert cfg["languageRuntimes"]["php"]["preferred"] == "8.5.12"
     mise = (ROOT / "mise.toml").read_text()
     assert '"aqua:siderolabs/talos" = "1.14.4"' in mise
-    assert "default='3.14.9'" in mise
+    assert "default='3.14.10'" in mise
 
 
 @pytest.mark.parametrize("image,expected", [
@@ -103,9 +103,9 @@ def test_repo_scan_reports_apps_and_nonruntime_images(tmp_path):
     ]
 
 
-def test_declared_python_baseline_now_uses_python_3149():
+def test_declared_python_baseline_now_uses_python_31410():
     dockerfile = (ROOT / "apps/dsomm/baseline/Dockerfile").read_text()
-    assert dockerfile.startswith("FROM python:3.14.9-slim-bookworm")
+    assert dockerfile.startswith("FROM python:3.14.10-slim-bookworm")
     assert "pip install" in dockerfile
 
 
@@ -122,7 +122,7 @@ def test_every_compose_image_is_visible_and_operator_never_assumes_lts():
 
 def test_homarr_python_reconciler_is_maintained():
     image = (ROOT / "apps/homarr/compose.yml").read_text()
-    assert "docker.io/library/python:3.14.9-alpine3.24" in image
+    assert "docker.io/library/python:3.14.10-alpine3.24" in image
     reconciler = (ROOT / "apps/homarr/sync.py").read_text()
     assert "from urllib.request import" in reconciler
 
