@@ -45,6 +45,9 @@ class MigrationEvidence(unittest.TestCase):
             self.assertEqual(result.returncode,2)
             self.assertIn("truenas_tunnel unverified_or_failed",result.stdout)
             self.assertIn("PROBE digest_top completed",result.stdout)
+            self.assertIn("PROBE dual_litellm_logs completed",result.stdout)
+            self.assertIn("PROBE truenas_virtual_keys_quota completed",result.stdout)
+            self.assertIn("PROBE model_route_metadata completed",result.stdout)
             self.assertIn("unverified_or_failed=1",result.stdout)
 
     def test_truenas_skips_workstation_only_probes(self):
