@@ -64,17 +64,47 @@ def pfsense(args: argparse.Namespace, command: str) -> str:
     return ssh(args.pfsense_ssh, args.pfsense_port, command)
 
 
-def all_decisions(args: argparse.Namespace) -> list[dict]:
-    raw = truenas(args, "list --limit 0 -o json")
+def parse_decisions(raw: str) -> list[dict]:
+    """Normalize CrowdSec v1.8 cscli JSON (alerts[].decisions[]).
+
+    The CLI table is constructed from Alert.Decisions, while -o json outputs
+    alerts. Flat decision arrays are also accepted for older fixtures.
+    An unknown shape must never be interpreted as "no active decisions".
+    """
     try:
         data = json.loads(raw)
     except ValueError as exc:
         raise NotVerified("LAPI decision JSON malformed") from exc
     if data is None:
         return []
-    if not isinstance(data, list) or any(not isinstance(d, dict) for d in data):
-        raise NotVerified("unexpected LAPI decision JSON shape")
-    return data
+    if not isinstance(data, list):
+        raise NotVerified("unexpected LAPI JSON root (expected array)")
+    flattened = []
+    for record in data:
+        if not isinstance(record, dict):
+            raise NotVerified("non-object LAPI JSON record")
+        if "decisions" in record:
+            nested = record["decisions"]
+            if nested is None:
+                nested = []
+            if not isinstance(nested, list):
+                raise NotVerified("LAPI alert decisions are not an array")
+            for decision in nested:
+                if not isinstance(decision, dict):
+                    raise NotVerified("non-object nested LAPI decision")
+                normalized = dict(decision)
+                if record.get("simulated") is True:
+                    normalized["simulated"] = True
+                flattened.append(normalized)
+        elif {"id", "scope", "value", "origin", "type"}.issubset(record):
+            flattened.append(record)
+        else:
+            raise NotVerified("unrecognized LAPI JSON record (no decisions array)")
+    return flattened
+
+
+def all_decisions(args: argparse.Namespace) -> list[dict]:
+    return parse_decisions(truenas(args, "list --limit 0 -o json"))
 
 
 def ip_targeted(decision: dict) -> bool:
@@ -148,10 +178,12 @@ def created_decision(args: argparse.Namespace, reason: str) -> int:
     if (str(record.get("origin", "")).lower() != "cscli" or
             str(record.get("type", "")).lower() != "ban" or
             str(record.get("scope", "")).lower() != "ip" or
-            str(record.get("value", "")) != IP):
+            str(record.get("value", "")) != IP or
+            record.get("scenario") != reason or
+            record.get("simulated") is True):
         raise NotVerified("unexpected synthetic decision fields; manual cleanup required")
-    # CrowdSec CLI may omit or rewrite reason in JSON; uniqueness is from
-    # preflight absence, one resulting cscli ban and one decision ID.
+    # Never delete a decision if its random reason does not match this run.
+    # CrowdSec 1.8.1 nests decision.scenario beneath each alert.
     return decision_id(record)
 
 
