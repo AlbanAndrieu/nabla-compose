@@ -116,6 +116,9 @@ class Contracts(unittest.TestCase):
         bad = [b"{", "{}", json.dumps({**self.record(), "state": "FAKE"}),
                json.dumps({**self.record(), "enabled": 1}),
                json.dumps({**self.record(), "root_mapping": "root"}),
+               json.dumps({**self.record(), "read_only": None}),
+               json.dumps({**self.record(), "client_filter": "SCHEMA_UNVERIFIED"}),
+               json.dumps({**self.record(), "state": "EXPORT_MISSING"}),
                json.dumps({**self.record(), "client_ip": "192.0.2.1"})]
         for value in bad:
             with self.subTest(value=str(value)[:30]), patch.object(
@@ -176,6 +179,8 @@ class Contracts(unittest.TestCase):
                              "state"], "EXPORT_SCHEMA_UNVERIFIED")
             self.assertEqual(execute([self.sample_share(security=["KRB5P"])])[
                              "security"], "KERBEROS_ONLY")
+            self.assertEqual(execute([self.sample_share(security=["SYS", "SYS"])])[
+                             "state"], "EXPORT_SCHEMA_UNVERIFIED")
             self.assertEqual(execute([self.sample_share(hosts=[], networks=[],
                                          security=[])])["security"], "DEFAULT_UNVERIFIED")
             (backups / self.NAME).unlink()
