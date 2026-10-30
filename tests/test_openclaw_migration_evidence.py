@@ -26,6 +26,10 @@ class MigrationEvidence(unittest.TestCase):
             target=root/"scripts/workstation/openclaw-migration-evidence.sh"
             target.parent.mkdir(parents=True)
             shutil.copyfile(SOURCE,target)
+            # The runner invokes the existing heartbeat summary through bash.
+            # Preserve the command contract without executing the real agent.
+            ops=target.parent/"openclaw-ops.sh"
+            ops.write_text("#!/bin/sh\nexit 0\n")
             fake=root/"bin/just"
             fake.parent.mkdir()
             fake.write_text('#!/bin/sh\nprintf "mock:%s\\n" "$1"\n'
