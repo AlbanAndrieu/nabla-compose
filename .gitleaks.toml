@@ -1,4 +1,24 @@
 # This is the default gitleaks configuration file.
+# Betterleaks v1.9.0: ignore only three reviewed upstream Docker examples.
+# Do not exclude .agents/skills globally; all other findings remain active.
+filter = '''
+finding["rule_id"] == "generic-password" &&
+(
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/assets/bad-vs-good.md" &&
+    finding["line"] == "      POSTGRES_PASSWORD: supersecretpassword123"
+  ) ||
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/SKILL.md" &&
+    finding["line"] == "- When defaults are needed in the `environment:` block for local development, use variable substitution with fallbacks: ${DB_PASSWORD:-postgres}. Never write bare plaintext values for password fields."
+  ) ||
+  (
+    attributes["path"] == ".agents/skills/docker-compose-patterns/assets/compose-web-app.yaml" &&
+    finding["line"] == "      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-secret}@db:5432/myapp"
+  )
+)
+'''
+
 # Rules and allowlists are defined within this file.
 # Rules instruct gitleaks on what should be considered a secret.
 # Allowlists instruct gitleaks on what is allowed, i.e. not a secret.
