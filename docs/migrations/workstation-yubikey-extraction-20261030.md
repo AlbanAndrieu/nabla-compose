@@ -9,8 +9,9 @@ propriétaire cible, sans déplacer les fichiers. Source de décision :
 | Chemins Compose actuels | Cible proposée | État / restriction |
 | --- | --- | --- |
 | `scripts/workstation/diagnose-openclaw-*`, `check-openclaw-*`, `openclaw-ops.sh`, `tests/test_openclaw_*` | **nabla-openclaw** pour logique Gateway/cron cible ; **Ansible** pour audit OS de la source | Examiner les imports TrueNAS/stockage, ne pas copier le Gateway Workstation en bloc |
-| `apps/openclaw/workstation/` | **nabla-openclaw `policies/`** pour heartbeat/cron ; Ansible garde l'OS | Premières politiques importées en PR #1, inactives ; ne pas transférer les sessions ni fichiers secrets |
-| `apps/openclaw/compose.yml`, `apps/litellm/`, `scripts/truenas/*litellm*` | **Reste Compose** | Serveurs, modèles TrueNAS, clés scoped, DB, quotas, NFS |
+| `ops/openclaw-workstation/` (anciennement `apps/openclaw/workstation/`) | **nabla-openclaw `policies/`** pour heartbeat/cron ; Ansible garde l'OS | 14 artefacts relocalisés dans Compose, politiques candidates importées en PR #1 ; ne pas transférer les sessions ni les secrets |
+| `apps/openclaw/compose.yml` (sandbox actuel) | **Compose, puis `apps/openclaw-sandbox/` seulement après gates** | `build.sh`, catalogue/topologie et `app.config` TrueNAS sont des consommateurs à auditer ; pas le Gateway cible ; [NO-GO documenté](openclaw-sandbox-consumers-go-no-go-20261030.md) |
+| `apps/litellm/`, `scripts/truenas/*litellm*` | **Reste Compose** | Proxies, modèles TrueNAS, clés scoped, DB, quotas et NFS |
 | `scripts/workstation/provision-fastapi-litellm-keys.py`, `scripts/workstation/diagnose-fastapi-litellm-workstation-key.py`, `scripts/secrets/*bitwarden*` | **Compose / frontière FastAPI–LiteLLM–Vaultwarden** | **Exception explicite : ne pas transférer à OpenClaw ni à Ansible**. Clé Workstation `fastapi-sample-upstream` émise, Vaultwarden/runtime TrueNAS encore non vérifiés ; préserver le contrôle anti-doublon et les secrets existants |
 | `scripts/workstation/diagnose-*-dns*.py`, `workstation-split-dns-*` | ansible-workstation | Reprendre les audits existants, PAS de second collecteur équivalent |
 | `scripts/workstation/*yubikey*`, `*age-escrow*`, `*sops*` | nabla-yubikey PR #1 | Tri manuel par effet et tests ; pas de clés, PIN ou configs chiffrées |
@@ -68,6 +69,23 @@ consommée par FastAPI). Seule la première est attestée
 générée le 28/10 ; aucune migration Git ou activation
 automatique n'est une preuve de son injection TrueNAS.
 [Suivi P0](../roadmap-openclaw-yubikey-extraction-20261030.md).
+
+## Contrôle croisé vérifié dans le code — sandbox OpenClaw
+
+Le prochain gitlink `apps/openclaw` **reste bloqué** par
+quatre fichiers sandbox encore suivis, par `build.sh`
+qui utilise l'ancien `compose.yml`, par les références
+du catalogue `services.json` et de la topologie, ainsi
+que par les configurations TrueNAS encore inconnues.
+Les quatre fichiers ne doivent pas être déplacés depuis
+cette PR documentaire. Détails, checks et rollback :
+[registre de consommateurs OpenClaw](openclaw-sandbox-consumers-go-no-go-20261030.md).
+
+Le contrat `nabla-openclaw/deploy/truenas/target-contract.json`
+sur `master` contient encore `current_tracked_file_count: 18`
+malgré les **4** fichiers restant dans Compose. Cette valeur
+historique doit être corrigée dans le dépôt propriétaire du
+Gateway avant de s'en servir pour valider un gitlink.
 
 ## Audit de dépendances avant tout changement
 
