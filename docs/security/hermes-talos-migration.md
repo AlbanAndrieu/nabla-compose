@@ -162,8 +162,14 @@ Reste à faire avant tout apply :
 1. Installer le contrôleur kubernetes-sigs/agent-sandbox depuis une release
    épinglée et revue (CRD `agents.x-k8s.io` et `extensions.agents.x-k8s.io`
    en `v1beta1`), dans `agent-sandbox-system`.
-2. Construire et signer l'image `hermes-homelab-sandbox` (non-root UID 1000,
-   sans `kubectl` ni identifiants), puis remplacer le placeholder de digest.
+2. Image `hermes-homelab-sandbox` : **Dockerfile prêt**
+   (`kubernetes/hermes-sandbox/image/`, base épinglée, docker-compose, just
+   et pre-commit vérifiés par SHA-256 contre `mise.lock`, UID 1000, sans
+   `kubectl`, sans CLI Docker, sans identifiants). Smoke local
+   `bash scripts/hermes/smoke-sandbox-image.sh` : rootfs en lecture seule,
+   `--network none`, `--cap-drop ALL`, tmpfs `/workspace` et `/tmp`, puis
+   `git`, `docker-compose config`, `just` et `pre-commit`. Reste : publier
+   et signer l'image, puis remplacer le placeholder de digest.
 3. Écrire ou choisir le broker (namespace `hermes-broker`, API typée,
    authentification par jeton, `shutdownTime` obligatoire sur chaque claim)
    et le plugin Hermes ; ouvrir alors l'egress du gateway vers le broker.

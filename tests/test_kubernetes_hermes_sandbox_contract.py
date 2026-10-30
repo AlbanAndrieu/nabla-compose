@@ -1,6 +1,8 @@
 from pathlib import Path
+import re
 import shutil
 import subprocess
+import tomllib
 import unittest
 
 import yaml
@@ -8,12 +10,24 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "kubernetes" / "hermes-sandbox"
+DOCKERFILE = BUNDLE / "image" / "Dockerfile"
+SMOKE = ROOT / "scripts" / "hermes" / "smoke-sandbox-image.sh"
 ADR = ROOT / "docs" / "security" / "hermes-talos-migration.md"
 
 
 def load(name: str) -> list[dict]:
     text = (BUNDLE / name).read_text(encoding="utf-8")
     return [doc for doc in yaml.safe_load_all(text) if doc]
+
+
+def dockerfile_args() -> dict[str, str]:
+    text = DOCKERFILE.read_text(encoding="utf-8")
+    return dict(re.findall(r"^ARG ([A-Z0-9_]+)=(\S+)$", text, re.MULTILINE))
+
+
+def mise_lock_tool(name: str) -> dict:
+    lock = tomllib.loads((ROOT / "mise.lock").read_text(encoding="utf-8"))
+    return lock["tools"][name][0]
 
 
 class KubernetesHermesSandboxContractTests(unittest.TestCase):
@@ -115,6 +129,51 @@ class KubernetesHermesSandboxContractTests(unittest.TestCase):
         text = ADR.read_text(encoding="utf-8")
         self.assertIn("kubernetes/hermes-sandbox/", text)
         self.assertIn("hermes-homelab-offline", text)
+        self.assertIn("scripts/hermes/smoke-sandbox-image.sh", text)
+
+    def test_image_tools_match_mise_lock_pins(self) -> None:
+        args = dockerfile_args()
+        pins = {
+            "docker-compose": ("COMPOSE_VERSION", "COMPOSE_SHA256_AMD64", "COMPOSE_SHA256_ARM64"),
+            "just": ("JUST_VERSION", "JUST_SHA256_AMD64", "JUST_SHA256_ARM64"),
+        }
+        for tool, (version, amd64, arm64) in pins.items():
+            with self.subTest(tool=tool):
+                lock = mise_lock_tool(tool)
+                self.assertEqual(lock["version"], args[version])
+                self.assertEqual(lock["platforms.linux-x64"]["checksum"], "sha256:" + args[amd64])
+                self.assertEqual(lock["platforms.linux-arm64"]["checksum"], "sha256:" + args[arm64])
+        pre_commit = mise_lock_tool("pre-commit")
+        self.assertEqual(pre_commit["version"], args["PRE_COMMIT_VERSION"])
+        self.assertEqual(
+            pre_commit["platforms.linux-x64"]["checksum"], "sha256:" + args["PRE_COMMIT_SHA256"]
+        )
+
+    def test_image_is_non_root_offline_toolbox(self) -> None:
+        text = DOCKERFILE.read_text(encoding="utf-8")
+        self.assertIn("USER 1000:1000", text)
+        self.assertIn("HOME=/workspace", text)
+        self.assertIn("sha256sum -c -", text)
+        self.assertIn("if command -v kubectl || command -v docker; then exit 1; fi", text)
+        self.assertRegex(text, r"(?m)^FROM \S+:\d+\.\d+\.\d+-")
+        for forbidden in ("kubectl", "docker.io", "docker-ce"):
+            self.assertNotIn(f"install -y --no-install-recommends {forbidden}", text)
+
+    def test_smoke_reproduces_template_constraints(self) -> None:
+        text = SMOKE.read_text(encoding="utf-8")
+        for flag in (
+            "--network none",
+            "--read-only",
+            "--user 1000:1000",
+            "--cap-drop ALL",
+            "--security-opt no-new-privileges",
+            "--tmpfs /workspace",
+            "--tmpfs /tmp",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, text)
+        self.assertIn("rootfs is writable", text)
+        self.assertIn("kubectl or docker CLI must be absent", text)
 
 
 if __name__ == "__main__":
