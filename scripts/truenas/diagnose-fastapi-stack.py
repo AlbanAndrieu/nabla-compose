@@ -506,7 +506,9 @@ def main(argv: list[str] | None = None) -> int:
                     [row('fastapi_metrics_auth', 'NOT_RUN', 'truenas_host_required')])
         if args.deep_prometheus:
             rows.extend(deep_prometheus())
-    if args.scope in ('all', 'ai', 'vaultwarden'):
+    # The Bitwarden CLI belongs exclusively to the unprivileged operator.
+    # Runtime AI checks must not inspect bw or depend on BW_SESSION.
+    if args.scope == 'vaultwarden':
         rows.extend(vaultwarden_operator())
     if args.scope in ('all', 'ai'):
         if not verified_truenas:
