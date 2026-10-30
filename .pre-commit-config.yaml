@@ -564,8 +564,9 @@ repos:
 
       - id: precommit-manifest-integrity
         name: "✅ pre-commit · Reject duplicated security/quality hooks"
-        language: system
-        entry: python3 scripts/quality/check-precommit-config.py
+        language: python
+        entry: python scripts/quality/check-precommit-config.py
+        additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
           ^([.]pre-commit-config[.]yaml|scripts/quality/check-precommit-config[.]py|tests/test_precommit_integrity[.]py)$
