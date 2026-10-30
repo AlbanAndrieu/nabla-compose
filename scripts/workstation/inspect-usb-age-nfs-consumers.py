@@ -36,21 +36,35 @@ try:
             valid = True
             for line in lines:
                 fields = line.split()
-                if len(fields) < 5:
+                # With `ss -H -tn state established`, Linux normally omits
+                # the state column: Recv-Q Send-Q Local Peer (four columns).
+                # Some iproute2 releases print ESTAB as a fifth column.
+                if len(fields) == 4:
+                    queues, endpoints = fields[:2], fields[2:]
+                elif len(fields) == 5 and fields[0] in ("ESTAB", "ESTABLISHED"):
+                    queues, endpoints = fields[1:3], fields[3:]
+                else:
                     valid = False
                     break
-                local, remote = fields[-2:]
+                if not all(value.isdecimal() for value in queues):
+                    valid = False
+                    break
+                local, remote = endpoints
                 try:
                     local_ip, local_port = local.rsplit(":", 1)
                     peer_ip, peer_port = remote.rsplit(":", 1)
                     ipaddress.ip_address(local_ip.strip("[]"))
-                    ipaddress.ip_address(peer_ip.strip("[]"))
+                    peer_address = ipaddress.ip_address(peer_ip.strip("[]"))
                     if (local_port != "2049" or
                         not peer_port.isdecimal() or
                         not 1 <= int(peer_port) <= 65535):
                         valid = False
                         break
-                    peers.add(peer_ip)
+                    # IPv4 peers rendered as IPv4-mapped IPv6 must count as
+                    # the same client. Raw addresses never leave TrueNAS.
+                    if isinstance(peer_address, ipaddress.IPv6Address):
+                        peer_address = peer_address.ipv4_mapped or peer_address
+                    peers.add(peer_address)
                 except (ValueError, IndexError):
                     valid = False
                     break
