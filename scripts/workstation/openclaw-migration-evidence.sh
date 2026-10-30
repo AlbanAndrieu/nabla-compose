@@ -86,6 +86,9 @@ else
   probe combined_diagnostics just openclaw-recovery-readonly
   probe 429_no_admin just openclaw-429-triage-no-admin
   probe truenas_routes_declared just openclaw-truenas-model-keys-check
+  probe truenas_virtual_keys_quota just openclaw-truenas-virtual-keys-quota
+  probe model_route_metadata python3 scripts/workstation/openclaw-route-metadata.py
+  probe dual_litellm_logs just openclaw-litellm-dual-logs-check
   probe truenas_tunnel just openclaw-truenas-tunnel-check
   probe cron_parent just openclaw-cron-parent-check
   probe digest_top just openclaw-digest-top-check
