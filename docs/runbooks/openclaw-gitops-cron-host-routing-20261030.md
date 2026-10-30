@@ -71,7 +71,13 @@ aucun groupe Docker ou ACL n'est modifié.
   lecture native du job par ID, calcul de drift, sauvegarde privée,
   modification CLI native et vérification de résultat.
 
-Seul `payload.message` est ciblé. Le script refuse un mauvais nom,
+Seul `payload.message` est ciblé. Pour l'application, le message
+runtime doit encore correspondre au contrat installé
+`references/digest-prompt.md` avec exactement une occurrence
+`ITEMS_PER_SECTION = 3-5`. Si sa structure a changé ou contient
+d'autres personnalisations non prévues, **STOP et revue privée dans
+la Control UI** plutôt qu'un écrasement automatique.
+Le script refuse un mauvais nom,
 un mauvais ID, un payload non conforme, une modification concurrente
 constatée ou une source avec secret détectable. Il préserve
 `schedule`, `delivery`, `agentId`, `sessionTarget`,
