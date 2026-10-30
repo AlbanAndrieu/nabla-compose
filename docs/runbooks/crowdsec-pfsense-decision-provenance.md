@@ -159,6 +159,51 @@ la causalité du bouncer.
    du niveau LAPI et de la table PF. L'expiration/résolution d'une décision
    naturelle peut être suivie sans provoquer de trafic hostile.
 
+## Réception workstation après correction — 30 octobre 2026
+
+**Tests locaux terminés :** le module synthétique corrigé passe
+**24/24**, et le gate CrowdSec complet **74/74**. Le nouvel
+`just crowdsec-pf-synthetic-inspect` a confirmé en LIVE :
+
+```text
+synthetic_inspect=READY lapi_matches=0 decision_ids=none pf_present=false pf_bouncer=RUNNING
+synthetic_cycle=NOT_VERIFIED reason=NO_ACTIVE_TEST_DECISION
+```
+
+Il n'y a **aucune décision ni correspondance PF active observée**
+sur `203.0.113.77` au moment de ce contrôle, mais l'essai
+antérieur reste **non attesté** : ne pas inventer de preuve
+de création, d'application ou de suppression.
+
+**Attribution d'échec améliorée dans PR #295 :** `ssh()`
+catégorise les stderr CLI/SSH avec des codes fixes sans
+imprimer les journaux bruts, secrets ou paramètres sensibles.
+Exemples : `ADD_DENIED_ALLOWLIST`,
+`CLI_UNSUPPORTED_OPTION`, `SSH_OR_SUDO_PERMISSION`,
+`CONTAINER_OR_COMMAND_MISSING`,
+`REMOTE_COMMAND_FAILED_UNCLASSIFIED`.
+Le code CrowdSec v1.8.1 montre qu'un `cscli decisions add`
+peut refuser une IP **allowlistée**, notamment dans la plage
+de documentation selon la configuration. Ce n'est pas une
+conclusion établie pour le premier essai : il faut observer
+le diagnostic d'une future exécution, sans ajouter
+`--bypass-allowlist` par défaut.
+
+**Prochaine validation en lecture seule :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just crowdsec-pf-synthetic-test
+just crowdsec-pf-synthetic-preflight
+```
+
+Si le précontrôle échoue, ne jamais exécuter la mutation.
+Sinon le test actif reste une action séparée, explicite, décrite
+plus bas. La baseline naturelle v1 reste archivée ; un nouveau
+`just crowdsec-pf-natural-baseline` utilise désormais le fichier
+de preuve v2 sans écrasement.
+
 ## Incident 30 octobre — test synthétique non vérifié (PR #295)
 
 **Preuve opérateur :** tests CrowdSec 61/61 PASS, précontrôle
