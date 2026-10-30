@@ -328,7 +328,7 @@ git submodule update --init --recursive apps/fastapi-sample
 printf 'nabla-compose: '
 git rev-parse --short HEAD
 printf 'fastapi-sample pinned: '
-git -C fastapi-sample rev-parse --short HEAD
+git -C apps/fastapi-sample rev-parse --short HEAD
 ```
 
 For a runtime refresh, prefer `scripts/truenas/update-fastapi-sample.sh`.
