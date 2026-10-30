@@ -505,3 +505,52 @@ l'opérateur et test de restauration des usages critiques. Les
 permissions `0700/0600` des dossiers privés restent intactes et
 les sauvegardes de l'identité USB ne sont pas régénérées.
 
+
+### ✅ Preuve workstation — sonde TCP NFS, 30/10/2026
+
+L'opérateur a exécuté les recettes de cartographie des consommateurs :
+- `just yubikey-usb-identity-nfs-consumers-test` : **8/8 PASS**,
+  compilation Python comprise.
+- `just yubikey-usb-identity-nfs-consumers-check` :
+  `BACKUP_RESTORATION_PREFLIGHT_READY`, `NOT_PROBED`, sans SSH.
+- `just yubikey-usb-identity-nfs-consumers-probe` :
+  `SS_RESPONSE_UNVERIFIED`, code retour **3** ; aucun compte de
+  sessions ou de clients n'a été communiqué.
+
+**Cause probable du code retour :** la version initiale du parseur
+exigeait au moins cinq colonnes par ligne de `ss`, alors que
+`ss -H -tn state established` peut retourner quatre colonnes
+(`Recv-Q Send-Q Local:Port Peer:Port`) lorsque l'état `ESTAB`
+est omis. Le format **4 colonnes** a été reproduit sur une connexion
+TCP de laboratoire local, sans utiliser le NAS et sans afficher
+les adresses. Cette reproduction n'atteste pas les octets réels
+retournés par `ss` sur TrueNAS.
+
+**Correctif livré dans PR #295 :** parseur strict acceptant
+`4` colonnes (sans état) ou `5` colonnes (avec `ESTAB`),
+validation numérique des files et des ports, contrôle de la
+structure des IP et déduplication IPv4 / IPv4-mappé IPv6.
+Les tests de sortie simulée couvrent les deux formats ainsi que
+des lignes malformées. Le contrôle reste fail-closed et ne renvoie
+aucune adresse cliente.
+
+**État :** tests du nouveau correctif sur workstation **NOT_RUN**,
+sonde réelle post-correctif **NOT_RUN** ; inventaire client NFS
+**NON ÉTABLI**. Même après un succès, un instantané `ss` ne
+constitue pas la liste exhaustive des clients autorisés et
+n'est pas spécifique à l'export `lab`.
+
+**Reprise strictement en lecture seule :**
+
+```bash
+cd ~/w/nabla-compose
+git pull --ff-only
+just yubikey-usb-identity-nfs-consumers-test
+just yubikey-usb-identity-nfs-consumers-check
+just yubikey-usb-identity-nfs-consumers-probe
+```
+
+Ne pas utiliser `sharing.nfs.update`, `ro=true`, une allowlist
+dérivée des sessions TCP, `chmod`, `--copy` ou `--backup`
+avant l'inventaire complet des consommateurs.
+
