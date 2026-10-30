@@ -29,6 +29,41 @@
 
 Runbook : [Diagnostic consolidé FastAPI](runbooks/fastapi-consolidated-diagnostics-20261030.md).
 
+## CrowdSec — audit read-only des règles PF chargées (PR #295)
+
+- **CODED [skip ci]** : `scripts/workstation/audit-crowdsec-pf-rules.py`
+  interroge en SSH depuis la workstation `pfctl -s info`,
+  `pfctl -sr` et, si possible, les ancres avec
+  `pfctl -a '*' -sr`. Recherche une règle PF chargée
+  `block … in … quick … from <crowdsec_blacklists>`.
+  Une simple table, une référence dans un commentaire,
+  une règle `pass`, un blocage `out` ou une référence
+  de destination ne sont pas acceptés comme preuve.
+  Les règles uniquement dans les ancres conservent
+  `ANCHOR_BLOCK_RULE_REACHABILITY_NOT_VERIFIED`.
+  Sortie expurgée sans ruleset brut, pas de mutation.
+- **Tests :** `tests/test_crowdsec_pf_rules_audit.py`,
+  **21 scénarios hermétiques versionnés**, recette
+  `just crowdsec-pf-rules-test`; intégration dans
+  `just crowdsec-bouncer-config-test`. Gate ciblé
+  attendu **100 tests** (79 auparavant + 21).
+  **Exécution locale de ce nouveau gate non encore attestée.**
+- **RUNTIME NON VÉRIFIÉ :** lancer
+  `just crowdsec-pf-rules-audit` sur la workstation.
+  Un éventuel `BLOCK_RULE_LOADED` démontre seulement
+  la présence d'une règle de blocage entrant `quick`
+  chargée ; **pas** le blocage réel d'un paquet WAN.
+  L'interface WAN doit être renseignée si connue,
+  sans inférence via la route par défaut.
+  Conserver la preuve précédente
+  `SYNTHETIC_PF_DECISION_CYCLE_PASS` comme DONE,
+  séparée de cette réception.
+- **Déféré :** confirmation des chemins réseau WAN
+  et logs/compteurs associés à une règle active,
+  puis observation naturelle `origin=crowdsec`
+  depuis la baseline v2, toujours distinctes du
+  test synthétique.
+
 ## CrowdSec — réception synthétique LIVE PASS (30 octobre 2026)
 
 - **DONE — boucle de remédiation LAPI → PF → retrait (test contrôlé, réel) :**
