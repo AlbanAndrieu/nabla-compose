@@ -2,6 +2,21 @@
 
 **Statut : PROPOSED — 30 octobre 2026.** Ne déplace encore aucun fichier ni ne modifie le runtime.
 
+> **Note de synchronisation Git de la PR Compose #300 :** le
+> document ci-dessous conserve les motifs et statuts historiques
+> de la décision. Depuis sa rédaction, `ansible-workstation` #16
+> et `nabla-openclaw` #1 ont été **fusionnées** ;
+> `nabla-yubikey` #1 et `nabla-openclaw` #2 sont **Draft**.
+> Dans Compose #295 fusionnée, les 14 artefacts Workstation ont
+> quitté `apps/openclaw/` pour `ops/openclaw-workstation/` :
+> il reste **4 fichiers sandbox**. Ni le Gateway TrueNAS ni
+> le submodule `apps/openclaw` ne sont déployés. Le déplacement
+> du sandbox est **NO-GO** tant que les consommateurs `build.sh`,
+> catalogue/topologie et les Apps TrueNAS ne sont pas validés.
+> [Registre des consommateurs](../migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+> et [roadmap transversale](../roadmap-openclaw-yubikey-extraction-20261030.md).
+
+
 ## Constat vérifié
 
 Sur la branche de la PR #295 : `justfile` compte **370 recettes**,
