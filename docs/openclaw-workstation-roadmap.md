@@ -1,5 +1,7 @@
 # OpenClaw Workstation — roadmap opérationnelle dédiée
 
+> **Autorité de migration (30/10/2026) :** le Gateway cible et ses politiques appartiennent désormais au dépôt [nabla-openclaw](https://github.com/AlbanAndrieu/nabla-openclaw), PR #1 fusionnée, [roadmap dédiée en PR #2](https://github.com/AlbanAndrieu/nabla-openclaw/pull/2). La présente page garde les preuves et incidents de la **source Workstation**, sans valoir acceptation du Gateway TrueNAS. Voir la [roadmap transversale](roadmap-openclaw-yubikey-extraction-20261030.md).
+
 > **30 octobre 2026 — Host-aware + cron GitOps** : scripts de diagnostic Workstation/TrueNAS séparés et sorties humaines compactes ; message versionné du digest avec `ITEMS_PER_SECTION = 5`, reconciler `plan/check/apply` sécurisé sur l'ID du job existant, sans injection de secrets ni création de cron. Voir le [runbook d'application](runbooks/openclaw-gitops-cron-host-routing-20261030.md). L'apply, le heartbeat et le cutover restent non effectués sur le runtime.
 
 

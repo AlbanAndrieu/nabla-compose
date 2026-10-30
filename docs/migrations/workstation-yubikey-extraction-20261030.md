@@ -1,5 +1,7 @@
 # Inventaire de transfert Workstation / YubiKey — 30 octobre 2026
 
+> **État Git du 30/10/2026 :** PR Compose #295 **fusionnée** ; PR nabla-openclaw #1 et PR ansible-workstation #16 **fusionnées** ; PR nabla-yubikey #1 **Draft**. Les 14 politiques Workstation sont dans `ops/openclaw-workstation/` et **4** fichiers sandbox restent dans `apps/openclaw/`. La migration du Gateway et du matériel n'est pas attestée. [Suivi actif](../roadmap-openclaw-yubikey-extraction-20261030.md).
+
 **Lecture seule.** Cette matrice distingue emplacement actuel et
 propriétaire cible, sans déplacer les fichiers. Source de décision :
 [ADR](../adr/adr-repository-split-workstation-yubikey-20261030.md).

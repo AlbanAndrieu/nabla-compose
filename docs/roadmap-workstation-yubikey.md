@@ -1,5 +1,7 @@
 # Roadmap nabla-compose — YubiKey et intégrations workstation
 
+> **Mise à jour d'autorité (30/10/2026) :** le dépôt [nabla-yubikey](https://github.com/AlbanAndrieu/nabla-yubikey) existe, sa PR #1 est Draft ; le lot des dépendances readonly y est importé. La cible des runbooks matériels/escrow est maintenant ce dépôt ; Compose garde temporairement les 84 recettes historiques jusqu'à parité des tests. Le tableau ci-dessous documente **l'état historique avant cutover**. Suivi opérationnel transversal : [roadmap OpenClaw/YubiKey](roadmap-openclaw-yubikey-extraction-20261030.md).
+
 > **30 octobre — extraction proposée, pas encore exécutée** :
 > les 84 recettes `yubikey-*` peuvent rejoindre un futur dépôt
 > `nabla-yubikey` après analyse des dépendances, suppression des
