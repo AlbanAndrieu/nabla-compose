@@ -596,4 +596,3 @@ phrase secrète demeure **NON ATTESTÉE**.
 Cette section **remplace les statuts `NOT_RUN` des sections antérieures**
 pour la sonde NFS TCP *après correction*. Les observations antérieures
 restent conservées comme historique d'incident.
-
