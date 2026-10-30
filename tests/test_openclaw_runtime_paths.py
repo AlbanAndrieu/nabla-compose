@@ -16,7 +16,7 @@ class PathsTests(unittest.TestCase):
     def contract(self, directory, node="24.22.1", expected="24.22.1"):
         root=Path(directory)
         (root/"mise.toml").write_text('[tools]\nnode = "'+node+'"\n')
-        target=root/"apps/openclaw/workstation"
+        target=root/"ops/openclaw-workstation"
         target.mkdir(parents=True,exist_ok=True)
         (target/"runtime-contract.json").write_text(json.dumps({
             "schema":"openclaw-workstation-runtime/v1", "node_version":expected,

@@ -14,7 +14,7 @@ import stat
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "apps/openclaw/workstation/cron/daily-tech-news-digest.message.md"
+SOURCE = ROOT / "ops/openclaw-workstation/cron/daily-tech-news-digest.message.md"
 JOB_ID = "7ed5dd9a-da30-479f-b0eb-4cc494fb4966"
 JOB_NAME = "daily-tech-news-digest"
 MAX_BYTES = 1024 * 1024

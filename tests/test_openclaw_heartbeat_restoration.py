@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import unittest
 
-ROOT=Path(__file__).resolve().parents[1] / "apps/openclaw/workstation"
+ROOT=Path(__file__).resolve().parents[1] / "ops/openclaw-workstation"
 
 
 class HeartbeatPolicyTests(unittest.TestCase):

@@ -1,10 +1,10 @@
 {
   "schema": "openclaw-heartbeat-restoration/v1",
-  "source": "apps/openclaw/workstation/LEGACY_HEARTBEAT_RECOVERY.md",
+  "source": "ops/openclaw-workstation/LEGACY_HEARTBEAT_RECOVERY.md",
   "source_fidelity": "behavioral_inventory_only_private_original_not_in_repo",
   "deployment": "candidate_not_applied",
   "native_heartbeat": {
-    "candidate": "apps/openclaw/workstation/HEARTBEAT-RESTORED.candidate.md",
+    "candidate": "ops/openclaw-workstation/HEARTBEAT-RESTORED.candidate.md",
     "required_settings": {
       "every": "2h",
       "lightContext": true,

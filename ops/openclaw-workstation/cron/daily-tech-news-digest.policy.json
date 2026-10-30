@@ -49,7 +49,7 @@
     "enforce_integer_top_before_runtime_edit": true,
     "runtime_edit_requires_explicit_approval": true
   },
-  "message_source": "apps/openclaw/workstation/cron/daily-tech-news-digest.message.md",
+  "message_source": "ops/openclaw-workstation/cron/daily-tech-news-digest.message.md",
   "gitops": {
     "mode": "plan_check_apply_explicit",
     "existing_job_only": true,

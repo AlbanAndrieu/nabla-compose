@@ -22,7 +22,7 @@ def pinned_cli_paths(repo: Path = ROOT, home: Path | None = None) -> tuple[Path,
     version = _UNVERIFIED
     try:
         cfg = tomllib.loads((repo / "mise.toml").read_text(encoding="utf-8"))
-        contract_file = repo / "apps/openclaw/workstation/runtime-contract.json"
+        contract_file = repo / "ops/openclaw-workstation/runtime-contract.json"
         contract = json.loads(contract_file.read_text(encoding="utf-8"))
         pinned = cfg["tools"]["node"]
         if (

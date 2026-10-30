@@ -10,7 +10,7 @@ import stat
 import tempfile
 from datetime import datetime, timezone
 
-SOURCE = Path(__file__).resolve().parents[2] / "apps/openclaw/workstation/HEARTBEAT.md"
+SOURCE = Path(__file__).resolve().parents[2] / "ops/openclaw-workstation/HEARTBEAT.md"
 BRIEFING_SOURCE = SOURCE.with_name("MORNING_BRIEFING.md")
 
 

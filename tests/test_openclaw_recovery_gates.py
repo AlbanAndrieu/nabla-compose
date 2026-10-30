@@ -30,8 +30,8 @@ class RuntimeContracts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             (root/'mise.toml').write_text('[tools]\nnode="24.18.1"\n')
-            (root/'apps/openclaw/workstation').mkdir(parents=True)
-            (root/'apps/openclaw/workstation/runtime-contract.json').write_text(
+            (root/'ops/openclaw-workstation').mkdir(parents=True)
+            (root/'ops/openclaw-workstation/runtime-contract.json').write_text(
                 json.dumps({'node_version':'24.22.1'}))
             with self.assertRaises(ValueError):
                 runtime.expected(root)
