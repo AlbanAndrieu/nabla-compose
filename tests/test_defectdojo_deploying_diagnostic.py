@@ -30,7 +30,7 @@ def containers(*, initializer="running", exit_code=0, uwsgi="ABSENT_OR_UNVERIFIE
     (containers(initializer="exited", exit_code=1), "initializer_failed_investigate_db_migration_or_permissions"),
     (containers(initializer="exited", exit_code=0), "initializer_completed_check_uwsgi_dependency"),
     (containers(initializer="exited", uwsgi="running", front="ABSENT_OR_UNVERIFIED"),
-     "initializer_completed_check_uwsgi_dependency"),
+     "uwsgi_running_check_frontend_container_start"),
     (containers(initializer="exited", uwsgi="running", front="running"),
      "check_host_port_binding_and_docker_network"),
     (containers(oom=True), "inspect_host_memory_pressure_and_oom_before_any_restart"),

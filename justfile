@@ -63,7 +63,9 @@ topology-artifacts-refresh:
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py
-    just topology-generators-check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py --check
+    bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py --check
 
 # Offline terminal-safety contracts; does not call Github or TrueNAS.
 pr274-local-quality-test:
@@ -465,10 +467,9 @@ yubikey-recovery-test:
     python3 -m unittest discover -s tests -p 'test_yubikey_recovery_readonly.py' -v
     python3 -m unittest discover -s tests -p 'test_yubikey_pr274_readonly_runner.py' -v
 
-# Full local quality gate without publishing. Invoke the canonical checker
-# directly to avoid outdated TrueNAS mise auto-lock/download side effects.
+# Full local quality gate without publishing.
 quality:
-    bash scripts/quality/with-worktree-python.sh bash scripts/agent-quality-gate.sh
+    mise run agent-quality
 
 # Apply deterministic local fixes and generated artifacts.
 fix:

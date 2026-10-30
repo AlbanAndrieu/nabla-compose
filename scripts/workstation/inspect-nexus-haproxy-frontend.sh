@@ -40,33 +40,36 @@ while (($#)); do
   esac
 done
 # Allowlist protects the remote shell argument from injection.
-[[ "$FRONTEND" =~ ^[a-zA-Z][a-zA-Z0-9_.-]*$ ]] || {
+[[ "${FRONTEND}" =~ ^[a-zA-Z][a-zA-Z0-9_.-]*$ ]] || {
   printf 'ERROR: invalid HAProxy frontend name\n' >&2; exit 2;
 }
-if [[ -n "$BACKEND" ]] && [[ ! "$BACKEND" =~ ^[a-zA-Z][a-zA-Z0-9_.-]*$ ]]; then
+if [[ -n "${BACKEND}" ]] && [[ ! "${BACKEND}" =~ ^[a-zA-Z][a-zA-Z0-9_.-]*$ ]]; then
   printf 'ERROR: invalid HAProxy backend name\n' >&2
   exit 2
 fi
-[[ -f "$AWK_SOURCE" ]] || { printf 'ERROR: AWK source missing\n' >&2; exit 2; }
-if [[ -n "$FIXTURE" ]]; then
-  [[ -r "$FIXTURE" ]] || { printf 'ERROR: fixture missing or unreadable\n' >&2; exit 2; }
-  exec awk -v "frontend=$FRONTEND" -v "backend_name=$BACKEND" -f "$AWK_SOURCE" "$FIXTURE"
+[[ -f "${AWK_SOURCE}" ]] || { printf 'ERROR: AWK source missing\n' >&2; exit 2; }
+if [[ -n "${FIXTURE}" ]]; then
+  [[ -r "${FIXTURE}" ]] || { printf 'ERROR: fixture missing or unreadable\n' >&2; exit 2; }
+  exec awk -v "frontend=${FRONTEND}" -v "backend_name=${BACKEND}" -f "${AWK_SOURCE}" "${FIXTURE}"
 fi
 
 SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
 SSH_PORT="${PFSENSE_SSH_PORT:-}"
-[[ "$SSH_TARGET" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$ ]] || {
+[[ "${SSH_TARGET}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$ ]] || {
   printf 'ERROR: invalid SSH target\n' >&2; exit 2;
 }
 SSH_ARGS=(-o BatchMode=yes -o ConnectTimeout=8 -o ServerAliveInterval=5 -o ServerAliveCountMax=1)
-if [[ -n "$SSH_PORT" ]]; then
-  [[ "$SSH_PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$SSH_PORT > 0 && 10#$SSH_PORT <= 65535)) || {
+if [[ -n "${SSH_PORT}" ]]; then
+  if ! [[ "${SSH_PORT}" =~ ^[0-9]{1,5}$ ]] ||
+    ! ((10#${SSH_PORT} > 0 && 10#${SSH_PORT} <= 65535)); then
     printf 'ERROR: invalid SSH port\n' >&2; exit 2;
-  }
-  SSH_ARGS+=(-p "$SSH_PORT")
+  fi
+  SSH_ARGS+=(-p "${SSH_PORT}")
 fi
 command -v ssh >/dev/null || { printf 'ERROR: ssh is unavailable\n' >&2; exit 2; }
 # Portable awk program is read from stdin (-f -). The frontend value is
 # validated above; the generated pfSense HAProxy config is read, not changed.
-ssh "${SSH_ARGS[@]}" "$SSH_TARGET" \
-  "awk -v frontend=$FRONTEND -v backend_name=$BACKEND -f - /var/etc/haproxy/haproxy.cfg" < "$AWK_SOURCE"
+# Validated frontend/backend names become remote awk values.
+# shellcheck disable=SC2029
+ssh "${SSH_ARGS[@]}" "${SSH_TARGET}" \
+  "awk -v frontend=${FRONTEND} -v backend_name=${BACKEND} -f - /var/etc/haproxy/haproxy.cfg" < "${AWK_SOURCE}"

@@ -80,7 +80,9 @@ def classify_job(job: dict | None, skill_template: str | None = None) -> tuple[s
         if FIXED_TOP.search(skill_template):
             return "skill_template_fixed_integer", "5"
         return "skill_template_top_unverified", "5"
-    values = TOP_PATTERN.findall(message)
+    # A prose sentence may end an advisory value with punctuation. Normalize
+    # only trailing sentence punctuation; keep ranges and unknown values intact.
+    values = [value.rstrip(".,;:!?)]}") for value in TOP_PATTERN.findall(message)]
     if not values:
         return ("natural_language_top_range" if NATURAL_TOP_RANGE.search(message)
                 else "no_explicit_top_argument"), "5"

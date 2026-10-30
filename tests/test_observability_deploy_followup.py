@@ -38,7 +38,7 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
     assert "run_midclt_job_quiet" in script
     assert "frontend grpc server closed unexpectedly" in script
     assert "retrying the same cache-preserving build once" in script
-    assert "existing runtime was not replaced" in script
+    assert "existing runtime was preserved" in script
     assert "builder prune" not in script
     assert "buildx prune" not in script
     assert "DOCKER_BUILDKIT=0" not in script
@@ -54,4 +54,4 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
         "build_fastapi_sample"
     )
     assert "bootstrap-repository-env-files.sh --check sample" in script
-    assert "do not finalize them until controlled reboot acceptance" in script
+    assert "do not finalize until reboot acceptance" in script

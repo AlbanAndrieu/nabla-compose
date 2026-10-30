@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MATERIALIZER = ROOT / "scripts" / "truenas" / "materialize-reboot-bundle.sh"
 REBOOT = ROOT / "scripts" / "truenas" / "reboot-homelab.sh"
 ROADMAP = ROOT / "docs" / "roadmap.md"
+ARCHIVED_ROADMAP = ROOT / "docs" / "archive" / "roadmap-through-2026-10-24.md"
 
 
 def test_materializer_stages_before_atomic_activation() -> None:
@@ -56,7 +57,9 @@ def test_reboot_script_keeps_workers_first_shutdown_order() -> None:
 
 
 def test_roadmap_records_pre_reboot_orphan_resolution() -> None:
-    text = ROADMAP.read_text()
+    active = ROADMAP.read_text()
+    text = ARCHIVED_ROADMAP.read_text()
+    assert "archive/roadmap-through-2026-10-24.md" in active
     assert "successfully removed" in text
     assert "complete quiesce" in text
     assert "materialize-reboot-bundle.sh" in text

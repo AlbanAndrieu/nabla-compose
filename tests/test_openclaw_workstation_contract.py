@@ -23,9 +23,17 @@ def test_guard_before_override():
     assert "Unexpected service flags" in script
     assert "ExecStart=" in script
     assert "No files changed." in script
+    assert "openclaw.mjs" in script
+    assert "dist/index.js" in script
 
 
 def test_openclaw_ops_has_shebang():
     script = ROOT / "openclaw-ops.sh"
     first_line = script.read_text(encoding="utf-8").splitlines()[0]
     assert first_line == "#!/usr/bin/env bash"
+
+
+def test_diagnostic_accepts_current_openclaw_mjs_entrypoint():
+    script = (ROOT / "diagnose-openclaw.sh").read_text(encoding="utf-8")
+    assert "openclaw.mjs" in script
+    assert "dist/index.js" in script

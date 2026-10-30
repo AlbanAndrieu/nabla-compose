@@ -326,7 +326,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         readme = self.read("apps/ntopng/README.md")
 
         self.assertIn("ntopng_runtime_env:", compose)
-        self.assertIn("file: /mnt/cpool/ntopng/.env.secrets", compose)
+        self.assertIn(
+            "file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets", compose
+        )
         self.assertIn("source: ntopng_runtime_env", compose)
         self.assertIn("target: ntopng_runtime_env", compose)
         self.assertNotIn("\n    env_file:\n", compose)
@@ -435,7 +437,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertRegex(homarr, r"image: ghcr\.io/homarr-labs/homarr:v\d+\.\d+\.\d+\n")
         self.assertIn("172.17.0.24:30100:7575", homarr)
         self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
-        self.assertIn("/mnt/cpool/homarr/.env.secrets", homarr)
+        self.assertIn("/mnt/cpool/secrets/runtime/homarr/.env.secrets", homarr)
         # Homarr v2 sync discovers boards by name; it keeps no persisted state.
         self.assertIn("./config/boards.json:/config/nabla/boards.json:ro", homarr)
         self.assertNotIn(":/state", homarr)
@@ -1018,7 +1020,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         )
         self.assertIn('fetch --prune --tags origin', script)
         self.assertIn('fetch --prune origin "${REF}"', script)
-        self.assertIn('run_docker pull "${release_image}"', script)
+        self.assertIn('run_release_image_pull "${release_image}"', script)
+        self.assertIn('run_docker pull "${image}"', script)
         self.assertIn('run_docker tag "${release_image}" "${runtime_image}"', script)
         self.assertIn('image_source="release-pull"', script)
         self.assertIn('image_source="local-build"', script)

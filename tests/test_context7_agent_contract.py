@@ -9,6 +9,9 @@ MCP_CONFIGS = (ROOT / ".mcp.json", ROOT / ".cursor" / "mcp.json")
 AGENTS = ROOT / "AGENTS.md"
 CONTEXT7_SKILL = ROOT / ".agents" / "skills" / "context7-docs" / "SKILL.md"
 LOCAL_FIRST_SKILL = ROOT / ".agents" / "skills" / "local-first-quality" / "SKILL.md"
+LOCAL_FIRST_ADVANCED = (
+    LOCAL_FIRST_SKILL.parent / "references" / "advanced-diagnostics.md"
+)
 OPENCODE = ROOT / "opencode.json"
 
 
@@ -65,9 +68,11 @@ def test_context7_skill_keeps_external_docs_bounded() -> None:
 def test_agent_policy_routes_context7_only_for_external_docs() -> None:
     agents = AGENTS.read_text(encoding="utf-8")
     local_first = LOCAL_FIRST_SKILL.read_text(encoding="utf-8")
+    advanced = LOCAL_FIRST_ADVANCED.read_text(encoding="utf-8")
 
     assert "Context7 is documentation-only and free-first" in agents
     assert "load `context7-docs` on demand" in agents
     assert "repository/runtime evidence remains authoritative" in agents
-    assert "anonymous/free access first" in local_first
-    assert "repository/runtime evidence authoritative" in local_first
+    assert "advanced-diagnostics.md" in local_first
+    assert "anonymous/free access first" in advanced
+    assert "repository/runtime evidence authoritative" in advanced

@@ -63,6 +63,7 @@ FILES=(
   catalog/services.json
   catalog/service-topology.json
   scripts/lib/common.sh
+  scripts/lib/diagnostic-ui.sh
   scripts/lib/diagnostic.sh
   scripts/lib/docker.sh
   scripts/lib/probe.sh

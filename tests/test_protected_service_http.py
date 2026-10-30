@@ -84,7 +84,7 @@ def test_docker_health_is_only_metadata_and_never_fabricated(monkeypatch) -> Non
         assert argv[:3] == ["docker", "inspect", "--format"]
         assert kwargs["timeout"] == 3
         assert kwargs["check"] is False
-        return subprocess.CompletedProcess(argv, 0, "healthy\\n", "")
+        return subprocess.CompletedProcess(argv, 0, "healthy\n", "")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert module.docker_health("litellm") == "healthy"

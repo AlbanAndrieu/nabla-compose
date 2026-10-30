@@ -296,10 +296,11 @@ services:
         self.assertNotIn("helper", services)
         self.assertIn(("declared", "docker", "hostedBy"), relations)
 
-    def test_each_tracked_app_compose_declares_a_catalog_service(self) -> None:
+    def test_each_tracked_app_compose_declares_a_catalog_service_or_overlay(self) -> None:
         missing: list[str] = []
+        tracked = set(MODULE.tracked_compose_paths())
 
-        for relative_path in MODULE.tracked_compose_paths():
+        for relative_path in tracked:
             if not relative_path.parts or relative_path.parts[0] != "apps":
                 continue
             document = MODULE.yaml.safe_load(
@@ -311,14 +312,24 @@ services:
                 and isinstance(service.get("x-nabla"), dict)
                 for service in services.values()
             )
-            if not declared:
+            top_extension = document.get("x-nabla", {})
+            overlay_of = (
+                top_extension.get("overlayOf")
+                if isinstance(top_extension, dict)
+                else None
+            )
+            overlay = (
+                isinstance(overlay_of, str)
+                and relative_path.parent / overlay_of in tracked
+            )
+            if not declared and not overlay:
                 missing.append(relative_path.as_posix())
 
         self.assertEqual(
             missing,
             [],
             "Every tracked apps/* Compose definition must declare at least one "
-            "x-nabla catalog service",
+            "x-nabla catalog service or an explicit tracked overlayOf",
         )
 
     def test_presentation_role_and_criticality_propagate_to_service(self) -> None:

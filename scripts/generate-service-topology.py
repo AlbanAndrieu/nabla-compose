@@ -576,7 +576,9 @@ def load_compose_extensions(
     relations: dict[tuple[str, str, str], dict[str, Any]],
     services: dict[str, dict[str, Any]],
 ) -> None:
-    for relative_path in tracked_compose_paths():
+    compose_paths = tracked_compose_paths()
+    compose_path_set = set(compose_paths)
+    for relative_path in compose_paths:
         document = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
         if document is None:
             continue
@@ -588,6 +590,16 @@ def load_compose_extensions(
         if top_extension is not None:
             if not isinstance(top_extension, dict):
                 fail(f"{source_path}: top-level x-nabla must be a mapping")
+            overlay_of = top_extension.get("overlayOf")
+            if overlay_of is not None:
+                if not isinstance(overlay_of, str) or not overlay_of.strip():
+                    fail(f"{source_path}: x-nabla.overlayOf must be a non-empty string")
+                overlay_path = relative_path.parent / overlay_of
+                if overlay_path not in compose_path_set:
+                    fail(
+                        f"{source_path}: x-nabla.overlayOf must reference a tracked "
+                        "Compose definition in the same application"
+                    )
             logical_nodes = top_extension.get("nodes", [])
             if not isinstance(logical_nodes, list):
                 fail(f"{source_path}: x-nabla.nodes must be a list")

@@ -22,6 +22,7 @@ class YubiKeyGitCheckoutDiagnostic(unittest.TestCase):
         git(self.repo, "init", "-q")
         git(self.repo, "config", "user.name", "Synthetic Test")
         git(self.repo, "config", "user.email", "noreply@example.invalid")
+        git(self.repo, "config", "commit.gpgsign", "false")
         (self.repo / FILE).parent.mkdir(parents=True)
         (self.repo / FILE).write_text("# first\n")
         git(self.repo, "add", FILE)

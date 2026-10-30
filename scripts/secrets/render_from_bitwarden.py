@@ -210,12 +210,25 @@ def ensure_safe_output_target(target: Path) -> None:
     such as ``./cyberbro.env.secrets`` from becoming an easy accidental commit candidate.
     """
 
+    git_env = os.environ.copy()
+    for name in (
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_PREFIX",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ):
+        git_env.pop(name, None)
+
     try:
         probe = subprocess.run(
             ["git", "-C", str(target.parent), "rev-parse", "--show-toplevel"],
             check=False,
             capture_output=True,
             text=True,
+            env=git_env,
         )
     except FileNotFoundError:
         return
@@ -244,6 +257,7 @@ def ensure_safe_output_target(target: Path) -> None:
         check=False,
         capture_output=True,
         text=True,
+        env=git_env,
     )
     if ignored.returncode != 0:
         raise SecretsError(

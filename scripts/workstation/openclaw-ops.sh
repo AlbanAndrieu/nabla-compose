@@ -10,6 +10,48 @@ if [[ -z "${OPENCLAW_STYLE_ACTIVE:-}" && -z "${NO_COLOR+x}" && "${OPENCLAW_COLOR
 fi
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+OPENCLAW_CMD=()
+resolve_openclaw() {
+  local node_root="${OPENCLAW_NODE_ROOT:-}"
+  local entry_probe="" candidate pinned entrypoint=""
+  if [[ -z "${node_root}" ]] && command -v systemctl >/dev/null 2>&1; then
+    entry_probe="$(systemctl --user show "${OPENCLAW_UNIT:-openclaw-gateway.service}" \
+      -p ExecStart --value 2>/dev/null || :)"
+    runtime_pattern='/node/([0-9]+\.[0-9]+\.[0-9]+)/bin/node'
+    if [[ "${entry_probe}" =~ ${runtime_pattern} ]]; then
+      candidate="${HOME}/.local/share/mise/installs/node/${BASH_REMATCH[1]}"
+      [[ "${entry_probe}" == *"${candidate}/bin/node"* ]] && node_root="${candidate}"
+    fi
+  fi
+  if [[ -z "${node_root}" ]]; then
+    pinned="$(tr -d 'v[:space:]' < "${ROOT}/.nvmrc")"
+    [[ "${pinned}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+      echo 'ERROR: invalid repository Node pin' >&2
+      return 2
+    }
+    node_root="${HOME}/.local/share/mise/installs/node/${pinned}"
+  fi
+  [[ "${node_root}" == "${HOME}/"* && -x "${node_root}/bin/node" ]] || {
+    echo 'ERROR: managed OpenClaw Node runtime missing' >&2
+    return 2
+  }
+  for candidate in \
+    "${node_root}/lib/node_modules/openclaw/openclaw.mjs" \
+    "${node_root}/lib/node_modules/openclaw/dist/index.js"; do
+    if [[ -f "${candidate}" && ( -z "${entry_probe}" || "${entry_probe}" == *"${candidate}"* ) ]]; then
+      entrypoint="${candidate}"
+      break
+    fi
+  done
+  [[ -n "${entrypoint}" ]] || {
+    echo 'ERROR: managed OpenClaw package entrypoint missing or differs from Gateway' >&2
+    return 2
+  }
+  OPENCLAW_CMD=("${node_root}/bin/node" "${entrypoint}")
+}
+run_openclaw() {
+  "${OPENCLAW_CMD[@]}" "$@"
+}
 usage() {
   printf '%s\n' 'Usage: openclaw-ops.sh [--check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--memory-audit|--disable-irc]'
   printf '%s\n' 'Default --check is read-only. --smoke-model makes one billable request (24h cooldown). --disable-irc explicitly changes one config setting.'
@@ -20,27 +62,39 @@ case "${mode}" in
   --check|--cron|--skill-review|--heartbeat|--recent-errors|--memory|--auth|--routes|--backup-check|--smoke-model|--litellm-audit|--memory-audit|--disable-irc) ;;
   *) usage >&2; exit 2 ;;
 esac
-command -v openclaw >/dev/null 2>&1 || { echo 'ERROR: openclaw CLI missing' >&2; exit 2; }
+case "${mode}" in
+  --check|--cron|--skill-review|--heartbeat|--memory|--smoke-model|--disable-irc)
+    resolve_openclaw
+    ;;
+esac
 diagnose_cron() {
   local id="7ed5dd9a-da30-479f-b0eb-4cc494fb4966"
-  openclaw cron runs --id "${id}" --limit 50 |
+  run_openclaw cron runs --id "${id}" --limit 50 |
     python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
 }
 diagnose_skill_review() {
   local id="0363a286-4889-45b9-9a7b-aadf0285c42c"
-  openclaw cron runs --id "${id}" --limit 20 |
-    python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
+  local payload
+  if payload="$(run_openclaw cron runs --id "${id}" --limit 20 2>&1)"; then
+    printf '%s\n' "${payload}" |
+      python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
+  elif [[ "${payload}" == *'Automation not found:'* ]]; then
+    echo 'skill_review=not_configured'
+  else
+    echo 'ERROR: skill review diagnostic failed (raw output suppressed)' >&2
+    return 2
+  fi
 }
 diagnose_heartbeat() {
   # A single recurring heartbeat can generate many historical task failures.
   # Summarize retained runs rather than echoing task text or credentials.
   local id="bb9757db-9559-4960-bb23-9b9770929ff1"
-  openclaw cron runs --id "${id}" --limit 100 |
+  run_openclaw cron runs --id "${id}" --limit 100 |
     python3 "${ROOT}/scripts/workstation/openclaw-cron-runs-summary.py"
 }
 diagnose_memory() {
   # Status is intentionally filtered: OpenClaw may include filesystem and provider metadata.
-  openclaw memory status |
+  run_openclaw memory status |
     grep -E '^(Memory Search|Provider:|Model:|Indexed:|Dirty:|Index identity:|Vector search:|Vector dims:|FTS:|Batch:)' || true
 }
 case "${mode}" in
@@ -104,7 +158,7 @@ case "${mode}" in
     echo '==> One explicitly requested billable model smoke (24h cooldown)'
     # Fixed tiny prompt, deterministic daily session key, constrained execution.
     # Capture output and emit only success/failure; prevent model or tool data leaks.
-    if output="$(openclaw agent --agent main \
+    if output="$(run_openclaw agent --agent main \
       --session-key "nabla-main-smoke-$(date -u +%Y%m%d)" \
       --model litellm-main/gpt-4.1 --thinking off \
       --message 'Réponds uniquement OK.' --timeout 90 2>&1)"; then
@@ -122,9 +176,9 @@ case "${mode}" in
   --disable-irc)
     # Explicit opt-in; do not touch plugin allowlists, other channels or restart gateway.
     echo 'Setting channels.irc.enabled=false (explicit requested action)'
-    openclaw config set channels.irc.enabled false
+    run_openclaw config set channels.irc.enabled false
     echo 'Confirming IRC disabled:'
-    value="$(openclaw config get channels.irc.enabled)"
+    value="$(run_openclaw config get channels.irc.enabled)"
     [[ "${value}" == false ]] || { echo 'ERROR: IRC state not confirmed false' >&2; exit 1; }
     echo 'OK: IRC disabled in config; Gateway may require a reviewed restart.'
     ;;

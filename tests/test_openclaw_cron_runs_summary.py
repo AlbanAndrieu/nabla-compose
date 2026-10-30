@@ -119,3 +119,27 @@ def test_non_heartbeat_does_not_report_heartbeat_streak() -> None:
     result = run({"entries": [{"status": "ok", "durationMs": 20}]})
     assert result.returncode == 0
     assert "heartbeat_recent_sample=" not in result.stdout
+
+
+def test_empty_heartbeat_file_is_a_skip_not_a_failure() -> None:
+    entries = [
+        {
+            "jobName": "heartbeat-main",
+            "status": "error",
+            "runAtMs": value,
+            "durationMs": 265,
+            "deliveryStatus": "not-requested",
+            "error": "heartbeat skipped: empty-heartbeat-file",
+        }
+        for value in (100, 200, 300)
+    ]
+    result = run({"entries": entries})
+    assert result.returncode == 0, result.stderr
+    assert "status_non_ok=0" in result.stdout
+    assert "status_skipped_empty_heartbeat=3" in result.stdout
+    assert "failure_unknown=0" in result.stdout
+    assert "heartbeat_recent_failed=0" in result.stdout
+    assert "heartbeat_recent_skipped_empty=3" in result.stdout
+    assert "heartbeat_consecutive_failures_at_head=0" in result.stdout
+    assert "heartbeat_last_status=skipped_empty" in result.stdout
+    assert "no model request was made" in result.stdout

@@ -172,8 +172,9 @@ def main():
             try:
                 for artifact in items(f"repos/{name}/actions/artifacts?per_page=100", "artifacts"):
                     if not artifact.get("expired"):
+                        size = artifact_bytes(artifact.get("size_in_bytes"))
                         total[f"{name} :: stored artifacts"]["artifact_mib"] += (
-                            artifact_bytes(artifact.get("size_in_bytes")) / 1048576
+                            size / 1048576
                         )
             except API_FAILURES as exc:
                 warn_partial(f"{name} artifacts", exc)

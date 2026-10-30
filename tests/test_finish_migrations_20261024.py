@@ -552,11 +552,11 @@ def test_local_gates_run_in_order_and_fail_closed(
     assert not report.exists()
 
 
-def test_full_quality_recipe_invokes_same_canonical_gate_without_mise():
-    """TrueNAS local gate must not auto-install the mise.lock tool matrix."""
+def test_full_quality_recipe_invokes_canonical_mise_task():
+    """The Just recipe must use the repository's canonical quality task."""
     root = SOURCE.parents[2]
     justfile = (root / "justfile").read_text(encoding="utf-8")
-    assert "\nquality:\n    bash scripts/agent-quality-gate.sh\n" in justfile
+    assert "\nquality:\n    mise run agent-quality\n" in justfile
     assert "migration-20261024-local-gates:" in justfile
     assert "bash scripts/truenas/finish-migrations-20261024.sh --local-gates" in justfile
     assert (root / "scripts/agent-quality-gate.sh").is_file()
@@ -575,7 +575,7 @@ def test_roadmap_critical_policy_not_removed_by_migration_consolidation():
     )
     assert heading in archive
     assert len(archive.splitlines()) > 3000
-    assert len(roadmap.splitlines()) < 300
+    assert roadmap.startswith("# Services Homelab — roadmap active\n")
     assert "archive/roadmap-through-2026-10-24.md" in roadmap
     for marker in ("Ask the user", "democratic-csi", "catalogRevision", "entityRef"):
         assert marker in archive

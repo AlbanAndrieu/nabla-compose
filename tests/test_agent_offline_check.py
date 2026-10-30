@@ -67,6 +67,7 @@ def test_unavailable_diff_falls_back_to_full_syntax_scan(tmp_path: Path) -> None
     subprocess.run(["git", "add", "-f", "--", "existing.py"], cwd=tmp_path, check=True)
     subprocess.run(
         ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
+         "-c", "commit.gpgsign=false",
          "commit", "-qm", "fixture"],
         cwd=tmp_path,
         check=True,

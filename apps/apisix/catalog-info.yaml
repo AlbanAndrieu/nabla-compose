@@ -1,0 +1,21 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: apisix
+  title: APISIX
+  description: Planned standalone API gateway isolated from production ingress.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - network
+    - api-gateway
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/apisix/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: api-gateway
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

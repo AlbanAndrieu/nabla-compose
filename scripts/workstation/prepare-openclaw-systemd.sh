@@ -12,16 +12,25 @@ pinned="$(tr -d 'v[:space:]' < "${repo_root}/.nvmrc")"
 [[ "${pinned}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid Node version pin' >&2; exit 1; }
 NODE_ROOT="${OPENCLAW_NODE_ROOT:-${HOME}/.local/share/mise/installs/node/${pinned}}"
 UNIT="${OPENCLAW_UNIT:-openclaw-gateway.service}"
-[[ "${NODE_ROOT}" == "${HOME}/"* && -x "${NODE_ROOT}/bin/node" && -f "${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js" ]] || { echo 'Invalid or missing mise runtime' >&2; exit 1; }
+[[ "${NODE_ROOT}" == "${HOME}/"* && -x "${NODE_ROOT}/bin/node" ]] || { echo 'Invalid or missing mise runtime' >&2; exit 1; }
+if [[ -f "${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs" ]]; then
+  PACKAGE_ENTRYPOINT="${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs"
+elif [[ -f "${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js" ]]; then
+  PACKAGE_ENTRYPOINT="${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js"
+else
+  echo 'Invalid or missing OpenClaw package' >&2
+  exit 1
+fi
 entry="$(systemctl --user show "${UNIT}" -p ExecStart --value 2>/dev/null || :)"
-[[ "${entry}" == *"${HOME}/.local/share/mise/installs/node/"*"/lib/node_modules/openclaw/dist/index.js"* ]] || { echo 'Service package owner mismatch; abort' >&2; exit 1; }
+[[ "${entry}" == *"${HOME}/.local/share/mise/installs/node/"*"/lib/node_modules/openclaw/openclaw.mjs"* ||
+   "${entry}" == *"${HOME}/.local/share/mise/installs/node/"*"/lib/node_modules/openclaw/dist/index.js"* ]] || { echo 'Service package owner mismatch; abort' >&2; exit 1; }
 [[ "${entry}" == *'--max-old-space-size=16053'* && "${entry}" == *'gateway --port 18789'* ]] || { echo 'Unexpected service flags; manual review required' >&2; exit 2; }
 cat <<TEMPLATE
 # PROPOSAL ONLY: ~/.config/systemd/user/${UNIT}.d/10-mise-runtime.conf
 # Apply only after private backup and maintenance approval.
 [Service]
 ExecStart=
-ExecStart=${NODE_ROOT}/bin/node --max-old-space-size=16053 ${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js gateway --port 18789
+ExecStart=${NODE_ROOT}/bin/node --max-old-space-size=16053 ${PACKAGE_ENTRYPOINT} gateway --port 18789
 Environment=NPM_CONFIG_PREFIX=${NODE_ROOT}
 TEMPLATE
 echo 'No files changed. Preserve the existing EnvironmentFile and PATH.' >&2

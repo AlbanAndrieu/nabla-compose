@@ -2,6 +2,8 @@
 # materialized for the Hermes identity; the API grants the toolset.
 # Only Docker intranet peers can reach the endpoint; no host ports/WAN ingress.
 # Users must explicitly opt in with -f apps/hermes/compose.api.yml.
+x-nabla:
+  overlayOf: compose.yml
 services:
   hermes:
     environment:

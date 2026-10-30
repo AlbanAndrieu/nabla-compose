@@ -7,6 +7,16 @@ import sys
 from collections import Counter
 
 
+def is_empty_heartbeat_skip(entry: dict) -> bool:
+    """Recognize OpenClaw's non-generative empty-heartbeat-file outcome."""
+    details = " ".join(
+        str(entry.get(key) or "")
+        for key in ("error", "diagnostic")
+        if isinstance(entry.get(key), str)
+    ).lower()
+    return all(marker in details for marker in ("heartbeat", "skip", "empty"))
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -27,10 +37,16 @@ def main() -> int:
         if not isinstance(entry, dict):
             print("ERROR: malformed cron run entry", file=sys.stderr)
             return 2
-        statuses["ok" if entry.get("status") == "ok" else "non_ok"] += 1
+        empty_skip = is_empty_heartbeat_skip(entry)
+        if entry.get("status") == "ok":
+            statuses["ok"] += 1
+        elif empty_skip:
+            statuses["skipped_empty_heartbeat"] += 1
+        else:
+            statuses["non_ok"] += 1
         if entry.get("deliveryStatus") == "not-requested":
             delivery_not_requested += 1
-        if entry.get("jobName") == "heartbeat-main" or "heartbeat failed:" in str(entry.get("error", "")):
+        if entry.get("jobName") == "heartbeat-main" or "heartbeat" in str(entry.get("error", "")).lower():
             heartbeat_records.append(entry)
         delivery["delivered" if entry.get("delivered") is True else "not_delivered"] += 1
         delivery["fallback_used" if isinstance(entry.get("delivery"), dict) and entry["delivery"].get("fallbackUsed") is True else "no_fallback"] += 1
@@ -50,7 +66,7 @@ def main() -> int:
                 and target == actual.removeprefix("channel:")
             )
             delivery["same_destination" if same else "different_destination"] += 1
-        if entry.get("status") != "ok":
+        if entry.get("status") != "ok" and not empty_skip:
             # Classify errors without reproducing message bodies, API key fragments
             # or private session identifiers in operator logs.
             details = " ".join(
@@ -75,7 +91,7 @@ def main() -> int:
             durations.append(ms)
 
     print(f"runs={len(entries)}")
-    for key in ("ok", "non_ok"):
+    for key in ("ok", "non_ok", "skipped_empty_heartbeat"):
         print(f"status_{key}={statuses[key]}")
     for key in ("delivered", "not_delivered", "fallback_used"):
         print(f"delivery_{key}={delivery[key]}")
@@ -96,16 +112,27 @@ def main() -> int:
             reverse=True,
         )
         recent = ordered[:3]
-        recent_failures = sum(entry.get("status") != "ok" for entry in recent)
+        recent_failures = sum(
+            entry.get("status") != "ok" and not is_empty_heartbeat_skip(entry)
+            for entry in recent
+        )
+        recent_skips = sum(is_empty_heartbeat_skip(entry) for entry in recent)
         consecutive_failures = 0
         for entry in ordered:
-            if entry.get("status") == "ok":
+            if entry.get("status") == "ok" or is_empty_heartbeat_skip(entry):
                 break
             consecutive_failures += 1
+        if ordered[0].get("status") == "ok":
+            last_status = "ok"
+        elif is_empty_heartbeat_skip(ordered[0]):
+            last_status = "skipped_empty"
+        else:
+            last_status = "error"
         print(f"heartbeat_recent_sample={len(recent)}")
         print(f"heartbeat_recent_failed={recent_failures}")
+        print(f"heartbeat_recent_skipped_empty={recent_skips}")
         print(f"heartbeat_consecutive_failures_at_head={consecutive_failures}")
-        print(f"heartbeat_last_status={'ok' if ordered[0].get('status') == 'ok' else 'error'}")
+        print(f"heartbeat_last_status={last_status}")
         recent_ms = [
             entry["durationMs"] for entry in recent
             if type(entry.get("durationMs")) is int and entry["durationMs"] >= 0
@@ -115,6 +142,8 @@ def main() -> int:
             print(f"heartbeat_recent_duration_ms_max={max(recent_ms)}")
         if recent_failures:
             print("ACTION: heartbeat still failing in most recent runs; correlate agent execution with application file logs")
+        elif recent_skips:
+            print("NOTE: empty heartbeat was intentionally skipped; no model request was made")
     print("NOTE: delivery_not_requested means no delivery was requested; not a delivery failure")
     print("NOTE: fallbackUsed does not alone imply failed delivery or changed destination")
     print("NOTE: duration and delivery do not measure tokens, spend or content quality")

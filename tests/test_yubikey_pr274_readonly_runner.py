@@ -28,6 +28,7 @@ class IsolatedPRRunner(unittest.TestCase):
         git(self.source, 'init', '-q')
         git(self.source, 'config', 'user.name', 'Operator Fixture')
         git(self.source, 'config', 'user.email', 'operator@example.invalid')
+        git(self.source, 'config', 'commit.gpgsign', 'false')
         self.gate = self.source / 'scripts/workstation/verify-age-yubikey-offline.sh'
         self.gate.parent.mkdir(parents=True)
         self.gate.write_text('#!/usr/bin/env bash\n'

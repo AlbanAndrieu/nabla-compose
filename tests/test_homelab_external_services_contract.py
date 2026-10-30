@@ -10,7 +10,7 @@ EXPECTED_EXTERNAL = {
     "AdGuard Home",
     "Prometheus",
     "Grafana",
-    "Gatus",
+    "Gatus UI",
     "Uptime Kuma",
     "Affine",
     "FreshRSS",

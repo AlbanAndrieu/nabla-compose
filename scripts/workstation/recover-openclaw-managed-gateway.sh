@@ -92,7 +92,7 @@ if ! systemctl --user is-active --quiet "${UNIT}"; then
 fi
 # /readyz is loopback-only and does not invoke a language model.
 ready=0
-for attempt in $(seq 1 30); do
+for _ in $(seq 1 30); do
   if curl --noproxy '*' --fail --silent --max-time 3 \
      http://127.0.0.1:18789/readyz >/dev/null; then
     ready=1

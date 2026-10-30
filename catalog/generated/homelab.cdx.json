@@ -41,6 +41,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/apisix"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/autokuma"
     },
     {
@@ -705,7 +709,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:034f17fb23294d1538437ba7bcd5885ca8c26a46cfcc2dd6e8987506ce23f496"
+        "value": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623"
       },
       {
         "name": "nabla:catalog-authority",
@@ -713,7 +717,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:034f17fb-2329-4d15-3843-7ba7bcd5885c",
+  "serialNumber": "urn:uuid:74eb16ee-e5ce-6806-34f4-07e9d98dc574",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -903,6 +907,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/apisix",
+      "description": "Planned standalone API gateway isolated from production ingress.",
+      "name": "APISIX",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/apisix"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/apisix/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "api-gateway"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/autokuma",
       "description": "Declarative monitor reconciler for the homelab Uptime Kuma instance.",
       "name": "AutoKuma",
@@ -958,7 +989,7 @@
     },
     {
       "bom-ref": "component:default/bichon",
-      "name": "Bichon",
+      "name": "Bichon UI",
       "properties": [
         {
           "name": "nabla:backstage:kind",
@@ -1600,7 +1631,7 @@
     {
       "bom-ref": "component:default/gatus",
       "description": "Declarative endpoint and status monitoring for the Nabla homelab.",
-      "name": "Gatus",
+      "name": "Gatus UI",
       "properties": [
         {
           "name": "nabla:backstage:kind",
@@ -1813,7 +1844,7 @@
     {
       "bom-ref": "component:default/homeassistant",
       "description": "Home automation control plane exposed through the dedicated IoT network.",
-      "name": "Home Assistant",
+      "name": "Home Assistant UI",
       "properties": [
         {
           "name": "nabla:backstage:kind",

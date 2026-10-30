@@ -51,7 +51,10 @@ def test_context_rejects_invalid_output_bound(tmp_path: Path) -> None:
 
 def test_context_handles_existing_but_unrelated_base(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    identity = ["git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid"]
+    identity = [
+        "git", "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
+        "-c", "commit.gpgsign=false",
+    ]
     (tmp_path / "first.txt").write_text("first\n", encoding="utf-8")
     subprocess.run(["git", "add", "first.txt"], cwd=tmp_path, check=True)
     subprocess.run([*identity, "commit", "-qm", "base"], cwd=tmp_path, check=True)

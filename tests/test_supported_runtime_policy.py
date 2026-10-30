@@ -32,8 +32,9 @@ def test_mise_lock_has_verified_new_platform_assets():
                      "linux-x64-musl", "macos-arm64", "macos-x64", "windows-x64"):
         t = talos[f"platforms.{platform}"]
         p = python[f"platforms.{platform}"]
-        assert re.fullmatch(r"sha256:[a-f0-9]{64}", t["checksum"])
-        assert re.fullmatch(r"sha256:[a-f0-9]{64}", p["checksum"])
+        checksum = r"(?:sha256|blake3):[a-f0-9]{64}"
+        assert re.fullmatch(checksum, t["checksum"])
+        assert re.fullmatch(checksum, p["checksum"])
         assert "/v1.14.4/" in t["url"]
         assert "/20261021/cpython-3.14.9+20261021-" in p["url"]
     assert not any("v1.13.9" in str(x) for x in (value for key, value in talos.items() if key.startswith("platforms.")))

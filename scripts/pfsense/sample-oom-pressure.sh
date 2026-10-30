@@ -23,20 +23,22 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
-[[ "$samples" =~ ^[0-9]{1,2}$ && "$interval" =~ ^[0-9]{1,2}$ ]] || { echo 'Invalid sampling budget' >&2; exit 2; }
-samples=$((10#$samples))
-interval=$((10#$interval))
+[[ "${samples}" =~ ^[0-9]{1,2}$ && "${interval}" =~ ^[0-9]{1,2}$ ]] || { echo 'Invalid sampling budget' >&2; exit 2; }
+samples=$((10#${samples}))
+interval=$((10#${interval}))
 ((samples>=1 && samples<=16 && interval>=5 && interval<=30 && (samples-1)*interval<=240)) || { echo 'Sampling exceeds safe limit' >&2; exit 2; }
-[[ "$target" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
-if [[ -n "$port" ]]; then
-  [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo 'Invalid SSH port' >&2; exit 2; }
-  port=$((10#$port))
+[[ "${target}" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo 'Invalid SSH target' >&2; exit 2; }
+if [[ -n "${port}" ]]; then
+  [[ "${port}" =~ ^[0-9]{1,5}$ ]] || { echo 'Invalid SSH port' >&2; exit 2; }
+  port=$((10#${port}))
   ((port>=1 && port<=65535)) || { echo 'Invalid SSH port' >&2; exit 2; }
 fi
 args=(-o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes)
-[[ -z "$port" ]] || args+=(-p "$port")
+[[ -z "${port}" ]] || args+=(-p "${port}")
 pfsense_ui_banner "OOM process attribution · read-only · bounded"
-ssh "${args[@]}" "$target" "/bin/sh -s -- $samples $interval" <<'REMOTE' | pfsense_ui_render
+# Validated numeric bounds become remote sampler argv.
+# shellcheck disable=SC2029
+ssh "${args[@]}" "${target}" "/bin/sh -s -- ${samples} ${interval}" <<'REMOTE' | pfsense_ui_render
 set -eu
 samples=$1
 interval=$2

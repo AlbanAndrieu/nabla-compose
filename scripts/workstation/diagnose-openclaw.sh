@@ -51,7 +51,8 @@ if [[ -x "${NODE_ROOT}/bin/npm" ]]; then
     fail 'npm prefix differs from mise'
   fi
 else fail 'mise npm missing'; fi
-if [[ -f "${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs" ]]; then
+if [[ -f "${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs" ||
+      -f "${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js" ]]; then
   ok 'OpenClaw package exists'
 else
   fail 'OpenClaw package missing'
@@ -70,7 +71,10 @@ if command -v systemctl >/dev/null; then
   if [[ "${entry}" == *"${NODE_ROOT}/bin/node"* ]]; then ok 'service Node matches mise'
   elif [[ "${entry}" == *'/usr/bin/node'* ]]; then warn 'service Node uses /usr/bin/node'
   else warn 'service Node unknown'; fi
-  if [[ "${entry}" == *"${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js"* ]]; then
+  if [[ ( -f "${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs" &&
+          "${entry}" == *"${NODE_ROOT}/lib/node_modules/openclaw/openclaw.mjs"* ) ||
+        ( -f "${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js" &&
+          "${entry}" == *"${NODE_ROOT}/lib/node_modules/openclaw/dist/index.js"* ) ]]; then
     ok 'service package matches mise'
   else
     fail 'service package differs'

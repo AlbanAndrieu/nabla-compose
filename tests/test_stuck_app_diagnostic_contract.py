@@ -213,16 +213,16 @@ def test_sentry_migrator_reconcile_is_scoped_and_secret_safe() -> None:
     assert syntax.returncode == 0, syntax.stderr
 
 
-def test_openrag_opensearch_secret_reconcile_is_bounded() -> None:
+def test_openrag_opensearch_secret_comparator_is_bounded() -> None:
     path = ROOT / "scripts" / "truenas" / "reconcile-openrag-opensearch-secret.sh"
     script = path.read_text(encoding="utf-8")
 
     assert "--check" in script
-    assert "--apply" in script
-    assert "/mnt/cpool/openrag/.env.secrets" in script
+    assert "Legacy --apply disabled" in script
+    assert "/mnt/cpool/secrets/runtime/openrag/.env.secrets" in script
     assert "apps/opensearch/.env" in script
     assert "OPENSEARCH_PASSWORD" in script
-    assert "without printing it" in script
+    assert "Never print a secret path" in script
     assert "docker restart" not in script
     assert "app.redeploy" not in script
 
