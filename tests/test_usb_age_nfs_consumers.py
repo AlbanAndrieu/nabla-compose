@@ -126,6 +126,21 @@ class Contracts(TestCase):
                    "ESTAB 0 0 [2001:db8::3]:2049 [2001:db8::1]:31234\n")
             result = evaluate(tcp)
             self.assertEqual(result, self.sample())
+            # Actual ss -H state established output commonly has FOUR fields:
+            # Recv-Q Send-Q Local:Port Peer:Port (without ESTAB).
+            stateless = (
+                "0 0 192.0.2.100:2049 192.0.2.10:50455\n"
+                "0 0 [::ffff:192.0.2.100]:2049 [::ffff:192.0.2.10]:50456\n"
+                "0 0 [2001:db8::3]:2049 [2001:db8::1]:31234\n"
+            )
+            self.assertEqual(evaluate(stateless), self.sample())
+            # Queue fields and the local NFS port must still validate.
+            self.assertEqual(
+                evaluate("xx 0 192.0.2.100:2049 192.0.2.10:50455\n")["state"],
+                "SS_RESPONSE_UNVERIFIED")
+            self.assertEqual(
+                evaluate("0 0 192.0.2.100:22 192.0.2.10:50455\n")["state"],
+                "SS_RESPONSE_UNVERIFIED")
             self.assertEqual(evaluate("")["state"], "TCP_SNAPSHOT_OBSERVED")
             self.assertEqual(evaluate("")["unique_tcp_peers"], 0)
             self.assertEqual(evaluate("ESTAB 0 0 192.0.2.100:22 192.0.2.10:50500\n")[
