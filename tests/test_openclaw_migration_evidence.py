@@ -73,6 +73,11 @@ class MigrationEvidence(unittest.TestCase):
             self.assertIn("TrueNAS",result.stdout)
             self.assertIn("host=truenas",result.stdout)
 
+    def test_provenance_dispatch_contract_is_in_local_tests(self):
+        raw = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("probe provenance_dispatch_contract python3 -m unittest", raw)
+        self.assertIn("test_truenas_litellm_secret_provenance_dispatch.py", raw)
+
     def test_invalid_mode_never_calls_just(self):
         with tempfile.TemporaryDirectory() as tmp:
             target=Path(tmp)/"just"
