@@ -3,6 +3,37 @@
 This deployment is the **central CrowdSec Security Engine + Local API (LAPI)** for the homelab.
 pfSense should run in CrowdSec **Small / remediation-only** mode and consume decisions from this LAPI instead of hosting the Security Engine itself.
 
+## Diagnostic du test synthétique — 30 octobre 2026 (PR #295)
+
+**Évidence workstation :** `just crowdsec-pf-synthetic-test`
+**15/15 PASS**, `just crowdsec-bouncer-config-test` **61/61 PASS**,
+précontrôle LIVE **PASS** sur `203.0.113.77`. L'exécution
+`--apply --confirm SYNTHETIC-203.0.113.77` a ensuite retourné
+`synthetic_cleanup=NOT_VERIFIED manual_review_required=true`,
+sans identifiant créé confirmé. **La réception de remédiation PF
+reste NOT_VERIFIED :** ne pas affirmer que le ban a été appliqué,
+supprimé ou jamais créé.
+
+**Cause de code confirmée par CrowdSec v1.8.1** : le JSON de
+`cscli decisions list -o json` est une collection d'alertes
+avec leurs `decisions[]` imbriquées. L'ancien parseur pouvait
+produire un faux `initial_lapi=ABSENT` et échouer à identifier
+la décision pour `delete --id` après la création. Dans #295,
+le parseur accepte et vérifie les décisions imbriquées, et le
+nettoyage exige également le `scenario` aléatoire du test
+(`origin=cscli`, ID unique, scope/IP/type exacts).
+`just crowdsec-pf-synthetic-inspect` permet de rechercher en
+lecture seule des vestiges LAPI/PF de l'essai. **Ne pas relancer
+`--apply` avant inspection et nouveau précontrôle PASS.**
+Nouveaux tests de régression à exécuter sur la workstation.
+
+**Baseline naturelle :** l'ancien collecteur souffrait de la
+même hypothèse JSON. Une baseline **v2 séparée**, avec parsing
+correct, utilise `crowdsec-pf-natural-cycle-v2.json`.
+Conserver le fichier v1 privé en archive ; ne jamais le considérer
+comme preuve d'absence de décisions historiques, ni le modifier
+automatiquement. La v2 est **NOT_YET_CAPTURED**.
+
 ## Réception CrowdSec Small — 27–28 octobre 2026
 
 **Le bouncer pfSense a réussi sa bascule sur la LAPI TrueNAS.**
