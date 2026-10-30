@@ -73,8 +73,10 @@ try:
                                 for x in share[k])
                             for k in ("hosts", "networks")) and
                         isinstance(share["security"], list) and
+                        len(share["security"]) <= 4 and
                         all(v in ("SYS", "KRB5", "KRB5I", "KRB5P")
                             for v in share["security"]) and
+                        len(set(share["security"])) == len(share["security"]) and
                         all(share[k] is None or (isinstance(share[k], str)
                             and 0 < len(share[k]) <= 128)
                             for k in ("maproot_user", "maproot_group",
@@ -164,9 +166,24 @@ def probe(name: str) -> dict | None:
         if (value["root_mapping"] not in MAPPING or
                 value["all_mapping"] not in MAPPING or value["security"] not in FLAVORS):
             return None
+        boolean_fields = ("enabled", "read_only", "hosts_restricted",
+                          "networks_restricted", "root_group_mapped",
+                          "all_group_mapped")
         if any(type(value[k]) is not bool and value[k] is not None
-               for k in ("enabled", "read_only", "locked", "hosts_restricted",
-                         "networks_restricted", "root_group_mapped", "all_group_mapped")):
+               for k in (*boolean_fields, "locked")):
+            return None
+        if value["state"] == "EXPORT_MATCHED":
+            if (any(type(value[k]) is not bool for k in boolean_fields)
+                    or value["client_filter"] == "SCHEMA_UNVERIFIED"
+                    or value["security"] == "SCHEMA_UNVERIFIED"
+                    or value["root_mapping"] == "SCHEMA_UNVERIFIED"
+                    or value["all_mapping"] == "SCHEMA_UNVERIFIED"):
+                return None
+        elif (any(value[k] is not None for k in (*boolean_fields, "locked"))
+              or value["client_filter"] != "SCHEMA_UNVERIFIED"
+              or value["security"] != "SCHEMA_UNVERIFIED"
+              or value["root_mapping"] != "SCHEMA_UNVERIFIED"
+              or value["all_mapping"] != "SCHEMA_UNVERIFIED"):
             return None
         return value
     except (OSError, ValueError, UnicodeError, subprocess.TimeoutExpired):
