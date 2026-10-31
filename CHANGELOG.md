@@ -1,3 +1,20 @@
+# [0.51.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.50.0...0.51.0) (2026-10-31)
+
+
+### Bug Fixes
+
+* **langfuse:** load secrets from /mnt/cpool/secrets/runtime/langfuse [skip ci] ([#302](https://github.com/AlbanAndrieu/nabla-compose/issues/302)) ([4704d1b](https://github.com/AlbanAndrieu/nabla-compose/commit/4704d1ba47fd26566c916e9153ddcfaff8df3367))
+* **openclaw:** diagnostics fail-closed et alignement Node déclaratif ([#295](https://github.com/AlbanAndrieu/nabla-compose/issues/295)) ([c50806f](https://github.com/AlbanAndrieu/nabla-compose/commit/c50806f27535fd08c4668d948495c95089532ce9))
+* **openclaw:** opt-in sudo LiteLLM logs and npm wrappers on TrueNAS ([#305](https://github.com/AlbanAndrieu/nabla-compose/issues/305)) ([73a86ae](https://github.com/AlbanAndrieu/nabla-compose/commit/73a86ae77a018f75822197618d90f135a0818894))
+* **submodule:** remove fastapi-sample ./run-git-submodule.sh ([#301](https://github.com/AlbanAndrieu/nabla-compose/issues/301)) ([4aae658](https://github.com/AlbanAndrieu/nabla-compose/commit/4aae6582aee013437f9b67a8c70f2993171033bf)), closes [#295](https://github.com/AlbanAndrieu/nabla-compose/issues/295)
+* **truenas:** recreate the missing sample App instead of failing app.update [skip ci] ([#304](https://github.com/AlbanAndrieu/nabla-compose/issues/304)) ([9705415](https://github.com/AlbanAndrieu/nabla-compose/commit/9705415da75ffc363a586c98722d04871f675a13))
+
+
+### Features
+
+* **langfuse:** declare runtime secrets in the Vaultwarden manifest [skip ci] ([#303](https://github.com/AlbanAndrieu/nabla-compose/issues/303)) ([16eba72](https://github.com/AlbanAndrieu/nabla-compose/commit/16eba722d95293bccd9f7ff09d38de566153d035))
+* **litellm:** relay gpt-4.1/mini from TrueNAS to the Workstation proxy ([#306](https://github.com/AlbanAndrieu/nabla-compose/issues/306)) ([e8e4ef9](https://github.com/AlbanAndrieu/nabla-compose/commit/e8e4ef9ba5f1de2b0e93ba584dcc8b689f439369))
+
 # [0.50.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.49.0...0.50.0) (2026-10-30)
 
 
