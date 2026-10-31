@@ -15,6 +15,22 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## P1 — Rétention ZFS TrueNAS : analyser, améliorer, passer en IaC (31 octobre 2026)
+
+**Contexte :** la workstation sauvegarde désormais avec Restic dans `cpool/backup`
+(`/media/backup/workstation`, NFS, [plan côté workstation](https://github.com/AlbanAndrieu/ansible-workstation/blob/master/docs/restic-evaluation.md)).
+Sur NFS, la workstation peut effacer son propre dépôt : seuls des snapshots ZFS
+côté TrueNAS la protègent. La politique actuelle n'est ni documentée ni versionnée.
+
+| Étape | Livrable | Gate | Statut |
+| --- | --- | --- | --- |
+| 1. Analyser | [`audit-zfs-snapshot-retention.sh`](../scripts/truenas/audit-zfs-snapshot-retention.sh) (`just zfs-retention-audit`) : tâches de snapshot et de réplication, couverture, âge du dernier snapshot, espace retenu par dataset | Lecture seule (test de contrat), rapport expurgé archivé | **CODE ADDED / RUNTIME NOT VERIFIED** |
+| 2. Décider | Politique par classe de dataset : `cpool/backup` 1×/jour gardé 14 j + 1×/semaine gardé 8 sem. ; données utilisateur (photo, music, www) 1×/jour 30 j ; `ix-apps` selon les PRA applicatifs existants | Validation opérateur, coût en espace estimé depuis l'audit | À faire |
+| 3. IaC | Tâches de snapshot (et réplication hors site) déclarées dans `terraform/truenas` si le provider `PjSalty/truenas` ~> 2.4 expose une ressource de tâche périodique ; sinon fichier déclaratif + réconciliation `midclt` avec `--plan`/`--apply` doublement approuvé | `tofu plan` sans diff après import des tâches existantes ; aucune suppression de snapshot | À faire |
+| 4. Hors site | Réplication ZFS ou `restic copy` vers une cible indépendante de TrueNAS | Restauration de test depuis la copie | À faire |
+
+Aucune tâche n'est créée, modifiée ou supprimée par l'étape 1.
+
 ## P0 — FastAPI : diagnostic UI, Prometheus, LiteLLM et OpenRAG consolidé (30 octobre 2026)
 
 **Mesures opérateur du 30/10, non exécutées par cet agent :**
