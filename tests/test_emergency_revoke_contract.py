@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,7 +34,7 @@ class EmergencyRevokeContractTests(unittest.TestCase):
         bw.assert_not_called()
         http.assert_not_called()
         self.assertEqual(code, 0)
-        for item in revoke.SECRETS:
+        for item in revoke.REVOCATIONS:
             self.assertIn(f"{item}:", output)
 
     def test_apply_requires_acknowledgement(self) -> None:

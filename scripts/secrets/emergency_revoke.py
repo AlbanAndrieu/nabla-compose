@@ -39,7 +39,7 @@ OPENAI_API = "https://api.openai.com/v1/organization"
 OPENAI_CONSOLE = "https://platform.openai.com/api-keys > Revoke"
 
 # Vaultwarden item -> (method, manual console used when the method is "manual" or fails).
-SECRETS: dict[str, tuple[str, str]] = {
+REVOCATIONS: dict[str, tuple[str, str]] = {
     "GITHUB_TOKEN": ("github", "https://github.com/settings/tokens > Delete"),
     "SLACK_BOT_TOKEN": ("slack", "https://api.slack.com/apps > OAuth & Permissions > Revoke"),
     "SLACK_APP_TOKEN": ("slack", "https://api.slack.com/apps > Basic Information > App-Level Tokens > Revoke"),
@@ -181,10 +181,10 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--plan", action="store_true", help="default: show the plan, read nothing")
     mode.add_argument("--apply", action="store_true", help="revoke or rotate through APIs")
     parser.add_argument("--acknowledge", default="", help=f"must be {ACK} with --apply")
-    parser.add_argument("--item", action="append", choices=sorted(SECRETS), help="limit to these items")
+    parser.add_argument("--item", action="append", choices=sorted(REVOCATIONS), help="limit to these items")
     args = parser.parse_args(argv)
 
-    items = args.item or list(SECRETS)
+    items = args.item or list(REVOCATIONS)
     if args.apply and args.acknowledge != ACK:
         parser.error(f"--apply requires --acknowledge {ACK}")
     if args.apply and not os.environ.get("BW_SESSION"):
@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failures = 0
     for item in items:
-        method, console = SECRETS[item]
+        method, console = REVOCATIONS[item]
         if method == "manual":
             print(f"{item}: MANUAL {console}")
             continue
