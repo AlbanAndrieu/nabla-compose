@@ -23,6 +23,10 @@ before adopting external Docker/Kubernetes advice. In particular:
 - Secrets come from Vaultwarden and protected
   `/mnt/cpool/secrets/runtime/<service>/`, **not** repository-local live
   `.env` files.
+- Unlock Vaultwarden with `export BW_SESSION="$(bw-unlock)"` (dotfiles
+  `bin/bw-unlock`, master password read from `pass`, never typed or printed;
+  [runbook](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/runbooks/vaultwarden-unlock.md)),
+  then `bw lock`. Keep the `bw` CLI pinned to a version the server supports.
 - Preserve already declared shared Compose networks and compatible shared
   Postgres/Redis/Kafka/ClickHouse/etc. Do not create duplicate infrastructure
   from generic examples.

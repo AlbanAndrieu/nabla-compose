@@ -1854,3 +1854,23 @@ openclaw-digest-gitops-check:
 # Mutates existing job message; requires runtime hash printed by plan.
 openclaw-digest-gitops-apply expected_sha:
     python3 scripts/workstation/reconcile-openclaw-digest-cron.py --apply --expected-message-sha {{expected_sha}}
+
+# TrueNAS, root, READ-ONLY: snapshot/replication tasks, coverage and age per dataset.
+zfs-retention-audit:
+    sudo bash scripts/truenas/audit-zfs-snapshot-retention.sh --check
+
+# Offline contract for the retention audit (fakeroot + stubbed midclt/zfs).
+zfs-retention-audit-test:
+    bash -n scripts/truenas/audit-zfs-snapshot-retention.sh
+    python3 -m unittest discover -s tests -p 'test_zfs_snapshot_retention_contract.py' -v
+
+# Emergency: list how each leaked secret is revoked (API or manual), no value read or printed.
+secrets-emergency-revoke-plan:
+    python3 scripts/secrets/emergency_revoke.py --plan
+
+# IRREVERSIBLE: revoke via provider APIs. Needs BW_SESSION (bw-unlock) and the acknowledgement.
+secrets-emergency-revoke-apply:
+    python3 scripts/secrets/emergency_revoke.py --apply --acknowledge I_APPROVE_EMERGENCY_REVOCATION
+
+secrets-emergency-revoke-test:
+    python3 -m unittest discover -s tests -p 'test_emergency_revoke_contract.py' -v
