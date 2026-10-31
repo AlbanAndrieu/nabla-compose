@@ -219,8 +219,8 @@ ou test de restauration attestés par cette PR.
 python3 scripts/ops/plan-repository-split.py
 python3 -m unittest discover -s tests -p 'test_repository_split_plan.py' -v
 just openclaw-migration-evidence-tests
-just openclaw-migration-evidence-check
-just openclaw-litellm-dual-logs-check
+OPENCLAW_TRUENAS_LOG_SUDO=1 just openclaw-migration-evidence-check
+just openclaw-litellm-dual-logs-check-sudo
 
 # nabla-openclaw :
 just test && just plan
@@ -229,7 +229,9 @@ just test && just plan
 just test && just dependencies-readonly
 ```
 
-Les sorties runtime ne sont pas attestées par la seule existence des scripts. Un `exit=2` faute d'observabilité reste `UNKNOWN/NOT_VERIFIED`, pas une panne certaine.
+Les sorties runtime ne sont pas attestées par la seule existence des scripts. Un `exit=2` faute d'observabilité reste `UNKNOWN/NOT_VERIFIED`, pas une panne certaine. L'utilisateur SSH TrueNAS n'est pas dans le groupe `docker` (`docker_permission_denied`) : l'opt-in explicite `OPENCLAW_TRUENAS_LOG_SUDO=1` utilise le `sudo -n` existant, sans changer d'ACL.
+
+**Mesure P0 ordre 1 (31/10, fenêtre 2 h, 300 lignes par proxy, YubiKey) :** `coverage=both`, 9/11 sondes PASS. Aucun indicateur 429/budget/timeout/upstream sur les deux LiteLLM ; quotas `openclaw-main` et `openclaw-cron` `below_cap`. Les 13 lignes 401 TrueNAS sont toutes `GET /metrics` depuis le réseau Prometheus : job `litellm_hermes` sans credential, **pas OpenClaw**. Correctif à préparer : `authorization.credentials_file` comme `fastapi_sample`, après création opérateur d'une clé LiteLLM dédiée (gate clé). Les deux sondes restantes viennent de `agent:cron:main` absent du catalogue : conversation cron à recréer dans l'UI OpenClaw par l'opérateur.
 
 **Sécurité non négociable :** aucune réutilisation de session `BW_SESSION` exposée, aucune génération ou rotation de clé FastAPI déjà émise, aucun PIN/PUK/OTP2/PIV/GPG ou manipulation carte ; aucun secret, session SQLite, fichier `~/.openclaw`, identité age, archive privée ou fichier SOPS copié dans Git public ; aucune activation de clés, hausse de quotas, heartbeat ou Gateway sans gate et application explicite. Pas de CI payante, de merge automatique, de `git submodule update --remote` ni de migration implicite sur `git pull`.
 
