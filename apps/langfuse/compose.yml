@@ -1,4 +1,4 @@
-# Runtime secrets are injected from /mnt/cpool/langfuse/.env.secrets.
+# Runtime secrets are injected from /mnt/cpool/secrets/runtime/langfuse/.env.secrets.
 # DATABASE_URL uses the dedicated PostgreSQL `langfuse` identity and `langfuse` database.
 # Langfuse v4 uses the shared PostgreSQL, Redis, MinIO and ClickHouse services
 # over the private intranet network.
@@ -20,7 +20,7 @@ services:
       langfuse-web:
         condition: service_healthy
     env_file:
-      - /mnt/cpool/langfuse/.env.secrets
+      - /mnt/cpool/secrets/runtime/langfuse/.env.secrets
     x-nabla:
       id: langfuse-worker
       name: Langfuse Worker
@@ -116,7 +116,7 @@ services:
     image: ghcr.io/langfuse/langfuse:4.30.0
     restart: always
     env_file:
-      - /mnt/cpool/langfuse/.env.secrets
+      - /mnt/cpool/secrets/runtime/langfuse/.env.secrets
     x-nabla:
       id: langfuse-web
       name: Langfuse Web
