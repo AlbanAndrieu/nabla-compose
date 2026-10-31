@@ -490,7 +490,39 @@ REDIS_AUTH=<shared Redis password>
 SALT=<stable Langfuse salt>
 ENCRYPTION_KEY=<stable Langfuse encryption key>
 NEXTAUTH_SECRET=<stable NextAuth secret>
+LANGFUSE_INIT_ORG_ID=nabla
+LANGFUSE_INIT_ORG_NAME=Nabla
+LANGFUSE_INIT_PROJECT_ID=litellm
+LANGFUSE_INIT_PROJECT_NAME=LiteLLM
+LANGFUSE_INIT_PROJECT_PUBLIC_KEY=<same value as LiteLLM LANGFUSE_PUBLIC_KEY>
+LANGFUSE_INIT_PROJECT_SECRET_KEY=<same value as LiteLLM LANGFUSE_SECRET_KEY>
 ```
+
+A fresh reset leaves the database without organization, project or API key.
+The `LANGFUSE_INIT_*` headless initialization recreates the project with the
+key pair already configured in both LiteLLM proxies (Workstation and TrueNAS);
+without it every `langfuse_otel` export fails with `401 Invalid credentials`.
+Keep the init variables out of `apps/langfuse/compose.yml`: an `environment:`
+entry overrides `env_file`, so an empty interpolation would clobber them.
+
+These keys are declared in `config/secrets/manifest.json` (item
+`nabla/prod/langfuse`). Import the current runtime file into Vaultwarden once,
+dry-run first:
+
+```bash
+python scripts/secrets/import_dotenv_to_bitwarden.py \
+  --app langfuse \
+  --input /mnt/cpool/secrets/runtime/langfuse/.env.secrets
+python scripts/secrets/import_dotenv_to_bitwarden.py \
+  --app langfuse \
+  --input /mnt/cpool/secrets/runtime/langfuse/.env.secrets \
+  --apply
+```
+
+After adding or changing the init keys, Langfuse may keep answering `401` for
+up to `LANGFUSE_CACHE_API_KEY_TTL_SECONDS` (300 s by default): it caches the
+earlier unknown-key lookups in Redis. Wait for the TTL before concluding the
+keys are wrong.
 
 The ClickHouse service is shared infrastructure. Never delete
 `/mnt/cpool/clickhouse` merely to reset Langfuse. Reset only the dedicated

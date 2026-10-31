@@ -1764,6 +1764,9 @@ probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/l
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets SALT
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets ENCRYPTION_KEY
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets NEXTAUTH_SECRET
+# Without the init key pair an emptied database rejects every LiteLLM trace export with 401.
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets LANGFUSE_INIT_PROJECT_SECRET_KEY
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_SECRET_KEY
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_DB_PASSWORD
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_REDIS_PASSWORD
