@@ -13,8 +13,9 @@ from urllib.request import Request, ProxyHandler, HTTPRedirectHandler, build_ope
 
 BASE = "http://127.0.0.1:4000"
 KEYS = (
-    ("LITELLM_OPENCLAW_MAIN_API_KEY", "openclaw-main", ["workstation-qwen", "qwen"]),
-    ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen"]),
+    ("LITELLM_OPENCLAW_MAIN_API_KEY", "openclaw-main",
+     ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"]),
+    ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen", "gpt-4.1-mini"]),
 )
 
 
@@ -96,6 +97,26 @@ def quota_audit(master, env):
     return max(outcomes)
 
 
+def update_scope(master, env):
+    """Align only the model grant of existing keys, addressed by hash; never regenerate."""
+    for variable, alias, models in KEYS:
+        key_id = hashlib.sha256(env[variable].encode("utf-8")).hexdigest()
+        label = alias.replace("-", "_")
+        status, payload = request("/key/info?key=" + key_id, master)
+        info = payload.get("info") if isinstance(payload, dict) else None
+        budget = info.get("max_budget") if isinstance(info, dict) else None
+        if status != 200 or type(budget) not in (int, float) or budget != 2:
+            print(label + "_scope_update=blocked_unverified_key")
+            return 2
+        permitted = info.get("models")
+        if isinstance(permitted, list) and set(permitted) == set(models):
+            print(label + "_scope_update=already_aligned")
+            continue
+        code, _ = request("/key/update", master, {"key": key_id, "models": models})
+        print(label + "_scope_update_http=" + str(code or "unavailable"))
+        if code != 200:
+            return 2
+    return quota_audit(master, env)
 
 
 def main(argv=None):
@@ -104,6 +125,8 @@ def main(argv=None):
     options.add_argument("--apply", action="store_true")
     options.add_argument("--status", action="store_true")
     options.add_argument("--quota-audit", action="store_true")
+    options.add_argument("--update-scope", action="store_true",
+                         help="explicit: align model grants of existing keys only")
     args = parser.parse_args(argv)
     env = container_environment()
     if not env:
@@ -152,6 +175,11 @@ def main(argv=None):
         return 0
     if missing_models:
         return 2
+    if args.update_scope:
+        if not existing["keys"]:
+            print("scope_update=blocked_no_existing_keys")
+            return 2
+        return update_scope(master, env)
     if existing["keys"]:
         # Existing virtual keys must NEVER be regenerated. The scope and
         # budget can be established by GET /key/info using key hashes only.

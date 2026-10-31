@@ -113,6 +113,9 @@ class ProvisionerStatusTests(unittest.TestCase):
             "LITELLM_OPENCLAW_MAIN_API_KEY": "sk-MAIN-SYNTHETIC",
             "LITELLM_OPENCLAW_CRON_API_KEY": "sk-CRON-SYNTHETIC",
         }
+        self.main_models = ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"]
+        self.cron_models = ["workstation-qwen", "gpt-4.1-mini"]
+        self.served = {"data": [{"id": name} for name in self.main_models]}
 
     def test_status_reports_missing_alias_without_attempting_creation(self):
         calls = []
@@ -200,15 +203,15 @@ class ProvisionerStatusTests(unittest.TestCase):
         def fake(path, master, body=None):
             paths.append((path, body))
             if path == "/v1/models":
-                return 200, {"data": [{"id": "workstation-qwen"}, {"id": "qwen"}]}
+                return 200, self.served
             if path == "/key/list":
                 return 200, {"keys": ["hashed-main", "hashed-cron"]}
             if path.startswith("/key/info?key="):
                 main_hash = hashlib.sha256(self.env[
                     "LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()
                 main = path.endswith(main_hash)
-                return 200, {"info": {"models": ["workstation-qwen", "qwen"]
-                                      if main else ["workstation-qwen"],
+                return 200, {"info": {"models": self.main_models
+                                      if main else self.cron_models,
                                       "max_budget": 2, "spend": 0.0}}
             raise AssertionError("No mutation allowed: " + path)
 
@@ -229,7 +232,7 @@ class ProvisionerStatusTests(unittest.TestCase):
         def fake(path, master, body=None):
             paths.append((path, body))
             if path == "/v1/models":
-                return 200, {"data": [{"id": "workstation-qwen"}, {"id": "qwen"}]}
+                return 200, self.served
             if path == "/key/list":
                 return 200, {"keys": ["existing"]}
             if path.startswith("/key/info?key="):
@@ -253,10 +256,10 @@ class ProvisionerStatusTests(unittest.TestCase):
                 raise AssertionError("Only hashed key metadata GET allowed")
             if path.endswith(__import__("hashlib").sha256(
                     self.env["LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()):
-                return 200, {"info": {"models": ["workstation-qwen", "qwen"],
+                return 200, {"info": {"models": self.main_models,
                                      "max_budget": 2, "spend": 0.3,
                                      "rpm_limit": 30, "tpm_limit": 9000}}
-            return 200, {"info": {"models": ["workstation-qwen"],
+            return 200, {"info": {"models": self.cron_models,
                                  "max_budget": 2, "spend": 0.7}}
         with patch.object(self.provisioner, "container_environment", return_value=self.env), \
              patch.object(self.provisioner, "request", side_effect=info), \
@@ -285,6 +288,55 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(len(paths), 2)
         self.assertIn("openclaw_main_quota_state=exhausted", output.getvalue())
+
+    def test_update_scope_posts_hashed_key_models_only(self):
+        import hashlib
+        posts = []
+        grants = {"main": ["workstation-qwen", "qwen"], "cron": ["workstation-qwen"]}
+        main_hash = hashlib.sha256(self.env["LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()
+
+        def fake(path, master, body=None):
+            if path == "/v1/models":
+                return 200, self.served
+            if path == "/key/list":
+                return 200, {"keys": ["hashed-main", "hashed-cron"]}
+            if path.startswith("/key/info?key="):
+                who = "main" if path.endswith(main_hash) else "cron"
+                return 200, {"info": {"models": grants[who], "max_budget": 2, "spend": 0.0}}
+            if path == "/key/update":
+                posts.append(body)
+                grants["main" if body["key"] == main_hash else "cron"] = body["models"]
+                return 200, {}
+            raise AssertionError("Unexpected call: " + path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--update-scope"])
+        self.assertEqual(code, 0)
+        self.assertEqual([sorted(body) for body in posts], [["key", "models"]] * 2)
+        self.assertEqual(posts[0], {"key": main_hash, "models": self.main_models})
+        self.assertEqual(posts[1]["models"], self.cron_models)
+        self.assertIn("openclaw_cron_model_scope=verified", output.getvalue())
+        for value in self.env.values():
+            self.assertNotIn(value, output.getvalue())
+
+    def test_update_scope_blocks_on_unexpected_budget_without_post(self):
+        def fake(path, master, body=None):
+            if path == "/v1/models":
+                return 200, self.served
+            if path == "/key/list":
+                return 200, {"keys": ["existing"]}
+            if path.startswith("/key/info?key="):
+                return 200, {"info": {"models": ["workstation-qwen"], "max_budget": 50}}
+            raise AssertionError("No mutation allowed: " + path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--update-scope"])
+        self.assertEqual(code, 2)
+        self.assertIn("openclaw_main_scope_update=blocked_unverified_key", output.getvalue())
 
 
 

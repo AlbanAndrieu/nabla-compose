@@ -161,6 +161,29 @@ model_list:
       mode: chat
       supports_function_calling: true
 
+  # OpenClaw Gateway parity: same public names as the Workstation proxy
+  # (litellm-main/gpt-4.1, litellm-cron/gpt-4.1-mini); the Workstation keeps
+  # the provider deployments, TrueNAS only relays.
+  - model_name: gpt-4.1
+    litellm_params:
+      model: openai/gpt-4.1
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  - model_name: gpt-4.1-mini
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_base: os.environ/LITELLM_WORKSTATION_API_BASE
+      api_key: os.environ/LITELLM_IDE_API_KEY
+      request_timeout: 180
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
   # Future proxy path for consumers that should traverse TrueNAS LiteLLM first.
   - model_name: workstation-qwen
     litellm_params:
@@ -262,7 +285,10 @@ litellm_settings:
     # Strict paid-model order for Hermes (no local/random model substitution).
     # The Hermes virtual key permits exactly these four model groups; gateway
     # enforce_fallback_model_access blocks every other route, including default_fallbacks.
-    - { "hermes-opus-5-5": ["hermes-opus-5", "hermes-opus-4-8", "hermes-openai"] }
+    - {
+        "hermes-opus-5-5":
+          ["hermes-opus-5", "hermes-opus-4-8", "hermes-openai"],
+      }
     - { "hermes-opus-5": ["hermes-opus-4-8", "hermes-openai"] }
     - { "hermes-opus-4-8": ["hermes-openai"] }
     - { "hermes-openai": [] }
