@@ -78,19 +78,13 @@ kubectl -n truenas-csi rollout status daemonset/truenas-csi-node --timeout=30s >
 ok "TrueNAS CSI controller, attacher, node plugin and StorageClass are ready"
 
 workers_json="$(kubectl get nodes -o json)"
+# Keep worker selection deterministic and testable independently of the live cluster.
+# Exclude cordoned and untolerated NoSchedule/NoExecute nodes before creating Pods.
 mapfile -t workers < <(
-  jq -r '
-    .items[]
-    | select(.metadata.labels["node-role.kubernetes.io/control-plane"] == null)
-    | select(
-        [.status.conditions[]? | select(.type == "Ready" and .status == "True")]
-        | length > 0
-      )
-    | .metadata.name
-  ' <<<"${workers_json}"
+  jq -r -f "${ROOT}/scripts/talos/lib/select-csi-workers.jq" <<<"${workers_json}"
 )
 if (("${#workers[@]}" < 2)); then
-  fail "cross-node persistence smoke requires at least two Ready worker nodes"
+  fail "cross-node persistence smoke requires at least two Ready, schedulable and untainted worker nodes"
 fi
 
 writer_node="${workers[0]}"
