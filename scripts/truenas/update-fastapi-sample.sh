@@ -562,17 +562,32 @@ run_docker rm -f "${CONTAINER}" 2>/dev/null || true
 
 compose_path="${ROOT}/apps/sample/compose.yml"
 
-run_midclt_job_quiet "FastAPI Sample app.update completed" \
-    app.update "${APP_ID}" "$(
-        jq -cn --arg include "${compose_path}" '{
-          custom_compose_config: {
-            include: [$include]
-          }
-        }'
-    )"
+if sudo midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
+    jq -e 'length == 1' >/dev/null; then
+    run_midclt_job_quiet "FastAPI Sample app.update completed" \
+        app.update "${APP_ID}" "$(
+            jq -cn --arg include "${compose_path}" '{
+              custom_compose_config: {
+                include: [$include]
+              }
+            }'
+        )"
 
-run_midclt_job_quiet "FastAPI Sample app.redeploy completed" \
-    app.redeploy "${APP_ID}"
+    run_midclt_job_quiet "FastAPI Sample app.redeploy completed" \
+        app.redeploy "${APP_ID}"
+else
+    # A deleted App (manual removal or prune) made app.update fail with ENOENT.
+    summary_warn "TrueNAS App ${APP_ID} is missing; recreating it from ${compose_path}."
+    run_midclt_job_quiet "FastAPI Sample app.create completed" \
+        app.create "$(
+            jq -cn --arg app_name "${APP_ID}" \
+                --arg compose "$(printf 'include:\n  - %s\n' "${compose_path}")" '{
+              app_name: $app_name,
+              custom_app: true,
+              custom_compose_config_string: $compose
+            }'
+        )"
+fi
 
 printf 'Waiting for FastAPI Sample health on :8091...\n'
 health_payload="$(

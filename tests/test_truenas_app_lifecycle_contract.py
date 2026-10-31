@@ -1037,6 +1037,10 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('run_docker rm -f "${CONTAINER}"', script)
         self.assertIn('app.update "${APP_ID}"', script)
         self.assertIn('app.redeploy "${APP_ID}"', script)
+        # A missing App must be recreated, not reported as ENOENT by app.update.
+        self.assertIn('app.query "[[\\"id\\",\\"=\\",\\"${APP_ID}\\"]]"', script)
+        self.assertIn("app.create", script)
+        self.assertIn("custom_app: true", script)
         self.assertIn("reconcile-truenas-observer-allowlist.sh", script)
         self.assertIn("sudo bash scripts/security/verify-truenas-observer-access.sh", script)
         self.assertIn("http://127.0.0.1:8091/health", script)
