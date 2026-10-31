@@ -766,6 +766,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/secrets/runtime/langfuse/.env.secrets SALT", audit)
         self.assertIn("/mnt/cpool/secrets/runtime/langfuse/.env.secrets ENCRYPTION_KEY", audit)
         self.assertIn("/mnt/cpool/secrets/runtime/langfuse/.env.secrets NEXTAUTH_SECRET", audit)
+        self.assertIn("/mnt/cpool/secrets/runtime/langfuse/.env.secrets LANGFUSE_INIT_PROJECT_PUBLIC_KEY", audit)
+        self.assertIn("/mnt/cpool/secrets/runtime/langfuse/.env.secrets LANGFUSE_INIT_PROJECT_SECRET_KEY", audit)
         self.assertIn("SCRUTINY_WEB_INFLUXDB_TOKEN", audit)
         self.assertIn("GRAYLOG_MONGODB_URI", audit)
         self.assertIn("probe_secret_min_length_if_present", audit)
