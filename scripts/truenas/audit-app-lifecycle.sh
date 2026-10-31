@@ -319,7 +319,7 @@ function probe_legacy_secret_name {
 }
 
 function probe_langfuse_init_contract_if_present {
-  local file="/mnt/cpool/langfuse/.env.secrets"
+  local file="/mnt/cpool/secrets/runtime/langfuse/.env.secrets"
   local -a present=()
   local variable
 
@@ -1757,13 +1757,13 @@ probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets S
 probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
 probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
 probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL
-probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets DATABASE_URL 'postgresql://langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets CLICKHOUSE_PASSWORD
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets REDIS_AUTH
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets SALT
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets ENCRYPTION_KEY
-probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/langfuse/.env.secrets NEXTAUTH_SECRET
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets DATABASE_URL
+probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets DATABASE_URL 'postgresql:[/][/]langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets REDIS_AUTH
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets SALT
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets ENCRYPTION_KEY
+probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets NEXTAUTH_SECRET
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_SECRET_KEY
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_DB_PASSWORD
 probe_secret_if_present sentry "Sentry secrets" /mnt/cpool/secrets/runtime/sentry/.env.secrets SENTRY_REDIS_PASSWORD

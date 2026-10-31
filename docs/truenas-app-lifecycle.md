@@ -428,12 +428,12 @@ The host command `ping minio` is not evidence for Docker service discovery;
 host DNS may resolve a public search-domain hostname instead.
 
 Before replacing the current TrueNAS Langfuse app, materialize its current
-runtime secrets into `/mnt/cpool/langfuse/.env.secrets` without printing them.
+runtime secrets into `/mnt/cpool/secrets/runtime/langfuse/.env.secrets` without printing them.
 The existing TrueNAS application already has these variables in its rendered
 container environment; creating a new dataset does not copy them automatically.
 
 ```bash
-sudo install -d -m 700 /mnt/cpool/langfuse
+sudo install -d -m 700 /mnt/cpool/secrets/runtime/langfuse
 
 {
   sudo docker inspect ix-langfuse-langfuse-worker-1 \
@@ -443,10 +443,10 @@ sudo install -d -m 700 /mnt/cpool/langfuse
 } |
   grep -E '^(DATABASE_URL|SALT|ENCRYPTION_KEY|CLICKHOUSE_PASSWORD|LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID|LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY|LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID|LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY|REDIS_AUTH|SMTP_CONNECTION_URL|NEXTAUTH_SECRET|LANGFUSE_INIT_PROJECT_SECRET_KEY|LANGFUSE_INIT_USER_PASSWORD)=' |
   awk -F= '!seen[$1]++' |
-  sudo tee /mnt/cpool/langfuse/.env.secrets >/dev/null
+  sudo tee /mnt/cpool/secrets/runtime/langfuse/.env.secrets >/dev/null
 
-sudo chmod 600 /mnt/cpool/langfuse/.env.secrets
-sudo sed 's/=.*$/=<redacted>/' /mnt/cpool/langfuse/.env.secrets
+sudo chmod 600 /mnt/cpool/secrets/runtime/langfuse/.env.secrets
+sudo sed 's/=.*$/=<redacted>/' /mnt/cpool/secrets/runtime/langfuse/.env.secrets
 ```
 
 The final command prints variable names only. Keep the existing TrueNAS
@@ -478,7 +478,7 @@ Shared infrastructure contracts:
 Runtime secrets remain in:
 
 ```text
-/mnt/cpool/langfuse/.env.secrets
+/mnt/cpool/secrets/runtime/langfuse/.env.secrets
 ```
 
 and must include at least:
@@ -528,7 +528,7 @@ files are already owned by UID 568 or root.
 After ClickHouse is healthy again, create a dedicated Langfuse database/user
 with the administrative `clickhouse` identity. Generate a high-entropy
 `LANGFUSE_CLICKHOUSE_PASSWORD`, keep it outside Git, and store the same value
-as `CLICKHOUSE_PASSWORD` in `/mnt/cpool/langfuse/.env.secrets`.
+as `CLICKHOUSE_PASSWORD` in `/mnt/cpool/secrets/runtime/langfuse/.env.secrets`.
 
 Required Langfuse v4 permissions for the single-container server:
 

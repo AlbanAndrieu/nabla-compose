@@ -653,7 +653,7 @@ Target:
   `REDIS_KEY_PREFIX=langfuse-v4:`;
 - shared MinIO via `minio:9000`, isolated in bucket `langfuse-v4`;
 - all runtime secrets remain outside Git under
-  `/mnt/cpool/langfuse/.env.secrets`;
+  `/mnt/cpool/secrets/runtime/langfuse/.env.secrets`;
 - telemetry disabled by default.
 
 Because Langfuse uses PostgreSQL's `public` schema in the selected database,
