@@ -21,10 +21,10 @@ def execution_target(root=ROOT):
 
 
 def build_command(mode, target):
-    if mode not in ("plan", "apply", "status", "quota-audit"):
+    if mode not in ("plan", "apply", "status", "quota-audit", "update-scope"):
         raise ValueError("unsupported_mode")
     arguments = {"plan": (), "apply": ("--apply",), "status": ("--status",),
-                 "quota-audit": ("--quota-audit",)}[mode]
+                 "quota-audit": ("--quota-audit",), "update-scope": ("--update-scope",)}[mode]
     if target == "truenas_local":
         return ["sudo", "-n", "python3", str(PROVISIONER), *arguments]
     if target == "workstation_ssh":
@@ -34,7 +34,7 @@ def build_command(mode, target):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("plan", "apply", "status", "quota-audit"), default="plan")
+    parser.add_argument("--mode", choices=("plan", "apply", "status", "quota-audit", "update-scope"), default="plan")
     args = parser.parse_args(argv)
     if not PROVISIONER.is_file():
         print("provisioner=missing")
