@@ -26,8 +26,8 @@ def node(name: str, *, ready: bool = True, control: bool = False,
 @unittest.skipUnless(shutil.which("jq"), "jq required to exercise the production selector")
 class TalosCsiWorkerSelectionTests(unittest.TestCase):
     def select(self, items: list[dict]) -> list[str]:
-        result = subprocess.run(
-            ["jq", "-r", "-f", str(SELECTOR)],
+        result = subprocess.run(  # noqa: S603 - controlled jq fixture
+            [shutil.which("jq") or "jq", "-r", "-f", str(SELECTOR)],
             input=json.dumps({"items": items}), text=True,
             capture_output=True, check=True, timeout=5,
         )
