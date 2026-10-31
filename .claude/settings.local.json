@@ -1,8 +1,3 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(rm -rf /workspace/users/albandrieu30/nabla-compose/.git/worktrees/pr300-rebase/modules/apps/sample /tmp/user/1000/claude-1000/-workspace-users-albandrieu30-nabla-compose/d10521cd-10ac-4d95-8053-53e6a6c8d12e/scratchpad/pr300-rebase/apps/sample)"
-    ]
-  },
   "sandbox": { "enabled": false }
 }
