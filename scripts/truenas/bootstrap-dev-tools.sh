@@ -87,13 +87,22 @@ SHELLCHECK_BIN="$(
 ln -sfn "${SHELLCHECK_BIN}" "${DEV_VENV}/bin/shellcheck"
 "${DEV_VENV}/bin/shellcheck" --version
 
-NODE_BIN="$(
-  "${MISE_BIN}" --no-config which \
-    --tool "node@${NODE_VERSION}" node
-)"
-[[ -x "${NODE_BIN}" ]] || fail "mise-installed node is not executable: ${NODE_BIN}"
-ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"
+# npm is required by the Biome pre-commit hook (language_version: system).
+for node_tool in node npm npx; do
+  NODE_TOOL_BIN="$(
+    "${MISE_BIN}" --no-config which \
+      --tool "node@${NODE_VERSION}" "${node_tool}"
+  )"
+  [[ -x "${NODE_TOOL_BIN}" ]] || fail "mise-installed ${node_tool} is not executable: ${NODE_TOOL_BIN}"
+  # npm/npx locate npm-cli.js from their own path (relative symlink or
+  # dirname "$0" launcher), so exec them in place instead of linking.
+  # Remove first: writing through an old symlink would overwrite mise's npm.
+  rm -f "${DEV_VENV:?}/bin/${node_tool:?}"
+  printf '#!/bin/sh\nexec %q "$@"\n' "${NODE_TOOL_BIN}" >"${DEV_VENV}/bin/${node_tool}"
+  chmod 0755 "${DEV_VENV}/bin/${node_tool}"
+done
 "${DEV_VENV}/bin/node" --version
+"${DEV_VENV}/bin/npm" --version
 # The full offline security audit test invokes pinned Node validators via PATH.
 # A venv-local symlink also works when the interactive mise shims are absent.
 

@@ -89,7 +89,12 @@ else
   probe truenas_routes_declared just openclaw-truenas-model-keys-check
   probe truenas_virtual_keys_quota just openclaw-truenas-virtual-keys-quota
   probe model_route_metadata python3 scripts/workstation/openclaw-route-metadata.py
-  probe dual_litellm_logs just openclaw-litellm-dual-logs-check
+  # Same explicit opt-in as openclaw-recovery-readonly.sh; never silently use sudo.
+  if [[ "${OPENCLAW_TRUENAS_LOG_SUDO:-0}" == "1" ]]; then
+    probe dual_litellm_logs just openclaw-litellm-dual-logs-check-sudo
+  else
+    probe dual_litellm_logs just openclaw-litellm-dual-logs-check
+  fi
   probe truenas_tunnel just openclaw-truenas-tunnel-check
   probe cron_parent just openclaw-cron-parent-check
   probe digest_top just openclaw-digest-top-check

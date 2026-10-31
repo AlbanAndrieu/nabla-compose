@@ -49,6 +49,17 @@ class MigrationEvidence(unittest.TestCase):
             self.assertIn("PROBE truenas_virtual_keys_quota completed",result.stdout)
             self.assertIn("PROBE model_route_metadata completed",result.stdout)
             self.assertIn("unverified_or_failed=1",result.stdout)
+            calls=root/"calls.log"
+            fake.write_text(f'#!/bin/sh\necho "$1" >> {calls}\nexit 0\n')
+            subprocess.run(["bash",str(target),"--diagnose"],env=env,
+                           check=False,capture_output=True)
+            self.assertIn("openclaw-litellm-dual-logs-check\n",calls.read_text())
+            self.assertNotIn("dual-logs-check-sudo",calls.read_text())
+            calls.unlink()
+            subprocess.run(["bash",str(target),"--diagnose"],
+                           env={**env,"OPENCLAW_TRUENAS_LOG_SUDO":"1"},
+                           check=False,capture_output=True)
+            self.assertIn("openclaw-litellm-dual-logs-check-sudo\n",calls.read_text())
 
     def test_truenas_skips_workstation_only_probes(self):
         with tempfile.TemporaryDirectory() as tmp:

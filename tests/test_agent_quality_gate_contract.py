@@ -286,8 +286,13 @@ class AgentQualityGateContractTests(unittest.TestCase):
         self.assertIn('node = "24.22.1"', mise)
         self.assertIn('NODE_VERSION="${NABLA_NODE_VERSION:-24.22.1}"', script)
         self.assertIn('"node@${NODE_VERSION}"', script)
-        self.assertIn('ln -sfn "${NODE_BIN}" "${DEV_VENV}/bin/node"', script)
-        self.assertIn('"node@${NODE_VERSION}" node', script)
+        # The Biome hook runs with language_version: system and needs npm too.
+        self.assertIn("for node_tool in node npm npx; do", script)
+        self.assertIn(
+            "printf '#!/bin/sh\\nexec %q \"$@\"\\n' \"${NODE_TOOL_BIN}\"",
+            script,
+        )
+        self.assertIn('"node@${NODE_VERSION}" "${node_tool}"', script)
 
     def test_mise_exposes_local_fix_check_and_pre_push_workflow(self) -> None:
         config = (ROOT / "mise.toml").read_text(encoding="utf-8")
