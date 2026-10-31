@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -35,8 +36,10 @@ check_talos_service 172.17.0.50 kubelet
 """
             env = dict(os.environ, COUNT_FILE=str(counter), SERVICE_RESPONSE=response,
                        SERVICE_EXIT=str(code))
-            result = subprocess.run(["bash", "-c", bash], text=True, capture_output=True,
-                                    env=env, timeout=5, check=False)
+            result = subprocess.run(  # noqa: S603 - repository-owned Bash function only
+                [shutil.which("bash") or "bash", "-c", bash],
+                text=True, capture_output=True, env=env, timeout=5, check=False,
+            )
             count = len(counter.read_text().splitlines()) if counter.exists() else 0
             return result, count
 
