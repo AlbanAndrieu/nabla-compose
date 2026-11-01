@@ -18,6 +18,7 @@ from nabla_ops.business_criticality import (  # noqa: E402
     effective_dependency_criticality_inventory,
     parse_iso8601_duration,
 )
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 
 
 def _policy() -> dict:
@@ -70,7 +71,7 @@ def _entity(
 
 def _repository_entities() -> list[dict]:
     paths = [ROOT / "catalog" / "catalog-info.yaml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(ROOT))
     entities: list[dict] = []
     for path in paths:
         for document in yaml.safe_load_all(path.read_text(encoding="utf-8")):

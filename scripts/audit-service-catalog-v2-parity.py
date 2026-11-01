@@ -27,6 +27,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     desired_exposure_errors,
     preparation_errors,
 )
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
 
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
@@ -42,7 +43,7 @@ def _tracked_compose_paths() -> list[Path]:
 
 def _backstage_entities() -> list[dict]:
     paths = [ROOT / "catalog" / "catalog-info.yaml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(ROOT))
     result: list[dict] = []
     for path in paths:
         if not path.exists():

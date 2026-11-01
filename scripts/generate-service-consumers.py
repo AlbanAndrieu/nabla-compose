@@ -16,6 +16,7 @@ import yaml
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
 from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
@@ -301,7 +302,7 @@ def parse_port_target(target: str) -> tuple[str, int] | None:
 def backstage_entities() -> dict[str, dict[str, Any]]:
     """Backstage documents alone own entity identity and declared state."""
     paths = [ROOT / "catalog" / "catalog-info.yaml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(ROOT))
     return {
         entity["entityRef"]: entity
         for entity in load_backstage_entities(path for path in paths if path.is_file())
