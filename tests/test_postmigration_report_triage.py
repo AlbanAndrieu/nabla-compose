@@ -52,7 +52,10 @@ def test_gatus_denied_only_is_not_misclassified_as_observed_outage(tmp_path):
             'private_value': 'NEVER_PRINT',
         })),
     ])
-    result = module.analyze(folder, root)['checks'][0]
+    report = module.analyze(folder, root)
+    result = report['checks'][0]
+    assert report['failed'] == 0
+    assert report['unverified'] >= 1
     assert result['category'] == 'gatus_access_denied_not_service_down'
     assert result['evidence']['verdict_counts']['DENIED'] == 2
     assert 'NEVER_PRINT' not in json.dumps(result)
@@ -86,6 +89,35 @@ def test_gatus_invalid_counters_never_invent_denied_or_failure(tmp_path):
     result = module.analyze(folder, root)['checks'][0]
     assert result['category'] == 'gatus_samples_missing_or_unverified'
     assert 'verdict_counts' not in result['evidence']
+
+
+def test_gatus_missing_samples_are_uncertain_not_failed_phase(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-gatus', 'FAIL', json.dumps({
+            'source': 'gatus_lan_read_only',
+            'declared': 3, 'runtime': 0, 'up': 0, 'down': 0, 'unverified': 3,
+            'verdict_counts': {
+                'PASS': 0, 'FAIL': 0, 'DENIED': 0,
+                'UNVERIFIED': 3, 'NOT_RUN': 0,
+            },
+        })),
+    ])
+    result = module.analyze(folder, root)
+    assert result['failed'] == 0
+    assert result['unverified'] >= 1
+    assert result['checks'][0]['category'] == 'gatus_samples_missing_or_unverified'
+
+
+def test_prometheus_api_unavailable_is_incomplete_not_confirmed_failure(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-prometheus', 'FAIL',
+         'Prometheus active-target API unavailable PRIVATE_TOKEN=NO_ECHO'),
+    ])
+    result = module.analyze(folder, root)
+    assert result['failed'] == 0
+    assert result['unverified'] >= 1
+    assert result['checks'][0]['category'] == 'prometheus_api_unavailable'
+    assert 'NO_ECHO' not in json.dumps(result)
 
 
 def test_apisix_unknown_without_pretending_failure(tmp_path):
