@@ -26,6 +26,39 @@ strictement en lecture seule et retourne **2 par conception**,
 même lorsqu'aucune référence App n'est observée. Ne pas interpréter
 ce code comme un `DOWN` ni désactiver cette protection.
 
+## Preuve d'audit TrueNAS — 30 octobre 2026
+
+L'opérateur a exécuté la vérification sur TrueNAS
+depuis `nabla-compose` au HEAD `39c422c1`.
+
+```text
+test_openclaw_sandbox_global_binding.py: 11/11 PASS
+app_inventory_count=95
+app_configs_checked=95
+app_configs_unverified=0
+old_path_reference_observed=false
+app_mutations=0
+model_requests=0
+sandbox_relocation=manual_review_no_app_reference_observed
+scan_scope=truenas_app_configs_only
+```
+
+**DONE :** la couverture des configurations des
+**95 applications TrueNAS** était complète au moment
+de ce contrôle, sans référence à l'ancien fichier
+Compose dans les `app.config` inspectées.
+L'exit code **2** de l'outil reste **normal**
+et non assimilable à une panne : aucune migration
+n'est autorisée automatiquement par ce script.
+
+**NO-GO restant :** `build.sh`, le catalogue,
+la topologie et des consommateurs hors `app.config`
+demeurent concernés. Le prochain lot technique
+corrigera les références puis vérifiera le rollback
+avant déplacement des quatre fichiers et tout
+gitlink `apps/openclaw`. Le Gateway TrueNAS et
+les automations ne sont **pas** activés.
+
 **Attention :** le fichier Compose du sandbox peut être référencé par
 une application TrueNAS via `custom_compose_config.include`.
 Le nouveau script lit seulement `app.config` pour les deux noms
