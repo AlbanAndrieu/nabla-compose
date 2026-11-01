@@ -19,9 +19,14 @@ import subprocess
 import sys
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import ProxyHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.http_diagnostics import (  # noqa: E402
+    NoRedirect, http_status as shared_http_status, read_json_object,
+)
 UI_TARGETS = {
     'truenas': 'http://172.17.0.24:8091',
     'staging': 'https://sample.albandrieu.com',
@@ -39,11 +44,6 @@ SAFE_VALUE = re.compile(r'^[a-zA-Z0-9_./-]{1,90}$')
 MAX_JSON_BYTES = 32768
 
 
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, request, fp, code, msg, headers, newurl):
-        return None
-
-
 def safe(value: Any) -> str:
     """Never propagate an unknown child field or raw error message."""
     return value if isinstance(value, str) and SAFE_VALUE.fullmatch(value) else 'unverified'
@@ -54,6 +54,11 @@ def row(component: str, verdict: str, state: str, **numeric: object) -> dict[str
     return {'component': component, 'verdict': verdict, 'state': safe(state),
             **{key: val for key, val in numeric.items()
                if isinstance(val, int) and not isinstance(val, bool) and val >= 0}}
+
+
+def unavailable(component: str, status: str, state: str) -> list[dict[str, object]]:
+    """A missing probe script is NOT_RUN; any other unusable report is UNVERIFIED."""
+    return [row(component, 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', state)]
 
 
 def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str]:
@@ -82,43 +87,84 @@ def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str
 
 
 def get_json(url: str, timeout: int = 5, limit: int = 1024 * 1024) -> dict[str, Any]:
+    """Share bounded, no-redirect JSON transport with Prometheus diagnostics."""
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    with opener.open(Request(url, headers={'Accept': 'application/json'}), timeout=timeout) as response:
-        body = response.read(limit + 1)
-    if len(body) > limit:
-        raise ValueError('too large')
-    doc = json.loads(body)
-    if not isinstance(doc, dict):
-        raise ValueError('unexpected document')
-    return doc
+    return read_json_object(opener, url, timeout=timeout, limit=limit)
+
+
+def http_status(opener: Any, url: str, timeout: int) -> int:
+    """Compatibility wrapper for established UI diagnostics and offline mocks."""
+    return shared_http_status(opener, url, timeout=timeout)
+
+
+def classify_ui_codes(codes: list[int]) -> tuple[str, str]:
+    """Distinguish access-policy denials from incomplete or failed routes.
+
+    A 401/403 cannot override a 5xx or transport failure on another route.
+    No single-route HTTP status proves that the full UI rendered successfully.
+    """
+    if len(codes) != len(UI_PATHS):
+        return 'UNVERIFIED', 'incomplete_http_observation'
+    if all(code == 200 for code in codes):
+        return 'PASS', 'three_http_200'
+    if any(code == 0 or code >= 500 for code in codes):
+        return 'UNVERIFIED', 'http_or_transport_degraded'
+    if any(code not in (200, 401, 403) for code in codes):
+        return 'UNVERIFIED', 'unexpected_http_status'
+    if any(code in (401, 403) for code in codes):
+        return 'DENIED', 'authorization_or_access_policy'
+    return 'UNVERIFIED', 'unexpected_http_status'
 
 
 def ui_http() -> list[dict[str, object]]:
     opener = build_opener(ProxyHandler({}), NoRedirect())
     output = []
     for name, origin in UI_TARGETS.items():
-        codes = []
-        for path in UI_PATHS:
-            try:
-                with opener.open(Request(origin + path, headers={'Accept': 'application/json'}),
-                                 timeout=7 if path.endswith('/services') else 4) as response:
-                    codes.append(response.status)
-            except HTTPError as exc:
-                codes.append(exc.code)
-                exc.close()
-            except (OSError, URLError, ValueError):
-                codes.append(0)
-        if all(code == 200 for code in codes):
-            verdict, state = 'PASS', 'three_http_200'
-        elif any(code in (401, 403) for code in codes):
-            verdict, state = 'DENIED', 'authorization_or_access_policy'
-        elif any(code >= 500 or code == 0 for code in codes):
-            verdict, state = 'UNVERIFIED', 'http_or_transport_degraded'
-        else:
-            verdict, state = 'UNVERIFIED', 'unexpected_http_status'
+        codes = [
+            http_status(opener, origin + path, 7 if path.endswith('/services') else 4)
+            for path in UI_PATHS
+        ]
+        verdict, state = classify_ui_codes(codes)
         output.append(row('ui_' + name, verdict, state,
                           api_http=codes[0], session_http=codes[1], services_http=codes[2]))
     return output
+
+
+def prometheus_job_row(name: str, item: object) -> dict[str, object]:
+    """Fail closed on an incomplete classifier record, without raw target data."""
+    if not isinstance(item, dict):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_job_missing')
+    state = item.get('state')
+    domains = item.get('failure_domains')
+    up, total = item.get('targets_up'), item.get('targets_total')
+    if (not isinstance(domains, list) or
+            any(not isinstance(domain, str) for domain in domains) or
+            type(up) is not int or type(total) is not int or
+            up < 0 or total < 0 or up > total):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_record_invalid')
+
+    # Preserve the invariant between reported state and observed target counts.
+    if (state == 'scrape_up' and (up != total or total == 0)) or (
+        state == 'scrape_down' and (up != 0 or total == 0)
+    ) or (state == 'scrape_partial' and not 0 < up < total):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_state_inconsistent',
+                   up=up, total=total)
+
+    if state == 'scrape_up':
+        verdict, cause = 'PASS', 'none'
+    elif state in ('scrape_down', 'scrape_partial'):
+        if set(domains) == {'auth'}:
+            verdict, cause = 'DENIED', 'auth'
+        elif 'auth' in domains:
+            verdict, cause = 'UNVERIFIED', 'mixed_failure_domains'
+        else:
+            verdict = 'FAIL'
+            cause = next((domain for domain in
+                          ('tcp', 'dns', 'timeout', 'tls', 'network', 'http')
+                          if domain in domains), 'unverified')
+    else:
+        verdict, cause = 'UNVERIFIED', 'unverified'
+    return row('scrape_' + name, verdict, cause, up=up, total=total)
 
 
 def prometheus() -> tuple[list[dict[str, object]], dict[str, object]]:
@@ -134,28 +180,13 @@ def prometheus() -> tuple[list[dict[str, object]], dict[str, object]]:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         statuses = module.assess_targets(data, jobs=PROM_JOBS)
+        if not isinstance(statuses, dict):
+            raise ValueError('invalid classifier response')
         targets = data['data']['activeTargets']
     except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError,
             json.JSONDecodeError, AttributeError, ImportError):
         return [row('prometheus_snapshot', 'UNVERIFIED', 'targets_unavailable')], {}
-    output = []
-    for name in PROM_JOBS:
-        item = statuses[name]
-        state = item['state']
-        domains = item['failure_domains']
-        if state == 'scrape_up':
-            verdict = 'PASS'
-        elif 'auth' in domains:
-            verdict = 'DENIED'
-        elif state in ('scrape_down', 'scrape_partial'):
-            verdict = 'FAIL'
-        else:
-            verdict = 'UNVERIFIED'
-        # One fixed diagnostic category; no raw lastError, URLs or target labels.
-        cause = next((x for x in ('auth', 'tcp', 'dns', 'timeout', 'tls', 'network', 'http')
-                      if x in domains), 'none' if verdict == 'PASS' else 'unverified')
-        output.append(row('scrape_' + name, verdict, cause,
-                          up=item['targets_up'], total=item['targets_total']))
+    output = [prometheus_job_row(name, statuses.get(name)) for name in PROM_JOBS]
     summary = {
         'snapshot_utc': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'targets_total': len(targets),
@@ -179,7 +210,7 @@ def readiness() -> list[dict[str, object]]:
                                   '--service', 'prometheus', '--json', timeout=40)
     records = report.get('services')
     if not isinstance(records, list):
-        return [row('app_readiness', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'probe_unavailable')]
+        return unavailable('app_readiness', status, 'probe_unavailable')
     output = []
     for name in ('openrag', 'litellm', 'prometheus'):
         service = next((x for x in records if isinstance(x, dict) and x.get('service') == name), None)
@@ -200,7 +231,7 @@ def lite_keys() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/check-fastapi-litellm-runtime-keys.py', '--check')
     entries = report.get('checks')
     if not isinstance(entries, dict):
-        return [row('litellm_key_alignment', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'report_unavailable')]
+        return unavailable('litellm_key_alignment', status, 'report_unavailable')
     output = []
     for key, label in (('LITELLM_API_KEY', 'litellm_sample_key'),
                        ('LITELLM_FASTAPI_WORKSTATION_API_KEY', 'litellm_upstream_key')):
@@ -225,7 +256,7 @@ def lite_keys() -> list[dict[str, object]]:
 def upstream() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/diagnose-workstation-litellm-upstream-auth.py', '--check')
     if report.get('host_context') != 'truenas_verified':
-        return [row('litellm_upstream', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'truenas_identity_unverified')]
+        return unavailable('litellm_upstream', status, 'truenas_identity_unverified')
     key_state = report.get('truenas_upstream_key_state')
     living = report.get('workstation_liveliness')
     if key_state == 'missing_runtime_upstream_key':
@@ -238,7 +269,7 @@ def upstream() -> list[dict[str, object]]:
 def ai_connectivity() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/accept-fastapi-ai-connectivity.py', '--check', timeout=75)
     if report.get('component') != 'fastapi_ai_acceptance':
-        return [row('ai_from_sample', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'container_probe_unavailable')]
+        return unavailable('ai_from_sample', status, 'container_probe_unavailable')
     checks = (
         ('litellm', 'litellm'), ('litellm_model', 'fastapi_qwen_model'),
         ('openrag_backend', 'openrag_backend'), ('openrag_frontend', 'openrag_frontend'),
@@ -264,7 +295,7 @@ def ai_connectivity() -> list[dict[str, object]]:
 def ai_chain() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/diagnose-fastapi-ai-chain.py', '--check', '--runtime', timeout=45)
     if report.get('component') != 'fastapi_truenas_ai_rag':
-        return [row('ai_chain', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'probe_unavailable')]
+        return unavailable('ai_chain', status, 'probe_unavailable')
     runtime = report.get('runtime')
     declared = report.get('declared')
     if not isinstance(runtime, dict) or not isinstance(declared, dict):
@@ -366,8 +397,6 @@ def openrag_dependencies() -> list[dict[str, object]]:
     if status == 'nonzero' and 'BLOCKED:' in raw:
         return [row('openrag_dependencies', 'FAIL', 'dependency_blocked')]
     return [row('openrag_dependencies', 'UNVERIFIED', 'dependency_check_unverified')]
-
-
 
 def vaultwarden_operator() -> list[dict[str, object]]:
     """Read CLI metadata in the invoking user's shell, never as root."""
@@ -496,7 +525,8 @@ def main(argv: list[str] | None = None) -> int:
         rows.extend(ui_http())
         if args.browser:
             rows.extend(browser(fastapi_root))
-    verified_truenas = is_truenas()
+    # UI-only and Vaultwarden-only scopes never require a middleware call.
+    verified_truenas = is_truenas() if args.scope in ('all', 'prometheus', 'ai') else False
     if args.scope in ('all', 'prometheus'):
         prom, snapshot = prometheus()
         rows.extend(prom)

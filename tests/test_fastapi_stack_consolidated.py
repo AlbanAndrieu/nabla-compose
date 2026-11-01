@@ -111,6 +111,13 @@ class ContractTests(unittest.TestCase):
     def test_metrics_script_missing_is_not_run(self):
         self.assertEqual(stack.metrics_auth(None)[0]['verdict'], 'NOT_RUN')
 
+    def test_missing_child_is_not_run_but_broken_child_is_unverified(self):
+        for status, verdict in (('missing', 'NOT_RUN'), ('timeout', 'UNVERIFIED'), ('ok', 'UNVERIFIED')):
+            with patch.object(stack, 'child_report', return_value=(status, {})):
+                for probe in (stack.readiness, stack.lite_keys, stack.upstream,
+                              stack.ai_connectivity, stack.ai_chain):
+                    self.assertEqual([r['verdict'] for r in probe()], [verdict], probe.__name__)
+
     def test_browser_not_run_without_checkout(self):
         self.assertEqual(stack.browser(None)[0]['verdict'], 'NOT_RUN')
 
@@ -292,6 +299,108 @@ class ContractTests(unittest.TestCase):
                 code = stack.main(['--check', '--scope', 'vaultwarden', '--brief'])
         self.assertEqual(code, 2)
         self.assertIn('bw login', out.getvalue())
+
+
+class DiagnosticRefactoringTests(unittest.TestCase):
+    def test_ui_mixed_access_denial_and_server_failure_is_not_denied(self):
+        self.assertEqual(
+            stack.classify_ui_codes([403, 200, 503]),
+            ('UNVERIFIED', 'http_or_transport_degraded'),
+        )
+        self.assertEqual(
+            stack.classify_ui_codes([200, 0, 401]),
+            ('UNVERIFIED', 'http_or_transport_degraded'),
+        )
+
+    def test_ui_only_access_denial_is_not_down(self):
+        self.assertEqual(
+            stack.classify_ui_codes([200, 401, 403]),
+            ('DENIED', 'authorization_or_access_policy'),
+        )
+
+    def test_ui_missing_or_unexpected_route_is_incomplete(self):
+        self.assertEqual(stack.classify_ui_codes([200, 200, 200]), ('PASS', 'three_http_200'))
+        self.assertEqual(stack.classify_ui_codes([200, 404, 200])[0], 'UNVERIFIED')
+        self.assertEqual(stack.classify_ui_codes([200, 200])[1], 'incomplete_http_observation')
+
+    def test_ui_http_mixed_routes_are_reported_without_raw_errors(self):
+        class MixedOpener:
+            def __init__(self):
+                self.index = 0
+
+            def open(self, request, timeout):
+                codes = (403, 200, 502)
+                code = codes[self.index % len(codes)]
+                self.index += 1
+                return FakeResponse(code)
+
+        with patch.object(stack, 'build_opener', return_value=MixedOpener()):
+            rows = stack.ui_http()
+        self.assertEqual(len(rows), 3)
+        self.assertTrue(all(item['verdict'] == 'UNVERIFIED' for item in rows))
+        self.assertEqual(rows[0]['api_http'], 403)
+        self.assertEqual(rows[0]['services_http'], 502)
+
+    def test_prometheus_missing_job_does_not_crash_or_claim_failure(self):
+        self.assertEqual(
+            stack.prometheus_job_row('fastapi_sample', None),
+            stack.row('scrape_fastapi_sample', 'UNVERIFIED', 'classifier_job_missing'),
+        )
+
+    def test_prometheus_mixed_auth_and_network_is_not_denied_only(self):
+        item = {'state': 'scrape_down', 'targets_up': 0, 'targets_total': 2,
+                'failure_domains': ['auth', 'tcp']}
+        record = stack.prometheus_job_row('litellm_hermes', item)
+        self.assertEqual(record['verdict'], 'UNVERIFIED')
+        self.assertEqual(record['state'], 'mixed_failure_domains')
+
+    def test_prometheus_distinguishes_denied_from_tcp_failure(self):
+        base = {'state': 'scrape_down', 'targets_up': 0, 'targets_total': 1}
+        denied = stack.prometheus_job_row(
+            'litellm_hermes', {**base, 'failure_domains': ['auth']})
+        failed = stack.prometheus_job_row(
+            'postgres_exporter', {**base, 'failure_domains': ['tcp']})
+        self.assertEqual((denied['verdict'], denied['state']), ('DENIED', 'auth'))
+        self.assertEqual((failed['verdict'], failed['state']), ('FAIL', 'tcp'))
+
+    def test_prometheus_inconsistent_or_malformed_classifier_is_unverified(self):
+        for record in (
+            {'state': 'scrape_up', 'targets_up': 1, 'targets_total': 2,
+             'failure_domains': []},
+            {'state': 'scrape_up', 'targets_up': True, 'targets_total': 1,
+             'failure_domains': []},
+            {'state': 'scrape_down', 'targets_up': 0, 'targets_total': 1,
+             'failure_domains': 'auth'},
+        ):
+            with self.subTest(record=record):
+                result = stack.prometheus_job_row('fastapi_sample', record)
+                self.assertEqual(result['verdict'], 'UNVERIFIED')
+
+    def test_prometheus_inconsistent_scrape_states_cannot_claim_an_outage(self):
+        for state, up, total in (
+            ('scrape_down', 1, 2),
+            ('scrape_down', 0, 0),
+            ('scrape_partial', 0, 2),
+            ('scrape_partial', 2, 2),
+        ):
+            with self.subTest(state=state, up=up, total=total):
+                result = stack.prometheus_job_row(
+                    'fastapi_sample',
+                    {'state': state, 'targets_up': up, 'targets_total': total,
+                     'failure_domains': ['auth']},
+                )
+                self.assertEqual(result['verdict'], 'UNVERIFIED')
+                self.assertEqual(result['state'], 'classifier_state_inconsistent')
+
+    def test_ui_scope_never_probes_truenas_identity(self):
+        with patch.object(stack, 'is_truenas',
+                          side_effect=AssertionError('UI scope must not call midclt')), \
+             patch.object(stack, 'ui_http', return_value=[
+                 stack.row('ui_truenas', 'PASS', 'three_http_200'),
+             ]), redirect_stdout(io.StringIO()) as out:
+            code = stack.main(['--check', '--scope', 'ui', '--json'])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out.getvalue())['summary']['PASS'], 1)
 
 
 if __name__ == '__main__':

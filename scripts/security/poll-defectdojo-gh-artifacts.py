@@ -432,5 +432,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (GitHubArtifactError, OSError, subprocess.TimeoutExpired) as exc:
+    except (GitHubArtifactError, OSError, subprocess.TimeoutExpired):
         raise SystemExit("REJECTED: artifact collector failure; no credentials disclosed") from None

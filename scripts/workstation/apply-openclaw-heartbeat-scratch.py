@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 
 JOB = "bb9757db-9559-4960-bb23-9b9770929ff1"
 TEMPLATE = Path(__file__).resolve().parents[2] / "ops/openclaw-workstation/HEARTBEAT-SCRATCH.template.md"
@@ -44,7 +43,7 @@ def main() -> None:
         return
     if revision != 1:
         raise SystemExit("❌ Unexpected scratch revision; manual review required")
-    result = call("openclaw", "cron", "scratch", JOB, "--file", str(TEMPLATE), "--expected-revision", str(revision), "--json")
+    call("openclaw", "cron", "scratch", JOB, "--file", str(TEMPLATE), "--expected-revision", str(revision), "--json")
     after = json.loads(call("openclaw", "cron", "scratch", JOB, "--json"))
     if after["scratch"]["content"] != desired:
         raise SystemExit("❌ Scratch write not confirmed")

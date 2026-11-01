@@ -7,7 +7,6 @@ An OK result is NOT a proof of model availability, billing, or privacy controls.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 import re
 import stat

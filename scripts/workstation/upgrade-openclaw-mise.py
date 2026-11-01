@@ -281,7 +281,6 @@ def ready():
 
 def plan():
     owner = unit_exec()
-    target = new_root()
     print("upgrade_target=" + TARGET_OPENCLAW)
     print("node_target=" + TARGET_NODE)
     print("unit_scope=user")

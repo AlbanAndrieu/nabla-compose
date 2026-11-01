@@ -6,6 +6,31 @@ pas les clés, ne déclenche pas de CI, et ne demande aucune inférence LLM
 ni recherche privée. Aucune sortie brute de Docker, Prometheus, de clé
 ou de journal ne passe dans le rapport.
 
+## Transport HTTP partagé et contrôle des sondes
+
+Le module `scripts/lib/http_diagnostics.py` est maintenant partagé par
+`diagnose-fastapi-stack.py` et
+`scripts/prometheus/diagnose-failed-scrapes.py`.
+Il conserve la désactivation explicite des proxies d'environnement et
+des redirections automatiques, impose un timeout et limite les réponses
+JSON (1 Mio par défaut selon la sonde). Les erreurs de parsing ne
+réémettent jamais le contenu HTTP. Une erreur réseau est `UNVERIFIED`
+pour les sondes UI ; un refus d'accès 401/403 reste `DENIED`, jamais
+un signal suffisant pour déclarer le service indisponible.
+
+Tests hors ligne :
+
+~~~bash
+python3 -m unittest tests.test_http_diagnostics tests.test_fastapi_stack_consolidated -v
+python3 -m pytest -q tests/test_prometheus_failed_scrapes_diagnostic.py
+python3 -m py_compile scripts/lib/http_diagnostics.py \
+  scripts/prometheus/diagnose-failed-scrapes.py \
+  scripts/truenas/diagnose-fastapi-stack.py
+~~~
+
+Les tests contractuels n'effectuent ni déploiement, ni changement de secrets,
+ni appel vers TrueNAS. La réception opérationnelle reste distincte du gate local.
+
 ## Commande unique sur TrueNAS
 
 Depuis le dépôt canonique nabla-compose :
@@ -37,10 +62,18 @@ python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope prometheus
 sudo python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope ai
 ~~~
 
-- UI : trois GET fixes sur TrueNAS/staging/Cloud. HTTP 403 reste DENIED.
+- UI : trois GET fixes sur TrueNAS/staging/Cloud. Les réponses
+  `200/401/403` seules donnent `DENIED` si un accès est refusé,
+  sans déclarer le service DOWN. Une combinaison `403 + 500` ou
+  `403 + erreur TCP` donne **UNVERIFIED**, car le refus ne masque pas
+  la défaillance d'une autre route. Un `404` reste également UNVERIFIED.
   HTTP 200 du catalogue ne signifie pas que Chromium a rendu les cartes.
+  Le scope `ui` ne fait aucun appel middleware `midclt`.
 - Prometheus : **une seule lecture** de l'API targets active, les
   11 jobs connus et un compteur global. Réutilise le classifieur local.
+  Un job absent/malformé devient UNVERIFIED, pas une exception.
+  Des erreurs mixtes auth + TCP deviennent UNVERIFIED plutôt qu'un
+  simple DENIED ; une erreur auth seule reste DENIED.
   N'affiche aucun lastError, scrapeUrl, label privé ou credential.
 - IA : état des apps, dépendances OpenRAG, présence des clés LiteLLM
   dans fichier et conteneur, route upstream Workstation, modèle

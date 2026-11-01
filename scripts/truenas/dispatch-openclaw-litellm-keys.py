@@ -7,7 +7,6 @@ uses the existing SSH alias. No secret enters command arguments or stdout.
 import argparse
 from pathlib import Path
 import subprocess
-import sys
 
 TRUENAS_ROOT = Path("/mnt/cpool/compose/nabla-compose")
 ROOT = Path(__file__).resolve().parents[2]

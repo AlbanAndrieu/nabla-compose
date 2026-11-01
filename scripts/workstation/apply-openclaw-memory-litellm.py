@@ -2,18 +2,18 @@
 """Guarded OpenClaw memory embedding config update. No secret values are printed."""
 import argparse
 import copy
+import importlib.util
 import json
 import os
 from pathlib import Path
 import stat
 import subprocess
-import sys
 import tempfile
 
-from importlib.machinery import SourceFileLoader
-
 SCRIPT = Path(__file__).with_name("plan-openclaw-memory-litellm.py")
-planner = SourceFileLoader("openclaw_memory_plan", str(SCRIPT)).load_module()
+_spec = importlib.util.spec_from_file_location("openclaw_memory_plan", SCRIPT)
+planner = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(planner)
 
 
 def candidate(config):

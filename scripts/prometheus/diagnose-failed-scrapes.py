@@ -8,11 +8,16 @@ Run from TrueNAS or a trusted LAN host. This script changes no runtime state.
 from __future__ import annotations
 
 import argparse
-import json
+import sys
+from pathlib import Path
 import re
-from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import ProxyHandler, build_opener
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.http_diagnostics import NoRedirect, read_json_object  # noqa: E402
 
 PROMETHEUS_URL = "http://172.17.0.24:9090/api/v1/targets?state=active"
 JOBS = ("fastapi_sample", "postgres_exporter", "pfsense_exporter")
@@ -32,13 +37,6 @@ NEXT_CHECK = {
 }
 MAX_RESPONSE_BYTES = 1024 * 1024
 MAX_TARGETS = 512
-
-
-class NoRedirect(HTTPRedirectHandler):
-    """Do not follow a redirect to another hostname."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
 
 
 def error_kind(raw: object) -> str:
@@ -172,13 +170,11 @@ def main() -> int:
     jobs = REMAINING_JOBS if args.scope == "remaining" else JOBS
     opener = build_opener(ProxyHandler({}), NoRedirect())
     try:
-        request = Request(PROMETHEUS_URL, headers={"Accept": "application/json"})
-        with opener.open(request, timeout=5) as response:
-            raw = response.read(MAX_RESPONSE_BYTES + 1)
-        if len(raw) > MAX_RESPONSE_BYTES:
-            raise ValueError("response too large")
-        report = assess_targets(json.loads(raw), jobs=jobs)
-    except (HTTPError, URLError, OSError, ValueError, json.JSONDecodeError) as error:
+        payload = read_json_object(
+            opener, PROMETHEUS_URL, timeout=5, limit=MAX_RESPONSE_BYTES,
+        )
+        report = assess_targets(payload, jobs=jobs)
+    except (HTTPError, URLError, OSError, ValueError) as error:
         status = error.code if isinstance(error, HTTPError) else "unavailable"
         print(
             "INCOMPLETE: Prometheus target inventory unavailable "

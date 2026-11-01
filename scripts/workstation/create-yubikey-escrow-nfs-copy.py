@@ -76,7 +76,6 @@ def create_encrypted_copy(source: Path, name: str) -> str:
     source_fd = dest_fd = stage_fd = None
     stage_name = '.nabla-escrow-stage-' + secrets.token_hex(16)
     stage_created = False
-    published = False
     durability = True
     try:
         # Use existing strict regular-file/owner/mode checks and O_NOFOLLOW.
@@ -139,7 +138,6 @@ def create_encrypted_copy(source: Path, name: str) -> str:
         # Stage and final filename are resolved relative to the same open NFS dir.
         os.link(stage_name, name, src_dir_fd=dest_fd,
                 dst_dir_fd=dest_fd, follow_symlinks=False)
-        published = True
         # Remove staging hardlink, leaving the sole published encrypted copy.
         os.unlink(stage_name, dir_fd=dest_fd)
         stage_created = False

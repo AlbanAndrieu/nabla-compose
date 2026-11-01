@@ -9,7 +9,6 @@ import argparse
 import json
 import re
 import subprocess
-from pathlib import Path
 
 OLD_INCLUDE = "/mnt/cpool/compose/nabla-compose/apps/openclaw/compose.yml"
 OLD_SUFFIX = "/apps/openclaw/compose.yml"
