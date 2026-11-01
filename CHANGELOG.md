@@ -1,3 +1,18 @@
+## [0.54.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.0...0.54.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **gatus:** deny-only responses cannot force outage exit status [skip ci] ([a97ec0e](https://github.com/AlbanAndrieu/nabla-compose/commit/a97ec0ec5db17ded85d201f891b3c0c78367db4d))
+* **gatus:** expliciter les réexportations publiques pour les tests Ruff [skip ci] ([8a01e9d](https://github.com/AlbanAndrieu/nabla-compose/commit/8a01e9d965632fd766a9c1ad80f28be3548227d5))
+* **triage:** aggregate ambiguous Gatus/Prometheus phase failures as unverified [skip ci] ([cb1a4a5](https://github.com/AlbanAndrieu/nabla-compose/commit/cb1a4a59648c729af5c3ba6def231c2b10f8bf9c))
+* **triage:** avoid false outage when Gatus DOWN is only authentication denied [skip ci] ([d4a8724](https://github.com/AlbanAndrieu/nabla-compose/commit/d4a8724785498e7ba8acb51ee668301faa69ff39))
+
+
+### Performance Improvements
+
+* **gatus:** calculer les identifiants dupliqués une seule fois [skip ci] ([c827fe6](https://github.com/AlbanAndrieu/nabla-compose/commit/c827fe6db5f096de46a0bbf694f461820260ed41))
+
 # [0.54.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.53.0...0.54.0) (2026-11-01)
 
 
