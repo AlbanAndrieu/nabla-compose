@@ -4,6 +4,29 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
+## Sonde HTTPS ACB du 1er novembre : EOF sur HEAD (curl 56)
+
+Une sonde `curl -4 --head https://acb.netgate.com/`
+lancée depuis pfSense a donné `curl (56)` /
+`OpenSSL SSL_read: unexpected eof while reading`,
+`http=000 tls=0`. **Aucun HTTP valide reçu**.
+Ce résultat n'établit ni l'échec du chiffrement
+ACB ni une panne durable du service de sauvegarde.
+Il est distinct du timeout ACB historique `(28)`.
+
+**Sonde corrigée sans authentification :**
+`curl -4 --http1.1 --silent --show-error
+--connect-timeout 5 --max-time 15 --output /dev/null
+https://acb.netgate.com/` (méthode **GET**,
+pas HEAD). Le verdict final dépend des résultats
+pfSense et, surtout, de la présence d'une sauvegarde
+hébergée plus récente dans `Services > Auto Config
+Backup > Restore`.
+
+Voir [runbook ACB avec classification 28/56](runbooks/pfsense-acb-timeout-write-config-20261027.md).
+N'ajouter aucun bypass TLS ni changement réseau sur
+la base de cette seule sonde.
+
 ## Notification ACB du 27 octobre 2026 — diagnostic ciblé (1er novembre)
 
 Deux notifications distinctes ont été remontées :
