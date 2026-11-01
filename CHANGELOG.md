@@ -1,3 +1,10 @@
+## [0.52.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.52.0...0.52.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **scripts:** keep secrets out of argv and harden operator helpers ([#312](https://github.com/AlbanAndrieu/nabla-compose/issues/312)) ([fd009a2](https://github.com/AlbanAndrieu/nabla-compose/commit/fd009a2c22e9f1f88d0e317018450fd56564e9bd))
+
 # [0.52.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.51.0...0.52.0) (2026-11-01)
 
 
