@@ -71,7 +71,8 @@ if have docker; then
   docker stats --no-stream     --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.BlockIO}}\t{{.PIDs}}' || true
 
   printf '\n-- docker disk usage --\n'
-  docker system df || true
+  # Volume scans took over 5 minutes on a busy raidz2 pool; keep the report bounded.
+  timeout 60 docker system df || printf 'docker system df unavailable or over 60s (rc=%s)\n' "$?"
 else
   printf 'docker unavailable\n'
 fi
