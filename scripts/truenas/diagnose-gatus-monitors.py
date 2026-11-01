@@ -24,61 +24,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts.lib.http_diagnostics import NoRedirect, read_json_array  # noqa: E402
 
+from scripts.lib.gatus_observations import (  # noqa: E402
+    failure_category, fresh_observation, interpret_monitor_result, probe_verdict,
+)
+
 CONFIG = ROOT / "apps/gatus/config/config.yml"
 STATUS_URL = "http://172.17.0.24:8085/api/v1/endpoints/statuses"
 MAX_BYTES = 1024 * 1024
 MAX_MONITORS = 512
 ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
-
-
-def fresh_observation(result: dict, now: datetime, max_age: float) -> bool:
-    """Malformed and missing timestamps remain unverified."""
-    raw = result.get("timestamp")
-    if not isinstance(raw, str):
-        return False
-    try:
-        observed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    if observed.tzinfo is None:
-        return False
-    delta = (now - observed).total_seconds()
-    return 0 <= delta <= max_age
-
-
-def failure_category(result: dict) -> str:
-    """Only allowlisted diagnostic categories; never emit the error body."""
-    raw = " ".join(
-        str(result.get(field, ""))[:256]
-        for field in ("error", "errors", "message")
-    ).lower()
-    if "401" in raw or "unauthorized" in raw:
-        return "authentication_401"
-    if "403" in raw or "forbidden" in raw:
-        return "authorization_403"
-    if "no such host" in raw or "lookup " in raw:
-        return "dns_failure"
-    if "certificate" in raw or "x509" in raw or "tls" in raw:
-        return "tls_failure"
-    if "connection refused" in raw:
-        return "tcp_refused"
-    if "timed out" in raw or "timeout" in raw or "deadline exceeded" in raw:
-        return "timeout"
-    if "404" in raw:
-        return "http_404"
-    return "condition_or_endpoint_failed"
-
-
-def probe_verdict(state: str, reason: str) -> str:
-    """Classify monitor evidence, never infer whole-service availability."""
-    if state == "up":
-        return "PASS"
-    if state == "down":
-        return ("DENIED" if reason in ("authentication_401", "authorization_403")
-                else "FAIL")
-    if reason == "no_latest_result":
-        return "NOT_RUN"
-    return "UNVERIFIED"
 
 
 def audit(config: object, statuses: object, now: datetime) -> dict:
@@ -120,18 +74,7 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
         if declared_keys[(group, name)] > 1:
             reason = "duplicate_declared_monitor"
         elif len(matches) == 1:
-            observations = matches[0].get("results")
-            reason = "no_latest_result"
-            if isinstance(observations, list) and observations:
-                last = observations[-1]
-                reason = "stale_or_invalid_timestamp"
-                if isinstance(last, dict) and fresh_observation(last, now, 180):
-                    if last.get("success") is True:
-                        state, reason = "up", "observed"
-                    elif last.get("success") is False:
-                        state, reason = "down", failure_category(last)
-                    else:
-                        reason = "invalid_success_value"
+            state, reason = interpret_monitor_result(matches[0].get("results"), now)
         protocol = str(endpoint.get("url") or "").split(":", 1)[0].lower()
         if protocol not in {"http", "https", "tcp", "udp", "icmp", "dns"}:
             protocol = "unknown"
