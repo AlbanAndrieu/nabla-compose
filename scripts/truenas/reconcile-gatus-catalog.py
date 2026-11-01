@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 import sys
 
@@ -18,9 +19,17 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS_DIR))
 from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.gatus_observations import (  # noqa: E402
+    interpret_monitor_result, probe_verdict,
+)
+
 
 def reconcile(
     catalog: dict, config: dict, statuses: list | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """Compare Gatus monitor IDs to canonical Backstage entity identities."""
     services = {
@@ -45,33 +54,61 @@ def reconcile(
             "group": endpoint.get("group"),
             "probe_type": str(endpoint.get("url", "")).split(":", 1)[0],
         }
-    runtime = {}
+    # Match only reviewed group/name identities; duplicate runtime evidence
+    # or duplicate declarations cannot be attributed to a single monitor.
+    declared_keys = Counter(
+        (str(endpoint.get("name") or ""), str(endpoint.get("group") or ""))
+        for endpoint in config.get("endpoints", [])
+        if isinstance(endpoint, dict)
+    )
+    runtime: dict[tuple[str, str], list[dict]] = {}
     if statuses is not None:
         if not isinstance(statuses, list):
             raise ValueError("Gatus statuses must be an array")
+        if len(statuses) > 512:
+            raise ValueError("too_many_runtime_endpoints")
         for item in statuses:
-            if not isinstance(item, dict):
-                continue
-            name, group = item.get("name"), item.get("group")
-            matches = [
-                key for key, mon in monitors.items()
-                if mon["name"] == name and mon["group"] == group
-            ]
-            if len(matches) != 1:
-                continue
-            results = item.get("results") or []
-            if not isinstance(results, list) or not results:
-                runtime[matches[0]] = "no_recent_evidence"
-            elif results[0].get("success") is True:
-                runtime[matches[0]] = "probe_success"
-            elif results[0].get("success") is False:
-                runtime[matches[0]] = "probe_failed_unconfirmed"
-            else:
-                runtime[matches[0]] = "no_recent_evidence"
+            if isinstance(item, dict):
+                identity = (str(item.get("name") or ""), str(item.get("group") or ""))
+                runtime.setdefault(identity, []).append(item)
+
+    observed_at = now if now is not None else datetime.now(UTC)
+    if observed_at.tzinfo is None:
+        raise ValueError("Gatus observation time must be timezone-aware")
+
     rows = []
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
-        state = runtime.get(monitor_id, "not_checked")
+        state = "not_checked"
+        reason = "runtime_not_provided"
+        verdict = "NOT_RUN"
+        if statuses is not None:
+            identity = (str(mon["name"] or ""), str(mon["group"] or ""))
+            matches = runtime.get(identity, [])
+            if monitor_id in duplicates:
+                reason = "duplicate_declared_monitor_id"
+            elif declared_keys[identity] > 1:
+                reason = "duplicate_declared_monitor"
+            elif len(matches) > 1:
+                reason = "duplicate_runtime_monitor"
+            elif not matches:
+                reason = "missing_runtime_monitor"
+            else:
+                observed_state, reason = interpret_monitor_result(
+                    matches[0].get("results"), observed_at,
+                )
+                verdict = probe_verdict(observed_state, reason)
+                if verdict == "PASS":
+                    state = "probe_success"
+                elif verdict == "DENIED":
+                    state = "probe_access_denied"
+                elif verdict == "FAIL":
+                    state = "probe_failed_unconfirmed"
+                else:
+                    state = "no_recent_evidence"
+            if reason in ("duplicate_declared_monitor_id", "duplicate_declared_monitor",
+                          "duplicate_runtime_monitor", "missing_runtime_monitor"):
+                state, verdict = "no_recent_evidence", "UNVERIFIED"
         catalog_match = bool(service_id and service_id in services)
         mapping = (
             "backstage" if catalog_match
@@ -85,18 +122,30 @@ def reconcile(
             "mapping_source": mapping,
             "probe_type": mon["probe_type"],
             "evidence": state,
+            "probe_reason": reason,
+            "probe_verdict": verdict,
             "classification": (
                 "needs_service_mapping" if mapping == "unresolved"
                 else "investigate_probe_not_service_down"
                 if state == "probe_failed_unconfirmed"
+                else "access_denied_not_service_down"
+                if state == "probe_access_denied"
                 else state
             ),
         })
     counts = Counter(row["classification"] for row in rows)
+    verdict_counts = Counter(row["probe_verdict"] for row in rows)
+    unmatched_runtime = sum(
+        len(matches) for identity, matches in runtime.items()
+        if identity not in declared_keys
+    )
     return {
         "declared_monitors": len(monitors),
         "catalog_services": len(services),
         "duplicate_monitor_ids": sorted(set(duplicates)),
+        "unmatched_runtime": unmatched_runtime,
+        "probe_verdict_counts": {key: verdict_counts[key] for key in
+                                 ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")},
         "unmonitored_catalog_ids": sorted(set(services) - {
             m["service_id"] for m in monitors.values() if m["service_id"]
         }),
