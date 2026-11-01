@@ -50,6 +50,36 @@ Le rapport ne publie pas les URL ni jetons. Il distingue
 `probe_failed_unconfirmed`, `no_recent_evidence`,
 `infrastructure_unmapped` et `unresolved` d'une panne de service.
 
+### Verdicts des sondes Gatus
+
+Le script `scripts/truenas/diagnose-gatus-monitors.py --check` partage
+désormais le transport HTTP JSON borné avec FastAPI et Prometheus
+(`scripts/lib/http_diagnostics.py`) : pas de proxy implicite, pas de
+redirection et pas de réponse brute dans le rapport.
+
+L'état historique `up/down/unverified` demeure celui de **la sonde Gatus**,
+jamais une preuve directe du statut du service. Le champ supplémentaire
+`verdict` et les compteurs `verdict_counts` distinguent :
+
+- `PASS` : observation récente et réussie ;
+- `FAIL` : observation récente négative de la sonde, hors accès interdit ;
+- `DENIED` : erreur d'accès HTTP 401/403, ne doit pas classer le service DOWN ;
+- `NOT_RUN` : monitor déclaré mais sans résultat d'exécution disponible ;
+- `UNVERIFIED` : preuve périmée, ambiguë ou absente du runtime.
+
+Les codes de sortie sont `0` pour preuves complètes, `1` pour un échec
+confirmé de sonde (mais pas nécessairement du service), `2` pour un refus
+d'accès ou une preuve insuffisante sans échec confirmé. L'ancien compteur
+`down` peut compter un refus 403 pour compatibilité, mais **ne décide plus
+seul du code de sortie**. Les consommateurs du rapport doivent privilégier
+`verdict_counts`.
+
+Tests locaux ciblés, sans connexion au homelab :
+
+```bash
+python3 -m pytest -q tests/test_http_diagnostics.py tests/test_gatus_monitor_failures.py tests/test_prometheus_failed_scrapes_diagnostic.py tests/test_fastapi_stack_consolidated.py
+```
+
 Priorités de diagnostic : Home Assistant HTTP vs TCP ; exporters
 PostgreSQL/OpenSearch distincts des bases ; Scanopy, NetBox, Graylog,
 Plumber et NPMplus selon état attendu et environnement. Garder
