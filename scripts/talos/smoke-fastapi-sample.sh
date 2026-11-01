@@ -11,7 +11,9 @@ ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=scripts/talos/lib/client-config.sh
 source "${ROOT}/scripts/talos/lib/client-config.sh"
 nabla_resolve_talos_client_config "${ROOT}"
-NAMESPACE="${K8S_FASTAPI_SMOKE_NAMESPACE:-nabla-fastapi-smoke}"
+DEFAULT_NAMESPACE="nabla-fastapi-smoke"
+NAMESPACE="${K8S_FASTAPI_SMOKE_NAMESPACE:-${DEFAULT_NAMESPACE}}"
+SMOKE_MANAGED_BY="nabla-fastapi-smoke"
 HOST="${K8S_FASTAPI_SMOKE_HOST:-test.int.albandrieu.com}"
 INGRESS_CLASS="${K8S_FASTAPI_SMOKE_INGRESS_CLASS:-traefik}"
 API_PATH="${K8S_FASTAPI_SMOKE_API_PATH:-/v2/version}"
@@ -123,8 +125,21 @@ case "${MODE}" in
     ;;
 esac
 
+# The namespace name comes from the environment, so a typo could otherwise
+# delete kube-system or a real workload. Only delete a namespace labelled as
+# created by this smoke test; the default name stays accepted for namespaces
+# created before the label existed.
 if [[ "${MODE}" == "--cleanup" ]]; then
   require_cluster
+  if [[ -z "$(kubectl get namespace "${NAMESPACE}" --ignore-not-found -o name)" ]]; then
+    printf 'Namespace %s is already absent\n' "${NAMESPACE}"
+    exit 0
+  fi
+  managed_by="$(kubectl get namespace "${NAMESPACE}" \
+    -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}')"
+  if [[ "${managed_by}" != "${SMOKE_MANAGED_BY}" && "${NAMESPACE}" != "${DEFAULT_NAMESPACE}" ]]; then
+    fail "refusing to delete namespace ${NAMESPACE}: it is not labelled app.kubernetes.io/managed-by=${SMOKE_MANAGED_BY}"
+  fi
   kubectl delete namespace "${NAMESPACE}" --ignore-not-found --wait=true
   exit 0
 fi
@@ -148,6 +163,7 @@ kind: Namespace
 metadata:
   name: ${NAMESPACE}
   labels:
+    app.kubernetes.io/managed-by: ${SMOKE_MANAGED_BY}
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted

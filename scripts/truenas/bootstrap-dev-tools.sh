@@ -11,6 +11,8 @@ PYTEST_VERSION="${NABLA_PYTEST_VERSION:-9.1.1}"
 JUST_VERSION="${NABLA_JUST_VERSION:-1.58.0}"
 PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"
 JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"
+PYYAML_VERSION="${NABLA_PYYAML_VERSION:-6.0.3}"
+UV_VERSION="${NABLA_UV_VERSION:-0.13.0}"
 SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"
 NODE_VERSION="${NABLA_NODE_VERSION:-24.22.1}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || true)}"
@@ -54,7 +56,7 @@ fi
 "${MISE_BIN}" --version
 # Keep the TrueNAS appliance immutable: tools live below the operator home,
 # never under /usr and never through apt.
-"${MISE_BIN}" --no-config install uv@latest
+"${MISE_BIN}" --no-config install "uv@${UV_VERSION}"
 "${MISE_BIN}" --no-config install "just@${JUST_VERSION}"
 "${MISE_BIN}" --no-config install "shellcheck@${SHELLCHECK_VERSION}"
 "${MISE_BIN}" --no-config install "node@${NODE_VERSION}"
@@ -64,13 +66,14 @@ mkdir -p "$(dirname "${DEV_VENV}")"
 if [[ -x "${DEV_VENV}/bin/python" ]]; then
   printf 'Reusing existing virtual environment: %s\n' "${DEV_VENV}"
 else
-  "${MISE_BIN}" --no-config exec uv@latest -- \
+  "${MISE_BIN}" --no-config exec "uv@${UV_VERSION}" -- \
     uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"
 fi
-"${MISE_BIN}" --no-config exec uv@latest -- \
+"${MISE_BIN}" --no-config exec "uv@${UV_VERSION}" -- \
   uv pip install --python "${DEV_VENV}/bin/python" \
   "pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}" \
-  "python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}" PyYAML
+  "python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}" \
+  "PyYAML==${PYYAML_VERSION}"
 
 JUST_BIN="$(
   "${MISE_BIN}" --no-config which \
