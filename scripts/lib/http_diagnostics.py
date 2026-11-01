@@ -36,13 +36,12 @@ def http_status(opener: Any, url: str, *, timeout: int) -> int:
         return 0
 
 
-def read_json_object(opener: Any, url: str, *, timeout: int, limit: int) -> dict[str, Any]:
-    """Read a bounded JSON dictionary, rejecting redirects and extra bytes.
+def _read_json(opener: Any, url: str, *, timeout: int, limit: int) -> Any:
+    """Read one bounded JSON response without reflecting payloads in errors.
 
-    Invalid content is never included in exception text. The caller owns the
-    opener, and therefore its explicit proxy and redirect policy.
+    The caller owns the opener and therefore the no-proxy/no-redirect policy.
     """
-    if limit < 1:
+    if type(limit) is not int or limit < 1:
         raise ValueError("invalid response limit")
     request = Request(url, headers={"Accept": "application/json"})
     with opener.open(request, timeout=timeout) as response:
@@ -50,9 +49,22 @@ def read_json_object(opener: Any, url: str, *, timeout: int, limit: int) -> dict
     if len(payload) > limit:
         raise ValueError("response too large")
     try:
-        parsed = json.loads(payload)
+        return json.loads(payload)
     except (ValueError, UnicodeError):
         raise ValueError("invalid JSON response") from None
+
+
+def read_json_object(opener: Any, url: str, *, timeout: int, limit: int) -> dict[str, Any]:
+    """Read a bounded JSON object, preserving the established API contract."""
+    parsed = _read_json(opener, url, timeout=timeout, limit=limit)
     if not isinstance(parsed, dict):
         raise ValueError("expected JSON object")
+    return parsed
+
+
+def read_json_array(opener: Any, url: str, *, timeout: int, limit: int) -> list[Any]:
+    """Read a bounded JSON array, e.g. Gatus endpoint status observations."""
+    parsed = _read_json(opener, url, timeout=timeout, limit=limit)
+    if not isinstance(parsed, list):
+        raise ValueError("expected JSON array")
     return parsed
