@@ -82,7 +82,7 @@ class HttpDiagnosticsTests(unittest.TestCase):
         self.assertIsNone(probe.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://elsewhere.invalid'))
 
     def test_consumers_import_shared_http_helpers(self):
-        root = MODULE.parents[3]
+        root = MODULE.parents[2]
         stack = (root / 'scripts/truenas/diagnose-fastapi-stack.py').read_text(encoding='utf-8')
         prometheus = (root / 'scripts/prometheus/diagnose-failed-scrapes.py').read_text(encoding='utf-8')
         self.assertIn('from scripts.lib.http_diagnostics import', stack)
