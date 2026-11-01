@@ -110,6 +110,7 @@ def test_probe_verdict_separates_auth_failures_and_missing_evidence() -> None:
     assert report["verdict_counts"]["DENIED"] == 1
     assert report["verdict_counts"]["NOT_RUN"] == 1
     assert report["verdict_counts"]["FAIL"] == 0
+    assert module.verdict_exit_code(report) == 2  # access-denied is incomplete, not DOWN
     checks = {item["service_id"]: item for item in report["checks"]}
     assert checks["access"]["verdict"] == "DENIED"
     assert checks["unknown"]["verdict"] == "NOT_RUN"
