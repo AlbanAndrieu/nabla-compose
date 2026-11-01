@@ -37,10 +37,18 @@ python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope prometheus
 sudo python3 scripts/truenas/diagnose-fastapi-stack.py --check --scope ai
 ~~~
 
-- UI : trois GET fixes sur TrueNAS/staging/Cloud. HTTP 403 reste DENIED.
+- UI : trois GET fixes sur TrueNAS/staging/Cloud. Les réponses
+  `200/401/403` seules donnent `DENIED` si un accès est refusé,
+  sans déclarer le service DOWN. Une combinaison `403 + 500` ou
+  `403 + erreur TCP` donne **UNVERIFIED**, car le refus ne masque pas
+  la défaillance d'une autre route. Un `404` reste également UNVERIFIED.
   HTTP 200 du catalogue ne signifie pas que Chromium a rendu les cartes.
+  Le scope `ui` ne fait aucun appel middleware `midclt`.
 - Prometheus : **une seule lecture** de l'API targets active, les
   11 jobs connus et un compteur global. Réutilise le classifieur local.
+  Un job absent/malformé devient UNVERIFIED, pas une exception.
+  Des erreurs mixtes auth + TCP deviennent UNVERIFIED plutôt qu'un
+  simple DENIED ; une erreur auth seule reste DENIED.
   N'affiche aucun lastError, scrapeUrl, label privé ou credential.
 - IA : état des apps, dépendances OpenRAG, présence des clés LiteLLM
   dans fichier et conteneur, route upstream Workstation, modèle
