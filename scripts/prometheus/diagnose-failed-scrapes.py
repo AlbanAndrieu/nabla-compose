@@ -11,7 +11,6 @@ import argparse
 import sys
 from pathlib import Path
 import re
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, build_opener
 

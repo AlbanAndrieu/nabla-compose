@@ -11,7 +11,6 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 
 # The probe runs in the target container. Only documented LAN destinations
 # are permitted; no redirects or proxy environment for bearer credentials.

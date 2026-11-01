@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import tempfile
 from urllib import error, request
 
@@ -102,5 +101,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, GitHubArtifactError) as exc:
+    except (OSError, ValueError, GitHubArtifactError):
         raise SystemExit("REJECTED: GitHub App installation cannot be verified") from None

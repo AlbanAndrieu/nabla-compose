@@ -11,7 +11,7 @@ without copying source log lines, feed URLs or credentials.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import re
 import sys

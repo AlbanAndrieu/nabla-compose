@@ -16,7 +16,6 @@ import secrets
 import sqlite3
 import stat
 import subprocess
-import sys
 
 HOME = Path.home()
 ROOT = HOME / ".local/share/nabla-compose"

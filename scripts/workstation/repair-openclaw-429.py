@@ -406,7 +406,7 @@ def main(argv=None):
         return 0 if outcome == "applied" else 2
     serialized = (json.dumps(updated, indent=2, ensure_ascii=False) + "\n").encode()
     try:
-        backup = apply_config(raw, serialized)
+        apply_config(raw, serialized)
     except (ValueError, OSError):
         print("repair=blocked_write")
         return 2

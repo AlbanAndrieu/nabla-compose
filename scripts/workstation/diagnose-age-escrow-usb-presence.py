@@ -106,7 +106,7 @@ def inspect() -> tuple[str, bool | None]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", required=True)
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
     state, link = inspect()
     print(json.dumps({
         "mode": "AGE_ESCROW_USB_LUKS_DISCOVERY_METADATA_ONLY",

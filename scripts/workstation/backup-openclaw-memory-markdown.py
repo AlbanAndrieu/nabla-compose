@@ -168,7 +168,7 @@ def main():
         print(f"backup_verified=true markdown_files={len(manifest)}")
         print("source_files_modified=false")
         return 0
-    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, tarfile.TarError) as error:
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, tarfile.TarError):
         print("ERROR: Markdown backup failed; no source files were intentionally modified", file=sys.stderr)
         return 2
 

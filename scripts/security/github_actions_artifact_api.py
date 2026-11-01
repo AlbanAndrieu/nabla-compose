@@ -88,7 +88,7 @@ def api(route: str, token: str) -> bytes:
     try:
         with opener.open(signed, timeout=30) as response:
             return bounded_read(response, MAX_ARCHIVE_BYTES)
-    except (error.URLError, TimeoutError, OSError) as exc:
+    except (error.URLError, TimeoutError, OSError):
         raise GitHubArtifactError("artifact retrieval failed") from None
 
 

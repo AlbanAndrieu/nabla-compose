@@ -47,7 +47,7 @@ def configuration(repository: str = DEFAULT_REPOSITORY) -> tuple[int, int]:
     _verify_root_file(PRIVATE_KEY)
     try:
         config = json.loads(CONFIG.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError):
         raise GitHubArtifactError("invalid GitHub App metadata file") from None
     if not isinstance(config, dict) or set(config) != {"app_id", "installation_id", "repositories"}:
         raise GitHubArtifactError("unsupported GitHub App metadata fields")
