@@ -73,6 +73,28 @@ if have docker; then
   printf '\n-- docker disk usage --\n'
   # Volume scans took over 5 minutes on a busy raidz2 pool; keep the report bounded.
   timeout 60 docker system df || printf 'docker system df unavailable or over 60s (rc=%s)\n' "$?"
+
+  printf '\n-- container anomalies --\n'
+  docker ps -q |
+    xargs -r docker inspect --format '{{.Name}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} mem_limit={{.HostConfig.Memory}}' |
+    awk '
+      /health=unhealthy/ || $3 !~ /restarts=0$/ { print }
+      / mem_limit=0$/ { unlimited++ }
+      END { printf "running containers without memory limit: %d\n", unlimited }
+    ' || true
+  # An OOM-killed JVM can stay <defunct> while its container still reports Up.
+  printf 'defunct processes: '
+  pgrep -c -r Z || true
+  # Zombies pile up under container init processes that never reap healthcheck children.
+  printf 'top zombie parents (count ppid command):\n'
+  ps -eo ppid=,stat= | awk '$2 ~ /^Z/ { print $1 }' | sort | uniq -c | sort -rn | head -5 |
+    while read -r count ppid; do
+      printf '  %s %s %s\n' "${count}" "${ppid}" "$(ps -o comm= -p "${ppid}" 2>/dev/null)"
+    done
+  # containerd logged "too many open files" while container starts hung (2026-11-01).
+  printf 'containerd open fds: %s (limit %s)\n' \
+    "$(find "/proc/$(pgrep -o containerd)/fd" 2>/dev/null | wc -l)" \
+    "$(awk '/Max open files/ { print $4 }' "/proc/$(pgrep -o containerd)/limits" 2>/dev/null)"
 else
   printf 'docker unavailable\n'
 fi
@@ -111,6 +133,8 @@ if have zpool; then
   zpool list || true
   printf '\n-- cpool I/O sample --\n'
   zpool iostat -v cpool 1 3 || true
+  printf '\n-- snapshot count --\n'
+  zfs list -H -t snapshot -o name 2>/dev/null | wc -l || true
 else
   printf 'zpool unavailable\n'
 fi
