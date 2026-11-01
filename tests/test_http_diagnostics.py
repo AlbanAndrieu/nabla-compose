@@ -76,6 +76,39 @@ class HttpDiagnosticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'invalid response limit'):
             probe.read_json_object(opener, 'https://test.invalid', timeout=5, limit=0)
 
+    def test_bounded_json_array_used_by_gatus(self):
+        opener = Mock()
+        opener.open.return_value = Response(body=b'[{"success": true}]')
+        result = probe.read_json_array(
+            opener, 'https://gatus.invalid/api/v1/endpoints/statuses',
+            timeout=8, limit=1024,
+        )
+        self.assertEqual(result, [{"success": True}])
+        self.assertEqual(opener.open.call_args.kwargs['timeout'], 8)
+
+    def test_json_array_rejects_object_and_excess_bytes(self):
+        opener = Mock()
+        opener.open.return_value = Response(body=b'{"token":"SECRET"}')
+        with self.assertRaisesRegex(ValueError, 'expected JSON array'):
+            probe.read_json_array(opener, 'https://gatus.invalid', timeout=1, limit=100)
+        opener.open.return_value = Response(body=b'["SECRET"]')
+        with self.assertRaisesRegex(ValueError, 'response too large') as caught:
+            probe.read_json_array(opener, 'https://gatus.invalid', timeout=1, limit=3)
+        self.assertNotIn('SECRET', str(caught.exception))
+
+    def test_json_array_invalid_payload_is_redacted(self):
+        opener = Mock()
+        opener.open.return_value = Response(body=b'["SECRET",')
+        with self.assertRaisesRegex(ValueError, 'invalid JSON response') as caught:
+            probe.read_json_array(opener, 'https://gatus.invalid', timeout=1, limit=50)
+        self.assertNotIn('SECRET', str(caught.exception))
+
+    def test_invalid_boolean_limit_is_rejected_before_network(self):
+        opener = Mock()
+        with self.assertRaisesRegex(ValueError, 'invalid response limit'):
+            probe.read_json_array(opener, 'https://gatus.invalid', timeout=1, limit=True)
+        opener.open.assert_not_called()
+
     def test_redirects_never_follow_to_another_origin(self):
         opener = build_opener(ProxyHandler({}), probe.NoRedirect())
         self.assertTrue(any(isinstance(handler, probe.NoRedirect) for handler in opener.handlers))
@@ -89,6 +122,10 @@ class HttpDiagnosticsTests(unittest.TestCase):
         self.assertIn('from scripts.lib.http_diagnostics import', prometheus)
         self.assertNotIn('class NoRedirect(', stack)
         self.assertNotIn('class NoRedirect(', prometheus)
+        gatus = (root / 'scripts/truenas/diagnose-gatus-monitors.py').read_text(encoding='utf-8')
+        self.assertIn('from scripts.lib.http_diagnostics import', gatus)
+        self.assertIn('read_json_array(', gatus)
+        self.assertNotIn('class NoRedirect(', gatus)
 
 
 if __name__ == '__main__':
