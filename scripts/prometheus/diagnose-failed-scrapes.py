@@ -90,15 +90,21 @@ def assess_targets(payload: object, jobs: tuple[str, ...] = JOBS) -> dict[str, d
     if not isinstance(targets, list) or len(targets) > MAX_TARGETS:
         raise ValueError("Prometheus target inventory invalid or too large")
 
+    # Index the bounded inventory once instead of rescanning for every job.
+    # Ignore malformed/non-allowlisted labels and never expose raw target data.
+    requested = set(jobs)
+    by_job: dict[str, list[dict[str, object]]] = {job: [] for job in jobs}
+    for item in targets:
+        if not isinstance(item, dict):
+            continue
+        labels = item.get("labels")
+        job = labels.get("job") if isinstance(labels, dict) else None
+        if isinstance(job, str) and job in requested:
+            by_job[job].append(item)
+
     result: dict[str, dict[str, object]] = {}
     for job in jobs:
-        selected = []
-        for item in targets:
-            if not isinstance(item, dict):
-                continue
-            labels = item.get("labels")
-            if isinstance(labels, dict) and labels.get("job") == job:
-                selected.append(item)
+        selected = by_job[job]
         if not selected:
             result[job] = {
                 "state": "no_active_target",
