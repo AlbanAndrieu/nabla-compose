@@ -1,3 +1,10 @@
+# [0.52.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.51.0...0.52.0) (2026-11-01)
+
+
+### Features
+
+* **secrets:** révocation d'urgence et audit de rétention ZFS ([#307](https://github.com/AlbanAndrieu/nabla-compose/issues/307)) ([69997f8](https://github.com/AlbanAndrieu/nabla-compose/commit/69997f875cd99d5c987a91396d3e428c4e182c84))
+
 # [0.51.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.50.0...0.51.0) (2026-10-31)
 
 
