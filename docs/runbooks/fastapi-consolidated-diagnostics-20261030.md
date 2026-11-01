@@ -6,6 +6,31 @@ pas les clés, ne déclenche pas de CI, et ne demande aucune inférence LLM
 ni recherche privée. Aucune sortie brute de Docker, Prometheus, de clé
 ou de journal ne passe dans le rapport.
 
+## Transport HTTP partagé et contrôle des sondes
+
+Le module `scripts/lib/http_diagnostics.py` est maintenant partagé par
+`diagnose-fastapi-stack.py` et
+`scripts/prometheus/diagnose-failed-scrapes.py`.
+Il conserve la désactivation explicite des proxies d'environnement et
+des redirections automatiques, impose un timeout et limite les réponses
+JSON (1 Mio par défaut selon la sonde). Les erreurs de parsing ne
+réémettent jamais le contenu HTTP. Une erreur réseau est `UNVERIFIED`
+pour les sondes UI ; un refus d'accès 401/403 reste `DENIED`, jamais
+un signal suffisant pour déclarer le service indisponible.
+
+Tests hors ligne :
+
+~~~bash
+python3 -m unittest tests.test_http_diagnostics tests.test_fastapi_stack_consolidated -v
+python3 -m pytest -q tests/test_prometheus_failed_scrapes_diagnostic.py
+python3 -m py_compile scripts/lib/http_diagnostics.py \
+  scripts/prometheus/diagnose-failed-scrapes.py \
+  scripts/truenas/diagnose-fastapi-stack.py
+~~~
+
+Les tests contractuels n'effectuent ni déploiement, ni changement de secrets,
+ni appel vers TrueNAS. La réception opérationnelle reste distincte du gate local.
+
 ## Commande unique sur TrueNAS
 
 Depuis le dépôt canonique nabla-compose :
