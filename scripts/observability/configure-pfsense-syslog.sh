@@ -26,6 +26,8 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 
 # shellcheck source=../lib/diagnostic-ui.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/diagnostic-ui.sh"
+# shellcheck source=../lib/secrets.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/secrets.sh"
 diag_ui_init "${DIAG_COLOR:-auto}" "${DIAG_ICONS:-auto}" || exit 2
 ok() { diag_ok "$*"; }
 warn() { diag_warn "$*" >&2; }
@@ -93,6 +95,11 @@ else
   "${SCRIPT_DIR}/verify-stack.sh"
 fi
 
+# The API key is reused by every request, so it goes to a header file inside
+# the private mktemp -d directory instead of the curl argv.
+api_header_file="${tmp_dir}/pfsense-api.headers"
+secrets_curl_headers X-API-Key "${PFSENSE_OBSERVABILITY_API_KEY}" >"${api_header_file}"
+
 curl_common=(
   --silent
   --show-error
@@ -100,7 +107,7 @@ curl_common=(
   --max-time 20
   --header "Accept: application/json"
   --header "Content-Type: application/json"
-  --header "X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"
+  --header "@${api_header_file}"
 )
 
 if [[ -n "${PFSENSE_API_CA_BUNDLE:-}" ]]; then

@@ -94,7 +94,12 @@ POSTGRES_ADMIN="$(
 [[ -n "${POSTGRES_ADMIN}" ]] || fail "cannot determine PostgreSQL admin role"
 
 if [[ "${MODE}" == "--apply" ]]; then
-  docker exec -i     -e NABLA_DB_PASSWORD="${DB_PASSWORD}"     -e NABLA_DB_USER="${DB_USER}"     -e NABLA_DB_NAME="${DB_NAME}"     "${POSTGRES_CONTAINER}"     psql --set=ON_ERROR_STOP=1 -U "${POSTGRES_ADMIN}" -d postgres <<'SQL'
+  NABLA_DB_PASSWORD="${DB_PASSWORD}" docker exec -i \
+    -e NABLA_DB_PASSWORD \
+    -e NABLA_DB_USER="${DB_USER}" \
+    -e NABLA_DB_NAME="${DB_NAME}" \
+    "${POSTGRES_CONTAINER}" \
+    psql --set=ON_ERROR_STOP=1 -U "${POSTGRES_ADMIN}" -d postgres <<'SQL'
 \getenv target_password NABLA_DB_PASSWORD
 \getenv target_user NABLA_DB_USER
 \getenv target_db NABLA_DB_NAME
@@ -124,7 +129,10 @@ state="$(
 [[ "${state}" == "1|1|${DB_USER}" ]] ||
   fail "${APP}: role/database not ready (state=${state})"
 
-docker exec   -e PGPASSWORD="${DB_PASSWORD}"   "${POSTGRES_CONTAINER}"   psql --set=ON_ERROR_STOP=1 -h 127.0.0.1 -U "${DB_USER}" -d "${DB_NAME}" -Atc 'SELECT 1' |
+PGPASSWORD="${DB_PASSWORD}" docker exec \
+  -e PGPASSWORD \
+  "${POSTGRES_CONTAINER}" \
+  psql --set=ON_ERROR_STOP=1 -h 127.0.0.1 -U "${DB_USER}" -d "${DB_NAME}" -Atc 'SELECT 1' |
   grep -qx '1' ||
   fail "${APP}: dedicated role cannot authenticate"
 

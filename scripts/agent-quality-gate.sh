@@ -87,6 +87,21 @@ if (($# > 0)); then
   exit 2
 fi
 
+# SKIP is inherited from the caller and forwarded to pre-commit below. It may
+# skip slow or generated-contract hooks, never a secret scanner: a gate that
+# passes with secret scanning disabled must not be reported as green.
+PROTECTED_SECRET_HOOKS=(betterleaks detect-private-key gitleaks trufflehog secretlint)
+IFS=',' read -r -a requested_skips <<<"${SKIP:-}"
+for requested_skip in "${requested_skips[@]}"; do
+  requested_skip="${requested_skip//[[:space:]]/}"
+  for protected_hook in "${PROTECTED_SECRET_HOOKS[@]}"; do
+    if [[ "${requested_skip}" == "${protected_hook}" ]]; then
+      printf '❌ SKIP must not disable the %s secret scanner; unset it from SKIP and rerun.\n' "${protected_hook}" >&2
+      exit 2
+    fi
+  done
+done
+
 LOG_TAIL="${QUALITY_LOG_TAIL:-12}"
 LOG_LINE_MAX="${QUALITY_LOG_LINE_MAX:-320}"
 FIX_MAX_PASSES="${QUALITY_FIX_MAX_PASSES:-6}"

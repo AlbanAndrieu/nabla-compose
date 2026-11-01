@@ -24,6 +24,28 @@ secrets_assert_file() {
   done
 }
 
+# Print "Name: value" header lines for `curl --header @<(...)` or for a private
+# 0600 header file. Unlike `--header "Name: ${secret}"`, the value never reaches
+# a process argv, which any local user can read through ps(1) or /proc. All
+# pairs are validated before anything is printed, so a rejected call emits no
+# partial header set.
+secrets_curl_headers() {
+  (($# > 0 && $# % 2 == 0)) ||
+    secrets_fail "secrets_curl_headers expects header name/value pairs" || return 2
+
+  local -a pairs=("$@")
+  local index
+  for ((index = 0; index < ${#pairs[@]}; index += 2)); do
+    [[ "${pairs[index]}" =~ ^[A-Za-z0-9-]+$ ]] ||
+      secrets_fail "invalid curl header name: ${pairs[index]}" || return 2
+    [[ -n "${pairs[index + 1]}" && "${pairs[index + 1]}" != *[$'\r\n']* ]] ||
+      secrets_fail "curl header ${pairs[index]} has an empty or multi-line value" || return 1
+  done
+  for ((index = 0; index < ${#pairs[@]}; index += 2)); do
+    printf '%s: %s\n' "${pairs[index]}" "${pairs[index + 1]}"
+  done
+}
+
 secrets_get_value() {
   local file="${1:?secret file required}"
   local key="${2:?secret key required}"

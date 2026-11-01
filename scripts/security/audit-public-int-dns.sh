@@ -6,6 +6,8 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/diagnostic.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
+# shellcheck source=scripts/lib/secrets.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/secrets.sh"
 
 ZONE_ID="${CF_ZONE_ID:-}"
 API_TOKEN="${CLOUDFLARE_API_TOKEN:-}"
@@ -35,7 +37,7 @@ command -v jq >/dev/null 2>&1 || {
 
 payload="$(
   curl --fail --silent --show-error --max-time 45 \
-    -H "Authorization: Bearer ${API_TOKEN}" \
+    --header @<(secrets_curl_headers Authorization "Bearer ${API_TOKEN}") \
     "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?per_page=500"
 )"
 

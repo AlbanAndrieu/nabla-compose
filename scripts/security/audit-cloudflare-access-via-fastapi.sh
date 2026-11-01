@@ -6,6 +6,8 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/diagnostic.sh
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
+# shellcheck source=scripts/lib/secrets.sh
+source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/secrets.sh"
 
 BASE_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
 SICKZ_URL="${BASE_URL%/}/sickz"
@@ -30,12 +32,15 @@ print_list() {
   done <<<"${values}"
 }
 
-curl_args=(--fail --silent --show-error --max-time 45)
-if [[ -n "${DIAGNOSTICS_KEY}" ]]; then
-  curl_args+=(-H "X-Diagnostics-Key: ${DIAGNOSTICS_KEY}")
-fi
+# The optional key is streamed through a process-substitution header file so
+# it never appears in the curl argv.
+diagnostics_headers() {
+  [[ -z "${DIAGNOSTICS_KEY}" ]] || secrets_curl_headers X-Diagnostics-Key "${DIAGNOSTICS_KEY}"
+}
 
-payload="$(curl "${curl_args[@]}" "${SICKZ_URL}")"
+payload="$(curl --fail --silent --show-error --max-time 45 \
+  --header @<(diagnostics_headers) \
+  "${SICKZ_URL}")"
 
 observer_configured="$(jq -r '.cloudflare_observer_configured // false' <<<"${payload}")"
 observer_error="$(jq -r '.cloudflare_observer_error // empty' <<<"${payload}")"

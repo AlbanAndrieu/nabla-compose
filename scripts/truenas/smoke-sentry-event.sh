@@ -190,9 +190,14 @@ ENVELOPE="$(
 EOF
 )"
 
+# A private mktemp file instead of a fixed /tmp path: another local user could
+# pre-create or symlink a predictable name.
+RESPONSE_FILE="$(mktemp)"
+trap 'rm -f "${RESPONSE_FILE}"' EXIT
+
 HTTP_CODE="$(
   curl --silent --show-error --max-time 10 \
-    --output /tmp/nabla-sentry-smoke-response.txt \
+    --output "${RESPONSE_FILE}" \
     --write-out '%{http_code}' \
     --request POST \
     --header 'Content-Type: application/x-sentry-envelope' \
@@ -207,7 +212,7 @@ case "${HTTP_CODE}" in
     ;;
   *)
     printf 'Sentry response:\n' >&2
-    cat /tmp/nabla-sentry-smoke-response.txt >&2 || true
+    cat "${RESPONSE_FILE}" >&2 || true
     fail "Sentry envelope rejected with HTTP ${HTTP_CODE}"
     ;;
 esac

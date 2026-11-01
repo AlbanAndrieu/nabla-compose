@@ -58,10 +58,6 @@ help: ## Outputs this help screen
 	@grep -E '(^[a-zA-Z0-9_-]+:.*?##.*$$)|(^##)' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-30s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m##/[33m/'
 
 .PHONY: help Makefile
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-
 prepare-pipenv:
 	@echo "Setting up pipenv and installing packages"
 	@which pipenv || python3 -m pip install pipenv
@@ -100,7 +96,7 @@ fmt: ## Run formating
 .PHONY: build-docker-base
 build-docker-base:  ## Build base container with docker
 	@echo "=> Building builder image..."
-	docker build -t $(IMAGE) --target builder-base --secret id=CI_JOB_TOKEN,env=CI_PIP_GITLAB_NABLA_TOKEN --secret id=read-npm-token,env=CI_JOB_TOKEN --secret id=npmrc,src=$${HOME}/.npmrc --build-arg ENV=dev --build-arg CI_JOB_TOKEN=$${CI_JOB_TOKEN} --build-arg CI_PIP_GITLAB_NABLA_TOKEN=$${CI_PIP_GITLAB_NABLA_TOKEN} -f Dockerfile .
+	docker build -t $(IMAGE) --target builder-base --secret id=CI_JOB_TOKEN,env=CI_PIP_GITLAB_NABLA_TOKEN --secret id=read-npm-token,env=CI_JOB_TOKEN --secret id=npmrc,src=$${HOME}/.npmrc --build-arg ENV=dev -f Dockerfile .
 
 ## —— Docker 🐳 ————————————————————————————————————————————————————————————————
 .PHONY: build-docker
@@ -140,8 +136,6 @@ doc: ## Documentation
 ruff: ## Linter ruff
 	@echo "=> Linter flake8..."
 	flake8 ./nabla/ tests  --config .flake8 --count --exit-zero --max-line-length=88 --max-complexity=12 --statistics
-	# @echo "=> Linter black..."
-	# @pipenv run black .
 	@echo "=> Linter ruff..."
 	@ruff format
 
@@ -149,8 +143,8 @@ ruff: ## Linter ruff
 .PHONY: debug
 debug: ## Enter container
 	@echo "=> Debuging image..."
-	@echo "docker run -it -u 0 --entrypoint /bin/bash --env CI_PIP_GITLAB_NABLA_TOKEN=$${CI_PIP_GITLAB_NABLA_TOKEN} --env CI_JOB_TOKEN=$${CI_JOB_TOKEN} $(IMAGE)"
-	docker run -it --entrypoint /bin/bash --env CI_PIP_GITLAB_NABLA_TOKEN=$${CI_PIP_GITLAB_NABLA_TOKEN} --env CI_JOB_TOKEN=$${CI_JOB_TOKEN} $(IMAGE)
+	@echo "docker run -it -u 0 --entrypoint /bin/bash --env CI_PIP_GITLAB_NABLA_TOKEN --env CI_JOB_TOKEN $(IMAGE)"
+	docker run -it --entrypoint /bin/bash --env CI_PIP_GITLAB_NABLA_TOKEN --env CI_JOB_TOKEN $(IMAGE)
 
 ## —— Project 🐝🐳 ———————————————————————————————————————————————————————————————
 .PHONY: start
@@ -165,11 +159,9 @@ test: test-tox test-dive test-codeclimate test-semgrep test-cst
 ## —— Deploy Docker 💾🐳 ———————————————————————————————————————————————————————————————
 .PHONY: deploy-docker
 deploy-docker: ## Push to registry
-	@echo "=> Tagging image..."
 	docker tag $(IMAGE) $(OCI_IMAGE):$(IMAGE_NEXT_TAG)
 	@echo "=> docker login registry.gitlab.com --username \$${GITLAB_PRIVATE_USERNAME} --password \$${GITLAB_FULL_PRIVATE_TOKEN}"
 	@echo "=> aws ecr get-login-password --region \$${AWS_REGION:-"eu-west-3"} | docker login --username AWS --password-stdin \$${OCI_REGISTRY:-\"123456789101.dkr.ecr.eu-west-3.amazonaws.com\"} "
-	@echo "=> Pushing image..."
 	@echo "=> By Hand 👊 => docker push $(OCI_IMAGE):$(IMAGE_NEXT_TAG)"
 	@echo "=> By Hand ✌ => docker push $(OCI_IMAGE):latest"
 

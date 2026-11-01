@@ -154,7 +154,14 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert '${HOME}/.local/bin/mise' in script
     assert 'PRE_COMMIT_VERSION="${NABLA_PRE_COMMIT_VERSION:-4.6.2}"' in script
     assert 'SHELLCHECK_VERSION="${NABLA_SHELLCHECK_VERSION:-0.11.0}"' in script
-    assert "uv@latest" in script
+    # Every bootstrap tool is pinned; uv and PyYAML follow mise.toml/pyproject.
+    assert "uv@latest" not in script
+    assert 'UV_VERSION="${NABLA_UV_VERSION:-0.13.0}"' in script
+    assert 'uv = "0.13.0"' in (ROOT / "mise.toml").read_text(encoding="utf-8")
+    assert '"uv@${UV_VERSION}"' in script
+    assert 'PYYAML_VERSION="${NABLA_PYYAML_VERSION:-6.0.3}"' in script
+    assert '"PyYAML==6.0.3"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert '"PyYAML==${PYYAML_VERSION}"' in script
     assert '"shellcheck@${SHELLCHECK_VERSION}"' in script
     assert "--no-config" in script
     assert "export MISE_LOCKFILE=false" in script
@@ -165,7 +172,8 @@ def test_truenas_dev_tooling_is_user_space_only() -> None:
     assert 'PYTHON_DOTENV_VERSION="${NABLA_PYTHON_DOTENV_VERSION:-1.2.4}"' in script
     assert 'JSONSCHEMA_VERSION="${NABLA_JSONSCHEMA_VERSION:-4.22.0}"' in script
     assert '"pre-commit==${PRE_COMMIT_VERSION}" "pytest==${PYTEST_VERSION}"' in script
-    assert '"python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}" PyYAML' in script
+    assert '"python-dotenv==${PYTHON_DOTENV_VERSION}" "jsonschema==${JSONSCHEMA_VERSION}"' in script
+    assert '"jsonschema==${JSONSCHEMA_VERSION}" PyYAML' not in script
     assert 'if [[ -x "${DEV_VENV}/bin/python" ]]' in script
     assert "Reusing existing virtual environment" in script
     assert 'uv venv --clear --python "${PYTHON_BIN}" "${DEV_VENV}"' in script

@@ -301,9 +301,11 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
   echo "Please paste your WireGuard VPN configuration below by using SHIFT+INS to paste (press ENTER then Ctrl+D when done):"
   WG_CONFIG=$(cat)
 
-  # Save the VPN configuration as wg0.conf
-  echo "${WG_CONFIG}" >"${QBITTORRENT_WIREGUARD_DIR}/wg0.conf"
-  chown ${CONFIG_USER} "${QBITTORRENT_WIREGUARD_DIR}/wg0.conf"
+  # Save the VPN configuration as wg0.conf. Create it under umask 077 so the
+  # private key is never world-readable before the chown/chmod below.
+  (umask 077 && printf '%s\n' "${WG_CONFIG}" >"${QBITTORRENT_WIREGUARD_DIR}/wg0.conf")
+  unset WG_CONFIG
+  chown "${CONFIG_USER}" "${QBITTORRENT_WIREGUARD_DIR}/wg0.conf"
   chmod 660 "${QBITTORRENT_WIREGUARD_DIR}/wg0.conf"
   echo "WireGuard configuration saved to ${QBITTORRENT_WIREGUARD_DIR}/wg0.conf"
 
@@ -399,7 +401,7 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
       # Add root folder to Radarr
       echo "Adding root folder to Radarr..."
       curl -X POST "http://localhost:7878/api/v3/rootfolder" \
-        -H "X-Api-Key: ${RADARR_API_KEY}" \
+        -H @<(printf 'X-Api-Key: %s\n' "${RADARR_API_KEY}") \
         -H "Content-Type: application/json" \
         -d '{
                     "path": "/media/movies"
@@ -408,7 +410,7 @@ if [[ "${LAUNCH_CONTAINERS}" =~ ^[Yy]es$ ]]; then
       # Add root folder to Sonarr
       echo "Adding root folder to Sonarr..."
       curl -X POST "http://localhost:8989/api/v3/rootfolder" \
-        -H "X-Api-Key: ${SONARR_API_KEY}" \
+        -H @<(printf 'X-Api-Key: %s\n' "${SONARR_API_KEY}") \
         -H "Content-Type: application/json" \
         -d '{
                     "path": "/media/tv"
