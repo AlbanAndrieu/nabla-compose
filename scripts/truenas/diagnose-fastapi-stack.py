@@ -93,32 +93,85 @@ def get_json(url: str, timeout: int = 5, limit: int = 1024 * 1024) -> dict[str, 
     return doc
 
 
+def http_status(opener: Any, url: str, timeout: int) -> int:
+    """Read only the response status; never emit transport or auth details."""
+    try:
+        with opener.open(Request(url, headers={'Accept': 'application/json'}),
+                         timeout=timeout) as response:
+            return response.status
+    except HTTPError as exc:
+        try:
+            return exc.code
+        finally:
+            exc.close()
+    except (OSError, ValueError):
+        return 0
+
+
+def classify_ui_codes(codes: list[int]) -> tuple[str, str]:
+    """Distinguish access-policy denials from incomplete or failed routes.
+
+    A 401/403 cannot override a 5xx or transport failure on another route.
+    No single-route HTTP status proves that the full UI rendered successfully.
+    """
+    if len(codes) != len(UI_PATHS):
+        return 'UNVERIFIED', 'incomplete_http_observation'
+    if all(code == 200 for code in codes):
+        return 'PASS', 'three_http_200'
+    if any(code == 0 or code >= 500 for code in codes):
+        return 'UNVERIFIED', 'http_or_transport_degraded'
+    if any(code not in (200, 401, 403) for code in codes):
+        return 'UNVERIFIED', 'unexpected_http_status'
+    if any(code in (401, 403) for code in codes):
+        return 'DENIED', 'authorization_or_access_policy'
+    return 'UNVERIFIED', 'unexpected_http_status'
+
+
 def ui_http() -> list[dict[str, object]]:
     opener = build_opener(ProxyHandler({}), NoRedirect())
     output = []
     for name, origin in UI_TARGETS.items():
-        codes = []
-        for path in UI_PATHS:
-            try:
-                with opener.open(Request(origin + path, headers={'Accept': 'application/json'}),
-                                 timeout=7 if path.endswith('/services') else 4) as response:
-                    codes.append(response.status)
-            except HTTPError as exc:
-                codes.append(exc.code)
-                exc.close()
-            except (OSError, URLError, ValueError):
-                codes.append(0)
-        if all(code == 200 for code in codes):
-            verdict, state = 'PASS', 'three_http_200'
-        elif any(code in (401, 403) for code in codes):
-            verdict, state = 'DENIED', 'authorization_or_access_policy'
-        elif any(code >= 500 or code == 0 for code in codes):
-            verdict, state = 'UNVERIFIED', 'http_or_transport_degraded'
-        else:
-            verdict, state = 'UNVERIFIED', 'unexpected_http_status'
+        codes = [
+            http_status(opener, origin + path, 7 if path.endswith('/services') else 4)
+            for path in UI_PATHS
+        ]
+        verdict, state = classify_ui_codes(codes)
         output.append(row('ui_' + name, verdict, state,
                           api_http=codes[0], session_http=codes[1], services_http=codes[2]))
     return output
+
+
+def prometheus_job_row(name: str, item: object) -> dict[str, object]:
+    """Fail closed on an incomplete classifier record, without raw target data."""
+    if not isinstance(item, dict):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_job_missing')
+    state = item.get('state')
+    domains = item.get('failure_domains')
+    up, total = item.get('targets_up'), item.get('targets_total')
+    if (not isinstance(domains, list) or
+            any(not isinstance(domain, str) for domain in domains) or
+            type(up) is not int or type(total) is not int or
+            up < 0 or total < 0 or up > total):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_record_invalid')
+
+    if state == 'scrape_up':
+        if up != total or total == 0:
+            return row('scrape_' + name, 'UNVERIFIED', 'classifier_state_inconsistent',
+                       up=up, total=total)
+        verdict, cause = 'PASS', 'none'
+    elif state in ('scrape_down', 'scrape_partial'):
+        if set(domains) == {'auth'}:
+            verdict, cause = 'DENIED', 'auth'
+        elif 'auth' in domains:
+            verdict, cause = 'UNVERIFIED', 'mixed_failure_domains'
+        else:
+            verdict = 'FAIL'
+            cause = next((domain for domain in
+                          ('tcp', 'dns', 'timeout', 'tls', 'network', 'http')
+                          if domain in domains), 'unverified')
+    else:
+        verdict, cause = 'UNVERIFIED', 'unverified'
+    return row('scrape_' + name, verdict, cause, up=up, total=total)
 
 
 def prometheus() -> tuple[list[dict[str, object]], dict[str, object]]:
@@ -138,24 +191,7 @@ def prometheus() -> tuple[list[dict[str, object]], dict[str, object]]:
     except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError,
             json.JSONDecodeError, AttributeError, ImportError):
         return [row('prometheus_snapshot', 'UNVERIFIED', 'targets_unavailable')], {}
-    output = []
-    for name in PROM_JOBS:
-        item = statuses[name]
-        state = item['state']
-        domains = item['failure_domains']
-        if state == 'scrape_up':
-            verdict = 'PASS'
-        elif 'auth' in domains:
-            verdict = 'DENIED'
-        elif state in ('scrape_down', 'scrape_partial'):
-            verdict = 'FAIL'
-        else:
-            verdict = 'UNVERIFIED'
-        # One fixed diagnostic category; no raw lastError, URLs or target labels.
-        cause = next((x for x in ('auth', 'tcp', 'dns', 'timeout', 'tls', 'network', 'http')
-                      if x in domains), 'none' if verdict == 'PASS' else 'unverified')
-        output.append(row('scrape_' + name, verdict, cause,
-                          up=item['targets_up'], total=item['targets_total']))
+    output = [prometheus_job_row(name, statuses.get(name)) for name in PROM_JOBS]
     summary = {
         'snapshot_utc': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'targets_total': len(targets),
@@ -496,7 +532,8 @@ def main(argv: list[str] | None = None) -> int:
         rows.extend(ui_http())
         if args.browser:
             rows.extend(browser(fastapi_root))
-    verified_truenas = is_truenas()
+    # UI-only and Vaultwarden-only scopes never require a middleware call.
+    verified_truenas = is_truenas() if args.scope in ('all', 'prometheus', 'ai') else False
     if args.scope in ('all', 'prometheus'):
         prom, snapshot = prometheus()
         rows.extend(prom)
