@@ -26,10 +26,17 @@ côté TrueNAS la protègent. La politique actuelle n'est ni documentée ni vers
 | --- | --- | --- | --- |
 | 1. Analyser | [`audit-zfs-snapshot-retention.sh`](../scripts/truenas/audit-zfs-snapshot-retention.sh) (`just zfs-retention-audit`) : tâches de snapshot et de réplication, couverture, âge du dernier snapshot, espace retenu par dataset | Lecture seule (test de contrat), rapport expurgé archivé | **CODE ADDED / RUNTIME NOT VERIFIED** |
 | 2. Décider | Politique par classe de dataset : `cpool/backup` 1×/jour gardé 14 j + 1×/semaine gardé 8 sem. ; données utilisateur (photo, music, www) 1×/jour 30 j ; `ix-apps` selon les PRA applicatifs existants | Validation opérateur, coût en espace estimé depuis l'audit | À faire |
-| 3. IaC | Tâches de snapshot (et réplication hors site) déclarées dans `terraform/truenas` si le provider `PjSalty/truenas` ~> 2.4 expose une ressource de tâche périodique ; sinon fichier déclaratif + réconciliation `midclt` avec `--plan`/`--apply` doublement approuvé | `tofu plan` sans diff après import des tâches existantes ; aucune suppression de snapshot | À faire |
+| 3. IaC | `cpool/backup` : [`snapshot-tasks.json`](../config/truenas/snapshot-tasks.json) (1×/jour 03:00 gardé 14 j, 1×/semaine dimanche 03:30 gardé 8 sem.) réconcilié par [`reconcile-snapshot-tasks.sh`](../scripts/truenas/reconcile-snapshot-tasks.sh) (`just zfs-snapshot-tasks-plan`, puis `zfs-snapshot-tasks-apply` avec `NABLA_SNAPSHOT_APPLY_APPROVED=yes`) : crée les tâches manquantes, ne modifie ni ne supprime rien, signale les dérives. Autres datasets et réplication hors site : à faire | `--plan` sans tâche manquante, puis l'audit de l'étape 1 sans constat sur `cpool/backup` | **CODE ADDED / RUNTIME NOT VERIFIED** |
 | 4. Hors site | Réplication ZFS ou `restic copy` vers une cible indépendante de TrueNAS | Restauration de test depuis la copie | À faire |
 
 Aucune tâche n'est créée, modifiée ou supprimée par l'étape 1.
+
+**Alerte de la sauvegarde Restic** : Prometheus en principal
+([`restic.rules.yml`](../apps/prometheus/rules/restic.rules.yml), job `workstation_restic`,
+plus de 26 h sans succès) ; Zabbix en secours
+([template](../config/zabbix/templates/workstation-restic.yaml), `just zabbix-templates --apply`).
+L'Alertmanager n'a encore **aucun récepteur** : sans lui, l'alerte Prometheus n'est vue que
+dans l'interface.
 
 ## P0 — FastAPI : diagnostic UI, Prometheus, LiteLLM et OpenRAG consolidé (30 octobre 2026)
 

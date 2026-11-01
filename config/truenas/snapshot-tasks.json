@@ -1,0 +1,30 @@
+[
+  {
+    "dataset": "cpool/backup",
+    "recursive": true,
+    "lifetime_value": 14,
+    "lifetime_unit": "DAY",
+    "naming_schema": "auto-daily-%Y-%m-%d_%H-%M",
+    "schedule": {
+      "minute": "0",
+      "hour": "3",
+      "dom": "*",
+      "month": "*",
+      "dow": "*"
+    }
+  },
+  {
+    "dataset": "cpool/backup",
+    "recursive": true,
+    "lifetime_value": 8,
+    "lifetime_unit": "WEEK",
+    "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
+    "schedule": {
+      "minute": "30",
+      "hour": "3",
+      "dom": "*",
+      "month": "*",
+      "dow": "sun"
+    }
+  }
+]

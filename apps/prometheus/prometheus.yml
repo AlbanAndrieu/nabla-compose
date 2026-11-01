@@ -65,6 +65,15 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
+  # Textfile-only node_exporter (ansible-workstation playbooks/restic-backup.yml).
+  - job_name: workstation_restic
+    static_configs:
+      - targets:
+          - 172.17.0.57:9100
+        labels:
+          platform: workstation
+          role: backup-source
+
   - job_name: kafka_exporter
     metrics_path: /metrics
     scrape_interval: 30s
