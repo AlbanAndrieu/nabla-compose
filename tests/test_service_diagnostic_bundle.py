@@ -134,6 +134,25 @@ def test_missing_or_empty_evidence_is_never_full_success() -> None:
     assert MODULE.check_verdict("pass") == "PASS"
 
 
+def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsys):
+    import json
+
+    selected = MODULE.selected_checks("observability")
+    rows = [
+        {"name": selected[0].name, "state": "unverified",
+         "verdict": "UNVERIFIED", "reason": "nonzero_without_structured_evidence",
+         "evidence_scope": "probe_only", "exit_code": 1},
+    ]
+    monkeypatch.setattr(MODULE, "collect", lambda _checks: rows)
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--check", "--section", "observability"])
+    assert MODULE.main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "UNVERIFIED"
+    assert payload["availability"] == "UNVERIFIED"
+    assert payload["checks"][0]["evidence_scope"] == "probe_only"
+    assert payload["mutations"] is False
+
+
 @pytest.mark.parametrize("mode", ["--apply", "--restart", "--deploy"])
 def test_mutating_args_rejected(mode: str) -> None:
     result = subprocess.run(
