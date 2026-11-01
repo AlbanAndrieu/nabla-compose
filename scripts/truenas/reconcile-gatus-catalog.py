@@ -106,11 +106,12 @@ def reconcile(
     if observed_at.tzinfo is None:
         raise ValueError("Gatus observation time must be timezone-aware")
 
+    duplicate_ids = set(duplicates)
     rows = []
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
         state, reason, verdict = monitor_runtime_evidence(
-            monitor_id, mon, set(duplicates), declared_keys, runtime, observed_at,
+            monitor_id, mon, duplicate_ids, declared_keys, runtime, observed_at,
             statuses_supplied=statuses is not None,
         )
         catalog_match = bool(service_id and service_id in services)
