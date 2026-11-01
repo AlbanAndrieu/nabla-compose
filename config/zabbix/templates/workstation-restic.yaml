@@ -1,0 +1,30 @@
+# Backup alert path for the workstation Restic backup; Prometheus
+# (apps/prometheus/rules/restic.rules.yml) is the primary one.
+# Import: scripts/zabbix/import-templates.py --apply
+zabbix_export:
+  version: "7.0"
+  template_groups:
+    - uuid: 9132dc355a7445a4a614800ceac3d0ab
+      name: Templates/Nabla
+  templates:
+    - uuid: ce9bbd817b9d48d6b8208f6d4773c8c1
+      template: Nabla Workstation Restic
+      name: Nabla Workstation Restic
+      description: Age of the last successful Restic backup, from ansible-workstation files/restic/zabbix-restic.conf.
+      groups:
+        - name: Templates/Nabla
+      items:
+        - uuid: edff27768b21429f94e249bbc4874ff2
+          name: Restic last successful backup age
+          key: restic.last_success_age
+          delay: 10m
+          units: s
+          triggers:
+            - uuid: 1f0bd104b8a8449c82885d2fe62bea67
+              expression: last(/Nabla Workstation Restic/restic.last_success_age)>93600
+              name: Restic backup older than 26 h on {HOST.NAME}
+              priority: HIGH
+            - uuid: 7965456ac83547ee84356e363a19ca7a
+              expression: nodata(/Nabla Workstation Restic/restic.last_success_age,2h)=1
+              name: No Restic backup age from {HOST.NAME} for 2 h
+              priority: WARNING

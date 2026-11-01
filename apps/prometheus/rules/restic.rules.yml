@@ -1,0 +1,25 @@
+---
+groups:
+  - name: WorkstationRestic
+    rules:
+      - alert: ResticBackupStale
+        expr: time() - node_textfile_mtime_seconds{job="workstation_restic", file=~".*/last-success\\.prom"} > 93600
+        for: 10m
+        labels:
+          severity: critical
+          scope: backup
+          impact: data_loss
+        annotations:
+          summary: Workstation Restic backup has not succeeded for 26 hours
+          description: "Last successful backup to /media/backup/workstation is older than 26 h: journalctl -u restic-backup.service on the workstation."
+
+      - alert: ResticMetricAbsent
+        expr: absent(node_textfile_mtime_seconds{job="workstation_restic", file=~".*/last-success\\.prom"})
+        for: 2h
+        labels:
+          severity: warning
+          scope: telemetry
+          impact: blind_spot
+        annotations:
+          summary: Workstation Restic success metric is missing
+          description: "Prometheus sees no Restic last-success file: workstation down, node_exporter stopped, ufw closed, or no backup yet."

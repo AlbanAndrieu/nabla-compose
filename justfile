@@ -1864,6 +1864,18 @@ zfs-retention-audit-test:
     bash -n scripts/truenas/audit-zfs-snapshot-retention.sh
     python3 -m unittest discover -s tests -p 'test_zfs_snapshot_retention_contract.py' -v
 
+# Snapshot tasks declared in config/truenas/snapshot-tasks.json: plan only, on TrueNAS.
+zfs-snapshot-tasks-plan:
+    sudo bash scripts/truenas/reconcile-snapshot-tasks.sh --plan
+
+# Creates missing tasks only; never updates or deletes.
+zfs-snapshot-tasks-apply:
+    sudo NABLA_SNAPSHOT_APPLY_APPROVED=yes bash scripts/truenas/reconcile-snapshot-tasks.sh --apply
+
+# Workstation Restic alert, backup path: import the Zabbix template (plan without --apply).
+zabbix-templates *args:
+    python3 scripts/zabbix/import-templates.py {{ args }}
+
 # Emergency: list how each leaked secret is revoked (API or manual), no value read or printed.
 secrets-emergency-revoke-plan:
     python3 scripts/secrets/emergency_revoke.py --plan
