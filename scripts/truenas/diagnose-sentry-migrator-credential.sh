@@ -69,8 +69,8 @@ user_count="$(
 ok "ClickHouse user sentry_migrator exists"
 
 # shellcheck disable=SC2016 # NABLA_MIGRATOR_PASSWORD is expanded inside the container.
-if timeout "${TIMEOUT_SECONDS}" docker exec \
-  -e NABLA_MIGRATOR_PASSWORD="${password}" \
+if NABLA_MIGRATOR_PASSWORD="${password}" timeout "${TIMEOUT_SECONDS}" docker exec \
+  -e NABLA_MIGRATOR_PASSWORD \
   "${CLICKHOUSE_CONTAINER}" \
   sh -lc '
     clickhouse-client \

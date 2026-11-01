@@ -55,7 +55,13 @@ POSTGRES_ADMIN="$(
   fail "shared PostgreSQL administrative role could not be determined"
 
 if [[ "${MODE}" == "--apply" ]]; then
-  docker exec -i     -e JOPLIN_DB_PASSWORD="${joplin_password}"     "${POSTGRES_CONTAINER}"     psql       --set=ON_ERROR_STOP=1       -U "${POSTGRES_ADMIN}"       -d postgres <<'SQL'
+  JOPLIN_DB_PASSWORD="${joplin_password}" docker exec -i \
+    -e JOPLIN_DB_PASSWORD \
+    "${POSTGRES_CONTAINER}" \
+    psql \
+      --set=ON_ERROR_STOP=1 \
+      -U "${POSTGRES_ADMIN}" \
+      -d postgres <<'SQL'
 \getenv joplin_password JOPLIN_DB_PASSWORD
 
 SELECT format(
@@ -97,7 +103,15 @@ state="$(
 [[ "${state}" == "1|1|joplin" ]] ||
   fail "shared PostgreSQL Joplin role/database not ready (state=${state})"
 
-if ! docker exec   -e PGPASSWORD="${joplin_password}"   "${POSTGRES_CONTAINER}"   psql     --set=ON_ERROR_STOP=1     -h 127.0.0.1     -U "${EXPECTED_USER}"     -d "${EXPECTED_DB}"     -Atc 'SELECT 1' |
+if ! PGPASSWORD="${joplin_password}" docker exec \
+  -e PGPASSWORD \
+  "${POSTGRES_CONTAINER}" \
+  psql \
+    --set=ON_ERROR_STOP=1 \
+    -h 127.0.0.1 \
+    -U "${EXPECTED_USER}" \
+    -d "${EXPECTED_DB}" \
+    -Atc 'SELECT 1' |
   grep -qx '1'; then
   fail "Joplin role cannot authenticate to the shared PostgreSQL database"
 fi

@@ -8,6 +8,8 @@ source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/secrets.sh
+source "${SCRIPT_DIR}/../lib/secrets.sh"
 
 strict=false
 if [[ "${1:-}" == "--strict" ]]; then
@@ -273,7 +275,7 @@ grafana_api_get() {
   curl --silent --show-error \
     --connect-timeout 4 \
     --max-time 12 \
-    --header "Authorization: Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}" \
+    --header @<(secrets_curl_headers Authorization "Bearer ${GRAFANA_SERVICE_ACCOUNT_TOKEN}") \
     --output "${body}" \
     --write-out '%{http_code}' \
     "${GRAFANA_URL%/}${path}" || true

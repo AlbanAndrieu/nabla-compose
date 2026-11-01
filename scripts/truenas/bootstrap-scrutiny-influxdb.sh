@@ -13,6 +13,8 @@ AUTH_DESCRIPTION="scrutiny - runtime token v2"
 
 # shellcheck source=../lib/common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
+# shellcheck source=../lib/secrets.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/secrets.sh"
 
 case "${MODE}" in
   --check | --apply) ;;
@@ -34,10 +36,22 @@ fi
 jq -e '(.status == "pass") or (.status == "ok") or (.status == "ready")' >/dev/null <<<"${health}" ||
   fail "InfluxDB health payload is not passing"
 
+# Call the InfluxDB API with TOKEN. The token is passed through a
+# process-substitution header file so it never appears in the curl argv.
+influx_curl() {
+  local token="$1"
+  shift
+  curl \
+    --connect-timeout 3 \
+    --max-time 10 \
+    --header @<(secrets_curl_headers Authorization "Token ${token}") \
+    "$@"
+}
+
 auth_get() {
   local token="$1"
   local path="$2"
-  curl -fsS     --connect-timeout 3     --max-time 10     -H "Authorization: Token ${token}"     "${INFLUX_HOST}${path}"
+  influx_curl "${token}" -fsS "${INFLUX_HOST}${path}"
 }
 
 org_id_for_token() {
@@ -174,7 +188,13 @@ create_bucket_if_missing() {
     return 0
   fi
 
-  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/buckets"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg name "${name}"       --arg orgID "${org_id}"       '{name:$name,orgID:$orgID,retentionRules:[]}')" |
+  influx_curl "${admin_token}" -fsS \
+    -X POST "${INFLUX_HOST}/api/v2/buckets" \
+    -H "Content-Type: application/json" \
+    --data-binary "$(jq -cn \
+      --arg name "${name}" \
+      --arg orgID "${org_id}" \
+      '{name:$name,orgID:$orgID,retentionRules:[]}')" |
     jq -r '.id'
 }
 
@@ -200,13 +220,10 @@ create_task_if_missing() {
     "${name}" "${BASE_BUCKET}"
   response_file="$(mktemp)"
   http_code="$(
-    curl -sS \
-      --connect-timeout 3 \
-      --max-time 10 \
+    influx_curl "${admin_token}" -sS \
       -o "${response_file}" \
       -w '%{http_code}' \
       -X POST "${INFLUX_HOST}/api/v2/tasks" \
-      -H "Authorization: Token ${admin_token}" \
       -H "Content-Type: application/json" \
       --data-binary "$(jq -cn \
         --arg orgID "${org_id}" \
@@ -253,7 +270,14 @@ permissions="$(jq -cn --arg orgID "${org_id}" '
 old_auth_ids="$(scrutiny_authorization_ids "${admin_token}" "${org_id}" || true)"
 
 authorization="$(
-  curl -fsS     --connect-timeout 3     --max-time 10     -X POST "${INFLUX_HOST}/api/v2/authorizations"     -H "Authorization: Token ${admin_token}"     -H "Content-Type: application/json"     --data-binary "$(jq -cn       --arg orgID "${org_id}"       --arg description "${AUTH_DESCRIPTION}"       --argjson permissions "${permissions}"       '{orgID:$orgID,description:$description,permissions:$permissions}')"
+  influx_curl "${admin_token}" -fsS \
+    -X POST "${INFLUX_HOST}/api/v2/authorizations" \
+    -H "Content-Type: application/json" \
+    --data-binary "$(jq -cn \
+      --arg orgID "${org_id}" \
+      --arg description "${AUTH_DESCRIPTION}" \
+      --argjson permissions "${permissions}" \
+      '{orgID:$orgID,description:$description,permissions:$permissions}')"
 )"
 restricted_token="$(jq -r '.token // empty' <<<"${authorization}")"
 new_auth_id="$(jq -r '.id // empty' <<<"${authorization}")"
@@ -283,7 +307,8 @@ chmod 600 "${SECRET_FILE}"
 while IFS= read -r old_auth_id; do
   [[ -n "${old_auth_id}" ]] || continue
   [[ "${old_auth_id}" != "${new_auth_id}" ]] || continue
-  if curl -fsS     --connect-timeout 3     --max-time 10     -X DELETE "${INFLUX_HOST}/api/v2/authorizations/${old_auth_id}"     -H "Authorization: Token ${admin_token}" >/dev/null; then
+  if influx_curl "${admin_token}" -fsS \
+    -X DELETE "${INFLUX_HOST}/api/v2/authorizations/${old_auth_id}" >/dev/null; then
     printf 'Revoked superseded Scrutiny InfluxDB authorization %s\n' "${old_auth_id}"
   else
     printf 'WARNING: unable to revoke superseded Scrutiny authorization %s\n' "${old_auth_id}" >&2

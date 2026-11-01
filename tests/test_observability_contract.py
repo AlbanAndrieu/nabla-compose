@@ -628,7 +628,12 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("/api/v2/status/logs/settings", configure)
         self.assertIn("/api/v2/system/restapi/version", configure)
         self.assertIn('PFSENSE_RESTAPI_MIN_VERSION="v2.9.0"', configure)
-        self.assertIn('"X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"', configure)
+        self.assertIn(
+            'secrets_curl_headers X-API-Key "${PFSENSE_OBSERVABILITY_API_KEY}" >"${api_header_file}"',
+            configure,
+        )
+        self.assertIn('--header "@${api_header_file}"', configure)
+        self.assertNotIn('"X-API-Key: ${PFSENSE_OBSERVABILITY_API_KEY}"', configure)
         self.assertIn("dry_run: true", configure)
         self.assertIn("no PATCH request was sent", configure)
         self.assertIn("all three pfSense remote syslog slots are already occupied", configure)

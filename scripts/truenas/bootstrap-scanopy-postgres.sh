@@ -162,8 +162,8 @@ POSTGRES_ADMIN="$(
 [[ -n "${POSTGRES_ADMIN}" ]] || fail "shared PostgreSQL administrative role could not be determined"
 
 if [[ "${MODE}" == "--apply" ]]; then
-  docker exec -i \
-    -e SCANOPY_DB_PASSWORD="${scanopy_password}" \
+  SCANOPY_DB_PASSWORD="${scanopy_password}" docker exec -i \
+    -e SCANOPY_DB_PASSWORD \
     "${POSTGRES_CONTAINER}" \
     psql \
       --set=ON_ERROR_STOP=1 \
@@ -211,8 +211,8 @@ state="$(
 [[ "${state}" == "1|1|scanopy" ]] ||
   fail "shared PostgreSQL Scanopy role/database not ready (state=${state})"
 
-if ! docker exec \
-  -e PGPASSWORD="${scanopy_password}" \
+if ! PGPASSWORD="${scanopy_password}" docker exec \
+  -e PGPASSWORD \
   "${POSTGRES_CONTAINER}" \
   psql \
     --set=ON_ERROR_STOP=1 \

@@ -10,6 +10,8 @@ nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=scripts/lib/probe.sh
 source "${ROOT}/scripts/lib/probe.sh"
+# shellcheck source=scripts/lib/secrets.sh
+source "${ROOT}/scripts/lib/secrets.sh"
 
 function fail {
   printf '❌ %s\n' "$*" >&2
@@ -935,7 +937,7 @@ function probe_fastapi_sample_sentry_if_running {
         --max-time 5 \
         --output "${sentry_api_body}" \
         --write-out '%{http_code}' \
-        --header "Authorization: Bearer ${SENTRY_ACCESS_TOKEN}" \
+        --header @<(secrets_curl_headers Authorization "Bearer ${SENTRY_ACCESS_TOKEN}") \
         http://172.17.0.24:9005/api/0/organizations/ || true
     )"
 
@@ -967,9 +969,10 @@ function probe_fastapi_sample_sentry_if_running {
             --output "${sentry_public_body}" \
             --dump-header "${sentry_public_headers}" \
             --write-out '%{http_code}' \
-            --header "Authorization: Bearer ${SENTRY_ACCESS_TOKEN}" \
-            --header "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
-            --header "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+            --header @<(secrets_curl_headers \
+              Authorization "Bearer ${SENTRY_ACCESS_TOKEN}" \
+              CF-Access-Client-Id "${CF_ACCESS_CLIENT_ID}" \
+              CF-Access-Client-Secret "${CF_ACCESS_CLIENT_SECRET}") \
             https://sentry.albandrieu.com/api/0/organizations/ || true
         )"
 

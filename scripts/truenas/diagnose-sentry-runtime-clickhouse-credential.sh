@@ -60,8 +60,14 @@ user_count="$(
 ok "ClickHouse runtime user sentry exists"
 
 # shellcheck disable=SC2016
-if ! timeout "${TIMEOUT_SECONDS}" docker exec   -e NABLA_SENTRY_CLICKHOUSE_PASSWORD="${password}"   "${CLICKHOUSE_CONTAINER}" sh -lc '
-    clickhouse-client       --user sentry       --password "$NABLA_SENTRY_CLICKHOUSE_PASSWORD"       --database sentry       --query "SELECT 1" >/dev/null
+if ! NABLA_SENTRY_CLICKHOUSE_PASSWORD="${password}" timeout "${TIMEOUT_SECONDS}" docker exec \
+  -e NABLA_SENTRY_CLICKHOUSE_PASSWORD \
+  "${CLICKHOUSE_CONTAINER}" sh -lc '
+    clickhouse-client \
+      --user sentry \
+      --password "$NABLA_SENTRY_CLICKHOUSE_PASSWORD" \
+      --database sentry \
+      --query "SELECT 1" >/dev/null
   '; then
   fail "ClickHouse runtime user sentry rejects the canonical Sentry runtime password"
 fi

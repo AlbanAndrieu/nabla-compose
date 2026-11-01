@@ -7,6 +7,8 @@ ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 source "${ROOT}/scripts/lib/probe.sh"
 # shellcheck source=../lib/common.sh
 source "${ROOT}/scripts/lib/common.sh"
+# shellcheck source=../lib/secrets.sh
+source "${ROOT}/scripts/lib/secrets.sh"
 
 TRUENAS_HOST="${TRUENAS_HOST:-172.17.0.24}"
 PUBLIC_HOST="${PUBLIC_HOST:-sample.albandrieu.com}"
@@ -122,8 +124,9 @@ if [[ -n "${CF_ACCESS_CLIENT_ID:-}" || -n "${CF_ACCESS_CLIENT_SECRET:-}" ]]; the
   token_status="$(curl --silent --show-error --max-time 20 \
     --output "${token_body}" --dump-header "${token_headers}" \
     --write-out '%{http_code}' \
-    -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
-    -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+    --header @<(secrets_curl_headers \
+      CF-Access-Client-Id "${CF_ACCESS_CLIENT_ID}" \
+      CF-Access-Client-Secret "${CF_ACCESS_CLIENT_SECRET}") \
     "https://${PUBLIC_HOST}/health")"
 
   token_content_type="$(
