@@ -91,6 +91,60 @@ def test_failure_categories_are_sanitized_and_actionable() -> None:
 
 
 
+def test_probe_verdict_separates_auth_failures_and_missing_evidence() -> None:
+    now = datetime.now(UTC)
+    observed = now.isoformat()
+    rows = [
+        {"name": "Healthy", "group": "infra",
+         "results": [{"timestamp": observed, "success": True}]},
+        {"name": "Access", "group": "infra",
+         "results": [{"timestamp": observed, "success": False,
+                      "error": "HTTP 403 token=SECRET"}]},
+        {"name": "Unknown", "group": "infra", "results": []},
+    ]
+    report = module.audit(fixture(), rows, now)
+    assert report["up"] == 1
+    assert report["down"] == 1  # Gatus probe DOWN; service availability not proven.
+    assert report["unverified"] == 1
+    assert report["verdict_counts"]["PASS"] == 1
+    assert report["verdict_counts"]["DENIED"] == 1
+    assert report["verdict_counts"]["NOT_RUN"] == 1
+    assert report["verdict_counts"]["FAIL"] == 0
+    checks = {item["service_id"]: item for item in report["checks"]}
+    assert checks["access"]["verdict"] == "DENIED"
+    assert checks["unknown"]["verdict"] == "NOT_RUN"
+    assert "SECRET" not in str(report)
+
+
+def test_probe_verdict_for_confirmed_failure_and_stale_evidence() -> None:
+    now = datetime.now(UTC)
+    observed = now.isoformat()
+    old = (now - timedelta(minutes=5)).isoformat()
+    rows = [
+        {"name": "Healthy", "group": "infra",
+         "results": [{"timestamp": observed, "success": False,
+                      "error": "connect: connection refused"}]},
+        {"name": "Access", "group": "infra",
+         "results": [{"timestamp": old, "success": True}]},
+    ]
+    report = module.audit(fixture(), rows, now)
+    checks = {item["service_id"]: item for item in report["checks"]}
+    assert checks["healthy"]["verdict"] == "FAIL"
+    assert checks["access"]["verdict"] == "UNVERIFIED"
+    assert checks["unknown"]["verdict"] == "UNVERIFIED"
+    assert report["verdict_counts"]["FAIL"] == 1
+    assert report["verdict_counts"]["UNVERIFIED"] == 2
+    assert report["complete"] is False
+
+
+def test_gatus_uses_shared_bounded_transport_without_redirects() -> None:
+    source = FILE.read_text(encoding="utf-8")
+    assert "from scripts.lib.http_diagnostics import NoRedirect, read_json_array" in source
+    assert "read_json_array(opener, STATUS_URL, timeout=8, limit=MAX_BYTES)" in source
+    assert "ProxyHandler({})" in source
+    assert "class NoRedirect(" not in source
+
+
 def test_exit_codes_separate_down_from_unverified() -> None:
     now = datetime.now(UTC)
     all_up = [
