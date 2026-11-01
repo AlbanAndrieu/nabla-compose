@@ -303,9 +303,21 @@ def analyze(session: Path, root: Path = ROOT) -> dict:
         checks.append({'phase': phase, 'state': state, **classify(phase, state, log)})
     if not checks:
         raise ValueError('empty_summary')
-    failed = sum(x['state'] == 'FAIL' for x in checks)
+    # A phase marked FAIL by a shell wrapper can still be inconclusive:
+    # 401/403, absent targets API, or missing Gatus samples are not outages.
+    uncertain_categories = {
+        'gatus_access_denied_not_service_down',
+        'gatus_samples_missing_or_unverified',
+        'prometheus_api_unavailable',
+        'prometheus_validation_failed',
+    }
+    failed = sum(x['state'] == 'FAIL' and
+                 x['category'] not in uncertain_categories for x in checks)
     uncertain = sum(x['state'] in ('WARN', 'SKIP') or
-                    x['category'] == 'log_unavailable' for x in checks)
+                    x['category'] == 'log_unavailable' or
+                    (x['state'] == 'FAIL' and
+                     x['category'] in uncertain_categories)
+                    for x in checks)
     expected_postmigration = PHASES - {'apisix-runtime'}
     observed = set(seen)
     missing_phases = sorted((expected_postmigration - observed)
