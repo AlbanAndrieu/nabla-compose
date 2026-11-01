@@ -111,6 +111,13 @@ class ContractTests(unittest.TestCase):
     def test_metrics_script_missing_is_not_run(self):
         self.assertEqual(stack.metrics_auth(None)[0]['verdict'], 'NOT_RUN')
 
+    def test_missing_child_is_not_run_but_broken_child_is_unverified(self):
+        for status, verdict in (('missing', 'NOT_RUN'), ('timeout', 'UNVERIFIED'), ('ok', 'UNVERIFIED')):
+            with patch.object(stack, 'child_report', return_value=(status, {})):
+                for probe in (stack.readiness, stack.lite_keys, stack.upstream,
+                              stack.ai_connectivity, stack.ai_chain):
+                    self.assertEqual([r['verdict'] for r in probe()], [verdict], probe.__name__)
+
     def test_browser_not_run_without_checkout(self):
         self.assertEqual(stack.browser(None)[0]['verdict'], 'NOT_RUN')
 

@@ -56,6 +56,11 @@ def row(component: str, verdict: str, state: str, **numeric: object) -> dict[str
                if isinstance(val, int) and not isinstance(val, bool) and val >= 0}}
 
 
+def unavailable(component: str, status: str, state: str) -> list[dict[str, object]]:
+    """A missing probe script is NOT_RUN; any other unusable report is UNVERIFIED."""
+    return [row(component, 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', state)]
+
+
 def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str]:
     """Execute pinned local scripts; capture no stderr and never forward raw output."""
     try:
@@ -221,7 +226,7 @@ def readiness() -> list[dict[str, object]]:
                                   '--service', 'prometheus', '--json', timeout=40)
     records = report.get('services')
     if not isinstance(records, list):
-        return [row('app_readiness', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'probe_unavailable')]
+        return unavailable('app_readiness', status, 'probe_unavailable')
     output = []
     for name in ('openrag', 'litellm', 'prometheus'):
         service = next((x for x in records if isinstance(x, dict) and x.get('service') == name), None)
@@ -242,7 +247,7 @@ def lite_keys() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/check-fastapi-litellm-runtime-keys.py', '--check')
     entries = report.get('checks')
     if not isinstance(entries, dict):
-        return [row('litellm_key_alignment', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'report_unavailable')]
+        return unavailable('litellm_key_alignment', status, 'report_unavailable')
     output = []
     for key, label in (('LITELLM_API_KEY', 'litellm_sample_key'),
                        ('LITELLM_FASTAPI_WORKSTATION_API_KEY', 'litellm_upstream_key')):
@@ -267,7 +272,7 @@ def lite_keys() -> list[dict[str, object]]:
 def upstream() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/diagnose-workstation-litellm-upstream-auth.py', '--check')
     if report.get('host_context') != 'truenas_verified':
-        return [row('litellm_upstream', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'truenas_identity_unverified')]
+        return unavailable('litellm_upstream', status, 'truenas_identity_unverified')
     key_state = report.get('truenas_upstream_key_state')
     living = report.get('workstation_liveliness')
     if key_state == 'missing_runtime_upstream_key':
@@ -280,7 +285,7 @@ def upstream() -> list[dict[str, object]]:
 def ai_connectivity() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/accept-fastapi-ai-connectivity.py', '--check', timeout=75)
     if report.get('component') != 'fastapi_ai_acceptance':
-        return [row('ai_from_sample', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'container_probe_unavailable')]
+        return unavailable('ai_from_sample', status, 'container_probe_unavailable')
     checks = (
         ('litellm', 'litellm'), ('litellm_model', 'fastapi_qwen_model'),
         ('openrag_backend', 'openrag_backend'), ('openrag_frontend', 'openrag_frontend'),
@@ -306,7 +311,7 @@ def ai_connectivity() -> list[dict[str, object]]:
 def ai_chain() -> list[dict[str, object]]:
     status, report = child_report('scripts/truenas/diagnose-fastapi-ai-chain.py', '--check', '--runtime', timeout=45)
     if report.get('component') != 'fastapi_truenas_ai_rag':
-        return [row('ai_chain', 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', 'probe_unavailable')]
+        return unavailable('ai_chain', status, 'probe_unavailable')
     runtime = report.get('runtime')
     declared = report.get('declared')
     if not isinstance(runtime, dict) or not isinstance(declared, dict):
@@ -408,8 +413,6 @@ def openrag_dependencies() -> list[dict[str, object]]:
     if status == 'nonzero' and 'BLOCKED:' in raw:
         return [row('openrag_dependencies', 'FAIL', 'dependency_blocked')]
     return [row('openrag_dependencies', 'UNVERIFIED', 'dependency_check_unverified')]
-
-
 
 def vaultwarden_operator() -> list[dict[str, object]]:
     """Read CLI metadata in the invoking user's shell, never as root."""
