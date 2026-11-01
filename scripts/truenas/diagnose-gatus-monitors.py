@@ -25,7 +25,10 @@ if str(ROOT) not in sys.path:
 from scripts.lib.http_diagnostics import NoRedirect, read_json_array  # noqa: E402
 
 from scripts.lib.gatus_observations import (  # noqa: E402
-    failure_category, fresh_observation, interpret_monitor_result, probe_verdict,
+    failure_category as failure_category,  # Public legacy diagnostic contract.
+    fresh_observation as fresh_observation,
+    interpret_monitor_result,
+    probe_verdict,
 )
 
 CONFIG = ROOT / "apps/gatus/config/config.yml"
