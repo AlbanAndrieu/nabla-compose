@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623",
+  "catalogRevision": "sha256:c617c5ec576b0b78d8592e6d14cf0465d56098a98d8f7044db07aef642f83a8a",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -425,12 +425,6 @@
       "entityRef": "component:default/op-connect-sync",
       "evidence": "apps/opconnect/compose.yml:services.op-connect-sync.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/opconnect/compose.yml#services/op-connect-sync",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/openclaw-sandbox",
-      "evidence": "apps/openclaw/compose.yml:services.openclaw-sandbox.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/openclaw/compose.yml#services/openclaw-sandbox",
       "sourceType": "compose"
     },
     {

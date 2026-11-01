@@ -11,6 +11,18 @@ COMPOSE_PATH_RE = re.compile(
 )
 
 
+def app_catalog_descriptors(root: Path) -> list[Path]:
+    """apps/*/catalog-info.yaml owned by this repository.
+
+    A submodule (apps/openclaw) owns its own descriptor and is not checked out
+    in CI, so including it would make generated artifacts depend on the clone.
+    """
+    return sorted(
+        path for path in (root / "apps").glob("*/catalog-info.yaml")
+        if not (path.parent / ".git").exists()
+    )
+
+
 def _archive_compose_paths(root: Path) -> list[Path]:
     """Discover Compose files from an immutable source archive without .git."""
     candidates = set(root.rglob("*.yml")) | set(root.rglob("*.yaml"))

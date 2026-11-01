@@ -5,9 +5,14 @@ import json
 from pathlib import Path
 import unittest
 
+import sys
+
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 HOMARR = ROOT / "apps/homarr/generated/apps.json"
 GATUS = ROOT / "apps/gatus/config/config.yml"
 AUTOKUMA = ROOT / "apps/autokuma/static/generated-monitors.json"
@@ -16,7 +21,7 @@ NATIVE = ROOT / "config/monitoring/gatus-endpoints.yml"
 
 def backstage_states() -> dict[str, str]:
     paths = [ROOT / "catalog/catalog-info.yaml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(ROOT))
     return {
         entity["metadata"]["name"]: (entity["metadata"].get("labels") or {}).get(
             "albandrieu.com/operational-state", "active"

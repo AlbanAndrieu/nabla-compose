@@ -17,6 +17,7 @@ import yaml
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS_DIR))
 from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 
 
 def reconcile(
@@ -115,7 +116,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="Optional JSON report path")
     args = parser.parse_args()
     paths = [args.root / "catalog/catalog-info.yaml"]
-    paths.extend(sorted((args.root / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(args.root))
     catalog = {"entities": load_backstage_entities(path for path in paths if path.is_file())}
     config = yaml.safe_load((args.root / "apps/gatus/config/config.yml").read_text())
     statuses = json.loads(args.statuses.read_text()) if args.statuses else None

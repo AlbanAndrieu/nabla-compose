@@ -15,12 +15,12 @@ from nabla_ops.catalog_exports import (  # noqa: E402
     build_standard_artifacts,
     identity_mapping_projection,
 )
-from nabla_ops.compose_paths import tracked_compose_paths  # noqa: E402
+from nabla_ops.compose_paths import app_catalog_descriptors, tracked_compose_paths  # noqa: E402
 
 
 def descriptor_paths() -> list[Path]:
     paths = [ROOT / "catalog" / "catalog-info.yaml"]
-    paths.extend(sorted((ROOT / "apps").glob("*/catalog-info.yaml")))
+    paths.extend(app_catalog_descriptors(ROOT))
     return [path for path in paths if path.is_file()]
 
 

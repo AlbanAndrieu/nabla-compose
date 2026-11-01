@@ -26,6 +26,16 @@ COMPOSE_PATHS = load_module("compose_paths_contract", HELPER)
 
 
 class ServiceConsumerArchiveContractTests(unittest.TestCase):
+    def test_app_descriptors_skip_submodule_checkouts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for app in ("demo", "vendored"):
+                (root / "apps" / app).mkdir(parents=True)
+                (root / "apps" / app / "catalog-info.yaml").write_text("{}\n", encoding="utf-8")
+            (root / "apps" / "vendored" / ".git").write_text("gitdir: ../../.git/modules/x\n")
+            self.assertEqual(COMPOSE_PATHS.app_catalog_descriptors(root),
+                             [root / "apps" / "demo" / "catalog-info.yaml"])
+
     def test_archive_discovers_root_and_app_compose_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

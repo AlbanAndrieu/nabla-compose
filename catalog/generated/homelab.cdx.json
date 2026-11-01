@@ -317,10 +317,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "component:default/openclaw-sandbox"
-    },
-    {
-      "dependsOn": [],
       "ref": "component:default/opencre"
     },
     {
@@ -709,7 +705,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623"
+        "value": "sha256:c617c5ec576b0b78d8592e6d14cf0465d56098a98d8f7044db07aef642f83a8a"
       },
       {
         "name": "nabla:catalog-authority",
@@ -717,7 +713,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:74eb16ee-e5ce-6806-34f4-07e9d98dc574",
+  "serialNumber": "urn:uuid:c617c5ec-576b-0b78-d859-2e6d14cf0465",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2450,33 +2446,6 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "experimental"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/openclaw-sandbox",
-      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
-      "name": "OpenClaw Sandbox",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/openclaw-sandbox"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/openclaw/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "worker"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
         }
       ]
     },

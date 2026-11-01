@@ -11,6 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 from nabla_ops.catalog_v2 import (  # noqa: E402
     FIELD_DISPOSITIONS,
     backstage_entity_ref,
@@ -710,7 +711,7 @@ class CatalogV2ParityTests(unittest.TestCase):
         backstage_entities: list[dict] = []
         for path in [
             ROOT / "catalog" / "catalog-info.yaml",
-            *sorted((ROOT / "apps").glob("*/catalog-info.yaml")),
+            *app_catalog_descriptors(ROOT),
         ]:
             if not path.exists():
                 continue

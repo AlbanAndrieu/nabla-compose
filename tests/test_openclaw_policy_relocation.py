@@ -1,10 +1,11 @@
 """Read-only path contract for Compose's staged OpenClaw submodule migration.
 
-The sandbox is intentionally NOT moved yet: TrueNAS may still reference its
-Compose include path. A subsequent change must prove the runtime callers.
+The 4 sandbox files now come from the nabla-openclaw submodule mounted at
+apps/openclaw; the Compose include path stays apps/openclaw/compose.yml.
 """
 from pathlib import Path
 import json
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,11 +56,17 @@ class RelocationContract(unittest.TestCase):
             EXPECTED_POLICY_FILES,
         )
 
-    def test_sandbox_is_kept_in_place_until_runtime_proven(self):
-        self.assertEqual(
-            {p.name for p in SANDBOX.iterdir() if p.is_file()},
-            EXPECTED_SANDBOX,
-        )
+    def test_sandbox_comes_from_the_nabla_openclaw_submodule(self):
+        # apps/openclaw is a gitlink; its files exist only once initialized.
+        tracked = subprocess.run(
+            ["git", "ls-files", "-s", "--", "apps/openclaw"], cwd=ROOT,
+            capture_output=True, text=True, check=True,
+        ).stdout.split()
+        self.assertEqual(tracked[0], "160000")
+        self.assertIn("nabla-openclaw.git", (ROOT / ".gitmodules").read_text(encoding="utf-8"))
+        if (SANDBOX / "compose.yml").exists():
+            self.assertLessEqual(EXPECTED_SANDBOX,
+                                 {p.name for p in SANDBOX.iterdir() if p.is_file()})
 
     def test_all_active_python_consumers_use_new_policy_root(self):
         for rel in SOURCE_CONSUMERS:
