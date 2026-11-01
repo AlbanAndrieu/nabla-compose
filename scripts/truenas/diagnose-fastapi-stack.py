@@ -154,10 +154,14 @@ def prometheus_job_row(name: str, item: object) -> dict[str, object]:
             up < 0 or total < 0 or up > total):
         return row('scrape_' + name, 'UNVERIFIED', 'classifier_record_invalid')
 
+    # Preserve the invariant between reported state and observed target counts.
+    if (state == 'scrape_up' and (up != total or total == 0)) or (
+        state == 'scrape_down' and (up != 0 or total == 0)
+    ) or (state == 'scrape_partial' and not 0 < up < total):
+        return row('scrape_' + name, 'UNVERIFIED', 'classifier_state_inconsistent',
+                   up=up, total=total)
+
     if state == 'scrape_up':
-        if up != total or total == 0:
-            return row('scrape_' + name, 'UNVERIFIED', 'classifier_state_inconsistent',
-                       up=up, total=total)
         verdict, cause = 'PASS', 'none'
     elif state in ('scrape_down', 'scrape_partial'):
         if set(domains) == {'auth'}:
@@ -187,6 +191,8 @@ def prometheus() -> tuple[list[dict[str, object]], dict[str, object]]:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         statuses = module.assess_targets(data, jobs=PROM_JOBS)
+        if not isinstance(statuses, dict):
+            raise ValueError('invalid classifier response')
         targets = data['data']['activeTargets']
     except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError,
             json.JSONDecodeError, AttributeError, ImportError):
