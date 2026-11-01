@@ -369,6 +369,22 @@ class DiagnosticRefactoringTests(unittest.TestCase):
                 result = stack.prometheus_job_row('fastapi_sample', record)
                 self.assertEqual(result['verdict'], 'UNVERIFIED')
 
+    def test_prometheus_inconsistent_scrape_states_cannot_claim_an_outage(self):
+        for state, up, total in (
+            ('scrape_down', 1, 2),
+            ('scrape_down', 0, 0),
+            ('scrape_partial', 0, 2),
+            ('scrape_partial', 2, 2),
+        ):
+            with self.subTest(state=state, up=up, total=total):
+                result = stack.prometheus_job_row(
+                    'fastapi_sample',
+                    {'state': state, 'targets_up': up, 'targets_total': total,
+                     'failure_domains': ['auth']},
+                )
+                self.assertEqual(result['verdict'], 'UNVERIFIED')
+                self.assertEqual(result['state'], 'classifier_state_inconsistent')
+
     def test_ui_scope_never_probes_truenas_identity(self):
         with patch.object(stack, 'is_truenas',
                           side_effect=AssertionError('UI scope must not call midclt')), \
