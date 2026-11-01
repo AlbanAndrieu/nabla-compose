@@ -160,16 +160,15 @@ def test_reconciliation_401_403_are_not_service_down():
     catalog, config = _one_monitor()
     now = datetime.now(UTC)
     for error in ("HTTP 401 API_KEY=SECRET", "HTTP 403 private"):
-        if True:
-            statuses = [{"name": "Gatus Service", "group": "ops", "results": [{
-                "timestamp": now.isoformat(), "success": False, "error": error,
-            }]}]
-            report = module.reconcile(catalog, config, statuses, now=now)
-            check = report["monitors"][0]
-            assert check["evidence"] == "probe_access_denied"
-            assert check["probe_verdict"] == "DENIED"
-            assert check["classification"] == "access_denied_not_service_down"
-            assert "SECRET" not in str(report)
+        statuses = [{"name": "Gatus Service", "group": "ops", "results": [{
+            "timestamp": now.isoformat(), "success": False, "error": error,
+        }]}]
+        report = module.reconcile(catalog, config, statuses, now=now)
+        check = report["monitors"][0]
+        assert check["evidence"] == "probe_access_denied"
+        assert check["probe_verdict"] == "DENIED"
+        assert check["classification"] == "access_denied_not_service_down"
+        assert "SECRET" not in str(report)
 
 
 def test_reconciliation_does_not_assume_unique_runtime_or_declared_identity():
