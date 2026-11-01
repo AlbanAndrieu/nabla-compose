@@ -4,6 +4,36 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
+## Notification ACB du 27 octobre 2026 — diagnostic ciblé (1er novembre)
+
+Deux notifications distinctes ont été remontées :
+`write_config() was called without description` (22:45:52)
+et échec de sauvegarde distante chiffrée ACB vers
+`acb.netgate.com (28)` (22:46:33). Le code curl **28**
+signifie *timeout*. Le premier message signale un appel
+sans description et non une panne pfSense prouvée ;
+l'association entre les deux événements n'est pas
+établie. **Aucune panne ACB actuelle n'est démontrée**
+par ces seuls logs anciens.
+
+**Prochaine réception en lecture seule :** vérifier le
+dernier backup distant visible sous
+`Services > Auto Config Backup > Restore` et le nombre
+d'uploads staged ; consulter les logs `acbupload.php`
+plus récents et tester DNS/HTTPS **depuis pfSense**,
+pas depuis la workstation. Une requête HEAD HTTP
+ne prouve pas un upload ACB réussi. Si nécessaire,
+créer ensuite **une** sauvegarde manuelle dans l'UI
+avec une description explicite, sans rotation de
+Device Key ni modification du WAN.
+
+Runbook et diagnostics expurgés :
+[ACB timeout 28 / provenance write_config](runbooks/pfsense-acb-timeout-write-config-20261027.md).
+Un appel `write_config` présent dans
+`scripts/pfsense/manage-api-identities.php`
+possède déjà une description explicite ; sa responsabilité
+n'est donc pas établie sans corrélation de logs.
+
 ## Incident 502 WebConfigurator / REST API (September 2026)
 
 **First failing layer:** a native nginx HTTP 502 proves that DNS/TCP/TLS and

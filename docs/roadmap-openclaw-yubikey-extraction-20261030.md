@@ -2,6 +2,37 @@
 
 > **Point d'entrée de coordination pour `nabla-compose`**. Le détail des tâches et les commandes propres à chaque outil appartiennent à ses roadmaps dédiées : [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/migration.md) et [YubiKey](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1). Les PRs Draft de consolidation peuvent précéder leur fusion : [OpenClaw #2](https://github.com/AlbanAndrieu/nabla-openclaw/pull/2), [YubiKey #1](https://github.com/AlbanAndrieu/nabla-yubikey/pull/1). Les docs historiques restent consultables mais ne priment pas sur ce tableau.
 
+## Réception du scan global des Apps TrueNAS — 30 octobre 2026
+
+**Preuve opérateur sur TrueNAS, checkout Compose `39c422c1` :**
+
+- `test_openclaw_sandbox_global_binding.py` : **11/11 PASS**.
+- `check-openclaw-sandbox-binding.py --all-apps` :
+  `host=truenas`, `app_inventory_count=95`,
+  `app_configs_checked=95`, `app_configs_unverified=0`,
+  `old_path_reference_observed=false`,
+  `app_mutations=0`, `model_requests=0`,
+  `scan_scope=truenas_app_configs_only`.
+- Verdict : **`manual_review_no_app_reference_observed`**.
+  Le code de sortie **2** est voulu par le script
+  fail-closed ; ce n'est pas une panne TrueNAS.
+
+**DONE — couverture des configurations des Apps TrueNAS :**
+95/95 lues sans aucune référence observée à l'ancien
+`apps/openclaw/compose.yml`. **NON VÉRIFIÉS :**
+scripts hors `midclt app.config`, tâches externes,
+workstation `build.sh`, fichiers de catalogue/topologie,
+et capacité de retour arrière. Le déplacement des quatre
+fichiers de sandbox et l'ajout du submodule direct
+`apps/openclaw` restent **NO-GO** tant que les
+consommateurs Git identifiés ne sont pas corrigés
+et validés.
+
+Conserver le Gateway Workstation opérationnel ;
+ne pas activer de cron/heartbeat TrueNAS. Voir le
+[registre des consommateurs](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+et le [runbook TrueNAS](runbooks/openclaw-sandbox-submodule-preflight-20261030.md).
+
 ## Réception locale du plan d'extraction — 30 octobre 2026
 
 **Preuve fournie depuis la Workstation, sur un worktree isolé de
