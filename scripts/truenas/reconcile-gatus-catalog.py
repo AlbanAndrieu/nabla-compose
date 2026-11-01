@@ -27,6 +27,36 @@ from scripts.lib.gatus_observations import (  # noqa: E402
 )
 
 
+def monitor_runtime_evidence(
+    monitor_id: str, monitor: dict, duplicates: set[str],
+    declared_keys: Counter, runtime: dict, observed_at: datetime,
+    *, statuses_supplied: bool,
+) -> tuple[str, str, str]:
+    """Return safe evidence, reason and verdict without leaking runtime fields."""
+    if not statuses_supplied:
+        return "not_checked", "runtime_not_provided", "NOT_RUN"
+
+    identity = (str(monitor["name"] or ""), str(monitor["group"] or ""))
+    matches = runtime.get(identity, [])
+    if monitor_id in duplicates:
+        return "no_recent_evidence", "duplicate_declared_monitor_id", "UNVERIFIED"
+    if declared_keys[identity] > 1:
+        return "no_recent_evidence", "duplicate_declared_monitor", "UNVERIFIED"
+    if len(matches) > 1:
+        return "no_recent_evidence", "duplicate_runtime_monitor", "UNVERIFIED"
+    if not matches:
+        return "no_recent_evidence", "missing_runtime_monitor", "UNVERIFIED"
+
+    observed_state, reason = interpret_monitor_result(matches[0].get("results"), observed_at)
+    verdict = probe_verdict(observed_state, reason)
+    evidence = {
+        "PASS": "probe_success",
+        "DENIED": "probe_access_denied",
+        "FAIL": "probe_failed_unconfirmed",
+    }.get(verdict, "no_recent_evidence")
+    return evidence, reason, verdict
+
+
 def reconcile(
     catalog: dict, config: dict, statuses: list | None = None,
     now: datetime | None = None,
@@ -79,36 +109,10 @@ def reconcile(
     rows = []
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
-        state = "not_checked"
-        reason = "runtime_not_provided"
-        verdict = "NOT_RUN"
-        if statuses is not None:
-            identity = (str(mon["name"] or ""), str(mon["group"] or ""))
-            matches = runtime.get(identity, [])
-            if monitor_id in duplicates:
-                reason = "duplicate_declared_monitor_id"
-            elif declared_keys[identity] > 1:
-                reason = "duplicate_declared_monitor"
-            elif len(matches) > 1:
-                reason = "duplicate_runtime_monitor"
-            elif not matches:
-                reason = "missing_runtime_monitor"
-            else:
-                observed_state, reason = interpret_monitor_result(
-                    matches[0].get("results"), observed_at,
-                )
-                verdict = probe_verdict(observed_state, reason)
-                if verdict == "PASS":
-                    state = "probe_success"
-                elif verdict == "DENIED":
-                    state = "probe_access_denied"
-                elif verdict == "FAIL":
-                    state = "probe_failed_unconfirmed"
-                else:
-                    state = "no_recent_evidence"
-            if reason in ("duplicate_declared_monitor_id", "duplicate_declared_monitor",
-                          "duplicate_runtime_monitor", "missing_runtime_monitor"):
-                state, verdict = "no_recent_evidence", "UNVERIFIED"
+        state, reason, verdict = monitor_runtime_evidence(
+            monitor_id, mon, set(duplicates), declared_keys, runtime, observed_at,
+            statuses_supplied=statuses is not None,
+        )
         catalog_match = bool(service_id and service_id in services)
         mapping = (
             "backstage" if catalog_match
