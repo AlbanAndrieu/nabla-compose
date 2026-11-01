@@ -174,7 +174,7 @@ Cette sonde n'est qu'un instantané des sessions TCP/2049 de **tous** les export
 
 **PRA encore ouvert :** débranchement physique de la SanDisk pendant un exercice supervisé, accès réel à la phrase secrète indépendamment **des trois systèmes** (SanDisk, workstation, TrueNAS) et test d'accès NFS négatif sous identité dédiée. Ne pas publier la phrase, le nom du coffre, les UID/GID ou les adresses clientes.
 
-Traçabilité : [preuves et runbook USB age](runbooks/usb-age-identity-independent-backup-20261028.md), [inventaire d'extraction](migrations/workstation-yubikey-extraction-20261030.md), [PR #295 fusionnée](https://github.com/AlbanAndrieu/nabla-compose/pull/295).
+Traçabilité : [preuves et runbook USB age](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/runbooks/usb-age-identity-independent-backup-20261028.md), [inventaire d'extraction](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/migrations/workstation-yubikey-extraction-20261030.md), [PR #295 fusionnée](https://github.com/AlbanAndrieu/nabla-compose/pull/295).
 
 ## PR #300 — réception P0 OpenClaw au 30 octobre 2026
 
@@ -268,4 +268,4 @@ Les sorties runtime ne sont pas attestées par la seule existence des scripts. U
 
 **DONE global** = deux propriétaires spécialisés réellement autonomes + tests locaux et runtime validés + Gateway TrueNAS/heartbeats sans doublons + plan de rollback éprouvé + escrow restaurable avec deux supports indépendants + Compose débarrassé des seuls doublons devenus inutiles.
 
-Références : [ADR séparation](adr/adr-repository-split-workstation-yubikey-20261030.md), [inventaire des chemins](migrations/workstation-yubikey-extraction-20261030.md), [migration OpenClaw](runbooks/openclaw-end-to-end-migration-20261030.md), [propriété Workstation](adr/adr-workstation-option-a.md).
+Références : [ADR séparation](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/adr/adr-repository-split-workstation-yubikey-20261030.md), [inventaire des chemins](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/migrations/workstation-yubikey-extraction-20261030.md), [migration OpenClaw](runbooks/openclaw-end-to-end-migration-20261030.md), [propriété Workstation](adr/adr-workstation-option-a.md).

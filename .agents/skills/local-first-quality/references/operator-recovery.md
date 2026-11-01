@@ -26,7 +26,7 @@ YubiKey procedures or a checkout that must survive restart.
 For PR #274 compatibility use
 `scripts/workstation/run-pr274-local-quality.sh` and
 `docs/runbooks/2026-10-24-pr274-local-quality-one-shot.md`. For YubiKey PIV82
-recovery read `docs/runbooks/yubikey-piv82-postmerge-diagnostics.md`.
+recovery read `nabla-yubikey/docs/runbooks/yubikey-piv82-postmerge-diagnostics.md`.
 
 Do not turn a repository validation into a reboot, key generation, SOPS
 rotation, Docker lifecycle action or hardware mutation without explicit user

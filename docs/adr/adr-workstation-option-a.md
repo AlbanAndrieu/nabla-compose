@@ -41,7 +41,7 @@
 
 ## Conséquences et déploiement
 
-Trois roadmaps **non dupliquées** : `dotfiles/docs/roadmap-workstation.md`, `ansible-workstation/docs/roadmap-workstation.md`, `nabla-compose/docs/roadmap-workstation-yubikey.md`. Chaque dépôt possède ses validations et sa PR Draft.
+Trois roadmaps **non dupliquées** : `dotfiles/docs/roadmap-workstation.md`, `ansible-workstation/docs/roadmap-workstation.md`, `nabla-yubikey/docs/roadmap-workstation-yubikey.md`. Chaque dépôt possède ses validations et sa PR Draft.
 
 Déploiement recommandé : (1) documentation, (2) retrait du code YubiKey/PAM historique *sans apply*, (3) audit de l'état actif, (4) modèle d'état voulu, (5) Restic chiffré/restauration testée. Ne jamais lancer le `workstation.yml` historique pour collecter les faits. Commits `[skip ci]`, tests local-first, pas d'automerge.
 
