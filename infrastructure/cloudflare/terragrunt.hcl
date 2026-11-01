@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = find_in_parent_folders("terraform/cloudflare-homelab")
+  source = find_in_parent_folders("terraform/cloudflare")
 }
 
 # Garage state is inherited from root.hcl. Identifiers come from the committed

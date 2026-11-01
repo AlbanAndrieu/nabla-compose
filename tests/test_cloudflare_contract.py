@@ -1,11 +1,11 @@
-"""Offline contracts for the import-first Cloudflare homelab OpenTofu unit."""
+"""Offline contracts for the import-first Cloudflare OpenTofu unit."""
 
 from pathlib import Path
 import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-TF = ROOT / "terraform/cloudflare-homelab"
+TF = ROOT / "terraform/cloudflare"
 CAPTURE = ROOT / "scripts/cloudflare/capture-homelab-tofu.sh"
 
 
@@ -13,7 +13,7 @@ def module_source() -> str:
     return "\n".join(p.read_text(encoding="utf-8") for p in sorted(TF.glob("*.tofu")))
 
 
-class CloudflareHomelabContract(unittest.TestCase):
+class CloudflareContract(unittest.TestCase):
     def test_provider_is_pinned_and_token_stays_in_environment(self):
         source = module_source()
         self.assertRegex(source, r'version\s*=\s*"= 5\.\d+\.\d+"')
@@ -49,9 +49,9 @@ class CloudflareHomelabContract(unittest.TestCase):
         )
 
     def test_terragrunt_inherits_private_garage_state(self):
-        source = (ROOT / "infrastructure/cloudflare-homelab/terragrunt.hcl").read_text()
+        source = (ROOT / "infrastructure/cloudflare/terragrunt.hcl").read_text()
         self.assertIn('include "root"', source)
-        self.assertIn('find_in_parent_folders("terraform/cloudflare-homelab")', source)
+        self.assertIn('find_in_parent_folders("terraform/cloudflare")', source)
         self.assertFalse(re.search(r"(?i)(token|password|secret)\s*=", source))
 
     def test_capture_is_read_only_and_hides_the_token(self):
@@ -61,7 +61,7 @@ class CloudflareHomelabContract(unittest.TestCase):
         self.assertIn("-H @-", script)
         self.assertIn("-generate-config-out=generated.tofu", script)
         gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
-        self.assertIn("/terraform/cloudflare-homelab/generated.tofu", gitignore)
+        self.assertIn("/terraform/cloudflare/generated.tofu", gitignore)
 
 
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ dans l'interface.
 ## P1 — IaC Cloudflare : hostname public FastAPI Sample (1er novembre 2026)
 
 Code et plans seulement, **rien n'est appliqué sur Cloudflare** :
-[`terraform/cloudflare-homelab`](../terraform/cloudflare-homelab/README.md)
+[`terraform/cloudflare`](../terraform/cloudflare/README.md)
 importe la configuration du tunnel partagé (toutes ses routes), le CNAME et
 les deux applications Access de FastAPI Sample (`sample` et `sample-api`
 pour `/api`). Les politiques réutilisables (`nabla`, partagée, et

@@ -91,7 +91,7 @@ terraform.tfstate.backup
 # Keep terraform/*/.terraform.lock.hcl tracked; ignore only infrastructure workdirs.
 /infrastructure/*/.terraform.lock.hcl
 # Raw `tofu plan -generate-config-out` output may hold personal Access rules.
-/terraform/cloudflare-homelab/generated.tofu
+/terraform/cloudflare/generated.tofu
 
 .tfsec/
 

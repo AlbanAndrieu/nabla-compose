@@ -1,4 +1,4 @@
-# Cloudflare homelab — OpenTofu (Tunnel, DNS, Access)
+# Cloudflare — OpenTofu (Tunnel, DNS, Access)
 
 **État : import-first, rien n'est appliqué.** Premier changement porté :
 renommer le hostname public `sample.albandrieu.com` en
@@ -7,7 +7,7 @@ renommer le hostname public `sample.albandrieu.com` en
 
 Provider `cloudflare/cloudflare` épinglé en `= 5.28.1` (dernière v5 au
 31/10/2026). État distant : bucket Garage `opentofu-state`, clé
-`cloudflare-homelab/tfstate.json`, hérité de [`root.hcl`](../../root.hcl).
+`cloudflare/tfstate.json`, hérité de [`root.hcl`](../../root.hcl).
 Garage n'a pas de verrou natif : passer **toujours** par
 `scripts/infra/terragrunt-safe.sh` (verrou local, sauvegarde de l'état avant
 apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
@@ -79,8 +79,8 @@ supprimer :
 Plan de référence, **sans renommage** :
 
 ```bash
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab init -reconfigure
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab plan
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan
 ```
 
 Attendu : `4 to import, 0 to add, 0 to change, 0 to destroy`. Toute autre
@@ -105,8 +105,8 @@ changement ne portant que sur le hostname. Toute autre ligne : s'arrêter.
 ## 3. Apply (accord explicite du propriétaire)
 
 ```bash
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab plan -out=rename.tfplan
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab apply rename.tfplan
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=rename.tfplan
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare apply rename.tfplan
 ```
 
 Jamais depuis la CI. Appliquer au moment de la fusion des PR qui renomment le
@@ -122,7 +122,7 @@ python3 scripts/cloudflare/diagnose-cloudflare-api.py \
   --tunnel-id 1d98bede-6fa0-42a8-971c-cd390d74d7f6 \
   --expect-hostname fastapi-sample.albandrieu.com \
   --access-url https://fastapi-sample.albandrieu.com/
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab plan
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan
 ```
 
 Attendu : défi Access anonyme (302/403, pas 200), route présente dans
@@ -148,7 +148,7 @@ des no-op une fois les ressources dans l'état.
 ## Validation hors ligne
 
 ```bash
-tofu -chdir=terraform/cloudflare-homelab fmt -check
-tofu -chdir=terraform/cloudflare-homelab init -backend=false -input=false
-tofu -chdir=terraform/cloudflare-homelab validate
+tofu -chdir=terraform/cloudflare fmt -check
+tofu -chdir=terraform/cloudflare init -backend=false -input=false
+tofu -chdir=terraform/cloudflare validate
 ```
