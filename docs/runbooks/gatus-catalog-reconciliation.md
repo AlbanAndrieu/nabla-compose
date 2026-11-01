@@ -50,6 +50,22 @@ Le rapport ne publie pas les URL ni jetons. Il distingue
 `probe_failed_unconfirmed`, `no_recent_evidence`,
 `infrastructure_unmapped` et `unresolved` d'une panne de service.
 
+Le réconciliateur `reconcile-gatus-catalog.py` et le diagnostic
+`diagnose-gatus-monitors.py` utilisent désormais le **même interpréteur**
+(`scripts/lib/gatus_observations.py`) : seul le dernier résultat d'une
+sonde est retenu, avec horodatage timezone-aware et fraîcheur maximale
+de **180 secondes**. Un succès ancien ne devient jamais `PASS`. Les
+observations runtime dupliquées, absentes ou malformées restent
+`UNVERIFIED`, et un refus `401/403` devient `DENIED`, non une panne
+confirmée du service. Les champs de réconciliation `probe_verdict`,
+`probe_reason` et `probe_verdict_counts` complètent les anciens champs
+`evidence` et `classification` sans émettre le message brut des sondes.
+Sans `--statuses`, le verdict est `NOT_RUN`.
+
+Les snapshots utilisés par `--statuses` doivent être **récents** :
+un export ancien n'établit pas la disponibilité actuelle. Aucun de ces
+scripts ne déclenche de probe active ni de modification de service.
+
 ### Verdicts des sondes Gatus
 
 Le script `scripts/truenas/diagnose-gatus-monitors.py --check` partage
