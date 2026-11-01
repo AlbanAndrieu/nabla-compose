@@ -165,8 +165,11 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
 
 
 def verdict_exit_code(report: dict) -> int:
-    """0 complete; 1 observed failure; 2 absent, stale or mismatched evidence."""
-    if report["down"] > 0:
+    """0 complete; 1 confirmed probe failure; 2 denied or incomplete evidence.
+
+    An HTTP 401/403 is not proof that the monitored service is down.
+    """
+    if report["verdict_counts"]["FAIL"] > 0:
         return 1
     return 0 if report["complete"] else 2
 
