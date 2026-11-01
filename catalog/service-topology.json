@@ -1589,20 +1589,6 @@
       "icon": "⌨️"
     },
     {
-      "id": "openclaw-sandbox",
-      "name": "OpenClaw Sandbox",
-      "kind": "automation-sandbox",
-      "category": "development",
-      "sourcePath": "apps/openclaw/compose.yml",
-      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
-      "presentationRole": "support",
-      "criticality": "low",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "openclaw-sandbox"
-      }
-    },
-    {
       "id": "opencre",
       "name": "OWASP OpenCRE",
       "kind": "security-standards-correlation",
@@ -4355,16 +4341,6 @@
       "description": "Sync and API form the 1Password Connect deployment.",
       "evidence": [
         "apps/opconnect/compose.yml"
-      ]
-    },
-    {
-      "source": "openclaw-sandbox",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/openclaw/compose.yml:openclaw-sandbox.x-nabla.runtime.containerService"
       ]
     },
     {

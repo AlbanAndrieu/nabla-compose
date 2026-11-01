@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:74eb16eee5ce680634f407e9d98dc5745515735cff082b297ccc9028e41ae623",
+  "catalogRevision": "sha256:2fb5ace05a340d7476d4e860844ca070f199aaeba5ac7840cfdb30a5c73a4b47",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -2516,8 +2516,8 @@
           "albandrieu.com/bia-rpo": "P7D",
           "albandrieu.com/bia-rto": "P3D",
           "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/openclaw/",
-          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-openclaw/tree/master/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-openclaw"
         },
         "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
         "labels": {

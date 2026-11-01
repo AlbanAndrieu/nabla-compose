@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:e82a3a6d32b018c60de1f943b851eb482b134f787bbd3475c88d880332d40298",
+  "catalogRevision": "sha256:cd48add76a7a7f51cd384e4b9bf5391b2c195c823609456667827714751558e0",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1538,21 +1538,6 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "op-connect-sync"
-      }
-    },
-    {
-      "id": "openclaw-sandbox",
-      "name": "OpenClaw Sandbox",
-      "kind": "automation-sandbox",
-      "category": "development",
-      "sourcePath": "apps/openclaw/compose.yml",
-      "composeService": "openclaw-sandbox",
-      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling.",
-      "presentationRole": "support",
-      "criticality": "low",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "openclaw-sandbox"
       }
     },
     {

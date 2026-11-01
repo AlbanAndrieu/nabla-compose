@@ -870,18 +870,6 @@
       "description": "Synchronizes 1Password vault state for the Connect API."
     },
     {
-      "id": "openclaw-sandbox",
-      "entityRef": "component:default/openclaw-sandbox",
-      "name": "OpenClaw Sandbox",
-      "group": "development",
-      "sourcePath": "apps/openclaw/compose.yml",
-      "composeService": "openclaw-sandbox",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
-      "description": "Isolated sandbox for OpenClaw skills and local calendar tooling."
-    },
-    {
       "id": "opencre",
       "entityRef": "component:default/opencre",
       "name": "OWASP OpenCRE",
