@@ -30,8 +30,44 @@ depuis le tableau Gatus privé. Les services volontairement arrêtés doivent
 La procédure globale peut être lancée par le script
 `scripts/truenas/diagnose-service-bundle.py --check --section observability`
 après revue du HEAD ; une panne n'interrompt pas les autres vérifications.
-Pour les critères de clôture, consulter
+
+**Contrat des verdicts (novembre 2026).** Le coordinateur ne lit jamais les
+sorties des processus enfants et ne peut donc **pas** déduire un `DENIED`
+à partir du seul code de sortie. Les vérifications renvoient un `verdict`
+(`PASS`, `FAIL`, `UNVERIFIED`, `NOT_RUN`), un `reason` borné, et
+`evidence_scope=probe_only`. Le verdict `FAIL` est réservé à une sonde
+dont le contrat `exit 1` a été validé (moniteurs Gatus ou métriques
+PostgreSQL exporter). Un code 1 de Prometheus, OpenRAG ou des scripts
+agrégés reste `UNVERIFIED` : il peut correspondre à un manque de preuve,
+un blocage d'authentification ou un précontrôle incomplet. Une expiration de
+délai (`timeout`) reste également `UNVERIFIED`, jamais une panne
+confirmée. Les états `failed` historiques sont des échecs de **sonde**,
+pas une preuve que l'application est DOWN. Le champ global
+`availability=UNVERIFIED` le rend explicite.
+
+Codes de retour : `0` si tous les contrôles sont confirmés, `1` si
+au moins un échec de sonde est établi, `2` sinon si une preuve manque.
+La validation en lecture seule est possible hors TrueNAS mais les
+exécutables absents sont `NOT_RUN` ; ne pas en déduire que le service est
+indisponible. Pour les critères de clôture, consulter
 [runbook observabilité](2026-10-24-prometheus-pyroscope-dns-dot-recovery.md).
+
+Le triage postmigration utilise également les compteurs expurgés
+`verdict_counts` du diagnostic Gatus : `DENIED` seul produit
+`gatus_access_denied_not_service_down` plutôt que
+`observed_monitors_down`. Si l'exécuteur historique marque la phase
+`FAIL` mais que seule une autorisation 401/403, l'absence d'échantillons
+Gatus ou une API Prometheus inaccessible est établie, le bilan de triage
+compte cette phase en **`unverified` plutôt qu'en `failed`**. Le code de
+sortie est alors `2`, non `1`, en l'absence d'autre échec confirmé.
+Les anciens rapports sans ces compteurs gardent leur interprétation
+historique, sans preuve d'indisponibilité applicative.
+
+Tests locaux (sans interroger les services) :
+
+```bash
+python3 -m pytest -q tests/test_service_diagnostic_bundle.py tests/test_postmigration_report_triage.py
+```
 
 ## 2. pfSense / DNS (diagnostic depuis un hôte autorisé)
 

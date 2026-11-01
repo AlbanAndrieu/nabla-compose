@@ -10,63 +10,32 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import ProxyHandler, build_opener
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.http_diagnostics import NoRedirect, read_json_array  # noqa: E402
+
+from scripts.lib.gatus_observations import (  # noqa: E402
+    failure_category as failure_category,  # Public legacy diagnostic contract.
+    fresh_observation as fresh_observation,
+    interpret_monitor_result,
+    probe_verdict,
+)
+
 CONFIG = ROOT / "apps/gatus/config/config.yml"
 STATUS_URL = "http://172.17.0.24:8085/api/v1/endpoints/statuses"
 MAX_BYTES = 1024 * 1024
 MAX_MONITORS = 512
 ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
-
-
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-def fresh_observation(result: dict, now: datetime, max_age: float) -> bool:
-    """Malformed and missing timestamps remain unverified."""
-    raw = result.get("timestamp")
-    if not isinstance(raw, str):
-        return False
-    try:
-        observed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    if observed.tzinfo is None:
-        return False
-    delta = (now - observed).total_seconds()
-    return 0 <= delta <= max_age
-
-
-def failure_category(result: dict) -> str:
-    """Only allowlisted diagnostic categories; never emit the error body."""
-    raw = " ".join(
-        str(result.get(field, ""))[:256]
-        for field in ("error", "errors", "message")
-    ).lower()
-    if "401" in raw or "unauthorized" in raw:
-        return "authentication_401"
-    if "403" in raw or "forbidden" in raw:
-        return "authorization_403"
-    if "no such host" in raw or "lookup " in raw:
-        return "dns_failure"
-    if "certificate" in raw or "x509" in raw or "tls" in raw:
-        return "tls_failure"
-    if "connection refused" in raw:
-        return "tcp_refused"
-    if "timed out" in raw or "timeout" in raw or "deadline exceeded" in raw:
-        return "timeout"
-    if "404" in raw:
-        return "http_404"
-    return "condition_or_endpoint_failed"
 
 
 def audit(config: object, statuses: object, now: datetime) -> dict:
@@ -93,6 +62,7 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
     )
     checks = []
     counts: Counter[str] = Counter()
+    verdict_counts: Counter[str] = Counter()
     for endpoint in endpoints:
         if not isinstance(endpoint, dict):
             continue
@@ -107,24 +77,15 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
         if declared_keys[(group, name)] > 1:
             reason = "duplicate_declared_monitor"
         elif len(matches) == 1:
-            observations = matches[0].get("results")
-            reason = "no_latest_result"
-            if isinstance(observations, list) and observations:
-                last = observations[-1]
-                reason = "stale_or_invalid_timestamp"
-                if isinstance(last, dict) and fresh_observation(last, now, 180):
-                    if last.get("success") is True:
-                        state, reason = "up", "observed"
-                    elif last.get("success") is False:
-                        state, reason = "down", failure_category(last)
-                    else:
-                        reason = "invalid_success_value"
+            state, reason = interpret_monitor_result(matches[0].get("results"), now)
         protocol = str(endpoint.get("url") or "").split(":", 1)[0].lower()
         if protocol not in {"http", "https", "tcp", "udp", "icmp", "dns"}:
             protocol = "unknown"
+        verdict = probe_verdict(state, reason)
         checks.append({"service_id": service_id, "state": state,
-                       "reason": reason, "protocol": protocol})
+                       "reason": reason, "protocol": protocol, "verdict": verdict})
         counts[state] += 1
+        verdict_counts[verdict] += 1
 
     # Count (do not print) runtime entries absent from the reviewed catalogue.
     # Extra and duplicate live monitors mean inventory parity is unverified.
@@ -140,6 +101,8 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
         "up": counts["up"],
         "down": counts["down"],
         "unverified": counts["unverified"],
+        "verdict_counts": {key: verdict_counts[key] for key in
+                           ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")},
         "checks": checks,
         "complete": len(checks) == len(endpoints) and
                     len(statuses) == len(endpoints) and unexpected == 0 and
@@ -148,8 +111,11 @@ def audit(config: object, statuses: object, now: datetime) -> dict:
 
 
 def verdict_exit_code(report: dict) -> int:
-    """0 complete; 1 observed failure; 2 absent, stale or mismatched evidence."""
-    if report["down"] > 0:
+    """0 complete; 1 confirmed probe failure; 2 denied or incomplete evidence.
+
+    An HTTP 401/403 is not proof that the monitored service is down.
+    """
+    if report["verdict_counts"]["FAIL"] > 0:
         return 1
     return 0 if report["complete"] else 2
 
@@ -175,13 +141,8 @@ def main() -> int:
                 raise ValueError("gatus_response_too_large")
             statuses = json.loads(args.snapshot.read_bytes())
         else:
-            request = Request(STATUS_URL, headers={"Accept": "application/json"})
             opener = build_opener(ProxyHandler({}), NoRedirect())
-            with opener.open(request, timeout=8) as response:
-                payload = response.read(MAX_BYTES + 1)
-            if len(payload) > MAX_BYTES:
-                raise ValueError("gatus_response_too_large")
-            statuses = json.loads(payload)
+            statuses = read_json_array(opener, STATUS_URL, timeout=8, limit=MAX_BYTES)
         report = audit(config, statuses, datetime.now(UTC))
         if args.snapshot is not None:
             report["source"] = "gatus_saved_snapshot"
@@ -195,7 +156,8 @@ def main() -> int:
     print(json.dumps(summary, sort_keys=True))
     for item in report["checks"]:
         if item["state"] != "up":
-            print(f"service={item['service_id']} protocol={item['protocol']} state={item['state']} reason={item['reason']}")
+            print(f"service={item['service_id']} protocol={item['protocol']} "
+                  f"state={item['state']} verdict={item['verdict']} reason={item['reason']}")
     return verdict_exit_code(report)
 
 

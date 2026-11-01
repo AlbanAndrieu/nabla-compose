@@ -71,9 +71,11 @@ def test_failure_isolation_and_no_false_green() -> None:
     )
     assert count == 4
     assert [x["state"] for x in results] == [
-        "failed", "unverified", "pass", "pass",
+        "unverified", "unverified", "pass", "pass",
     ]
-    assert MODULE.overall_exit(results) == 1
+    assert results[0]["reason"] == "nonzero_without_structured_evidence"
+    assert results[0]["verdict"] == "UNVERIFIED"
+    assert MODULE.overall_exit(results) == 2
 
 
 def test_timeout_and_missing_tools_never_pass() -> None:
@@ -84,8 +86,71 @@ def test_timeout_and_missing_tools_never_pass() -> None:
         (MODULE.selected_checks("observability")[0],), runner=timeout
     )
     assert results[0]["state"] == "timeout"
-    assert MODULE.overall_exit(results) == 1
+    assert results[0]["reason"] == "diagnostic_timed_out"
+    assert results[0]["verdict"] == "UNVERIFIED"
+    assert MODULE.overall_exit(results) == 2
     assert MODULE.overall_exit([{"state": "unverified"}]) == 2
+
+
+def test_known_probe_failures_stay_fail_without_implying_service_down() -> None:
+    assert MODULE.classify_exit_code(
+        1, MODULE.Check("gatus", ("python3", "scripts/x.py"), 5,
+                        exit_one_confirms_probe_failure=True),
+    ) == ("failed", "confirmed_probe_failure")
+    checks = (MODULE.Check(
+        "gatus_monitors", ("python3", "scripts/truenas/diagnose-gatus-monitors.py"),
+        10, exit_one_confirms_probe_failure=True,
+    ),)
+    rows = MODULE.collect(checks, runner=lambda *_a, **_kw: SimpleNamespace(returncode=1))
+    assert rows[0]["state"] == "failed"
+    assert rows[0]["verdict"] == "FAIL"
+    assert rows[0]["evidence_scope"] == "probe_only"
+    assert MODULE.overall_exit(rows) == 1
+
+
+@pytest.mark.parametrize(
+    ("code", "state", "reason"),
+    [
+        (0, "pass", "check_completed"),
+        (1, "unverified", "nonzero_without_structured_evidence"),
+        (2, "unverified", "diagnostic_incomplete"),
+        (3, "unverified", "unexpected_exit_code"),
+        (-9, "unverified", "unexpected_exit_code"),
+        (None, "unverified", "invalid_exit_code"),
+        (True, "unverified", "invalid_exit_code"),
+    ],
+)
+def test_ambiguous_returncodes_never_claim_outage(code, state, reason) -> None:
+    check = MODULE.Check("prometheus", ("python3", "scripts/x.py"), 5)
+    assert MODULE.classify_exit_code(code, check) == (state, reason)
+
+
+def test_missing_or_empty_evidence_is_never_full_success() -> None:
+    assert MODULE.overall_exit([]) == 2
+    assert MODULE.check_verdict("not_installed") == "NOT_RUN"
+    assert MODULE.check_verdict("not_executed") == "UNVERIFIED"
+    assert MODULE.check_verdict("timeout") == "UNVERIFIED"
+    assert MODULE.check_verdict("failed") == "FAIL"
+    assert MODULE.check_verdict("pass") == "PASS"
+
+
+def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsys):
+    import json
+
+    selected = MODULE.selected_checks("observability")
+    rows = [
+        {"name": selected[0].name, "state": "unverified",
+         "verdict": "UNVERIFIED", "reason": "nonzero_without_structured_evidence",
+         "evidence_scope": "probe_only", "exit_code": 1},
+    ]
+    monkeypatch.setattr(MODULE, "collect", lambda _checks: rows)
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--check", "--section", "observability"])
+    assert MODULE.main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "UNVERIFIED"
+    assert payload["availability"] == "UNVERIFIED"
+    assert payload["checks"][0]["evidence_scope"] == "probe_only"
+    assert payload["mutations"] is False
 
 
 @pytest.mark.parametrize("mode", ["--apply", "--restart", "--deploy"])

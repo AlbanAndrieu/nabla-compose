@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 import sys
 
@@ -19,9 +20,47 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from nabla_ops.catalog_exports import load_backstage_entities  # noqa: E402
 from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.gatus_observations import (  # noqa: E402
+    interpret_monitor_result, probe_verdict,
+)
+
+
+def monitor_runtime_evidence(
+    monitor_id: str, monitor: dict, duplicates: set[str],
+    declared_keys: Counter, runtime: dict, observed_at: datetime,
+    *, statuses_supplied: bool,
+) -> tuple[str, str, str]:
+    """Return safe evidence, reason and verdict without leaking runtime fields."""
+    if not statuses_supplied:
+        return "not_checked", "runtime_not_provided", "NOT_RUN"
+
+    identity = (str(monitor["name"] or ""), str(monitor["group"] or ""))
+    matches = runtime.get(identity, [])
+    if monitor_id in duplicates:
+        return "no_recent_evidence", "duplicate_declared_monitor_id", "UNVERIFIED"
+    if declared_keys[identity] > 1:
+        return "no_recent_evidence", "duplicate_declared_monitor", "UNVERIFIED"
+    if len(matches) > 1:
+        return "no_recent_evidence", "duplicate_runtime_monitor", "UNVERIFIED"
+    if not matches:
+        return "no_recent_evidence", "missing_runtime_monitor", "UNVERIFIED"
+
+    observed_state, reason = interpret_monitor_result(matches[0].get("results"), observed_at)
+    verdict = probe_verdict(observed_state, reason)
+    evidence = {
+        "PASS": "probe_success",
+        "DENIED": "probe_access_denied",
+        "FAIL": "probe_failed_unconfirmed",
+    }.get(verdict, "no_recent_evidence")
+    return evidence, reason, verdict
+
 
 def reconcile(
     catalog: dict, config: dict, statuses: list | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """Compare Gatus monitor IDs to canonical Backstage entity identities."""
     services = {
@@ -46,33 +85,36 @@ def reconcile(
             "group": endpoint.get("group"),
             "probe_type": str(endpoint.get("url", "")).split(":", 1)[0],
         }
-    runtime = {}
+    # Match only reviewed group/name identities; duplicate runtime evidence
+    # or duplicate declarations cannot be attributed to a single monitor.
+    declared_keys = Counter(
+        (str(endpoint.get("name") or ""), str(endpoint.get("group") or ""))
+        for endpoint in config.get("endpoints", [])
+        if isinstance(endpoint, dict)
+    )
+    runtime: dict[tuple[str, str], list[dict]] = {}
     if statuses is not None:
         if not isinstance(statuses, list):
             raise ValueError("Gatus statuses must be an array")
+        if len(statuses) > 512:
+            raise ValueError("too_many_runtime_endpoints")
         for item in statuses:
-            if not isinstance(item, dict):
-                continue
-            name, group = item.get("name"), item.get("group")
-            matches = [
-                key for key, mon in monitors.items()
-                if mon["name"] == name and mon["group"] == group
-            ]
-            if len(matches) != 1:
-                continue
-            results = item.get("results") or []
-            if not isinstance(results, list) or not results:
-                runtime[matches[0]] = "no_recent_evidence"
-            elif results[0].get("success") is True:
-                runtime[matches[0]] = "probe_success"
-            elif results[0].get("success") is False:
-                runtime[matches[0]] = "probe_failed_unconfirmed"
-            else:
-                runtime[matches[0]] = "no_recent_evidence"
+            if isinstance(item, dict):
+                identity = (str(item.get("name") or ""), str(item.get("group") or ""))
+                runtime.setdefault(identity, []).append(item)
+
+    observed_at = now if now is not None else datetime.now(UTC)
+    if observed_at.tzinfo is None:
+        raise ValueError("Gatus observation time must be timezone-aware")
+
+    duplicate_ids = set(duplicates)
     rows = []
     for monitor_id, mon in sorted(monitors.items()):
         service_id = mon["service_id"]
-        state = runtime.get(monitor_id, "not_checked")
+        state, reason, verdict = monitor_runtime_evidence(
+            monitor_id, mon, duplicate_ids, declared_keys, runtime, observed_at,
+            statuses_supplied=statuses is not None,
+        )
         catalog_match = bool(service_id and service_id in services)
         mapping = (
             "backstage" if catalog_match
@@ -86,18 +128,30 @@ def reconcile(
             "mapping_source": mapping,
             "probe_type": mon["probe_type"],
             "evidence": state,
+            "probe_reason": reason,
+            "probe_verdict": verdict,
             "classification": (
                 "needs_service_mapping" if mapping == "unresolved"
                 else "investigate_probe_not_service_down"
                 if state == "probe_failed_unconfirmed"
+                else "access_denied_not_service_down"
+                if state == "probe_access_denied"
                 else state
             ),
         })
     counts = Counter(row["classification"] for row in rows)
+    verdict_counts = Counter(row["probe_verdict"] for row in rows)
+    unmatched_runtime = sum(
+        len(matches) for identity, matches in runtime.items()
+        if identity not in declared_keys
+    )
     return {
         "declared_monitors": len(monitors),
         "catalog_services": len(services),
         "duplicate_monitor_ids": sorted(set(duplicates)),
+        "unmatched_runtime": unmatched_runtime,
+        "probe_verdict_counts": {key: verdict_counts[key] for key in
+                                 ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")},
         "unmonitored_catalog_ids": sorted(set(services) - {
             m["service_id"] for m in monitors.values() if m["service_id"]
         }),

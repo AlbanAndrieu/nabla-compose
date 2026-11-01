@@ -60,7 +60,27 @@ def classify(phase: str, state: str, log: str | None) -> dict:
                 value = data.get(key)
                 if type(value) is int and 0 <= value <= 512:
                     evidence[key] = value
+            counts = data.get('verdict_counts')
+            kinds = ('PASS', 'FAIL', 'DENIED', 'UNVERIFIED', 'NOT_RUN')
+            # Only trust complete, bounded, type-safe counters from the
+            # current Gatus report; never infer a failure from the old
+            # 'down' counter when it includes auth-only DENIED probes.
+            if (isinstance(counts, dict) and
+                    all(type(counts.get(kind)) is int and
+                        0 <= counts[kind] <= 512 for kind in kinds)):
+                evidence['verdict_counts'] = {kind: counts[kind] for kind in kinds}
             break
+        verdicts = evidence.get('verdict_counts')
+        if isinstance(verdicts, dict):
+            if verdicts['FAIL'] > 0:
+                return {'category': 'observed_monitors_down', 'evidence': evidence}
+            if verdicts['DENIED'] > 0:
+                return {'category': 'gatus_access_denied_not_service_down',
+                        'evidence': evidence}
+            return {'category': 'gatus_samples_missing_or_unverified',
+                    'evidence': evidence}
+        # Older reports contain only probe-level up/down/unknown counts.
+        # Preserve their legacy classification, explicitly not service health.
         if evidence.get('down', 0):
             return {'category': 'observed_monitors_down', 'evidence': evidence}
         return {'category': 'gatus_samples_missing_or_unverified', 'evidence': evidence}
@@ -283,9 +303,21 @@ def analyze(session: Path, root: Path = ROOT) -> dict:
         checks.append({'phase': phase, 'state': state, **classify(phase, state, log)})
     if not checks:
         raise ValueError('empty_summary')
-    failed = sum(x['state'] == 'FAIL' for x in checks)
+    # A phase marked FAIL by a shell wrapper can still be inconclusive:
+    # 401/403, absent targets API, or missing Gatus samples are not outages.
+    uncertain_categories = {
+        'gatus_access_denied_not_service_down',
+        'gatus_samples_missing_or_unverified',
+        'prometheus_api_unavailable',
+        'prometheus_validation_failed',
+    }
+    failed = sum(x['state'] == 'FAIL' and
+                 x['category'] not in uncertain_categories for x in checks)
     uncertain = sum(x['state'] in ('WARN', 'SKIP') or
-                    x['category'] == 'log_unavailable' for x in checks)
+                    x['category'] == 'log_unavailable' or
+                    (x['state'] == 'FAIL' and
+                     x['category'] in uncertain_categories)
+                    for x in checks)
     expected_postmigration = PHASES - {'apisix-runtime'}
     observed = set(seen)
     missing_phases = sorted((expected_postmigration - observed)

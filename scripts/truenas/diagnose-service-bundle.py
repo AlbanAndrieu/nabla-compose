@@ -24,6 +24,9 @@ class Check:
     name: str
     args: tuple[str, ...]
     timeout: int
+    # Only checks with an audited exit-1 contract prove their probe failed.
+    # This never establishes whole-application availability.
+    exit_one_confirms_probe_failure: bool = False
 
 
 # Fixed sources only. No interpolation of user input into paths or URLs.
@@ -43,11 +46,13 @@ CHECKS: dict[str, tuple[Check, ...]] = {
             "postgres_exporter",
             ("bash", "scripts/truenas/diagnose-postgres-exporter.sh"),
             15,
+            exit_one_confirms_probe_failure=True,
         ),
         Check(
             "gatus_monitors",
             ("python3", "scripts/truenas/diagnose-gatus-monitors.py", "--check"),
             20,
+            exit_one_confirms_probe_failure=True,
         ),
     ),
     "applications": (
@@ -73,6 +78,34 @@ def selected_checks(section: str) -> tuple[Check, ...]:
     return CHECKS[section]
 
 
+def classify_exit_code(code: object, check: Check) -> tuple[str, str]:
+    """Classify *diagnostic* execution, never infer underlying service DOWN.
+
+    Some legacy scripts exit 1 on denied or unavailable metrics; those are
+    unverified unless a specific probe-failure exit contract was audited.
+    """
+    if type(code) is not int:
+        return "unverified", "invalid_exit_code"
+    if code == 0:
+        return "pass", "check_completed"
+    if code == 1 and check.exit_one_confirms_probe_failure:
+        return "failed", "confirmed_probe_failure"
+    if code == 1:
+        return "unverified", "nonzero_without_structured_evidence"
+    if code == 2:
+        return "unverified", "diagnostic_incomplete"
+    return "unverified", "unexpected_exit_code"
+
+
+def check_verdict(state: str) -> str:
+    """Unified verdicts: a missing script is NOT_RUN, a timeout UNVERIFIED."""
+    return {
+        "pass": "PASS",
+        "failed": "FAIL",
+        "not_installed": "NOT_RUN",
+    }.get(state, "UNVERIFIED")
+
+
 def collect(
     checks: tuple[Check, ...],
     *,
@@ -82,13 +115,12 @@ def collect(
     results: list[dict[str, object]] = []
     for check in checks:
         path = ROOT / check.args[1]
+        reason = "script_missing"
         if not path.is_file():
-            status = "not_installed"
-            exit_code = None
+            status, exit_code = "not_installed", None
         else:
             try:
-                # stdout/stderr can contain credentials from a lower-level
-                # dependency. Suppress them rather than storing private logs.
+                # Discard raw stdout/stderr: child tools may print credentials.
                 finished = runner(
                     check.args,
                     cwd=ROOT,
@@ -99,28 +131,29 @@ def collect(
                     timeout=check.timeout,
                 )
             except subprocess.TimeoutExpired:
-                status, exit_code = "timeout", None
+                status, reason, exit_code = "timeout", "diagnostic_timed_out", None
             except OSError:
-                status, exit_code = "not_executed", None
+                status, reason, exit_code = "not_executed", "execution_unavailable", None
             else:
                 exit_code = finished.returncode
-                status = (
-                    "pass" if exit_code == 0
-                    else "unverified" if exit_code == 2
-                    else "failed"
-                )
-        results.append(
-            {"name": check.name, "state": status, "exit_code": exit_code}
-        )
+                status, reason = classify_exit_code(exit_code, check)
+        results.append({
+            "name": check.name,
+            "state": status,                  # Legacy execution-state field.
+            "verdict": check_verdict(status),
+            "reason": reason,                 # Fixed, non-sensitive reason code.
+            "evidence_scope": "probe_only",   # Never an app availability claim.
+            "exit_code": exit_code,
+        })
     return results
 
 
 def overall_exit(results: list[dict[str, object]]) -> int:
     """Never declare PASS when any service lacks fresh evidence."""
     states = {str(item["state"]) for item in results}
-    if "failed" in states or "timeout" in states:
+    if "failed" in states:
         return 1
-    if states != {"pass"}:
+    if not states or states != {"pass"}:
         return 2
     return 0
 
@@ -152,6 +185,8 @@ def main() -> int:
         "checks": results,
         "state": ("pass" if exit_code == 0 else
                   "failed" if exit_code == 1 else "unverified"),
+        "verdict": {0: "PASS", 1: "FAIL", 2: "UNVERIFIED"}[exit_code],
+        "availability": "UNVERIFIED",  # This report observes probes, not services.
         "mutations": False,
     }, sort_keys=True))
     return exit_code
