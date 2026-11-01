@@ -19,9 +19,14 @@ import subprocess
 import sys
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import ProxyHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.lib.http_diagnostics import (  # noqa: E402
+    NoRedirect, http_status as shared_http_status, read_json_object,
+)
 UI_TARGETS = {
     'truenas': 'http://172.17.0.24:8091',
     'staging': 'https://sample.albandrieu.com',
@@ -37,11 +42,6 @@ PROM_JOBS = (
 VERDICTS = ('PASS', 'FAIL', 'DENIED', 'UNVERIFIED', 'NOT_RUN')
 SAFE_VALUE = re.compile(r'^[a-zA-Z0-9_./-]{1,90}$')
 MAX_JSON_BYTES = 32768
-
-
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, request, fp, code, msg, headers, newurl):
-        return None
 
 
 def safe(value: Any) -> str:
@@ -87,30 +87,14 @@ def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str
 
 
 def get_json(url: str, timeout: int = 5, limit: int = 1024 * 1024) -> dict[str, Any]:
+    """Share bounded, no-redirect JSON transport with Prometheus diagnostics."""
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    with opener.open(Request(url, headers={'Accept': 'application/json'}), timeout=timeout) as response:
-        body = response.read(limit + 1)
-    if len(body) > limit:
-        raise ValueError('too large')
-    doc = json.loads(body)
-    if not isinstance(doc, dict):
-        raise ValueError('unexpected document')
-    return doc
+    return read_json_object(opener, url, timeout=timeout, limit=limit)
 
 
 def http_status(opener: Any, url: str, timeout: int) -> int:
-    """Read only the response status; never emit transport or auth details."""
-    try:
-        with opener.open(Request(url, headers={'Accept': 'application/json'}),
-                         timeout=timeout) as response:
-            return response.status
-    except HTTPError as exc:
-        try:
-            return exc.code
-        finally:
-            exc.close()
-    except (OSError, ValueError):
-        return 0
+    """Compatibility wrapper for established UI diagnostics and offline mocks."""
+    return shared_http_status(opener, url, timeout=timeout)
 
 
 def classify_ui_codes(codes: list[int]) -> tuple[str, str]:
