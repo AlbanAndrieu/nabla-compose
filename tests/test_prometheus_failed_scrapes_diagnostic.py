@@ -159,6 +159,61 @@ def test_down_without_last_error_has_no_invented_cause() -> None:
     assert report["fastapi_sample"]["errors"] == []
 
 
+def test_scrape_index_keeps_allowlist_and_order_independent() -> None:
+    targets = [
+        {"labels": {"job": "pfsense_exporter"}, "health": "down",
+         "lastError": "connection refused SECRET-A"},
+        {"labels": {"job": "fastapi_sample"}, "health": "up"},
+        {"labels": {"job": "pfsense_exporter"}, "health": "up"},
+        {"labels": {"job": "other"}, "health": "down", "lastError": "SECRET-B"},
+        {"labels": {"job": "postgres_exporter"}, "health": "up"},
+    ]
+    jobs = ("fastapi_sample", "pfsense_exporter", "postgres_exporter")
+    payload = {"status": "success", "data": {"activeTargets": targets}}
+    first = module.assess_targets(payload, jobs=jobs)
+    reverse = module.assess_targets(
+        {"status": "success", "data": {"activeTargets": list(reversed(targets))}},
+        jobs=jobs,
+    )
+    assert first == reverse
+    assert tuple(first) == jobs
+    assert first["pfsense_exporter"]["state"] == "scrape_partial"
+    assert first["pfsense_exporter"]["targets_total"] == 2
+    assert "SECRET" not in str(first)
+
+
+def test_scrape_index_ignores_bad_labels_without_crashing() -> None:
+    targets = [
+        None,
+        {"labels": None, "health": "down"},
+        {"labels": ["fastapi_sample"], "health": "down"},
+        {"labels": {"job": ["fastapi_sample"]}, "health": "down"},
+        {"labels": {"job": "fastapi_sample"}, "health": "up"},
+        {"labels": {"job": "unauthorized"}, "health": "down",
+         "lastError": "password=SECRET"},
+    ]
+    report = module.assess_targets(
+        {"status": "success", "data": {"activeTargets": targets}},
+        jobs=("fastapi_sample", "postgres_exporter"),
+    )
+    assert report["fastapi_sample"]["state"] == "scrape_up"
+    assert report["fastapi_sample"]["targets_total"] == 1
+    assert report["postgres_exporter"]["state"] == "no_active_target"
+    assert "SECRET" not in str(report)
+
+
+def test_scrape_index_never_reclassifies_unknown_health_as_down() -> None:
+    report = module.assess_targets(
+        {"status": "success", "data": {"activeTargets": [
+            {"labels": {"job": "fastapi_sample"}, "health": "up"},
+            {"labels": {"job": "fastapi_sample"}, "health": "unknown"},
+        ]}},
+        jobs=("fastapi_sample",),
+    )
+    assert report["fastapi_sample"]["state"] == "scrape_unverified"
+    assert report["fastapi_sample"]["targets_unverified"] == 1
+
+
 def test_fetch_is_read_only_and_origin_pinned() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     assert "http://172.17.0.24:9090/api/v1/targets?state=active" in source
