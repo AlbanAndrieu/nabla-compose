@@ -221,4 +221,3 @@ def test_reconciliation_counts_unmatched_runtime_without_echoing_private_fields(
     }], now=now)
     assert report["unmatched_runtime"] == 1
     assert "SECRET-CREDENTIAL" not in str(report)
-

@@ -630,7 +630,7 @@ Design/acceptance: `apps/openrag/README.md#shared-embedding-contract-with-opencl
 
 ## P1 · YubiKey age / AES256 PIV management-key compatibility — BLOCKED (2026-10-17)
 
-- [x] Validate both YubiKeys PIV82 empty (read-only), OTP2/KeePassXC and historical PIV9A preserved. Main serial `23501671`, backup serial `22916048`.
+- [x] Validate both YubiKeys PIV82 empty (read-only), OTP2/KeePassXC and historical PIV9A preserved. Main serial `<série principale>`, backup serial `<série secondaire>`.
 - [x] Verify software SOPS age recovery using encrypted TrueNAS backup and LUKS2 SanDisk escrow: synthetic SOPS fixture PASS; 18/18 targeted Python unittest PASS.
 - [x] Identify blocker: `age-plugin-yubikey 0.5.1 --generate --slot 1` fails on backup key because PIN-protected management key uses **AES256**; the plugin reports no AES support. PIN/PUK retries remain 3/3; PIV82 remains empty. Do **not** interpret this as evidence of incorrect PIN.
 - [x] Add isolated synthetic X.509 unittest scenarios: EC P-256 with expected organization, RSA rejection, EC P-256 without organization warning. No card access or hardware mutation; OpenSSL fixture generation verified locally, workstation unittest execution pending.
