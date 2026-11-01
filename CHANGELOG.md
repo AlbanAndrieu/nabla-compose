@@ -1,3 +1,10 @@
+# [0.54.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.53.0...0.54.0) (2026-11-01)
+
+
+### Features
+
+* **backup:** alert on stale workstation Restic, snapshot cpool/backup [skip ci] ([899ec52](https://github.com/AlbanAndrieu/nabla-compose/commit/899ec527e26a029c6cc53e0375e2df4d6bb297af))
+
 # [0.53.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.52.1...0.53.0) (2026-11-01)
 
 
