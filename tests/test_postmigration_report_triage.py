@@ -40,6 +40,54 @@ def test_categories_no_secret_echo(tmp_path):
     assert all(v not in json.dumps(res) for v in ['very-secret', 'never-show', 'abc', 'internal.local'])
 
 
+def test_gatus_denied_only_is_not_misclassified_as_observed_outage(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-gatus', 'FAIL', json.dumps({
+            'source': 'gatus_lan_read_only', 'declared': 3,
+            'runtime': 3, 'up': 1, 'down': 2, 'unverified': 0,
+            'verdict_counts': {
+                'PASS': 1, 'FAIL': 0, 'DENIED': 2,
+                'UNVERIFIED': 0, 'NOT_RUN': 0,
+            },
+            'private_value': 'NEVER_PRINT',
+        })),
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'gatus_access_denied_not_service_down'
+    assert result['evidence']['verdict_counts']['DENIED'] == 2
+    assert 'NEVER_PRINT' not in json.dumps(result)
+
+
+def test_gatus_mixed_proven_probe_failure_and_denial_keeps_failure(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-gatus', 'FAIL', json.dumps({
+            'source': 'gatus_lan_read_only', 'up': 0, 'down': 2,
+            'verdict_counts': {
+                'PASS': 0, 'FAIL': 1, 'DENIED': 1,
+                'UNVERIFIED': 0, 'NOT_RUN': 0,
+            },
+        })),
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'observed_monitors_down'
+    assert result['evidence']['verdict_counts']['FAIL'] == 1
+
+
+def test_gatus_invalid_counters_never_invent_denied_or_failure(tmp_path):
+    root, folder = session(tmp_path, [
+        ('postmigration-gatus', 'FAIL', json.dumps({
+            'source': 'gatus_lan_read_only', 'down': 0,
+            'verdict_counts': {
+                'PASS': 1, 'FAIL': True, 'DENIED': 0,
+                'UNVERIFIED': 0, 'NOT_RUN': 0,
+            },
+        })),
+    ])
+    result = module.analyze(folder, root)['checks'][0]
+    assert result['category'] == 'gatus_samples_missing_or_unverified'
+    assert 'verdict_counts' not in result['evidence']
+
+
 def test_apisix_unknown_without_pretending_failure(tmp_path):
     root, folder = session(tmp_path,[('apisix-runtime','WARN','runtime=not_deployed_or_ambiguous http=not_checked')])
     res=module.analyze(folder, root)
