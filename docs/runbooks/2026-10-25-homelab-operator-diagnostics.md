@@ -55,9 +55,13 @@ indisponible. Pour les critères de clôture, consulter
 Le triage postmigration utilise également les compteurs expurgés
 `verdict_counts` du diagnostic Gatus : `DENIED` seul produit
 `gatus_access_denied_not_service_down` plutôt que
-`observed_monitors_down`. Les anciens rapports sans ces compteurs
-gardent leur interprétation historique, sans preuve d'indisponibilité
-applicative.
+`observed_monitors_down`. Si l'exécuteur historique marque la phase
+`FAIL` mais que seule une autorisation 401/403, l'absence d'échantillons
+Gatus ou une API Prometheus inaccessible est établie, le bilan de triage
+compte cette phase en **`unverified` plutôt qu'en `failed`**. Le code de
+sortie est alors `2`, non `1`, en l'absence d'autre échec confirmé.
+Les anciens rapports sans ces compteurs gardent leur interprétation
+historique, sans preuve d'indisponibilité applicative.
 
 Tests locaux (sans interroger les services) :
 
