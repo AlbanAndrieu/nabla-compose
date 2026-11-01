@@ -62,43 +62,84 @@ entrée après déclenchement n'est pas une preuve d'échec.
 
 ## P1 — contrôler DNS / HTTPS **depuis pfSense**, pas depuis la workstation
 
-Sur une **console shell pfSense autorisée**, une commande par ligne :
+### Nouvelle preuve opérateur du 1er novembre 2026
+
+La sonde IPv4 précédente sur pfSense :
+`curl -4 --head https://acb.netgate.com/` a retourné :
+
+```text
+curl: (56) OpenSSL SSL_read: OpenSSL/3.5.7:
+error:0A000126:SSL routines::unexpected eof while reading, errno 0
+http=000 tls=0
+```
+
+**Ce que cela signifie, sans extrapolation :**
+- libcurl **56 = erreur de réception** ; la connexion s'est
+  fermée avant qu'une réponse HTTP exploitable ne soit disponible.
+  Un EOF peut provenir du serveur, d'un intermédiaire réseau ou
+  d'un comportement dépendant de la méthode HTTP/protocole.
+- `http=000` : **aucun statut HTTP enregistré** ;
+  `tls=0` (valeur de `ssl_verify_result`) : pas d'échec de
+  vérification du certificat signalé. **Ce n'est pas** un
+  indicateur de réussite du transfert TLS ou HTTP.
+- L'alerte **ACB 28** du 27 octobre et cette sonde
+  **56** du 1er novembre sont **différentes** ; leur cause
+  commune reste hypothétique. Une requête `HEAD /`
+  n'est **pas l'API d'upload authentifiée ACB**.
+  Elle ne permet pas de qualifier le statut global
+  du service de sauvegarde à elle seule.
+
+### Sonde suivante : GET simple, HTTP/1.1, sans authentification
+
+Sur le shell pfSense, **une seule requête bornée** :
 
 ```sh
 date -u
-# DNS : alternative GUI Diagnostics > DNS Lookup, hôte acb.netgate.com
-# Vérifier la disponibilité de curl avant les sondes.
 command -v curl
-curl -4 --head --silent --show-error \
-  --connect-timeout 5 --max-time 12 \
+curl -4 --http1.1 --silent --show-error \
+  --connect-timeout 5 --max-time 15 \
   --output /dev/null \
-  --write-out 'acb_ipv4_http=%{http_code} tls_verify=%{ssl_verify_result} total_seconds=%{time_total}\n' \
+  --write-out 'acb_ipv4_get_http=%{http_code} tls_verify=%{ssl_verify_result} total_seconds=%{time_total}\n' \
   https://acb.netgate.com/
 ```
 
-**Uniquement si pfSense possède une connectivité IPv6 WAN
-attendue**, comparer l'autre famille :
+La commande utilise `GET` et impose HTTP/1.1 pour
+limiter les variables possibles liées à `HEAD` et ALPN/HTTP2.
+**Elle change deux paramètres à la fois** et ne permet
+donc pas, en cas de réussite, d'attribuer la cause
+spécifiquement à `HEAD`. Ne pas suivre les redirections,
+ne pas transmettre Device Key, token ou configuration.
 
-```sh
-curl -6 --head --silent --show-error \
-  --connect-timeout 5 --max-time 12 \
-  --output /dev/null \
-  --write-out 'acb_ipv6_http=%{http_code} tls_verify=%{ssl_verify_result} total_seconds=%{time_total}\n' \
-  https://acb.netgate.com/
-```
+- **Si statut HTTP disponible** (y compris 3xx, 403,
+  404 ou 405) et vérification TLS positive :
+  la terminaison HTTP répond pour ce test ;
+  **l'upload ACB n'est pas attesté**.
+- **Si encore `http=000`, 56 ou 28** :
+  classer `ACB_HTTPS_PROBE_NOT_VERIFIED`, vérifier
+  DNS, gateways, date/certificats et logs de **pfSense**.
+  Ne jamais classer le service ACB comme `DOWN`
+  par simple inférence.
+- **Si GET fonctionne et HEAD échoue**, le
+  comportement peut être spécifique à la méthode,
+  à HTTP/2, à un reverse proxy ou à un WAF ;
+  inutile de forcer un changement de politique.
+- **Vérification IPv6 facultative seulement si
+  une connectivité IPv6 WAN est attendue** :
+  utiliser la même sonde GET avec `-6`,
+  sans conclure à une panne pour un réseau
+  IPv6 non configuré.
 
-Ne pas ajouter `-k`/`--insecure`, ne pas forcer un
-`--resolve` vers une IP inconnue, ne pas transmettre
-de cookie, Device Key, mot de passe, `config.xml` ou
-authentifiant dans curl.
+Ni `-k`/`--insecure`, ni `--resolve` vers une IP
+arbitraire, ni désactivation d'ACB, de CA, de WAF
+ou de règles WAN pour « faire passer » un GET.
 
-Un code HTTP (y compris 403/404/405) **avec une session
-TLS validée** indique seulement que le point d'entrée
-HTTP répond : un `HEAD` **ne valide pas l'upload ACB
-authentifié**. `http=000`, timeout ou erreur TLS exigent
-l'inspection séparée des étapes DNS, gateway, date et
-certificat. Un échec IPv6 n'indique pas une panne si
-aucune sortie IPv6 n'est prévue.
+**Source d'autorité de la sauvegarde :**
+`Services > Auto Config Backup > Restore`.
+Une entrée **postérieure à l'incident, réellement
+hébergée** et récupérable prouve davantage que
+toute sonde HTTP publique. Netgate documente
+le traitement différé des backups, qui peuvent
+mettre au moins une minute à apparaître.
 
 Si nécessaire, utiliser :
 - **Diagnostics > DNS Lookup** pour `acb.netgate.com` ;
