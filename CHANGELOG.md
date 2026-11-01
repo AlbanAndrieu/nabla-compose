@@ -1,3 +1,15 @@
+# [0.53.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.52.1...0.53.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **catalog:** ignore catalog descriptors owned by app submodules ([7d65743](https://github.com/AlbanAndrieu/nabla-compose/commit/7d65743bbaa1f0b4644fd7577ea57abb16f27645))
+
+
+### Features
+
+* **openclaw:** mount nabla-openclaw as the apps/openclaw submodule ([fb5fada](https://github.com/AlbanAndrieu/nabla-compose/commit/fb5fada2f9b6cd4a8b1b05ca03e57b9aae54c0b9))
+
 ## [0.52.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.52.0...0.52.1) (2026-11-01)
 
 
