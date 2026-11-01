@@ -4,28 +4,48 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
-## Sonde HTTPS ACB du 1er novembre : EOF sur HEAD (curl 56)
+## Réception ACB du 1er novembre — HEAD et GET racine en EOF
 
-Une sonde `curl -4 --head https://acb.netgate.com/`
-lancée depuis pfSense a donné `curl (56)` /
-`OpenSSL SSL_read: unexpected eof while reading`,
-`http=000 tls=0`. **Aucun HTTP valide reçu**.
-Ce résultat n'établit ni l'échec du chiffrement
-ACB ni une panne durable du service de sauvegarde.
-Il est distinct du timeout ACB historique `(28)`.
+Les sondes IPv4 `HEAD /` et `GET /` (HTTP/1.1)
+vers `acb.netgate.com` ont chacune donné
+`curl (56)`, `http=000`,
+`ssl_verify_result=0`. La deuxième a duré
+**0,627649 s**. Aucune réponse HTTP n'a été obtenue.
+L'ancien upload chiffré du **27 octobre** avait
+quant à lui échoué avec `curl (28)` (timeout).
+**Aucune corrélation technique certaine n'est
+établie entre les deux erreurs.**
 
-**Sonde corrigée sans authentification :**
-`curl -4 --http1.1 --silent --show-error
---connect-timeout 5 --max-time 15 --output /dev/null
-https://acb.netgate.com/` (méthode **GET**,
-pas HEAD). Le verdict final dépend des résultats
-pfSense et, surtout, de la présence d'une sauvegarde
-hébergée plus récente dans `Services > Auto Config
-Backup > Restore`.
+L'implémentation pfSense ACB utilise des
+**POST authentifiés** sur `/list` et `/save` ;
+les sondes GET/HEAD vers `/` n'exercent
+pas ces endpoints. Les relancer n'est
+**plus une étape utile de réception ACB**.
 
-Voir [runbook ACB avec classification 28/56](runbooks/pfsense-acb-timeout-write-config-20261027.md).
-N'ajouter aucun bypass TLS ni changement réseau sur
-la base de cette seule sonde.
+La GUI `Services > Auto Config Backup > Restore`
+affiche **Hosted backup count: 100**, le plafond
+de rétention Netgate : c'est l'existence de
+sauvegardes historiques, **pas un quota bloquant
+ni une preuve d'upload récent**. L'extrait
+fourni contient des révisions datées au plus
+tard du **27 octobre 20:48** ; si c'est
+effectivement la dernière entrée hébergée,
+elle précède l'échec d'upload de 22:46.
+
+**Prochaine preuve décisive :** noter l'horodatage
+de l'entrée hébergée la plus récente, créer
+**une seule sauvegarde manuelle** via
+`Services > Auto Config Backup > Backup Now`
+avec motif descriptif, puis contrôler son apparition
+côté `Restore` et les logs `acbupload.php`.
+Ne pas partager les paramètres ACB, Device Key,
+`config.xml` ni `/tmp/acb_debug.txt` :
+ce dernier peut contenir des détails sensibles.
+
+Statut actuel : **`ACB_UPLOAD_NOT_VERIFIED`**,
+`write_config` provenance toujours inconnue ;
+pas de changement pfSense réalisé.
+[Runbook et critères de réception](runbooks/pfsense-acb-timeout-write-config-20261027.md).
 
 ## Notification ACB du 27 octobre 2026 — diagnostic ciblé (1er novembre)
 
