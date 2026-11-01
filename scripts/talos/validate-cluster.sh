@@ -64,14 +64,18 @@ PY
   printf '  tcp/50000: %s\n' "${tcp_output}"
 }
 
-check_kubelet() {
+check_talos_service() {
   local node_ip="$1"
-  talosctl --nodes "${node_ip}" service kubelet |
-    grep -qE '^STATE[[:space:]]+Running$' ||
-    fail "kubelet is not Running on ${node_ip}"
-  talosctl --nodes "${node_ip}" service kubelet |
-    grep -qE '^HEALTH[[:space:]]+OK$' ||
-    fail "kubelet health is not OK on ${node_ip}"
+  local service="$2"
+  local output
+
+  if ! output="$(talosctl --nodes "${node_ip}" service "${service}" 2>/dev/null)"; then
+    fail "cannot query ${service} service on ${node_ip}"
+  fi
+  grep -qE '^STATE[[:space:]]+Running$' <<<"${output}" ||
+    fail "${service} is not Running on ${node_ip}"
+  grep -qE '^HEALTH[[:space:]]+OK$' <<<"${output}" ||
+    fail "${service} health is not OK on ${node_ip}"
 }
 
 count_etcd_members() {
@@ -119,12 +123,9 @@ export TALOSCONFIG KUBECONFIG
 check_node_transport "${CONTROL_PLANE_IP}" "control-plane"
 printf '🔎 validating Talos control plane %s\n' "${CONTROL_PLANE_IP}"
 talosctl --nodes "${CONTROL_PLANE_IP}" version >/dev/null
-check_kubelet "${CONTROL_PLANE_IP}"
+check_talos_service "${CONTROL_PLANE_IP}" kubelet
 
-talosctl --nodes "${CONTROL_PLANE_IP}" service etcd |
-  grep -qE '^STATE[[:space:]]+Running$' || fail "etcd is not Running"
-talosctl --nodes "${CONTROL_PLANE_IP}" service etcd |
-  grep -qE '^HEALTH[[:space:]]+OK$' || fail "etcd health is not OK"
+check_talos_service "${CONTROL_PLANE_IP}" etcd
 talosctl --nodes "${CONTROL_PLANE_IP}" etcd status >/dev/null ||
   fail "etcd status is unavailable"
 
@@ -138,7 +139,7 @@ for worker_ip in ${WORKER_IPS}; do
   check_node_transport "${worker_ip}" "worker"
   printf '🔎 validating worker %s\n' "${worker_ip}"
   talosctl --nodes "${worker_ip}" version >/dev/null
-  check_kubelet "${worker_ip}"
+  check_talos_service "${worker_ip}" kubelet
   talosctl --nodes "${worker_ip}" usage /var -H >/dev/null ||
     fail "cannot read /var usage on ${worker_ip}"
 done
