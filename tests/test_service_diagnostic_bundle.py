@@ -134,6 +134,23 @@ def test_missing_or_empty_evidence_is_never_full_success() -> None:
     assert MODULE.check_verdict("pass") == "PASS"
 
 
+def test_summary_counts_all_five_verdicts_without_service_claims() -> None:
+    rows = [
+        {"verdict": "PASS"}, {"verdict": "DENIED"},
+        {"verdict": "NOT_RUN"}, {"verdict": "UNVERIFIED"},
+        {"verdict": "FAIL"}, {"verdict": "PASS"},
+    ]
+    assert MODULE.summarize_verdicts(rows) == {
+        "PASS": 2, "FAIL": 1, "DENIED": 1, "UNVERIFIED": 1, "NOT_RUN": 1,
+    }
+
+
+def test_summary_missing_or_unknown_verdict_is_unverified() -> None:
+    assert MODULE.summarize_verdicts([{}, {"verdict": "service_down"}]) == {
+        "PASS": 0, "FAIL": 0, "DENIED": 0, "UNVERIFIED": 2, "NOT_RUN": 0,
+    }
+
+
 def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsys):
     import json
 
@@ -149,6 +166,8 @@ def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsy
     payload = json.loads(capsys.readouterr().out)
     assert payload["verdict"] == "UNVERIFIED"
     assert payload["availability"] == "UNVERIFIED"
+    assert payload["summary"]["UNVERIFIED"] == 1
+    assert sum(payload["summary"].values()) == len(payload["checks"])
     assert payload["checks"][0]["evidence_scope"] == "probe_only"
     assert payload["mutations"] is False
 
