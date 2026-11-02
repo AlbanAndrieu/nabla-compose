@@ -164,7 +164,7 @@ def summarize_verdicts(results: list[dict[str, object]]) -> dict[str, int]:
     summary = {verdict: 0 for verdict in verdicts}
     for item in results:
         verdict = item.get("verdict")
-        if verdict in summary:
+        if isinstance(verdict, str) and verdict in summary:
             summary[verdict] += 1
         else:
             summary["UNVERIFIED"] += 1
