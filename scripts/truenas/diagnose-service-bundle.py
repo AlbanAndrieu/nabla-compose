@@ -158,6 +158,19 @@ def overall_exit(results: list[dict[str, object]]) -> int:
     return 0
 
 
+def summarize_verdicts(results: list[dict[str, object]]) -> dict[str, int]:
+    """Count validated probe verdicts; do not interpret service availability."""
+    verdicts = ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")
+    summary = {verdict: 0 for verdict in verdicts}
+    for item in results:
+        verdict = item.get("verdict")
+        if verdict in summary:
+            summary[verdict] += 1
+        else:
+            summary["UNVERIFIED"] += 1
+    return summary
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -178,11 +191,13 @@ def main() -> int:
 
     results = collect(checks)
     exit_code = overall_exit(results)
+    summary = summarize_verdicts(results)
     print(json.dumps({
         "schema_version": 1,
         "mode": "read_only",
         "section": args.section,
         "checks": results,
+        "summary": summary,
         "state": ("pass" if exit_code == 0 else
                   "failed" if exit_code == 1 else "unverified"),
         "verdict": {0: "PASS", 1: "FAIL", 2: "UNVERIFIED"}[exit_code],
