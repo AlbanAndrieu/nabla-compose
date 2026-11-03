@@ -112,30 +112,30 @@ def run_one_check(
     check: Check, runner: Callable[..., subprocess.CompletedProcess],
 ) -> dict[str, object]:
     """Run one fixed, read-only diagnostic; discard all child output."""
-        path = ROOT / check.args[1]
-        reason = "script_missing"
-        if not path.is_file():
-            status, exit_code = "not_installed", None
+    path = ROOT / check.args[1]
+    reason = "script_missing"
+    if not path.is_file():
+        status, exit_code = "not_installed", None
+    else:
+        try:
+            # Discard raw stdout/stderr: child tools may print credentials.
+            finished = runner(
+                check.args,
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=check.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            status, reason, exit_code = "timeout", "diagnostic_timed_out", None
+        except OSError:
+            status, reason, exit_code = "not_executed", "execution_unavailable", None
         else:
-            try:
-                # Discard raw stdout/stderr: child tools may print credentials.
-                finished = runner(
-                    check.args,
-                    cwd=ROOT,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=False,
-                    timeout=check.timeout,
-                )
-            except subprocess.TimeoutExpired:
-                status, reason, exit_code = "timeout", "diagnostic_timed_out", None
-            except OSError:
-                status, reason, exit_code = "not_executed", "execution_unavailable", None
-            else:
-                exit_code = finished.returncode
-                status, reason = classify_exit_code(exit_code, check)
-        return {
+            exit_code = finished.returncode
+            status, reason = classify_exit_code(exit_code, check)
+    return {
         "name": check.name,
         "state": status,
         "verdict": check_verdict(status),
