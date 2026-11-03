@@ -1,3 +1,12 @@
+## [0.54.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.1...0.54.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **test:** pin the redacted roadmap archive blob ([c800c56](https://github.com/AlbanAndrieu/nabla-compose/commit/c800c560e9890f1dcf4d72187e56e1bbbc44f16e))
+* **truenas:** bound docker system df in the performance diagnostic ([21e4fdb](https://github.com/AlbanAndrieu/nabla-compose/commit/21e4fdb6d4adbd843fef752c6e0a9f530a3b474c))
+* **truenas:** flag container anomalies in the performance diagnostic ([cc3f9ca](https://github.com/AlbanAndrieu/nabla-compose/commit/cc3f9ca6f1eef2aa0b95f2288da5c431f0669773))
+
 ## [0.54.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.0...0.54.1) (2026-11-01)
 
 
