@@ -1,3 +1,17 @@
+# [0.56.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.55.0...0.56.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **compose:** keep postgres and doco-cd off the LAN ([ec2c239](https://github.com/AlbanAndrieu/nabla-compose/commit/ec2c239110a24e59ce2aa1c9dac7b7ca82aeb2f1))
+* **compose:** publish workstation-only ports on loopback ([63197d5](https://github.com/AlbanAndrieu/nabla-compose/commit/63197d5ecdaaab8ecfb3a34efc9757e593c6a394))
+
+
+### Features
+
+* **truenas:** version the ZFS snapshot policy per dataset class ([3e502ba](https://github.com/AlbanAndrieu/nabla-compose/commit/3e502ba16ba2504719af543eade7e930be08e09b))
+* **truenas:** versioned bitcoind and docker-socket-proxy Custom Apps ([e51726d](https://github.com/AlbanAndrieu/nabla-compose/commit/e51726d315aebb846a1a4bffd292252e2e76769d))
+
 # [0.55.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.2...0.55.0) (2026-11-03)
 
 
