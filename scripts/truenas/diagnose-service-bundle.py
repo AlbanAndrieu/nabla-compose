@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
