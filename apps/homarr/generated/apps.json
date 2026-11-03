@@ -4,7 +4,7 @@
   "dockerIntegration": {
     "hostname": "docker-socket-proxy",
     "port": 2375,
-    "network": "intranet"
+    "network": "docker-proxy"
   },
   "applications": [
     {
@@ -135,6 +135,18 @@
       "dockerManaged": true,
       "href": "http://172.17.0.24:15630",
       "syncEligible": true
+    },
+    {
+      "id": "bitcoind",
+      "entityRef": "component:default/bitcoind",
+      "name": "Bitcoin Core",
+      "group": "data",
+      "sourcePath": "apps/bitcoind/compose.yml",
+      "composeService": "bitcoind",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container."
     },
     {
       "id": "cartography",
@@ -291,7 +303,7 @@
       "entityRef": "component:default/docker-socket-proxy",
       "name": "Docker Socket Proxy",
       "group": "infrastructure",
-      "sourcePath": "docker-compose.yml",
+      "sourcePath": "apps/docker-socket-proxy/compose.yml",
       "composeService": "docker-socket-proxy",
       "dockerManaged": true,
       "href": null,

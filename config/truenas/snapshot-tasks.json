@@ -1,30 +1,264 @@
-[
-  {
-    "dataset": "cpool/backup",
-    "recursive": true,
-    "lifetime_value": 14,
-    "lifetime_unit": "DAY",
-    "naming_schema": "auto-daily-%Y-%m-%d_%H-%M",
-    "schedule": {
-      "minute": "0",
-      "hour": "3",
-      "dom": "*",
-      "month": "*",
-      "dow": "*"
+{
+  "description": "ZFS snapshot retention policy approved on 2026-11-03. Every class dataset gets one TrueNAS periodic snapshot task per schedule; datasets listed in noSnapshot must not be covered by any task. See docs/truenas-zfs-snapshot-policy.md.",
+  "schedules": {
+    "hourly-24h": {
+      "naming_schema": "auto-hourly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 24,
+      "lifetime_unit": "HOUR",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "15",
+        "hour": "*",
+        "dom": "*",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "hourly-48h": {
+      "naming_schema": "auto-hourly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 48,
+      "lifetime_unit": "HOUR",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "15",
+        "hour": "*",
+        "dom": "*",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "daily-7d": {
+      "naming_schema": "auto-daily-%Y-%m-%d_%H-%M",
+      "lifetime_value": 7,
+      "lifetime_unit": "DAY",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "30",
+        "hour": "2",
+        "dom": "*",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "daily-14d": {
+      "naming_schema": "auto-daily-%Y-%m-%d_%H-%M",
+      "lifetime_value": 14,
+      "lifetime_unit": "DAY",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "0",
+        "hour": "3",
+        "dom": "*",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "daily-30d": {
+      "naming_schema": "auto-daily-%Y-%m-%d_%H-%M",
+      "lifetime_value": 30,
+      "lifetime_unit": "DAY",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "30",
+        "hour": "2",
+        "dom": "*",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "weekly-8w": {
+      "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 8,
+      "lifetime_unit": "WEEK",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "30",
+        "hour": "3",
+        "dom": "*",
+        "month": "*",
+        "dow": "sun"
+      }
+    },
+    "weekly-12w": {
+      "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 12,
+      "lifetime_unit": "WEEK",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "30",
+        "hour": "3",
+        "dom": "*",
+        "month": "*",
+        "dow": "sun"
+      }
+    },
+    "monthly-12m": {
+      "naming_schema": "auto-monthly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 12,
+      "lifetime_unit": "MONTH",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "0",
+        "hour": "4",
+        "dom": "1",
+        "month": "*",
+        "dow": "*"
+      }
     }
   },
-  {
-    "dataset": "cpool/backup",
-    "recursive": true,
-    "lifetime_value": 8,
-    "lifetime_unit": "WEEK",
-    "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
-    "schedule": {
-      "minute": "30",
-      "hour": "3",
-      "dom": "*",
-      "month": "*",
-      "dow": "sun"
+  "classes": [
+    {
+      "name": "critical",
+      "rationale": "Secrets and credentials: short RPO, plus an encrypted off-site copy (roadmap step 4).",
+      "schedules": ["hourly-48h", "daily-30d"],
+      "datasets": ["cpool/2fauth", "cpool/secrets", "cpool/vaultwarden"]
+    },
+    {
+      "name": "databases",
+      "rationale": "Crash-consistent stores; application dumps remain the reference restore path.",
+      "schedules": ["hourly-24h", "daily-7d"],
+      "datasets": [
+        "cpool/clickhouse",
+        "cpool/elasticsearch",
+        "cpool/graylog",
+        "cpool/mongo",
+        "cpool/neo4j",
+        "cpool/nexus3",
+        "cpool/opensearch",
+        "cpool/opensearch-security",
+        "cpool/sentry-clickhouse",
+        "cpool/wazuh"
+      ]
+    },
+    {
+      "name": "backup-targets",
+      "rationale": "Restic and S3 backup targets: protects them against a client that deletes its own repository over NFS/S3.",
+      "schedules": ["daily-14d", "weekly-8w"],
+      "datasets": ["cpool/backup", "cpool/garage"]
+    },
+    {
+      "name": "app-state",
+      "rationale": "Small configuration and application state under /mnt/cpool/<service>.",
+      "schedules": ["daily-30d", "weekly-12w"],
+      "datasets": [
+        "cpool/aistor",
+        "cpool/autokuma",
+        "cpool/autoxpose",
+        "cpool/bichon",
+        "cpool/code",
+        "cpool/cyberbro",
+        "cpool/defectdojo",
+        "cpool/dependency-track",
+        "cpool/dococd",
+        "cpool/dozzle",
+        "cpool/dsomm",
+        "cpool/gatus",
+        "cpool/grafana",
+        "cpool/hermes",
+        "cpool/homarr",
+        "cpool/keycloak",
+        "cpool/langflow",
+        "cpool/litellm",
+        "cpool/minio",
+        "cpool/netbox",
+        "cpool/nginx",
+        "cpool/npmplus",
+        "cpool/obsidian",
+        "cpool/opconnect",
+        "cpool/opencre",
+        "cpool/openhands",
+        "cpool/openwebui",
+        "cpool/pihole",
+        "cpool/portracker",
+        "cpool/scanopy",
+        "cpool/scrutiny",
+        "cpool/sentry",
+        "cpool/traefik"
+      ]
+    },
+    {
+      "name": "user-data",
+      "rationale": "Documents and media owned by people, not by an application. Add photo/music/www datasets after the retention audit gives their exact names.",
+      "schedules": ["daily-30d", "monthly-12m"],
+      "datasets": ["cpool/bababou"]
     }
-  }
-]
+  ],
+  "noSnapshot": [
+    {
+      "dataset": "cpool/akvorado",
+      "reason": "Network flow analytics, regenerated from live traffic."
+    },
+    {
+      "dataset": "cpool/alloy",
+      "reason": "Telemetry agent buffers."
+    },
+    {
+      "dataset": "cpool/bitcoind",
+      "reason": "Pruned blockchain: re-synchronised from the network; snapshots retained >100 GB of rotated blocks."
+    },
+    {
+      "dataset": "cpool/compose",
+      "reason": "Git checkout; GitHub is the source of truth."
+    },
+    {
+      "dataset": "cpool/influxdb",
+      "reason": "Metrics time series, high churn."
+    },
+    {
+      "dataset": "cpool/ix-apps/docker",
+      "reason": "Docker images, layers and build cache: pulled or rebuilt."
+    },
+    {
+      "dataset": "cpool/kafka",
+      "reason": "Transient queues for Sentry and Akvorado."
+    },
+    {
+      "dataset": "cpool/languagetool",
+      "reason": "Downloadable n-gram data."
+    },
+    {
+      "dataset": "cpool/logs",
+      "reason": "Rotated logs; shipped to Loki/Graylog."
+    },
+    {
+      "dataset": "cpool/loki",
+      "reason": "Log store, high churn, bounded by its own retention."
+    },
+    {
+      "dataset": "cpool/mimir",
+      "reason": "Metrics store, high churn, bounded by its own retention."
+    },
+    {
+      "dataset": "cpool/model",
+      "reason": "Downloadable AI models."
+    },
+    {
+      "dataset": "cpool/ntopng",
+      "reason": "Flow history regenerated from live traffic."
+    },
+    {
+      "dataset": "cpool/ollama",
+      "reason": "Downloadable AI models."
+    },
+    {
+      "dataset": "cpool/prometheus",
+      "reason": "Metrics TSDB, high churn, bounded by its own retention."
+    },
+    {
+      "dataset": "cpool/pyroscope",
+      "reason": "Profiles, high churn."
+    },
+    {
+      "dataset": "cpool/redis",
+      "reason": "Cache and queues; consumers rebuild their state."
+    },
+    {
+      "dataset": "cpool/suricata",
+      "reason": "Rules are downloaded, events are shipped."
+    },
+    {
+      "dataset": "cpool/tempo",
+      "reason": "Traces, high churn, bounded by its own retention."
+    }
+  ]
+}

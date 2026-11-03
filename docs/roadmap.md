@@ -11,7 +11,8 @@
 > pas une preuve de fonctionnement des services.
 >
 > L'[historique intégral jusqu'au 24 octobre](archive/roadmap-through-2026-10-24.md)
-> est conservé, octet pour octet (blob Git identique à l'ancien `docs/roadmap.md`).
+> est conservé tel quel, hormis l'expurgation des numéros de série YubiKey
+> (PR #317) ; son blob Git est épinglé par `tests/test_roadmap_archive_contract.py`.
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
@@ -26,16 +27,18 @@ plus de 80 conteneurs sans limite mémoire. Diagnostic : `scripts/truenas/diagno
 | Action | Statut |
 | --- | --- |
 | Elasticsearch (`elastic-search`) et `bitcoind` arrêtés par l'opérateur | **DONE 1/11** |
-| `pihole-dns-sync` : 14 684 redémarrages, `docker-socket-proxy` détaché d'`intranet` puis sièges API Pi-hole épuisés ; rattaché avec `ensure-docker-socket-proxy-intranet.sh --apply` | **DONE 1/11** — l'attachement reste runtime : à refaire après chaque redéploiement de l'app tant que le proxy n'est pas versionné ici |
+| `pihole-dns-sync` : 14 684 redémarrages, `docker-socket-proxy` détaché d'`intranet` puis sièges API Pi-hole épuisés ; rattaché avec `ensure-docker-socket-proxy-intranet.sh --apply` | **DONE 1/11** — l'attachement reste runtime : à refaire après chaque redéploiement de l'app tant que le proxy n'est pas versionné ici ; **CODE ADDED 3/11** : proxy versionné dans [`apps/docker-socket-proxy`](../apps/docker-socket-proxy/README.md), réseau interne dédié `docker-proxy` rejoint par les consommateurs |
+| `docker-socket-proxy` : déployer la Custom App (`deploy-docker-socket-proxy.sh --apply --replace-catalog-app`), redéployer `pihole-dns-sync`, `autoxpose`, `homarr`, `gatus`, puis retirer `intranet` du proxy | À faire — runtime ; le proxy garde `intranet` en transition |
+| Doco-CD : DOWN sur TrueNAS ; le proxy reste `POST=0`, Doco-CD ne peut donc pas déployer à travers lui | À décider — réparer avec un accès en écriture isolé, ou retirer |
 | `tika` (paperless-ngx) : processus forké arrêté par son watchdog, healthcheck en échec ; conteneur redémarré | **DONE 1/11** |
 | `wazuh-indexer` : JVM `<defunct>` depuis l'OOM du 26/10, un cœur à 100 % ; arrêté, mais `docker start` bloque (containerd : `too many open files`) ; `mem_limit: 2g` versionné | **EN COURS** — limite appliquée au prochain redéploiement |
 | ~1 380 processus zombies (anacron, curl, mongosh, ollama… sous des PID 1 de conteneurs qui ne récoltent pas leurs enfants) | À faire — identifier les parents avec le diagnostic, puis `init: true` sur les services versionnés concernés |
 | Diagnostic : `docker system df` borné à 60 s ; section anomalies (unhealthy, redémarrages, conteneurs sans limite, zombies et leurs parents, descripteurs containerd) ; nombre de snapshots | **DONE 1/11** |
 | Snapshots `bitcoind` antérieurs au 1/10 supprimés (28) : **104 Go récupérés** (131 → 26,9 Go) | **DONE 1/11** |
 | Cache de build Docker (~10 Go) : purge partielle, interrompue à 300 s | À reprendre hors charge |
-| **Sécuriser `bitcoind`** avant tout redémarrage : RPC non exposé hors `127.0.0.1`/réseau privé, `rpcauth` (pas de `rpcpassword` en clair) depuis Vaultwarden, P2P derrière pfSense uniquement si nécessaire, image épinglée, limite mémoire (`dbcache`), snapshots de chaîne inutiles (la blockchain se resynchronise) | À faire |
+| **Sécuriser `bitcoind`** : migré en Custom App versionnée [`apps/bitcoind`](../apps/bitcoind/README.md) — aucun port publié, RPC local par cookie (ni `rpcpassword` ni `rpcauth`), pas de wallet, P2P sortant seulement, `prune=25000`, image `bitcoin/bitcoin:31.1`, `mem_limit: 1536m`, aucun snapshot | **CODE ADDED 3/11** — déploiement : `deploy-bitcoind.sh --apply --replace-catalog-app`, puis purge des anciennes données |
 | Limites mémoire pour les plus gros consommateurs versionnés ici (opensearch-security, nexus, docling, keycloak, litellm) | À faire — mesurer le pic avant de fixer chaque limite |
-| Rétention snapshots : ~12 k snapshots, dont `ix-apps/docker` et `netdata/cache` ; s'appuie sur la section ZFS ci-dessous | À faire |
+| Rétention snapshots : ~12 k snapshots, dont `ix-apps/docker` et `netdata/cache` | **CODE ADDED 3/11** — [politique par classe](truenas-zfs-snapshot-policy.md) versionnée ; application runtime et purge par dataset à faire |
 | Volumes Docker orphelins (658) : lister par taille et app d'origine, puis purge validée volume par volume | À faire — jamais de `docker volume prune` global |
 | Moteurs de recherche : 2 OpenSearch + Wazuh indexer restants ; évaluer la consolidation | À décider |
 | Swap ou zram : non supporté par TrueNAS SCALE récent ; préférer les limites mémoire | Écarté |
@@ -45,13 +48,14 @@ plus de 80 conteneurs sans limite mémoire. Diagnostic : `scripts/truenas/diagno
 **Contexte :** la workstation sauvegarde désormais avec Restic dans `cpool/backup`
 (`/media/backup/workstation`, NFS, [plan côté workstation](https://github.com/AlbanAndrieu/ansible-workstation/blob/master/docs/restic-evaluation.md)).
 Sur NFS, la workstation peut effacer son propre dépôt : seuls des snapshots ZFS
-côté TrueNAS la protègent. La politique actuelle n'est ni documentée ni versionnée.
+côté TrueNAS la protègent. La politique est documentée et versionnée depuis le 3/11 ;
+son application sur TrueNAS reste à faire.
 
 | Étape | Livrable | Gate | Statut |
 | --- | --- | --- | --- |
 | 1. Analyser | [`audit-zfs-snapshot-retention.sh`](../scripts/truenas/audit-zfs-snapshot-retention.sh) (`just zfs-retention-audit`) : tâches de snapshot et de réplication, couverture, âge du dernier snapshot, espace retenu par dataset | Lecture seule (test de contrat), rapport expurgé archivé | **CODE ADDED / RUNTIME NOT VERIFIED** |
-| 2. Décider | Politique par classe de dataset : `cpool/backup` 1×/jour gardé 14 j + 1×/semaine gardé 8 sem. ; données utilisateur (photo, music, www) 1×/jour 30 j ; `ix-apps` selon les PRA applicatifs existants | Validation opérateur, coût en espace estimé depuis l'audit | À faire |
-| 3. IaC | `cpool/backup` : [`snapshot-tasks.json`](../config/truenas/snapshot-tasks.json) (1×/jour 03:00 gardé 14 j, 1×/semaine dimanche 03:30 gardé 8 sem.) réconcilié par [`reconcile-snapshot-tasks.sh`](../scripts/truenas/reconcile-snapshot-tasks.sh) (`just zfs-snapshot-tasks-plan`, puis `zfs-snapshot-tasks-apply` avec `NABLA_SNAPSHOT_APPLY_APPROVED=yes`) : crée les tâches manquantes, ne modifie ni ne supprime rien, signale les dérives. Autres datasets et réplication hors site : à faire | `--plan` sans tâche manquante, puis l'audit de l'étape 1 sans constat sur `cpool/backup` | **CODE ADDED / RUNTIME NOT VERIFIED** |
+| 2. Décider | [Politique par classe de dataset](truenas-zfs-snapshot-policy.md) : critique (1×/h 48 h + 1×/j 30 j), bases de données (1×/h 24 h + 1×/j 7 j), cibles de sauvegarde (1×/j 14 j + 1×/sem 8 sem), état applicatif (1×/j 30 j + 1×/sem 12 sem), données utilisateur (1×/j 30 j + 1×/mois 12 mois) ; aucun snapshot pour les données reproductibles (`bitcoind`, `ix-apps/docker`, modèles, métriques, journaux) | Validation opérateur | **DONE 3/11** |
+| 3. IaC | Toutes les classes dans [`snapshot-tasks.json`](../config/truenas/snapshot-tasks.json), réconciliées par [`reconcile-snapshot-tasks.sh`](../scripts/truenas/reconcile-snapshot-tasks.sh) (`just zfs-snapshot-tasks-plan`, puis `zfs-snapshot-tasks-apply` avec `NABLA_SNAPSHOT_APPLY_APPROVED=yes`) : crée les tâches manquantes sur les datasets existants, ne modifie ni ne supprime rien, signale les datasets absents, les dérives et les tâches qui couvrent un dataset sans snapshot | `--plan` sans tâche manquante ni `covers`, puis l'audit de l'étape 1 | **CODE ADDED / RUNTIME NOT VERIFIED** |
 | 4. Hors site | Réplication ZFS ou `restic copy` vers une cible indépendante de TrueNAS | Restauration de test depuis la copie | À faire |
 
 Aucune tâche n'est créée, modifiée ou supprimée par l'étape 1.
@@ -66,7 +70,7 @@ dans l'interface.
 ## P1 — IaC Cloudflare : hostname public FastAPI Sample (1er novembre 2026)
 
 Code et plans seulement, **rien n'est appliqué sur Cloudflare** :
-[`terraform/cloudflare-homelab`](../terraform/cloudflare-homelab/README.md)
+[`terraform/cloudflare`](../terraform/cloudflare/README.md)
 importe la configuration du tunnel partagé (toutes ses routes), le CNAME et
 les deux applications Access de FastAPI Sample (`sample` et `sample-api`
 pour `/api`). Les politiques réutilisables (`nabla`, partagée, et

@@ -103,7 +103,7 @@ services:
     security_opt: [apparmor:unconfined]
     volumes:
       - ./portracker-data:/data
-    ports: ["4999:4999"]
+    ports: ["127.0.0.1:4999:4999"]
     environment:
       - TRUENAS_API_KEY=${TRUENAS_API_KEY}
 

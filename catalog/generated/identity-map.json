@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c617c5ec576b0b78d8592e6d14cf0465d56098a98d8f7044db07aef642f83a8a",
+  "catalogRevision": "sha256:fb3c413851355e0999b00e44aeaf44db8c025e4b93c5d156862afa7487397277",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -59,6 +59,12 @@
       "entityRef": "component:default/bichon",
       "evidence": "apps/bichon/compose.yml:services.bichon.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/bichon/compose.yml#services/bichon",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/bitcoind",
+      "evidence": "apps/bitcoind/compose.yml:services.bitcoind.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/bitcoind/compose.yml#services/bitcoind",
       "sourceType": "compose"
     },
     {
@@ -137,6 +143,12 @@
       "entityRef": "component:default/dependency-track-api",
       "evidence": "apps/dependency-track/compose.yml:services.dependency-track-api.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/dependency-track/compose.yml#services/dependency-track-api",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/docker-socket-proxy",
+      "evidence": "apps/docker-socket-proxy/compose.yml:services.docker-socket-proxy.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/docker-socket-proxy/compose.yml#services/docker-socket-proxy",
       "sourceType": "compose"
     },
     {
@@ -839,12 +851,6 @@
       "entityRef": "component:default/doco-cd",
       "evidence": "docker-compose-truenas.yml:services.doco-cd.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "docker-compose-truenas.yml#services/doco-cd",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/docker-socket-proxy",
-      "evidence": "docker-compose.yml:services.docker-socket-proxy.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "docker-compose.yml#services/docker-socket-proxy",
       "sourceType": "compose"
     },
     {

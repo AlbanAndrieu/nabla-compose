@@ -58,6 +58,10 @@
       "ref": "component:default/bichon"
     },
     {
+      "dependsOn": [],
+      "ref": "component:default/bitcoind"
+    },
+    {
       "dependsOn": [
         "resource:default/neo4j-security"
       ],
@@ -705,7 +709,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:c617c5ec576b0b78d8592e6d14cf0465d56098a98d8f7044db07aef642f83a8a"
+        "value": "sha256:fb3c413851355e0999b00e44aeaf44db8c025e4b93c5d156862afa7487397277"
       },
       {
         "name": "nabla:catalog-authority",
@@ -713,7 +717,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:c617c5ec-576b-0b78-d859-2e6d14cf0465",
+  "serialNumber": "urn:uuid:fb3c4138-5135-5e09-99b0-0e44aeaf44db",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1002,6 +1006,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "application"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/bitcoind",
+      "description": "Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container.",
+      "name": "Bitcoin Core",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/bitcoind"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/bitcoind/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "blockchain-node"
         },
         {
           "name": "nabla:backstage:lifecycle",

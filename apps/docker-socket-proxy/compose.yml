@@ -1,0 +1,81 @@
+---
+# TrueNAS Docker Engine API boundary, versioned so its network attachments
+# survive app redeploys (the 2026-11-01 detachment from intranet caused
+# 14 684 pihole-dns-sync restarts). Read-only: POST, EXEC and every write
+# endpoint stay disabled. The workstation runs its own proxy from the root
+# docker-compose.yml.
+name: docker-socket-proxy
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: docker-socket-proxy
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/docker-socket-proxy
+    x-nabla:
+      id: docker-socket-proxy
+      name: Docker Socket Proxy
+      kind: security-proxy
+      category: infrastructure
+      presentationRole: support
+      criticality: high
+      securityFunctions:
+        - protect
+      description: Restricted read-only Docker Engine API boundary for repository automation.
+      runtime:
+        provider: truenas-app
+        containerService: docker-socket-proxy
+      lifecycle:
+        phase: bootstrap-runtime
+        priority: 0
+      relations:
+        - target: docker
+          type: consumesApi
+          strength: required
+          description: The proxy consumes the local Docker Engine API and exposes an allowlisted subset to trusted clients.
+          evidence:
+            - apps/docker-socket-proxy/compose.yml:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      # GET endpoints needed by pihole-dns-sync, AutoXpose, Homarr and the
+      # manual Watchtower audit. Swarm endpoints (SERVICES, TASKS) stay off.
+      CONTAINERS: 1
+      EVENTS: 1
+      IMAGES: 1
+      INFO: 1
+      NETWORKS: 1
+      PING: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      # :ro does not restrict the API; the allowlist above does.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      docker-proxy:
+        aliases: [docker-socket-proxy]
+      # Transitional: remove once every consumer has been redeployed on
+      # docker-proxy (roadmap P1 performance TrueNAS, 2026-11-03).
+      intranet:
+        aliases: [docker-socket-proxy]
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    pids_limit: 128
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  # Dedicated, internal network: only the proxy and its consumers join it.
+  # Created by scripts/truenas/deploy-docker-socket-proxy.sh.
+  docker-proxy:
+    external: true
+    name: docker-proxy
+  intranet:
+    external: true
+    name: intranet

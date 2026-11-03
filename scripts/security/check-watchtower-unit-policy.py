@@ -115,8 +115,10 @@ def audit(root: pathlib.Path) -> tuple[list[str], list[str]]:
             findings.append("watchtower: socket/ports/privileged not permitted")
         if labels_for(app).get(ENABLE) != "false":
             findings.append("watchtower: self-update label must be false")
-        proxy_compose = root / "docker-compose.yml"
-        if proxy_compose.exists():
+        # TrueNAS proxy (used by Watchtower) and the workstation proxy.
+        for proxy_compose in (root / "apps/docker-socket-proxy/compose.yml", root / "docker-compose.yml"):
+            if not proxy_compose.exists():
+                continue
             proxy_doc = yaml.safe_load(proxy_compose.read_text(encoding="utf-8"))
             proxy = (proxy_doc.get("services") or {}).get("docker-socket-proxy") or {}
             proxy_env = proxy.get("environment", {})

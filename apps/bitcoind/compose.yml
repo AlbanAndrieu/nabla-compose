@@ -1,0 +1,63 @@
+---
+name: bitcoind
+services:
+  bitcoind:
+    # Reproducible Bitcoin Core build whose binaries are verified against the
+    # release signatures: https://github.com/willcl-ark/bitcoin-core-docker
+    # (unofficial image, not endorsed by the Bitcoin Core project).
+    image: bitcoin/bitcoin:31.1
+    container_name: bitcoind
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/bitcoind
+    x-nabla:
+      id: bitcoind
+      name: Bitcoin Core
+      kind: blockchain-node
+      category: data
+      presentationRole: support
+      criticality: low
+      description: Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container.
+      runtime:
+        provider: truenas-app
+        containerService: bitcoind
+    restart: unless-stopped
+    # TrueNAS apps user; the image entrypoint (root + gosu + chown) is bypassed.
+    user: "568:568"
+    entrypoint: ["bitcoind"]
+    command: ["-conf=/etc/bitcoin/bitcoin.conf", "-datadir=/data"]
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # dbcache=300 + maxmempool=100 + headroom; an OOM stays in this cgroup.
+    mem_limit: 1536m
+    cpus: 1.0
+    pids_limit: 256
+    # bitcoind flushes its chainstate on SIGTERM.
+    stop_grace_period: 2m
+    volumes:
+      # Disposable data: dataset cpool/bitcoind is in the noSnapshot list.
+      - /mnt/cpool/bitcoind/node:/data
+      - ./bitcoin.conf:/etc/bitcoin/bitcoin.conf:ro
+    # No ports: no inbound P2P (listen=0) and no RPC outside the container.
+    healthcheck:
+      test:
+        - CMD
+        - bitcoin-cli
+        - -conf=/etc/bitcoin/bitcoin.conf
+        - -datadir=/data
+        - -rpcclienttimeout=10
+        - getnetworkinfo
+      interval: 60s
+      timeout: 20s
+      retries: 5
+      start_period: 30m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

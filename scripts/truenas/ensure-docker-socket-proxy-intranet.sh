@@ -21,9 +21,11 @@ Ensures the active TrueNAS Docker Socket Proxy container is attached to the
 shared intranet network with the docker-socket-proxy alias required by
 repository-managed consumers such as pihole-dns-sync.
 
-The Docker network attachment is runtime-scoped: TrueNAS App recreation may
-remove it. Re-run this helper after restore/redeploy until the proxy provider is
-fully migrated to repository-owned Compose.
+The proxy is now declared in apps/docker-socket-proxy/compose.yml, which
+attaches it to the dedicated docker-proxy network and, transitionally, to
+intranet. A runtime-scoped attachment made by this helper is only a repair for
+a legacy catalog app; deploy the Compose app with
+scripts/truenas/deploy-docker-socket-proxy.sh instead.
 EOF
     exit 0
     ;;

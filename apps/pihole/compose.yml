@@ -35,6 +35,8 @@ services:
       # Standardize the container-side web ports. TrueNAS/LAN compatibility is
       # kept through the host mappings below.
       FTLCONF_webserver_port: "80o,443os,[::]:80o,[::]:443os"
+      # Never forward the private zone: upstream pfSense sends it back here and loops until timeout.
+      FTLCONF_misc_dnsmasq_lines: "local=/int.albandrieu.com/"
     ports:
       - "53:53/tcp"
       - "53:53/udp"
@@ -91,9 +93,9 @@ services:
       # Consolidate it into /mnt/cpool/pihole/.env.secrets after validation.
       - /mnt/cpool/traefik/.env.secrets
     environment:
-      # docker-socket-proxy is intentionally reachable only on the shared
-      # intranet network. Missing this network caused the 2026-09-07 restart
-      # loop and repeated Pi-hole API session allocation.
+      # docker-socket-proxy is reached on the dedicated docker-proxy network
+      # (apps/docker-socket-proxy). A missing proxy network caused the
+      # 2026-09-07 and 2026-11-01 restart loops and exhausted Pi-hole API seats.
       DOCKER_HOST: tcp://docker-socket-proxy:2375
       PIHOLE_URL: http://pihole
       SKIP_TLS_VERIFY: "false"
@@ -104,6 +106,7 @@ services:
     volumes:
       - /mnt/cpool/traefik:/etc/traefik
     networks:
+      - docker-proxy
       - intranet
 
   pihole-exporter:
@@ -145,6 +148,10 @@ services:
       - intranet
 
 networks:
+  # Dedicated Docker API network shared only with docker-socket-proxy.
+  docker-proxy:
+    external: true
+    name: docker-proxy
   intranet:
     external: true
     name: intranet

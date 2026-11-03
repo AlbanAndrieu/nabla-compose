@@ -68,6 +68,7 @@ services:
       - /mnt/cpool/homarr:/appdata
       - ./generated:/config/nabla:ro
     networks:
+      - docker-proxy
       - intranet
     cap_drop:
       - ALL
@@ -131,6 +132,10 @@ services:
       - no-new-privileges:true
 
 networks:
+  # Dedicated Docker API network shared only with docker-socket-proxy.
+  docker-proxy:
+    external: true
+    name: docker-proxy
   intranet:
     external: true
     name: intranet

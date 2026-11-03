@@ -225,6 +225,7 @@
         "provider": "truenas-app",
         "containerService": "autoxpose",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       },
@@ -252,6 +253,20 @@
         "conditions": [
           "[CONNECTED] == true"
         ]
+      }
+    },
+    {
+      "id": "bitcoind",
+      "name": "Bitcoin Core",
+      "kind": "blockchain-node",
+      "category": "data",
+      "sourcePath": "apps/bitcoind/compose.yml",
+      "description": "Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bitcoind"
       }
     },
     {
@@ -552,7 +567,7 @@
       "name": "Docker Socket Proxy",
       "kind": "security-proxy",
       "category": "infrastructure",
-      "sourcePath": "docker-compose.yml",
+      "sourcePath": "apps/docker-socket-proxy/compose.yml",
       "description": "Restricted read-only Docker Engine API boundary for repository automation.",
       "presentationRole": "support",
       "criticality": "high",
@@ -567,6 +582,7 @@
         "provider": "truenas-app",
         "containerService": "docker-socket-proxy",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -861,6 +877,7 @@
         "provider": "truenas-app",
         "containerService": "gatus",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -981,6 +998,7 @@
         "provider": "truenas-app",
         "containerService": "homarr",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -1897,6 +1915,7 @@
         "provider": "truenas-app",
         "containerService": "pihole-dns-sync",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -2587,6 +2606,7 @@
         "provider": "truenas-app",
         "containerService": "watchtower",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -2915,6 +2935,16 @@
       ]
     },
     {
+      "source": "bitcoind",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/bitcoind/compose.yml:bitcoind.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "cartography",
       "target": "docker",
       "type": "hostedBy",
@@ -3187,7 +3217,7 @@
       "strength": "required",
       "description": "The proxy consumes the local Docker Engine API and exposes an allowlisted subset to trusted clients.",
       "evidence": [
-        "docker-compose.yml:/var/run/docker.sock:ro"
+        "apps/docker-socket-proxy/compose.yml:/var/run/docker.sock:ro"
       ]
     },
     {
@@ -3197,7 +3227,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "docker-compose.yml:docker-socket-proxy.x-nabla.runtime.containerService"
+        "apps/docker-socket-proxy/compose.yml:docker-socket-proxy.x-nabla.runtime.containerService"
       ]
     },
     {

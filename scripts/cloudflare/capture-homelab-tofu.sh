@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Read-only capture of the Cloudflare objects imported by terraform/cloudflare-homelab.
+# Read-only capture of the Cloudflare objects imported by terraform/cloudflare.
 # Only GET requests reach the Cloudflare API, and `tofu plan` never writes state.
 set -euo pipefail
 
@@ -9,11 +9,11 @@ usage: scripts/cloudflare/capture-homelab-tofu.sh [public-hostname]
 
 Discover the zone, DNS record and the two Access applications (host-wide and
 /api) of <public-hostname> (default: sample.albandrieu.com), write their identifiers to
-terraform/cloudflare-homelab/import-ids.auto.tfvars, then let OpenTofu
-generate their live configuration into terraform/cloudflare-homelab/generated.tofu.
+terraform/cloudflare/import-ids.auto.tfvars, then let OpenTofu
+generate their live configuration into terraform/cloudflare/generated.tofu.
 
 Requires CLOUDFLARE_API_TOKEN in the environment; read permissions are enough.
-See terraform/cloudflare-homelab/README.md.
+See terraform/cloudflare/README.md.
 EOF
 }
 
@@ -27,7 +27,7 @@ esac
 hostname="${1:-sample.albandrieu.com}"
 zone_name="albandrieu.com"
 account_id="bdfe00eeee5845782ab91adfbff71ee1"
-module_dir="$(git rev-parse --show-toplevel)/terraform/cloudflare-homelab"
+module_dir="$(git rev-parse --show-toplevel)/terraform/cloudflare"
 api="https://api.cloudflare.com/client/v4"
 
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
