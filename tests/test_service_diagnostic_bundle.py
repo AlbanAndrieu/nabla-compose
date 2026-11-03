@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -76,6 +77,59 @@ def test_failure_isolation_and_no_false_green() -> None:
     assert results[0]["reason"] == "nonzero_without_structured_evidence"
     assert results[0]["verdict"] == "UNVERIFIED"
     assert MODULE.overall_exit(results) == 2
+
+
+def test_bounded_parallelism_runs_concurrently_in_fixed_result_order() -> None:
+    checks = MODULE.selected_checks("observability")[:2]
+    rendezvous = threading.Barrier(2)
+
+    def fake_runner(args, **kwargs):
+        assert kwargs["stdout"] == subprocess.DEVNULL
+        assert kwargs["stderr"] == subprocess.DEVNULL
+        rendezvous.wait(timeout=5)
+        return SimpleNamespace(returncode=1 if "prometheus/diagnose" in args[1] else 0)
+
+    rows = MODULE.collect(checks, runner=fake_runner, jobs=2)
+    assert [row["name"] for row in rows] == [check.name for check in checks]
+    assert [row["verdict"] for row in rows] == ["UNVERIFIED", "PASS"]
+    assert MODULE.overall_exit(rows) == 2
+
+
+def test_parallelism_preserves_timeout_and_isolates_other_checks() -> None:
+    checks = MODULE.selected_checks("observability")[:2]
+    seen = []
+    lock = threading.Lock()
+
+    def fake_runner(args, **kwargs):
+        with lock:
+            seen.append(args[1])
+        if "prometheus/diagnose" in args[1]:
+            raise subprocess.TimeoutExpired("private-secret", 1)
+        return SimpleNamespace(returncode=0)
+
+    rows = MODULE.collect(checks, runner=fake_runner, jobs=2)
+    assert len(seen) == 2
+    assert [row["verdict"] for row in rows] == ["UNVERIFIED", "PASS"]
+    assert rows[0]["reason"] == "diagnostic_timed_out"
+    assert MODULE.overall_exit(rows) == 2
+
+
+@pytest.mark.parametrize("jobs", [0, 3, -1, True, "2"])
+def test_parallelism_invalid_worker_count_fails_closed(jobs) -> None:
+    with pytest.raises(ValueError, match="jobs must be 1 or 2"):
+        MODULE.collect((), jobs=jobs)
+
+
+def test_plan_only_reports_requested_parallelism_without_launching_probes() -> None:
+    result = subprocess.run(
+        ["python3", str(SCRIPT), "--plan", "--jobs", "2"],
+        capture_output=True, text=True, check=False, timeout=6,
+    )
+    assert result.returncode == 0
+    import json
+    plan = json.loads(result.stdout)
+    assert plan["jobs"] == 2
+    assert plan["mutations"] is False
 
 
 def test_timeout_and_missing_tools_never_pass() -> None:
@@ -185,7 +239,7 @@ def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsy
          "verdict": "UNVERIFIED", "reason": "nonzero_without_structured_evidence",
          "evidence_scope": "probe_only", "exit_code": 1},
     ]
-    monkeypatch.setattr(MODULE, "collect", lambda _checks: rows)
+    monkeypatch.setattr(MODULE, "collect", lambda _checks, **_kw: rows)
     monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--check", "--section", "observability"])
     assert MODULE.main() == 2
     payload = json.loads(capsys.readouterr().out)
@@ -195,6 +249,7 @@ def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsy
     assert sum(payload["summary"].values()) == len(payload["checks"])
     assert payload["checks"][0]["evidence_scope"] == "probe_only"
     assert payload["mutations"] is False
+    assert payload["jobs"] == 1
 
 
 @pytest.mark.parametrize("mode", ["--apply", "--restart", "--deploy"])
