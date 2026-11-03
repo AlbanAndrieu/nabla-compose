@@ -31,6 +31,32 @@ La procédure globale peut être lancée par le script
 `scripts/truenas/diagnose-service-bundle.py --check --section observability`
 après revue du HEAD ; une panne n'interrompt pas les autres vérifications.
 
+### Performance des diagnostics (3 novembre 2026)
+
+Les contrôles restent **séquentiels par défaut** (`--jobs 1`) pour limiter
+l'impact sur une machine TrueNAS sous pression mémoire/I/O. L'option
+explicite `--jobs 2` exécute au plus **deux contrôles indépendants à la
+fois**. Les résultats restent dans l'ordre déclaré, avec le même contrat
+`PASS/FAIL/UNVERIFIED/NOT_RUN`, les mêmes timeouts individuels et aucune
+capture des sorties privées :
+
+```bash
+python3 scripts/truenas/diagnose-service-bundle.py --plan \
+  --section observability --jobs 2
+# À lancer sur TrueNAS uniquement lorsque les ressources sont suffisantes :
+sudo python3 scripts/truenas/diagnose-service-bundle.py --check \
+  --section observability --jobs 2
+```
+
+Ce mode optimise le **temps écoulé** (I/O et attentes réseau) et non le nombre
+de sondes ni la consommation totale. Ne pas augmenter la concurrence au-delà
+de deux ; revenir à `--jobs 1` si l'ARC, la mémoire ou la PSI I/O sont
+dégradés. Il n'existe aucune accélération garantie sur une machine saturée.
+
+Autre réduction de travail redondant : `diagnose-performance.sh` récupère
+`midclt call app.query` **une seule fois** pour les deux tableaux d'apps
+et ne recherche qu'une fois le PID `containerd`.
+
 **Contrat des verdicts (novembre 2026).** Le coordinateur ne lit jamais les
 sorties des processus enfants et ne peut donc **pas** déduire un `DENIED`
 à partir du seul code de sortie. Les vérifications renvoient un `verdict`
@@ -44,6 +70,16 @@ délai (`timeout`) reste également `UNVERIFIED`, jamais une panne
 confirmée. Les états `failed` historiques sont des échecs de **sonde**,
 pas une preuve que l'application est DOWN. Le champ global
 `availability=UNVERIFIED` le rend explicite.
+
+Le rapport JSON fournit aussi `summary` avec des compteurs bornés
+pour `PASS`, `FAIL`, `DENIED`, `UNVERIFIED` et `NOT_RUN`.
+Ces compteurs sont calculés exclusivement à partir des états et verdicts de
+**diagnostic**, sans lire ni reproduire les sorties des enfants. Si un état
+d'exécution contredit un verdict (par exemple `failed` avec `PASS`), l'état
+prévaut pour empêcher un faux succès. Une catégorie ou une entrée malformée
+est comptabilisée `UNVERIFIED`, pas transformée en panne.
+Le coordinateur ne peut pas établir `DENIED` uniquement à partir d'un
+code de retour ; le compteur existe pour l'homogénéité des contrats.
 
 Codes de retour : `0` si tous les contrôles sont confirmés, `1` si
 au moins un échec de sonde est établi, `2` sinon si une preuve manque.
@@ -66,7 +102,7 @@ historique, sans preuve d'indisponibilité applicative.
 Tests locaux (sans interroger les services) :
 
 ```bash
-python3 -m pytest -q tests/test_service_diagnostic_bundle.py tests/test_postmigration_report_triage.py
+python3 -m pytest -q tests/test_service_diagnostic_bundle.py tests/test_postmigration_report_triage.py tests/test_truenas_performance_diagnostic_contract.py
 ```
 
 ## 2. pfSense / DNS (diagnostic depuis un hôte autorisé)

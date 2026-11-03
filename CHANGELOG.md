@@ -1,3 +1,33 @@
+# [0.55.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.2...0.55.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **diagnostics:** aligner le corps du runner individuel pour Python [skip ci] ([9fe8df9](https://github.com/AlbanAndrieu/nabla-compose/commit/9fe8df936fe2c1889088ade41101037c104ad69c))
+* **observability:** ne jamais compter PASS si l'état du contrôle le contredit [skip ci] ([4ae157d](https://github.com/AlbanAndrieu/nabla-compose/commit/4ae157da63b98f8cd3af41908c16beb16e630b23))
+* **observability:** traiter sans exception les verdicts non hashables [skip ci] ([65d9fcd](https://github.com/AlbanAndrieu/nabla-compose/commit/65d9fcd42ee7350d4ad846308938d5d35bd6f3e7))
+
+
+### Features
+
+* **cloudflare:** import-first OpenTofu for the shared tunnel, DNS and Access [skip ci] ([bcce89c](https://github.com/AlbanAndrieu/nabla-compose/commit/bcce89c77988dfb6eb010dc3fe74cc8aa6c28b42))
+* **cloudflare:** rename FastAPI Sample public hostname to fastapi-sample.albandrieu.com [skip ci] ([8c49bf6](https://github.com/AlbanAndrieu/nabla-compose/commit/8c49bf678fd8312484b8431f0290f8fce4b3c1c6))
+
+
+### Performance Improvements
+
+* **diagnostics:** exécution parallèle limitée à 2 sondes, opt-in et ordre stable [skip ci] ([63411da](https://github.com/AlbanAndrieu/nabla-compose/commit/63411dab1eb4f5e32d89e03d0a62a0bf6de28461))
+* **truenas:** collecter app.query une seule fois et réutiliser le PID containerd [skip ci] ([1a3405b](https://github.com/AlbanAndrieu/nabla-compose/commit/1a3405b7cdff40b37d02d2f34577f322ac54c63e))
+
+## [0.54.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.1...0.54.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **test:** pin the redacted roadmap archive blob ([c800c56](https://github.com/AlbanAndrieu/nabla-compose/commit/c800c560e9890f1dcf4d72187e56e1bbbc44f16e))
+* **truenas:** bound docker system df in the performance diagnostic ([21e4fdb](https://github.com/AlbanAndrieu/nabla-compose/commit/21e4fdb6d4adbd843fef752c6e0a9f530a3b474c))
+* **truenas:** flag container anomalies in the performance diagnostic ([cc3f9ca](https://github.com/AlbanAndrieu/nabla-compose/commit/cc3f9ca6f1eef2aa0b95f2288da5c431f0669773))
+
 ## [0.54.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.54.0...0.54.1) (2026-11-01)
 
 

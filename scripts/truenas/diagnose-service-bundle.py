@@ -12,6 +12,7 @@ import argparse
 import json
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -69,6 +70,7 @@ CHECKS: dict[str, tuple[Check, ...]] = {
     ),
 }
 SECTIONS = (*CHECKS, "all")
+MAX_PARALLEL_DIAGNOSTICS = 2  # Explicit opt-in; TrueNAS may be resource constrained.
 
 
 def selected_checks(section: str) -> tuple[Check, ...]:
@@ -106,46 +108,60 @@ def check_verdict(state: str) -> str:
     }.get(state, "UNVERIFIED")
 
 
+def run_one_check(
+    check: Check, runner: Callable[..., subprocess.CompletedProcess],
+) -> dict[str, object]:
+    """Run one fixed, read-only diagnostic; discard all child output."""
+    path = ROOT / check.args[1]
+    reason = "script_missing"
+    if not path.is_file():
+        status, exit_code = "not_installed", None
+    else:
+        try:
+            # Discard raw stdout/stderr: child tools may print credentials.
+            finished = runner(
+                check.args,
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=check.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            status, reason, exit_code = "timeout", "diagnostic_timed_out", None
+        except OSError:
+            status, reason, exit_code = "not_executed", "execution_unavailable", None
+        else:
+            exit_code = finished.returncode
+            status, reason = classify_exit_code(exit_code, check)
+    return {
+        "name": check.name,
+        "state": status,
+        "verdict": check_verdict(status),
+        "reason": reason,
+        "evidence_scope": "probe_only",
+        "exit_code": exit_code,
+    }
+
+
 def collect(
     checks: tuple[Check, ...],
     *,
     runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+    jobs: int = 1,
 ) -> list[dict[str, object]]:
-    """Run every selected check; one failure never skips a later check."""
-    results: list[dict[str, object]] = []
-    for check in checks:
-        path = ROOT / check.args[1]
-        reason = "script_missing"
-        if not path.is_file():
-            status, exit_code = "not_installed", None
-        else:
-            try:
-                # Discard raw stdout/stderr: child tools may print credentials.
-                finished = runner(
-                    check.args,
-                    cwd=ROOT,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=False,
-                    timeout=check.timeout,
-                )
-            except subprocess.TimeoutExpired:
-                status, reason, exit_code = "timeout", "diagnostic_timed_out", None
-            except OSError:
-                status, reason, exit_code = "not_executed", "execution_unavailable", None
-            else:
-                exit_code = finished.returncode
-                status, reason = classify_exit_code(exit_code, check)
-        results.append({
-            "name": check.name,
-            "state": status,                  # Legacy execution-state field.
-            "verdict": check_verdict(status),
-            "reason": reason,                 # Fixed, non-sensitive reason code.
-            "evidence_scope": "probe_only",   # Never an app availability claim.
-            "exit_code": exit_code,
-        })
-    return results
+    """Optionally run independent probes concurrently, preserving result order.
+
+    Sequential by default. At most two workers to limit TrueNAS CPU/memory
+    pressure; subprocess timeouts remain per check, not per entire batch.
+    """
+    if type(jobs) is not int or not 1 <= jobs <= MAX_PARALLEL_DIAGNOSTICS:
+        raise ValueError("jobs must be 1 or 2")
+    if jobs == 1 or len(checks) < 2:
+        return [run_one_check(check, runner) for check in checks]
+    with ThreadPoolExecutor(max_workers=jobs, thread_name_prefix="nabla-probe") as pool:
+        return list(pool.map(lambda check: run_one_check(check, runner), checks))
 
 
 def overall_exit(results: list[dict[str, object]]) -> int:
@@ -158,11 +174,38 @@ def overall_exit(results: list[dict[str, object]]) -> int:
     return 0
 
 
+def summarize_verdicts(results: list[dict[str, object]]) -> dict[str, int]:
+    """Count validated probe verdicts; do not interpret service availability."""
+    verdicts = ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")
+    summary = {verdict: 0 for verdict in verdicts}
+    for item in results:
+        if not isinstance(item, dict):
+            summary["UNVERIFIED"] += 1
+            continue
+        verdict = item.get("verdict")
+        # Execution state is authoritative if both fields are present.
+        # Reject contradictory claims (e.g. state=failed, verdict=PASS).
+        if "state" in item:
+            state = item["state"]
+            expected = check_verdict(state) if isinstance(state, str) else "UNVERIFIED"
+            verdict = expected if expected != verdict else verdict
+        if isinstance(verdict, str) and verdict in summary:
+            summary[verdict] += 1
+        else:
+            summary["UNVERIFIED"] += 1
+    return summary
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--section", choices=SECTIONS, default="observability")
+    parser.add_argument(
+        "--jobs", type=int, choices=range(1, MAX_PARALLEL_DIAGNOSTICS + 1),
+        default=1, metavar="{1,2}",
+        help="independent read-only checks in parallel (default: 1, max: 2)",
+    )
     args = parser.parse_args()
     if args.plan == args.check:
         parser.error("choose exactly one of --plan or --check")
@@ -172,17 +215,21 @@ def main() -> int:
         print(json.dumps({
             "mode": "plan", "section": args.section,
             "checks": [check.name for check in checks],
+            "jobs": args.jobs,
             "mutations": False,
         }, sort_keys=True))
         return 0
 
-    results = collect(checks)
+    results = collect(checks, jobs=args.jobs)
     exit_code = overall_exit(results)
+    summary = summarize_verdicts(results)
     print(json.dumps({
         "schema_version": 1,
         "mode": "read_only",
         "section": args.section,
+        "jobs": args.jobs,
         "checks": results,
+        "summary": summary,
         "state": ("pass" if exit_code == 0 else
                   "failed" if exit_code == 1 else "unverified"),
         "verdict": {0: "PASS", 1: "FAIL", 2: "UNVERIFIED"}[exit_code],

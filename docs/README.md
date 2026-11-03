@@ -46,6 +46,7 @@ Keep supported operator procedures in focused runbooks, for example:
 - [TrueNAS reboot](./homelab-reboot-runbook.md)
 - [pfSense diagnosis/recovery and WebConfigurator 502](./pfsense-diagnose-recover.md)
 - [Cloudflare Tunnel/Access and self-hosted Sentry platform diagnostics](./cloudflare-sentry-platform-diagnostics.md)
+- [Cloudflare Tunnel/DNS/Access as OpenTofu (import, plan, apply, rollback)](../terraform/cloudflare-homelab/README.md)
 - [Kubernetes CSI preflight](./kubernetes-csi-preflight.md)
 - [TrueNAS application lifecycle](./truenas-app-lifecycle.md)
 - [TrueNAS runtime layout](./truenas-runtime-layout.md)
