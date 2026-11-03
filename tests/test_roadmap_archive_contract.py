@@ -10,7 +10,8 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "docs/archive/roadmap-through-2026-10-24.md"
-ORIGINAL_GIT_BLOB_SHA = "d429d33b46585ca4de10e347960667810985954e"
+# Reviewed source with the YubiKey serial numbers redacted in bbb677b7.
+ORIGINAL_GIT_BLOB_SHA = "dd05c395993f61a7c6a11eba75a5d34ab169e03a"
 CHECK_LINKS = (
     "README.md",
     "docs/roadmap.md",
