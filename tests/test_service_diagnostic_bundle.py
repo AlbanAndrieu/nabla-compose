@@ -151,6 +151,31 @@ def test_summary_missing_or_unknown_verdict_is_unverified() -> None:
     }
 
 
+def test_summary_authoritative_execution_state_prevents_false_pass() -> None:
+    rows = [
+        {"state": "failed", "verdict": "PASS"},
+        {"state": "timeout", "verdict": "PASS"},
+        {"state": "not_installed", "verdict": "PASS"},
+        {"state": "pass", "verdict": "FAIL"},
+        {"state": "failed", "verdict": "FAIL"},
+    ]
+    summary = MODULE.summarize_verdicts(rows)
+    assert summary["PASS"] == 1
+    assert summary["FAIL"] == 2
+    assert summary["UNVERIFIED"] == 1
+    assert summary["NOT_RUN"] == 1
+
+
+def test_summary_accepts_legacy_rows_and_non_dict_records() -> None:
+    summary = MODULE.summarize_verdicts([
+        {"verdict": "DENIED"}, {"verdict": "PASS"}, [],
+        {"state": object(), "verdict": "PASS"},
+    ])
+    assert summary == {
+        "PASS": 1, "FAIL": 0, "DENIED": 1, "UNVERIFIED": 2, "NOT_RUN": 0,
+    }
+
+
 def test_cli_exposes_probe_verdict_without_service_down_claim(monkeypatch, capsys):
     import json
 
