@@ -8,7 +8,12 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample" {
   account_id                = var.account_id
   app_launcher_visible      = true
   auto_redirect_to_identity = false
+  # The old name stays protected until the rename is accepted (README step 5).
   destinations = [
+    {
+      type = "public"
+      uri  = "fastapi-sample.albandrieu.com"
+    },
     {
       type = "public"
       uri  = "sample.albandrieu.com"
@@ -19,7 +24,7 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample" {
       type       = "private"
     },
   ]
-  domain                     = "sample.albandrieu.com"
+  domain                     = "fastapi-sample.albandrieu.com"
   enable_binding_cookie      = false
   http_only_cookie_attribute = false
   name                       = "sample"
@@ -49,10 +54,14 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample_api" {
   destinations = [
     {
       type = "public"
+      uri  = "fastapi-sample.albandrieu.com/api"
+    },
+    {
+      type = "public"
       uri  = "sample.albandrieu.com/api"
     },
   ]
-  domain                     = "sample.albandrieu.com/api"
+  domain                     = "fastapi-sample.albandrieu.com/api"
   enable_binding_cookie      = false
   http_only_cookie_attribute = false
   name                       = "sample-api"

@@ -110,8 +110,9 @@ scripts/infra/terragrunt-safe.sh infrastructure/cloudflare-homelab apply rename.
 ```
 
 Jamais depuis la CI. Appliquer au moment de la fusion des PR qui renomment le
-hostname côté code (nabla-compose #304 et fastapi-sample) : FastAPI ne filtre
-pas le `Host`, mais sondes et catalogue visent encore l'ancien nom avant elles.
+hostname côté code (catalogue, sondes, `apps/sample`, fastapi-sample) : FastAPI
+ne filtre pas le `Host`, mais sondes et catalogue visent encore l'ancien nom
+avant elles.
 
 Réception :
 

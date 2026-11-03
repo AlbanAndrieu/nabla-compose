@@ -1,7 +1,7 @@
 resource "cloudflare_dns_record" "fastapi_sample" {
   content                 = "${var.tunnel_id}.cfargotunnel.com"
   include_shadow_metadata = false
-  name                    = "sample.albandrieu.com"
+  name                    = "fastapi-sample.albandrieu.com"
   proxied                 = true
   settings = {
     flatten_cname = false
@@ -12,6 +12,12 @@ resource "cloudflare_dns_record" "fastapi_sample" {
   ttl     = 1
   type    = "CNAME"
   zone_id = var.zone_id
+
+  # Access must protect a hostname before DNS publishes it.
+  depends_on = [
+    cloudflare_zero_trust_access_application.fastapi_sample,
+    cloudflare_zero_trust_access_application.fastapi_sample_api,
+  ]
 
   lifecycle {
     prevent_destroy = true

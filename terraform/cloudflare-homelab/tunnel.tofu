@@ -338,7 +338,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service        = "http://172.17.0.24:5601"
       },
       {
-        hostname       = "sample.albandrieu.com"
+        hostname       = "fastapi-sample.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:8091"
       },
@@ -364,6 +364,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
   }
   source    = "cloudflare"
   tunnel_id = var.tunnel_id
+
+  # Access must protect a hostname before the tunnel routes it.
+  depends_on = [
+    cloudflare_zero_trust_access_application.fastapi_sample,
+    cloudflare_zero_trust_access_application.fastapi_sample_api,
+  ]
 
   lifecycle {
     prevent_destroy = true
