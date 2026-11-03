@@ -90,6 +90,8 @@ terraform.tfstate.backup
 # Terragrunt working-directory lockfiles are generated from the module lockfiles.
 # Keep terraform/*/.terraform.lock.hcl tracked; ignore only infrastructure workdirs.
 /infrastructure/*/.terraform.lock.hcl
+# Raw `tofu plan -generate-config-out` output may hold personal Access rules.
+/terraform/cloudflare-homelab/generated.tofu
 
 .tfsec/
 
