@@ -63,6 +63,30 @@ plus de 26 h sans succès) ; Zabbix en secours
 L'Alertmanager n'a encore **aucun récepteur** : sans lui, l'alerte Prometheus n'est vue que
 dans l'interface.
 
+## P1 — IaC Cloudflare : hostname public FastAPI Sample (31 octobre 2026)
+
+Code seul, **rien n'est appliqué sur Cloudflare** :
+[`terraform/cloudflare-homelab`](../terraform/cloudflare-homelab/README.md)
+importe la configuration du tunnel partagé (toutes ses routes), le CNAME et
+les deux applications Access de FastAPI Sample (`sample` et `sample-api`
+pour `/api`). Les politiques réutilisables (`nabla`, partagée, et
+`fastapi-sample-monitor`) restent gérées dans le dashboard.
+
+Reste à faire, dans l'ordre, avec le jeton du propriétaire :
+
+1. capture lecture seule (`scripts/cloudflare/capture-homelab-tofu.sh`),
+   commit des identifiants et de la configuration nettoyée ;
+2. plan de référence `4 to import, 0 to change` ;
+3. renommage `sample.albandrieu.com` → `fastapi-sample.albandrieu.com`,
+   plan `4 to change` relu, apply avec accord explicite, synchronisé avec
+   nabla-compose #304 et la PR fastapi-sample ;
+4. réception (défi Access anonyme, ingress, autres hostnames intacts,
+   `No changes`), puis retrait de l'ancien nom des destinations Access.
+
+Ensuite : étendre le DNS et Access aux autres hostnames du tunnel, déjà
+couverts par la ressource de configuration du tunnel ; décider si les
+politiques réutilisables passent en IaC (e-mails en `TF_VAR_*`, dépôt public).
+
 ## P0 — FastAPI : diagnostic UI, Prometheus, LiteLLM et OpenRAG consolidé (30 octobre 2026)
 
 **Mesures opérateur du 30/10, non exécutées par cet agent :**
