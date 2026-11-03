@@ -163,7 +163,16 @@ def summarize_verdicts(results: list[dict[str, object]]) -> dict[str, int]:
     verdicts = ("PASS", "FAIL", "DENIED", "UNVERIFIED", "NOT_RUN")
     summary = {verdict: 0 for verdict in verdicts}
     for item in results:
+        if not isinstance(item, dict):
+            summary["UNVERIFIED"] += 1
+            continue
         verdict = item.get("verdict")
+        # Execution state is authoritative if both fields are present.
+        # Reject contradictory claims (e.g. state=failed, verdict=PASS).
+        if "state" in item:
+            state = item["state"]
+            expected = check_verdict(state) if isinstance(state, str) else "UNVERIFIED"
+            verdict = expected if expected != verdict else verdict
         if isinstance(verdict, str) and verdict in summary:
             summary[verdict] += 1
         else:
