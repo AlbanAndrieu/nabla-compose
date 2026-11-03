@@ -91,40 +91,35 @@ if have docker; then
     while read -r count ppid; do
       printf '  %s %s %s\n' "${count}" "${ppid}" "$(ps -o comm= -p "${ppid}" 2>/dev/null)"
     done
-  # containerd logged "too many open files" while container starts hung (2026-11-01).
-  printf 'containerd open fds: %s (limit %s)\n' \
-    "$(find "/proc/$(pgrep -o containerd)/fd" 2>/dev/null | wc -l)" \
-    "$(awk '/Max open files/ { print $4 }' "/proc/$(pgrep -o containerd)/limits" 2>/dev/null)"
+  # containerd logged "too many open files" while container starts hung.
+  # Only resolve its PID once; do not enumerate /proc for a missing process.
+  containerd_pid="$(pgrep -o -x containerd 2>/dev/null || true)"
+  if [[ -n "${containerd_pid}" && -d "/proc/${containerd_pid}/fd" ]]; then
+    printf 'containerd open fds: %s (limit %s)\n' \
+      "$(find "/proc/${containerd_pid}/fd" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)" \
+      "$(awk '/Max open files/ { print $4; exit }' "/proc/${containerd_pid}/limits" 2>/dev/null)"
+  else
+    printf 'containerd open fds: unavailable (process not found)\n'
+  fi
 else
   printf 'docker unavailable\n'
 fi
 
 section "TrueNAS app states"
 if have midclt && have jq; then
-  midclt call app.query |
-  jq -r '
+  # app.query may be expensive under TrueNAS pressure. Collect metadata once,
+  # then render both views from the already sanitized tabular projection.
+  if app_rows="$(midclt call app.query | jq -r '
     .[]
-    | [
-        .id,
-        .state,
-        ((.active_workloads.containers // 0) | tostring)
-      ]
+    | [.id, .state, ((.active_workloads.containers // 0) | tostring)]
     | @tsv
-  ' |
-  sort -k2,2 -k1,1 || true
-
-  printf '\n-- non-running apps --\n'
-  midclt call app.query |
-  jq -r '
-    .[]
-    | select(.state != "RUNNING")
-    | [
-        .id,
-        .state,
-        ((.active_workloads.containers // 0) | tostring)
-      ]
-    | @tsv
-  ' || true
+  ')"; then
+    printf '%s\n' "${app_rows}" | sed '/^$/d' | sort -k2,2 -k1,1 || true
+    printf '\n-- non-running apps --\n'
+    printf '%s\n' "${app_rows}" | awk -F '\t' 'NF >= 2 && $2 != "RUNNING"' || true
+  else
+    printf 'TrueNAS app inventory unavailable\n'
+  fi
 fi
 
 section "Pool health and I/O"
