@@ -60,45 +60,121 @@ Netgate met en file les sauvegardes ACB et vérifie les
 envois environ une fois par minute. L'absence immédiate d'une
 entrée après déclenchement n'est pas une preuve d'échec.
 
-## P1 — contrôler DNS / HTTPS **depuis pfSense**, pas depuis la workstation
+## P1 — réception des sondes HTTP et diagnostic **réel ACB**
 
-Sur une **console shell pfSense autorisée**, une commande par ligne :
+### Résultats pfSense fournis le 1er novembre 2026
 
-```sh
-date -u
-# DNS : alternative GUI Diagnostics > DNS Lookup, hôte acb.netgate.com
-# Vérifier la disponibilité de curl avant les sondes.
-command -v curl
-curl -4 --head --silent --show-error \
-  --connect-timeout 5 --max-time 12 \
-  --output /dev/null \
-  --write-out 'acb_ipv4_http=%{http_code} tls_verify=%{ssl_verify_result} total_seconds=%{time_total}\n' \
-  https://acb.netgate.com/
-```
+Deux requêtes **vers la racine `/`**, non authentifiées,
+ont échoué depuis le shell pfSense :
 
-**Uniquement si pfSense possède une connectivité IPv6 WAN
-attendue**, comparer l'autre famille :
+| Méthode | Résultat | Lecture |
+| --- | --- | --- |
+| `HEAD /` via IPv4 | `curl (56)`, `http=000`, `ssl_verify_result=0` | Fermeture TLS inattendue avant réception d'une réponse HTTP |
+| `GET /` via IPv4, HTTP/1.1 | `curl (56)`, `http=000`, `ssl_verify_result=0`, durée **0,627649 s** | Pas un problème limité à la méthode HEAD ; aucune réponse HTTP reçue |
 
-```sh
-curl -6 --head --silent --show-error \
-  --connect-timeout 5 --max-time 12 \
-  --output /dev/null \
-  --write-out 'acb_ipv6_http=%{http_code} tls_verify=%{ssl_verify_result} total_seconds=%{time_total}\n' \
-  https://acb.netgate.com/
-```
+Le `curl (28)` du **27 octobre 22:46:33** provenait
+d'une **tentative réelle d'upload ACB**, tandis que
+les `curl (56)` ci-dessus concernent **des sondes
+HTTP vers une route différente**. Rien ne prouve une
+cause commune. La valeur `ssl_verify_result=0`
+signifie seulement qu'aucun échec de vérification
+du certificat n'a été rapporté, pas que HTTP fonctionne.
 
-Ne pas ajouter `-k`/`--insecure`, ne pas forcer un
-`--resolve` vers une IP inconnue, ne pas transmettre
-de cookie, Device Key, mot de passe, `config.xml` ou
-authentifiant dans curl.
+### Pourquoi il ne faut plus sonder `GET /` comme preuve d'ACB
 
-Un code HTTP (y compris 403/404/405) **avec une session
-TLS validée** indique seulement que le point d'entrée
-HTTP répond : un `HEAD` **ne valide pas l'upload ACB
-authentifié**. `http=000`, timeout ou erreur TLS exigent
-l'inspection séparée des étapes DNS, gateway, date et
-certificat. Un échec IPv6 n'indique pas une panne si
-aucune sortie IPv6 n'est prévue.
+Dans le code source pfSense
+[`src/etc/inc/acb.inc`](https://github.com/pfsense/pfsense/blob/master/src/etc/inc/acb.inc),
+`acb_query_service()` utilise **POST** sur des
+**routes API dédiées** :
+`/list` pour les sauvegardes hébergées,
+`/save` pour l'envoi chiffré et
+`/getbkp` pour la récupération. Ces appels portent
+des **paramètres d'identité/credentials ACB**.
+Un `HEAD /` ou `GET /` en accès anonyme n'exerce
+**aucun** de ces parcours. Ne jamais fabriquer de
+`POST /list` ou `POST /save` à la main ou
+transmettre Device Key, mot de passe, fichier XML
+ou données privées dans un terminal partagé.
+
+L'existence de **100 backups hébergés** dans
+`Services > Auto Config Backup > Restore` prouve
+qu'au moins 100 entrées sont présentes côté
+Netgate pour la Device Key consultée ; elle ne
+prouve **pas** la réussite d'un envoi récent.
+Netgate conserve **au maximum 100 entrées** par
+clé et évince automatiquement les plus anciennes.
+La limite 100 **ne bloque donc pas** les nouveaux
+uploads.
+
+L'extrait de la liste partagé mentionne notamment
+**27 octobre 20:48:04 (+0100)**, avant l'incident
+d'upload du **27 octobre 22:46:33 (+0100)**.
+**Si cette ligne est réellement la plus récente de
+la liste**, il manque encore la preuve d'une
+sauvegarde hébergée depuis l'incident. Vérifier
+l'ordre d'affichage complet avant toute conclusion.
+
+**Attention aux entrées staged :** le code amont
+de `acb_backup_upload()` supprime les fichiers
+`.form` et `.data` après la tentative d'envoi
+**quelle que soit son issue**. Si ce comportement
+est présent dans la version pfSense installée,
+un compteur `staged=0` **ne prouve pas la réussite**.
+Ne pas chercher à extraire ou reconstituer les
+fichiers contenant la configuration.
+
+### Test métier conseillé : un seul Backup Now via l'UI
+
+**Avant toute opération**, sauvegarder séparément
+la configuration actuelle dans un stockage
+privé chiffré (`Diagnostics > Backup & Restore`).
+Il s'agit d'une sauvegarde ; ne surtout pas
+**restaurer** le pare-feu en production pour ce
+diagnostic.
+
+1. Dans `Services > Auto Config Backup > Restore`,
+   noter la **date/heure de l'entrée la plus récente**
+   et le nombre `Staged backups waiting to upload`
+   s'il est affiché.
+2. Dans `Services > Auto Config Backup > Backup Now`,
+   créer **une seule entrée** avec une raison
+   descriptive, par exemple :
+   `ACB validation 2026-11-01 - test envoi post incident`.
+   Conserver la Device Key et le mot de passe
+   de chiffrement existants, sans les publier.
+3. Après **au moins une minute**, actualiser
+   `Restore` et vérifier que cette entrée
+   apparaît **avec la date et la raison attendues**.
+   Les 100 anciennes entrées peuvent rester au
+   maximum 100 : le **nombre** ne constitue pas
+   le critère de réussite.
+4. Examiner seulement les lignes expurgées
+   `Staging`, `Starting upload`,
+   `Completed ... (success)` ou code d'échec
+   dans `Status > System Logs > System > General`.
+5. **Si l'entrée est présente et récupérable** :
+   `ACB_UPLOAD_PASS` et épisode historique
+   28 potentiellement transitoire.
+   Si absente : `ACB_UPLOAD_NOT_VERIFIED`
+   ou `ACB_UPLOAD_FAILED` en cas d'échec
+   explicite dans les journaux ; effectuer
+   **un diagnostic de l'API POST**, du proxy PHP,
+   DNS et routage pfSense sans modifier les
+   règles WAN ni TLS.
+
+**Confidentialité :** le code amont
+`acb_query_service()` peut enregistrer
+`/tmp/acb_debug.txt` lorsqu'une erreur curl
+survient. Ce fichier peut contenir des
+paramètres de la requête ou métadonnées
+sensibles. Ne **jamais** l'afficher, coller,
+committer ou envoyer tel quel au support.
+Ne pas utiliser `curl -v`, `--trace` ou
+`-k` sur une requête ACB authentifiée.
+
+Le statut des sauvegardes doit provenir de
+`Restore` et des logs officiels de l'opération,
+et **non** de la disponibilité de `GET /`.
 
 Si nécessaire, utiliser :
 - **Diagnostics > DNS Lookup** pour `acb.netgate.com` ;
