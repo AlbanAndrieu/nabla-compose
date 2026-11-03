@@ -45,6 +45,16 @@ confirmée. Les états `failed` historiques sont des échecs de **sonde**,
 pas une preuve que l'application est DOWN. Le champ global
 `availability=UNVERIFIED` le rend explicite.
 
+Le rapport JSON fournit aussi `summary` avec des compteurs bornés
+pour `PASS`, `FAIL`, `DENIED`, `UNVERIFIED` et `NOT_RUN`.
+Ces compteurs sont calculés exclusivement à partir des états et verdicts de
+**diagnostic**, sans lire ni reproduire les sorties des enfants. Si un état
+d'exécution contredit un verdict (par exemple `failed` avec `PASS`), l'état
+prévaut pour empêcher un faux succès. Une catégorie ou une entrée malformée
+est comptabilisée `UNVERIFIED`, pas transformée en panne.
+Le coordinateur ne peut pas établir `DENIED` uniquement à partir d'un
+code de retour ; le compteur existe pour l'homogénéité des contrats.
+
 Codes de retour : `0` si tous les contrôles sont confirmés, `1` si
 au moins un échec de sonde est établi, `2` sinon si une preuve manque.
 La validation en lecture seule est possible hors TrueNAS mais les
