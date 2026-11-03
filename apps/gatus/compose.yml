@@ -22,6 +22,7 @@ services:
       - ./config:/config:ro
       - /mnt/cpool/gatus:/data
     networks:
+      - docker-proxy
       - intranet
     # The generated /config/config.yml is 0640, owned by host group apps.
     # Grant supplemental GID 568 rather than weakening it to world-readable.
@@ -34,6 +35,10 @@ services:
       - no-new-privileges:true
 
 networks:
+  # Dedicated Docker API network shared only with docker-socket-proxy.
+  docker-proxy:
+    external: true
+    name: docker-proxy
   intranet:
     external: true
     name: intranet

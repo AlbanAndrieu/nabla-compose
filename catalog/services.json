@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:cd48add76a7a7f51cd384e4b9bf5391b2c195c823609456667827714751558e0",
+  "catalogRevision": "sha256:4641fe54929b1bf6d274bbbe92421b461e163fd3e98e16757e08060c7c41121a",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -225,6 +225,7 @@
         "provider": "truenas-app",
         "containerService": "autoxpose",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -249,6 +250,21 @@
         "networks": [
           "traefik_network"
         ]
+      }
+    },
+    {
+      "id": "bitcoind",
+      "name": "Bitcoin Core",
+      "kind": "blockchain-node",
+      "category": "data",
+      "sourcePath": "apps/bitcoind/compose.yml",
+      "composeService": "bitcoind",
+      "description": "Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bitcoind"
       }
     },
     {
@@ -517,7 +533,7 @@
       "name": "Docker Socket Proxy",
       "kind": "security-proxy",
       "category": "infrastructure",
-      "sourcePath": "docker-compose.yml",
+      "sourcePath": "apps/docker-socket-proxy/compose.yml",
       "composeService": "docker-socket-proxy",
       "description": "Restricted read-only Docker Engine API boundary for repository automation.",
       "presentationRole": "support",
@@ -533,6 +549,7 @@
         "provider": "truenas-app",
         "containerService": "docker-socket-proxy",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -816,6 +833,7 @@
         "provider": "truenas-app",
         "containerService": "gatus",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -931,6 +949,7 @@
         "provider": "truenas-app",
         "containerService": "homarr",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -1808,6 +1827,7 @@
         "provider": "truenas-app",
         "containerService": "pihole-dns-sync",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }
@@ -2437,6 +2457,7 @@
         "provider": "truenas-app",
         "containerService": "watchtower",
         "networks": [
+          "docker-proxy",
           "intranet"
         ]
       }

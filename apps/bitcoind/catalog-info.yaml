@@ -1,0 +1,39 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bitcoind
+  title: Bitcoin Core
+  description:
+    Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable
+    only inside the container.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - data
+    - blockchain
+  annotations:
+    albandrieu.com/bia-mtpd: P30D
+    albandrieu.com/bia-rto: P7D
+    albandrieu.com/bia-rpo: P30D
+    albandrieu.com/bia-mbco: no-wallet-chain-resynchronises-from-the-p2p-network
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-03"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/bitcoind/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: blockchain-node
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

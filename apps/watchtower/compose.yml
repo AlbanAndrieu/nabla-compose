@@ -49,11 +49,16 @@ services:
     # Audit-only Docker GET boundary: the existing proxy has POST=0.
     # No raw engine socket, host ports or update capabilities here.
     networks:
+      - docker-proxy
       - intranet
     security_opt:
       - no-new-privileges:true
 
 networks:
+  # Dedicated Docker API network shared only with docker-socket-proxy.
+  docker-proxy:
+    external: true
+    name: docker-proxy
   intranet:
     external: true
     name: intranet
