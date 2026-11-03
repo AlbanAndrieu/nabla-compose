@@ -15,6 +15,31 @@
 > Les états et commandes datés de cet historique **ne sont pas des consignes
 > de réparation courantes**.
 
+## P1 — Performance TrueNAS : mémoire, anomalies et nettoyage (1er novembre 2026)
+
+**Constat du 1/11 :** 56 Gio utilisés sur 61, sans swap ; ARC ZFS réduit à 6,4 Gio ;
+21 processus tués par l'OOM global le 26/10 (VM Talos ×3, JVM `wazuh-indexer`) ;
+pression I/O soutenue (~4 %) sur `cpool` (raidz2, 4 disques, 44 % de fragmentation) ;
+12 095 snapshots ZFS ; 658 volumes Docker orphelins ; 10 Go de cache de build ;
+plus de 80 conteneurs sans limite mémoire. Diagnostic : `scripts/truenas/diagnose-performance.sh`.
+
+| Action | Statut |
+| --- | --- |
+| Elasticsearch (`elastic-search`) et `bitcoind` arrêtés par l'opérateur | **DONE 1/11** |
+| `pihole-dns-sync` : 14 684 redémarrages, `docker-socket-proxy` détaché d'`intranet` puis sièges API Pi-hole épuisés ; rattaché avec `ensure-docker-socket-proxy-intranet.sh --apply` | **DONE 1/11** — l'attachement reste runtime : à refaire après chaque redéploiement de l'app tant que le proxy n'est pas versionné ici |
+| `tika` (paperless-ngx) : processus forké arrêté par son watchdog, healthcheck en échec ; conteneur redémarré | **DONE 1/11** |
+| `wazuh-indexer` : JVM `<defunct>` depuis l'OOM du 26/10, un cœur à 100 % ; arrêté, mais `docker start` bloque (containerd : `too many open files`) ; `mem_limit: 2g` versionné | **EN COURS** — limite appliquée au prochain redéploiement |
+| ~1 380 processus zombies (anacron, curl, mongosh, ollama… sous des PID 1 de conteneurs qui ne récoltent pas leurs enfants) | À faire — identifier les parents avec le diagnostic, puis `init: true` sur les services versionnés concernés |
+| Diagnostic : `docker system df` borné à 60 s ; section anomalies (unhealthy, redémarrages, conteneurs sans limite, zombies et leurs parents, descripteurs containerd) ; nombre de snapshots | **DONE 1/11** |
+| Snapshots `bitcoind` antérieurs au 1/10 supprimés (28) : **104 Go récupérés** (131 → 26,9 Go) | **DONE 1/11** |
+| Cache de build Docker (~10 Go) : purge partielle, interrompue à 300 s | À reprendre hors charge |
+| **Sécuriser `bitcoind`** avant tout redémarrage : RPC non exposé hors `127.0.0.1`/réseau privé, `rpcauth` (pas de `rpcpassword` en clair) depuis Vaultwarden, P2P derrière pfSense uniquement si nécessaire, image épinglée, limite mémoire (`dbcache`), snapshots de chaîne inutiles (la blockchain se resynchronise) | À faire |
+| Limites mémoire pour les plus gros consommateurs versionnés ici (opensearch-security, nexus, docling, keycloak, litellm) | À faire — mesurer le pic avant de fixer chaque limite |
+| Rétention snapshots : ~12 k snapshots, dont `ix-apps/docker` et `netdata/cache` ; s'appuie sur la section ZFS ci-dessous | À faire |
+| Volumes Docker orphelins (658) : lister par taille et app d'origine, puis purge validée volume par volume | À faire — jamais de `docker volume prune` global |
+| Moteurs de recherche : 2 OpenSearch + Wazuh indexer restants ; évaluer la consolidation | À décider |
+| Swap ou zram : non supporté par TrueNAS SCALE récent ; préférer les limites mémoire | Écarté |
+
 ## P1 — Rétention ZFS TrueNAS : analyser, améliorer, passer en IaC (31 octobre 2026)
 
 **Contexte :** la workstation sauvegarde désormais avec Restic dans `cpool/backup`
