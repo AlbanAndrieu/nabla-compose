@@ -47,9 +47,11 @@ pas une preuve que l'application est DOWN. Le champ global
 
 Le rapport JSON fournit aussi `summary` avec des compteurs bornés
 pour `PASS`, `FAIL`, `DENIED`, `UNVERIFIED` et `NOT_RUN`.
-Ces compteurs sont calculés exclusivement à partir des verdicts de
-**diagnostic**, sans lire ni reproduire les sorties des enfants. Une catégorie
-non reconnue est comptabilisée `UNVERIFIED`, pas transformée en panne.
+Ces compteurs sont calculés exclusivement à partir des états et verdicts de
+**diagnostic**, sans lire ni reproduire les sorties des enfants. Si un état
+d'exécution contredit un verdict (par exemple `failed` avec `PASS`), l'état
+prévaut pour empêcher un faux succès. Une catégorie ou une entrée malformée
+est comptabilisée `UNVERIFIED`, pas transformée en panne.
 Le coordinateur ne peut pas établir `DENIED` uniquement à partir d'un
 code de retour ; le compteur existe pour l'homogénéité des contrats.
 
