@@ -19,7 +19,7 @@ SPEC.loader.exec_module(stack)
 
 
 def test_small_json_and_nonzero_child_keep_the_existing_contract() -> None:
-    command = [sys.executable, "-c", 'import sys; print("{\\\"status\\\": \\\"ok\\\"}"); sys.exit(2)']
+    command = [sys.executable, "-c", "import json,sys; print(json.dumps({'status': 'ok'})); sys.exit(2)"]
     state, report, raw = stack.run(command, timeout=3)
     assert state == "nonzero"
     assert report == {"status": "ok"}
@@ -85,9 +85,11 @@ def test_child_stderr_is_never_returned() -> None:
 
 def test_subprocess_source_uses_streaming_cap_and_group_cleanup() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
-    assert "selectors.DefaultSelector()" in source
-    assert "MAX_JSON_BYTES + 1 - len(output)" in source
-    assert "start_new_session=True" in source
-    assert "os.killpg(process.pid, signal.SIGKILL)" in source
-    assert "stdout=subprocess.PIPE" in source
+    helper = (ROOT / "scripts/lib/bounded_subprocess.py").read_text(encoding="utf-8")
+    assert "capture_bounded(argv, cwd=ROOT, timeout=timeout, limit=MAX_JSON_BYTES)" in source
+    assert "selectors.DefaultSelector()" in helper
+    assert "limit + 1 - len(output)" in helper
+    assert "start_new_session=True" in helper
+    assert "os.killpg(process.pid, signal.SIGKILL)" in helper
+    assert "stdout=subprocess.PIPE" in helper
     assert "subprocess.run(argv" not in source
