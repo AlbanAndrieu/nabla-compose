@@ -14,9 +14,12 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, build_opener
@@ -61,21 +64,68 @@ def unavailable(component: str, status: str, state: str) -> list[dict[str, objec
     return [row(component, 'NOT_RUN' if status == 'missing' else 'UNVERIFIED', state)]
 
 
-def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str]:
-    """Execute pinned local scripts; capture no stderr and never forward raw output."""
+def _capture_bounded(argv: list[str], timeout: int) -> tuple[int, bytes] | None:
+    """Read at most MAX_JSON_BYTES+1 from a local child, under one deadline.
+
+    Return None when the child exceeds the cap. On timeout or overflow, kill
+    its isolated process group so descendants cannot keep stdout open.
+    No child error text is collected.
+    """
+    process = subprocess.Popen(
+        argv, cwd=ROOT, stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    output = bytearray()
+    finished = False
+    deadline = time.monotonic() + timeout
     try:
-        process = subprocess.run(argv, cwd=ROOT, stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                 check=False, timeout=timeout)
+        assert process.stdout is not None
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    raise subprocess.TimeoutExpired(argv, timeout)
+                block = os.read(
+                    process.stdout.fileno(),
+                    min(8192, MAX_JSON_BYTES + 1 - len(output)),
+                )
+                if not block:
+                    selector.unregister(process.stdout)
+                    break
+                output.extend(block)
+                if len(output) > MAX_JSON_BYTES:
+                    return None
+        returncode = process.wait(timeout=max(0.01, deadline - time.monotonic()))
+        finished = True
+        return returncode, bytes(output)
+    finally:
+        if not finished:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            if process.poll() is None:
+                process.kill()
+        process.wait()
+        if process.stdout is not None:
+            process.stdout.close()
+
+
+def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str]:
+    """Run a fixed local diagnostic with bounded output, memory and runtime."""
+    try:
+        captured = _capture_bounded(argv, timeout)
     except FileNotFoundError:
         return 'missing', {}, ''
     except subprocess.TimeoutExpired:
         return 'timeout', {}, ''
     except OSError:
         return 'unavailable', {}, ''
-    output = process.stdout or b''
-    if len(output) > MAX_JSON_BYTES:
+    if captured is None:
         return 'invalid', {}, ''
+    returncode, output = captured
     try:
         report = json.loads(output)
     except (ValueError, UnicodeError):
@@ -83,7 +133,7 @@ def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str
     if not isinstance(report, dict):
         report = {}
     # String kept privately for the fixed-pattern Prometheus config diagnostic.
-    return ('ok' if process.returncode == 0 else 'nonzero'), report, output.decode('utf-8', errors='replace')
+    return ('ok' if returncode == 0 else 'nonzero'), report, output.decode('utf-8', errors='replace')
 
 
 def get_json(url: str, timeout: int = 5, limit: int = 1024 * 1024) -> dict[str, Any]:
