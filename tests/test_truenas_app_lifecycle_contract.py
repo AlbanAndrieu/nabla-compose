@@ -439,7 +439,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
         self.assertIn("/mnt/cpool/secrets/runtime/homarr/.env.secrets", homarr)
         # Homarr v2 sync discovers boards by name; it keeps no persisted state.
-        self.assertIn("./config/boards.json:/config/nabla/boards.json:ro", homarr)
+        # A bind nested in the read-only ./generated mount fails: no mountpoint can be created.
+        self.assertIn("./config/boards.json:/config/boards.json:ro", homarr)
+        self.assertNotIn(":/config/nabla/boards.json", homarr)
         self.assertNotIn(":/state", homarr)
         self.assertNotIn("SECRET_ENCRYPTION_KEY: ${", homarr)
         self.assertIn(
