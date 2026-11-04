@@ -53,7 +53,7 @@ def test_quick_skips_expensive_scans_but_preserves_basic_inventory(tmp_path: Pat
     assert result.returncode == 0, result.stderr
     assert "mode=quick" in result.stdout
     assert "SKIPPED (quick mode" in result.stdout
-    assert "docker ps -a" in calls
+    assert any(line.startswith("docker ps -a --format ") for line in calls)
     assert "vmstat 1 1" in calls
     assert not any(line.startswith("docker stats") for line in calls)
     assert not any(line.startswith("docker system df") for line in calls)
@@ -73,7 +73,11 @@ def test_full_mode_keeps_existing_expensive_diagnostics(tmp_path: Path) -> None:
     assert "docker system df" in calls
     assert "zpool iostat -v cpool 1 3" in calls
     assert any(line.startswith("zfs list -H -t snapshot") for line in calls)
-    assert not any("SKIPPED (quick mode" in line for line in result.stdout.splitlines())
+    assert not any(
+        line.startswith("-- expensive Docker checks SKIPPED")
+        or line.startswith("-- cpool I/O and snapshot count SKIPPED")
+        for line in result.stdout.splitlines()
+    )
 
 
 @pytest.mark.parametrize("args", [("--unknown",), ("--quick", "--full")])
