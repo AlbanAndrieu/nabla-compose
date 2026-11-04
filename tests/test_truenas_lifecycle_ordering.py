@@ -21,6 +21,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
         services: list[dict[str, object]],
         relations: list[dict[str, str]],
         topology_nodes: list[dict[str, object]] | None = None,
+        extra_args: tuple[str, ...] = (),
     ) -> dict[str, object]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -47,6 +48,7 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
                     str(root / "services.json"),
                     "--topology",
                     str(root / "topology.json"),
+                    *extra_args,
                 ],
                 text=True,
                 capture_output=True,
@@ -490,6 +492,15 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
             {"disabled-app": "disabled", "planned-app": "planned"},
         )
         self.assertEqual(plan["service_status_by_app"]["active-app"], "active")
+
+        stop_plan = self.run_planner(
+            apps, services, [], extra_args=("--keep-inactive",)
+        )
+        self.assertEqual(
+            sorted(stop_plan["stop_order"]),
+            ["active-app", "disabled-app", "planned-app"],
+        )
+        self.assertEqual(stop_plan["suppressed_apps_by_status"], {})
 
     def test_reboot_resume_repairs_order_without_replacing_manifest(self) -> None:
         script = REBOOT.read_text(encoding="utf-8")

@@ -350,6 +350,11 @@ def main() -> int:
         default="",
         help="comma/space separated app IDs to include regardless of current state",
     )
+    parser.add_argument(
+        "--keep-inactive",
+        action="store_true",
+        help="keep planned/disabled Apps: a stop plan must cover every running App",
+    )
     parser.add_argument("--services", type=Path, default=DEFAULT_SERVICES)
     parser.add_argument("--topology", type=Path, default=DEFAULT_TOPOLOGY)
     parser.add_argument("--pretty", action="store_true")
@@ -383,6 +388,7 @@ def main() -> int:
         app: statuses.get(app, ACTIVE_SERVICE_STATUS)
         for app in sorted(selected)
         if app not in forced
+        and not args.keep_inactive
         and statuses.get(app, ACTIVE_SERVICE_STATUS) != ACTIVE_SERVICE_STATUS
     }
     selected -= set(suppressed_by_status)

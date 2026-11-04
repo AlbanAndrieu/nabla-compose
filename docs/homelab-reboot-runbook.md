@@ -543,6 +543,22 @@ same bounded App-scoped ghost recovery automatically after a supported
 `app.stop` failure. Set `NABLA_REBOOT_AUTO_RECOVER_GHOSTS=false` to disable
 that repair path for diagnostic-only maintenance.
 
+### App-only stop/start cycle (no host reboot)
+
+To restart every App in dependency order without touching Talos or the host:
+
+```bash
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --stop-apps    # phase QUIESCED
+sudo bash scripts/truenas/recovery-reboot-homelab.sh --resume-safe  # same boot, wave by wave
+```
+
+`--stop-apps` marks the transaction `apps-only`: `--continue` never shuts Talos
+down for it, and only that transaction lets the resume reconciler run on the
+same boot (`NABLA_RESUME_ALLOW_SAME_BOOT=true`). The stop plan uses the planner's
+`--keep-inactive`, so RUNNING Apps whose catalog status is `planned`/`disabled`
+are stopped too. `--resume-safe` still leaves them stopped: restart them through
+`resume-approved.txt` and `--resume-reviewed` as above.
+
 ## Fast post-reboot ghost recovery procedure
 
 When a reboot returns with widespread App `CRASHED`/`STOPPED` states and

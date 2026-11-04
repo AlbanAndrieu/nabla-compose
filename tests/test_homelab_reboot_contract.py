@@ -435,6 +435,7 @@ class HomelabRebootContractTests(unittest.TestCase):
         text = RECOVERY_REBOOT.read_text(encoding="utf-8")
         for mode in (
             "--prepare",
+            "--stop-apps",
             "--continue",
             "--status",
             "--reboot",
@@ -451,6 +452,15 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("all_apps_stopped", text)
         self.assertIn("shutdown --wait", text)
         self.assertIn("172.17.0.51 172.17.0.52 172.17.0.50", text)
+        # App-only cycle: Talos stays up and only that transaction may resume on the same boot.
+        self.assertIn("apps_only || shutdown_talos", text)
+        self.assertIn('NABLA_RESUME_ALLOW_SAME_BOOT="$(apps_only', text)
+        self.assertIn("--keep-inactive", text)
+        self.assertIn('"select":["id","name","state"', text)
+        reconciler = (ROOT / "scripts/truenas/reconcile-reboot-resume.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"${NABLA_RESUME_ALLOW_SAME_BOOT:-false}" == "true"', reconciler)
         self.assertNotIn("docker kill", text)
         self.assertNotIn("systemctl restart docker", text)
         self.assertNotIn("systemctl restart containerd", text)
