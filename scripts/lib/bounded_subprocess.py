@@ -7,11 +7,11 @@ POSIX process groups ensure a timeout cannot leave stdout inherited by a child.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import selectors
 import signal
 import subprocess
 import time
+from pathlib import Path
 
 
 def capture_bounded(
