@@ -31,6 +31,39 @@ La procédure globale peut être lancée par le script
 `scripts/truenas/diagnose-service-bundle.py --check --section observability`
 après revue du HEAD ; une panne n'interrompt pas les autres vérifications.
 
+### Diagnostic de performance rapide (4 novembre 2026)
+
+Le script `diagnose-performance.sh` conserve le comportement **complet par
+défaut** (`--full` ou sans argument). Un mode `--quick` évite les scans
+coûteux lors des incidents de pression mémoire ou I/O :
+
+```bash
+# Observation rapide, lecture seule :
+sudo bash scripts/truenas/diagnose-performance.sh --quick
+
+# Diagnostic initial historique, sans réduction de périmètre :
+sudo bash scripts/truenas/diagnose-performance.sh --full
+```
+
+En mode rapide : échantillon `vmstat` instantané, absence de `docker stats`,
+`docker system df` et inspection détaillée des conteneurs ; pas de
+`zpool iostat` ni d'inventaire intégral des snapshots ZFS ; lecture limitée
+aux 500 dernières entrées du journal du noyau. `midclt app.query` reste
+collecté une seule fois mais reçoit un timeout de dix secondes.
+Les vérifications omises sont **SKIPPED** dans la sortie, jamais saines par
+défaut ; le diagnostic complet reste requis pour confirmer leurs résultats.
+
+Le diagnostic FastAPI consolidé utilise désormais
+`scripts/lib/bounded_subprocess.py` : lecture incrémentale de stdout, mémoire
+bornée à **32 Kio** pour chaque processus enfant et délai global monotone.
+En cas de dépassement, le processus et ses descendants dans son groupe
+isolé sont interrompus ; stderr n'est jamais collecté. La fonction conserve
+le contrat historique `ok/nonzero/missing/timeout/invalid/unavailable`.
+
+Tests de sécurité hors réseau : `tests/test_truenas_quick_performance.py`
+et `tests/test_fastapi_bounded_subprocess.py`. Mesurer les gains réels sur
+TrueNAS séparément, sans déclencher de CI distante ni imposer le mode rapide.
+
 ### Performance des diagnostics (3 novembre 2026)
 
 Les contrôles restent **séquentiels par défaut** (`--jobs 1`) pour limiter
