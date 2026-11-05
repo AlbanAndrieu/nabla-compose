@@ -1283,7 +1283,7 @@ now selects the official TrueNAS CSI driver v1.0.3, adapted to NFS-only Talos
 nodes and the TrueNAS 26 `/api/current` WebSocket API. Evaluate iSCSI only after
 the node requirements and Talos extensions are deliberately reviewed. Track the
 driver's remaining `auth.login_with_api_key` compatibility debt and require a
-modern username/SCRAM path before TrueNAS 27.
+modern username/SCRAM path before TrueNAS 28.
 
 Treat this CSI auth migration together with the separate TrueNAS host upgrade
 debt: the lab is intentionally pinned on `26.0.0-BETA.2` until a reviewed

@@ -36,7 +36,7 @@ truenas = {
 
 TrueNAS 26 is still a beta target for the provider. Treat every first `plan`/`apply` as an integration test and keep provider safety rails enabled.
 
-The provider is configured with both the service-account username and API key. This uses the modern authentication path and avoids relying on `auth.login_with_api_key`, which is deprecated in TrueNAS 26 and scheduled for removal in TrueNAS 27.
+The provider is configured with both the service-account username and API key. This uses the modern authentication path and avoids relying on `auth.login_with_api_key`, which is deprecated since TrueNAS 26 (renamed 27) and planned for removal in TrueNAS 28.
 
 
 ### Direct TrueNAS TLS state — 2026-09-04
@@ -298,7 +298,7 @@ export TRUENAS_MCP_INSECURE=false
 
 `TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. If TrueNAS uses a private/self-signed CA, prefer trusting that CA locally rather than disabling TLS verification.
 
-The selected MCP currently authenticates with `auth.login_with_api_key`, which is deprecated in TrueNAS 26. Reassess it before TrueNAS 27 or replace it with an MCP/wrapper built on the modern `truenas/api_client`/SCRAM path. The official `truenas/truenas-mcp` Research Preview is not selected for this TrueNAS 26 configuration because its current transport still targets the legacy `/websocket` DDP-style connection.
+The selected MCP currently authenticates with `auth.login_with_api_key`, which is deprecated since TrueNAS 26 (renamed 27). Reassess it before TrueNAS 28 or replace it with an MCP/wrapper built on the modern `truenas/api_client`/SCRAM path. The official `truenas/truenas-mcp` Research Preview is not selected for this TrueNAS 26 configuration because its current transport still targets the legacy `/websocket` DDP-style connection.
 
 Cursor and other local agents can use `truenas-readonly` to inspect pools, datasets, interfaces, alerts and VMs without receiving infrastructure write credentials.
 

@@ -407,7 +407,7 @@ if [[ "${MODE}" == "--check" ]]; then
     fail "installed CSI controller is not runtime-converged; fix authentication/rollout before storage acceptance"
   fi
 
-  printf 'ℹ️  TrueNAS CSI v1.0.3 still uses deprecated auth.login_with_api_key; validate this path on TrueNAS 26 and replace it before TrueNAS 27.\n'
+  printf 'ℹ️  TrueNAS CSI v1.0.3 still uses deprecated auth.login_with_api_key; validate this path on TrueNAS 27 and replace it before TrueNAS 28 removes it.\n'
   exit 0
 fi
 

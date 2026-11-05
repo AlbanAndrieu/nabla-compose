@@ -186,7 +186,7 @@ export TRUENAS_MCP_API_KEY='...read-only API key...'
 export TRUENAS_MCP_INSECURE=false
 ```
 
-`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. Keep TLS verification enabled when possible. The selected MCP still authenticates with `auth.login_with_api_key`, which is deprecated in TrueNAS 26; before TrueNAS 27, reassess it or move to an MCP/wrapper using the modern `truenas/api_client`/SCRAM path.
+`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. Keep TLS verification enabled when possible. The selected MCP still authenticates with `auth.login_with_api_key`, which is deprecated since TrueNAS 26 (renamed 27); before TrueNAS 28, reassess it or move to an MCP/wrapper using the modern `truenas/api_client`/SCRAM path.
 
 Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 

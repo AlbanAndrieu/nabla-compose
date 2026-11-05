@@ -20,10 +20,10 @@ Reasons:
 - dynamic datasets can be constrained below `cpool/k8s/csi`.
 
 One compatibility debt remains explicit: TrueNAS CSI v1.0.3 still invokes
-`auth.login_with_api_key`. That method is deprecated in TrueNAS 26. It is
-acceptable only as a measured compatibility bridge on the current host and
-must be replaced/upgraded to the modern username/SCRAM API-key path before
-TrueNAS 27 removes the legacy method.
+`auth.login_with_api_key`. That method is deprecated since TrueNAS 26
+(renamed 27). It is acceptable only as a measured compatibility bridge on the
+current host and must be replaced/upgraded to the modern username/SCRAM
+API-key path before TrueNAS 28 removes the legacy method.
 
 The v1.3.0 evaluation does **not** close this debt. As of the 2026-09-04
 v1.3.0 release, the upstream Go client still invokes

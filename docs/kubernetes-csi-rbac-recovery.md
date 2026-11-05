@@ -302,7 +302,7 @@ Deployment/ReplicaSet/Pod/VolumeAttachment/log evidence and mark the CSI gate as
 explicitly deferred. A successful post-reboot smoke is then regression evidence,
 not proof of the pre-reboot failure cause.
 
-## TrueNAS 27 compatibility debt
+## TrueNAS 28 compatibility debt
 
 TrueNAS CSI v1.0.3 still authenticates through deprecated
 `auth.login_with_api_key`.
@@ -315,7 +315,7 @@ authentication migration**.
 
 Keep the current TrueNAS 26 path tested, finish controlled reboot/DNS
 acceptance, and then review the complete manifest/image delta separately.
-Before TrueNAS 27, require an upstream username/SCRAM-capable CSI release or a
+Before TrueNAS 28, require an upstream username/SCRAM-capable CSI release or a
 deliberately reviewed replacement/fork.
 
 Upstream evidence:
