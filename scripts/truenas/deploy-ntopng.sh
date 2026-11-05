@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
 
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 CANONICAL_ROOT="/mnt/cpool/compose/nabla-compose"
 APP_ID="ntopng"
 COMPOSE_PATH="${CANONICAL_ROOT}/apps/ntopng/compose.yml"
@@ -85,7 +85,7 @@ if [[ "${app_count}" == "1" ]]; then
     fail "existing app update requires separate NABLA_NTOPNG_UPDATE_APPROVED=yes"
 fi
 
-# TrueNAS middleware retains authority; never run docker compose up on an existing App.
+# TrueNAS middleware retains authority; never start the Compose project directly on an existing App.
 truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE_PATH}"
 truenas_wait_app_running "${APP_ID}" 600 5
 truenas_app_summary "${APP_ID}"
