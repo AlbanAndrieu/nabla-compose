@@ -1,88 +1,34 @@
-# Runbooks — index et autorité
+# Runbooks — index opérationnel
 
-> Mis à jour le 25 octobre 2026. Ce répertoire regroupe des procédures
-> spécialisées et des comptes rendus historiques. **Un runbook daté n'est
-> pas automatiquement une procédure d'exploitation encore valable.**
+> Mise à jour le 6 novembre 2026. Ce répertoire conserve les **procédures courantes** et les **cas d'échec mémorisables**. Les commandes d'un ancien incident ne sont pas un ordre de redéploiement. Source d'autorité des tâches : [roadmap active](../roadmap.md).
 
-## Point d'entrée courant
+## Opérations actives
 
-- **[Reprise Talos, secret modes et PDF OpenRAG](2026-10-25-talos-secret-permissions-openrag-pdf.md)** —
-  controles Talos VM STOPPED, permissions de secrets sans chmod recursif,
-  accessibilite PDF prive et preflight Docling, sans ingestion.
-- **[Opérateur de migration TrueNAS](truenas-migration-operator.md)** —
-  entrée CLI stable, modes exclusifs, planHash et workflow de rollback.
-- **[Acceptation runtime Homelab](homelab-runtime-acceptance.md)** —
-  priorité de diagnostic Prometheus → OpenRAG → Akvorado ;
-  sondes en lecture seule, preuves minimales, interdictions et décisions.
-- **[Diagnostics opérateur spécialisés](2026-10-25-homelab-operator-diagnostics.md)** —
-  Gatus, Prometheus et vérifications isolées, sans déploiement.
-- **[FastAPI IA/RAG Bababou](fastapi-truenas-ai-bababou-20261026.md)** —
-  topologie LiteLLM/Ollama/OpenRAG, recherche OWNER filtrée, vérifications
-  hors LAN et gates avant ingestion du corpus.
-- **[Rapport LAN Prometheus + Akvorado](prometheus-akvorado-lan-evidence-20261026.md)** —
-  commande unique, preuves JSON privées, classes FAIL/UNVERIFIED et diagnostics ciblés.
-- **[LiteLLM UI 401 / DefectDojo login / Prometheus API](2026-10-26-litellm-ui-session-defectdojo-prometheus.md)** —
-  session navigateur expirée, URL login privée et diagnostic du port 9090.
-- **[27 octobre — ressources RUNNING et reprise DefectDojo/Vaultwarden/observabilité](2026-10-27-defectdojo-resources-vault-observability.md)** —
-  CPU/RAM/ZFS, couverture des conteneurs, initializer bloqué, parité et sondes H-05/H-06.
-- **[DefectDojo — mémoire TrueNAS et reset DB éventuel](2026-10-26-defectdojo-memory-db-reset.md)** —
-  MemAvailable/PSI/ARC/OOM, mémoire des conteneurs, inventaire SQL en lecture seule.
-- **[Reprise Scrutiny / Prometheus (26 octobre)](2026-10-26-scrutiny-prometheus-lifecycle-recovery.md)** —
-  secret canonique, bind metrics et triage des erreurs TrueNAS.
-- **[Triage observabilité](2026-10-25-observability-triage.md)** —
-  causes instrumentées, exporter PostgreSQL et Auth FastAPI.
-- **[Secret FastAPI → Prometheus](fastapi-prometheus-scrape-secret-20261026.md)** —
-  provisionnement du jeton dédié, UID 568 et réception du scrape.
-- **[Tests rapides Node 22/npm 10](node22-local-fast-tests.md)** —
-  contrats statiques hors ligne et limitations de la preuve.
-- **[Clôture des secrets TrueNAS](truenas-secret-migration-closure.md)** —
-  clés manquantes, permissions OpenSearch, validation du legacy avant finalize.
-- **[Reprise ciblée TrueNAS du 25/10](2026-10-25-critical-acceptance-followup.md)** —
-  second relevé PASS=9/FAIL=7, sept contrôles read-only et réparations conditionnelles.
-- **[Relevé TrueNAS du 25/10](2026-10-25-critical-acceptance-evidence.md)** —
-  preuve datée PASS=8/FAIL=8, non assimilée à une santé courante.
-- **[Roadmap active](../roadmap.md)** —
-  priorités, risques ouverts et conditions de clôture.
-- **[Skill local-first](../../.agents/skills/local-first-quality/SKILL.md)** —
-  worktrees privés, tests, formatage, gate qualité et publication Draft.
-- **[Registre des refactorings risqués](homelab-refactoring-risk-register.md)** —
-  niveaux de risque, tests négatifs et seuils de publication.
-- **[Sécurité/architecture des skills](../agent-skills-architecture.md)** —
-  préséance des instructions ; installation des skills externes sur accord.
-
-## Runbooks spécialisés encore utiles
-
-| Domaine | Référence | Usage |
+| Opération | Document de référence | Gate |
 | --- | --- | --- |
-| APISIX | [service opt-in](../../apps/apisix/README.md) · [acceptation après migration](truenas-migration-operator.md) | Vérifier le runtime séparément du smoke HTTP, sans ingress public |
-| OpenRAG | [README d'exploitation](../../apps/openrag/README.md) · [ingestion](openrag-babou-ingestion-diagnostics.md) | État applicatif, Langflow/OpenSearch/LiteLLM, Docling et corpus privé |
-| Sentry | [reprise Apps du 23/10](2026-10-23-app-error-recovery.md) | Historique des incidents ; utiliser le diagnostic ciblé avant toute remédiation |
-| DefectDojo | [accès privé](defectdojo-private-ingress-acceptance.md) | Nginx/uWSGI, HTML origine, DNS interne, Traefik et HTTPS SNI |
-| Prometheus | [récupération observabilité](2026-10-24-prometheus-pyroscope-dns-dot-recovery.md) | Historique ; ne pas réappliquer un `chmod` déjà traité |
-| Akvorado / pfSense | [incident Unbound/pfBlockerNG](2026-10-24-pfsense-unbound-pfblocker-whatsapp.md) | OOM, mémoire, NetFlow, sans attribuer causalité sans preuve |
-| Secrets | [feuille de route secrets](../secrets-migration-roadmap.md) | Rotation, staging et rollback explicitement approuvés |
-| Talos/CSI | [préflight CSI](../kubernetes-csi-preflight.md) | NFS/CSI et tests multi-nœuds avant migration |
+| Remédiations des sondes et Apps TrueNAS après PR #326 | [Sondes — tâches restantes](2026-11-04-probe-remediation.md) | Parité `x-nabla` et santé runtime réelle |
+| Opérateur de migration TrueNAS | [Migration contrôlée](truenas-migration-operator.md) | `--check` / plan / rollback, accord explicite |
+| Diagnostic runtime Gatus / Prometheus / OpenRAG | [Acceptation Homelab](homelab-runtime-acceptance.md) | Preuves read-only, sans fusionner `DENIED` et `DOWN` |
+| FastAPI Sample et LiteLLM | [Diagnostic consolidé](fastapi-consolidated-diagnostics-20261030.md) | Identité, routes, métriques, secrets 0600 |
+| OpenClaw et heartbeat | [Migration end-to-end](openclaw-end-to-end-migration-20261030.md) | Gateway cible, budget, logs et aucun double heartbeat |
+| Home Assistant / Open WebUI | [Identité canonique](openwebui-homeassistant-canonical-rename.md) | Sauvegarde, middleware, Access et rollback |
+| Secrets TrueNAS | [Clôture](truenas-secret-migration-closure.md) | Provenance et alignement runtime |
+| Talos Kubernetes | [Préflight CSI](../kubernetes-csi-preflight.md) | `democratic-csi` et multi-nœuds |
+| Sécurité et test de non-régression | [Registre des refactorings](homelab-refactoring-risk-register.md) | Tests négatifs et qualité L3 |
+| Scripts de l'agent | [Skill local-first](../../.agents/skills/local-first-quality/SKILL.md) | Travail sur branche dédiée, pas de CI payante implicite |
 
-## Journaux et procédures historiques
+Les services qui requièrent une licence, des droits spéciaux ou des données réelles (ntopng, Scanopy, Home Assistant, Vaultwarden) ne sont jamais déployés par le simple chargement du catalogue.
 
-Ces fichiers sont **conservés pour la traçabilité**, mais leurs états
-`UP`, `DOWN`, `DEPLOYING` ou `STOPPED` et leurs commandes `--apply`
-ne doivent jamais être réexécutés sans nouveau préflight :
+## Problèmes passés utiles à conserver
 
-- [Commandes opérateur du 24 octobre](2026-10-24-homelab-operator-next-commands.md) :
-  passation multi-domaines de la PR #274.
-- [Acceptation des migrations du 24 octobre](2026-10-24-truenas-migration-acceptance.md) :
-  planification des vagues, transactions et historiques.
-- [Reprise des Apps du 23 octobre](2026-10-23-app-error-recovery.md) :
-  état de la récupération, observé à cette date.
-- [Quality gate de la PR #274](2026-10-24-pr274-local-quality-one-shot.md) :
-  bootstrap épinglé à une PR **fusionnée**.
-- [Roadmap antérieure](../archive/roadmap-through-2026-10-24.md) :
-  inventaire intégral des décisions et preuves historiques.
+- [Retour d'expérience des migrations du 6 novembre](../incidents/2026-11-06-migrations-retour-experience.md) : App `STOPPED` mal appariée, WAF, OOM, OpenClaw, secrets et Pre-commit.
+- [Archive approuvée au 24 octobre](../archive/roadmap-through-2026-10-24.md) : preuves historiques non applicables sans nouveau préflight.
+- [Incident pfSense / Unbound](2026-10-24-pfsense-unbound-pfblocker-whatsapp.md) : distinguer OOM, réseau et cause effective.
+- [DefectDojo — accès privé](defectdojo-private-ingress-acceptance.md) : résolution DNS, TLS/SNI et accès auth.
+- [OpenClaw — attribution 429](openclaw-litellm-429-attribution.md) : séparer quota, identité effective et métadonnées réelles.
 
-**Règle de maintenance :** une nouvelle observation va dans son runbook
-d'incident avec date, source et commandes read-only. La roadmap contient
-uniquement l'action non terminée et la gate d'acceptation. Un changement
-de politique transverse doit être versionné dans le skill correspondant.
-Ne pas recopier les journaux bruts, secrets, tokens, DSN ou données privées
-dans un document public.
+Les autres runbooks datés du répertoire restent consultables comme **matériau d'incident**, pas comme travaux à effectuer. Ils ne doivent pas être copiés dans la roadmap active.
+
+## Maintenance documentaire
+
+Une action non terminée apparaît **une seule fois** dans `docs/roadmap.md` et renvoie à son contrat d'exploitation. Un incident résolu ne conserve que *symptôme, cause, prévention, test de non-régression* ; les logs complets et secrets ne sont pas recopiés. `CODED` ne veut pas dire `ACCEPTED (runtime)`.
