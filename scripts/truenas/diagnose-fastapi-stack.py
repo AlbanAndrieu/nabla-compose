@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
 from scripts.lib.http_diagnostics import (  # noqa: E402
     NoRedirect, http_status as shared_http_status, read_json_object,
 )
+from scripts.lib.bounded_subprocess import capture_bounded  # noqa: E402
 UI_TARGETS = {
     'truenas': 'http://172.17.0.24:8091',
     'staging': 'https://sample.albandrieu.com',
@@ -62,20 +63,18 @@ def unavailable(component: str, status: str, state: str) -> list[dict[str, objec
 
 
 def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str]:
-    """Execute pinned local scripts; capture no stderr and never forward raw output."""
+    """Run a fixed local diagnostic with bounded output, memory and runtime."""
     try:
-        process = subprocess.run(argv, cwd=ROOT, stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                 check=False, timeout=timeout)
+        captured = capture_bounded(argv, cwd=ROOT, timeout=timeout, limit=MAX_JSON_BYTES)
     except FileNotFoundError:
         return 'missing', {}, ''
     except subprocess.TimeoutExpired:
         return 'timeout', {}, ''
     except OSError:
         return 'unavailable', {}, ''
-    output = process.stdout or b''
-    if len(output) > MAX_JSON_BYTES:
+    if captured is None:
         return 'invalid', {}, ''
+    returncode, output = captured
     try:
         report = json.loads(output)
     except (ValueError, UnicodeError):
@@ -83,7 +82,7 @@ def run(argv: list[str], timeout: int = 20) -> tuple[str, dict[str, object], str
     if not isinstance(report, dict):
         report = {}
     # String kept privately for the fixed-pattern Prometheus config diagnostic.
-    return ('ok' if process.returncode == 0 else 'nonzero'), report, output.decode('utf-8', errors='replace')
+    return ('ok' if returncode == 0 else 'nonzero'), report, output.decode('utf-8', errors='replace')
 
 
 def get_json(url: str, timeout: int = 5, limit: int = 1024 * 1024) -> dict[str, Any]:
