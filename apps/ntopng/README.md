@@ -33,7 +33,7 @@ ClickHouse `default` user. The runtime contract is intentionally fixed to:
 host     = 172.17.0.24 (override with CLICKHOUSE_HOST only when reviewed)
 database = ntopng
 user     = ntopng
-password = NTOPNG_CLICKHOUSE_PASSWORD from /mnt/cpool/ntopng/.env.secrets
+password = NTOPNG_CLICKHOUSE_PASSWORD from /mnt/cpool/secrets/runtime/ntopng/.env.secrets
            mounted as /run/secrets/ntopng_runtime_env
 ```
 
@@ -58,11 +58,11 @@ GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;
 Generate and store the password outside Git:
 
 ```bash
-sudo install -d -m 700 /mnt/cpool/ntopng
+sudo install -d -m 700 /mnt/cpool/secrets/runtime/ntopng
 umask 077
 printf 'NTOPNG_CLICKHOUSE_PASSWORD=%s\n' "$(openssl rand -hex 32)" |
-  sudo tee /mnt/cpool/ntopng/.env.secrets >/dev/null
-sudo chmod 600 /mnt/cpool/ntopng/.env.secrets
+  sudo tee /mnt/cpool/secrets/runtime/ntopng/.env.secrets >/dev/null
+sudo chmod 600 /mnt/cpool/secrets/runtime/ntopng/.env.secrets
 ```
 
 Use the same password when creating/resetting the ClickHouse `ntopng` user.
@@ -106,3 +106,44 @@ Before treating the service as operational, validate:
 
 The lifecycle audit performs the first four checks when the TrueNAS ntopng app
 is running. Flow persistence remains an explicit runtime acceptance test.
+
+## Migration TrueNAS — sécurité et reprise
+
+Le déployeur `scripts/truenas/deploy-ntopng.sh` possède deux modes : `--check`
+(**lecture seule**) et `--apply` (**création / mise à jour réelle via middleware**).
+Il ne crée ni licence, ni secret, ni base ClickHouse, ni dataset. Le chemin du
+secret canonique est `/mnt/cpool/secrets/runtime/ntopng/.env.secrets` ;
+`/mnt/cpool/ntopng/.env.secrets` est un ancien chemin de documentation,
+à **ne pas** réintroduire.
+
+Depuis le checkout canonique TrueNAS, avec une interface de capture revue :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo env NTOPNG_INTERFACE=br0 bash scripts/truenas/deploy-ntopng.sh --check
+```
+
+`br0` est **un exemple** : vérifier l'interface physique ou bridge concerné
+avec l'opérateur et les implications de `network_mode: host` avant de l'adopter.
+Un échec de préflight pour licence/secret/répertoire manquant est **attendu**,
+pas une autorisation d'inventer un secret ou d'activer la version communautaire.
+
+L'application volontaire requiert une approbation distincte pour le changement
+runtime, la licence Enterprise M+ et les grants ClickHouse. Ces variables
+attestent une **revue opérateur**, pas un contrôle automatisé de licence ou de
+la validité de la clé. Si une App `ntopng` existe déjà, ajouter aussi
+`NABLA_NTOPNG_UPDATE_APPROVED=yes` seulement après vérification de son état.
+
+```bash
+# Après sauvegarde, validation de licence, de ClickHouse et du plan :
+# sudo env NTOPNG_INTERFACE=<interface-validée> \
+#   NABLA_RUNTIME_CHANGE_APPROVED=yes \
+#   NABLA_NTOPNG_LICENSE_VALIDATED=yes \
+#   NABLA_NTOPNG_CLICKHOUSE_VALIDATED=yes \
+#   bash scripts/truenas/deploy-ntopng.sh --apply
+```
+
+La fin du script n'atteste pas la persistance des flux. Faire ensuite un
+test de flux synthétique autorisé, vérifier son arrivée en ClickHouse
+et sa conservation après redémarrage. **Aucun démarrage n'est déclenché par
+la PR GitHub.**
