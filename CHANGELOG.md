@@ -1,3 +1,10 @@
+## [0.57.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.57.0...0.57.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **catalog:** align exposure catalog and tunnel routes with probe evidence ([fd9f08b](https://github.com/AlbanAndrieu/nabla-compose/commit/fd9f08b8d25c751bca256ae7879945ff2553b82f))
+
 # [0.57.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.56.0...0.57.0) (2026-11-05)
 
 
