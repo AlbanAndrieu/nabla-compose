@@ -43,6 +43,7 @@
       "description": "MinIO AIStor-compatible object storage service.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "aistor"
@@ -266,6 +267,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "bitcoind",
         "containerService": "bitcoind"
       }
     },
@@ -761,6 +763,7 @@
       "sourcePath": "apps/elasticsearch/compose.yml",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "elastic-search",
         "containerService": "elasticsearch",
         "networks": [
           "traefik_network"
@@ -913,6 +916,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "graylog",
         "containerService": "graylog",
         "networks": [
           "intranet",
@@ -978,6 +982,7 @@
       "status": "planned",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "hermes-agent",
         "containerService": "hermes",
         "networks": [
           "hermes"
@@ -2684,6 +2689,7 @@
       "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
       "presentationRole": "service",
       "criticality": "low",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wordpress",

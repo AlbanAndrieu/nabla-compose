@@ -11,6 +11,7 @@ services:
       category: data
       presentationRole: service
       criticality: medium
+      status: planned
       description: MinIO AIStor-compatible object storage service.
       runtime:
         provider: truenas-app

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4641fe54929b1bf6d274bbbe92421b461e163fd3e98e16757e08060c7c41121a",
+  "catalogRevision": "sha256:f937577ab0696d1e5abf1410ae805efe7d760cf2490c81115e393199896117ce",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -31,6 +31,7 @@
       "description": "MinIO AIStor-compatible object storage service.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
@@ -264,6 +265,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "bitcoind",
         "containerService": "bitcoind"
       }
     },
@@ -736,6 +738,7 @@
       "composeService": "elasticsearch",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "elastic-search",
         "containerService": "elasticsearch",
         "networks": [
           "traefik_network"
@@ -871,6 +874,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "graylog",
         "containerService": "graylog",
         "networks": [
           "intranet",
@@ -928,6 +932,7 @@
       "status": "planned",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "hermes-agent",
         "containerService": "hermes",
         "networks": [
           "hermes"
@@ -2531,6 +2536,7 @@
       "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
       "presentationRole": "service",
       "criticality": "low",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wordpress",

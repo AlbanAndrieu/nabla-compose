@@ -47,6 +47,7 @@ services:
       category: development
       presentationRole: service
       criticality: low
+      status: planned
       description: Lab WordPress deployment backed by PostgreSQL through PG4WP.
       runtime:
         provider: truenas-app

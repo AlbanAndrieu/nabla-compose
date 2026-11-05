@@ -20,6 +20,7 @@ services:
       description: Read-only DevSecOps agent gateway for Telegram/Discord, limited to the nabla_observe MCP.
       runtime:
         provider: truenas-app
+        appId: hermes-agent
         containerService: hermes
       relations:
         - target: litellm

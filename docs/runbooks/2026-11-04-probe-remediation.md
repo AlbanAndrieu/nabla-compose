@@ -13,7 +13,7 @@ masquer un échec. Chaque étape se termine par sa preuve d'acceptation.
 ## 0. Ordre recommandé
 
 1. Fusionner les PR code/catalogue (le runtime lit le catalogue de `master`).
-2. Cloudflare : routes (§1), Access (§2–§3), WAF (§4).
+2. Cloudflare : routes (§1), Access (§2–§3).
 3. FastAPI Cloud : variables (§5).
 4. TrueNAS : Graylog, Lidarr, Homarr (§6).
 5. Rejouer la campagne de sondes (§8).
@@ -88,26 +88,21 @@ des clients Bitwarden.
 **Preuve :** ligne Vaultwarden de `/sickz` en `warn` « path-scoped public
 bypass » (comme n8n), plus en `fail` « Everyone bypass ».
 
-## 4. WAF / Bot : challenge sur l'egress FastAPI Cloud
+## 4. Keycloak / LiteLLM : challenge sur l'egress FastAPI Cloud
 
 Keycloak (`/.well-known/openid-configuration`) et LiteLLM
 (`/health/liveliness`) reçoivent la page challenge « Just a moment… » depuis
-FastAPI Cloud, alors qu'un autre egress externe obtient 200. Les sondes les
-classent désormais `warn` « origin health is unverified » (et non plus
-« injoignable »), sans les déclarer saines.
+FastAPI Cloud, alors qu'un autre egress externe obtient 200.
 
-1. *Security → Events* : filtrer `host` = `keycloak.albandrieu.com` /
-   `litellm.albandrieu.com`, action *Managed Challenge*, pour identifier la
-   règle (règle personnalisée, Bot Fight Mode, réputation IP/ASN).
-2. Ajouter une exception **étroite** : chemin exact de la sonde ET présence
-   de l'en-tête `CF-Access-Client-Id`, puis exiger le Service Auth (§2) qui
-   valide réellement le jeton. Ne jamais exempter tout le hostname ni une
-   plage d'IP Cloud (egress non contractuel).
-3. Si la règle est Bot Fight Mode (non exemptable), déplacer la preuve vers
-   l'observateur TrueNAS (LAN) plutôt que d'élargir l'exception.
+**Décision propriétaire (05/11/2026) : aucune exception WAF/Bot.** Depuis
+FastAPI Cloud, ces deux sondes restent `warn` « origin health is
+unverified » (`edge_block=challenge`) : c'est l'état attendu, pas une panne.
+La preuve de santé vient de l'observateur TrueNAS (LAN), qui ne traverse pas
+le bord Cloudflare.
 
-**Preuve :** `/healthz` → `checks.keycloak.reachable=true`,
-`checks.litellm.reachable=true`, sans `edge_block`.
+**Preuve :** sur l'instance TrueNAS, `/healthz` →
+`checks.keycloak.reachable=true` et `checks.litellm.reachable=true` ; sur
+FastAPI Cloud, `edge_block=challenge` sans `reachable=false`.
 
 ## 5. FastAPI Cloud : variables (opérateur autorisé)
 
@@ -121,11 +116,12 @@ mise exec -- uv run fastapi cloud env set --secret OVH_APPLICATION_KEY   # etc.
 - **OVH (`openstack_me`)** : l'API répond « This credential does not
   exist ». Régénérer le jeu OVH (application key/secret + consumer key) en
   lecture seule, mettre à jour les secrets, redéployer.
-- **pfSense** : la politique WAN réserve TCP/10443 à `PFSENSE_ADMIN_WAN`
-  ([roadmap](../pfsense-wan-exposure-roadmap.md)). Positionner
-  `PFSENSE_AUTHENTICATED_PROBES_ENABLED=false` sur FastAPI Cloud : la
-  posture pfSense est observée par l'instance TrueNAS (LAN). Sans ce
-  réglage, chaque tentative coûte ~6 s de `ConnectTimeout`.
+- **pfSense — fait le 05/11/2026** : `PFSENSE_AUTHENTICATED_PROBES_ENABLED=false`
+  sur FastAPI Cloud, conformément à la politique WAN qui réserve TCP/10443
+  à `PFSENSE_ADMIN_WAN` ([roadmap](../pfsense-wan-exposure-roadmap.md)).
+  Constaté en production : `checks.pfsense` en `transport_only`, `skipped`,
+  `credential_mode=disabled`, `ingress_block.state=telemetry_disabled`. La
+  posture pfSense authentifiée reste observée par l'instance TrueNAS (LAN).
 - **Tavily** : rien à changer ; la sonde utilise maintenant `GET /usage`.
 
 **Preuve :** `/healthz` → `openstack_me.reachable=true`,
@@ -149,6 +145,48 @@ sudo docker logs --tail 200 <conteneur>   # chercher OOM, migration, volume, por
 
 **Preuve :** `/api/homelab/runtime` → `RUNNING`, conteneur `running` ;
 `/api/homelab/health` → service `ok` avec preuve HTTP fraîche.
+
+## 6 bis. Liaisons runtime et services à déployer (05/11/2026)
+
+Liaisons corrigées dans `x-nabla` (ajout de l'`appId` déjà utilisé par les
+scripts du dépôt, car une App TrueNAS arrêtée n'expose aucun conteneur ;
+`containerService` est conservé) : `graylog`, `bitcoind`,
+`elasticsearch` → `elastic-search`, `hermes` → `hermes-agent`. Elles
+apparaissent désormais `in_sync` avec l'état réel `STOPPED` : ce n'est plus
+une erreur de détection, c'est l'arrêt à traiter (§6).
+
+`homeassistant` n'est **pas** relié à l'App native `home-assistant` :
+l'identité canonique `homeassistant` est un contrat
+(`tests/test_openwebui_canonical_migration.py`) et l'écart se résout par la
+migration `scripts/truenas/migrate-homeassistant-openwebui-names.sh`, pas
+en modifiant la déclaration.
+
+`aistor` et `wordpress` passent `status: planned` (décision propriétaire).
+
+Services qui **doivent** tourner sur TrueNAS mais n'y existent pas encore
+(restent en échec jusqu'au déploiement, volontairement).
+
+`deploy-security-tooling.sh` a un mode `--check` : l'exécuter et relire
+avant `--apply`.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/deploy-security-tooling.sh --check netbox
+sudo bash scripts/truenas/deploy-security-tooling.sh --check dependency-track
+sudo bash scripts/truenas/deploy-security-tooling.sh --check plumber
+```
+
+`deploy-joplin.sh` et `deploy-scanopy.sh` **appliquent directement** (pas
+de mode `--check`) : relire le script, vérifier que la base PostgreSQL
+dédiée existe (`bootstrap-joplin-postgres.sh` / `bootstrap-scanopy-postgres.sh`
+en `--check`), puis lancer le déploiement avec accord explicite.
+
+`ntopng` n'a pas de script de déploiement dans le dépôt : à créer sur le
+modèle de `deploy-scanopy.sh` avant toute installation (l'instance de la
+workstation n'est pas concernée).
+
+**Preuve :** `/api/homelab/status` → ces services `in_sync` ;
+`/api/homelab/health` → `effective_state=ok` avec preuve HTTP fraîche.
 
 ## 7. Décisions restantes du propriétaire
 
