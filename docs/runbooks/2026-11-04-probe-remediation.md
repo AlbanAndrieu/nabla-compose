@@ -1,211 +1,87 @@
-# Remédiation des sondes FastAPI Sample — 4 novembre 2026
+# Remédiations encore ouvertes — sondes Homelab (6 novembre 2026)
 
-Origine : comparaison en lecture seule FastAPI Cloud / local (04/11,
-19:10–19:20 UTC, `v0+1.27.0`). Ce runbook liste les corrections **non
-codifiables depuis le dépôt** ; les corrections de code et de catalogue sont
-dans les PR associées (fastapi-sample : sondes Tavily/Keycloak/LiteLLM et
-cache `/sickz` ; nabla-compose : catalogue et `tunnel.tofu`).
+**Périmètre :** actions opérateur **non réceptionnées** après les PR #325/#326. Les corrections d'`appId`, le `pfSense` Cloud `transport_only`, Tavily `GET /usage` et la décision de ne pas exempter Keycloak/LiteLLM au WAF sont **déjà codés ou décidés** : ne pas les rejouer. Leur contexte est dans [les leçons d'incident](../incidents/2026-11-06-migrations-retour-experience.md). Le plan de travail actuel est la [roadmap](../roadmap.md).
 
-Règle : une sonde ne passe au vert que lorsque la cause réelle est corrigée.
-Ne jamais modifier une politique de sonde, un catalogue ou un seuil pour
-masquer un échec. Chaque étape se termine par sa preuve d'acceptation.
+**Règle de sûreté :** ne jamais rendre une sonde verte en supprimant un contrôle, modifiant un seuil ou ouvrant un accès. Distinguer `CODED`, `NOT_VERIFIED` et `ACCEPTED (runtime)`. Avant chaque `--apply` : sauvegarde, politique validée, plan attendu et rollback.
 
-## 0. Ordre recommandé
+## 1. Cloudflare Tunnel — exposition déclarative non réceptionnée
 
-1. Fusionner les PR code/catalogue (le runtime lit le catalogue de `master`).
-2. Cloudflare : routes (§1), Access (§2–§3).
-3. FastAPI Cloud : variables (§5).
-4. TrueNAS : Graylog, Lidarr, Homarr (§6).
-5. Rejouer la campagne de sondes (§8).
-
-## 1. Routes Tunnel des services internes
-
-**Tunnel partagé (`tunnel.tofu`)** : 23 routes de services déclarés
-`external=false` sont retirées du code (20 refusées au bord en 403
-Default-Deny, plus `garage-admin`, `bichon`, `clamav` dont la politique
-documentée interdit toute exposition Tunnel). Le module étant encore en
-adoption *import-first*, le premier `plan` doit montrer **uniquement** ces
-23 suppressions d'`ingress` en plus du renommage `sample` déjà codé.
-Toute autre différence : arrêter et réconcilier.
+**Ouvert :** retirer des routes Tunnel les **23 entrées** des services `external=false` recensées dans la campagne du 4 novembre. Le plan OpenTofu a été préparé, **pas appliqué**. Les hostnames privés de la Workstation doivent aussi être retirés du dashboard après contrôle indépendant.
 
 ```bash
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=routes.tfplan
-# relire : seules ces 23 routes disparaissent (et le renommage déjà prévu)
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare apply routes.tfplan
+# Arrêter si le plan diffère des 23 suppressions attendues et du renommage FastAPI Sample.
+# Mutation séparée, après validation humaine :
+# scripts/infra/terragrunt-safe.sh infrastructure/cloudflare apply routes.tfplan
 ```
 
-Procédure complète et accord propriétaire : [README du module](../../terraform/cloudflare/README.md).
-Au moment du renommage `sample` → `fastapi-sample`, mettre aussi à jour
-l'entrée `fastapi-sample` de `catalog/homelab-services.json`.
+Pour le renommage `sample` → `fastapi-sample`, garder synchronisés les consommateurs du catalogue et les politiques Access. Ne jamais supprimer l'ancienne route avant l'acceptation de la nouvelle. [Contrat IaC](../../terraform/cloudflare/README.md).
 
-**Tunnel de la workstation (dashboard, non codifié)** : supprimer les Public
-Hostnames `anythingllm-albandrieu`, `litellm-albandrieu`,
-`plumber-albandrieu`, `portracker-albandrieu`, `reactive-albandrieu` et
-`stirling-albandrieu` (`*.albandrieu.com`), tous `external=false`.
+**Gate :** aucun `external=false but a Cloudflare Tunnel ingress exists` dans `/sickz`, aucune nouvelle exposition publique, diff OpenTofu maîtrisé.
 
-**Preuve :** `/sickz` ne contient plus de ligne
-`external=false but a Cloudflare Tunnel ingress exists` ; ces services
-passent `ok` (`not reachable from the external probe`).
+## 2. Cloudflare Access — identité de l'observateur et coffre
 
-## 2. Access : jeton de service de l'observateur
+**Ouvert :** les applications Access listées dans les preuves de campagne refusaient le Service Token de l'observateur : `Service Token did not pass Access`. Réconcilier **application par application**, avec une politique **Service Auth** et un token dédié, sans créer un `Bypass` général. L'état actuel des politiques reste **NOT_VERIFIED** tant que leurs actions n'ont pas été inspectées depuis Cloudflare.
 
-L'observateur FastAPI Cloud présente son Service Token, mais Access le
-refuse sur ces applications (`Service Token did not pass Access`) :
-2fauth, adguardhome, affine, clickhouse, freshrss, garage (Web UI), gatus,
-grafana, heimdall, homarr, ittools, karakeep, keycloak, langfuse,
-languagetool, litellm, minio, openwebui, plumber-api-albandrieu,
-prometheus, scrutiny, searxng, uptime-kuma.
+**Vaultwarden :** supprimer le `Bypass Everyone` de l'application entière uniquement après avoir créé et testé les exceptions par chemin nécessaires aux clients Bitwarden (`/api/*`, `/identity/*`, `/notifications/*`, `/icons/*`, `/alive`). La racine et `/admin` conservent Access et `ADMIN_TOKEN` ; valider les clients hors LAN **avant** toute suppression de règle.
 
-Pour chaque application : *Access → Applications → Policies* → ajouter la
-politique réutilisable **Service Auth** qui inclut le jeton de
-l'observateur (même jeton que `CLOUDFLARE_ACCESS_SERVICE_TOKEN_*` côté
-FastAPI Cloud). Action `Service Auth`, pas `Bypass`. Faire de même pour les
-applications de `ddns-updater`, `ollama`, `ollama-gpu` (désormais déclarées
-externes derrière Access) et `sample` (observateur TrueNAS ajouté au
-catalogue).
+**Gate :** `cloudflare_service_token_access_passed=true` quand un service exige Service Auth ; Vaultwarden limité par chemin, jamais exposé en accès libre.
 
-**Preuve :** dans `/api/homelab/health`, `public_probe_results[*]` de ces
-services : `cloudflare_service_token_access_passed=true`, plus
-d'`AUTH_FAILED`, `origin_reached=true`.
+## 3. FastAPI Cloud — credentials OVH seulement
 
-## 3. Vaultwarden : restreindre le bypass « Everyone »
-
-Constat : bypass Access sur **tout** `vaultwarden.albandrieu.com`.
-Cible : coffre web et `/admin` derrière Access ; bypass limité aux chemins
-des clients Bitwarden.
-
-1. Conserver l'application Access du hostname complet avec la politique
-   `nabla` (Allow) et retirer le bypass « Everyone » de cette application.
-2. Créer des applications Access **par chemin** avec bypass uniquement pour
-   `/api/*`, `/identity/*`, `/notifications/*`, `/icons/*` et `/alive`.
-   Access applique l'application au chemin le plus spécifique.
-3. Ne jamais mettre `/admin*` ni `/` en bypass ; garder `ADMIN_TOKEN`.
-4. Tester **avant** de supprimer l'ancien bypass : synchronisation d'un
-   client mobile et d'un client desktop hors LAN, notifications temps réel,
-   puis échec attendu (302 Access) sur `https://vaultwarden.albandrieu.com/`
-   sans session.
-
-**Preuve :** ligne Vaultwarden de `/sickz` en `warn` « path-scoped public
-bypass » (comme n8n), plus en `fail` « Everyone bypass ».
-
-## 4. Keycloak / LiteLLM : challenge sur l'egress FastAPI Cloud
-
-Keycloak (`/.well-known/openid-configuration`) et LiteLLM
-(`/health/liveliness`) reçoivent la page challenge « Just a moment… » depuis
-FastAPI Cloud, alors qu'un autre egress externe obtient 200.
-
-**Décision propriétaire (05/11/2026) : aucune exception WAF/Bot.** Depuis
-FastAPI Cloud, ces deux sondes restent `warn` « origin health is
-unverified » (`edge_block=challenge`) : c'est l'état attendu, pas une panne.
-La preuve de santé vient de l'observateur TrueNAS (LAN), qui ne traverse pas
-le bord Cloudflare.
-
-**Preuve :** sur l'instance TrueNAS, `/healthz` →
-`checks.keycloak.reachable=true` et `checks.litellm.reachable=true` ; sur
-FastAPI Cloud, `edge_block=challenge` sans `reachable=false`.
-
-## 5. FastAPI Cloud : variables (opérateur autorisé)
-
-Ne pas coller de valeur dans un terminal partagé ni dans un ticket.
+**Ouvert :** `openstack_me` a renvoyé « This credential does not exist » : auditer l'identité et son scope, régénérer uniquement si nécessaire, sans copier les secrets dans Git ni dans le ticket.
 
 ```bash
-mise exec -- uv run fastapi cloud env list          # noms seulement
-mise exec -- uv run fastapi cloud env set --secret OVH_APPLICATION_KEY   # etc.
+mise exec -- uv run fastapi cloud env list
+# L'édition de secrets exige une session opérateur distincte :
+# mise exec -- uv run fastapi cloud env set --secret OVH_APPLICATION_KEY
 ```
 
-- **OVH (`openstack_me`)** : l'API répond « This credential does not
-  exist ». Régénérer le jeu OVH (application key/secret + consumer key) en
-  lecture seule, mettre à jour les secrets, redéployer.
-- **pfSense — fait le 05/11/2026** : `PFSENSE_AUTHENTICATED_PROBES_ENABLED=false`
-  sur FastAPI Cloud, conformément à la politique WAN qui réserve TCP/10443
-  à `PFSENSE_ADMIN_WAN` ([roadmap](../pfsense-wan-exposure-roadmap.md)).
-  Constaté en production : `checks.pfsense` en `transport_only`, `skipped`,
-  `credential_mode=disabled`, `ingress_block.state=telemetry_disabled`. La
-  posture pfSense authentifiée reste observée par l'instance TrueNAS (LAN).
-- **Tavily** : rien à changer ; la sonde utilise maintenant `GET /usage`.
+**Gate :** santé de l'API OVH prouvée par une requête autorisée, et non par une simple présence de variables. **Ne pas réactiver** les sondes pfSense authentifiées depuis FastAPI Cloud.
 
-**Preuve :** `/healthz` → `openstack_me.reachable=true`,
-`tavily.reachable=true` ; `pfsense` en `transport_only`/skip explicite.
+## 4. TrueNAS — résoudre les états réels avant les changements
 
-## 6. TrueNAS : Graylog, Lidarr, Homarr
-
-Lecture seule d'abord (pas de redémarrage avant d'avoir la cause) :
+Le rapprochement `x-nabla` est déjà corrigé en PR #326. L'état `in_sync/STOPPED` n'est pas un PASS de disponibilité.
 
 ```bash
-sudo midclt call app.query '[["name","in",["graylog","lidarr","homarr"]]]' \
-  | jq -r '.[] | [.name, .state] | @tsv'
-sudo docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E 'ix-(graylog|lidarr|homarr)'
-sudo docker logs --tail 200 <conteneur>   # chercher OOM, migration, volume, port
+sudo midclt call app.query | jq -r '
+  .[] | select(.name == "graylog" or .name == "lidarr" or
+               .name == "homarr" or .name == "bitcoind" or
+               .name == "elastic-search" or .name == "hermes-agent")
+  | [.name, .state] | @tsv'
+sudo docker ps -a --format '{{.Names}}\t{{.Status}}' |
+  grep -E 'ix-(graylog|lidarr|homarr|bitcoind|elastic-search|hermes-agent)' || true
 ```
 
-- **Homarr CRASHED** : corriger la cause dans les logs (volume, migration
-  de base, variable manquante) avant `sudo midclt call -j app.start homarr`.
-- **Graylog / Lidarr STOPPED** : vérifier les dépendances (OpenSearch /
-  MongoDB pour Graylog) puis `sudo midclt call -j app.start <app>`.
+**Ouvert :** pour `homarr` CRASHED, traiter les erreurs de volume, base ou secret ; pour `graylog`/`lidarr` STOPPED, vérifier leurs dépendances. Les arrêts volontaires (`bitcoind` et autres) exigent **une nouvelle décision** avant redémarrage. Aucun `app.start` automatique.
 
-**Preuve :** `/api/homelab/runtime` → `RUNNING`, conteneur `running` ;
-`/api/homelab/health` → service `ok` avec preuve HTTP fraîche.
+**Gate :** `/api/homelab/runtime` cohérent avec TrueNAS, `/api/homelab/health` avec HTTP frais et causes documentées pour les arrêts voulus.
 
-## 6 bis. Liaisons runtime et services à déployer (05/11/2026)
+## 5. Applications TrueNAS encore absentes
 
-Liaisons corrigées dans `x-nabla` (ajout de l'`appId` déjà utilisé par les
-scripts du dépôt, car une App TrueNAS arrêtée n'expose aucun conteneur ;
-`containerService` est conservé) : `graylog`, `bitcoind`,
-`elasticsearch` → `elastic-search`, `hermes` → `hermes-agent`. Elles
-apparaissent désormais `in_sync` avec l'état réel `STOPPED` : ce n'est plus
-une erreur de détection, c'est l'arrêt à traiter (§6).
+| Application | Procédure versionnée | Prérequis/gate avant mutation |
+| --- | --- | --- |
+| `netbox`, `dependency-track`, `plumber` | `scripts/truenas/deploy-security-tooling.sh --apply <app>` | Secrets, stockage, PostgreSQL et plan contrôlés |
+| `scanopy` | `scripts/truenas/deploy-scanopy.sh` | Autorisation du daemon privilégié, secrets, rôle PostgreSQL et image |
+| `joplin` | `scripts/truenas/deploy-joplin.sh` | Postgres, permissions 0600 ; décision d'exposition `external=true` à réconcilier |
+| `ntopng` | `scripts/truenas/deploy-ntopng.sh --check` puis `--apply` **si le préflight passe** | Licence Enterprise M+, ClickHouse dédié, interface de capture approuvée, secret canonique 0600 |
 
-`homeassistant` n'est **pas** relié à l'App native `home-assistant` :
-l'identité canonique `homeassistant` est un contrat
-(`tests/test_openwebui_canonical_migration.py`) et l'écart se résout par la
-migration `scripts/truenas/migrate-homeassistant-openwebui-names.sh`, pas
-en modifiant la déclaration.
+**Attention :** `deploy-security-tooling.sh --check` est **un test d'acceptation runtime**, pas un simple dry-run initial. Il échoue normalement si une App requise manque ; avant son premier déploiement, contrôler indépendamment `prepare-security-tooling-secrets.sh --check`, `bootstrap-repository-storage.sh --check`, `bootstrap-security-tooling-postgres.sh --check` et le contrat Compose. `--apply` provoque de véritables mutations.
 
-`aistor` et `wordpress` passent `status: planned` (décision propriétaire).
+**Scanopy/Joplin :** jusqu'à la disponibilité d'un `--check` de leur déployeur, **ne pas exécuter leur script pour inspecter**. Utiliser les bootstrap `--check` et relire les scripts. La réception TrueNAS reste requise après tout premier déploiement.
 
-Services qui **doivent** tourner sur TrueNAS mais n'y existent pas encore
-(restent en échec jusqu'au déploiement, volontairement).
+**ntopng :** la version déclarative requiert une licence non fournie par ce dépôt et l'accès `NET_ADMIN`/`NET_RAW` au réseau hôte ; aucun démarrage n'est permis par la seule présence du script. Le backend ClickHouse doit être testé avec une identité `ntopng` limitée.
 
-`deploy-security-tooling.sh` a un mode `--check` : l'exécuter et relire
-avant `--apply`.
+**Gate commune :** une App TrueNAS unique, `in_sync` dans `/api/homelab/status`, runtime et HTTP frais, données restaurables. Ne pas requalifier un service en `planned` pour supprimer artificiellement une panne. `aistor` et `wordpress` restent des exceptions **planifiées** assumées.
 
-```bash
-cd /mnt/cpool/compose/nabla-compose
-sudo bash scripts/truenas/deploy-security-tooling.sh --check netbox
-sudo bash scripts/truenas/deploy-security-tooling.sh --check dependency-track
-sudo bash scripts/truenas/deploy-security-tooling.sh --check plumber
-```
+## 6. Identité canonique et dettes d'exposition
 
-`deploy-joplin.sh` et `deploy-scanopy.sh` **appliquent directement** (pas
-de mode `--check`) : relire le script, vérifier que la base PostgreSQL
-dédiée existe (`bootstrap-joplin-postgres.sh` / `bootstrap-scanopy-postgres.sh`
-en `--check`), puis lancer le déploiement avec accord explicite.
+- `homeassistant` n'est pas rebaptisé en `home-assistant` dans le catalogue. Suivre [la migration contrôlée](openwebui-homeassistant-canonical-rename.md) avec rollback et preuve du middleware.
+- `joplin.int.albandrieu.com` est privé tandis que la déclaration historique indique `external=true` ; ne pas publier un hostname automatiquement pour faire passer une assertion.
+- `hello.int` reste `warn` par décision ; `s3.int` demeure une exception jusqu'à la migration du backend d'état OpenTofu.
 
-`ntopng` n'a pas de script de déploiement dans le dépôt : à créer sur le
-modèle de `deploy-scanopy.sh` avant toute installation (l'instance de la
-workstation n'est pas concernée).
+## 7. Réception globale
 
-**Preuve :** `/api/homelab/status` → ces services `in_sync` ;
-`/api/homelab/health` → `effective_state=ok` avec preuve HTTP fraîche.
+Depuis les réseaux autorisés, comparer des captures **datées et sur le même SHA** de `/healthz`, `/api/homelab/health`, `/api/homelab/status` et `/sickz`. Le second `/sickz` dans la minute doit être servi du cache. Contrôler que les `warn` WAF volontaires ne sont pas affichés comme `DOWN`, et que toutes les Apps requises ont une preuve indépendante de leur santé.
 
-## 7. Décisions restantes du propriétaire
-
-- **Joplin** : déclaré `external=true` (contrat
-  `tests/test_homelab_external_services_contract.py`) mais
-  `joplin.int.albandrieu.com` n'a pas de DNS public ni de route. Soit
-  publier un hostname Tunnel derrière Access, soit changer le contrat.
-- **hello.int** : exception directe documentée dans le catalogue ; `/sickz`
-  reste en `warn` (dette assumée), pas en `ok`.
-- **s3.int** : exception connue jusqu'à la bascule du backend d'état
-  OpenTofu ; reste en `fail` tant que la route WAN existe.
-- **garage-admin, bichon, clamav** : routes retirées conformément à la
-  politique documentée ; les rouvrir exige une exception explicite.
-
-## 8. Preuve d'acceptation globale
-
-Rejouer la même campagne (GET séquentiels, lecture seule) depuis la
-workstation LAN contre TrueNAS (`https://sample.int.albandrieu.com`),
-FastAPI Cloud et une instance locale, puis comparer `/healthz`,
-`/api/homelab/health`, `/api/homelab/status` et `/sickz`. `/sickz` doit
-répondre depuis le cache (`probe_cache.source=cache`) au second appel dans
-la minute.
+**Clôture :** résultats `ACCEPTED (runtime)` ; sinon maintenir `NOT_VERIFIED`. La PR et la quality gate ne remplacent pas ce contrôle.
