@@ -41,15 +41,6 @@
       "external": true
     },
     {
-      "id": "aistor",
-      "name": "AIStor",
-      "description": "MinIO AIStor-compatible object storage service.",
-      "external": false,
-      "internalHost": "172.17.0.24",
-      "internalPort": 9002,
-      "internalSecure": false
-    },
-    {
       "id": "anythingllm",
       "name": "AnythingLLM",
       "icons": ["fas fa-comments"],
@@ -441,7 +432,8 @@
       "tunnelUrl": "https://keycloak.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/keycloak.png",
-      "external": true
+      "external": true,
+      "healthPath": "/realms/master/.well-known/openid-configuration"
     },
     {
       "id": "langfuse",
@@ -494,7 +486,7 @@
       "tunnelUrl": "https://litellm.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
-      "external": true
+      "external": false
     },
     {
       "id": "litellm-albandrieu",
@@ -1107,14 +1099,6 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/vaultwarden.png",
       "external": true
-    },
-    {
-      "id": "wordpress",
-      "name": "WordPress",
-      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
-      "external": false,
-      "endpointEnabled": false,
-      "healthNote": "Runtime-only TrueNAS service; reconcile via wordpress."
     }
   ]
 }

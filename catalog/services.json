@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:f937577ab0696d1e5abf1410ae805efe7d760cf2490c81115e393199896117ce",
+  "catalogRevision": "sha256:f5d7b732b88282047ad77bf81a006e0c6b1d49d80dbc40b052afabf3af73c920",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -20,27 +20,6 @@
         "appId": "twofactor-auth"
       },
       "icon": "🔐"
-    },
-    {
-      "id": "aistor",
-      "name": "AIStor",
-      "kind": "object-storage",
-      "category": "data",
-      "sourcePath": "apps/aistor/compose.yml",
-      "composeService": "aistor",
-      "description": "MinIO AIStor-compatible object storage service.",
-      "presentationRole": "service",
-      "criticality": "medium",
-      "status": "planned",
-      "monitoring": {
-        "type": "port",
-        "host": "172.17.0.24",
-        "port": 9002
-      },
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "aistor"
-      }
     },
     {
       "id": "akvorado-console",
@@ -2525,25 +2504,6 @@
         "containerService": "wazuh.manager"
       },
       "icon": "🛡️"
-    },
-    {
-      "id": "wordpress",
-      "name": "WordPress",
-      "kind": "cms",
-      "category": "development",
-      "sourcePath": "apps/wordpress/compose.yml",
-      "composeService": "wordpress",
-      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
-      "presentationRole": "service",
-      "criticality": "low",
-      "status": "planned",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "wordpress",
-        "networks": [
-          "intranet"
-        ]
-      }
     }
   ]
 }

@@ -14,16 +14,6 @@ endpoints:
   url: tcp://172.17.0.24:30081
   conditions:
   - '[CONNECTED] == true'
-- name: AIStor
-  group: data
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: aistor
-    nabla_service_id: aistor
-    nabla_entity_ref: component:default/aistor
-  url: tcp://172.17.0.24:9002
-  conditions:
-  - '[CONNECTED] == true'
 - name: Grafana Alloy
   group: observability
   interval: 60s
@@ -851,15 +841,5 @@ endpoints:
     nabla_service_id: wazuh-manager
     nabla_entity_ref: component:default/wazuh-manager
   url: tcp://172.17.0.24:1514
-  conditions:
-  - '[CONNECTED] == true'
-- name: WordPress
-  group: development
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: wordpress
-    nabla_service_id: wordpress
-    nabla_entity_ref: component:default/wordpress
-  url: tcp://172.17.0.24:8088
   conditions:
   - '[CONNECTED] == true'

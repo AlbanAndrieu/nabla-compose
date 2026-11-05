@@ -6,10 +6,6 @@
       "ref": "component:default/2fauth"
     },
     {
-      "dependsOn": [],
-      "ref": "component:default/aistor"
-    },
-    {
       "dependsOn": [
         "resource:default/clickhouse"
       ],
@@ -601,16 +597,6 @@
       "ref": "component:default/wazuh-manager"
     },
     {
-      "dependsOn": [
-        "resource:default/postgresql"
-      ],
-      "ref": "component:default/wordpress"
-    },
-    {
-      "dependsOn": [],
-      "ref": "component:default/wordpress-wordpress-initdb"
-    },
-    {
       "dependsOn": [],
       "ref": "resource:default/clickhouse"
     },
@@ -709,7 +695,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:fb3c413851355e0999b00e44aeaf44db8c025e4b93c5d156862afa7487397277"
+        "value": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343"
       },
       {
         "name": "nabla:catalog-authority",
@@ -717,7 +703,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:fb3c4138-5135-5e09-99b0-0e44aeaf44db",
+  "serialNumber": "urn:uuid:84f6b6fe-1534-c8d5-f42b-171afcbe52d2",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -738,33 +724,6 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-app"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/aistor",
-      "description": "MinIO AIStor-compatible object storage service.",
-      "name": "AIStor",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/aistor"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/aistor/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "object-storage"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -4084,59 +4043,6 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-manager"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/wordpress",
-      "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
-      "name": "WordPress",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/wordpress"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/wordpress/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "website"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/wordpress-wordpress-initdb",
-      "name": "Wordpress Initdb",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/wordpress-wordpress-initdb"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/wordpress/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",

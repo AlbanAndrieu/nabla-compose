@@ -57,10 +57,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         origin_request = {}
         service        = "http://172.17.0.24:30037"
       },
+      # Keycloak: publish only the production endpoints recommended by
+      # https://www.keycloak.org/server/reverseproxy (OIDC realms, assets,
+      # discovery). /admin/, /metrics, /health and the root stay internal.
+      {
+        hostname       = "keycloak.albandrieu.com"
+        path           = "^/(realms|resources|\\.well-known)/"
+        origin_request = {}
+        service        = "http://172.17.0.24:30238"
+      },
       {
         hostname       = "keycloak.albandrieu.com"
         origin_request = {}
-        service        = "http://172.17.0.24:30238"
+        service        = "http_status:404"
       },
       {
         hostname       = "homarr.albandrieu.com"
@@ -171,11 +180,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname       = "npm.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30020"
-      },
-      {
-        hostname       = "litellm.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:4000"
       },
       {
         hostname       = "ddns-updater.albandrieu.com"

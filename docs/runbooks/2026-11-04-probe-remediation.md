@@ -24,15 +24,36 @@ masquer un échec. Chaque étape se termine par sa preuve d'acceptation.
 `external=false` sont retirées du code (20 refusées au bord en 403
 Default-Deny, plus `garage-admin`, `bichon`, `clamav` dont la politique
 documentée interdit toute exposition Tunnel). Le module étant encore en
-adoption *import-first*, le premier `plan` doit montrer **uniquement** ces
-23 suppressions d'`ingress` en plus du renommage `sample` déjà codé.
-Toute autre différence : arrêter et réconcilier.
+adoption *import-first*, le premier `plan` doit montrer **uniquement**, sur
+`cloudflare_zero_trust_tunnel_cloudflared_config.homelab` :
+
+- les 23 suppressions d'`ingress` ci-dessus ;
+- la suppression de la route `litellm.albandrieu.com` (05/11 : LiteLLM n'est
+  plus publié sur Internet) ;
+- pour `keycloak.albandrieu.com`, une route limitée au `path`
+  `^/(realms|resources|\.well-known)/` puis un `http_status:404` pour le reste
+  (`/admin/`, `/metrics`, `/health`, racine), selon
+  [la doc Keycloak](https://www.keycloak.org/server/reverseproxy) ;
+- le renommage `sample` → `fastapi-sample` déjà codé.
+
+Toute autre différence : arrêter et réconcilier. Le plan s'exécute depuis la
+workstation LAN (jeton Cloudflare **lecture** et clés de l'état Garage depuis
+Vaultwarden, jamais affichés) ; l'apply exige l'accord explicite du
+propriétaire après relecture du plan.
 
 ```bash
-scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=routes.tfplan
-# relire : seules ces 23 routes disparaissent (et le renommage déjà prévu)
+export BW_SESSION="$(bw-unlock)"   # puis exporter CLOUDFLARE_API_TOKEN et AWS_* sans les afficher
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare init -reconfigure
+scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=routes.tfplan -no-color \
+  | tee /tmp/cloudflare-plan.txt
+# relire /tmp/cloudflare-plan.txt (aucun secret dans un plan Tunnel/DNS/Access)
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflare apply routes.tfplan
+bw lock
 ```
+
+Après l'apply, supprimer dans le dashboard l'enregistrement DNS
+`litellm.albandrieu.com` (non géré par ce module) et l'application Access
+LiteLLM devenue inutile.
 
 Procédure complète et accord propriétaire : [README du module](../../terraform/cloudflare/README.md).
 Au moment du renommage `sample` → `fastapi-sample`, mettre aussi à jour
@@ -56,13 +77,24 @@ grafana, heimdall, homarr, ittools, karakeep, keycloak, langfuse,
 languagetool, litellm, minio, openwebui, plumber-api-albandrieu,
 prometheus, scrutiny, searxng, uptime-kuma.
 
-Pour chaque application : *Access → Applications → Policies* → ajouter la
-politique réutilisable **Service Auth** qui inclut le jeton de
-l'observateur (même jeton que `CLOUDFLARE_ACCESS_SERVICE_TOKEN_*` côté
-FastAPI Cloud). Action `Service Auth`, pas `Bypass`. Faire de même pour les
-applications de `ddns-updater`, `ollama`, `ollama-gpu` (désormais déclarées
-externes derrière Access) et `sample` (observateur TrueNAS ajouté au
-catalogue).
+Prérequis (une fois, dashboard) : une politique **réutilisable** d'action
+`Service Auth` (`decision=non_identity`) qui inclut le jeton de
+l'observateur (même client que `CLOUDFLARE_ACCESS_SERVICE_TOKEN_*` côté
+FastAPI Cloud). Jamais `Bypass`.
+
+Le script `scripts/cloudflare/attach-observer-service-auth.py` dérive la liste
+des hôtes du catalogue (`external=true`, derrière Tunnel, Access non désactivé,
+hors `*.int`) — `litellm` n'en fait plus partie — et n'ajoute que cette
+politique, en conservant les autres réglages de chaque application. Il est en
+lecture seule par défaut ; une application encore en politiques *inline* est
+signalée et laissée intacte.
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID=bdfe00eeee5845782ab91adfbff71ee1
+export CLOUDFLARE_API_TOKEN=...   # Access: Apps and Policies Edit, depuis Vaultwarden
+python3 scripts/cloudflare/attach-observer-service-auth.py --policy-id <uuid>          # check
+python3 scripts/cloudflare/attach-observer-service-auth.py --policy-id <uuid> --apply  # après relecture
+```
 
 **Preuve :** dans `/api/homelab/health`, `public_probe_results[*]` de ces
 services : `cloudflare_service_token_access_passed=true`, plus
@@ -88,7 +120,7 @@ des clients Bitwarden.
 **Preuve :** ligne Vaultwarden de `/sickz` en `warn` « path-scoped public
 bypass » (comme n8n), plus en `fail` « Everyone bypass ».
 
-## 4. Keycloak / LiteLLM : challenge sur l'egress FastAPI Cloud
+## 4. Keycloak / LiteLLM : exposition et challenge Cloudflare
 
 Keycloak (`/.well-known/openid-configuration`) et LiteLLM
 (`/health/liveliness`) reçoivent la page challenge « Just a moment… » depuis
@@ -100,9 +132,19 @@ unverified » (`edge_block=challenge`) : c'est l'état attendu, pas une panne.
 La preuve de santé vient de l'observateur TrueNAS (LAN), qui ne traverse pas
 le bord Cloudflare.
 
+**Décision propriétaire (05/11/2026, suite) :** LiteLLM n'est plus publié
+sur Internet (route Tunnel retirée, `external=false`) ; Keycloak ne publie que
+ses endpoints de production (`/realms/`, `/resources/`, `/.well-known/`), son
+interface `/admin/` reste interne. La doc Keycloak recommande aussi de garder
+`/realms/master/` interne : c'est aujourd'hui le seul realm utilisé, il reste
+donc publié tant qu'un realm applicatif dédié n'a pas été créé et les clients
+migrés (suite à donner). FastAPI Sample ne sonde plus LiteLLM depuis Internet
+(URL vide par défaut, URL LAN sur TrueNAS).
+
 **Preuve :** sur l'instance TrueNAS, `/healthz` →
-`checks.keycloak.reachable=true` et `checks.litellm.reachable=true` ; sur
-FastAPI Cloud, `edge_block=challenge` sans `reachable=false`.
+`checks.keycloak.reachable=true` et `checks.litellm.reachable=true` ;
+depuis Internet, `https://keycloak.albandrieu.com/admin/` → 404 et
+`/realms/master/.well-known/openid-configuration` → réponse Access ou 200.
 
 ## 5. FastAPI Cloud : variables (opérateur autorisé)
 
@@ -113,9 +155,9 @@ mise exec -- uv run fastapi cloud env list          # noms seulement
 mise exec -- uv run fastapi cloud env set --secret OVH_APPLICATION_KEY   # etc.
 ```
 
-- **OVH (`openstack_me`)** : l'API répond « This credential does not
-  exist ». Régénérer le jeu OVH (application key/secret + consumer key) en
-  lecture seule, mettre à jour les secrets, redéployer.
+- **OVH (`openstack_me`) — désactivé le 05/11/2026** : la sonde est ignorée
+  par défaut (`OVH_API_PROBE_ENABLED=true` pour la réactiver après avoir
+  régénéré un jeu de clés OVH en lecture seule).
 - **pfSense — fait le 05/11/2026** : `PFSENSE_AUTHENTICATED_PROBES_ENABLED=false`
   sur FastAPI Cloud, conformément à la politique WAN qui réserve TCP/10443
   à `PFSENSE_ADMIN_WAN` ([roadmap](../pfsense-wan-exposure-roadmap.md)).
@@ -124,7 +166,7 @@ mise exec -- uv run fastapi cloud env set --secret OVH_APPLICATION_KEY   # etc.
   posture pfSense authentifiée reste observée par l'instance TrueNAS (LAN).
 - **Tavily** : rien à changer ; la sonde utilise maintenant `GET /usage`.
 
-**Preuve :** `/healthz` → `openstack_me.reachable=true`,
+**Preuve :** `/healthz` → `openstack_me` `skipped` (désactivé),
 `tavily.reachable=true` ; `pfsense` en `transport_only`/skip explicite.
 
 ## 6. TrueNAS : Graylog, Lidarr, Homarr
@@ -138,13 +180,46 @@ sudo docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E 'ix-(graylog|lida
 sudo docker logs --tail 200 <conteneur>   # chercher OOM, migration, volume, port
 ```
 
-- **Homarr CRASHED** : corriger la cause dans les logs (volume, migration
-  de base, variable manquante) avant `sudo midclt call -j app.start homarr`.
+- **Homarr CRASHED** : l'interface `homarr` tourne ; c'est le job ponctuel
+  `homarr-sync` (`restart: "no"`, réconciliation via l'API Homarr) qui sort
+  en erreur et fait passer l'App en `CRASHED`. Lire
+  `sudo docker logs --tail 200 homarr-sync` (jeton API Homarr absent ou
+  expiré dans `/mnt/cpool/secrets/runtime/homarr/.env.secrets`, API Homarr
+  v2.6 modifiée, manifeste généré invalide), corriger la cause, puis
+  redéployer l'App (`sudo midclt call -j app.redeploy homarr`). Possible en
+  `HOMARR_SYNC_DRY_RUN=true` d'abord pour valider sans écrire.
 - **Graylog / Lidarr STOPPED** : vérifier les dépendances (OpenSearch /
   MongoDB pour Graylog) puis `sudo midclt call -j app.start <app>`.
 
 **Preuve :** `/api/homelab/runtime` → `RUNNING`, conteneur `running` ;
 `/api/homelab/health` → service `ok` avec preuve HTTP fraîche.
+
+### Migration Home Assistant (App native → `apps/homeassistant`)
+
+`migrate-homeassistant-openwebui-names.sh --apply` refuse volontairement
+quand l'App native `home-assistant` est gérée par TrueNAS : la bascule est
+manuelle. Points d'arrêt **avant** toute action :
+
+1. `sudo bash scripts/truenas/migrate-homeassistant-openwebui-names.sh --check`
+   et `sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check homeassistant`.
+2. Comparer le stockage de l'App native
+   (`sudo midclt call app.config home-assistant | jq '.storage // .'`, sans
+   afficher de secrets) au montage du dépôt
+   `/mnt/storage0/home-assistant/config:/config`. S'ils diffèrent : arrêter.
+3. L'App native embarque un PostgreSQL (recorder) ; `apps/homeassistant`
+   n'en a pas. Sans migration du recorder vers le PostgreSQL partagé (ou
+   acceptation écrite de repartir en SQLite), l'historique est perdu : arrêter
+   et décider.
+4. L'image du dépôt est `:stable` (flottante) alors que l'App native est
+   épinglée par digest : épingler la même version avant la bascule.
+5. Snapshot ZFS récursif des datasets concernés, puis
+   `sudo midclt call -j app.stop home-assistant`, déploiement
+   `sudo bash scripts/truenas/bootstrap-repository-runtime.sh --apply homeassistant`,
+   vérification (UI, intégrations, historique). Retour arrière : arrêter
+   `homeassistant`, `sudo midclt call -j app.start home-assistant`.
+
+**Preuve :** `/api/homelab/status` → `homeassistant` `in_sync` (conteneur
+`homeassistant`), plus d'`observed_only` `home-assistant`.
 
 ## 6 bis. Liaisons runtime et services à déployer (05/11/2026)
 
@@ -161,7 +236,10 @@ l'identité canonique `homeassistant` est un contrat
 migration `scripts/truenas/migrate-homeassistant-openwebui-names.sh`, pas
 en modifiant la déclaration.
 
-`aistor` et `wordpress` passent `status: planned` (décision propriétaire).
+`aistor` et `wordpress` sont **supprimés** du dépôt (décision propriétaire
+du 05/11) : Compose, catalogue, moniteurs, secrets et inventaires. La tâche
+de snapshot ZFS `cpool/aistor` est conservée : supprimer le dataset reste une
+décision explicite du propriétaire après vérification de son contenu.
 
 Services qui **doivent** tourner sur TrueNAS mais n'y existent pas encore
 (restent en échec jusqu'au déploiement, volontairement).

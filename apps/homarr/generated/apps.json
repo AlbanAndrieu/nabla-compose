@@ -19,18 +19,6 @@
       "syncEligible": false
     },
     {
-      "id": "aistor",
-      "entityRef": "component:default/aistor",
-      "name": "AIStor",
-      "group": "data",
-      "sourcePath": "apps/aistor/compose.yml",
-      "composeService": "aistor",
-      "dockerManaged": true,
-      "href": "http://172.17.0.24:9091",
-      "syncEligible": true,
-      "description": "MinIO AIStor-compatible object storage service."
-    },
-    {
       "id": "akvorado-console",
       "entityRef": "component:default/akvorado-console",
       "name": "Akvorado Console",
@@ -1655,29 +1643,6 @@
       "group": "security",
       "sourcePath": "apps/wazuh/compose.yml",
       "composeService": "wazuh.manager",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "wordpress",
-      "entityRef": "component:default/wordpress",
-      "name": "WordPress",
-      "group": "development",
-      "sourcePath": "apps/wordpress/compose.yml",
-      "composeService": "wordpress",
-      "dockerManaged": true,
-      "href": "http://172.17.0.24:8088",
-      "syncEligible": true,
-      "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP."
-    },
-    {
-      "id": "wordpress-wordpress-initdb",
-      "entityRef": "component:default/wordpress-wordpress-initdb",
-      "name": "Wordpress Initdb",
-      "group": "wordpress",
-      "sourcePath": "apps/wordpress/compose.yml",
-      "composeService": "wordpress-initdb",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false

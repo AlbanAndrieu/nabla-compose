@@ -58,7 +58,6 @@
     "adguard-home": "adguard-home.png",
     "adguardhome": "adguard-home.png",
     "affine": "affine.png",
-    "aistor": "minio.png",
     "akvorado": "akvorado.svg",
     "alloy": "grafana-icon.svg",
     "ansible": "ansible-icon.svg",
@@ -230,7 +229,6 @@
     "vaultwarden": "vaultwarden.png",
     "watchtower": "watchtower.svg",
     "wazuh": "wazuh.svg",
-    "wordpress": "wordpress.svg",
     "zap": "zap-by-checkmarx.svg"
   }
 }
