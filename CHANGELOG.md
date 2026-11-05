@@ -1,3 +1,16 @@
+# [0.57.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.56.0...0.57.0) (2026-11-05)
+
+
+### Features
+
+* **openclaw:** pin nabla-openclaw to the TrueNAS cutover [skip ci] ([1f05d34](https://github.com/AlbanAndrieu/nabla-compose/commit/1f05d34eaed77c199aff395dc04e1d6c681fc44b)), closes [#9](https://github.com/AlbanAndrieu/nabla-compose/issues/9)
+
+
+### Performance Improvements
+
+* **fastapi:** borner la capture des processus enfants pendant leur exécution [skip ci] ([fbb4f93](https://github.com/AlbanAndrieu/nabla-compose/commit/fbb4f93de9c25e38b657bde701d59f0628175287))
+* **truenas:** ajouter mode quick sans inventaires Docker/ZFS lourds [skip ci] ([9a4e290](https://github.com/AlbanAndrieu/nabla-compose/commit/9a4e290a879aa45ff732af84ddaa14f9dd3ac4f7))
+
 # [0.56.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.55.0...0.56.0) (2026-11-03)
 
 
