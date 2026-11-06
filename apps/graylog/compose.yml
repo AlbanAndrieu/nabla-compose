@@ -11,6 +11,7 @@ services:
       name: Graylog
       kind: log-management
       category: observability
+      status: disabled
       runtime:
         provider: truenas-app
         appId: graylog

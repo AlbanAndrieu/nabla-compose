@@ -73,6 +73,17 @@
     "url": "http://172.17.0.24:5100/"
   },
   {
+    "id": "ddns-updater",
+    "type": "port",
+    "name": "DDNS Updater",
+    "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 30007
+  },
+  {
     "id": "defectdojo",
     "type": "port",
     "name": "DefectDojo",
@@ -82,28 +93,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 31085
-  },
-  {
-    "id": "dependency-track",
-    "type": "port",
-    "name": "Dependency-Track",
-    "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31084
-  },
-  {
-    "id": "dependency-track-api",
-    "type": "port",
-    "name": "Dependency-Track API",
-    "description": "Nabla generated monitor: dependency-track-api",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31083
   },
   {
     "id": "docker",
@@ -235,28 +224,6 @@
     "url": "http://172.17.0.24:30037/api/health"
   },
   {
-    "id": "graylog",
-    "type": "port",
-    "name": "Graylog",
-    "description": "Nabla generated monitor: graylog",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9003
-  },
-  {
-    "id": "haproxy-exporter",
-    "type": "port",
-    "name": "pfSense HAProxy Exporter",
-    "description": "Nabla generated monitor: haproxy-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9101
-  },
-  {
     "id": "hello-nginx",
     "type": "port",
     "name": "Hello Nginx",
@@ -287,16 +254,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "https://homeassistant.albanandrieu.com"
-  },
-  {
-    "id": "joplin",
-    "type": "http",
-    "name": "Joplin Server",
-    "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "url": "http://172.17.0.24:22300/api/ping"
   },
   {
     "id": "kafka",
@@ -416,28 +373,6 @@
     "port": 9002
   },
   {
-    "id": "neo4j-security",
-    "type": "port",
-    "name": "Neo4j Security Graph",
-    "description": "Analytical graph store for attack-path and blast-radius analysis.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31086
-  },
-  {
-    "id": "netbox",
-    "type": "port",
-    "name": "NetBox",
-    "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31082
-  },
-  {
     "id": "nexus",
     "type": "port",
     "name": "Nexus Repository",
@@ -447,28 +382,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 8081
-  },
-  {
-    "id": "nginx-proxy-manager",
-    "type": "port",
-    "name": "Nginx Proxy Manager",
-    "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30021
-  },
-  {
-    "id": "npmplus",
-    "type": "port",
-    "name": "NPMplus",
-    "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30360
   },
   {
     "id": "ntopng",
@@ -548,28 +461,6 @@
     "port": 5601
   },
   {
-    "id": "opensearch-exporter",
-    "type": "port",
-    "name": "OpenSearch Exporter",
-    "description": "Nabla generated monitor: opensearch-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9114
-  },
-  {
-    "id": "opensearch-security-exporter",
-    "type": "port",
-    "name": "OpenSearch Security Exporter",
-    "description": "Nabla generated monitor: opensearch-security-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9115
-  },
-  {
     "id": "openwebui",
     "type": "port",
     "name": "Open WebUI",
@@ -624,28 +515,6 @@
     "port": 9617
   },
   {
-    "id": "plumber",
-    "type": "port",
-    "name": "Plumber",
-    "description": "Repository-managed developer platform frontend and workflow UI.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31070
-  },
-  {
-    "id": "plumber-api",
-    "type": "port",
-    "name": "Plumber API",
-    "description": "Backend API for the Plumber developer platform.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 31071
-  },
-  {
     "id": "portracker",
     "type": "http",
     "name": "Portracker",
@@ -654,17 +523,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:30233/metrics"
-  },
-  {
-    "id": "postgres-exporter",
-    "type": "port",
-    "name": "PostgreSQL Exporter",
-    "description": "Prometheus exporter for the shared PostgreSQL Resource.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9187
   },
   {
     "id": "postgresql",
@@ -741,17 +599,6 @@
     "port": 9121
   },
   {
-    "id": "scanopy",
-    "type": "port",
-    "name": "Scanopy",
-    "description": "Agentless network discovery and continuously updated topology documentation.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 60072
-  },
-  {
     "id": "scrutiny",
     "type": "http",
     "name": "Scrutiny",
@@ -793,17 +640,6 @@
     "url": "http://172.17.0.24:9005/_health/"
   },
   {
-    "id": "sonarqube",
-    "type": "port",
-    "name": "SonarQube",
-    "description": "Nabla generated monitor: sonarqube",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9001
-  },
-  {
     "id": "squid",
     "type": "port",
     "name": "Squid Proxy",
@@ -813,17 +649,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 3128
-  },
-  {
-    "id": "sybase-exporter",
-    "type": "port",
-    "name": "Sybase Exporter",
-    "description": "Nabla generated monitor: sybase-exporter",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9113
   },
   {
     "id": "tempo",
@@ -845,17 +670,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 80
-  },
-  {
-    "id": "traefik-ddns-updater",
-    "type": "port",
-    "name": "Ddns Updater",
-    "description": "Nabla generated monitor: traefik-ddns-updater",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8000
   },
   {
     "id": "truenas",

@@ -196,6 +196,18 @@
       "description": "Threat-intelligence workbench for IoC extraction and reputation analysis."
     },
     {
+      "id": "ddns-updater",
+      "entityRef": "component:default/ddns-updater",
+      "name": "DDNS Updater",
+      "group": "network",
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "composeService": "ddns-updater",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP."
+    },
+    {
       "id": "defectdojo",
       "entityRef": "component:default/defectdojo",
       "name": "DefectDojo",
@@ -260,7 +272,7 @@
       "composeService": "dependency-track",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31084",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform."
     },
     {
@@ -461,7 +473,7 @@
       "composeService": "graylog",
       "dockerManaged": true,
       "href": "http://172.17.0.24:9003",
-      "syncEligible": true
+      "syncEligible": false
     },
     {
       "id": "haproxy-exporter",
@@ -555,7 +567,7 @@
       "composeService": "joplin",
       "dockerManaged": true,
       "href": "https://joplin.int.albandrieu.com",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Private Joplin synchronization server backed by shared PostgreSQL."
     },
     {
@@ -796,7 +808,7 @@
       "composeService": "app",
       "dockerManaged": true,
       "href": "http://172.17.0.24:30020",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Legacy reverse-proxy administration service retained during NPMplus migration."
     },
     {
@@ -1064,7 +1076,7 @@
       "composeService": "plumber",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31070",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Repository-managed developer platform frontend and workflow UI."
     },
     {
@@ -1192,7 +1204,7 @@
       "composeService": "scanopy",
       "dockerManaged": true,
       "href": "http://172.17.0.24:60072",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Agentless network discovery and continuously updated topology documentation."
     },
     {
@@ -1463,7 +1475,7 @@
       "composeService": "sonarqube",
       "dockerManaged": true,
       "href": "http://172.17.0.24:9001",
-      "syncEligible": true
+      "syncEligible": false
     },
     {
       "id": "squid",
@@ -1529,17 +1541,6 @@
       "group": "traefik",
       "sourcePath": "apps/traefik/compose.yml",
       "composeService": "cloudflare-ddns",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
-      "id": "traefik-ddns-updater",
-      "entityRef": "component:default/traefik-ddns-updater",
-      "name": "Ddns Updater",
-      "group": "traefik",
-      "sourcePath": "apps/traefik/compose.yml",
-      "composeService": "ddns-updater",
       "dockerManaged": true,
       "href": null,
       "syncEligible": false
