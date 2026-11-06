@@ -5332,6 +5332,16 @@
     },
     {
       "source": "vaultwarden-rest-api",
+      "target": "cloudflared",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "BW_HOST is the public HTTPS origin served through the Cloudflare tunnel; without cloudflared the adapter gets HTTP 530 (reboot resume of 2026-11-06), so cloudflared must start first.",
+      "evidence": [
+        "apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com"
+      ]
+    },
+    {
+      "source": "vaultwarden-rest-api",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",

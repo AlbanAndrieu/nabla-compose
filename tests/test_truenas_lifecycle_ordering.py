@@ -453,6 +453,30 @@ class TrueNASLifecycleOrderingTests(unittest.TestCase):
             {"name": "primary-data", "order": 20, "source": "catalog"},
         )
 
+    def test_real_catalog_starts_cloudflared_before_vaultwarden(self) -> None:
+        # Reboot resume 2026-11-06: bitwarden-api reaches Vaultwarden through
+        # its public tunnel hostname and returned HTTP 530 until cloudflared ran.
+        with tempfile.TemporaryDirectory() as tmp:
+            apps_file = Path(tmp) / "apps.json"
+            apps_file.write_text(
+                json.dumps(
+                    [
+                        {"id": "vaultwarden", "state": "RUNNING"},
+                        {"id": "cloudflared", "state": "RUNNING"},
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                ["python3", str(PLANNER), "--apps", str(apps_file)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        start = json.loads(result.stdout)["start_order"]
+        self.assertLess(start.index("cloudflared"), start.index("vaultwarden"))
+
     def test_planned_and_disabled_apps_are_not_resumed_by_default(self) -> None:
         apps = [
             {"id": "active-app", "state": "RUNNING"},
