@@ -19,6 +19,7 @@ services:
       description: Pruned Bitcoin Core node without wallet; outbound P2P only, RPC reachable only inside the container.
       runtime:
         provider: truenas-app
+        appId: bitcoind
         containerService: bitcoind
     restart: unless-stopped
     # TrueNAS apps user; the image entrypoint (root + gosu + chown) is bypassed.

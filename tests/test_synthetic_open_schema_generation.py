@@ -37,8 +37,9 @@ def test_generator_covers_every_enabled_public_https_exposure() -> None:
     # Garage S3 API and Admin API are internal-only since #254 (no public route).
     # 2026-11-04: ddns-updater, ollama, ollama-gpu (Access-protected) and the
     # TrueNAS FastAPI Sample observer were declared external; hello.int is an
-    # explicit direct (non-Access) exception.
-    assert public_count == 29
+    # explicit direct (non-Access) exception. 2026-11-05: LiteLLM is no longer
+    # published on the Internet (owner decision).
+    assert public_count == 28
     assert len(by_kind["DnsCheck"]) == public_count
     assert len(by_kind["TlsCheck"]) == public_count
     assert len(by_kind["HttpCheck"]) == public_count
@@ -55,7 +56,7 @@ def test_protected_http_checks_use_env_placeholders_not_secrets() -> None:
     ]
 
     # Every public exposure except the direct hello.int exception requires Access.
-    assert len(protected) == 28
+    assert len(protected) == 27
     for resource in protected:
         headers = resource["spec"]["headers"]
         assert headers["CF-Access-Client-Id"] == "${CF_ACCESS_CLIENT_ID}"

@@ -35,25 +35,6 @@
       }
     },
     {
-      "id": "aistor",
-      "name": "AIStor",
-      "kind": "object-storage",
-      "category": "data",
-      "sourcePath": "apps/aistor/compose.yml",
-      "description": "MinIO AIStor-compatible object storage service.",
-      "presentationRole": "service",
-      "criticality": "medium",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "aistor"
-      },
-      "monitoring": {
-        "type": "port",
-        "host": "172.17.0.24",
-        "port": 9002
-      }
-    },
-    {
       "id": "akvorado-console",
       "name": "Akvorado",
       "kind": "network-observability",
@@ -266,6 +247,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "bitcoind",
         "containerService": "bitcoind"
       }
     },
@@ -761,6 +743,7 @@
       "sourcePath": "apps/elasticsearch/compose.yml",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "elastic-search",
         "containerService": "elasticsearch",
         "networks": [
           "traefik_network"
@@ -913,6 +896,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "graylog",
         "containerService": "graylog",
         "networks": [
           "intranet",
@@ -978,6 +962,7 @@
       "status": "planned",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "hermes-agent",
         "containerService": "hermes",
         "networks": [
           "hermes"
@@ -2674,23 +2659,6 @@
         "containerService": "wazuh.manager"
       },
       "icon": "🛡️"
-    },
-    {
-      "id": "wordpress",
-      "name": "WordPress",
-      "kind": "cms",
-      "category": "development",
-      "sourcePath": "apps/wordpress/compose.yml",
-      "description": "Lab WordPress deployment backed by PostgreSQL through PG4WP.",
-      "presentationRole": "service",
-      "criticality": "low",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "wordpress",
-        "networks": [
-          "intranet"
-        ]
-      }
     }
   ],
   "relations": [
@@ -2702,16 +2670,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/2fauth/compose.yml:2fauth.x-nabla.runtime.appId"
-      ]
-    },
-    {
-      "source": "aistor",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/aistor/compose.yml:aistor.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -5491,26 +5449,6 @@
       "description": "Wazuh Manager indexes security events in the Wazuh Indexer.",
       "evidence": [
         "apps/wazuh/compose.yml:INDEXER_URL"
-      ]
-    },
-    {
-      "source": "wordpress",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/wordpress/compose.yml:wordpress.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "wordpress",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "WordPress stores application state in PostgreSQL through PG4WP.",
-      "evidence": [
-        "apps/wordpress/compose.yml:WORDPRESS_DB_HOST=postgres:5432"
       ]
     }
   ]

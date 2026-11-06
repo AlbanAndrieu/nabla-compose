@@ -114,8 +114,6 @@ def test_every_compose_image_is_visible_and_operator_never_assumes_lts():
     assert len(rows) >= 50
     assert len({row["app"] for row in rows}) >= 40
     assert not any(row["status"] == "lts" for row in rows)
-    assert any(row["app"] == "wordpress" and row["status"] == "unknown"
-               for row in rows)
     assert any(row["app"] == "litellm" and row["status"] == "unknown"
                for row in rows)
 

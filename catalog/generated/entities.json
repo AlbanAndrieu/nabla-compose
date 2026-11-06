@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:fb3c413851355e0999b00e44aeaf44db8c025e4b93c5d156862afa7487397277",
+  "catalogRevision": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -39,51 +39,6 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-app"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/aistor",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/bia-impact-confidentiality": "medium",
-          "albandrieu.com/bia-impact-customer": "low",
-          "albandrieu.com/bia-impact-financial": "low",
-          "albandrieu.com/bia-impact-integrity": "medium",
-          "albandrieu.com/bia-impact-legal-regulatory": "low",
-          "albandrieu.com/bia-impact-operational": "medium",
-          "albandrieu.com/bia-impact-privacy": "medium",
-          "albandrieu.com/bia-impact-reputation": "low",
-          "albandrieu.com/bia-mbco": "priority-object-storage-data-remains-recoverable",
-          "albandrieu.com/bia-mtpd": "P3D",
-          "albandrieu.com/bia-reviewed-at": "2026-09-22",
-          "albandrieu.com/bia-rpo": "P1D",
-          "albandrieu.com/bia-rto": "P1D",
-          "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/aistor/",
-          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
-        },
-        "description": "MinIO AIStor-compatible object storage service.",
-        "labels": {
-          "albandrieu.com/bia-scope": "direct",
-          "albandrieu.com/business-criticality": "medium",
-          "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "aistor",
-        "tags": [
-          "data",
-          "object-storage"
-        ],
-        "title": "AIStor"
-      },
-      "sourcePath": "apps/aistor/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "object-storage"
       }
     },
     {
@@ -4584,82 +4539,6 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-manager"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/wordpress",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/bia-impact-confidentiality": "low",
-          "albandrieu.com/bia-impact-customer": "low",
-          "albandrieu.com/bia-impact-financial": "low",
-          "albandrieu.com/bia-impact-integrity": "low",
-          "albandrieu.com/bia-impact-legal-regulatory": "low",
-          "albandrieu.com/bia-impact-operational": "low",
-          "albandrieu.com/bia-impact-privacy": "low",
-          "albandrieu.com/bia-impact-reputation": "low",
-          "albandrieu.com/bia-mbco": "public-content-can-remain-offline-while-the-lab-service-is-rebuilt",
-          "albandrieu.com/bia-mtpd": "P7D",
-          "albandrieu.com/bia-reviewed-at": "2026-09-26",
-          "albandrieu.com/bia-rpo": "P7D",
-          "albandrieu.com/bia-rto": "P3D",
-          "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/wordpress/",
-          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
-        },
-        "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
-        "labels": {
-          "albandrieu.com/bia-scope": "direct",
-          "albandrieu.com/business-criticality": "low",
-          "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "wordpress",
-        "tags": [
-          "development",
-          "cms"
-        ],
-        "title": "WordPress"
-      },
-      "sourcePath": "apps/wordpress/catalog-info.yaml",
-      "spec": {
-        "dependsOn": [
-          "resource:default/postgresql"
-        ],
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "website"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/wordpress-wordpress-initdb",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
-        },
-        "labels": {
-          "albandrieu.com/bia-scope": "inherited",
-          "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "wordpress-wordpress-initdb",
-        "tags": [
-          "wordpress"
-        ],
-        "title": "Wordpress Initdb"
-      },
-      "sourcePath": "apps/wordpress/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "subcomponentOf": "component:default/wordpress",
-        "system": "system:default/nabla-homelab",
-        "type": "service"
       }
     },
     {
