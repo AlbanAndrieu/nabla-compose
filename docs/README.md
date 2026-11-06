@@ -33,6 +33,8 @@ place for current priorities.
 
 ## Current runbooks and diagnostics
 
+- [Clôture des secrets Vaultwarden — 6 novembre](runbooks/vaultwarden-migration-closure-20261106.md) : preuves par application, sans divulgation de valeurs.
+
 - [Entrée opérateur consolidée (lecture seule)](runbooks/2026-10-25-homelab-operator-diagnostics.md)
 - [Observabilité : Prometheus, Pyroscope, Akvorado, PostgreSQL exporter et FastAPI](runbooks/2026-10-25-observability-triage.md)
 - [Archive des roadmaps et preuves opérateur jusqu'au 24 octobre](archive/roadmap-through-2026-10-24.md)
