@@ -1,3 +1,18 @@
+# [0.58.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.57.1...0.58.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* **catalog:** bind stopped TrueNAS apps by appId and record owner decisions ([24018bc](https://github.com/AlbanAndrieu/nabla-compose/commit/24018bcefa0d49f7a0cd10d89aa2882566880cb5))
+* **cloudflare:** address CodeQL findings in the Service Auth tooling ([faa93d6](https://github.com/AlbanAndrieu/nabla-compose/commit/faa93d67bcaef1ce18c1709ab0dbd9801d82fb0b))
+* **truenas:** align deploy-ntopng.sh with deployer contracts ([e4403db](https://github.com/AlbanAndrieu/nabla-compose/commit/e4403dba743748fe320083858deb4e8deb5482da))
+
+
+### Features
+
+* **cloudflare:** restrict Keycloak to production paths, unpublish LiteLLM, add Service Auth tooling ([8e1ea2b](https://github.com/AlbanAndrieu/nabla-compose/commit/8e1ea2b6df8f8f1a2e75646376b97d5e8f8fb7fc))
+* **truenas:** add gated ntopng custom app preflight and deployment contract [skip ci] ([ea81bf1](https://github.com/AlbanAndrieu/nabla-compose/commit/ea81bf143a8b91de8086cc38d6fa2bd3c3f4f0a4))
+
 ## [0.57.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.57.0...0.57.1) (2026-11-05)
 
 
