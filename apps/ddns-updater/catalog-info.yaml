@@ -1,0 +1,40 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ddns-updater
+  title: DDNS Updater
+  description: Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - dns
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: cloudflare-tunnel-routes-remain-available
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-06"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
+    albandrieu.com/migration-provenance: truenas-catalog-app
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/ddns-updater/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/docker
