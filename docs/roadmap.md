@@ -9,6 +9,31 @@
 - L'observation Cloudflare `DENIED`/`challenge`, un diagnostic non exécuté, ou une absence de télémétrie ne deviennent pas des services DOWN.
 - Avant chaque mutation : sauvegarde, plan en lecture seule, accord opérateur, preuve de retour arrière. La quality gate locale s'exécute sans CI payante.
 
+## État consolidé : secrets, DefectDojo, Gatus et OpenClaw (06/11/2026)
+
+**Référence** : état Git de la PR #326 et des PR fusionnées #314/#323 (OpenClaw), #313 (Gatus), ainsi que PR #327 en Draft. Les observations réelles plus anciennes ne remplacent pas une nouvelle preuve TrueNAS.
+
+| Chantier | Code / décisions intégrées | Preuve runtime | Travail ouvert |
+| --- | --- | --- | --- |
+| Secrets Vaultwarden | **43 applications, 117 champs** déclarés dans `config/secrets/manifest.json` sur la branche #326 (6 exceptions bootstrap) ; import et rendu `0600` outillés | **NOT_VERIFIED globalement** : un item déclaré n'est ni importé ni consommé | Contrôler coffre → fichier canonique → conteneur, puis `homarr-sync` (`HOMARR_API_KEY` ≠ ancien `HOMARR_API_TOKEN`), réconcilier les exceptions |
+| DefectDojo | GitHub App `Actions:read`, sélecteur/normaliseur des rapports Trivy, CodeQL, Semgrep, Nuclei/ZAP et import LAN versionnés | **NOT_VERIFIED** : cron TrueNAS désactivé par défaut ; aucune preuve actuelle de reimport API + Celery + déduplication | Premier import Trivy contrôlé et traçabilité par Engagement ; ZAP Bababou bloqué si brut non minimisé |
+| Gatus | Réconciliation Backstage/Prometheus/FastAPI livrée ; `PASS/FAIL/DENIED/NOT_RUN/UNVERIFIED` à fraîcheur bornée | **Observations datées** : 32 alertes au heartbeat du 05/11, dont plusieurs services jamais déployés | PR [#327](https://github.com/AlbanAndrieu/nabla-compose/pull/327) Draft : 85 → 67 probes rendues si fusionnée ; confirmer les décisions `planned` et traiter les pannes réelles |
+| OpenClaw | Submodule Compose #314, pin #323 et dépôt dédié [nabla-openclaw #10](https://github.com/AlbanAndrieu/nabla-openclaw/pull/10) fusionnés | **ACCEPTED (runtime)** le 03–05/11 : Gateway TrueNAS, Telegram/WhatsApp, modèle LiteLLM, heartbeat et digest livré ; rollback Workstation testé | Retirer les doublons Workstation sans casser la reprise ; Slack/Discord restent désactivés |
+
+**Règle de clôture Vaultwarden :** utiliser le rapport sans valeurs de
+`python3 scripts/secrets/audit-vaultwarden-migration.py --check`, puis
+`--verify [--app service]` sous la session déverrouillée de l'opérateur.
+Le rapport certifie au mieux `FILE_PARITY_VERIFIED`, **jamais** le chargement
+par les conteneurs. Les gestes d'import et d'installation restent séparés,
+ciblés, et revus : [procédure de clôture](runbooks/vaultwarden-migration-closure-20261106.md).
+
+**Contrats d'autorité :** `nabla-openclaw` possède le Gateway TrueNAS,
+le cron et le heartbeat ; `nabla-compose` conserve les dépendances LiteLLM,
+TrueNAS et le rollback. [Roadmap OpenClaw Workstation historique](openclaw-workstation-roadmap.md)
+et [retour d'expérience des migrations](incidents/2026-11-06-migrations-retour-experience.md).
+**FastAPI build #380** : le diagnostic du build ancien est un incident historique,
+pas un chantier de migration réouvert.
+
 ## P0 — Réception du catalogue et des sondes (PR #326)
 
 [PR Compose #326](https://github.com/AlbanAndrieu/nabla-compose/pull/326) : les `appId` de `graylog`, `bitcoind`, `elasticsearch` (`elastic-search`) et `hermes` (`hermes-agent`) sont **corrigés dans le code**, en conservant `containerService`. Cela supprime le double comptage `declared_only` + `observed_only` des Apps arrêtées, mais **ne les démarre pas**.
@@ -59,9 +84,9 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 ## P1 — Séparation OpenClaw / Workstation / YubiKey
 
 - [Roadmap OpenClaw Workstation](openclaw-workstation-roadmap.md) : détail des gates de bascule.
-- **Compose** garde LiteLLM TrueNAS, le réseau, les datasets, le catalogue et les contrats d'intégration ; **nabla-openclaw** devient propriétaire de la Gateway, du heartbeat, du cron et de leurs tests ; **ansible-workstation** garde les prérequis OS ; **nabla-yubikey** les politiques et diagnostics matériels.
+- **Compose** garde LiteLLM TrueNAS, le réseau, les datasets, le catalogue et les contrats d'intégration ; **nabla-openclaw** est propriétaire de la Gateway, du heartbeat, du cron et de leurs tests ; **ansible-workstation** garde les prérequis OS ; **nabla-yubikey** les politiques et diagnostics matériels.
 - [Plan de séparation inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) : la préparation Git ne démontre pas de cutover. Ne retirer aucun consommateur ni déplacer un gitlink sans preuve que les chemins historiques ne sont plus référencés et qu'un rollback fonctionne.
-- Gate OpenClaw : modèles disponibles sur LiteLLM TrueNAS, quotas RPM/TPM attestés, clés scindées main/cron, logs des deux proxys, politiques heartbeat/cron bornées et activées **une seule fois**, identité et session effectives vérifiées. Tant que la Gateway Workstation fonctionne, la bascule TrueNAS est `NOT_VERIFIED`.
+- **Gateway OpenClaw sur TrueNAS : ACCEPTED (runtime), 03–05/11** (Telegram/WhatsApp, LiteLLM, heartbeat, digest). Le contrat de retour Workstation est testé. **Restant** : supprimer les scripts Workstation mutateurs obsolètes après contrôle des consommateurs, garder uniquement diagnostics et rollback nécessaires, et réexaminer Slack/Discord avec clés valides. Ne jamais faire tourner deux Gateway/cron.
 - Gate YubiKey : sauvegardes age/SOPS restaurables sur supports distincts ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite.
 
 ## P1 — Fiabilité des scripts et documentation
