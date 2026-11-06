@@ -30,7 +30,7 @@
 	url = https://github.com/AlbanAndrieu/nabla-site-alban.git
 [submodule "apps/fastapi-sample"]
 	path = apps/fastapi-sample
-	url = git@github.com:AlbanAndrieu/fastapi-sample.git
+	url = https://github.com/AlbanAndrieu/fastapi-sample.git
 [submodule "apps/openclaw"]
 	path = apps/openclaw
 	url = https://github.com/AlbanAndrieu/nabla-openclaw.git
