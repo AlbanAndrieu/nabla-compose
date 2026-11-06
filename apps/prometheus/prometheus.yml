@@ -148,6 +148,10 @@ scrape_configs:
           platform: truenas
           role: dns-filter
 
+  # operational_state=planned mirrors the Backstage label
+  # albandrieu.com/operational-state of exporters not deployed yet. The
+  # target stays scraped (visible as down) but NablaExporterTargetDown
+  # ignores it; remove the label in the same change that deploys it.
   # Canonical homelab data-plane telemetry. Sybase is intentionally excluded:
   # the shared databases are PostgreSQL, Redis, ClickHouse, InfluxDB and
   # OpenSearch. Prefer private Docker-network endpoints where a database API
@@ -160,6 +164,7 @@ scrape_configs:
           - 172.17.0.24:9187
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: postgresql
 
@@ -278,6 +283,9 @@ scrape_configs:
     static_configs:
       - targets:
           - 172.17.0.24:9101
+        labels:
+          platform: truenas
+          operational_state: planned
 
   - job_name: clickhouse
     metrics_path: /metrics
@@ -295,6 +303,7 @@ scrape_configs:
           - 172.17.0.24:9114
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: opensearch
 
@@ -304,5 +313,6 @@ scrape_configs:
           - 172.17.0.24:9115
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: opensearch-security

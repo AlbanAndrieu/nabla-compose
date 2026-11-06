@@ -6,7 +6,7 @@ metadata:
   title: Nginx Proxy Manager
   description: Legacy reverse-proxy administration service retained during NPMplus migration.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: disabled
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct

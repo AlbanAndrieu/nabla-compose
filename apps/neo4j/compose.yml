@@ -55,6 +55,7 @@ services:
       category: security
       presentationRole: support
       criticality: medium
+      status: planned
       securityFunctions:
         - identify
         - detect

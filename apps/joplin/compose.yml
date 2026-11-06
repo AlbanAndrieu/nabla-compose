@@ -12,6 +12,7 @@ services:
       category: productivity
       presentationRole: service
       criticality: medium
+      status: planned
       description: Private Joplin synchronization server backed by the shared PostgreSQL service.
       url: https://joplin.int.albandrieu.com
       internalUrl: http://joplin:22300

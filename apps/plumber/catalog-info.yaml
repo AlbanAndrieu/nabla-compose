@@ -6,7 +6,7 @@ metadata:
   title: Plumber
   description: Repository-managed developer platform frontend and workflow UI.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct
@@ -46,7 +46,7 @@ metadata:
   title: Plumber API
   description: Backend API for the Plumber developer platform.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:
@@ -69,7 +69,7 @@ metadata:
   title: Plumber Worker
   description: Background worker for Plumber asynchronous jobs.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/bia-scope: inherited
   tags:

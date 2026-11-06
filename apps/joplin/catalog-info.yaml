@@ -6,7 +6,7 @@ metadata:
   title: Joplin Server
   description: Private Joplin synchronization server backed by shared PostgreSQL.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct

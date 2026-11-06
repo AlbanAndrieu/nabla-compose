@@ -6,7 +6,7 @@ metadata:
   title: Dependency-Track
   description: CycloneDX SBOM inventory and software supply-chain vulnerability analysis platform.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct
@@ -44,7 +44,7 @@ metadata:
   name: dependency-track-api
   title: Dependency-Track API
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:

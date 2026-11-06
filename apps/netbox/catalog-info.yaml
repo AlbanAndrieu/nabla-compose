@@ -6,7 +6,7 @@ metadata:
   title: NetBox
   description: Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: high
     albandrieu.com/bia-scope: direct
@@ -46,7 +46,7 @@ metadata:
   name: netbox-worker
   title: NetBox Worker
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/bia-scope: inherited
   tags:
@@ -64,7 +64,7 @@ metadata:
   name: netbox-housekeeping
   title: NetBox Housekeeping
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/bia-scope: inherited
   tags:

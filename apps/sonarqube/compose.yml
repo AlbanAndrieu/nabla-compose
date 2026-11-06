@@ -11,6 +11,7 @@ services:
       name: SonarQube
       kind: code-quality
       category: development
+      status: planned
       runtime:
         provider: truenas-app
         containerService: sonarqube

@@ -11,6 +11,7 @@ services:
       name: pfSense HAProxy Exporter
       kind: metrics-exporter
       category: observability
+      status: planned
       runtime:
         provider: truenas-app
         containerService: haproxy-exporter
