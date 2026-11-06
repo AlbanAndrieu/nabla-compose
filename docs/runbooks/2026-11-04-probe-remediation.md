@@ -83,9 +83,9 @@ sudo docker ps -a --format '{{.Names}}\t{{.Status}}' |
   1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/homeassistant/.env.secrets` (0600), puis `sudo bash scripts/truenas/bootstrap-homeassistant-postgres.sh` (`--check`) et `--apply` : rôle et base `homeassistant` dans le PostgreSQL global.
   2. Snapshot ZFS des datasets HA ; arrêter l'App native ; `pg_dump -Fc` de la base recorder depuis son conteneur `postgres`, `pg_restore --no-owner --role=homeassistant` dans la base globale.
   3. Dans `/config/secrets.yaml` (0600) : `recorder_db_url: postgresql://homeassistant:<mot de passe>@172.17.0.24:5432/homeassistant` ; dans `configuration.yaml` : `recorder: db_url: !secret recorder_db_url`.
-  4. **Bloquant avant bascule :** `apps/homeassistant/compose.yml` attribue au conteneur l'IP `172.17.0.24` sur `iot_macvlan`, c'est-à-dire l'IP de l'hôte TrueNAS, et un conteneur macvlan ne peut pas joindre l'IP de son propre hôte (donc ni PostgreSQL `:5432`). Choisir une IP IoT libre, ou un réseau bridge/hôte qui atteint le PostgreSQL global ; vérifier aussi le domaine Traefik `homeassistant.albanandrieu.com`.
+  4. **Réseau (décision du 6 novembre) :** `apps/homeassistant/compose.yml` passe de `iot_macvlan` (qui attribuait au conteneur l'IP de l'hôte TrueNAS, injoignable depuis un macvlan) à un pont : réseaux `intranet` + `traefik`, port `8123` publié sur `172.17.0.24`. Le PostgreSQL global `172.17.0.24:5432` est donc joignable. Contrepartie : pas de découverte multicast (mDNS/SSDP) des équipements IoT depuis un pont ; configurer les intégrations par adresse explicite. Vérifier aussi le domaine Traefik `homeassistant.albanandrieu.com` (coquille probable).
   5. Gate : historique visible, recorder sans erreur dans les journaux, `homeassistant` `in_sync` ; rollback : arrêter le nouveau conteneur et redémarrer l'App native (base d'origine intacte).
-- LiteLLM n'est plus publié sur Internet ; sa santé est prouvée par l'observateur TrueNAS (`LITELLM_HEALTHZ_URL` LAN). Keycloak ne publie que `/realms/`, `/resources/` et `/.well-known/`, et refuse `/realms/master/` (réservé à l'administration, LAN). Les applications utilisent le realm `nabla`, déclaré dans `apps/keycloak/config/realms/nabla.yaml` et importé par `scripts/truenas/apply-keycloak-config.sh` (keycloak-config-cli épinglé ; `--check` puis `--apply` avec `NABLA_RUNTIME_CHANGE_APPROVED=yes`). Keycloak est actuellement `STOPPED` : le démarrer avant l'import.
+- LiteLLM n'est plus publié sur Internet ; sa santé est prouvée par l'observateur TrueNAS (`LITELLM_HEALTHZ_URL` LAN). Keycloak ne publie que `/realms/`, `/resources/` et `/.well-known/`, et refuse `/realms/master/` (réservé à l'administration, LAN). Les applications utilisent le realm `nabla`, déclaré dans `apps/keycloak/config/realms/nabla.yaml` et importé par `scripts/truenas/apply-keycloak-config.sh` (keycloak-config-cli épinglé ; `--check` puis `--apply` avec `NABLA_RUNTIME_CHANGE_APPROVED=yes`). Keycloak est désormais une Custom App TrueNAS construite depuis `apps/keycloak` (migrée le 6 novembre, `appId: keycloak`, plus `planned`), actuellement `STOPPED` : la démarrer avant l'import.
 - `joplin.int.albandrieu.com` est privé tandis que la déclaration historique indique `external=true` ; ne pas publier un hostname automatiquement pour faire passer une assertion.
 - `hello.int` reste `warn` par décision ; `s3.int` demeure une exception jusqu'à la migration du backend d'état OpenTofu.
 
@@ -98,6 +98,17 @@ Constat du 6 novembre (FastAPI Cloud) : toute la stack tourne sur TrueNAS (`prom
 - **CI :** `observability-ci.yml` monte désormais des fichiers vides pour chaque `credentials_file` afin que `promtool check config` valide la syntaxe et les règles sans secret.
 
 **Gate :** `platform_metrics.state` ≠ `not_configured`/`telemetry_unavailable`, `synthetic_probes.gatus_up=1` et services Gatus visibles dans `/api/health-board`.
+
+## 6 ter. Sauvegardes PostgreSQL — Databasus (App TrueNAS hors dépôt)
+
+Décision du 6 novembre : les sauvegardes du PostgreSQL global passent par le service existant **Databasus** (App TrueNAS `databasus`, `ghcr.io/databasus/databasus:v3.64.0`, `RUNNING`, `observed_only` : aucun Compose dans ce dépôt). Databasus se configure dans son interface web (bases, planning, stockage, rétention, vérification de restauration) ; rien n'est codifiable ici hormis le rôle PostgreSQL.
+
+1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/databasus/.env.secrets` (0600), puis `sudo bash scripts/truenas/bootstrap-databasus-postgres-role.sh` (`--check`) et `--apply` : rôle `databasus` `LOGIN NOREPLICATION`, membre de `pg_read_all_data`, `CONNECT` sur `homeassistant`, `keycloak`, `joplin` (liste `DATABASUS_BACKUP_DATABASES`). Pas de privilège `REPLICATION` : sauvegardes **logiques** uniquement ; une sauvegarde physique/PITR de toute l'instance serait une décision séparée.
+2. Dans Databasus : ajouter chaque base avec ce rôle, planning quotidien hors pointe, rétention GFS, stockage hors du pool des données (S3 Garage/R2 ou SFTP, pas le même dataset), chiffrement activé, vérification de restauration planifiée, notification en échec.
+3. Avant la bascule Home Assistant (§6) : première sauvegarde réussie **et** restauration de test dans une base temporaire.
+4. Suivi : déclarer le secret dans `config/secrets/manifest.json` (hors du périmètre « 43/117 » figé) et, plus tard, migrer Databasus en Custom App pour sortir de `observed_only`.
+
+**Gate :** `bootstrap-databasus-postgres-role.sh --check` vert ; dans Databasus, dernière sauvegarde et dernière vérification de restauration réussies pour chaque base.
 
 ## 7. Réception globale
 

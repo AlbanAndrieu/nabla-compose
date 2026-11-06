@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:f5d7b732b88282047ad77bf81a006e0c6b1d49d80dbc40b052afabf3af73c920",
+  "catalogRevision": "sha256:bae8ea52eb408cc6de8d57bba271225008c07264d09af358386463da9e6972fa",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -968,7 +968,7 @@
         "provider": "truenas-app",
         "containerService": "homeassistant",
         "networks": [
-          "iot_macvlan",
+          "intranet",
           "traefik"
         ]
       }
@@ -1082,13 +1082,13 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
-      "status": "planned",
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "keycloak",
         "containerService": "keycloak",
         "networks": [
           "intranet"

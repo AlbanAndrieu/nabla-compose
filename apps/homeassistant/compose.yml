@@ -20,10 +20,19 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    # Bridge networking (owner decision 2026-11-06): the container reaches the
+    # shared PostgreSQL on 172.17.0.24:5432, which a macvlan container cannot
+    # (it was bound to the TrueNAS host address itself). Multicast discovery of
+    # IoT devices is not available on a bridge: integrations must use explicit
+    # host addresses.
     networks:
-      iot_macvlan:
-        ipv4_address: 172.17.0.24
+      intranet:
       traefik:
+    ports:
+      - target: 8123
+        published: 8123
+        host_ip: 172.17.0.24
+        protocol: tcp
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
@@ -38,7 +47,8 @@ services:
       - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
 
 networks:
-  iot_macvlan:
+  intranet:
     external: true
+    name: intranet
   traefik:
     external: true

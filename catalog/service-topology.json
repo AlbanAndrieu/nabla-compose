@@ -1016,7 +1016,7 @@
         "provider": "truenas-app",
         "containerService": "homeassistant",
         "networks": [
-          "iot_macvlan",
+          "intranet",
           "traefik"
         ]
       }
@@ -1125,9 +1125,9 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
-      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "keycloak",
         "containerService": "keycloak",
         "networks": [
           "intranet"
