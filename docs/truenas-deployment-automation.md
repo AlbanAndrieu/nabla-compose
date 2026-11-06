@@ -5,7 +5,14 @@ own the same container lifecycle.
 
 ## Status 2026-11-06 — Doco-CD disabled
 
-Owner decision: Doco-CD must run on TrueNAS only, and is **paused** for now.
+Owner decision (confirmed the same evening): Doco-CD is **disabled on both
+TrueNAS and the workstation** for now, because it never worked end to end:
+
+- on TrueNAS it was never deployed (no App, no container), and its only
+  Docker path is the read-only shared `docker-socket-proxy`;
+- on the workstation its hourly job failed to clone the repository: the
+  `apps/fastapi-sample` submodule used an SSH URL while Doco-CD only holds an
+  HTTPS token (submodule switched to HTTPS on 2026-11-06).
 
 - `docker-compose-truenas.yml` declares `x-nabla.status: disabled` and the
   Backstage entity `component:default/doco-cd` is `disabled`. Lifecycle and
