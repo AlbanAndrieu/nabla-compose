@@ -65,14 +65,16 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
-  # Textfile-only node_exporter (ansible-workstation playbooks/restic-backup.yml).
-  - job_name: workstation_restic
+  # Workstation node_exporter (ansible-workstation playbooks/restic-backup.yml):
+  # host metrics (CPU, memory, filesystems, ZFS, systemd units) for the OpenClaw
+  # heartbeat plus the Restic last-success textfile. ufw admits only TrueNAS.
+  - job_name: workstation_node
     static_configs:
       - targets:
           - 172.17.0.57:9100
         labels:
           platform: workstation
-          role: backup-source
+          role: workstation
 
   - job_name: kafka_exporter
     metrics_path: /metrics
