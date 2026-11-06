@@ -3,6 +3,44 @@
 TrueNAS currently has two independent automation mechanisms. They must not both
 own the same container lifecycle.
 
+## Status 2026-11-06 — Doco-CD disabled
+
+Owner decision: Doco-CD must run on TrueNAS only, and is **paused** for now.
+
+- `docker-compose-truenas.yml` declares `x-nabla.status: disabled` and the
+  Backstage entity `component:default/doco-cd` is `disabled`. Lifecycle and
+  monitoring consumers therefore no longer expect it.
+- The workstation definitions in `docker-compose.yml` and
+  `docker-compose-albandrieu.yml` sit behind the opt-in profile
+  `doco-cd-legacy-workstation`, so `docker compose up` no longer starts them.
+  Stopping the running workstation container (`docker update --restart=no`)
+  is a separate runtime step. `/mnt/cpool/dococd` is kept.
+- Layer 0 (cron) is unaffected.
+
+**What Doco-CD was meant to do** (GitOps, pull-based):
+
+1. Poll `https://github.com/albanandrieu/nabla-compose.git` `master` every hour
+   (`interval: 3600`), and also accept push webhooks on port `30080`.
+2. Run `docker compose up` for the declared deployments: on TrueNAS the
+   `vaultwarden` and `garage` stacks (`apps/*/compose.yml`); on the
+   workstation the root stack described by `.doco-cd.yaml` (project `nabla`).
+3. Resolve `external_secrets` from `.doco-cd.yaml` (for example the n8n API key
+   and PostgreSQL credentials) at deploy time through the webhook secret
+   provider (`secret-store.yml` → `bitwarden-api` adapter → Vaultwarden),
+   so no secret value lives in Git or on disk.
+4. Expose health and Prometheus metrics on `9120`.
+
+**Before re-enabling**, decide two blockers found on 2026-11-06:
+
+- *Docker write boundary.* The TrueNAS definition talks to the shared
+  `docker-socket-proxy`, which is read-only (`POST=0`), so it cannot deploy.
+  The workstation instance mounts `/var/run/docker.sock` (`:ro` does not
+  restrict the Docker API) and ran the floating `latest` tag. Options: a
+  dedicated write-scoped proxy, or retiring Doco-CD.
+- *Ownership.* If `vaultwarden` and `garage` are TrueNAS Custom Apps,
+  Doco-CD's `docker compose up` would create a second project beside the
+  middleware-managed one. Choose one owner per stack.
+
 ## Layer 0 — TrueNAS cron synchronizes the local master checkout
 
 Observed TrueNAS cron job:

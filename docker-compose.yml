@@ -35,6 +35,10 @@ services:
       - no-new-privileges:true
 
   doco-cd:
+    # Disabled 2026-11-06 (owner decision): Doco-CD must run on TrueNAS only and
+    # is paused until its Docker write boundary is decided. Opt-in profile keeps
+    # the definition without starting it on `docker compose up`.
+    profiles: ["doco-cd-legacy-workstation"]
     image: ghcr.io/kimdre/doco-cd:0.85.1
     container_name: doco-cd
     restart: unless-stopped

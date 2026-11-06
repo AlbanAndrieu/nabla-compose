@@ -25,6 +25,7 @@ services:
       category: operations
       presentationRole: support
       criticality: medium
+      status: disabled
       description: Git-driven Compose deployment automation for the TrueNAS Docker runtime.
       runtime:
         provider: truenas-app

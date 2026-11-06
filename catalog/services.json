@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:956c66e7e232397fc9548c13389db75b2ae53ab967cd9eeea599eacb88b52c79",
+  "catalogRevision": "sha256:c9b0be1f0454e5291ab72bd98c951f82b48b734928ae04ecd6d9b3eaa845d0c6",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -620,6 +620,7 @@
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "disabled",
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",

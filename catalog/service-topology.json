@@ -650,6 +650,7 @@
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "doco-cd",

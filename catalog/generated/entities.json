@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:b79c6f57520f2eab9be1c9d7bc2cbc5f4f5bf70262101d7acdd38e6670b2c350",
+  "catalogRevision": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -1004,7 +1004,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "doco-cd",
         "tags": [

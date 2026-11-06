@@ -343,7 +343,7 @@
       "composeService": "doco-cd",
       "dockerManaged": true,
       "href": "http://172.17.0.24:30080",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime."
     },
     {
