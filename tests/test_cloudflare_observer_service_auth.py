@@ -33,10 +33,11 @@ def test_repository_catalog_targets_exclude_unexposed_services() -> None:
     catalog = json.loads((ROOT / "catalog" / "homelab-services.json").read_text())["services"]
     overrides = json.loads((ROOT / "catalog" / "homelab-exposure-overrides.json").read_text())["services"]
 
-    hosts = MODULE.target_hosts(catalog, overrides)
+    hosts = set(MODULE.target_hosts(catalog, overrides))
 
-    assert "litellm.albandrieu.com" not in hosts
-    assert "keycloak.albandrieu.com" in hosts
+    # Exact hostname set membership (not URL substring matching).
+    assert hosts.isdisjoint({"litellm.albandrieu.com"})
+    assert {"keycloak.albandrieu.com"} <= hosts
     assert not any(host.endswith(".int.albandrieu.com") for host in hosts)
 
 
