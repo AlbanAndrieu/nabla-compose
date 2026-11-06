@@ -55,12 +55,19 @@ jobs:
       - name: Validate Prometheus configuration
         shell: bash
         run: |
+          # promtool stats every credentials_file. Mount empty placeholders (no
+          # secret) so the syntax and the referenced rule files stay validated.
+          secrets_dir="$(mktemp -d)"
+          { grep -ho 'credentials_file: /run/secrets/[A-Za-z0-9._-]*' apps/prometheus/prometheus.yml || true; } |
+            sed 's#.*/run/secrets/##' | sort -u |
+            while read -r name; do : >"${secrets_dir}/${name}"; done
           docker run --rm \
             --read-only \
             --cap-drop ALL \
             --security-opt no-new-privileges \
             --entrypoint /bin/promtool \
             -v "${PWD}/apps/prometheus:/etc/prometheus:ro" \
+            -v "${secrets_dir}:/run/secrets:ro" \
             prom/prometheus:v3.13.2 \
             check config /etc/prometheus/prometheus.yml
 

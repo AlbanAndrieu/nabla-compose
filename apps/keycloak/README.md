@@ -184,6 +184,33 @@ sudo midclt call -j app.create "$(
 )"
 ```
 
+## Realms: `master` administration-only, `nabla` for applications
+
+`master` is the administration realm only. The Cloudflare Tunnel refuses
+`/realms/master` before publishing the production paths
+(`^/(realms|resources|\.well-known)/`), following the
+[Keycloak reverse-proxy recommendations](https://www.keycloak.org/server/reverseproxy).
+Administer it from the LAN only (`http://172.17.0.24:30238/admin/`).
+
+Applications use the `nabla` realm, declared in
+[`config/realms/nabla.yaml`](config/realms/nabla.yaml) and imported with
+[keycloak-config-cli](https://github.com/adorsys/keycloak-config-cli)
+(pinned image, private `intranet` network, admin password through a 0600
+env-file, never on the command line):
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/apply-keycloak-config.sh            # --check: read-only
+sudo NABLA_RUNTIME_CHANGE_APPROVED=yes \
+  bash scripts/truenas/apply-keycloak-config.sh --apply
+curl -fsS http://172.17.0.24:30238/realms/nabla/.well-known/openid-configuration |
+  jq '{issuer}'
+```
+
+Keep realm files free of secrets: inject client secrets with `$(env:NAME)`.
+FastAPI Sample must use `KEYCLOAK_REALM=nabla` (or leave Keycloak unset while
+it is not used); a client configured on `master` will get `404` publicly.
+
 ## Acceptance
 
 ```bash

@@ -19,7 +19,10 @@
 | P0 | Diagnostiquer `graylog`, `lidarr`, `homarr`, ainsi que les Apps arrêtées `bitcoind` / `elastic-search` / `hermes-agent` ; respecter les arrêts volontaires | État TrueNAS et preuves HTTP/health concordants, sans forcer un démarrage |
 | P0 | Déployer sous contrôle `dependency-track`, `netbox`, `plumber`, `scanopy`, `joplin`, `ntopng` sur TrueNAS, si prérequis validés | `app.query` + `/api/homelab/status` = `in_sync` et sondes fraîches |
 | P1 | Trancher l'exposition externe de Joplin, actuellement `external=true` mais DNS uniquement privé | Contrat et politique Access/Traefik alignés sans ouverture non autorisée |
-| P1 | Conserver `aistor` et `wordpress` en `status: planned` ; les exclure des alertes d'indisponibilité | Les consommateurs affichent le statut planifié |
+| P1 | **Détruire le dataset `cpool/aistor`** (décision du 6 novembre ; `aistor`/`wordpress` sont supprimés du dépôt et `cpool/aistor` de `snapshot-tasks.json`) : vérifier le contenu, supprimer la tâche de snapshot TrueNAS existante (la réconciliation ne supprime jamais), puis `zfs destroy -r cpool/aistor` | `zfs list cpool/aistor` absent, aucune tâche de snapshot sur ce dataset |
+| P1 | Keycloak : démarrer l'App, importer le realm `nabla` (`apply-keycloak-config.sh --check` puis `--apply`), `master` réservé à l'administration et refusé au Tunnel | `/realms/nabla/.well-known/openid-configuration` 200 en LAN, `/realms/master/` 404 depuis Internet |
+| P1 | Home Assistant sur le PostgreSQL global : bootstrap `homeassistant`, migration du recorder (`pg_dump`/`pg_restore` 18.6 → 18.6), puis corriger l'IP `iot_macvlan` du Compose (aujourd'hui l'IP de l'hôte TrueNAS) avant bascule | Historique visible, recorder sans erreur, `homeassistant` `in_sync` |
+| P1 | Gatus via Prometheus pour FastAPI Sample : preuve LAN sur l'instance TrueNAS ; côté Cloud, `HOMELAB_PROMETHEUS_URL` + jeton Access de l'observateur + Service Auth sur Prometheus | `/api/health-board` : `synthetic_probes.gatus_up=1`, services Gatus visibles |
 | P1 | Migration du nom canonique `homeassistant`/`openwebui` via procédure TrueNAS, pas par simple changement d'`appId` | Sauvegarde et rollback attestés, middleware + URL + Access + données validés |
 
 Le [runbook des remédiations encore ouvertes](runbooks/2026-11-04-probe-remediation.md) contient **uniquement** les gestes non réceptionnés et le diagnostic des cas atypiques. Les identités canonisées, le mode pfSense `transport_only` et la décision de ne pas exempter Keycloak/LiteLLM au WAF sont des décisions **déjà intégrées**, pas des nouvelles tâches.
@@ -55,6 +58,7 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 
 ## P1 — Séparation OpenClaw / Workstation / YubiKey
 
+- [Roadmap OpenClaw Workstation](openclaw-workstation-roadmap.md) : détail des gates de bascule.
 - **Compose** garde LiteLLM TrueNAS, le réseau, les datasets, le catalogue et les contrats d'intégration ; **nabla-openclaw** devient propriétaire de la Gateway, du heartbeat, du cron et de leurs tests ; **ansible-workstation** garde les prérequis OS ; **nabla-yubikey** les politiques et diagnostics matériels.
 - [Plan de séparation inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) : la préparation Git ne démontre pas de cutover. Ne retirer aucun consommateur ni déplacer un gitlink sans preuve que les chemins historiques ne sont plus référencés et qu'un rollback fonctionne.
 - Gate OpenClaw : modèles disponibles sur LiteLLM TrueNAS, quotas RPM/TPM attestés, clés scindées main/cron, logs des deux proxys, politiques heartbeat/cron bornées et activées **une seule fois**, identité et session effectives vérifiées. Tant que la Gateway Workstation fonctionne, la bascule TrueNAS est `NOT_VERIFIED`.
@@ -77,6 +81,7 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 | Dépendances PyYAML de Pre-commit | Les hooks doivent déclarer leurs dépendances ; ne pas supposer le Python de `mise` |
 | Drift cron OpenClaw, rate limits mal attribués | Inspecter l'identité et la session effectives ; éviter les tests de modèle coûteux |
 | Anciens scripts de migration et données ZFS | Un runbook daté n'autorise jamais une nouvelle mutation ni une suppression sans preuve |
+| Échec du build FastAPI TrueNAS #380 | Classer l'échec avant tout nouveau build ; l'ancien conteneur reste en service ([runbook](runbooks/fastapi-truenas-build-failure-20261027.md)) |
 
 Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrations-retour-experience.md). Les opérations anciennes déjà exécutées ne sont plus suivies comme des tâches.
 
