@@ -48,10 +48,18 @@ CREATE USER IF NOT EXISTS akvorado
 IDENTIFIED WITH sha256_password BY '<dedicated-secret>';
 
 GRANT ALL ON akvorado.* TO akvorado;
+GRANT SELECT ON system.data_skipping_indices TO akvorado;
 ```
 
 The grant is intentionally database-scoped. Do not grant `akvorado` global
 `*.*` privileges or `WITH GRANT OPTION`.
+
+The single `system.data_skipping_indices` read is the only exception: the
+orchestrator schema migration inspects skip-index metadata and fails with
+ClickHouse `code 497 Not enough privileges` without it. The flows table is then
+never created and the outlet fails with `UNKNOWN_TABLE` (runtime evidence,
+2026-11-06). The table exposes index names and expressions only, no row data.
+Do not widen it to `system.*`.
 
 ### TrueNAS Custom App deployment
 
