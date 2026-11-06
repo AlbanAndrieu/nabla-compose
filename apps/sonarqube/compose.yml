@@ -6,6 +6,8 @@ services:
     image: sonarqube:26.8.0.126808-community
     container_name: sonarqube
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): web, compute engine and embedded search JVMs (512m heap each by default) plus off-heap; an OOM stays in this cgroup.
+    mem_limit: 3g
     x-nabla:
       id: sonarqube
       name: SonarQube

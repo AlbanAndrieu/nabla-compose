@@ -21,7 +21,10 @@ services:
         host: kafka
         port: 9092
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): 1g max heap (KAFKA_HEAP_OPTS) plus off-heap; an OOM stays in this cgroup.
+    mem_limit: 1536m
     environment:
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx1g
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1001@127.0.0.1:29093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER

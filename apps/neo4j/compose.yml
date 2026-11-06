@@ -6,6 +6,8 @@ services:
     image: ${NEO4J_IMAGE:-neo4j:5-community}
     container_name: neo4j-security
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): 1G heap plus 1G page cache (NEO4J_server_memory_*) plus off-heap; an OOM stays in this cgroup.
+    mem_limit: 2560m
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/neo4j-security
     env_file:

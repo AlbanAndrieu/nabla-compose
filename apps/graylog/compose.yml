@@ -6,6 +6,8 @@ services:
     image: docker.io/graylog/graylog:6.3.15
     container_name: graylog
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): image default 1g heap (GRAYLOG_SERVER_JAVA_OPTS) plus off-heap; an OOM stays in this cgroup.
+    mem_limit: 2g
     x-nabla:
       id: graylog
       name: Graylog
