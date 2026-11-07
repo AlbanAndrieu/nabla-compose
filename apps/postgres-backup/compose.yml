@@ -49,7 +49,8 @@ services:
       POSTGRES_USER: pgbackup
       # Space-separated databases; the pgbackup role must have CONNECT on each
       # (scripts/truenas/bootstrap-postgres-backup-role.sh).
-      BACKUP_DATABASES: homeassistant keycloak joplin
+      # Databases not created yet are reported SKIP (BACKUP_REQUIRE_ALL=true to fail).
+      BACKUP_DATABASES: keycloak joplin homeassistant netbox dependencytrack scanopy jobs
       # Local retention; the dataset is snapshotted daily/14d and weekly/8w
       # (config/truenas/snapshot-tasks.json, class backup-targets).
       BACKUP_KEEP_DAYS: "14"

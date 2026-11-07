@@ -16,7 +16,7 @@ MODE="${1:---check}"
 SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets}"
 BACKUP_ROLE="${POSTGRES_BACKUP_USER:-pgbackup}"
 # Space-separated databases the job may dump (keep in sync with apps/postgres-backup/compose.yml).
-BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-homeassistant keycloak joplin}"
+BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-keycloak joplin homeassistant netbox dependencytrack scanopy jobs}"
 
 function fail {
   printf 'ERROR: %s\n' "$*" >&2
@@ -65,11 +65,22 @@ POSTGRES_ADMIN="$(
 [[ -n "${POSTGRES_ADMIN}" ]] ||
   fail "shared PostgreSQL administrative role could not be determined"
 
+# Staged rollout: databases that are not created yet are skipped with a warning
+# (re-run after their bootstrap); set POSTGRES_BACKUP_REQUIRE_ALL=true to fail.
+present_databases=""
 for database in ${BACKUP_DATABASES}; do
   exists="$(docker exec "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_ADMIN}" -d postgres -Atc \
     "SELECT count(*) FROM pg_database WHERE datname='${database}'")"
-  [[ "${exists}" == "1" ]] || fail "database ${database} does not exist yet; bootstrap it first"
+  if [[ "${exists}" == "1" ]]; then
+    present_databases="${present_databases} ${database}"
+  elif [[ "${POSTGRES_BACKUP_REQUIRE_ALL:-false}" == "true" ]]; then
+    fail "database ${database} does not exist yet; bootstrap it first"
+  else
+    printf 'WARN: database %s does not exist yet; skipped (re-run after its bootstrap)\n' "${database}" >&2
+  fi
 done
+BACKUP_DATABASES="${present_databases# }"
+[[ -n "${BACKUP_DATABASES}" ]] || fail "none of the configured databases exist yet"
 
 if [[ "${MODE}" == "--apply" ]]; then
   PGBACKUP_DB_PASSWORD="${backup_password}" PGBACKUP_ROLE="${BACKUP_ROLE}" \

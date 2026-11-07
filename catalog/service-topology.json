@@ -3179,6 +3179,16 @@
       ]
     },
     {
+      "source": "dependency-track-api",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the Dependency-Track API server metrics endpoint.",
+      "evidence": [
+        "apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED"
+      ]
+    },
+    {
       "source": "docker",
       "target": "truenas",
       "type": "hostedBy",
@@ -4182,6 +4192,16 @@
       "strength": "required",
       "evidence": [
         "apps/netbox/compose.yml:DB_HOST"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the NetBox metrics endpoint.",
+      "evidence": [
+        "apps/netbox/compose.yml:METRICS_ENABLED"
       ]
     },
     {

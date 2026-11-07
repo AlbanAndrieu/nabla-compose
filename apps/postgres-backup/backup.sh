@@ -18,14 +18,31 @@ KEEP_DAYS="${BACKUP_KEEP_DAYS:-14}"
 [[ "${KEEP_DAYS}" =~ ^[0-9]+$ ]] || { echo "BACKUP_KEEP_DAYS must be an integer" >&2; exit 2; }
 [[ -d "${BACKUP_DIR}" && -w "${BACKUP_DIR}" ]] || { echo "${BACKUP_DIR} is not a writable directory" >&2; exit 2; }
 
+# BACKUP_REQUIRE_ALL=true turns a missing database into a failure; by default a
+# database that is not created yet (staged rollout) is reported as SKIP.
+REQUIRE_ALL="${BACKUP_REQUIRE_ALL:-false}"
+
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 failures=0
 completed=()
+skipped=()
 
 for database in ${BACKUP_DATABASES}; do
   if ! [[ "${database}" =~ ^[a-z][a-z0-9_]{0,62}$ ]]; then
     echo "invalid database name: ${database}" >&2
     exit 2
+  fi
+  exists="$(psql -h "${POSTGRES_HOST}" -p "${PGPORT}" -U "${POSTGRES_USER}" -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname = '${database}'" 2>/dev/null || echo "?")"
+  if [[ "${exists}" != "1" ]]; then
+    if [[ "${REQUIRE_ALL}" == "true" || "${exists}" == "?" ]]; then
+      printf 'FAIL %s (database not found or not reachable)\n' "${database}" >&2
+      failures=$((failures + 1))
+    else
+      printf 'SKIP %s (database not created yet)\n' "${database}"
+      skipped+=("${database}")
+    fi
+    continue
   fi
   target_dir="${BACKUP_DIR}/${database}"
   mkdir -p "${target_dir}"
@@ -52,9 +69,9 @@ find "${BACKUP_DIR}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
 find "${BACKUP_DIR}" -type f -name '.*.dump.part' -mmin +720 -delete
 
 if ((failures == 0)); then
-  printf '{"completed_at":"%s","databases":"%s","keep_days":%s}\n' \
-    "${stamp}" "${completed[*]}" "${KEEP_DAYS}" >"${BACKUP_DIR}/.last-success.json"
-  echo "backup completed: ${completed[*]}"
+  printf '{"completed_at":"%s","databases":"%s","skipped":"%s","keep_days":%s}\n' \
+    "${stamp}" "${completed[*]}" "${skipped[*]}" "${KEEP_DAYS}" >"${BACKUP_DIR}/.last-success.json"
+  echo "backup completed: ${completed[*]}${skipped[*]:+ (skipped: ${skipped[*]})}"
   exit 0
 fi
 echo "backup failed for ${failures} database(s)" >&2
