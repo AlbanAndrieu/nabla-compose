@@ -18,29 +18,9 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service = "https://172.17.0.24:30120"
       },
       {
-        hostname       = "domain-watchdog.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30317"
-      },
-      {
         hostname       = "prometheus.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:9090"
-      },
-      {
-        hostname       = "portracker.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30233"
-      },
-      {
-        hostname       = "open-speed-test.albandrieu.com"
-        origin_request = {}
-        service        = "https://172.17.0.24:30117"
-      },
-      {
-        hostname       = "portainer.albandrieu.com"
-        origin_request = {}
-        service        = "https://172.17.0.24:31015"
       },
       {
         hostname       = "scrutiny.albandrieu.com"
@@ -63,11 +43,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service        = "http://172.17.0.24:30081"
       },
       {
-        hostname       = "localai.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30286"
-      },
-      {
         hostname       = "ollama.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30068"
@@ -82,15 +57,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         origin_request = {}
         service        = "http://172.17.0.24:30037"
       },
+      # Keycloak: publish only the production endpoints recommended by
+      # https://www.keycloak.org/server/reverseproxy (OIDC realms, assets,
+      # discovery). /admin/, /metrics, /health and the root stay internal.
       {
         hostname       = "keycloak.albandrieu.com"
+        path           = "^/(realms|resources|\\.well-known)/"
         origin_request = {}
         service        = "http://172.17.0.24:30238"
       },
       {
-        hostname       = "clamav.albandrieu.com"
+        hostname       = "keycloak.albandrieu.com"
         origin_request = {}
-        service        = "http://172.17.0.24:3310"
+        service        = "http_status:404"
       },
       {
         hostname       = "homarr.albandrieu.com"
@@ -103,69 +82,9 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service        = "http://172.17.0.24:8085"
       },
       {
-        hostname       = "paperless-ai.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30226"
-      },
-      {
-        hostname       = "transmission.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30096"
-      },
-      {
-        hostname       = "sonarr.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30113"
-      },
-      {
-        hostname       = "radarr.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30025"
-      },
-      {
-        hostname       = "lidarr.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30071"
-      },
-      {
-        hostname       = "prowlarr.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30050"
-      },
-      {
-        hostname       = "paperless-ngx.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30070"
-      },
-      {
-        hostname       = "netbootxyz.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:31010"
-      },
-      {
         hostname       = "affine.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30169"
-      },
-      {
-        hostname       = "convertx.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30154"
-      },
-      {
-        hostname       = "bichon.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:15630"
-      },
-      {
-        hostname       = "openarchiver.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30288"
-      },
-      {
-        hostname       = "pgadmin.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30056"
       },
       {
         hostname       = "postgres.albandrieu.com"
@@ -176,16 +95,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname       = "karakeep.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30147"
-      },
-      {
-        hostname       = "sabnzbd.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30055"
-      },
-      {
-        hostname       = "stirling.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30124"
       },
       {
         hostname       = "immich.albandrieu.com"
@@ -203,11 +112,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service        = "http://172.17.0.24:30103"
       },
       {
-        hostname       = "speedtest.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30220"
-      },
-      {
         hostname       = "searxng.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30053"
@@ -221,11 +125,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname       = "freshrss.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30108"
-      },
-      {
-        hostname       = "anythingllm.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:30318"
       },
       {
         hostname       = "reactive.albandrieu.com"
@@ -281,11 +180,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname       = "npm.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30020"
-      },
-      {
-        hostname       = "litellm.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:4000"
       },
       {
         hostname       = "ddns-updater.albandrieu.com"
@@ -346,11 +240,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         hostname       = "openrag.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:31060"
-      },
-      {
-        hostname       = "garage-admin.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:3909"
       },
       {
         hostname       = "garage.albandrieu.com"

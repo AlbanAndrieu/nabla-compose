@@ -7,6 +7,17 @@ NABLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$(dirname -- "${NABLA_SCRIPT_DIR}")/lib/diagnostic.sh"
 nabla_diagnostic_maybe_wrap "${BASH_SOURCE[0]}" "$@"
 
+# Full mode retains the existing diagnostic contract. Quick mode avoids
+# expensive, nonessential scans on memory- or I/O-constrained TrueNAS hosts.
+DIAGNOSTIC_MODE=full
+case "${1:-}" in
+  "") [[ "$#" -eq 0 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; } ;;
+  --quick) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; }; DIAGNOSTIC_MODE=quick ;;
+  --full) [[ "$#" -eq 1 ]] || { printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2; } ;;
+  --help|-h) printf 'Usage: %s [--quick|--full]\n' "$0"; exit 0 ;;
+  *) printf 'Usage: %s [--quick|--full]\n' "$0" >&2; exit 2 ;;
+esac
+
 section() {
   printf '\n===== %s =====\n' "$1"
 }
@@ -14,6 +25,9 @@ section() {
 have() {
   command -v "$1" >/dev/null 2>&1
 }
+
+section "Diagnostic mode"
+printf 'mode=%s\n' "${DIAGNOSTIC_MODE}"
 
 section "Host"
 date --iso-8601=seconds
@@ -50,7 +64,11 @@ fi
 
 section "vmstat sample"
 if have vmstat; then
-  vmstat 1 5
+  if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
+    vmstat 1 1 # One instantaneous sample, no 4-second wait.
+  else
+    vmstat 1 5
+  fi
 else
   printf 'vmstat unavailable\n'
 fi
@@ -67,66 +85,70 @@ section "Docker runtime summary"
 if have docker; then
   docker ps -a     --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
 
-  printf '\n-- docker stats --\n'
-  docker stats --no-stream     --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.BlockIO}}\t{{.PIDs}}' || true
-
-  printf '\n-- docker disk usage --\n'
-  # Volume scans took over 5 minutes on a busy raidz2 pool; keep the report bounded.
-  timeout 60 docker system df || printf 'docker system df unavailable or over 60s (rc=%s)\n' "$?"
-
-  printf '\n-- container anomalies --\n'
-  docker ps -q |
-    xargs -r timeout 60 docker inspect --format '{{.Name}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} mem_limit={{.HostConfig.Memory}}' |
-    awk '
-      /health=unhealthy/ || $3 !~ /restarts=0$/ { print }
-      / mem_limit=0$/ { unlimited++ }
-      END { printf "running containers without memory limit: %d\n", unlimited }
-    ' || true
-  # An OOM-killed JVM can stay <defunct> while its container still reports Up.
-  printf 'defunct processes: '
-  pgrep -c -r Z || true
-  # Zombies pile up under container init processes that never reap healthcheck children.
-  # Resolve each parent's container from its cgroup ID against one docker ps listing,
-  # so the fix (init: true) targets the right service without per-PID docker calls.
-  container_names="$(docker ps --no-trunc --format '{{.ID}} {{.Names}}' 2>/dev/null || true)"
-  printf 'top zombie parents (count ppid parent zombie container):\n'
-  ps -eo ppid=,stat=,comm= | awk '$2 ~ /^Z/ { print $1, $3 }' | sort | uniq -c | sort -rn | head -10 |
-    while read -r count ppid child; do
-      container_id="$(grep -oE '[0-9a-f]{64}' "/proc/${ppid}/cgroup" 2>/dev/null | head -1 || true)"
-      container="$(awk -v id="${container_id}" 'id != "" && $1 == id { print $2; exit }' <<<"${container_names}")"
-      printf '  %s %s %s %s %s\n' "${count}" "${ppid}" \
-        "$(ps -o comm= -p "${ppid}" 2>/dev/null)" "${child}" "${container:-host}"
-    done
-  # cgroup v2 memory.peak is the high-water mark since container start: size
-  # mem_limit from it rather than from one docker stats sample.
-  printf 'container memory peak, top 20 (peak_MiB current_MiB limit name):\n'
-  while read -r id name; do
-    [[ -n "${id}" ]] || continue
-    for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
-      [[ -r "${dir}/memory.peak" ]] || continue
-      printf '%s %s %s %s\n' "$(($(<"${dir}/memory.peak") / 1048576))" \
-        "$(($(<"${dir}/memory.current") / 1048576))" "$(<"${dir}/memory.max")" "${name}"
-      break
-    done
-  done <<<"${container_names}" | sort -rn | head -20 | sed 's/^/  /'
-  # A zombie that keeps live threads is stuck in the kernel with SIGKILL pending
-  # (2026-11-04: wazuh-indexer JVM). Its containerd shim then holds the container
-  # lock, so docker inspect and TrueNAS app.query hang; only a reboot frees it.
-  printf 'zombies with live threads (pid threads elapsed command):\n'
-  ps -eo pid=,stat=,nlwp=,etime=,comm= | awk '$2 ~ /^Z/ && $3 > 1 { print "  " $1, $3, $4, $5 }'
-  printf 'containers whose inspect exceeds 5s (stuck lock):\n'
-  docker ps -aq | while read -r id; do
-    timeout 5 docker inspect --format '{{.Name}}' "${id}" >/dev/null 2>&1 || printf '  %s\n' "${id}"
-  done
-  # containerd logged "too many open files" while container starts hung.
-  # Only resolve its PID once; do not enumerate /proc for a missing process.
-  containerd_pid="$(pgrep -o -x containerd 2>/dev/null || true)"
-  if [[ -n "${containerd_pid}" && -d "/proc/${containerd_pid}/fd" ]]; then
-    printf 'containerd open fds: %s (limit %s)\n' \
-      "$(find "/proc/${containerd_pid}/fd" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)" \
-      "$(awk '/Max open files/ { print $4; exit }' "/proc/${containerd_pid}/limits" 2>/dev/null)"
+  if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
+    printf '\n-- expensive Docker checks SKIPPED (quick mode; use --full) --\n'
   else
-    printf 'containerd open fds: unavailable (process not found)\n'
+    printf '\n-- docker stats --\n'
+    docker stats --no-stream     --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.BlockIO}}\t{{.PIDs}}' || true
+
+    printf '\n-- docker disk usage --\n'
+    # Volume scans took over 5 minutes on a busy raidz2 pool; keep the report bounded.
+    timeout 60 docker system df || printf 'docker system df unavailable or over 60s (rc=%s)\n' "$?"
+
+    printf '\n-- container anomalies --\n'
+    docker ps -q |
+      xargs -r timeout 60 docker inspect --format '{{.Name}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} mem_limit={{.HostConfig.Memory}}' |
+      awk '
+        /health=unhealthy/ || $3 !~ /restarts=0$/ { print }
+        / mem_limit=0$/ { unlimited++ }
+        END { printf "running containers without memory limit: %d\n", unlimited }
+      ' || true
+    # An OOM-killed JVM can stay <defunct> while its container still reports Up.
+    printf 'defunct processes: '
+    pgrep -c -r Z || true
+    # Zombies pile up under container init processes that never reap healthcheck children.
+    # Resolve each parent's container from its cgroup ID against one docker ps listing,
+    # so the fix (init: true) targets the right service without per-PID docker calls.
+    container_names="$(docker ps --no-trunc --format '{{.ID}} {{.Names}}' 2>/dev/null || true)"
+    printf 'top zombie parents (count ppid parent zombie container):\n'
+    ps -eo ppid=,stat=,comm= | awk '$2 ~ /^Z/ { print $1, $3 }' | sort | uniq -c | sort -rn | head -10 |
+      while read -r count ppid child; do
+        container_id="$(grep -oE '[0-9a-f]{64}' "/proc/${ppid}/cgroup" 2>/dev/null | head -1 || true)"
+        container="$(awk -v id="${container_id}" 'id != "" && $1 == id { print $2; exit }' <<<"${container_names}")"
+        printf '  %s %s %s %s %s\n' "${count}" "${ppid}" \
+          "$(ps -o comm= -p "${ppid}" 2>/dev/null)" "${child}" "${container:-host}"
+      done
+    # cgroup v2 memory.peak is the high-water mark since container start: size
+    # mem_limit from it rather than from one docker stats sample.
+    printf 'container memory peak, top 20 (peak_MiB current_MiB limit name):\n'
+    while read -r id name; do
+      [[ -n "${id}" ]] || continue
+      for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
+        [[ -r "${dir}/memory.peak" ]] || continue
+        printf '%s %s %s %s\n' "$(($(<"${dir}/memory.peak") / 1048576))" \
+          "$(($(<"${dir}/memory.current") / 1048576))" "$(<"${dir}/memory.max")" "${name}"
+        break
+      done
+    done <<<"${container_names}" | sort -rn | head -20 | sed 's/^/  /'
+    # A zombie that keeps live threads is stuck in the kernel with SIGKILL pending
+    # (2026-11-04: wazuh-indexer JVM). Its containerd shim then holds the container
+    # lock, so docker inspect and TrueNAS app.query hang; only a reboot frees it.
+    printf 'zombies with live threads (pid threads elapsed command):\n'
+    ps -eo pid=,stat=,nlwp=,etime=,comm= | awk '$2 ~ /^Z/ && $3 > 1 { print "  " $1, $3, $4, $5 }'
+    printf 'containers whose inspect exceeds 5s (stuck lock):\n'
+    docker ps -aq | while read -r id; do
+      timeout 5 docker inspect --format '{{.Name}}' "${id}" >/dev/null 2>&1 || printf '  %s\n' "${id}"
+    done
+    # containerd logged "too many open files" while container starts hung.
+    # Only resolve its PID once; do not enumerate /proc for a missing process.
+    containerd_pid="$(pgrep -o -x containerd 2>/dev/null || true)"
+    if [[ -n "${containerd_pid}" && -d "/proc/${containerd_pid}/fd" ]]; then
+      printf 'containerd open fds: %s (limit %s)\n' \
+        "$(find "/proc/${containerd_pid}/fd" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)" \
+        "$(awk '/Max open files/ { print $4; exit }' "/proc/${containerd_pid}/limits" 2>/dev/null)"
+    else
+      printf 'containerd open fds: unavailable (process not found)\n'
+    fi
   fi
 else
   printf 'docker unavailable\n'
@@ -136,7 +158,11 @@ section "TrueNAS app states"
 if have midclt && have jq; then
   # app.query may be expensive under TrueNAS pressure. Collect metadata once,
   # then render both views from the already sanitized tabular projection.
-  if app_rows="$(midclt call app.query | jq -r '
+  app_query_timeout=0 # timeout(1) treats 0 as no limit.
+  if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
+    app_query_timeout=10
+  fi
+  if app_rows="$(timeout "${app_query_timeout}" midclt call app.query | jq -r '
     .[]
     | [.id, .state, ((.active_workloads.containers // 0) | tostring)]
     | @tsv
@@ -153,10 +179,14 @@ section "Pool health and I/O"
 if have zpool; then
   zpool status -x || true
   zpool list || true
-  printf '\n-- cpool I/O sample --\n'
-  zpool iostat -v cpool 1 3 || true
-  printf '\n-- snapshot count --\n'
-  zfs list -H -t snapshot -o name 2>/dev/null | wc -l || true
+  if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
+    printf '\n-- cpool I/O and snapshot count SKIPPED (quick mode; use --full) --\n'
+  else
+    printf '\n-- cpool I/O sample --\n'
+    zpool iostat -v cpool 1 3 || true
+    printf '\n-- snapshot count --\n'
+    zfs list -H -t snapshot -o name 2>/dev/null | wc -l || true
+  fi
 else
   printf 'zpool unavailable\n'
 fi
@@ -172,7 +202,11 @@ fi
 
 section "Recent kernel pressure / I/O events"
 if have journalctl; then
-  journalctl -k -b --no-pager 2>/dev/null |
+  journalctl_lines=all
+  if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
+    journalctl_lines=500
+  fi
+  journalctl -k -b -n "${journalctl_lines}" --no-pager 2>/dev/null |
     grep -Ei       'oom|out of memory|memory cgroup|blocked for more than|hung task|I/O error|nvme.*error|ata.*error|reset controller' |
     tail -100 || true
 else

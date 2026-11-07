@@ -2,7 +2,6 @@
 # STOPPED workloads are NOT enabled by default after reboot or migration.
 # Gatus is intentionally absent: observe separately, never a dependency barrier.
 # Services declared planned/disabled must never be started automatically.
-aistor
 arti
 bazarr
 bitcoind

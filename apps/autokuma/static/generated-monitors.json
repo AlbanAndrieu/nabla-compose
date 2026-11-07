@@ -11,17 +11,6 @@
     "port": 30081
   },
   {
-    "id": "aistor",
-    "type": "port",
-    "name": "AIStor",
-    "description": "MinIO AIStor-compatible object storage service.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9002
-  },
-  {
     "id": "alloy",
     "type": "http",
     "name": "Grafana Alloy",
@@ -900,16 +889,5 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 1514
-  },
-  {
-    "id": "wordpress",
-    "type": "port",
-    "name": "WordPress",
-    "description": "Lab WordPress deployment backed by the shared PostgreSQL service through PG4WP.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8088
   }
 ]

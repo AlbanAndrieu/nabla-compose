@@ -13,6 +13,7 @@ services:
       category: observability
       runtime:
         provider: truenas-app
+        appId: graylog
         containerService: graylog
       lifecycle:
         phase: platform-services

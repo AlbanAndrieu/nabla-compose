@@ -11,6 +11,7 @@ services:
       category: data
       runtime:
         provider: truenas-app
+        appId: elastic-search
         containerService: elasticsearch
     environment:
       - discovery.type=single-node

@@ -1,16 +1,10 @@
 {
-  "catalogRevision": "sha256:fb3c413851355e0999b00e44aeaf44db8c025e4b93c5d156862afa7487397277",
+  "catalogRevision": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
       "evidence": "apps/2fauth/compose.yml:services.2fauth.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/2fauth/compose.yml#services/2fauth",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/aistor",
-      "evidence": "apps/aistor/compose.yml:services.aistor.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/aistor/compose.yml#services/aistor",
       "sourceType": "compose"
     },
     {
@@ -836,18 +830,6 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/wordpress",
-      "evidence": "apps/wordpress/compose.yml:services.wordpress.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/wordpress/compose.yml#services/wordpress",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/wordpress-wordpress-initdb",
-      "evidence": "apps/wordpress/compose.yml:services.wordpress-initdb.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/wordpress/compose.yml#services/wordpress-initdb",
-      "sourceType": "compose"
-    },
-    {
       "entityRef": "component:default/doco-cd",
       "evidence": "docker-compose-truenas.yml:services.doco-cd.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "docker-compose-truenas.yml#services/doco-cd",
@@ -857,12 +839,6 @@
       "entityRef": "component:default/2fauth",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "2fauth",
-      "sourceType": "gatus"
-    },
-    {
-      "entityRef": "component:default/aistor",
-      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "aistor",
       "sourceType": "gatus"
     },
     {
@@ -1355,12 +1331,6 @@
       "entityRef": "component:default/wazuh-manager",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "wazuh-manager",
-      "sourceType": "gatus"
-    },
-    {
-      "entityRef": "component:default/wordpress",
-      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "wordpress",
       "sourceType": "gatus"
     }
   ],

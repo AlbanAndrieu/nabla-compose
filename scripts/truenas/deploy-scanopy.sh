@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+MODE="${1:---check}"
+case "${MODE}" in
+  --check | --apply) ;;
+  *) printf 'Usage: sudo bash %s [--check|--apply]\n' "$0" >&2; exit 2 ;;
+esac
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/truenas.sh
 source "${SCRIPT_DIR}/../lib/truenas.sh"
@@ -13,7 +19,7 @@ CANONICAL_ROOT="${SCANOPY_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRETS_FILE="${SCANOPY_SECRETS_FILE:-/mnt/cpool/secrets/runtime/scanopy/.env.secrets}"
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo so TrueNAS middleware and ZFS can be managed"
-for command in docker git grep jq midclt; do
+for command in docker git grep jq midclt stat; do
   command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
 done
 
@@ -27,13 +33,18 @@ compose_path="${CANONICAL_ROOT}/apps/scanopy/compose.yml"
 # Check the immutable image contract before preparing any TrueNAS runtime state.
 bash "${SCRIPT_DIR}/check-scanopy-image-lock.sh" "${compose_path}"
 
-bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+if [[ "${MODE}" == "--apply" ]]; then
+  [[ "${NABLA_RUNTIME_CHANGE_APPROVED:-}" == "yes" ]] ||
+    fail "set NABLA_RUNTIME_CHANGE_APPROVED=yes after a reviewed preflight"
+  bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+fi
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
 [[ -f "${SECRETS_FILE}" ]] || fail "missing Scanopy secret file: ${SECRETS_FILE}"
 grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define POSTGRES_PASSWORD"
 grep -Eq '^SCANOPY_DATABASE_URL=.+$' "${SECRETS_FILE}" || fail "${SECRETS_FILE} must define SCANOPY_DATABASE_URL"
-chmod 600 "${SECRETS_FILE}"
+[[ "$(stat -c '%u:%g %a' "${SECRETS_FILE}")" == "0:0 600" ]] ||
+  fail "${SECRETS_FILE} must be root:root mode 0600"
 
 if ! bash scripts/truenas/bootstrap-scanopy-postgres.sh --check; then
   fail "shared PostgreSQL role/database scanopy is not ready; run: sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --apply"
@@ -45,6 +56,13 @@ docker compose \
   --quiet \
   --no-interpolate \
   --no-env-resolution
+
+if [[ "${MODE}" == "--check" ]]; then
+  truenas_app_summary "${APP_ID}"
+  printf '%s\n' "scanopy_preflight=verified" "scanopy_mutations=0"
+  printf '%s\n' "scanopy_runtime_acceptance=NOT_VERIFIED"
+  exit 0
+fi
 
 if truenas_app_query_by_id "${APP_ID}" |
   jq -e 'length > 0' >/dev/null; then
