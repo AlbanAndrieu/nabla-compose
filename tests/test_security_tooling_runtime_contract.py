@@ -107,27 +107,40 @@ def test_lifecycle_planner_orders_shared_data_before_new_persistent_apps() -> No
         {"id": "defectdojo", "state": "RUNNING"},
         {"id": "neo4j", "state": "RUNNING"},
     ]
-    with tempfile.TemporaryDirectory() as tmp:
-        apps_file = Path(tmp) / "apps.json"
-        apps_file.write_text(json.dumps(apps), encoding="utf-8")
-        result = subprocess.run(
-            [
-                "python3",
-                str(PLANNER),
-                "--apps",
-                str(apps_file),
-                "--services",
-                str(SERVICES),
-                "--topology",
-                str(TOPOLOGY),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+    # plumber, netbox and dependency-track are declared ``planned`` (not
+    # deployed on TrueNAS yet): the planner suppresses them unless an operator
+    # explicitly includes them for a bounded activation test.
+    planned = ("plumber", "netbox", "dependency-track")
 
-    assert result.returncode == 0, result.stderr
-    plan = json.loads(result.stdout)
+    def plan_for(*extra: str) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            apps_file = Path(tmp) / "apps.json"
+            apps_file.write_text(json.dumps(apps), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(PLANNER),
+                    "--apps",
+                    str(apps_file),
+                    "--services",
+                    str(SERVICES),
+                    "--topology",
+                    str(TOPOLOGY),
+                    *extra,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        assert result.returncode == 0, result.stderr
+        return json.loads(result.stdout)
+
+    default_plan = plan_for()
+    for app in planned:
+        assert default_plan["suppressed_apps_by_status"].get(app) == "planned"
+        assert app not in default_plan["start_order"]
+
+    plan = plan_for("--include-apps", ",".join(planned))
     start = plan["start_order"]
     stop = plan["stop_order"]
 

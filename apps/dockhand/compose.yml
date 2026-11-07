@@ -2,7 +2,7 @@
 name: dockhand
 services:
   dockhand:
-    image: fnsys/dockhand:latest
+    image: fnsys/dockhand:v1.0.57
     container_name: dockhand
     x-nabla:
       id: dockhand
@@ -20,14 +20,24 @@ services:
         host: 172.17.0.24
         port: 3050
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     labels:
       com.albandrieu.nabla.entity-ref: component:default/dockhand
+      com.centurylinklabs.watchtower.enable: "false"
     ports:
       - name: web
         target: 3000
+        host_ip: 172.17.0.24
         published: "3050"
         protocol: tcp
         app_protocol: http
     volumes:
+      # Accepted high-risk exception: Dockhand starts, stops and deploys
+      # containers, so it needs Docker API write access. The shared
+      # docker-socket-proxy is read-only (POST=0) and cannot serve it. This
+      # mount is root-equivalent on TrueNAS: keep the UI LAN-bound, keep
+      # Dockhand authentication enabled and never route it through Traefik or
+      # a Cloudflare tunnel. See README.md.
       - /var/run/docker.sock:/var/run/docker.sock
       - /mnt/cpool/dockhand:/app/data

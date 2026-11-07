@@ -76,6 +76,12 @@
       "ref": "component:default/cyberbro"
     },
     {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/ddns-updater"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/defectdojo"
     },
@@ -562,10 +568,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "component:default/traefik-ddns-updater"
-    },
-    {
-      "dependsOn": [],
       "ref": "component:default/traefik-dnsupdater"
     },
     {
@@ -695,7 +697,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343"
+        "value": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd"
       },
       {
         "name": "nabla:catalog-authority",
@@ -703,7 +705,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:84f6b6fe-1534-c8d5-f42b-171afcbe52d2",
+  "serialNumber": "urn:uuid:95df4f01-ed1a-f4bd-e86b-7f815a627683",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1099,6 +1101,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/ddns-updater",
+      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "name": "DDNS Updater",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/ddns-updater"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/ddns-updater/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -3798,32 +3827,6 @@
         {
           "name": "nabla:backstage:entity-ref",
           "value": "component:default/traefik-cloudflare-ddns"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/traefik/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "service"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/traefik-ddns-updater",
-      "name": "Ddns Updater",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/traefik-ddns-updater"
         },
         {
           "name": "nabla:source-path",

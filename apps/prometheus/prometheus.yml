@@ -65,14 +65,16 @@ scrape_configs:
           platform: truenas
           role: storage-host
 
-  # Textfile-only node_exporter (ansible-workstation playbooks/restic-backup.yml).
-  - job_name: workstation_restic
+  # Workstation node_exporter (ansible-workstation playbooks/restic-backup.yml):
+  # host metrics (CPU, memory, filesystems, ZFS, systemd units) for the OpenClaw
+  # heartbeat plus the Restic last-success textfile. ufw admits only TrueNAS.
+  - job_name: workstation_node
     static_configs:
       - targets:
           - 172.17.0.57:9100
         labels:
           platform: workstation
-          role: backup-source
+          role: workstation
 
   - job_name: kafka_exporter
     metrics_path: /metrics
@@ -148,6 +150,10 @@ scrape_configs:
           platform: truenas
           role: dns-filter
 
+  # operational_state=planned mirrors the Backstage label
+  # albandrieu.com/operational-state of exporters not deployed yet. The
+  # target stays scraped (visible as down) but NablaExporterTargetDown
+  # ignores it; remove the label in the same change that deploys it.
   # Canonical homelab data-plane telemetry. Sybase is intentionally excluded:
   # the shared databases are PostgreSQL, Redis, ClickHouse, InfluxDB and
   # OpenSearch. Prefer private Docker-network endpoints where a database API
@@ -160,6 +166,7 @@ scrape_configs:
           - 172.17.0.24:9187
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: postgresql
 
@@ -278,6 +285,9 @@ scrape_configs:
     static_configs:
       - targets:
           - 172.17.0.24:9101
+        labels:
+          platform: truenas
+          operational_state: planned
 
   - job_name: clickhouse
     metrics_path: /metrics
@@ -295,6 +305,7 @@ scrape_configs:
           - 172.17.0.24:9114
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: opensearch
 
@@ -304,5 +315,6 @@ scrape_configs:
           - 172.17.0.24:9115
         labels:
           platform: truenas
+          operational_state: planned
           role: database
           database: opensearch-security

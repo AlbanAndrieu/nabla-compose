@@ -6,7 +6,7 @@ metadata:
   title: NPMplus
   description: Hardened Nginx Proxy Manager fork tracked as the repository migration target.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: high
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

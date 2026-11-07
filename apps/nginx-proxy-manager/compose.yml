@@ -10,6 +10,7 @@ services:
       category: network
       presentationRole: support
       criticality: medium
+      status: disabled
       description: Legacy reverse-proxy administration service retained during NPMplus migration.
       runtime:
         provider: truenas-app

@@ -50,8 +50,21 @@ class ServiceConsumerStatusContractTests(unittest.TestCase):
         gatus = yaml.safe_load(GATUS.read_text(encoding="utf-8"))
         declared = next(ep for ep in source["endpoints"]
                         if ep.get("extra-labels", {}).get("nabla_monitor_id") == "doco-cd")
-        generated = next(ep for ep in gatus["endpoints"]
-                         if ep.get("extra-labels", {}).get("nabla_monitor_id") == "doco-cd")
+        rendered = [ep for ep in gatus["endpoints"]
+                    if ep.get("extra-labels", {}).get("nabla_monitor_id") == "doco-cd"]
+        entities = json.loads(
+            (ROOT / "catalog/generated/entities.json").read_text(encoding="utf-8")
+        )["entities"]
+        doco = next(e for e in entities if e["entityRef"] == "component:default/doco-cd")
+        state = doco["metadata"]["labels"]["albandrieu.com/operational-state"]
+        if state != "active":
+            # Doco-CD is paused (2026-11-06): the native probe stays declared
+            # but must not be rendered into Gatus or AutoKuma.
+            self.assertEqual(rendered, [])
+            kuma = json.loads(AUTOKUMA.read_text(encoding="utf-8"))
+            self.assertNotIn(declared["name"], {item["name"] for item in kuma})
+            return
+        generated = rendered[0]
         self.assertEqual(generated["url"], declared["url"])
         self.assertEqual(generated["conditions"], declared["conditions"])
         self.assertEqual(generated["extra-labels"]["nabla_service_id"], "doco-cd")

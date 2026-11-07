@@ -1,0 +1,60 @@
+---
+name: ddns-updater
+services:
+  ddns-updater:
+    image: ghcr.io/qdm12/ddns-updater:v2.10.0
+    container_name: ddns-updater
+    x-nabla:
+      id: ddns-updater
+      name: DDNS Updater
+      kind: dns-automation
+      category: network
+      presentationRole: support
+      criticality: medium
+      description: Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.
+      runtime:
+        provider: truenas-app
+        containerService: ddns-updater
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 30007
+    restart: unless-stopped
+    # Upstream image is FROM scratch, runs as 1000:1000 and ships its own
+    # HEALTHCHECK; it only writes to /updater/data.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/ddns-updater
+      com.centurylinklabs.watchtower.enable: "false"
+    ports:
+      - name: web
+        target: 8000
+        host_ip: 172.17.0.24
+        published: "30007"
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      # config.json holds the provider credentials (upstream design): keep it
+      # 0600 and owned by 1000:1000. Never add int.albandrieu.com records:
+      # private *.int routing belongs to pfSense/Traefik/Pi-hole.
+      - /mnt/cpool/ddns-updater:/updater/data
+    environment:
+      - CONFIG=
+      - PERIOD=5m
+      - UPDATE_COOLDOWN_PERIOD=5m
+      - PUBLICIP_FETCHERS=all
+      - PUBLICIP_HTTP_PROVIDERS=all
+      - PUBLICIPV4_HTTP_PROVIDERS=all
+      - PUBLICIPV6_HTTP_PROVIDERS=all
+      - PUBLICIP_DNS_PROVIDERS=all
+      - PUBLICIP_DNS_TIMEOUT=3s
+      - HTTP_TIMEOUT=10s
+      - LISTENING_ADDRESS=:8000
+      - ROOT_URL=/
+      - BACKUP_PERIOD=0
+      - LOG_LEVEL=info
+      - LOG_CALLER=hidden
+      - SHOUTRRR_ADDRESSES=

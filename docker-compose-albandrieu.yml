@@ -15,6 +15,10 @@ configs:
 # kics-scan ignore
 services:
   doco-cd:
+    # Disabled 2026-11-06 (owner decision): Doco-CD must run on TrueNAS only and
+    # is paused until its Docker write boundary is decided. Opt-in profile keeps
+    # the definition without starting it on `docker compose up`.
+    profiles: ["doco-cd-legacy-workstation"]
     # image: ghcr.io/kimdre/doco-cd:0.85.1@sha256:2f4650dfcd25c17d7c6b274a47b1e205d8408e3ee12a33aa3a2459b4604757ef
     image: ghcr.io/kimdre/doco-cd:latest
     container_name: doco-cd

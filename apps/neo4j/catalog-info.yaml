@@ -6,7 +6,7 @@ metadata:
   title: Neo4j Security Graph
   description: Analytical graph store for attack-path and blast-radius analysis.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct

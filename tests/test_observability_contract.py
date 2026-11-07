@@ -455,8 +455,9 @@ class ObservabilityContractTests(unittest.TestCase):
         crosswalk = json.loads(
             (ROOT / "catalog/generated/identity-map.json").read_text(encoding="utf-8")
         )
-        mapped = {
-            entry["sourceId"] for entry in crosswalk["mappings"]
+        gatus_mappings = {
+            entry["sourceId"]: entry["entityRef"]
+            for entry in crosswalk["mappings"]
             if entry["sourceType"] == "gatus"
         }
         declared = {
@@ -464,7 +465,24 @@ class ObservabilityContractTests(unittest.TestCase):
             for line in gatus.splitlines()
             if line.strip().startswith("nabla_monitor_id:")
         }
-        self.assertEqual(declared, mapped)
+        # The native Gatus source keeps probes of planned/disabled entities;
+        # the generator renders only probes of operationally active entities.
+        entities = json.loads(
+            (ROOT / "catalog/generated/entities.json").read_text(encoding="utf-8")
+        )["entities"]
+        operational_state = {
+            entity["entityRef"]: ((entity.get("metadata") or {}).get("labels") or {}).get(
+                "albandrieu.com/operational-state", "active"
+            )
+            for entity in entities
+        }
+        self.assertEqual(set(gatus_mappings.values()) - set(operational_state), set())
+        active_mapped = {
+            source_id
+            for source_id, ref in gatus_mappings.items()
+            if operational_state.get(ref, "active") == "active"
+        }
+        self.assertEqual(declared, active_mapped)
         self.assertEqual(crosswalk["unresolved"], [])
 
         for metric in (

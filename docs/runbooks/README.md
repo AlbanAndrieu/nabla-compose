@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | Remédiations des sondes et Apps TrueNAS après PR #326 | [Sondes — tâches restantes](2026-11-04-probe-remediation.md) | Parité `x-nabla` et santé runtime réelle |
 | Opérateur de migration TrueNAS | [Migration contrôlée](truenas-migration-operator.md) | `--check` / plan / rollback, accord explicite |
+| Migration des Apps du catalogue TrueNAS vers Compose | [Plan de migration](2026-11-06-catalog-apps-to-compose.md) | Plan/read-only, sauvegarde, décision opérateur et rollback |
 | Diagnostic runtime Gatus / Prometheus / OpenRAG | [Acceptation Homelab](homelab-runtime-acceptance.md) | Preuves read-only, sans fusionner `DENIED` et `DOWN` |
 | FastAPI Sample et LiteLLM | [Diagnostic consolidé](fastapi-consolidated-diagnostics-20261030.md) | Identité, routes, métriques, secrets 0600 |
 | OpenClaw et heartbeat | [Migration end-to-end](openclaw-end-to-end-migration-20261030.md) | Gateway cible, budget, logs et aucun double heartbeat |

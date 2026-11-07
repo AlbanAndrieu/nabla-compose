@@ -48,10 +48,25 @@ CREATE USER IF NOT EXISTS akvorado
 IDENTIFIED WITH sha256_password BY '<dedicated-secret>';
 
 GRANT ALL ON akvorado.* TO akvorado;
+GRANT SELECT ON system.data_skipping_indices TO akvorado;
+GRANT SELECT ON system.dictionaries TO akvorado;
 ```
 
 The grant is intentionally database-scoped. Do not grant `akvorado` global
 `*.*` privileges or `WITH GRANT OPTION`.
+
+The two `system` metadata reads are the only exceptions (runtime evidence,
+2026-11-06), both owner-approved:
+
+- `system.data_skipping_indices`: the orchestrator schema migration inspects
+  skip-index metadata and fails with ClickHouse `code 497 Not enough
+  privileges` without it; the flows table is then never created and the outlet
+  fails with `UNKNOWN_TABLE`.
+- `system.dictionaries`: the orchestrator lists its dictionaries to reload
+  them and logs `unable to list dictionaries for reload` (`code 497`) without
+  it; non-blocking, but the network metadata dictionaries are not refreshed.
+
+Both tables expose metadata only, no row data. Do not widen them to `system.*`.
 
 ### TrueNAS Custom App deployment
 

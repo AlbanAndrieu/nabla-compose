@@ -13,6 +13,7 @@ services:
       category: network
       presentationRole: support
       criticality: medium
+      status: planned
       securityFunctions:
         - identify
         - detect
@@ -50,6 +51,7 @@ services:
       category: network
       presentationRole: service
       criticality: medium
+      status: planned
       securityFunctions:
         - identify
         - detect

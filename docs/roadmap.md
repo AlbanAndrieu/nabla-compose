@@ -85,3 +85,9 @@ Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrat
 `nabla-compose` : infrastructure déclarative ; `fastapi-sample` : sondes et statuts ; `nabla-site-alban` : rendu utilisateur. Le contrat `entityRef`/`catalogRevision` est partagé, mais aucune logique de déploiement ne doit se déplacer vers les sites.
 
 **DONE global** : catalogue et topology générés sans dérive, politiques d'accès conformes, services obligatoires prouvés `ACCEPTED (runtime)`, migrations de dépôts sans doublons et récupération testée. Toute ligne sans preuve demeure ouverte.
+
+## P1 — Remédiation des sondes et migration des Custom Apps (6 novembre 2026)
+
+La PR [#327](https://github.com/AlbanAndrieu/nabla-compose/pull/327) code la transition de moniteurs Gatus/Prometheus sur services `planned` ou `disabled`, ainsi que les configurations préparatoires des Apps Dockhand et ddns-updater. Aucune bascule runtime n'est effectuée par la PR : les migrations restent conditionnées aux sauvegardes, au plan de retour arrière et à l'approbation explicite de l'opérateur. Voir [le runbook dédié](runbooks/2026-11-06-catalog-apps-to-compose.md).
+
+L'acceptation doit distinguer les moniteurs exclus intentionnellement du rendu actif, les cibles Prometheus observées et la santé applicative réelle. Les observations du 6 novembre sont historiques et ne prouvent pas l'état courant.
