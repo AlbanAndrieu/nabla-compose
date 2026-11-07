@@ -80,38 +80,65 @@ Versions, ports publiés et clés de stockage relevés :
 | wizarr | v2026.9.0_1.1.12 | STOPPED | web 30229 | hostPath `/mnt/cpool/wizarr` |
 | zabbix | 7.4.16-ubuntu_1.0.50 | RUNNING | server 30385, web 30386 | hostPath `/mnt/cpool/zabbix` |
 
-## Enregistrer les Apps du dépôt comme Custom Apps (script)
+## Manifeste et reconstruction des Custom Apps (script)
 
-`scripts/truenas/reconcile-custom-apps.py` compare chaque
-`apps/<dir>/compose.yml` à l'état TrueNAS (`app.query`), puis crée la Custom
-App manquante avec le même wrapper `include` que l'UI, et démarre les Apps
-arrêtées dans l'ordre du planificateur de cycle de vie.
+[`config/truenas/custom-apps.yml`](../../config/truenas/custom-apps.yml) est
+la liste versionnée des Custom Apps du dépôt. Chaque App y est décrite par
+son nom TrueNAS, les fichiers Compose qu'elle inclut (relatifs à
+`canonical_root`) et son état voulu (`running` ou `stopped`). Le manifeste
+garde aussi la liste `catalog_native` des Apps natives à ne jamais dupliquer.
+Un test interdit d'ajouter un `apps/<dir>/compose.yml` actif sans le déclarer
+dans le manifeste.
 
-Il ne touche jamais :
+`scripts/truenas/reconcile-custom-apps.py` compare ce manifeste au TrueNAS et
+recrée chaque App comme l'UI : une Custom App dont le Compose est un wrapper
+`include:`.
 
-- aux Apps natives du catalogue (`CATALOG_NATIVE`), qui suivent les vagues
-  ci-dessous ;
-- aux Apps déclarées `planned` ou `disabled` ;
-- à un conteneur déjà possédé par une autre App (`CONFLICT_OTHER_APP`).
+Verdicts qui déclenchent une action :
 
-Un service lancé hors de l'UI par un `docker compose` simple
-(`ORPHAN_OUTSIDE_UI`) n'est remplacé qu'avec `--adopt`. Il est refusé s'il
-utilise des volumes nommés (`ORPHAN_NAMED_VOLUMES`), dont les données ne
-suivraient pas.
+| Verdict | Action |
+| --- | --- |
+| `MISSING` | création (App perdue, oubliée ou nouvelle) |
+| `STOPPED` | démarrage |
+| `INCLUDE_DRIFT` | `app.update` vers les `include` déclarés |
+| `ORPHAN_OUTSIDE_UI` | remplacement, seulement avec `--adopt` |
+
+Verdicts sans action :
+
+- `CATALOG_NATIVE`, `CONFLICT_OTHER_APP`, `ORPHAN_NAMED_VOLUMES`,
+  `MISSING_COMPOSE_FILE`, `RUNNING_BUT_DESIRED_STOPPED` ;
+- `UNMANAGED_LIVE` (App réelle absente du manifeste) et `NEW_IN_REPO`
+  (Compose non déclaré) : à ajouter au manifeste avec `--capture`.
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-python3 scripts/truenas/reconcile-custom-apps.py --check      # lecture seule, affiche plan_hash
+# 1. Aligner le manifeste sur le NAS (noms et include réels), puis relire et commiter
+python3 scripts/truenas/reconcile-custom-apps.py --capture            # diff seulement
+python3 scripts/truenas/reconcile-custom-apps.py --capture --write    # met à jour le fichier
+# 2. Plan en lecture seule
+python3 scripts/truenas/reconcile-custom-apps.py --check
+# 3. Création, mise à jour et démarrage
 sudo python3 scripts/truenas/reconcile-custom-apps.py --apply \
-  --expected-plan-hash <hash> \
-  --acknowledge I_ACCEPT_TRUENAS_CUSTOM_APP_RECONCILE
+  --expected-plan-hash <hash> --acknowledge I_ACCEPT_TRUENAS_CUSTOM_APP_RECONCILE
 ```
+
+**Reconstruction après perte des Apps** (réinstallation, pool réimporté) :
+
+1. restaurer le checkout canonique et les secrets runtime
+   (`/mnt/cpool/secrets/runtime/...`) ;
+2. lancer `--check` : toutes les Apps du manifeste ressortent en `MISSING` ;
+3. lancer `--apply` : elles sont recréées dans l'ordre du planificateur de
+   cycle de vie, et celles déclarées `stopped` sont recréées puis arrêtées.
 
 `--apply` s'arrête :
 
-- au premier échec ;
+- à la première erreur ;
 - dès que `MemAvailable` passe sous `--min-available-gib` (6 Gio par
-  défaut), pour ne pas épuiser la RAM du NAS.
+  défaut).
+
+Les Compose collés en YAML dans l'UI (`inline`) ne sont pas
+reconstructibles : `--capture` les signale pour qu'on les déplace dans un
+fichier du dépôt.
 
 ## Méthode par App
 
