@@ -19,8 +19,9 @@ The cron helper owns Git synchronization, an hourly runtime report and the
 gated FastAPI Sample refresh. It never redeploys a TrueNAS App and does not
 start/replace Doco-CD. Each run mails a short report:
 
-- the commits pulled (no git progress) and the `apps/<name>` directories they
-  changed, which this cron does **not** redeploy;
+- the commits pulled (no git progress) and the redeploy plan of the TrueNAS
+  Apps they touch ([below](#redeploying-only-the-apps-a-change-touches)); the
+  cron prints the plan and the apply command but never applies it;
 - TrueNAS App counts per state (`midclt call app.query`) and the Apps not
   `RUNNING`;
 - containers started during the last `NABLA_CRON_RECENT_MINUTES` (default 65)
@@ -86,8 +87,9 @@ Contract:
 4. fetch `origin/master` with submodule recursion explicitly disabled;
 5. accept fast-forward updates only — never `git reset --hard`;
 6. update the local checkout;
-7. report Doco-CD configuration changes but leave runtime reconciliation to the
-   already-running Doco-CD instance;
+7. print the impacted-App redeploy plan, report Doco-CD configuration changes
+   and leave runtime reconciliation to the operator (TrueNAS Apps) or the
+   already-running Doco-CD instance (its own stacks);
 8. run `sudo -n bash scripts/truenas/update-fastapi-sample.sh` (timeout
    `NABLA_CRON_FASTAPI_TIMEOUT`, default 50 min, private log under
    `/mnt/cpool/var/nabla/ops-logs/`) only when the FastAPI Sample checkout is
@@ -104,6 +106,31 @@ checkout; use an explicit `git fetch` / `git pull --ff-only --recurse-submodules
 
 Doco-CD remote polling is separate and does not update this local feature-branch
 checkout.
+
+## Redeploying only the Apps a change touches
+
+TrueNAS Custom Apps are owned by the middleware, so a change reaches them
+through `midclt`, not Doco-CD (which keeps only its own stacks).
+`scripts/truenas/redeploy-impacted-apps.py`, run from the deployment checkout:
+
+- **Plan** (default, read-only; `just truenas-impacted-apps-plan <old> [new]`,
+  also printed in every cron mail with new commits). An App is selected when a
+  non-Markdown file under its `apps/<dir>` changed, its catalog status is
+  active and not manual-only, it is installed and `RUNNING` (a `STOPPED` App
+  stays stopped), and its Custom App config includes this checkout's Compose
+  file. Apps with a dedicated lifecycle (`deploy-<app>.sh`,
+  `update-fastapi-sample.sh`) are listed to run by hand instead. Selected Apps
+  are ordered so catalog `dependsOn` providers come first; a cycle blocks the
+  plan. The `RUNNING` Apps that depend on them are listed for a later check.
+- **Apply** (`just truenas-impacted-apps-apply <old> [new]`: root,
+  `NABLA_IMPACTED_REDEPLOY_APPROVED=yes`, clean checkout at the target
+  revision): `app.redeploy` each App in order and wait until it is `RUNNING`
+  with every container healthy (a one-shot job may exit 0); stop at the first
+  App that does not converge. After a 60 s grace, check each dependent and
+  restart it only if it is unhealthy, then its own dependents the same way.
+
+TrueNAS acts per App: `app.redeploy` restarts every service of the App's
+Compose file, not only the changed one.
 
 ## Layer 1 — live TrueNAS Doco-CD polls reviewed remote master
 

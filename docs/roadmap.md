@@ -71,6 +71,8 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 
 ## P1 — Fiabilité des scripts et documentation
 
+- Redéploiement ciblé des Apps TrueNAS : **CODE ADDED 7/11** — [`redeploy-impacted-apps.py`](../scripts/truenas/redeploy-impacted-apps.py) planifie, à partir des fichiers modifiés et des `dependsOn` du catalogue, les `app.redeploy` (fournisseurs d'abord) et ne redémarre un dépendant que s'il devient malsain ; le cron horaire n'affiche que le plan. À faire : lire le premier plan réel (Apps non liées au checkout par `include`), puis un premier `--apply` validé ; décider ensuite d'un apply automatique dans le cron. [Contrat](truenas-deployment-automation.md#redeploying-only-the-apps-a-change-touches).
+
 - Remplacer les scripts de déploiement à mutation implicite par des contrats explicites `--check` / `--apply` et une preuve de non-mutation en préflight. En particulier, `ntopng` dépend d'une licence Enterprise, d'une identité ClickHouse limitée et de l'interface réseau approuvée.
 - Factoriser les primitives de diagnostic Docker/HTTP seulement si les scénarios d'erreur, le journal expurgé et le refus des opérations mixtes sont couverts par tests.
 - Exécuter `just agent-skills-check`, `just quality` et `mise run agent-pre-push` sur un worktree non root au HEAD exact. Des échecs identiques à `master` dus au DNS ou à un utilisateur root ne valent pas une gate PASS.

@@ -370,7 +370,9 @@ esac""",
     assert "1 new commit(s):" in out
     assert "feat(foo): add app" in out
     assert "Updating files" not in out + result.stderr
-    assert "Apps changed in Git (TrueNAS Apps are not redeployed by this cron): foo" in out
+    assert "Impacted TrueNAS Apps for " in out
+    assert "redeploy in dependency order: none" in out
+    assert "skipped: foo (not in the service catalog)" in out
     assert "TrueNAS Apps: RUNNING=1, STOPPED=1" in out
     assert "Apps not RUNNING: bar (STOPPED)" in out
     assert "ix-foo-web-1: TrueNAS App foo" in out

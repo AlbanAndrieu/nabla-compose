@@ -1443,6 +1443,14 @@ docker-orphan-volumes-plan:
 docker-orphan-volumes-apply plan="/var/tmp/nabla-docker-orphan-volumes.tsv":
     sudo NABLA_VOLUME_PURGE_APPROVED=yes bash scripts/truenas/reconcile-docker-orphan-volumes.sh --apply {{ plan }}
 
+# TrueNAS, READ-ONLY: plan the redeploy of the TrueNAS Apps changed between two revisions.
+truenas-impacted-apps-plan from to="HEAD":
+    python3 scripts/truenas/redeploy-impacted-apps.py --from {{ from }} --to {{ to }}
+
+# Redeploys the planned Apps providers first, then restarts only dependents left unhealthy.
+truenas-impacted-apps-apply from to="HEAD":
+    sudo NABLA_IMPACTED_REDEPLOY_APPROVED=yes python3 scripts/truenas/redeploy-impacted-apps.py --from {{ from }} --to {{ to }} --apply
+
 # Workstation Restic alert, backup path: import the Zabbix template (plan without --apply).
 zabbix-templates *args:
     python3 scripts/zabbix/import-templates.py {{ args }}

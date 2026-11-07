@@ -9,6 +9,7 @@ if [[ -z "${1:-}" ]]; then
 fi
 
 REPO_DIR="$1"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_BRANCH="${NABLA_CRON_BRANCH:-master}"
 LOCK_FILE="${NABLA_CRON_LOCK_FILE:-/tmp/nabla-compose-doco-cd-update.lock}"
 LOG_TAG="doco-cd-update"
@@ -46,7 +47,7 @@ if ! flock -n 9; then
   exit 0
 fi
 
-log_info "Hourly sync of ${REPO_DIR}: fast-forward to origin/${DEPLOY_BRANCH} (never reset), report TrueNAS Apps and containers started in the last ${RECENT_MINUTES} min, update FastAPI Sample only when ${FASTAPI_CLOUD_URL} is fully healthy."
+log_info "Hourly sync of ${REPO_DIR}: fast-forward to origin/${DEPLOY_BRANCH} (never reset), plan (never apply) the redeploy of TrueNAS Apps the new commits touch, report TrueNAS Apps and containers started in the last ${RECENT_MINUTES} min, update FastAPI Sample only when ${FASTAPI_CLOUD_URL} is fully healthy."
 
 cd "${REPO_DIR}"
 
@@ -75,7 +76,7 @@ if command -v docker >/dev/null 2>&1; then
 fi
 
 sync_checkout() {
-  local local_sha remote_sha merge_output changed_apps
+  local local_sha remote_sha merge_output
 
   if ! git -c fetch.recurseSubmodules=false fetch origin "${DEPLOY_BRANCH}" 2>/dev/null; then
     log_error "git fetch origin ${DEPLOY_BRANCH} failed; checkout left unchanged."
@@ -102,8 +103,9 @@ sync_checkout() {
 
   log_info "Git: ${local_sha:0:12} -> ${remote_sha:0:12}, $(git rev-list --count "${local_sha}..HEAD") new commit(s):"
   git log --oneline --no-decorate -10 "${local_sha}..HEAD" | sed 's/^/  /'
-  changed_apps="$(git diff --name-only "${local_sha}" HEAD -- apps/ | cut -d/ -f2 | sort -u | paste -sd' ' -)"
-  log_info "Apps changed in Git (TrueNAS Apps are not redeployed by this cron): ${changed_apps:-none}"
+  # Plan only: redeploying Apps waits for the operator's --apply.
+  python3 "${SCRIPT_DIR}/truenas/redeploy-impacted-apps.py" --from "${local_sha}" --to HEAD 2>&1 ||
+    log_info "Impacted TrueNAS Apps: plan incomplete, nothing redeployed."
 
   if git diff --quiet "${local_sha}" HEAD -- bootstrap/ docker-compose-truenas.yml .doco-cd.yaml; then
     log_info "Checkout synchronized; no Doco-CD configuration changed."
