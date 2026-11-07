@@ -15,8 +15,19 @@ schedule: minute=0 hour=* dom=* month=* dow=*
 command: bash /mnt/cpool/compose/nabla-compose/scripts/cron.sh /mnt/cpool/compose/nabla-compose
 ```
 
-The cron helper owns **Git synchronization only**. It does not deploy
-applications and does not start/replace Doco-CD.
+The cron helper owns Git synchronization, an hourly runtime report and the
+gated FastAPI Sample refresh. It never redeploys a TrueNAS App and does not
+start/replace Doco-CD. Each run mails a short report:
+
+- the commits pulled (no git progress) and the `apps/<name>` directories they
+  changed, which this cron does **not** redeploy;
+- TrueNAS App counts per state (`midclt call app.query`) and the Apps not
+  `RUNNING`;
+- containers started during the last `NABLA_CRON_RECENT_MINUTES` (default 65)
+  with their owner: TrueNAS App (`ix-*` project), Doco-CD stack
+  (`NABLA_CRON_DOCO_CD_PROJECTS`, default `vaultwarden garage`) or another
+  Compose project;
+- the FastAPI Sample decision (up to date, skipped and why, updated, failed).
 
 Docker storage maintenance is intentionally **not** added to this hourly Git
 cron. Runtime cleanup has a different ownership, privilege and cadence boundary.
@@ -76,7 +87,15 @@ Contract:
 5. accept fast-forward updates only — never `git reset --hard`;
 6. update the local checkout;
 7. report Doco-CD configuration changes but leave runtime reconciliation to the
-   already-running Doco-CD instance.
+   already-running Doco-CD instance;
+8. run `sudo -n bash scripts/truenas/update-fastapi-sample.sh` (timeout
+   `NABLA_CRON_FASTAPI_TIMEOUT`, default 50 min, private log under
+   `/mnt/cpool/var/nabla/ops-logs/`) only when the FastAPI Sample checkout is
+   behind its remote `master` **and** `https://fastapi-sample.fastapicloud.dev`
+   is fully healthy: `/livez` and `/readyz` answer 200 and `/healthz` reports
+   `status: healthy` with every component healthy. A `degraded` cloud (for
+   example one failing `checks.*` integration) skips the update and the mail
+   names the failing checks. `NABLA_CRON_FASTAPI_UPDATE=false` disables it.
 
 When the operator checks out a feature branch such as
 `refactor/sample-nabla-service-foundation`, cron intentionally becomes a no-op.
@@ -171,7 +190,30 @@ legacy env finalization
 ```
 
 Doco-CD must not gain an implicit Sample deployment target during the current
-canonical-path pilot.
+canonical-path pilot. The hourly cron may start that same reviewed lifecycle,
+only after FastAPI Cloud has proven the new `master` healthy (Layer 0, step 8).
+
+## Application submodules and Site Alban on Talos
+
+`scripts/truenas/update-application-submodules.sh --check` reports the pinned
+SHAs of the `fastapi-sample` and `apps/nabla-site-alban` submodules.
+`--update` explicitly fetches `origin/master`, refuses dirty trees and leaves
+the gitlink commit to human review; it never pushes or redeploys, needs GitHub
+DNS and must run on an authorized checkout. It does not replace
+`update-fastapi-sample.sh`, which carries the Sample environment checks.
+
+`scripts/talos/deploy-site-alban.sh --render` renders a Namespace,
+Deployment, Service and Ingress; modes `--preflight`, `--server-dry-run` and
+`--apply` (only with `SITE_ALBAN_K8S_ALLOW_APPLY=true`). The image
+`SITE_ALBAN_K8S_IMAGE` **must be pinned as `@sha256:<digest>`**; the script
+does not build images. The private hostname `alban-site.int.albandrieu.com`
+is a candidate, not a confirmed DNS entry, and the public Vercel domain stays
+unchanged. No automatic Cloudflare, Traefik or pfSense change.
+
+Acceptance before activation: `kubectl apply --dry-run=server`, Pod Ready,
+HTTP `/fr` 200, valid internal TLS, metrics and logs reachable, tested
+rollback and no additional public exposure. Anything not executed stays
+**NOT_RUN**.
 
 ## Development tooling versus Talos/Kubernetes operator tooling
 
