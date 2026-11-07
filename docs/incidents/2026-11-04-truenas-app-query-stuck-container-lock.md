@@ -47,6 +47,9 @@ conteneur, ni dockerd, ni containerd n'ont été redémarrés.
 
 ## Ce qui reste
 
+- `wazuh` (CRASHED) : `sudo bash scripts/truenas/deploy-wazuh.sh` lancé à
+  01:02 depuis le checkout canonique (`app.update` en cours au dernier
+  relevé) ; convergence **non vérifiée** (session UI expirée).
 - Le thread noyau de l'ancienne JVM consomme toujours ~1 cœur et garde
   son cgroup `/docker/46ce1ac2aaab…` : **seul un redémarrage de l'hôte le
   libère**. À planifier avec le [runbook de reboot](../homelab-reboot-runbook.md).

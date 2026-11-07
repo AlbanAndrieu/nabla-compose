@@ -3,8 +3,9 @@
 **2026-10-11 · Statut : proposition, sécurité bloquante, pas de cutover ni de
 modification de l'App TrueNAS en production.**
 Périmètre : Hermes `hermes-agent` depuis Telegram/Discord, diagnostic Docker,
-Loki/Prometheus, recherche externe, LiteLLM/Ollama et PR GitHub. Voir le
-[runbook de faisabilité](../runbooks/hermes-homelab-gateway-feasibility.md).
+Loki/Prometheus, recherche externe, LiteLLM/Ollama et PR GitHub. Faisabilité,
+menaces et diagnostic lecture seule :
+[sections dédiées](#support-natif-des-passerelles-telegramdiscord).
 
 ## Décision
 
@@ -33,6 +34,93 @@ avec le bot leur transmet déjà le message brut. Ne pas envoyer de secrets ou
 dossiers privés dans un DM, même lorsque le LLM est local. Si des informations
 sensibles arrivent malgré tout, rejeter/masquer avant réponse, ne pas les
 répliquer dans une télémétrie, et prévoir un protocole d'incident/révocation.
+
+## Support natif des passerelles Telegram/Discord
+
+L'App TrueNAS native est `hermes-agent` (conteneur
+`ix-hermes-agent-hermes-agent-1`) ; il n'existe pas d'`apps/hermes/compose.yml`.
+Ne pas créer de second déploiement Compose avant d'avoir exporté et comparé le
+manifeste effectif de l'App (image, ports, UID/GID, mounts, restart, réseau,
+`HERMES_HOME`, mode gateway, ressources).
+
+Hermes supporte nativement les passerelles Telegram et Discord
+(`~/.hermes/.env` : `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USERS`,
+`DISCORD_BOT_TOKEN`, `DISCORD_ALLOWED_USERS` ; `~/.hermes/config.yaml` ;
+`hermes gateway setup`, `hermes gateway run`). Confirmer le stockage réellement
+chargé par l'image TrueNAS : ne pas présumer que `/mnt/cpool/hermes/.env` est
+lu. La connexion aux plateformes est sortante : **aucun dashboard, port API
+8642, route Traefik, tunnel Cloudflare ni ouverture WAN n'est requis** pour
+des messages privés. Autoriser un ID utilisateur (pas un chat ID) et
+désactiver les modes `*_ALLOW_ALL_USERS`.
+
+Politique cible (à valider avec la documentation du digest exécuté) :
+`approvals.mode: manual`, `cron_mode`, `single_query_mode` et
+`unattended_mode: deny`, `mcp_reload_confirm` et `destructive_slash_confirm:
+true`. Le backend terminal `docker` de Hermes peut exiger le daemon Docker
+**depuis le gateway** : ne jamais lui monter le socket TrueNAS ; utiliser un
+bac à sable externe approuvé ou retirer le terminal.
+
+| Capacité | Modèle cible | Phase |
+| --- | --- | --- |
+| État des services | Gatus/FastAPI/Prometheus API lecture seule, endpoints bornés | P1, après identité réseau |
+| Logs Loki | proxy LogQL à labels/services autorisés, fenêtre et limite bornées, secrets supprimés | P1, après proxy/ACL |
+| Logs Docker | API limitée inspect/état/logs de conteneurs autorisés, sans exec ni create | plus tard, après tests |
+| Amélioration des repos | GitHub App fine-grained, branche/PR, pas de merge automatique | P1, permissions minimales |
+| Correctifs TrueNAS | exécuteur distinct allowlisté, validation humaine hors agent, audit, rollback | P3 seulement |
+| Shell root / socket Docker brut | équivalent administrateur de l'hôte, du ZFS et des secrets | **interdit au gateway** |
+
+Un Loki joignable ne prouve pas que chaque conteneur y envoie ses logs, et un
+Loki sur le LAN n'est pas une frontière d'identité : filtrer côté serveur en
+amont du modèle. Un proxy socket Docker générique n'est **pas** du moindre
+privilège ; préférer une API de diagnostic dédiée.
+
+### Menaces prioritaires (STRIDE)
+
+- **Spoofing :** usurpation de compte de messagerie, vol de bot token, IDs
+  autorisés incorrects ; refuser les groupes publics et `ALLOW_ALL`.
+- **Tampering / elevation :** socket Docker, `privileged: true`, réseau host,
+  `sudo` généraliste ou SSH root rendent toute prompt injection critique.
+- **Information disclosure :** un `docker logs` ou Loki brut peut contenir
+  tokens, cookies, identités et documents privés ; limiter volumes, labels et
+  durée, filtrer, ne pas joindre de logs de production.
+- **Repudiation :** distinguer lecture, proposition de PR, autorisation
+  opérateur et exécution ; journal d'audit sans secrets avec identifiant de
+  tâche.
+- **Denial of service :** borner `limit`, `since`, timeout, concurrence, rate
+  limiting, taille des réponses et consommation LLM ; aucune relance massive
+  de conteneurs.
+- **Prompt injection :** logs, pages, tickets, réponses MCP et chats sont des
+  **données non fiables** ; aucun texte de log ne déclenche une commande admin.
+
+Même avec `approvals.mode: manual`, l'approbation Hermes n'est **pas** un
+contrôle de sécurité hors de l'agent : interdire `/yolo`,
+`HERMES_YOLO_MODE=1` et `approvals.mode: off`, et imposer les permissions à
+l'API/OS.
+
+### Diagnostic lecture seule
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/diagnose-hermes-agent.sh --check
+```
+
+Le script n'affiche que les états, image/digest, UID déclaré, flags
+d'isolement, présence de clés (jamais les valeurs), permissions de fichiers et
+`/ready` de Loki ; ni `docker logs`, ni `docker exec`, ni mutation. Une
+permission manquante donne un diagnostic partiel. Ne jamais envoyer un
+`docker inspect` complet ni `hermes config` dans Discord/Telegram. À établir
+sur l'hôte : commande gateway, *noms* des variables injectées, volume
+`HERMES_HOME`, UID effectif (image officielle souvent 10000 : **ne pas forcer
+568:568**), ACL ZFS, ports publiés, canaux autorisés, provenance des logs
+Docker dans Loki.
+
+Ordre d'activation : P1 audit lecture seule → P2 Telegram puis Discord en DM
+privé avec allowlist propriétaire (tests positif et utilisateur non autorisé)
+→ P2 connecteur d'observabilité borné → P2 PR GitHub à permissions
+restreintes → P3 actions contrôlées (dry-run, approbation humaine hors bot,
+rollback). **Rollback :** désactiver les bots ou révoquer leurs jetons et les
+identités des connecteurs, isoler l'exécuteur ; l'App Hermes et ses données
+sont conservées.
 
 ## Inventaire d'écarts vérifiables dans la branche actuelle
 
@@ -236,6 +324,10 @@ preuves de sécurité du conteneur TrueNAS. Les `skills.write_approval` et
 ## Références vérifiables
 
 - Hermes Security : https://hermes-agent.nousresearch.com/docs/user-guide/security
+- Hermes Discord : https://hermes-agent.nousresearch.com/docs/user-guide/messaging/discord
+- Hermes Telegram : https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram
+- Hermes Docker : https://hermes-agent.nousresearch.com/docs/user-guide/docker
+- Hermes Configuration : https://hermes-agent.nousresearch.com/docs/user-guide/configuration
 - Hermes Web Search : https://hermes-agent.nousresearch.com/docs/user-guide/features/web-search
 - Hermes Secrets : https://hermes-agent.nousresearch.com/docs/user-guide/secrets
 - Hermes Secure Host : https://hermes-agent.nousresearch.com/docs/guides/secure-hermes-on-a-work-machine

@@ -15,7 +15,7 @@ Talos/Kubernetes et les services de sécurité, d'observabilité et d'IA.
    instructions locales et les limites d'accès à TrueNAS.
 2. Consulter la [roadmap active](docs/roadmap.md) pour les priorités et
    les critères d'acceptation.
-3. Utiliser l'[index des runbooks](docs/runbooks/README.md)
+3. Utiliser l'[index de la documentation](docs/README.md)
    pour sélectionner une procédure ciblée.
 4. Se référer au
    [skill local-first](.agents/skills/local-first-quality/SKILL.md)
@@ -81,6 +81,5 @@ La gate complète doit être exécutée sur le **HEAD exact** publié.
 L'ancien README comportait des commandes manuelles de création de
 sous-modules, `docker compose up`, arrêt de services systemd et
 installation Sentry qui ne sont **pas** adaptées à une reprise sécurisée
-de cette infrastructure. Son contenu est conservé **à l'identique**
-dans l'[archive historique](docs/archive/README-legacy-compose-notes.md)
-pour traçabilité et n'est pas un runbook actif.
+de cette infrastructure. Il reste disponible dans l'historique git ;
+`.gitmodules` et les README des applications font foi.

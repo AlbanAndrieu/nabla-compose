@@ -29,9 +29,9 @@ consommateurs Git identifiés ne sont pas corrigés
 et validés.
 
 Conserver le Gateway Workstation opérationnel ;
-ne pas activer de cron/heartbeat TrueNAS. Voir le
-[registre des consommateurs](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
-et le [runbook TrueNAS](runbooks/openclaw-sandbox-submodule-preflight-20261030.md).
+ne pas activer de cron/heartbeat TrueNAS. Le registre des consommateurs
+et le runbook TrueNAS du 30/10 ont été retirés le 6/11 (NO-GO levé :
+`apps/openclaw` est le submodule `nabla-openclaw`) ; voir l'historique Git.
 
 ## Réception locale du plan d'extraction — 30 octobre 2026
 
@@ -180,7 +180,7 @@ Traçabilité : [preuves et runbook USB age](https://github.com/AlbanAndrieu/nab
 
 **CODED [skip ci], réception Workstation restante :** le hook `developer-tooling-contract` dispose désormais de `PyYAML==6.0.3` en environnement Pre-commit isolé ; `openclaw-migration-evidence.sh --diagnose` inclut les journaux des **deux** LiteLLM, l'inventaire de routes et les quotas de clés TrueNAS (tests de contrat adaptés). Le candidat `HEARTBEAT-RESTORED.candidate.md` limite ses alertes aux preuves fraîches, anomalies dédupliquées, trois signaux maximum, sans requête de génération, et conserve ses 14 anciennes capacités désactivées.
 
-**Runbook opérateur complet :** [P0 logs, 429, cron, heartbeat et cutover](runbooks/openclaw-p0-truenas-heartbeat-20261030.md). Il précise les commandes indépendantes Workstation/TrueNAS, le mode `--truenas-sudo-logs` **seulement avec droit sudo préexistant**, les preuves privées `0600` et les critères de sortie.
+**Runbook opérateur complet :** P0 logs, 429, cron, heartbeat et cutover (`runbooks/openclaw-p0-truenas-heartbeat-20261030.md`, retiré le 6/11 ; historique Git). Il précisait les commandes indépendantes Workstation/TrueNAS, le mode `--truenas-sudo-logs` **seulement avec droit sudo préexistant**, les preuves privées `0600` et les critères de sortie.
 
 **Dernières observations apportées par l'opérateur :** Gateway `ready` (3 endpoints 200), alignement Node/service PASS, dépenses de clés sous caps ; `docker_permission_denied` côté TrueNAS, `agent:cron:main` absent sur 21 sessions, digest `skill_template_range_int_mismatch`, source effective des 429 `unverified`. `--diagnose` initial : 5 PASS, 3 unverified (avant extension à trois sondes). Aucun de ces éléments ne démontre que `gpt-4.1` ou `gpt-4.1-mini` fonctionne sur TrueNAS.
 
@@ -191,14 +191,14 @@ Traçabilité : [preuves et runbook USB age](https://github.com/AlbanAndrieu/nab
 | Ordre | Responsable | Action restante | Condition |
 | --- | --- | --- | --- |
 | 6 | **OpenClaw + Compose** | Sélectionner image/digest non-root, stockage privé ZFS, ACL, réseau/egress et sauvegarde avec restauration hors prod | Contrat TrueNAS et recovery PASS ; aucune autoactivation de cron/heartbeat |
-| 7 | **Compose** | Préparer le déplacement des **4** fichiers sandbox, après audit de `build.sh`, du catalogue, de la topologie et des includes TrueNAS ; [registre des consommateurs](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md) | **NO-GO courant** : `build.sh` et plusieurs sources du catalogue pointent encore vers `apps/openclaw/compose.yml` ; scan TrueNAS `--all-apps` et rollback non attestés |
+| 7 | **Compose** | Préparer le déplacement des **4** fichiers sandbox, après audit de `build.sh`, du catalogue, de la topologie et des includes TrueNAS ; registre des consommateurs (retiré le 6/11, historique Git) | **NO-GO courant** : `build.sh` et plusieurs sources du catalogue pointent encore vers `apps/openclaw/compose.yml` ; scan TrueNAS `--all-apps` et rollback non attestés |
 | 8 | **Compose** | Ajouter `nabla-openclaw` en submodule **piné** directement à `apps/openclaw` | SHA vérifié, aucune dépendance au dossier privé `~/.openclaw` |
 | 9 | **OpenClaw + Compose** | Démarrer en parallèle sur TrueNAS, sans doubles automations, puis basculer `cron` et `main` un par un | End-to-end, budgets, reprise et rollback Workstation prouvés |
 | 10 | **YubiKey + Compose** | Évaluer ensuite le lien `security/nabla-yubikey` et déprécier les recettes Compose | Parité des 84 recettes sélectionnées/compat wrappers ; pas de transfert opaque ni secrets |
 
 ## Gate spécifique au submodule OpenClaw — statut actuel : NO-GO
 
-La [revue ciblée du code](migrations/openclaw-sandbox-consumers-go-no-go-20261030.md)
+La revue ciblée du code (registre des consommateurs, retiré le 6/11)
 confirme **quatre fichiers sandbox** dans `apps/openclaw/`, mais aussi
 des consommateurs actifs de l'ancien chemin :
 `build.sh` exécute encore `docker compose -f apps/openclaw/compose.yml
@@ -268,4 +268,4 @@ Les sorties runtime ne sont pas attestées par la seule existence des scripts. U
 
 **DONE global** = deux propriétaires spécialisés réellement autonomes + tests locaux et runtime validés + Gateway TrueNAS/heartbeats sans doublons + plan de rollback éprouvé + escrow restaurable avec deux supports indépendants + Compose débarrassé des seuls doublons devenus inutiles.
 
-Références : [ADR séparation](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/adr/adr-repository-split-workstation-yubikey-20261030.md), [inventaire des chemins](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/migrations/workstation-yubikey-extraction-20261030.md), [migration OpenClaw](runbooks/openclaw-end-to-end-migration-20261030.md), [propriété Workstation](adr/adr-workstation-option-a.md).
+Références : [ADR séparation](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/adr/adr-repository-split-workstation-yubikey-20261030.md), [inventaire des chemins](https://github.com/AlbanAndrieu/nabla-yubikey/blob/master/docs/migrations/workstation-yubikey-extraction-20261030.md), [migration OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/migration.md), [propriété Workstation](adr/adr-workstation-option-a.md).

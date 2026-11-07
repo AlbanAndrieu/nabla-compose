@@ -64,7 +64,8 @@ Tester dans un navigateur privé via
 `https://defectdojo.int.albandrieu.com/login` avec le même mot de
 passe saisi lors de `changepassword`. Ne pas désactiver les cookies
 sécurisés ni ajouter d'exception `CSRF_TRUSTED_ORIGINS` large.
-Si HTTPS répond 404/502, revenir au diagnostic de route Traefik.
+Si HTTPS répond 404/502, revenir au diagnostic de route Traefik
+(section 6).
 
 ### Gate 3 — si hash correct et HTTPS toujours en échec
 
@@ -294,3 +295,92 @@ Mettre ensuite à jour dans Vaultwarden l'entrée canonique
 nouveau superutilisateur. Cette divergence d'identité doit être revue
 avant un futur initializer/réconciliation. Ne pas supprimer l'utilisateur
 `admin` ni modifier la base pour la masquer.
+
+## 6. Route privée HTTPS — contrôle par couches (lecture seule)
+
+Chemin voulu : `defectdojo.int.albandrieu.com` résolu par le DNS
+interne (Pi-hole `172.17.0.24` alimenté par `pihole-dns-sync` depuis
+les labels, pfSense/Unbound `172.17.0.1` en Domain Override vers
+Pi-hole) en `172.17.0.24`, puis **Traefik `websecure` directement**
+sur `:443`, puis le frontal Nginx `defectdojo` (port `8080`, publié
+LAN `172.17.0.24:31085`) sur `traefik_network`, puis
+`defectdojo-uwsgi` et PostgreSQL partagé. DNS public Cloudflare,
+AutoXpose et HAProxy WAN pfSense ne font **pas** partie du chemin :
+n'ajouter aucune ACL, route ou enregistrement public pour débloquer
+DefectDojo.
+
+Page de login, depuis TrueNAS ou la workstation LAN :
+
+```bash
+bash scripts/workstation/check-defectdojo-login-lan.sh --check
+```
+
+La sonde utilise `--resolve` vers `172.17.0.24` avec SNI et certificat
+vérifiés, ne suit aucune redirection et n'affiche ni cookie ni
+formulaire : `PASS` = HTTP 200 HTML ; `UNVERIFIED` = 30x ou 401/403 ;
+`FAIL` = erreur TLS, 5xx, page non HTML ou route introuvable. Un
+`PASS` prouve la page de login anonyme, **pas** l'authentification
+Django ni la santé Celery/base.
+
+Sur TrueNAS, diagnostic global puis route HTTPS :
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo bash scripts/truenas/preflight-defectdojo.sh
+sudo bash scripts/truenas/diagnose-defectdojo.sh --check
+sudo python3 scripts/truenas/diagnose-defectdojo-https-route.py --check
+```
+
+| Couche | Observation | Interprétation |
+| --- | --- | --- |
+| Docker | `defectdojo`, `defectdojo-uwsgi`, `traefik` en cours d'exécution | Présence, sans garantir la réponse Django |
+| API LAN | `http://172.17.0.24:31085/api/v2/` | HTTP 403 attendu en anonyme |
+| UI origine | `http://172.17.0.24:31085/` | 200 **`text/html`** ou 30x = Nginx/uWSGI OK ; 000/401/403/404/5xx ou 200 non HTML = échec |
+| DNS interne | Pi-hole et pfSense/Unbound | `NOERROR` A `172.17.0.24` |
+| DNS public | `1.1.1.1` | Aucun enregistrement A |
+| HTTPS privé | `curl --resolve ...:443:172.17.0.24`, TLS/SNI vérifiés | Joint le routeur Traefik ; jamais `-k` |
+
+Seuls `NOERROR` et `NXDOMAIN` avec un transport valide qualifient une
+réponse DNS : timeout, `SERVFAIL`, `REFUSED` ou `EDE: 3 (Stale Answer)`
+ne prouvent rien. `ui_origin_http=000` avec `api_http=403` signale
+`api_reachable_but_ui_origin_unavailable`. Le script HTTPS distingue
+`TLS_CERTIFICATE_UNTRUSTED`, `ROUTER_OR_PATH_NOT_FOUND`,
+`TRAEFIK_UPSTREAM_UNAVAILABLE` et `TCP_TLS_UNREACHABLE`, contrôle les
+labels **réellement déployés** et publie un `next_layer` :
+
+| `next_layer` | Action ciblée |
+| --- | --- |
+| `SPLIT_DNS` | Corriger le nom privé dans la synchro Pi-hole/Unbound après preuve du résolveur fautif |
+| `TRAEFIK_CONTAINER` / `TRAEFIK_443_BINDING` | Comparer l'App Traefik, l'écoute `:443` et les bindings, sans redémarrage général |
+| `TRAEFIK_NETWORK` | Comparer les réseaux actifs des deux conteneurs et le rendu Compose TrueNAS ; ne pas créer de réseau |
+| `TRAEFIK_RUNTIME_LABELS` | Contrôler l'include TrueNAS et les labels Docker ; un `git pull` ne change pas un conteneur déjà créé |
+| `TRAEFIK_TLS_ROUTER` | Distinguer certificat, 404 Host/router, 502 upstream ou timeout ; corriger la seule couche attestée |
+| `DJANGO_LOGIN_AUTHENTICATION` | Transport HTTPS serveur OK ; si le navigateur échoue, examiner le résolveur et le proxy **du client** |
+
+Pour `TRAEFIK_RUNTIME_LABELS`, ne pas lancer `app.redeploy defectdojo`
+d'emblée (il peut relancer l'initializer) ; lire d'abord :
+
+```bash
+sudo docker inspect defectdojo --format '{{json .Config.Labels}}' |
+  jq 'with_entries(select(.key | startswith("traefik.")))'
+sudo docker inspect defectdojo --format '{{json .NetworkSettings.Networks}}' | jq 'keys'
+sudo midclt call app.config defectdojo | jq '{include: .include}'
+```
+
+`apps/defectdojo/compose.yml` déclare `traefik.enable=true`, le Host
+exact, `websecure`, TLS et `loadbalancer.server.port=8080` sur
+`traefik_network`. Une seule réconciliation est admissible, l'App
+`defectdojo` : `deploy-security-tooling.sh --check defectdojo` avant
+tout `--apply defectdojo`, jamais pour une panne DNS seule.
+
+Côté workstation, `bash scripts/workstation/diagnose-defectdojo-lan.sh
+--check` compare aussi `getent ahostsv4` : un échec NSS alors que
+`dig @172.17.0.1` et `curl --resolve` sont verts renvoie
+`CLIENT_PRIVATE_SPLIT_DNS_PATH` (exit 1). La résolution du client
+relève de [workstation-split-dns-recovery.md](workstation-split-dns-recovery.md) ;
+ne pas reconfigurer pfSense ni Pi-hole pour un défaut local.
+
+**Toujours conserver** les données DefectDojo/PostgreSQL, Redis,
+`DD_SECRET_KEY`, `DD_CREDENTIAL_AES_256_KEY` et le compte `admin` :
+aucun réinitialiseur, migration ou redéploiement massif, aucune
+exposition de `.int` dans le DNS public.

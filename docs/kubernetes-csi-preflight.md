@@ -193,6 +193,41 @@ The helper:
 6. applies `nabla-truenas-nfs` only after driver readiness;
 7. verifies that the StorageClass remains non-default.
 
+### Pod Security admission boundary
+
+The CSI node plugin needs `hostNetwork: true`, `hostPath` access to the kubelet
+plugin/registration directories and a privileged root `csi-node` container for
+mounts. Under the default `baseline` enforcement the DaemonSet is admitted but
+creates no Pod (`CURRENT=0`, `FailedCreate: violates PodSecurity
+"baseline:latest"`); a longer `CSI_ROLLOUT_TIMEOUT` cannot fix an admission
+denial.
+
+Only the dedicated `truenas-csi` namespace is elevated, and the helper applies
+and verifies these labels before reconciling the DaemonSet:
+
+```text
+pod-security.kubernetes.io/enforce=privileged
+pod-security.kubernetes.io/enforce-version=v1.36
+pod-security.kubernetes.io/audit=baseline
+pod-security.kubernetes.io/audit-version=v1.36
+pod-security.kubernetes.io/warn=baseline
+pod-security.kubernetes.io/warn-version=v1.36
+```
+
+`audit`/`warn` stay at `baseline` to keep the elevated capabilities visible.
+Review the pinned version at each Kubernetes minor upgrade. Never apply this
+label set to other namespaces or `default`, and keep workload-creation rights
+in `truenas-csi` tightly controlled: privileged Pods reach node resources.
+
+Verify the boundary and the node rollout (one Pod per worker,
+`CURRENT=2 READY=2`) before StorageClass creation and the smoke:
+
+```bash
+kubectl get namespace truenas-csi --show-labels
+kubectl -n truenas-csi get daemonset truenas-csi-node
+kubectl -n truenas-csi get events --sort-by=.lastTimestamp | tail -n 30
+```
+
 ## 4. Cross-worker persistence acceptance
 
 Read-only readiness check:
@@ -254,7 +289,7 @@ Only then proceed to Kubara/Traefik and the immutable FastAPI smoke on
 The first-install rollout timeout, VolumeAttachment/publishContext failure,
 malformed CSI credential and retained-object recovery are historical incident
 evidence, not current preflight steps. They are maintained in
-[`kubernetes-csi-rbac-recovery.md`](./kubernetes-csi-rbac-recovery.md).
+[`2026-09-11-truenas-csi-publishcontext-rbac.md`](./incidents/2026-09-11-truenas-csi-publishcontext-rbac.md).
 
 Use this document only for the current install/preflight/smoke contract; use the
 recovery document when diagnosing the historical failure modes.

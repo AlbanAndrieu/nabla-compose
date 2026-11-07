@@ -17,7 +17,6 @@ PIHOLE_SYNC = ROOT / "scripts/truenas/verify-pihole-dns-sync.sh"
 SENTRY_SMOKE = ROOT / "scripts/truenas/smoke-sentry-event.sh"
 SENTRY_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-sentry.sh"
 LANGFLOW_BOOTSTRAP = ROOT / "scripts/truenas/bootstrap-openrag-langflow-key.sh"
-FASTAPI_OBSERVABILITY = ROOT / "scripts/truenas/smoke-fastapi-observability.sh"
 
 
 class ProbeLibraryContractTests(unittest.TestCase):
@@ -106,7 +105,6 @@ class ProbeLibraryContractTests(unittest.TestCase):
     def test_container_http_primitive_and_lifecycle_consumers(self) -> None:
         probe = PROBE.read_text(encoding="utf-8")
         lifecycle = APP_LIFECYCLE.read_text(encoding="utf-8")
-        observability = FASTAPI_OBSERVABILITY.read_text(encoding="utf-8")
 
         self.assertIn("probe_container_http_success()", probe)
         self.assertIn('timeout "${timeout_seconds}" docker exec', probe)
@@ -142,24 +140,13 @@ class ProbeLibraryContractTests(unittest.TestCase):
             lifecycle,
         )
 
-        self.assertIn("lib/probe.sh", observability)
-        self.assertIn(
-            'probe_http_success "${PYROSCOPE_URL}/" 3 5',
-            observability,
+        result = subprocess.run(
+            ["bash", "-n", str(APP_LIFECYCLE)],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        self.assertNotIn(
-            'curl --fail --silent --show-error --max-time 5 "${PYROSCOPE_URL}/"',
-            observability,
-        )
-
-        for path in (APP_LIFECYCLE, FASTAPI_OBSERVABILITY):
-            result = subprocess.run(
-                ["bash", "-n", str(path)],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_reviewed_simple_http_health_consumers_use_shared_probe(self) -> None:
         sentry_smoke = SENTRY_SMOKE.read_text(encoding="utf-8")

@@ -1,8 +1,6 @@
 # Homelab — diagnostics opérateur spécialisés
 
-**Mis à jour : 25 octobre 2026.** L'ancien inventaire de commandes
-datées est conservé dans
-[archive](../archive/2026-10-24/2026-10-24-homelab-operator-next-commands.md).
+**Mis à jour : 25 octobre 2026.**
 Cette page complète le [runbook d'acceptation canonique](homelab-runtime-acceptance.md) pour les sondes individuelles en lecture seule.
 Aucune commande ici ne démarre, redéploie ou efface un service.
 
@@ -30,6 +28,39 @@ depuis le tableau Gatus privé. Les services volontairement arrêtés doivent
 La procédure globale peut être lancée par le script
 `scripts/truenas/diagnose-service-bundle.py --check --section observability`
 après revue du HEAD ; une panne n'interrompt pas les autres vérifications.
+
+### Diagnostic de performance rapide (4 novembre 2026)
+
+Le script `diagnose-performance.sh` conserve le comportement **complet par
+défaut** (`--full` ou sans argument). Un mode `--quick` évite les scans
+coûteux lors des incidents de pression mémoire ou I/O :
+
+```bash
+# Observation rapide, lecture seule :
+sudo bash scripts/truenas/diagnose-performance.sh --quick
+
+# Diagnostic initial historique, sans réduction de périmètre :
+sudo bash scripts/truenas/diagnose-performance.sh --full
+```
+
+En mode rapide : échantillon `vmstat` instantané, absence de `docker stats`,
+`docker system df` et inspection détaillée des conteneurs ; pas de
+`zpool iostat` ni d'inventaire intégral des snapshots ZFS ; lecture limitée
+aux 500 dernières entrées du journal du noyau. `midclt app.query` reste
+collecté une seule fois mais reçoit un timeout de dix secondes.
+Les vérifications omises sont **SKIPPED** dans la sortie, jamais saines par
+défaut ; le diagnostic complet reste requis pour confirmer leurs résultats.
+
+Le diagnostic FastAPI consolidé utilise désormais
+`scripts/lib/bounded_subprocess.py` : lecture incrémentale de stdout, mémoire
+bornée à **32 Kio** pour chaque processus enfant et délai global monotone.
+En cas de dépassement, le processus et ses descendants dans son groupe
+isolé sont interrompus ; stderr n'est jamais collecté. La fonction conserve
+le contrat historique `ok/nonzero/missing/timeout/invalid/unavailable`.
+
+Tests de sécurité hors réseau : `tests/test_truenas_quick_performance.py`
+et `tests/test_fastapi_bounded_subprocess.py`. Mesurer les gains réels sur
+TrueNAS séparément, sans déclencher de CI distante ni imposer le mode rapide.
 
 ### Performance des diagnostics (3 novembre 2026)
 
@@ -86,7 +117,7 @@ au moins un échec de sonde est établi, `2` sinon si une preuve manque.
 La validation en lecture seule est possible hors TrueNAS mais les
 exécutables absents sont `NOT_RUN` ; ne pas en déduire que le service est
 indisponible. Pour les critères de clôture, consulter
-[runbook observabilité](2026-10-24-prometheus-pyroscope-dns-dot-recovery.md).
+[l'incident observabilité](../incidents/2026-10-24-truenas-observability-recovery.md).
 
 Le triage postmigration utilise également les compteurs expurgés
 `verdict_counts` du diagnostic Gatus : `DENIED` seul produit
@@ -109,13 +140,13 @@ python3 -m pytest -q tests/test_service_diagnostic_bundle.py tests/test_postmigr
 
 ```bash
 bash scripts/pfsense/diagnose-unbound-split-dns.sh --check
-bash scripts/pfsense/diagnose-memory-pressure.sh --check
+bash scripts/pfsense/sample-oom-pressure.sh --check
 ```
 
 L'absence d'argument `--check` n'autorise **aucune** mutation.
 Ne pas multiplier les scrapes pfSense, reboots, mises à jour Snort
 ou reconstructions pfBlockerNG pendant le diagnostic.
-Voir [runbook pfSense](2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+Voir [incident pfSense](../incidents/2026-10-24-pfsense-unbound-restarts.md).
 
 ## 3. Services applicatifs (TrueNAS)
 

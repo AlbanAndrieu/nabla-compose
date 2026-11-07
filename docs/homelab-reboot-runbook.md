@@ -32,8 +32,7 @@ Related evidence and design documents:
 
 - `incidents/2026-09-11-truenas-reboot.md`;
 - `truenas-csi-orphan-datasets.md`;
-- `truenas-docker-ipam-roadmap.md`;
-- `homelab-network-topology.md`.
+- `homelab-network-topology.md` (IPAM contracts).
 
 ## TrueNAS BIA / PRA objectives
 

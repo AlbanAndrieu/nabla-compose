@@ -146,6 +146,24 @@ The current provider inventory is:
 
 Onboard in bounded batches and validate the corresponding Cyberbro engine after each credential set. Prefer free/read-only API plans first, least-privilege application identities where OAuth/client credentials are involved, and dedicated homelab identities rather than personal production credentials.
 
+Operator rules:
+
+- record recovery ownership and account email/tenant metadata in the password manager, never in tracked files;
+- update with `scripts/secrets/import_env_to_bitwarden.py --app cyberbro --update-existing`; omitted optional variables keep their existing Vaultwarden values;
+- never print the rendered `.env.secrets`; validate only its mode, the mapping count and application behavior.
+
+Enrollment order:
+
+1. deploy with the empty optional-provider contract and prove the UI/API and MCP baseline;
+2. low-risk reputation providers (VirusTotal, AbuseIPDB, AlienVault OTX, Shodan, IPinfo/ipapi, ThreatFox);
+3. Google CSE/Safe Browsing with project/API-key restrictions;
+4. self-hosted integrations (DFIR-IRIS, MISP, OpenCTI) only after their own service identities and network paths are accepted; `MISP_FEEDBACK_TOKEN` only if the feedback server is enabled;
+5. enterprise integrations (CrowdStrike Falcon, Microsoft Defender for Endpoint) last, with explicit tenant/app registration and least-privilege review;
+6. remaining specialist providers in bounded batches;
+7. after the first full pass, review quotas/rate limits, cache policy and terms of service before increasing automated use through MCP/LiteLLM.
+
+Onboarding is complete only when every desired provider has an explicitly owned account/token or is marked intentionally unused; values exist only in Vaultwarden/runtime materialization (never Git, history or logs); each enabled engine has a bounded functional smoke result; quotas and scopes are recorded without secret values; Cyberbro still starts when optional providers are unavailable; and LiteLLM/MCP use stays behind the LiteLLM access policy without bypassing provider authorization.
+
 ## TrueNAS Custom App deployment
 
 Use the service-specific deployer rather than reproducing the middleware calls manually:

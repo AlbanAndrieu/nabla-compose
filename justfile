@@ -66,11 +66,6 @@ topology-artifacts-refresh:
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-consumers.py --check
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-catalog-v2-artifacts.py --check
 
-# Offline terminal-safety contracts; does not call Github or TrueNAS.
-pr274-local-quality-test:
-    bash -n scripts/workstation/run-pr274-local-quality.sh
-    python3 -m unittest discover -s tests -p 'test_pr274_local_quality_runner_contract.py' -v
-
 # Read-only Backstage v2 / icon parity check. Pass --site-generated separately
 # when the sibling website checkout is available (no network fetch).
 catalog-convergence-check:
@@ -539,8 +534,6 @@ pfsense-unbound-wifi-test:
     python3 -m unittest discover -s tests -p 'test_pfsense_console_output.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_unbound_whatsapp_contract.py' -v
     python3 -m unittest discover -s tests -p 'test_pfsense_pflow_posture_contract.py' -v
-    bash -n scripts/workstation/run-pr274-after-reboot.sh
-    python3 -m unittest discover -s tests -p 'test_pr274_worktree_recovery.py' -v
 
 # Read-only Akvorado static metadata preflight. Runtime load remains unverified.
 akvorado-metadata-test:
@@ -1399,7 +1392,7 @@ openclaw-migration-evidence-check:
 
 # Operator instructions; printing the runbook path does not change runtime.
 openclaw-migration-runbook:
-    @echo "docs/runbooks/openclaw-end-to-end-migration-20261030.md"
+    @echo "apps/openclaw/docs/migration.md"
 
 # Explicit remote sudo -n docker logs, never the default diagnostic path.
 openclaw-litellm-dual-logs-check-sudo:

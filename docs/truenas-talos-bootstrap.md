@@ -57,7 +57,7 @@ TRUENAS_URL=https://truenas.albandrieu.com:7000
 TRUENAS_INSECURE_SKIP_VERIFY=false
 ```
 
-The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in `docs/pfsense-wan-exposure-roadmap.md`: HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
+The public path can present the pfSense/HAProxy frontend certificate independently from the certificate presented by TrueNAS on the re-encrypted backend hop. The remaining hardening task is tracked in [`roadmap.md`](./roadmap.md) and the [pfSense ingress exposure policy](./runbooks/pfsense-ingress-exposure-policy.md): HAProxy must verify the TrueNAS backend certificate and SNI so the steady-state chain becomes `Client --verified TLS--> HAProxy --verified TLS--> TrueNAS`.
 
 ## 2. Manual TrueNAS bootstrap boundary
 
@@ -639,7 +639,71 @@ scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 
 A CDROM device is created for each VM only when `TALOS_ISO_PATH` is non-empty.
 
-The next phase can replace this manual ISO workflow with a reproducible Talos Image Factory configuration if democratic-csi extensions such as `iscsi-tools` are required.
+### 7.1 Talos Image Factory boot artifact
+
+The public, non-sensitive inputs are versioned: `config/talos/VERSION` pins the
+Talos release and `config/talos/image-factory.yaml` holds the schematic. The
+schematic stays minimal and only adds `siderolabs/qemu-guest-agent`; treat
+guest-agent shutdown/reporting as optional until the TrueNAS guest-agent
+channel is validated, and never make bootstrap depend on it. Never embed
+machine configuration, cluster secrets, certificates or tokens in the
+schematic: its ID is content-addressed public metadata.
+
+From a trusted workstation (needs `curl` and `jq`):
+
+```bash
+bash scripts/talos/image-factory.sh
+```
+
+It prints only `TALOS_VERSION`, `TALOS_SCHEMATIC_ID`, `TALOS_ISO_URL` and
+`TALOS_INSTALLER_IMAGE`; the same schematic always returns the same ID.
+`TALOS_IMAGE_FACTORY_URL` overrides the public factory only for a deliberately
+configured compatible one. The ISO placement stays manual: download
+`TALOS_ISO_URL`, place it under `/mnt/<POOL>/iso/`, set `TALOS_ISO_PATH` and run
+the Terragrunt plan above before any apply. Creating boot artifacts never
+implies an automatic `terragrunt apply`.
+
+Do not add iSCSI tooling to the base image just because democratic-csi might
+use it: `siderolabs/iscsi-tools` is an explicit, tested storage decision after
+checking the pinned Talos and democratic-csi releases (extension packaging
+changes have broken CSI drivers expecting host-visible `iscsiadm`). NFS
+provisioning needs no iSCSI support.
+
+### 7.2 Local machine configuration
+
+`scripts/talos/generate-config.sh` prepares the machine configuration locally.
+It does **not** contact a node, apply configuration, bootstrap etcd/Kubernetes
+or start VMs. `talosctl` is a workstation tool pinned in `mise.toml`
+(`mise install`, then `mise exec -- talosctl version --client`); it is not
+needed on TrueNAS.
+
+```bash
+export TALOS_CLUSTER_NAME=nabla-talos
+export TALOS_CONTROL_PLANE_ENDPOINT=https://<control-plane-ip>:6443
+export TALOS_INSTALL_DISK=/dev/vda
+export TALOS_NAMESERVER=172.17.0.1
+scripts/talos/generate-config.sh
+```
+
+- `TALOS_VERSION` defaults to `config/talos/VERSION` and must be a full
+  `vMAJOR.MINOR.PATCH` release, never `latest`.
+- Output (`secrets.yaml`, `controlplane.yaml`, `worker.yaml`, `talosconfig`)
+  goes to the Git-ignored `.talos/generated/` only, with `umask 077`, directory
+  `0700` and files `0600`. Never copy them to Git, CI artifacts, issues, chat
+  or shared storage.
+- One strategic-merge patch pins `machine.network.nameservers` to the
+  recovery-safe resolver, then strict Talos `metal` validation runs for both
+  machine types.
+- `secrets.yaml` is generated once and reused: regenerating it rotates the
+  cluster PKI and identity. The script stops when configs exist;
+  `TALOS_OVERWRITE=true` rebuilds only the configs from the existing secrets.
+- `/dev/vda` (VirtIO zvol) is expected, not assumed: check
+  `talosctl get disks --insecure --nodes <NODE_IP>` in maintenance mode before
+  the first `apply-config`, and regenerate with the observed disk if needed.
+
+Applying configs, `talosctl bootstrap` (exactly once, on one control-plane
+node), kubeconfig retrieval and CNI/CSI changes stay separate reviewed steps,
+so no checkout or CI run can mutate the homelab.
 
 ### DNS bootstrap dependency guard — 2026-09-27
 
@@ -749,7 +813,7 @@ bw get password '<unique item name>'
 bw get item '<item UUID>' | jq -r '.login.password'
 ```
 
-For the homelab, keep the first migration in the `TrueNAS` folder identified by `44a92b83-2762-4fa5-a238-f84396fd26f9`. This folder organizes items but does not restrict access; use a dedicated organization collection and automation account for Doco-CD. The import and `.env` rendering procedure is maintained in [`homelab-platform-migration-roadmap.md`](./homelab-platform-migration-roadmap.md#secrets-roadmap--vaultwarden-first-hashicorp-vault-second).
+For the homelab, keep the first migration in the `TrueNAS` folder identified by `44a92b83-2762-4fa5-a238-f84396fd26f9`. This folder organizes items but does not restrict access; use a dedicated organization collection and automation account for Doco-CD. The import and `.env` rendering procedure is maintained in [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) and [`secrets-runtime-initialization.md`](./secrets-runtime-initialization.md).
 
 Do **not** use `bws` for this integration: `bws` is the Bitwarden Secrets Manager CLI and Vaultwarden does not implement that service.
 

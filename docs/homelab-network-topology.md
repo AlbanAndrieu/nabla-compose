@@ -7,8 +7,9 @@ stable routed/address contracts from dynamic Docker runtime allocations so that 
 container redeploy does not accidentally turn an observed bridge address into a
 long-lived infrastructure contract.
 
-The 2026-09-11 TrueNAS Docker IPAM migration is tracked operationally in
-[`truenas-docker-ipam-roadmap.md`](./truenas-docker-ipam-roadmap.md).
+The 2026-09-11 TrueNAS Docker IPAM migration is accepted. Its remaining work
+(post-reboot pool check, legacy `172.16.x` cleanup) is tracked in
+[`roadmap.md`](./roadmap.md).
 
 ## Topology overview
 
@@ -79,6 +80,8 @@ flowchart TB
 | Workstation LXC | `10.0.3.0/24` | workstation bridge `.1` | Workstation-local virtualization |
 | Workstation libvirt | `192.168.39.0/24` | workstation bridge `.1` | Workstation-local virtualization |
 | Workstation libvirt | `192.168.122.0/24` | workstation bridge `.1` | Workstation-local virtualization |
+| TrueNAS Docker default pool | `10.200.0.0/16` | dynamic `/24` allocations | Observations, not reservations (see below) |
+| Legacy TrueNAS Docker | `172.16.x.0/24` | `intranet`, `traefik_network` and others | Retained pending owner migration |
 
 The workstation and TrueNAS can both have Docker bridges named from the same
 RFC1918 ranges. Those bridges are host-local L2 domains and must not be confused
@@ -144,6 +147,13 @@ networks (`ix-*`, `nabla-*`, `wazuh_default`, `secrets-backend`, and others).
 Their presence after the default-pool migration is not evidence that the new
 IPAM failed. They are migration/cleanup candidates only after proving they have
 no required live endpoints or repository contract.
+
+`scripts/truenas/audit-docker-network-migration.sh --check` classifies
+`intranet`, `traefik_network`, `sample-observer`, `nabla-security` and
+`secrets-backend` as `protected-shared`: never removed by a generic cleanup.
+Remove another legacy network only when it has zero live endpoints and its
+owner proves it stale, in small batches with before/after inventory; prefer
+the owner's lifecycle so the network is recreated in `10.200.0.0/16`.
 
 Never run a blanket `docker network prune` as the migration mechanism.
 

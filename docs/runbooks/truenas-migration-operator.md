@@ -5,8 +5,7 @@
 > mais n'efface ni les anciens rapports ni les règles de sécurité.
 >
 > [Roadmap active](../roadmap.md) ·
-> [Critères d'acceptation runtime](homelab-runtime-acceptance.md) ·
-> [Plan des vagues historique](2026-10-24-truenas-migration-acceptance.md).
+> [Critères d'acceptation runtime](homelab-runtime-acceptance.md).
 
 ## Contrat de la CLI
 
@@ -49,8 +48,7 @@ sudo bash scripts/truenas/migration-operator.sh --check --section critical
    familles déjà acceptées sans nouvel indice.
 6. Épingler le SHA de code et la date du résultat dans le rapport d'incident.
 
-Le dernier relevé fourni par l'opérateur donne **`PASS=9 FAIL=7`**
-([reprise ciblée du 25 octobre](2026-10-25-critical-acceptance-followup.md)) :
+Le dernier relevé fourni par l'opérateur (25 octobre) donne **`PASS=9 FAIL=7`** :
 Prometheus (targets/config), OpenRAG (startup/secret/bundle) et Akvorado
 (insertions fraîches seulement) nécessitent encore des preuves. Sentry et DefectDojo ont
 passé leurs contrôles ciblés. Il ne s'agit **pas** d'une validation E2E
@@ -67,9 +65,7 @@ sudo bash scripts/truenas/triage-critical-failures.sh --check
 
 L'ancien `--check --section critical` couvre toujours 16 gates.
 Le nouveau script isole les sept dernières gates en échec, avec
-preuve privée et aucune action mutante. Les scripts déjà présents sur
-TrueNAS peuvent être utilisés individuellement avant la fusion :
-[commandes exactes](2026-10-25-critical-acceptance-followup.md).
+preuve privée et aucune action mutante.
 
 ## Contrôles distincts après migration
 
@@ -93,6 +89,18 @@ les métadonnées Docker. Aucun port hôte ou label Traefik n'est ajouté.
 ```bash
 sudo bash scripts/truenas/migration-operator.sh --check --section postmigration
 sudo bash scripts/truenas/migration-operator.sh --check --section apisix
+```
+
+Sections ciblées, en lecture seule, pour isoler une gate en échec :
+
+```bash
+sudo bash scripts/truenas/migration-operator.sh --check --section observability
+sudo bash scripts/truenas/migration-operator.sh --check --section prometheus
+sudo bash scripts/truenas/migration-operator.sh --check --section openrag
+sudo bash scripts/truenas/migration-operator.sh --check --section akvorado
+sudo bash scripts/truenas/migration-operator.sh --check --section secrets
+sudo bash scripts/truenas/migration-operator.sh --check --section convergence
+sudo bash scripts/truenas/migration-operator.sh --check --section lan
 ```
 
 Un diagnostic qui manque de preuves retourne **exit=2 (non vérifié)**,
@@ -184,7 +192,7 @@ est exploitable hors de la machine.
 Le fait que les fichiers canoniques soient « staged » ne signifie pas
 que leur contenu est complet, que leur `env_file` runtime est à jour ni
 que les anciens chemins sont supprimables. Suivre les
-[critères de clôture](truenas-secret-migration-closure.md) avant un
+[critères de clôture](../secrets-runtime-initialization.md#gates-before---finalize-app) avant un
 `--finalize openrag`. Ne jamais générer un nouveau mot de passe
 OpenSearch pour résoudre une simple erreur de métadonnées.
 
