@@ -65,7 +65,8 @@ roadmap. The main active families are:
 - secrets: [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md);
 - security inventory/SBOM/findings: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
-- pfSense WAN exposure: [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md).
+- pfSense WAN exposure: [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md);
+- \*arr media library, download VPN and DNS: [`arr-media-library-roadmap.md`](./arr-media-library-roadmap.md).
 
 ## Debt-control rules
 
