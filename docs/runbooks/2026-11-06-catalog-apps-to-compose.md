@@ -80,6 +80,39 @@ Versions, ports publiés et clés de stockage relevés :
 | wizarr | v2026.9.0_1.1.12 | STOPPED | web 30229 | hostPath `/mnt/cpool/wizarr` |
 | zabbix | 7.4.16-ubuntu_1.0.50 | RUNNING | server 30385, web 30386 | hostPath `/mnt/cpool/zabbix` |
 
+## Enregistrer les Apps du dépôt comme Custom Apps (script)
+
+`scripts/truenas/reconcile-custom-apps.py` compare chaque
+`apps/<dir>/compose.yml` à l'état TrueNAS (`app.query`), puis crée la Custom
+App manquante avec le même wrapper `include` que l'UI, et démarre les Apps
+arrêtées dans l'ordre du planificateur de cycle de vie.
+
+Il ne touche jamais :
+
+- aux Apps natives du catalogue (`CATALOG_NATIVE`), qui suivent les vagues
+  ci-dessous ;
+- aux Apps déclarées `planned` ou `disabled` ;
+- à un conteneur déjà possédé par une autre App (`CONFLICT_OTHER_APP`).
+
+Un service lancé hors de l'UI par un `docker compose` simple
+(`ORPHAN_OUTSIDE_UI`) n'est remplacé qu'avec `--adopt`. Il est refusé s'il
+utilise des volumes nommés (`ORPHAN_NAMED_VOLUMES`), dont les données ne
+suivraient pas.
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+python3 scripts/truenas/reconcile-custom-apps.py --check      # lecture seule, affiche plan_hash
+sudo python3 scripts/truenas/reconcile-custom-apps.py --apply \
+  --expected-plan-hash <hash> \
+  --acknowledge I_ACCEPT_TRUENAS_CUSTOM_APP_RECONCILE
+```
+
+`--apply` s'arrête :
+
+- au premier échec ;
+- dès que `MemAvailable` passe sous `--min-available-gib` (6 Gio par
+  défaut), pour ne pas épuiser la RAM du NAS.
+
 ## Méthode par App
 
 1. **Lecture seule** : exporter le Compose rendu de l'App catalogue en
