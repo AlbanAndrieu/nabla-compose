@@ -26,7 +26,7 @@ Le [runbook des remédiations encore ouvertes](runbooks/2026-11-04-probe-remedia
 
 ## P0 — Cloudflare, secrets et frontières d'accès
 
-1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, puis appliquer seulement avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md).
+1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, puis appliquer seulement avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md). Inclut les sept noms média publics observés le 7/11 (`radarr`, `sonarr`, `prowlarr`, `lidarr`, `transmission`, `sabnzbd`, `emby` : `403` Cloudflare sans Access, [§2.3](arr-media-library-roadmap.md)).
 2. **Service Auth observateur** : aligner les politiques des applications concernées sans `Bypass` général ; protéger le coffre web et `/admin` Vaultwarden en limitant les exceptions aux chemins clients. Recetter depuis un client externe avant retrait d'une ancienne politique.
 3. **Secrets** : prouver la concordance Vaultwarden → fichier canonique 0600 → environnement conteneur, sans afficher de valeur. Une ancienne session `BW_SESSION` exposée ne doit jamais être réutilisée. [Roadmap secrets](secrets-migration-roadmap.md).
 4. **OVH / FastAPI Cloud** : vérifier la nouvelle identité de lecture seule et les scopes ; `pfSense` y reste `transport_only` (contrat accepté) et la sonde Tavily `GET /usage` ne nécessite plus de migration.
@@ -59,6 +59,13 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 - [Plan de séparation inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) : la préparation Git ne démontre pas de cutover. Ne retirer aucun consommateur ni déplacer un gitlink sans preuve que les chemins historiques ne sont plus référencés et qu'un rollback fonctionne.
 - Gate OpenClaw : modèles disponibles sur LiteLLM TrueNAS, quotas RPM/TPM attestés, clés scindées main/cron, logs des deux proxys, politiques heartbeat/cron bornées et activées **une seule fois**, identité et session effectives vérifiées. Tant que la Gateway Workstation fonctionne, la bascule TrueNAS est `NOT_VERIFIED`.
 - Gate YubiKey : sauvegardes age/SOPS restaurables sur supports distincts ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite.
+
+## P1 — Bibliothèque média \*arr (acquisition anonymisée)
+
+- [Roadmap canonique](arr-media-library-roadmap.md) : Gluetun + qBittorrent seuls dans un namespace VPN (kill switch, DoT Quad9 dans le tunnel), Prowlarr via le proxy HTTP Gluetun, reste du homelab et DNS pfSense/Unbound inchangés.
+- Ordre : P0 exposition et décisions (D1 fournisseur VPN, D2 serveur média, D3 pool) → stockage `cpool/media` à hardlinks → frontière VPN → Prowlarr → Radarr/Sonarr/Lidarr/Recyclarr → serveur média/Bazarr/Seerr. Retirer Transmission et Readarr ; geler `truenas-file-structure.sh`.
+
+**Clôture** : batterie de tests d'anonymat (§9) verte et datée sur le SHA déployé ; aucune interface \*arr publique sans Access.
 
 ## P1 — Fiabilité des scripts et documentation
 
