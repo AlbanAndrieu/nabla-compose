@@ -13,6 +13,8 @@ services:
       ALPINE_DATABASE_DRIVER: org.postgresql.Driver
       ALPINE_DATABASE_USERNAME: ${DEPENDENCY_TRACK_DATABASE_USERNAME:-dependencytrack}
       ALPINE_DATABASE_POOL_ENABLED: "true"
+      # Prometheus metrics on the LAN API port (/metrics); scraped by apps/prometheus.
+      ALPINE_METRICS_ENABLED: "true"
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_LOCK_BUCKETS: "1000"
       REPO_META_ANALYZER_CACHESTAMPEDEBLOCKER_MAX_ATTEMPTS: "10"
     ports:
@@ -42,6 +44,12 @@ services:
         provider: truenas-app
         containerService: dependency-track-api
       relations:
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes the Dependency-Track API server metrics endpoint.
+          evidence:
+            - apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED
         - target: postgresql
           type: storesIn
           strength: required

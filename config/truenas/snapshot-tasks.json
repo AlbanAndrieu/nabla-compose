@@ -141,7 +141,6 @@
       "rationale": "Small configuration and application state under /mnt/cpool/<service>.",
       "schedules": ["daily-30d", "weekly-12w"],
       "datasets": [
-        "cpool/aistor",
         "cpool/autokuma",
         "cpool/autoxpose",
         "cpool/bichon",

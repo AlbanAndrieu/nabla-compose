@@ -6,7 +6,7 @@
 
 ## 1. Cloudflare Tunnel — exposition déclarative non réceptionnée
 
-**Ouvert :** retirer des routes Tunnel les **23 entrées** des services `external=false` recensées dans la campagne du 4 novembre, **plus** la route `litellm.albandrieu.com` (décision du 5 novembre : LiteLLM n'est plus publié), et limiter `keycloak.albandrieu.com` aux chemins de production recommandés par [la doc Keycloak](https://www.keycloak.org/server/reverseproxy) (`^/(realms|resources|\.well-known)/`, puis `http_status:404` pour `/admin/`, `/metrics`, `/health` et la racine). Le plan OpenTofu a été préparé, **pas appliqué**. Les hostnames privés de la Workstation et l'enregistrement DNS `litellm.albandrieu.com` doivent aussi être retirés du dashboard après contrôle indépendant.
+**Ouvert :** retirer des routes Tunnel les **23 entrées** des services `external=false` recensées dans la campagne du 4 novembre, **plus** la route `litellm.albandrieu.com` (décision du 5 novembre : LiteLLM n'est plus publié), et limiter `keycloak.albandrieu.com` aux chemins de production recommandés par [la doc Keycloak](https://www.keycloak.org/server/reverseproxy) (d'abord `^/realms/master(/|$)` → `http_status:404` — `master` est réservé à l'administration —, puis `^/(realms|resources|\.well-known)/` vers l'origine, puis `http_status:404` pour `/admin/`, `/metrics`, `/health` et la racine). Le plan OpenTofu a été préparé, **pas appliqué**. Les hostnames privés de la Workstation et l'enregistrement DNS `litellm.albandrieu.com` doivent aussi être retirés du dashboard après contrôle indépendant.
 
 ```bash
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=routes.tfplan
@@ -18,7 +18,7 @@ scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan -out=routes.tfpl
 
 Pour le renommage `sample` → `fastapi-sample`, garder synchronisés les consommateurs du catalogue et les politiques Access. Ne jamais supprimer l'ancienne route avant l'acceptation de la nouvelle. [Contrat IaC](../../terraform/cloudflare/README.md).
 
-**Gate :** aucun `external=false but a Cloudflare Tunnel ingress exists` dans `/sickz`, aucune nouvelle exposition publique, diff OpenTofu maîtrisé ; depuis Internet `https://keycloak.albandrieu.com/admin/` → 404.
+**Gate :** aucun `external=false but a Cloudflare Tunnel ingress exists` dans `/sickz`, aucune nouvelle exposition publique, diff OpenTofu maîtrisé ; depuis Internet `https://keycloak.albandrieu.com/admin/` et `/realms/master/…` → 404.
 
 ## 2. Cloudflare Access — identité de l'observateur et coffre
 
@@ -75,14 +75,53 @@ sudo docker ps -a --format '{{.Names}}\t{{.Status}}' |
 
 **ntopng :** la version déclarative requiert une licence non fournie par ce dépôt et l'accès `NET_ADMIN`/`NET_RAW` au réseau hôte ; aucun démarrage n'est permis par la seule présence du script. Le backend ClickHouse doit être testé avec une identité `ntopng` limitée.
 
-**Gate commune :** une App TrueNAS unique, `in_sync` dans `/api/homelab/status`, runtime et HTTP frais, données restaurables. Ne pas requalifier un service en `planned` pour supprimer artificiellement une panne. `aistor` et `wordpress` ont été **supprimés** du dépôt le 5 novembre ; la tâche de snapshot `cpool/aistor` est conservée jusqu'à décision explicite sur le dataset.
+**Ordre de démarrage préparé le 7 novembre** (une App à la fois, réception avant la suivante ; aucune de ces commandes n'est exécutée depuis une session agent) :
+
+1. Dépendances de données déjà `RUNNING` : PostgreSQL global (`172.17.0.24:5432`), Redis partagé (NetBox : bases 5/6), ClickHouse (ntopng), Prometheus/Gatus. Snapshot ZFS de `cpool/backup` et du dataset cible avant chaque première mutation.
+2. `netbox` → `dependency-track` → `plumber` : `sudo bash scripts/truenas/prepare-security-tooling-secrets.sh --check`, `bootstrap-repository-storage.sh --check <app>`, `bootstrap-security-tooling-postgres.sh --check <app>` (bases `netbox`, `dependencytrack`, `jobs`), puis `--apply` de chacun, `deploy-security-tooling.sh --check <app>` (acceptation), `--apply <app>`.
+3. `scanopy` : `bootstrap-scanopy-postgres.sh --check` puis `--apply` ; autorisation explicite du daemon privilégié ; `deploy-scanopy.sh` (mutation directe, pas de `--check`).
+4. `joplin` : `bootstrap-joplin-postgres.sh --check` puis `--apply` ; `deploy-joplin.sh` (mutation directe) ; l'exposition `external=true` reste à trancher (roadmap).
+5. `ntopng` : `deploy-ntopng.sh --check` seulement tant que la licence, l'interface de capture et l'identité ClickHouse `ntopng` ne sont pas prouvées ; `cpool/ntopng` est hors politique de snapshots (données reconstruibles).
+6. Après chaque App : `app.query` `RUNNING`, sonde Gatus verte (`apps/gatus/config/config.yml` couvre déjà les six), `/api/homelab/status` `in_sync`, puis `bootstrap-postgres-backup-role.sh --apply` (relecture : le rôle `pgbackup` reçoit `CONNECT` sur les bases désormais présentes) et un run manuel du job `postgres-backup`.
+7. Prometheus : `dependency_track` (`ALPINE_METRICS_ENABLED`, `172.17.0.24:31083/metrics`) et `netbox` (`METRICS_ENABLED`, `172.17.0.24:31082/metrics`) sont déclarés dans `apps/prometheus/prometheus.yml` et agrégés par `nabla:telemetry:service_exporter_up` ; ils restent `down` jusqu'au démarrage des Apps (pas d'alerte `NablaExporterTargetDown` pour eux). Scanopy, Plumber, Joplin et ntopng n'ont pas d'export Prometheus vérifié : sondes Gatus uniquement. Synergies d'intégration (SSO Keycloak, SBOM → Dependency-Track → DefectDojo, Scanopy → NetBox) : [analyse du 7 novembre](../integration-synergies-20261107.md).
+
+**Gate commune :** une App TrueNAS unique, `in_sync` dans `/api/homelab/status`, runtime et HTTP frais, données restaurables. Ne pas requalifier un service en `planned` pour supprimer artificiellement une panne. `aistor` et `wordpress` ont été **supprimés** du dépôt le 5 novembre. Décision du 6 novembre : le dataset `cpool/aistor` est retiré de la politique de snapshots et **doit être détruit** (voir la [roadmap](../roadmap.md)) : la réconciliation des snapshots ne supprime jamais une tâche existante.
 
 ## 6. Identité canonique et dettes d'exposition
 
-- `homeassistant` n'est pas rebaptisé en `home-assistant` dans le catalogue. Suivre [la migration contrôlée](openwebui-homeassistant-canonical-rename.md) avec rollback et preuve du middleware. Avant la bascule : l'App native embarque un PostgreSQL de recorder absent de `apps/homeassistant` (historique perdu sans migration explicite) et l'image du dépôt `:stable` est flottante alors que l'App native est épinglée par digest ; épingler la même version et snapshotter les datasets.
-- LiteLLM n'est plus publié sur Internet ; sa santé est prouvée par l'observateur TrueNAS (`LITELLM_HEALTHZ_URL` LAN). Keycloak ne publie que `/realms/`, `/resources/` et `/.well-known/` ; `/realms/master/` reste publié tant qu'aucun realm applicatif dédié n'existe (recommandation Keycloak à suivre).
+- `homeassistant` n'est pas rebaptisé en `home-assistant` dans le catalogue. Suivre [la migration contrôlée](openwebui-homeassistant-canonical-rename.md) avec rollback et preuve du middleware. **Cible (6 novembre) : le recorder utilise le PostgreSQL global.** L'image du dépôt est désormais épinglée sur la même version et le même digest que l'App native (`2026.10.4`), et les deux PostgreSQL sont en `18.6-trixie` (même digest) : `pg_dump`/`pg_restore` sont compatibles.
+  1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/homeassistant/.env.secrets` (0600), puis `sudo bash scripts/truenas/bootstrap-homeassistant-postgres.sh` (`--check`) et `--apply` : rôle et base `homeassistant` dans le PostgreSQL global.
+  2. Snapshot ZFS des datasets HA ; arrêter l'App native ; `pg_dump -Fc` de la base recorder depuis son conteneur `postgres`, `pg_restore --no-owner --role=homeassistant` dans la base globale.
+  3. Dans `/config/secrets.yaml` (0600) : `recorder_db_url: postgresql://homeassistant:<mot de passe>@172.17.0.24:5432/homeassistant` ; dans `configuration.yaml` : `recorder: db_url: !secret recorder_db_url`.
+  4. **Réseau (décision du 6 novembre) :** `apps/homeassistant/compose.yml` passe de `iot_macvlan` (qui attribuait au conteneur l'IP de l'hôte TrueNAS, injoignable depuis un macvlan) à un pont : réseaux `intranet` + `traefik`, port `8123` publié sur `172.17.0.24`. Le PostgreSQL global `172.17.0.24:5432` est donc joignable. Contrepartie : pas de découverte multicast (mDNS/SSDP) des équipements IoT depuis un pont ; configurer les intégrations par adresse explicite. Vérifier aussi le domaine Traefik `homeassistant.albanandrieu.com` (coquille probable).
+  5. Gate : historique visible, recorder sans erreur dans les journaux, `homeassistant` `in_sync` ; rollback : arrêter le nouveau conteneur et redémarrer l'App native (base d'origine intacte).
+- LiteLLM n'est plus publié sur Internet ; sa santé est prouvée par l'observateur TrueNAS (`LITELLM_HEALTHZ_URL` LAN). Keycloak ne publie que `/realms/`, `/resources/` et `/.well-known/`, et refuse `/realms/master/` (réservé à l'administration, LAN). Les applications utilisent le realm `nabla`, déclaré dans `apps/keycloak/config/realms/nabla.yaml` et importé par `scripts/truenas/apply-keycloak-config.sh` (keycloak-config-cli épinglé ; `--check` puis `--apply` avec `NABLA_RUNTIME_CHANGE_APPROVED=yes`). Keycloak est désormais une Custom App TrueNAS construite depuis `apps/keycloak` (migrée le 6 novembre, `appId: keycloak`, plus `planned`), actuellement `STOPPED` : la démarrer avant l'import.
 - `joplin.int.albandrieu.com` est privé tandis que la déclaration historique indique `external=true` ; ne pas publier un hostname automatiquement pour faire passer une assertion.
 - `hello.int` reste `warn` par décision ; `s3.int` demeure une exception jusqu'à la migration du backend d'état OpenTofu.
+
+## 6 bis. Observabilité — Gatus via Prometheus
+
+Constat du 6 novembre (FastAPI Cloud) : toute la stack tourne sur TrueNAS (`prometheus`, `alertmanager`, `node-exporter`, `pfsense-exporter`, `grafana`, `alloy`, `loki`, `mimir`, `tempo`, `gatus`, `pyroscope` en `running`). Côté Cloud, `platform_metrics.state=not_configured` : `HOMELAB_PROMETHEUS_URL` n'y est pas défini, d'où `internal_probe_delegation.blockers = [prometheus_not_configured, gatus_not_observed]`. La chaîne est codée de bout en bout : Gatus `metrics: true`, job Prometheus `gatus`, règles `nabla:telemetry:gatus_up` et `nabla:service:synthetic_*`, requêtes de FastAPI Sample.
+
+- **TrueNAS (LAN, source de vérité) :** `HOMELAB_PROMETHEUS_URL=http://172.17.0.24:9090` est déjà dans `compose.yml` de FastAPI Sample ; vérifier `curl -fsS http://172.17.0.24:8091/api/health-board | jq '.platform_metrics | {state, synthetic_probes: .synthetic_probes.state, gatus_up: .synthetic_probes.gatus_up}'` et `up{job="gatus"}` dans Prometheus.
+- **FastAPI Cloud (optionnel) :** définir `HOMELAB_PROMETHEUS_URL=https://prometheus.albandrieu.com`, `HOMELAB_PROMETHEUS_CF_ACCESS_CLIENT_ID` et `HOMELAB_PROMETHEUS_CF_ACCESS_CLIENT_SECRET` (jeton de l'observateur, envoyé uniquement à ce domaine épinglé) et attacher la politique Service Auth à l'application Access Prometheus (§2).
+- **Nouveaux jobs (7 novembre) :** `dependency_track` et `netbox` scrapent les endpoints natifs des Apps (`/metrics`) ; ils sont dans `nabla:telemetry:service_exporter_up` et dans `_EXPORTER_JOBS` de FastAPI Sample, donc visibles dans `platform_metrics.exporter_jobs` dès le démarrage des Apps.
+- **CI :** `observability-ci.yml` monte désormais des fichiers vides pour chaque `credentials_file` afin que `promtool check config` valide la syntaxe et les règles sans secret.
+
+**Gate :** `platform_metrics.state` ≠ `not_configured`/`telemetry_unavailable`, `synthetic_probes.gatus_up=1` et services Gatus visibles dans `/api/health-board`.
+
+## 6 ter. Sauvegardes PostgreSQL — job `pg_dump` versionné (`apps/postgres-backup`)
+
+Décision du 7 novembre : **Databasus** (App TrueNAS `databasus`, `ghcr.io/databasus/databasus:v3.64.0`, hors dépôt) n'a ni API HTTP publique, ni Terraform, ni import de configuration (CLI limitée aux comptes) ; il est **désactivé** (décision du 7 novembre) : `sudo midclt call -j app.stop databasus` ; supprimer l'App (`app.delete`, en conservant ses volumes) seulement après avoir vérifié qu'aucune sauvegarde utile n'y réside. Il n'a jamais été déclaré dans ce dépôt (`observed_only`) : aucune alerte ne découle de son arrêt. La référence « as code » est le job `apps/postgres-backup` : image `postgres:18.6-trixie` au **même digest que le serveur**, `pg_dump -Fc` par base vérifié par `pg_restore --list`, sidecar sha256, rétention locale 14 jours dans `/mnt/cpool/backup/postgres` (dataset de la classe `backup-targets`, snapshots 14 j / 8 sem), planifié par un cron natif TrueNAS. Sauvegardes **logiques** uniquement ; PITR (pgBackRest) quand PostgreSQL sera une Custom App.
+
+1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets` (0600, déclaré au manifeste), puis `sudo bash scripts/truenas/bootstrap-postgres-backup-role.sh` (`--check`) et `--apply` : rôle `pgbackup` `LOGIN NOREPLICATION`, membre de `pg_read_all_data`, `CONNECT` sur `keycloak`, `joplin`, `homeassistant`, `netbox`, `dependencytrack`, `scanopy`, `jobs` (liste `POSTGRES_BACKUP_DATABASES`, alignée avec `BACKUP_DATABASES` du Compose). Une base pas encore créée est **ignorée avec un avertissement** par le script de rôle et reportée `SKIP` par le job (`BACKUP_REQUIRE_ALL=true` pour exiger toutes les bases) ; relancer `--apply` après chaque bootstrap d'App (§5).
+2. `sudo bash scripts/truenas/bootstrap-repository-storage.sh --check postgres-backup` puis `--apply` (dataset `cpool/backup`, répertoire `postgres` possédé par `568:568`).
+3. Première exécution manuelle depuis le checkout canonique : `docker compose --project-directory apps/postgres-backup --profile manual run --rm --no-deps postgres-backup` ; contrôler `OK <base> … bytes` et `.last-success.json`.
+4. Test de restauration dans une base temporaire (`pg_restore --no-owner --role=<rôle> -d <base_test> <archive>`), avant la bascule Home Assistant (§6).
+5. Cron : `python3 scripts/truenas/reconcile-postgres-backup-cron.py --check`, puis `sudo … --apply` (créé **désactivé**, 03:20 heure appliance), puis `sudo POSTGRES_BACKUP_CRON_APPROVED=YES … --enable` après les étapes 3 et 4.
+6. Copie hors site : les archives sont sur `cpool/backup` ; la réplication hors site (Restic/Garage) reste le chantier existant de la roadmap.
+
+**Gate :** `--check` du rôle vert ; `.last-success.json` daté du jour pour chaque base ; restauration de test réussie ; cron `enabled=true` seulement après ces preuves.
 
 ## 7. Réception globale
 

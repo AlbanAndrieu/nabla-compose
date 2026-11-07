@@ -433,7 +433,7 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/keycloak.png",
       "external": true,
-      "healthPath": "/realms/master/.well-known/openid-configuration"
+      "healthPath": "/realms/nabla/.well-known/openid-configuration"
     },
     {
       "id": "langfuse",
