@@ -1,0 +1,39 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: postgres-backup
+  title: PostgreSQL Backup
+  description: Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: high
+    albandrieu.com/bia-scope: direct
+  tags:
+    - data
+    - backup
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-rpo: P1D
+    albandrieu.com/bia-mbco: zfs-snapshots-of-cpool-backup-and-the-last-verified-dump-remain-restorable
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-07"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: high
+    albandrieu.com/bia-impact-privacy: medium
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-backup/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: job
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/postgresql

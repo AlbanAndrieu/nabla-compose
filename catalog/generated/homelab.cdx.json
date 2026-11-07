@@ -405,6 +405,12 @@
       "dependsOn": [
         "resource:default/postgresql"
       ],
+      "ref": "component:default/postgres-backup"
+    },
+    {
+      "dependsOn": [
+        "resource:default/postgresql"
+      ],
       "ref": "component:default/postgres-exporter"
     },
     {
@@ -695,7 +701,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343"
+        "value": "sha256:9c3bd181165442a89932271e357c726a01e0b7eec6e0be4c5905a2346c9ecc58"
       },
       {
         "name": "nabla:catalog-authority",
@@ -703,7 +709,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:84f6b6fe-1534-c8d5-f42b-171afcbe52d2",
+  "serialNumber": "urn:uuid:9c3bd181-1654-42a8-9932-271e357c726a",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2886,6 +2892,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/postgres-backup",
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.",
+      "name": "PostgreSQL Backup",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/postgres-backup"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/postgres-backup/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "job"
         },
         {
           "name": "nabla:backstage:lifecycle",

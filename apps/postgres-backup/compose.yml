@@ -1,0 +1,75 @@
+---
+name: postgres-backup
+
+# Logical backups (pg_dump -Fc per database) of the shared TrueNAS PostgreSQL.
+# This is a job, not a long-running service: the `manual` profile keeps it out
+# of `docker compose up`, and a native TrueNAS cron job (registered by
+# scripts/truenas/reconcile-postgres-backup-cron.py) runs
+# `docker compose --profile manual run --rm postgres-backup` on schedule.
+# The image is the server image at the same digest, so client and server
+# versions always match. Point-in-time recovery is deliberately out of scope
+# (pgBackRest once PostgreSQL itself is a repository-managed Custom App).
+services:
+  postgres-backup:
+    image: postgres:18.6-trixie@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    container_name: postgres-backup
+    restart: "no"
+    profiles:
+      - manual
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/postgres-backup
+      com.centurylinklabs.watchtower.enable: "false"
+    x-nabla:
+      id: postgres-backup
+      name: PostgreSQL Backup
+      kind: database-backup
+      category: data
+      presentationRole: support
+      criticality: high
+      description: Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.
+      runtime:
+        provider: host
+      lifecycle:
+        phase: platform-services
+        priority: 40
+      relations:
+        - target: postgresql
+          type: dependsOn
+          strength: required
+          description: Dumps the listed databases from the shared PostgreSQL service with the read-only pgbackup role.
+          evidence:
+            - apps/postgres-backup/compose.yml:POSTGRES_HOST
+    # TrueNAS apps user: owns /mnt/cpool/backup/postgres.
+    user: "568:568"
+    env_file:
+      - /mnt/cpool/secrets/runtime/postgres-backup/.env.secrets
+    environment:
+      POSTGRES_HOST: 172.17.0.24
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: pgbackup
+      # Space-separated databases; the pgbackup role must have CONNECT on each
+      # (scripts/truenas/bootstrap-postgres-backup-role.sh).
+      BACKUP_DATABASES: homeassistant keycloak joplin
+      # Local retention; the dataset is snapshotted daily/14d and weekly/8w
+      # (config/truenas/snapshot-tasks.json, class backup-targets).
+      BACKUP_KEEP_DAYS: "14"
+      BACKUP_DIR: /backups
+    # Replace the image entrypoint, which would start a PostgreSQL server.
+    entrypoint: ["bash", "/opt/nabla/backup.sh"]
+    volumes:
+      - /mnt/cpool/backup/postgres:/backups
+      - ./backup.sh:/opt/nabla/backup.sh:ro
+    networks:
+      - intranet
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  intranet:
+    external: true
+    name: intranet

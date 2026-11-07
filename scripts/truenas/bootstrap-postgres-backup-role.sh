@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Provision the read-only PostgreSQL role used by the Databasus backup App
-# (TrueNAS App `databasus`, outside this repository) on the shared PostgreSQL.
+# Provision the read-only PostgreSQL role used by the versioned backup job
+# (apps/postgres-backup) on the shared TrueNAS PostgreSQL.
 # --check (default) only verifies; --apply creates/updates the role and grants
 # CONNECT on the listed databases. The role is LOGIN NOREPLICATION and a member
 # of pg_read_all_data: enough for logical (pg_dump) backups, deliberately not
@@ -13,10 +13,10 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/secrets.sh"
 
 MODE="${1:---check}"
-SECRETS_FILE="${DATABASUS_SECRETS_FILE:-/mnt/cpool/secrets/runtime/databasus/.env.secrets}"
-BACKUP_ROLE="${DATABASUS_POSTGRES_USER:-databasus}"
-# Space-separated databases Databasus may dump from the shared instance.
-BACKUP_DATABASES="${DATABASUS_BACKUP_DATABASES:-homeassistant keycloak joplin}"
+SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets}"
+BACKUP_ROLE="${POSTGRES_BACKUP_USER:-pgbackup}"
+# Space-separated databases the job may dump (keep in sync with apps/postgres-backup/compose.yml).
+BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-homeassistant keycloak joplin}"
 
 function fail {
   printf 'ERROR: %s\n' "$*" >&2
@@ -39,7 +39,7 @@ for database in ${BACKUP_DATABASES}; do
 done
 
 secrets_assert_file "${SECRETS_FILE}" POSTGRES_PASSWORD ||
-  fail "Databasus secret contract is not satisfied"
+  fail "postgres-backup secret contract is not satisfied"
 backup_password="$(secrets_get_value "${SECRETS_FILE}" POSTGRES_PASSWORD)" ||
   fail "unable to read POSTGRES_PASSWORD from ${SECRETS_FILE}"
 [[ -n "${backup_password}" ]] ||
@@ -72,17 +72,17 @@ for database in ${BACKUP_DATABASES}; do
 done
 
 if [[ "${MODE}" == "--apply" ]]; then
-  DATABASUS_DB_PASSWORD="${backup_password}" DATABASUS_ROLE="${BACKUP_ROLE}" \
-    DATABASUS_DATABASES="${BACKUP_DATABASES}" docker exec -i \
-    -e DATABASUS_DB_PASSWORD -e DATABASUS_ROLE -e DATABASUS_DATABASES \
+  PGBACKUP_DB_PASSWORD="${backup_password}" PGBACKUP_ROLE="${BACKUP_ROLE}" \
+    PGBACKUP_DATABASES="${BACKUP_DATABASES}" docker exec -i \
+    -e PGBACKUP_DB_PASSWORD -e PGBACKUP_ROLE -e PGBACKUP_DATABASES \
     "${POSTGRES_CONTAINER}" \
     psql \
       --set=ON_ERROR_STOP=1 \
       -U "${POSTGRES_ADMIN}" \
       -d postgres <<'SQL'
-\getenv backup_password DATABASUS_DB_PASSWORD
-\getenv backup_role DATABASUS_ROLE
-\getenv backup_databases DATABASUS_DATABASES
+\getenv backup_password PGBACKUP_DB_PASSWORD
+\getenv backup_role PGBACKUP_ROLE
+\getenv backup_databases PGBACKUP_DATABASES
 
 SELECT format('CREATE ROLE %I LOGIN NOREPLICATION NOCREATEDB NOCREATEROLE PASSWORD %L',
               :'backup_role', :'backup_password')
@@ -121,5 +121,5 @@ for database in ${BACKUP_DATABASES}; do
   fi
 done
 
-printf '✅ shared PostgreSQL ready for Databasus: role=%s (read-only) databases=%s\n' \
+printf '✅ shared PostgreSQL ready for postgres-backup: role=%s (read-only) databases=%s\n' \
   "${BACKUP_ROLE}" "${BACKUP_DATABASES}"

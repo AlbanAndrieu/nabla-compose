@@ -99,16 +99,18 @@ Constat du 6 novembre (FastAPI Cloud) : toute la stack tourne sur TrueNAS (`prom
 
 **Gate :** `platform_metrics.state` ≠ `not_configured`/`telemetry_unavailable`, `synthetic_probes.gatus_up=1` et services Gatus visibles dans `/api/health-board`.
 
-## 6 ter. Sauvegardes PostgreSQL — Databasus (App TrueNAS hors dépôt)
+## 6 ter. Sauvegardes PostgreSQL — job `pg_dump` versionné (`apps/postgres-backup`)
 
-Décision du 6 novembre : les sauvegardes du PostgreSQL global passent par le service existant **Databasus** (App TrueNAS `databasus`, `ghcr.io/databasus/databasus:v3.64.0`, `RUNNING`, `observed_only` : aucun Compose dans ce dépôt). Databasus se configure dans son interface web (bases, planning, stockage, rétention, vérification de restauration) ; rien n'est codifiable ici hormis le rôle PostgreSQL.
+Décision du 7 novembre : **Databasus** (App TrueNAS `databasus`, `ghcr.io/databasus/databasus:v3.64.0`, hors dépôt) n'a ni API HTTP publique, ni Terraform, ni import de configuration (CLI limitée aux comptes) ; il reste utilisable à la main mais n'est pas la référence. La référence « as code » est le job `apps/postgres-backup` : image `postgres:18.6-trixie` au **même digest que le serveur**, `pg_dump -Fc` par base vérifié par `pg_restore --list`, sidecar sha256, rétention locale 14 jours dans `/mnt/cpool/backup/postgres` (dataset de la classe `backup-targets`, snapshots 14 j / 8 sem), planifié par un cron natif TrueNAS. Sauvegardes **logiques** uniquement ; PITR (pgBackRest) quand PostgreSQL sera une Custom App.
 
-1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/databasus/.env.secrets` (0600), puis `sudo bash scripts/truenas/bootstrap-databasus-postgres-role.sh` (`--check`) et `--apply` : rôle `databasus` `LOGIN NOREPLICATION`, membre de `pg_read_all_data`, `CONNECT` sur `homeassistant`, `keycloak`, `joplin` (liste `DATABASUS_BACKUP_DATABASES`). Pas de privilège `REPLICATION` : sauvegardes **logiques** uniquement ; une sauvegarde physique/PITR de toute l'instance serait une décision séparée.
-2. Dans Databasus : ajouter chaque base avec ce rôle, planning quotidien hors pointe, rétention GFS, stockage hors du pool des données (S3 Garage/R2 ou SFTP, pas le même dataset), chiffrement activé, vérification de restauration planifiée, notification en échec.
-3. Avant la bascule Home Assistant (§6) : première sauvegarde réussie **et** restauration de test dans une base temporaire.
-4. Suivi : déclarer le secret dans `config/secrets/manifest.json` (hors du périmètre « 43/117 » figé) et, plus tard, migrer Databasus en Custom App pour sortir de `observed_only`.
+1. Secret `POSTGRES_PASSWORD` dans `/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets` (0600, déclaré au manifeste), puis `sudo bash scripts/truenas/bootstrap-postgres-backup-role.sh` (`--check`) et `--apply` : rôle `pgbackup` `LOGIN NOREPLICATION`, membre de `pg_read_all_data`, `CONNECT` sur `homeassistant`, `keycloak`, `joplin` (liste `POSTGRES_BACKUP_DATABASES`, à garder alignée avec `BACKUP_DATABASES` du Compose).
+2. `sudo bash scripts/truenas/bootstrap-repository-storage.sh --check postgres-backup` puis `--apply` (dataset `cpool/backup`, répertoire `postgres` possédé par `568:568`).
+3. Première exécution manuelle depuis le checkout canonique : `docker compose --project-directory apps/postgres-backup --profile manual run --rm --no-deps postgres-backup` ; contrôler `OK <base> … bytes` et `.last-success.json`.
+4. Test de restauration dans une base temporaire (`pg_restore --no-owner --role=<rôle> -d <base_test> <archive>`), avant la bascule Home Assistant (§6).
+5. Cron : `python3 scripts/truenas/reconcile-postgres-backup-cron.py --check`, puis `sudo … --apply` (créé **désactivé**, 03:20 heure appliance), puis `sudo POSTGRES_BACKUP_CRON_APPROVED=YES … --enable` après les étapes 3 et 4.
+6. Copie hors site : les archives sont sur `cpool/backup` ; la réplication hors site (Restic/Garage) reste le chantier existant de la roadmap.
 
-**Gate :** `bootstrap-databasus-postgres-role.sh --check` vert ; dans Databasus, dernière sauvegarde et dernière vérification de restauration réussies pour chaque base.
+**Gate :** `--check` du rôle vert ; `.last-success.json` daté du jour pour chaque base ; restauration de test réussie ; cron `enabled=true` seulement après ces preuves.
 
 ## 7. Réception globale
 
