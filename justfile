@@ -1442,6 +1442,14 @@ zfs-snapshot-tasks-plan:
 zfs-snapshot-tasks-apply:
     sudo NABLA_SNAPSHOT_APPLY_APPROVED=yes bash scripts/truenas/reconcile-snapshot-tasks.sh --apply
 
+# TrueNAS, root, READ-ONLY: classify dangling Docker volumes into a reviewable plan.
+docker-orphan-volumes-plan:
+    sudo bash scripts/truenas/reconcile-docker-orphan-volumes.sh --plan
+
+# Removes the reviewed plan's candidate:* rows one by one (docker volume rm, no prune).
+docker-orphan-volumes-apply plan="/var/tmp/nabla-docker-orphan-volumes.tsv":
+    sudo NABLA_VOLUME_PURGE_APPROVED=yes bash scripts/truenas/reconcile-docker-orphan-volumes.sh --apply {{ plan }}
+
 # Workstation Restic alert, backup path: import the Zabbix template (plan without --apply).
 zabbix-templates *args:
     python3 scripts/zabbix/import-templates.py {{ args }}

@@ -21,6 +21,8 @@ services:
         host: kafka
         port: 9092
     restart: unless-stopped
+    # Reap orphaned java children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     environment:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1001@127.0.0.1:29093

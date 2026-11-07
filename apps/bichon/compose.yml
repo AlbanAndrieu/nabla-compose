@@ -6,6 +6,8 @@ services:
     image: rustmailer/bichon:2.0.3
     container_name: bichon
     restart: unless-stopped
+    # Reap orphaned curl children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     x-nabla:
       id: bichon
       name: Bichon UI

@@ -28,6 +28,8 @@ services:
     image: ghcr.io/open-webui/open-webui:v0.11.0 # latest or main
     container_name: openwebui
     restart: unless-stopped
+    # Reap orphaned curl/jq children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     labels:
       com.albandrieu.nabla.entity-ref: component:default/openwebui
     x-nabla:
