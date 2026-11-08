@@ -63,7 +63,7 @@ services:
         app_protocol: http
     volumes:
       - /mnt/cpool/jellyfin/config:/config
-      - /mnt/cpool/jellyfin/cache:/cache
+      - /mnt/cpool/jellyfin-cache:/cache
       - /mnt/cpool/media/library:/data/library:ro
     healthcheck:
       test:

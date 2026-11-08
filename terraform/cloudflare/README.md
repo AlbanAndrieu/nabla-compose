@@ -83,9 +83,10 @@ scripts/infra/terragrunt-safe.sh infrastructure/cloudflare init -reconfigure
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan
 ```
 
-Attendu : `4 to import, 0 to add, 0 to change, 0 to destroy`. Toute autre
-différence signifie que le code ne reflète pas l'existant : corriger le code,
-jamais Cloudflare, et relancer.
+Attendu : `4 to import, 0 to add, 0 to change, 0 to destroy`, plus les imports
+DNS de la section « DNS as code » une fois `capture-dns-records.py --write`
+exécuté. Toute autre différence signifie que le code ne reflète pas l'existant :
+corriger le code, jamais Cloudflare, et relancer.
 
 ## 2. Renommage
 
@@ -155,6 +156,59 @@ l'ingress, autres hostnames du tunnel inchangés, puis `No changes`.
 Retirer `sample.albandrieu.com` (et `…/api`) des `destinations` des deux
 applications Access (plan attendu : 2 change). Les blocs `import` deviennent
 des no-op une fois les ressources dans l'état.
+
+## DNS as code (enregistrements publics)
+
+Les CNAME des routes du tunnel ne sont plus créés à la main : chaque `hostname`
+de `local.tunnel_ingress` (`tunnel.tofu`) produit un CNAME proxifié vers
+`<tunnel>.cfargotunnel.com` via [`modules/dns-records`](modules/dns-records/)
+(`fastapi-sample` garde sa ressource dédiée). Une route et son DNS sont donc
+ajoutés ou retirés dans le même plan. [`dns-policy.yaml`](dns-policy.yaml)
+déclare les noms retirés, les rares créations autorisées et le suffixe privé
+interdit (`.int.albandrieu.com`, contrôlé par un bloc `check`).
+
+Propriété : ce module possède les CNAME du tunnel et le retrait des noms
+décommissionnés. Les enregistrements d'AutoXpose, de l'ancien companion Traefik,
+de DDNS, de la messagerie et de l'apex restent hors module jusqu'à leur adoption
+explicite ; le script de capture les classe `unmanaged`.
+
+1. **Inventaire et identifiants (lecture seule)** :
+
+   ```bash
+   scripts/quality/python-with-repo-deps.sh scripts/cloudflare/capture-dns-records.py
+   scripts/quality/python-with-repo-deps.sh scripts/cloudflare/capture-dns-records.py --write
+   ```
+
+   Seuls des `GET` partent ; le contenu des enregistrements n'est jamais affiché
+   (un A peut porter l'IP WAN). `--write` met à jour
+   `dns-record-ids.auto.tfvars.json` (identifiants non secrets, à commiter).
+   Classes à traiter : `tunnel-drift` (le plan le corrigera), `orphan-tunnel`
+   (CNAME sans route : l'ajouter à `retired_hostnames`), `private-namespace`
+   (dérive `*.int`), `missing` (route sans DNS : `new_tunnel_hostnames`).
+2. **Adoption** : plan attendu `N to import`, aucun `add` hors
+   `new_tunnel_hostnames`, aucun `destroy`. Une précondition refuse toute
+   création aveugle d'un nom qui n'a pas d'identifiant d'import.
+3. **Retrait** (deux plans relus, accord explicite du propriétaire) :
+
+   ```bash
+   scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan            # adopt : import des noms retirés, 0 change
+   scripts/infra/terragrunt-safe.sh infrastructure/cloudflare apply ...
+   TF_VAR_dns_retirement_phase=retire \
+     scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan          # retire : uniquement les noms retirés en destroy
+   ```
+
+   Après réception (NXDOMAIN depuis l'extérieur), retirer les noms de
+   `dns-policy.yaml` et leurs identifiants : le plan suivant est `No changes`.
+   Les sept noms média (`emby`, `lidarr`, `prowlarr`, `radarr`, `sabnzbd`,
+   `sonarr`, `transmission`) sont les premiers retirés (décision D5,
+   [roadmap média](../../docs/arr-media-library-roadmap.md)).
+
+Test hors ligne du module (fournisseur simulé, aucun appel API) :
+
+```bash
+tofu -chdir=terraform/cloudflare/modules/dns-records init -backend=false
+tofu -chdir=terraform/cloudflare/modules/dns-records test
+```
 
 ## Validation hors ligne
 

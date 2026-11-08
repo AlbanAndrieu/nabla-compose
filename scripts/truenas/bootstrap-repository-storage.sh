@@ -5,6 +5,7 @@ MODE="${1:---check}"
 APP_FILTER="${2:-}"
 POOL="${NABLA_ZFS_POOL:-cpool}"
 CANONICAL_MOUNT="/mnt/${POOL}"
+PROFILES_FILE="config/truenas/dataset-profiles.json"
 
 # shellcheck source=../lib/common.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/common.sh"
@@ -20,7 +21,7 @@ fi
 
 [[ "${EUID}" -eq 0 ]] ||
   fail "run with sudo so TrueNAS datasets can be inspected/created"
-for command in git sort zfs zpool midclt find grep; do
+for command in git sort zfs zpool midclt find grep jq stat install; do
   command -v "${command}" >/dev/null 2>&1 ||
     fail "${command} is required"
 done
@@ -206,6 +207,28 @@ if [[ "${MODE}" == "--check" && ${missing} -gt 0 ]]; then
   printf '   Apply with: sudo bash scripts/truenas/bootstrap-repository-storage.sh --apply%s\n' \
     "${APP_FILTER:+ ${APP_FILTER}}" >&2
   exit 1
+fi
+
+# Declarative profiles (config/truenas/dataset-profiles.json) for datasets that
+# need ZFS properties, a quota or a directory tree beyond the APPS preset.
+# --check reports drift; --apply converges through the TrueNAS middleware.
+# shellcheck source=../lib/dataset-profiles.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/dataset-profiles.sh"
+
+if [[ -f "${PROFILES_FILE}" ]]; then
+  jq -e '.version == 1 and (.datasets | type == "object")' "${PROFILES_FILE}" >/dev/null ||
+    fail "${PROFILES_FILE} must be version 1 with a datasets object"
+  printf 'Dataset profiles (%s):\n' "${PROFILES_FILE}"
+  while IFS= read -r relative; do
+    [[ -n "${declared_paths["${relative}"]:-}" ]] || continue
+    reconcile_profile "${relative}"
+  done < <(jq -r '.datasets | keys[]' "${PROFILES_FILE}")
+  if ((profile_drift == 0)); then
+    printf '✅ dataset profiles converged\n'
+  elif [[ "${MODE}" == "--check" ]]; then
+    printf '⚠️  %d dataset profile drift(s); converge with --apply%s\n' \
+      "${profile_drift}" "${APP_FILTER:+ ${APP_FILTER}}"
+  fi
 fi
 
 # Global inventory reports unowned empty direct-child datasets.

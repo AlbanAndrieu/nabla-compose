@@ -20,3 +20,23 @@ import {
   to = cloudflare_zero_trust_access_application.fastapi_sample_api
   id = "accounts/${var.account_id}/${var.fastapi_sample_api_access_application_id}"
 }
+
+# Tunnel CNAMEs already exist: adopt them before any change.
+import {
+  for_each = {
+    for hostname, id in var.dns_tunnel_record_ids : hostname => id
+    if contains(local.tunnel_hostnames, hostname)
+  }
+  to = module.dns_records.cloudflare_dns_record.tunnel[each.key]
+  id = "${var.zone_id}/${each.value}"
+}
+
+# Retired records are imported only during the adopt phase.
+import {
+  for_each = {
+    for key, id in var.dns_retired_record_ids : key => id
+    if var.dns_retirement_phase == "adopt" && contains(local.dns_policy.retired_hostnames, split("/", key)[0])
+  }
+  to = module.dns_records.cloudflare_dns_record.retired[each.key]
+  id = "${var.zone_id}/${each.value}"
+}

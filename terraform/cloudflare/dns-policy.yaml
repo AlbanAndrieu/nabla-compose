@@ -1,0 +1,28 @@
+---
+# Public DNS policy of albandrieu.com, read by dns.tofu and by
+# scripts/cloudflare/capture-dns-records.py. No record content lives here:
+# tunnel CNAMEs are derived from local.tunnel_ingress (tunnel.tofu).
+version: 1
+
+# Hostnames that must disappear from public DNS. Retirement is two reviewed
+# plans: dns_retirement_phase=adopt imports the live records unchanged, then
+# dns_retirement_phase=retire destroys them (terraform/cloudflare/README.md).
+retired_hostnames:
+  # *arr media PoCs: no remote access (decision D5,
+  # docs/arr-media-library-roadmap.md section 2.3).
+  - emby.albandrieu.com
+  - lidarr.albandrieu.com
+  - prowlarr.albandrieu.com
+  - radarr.albandrieu.com
+  - sabnzbd.albandrieu.com
+  - sonarr.albandrieu.com
+  - transmission.albandrieu.com
+
+# Tunnel routes whose CNAME does not exist yet and may be created. Every other
+# tunnel hostname must be imported first (import-first, never blind create).
+new_tunnel_hostnames: []
+
+# Private namespace served by Pi-hole; a public record under it is drift
+# (docs/dns-ingress-ownership.md).
+forbidden_public_suffixes:
+  - .int.albandrieu.com

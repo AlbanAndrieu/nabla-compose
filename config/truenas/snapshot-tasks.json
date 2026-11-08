@@ -143,6 +143,7 @@
       "datasets": [
         "cpool/autokuma",
         "cpool/autoxpose",
+        "cpool/bazarr",
         "cpool/bichon",
         "cpool/code",
         "cpool/cyberbro",
@@ -155,8 +156,10 @@
         "cpool/grafana",
         "cpool/hermes",
         "cpool/homarr",
+        "cpool/jellyfin",
         "cpool/keycloak",
         "cpool/langflow",
+        "cpool/lidarr",
         "cpool/litellm",
         "cpool/minio",
         "cpool/netbox",
@@ -169,9 +172,15 @@
         "cpool/openwebui",
         "cpool/pihole",
         "cpool/portracker",
+        "cpool/prowlarr",
+        "cpool/qbittorrent",
+        "cpool/radarr",
+        "cpool/recyclarr",
         "cpool/scanopy",
         "cpool/scrutiny",
+        "cpool/seerr",
         "cpool/sentry",
+        "cpool/sonarr",
         "cpool/traefik"
       ]
     },
@@ -208,6 +217,10 @@
       "reason": "Docker images, layers and build cache: pulled or rebuilt."
     },
     {
+      "dataset": "cpool/jellyfin-cache",
+      "reason": "Jellyfin transcoding and image cache, regenerated on demand."
+    },
+    {
       "dataset": "cpool/kafka",
       "reason": "Transient queues for Sentry and Akvorado."
     },
@@ -222,6 +235,10 @@
     {
       "dataset": "cpool/loki",
       "reason": "Log store, high churn, bounded by its own retention."
+    },
+    {
+      "dataset": "cpool/media",
+      "reason": "*arr media library and torrents: re-downloadable and constantly rewritten; snapshots would pin deleted files beyond the dataset quota."
     },
     {
       "dataset": "cpool/mimir",
