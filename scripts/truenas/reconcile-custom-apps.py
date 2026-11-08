@@ -141,6 +141,9 @@ def new_in_repo(repo: Path, manifest: dict, planner) -> list[str]:
     native = set(manifest.get("catalog_native") or [])
     missing = []
     for compose in sorted((repo / "apps").glob("*/compose.yml")):
+        # A submodule (apps/openclaw) owns its lifecycle and is absent from CI clones.
+        if (compose.parent / ".git").exists():
+            continue
         rel = f"apps/{compose.parent.name}/compose.yml"
         facts = compose_facts(repo, rel)
         if not facts or not facts["truenas"] or rel in referenced or facts["statuses"] != ["active"]:
