@@ -93,7 +93,7 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 
 ## P1 — Fiabilité des scripts et documentation
 
-- Remplacer les scripts de déploiement à mutation implicite par des contrats explicites `--check` / `--apply` et une preuve de non-mutation en préflight. En particulier, `ntopng` dépend d'une licence Enterprise, d'une identité ClickHouse limitée et de l'interface réseau approuvée.
+- Remplacer les scripts de déploiement à mutation implicite par des contrats explicites `--check` / `--apply` et une preuve de non-mutation en préflight. Fait le 8 novembre pour `deploy-joplin.sh`/`deploy-scanopy.sh` (`scripts/lib/app-deploy.sh`), les bootstraps PostgreSQL (`bootstrap-app-postgres.sh` + wrappers) et l'orchestrateur `rollout-pending-apps.sh` ; preuve d'acceptation attendue : `sudo bash scripts/truenas/rollout-pending-apps.sh --check` vert sur TrueNAS (aucune exécution possible sans accès LAN). Restent `deploy-autokuma.sh`, `deploy-docling.sh`, `deploy-bitcoind.sh` (réconciliation inline) ; `ntopng` dépend d'une licence Enterprise, d'une identité ClickHouse limitée et de l'interface réseau approuvée.
 - Factoriser les primitives de diagnostic Docker/HTTP seulement si les scénarios d'erreur, le journal expurgé et le refus des opérations mixtes sont couverts par tests.
 - Exécuter `just agent-skills-check`, `just quality` et `mise run agent-pre-push` sur un worktree non root au HEAD exact. Des échecs identiques à `master` dus au DNS ou à un utilisateur root ne valent pas une gate PASS.
 - `Ask the user` avant d'installer des skills externes. Aucun nouveau skill Talos ou Docker n'est installé implicitement.

@@ -139,12 +139,12 @@ class ScanopyImageLockContractTests(unittest.TestCase):
         script = DEPLOY.read_text(encoding="utf-8")
         gate = 'check-scanopy-image-lock.sh" "${compose_path}"'
         self.assertIn(gate, script)
-        self.assertLess(script.index(gate), script.index("truenas_job_compact app.update"))
-        self.assertLess(script.index(gate), script.index("truenas_job_compact app.create"))
+        self.assertLess(script.index(gate), script.index("app_deploy_reconcile"))
         self.assertLess(
             script.index(gate),
             script.index('bootstrap-repository-runtime.sh --apply'),
         )
+        self.assertLess(script.index("NABLA_RUNTIME_CHANGE_APPROVED"), script.index('bootstrap-repository-runtime.sh --apply'))
 
 
 if __name__ == "__main__":

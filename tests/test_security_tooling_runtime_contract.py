@@ -62,15 +62,19 @@ def test_secret_preparation_supports_vaultwarden_parity() -> None:
 
 
 def test_postgres_bootstrap_is_shared_and_fail_closed() -> None:
-    script = POSTGRES.read_text(encoding="utf-8")
+    wrapper = POSTGRES.read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "truenas" / "bootstrap-app-postgres.sh").read_text(encoding="utf-8")
+    library = (ROOT / "scripts" / "lib" / "postgres.sh").read_text(encoding="utf-8")
 
     for app in ("plumber", "netbox", "dependency-track", "defectdojo"):
+        assert app in wrapper
         assert app in script
-    assert "com.docker.compose.project=ix-postgres" in script
-    assert "CREATE ROLE %I LOGIN PASSWORD %L" in script
-    assert "ALTER ROLE %I PASSWORD %L" in script
-    assert "CREATE DATABASE %I OWNER %I" in script
-    assert "ALTER DATABASE %I OWNER TO %I" in script
+    assert 'exec bash "${SCRIPT_DIR}/bootstrap-app-postgres.sh" "${MODE}" "${APP}"' in wrapper
+    assert "com.docker.compose.project=ix-postgres" in library
+    assert "CREATE ROLE %I LOGIN PASSWORD %L" in library
+    assert "ALTER ROLE %I PASSWORD %L" in library
+    assert "CREATE DATABASE %I OWNER %I" in library
+    assert "ALTER DATABASE %I OWNER TO %I" in library
     assert "dedicated role cannot authenticate" in script
 
 

@@ -170,11 +170,13 @@ def test_scanopy_deployer_fails_closed_on_mutable_images() -> None:
     assert "expected exactly two Scanopy images" in gate
     assert "server/daemon image release tags differ" in gate
     assert "not production acceptance" in gate
+    # Reconciliation (app.update/app.create) lives in lib/app-deploy.sh; the
+    # image gate must precede both the runtime mutation and the reconciliation.
     assert script.index("check-scanopy-image-lock.sh") < script.index(
-        'truenas_job_compact app.update'
+        'bootstrap-repository-runtime.sh --apply'
     )
     assert script.index("check-scanopy-image-lock.sh") < script.index(
-        'truenas_job_compact app.create'
+        'app_deploy_reconcile'
     )
 
 

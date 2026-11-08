@@ -9,8 +9,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+source "${SCRIPT_DIR}/../lib/common.sh"
 # shellcheck source=../lib/secrets.sh
 source "${SCRIPT_DIR}/../lib/secrets.sh"
+# shellcheck source=../lib/postgres.sh
+source "${SCRIPT_DIR}/../lib/postgres.sh"
 
 MODE="${1:---check}"
 SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets}"
@@ -18,24 +22,16 @@ BACKUP_ROLE="${POSTGRES_BACKUP_USER:-pgbackup}"
 # Space-separated databases the job may dump (keep in sync with apps/postgres-backup/compose.yml).
 BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-keycloak joplin homeassistant netbox dependencytrack scanopy jobs}"
 
-function fail {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
 case "${MODE}" in
-  --check | --apply) ;;
-  *) fail "usage: $0 [--check|--apply]" ;;
+--check | --apply) ;;
+*) fail "usage: $0 [--check|--apply]" ;;
 esac
 
-[[ "${EUID}" -eq 0 ]] ||
-  fail "run with sudo so the shared PostgreSQL container can be inspected"
-for command in docker grep head python3 stat; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
-[[ "${BACKUP_ROLE}" =~ ^[a-z][a-z0-9_]{0,62}$ ]] || fail "invalid role name"
+require_root "run with sudo so the shared PostgreSQL container can be inspected"
+require_commands docker grep head python3 stat
+postgres_identifier_valid "${BACKUP_ROLE}" || fail "invalid role name"
 for database in ${BACKUP_DATABASES}; do
-  [[ "${database}" =~ ^[a-z][a-z0-9_]{0,62}$ ]] || fail "invalid database name: ${database}"
+  postgres_identifier_valid "${database}" || fail "invalid database name: ${database}"
 done
 
 secrets_assert_file "${SECRETS_FILE}" POSTGRES_PASSWORD ||
@@ -45,38 +41,19 @@ backup_password="$(secrets_get_value "${SECRETS_FILE}" POSTGRES_PASSWORD)" ||
 [[ -n "${backup_password}" ]] ||
   fail "${SECRETS_FILE} must define non-empty POSTGRES_PASSWORD"
 
-POSTGRES_CONTAINER="$(
-  docker ps --filter 'label=com.docker.compose.project=ix-postgres' \
-    --filter 'label=com.docker.compose.service=postgres' \
-    --format '{{.Names}}' | head -1
-)"
-if [[ -z "${POSTGRES_CONTAINER}" ]]; then
-  POSTGRES_CONTAINER="$(
-    docker ps --format '{{.Names}}' |
-      grep -E '^ix-postgres-postgres-[0-9]+$' |
-      head -1 || true
-  )"
-fi
-[[ -n "${POSTGRES_CONTAINER}" ]] || fail "shared TrueNAS PostgreSQL container not found"
-
-POSTGRES_ADMIN="$(
-  docker exec "${POSTGRES_CONTAINER}" sh -lc 'printf "%s" "${POSTGRES_USER:-postgres}"'
-)"
-[[ -n "${POSTGRES_ADMIN}" ]] ||
-  fail "shared PostgreSQL administrative role could not be determined"
+POSTGRES_CONTAINER="$(postgres_shared_container)" || exit 1
+POSTGRES_ADMIN="$(postgres_admin_role "${POSTGRES_CONTAINER}")" || exit 1
 
 # Staged rollout: databases that are not created yet are skipped with a warning
 # (re-run after their bootstrap); set POSTGRES_BACKUP_REQUIRE_ALL=true to fail.
 present_databases=""
 for database in ${BACKUP_DATABASES}; do
-  exists="$(docker exec "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_ADMIN}" -d postgres -Atc \
-    "SELECT count(*) FROM pg_database WHERE datname='${database}'")"
-  if [[ "${exists}" == "1" ]]; then
+  if postgres_database_exists "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" "${database}"; then
     present_databases="${present_databases} ${database}"
   elif [[ "${POSTGRES_BACKUP_REQUIRE_ALL:-false}" == "true" ]]; then
     fail "database ${database} does not exist yet; bootstrap it first"
   else
-    printf 'WARN: database %s does not exist yet; skipped (re-run after its bootstrap)\n' "${database}" >&2
+    warn "database ${database} does not exist yet; skipped (re-run after its bootstrap)"
   fi
 done
 BACKUP_DATABASES="${present_databases# }"
@@ -88,9 +65,9 @@ if [[ "${MODE}" == "--apply" ]]; then
     -e PGBACKUP_DB_PASSWORD -e PGBACKUP_ROLE -e PGBACKUP_DATABASES \
     "${POSTGRES_CONTAINER}" \
     psql \
-      --set=ON_ERROR_STOP=1 \
-      -U "${POSTGRES_ADMIN}" \
-      -d postgres <<'SQL'
+    --set=ON_ERROR_STOP=1 \
+    -U "${POSTGRES_ADMIN}" \
+    -d postgres <<'SQL'
 \getenv backup_password PGBACKUP_DB_PASSWORD
 \getenv backup_role PGBACKUP_ROLE
 \getenv backup_databases PGBACKUP_DATABASES
@@ -111,7 +88,7 @@ SQL
 fi
 
 state="$(
-  docker exec "${POSTGRES_CONTAINER}" psql -U "${POSTGRES_ADMIN}" -d postgres -Atc "
+  postgres_admin_query "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" "
     SELECT
       (SELECT count(*) FROM pg_roles WHERE rolname='${BACKUP_ROLE}' AND NOT rolsuper AND NOT rolreplication)::text
       || '|' ||
@@ -125,12 +102,9 @@ state="$(
   fail "backup role ${BACKUP_ROLE} not ready (state=${state}): expected LOGIN NOREPLICATION + pg_read_all_data"
 
 for database in ${BACKUP_DATABASES}; do
-  if ! PGPASSWORD="${backup_password}" docker exec -e PGPASSWORD "${POSTGRES_CONTAINER}" \
-    psql --set=ON_ERROR_STOP=1 -h 127.0.0.1 -U "${BACKUP_ROLE}" -d "${database}" -Atc 'SELECT 1' |
-    grep -qx '1'; then
+  PGPASSWORD="${backup_password}" postgres_assert_login "${POSTGRES_CONTAINER}" "${BACKUP_ROLE}" "${database}" ||
     fail "backup role ${BACKUP_ROLE} cannot connect to database ${database}"
-  fi
 done
+unset backup_password
 
-printf '✅ shared PostgreSQL ready for postgres-backup: role=%s (read-only) databases=%s\n' \
-  "${BACKUP_ROLE}" "${BACKUP_DATABASES}"
+ok "shared PostgreSQL ready for postgres-backup: role=${BACKUP_ROLE} (read-only) databases=${BACKUP_DATABASES}"

@@ -44,9 +44,18 @@ def test_all_deployers_report_checkout_provenance() -> None:
     direct = 'truenas_repo_provenance "$(git rev-parse --show-toplevel)"'
     rooted = 'truenas_repo_provenance "${ROOT}"'
     root_from_script = 'ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"'
+    # Single-App deployers on the shared contract report provenance from
+    # app_deploy_canonical_checkout (scripts/lib/app-deploy.sh).
+    shared_gate = "app_deploy_canonical_checkout"
+    shared_library = (TRUENAS_LIB.parent / "app-deploy.sh").read_text(encoding="utf-8")
+    shared_valid = 'truenas_repo_provenance "${canonical_root}"' in shared_library
     for path in DEPLOYERS:
         text = path.read_text(encoding="utf-8")
-        valid = direct in text or (rooted in text and root_from_script in text)
+        valid = (
+            direct in text
+            or (rooted in text and root_from_script in text)
+            or (shared_gate in text and shared_valid)
+        )
         if not valid:
             offenders.append(path.name)
     assert not offenders, f"deploy checkout provenance missing in: {offenders}"
