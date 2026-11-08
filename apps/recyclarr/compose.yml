@@ -58,6 +58,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/recyclarr
       com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: scheduled-job
     networks:
       - media
 

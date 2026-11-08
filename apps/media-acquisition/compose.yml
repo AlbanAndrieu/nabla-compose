@@ -96,6 +96,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/gluetun
       com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: image
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.qbittorrent.rule: Host(`qbittorrent.int.albandrieu.com`)

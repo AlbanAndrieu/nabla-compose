@@ -151,6 +151,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/lidarr-exporter
       com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: prometheus-up
     networks:
       - media
       - intranet
