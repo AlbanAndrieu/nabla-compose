@@ -31,6 +31,8 @@ services:
     networks:
       - traefik_network
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): 1g heap (ES_JAVA_OPTS) plus Lucene off-heap; an OOM stays in this cgroup.
+    mem_limit: 2g
 
   kibana:
     labels:

@@ -48,6 +48,7 @@ services:
       category: infrastructure
       presentationRole: service
       criticality: medium
+      status: planned
       securityFunctions:
         - identify
       url: http://172.17.0.24:31082
@@ -104,6 +105,7 @@ services:
       category: infrastructure
       presentationRole: support
       criticality: low
+      status: planned
       runtime:
         provider: truenas-app
         containerService: netbox-worker
@@ -139,6 +141,7 @@ services:
       category: infrastructure
       presentationRole: support
       criticality: low
+      status: planned
       runtime:
         provider: truenas-app
         containerService: netbox-housekeeping

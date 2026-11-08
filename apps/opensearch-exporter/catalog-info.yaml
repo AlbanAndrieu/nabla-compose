@@ -5,7 +5,7 @@ metadata:
   name: opensearch-exporter
   title: OpenSearch Exporter
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -37,7 +37,7 @@ metadata:
   name: opensearch-security-exporter
   title: OpenSearch Security Exporter
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:

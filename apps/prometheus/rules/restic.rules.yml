@@ -3,7 +3,7 @@ groups:
   - name: WorkstationRestic
     rules:
       - alert: ResticBackupStale
-        expr: time() - node_textfile_mtime_seconds{job="workstation_restic", file=~".*/last-success\\.prom"} > 93600
+        expr: time() - node_textfile_mtime_seconds{job="workstation_node", file=~".*/last-success\\.prom"} > 93600
         for: 10m
         labels:
           severity: critical
@@ -14,7 +14,7 @@ groups:
           description: "Last successful backup to /media/backup/workstation is older than 26 h: journalctl -u restic-backup.service on the workstation."
 
       - alert: ResticMetricAbsent
-        expr: absent(node_textfile_mtime_seconds{job="workstation_restic", file=~".*/last-success\\.prom"})
+        expr: absent(node_textfile_mtime_seconds{job="workstation_node", file=~".*/last-success\\.prom"})
         for: 2h
         labels:
           severity: warning

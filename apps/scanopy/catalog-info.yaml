@@ -9,7 +9,7 @@ metadata:
     - url: http://172.17.0.24:60072
       title: Network topology
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: medium
     albandrieu.com/bia-scope: direct
@@ -50,7 +50,7 @@ metadata:
   title: Scanopy Daemon
   description: Privileged network and container discovery scanner for Scanopy.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: medium
     albandrieu.com/bia-scope: inherited
   tags:

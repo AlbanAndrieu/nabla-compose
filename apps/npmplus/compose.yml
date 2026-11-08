@@ -10,6 +10,7 @@ services:
       category: network
       presentationRole: support
       criticality: high
+      status: planned
       description: Hardened Nginx Proxy Manager fork tracked as the repository migration target.
       runtime:
         provider: truenas-app

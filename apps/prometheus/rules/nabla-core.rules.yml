@@ -86,7 +86,7 @@ groups:
 
       - alert: NablaExporterTargetDown
         expr: >-
-          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node"} == 0
+          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node",operational_state!="planned"} == 0
         for: 2m
         labels:
           severity: warning

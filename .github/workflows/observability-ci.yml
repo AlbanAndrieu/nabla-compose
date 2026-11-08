@@ -55,12 +55,21 @@ jobs:
       - name: Validate Prometheus configuration
         shell: bash
         run: |
+          # promtool checks that credentials_file exists even during syntax
+          # validation. Supply an ephemeral NON-SECRET fixture, never a live key.
+          auth_dir="$(mktemp -d)"
+          chmod 700 "$auth_dir"
+          trap 'rm -rf -- "$auth_dir"' EXIT
+          printf '%s\n' 'ci-promtool-placeholder-not-a-real-credential' \
+            > "$auth_dir/fastapi-sample-metrics.key"
+          chmod 600 "$auth_dir/fastapi-sample-metrics.key"
           docker run --rm \
             --read-only \
             --cap-drop ALL \
             --security-opt no-new-privileges \
             --entrypoint /bin/promtool \
             -v "${PWD}/apps/prometheus:/etc/prometheus:ro" \
+            -v "$auth_dir/fastapi-sample-metrics.key:/run/secrets/fastapi-sample-metrics.key:ro" \
             prom/prometheus:v3.13.2 \
             check config /etc/prometheus/prometheus.yml
 

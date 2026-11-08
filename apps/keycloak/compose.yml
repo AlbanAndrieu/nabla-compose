@@ -34,6 +34,8 @@ services:
           evidence:
             - apps/keycloak/compose.yml:KC_METRICS_ENABLED
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): Quarkus sizes its heap at 70% of the cgroup limit; without a limit it used host RAM; an OOM stays in this cgroup.
+    mem_limit: 1536m
     command: ["start"]
     env_file:
       - /mnt/cpool/keycloak/.env.secrets

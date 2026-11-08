@@ -47,6 +47,8 @@ services:
       retries: 20
       start_period: 60s
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): 1g heap (OPENSEARCH_JAVA_OPTS) plus Lucene off-heap; an OOM stays in this cgroup.
+    mem_limit: 2g
     networks:
       intranet:
         aliases:
@@ -59,6 +61,8 @@ services:
     container_name: opensearch-security
     hostname: opensearch-security
     restart: unless-stopped
+    # JVM memory cap (2026-11-06): 1g heap (OPENSEARCH_JAVA_OPTS) plus Lucene off-heap; an OOM stays in this cgroup.
+    mem_limit: 2g
     x-nabla:
       id: opensearch-security
       name: OpenSearch Security

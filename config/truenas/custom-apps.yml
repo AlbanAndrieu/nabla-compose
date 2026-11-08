@@ -1,0 +1,257 @@
+---
+# TrueNAS Custom Apps owned by this repository (scripts/truenas/reconcile-custom-apps.py).
+# Each entry is recreated exactly like an App added through the UI: a Custom App
+# whose Compose is an include wrapper pointing at canonical_root/<include>.
+# Seeded from apps/*/compose.yml on 2026-11-07; confirm names/includes against
+# the live NAS with `reconcile-custom-apps.py --capture` and commit the diff.
+# state: running (create/start) or stopped (create, never started by --apply).
+# New Compose Apps must be added here (tests/test_reconcile_custom_apps.py).
+version: 1
+canonical_root: /mnt/cpool/compose/nabla-compose
+apps:
+  - name: autokuma
+    include:
+      - apps/autokuma/compose.yml
+    state: running
+  - name: autoxpose
+    include:
+      - apps/autoxpose/compose.yml
+    state: running
+  - name: bichon
+    include:
+      - apps/bichon/compose.yml
+    state: running
+  - name: cartography
+    include:
+      - apps/cartography/compose.yml
+    state: running
+  - name: clickhouse
+    include:
+      - apps/clickhouse/compose.yml
+    state: running
+  - name: code
+    include:
+      - apps/code/compose.yml
+    state: running
+  - name: cyberbro
+    include:
+      - apps/cyberbro/compose.yml
+    state: running
+  - name: ddns-updater
+    include:
+      - apps/ddns-updater/compose.yml
+    state: running
+    note: catalog App until migrated (see apps/ddns-updater/README.md)
+  - name: defectdojo
+    include:
+      - apps/defectdojo/compose.yml
+    state: running
+  - name: dockhand
+    include:
+      - apps/dockhand/compose.yml
+    state: running
+    note: catalog App until migrated (see apps/dockhand/README.md)
+  - name: docling
+    include:
+      - apps/docling/compose.yml
+    state: running
+  - name: dozzle
+    include:
+      - apps/dozzle/compose.yml
+    state: running
+  - name: drawio
+    include:
+      - apps/drawio/compose.yml
+    state: running
+  - name: garage
+    include:
+      - apps/garage/compose.yml
+    state: running
+  - name: gatus
+    include:
+      - apps/gatus/compose.yml
+    state: running
+  - name: grafana
+    include:
+      - apps/grafana/compose.yml
+    state: running
+  - name: homarr
+    include:
+      - apps/homarr/compose.yml
+    state: running
+  - name: influxdb
+    include:
+      - apps/influxdb/compose.yml
+    state: running
+  - name: kafka
+    include:
+      - apps/kafka/compose.yml
+    state: running
+  - name: langflow
+    include:
+      - apps/langflow/compose.yml
+    state: running
+  - name: langfuse
+    include:
+      - apps/langfuse/compose.yml
+    state: running
+  - name: languagetool
+    include:
+      - apps/languagetool/compose.yml
+    state: running
+  - name: litellm
+    include:
+      - apps/litellm/compose.yml
+    state: running
+  - name: minio
+    include:
+      - apps/minio/compose.yml
+    state: running
+  - name: mongo
+    include:
+      - apps/mongo/compose.yml
+    state: running
+  - name: nexus
+    include:
+      - apps/nexus/compose.yml
+    state: running
+  - name: nginx
+    include:
+      - apps/nginx/compose.yml
+    state: running
+  - name: ntopng
+    include:
+      - apps/ntopng/compose.yml
+    state: running
+  - name: obsidian
+    include:
+      - apps/obsidian/compose.yml
+    state: running
+  - name: ollama
+    include:
+      - apps/ollama/compose.yml
+    state: running
+  - name: openhands
+    include:
+      - apps/openhands/compose.yml
+    state: running
+  - name: openrag
+    include:
+      - apps/openrag/compose.yml
+    state: running
+  - name: opensearch
+    include:
+      - apps/opensearch/compose.yml
+    state: running
+  - name: openwebui
+    include:
+      - apps/openwebui/compose.yml
+    state: running
+  - name: pihole
+    include:
+      - apps/pihole/compose.yml
+    state: running
+  - name: prometheus
+    include:
+      - apps/prometheus/compose.yml
+    state: running
+  - name: pyroscope
+    include:
+      - apps/pyroscope/compose.yml
+    state: running
+  - name: redis
+    include:
+      - apps/redis/compose.yml
+    state: running
+  - name: sample
+    include:
+      - apps/sample/compose.yml
+    state: running
+  - name: scorecard
+    include:
+      - apps/scorecard/compose.yml
+    state: running
+  - name: scrutiny
+    include:
+      - apps/scrutiny/compose.yml
+    state: running
+  - name: sentry
+    include:
+      - apps/sentry/compose.yml
+    state: stopped
+    reason: temporary RAM relief, owner decision 2026-11-06
+  - name: sentry-clickhouse
+    include:
+      - apps/sentry-clickhouse/compose.yml
+    state: stopped
+    reason: stopped with Sentry, owner decision 2026-11-06
+  - name: squid
+    include:
+      - apps/squid/compose.yml
+    state: running
+  - name: suricata
+    include:
+      - apps/suricata/compose.yml
+    state: running
+  - name: traefik
+    include:
+      - apps/traefik/compose.yml
+    state: running
+  - name: vaultwarden
+    include:
+      - apps/vaultwarden/compose.yml
+    state: running
+  - name: wazuh
+    include:
+      - apps/wazuh/compose.yml
+    state: running
+# Native TrueNAS catalog Apps (custom_app=false, inventory 2026-11-05). Never
+# created by the reconciler; migrate them with
+# docs/runbooks/2026-11-06-catalog-apps-to-compose.md, then move them to apps.
+catalog_native:
+  - adguard-home
+  - arti
+  - bitcoind
+  - clamav
+  - cleanuparr
+  - cloudflared
+  - convertx
+  - databasus
+  - docker-socket-proxy
+  - domain-watchdog
+  - elastic-search
+  - emby
+  - freshrss
+  - glances
+  - heimdall
+  - hermes-agent
+  - home-assistant
+  - immich
+  - it-tools
+  - karakeep
+  - kasm-workspaces
+  - lidarr
+  - localai
+  - memos
+  - n8n
+  - netdata
+  - open-speed-test
+  - open-terminal
+  - paperless-ai
+  - paperless-ngx
+  - pgadmin
+  - plex
+  - portracker
+  - postgres
+  - reactive-resume
+  - searxng
+  - smart-home-dashboard
+  - speedtest-tracker
+  - stirling-pdf
+  - tailscale
+  - three-proxy
+  - tracearr
+  - transmission
+  - twofactor-auth
+  - wizarr
+  - zabbix

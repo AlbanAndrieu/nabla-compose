@@ -110,6 +110,15 @@ services:
           description: The compatibility adapter authenticates against Vaultwarden.
           evidence:
             - apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com
+        - target: cloudflared
+          type: dependsOn
+          strength: required
+          description: >-
+            BW_HOST is the public HTTPS origin served through the Cloudflare
+            tunnel; without cloudflared the adapter gets HTTP 530 (reboot
+            resume of 2026-11-06), so cloudflared must start first.
+          evidence:
+            - apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com
     restart: unless-stopped
     init: true
     user: "568:568" # TrueNAS apps user

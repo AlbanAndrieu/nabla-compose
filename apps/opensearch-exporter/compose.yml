@@ -11,6 +11,7 @@ services:
       name: OpenSearch Exporter
       kind: metrics-exporter
       category: observability
+      status: planned
       runtime:
         provider: truenas-app
         containerService: opensearch-exporter
@@ -46,6 +47,7 @@ services:
       name: OpenSearch Security Exporter
       kind: metrics-exporter
       category: observability
+      status: planned
       runtime:
         provider: truenas-app
         containerService: opensearch-security-exporter

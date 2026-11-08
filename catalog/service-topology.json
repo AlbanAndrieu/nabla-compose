@@ -390,6 +390,25 @@
       }
     },
     {
+      "id": "ddns-updater",
+      "name": "DDNS Updater",
+      "kind": "dns-automation",
+      "category": "network",
+      "sourcePath": "apps/ddns-updater/compose.yml",
+      "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "ddns-updater"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 30007
+      }
+    },
+    {
       "id": "defectdojo",
       "name": "DefectDojo",
       "kind": "vulnerability-management-platform",
@@ -497,6 +516,7 @@
       "description": "CycloneDX SBOM component inventory and software supply-chain vulnerability analysis platform.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -522,6 +542,7 @@
       "sourcePath": "apps/dependency-track/compose.yml",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -629,6 +650,7 @@
       "description": "Git-driven Compose deployment automation for the TrueNAS Docker runtime.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "doco-cd",
@@ -890,6 +912,7 @@
       "kind": "log-management",
       "category": "observability",
       "sourcePath": "apps/graylog/compose.yml",
+      "status": "disabled",
       "lifecycle": {
         "phase": "platform-services",
         "priority": 40
@@ -911,6 +934,7 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/haproxy-exporter/compose.yml",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "haproxy-exporter"
@@ -1051,6 +1075,7 @@
       "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "lifecycle": {
         "phase": "applications",
         "priority": 60
@@ -1370,6 +1395,7 @@
       "description": "Analytical graph store for Cartography attack-path, privilege-chain and blast-radius queries; not an authoritative CMDB.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -1397,6 +1423,7 @@
       "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify"
       ],
@@ -1421,6 +1448,7 @@
       "sourcePath": "apps/netbox/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "netbox-housekeeping",
@@ -1437,6 +1465,7 @@
       "sourcePath": "apps/netbox/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "netbox-worker",
@@ -1476,6 +1505,7 @@
       "description": "Legacy reverse-proxy administration service retained during NPMplus migration.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "disabled",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "app"
@@ -1495,6 +1525,7 @@
       "description": "Hardened Nginx Proxy Manager fork tracked as the repository migration target.",
       "presentationRole": "support",
       "criticality": "high",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "npmplus"
@@ -1717,6 +1748,7 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "opensearch-exporter"
@@ -1748,6 +1780,7 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/opensearch-exporter/compose.yml",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "opensearch-security-exporter",
@@ -1937,6 +1970,7 @@
       "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "protect"
@@ -1962,6 +1996,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "protect"
@@ -1982,6 +2017,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "plumber-worker",
@@ -2137,6 +2173,7 @@
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2163,6 +2200,7 @@
       "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2364,6 +2402,7 @@
       "kind": "code-quality",
       "category": "development",
       "sourcePath": "apps/sonarqube/compose.yml",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "sonarqube"
@@ -2426,6 +2465,7 @@
       "kind": "metrics-exporter",
       "category": "observability",
       "sourcePath": "apps/sybase-exporter/compose.yml",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "sybase-exporter"
@@ -3014,6 +3054,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/cyberbro/compose.yml:cyberbro.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "ddns-updater",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/ddns-updater/compose.yml:ddns-updater.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -5279,6 +5329,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/vaultwarden/compose.yml:vaultwarden.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "vaultwarden-rest-api",
+      "target": "cloudflared",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "BW_HOST is the public HTTPS origin served through the Cloudflare tunnel; without cloudflared the adapter gets HTTP 530 (reboot resume of 2026-11-06), so cloudflared must start first.",
+      "evidence": [
+        "apps/vaultwarden/compose.yml:BW_HOST=https://vaultwarden.albandrieu.com"
       ]
     },
     {

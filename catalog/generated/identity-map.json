@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343",
+  "catalogRevision": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -95,6 +95,12 @@
       "entityRef": "component:default/mcp-cyberbro",
       "evidence": "apps/cyberbro/compose.yml:services.mcp-cyberbro.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/cyberbro/compose.yml#services/mcp-cyberbro",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/ddns-updater",
+      "evidence": "apps/ddns-updater/compose.yml:services.ddns-updater.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/ddns-updater/compose.yml#services/ddns-updater",
       "sourceType": "compose"
     },
     {
@@ -770,12 +776,6 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/traefik-ddns-updater",
-      "evidence": "apps/traefik/compose.yml:services.ddns-updater.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/traefik/compose.yml#services/ddns-updater",
-      "sourceType": "compose"
-    },
-    {
       "entityRef": "component:default/traefik-dnsupdater",
       "evidence": "apps/traefik/compose.yml:services.dnsupdater.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/traefik/compose.yml#services/dnsupdater",
@@ -875,6 +875,12 @@
       "entityRef": "component:default/cyberbro",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "cyberbro",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/ddns-updater",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "ddns-updater",
       "sourceType": "gatus"
     },
     {
@@ -1307,12 +1313,6 @@
       "entityRef": "component:default/traefik",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "traefik",
-      "sourceType": "gatus"
-    },
-    {
-      "entityRef": "component:default/traefik-ddns-updater",
-      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "traefik-ddns-updater",
       "sourceType": "gatus"
     },
     {

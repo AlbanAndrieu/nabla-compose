@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:84f6b6fe1534c8d5f42b171afcbe52d20344b35f55b10a99d2814f17a4414343",
+  "catalogRevision": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -570,6 +570,55 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ddns-updater",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "cloudflare-tunnel-routes-remain-available",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-06",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "albandrieu.com/migration-provenance": "truenas-catalog-app",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/ddns-updater/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "ddns-updater",
+        "tags": [
+          "network",
+          "dns"
+        ],
+        "title": "DDNS Updater"
+      },
+      "sourcePath": "apps/ddns-updater/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/defectdojo",
       "kind": "Component",
       "metadata": {
@@ -752,7 +801,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "dependency-track",
         "tags": [
@@ -779,7 +828,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "dependency-track-api",
         "tags": [
@@ -955,7 +1004,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "doco-cd",
         "tags": [
@@ -1393,7 +1442,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "links": [
           {
@@ -1443,7 +1492,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "haproxy-exporter",
         "tags": [
@@ -1685,7 +1734,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "joplin",
         "tags": [
@@ -2084,7 +2133,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "high",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "netbox",
         "tags": [
@@ -2114,7 +2163,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "netbox-housekeeping",
         "tags": [
@@ -2139,7 +2188,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "netbox-worker",
         "tags": [
@@ -2230,7 +2279,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "nginx-proxy-manager",
         "tags": [
@@ -2276,7 +2325,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "npmplus",
         "tags": [
@@ -2689,7 +2738,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "opensearch-exporter",
         "tags": [
@@ -2737,7 +2786,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "opensearch-security-exporter",
         "tags": [
@@ -2971,7 +3020,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "plumber",
         "tags": [
@@ -3001,7 +3050,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "plumber-api",
         "tags": [
@@ -3032,7 +3081,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "plumber-worker",
         "tags": [
@@ -3125,7 +3174,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "postgres-exporter",
         "tags": [
@@ -3357,7 +3406,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "links": [
           {
@@ -3394,7 +3443,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "scanopy-daemon",
         "tags": [
@@ -4066,7 +4115,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "links": [
           {
@@ -4197,7 +4246,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "sybase-exporter",
         "tags": [
@@ -4275,34 +4324,6 @@
           "traefik"
         ],
         "title": "Cloudflare Ddns"
-      },
-      "sourcePath": "apps/traefik/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "subcomponentOf": "component:default/traefik",
-        "system": "system:default/nabla-homelab",
-        "type": "service"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/traefik-ddns-updater",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/migration-provenance": "legacy-homarr-compose"
-        },
-        "labels": {
-          "albandrieu.com/bia-scope": "inherited",
-          "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "traefik-ddns-updater",
-        "tags": [
-          "traefik"
-        ],
-        "title": "Ddns Updater"
       },
       "sourcePath": "apps/traefik/catalog-info.yaml",
       "spec": {
@@ -4940,7 +4961,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "neo4j-security",
         "tags": [

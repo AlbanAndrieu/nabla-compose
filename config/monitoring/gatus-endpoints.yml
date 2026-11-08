@@ -67,6 +67,15 @@ endpoints:
     url: http://172.17.0.24:5100/
     conditions:
       - "[STATUS] == 200"
+  - name: DDNS Updater
+    group: network
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: ddns-updater
+      nabla_service_id: ddns-updater
+    url: tcp://172.17.0.24:30007
+    conditions:
+      - "[CONNECTED] == true"
   - name: DefectDojo
     group: security
     interval: 60s
@@ -720,15 +729,6 @@ endpoints:
       nabla_monitor_id: traefik
       nabla_service_id: traefik
     url: tcp://172.17.0.24:80
-    conditions:
-      - "[CONNECTED] == true"
-  - name: Ddns Updater
-    group: traefik
-    interval: 60s
-    extra-labels:
-      nabla_monitor_id: traefik-ddns-updater
-      nabla_service_id: traefik-ddns-updater
-    url: tcp://172.17.0.24:8000
     conditions:
       - "[CONNECTED] == true"
   - name: TrueNAS
