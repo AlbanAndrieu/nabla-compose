@@ -144,7 +144,11 @@
       "sourcePath": "apps/grafana/compose.yml",
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "alloy"
+        "containerService": "alloy",
+        "networks": [
+          "default",
+          "docker-proxy"
+        ]
       },
       "monitoring": {
         "type": "http",
@@ -244,6 +248,29 @@
         "target": "http://172.17.0.24:30046/",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "bazarr-exporter",
+      "name": "Bazarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "description": "Exportarr metrics for Bazarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bazarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },
@@ -1385,6 +1412,29 @@
       }
     },
     {
+      "id": "lidarr-exporter",
+      "name": "Lidarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "description": "Exportarr metrics for Lidarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "lidarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "litellm",
       "name": "LiteLLM",
       "kind": "gateway",
@@ -2308,6 +2358,29 @@
       }
     },
     {
+      "id": "prowlarr-exporter",
+      "name": "Prowlarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "description": "Exportarr metrics for Prowlarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prowlarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "pyroscope",
       "name": "Grafana Pyroscope",
       "kind": "continuous-profiler",
@@ -2355,6 +2428,29 @@
       }
     },
     {
+      "id": "qbittorrent-exporter",
+      "name": "qBittorrent exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/qbittorrent-exporter/compose.yml",
+      "description": "Prometheus metrics of qBittorrent (speeds, torrents by state, ratio) read through the Gluetun namespace; its scrape also proves the VPN namespace still answers.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "qbittorrent-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "radarr",
       "name": "Radarr",
       "kind": "media-manager",
@@ -2383,6 +2479,29 @@
         "target": "http://172.17.0.24:30025/ping",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "radarr-exporter",
+      "name": "Radarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/radarr/compose.yml",
+      "description": "Exportarr metrics for Radarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "radarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },
@@ -2734,6 +2853,29 @@
         "target": "http://172.17.0.24:30113/ping",
         "conditions": [
           "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "sonarr-exporter",
+      "name": "Sonarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "description": "Exportarr metrics for Sonarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sonarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },
@@ -3152,6 +3294,16 @@
     },
     {
       "source": "alloy",
+      "target": "docker-socket-proxy",
+      "type": "dependsOn",
+      "strength": "optional",
+      "description": "Alloy tails the logs of containers labelled com.albandrieu.nabla.logs through the read-only Docker API proxy.",
+      "evidence": [
+        "apps/grafana/config/alloy.alloy:loki.source.docker"
+      ]
+    },
+    {
+      "source": "alloy",
       "target": "loki",
       "type": "storesIn",
       "strength": "required",
@@ -3288,6 +3440,36 @@
       "description": "Traefik exposes the UI only through bazarr.int.albandrieu.com.",
       "evidence": [
         "apps/bazarr/compose.yml:traefik.http.routers.bazarr"
+      ]
+    },
+    {
+      "source": "bazarr-exporter",
+      "target": "bazarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the Bazarr API with the instance API key.",
+      "evidence": [
+        "apps/bazarr/compose.yml:URL=http://bazarr:6767"
+      ]
+    },
+    {
+      "source": "bazarr-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/bazarr/compose.yml:bazarr-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "bazarr-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes bazarr-exporter:9707 (job exportarr_bazarr).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=exportarr_bazarr"
       ]
     },
     {
@@ -4123,6 +4305,16 @@
     },
     {
       "source": "jellyfin",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the native Jellyfin /metrics endpoint (job jellyfin).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=jellyfin"
+      ]
+    },
+    {
+      "source": "jellyfin",
       "target": "traefik",
       "type": "exposedBy",
       "strength": "optional",
@@ -4460,6 +4652,36 @@
       "description": "Traefik exposes the UI only through lidarr.int.albandrieu.com.",
       "evidence": [
         "apps/lidarr/compose.yml:traefik.http.routers.lidarr"
+      ]
+    },
+    {
+      "source": "lidarr-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/lidarr/compose.yml:lidarr-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "lidarr-exporter",
+      "target": "lidarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the Lidarr API with the instance API key.",
+      "evidence": [
+        "apps/lidarr/compose.yml:URL=http://lidarr:8686"
+      ]
+    },
+    {
+      "source": "lidarr-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes lidarr-exporter:9707 (job exportarr_lidarr).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=exportarr_lidarr"
       ]
     },
     {
@@ -5398,6 +5620,36 @@
       ]
     },
     {
+      "source": "prowlarr-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/prowlarr/compose.yml:prowlarr-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "prowlarr-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes prowlarr-exporter:9707 (job exportarr_prowlarr).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=exportarr_prowlarr"
+      ]
+    },
+    {
+      "source": "prowlarr-exporter",
+      "target": "prowlarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the Prowlarr API with the instance API key.",
+      "evidence": [
+        "apps/prowlarr/compose.yml:URL=http://prowlarr:9696"
+      ]
+    },
+    {
       "source": "pyroscope",
       "target": "docker",
       "type": "hostedBy",
@@ -5458,6 +5710,36 @@
       ]
     },
     {
+      "source": "qbittorrent-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/qbittorrent-exporter/compose.yml:qbittorrent-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "qbittorrent-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes qbittorrent-exporter:8090 (job qbittorrent).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=qbittorrent"
+      ]
+    },
+    {
+      "source": "qbittorrent-exporter",
+      "target": "qbittorrent",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the qBittorrent WebUI API with a dedicated API key.",
+      "evidence": [
+        "apps/qbittorrent-exporter/compose.yml:QBITTORRENT_BASE_URL"
+      ]
+    },
+    {
       "source": "radarr",
       "target": "docker",
       "type": "hostedBy",
@@ -5495,6 +5777,36 @@
       "description": "Traefik exposes the UI only through radarr.int.albandrieu.com.",
       "evidence": [
         "apps/radarr/compose.yml:traefik.http.routers.radarr"
+      ]
+    },
+    {
+      "source": "radarr-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/radarr/compose.yml:radarr-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "radarr-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes radarr-exporter:9707 (job exportarr_radarr).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=exportarr_radarr"
+      ]
+    },
+    {
+      "source": "radarr-exporter",
+      "target": "radarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the Radarr API with the instance API key.",
+      "evidence": [
+        "apps/radarr/compose.yml:URL=http://radarr:7878"
       ]
     },
     {
@@ -5935,6 +6247,36 @@
       "description": "Traefik exposes the UI only through sonarr.int.albandrieu.com.",
       "evidence": [
         "apps/sonarr/compose.yml:traefik.http.routers.sonarr"
+      ]
+    },
+    {
+      "source": "sonarr-exporter",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sonarr/compose.yml:sonarr-exporter.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "sonarr-exporter",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes sonarr-exporter:9707 (job exportarr_sonarr).",
+      "evidence": [
+        "apps/prometheus/prometheus.yml:job_name=exportarr_sonarr"
+      ]
+    },
+    {
+      "source": "sonarr-exporter",
+      "target": "sonarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The exporter reads the Sonarr API with the instance API key.",
+      "evidence": [
+        "apps/sonarr/compose.yml:URL=http://sonarr:8989"
       ]
     },
     {

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:08f8514d9780e4df5219eed3a9cac92043948d64cb1d21896aef48c26988bd8c",
+  "catalogRevision": "sha256:6936590bc6649c02ef77e084abab0cd9711242c71dea66143c8bf22b5e16e0ff",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -339,6 +339,38 @@
         "dependsOn": [
           "component:default/radarr",
           "component:default/sonarr"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/bazarr-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/bazarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Exportarr metrics exporter for Bazarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "bazarr-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "Bazarr exporter"
+      },
+      "sourcePath": "apps/bazarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/bazarr"
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
@@ -2138,6 +2170,38 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/lidarr-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/lidarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Exportarr metrics exporter for Lidarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "lidarr-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "Lidarr exporter"
+      },
+      "sourcePath": "apps/lidarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/lidarr"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/litellm",
       "kind": "Component",
       "metadata": {
@@ -3494,6 +3558,38 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prowlarr-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/prowlarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Exportarr metrics exporter for Prowlarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "prowlarr-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "Prowlarr exporter"
+      },
+      "sourcePath": "apps/prowlarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/prowlarr"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/pyroscope",
       "kind": "Component",
       "metadata": {
@@ -3568,6 +3664,38 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/qbittorrent-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/qbittorrent-exporter/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Prometheus exporter for qBittorrent, outside the VPN namespace.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "qbittorrent-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "qBittorrent exporter"
+      },
+      "sourcePath": "apps/qbittorrent-exporter/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/radarr",
       "kind": "Component",
       "metadata": {
@@ -3590,6 +3718,38 @@
       "spec": {
         "dependsOn": [
           "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/radarr-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/radarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Exportarr metrics exporter for Radarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "radarr-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "Radarr exporter"
+      },
+      "sourcePath": "apps/radarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/radarr"
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
@@ -4486,6 +4646,38 @@
       "spec": {
         "dependsOn": [
           "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sonarr-exporter",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sonarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Exportarr metrics exporter for Sonarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "sonarr-exporter",
+        "tags": [
+          "media",
+          "observability"
+        ],
+        "title": "Sonarr exporter"
+      },
+      "sourcePath": "apps/sonarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/sonarr"
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",

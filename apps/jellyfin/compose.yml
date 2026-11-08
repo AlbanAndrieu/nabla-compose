@@ -45,6 +45,12 @@ services:
           description: Traefik exposes Jellyfin only through jellyfin.int.albandrieu.com.
           evidence:
             - apps/jellyfin/compose.yml:traefik.http.routers.jellyfin
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes the native Jellyfin /metrics endpoint (job jellyfin).
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=jellyfin
     devices:
       - /dev/dri:/dev/dri
     security_opt:
@@ -79,6 +85,7 @@ services:
       start_period: 90s
     labels:
       com.albandrieu.nabla.entity-ref: component:default/jellyfin
+      com.albandrieu.nabla.logs: media
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.jellyfin.rule: Host(`jellyfin.int.albandrieu.com`)

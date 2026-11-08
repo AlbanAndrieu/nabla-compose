@@ -1,0 +1,58 @@
+# *arr media stack alerts (docs/arr-media-library-roadmap.md).
+# Targets keep operational_state=planned until each App is deployed: planned
+# targets never page. Exporter availability is covered by
+# NablaExporterTargetDown (nabla-core.rules.yml). Metric names are those of
+# Exportarr v2.3.0 and qbittorrent-exporter v2.0.4 pinned in the Compose files.
+groups:
+  - name: media-stack
+    rules:
+      - alert: MediaAppHealthIssue
+        expr: >-
+          sum by (job, source, type) (
+            {__name__=~"(radarr|sonarr|lidarr|prowlarr|bazarr)_system_health_issues"}
+          ) > 0
+        for: 30m
+        labels:
+          severity: warning
+          scope: media
+          impact: degraded
+        annotations:
+          summary: "{{ $labels.job }} reports a health issue"
+          description: >-
+            {{ $labels.job }} has reported the {{ $labels.type }} health check
+            {{ $labels.source }} for thirty minutes (indexer, download client,
+            root folder or update problem). Open the System > Status page.
+
+      - alert: MediaQueueItemsInError
+        expr: >-
+          sum by (job) (
+            {__name__=~"(radarr|sonarr|lidarr)_queue_total", download_status=~"warning|error"}
+          ) > 0
+        for: 2h
+        labels:
+          severity: info
+          scope: media
+          impact: degraded
+        annotations:
+          summary: "{{ $labels.job }} queue has items in warning or error"
+          description: >-
+            {{ $value }} queue item(s) of {{ $labels.job }} stayed in warning or
+            error for two hours (import blocked, stalled or unregistered torrent).
+
+      - alert: MediaDatasetNearlyFull
+        expr: >-
+          node_filesystem_avail_bytes{job="truenas_node",mountpoint="/mnt/cpool/media"}
+          / node_filesystem_size_bytes{job="truenas_node",mountpoint="/mnt/cpool/media"}
+          < 0.10
+        for: 30m
+        labels:
+          severity: warning
+          scope: media
+          impact: capacity
+        annotations:
+          summary: cpool/media is above 90% of its quota
+          description: >-
+            Less than 10% of the cpool/media quota is free. Downloads and imports
+            will fail at 100%; the quota protects the rest of cpool. Clean the
+            library or raise quotaPercentOfPool in
+            config/truenas/dataset-profiles.json.

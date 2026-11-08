@@ -89,6 +89,7 @@ services:
       start_period: 60s
     labels:
       com.albandrieu.nabla.entity-ref: component:default/seerr
+      com.albandrieu.nabla.logs: media
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.seerr.rule: Host(`seerr.int.albandrieu.com`)

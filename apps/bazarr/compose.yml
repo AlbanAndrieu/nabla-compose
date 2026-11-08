@@ -81,6 +81,7 @@ services:
       start_period: 60s
     labels:
       com.albandrieu.nabla.entity-ref: component:default/bazarr
+      com.albandrieu.nabla.logs: media
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.bazarr.rule: Host(`bazarr.int.albandrieu.com`)
@@ -92,6 +93,62 @@ services:
       - media
       - traefik_network
 
+  bazarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
+    container_name: bazarr-exporter
+    restart: unless-stopped
+    command:
+      - bazarr
+    x-nabla:
+      id: bazarr-exporter
+      name: Bazarr exporter
+      kind: metrics-exporter
+      category: observability
+      status: planned
+      presentationRole: support
+      criticality: low
+      description: >-
+        Exportarr metrics for Bazarr (library, queue, health issues) scraped
+        by Prometheus over the intranet network.
+      runtime:
+        provider: truenas-app
+        containerService: bazarr-exporter
+      lifecycle:
+        phase: applications
+        priority: 90
+      relations:
+        - target: bazarr
+          type: consumesApi
+          strength: required
+          description: The exporter reads the Bazarr API with the instance API key.
+          evidence:
+            - apps/bazarr/compose.yml:URL=http://bazarr:6767
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes bazarr-exporter:9707 (job exportarr_bazarr).
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=exportarr_bazarr
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      # API_KEY: same Vaultwarden field as the Bazarr instance key.
+      - /mnt/cpool/secrets/runtime/bazarr/.env.secrets
+    environment:
+      PORT: "9707"
+      URL: http://bazarr:6767
+      LOG_LEVEL: info
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/bazarr-exporter
+      com.albandrieu.nabla.logs: media
+    networks:
+      - media
+      - intranet
+
 networks:
   media:
     external: true
@@ -99,3 +156,6 @@ networks:
   traefik_network:
     external: true
     name: traefik_network
+  intranet:
+    external: true
+    name: intranet

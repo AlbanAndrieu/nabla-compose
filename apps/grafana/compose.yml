@@ -189,6 +189,12 @@ services:
           description: Alloy tails Suricata JSON logs when available.
           evidence:
             - apps/grafana/compose.yml:SURICATA_LOG_DIR
+        - target: docker-socket-proxy
+          type: dependsOn
+          strength: optional
+          description: Alloy tails the logs of containers labelled com.albandrieu.nabla.logs through the read-only Docker API proxy.
+          evidence:
+            - apps/grafana/config/alloy.alloy:loki.source.docker
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -212,7 +218,15 @@ services:
         source: ${SURICATA_LOG_DIR:-/mnt/cpool/suricata/log}
         target: /var/log/suricata
         read_only: true
+    networks:
+      - default
+      - docker-proxy
     depends_on:
       - loki
       - mimir
       - tempo
+
+networks:
+  docker-proxy:
+    external: true
+    name: docker-proxy

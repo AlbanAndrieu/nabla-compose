@@ -1,0 +1,83 @@
+---
+# Desired application settings of the *arr media stack that OpenTofu cannot
+# manage with a maintained provider (terraform/media owns root folders,
+# Radarr/Sonarr download clients and Prowlarr applications).
+#
+# Reconciled by scripts/media/reconcile-media-settings.py --check|--apply.
+# Partial merge: only the keys declared here are compared and written; every
+# other setting stays as configured in the UI. No secret lives in this file:
+# credentials come from the operator environment (Vaultwarden).
+version: 1
+
+qbittorrent:
+  url: https://qbittorrent.int.albandrieu.com
+  preferences:
+    # Peer privacy: encryption required, anonymous mode, no LAN discovery.
+    encryption: 1
+    anonymous_mode: true
+    lsd: false
+    # Gluetun owns the listening port (NAT-PMP) and the interface binding.
+    upnp: false
+    random_port: false
+    # Gluetun's UP/DOWN commands call the API from 127.0.0.1.
+    bypass_local_auth: true
+    bypass_auth_subnet_whitelist_enabled: false
+    web_ui_csrf_protection_enabled: true
+    web_ui_clickjacking_protection_enabled: true
+    web_ui_host_header_validation_enabled: true
+    # No code execution from a torrent event.
+    autorun_enabled: false
+    autorun_on_torrent_added_enabled: false
+    excluded_file_names_enabled: true
+    excluded_file_names: "*.exe\n*.scr\n*.lnk\n*.bat\n*.cmd\n*.com\n*.msi\n*.vbs\n*.ps1\n*.js"
+    # Shared /data dataset (hardlinks); POSIX-compliant disk IO on ZFS.
+    save_path: /data/torrents
+    temp_path_enabled: true
+    temp_path: /data/torrents/incomplete
+    disk_io_type: 2
+  categories:
+    movies: /data/torrents/movies
+    tv: /data/torrents/tv
+    music: /data/torrents/music
+
+prowlarr:
+  url: https://prowlarr.int.albandrieu.com
+  # Global proxy: every indexer request leaves through the Gluetun HTTP proxy.
+  # proxyUsername/proxyPassword come from HTTPPROXY_USER/HTTPPROXY_PASSWORD.
+  host:
+    proxyEnabled: true
+    proxyType: http
+    proxyHostname: gluetun
+    proxyPort: 8888
+    proxyBypassFilter: radarr,sonarr,lidarr,*.int.albandrieu.com
+    proxyBypassLocalAddresses: true
+
+lidarr:
+  url: https://lidarr.int.albandrieu.com
+  root_folder:
+    name: Music
+    path: /data/library/music
+  download_client:
+    name: qBittorrent
+    implementation: QBittorrent
+    fields:
+      host: gluetun
+      port: 8080
+      useSsl: false
+      musicCategory: music
+
+jellyfin:
+  url: https://jellyfin.int.albandrieu.com
+  system:
+    # Native Prometheus endpoint scraped by job "jellyfin".
+    EnableMetrics: true
+  libraries:
+    - name: Films
+      collectionType: movies
+      path: /data/library/movies
+    - name: Séries
+      collectionType: tvshows
+      path: /data/library/tv
+    - name: Musique
+      collectionType: music
+      path: /data/library/music

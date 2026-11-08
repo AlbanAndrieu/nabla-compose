@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:08f8514d9780e4df5219eed3a9cac92043948d64cb1d21896aef48c26988bd8c",
+  "catalogRevision": "sha256:6936590bc6649c02ef77e084abab0cd9711242c71dea66143c8bf22b5e16e0ff",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -53,6 +53,12 @@
       "entityRef": "component:default/bazarr",
       "evidence": "apps/bazarr/compose.yml:services.bazarr.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/bazarr/compose.yml#services/bazarr",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/bazarr-exporter",
+      "evidence": "apps/bazarr/compose.yml:services.bazarr-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/bazarr/compose.yml#services/bazarr-exporter",
       "sourceType": "compose"
     },
     {
@@ -356,6 +362,12 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/lidarr-exporter",
+      "evidence": "apps/lidarr/compose.yml:services.lidarr-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/lidarr/compose.yml#services/lidarr-exporter",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/litellm",
       "evidence": "apps/litellm/compose.yml:services.litellm.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/litellm/compose.yml#services/litellm",
@@ -614,15 +626,33 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/prowlarr-exporter",
+      "evidence": "apps/prowlarr/compose.yml:services.prowlarr-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/prowlarr/compose.yml#services/prowlarr-exporter",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/pyroscope",
       "evidence": "apps/pyroscope/compose.yml:services.pyroscope.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/pyroscope/compose.yml#services/pyroscope",
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/qbittorrent-exporter",
+      "evidence": "apps/qbittorrent-exporter/compose.yml:services.qbittorrent-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/qbittorrent-exporter/compose.yml#services/qbittorrent-exporter",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/radarr",
       "evidence": "apps/radarr/compose.yml:services.radarr.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/radarr/compose.yml#services/radarr",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/radarr-exporter",
+      "evidence": "apps/radarr/compose.yml:services.radarr-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/radarr/compose.yml#services/radarr-exporter",
       "sourceType": "compose"
     },
     {
@@ -815,6 +845,12 @@
       "entityRef": "component:default/sonarr",
       "evidence": "apps/sonarr/compose.yml:services.sonarr.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/sonarr/compose.yml#services/sonarr",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/sonarr-exporter",
+      "evidence": "apps/sonarr/compose.yml:services.sonarr-exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/sonarr/compose.yml#services/sonarr-exporter",
       "sourceType": "compose"
     },
     {

@@ -126,6 +126,18 @@
       "description": "Planned subtitle manager of the media stack."
     },
     {
+      "id": "bazarr-exporter",
+      "entityRef": "component:default/bazarr-exporter",
+      "name": "Bazarr exporter",
+      "group": "media",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "composeService": "bazarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Bazarr."
+    },
+    {
       "id": "bichon",
       "entityRef": "component:default/bichon",
       "name": "Bichon UI",
@@ -711,6 +723,18 @@
       "description": "Planned Lidarr instance of the media stack (media-manager)."
     },
     {
+      "id": "lidarr-exporter",
+      "entityRef": "component:default/lidarr-exporter",
+      "name": "Lidarr exporter",
+      "group": "media",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "composeService": "lidarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Lidarr."
+    },
+    {
       "id": "litellm",
       "entityRef": "component:default/litellm",
       "name": "LiteLLM",
@@ -1233,6 +1257,18 @@
       "description": "Planned Prowlarr instance of the media stack (indexer-manager)."
     },
     {
+      "id": "prowlarr-exporter",
+      "entityRef": "component:default/prowlarr-exporter",
+      "name": "Prowlarr exporter",
+      "group": "media",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "composeService": "prowlarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Prowlarr."
+    },
+    {
       "id": "pyroscope",
       "entityRef": "component:default/pyroscope",
       "name": "Grafana Pyroscope",
@@ -1257,6 +1293,18 @@
       "description": "Planned BitTorrent client confined to the Gluetun network namespace."
     },
     {
+      "id": "qbittorrent-exporter",
+      "entityRef": "component:default/qbittorrent-exporter",
+      "name": "qBittorrent exporter",
+      "group": "media",
+      "sourcePath": "apps/qbittorrent-exporter/compose.yml",
+      "composeService": "qbittorrent-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Prometheus exporter for qBittorrent, outside the VPN namespace."
+    },
+    {
       "id": "radarr",
       "entityRef": "component:default/radarr",
       "name": "Radarr",
@@ -1267,6 +1315,18 @@
       "href": "https://radarr.int.albandrieu.com",
       "syncEligible": false,
       "description": "Planned Radarr instance of the media stack (media-manager)."
+    },
+    {
+      "id": "radarr-exporter",
+      "entityRef": "component:default/radarr-exporter",
+      "name": "Radarr exporter",
+      "group": "media",
+      "sourcePath": "apps/radarr/compose.yml",
+      "composeService": "radarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Radarr."
     },
     {
       "id": "recyclarr",
@@ -1608,6 +1668,18 @@
       "href": "https://sonarr.int.albandrieu.com",
       "syncEligible": false,
       "description": "Planned Sonarr instance of the media stack (media-manager)."
+    },
+    {
+      "id": "sonarr-exporter",
+      "entityRef": "component:default/sonarr-exporter",
+      "name": "Sonarr exporter",
+      "group": "media",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "composeService": "sonarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Sonarr."
     },
     {
       "id": "squid",

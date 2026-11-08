@@ -95,6 +95,7 @@ services:
         app_protocol: http
     labels:
       com.albandrieu.nabla.entity-ref: component:default/gluetun
+      com.albandrieu.nabla.logs: media
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.qbittorrent.rule: Host(`qbittorrent.int.albandrieu.com`)
@@ -177,6 +178,7 @@ services:
       start_period: 60s
     labels:
       com.albandrieu.nabla.entity-ref: component:default/qbittorrent
+      com.albandrieu.nabla.logs: media
 
 networks:
   media:

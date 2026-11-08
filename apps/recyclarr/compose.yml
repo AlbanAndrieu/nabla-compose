@@ -57,6 +57,7 @@ services:
       - ./config/recyclarr.yml:/config/recyclarr.yml:ro
     labels:
       com.albandrieu.nabla.entity-ref: component:default/recyclarr
+      com.albandrieu.nabla.logs: media
     networks:
       - media
 

@@ -70,6 +70,50 @@ loki.source.file "security" {
   }
 }
 
+// Docker container logs, opt-in per container with the label
+// com.albandrieu.nabla.logs=<role> (for example "media"). Read-only Docker API
+// through the socket proxy (CONTAINERS/EVENTS/INFO only, POST=0); containers
+// without the label are never tailed.
+discovery.docker "labelled" {
+  host = "tcp://docker-socket-proxy:2375"
+
+  filter {
+    name   = "label"
+    values = ["com.albandrieu.nabla.logs"]
+  }
+}
+
+discovery.relabel "labelled_logs" {
+  targets = discovery.docker.labelled.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_albandrieu_nabla_logs"]
+    target_label  = "role"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_albandrieu_nabla_entity_ref"]
+    target_label  = "entity_ref"
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+}
+
+loki.source.docker "labelled" {
+  host       = "tcp://docker-socket-proxy:2375"
+  targets    = discovery.relabel.labelled_logs.output
+  forward_to = [loki.write.default.receiver]
+}
+
 loki.write "default" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"

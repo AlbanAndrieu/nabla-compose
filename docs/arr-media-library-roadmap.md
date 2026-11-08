@@ -519,9 +519,11 @@ noms suivent [TRaSH Guides](https://trash-guides.info/File-and-Folder-Structure/
      Appliquer avec le plan OpenTofu du P0 Cloudflare de
      [`roadmap.md`](roadmap.md), après revue du plan.
    - Les enregistrements DNS des sept noms (`radarr`, `sonarr`, `prowlarr`,
-     `lidarr`, `transmission`, `sabnzbd`, `emby`) **ne sont pas gérés par
-     OpenTofu** : les supprimer dans le tableau de bord Cloudflare, ou les
-     importer puis les détruire par un plan relu.
+     `lidarr`, `transmission`, `sabnzbd`, `emby`) sont désormais gérés par
+     OpenTofu (`terraform/cloudflare/dns-policy.yaml`, `CODED` le 8 novembre) :
+     inventaire en lecture seule avec `scripts/cloudflare/capture-dns-records.py`,
+     plan d'adoption, puis plan de retrait `dns_retirement_phase=retire`
+     ([README Cloudflare](../terraform/cloudflare/README.md#dns-as-code-enregistrements-publics)).
 
    **Clôture :** NXDOMAIN pour les sept noms depuis un client externe ; plan
    OpenTofu appliqué avec approbation.
@@ -588,12 +590,16 @@ noms suivent [TRaSH Guides](https://trash-guides.info/File-and-Folder-Structure/
 
 ### P1 — Stockage
 
-1. Mesurer l'espace libre et la topologie de `cpool`, puis fixer la taille du
-   quota (D3).
-2. Créer `cpool/media` via le middleware TrueNAS, avec le preset APPS, le
-   quota, les propriétés ZFS et l'arborescence du §7.
-3. Ne créer aucune tâche de snapshot fréquente. Si une politique est retenue, la
-   déclarer dans `config/truenas/snapshot-tasks.json`.
+1. Mesurer l'espace libre et la topologie de `cpool`, puis valider
+   `quotaPercentOfPool` (40 % par défaut) dans
+   [`config/truenas/dataset-profiles.json`](../config/truenas/dataset-profiles.json).
+2. `sudo bash scripts/truenas/bootstrap-repository-storage.sh --check media`,
+   puis `--apply` : création du dataset (preset APPS), propriétés ZFS, quota et
+   arborescence via le middleware (`CODED` le 8 novembre). Le script de
+   déploiement l'appelle aussi.
+3. Snapshots : `cpool/media` et `cpool/jellyfin-cache` sont dans `noSnapshot`
+   et les configurations des Apps dans `app-state`
+   ([`snapshot-tasks.json`](../config/truenas/snapshot-tasks.json)).
 4. Tester un hardlink entre `torrents/` et `library/` depuis deux conteneurs
    jetables qui montent `/data`.
 
@@ -698,9 +704,10 @@ négatif).
 
 ### P6 — Exploitation et compléments
 
-- **Supervision.** Gatus (`/ping` des \*arr ; serveur de contrôle Gluetun en
-  interne seulement). Prometheus via Exportarr **ou** Scraparr. Dozzle via le
-  proxy du socket Docker, déjà en roadmap.
+- **Supervision** (`CODED` le 8 novembre, détail au §10.1) : Exportarr par App,
+  exporter qBittorrent séparé, métriques natives Jellyfin, règles
+  `media.rules.yml`, tableau Grafana *Nabla Media Stack*, journaux Loki via
+  Alloy. Gatus surveille les sondes déclarées dès le passage en `active`.
 - **Détection de fuite par Suricata.** Vérifier que la catégorie ET Open P2P
   est chargée sur `br0`. Le trafic légitime du namespace est du WireGuard
   chiffré : toute signature BitTorrent vue en clair sur `br0` est une fuite.
@@ -743,6 +750,7 @@ automatique tant que la recette n'est pas faite.
 | `recyclarr` | [`compose.yml`](../apps/recyclarr/compose.yml), [`recyclarr.yml`](../apps/recyclarr/config/recyclarr.yml) | 8.8.1 | — | — |
 | `jellyfin` | [`compose.yml`](../apps/jellyfin/compose.yml) | 10.11.11 | 30013 | `jellyfin.int` |
 | `seerr` | [`compose.yml`](../apps/seerr/compose.yml) | v3.5.1 | 30357 | `seerr.int` |
+| `qbittorrent-exporter` | [`compose.yml`](../apps/qbittorrent-exporter/compose.yml) | 2.0.4 | — | — |
 
 Choix d'implémentation :
 
@@ -789,6 +797,51 @@ Suivis hors de ce dépôt ou après suppression des PoC :
 - Réglages UI non pilotables par variables : proxy Prowlarr, authentification
   Bazarr, réglages qBittorrent ([README](../apps/media-acquisition/README.md)).
 
+### 10.1 IaC et télémétrie (`CODED` le 8 novembre)
+
+| Domaine | Source déclarative | Outil (check / apply) |
+| --- | --- | --- |
+| DNS public | `local.tunnel_ingress` + [`dns-policy.yaml`](../terraform/cloudflare/dns-policy.yaml) | OpenTofu `terraform/cloudflare` (module `dns-records`, test hors ligne), [`capture-dns-records.py`](../scripts/cloudflare/capture-dns-records.py) en lecture seule |
+| Dataset `cpool/media` | [`dataset-profiles.json`](../config/truenas/dataset-profiles.json) | `bootstrap-repository-storage.sh` (`scripts/lib/dataset-profiles.sh`) |
+| Snapshots | [`snapshot-tasks.json`](../config/truenas/snapshot-tasks.json) | réconciliation existante des tâches |
+| Apps TrueNAS | `apps/<app>/compose.yml` | `deploy-media-stack.sh` (`lib/app-deploy.sh`, `NABLA_RUNTIME_CHANGE_APPROVED=yes`) |
+| Câblage \*arr | [`terraform/media`](../terraform/media/README.md) | OpenTofu (providers `devopsarr` Radarr, Sonarr, Prowlarr) |
+| Réglages qBittorrent, proxy Prowlarr, Lidarr, Jellyfin | [`config/media/settings.yml`](../config/media/settings.yml) | [`reconcile-media-settings.py`](../scripts/media/reconcile-media-settings.py) (fusion partielle) |
+| Profils de qualité | [`recyclarr.yml`](../apps/recyclarr/config/recyclarr.yml) | Recyclarr planifié |
+
+Télémétrie :
+
+- **Métriques** : Exportarr v2.3.0 en sidecar de Prowlarr, Radarr, Sonarr,
+  Lidarr et Bazarr (même fichier de secrets que l'App, `API_KEY` lu depuis le
+  même champ Vaultwarden) ; `apps/qbittorrent-exporter` séparé pour ne jamais
+  partager le fichier qui contient la clé WireGuard ; `/metrics` natif de
+  Jellyfin (`EnableMetrics` réglé par le réconciliateur). Sept jobs Prometheus
+  en `operational_state: planned`, couverts par `NablaExporterTargetDown`.
+- **Alertes** ([`media.rules.yml`](../apps/prometheus/rules/media.rules.yml)) :
+  problèmes de santé \*arr, éléments de file en erreur, quota `cpool/media`
+  au-delà de 90 %.
+- **Tableau** : `apps/grafana/config/dashboards/media/media-stack.json`
+  (cibles, débit via VPN, bibliothèque, files, santé, Prowlarr, CPU et mémoire
+  cAdvisor, journaux Gluetun et erreurs).
+- **Journaux** : libellé `com.albandrieu.nabla.logs: media` sur chaque
+  conteneur ; Alloy les collecte via le proxy Docker en lecture seule
+  (`discovery.docker` + `loki.source.docker`), sans jamais monter le socket.
+- **Disponibilité** : sondes Gatus générées depuis `x-nabla.monitoring` dès que
+  les services passent en `active`.
+
+Ordre de déploiement mis à jour :
+
+1. Suppression des PoC, puis `reconcile-custom-apps.py --capture` pour sortir
+   leurs noms de `catalog_native` et déclarer les Apps média dans
+   `config/truenas/custom-apps.yml`.
+2. DNS : capture, adoption, retrait (deux plans relus).
+3. Stockage : `bootstrap-repository-storage.sh --check|--apply`.
+4. Apps, une à la fois : `deploy-media-stack.sh --check`, puis `--apply`.
+5. Réglages : `reconcile-media-settings.py --check|--apply`, puis
+   `terraform/media` (plan, apply).
+6. Recette du §9, passage en `active`, retrait des libellés
+   `operational_state: planned` dans `prometheus.yml`.
+
 ## 11. Risques résiduels et questions ouvertes
 
 **Risques résiduels :**
@@ -813,11 +866,19 @@ Suivis hors de ce dépôt ou après suppression des PoC :
 - espace libre de `cpool` et taille du quota de `cpool/media` (D3) ;
 - modèle exact de l'iGPU, pour le transcodage.
 
-**Limites de cette analyse :** les dernières versions des images n'ont pas
-pu être relevées (API GitHub non accessible depuis cette session). Elles
-seront épinglées par digest et suivies par Renovate à l'implémentation.
-Pour Gluetun, viser au minimum la version qui corrige le blocage du port
-forwarding avec les commandes UP/DOWN (annoncé pour la 3.41.3, à vérifier).
+**Limites de validation (8 novembre) :**
+
+- `promtool` n'a pas pu être exécuté dans la session (téléchargement refusé) :
+  la syntaxe PromQL de `media.rules.yml` et des nouveaux jobs est vérifiée par
+  la CI, pas localement.
+- La configuration Alloy n'a pas été validée par le binaire `alloy` ; à
+  contrôler au premier redémarrage d'Alloy (`/-/healthy`, composants
+  `loki.source.docker` sains).
+- Exportarr v2.3.0 (août 2025) reste la dernière version publiée ; ses noms de
+  métriques ont été vérifiés dans le source de ce tag.
+- Le module `terraform/media` et le réconciliateur ont été testés avec des
+  clients simulés seulement : premier plan et premier `--check` à relire sur
+  les instances réelles.
 
 ## 12. Usenet (D4) : de quoi s'agit-il ?
 

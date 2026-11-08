@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:fc37e315c328eedbafd4cb61381fb465e014642285309053e7623a1ad5b5d684",
+  "catalogRevision": "sha256:32a5cc7dbc5e4232a1f134d160868113803ed93cebe00d8bbc04101e457f502c",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -143,7 +143,11 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "containerService": "alloy"
+        "containerService": "alloy",
+        "networks": [
+          "default",
+          "docker-proxy"
+        ]
       },
       "icon": "🧬"
     },
@@ -240,6 +244,30 @@
         "networks": [
           "media",
           "traefik_network"
+        ]
+      }
+    },
+    {
+      "id": "bazarr-exporter",
+      "name": "Bazarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "composeService": "bazarr-exporter",
+      "description": "Exportarr metrics for Bazarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bazarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },
@@ -1332,6 +1360,30 @@
       }
     },
     {
+      "id": "lidarr-exporter",
+      "name": "Lidarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "composeService": "lidarr-exporter",
+      "description": "Exportarr metrics for Lidarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "lidarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "litellm",
       "name": "LiteLLM",
       "kind": "gateway",
@@ -2209,6 +2261,30 @@
       }
     },
     {
+      "id": "prowlarr-exporter",
+      "name": "Prowlarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "composeService": "prowlarr-exporter",
+      "description": "Exportarr metrics for Prowlarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prowlarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "pyroscope",
       "name": "Grafana Pyroscope",
       "kind": "continuous-profiler",
@@ -2258,6 +2334,30 @@
       }
     },
     {
+      "id": "qbittorrent-exporter",
+      "name": "qBittorrent exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/qbittorrent-exporter/compose.yml",
+      "composeService": "qbittorrent-exporter",
+      "description": "Prometheus metrics of qBittorrent (speeds, torrents by state, ratio) read through the Gluetun namespace; its scrape also proves the VPN namespace still answers.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "qbittorrent-exporter",
+        "networks": [
+          "intranet",
+          "media"
+        ]
+      }
+    },
+    {
       "id": "radarr",
       "name": "Radarr",
       "kind": "media-manager",
@@ -2287,6 +2387,30 @@
         "networks": [
           "media",
           "traefik_network"
+        ]
+      }
+    },
+    {
+      "id": "radarr-exporter",
+      "name": "Radarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/radarr/compose.yml",
+      "composeService": "radarr-exporter",
+      "description": "Exportarr metrics for Radarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "radarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },
@@ -2645,6 +2769,30 @@
         "networks": [
           "media",
           "traefik_network"
+        ]
+      }
+    },
+    {
+      "id": "sonarr-exporter",
+      "name": "Sonarr exporter",
+      "kind": "metrics-exporter",
+      "category": "observability",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "composeService": "sonarr-exporter",
+      "description": "Exportarr metrics for Sonarr (library, queue, health issues) scraped by Prometheus over the intranet network.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sonarr-exporter",
+        "networks": [
+          "intranet",
+          "media"
         ]
       }
     },

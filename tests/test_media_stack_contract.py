@@ -15,8 +15,9 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 MEDIA_APPS = (
     "media-acquisition", "prowlarr", "radarr", "sonarr", "lidarr",
-    "bazarr", "recyclarr", "jellyfin", "seerr",
+    "bazarr", "recyclarr", "jellyfin", "seerr", "qbittorrent-exporter",
 )
+EXPORTARR = ("prowlarr", "radarr", "sonarr", "lidarr", "bazarr")
 SERVARR = ("prowlarr", "radarr", "sonarr", "lidarr")
 PINNED = re.compile(r"^[a-z0-9./-]+:v?\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$")
 LAN_IP = "172.17.0.24"
@@ -45,7 +46,8 @@ def test_every_media_service_is_planned_pinned_and_catalogued() -> None:
         assert PINNED.match(service["image"]), (name, service["image"])
         meta = service["x-nabla"]
         assert meta["id"] == name
-        assert meta["category"] == "media"
+        expected = "observability" if name.endswith("-exporter") else "media"
+        assert meta["category"] == expected, name
         assert meta["status"] == "planned", "activate only after the roadmap acceptance tests"
         assert meta["runtime"] == {"provider": "truenas-app", "containerService": name}
         labels = service["labels"]
@@ -72,6 +74,9 @@ def test_only_gluetun_holds_network_privileges() -> None:
 def test_qbittorrent_has_no_egress_outside_the_vpn_namespace() -> None:
     stack = compose("media-acquisition")["services"]
     assert set(stack) == {"gluetun", "qbittorrent"}, "nothing else may join the VPN namespace"
+    for name, (_, service) in services().items():
+        if name != "qbittorrent":
+            assert service.get("network_mode") is None, name
     qbit = stack["qbittorrent"]
     assert qbit["network_mode"] == "service:gluetun"
     assert "ports" not in qbit and "networks" not in qbit
@@ -149,3 +154,34 @@ def test_deploy_script_refuses_native_apps_and_never_pulls() -> None:
     assert not re.search(r"^\s*docker pull", script, re.MULTILINE)
     for app in MEDIA_APPS:
         assert app in script, app
+
+
+def test_every_media_container_ships_logs_and_exposes_metrics() -> None:
+    for name, (_, service) in services().items():
+        assert service["labels"]["com.albandrieu.nabla.logs"] == "media", name
+    prometheus = yaml.safe_load((ROOT / "apps/prometheus/prometheus.yml").read_text(encoding="utf-8"))
+    targets = {
+        job["job_name"]: job["static_configs"][0]["targets"]
+        for job in prometheus["scrape_configs"] if job.get("static_configs")
+    }
+    for app in EXPORTARR:
+        exporter = compose(app)["services"][f"{app}-exporter"]
+        assert exporter["command"] == [app]
+        assert exporter["read_only"] is True and exporter["cap_drop"] == ["ALL"]
+        assert "intranet" in exporter["networks"] and "ports" not in exporter
+        assert targets[f"exportarr_{app}"] == [f"{app}-exporter:9707"]
+    assert targets["qbittorrent"] == ["qbittorrent-exporter:8090"]
+    assert targets["jellyfin"] == [f"{LAN_IP}:30013"]
+    alloy = (ROOT / "apps/grafana/config/alloy.alloy").read_text(encoding="utf-8")
+    assert 'values = ["com.albandrieu.nabla.logs"]' in alloy
+    assert 'host = "tcp://docker-socket-proxy:2375"' in alloy
+    assert "unix:///var/run/docker.sock" not in alloy
+    dashboard = (ROOT / "apps/grafana/config/dashboards/media/media-stack.json").read_text(encoding="utf-8")
+    assert '"uid": "nabla_media_stack"' in dashboard
+
+
+def test_qbittorrent_exporter_never_sees_the_wireguard_key() -> None:
+    exporter = compose("qbittorrent-exporter")["services"]["qbittorrent-exporter"]
+    assert exporter["env_file"] == ["/mnt/cpool/secrets/runtime/qbittorrent-exporter/.env.secrets"]
+    assert exporter.get("network_mode") is None
+    assert env(exporter)["QBITTORRENT_BASE_URL"] == "http://gluetun:8080"

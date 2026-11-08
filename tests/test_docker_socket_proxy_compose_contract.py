@@ -14,6 +14,7 @@ CONSUMERS = {
     "apps/homarr/compose.yml": "homarr",
     "apps/watchtower/compose.yml": "watchtower",
     "apps/gatus/compose.yml": "gatus",
+    "apps/grafana/compose.yml": "alloy",
 }
 WRITE_ENDPOINTS = ("POST", "EXEC", "BUILD", "COMMIT", "SECRETS", "VOLUMES", "SWARM", "NODES", "PLUGINS", "SYSTEM")
 

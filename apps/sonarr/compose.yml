@@ -87,6 +87,7 @@ services:
       start_period: 60s
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sonarr
+      com.albandrieu.nabla.logs: media
       traefik.enable: "true"
       traefik.docker.network: traefik_network
       traefik.http.routers.sonarr.rule: Host(`sonarr.int.albandrieu.com`)
@@ -98,6 +99,62 @@ services:
       - media
       - traefik_network
 
+  sonarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
+    container_name: sonarr-exporter
+    restart: unless-stopped
+    command:
+      - sonarr
+    x-nabla:
+      id: sonarr-exporter
+      name: Sonarr exporter
+      kind: metrics-exporter
+      category: observability
+      status: planned
+      presentationRole: support
+      criticality: low
+      description: >-
+        Exportarr metrics for Sonarr (library, queue, health issues) scraped
+        by Prometheus over the intranet network.
+      runtime:
+        provider: truenas-app
+        containerService: sonarr-exporter
+      lifecycle:
+        phase: applications
+        priority: 90
+      relations:
+        - target: sonarr
+          type: consumesApi
+          strength: required
+          description: The exporter reads the Sonarr API with the instance API key.
+          evidence:
+            - apps/sonarr/compose.yml:URL=http://sonarr:8989
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes sonarr-exporter:9707 (job exportarr_sonarr).
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=exportarr_sonarr
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      # API_KEY: same Vaultwarden field as the Sonarr instance key.
+      - /mnt/cpool/secrets/runtime/sonarr/.env.secrets
+    environment:
+      PORT: "9707"
+      URL: http://sonarr:8989
+      LOG_LEVEL: info
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sonarr-exporter
+      com.albandrieu.nabla.logs: media
+    networks:
+      - media
+      - intranet
+
 networks:
   media:
     external: true
@@ -105,3 +162,6 @@ networks:
   traefik_network:
     external: true
     name: traefik_network
+  intranet:
+    external: true
+    name: intranet

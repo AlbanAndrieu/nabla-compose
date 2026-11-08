@@ -16,7 +16,8 @@ SCRIPT = ROOT / "scripts" / "truenas" / "apply-keycloak-config.sh"
 def _keycloak_rules() -> list[tuple[str | None, str]]:
     text = TUNNEL.read_text(encoding="utf-8")
     rules = []
-    for block in re.findall(r"(?ms)^      \{\n(.*?)^      \},\n", text):
+    # Route objects of local.tunnel_ingress (one item per four-space block).
+    for block in re.findall(r"(?ms)^    \{\n(.*?)^    \},\n", text):
         host = re.search(r'hostname\s*=\s*"([^"]+)"', block)
         if not host or host.group(1) != "keycloak.albandrieu.com":
             continue

@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 source "${SCRIPT_DIR}/../lib/app-deploy.sh"
 truenas_repo_provenance "$(git rev-parse --show-toplevel)"
 
-MEDIA_APPS=(media-acquisition prowlarr radarr sonarr lidarr bazarr recyclarr jellyfin seerr)
+MEDIA_APPS=(media-acquisition prowlarr radarr sonarr lidarr bazarr recyclarr jellyfin seerr qbittorrent-exporter)
 MEDIA_NETWORK="media"
 MEDIA_DATASET="cpool/media"
 

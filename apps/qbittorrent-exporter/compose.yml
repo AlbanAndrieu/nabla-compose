@@ -1,0 +1,70 @@
+---
+# qBittorrent metrics of the *arr media stack (status planned).
+# A separate App on purpose: inside apps/media-acquisition it would share the
+# runtime env file holding the WireGuard private key. It reaches the WebUI
+# through gluetun:8080 with a dedicated qBittorrent API key and never joins the
+# VPN namespace. Design: docs/arr-media-library-roadmap.md
+name: qbittorrent-exporter
+
+services:
+  qbittorrent-exporter:
+    image: ghcr.io/martabal/qbittorrent-exporter:v2.0.4@sha256:9289fc5ad5cef7af6af5af5ab5ed7b8d609827490ba374df858905d66da7ec5f
+    container_name: qbittorrent-exporter
+    restart: unless-stopped
+    x-nabla:
+      id: qbittorrent-exporter
+      name: qBittorrent exporter
+      kind: metrics-exporter
+      category: observability
+      status: planned
+      presentationRole: support
+      criticality: low
+      description: >-
+        Prometheus metrics of qBittorrent (speeds, torrents by state, ratio)
+        read through the Gluetun namespace; its scrape also proves the VPN
+        namespace still answers.
+      runtime:
+        provider: truenas-app
+        containerService: qbittorrent-exporter
+      lifecycle:
+        phase: applications
+        priority: 90
+      relations:
+        - target: qbittorrent
+          type: consumesApi
+          strength: required
+          description: The exporter reads the qBittorrent WebUI API with a dedicated API key.
+          evidence:
+            - apps/qbittorrent-exporter/compose.yml:QBITTORRENT_BASE_URL
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes qbittorrent-exporter:8090 (job qbittorrent).
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=qbittorrent
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      # QBITTORRENT_API_KEY from Vaultwarden item nabla/prod/qbittorrent-exporter.
+      - /mnt/cpool/secrets/runtime/qbittorrent-exporter/.env.secrets
+    environment:
+      QBITTORRENT_BASE_URL: http://gluetun:8080
+      QBITTORRENT_TIMEOUT: "15"
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/qbittorrent-exporter
+      com.albandrieu.nabla.logs: media
+    networks:
+      - media
+      - intranet
+
+networks:
+  media:
+    external: true
+    name: media
+  intranet:
+    external: true
+    name: intranet

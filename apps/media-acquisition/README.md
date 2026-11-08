@@ -29,22 +29,31 @@ sudo bash scripts/truenas/deploy-media-stack.sh --check media-acquisition
 sudo bash scripts/truenas/deploy-media-stack.sh --apply media-acquisition
 ```
 
-## qBittorrent settings (WebUI, once)
+## qBittorrent settings (as code)
 
-Read the temporary WebUI password with `sudo docker logs qbittorrent`, then:
+Read the temporary WebUI password with `sudo docker logs qbittorrent`, set a
+strong password in the WebUI and store it in Vaultwarden
+(`QBITTORRENT_WEBUI_PASSWORD`). Every other setting is declared in
+[`config/media/settings.yml`](../../config/media/settings.yml) and converged by:
 
-- Web UI: set a strong password (store it in Vaultwarden), keep CSRF and Host
-  header validation enabled, enable **Bypass authentication for clients on
-  localhost** (required by the Gluetun UP/DOWN commands).
-- Connection: disable UPnP / NAT-PMP; do not set a fixed listening port.
-- BitTorrent: encryption **Require**, anonymous mode on, local peer discovery off.
-- Downloads: default save path `/data/torrents`, incomplete files in
-  `/data/torrents/incomplete`, categories `movies`, `tv` and `music` saving to
-  `/data/torrents/<category>`.
-- Excluded file names: `*.exe`, `*.scr`, `*.lnk`, `*.bat`, `*.cmd`, `*.com`,
-  `*.msi`, `*.vbs`, `*.ps1`, `*.js`.
-- Never configure "Run external program".
-- Advanced: disk IO type **POSIX-compliant** (ZFS).
+```bash
+scripts/quality/python-with-repo-deps.sh scripts/media/reconcile-media-settings.py --check --app qbittorrent
+scripts/quality/python-with-repo-deps.sh scripts/media/reconcile-media-settings.py --apply --app qbittorrent
+```
+
+It covers encryption required, anonymous mode, no UPnP/LSD, localhost bypass
+for the Gluetun UP/DOWN commands, CSRF/Host/clickjacking protections, no
+external program, excluded executable extensions, `/data/torrents` paths, the
+`movies`/`tv`/`music` categories and POSIX disk IO. Gluetun keeps ownership of
+the listening port and network interface.
+
+## Telemetry
+
+- Metrics: `apps/qbittorrent-exporter` (separate App, never in this namespace,
+  API key `QBITTORRENT_API_KEY` created in the WebUI), Prometheus job
+  `qbittorrent`, Grafana dashboard *Nabla Media Stack*.
+- Logs: both containers carry `com.albandrieu.nabla.logs: media`; Alloy ships
+  them to Loki (`{container="gluetun"}` shows tunnel, DNS and port events).
 
 ## Acceptance
 
