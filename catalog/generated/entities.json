@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c3d58377d9e2b3be4d9ad8a2d57c48368d5aaa759ff687409dc97e4ec25187be",
+  "catalogRevision": "sha256:08f8514d9780e4df5219eed3a9cac92043948d64cb1d21896aef48c26988bd8c",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -309,6 +309,38 @@
           "component:default/docker-socket-proxy"
         ],
         "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/bazarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/bazarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned subtitle manager of the media stack.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "bazarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Bazarr"
+      },
+      "sourcePath": "apps/bazarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/radarr",
+          "component:default/sonarr"
+        ],
+        "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
@@ -1374,6 +1406,36 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/gluetun",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/media-acquisition/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned WireGuard VPN gateway and kill switch for the media download namespace.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "gluetun",
+        "tags": [
+          "media",
+          "vpn",
+          "network"
+        ],
+        "title": "Gluetun"
+      },
+      "sourcePath": "apps/media-acquisition/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/grafana",
       "kind": "Component",
       "metadata": {
@@ -1708,6 +1770,34 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/jellyfin",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/jellyfin/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned LAN media server of the media stack with a read-only library.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "jellyfin",
+        "tags": [
+          "media"
+        ],
+        "title": "Jellyfin"
+      },
+      "sourcePath": "apps/jellyfin/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/joplin",
       "kind": "Component",
       "metadata": {
@@ -2013,6 +2103,37 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "productivity-service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/lidarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/lidarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Lidarr instance of the media stack (media-manager).",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "lidarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Lidarr"
+      },
+      "sourcePath": "apps/lidarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -3342,6 +3463,37 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/prowlarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/prowlarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Prowlarr instance of the media stack (indexer-manager).",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "prowlarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Prowlarr"
+      },
+      "sourcePath": "apps/prowlarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/gluetun"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/pyroscope",
       "kind": "Component",
       "metadata": {
@@ -3383,6 +3535,98 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/qbittorrent",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/media-acquisition/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned BitTorrent client confined to the Gluetun network namespace.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "qbittorrent",
+        "tags": [
+          "media",
+          "download"
+        ],
+        "title": "qBittorrent"
+      },
+      "sourcePath": "apps/media-acquisition/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/radarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/radarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Radarr instance of the media stack (media-manager).",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "radarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Radarr"
+      },
+      "sourcePath": "apps/radarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/recyclarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/recyclarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned scheduled sync of TRaSH quality profiles into Radarr and Sonarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "recyclarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Recyclarr"
+      },
+      "sourcePath": "apps/recyclarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/radarr",
+          "component:default/sonarr"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -3583,6 +3827,39 @@
         "subcomponentOf": "component:default/scrutiny",
         "system": "system:default/nabla-homelab",
         "type": "collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/seerr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/seerr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned LAN request manager connected to Jellyfin, Radarr and Sonarr.",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "seerr",
+        "tags": [
+          "media"
+        ],
+        "title": "Seerr"
+      },
+      "sourcePath": "apps/seerr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/radarr",
+          "component:default/sonarr",
+          "component:default/jellyfin"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -4183,6 +4460,37 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "code-quality"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sonarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sonarr/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Planned Sonarr instance of the media stack (media-manager).",
+        "labels": {
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "planned"
+        },
+        "name": "sonarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Sonarr"
+      },
+      "sourcePath": "apps/sonarr/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "component:default/qbittorrent"
+        ],
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
