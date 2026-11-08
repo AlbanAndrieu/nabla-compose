@@ -1040,7 +1040,7 @@
         "provider": "truenas-app",
         "containerService": "homeassistant",
         "networks": [
-          "iot_macvlan",
+          "intranet",
           "traefik"
         ]
       }
@@ -1150,9 +1150,9 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
-      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "keycloak",
         "containerService": "keycloak",
         "networks": [
           "intranet"
@@ -2044,6 +2044,26 @@
         "target": "http://172.17.0.24:30233/metrics",
         "host": "172.17.0.24",
         "port": 30233
+      }
+    },
+    {
+      "id": "postgres-backup",
+      "name": "PostgreSQL Backup",
+      "kind": "database-backup",
+      "category": "data",
+      "sourcePath": "apps/postgres-backup/compose.yml",
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "host",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -3209,6 +3229,16 @@
       ]
     },
     {
+      "source": "dependency-track-api",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the Dependency-Track API server metrics endpoint.",
+      "evidence": [
+        "apps/dependency-track/compose.yml:ALPINE_METRICS_ENABLED"
+      ]
+    },
+    {
       "source": "docker",
       "target": "truenas",
       "type": "hostedBy",
@@ -4216,6 +4246,16 @@
     },
     {
       "source": "netbox",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the NetBox metrics endpoint.",
+      "evidence": [
+        "apps/netbox/compose.yml:METRICS_ENABLED"
+      ]
+    },
+    {
+      "source": "netbox",
       "target": "redis",
       "type": "storesIn",
       "strength": "required",
@@ -4807,6 +4847,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/portracker/compose.yml:portracker.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "postgres-backup",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Dumps the listed databases from the shared PostgreSQL service with the read-only pgbackup role.",
+      "evidence": [
+        "apps/postgres-backup/compose.yml:POSTGRES_HOST"
       ]
     },
     {

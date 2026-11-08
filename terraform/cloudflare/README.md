@@ -108,8 +108,9 @@ Exception unique (04/11/2026) : le changement de
 [le runbook de remédiation des sondes](../../docs/runbooks/2026-11-04-probe-remediation.md#1-routes-tunnel-des-services-internes)
 (20 en 403 Default-Deny, plus `garage-admin`, `bichon`, `clamav`) et, depuis
 le 05/11/2026, la route `litellm.albandrieu.com` ; `keycloak.albandrieu.com`
-devient une route limitée au `path` `^/(realms|resources|\.well-known)/`
-suivie d'un `http_status:404`. Vérifier dans le plan que les `ingress`
+devient trois règles : `^/realms/master(/|$)` → `http_status:404` (realm
+d'administration, 6 novembre), `^/(realms|resources|\.well-known)/` vers
+l'origine, puis `http_status:404`. Vérifier dans le plan que les `ingress`
 modifiés sont exactement ceux-là et qu'aucune autre route ne change.
 
 ## 3. Apply (accord explicite du propriétaire)

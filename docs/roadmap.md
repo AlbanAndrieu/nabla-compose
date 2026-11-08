@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **6 novembre 2026**. Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
+> Mise à jour : **8 novembre 2026**. Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
 ## Règles de suivi
 
@@ -9,24 +9,53 @@
 - L'observation Cloudflare `DENIED`/`challenge`, un diagnostic non exécuté, ou une absence de télémétrie ne deviennent pas des services DOWN.
 - Avant chaque mutation : sauvegarde, plan en lecture seule, accord opérateur, preuve de retour arrière. La quality gate locale s'exécute sans CI payante.
 
+## Suivi consolidé — état du code et réception (8 novembre 2026)
+
+| Chantier | État du code | Preuve runtime et prochain contrôle |
+| --- | --- | --- |
+| Catalogue / moniteurs (#326, #327) | **CODED** : appId natifs corrigés, alarmes des Apps `planned` / `disabled` exclues des alertes d'indisponibilité ; Gatus et Prometheus restent distincts | **NOT_VERIFIED** après déploiement : vérifier `app.query`, Gatus frais et `/api/homelab/status` |
+| OpenClaw TrueNAS (#314, #323) | **CODED**, anciens scripts Workstation mutateurs retirés de Compose (#330) | **ACCEPTED** le 03–05/11 pour Gateway, Telegram/WhatsApp, LiteLLM, heartbeat/digest ; revérifier absence de doublons et rollback lors de tout changement |
+| Vaultwarden / secrets | **CODED** : audit sans valeurs et procédure de clôture ; référence historique de 43 Apps / 117 champs déclarés | **NOT_VERIFIED globalement** : item → fichier canonique `0600` → conteneur ; `homarr-sync` exige `HOMARR_API_KEY` et non l'ancien jeton |
+| PostgreSQL logique (#330) | **CODED** : job `postgres-backup`, contrôle `pg_restore --list`, SHA-256, 14 j, rôle `pgbackup` et cron créé **désactivé** | **NOT_VERIFIED** : sauvegarde manuelle + restauration sur cible séparée, avant toute activation du cron |
+| Keycloak et Home Assistant (#330) | **CODED** : realm `nabla`, refus `master` au Tunnel ; HA bridge et bootstrap DB commun | **NOT_VERIFIED** : démarrage contrôlé, import realm avec autorisation, migration recorder et tests négatifs Cloudflare |
+| Apps en attente (#330) | **CODED** : `rollout-pending-apps.sh` `--plan/--check/--apply`, scripts PostgreSQL partagés, métriques NetBox/Dependency-Track déclarées | **NOT_VERIFIED** : préflight sur TrueNAS puis déploiement **une App à la fois** avec accord, preuve de rollback |
+| DefectDojo / sécurité | **CODED** : import et normalisation des rapports outillés | **NOT_VERIFIED** : réception API/Celery et déduplication sans données sensibles |
+
+Les champs et nombres ci-dessus sont des **états déclaratifs datés**, pas un inventaire de santé temps réel. Les anciens comptes d'alertes ne sont pas des pannes actuelles. Un service écarté du rendu Gatus faute de déploiement n'est pas `PASS` ; il est `NOT_RUN` / `planned`.
+
 ## P0 — Réception du catalogue et des sondes (PR #326)
 
 [PR Compose #326](https://github.com/AlbanAndrieu/nabla-compose/pull/326) : les `appId` de `graylog`, `bitcoind`, `elasticsearch` (`elastic-search`) et `hermes` (`hermes-agent`) sont **corrigés dans le code**, en conservant `containerService`. Cela supprime le double comptage `declared_only` + `observed_only` des Apps arrêtées, mais **ne les démarre pas**.
 
 | Priorité | Travail restant | Critère de clôture |
 | --- | --- | --- |
-| P0 | Fusionner la PR après `mise run agent-pre-push` et contrôle des générateurs sur le HEAD réel | L3 locale + parité du catalogue sans erreur de liaison |
+| P0 | Valider les changements de la PR #330 au HEAD rebasé, sans confondre génération de catalogue et santé effective | `generate-service-topology.py --check`, `generate-service-consumers.py --check`, `generate-catalog-v2-artifacts.py --check` et quality gate ciblée |
 | P0 | Diagnostiquer `graylog`, `lidarr`, `homarr`, ainsi que les Apps arrêtées `bitcoind` / `elastic-search` / `hermes-agent` ; respecter les arrêts volontaires | État TrueNAS et preuves HTTP/health concordants, sans forcer un démarrage |
 | P0 | Déployer sous contrôle `dependency-track`, `netbox`, `plumber`, `scanopy`, `joplin`, `ntopng` sur TrueNAS, si prérequis validés | `app.query` + `/api/homelab/status` = `in_sync` et sondes fraîches |
 | P1 | Trancher l'exposition externe de Joplin, actuellement `external=true` mais DNS uniquement privé | Contrat et politique Access/Traefik alignés sans ouverture non autorisée |
-| P1 | Conserver `aistor` et `wordpress` en `status: planned` ; les exclure des alertes d'indisponibilité | Les consommateurs affichent le statut planifié |
+| P1 | Garder AIStor et WordPress **retirés du catalogue** ; vérifier l'absence de consommateur et de snapshot avant toute éventuelle suppression de `cpool/aistor` | Plan de retrait, sauvegarde, vérification des tâches ZFS et approbation séparée ; aucune suppression automatique |
 | P1 | Migration du nom canonique `homeassistant`/`openwebui` via procédure TrueNAS, pas par simple changement d'`appId` | Sauvegarde et rollback attestés, middleware + URL + Access + données validés |
 
 Le [runbook des remédiations encore ouvertes](runbooks/2026-11-04-probe-remediation.md) contient **uniquement** les gestes non réceptionnés et le diagnostic des cas atypiques. Les identités canonisées, le mode pfSense `transport_only` et la décision de ne pas exempter Keycloak/LiteLLM au WAF sont des décisions **déjà intégrées**, pas des nouvelles tâches.
 
+## P0 — Keycloak, Home Assistant, PostgreSQL et Apps en attente (#330)
+
+| Ordre | Étape préparée dans Git | Gate indispensable avant mutation | Terminé quand |
+| --- | --- | --- | --- |
+| 1 | `bootstrap-app-postgres.sh --describe` puis `--check` ; `rollout-pending-apps.sh --plan` | Exécuter `sudo bash scripts/truenas/rollout-pending-apps.sh --check` sur TrueNAS ; aucun diagnostic refusé ne vaut validation | Parité des fichiers privés et prérequis Docker/middleware, sans mutation |
+| 2 | Keycloak : realm applicatif `nabla`, import via `apply-keycloak-config.sh` | Realm `master` jamais piloté, règles Tunnel ordonnées ; migration sauvegardée, autorisation explicite avant `--apply` | OIDC `nabla` sain en LAN ; `/realms/master/` refusé depuis Internet |
+| 3 | Home Assistant : `intranet` + `traefik`, base `homeassistant` sur PostgreSQL partagé | Sauvegarder et restaurer l'ancien recorder avant bascule, confirmer réseau bridge et limitations multicast IoT | Historique HA accessible, DB/recorder sans erreur et `app.query` concordant |
+| 4 | Backup PostgreSQL : `apps/postgres-backup`, rôle lecture seule, politique ZFS | Première sauvegarde manuelle vérifiée **et restauration indépendante** ; cron TrueNAS désactivé jusqu'à approbation | `pg_restore --list`, checksum, test de récupération, suivi `last-success` |
+| 5 | Apps : NetBox → Dependency-Track → Plumber → Scanopy → Joplin → ntopng | Un seul `--apply <app>` à la fois ; ordre révisé par opérateur, licence/interface approuvées pour ntopng ; aucune preuve de métriques tant qu'elles ne sont pas observées | `RUNNING` confirmé, Gatus frais ; `up{job="netbox"}=1` / `up{job="dependency_track"}=1` quand déployées |
+| 6 | Retirer Databasus après réconciliation des sauvegardes | Relever et préserver tout backup restant ; `app.stop` ne vaut pas autorisation de supprimer | Sauvegarde de substitution restaurable et retrait documenté |
+
+L'outillage **ne déploie pas** ces Apps à l'occasion du rebase. Le contrat `--check` implique une exécution en lecture seule ; `--apply` doit conserver la validation des paramètres et l'accord `NABLA_RUNTIME_CHANGE_APPROVED=yes`. La récupération du code de retour des sous-processus doit rester **fail-closed** et ne jamais afficher les logs privés. Les scripts de bootstrap/refactoring remplacent les duplications historiques sans supprimer les points d'entrée documentés.
+
+Références : [runbook de réception](runbooks/2026-11-04-probe-remediation.md), [migration des Apps du catalogue](runbooks/2026-11-06-catalog-apps-to-compose.md), [audit des secrets](runbooks/vaultwarden-migration-closure-20261106.md) et [synergies d'intégration](integration-synergies-20261107.md). Les synergies OIDC/SBOM/IPAM/SOAR sont **P2 proposées**, jamais des dépendances en production tant qu'elles ne sont pas vérifiées.
+
 ## P0 — Cloudflare, secrets et frontières d'accès
 
-1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, puis appliquer seulement avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md).
+1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, et la précédence du refus `/realms/master` avant les routes Keycloak publiques ; n'appliquer qu'avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md).
 2. **Service Auth observateur** : aligner les politiques des applications concernées sans `Bypass` général ; protéger le coffre web et `/admin` Vaultwarden en limitant les exceptions aux chemins clients. Recetter depuis un client externe avant retrait d'une ancienne politique.
 3. **Secrets** : prouver la concordance Vaultwarden → fichier canonique 0600 → environnement conteneur, sans afficher de valeur. Une ancienne session `BW_SESSION` exposée ne doit jamais être réutilisée. [Roadmap secrets](secrets-migration-roadmap.md).
 4. **OVH / FastAPI Cloud** : vérifier la nouvelle identité de lecture seule et les scopes ; `pfSense` y reste `transport_only` (contrat accepté) et la sonde Tavily `GET /usage` ne nécessite plus de migration.
@@ -55,14 +84,14 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 
 ## P1 — Séparation OpenClaw / Workstation / YubiKey
 
-- **Compose** garde LiteLLM TrueNAS, le réseau, les datasets, le catalogue et les contrats d'intégration ; **nabla-openclaw** devient propriétaire de la Gateway, du heartbeat, du cron et de leurs tests ; **ansible-workstation** garde les prérequis OS ; **nabla-yubikey** les politiques et diagnostics matériels.
-- [Plan de séparation inter-dépôts](roadmap-openclaw-yubikey-extraction-20261030.md) : la préparation Git ne démontre pas de cutover. Ne retirer aucun consommateur ni déplacer un gitlink sans preuve que les chemins historiques ne sont plus référencés et qu'un rollback fonctionne.
-- Gate OpenClaw : modèles disponibles sur LiteLLM TrueNAS, quotas RPM/TPM attestés, clés scindées main/cron, logs des deux proxys, politiques heartbeat/cron bornées et activées **une seule fois**, identité et session effectives vérifiées. Tant que la Gateway Workstation fonctionne, la bascule TrueNAS est `NOT_VERIFIED`.
-- Gate YubiKey : sauvegardes age/SOPS restaurables sur supports distincts ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite.
+- `nabla-openclaw` possède Gateway, heartbeat, cron et tests ; `nabla-compose` conserve LiteLLM, réseau, datasets, inventaire et rollback ; `ansible-workstation` gère le système d'exploitation.
+- Le cutover OpenClaw TrueNAS est **ACCEPTED historiquement (03–05/11)**. Ne pas rouvrir le chantier Workstation ; vérifier, lors des changements, qu'une seule Gateway/planification est active. Les anciennes tâches/mutateurs Workstation sont supprimés du dépôt ; le rollback reste documenté.
+- [Roadmap inter-dépôts et historique](roadmap-openclaw-yubikey-extraction-20261030.md), [roadmap OpenClaw historique](openclaw-workstation-roadmap.md). Les fonctions Slack/Discord demeurent désactivées jusqu'à validation distincte.
+- `nabla-yubikey` conserve le cycle matériel et les politiques ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite. Les sauvegardes age/SOPS doivent rester restaurables sur supports distincts.
 
 ## P1 — Fiabilité des scripts et documentation
 
-- Remplacer les scripts de déploiement à mutation implicite par des contrats explicites `--check` / `--apply` et une preuve de non-mutation en préflight. En particulier, `ntopng` dépend d'une licence Enterprise, d'une identité ClickHouse limitée et de l'interface réseau approuvée.
+- **CODED dans #330** : extractions `scripts/lib/postgres.sh` et `scripts/lib/app-deploy.sh`, wrappers historiques conservés, `rollout-pending-apps.sh` plan/check/apply avec sortie expurgée et code de retour réel. La réception runtime reste ouverte. Contrôler ensuite `deploy-autokuma.sh`, `deploy-docling.sh` et `deploy-bitcoind.sh` pour les réconciliations inline ; `ntopng` nécessite licence Enterprise et interface réseau explicitement approuvées.
 - Factoriser les primitives de diagnostic Docker/HTTP seulement si les scénarios d'erreur, le journal expurgé et le refus des opérations mixtes sont couverts par tests.
 - Exécuter `just agent-skills-check`, `just quality` et `mise run agent-pre-push` sur un worktree non root au HEAD exact. Des échecs identiques à `master` dus au DNS ou à un utilisateur root ne valent pas une gate PASS.
 - `Ask the user` avant d'installer des skills externes. Aucun nouveau skill Talos ou Docker n'est installé implicitement.
@@ -85,9 +114,3 @@ Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrat
 `nabla-compose` : infrastructure déclarative ; `fastapi-sample` : sondes et statuts ; `nabla-site-alban` : rendu utilisateur. Le contrat `entityRef`/`catalogRevision` est partagé, mais aucune logique de déploiement ne doit se déplacer vers les sites.
 
 **DONE global** : catalogue et topology générés sans dérive, politiques d'accès conformes, services obligatoires prouvés `ACCEPTED (runtime)`, migrations de dépôts sans doublons et récupération testée. Toute ligne sans preuve demeure ouverte.
-
-## P1 — Remédiation des sondes et migration des Custom Apps (6 novembre 2026)
-
-La PR [#327](https://github.com/AlbanAndrieu/nabla-compose/pull/327) code la transition de moniteurs Gatus/Prometheus sur services `planned` ou `disabled`, ainsi que les configurations préparatoires des Apps Dockhand et ddns-updater. Aucune bascule runtime n'est effectuée par la PR : les migrations restent conditionnées aux sauvegardes, au plan de retour arrière et à l'approbation explicite de l'opérateur. Voir [le runbook dédié](runbooks/2026-11-06-catalog-apps-to-compose.md).
-
-L'acceptation doit distinguer les moniteurs exclus intentionnellement du rendu actif, les cibles Prometheus observées et la santé applicative réelle. Les observations du 6 novembre sont historiques et ne prouvent pas l'état courant.

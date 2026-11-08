@@ -157,6 +157,10 @@ Create/reconcile the dedicated role and database:
 sudo -E bash scripts/truenas/bootstrap-security-tooling-postgres.sh --apply netbox
 ```
 
+`bootstrap-security-tooling-postgres.sh` is a compatibility wrapper around the
+consolidated `scripts/truenas/bootstrap-app-postgres.sh` (same modes, same
+role/database table; `--describe <app>` prints the contract without root).
+
 The helper must prove all of the following before deployment:
 
 - dedicated role exists;

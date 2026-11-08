@@ -12,10 +12,10 @@ services:
       category: security
       presentationRole: core
       criticality: critical
-      status: planned
       description: Central OIDC/SAML identity provider backed by the shared PostgreSQL service.
       runtime:
         provider: truenas-app
+        appId: keycloak
         containerService: keycloak
       monitoring:
         type: http

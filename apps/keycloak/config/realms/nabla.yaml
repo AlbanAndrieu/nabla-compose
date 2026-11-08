@@ -1,0 +1,46 @@
+# Application realm managed by keycloak-config-cli
+# (scripts/truenas/apply-keycloak-config.sh). The `master` realm stays an
+# administration-only realm: it is not published by the Cloudflare Tunnel and
+# no application client may be created in it.
+#
+# Keep this file free of secrets: client secrets and identity-provider
+# credentials are injected at import time with $(env:NAME) substitution.
+realm: nabla
+enabled: true
+displayName: Nabla
+# HTTPS is required for every client that is not on a private network.
+sslRequired: external
+registrationAllowed: false
+registrationEmailAsUsername: false
+resetPasswordAllowed: false
+rememberMe: false
+editUsernameAllowed: false
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+verifyEmail: false
+# Brute-force detection with temporary lockout (no permanent lockout to avoid
+# a trivial denial of service on known usernames).
+bruteForceProtected: true
+permanentLockout: false
+failureFactor: 5
+waitIncrementSeconds: 60
+maxFailureWaitSeconds: 900
+maxDeltaTimeSeconds: 43200
+# Short-lived tokens and bounded SSO sessions.
+accessTokenLifespan: 300
+ssoSessionIdleTimeout: 1800
+ssoSessionMaxLifespan: 36000
+offlineSessionIdleTimeout: 2592000
+revokeRefreshToken: true
+refreshTokenMaxReuse: 0
+passwordPolicy: "length(14) and notUsername and notEmail and passwordHistory(5)"
+# Browser security headers served on realm pages.
+browserSecurityHeaders:
+  contentSecurityPolicy: "frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
+  xFrameOptions: SAMEORIGIN
+  xContentTypeOptions: nosniff
+  strictTransportSecurity: "max-age=31536000; includeSubDomains"
+  referrerPolicy: no-referrer
+eventsEnabled: true
+adminEventsEnabled: true
+adminEventsDetailsEnabled: false
