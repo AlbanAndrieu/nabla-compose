@@ -60,6 +60,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
       # Keycloak: publish only the production endpoints recommended by
       # https://www.keycloak.org/server/reverseproxy (OIDC realms, assets,
       # discovery). /admin/, /metrics, /health and the root stay internal.
+      # The master realm is administration-only: it is refused first
+      # (rules are evaluated top to bottom, the first match wins).
+      {
+        hostname       = "keycloak.albandrieu.com"
+        path           = "^/realms/master(/|$)"
+        origin_request = {}
+        service        = "http_status:404"
+      },
       {
         hostname       = "keycloak.albandrieu.com"
         path           = "^/(realms|resources|\\.well-known)/"

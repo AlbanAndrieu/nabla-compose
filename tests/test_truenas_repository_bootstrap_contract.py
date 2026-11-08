@@ -116,6 +116,12 @@ def test_repository_runtime_bootstrap_orders_storage_before_env_files() -> None:
     assert '|| status=1' in script
 
 
+APP_DEPLOY_LIB = ROOT / "scripts" / "lib" / "app-deploy.sh"
+TRUENAS_LIB = ROOT / "scripts" / "lib" / "truenas.sh"
+APP_POSTGRES = ROOT / "scripts" / "truenas" / "bootstrap-app-postgres.sh"
+POSTGRES_LIB = ROOT / "scripts" / "lib" / "postgres.sh"
+
+
 def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
     script = script_path.read_text(encoding="utf-8")
     canonical = "/mnt/cpool/compose/nabla-compose"
@@ -123,13 +129,24 @@ def assert_canonical_custom_app_deploy(script_path: Path, app: str) -> str:
     assert canonical in script
     assert 'bootstrap-repository-runtime.sh --apply "${APP_ID}"' in script
     assert 'bootstrap-repository-runtime.sh --check "${APP_ID}"' in script
-    # Jobs go through the shared truenas_job_compact helper (midclt call -j).
-    assert "truenas_job_compact app.create" in script
-    assert "truenas_job_compact app.update" in script
     assert f"apps/{app}/compose.yml" in script
-    assert "custom_compose_config_string" in script
-    assert "custom_compose_config" in script
-    assert "include:" in script
+    if "app_deploy_reconcile" in script:
+        # Shared deploy contract: reconciliation lives in lib/app-deploy.sh on
+        # top of lib/truenas.sh, with the same middleware payloads.
+        assert "lib/app-deploy.sh" in script
+        assert "app_deploy_mode" in script
+        assert "app_deploy_check_report" in script
+        reconcile = APP_DEPLOY_LIB.read_text(encoding="utf-8") + TRUENAS_LIB.read_text(encoding="utf-8")
+        assert "truenas_reconcile_custom_app" in reconcile
+        assert "NABLA_RUNTIME_CHANGE_APPROVED" in reconcile
+    else:
+        reconcile = script
+    # Jobs go through the shared truenas_job_compact helper (midclt call -j).
+    assert "truenas_job_compact app.create" in reconcile
+    assert "truenas_job_compact app.update" in reconcile
+    assert "custom_compose_config_string" in reconcile
+    assert "custom_compose_config" in reconcile
+    assert "include:" in reconcile
     return script
 
 
@@ -147,22 +164,34 @@ def test_scanopy_deploy_reconciles_runtime_shared_postgres_and_custom_app() -> N
     assert "/mnt/cpool/scanopy/postgres" not in compose
 
 
-def test_scanopy_shared_postgres_bootstrap_is_idempotent_and_fail_closed() -> None:
-    script = SCANOPY_POSTGRES.read_text(encoding="utf-8")
+def assert_shared_postgres_bootstrap(wrapper: Path, app: str) -> None:
+    """The per-app wrappers delegate to the consolidated, idempotent bootstrap."""
+    wrapper_text = wrapper.read_text(encoding="utf-8")
+    script = APP_POSTGRES.read_text(encoding="utf-8")
+    library = POSTGRES_LIB.read_text(encoding="utf-8")
 
-    assert 'EXPECTED_HOST="${SCANOPY_POSTGRES_HOST:-172.17.0.24}"' in script
-    assert 'EXPECTED_PORT="${SCANOPY_POSTGRES_PORT:-5432}"' in script
-    assert 'EXPECTED_DB="${SCANOPY_POSTGRES_DB:-scanopy}"' in script
-    assert 'EXPECTED_USER="${SCANOPY_POSTGRES_USER:-scanopy}"' in script
-    assert "com.docker.compose.project=ix-postgres" in script
-    assert "CREATE ROLE scanopy LOGIN PASSWORD" in script
-    assert "ALTER ROLE scanopy PASSWORD" in script
-    assert "CREATE DATABASE scanopy OWNER scanopy" in script
-    assert "ALTER DATABASE scanopy OWNER TO scanopy" in script
-    assert "SCANOPY_DATABASE_URL password differs from POSTGRES_PASSWORD" in script
-    assert "Scanopy role cannot authenticate to the shared PostgreSQL database" in script
-    assert "shared PostgreSQL ready for Scanopy" in script
-    assert 'printf "%s" "${scanopy_password}"' not in script
+    assert f'bootstrap-app-postgres.sh" "${{1:---check}}" {app}' in wrapper_text
+    assert f"{app.upper()}_SECRETS_FILE" in wrapper_text
+    assert 'EXPECTED_HOST="${NABLA_POSTGRES_HOST:-172.17.0.24}"' in script
+    assert 'EXPECTED_PORT="${NABLA_POSTGRES_PORT:-5432}"' in script
+    assert "secrets_assert_file" in script
+    assert "secrets_get_value" in script
+    assert "com.docker.compose.project=ix-postgres" in library
+    assert "CREATE ROLE %I LOGIN PASSWORD %L" in library
+    assert "ALTER ROLE %I PASSWORD %L" in library
+    assert "CREATE DATABASE %I OWNER %I" in library
+    assert "ALTER DATABASE %I OWNER TO %I" in library
+    assert "dedicated role cannot authenticate to the shared PostgreSQL database" in script
+    assert "shared PostgreSQL ready app=" in script
+    assert 'printf "%s" "${db_password}"' not in script
+
+
+def test_scanopy_shared_postgres_bootstrap_is_idempotent_and_fail_closed() -> None:
+    assert_shared_postgres_bootstrap(SCANOPY_POSTGRES, "scanopy")
+    script = APP_POSTGRES.read_text(encoding="utf-8")
+
+    assert 'URL_KEY="SCANOPY_DATABASE_URL"' in script
+    assert "password differs from ${SECRET_KEY}" in script
 
 
 def test_autokuma_deploy_reconciles_runtime_and_custom_app() -> None:
@@ -195,25 +224,17 @@ def test_joplin_deploy_requires_postgres_secret_and_custom_app() -> None:
 
 
 def test_joplin_shared_postgres_bootstrap_is_idempotent_and_fail_closed() -> None:
-    script = JOPLIN_POSTGRES.read_text(encoding="utf-8")
-
-    assert 'EXPECTED_HOST="${JOPLIN_POSTGRES_HOST:-172.17.0.24}"' in script
-    assert 'EXPECTED_PORT="${JOPLIN_POSTGRES_PORT:-5432}"' in script
-    assert 'EXPECTED_DB="${JOPLIN_POSTGRES_DB:-joplin}"' in script
-    assert 'EXPECTED_USER="${JOPLIN_POSTGRES_USER:-joplin}"' in script
-    assert "secrets_assert_file" in script
-    assert "secrets_get_value" in script
-    assert "CREATE ROLE joplin LOGIN PASSWORD" in script
-    assert "ALTER ROLE joplin PASSWORD" in script
-    assert "CREATE DATABASE joplin OWNER joplin" in script
-    assert "ALTER DATABASE joplin OWNER TO joplin" in script
-    assert "Joplin role cannot authenticate to the shared PostgreSQL database" in script
+    assert_shared_postgres_bootstrap(JOPLIN_POSTGRES, "joplin")
 
 
 def test_first_wave_acceptance_stages_before_finalize() -> None:
     script = FIRST_WAVE.read_text(encoding="utf-8")
 
     assert "--check | --stage | --accept" in script
+    # --accept deploys; the deployers default to read-only --check.
+    assert "deploy-scanopy.sh --apply" in script
+    assert "deploy-joplin.sh --apply" in script
+    assert "NABLA_RUNTIME_CHANGE_APPROVED" in script
     assert 'stage_service "${app}"' in script
     assert 'deploy_service "${app}"' in script
     assert 'functional_probe "${app}"' in script
