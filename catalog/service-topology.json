@@ -216,6 +216,38 @@
       }
     },
     {
+      "id": "bazarr",
+      "name": "Bazarr",
+      "kind": "subtitle-manager",
+      "category": "media",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "url": "https://bazarr.int.albandrieu.com",
+      "internalUrl": "http://bazarr:6767",
+      "description": "Subtitle manager for the Radarr and Sonarr libraries (French and English).",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 76
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "bazarr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30046/",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
       "id": "bichon",
       "name": "Bichon UI",
       "kind": "application",
@@ -888,6 +920,32 @@
       }
     },
     {
+      "id": "gluetun",
+      "name": "Gluetun",
+      "kind": "vpn-gateway",
+      "category": "media",
+      "sourcePath": "apps/media-acquisition/compose.yml",
+      "description": "WireGuard VPN gateway and kill switch for the media download namespace, with DNS over TLS inside the tunnel and an authenticated HTTP proxy for Prowlarr.",
+      "presentationRole": "support",
+      "criticality": "medium",
+      "status": "planned",
+      "securityFunctions": [
+        "protect"
+      ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 70
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "gluetun",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      }
+    },
+    {
       "id": "grafana",
       "name": "Grafana",
       "kind": "observability-ui",
@@ -1061,6 +1119,38 @@
         "containerService": "influxdb",
         "networks": [
           "intranet"
+        ]
+      }
+    },
+    {
+      "id": "jellyfin",
+      "name": "Jellyfin",
+      "kind": "media-server",
+      "category": "media",
+      "sourcePath": "apps/jellyfin/compose.yml",
+      "url": "https://jellyfin.int.albandrieu.com",
+      "internalUrl": "http://jellyfin:8096",
+      "description": "LAN media server for the library (Samsung Frame and browsers), with Intel/AMD iGPU hardware transcoding and a read-only library mount.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 78
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "jellyfin",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30013/health",
+        "conditions": [
+          "[STATUS] == 200"
         ]
       }
     },
@@ -1260,6 +1350,38 @@
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck"
+      }
+    },
+    {
+      "id": "lidarr",
+      "name": "Lidarr",
+      "kind": "media-manager",
+      "category": "media",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "url": "https://lidarr.int.albandrieu.com",
+      "internalUrl": "http://lidarr:8686",
+      "description": "Music library manager; imports with hardlinks into /data/library/music.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 75
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "lidarr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30071/ping",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
       }
     },
     {
@@ -2146,6 +2268,46 @@
       }
     },
     {
+      "id": "protonvpn",
+      "name": "ProtonVPN",
+      "kind": "vpn-provider",
+      "category": "network",
+      "sourcePath": "apps/media-acquisition/compose.yml",
+      "description": "External WireGuard VPN provider (P2P servers with NAT-PMP port forwarding). Only the media-acquisition namespace egresses through it."
+    },
+    {
+      "id": "prowlarr",
+      "name": "Prowlarr",
+      "kind": "indexer-manager",
+      "category": "media",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "url": "https://prowlarr.int.albandrieu.com",
+      "internalUrl": "http://prowlarr:9696",
+      "description": "Indexer manager of the media stack. Every outbound indexer request goes through the authenticated Gluetun HTTP proxy, so searches fail closed when the VPN is down.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 72
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "prowlarr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30050/ping",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
       "id": "pyroscope",
       "name": "Grafana Pyroscope",
       "kind": "continuous-profiler",
@@ -2162,6 +2324,88 @@
         "type": "http",
         "target": "http://172.17.0.24:4040/",
         "url": "http://172.17.0.24:4040/metrics"
+      }
+    },
+    {
+      "id": "qbittorrent",
+      "name": "qBittorrent",
+      "kind": "download-client",
+      "category": "media",
+      "sourcePath": "apps/media-acquisition/compose.yml",
+      "url": "https://qbittorrent.int.albandrieu.com",
+      "internalUrl": "http://gluetun:8080",
+      "description": "BitTorrent client confined to the Gluetun network namespace; no traffic can leave outside the VPN tunnel.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 71
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "qbittorrent"
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30024/",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "radarr",
+      "name": "Radarr",
+      "kind": "media-manager",
+      "category": "media",
+      "sourcePath": "apps/radarr/compose.yml",
+      "url": "https://radarr.int.albandrieu.com",
+      "internalUrl": "http://radarr:7878",
+      "description": "Movie library manager; imports with hardlinks into /data/library/movies.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 73
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "radarr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30025/ping",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
+    },
+    {
+      "id": "recyclarr",
+      "name": "Recyclarr",
+      "kind": "config-sync",
+      "category": "media",
+      "sourcePath": "apps/recyclarr/compose.yml",
+      "description": "Scheduled sync of the versioned TRaSH French MULTi.VF quality profiles and custom formats into Radarr and Sonarr.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 77
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "recyclarr",
+        "networks": [
+          "media"
+        ]
       }
     },
     {
@@ -2277,6 +2521,38 @@
       "sourcePath": "apps/openwebui/compose.yml",
       "description": "Optional metasearch backend consumed by Open WebUI web-search tooling.",
       "icon": "🌐"
+    },
+    {
+      "id": "seerr",
+      "name": "Seerr",
+      "kind": "request-manager",
+      "category": "media",
+      "sourcePath": "apps/seerr/compose.yml",
+      "url": "https://seerr.int.albandrieu.com",
+      "internalUrl": "http://seerr:5055",
+      "description": "Discovery and request manager for movies and series, connected to Jellyfin, Radarr and Sonarr on the LAN.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 79
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "seerr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30357/api/v1/status",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
     },
     {
       "id": "sentry",
@@ -2428,6 +2704,38 @@
         "containerService": "sonarqube"
       },
       "icon": "🧹"
+    },
+    {
+      "id": "sonarr",
+      "name": "Sonarr",
+      "kind": "media-manager",
+      "category": "media",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "url": "https://sonarr.int.albandrieu.com",
+      "internalUrl": "http://sonarr:8989",
+      "description": "TV series library manager; imports with hardlinks into /data/library/tv.",
+      "presentationRole": "service",
+      "criticality": "low",
+      "status": "planned",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 74
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "sonarr",
+        "networks": [
+          "media",
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30113/ping",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      }
     },
     {
       "id": "squid",
@@ -2924,6 +3232,16 @@
     },
     {
       "source": "autoxpose",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "AutoXpose discovers containers through the restricted Docker API proxy.",
+      "evidence": [
+        "apps/autoxpose/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
+      ]
+    },
+    {
+      "source": "autoxpose",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
@@ -2933,13 +3251,43 @@
       ]
     },
     {
-      "source": "autoxpose",
-      "target": "docker-socket-proxy",
+      "source": "bazarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/bazarr/compose.yml:bazarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "bazarr",
+      "target": "radarr",
       "type": "consumesApi",
       "strength": "required",
-      "description": "AutoXpose discovers containers through the restricted Docker API proxy.",
+      "description": "Bazarr reads the movie library through the Radarr API.",
       "evidence": [
-        "apps/autoxpose/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
+        "docs/arr-media-library-roadmap.md:P5 Bazarr"
+      ]
+    },
+    {
+      "source": "bazarr",
+      "target": "sonarr",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Bazarr reads the series library through the Sonarr API.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P5 Bazarr"
+      ]
+    },
+    {
+      "source": "bazarr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the UI only through bazarr.int.albandrieu.com.",
+      "evidence": [
+        "apps/bazarr/compose.yml:traefik.http.routers.bazarr"
       ]
     },
     {
@@ -3087,25 +3435,6 @@
       ]
     },
     {
-      "source": "defectdojo",
-      "target": "defectdojo-api",
-      "type": "consumesApi",
-      "strength": "required",
-      "evidence": [
-        "apps/defectdojo/compose.yml:DD_UWSGI_HOST"
-      ]
-    },
-    {
-      "source": "defectdojo",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/defectdojo/compose.yml:defectdojo.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "defectdojo-api",
       "target": "docker",
       "type": "hostedBy",
@@ -3191,22 +3520,22 @@
       ]
     },
     {
-      "source": "dependency-track",
-      "target": "dependency-track-api",
+      "source": "defectdojo",
+      "target": "defectdojo-api",
       "type": "consumesApi",
       "strength": "required",
       "evidence": [
-        "apps/dependency-track/compose.yml:API_BASE_URL"
+        "apps/defectdojo/compose.yml:DD_UWSGI_HOST"
       ]
     },
     {
-      "source": "dependency-track",
+      "source": "defectdojo",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/dependency-track/compose.yml:dependency-track.x-nabla.runtime.containerService"
+        "apps/defectdojo/compose.yml:defectdojo.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -3239,13 +3568,22 @@
       ]
     },
     {
-      "source": "docker",
-      "target": "truenas",
+      "source": "dependency-track",
+      "target": "dependency-track-api",
+      "type": "consumesApi",
+      "strength": "required",
+      "evidence": [
+        "apps/dependency-track/compose.yml:API_BASE_URL"
+      ]
+    },
+    {
+      "source": "dependency-track",
+      "target": "docker",
       "type": "hostedBy",
       "strength": "required",
-      "description": "Docker runtime is hosted on the TrueNAS platform.",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/homarr/compose.yml:x-nabla.relations[0]"
+        "apps/dependency-track/compose.yml:dependency-track.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -3266,6 +3604,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/docker-socket-proxy/compose.yml:docker-socket-proxy.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "docker",
+      "target": "truenas",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Docker runtime is hosted on the TrueNAS platform.",
+      "evidence": [
+        "apps/homarr/compose.yml:x-nabla.relations[0]"
       ]
     },
     {
@@ -3310,22 +3658,22 @@
     },
     {
       "source": "doco-cd",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "docker-compose-truenas.yml:doco-cd.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "doco-cd",
       "target": "docker-socket-proxy",
       "type": "consumesApi",
       "strength": "required",
       "description": "Doco-CD performs Docker discovery and deployments through the restricted proxy.",
       "evidence": [
         "docker-compose-truenas.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
+      ]
+    },
+    {
+      "source": "doco-cd",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "docker-compose-truenas.yml:doco-cd.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -3349,16 +3697,6 @@
       ]
     },
     {
-      "source": "dsomm",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/dsomm/compose.yml:dsomm.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "dsomm-baseline",
       "target": "docker",
       "type": "hostedBy",
@@ -3376,6 +3714,16 @@
       "description": "Baseline output helps pre-fill evidence for the DSOMM assessment but cannot replace manual assessment activities.",
       "evidence": [
         "apps/dsomm/compose.yml:DSOMM_BASELINE_OUTPUT"
+      ]
+    },
+    {
+      "source": "dsomm",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/dsomm/compose.yml:dsomm.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -3461,27 +3809,6 @@
       ]
     },
     {
-      "source": "garage",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/garage/compose.yml:garage.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "garage",
-      "target": "traefik",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "Traefik serves the LAN-only s3.int.albandrieu.com S3 ingress to Garage :3900. External HAProxy must deny this Host; do not publish the S3 API on WAN.",
-      "evidence": [
-        "apps/garage/compose.yml:traefik.http.routers.garage-s3.rule",
-        "apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port"
-      ]
-    },
-    {
       "source": "garage-admin",
       "target": "cloudflared",
       "type": "exposedBy",
@@ -3533,6 +3860,27 @@
       ]
     },
     {
+      "source": "garage",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/garage/compose.yml:garage.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "garage",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "required",
+      "description": "Traefik serves the LAN-only s3.int.albandrieu.com S3 ingress to Garage :3900. External HAProxy must deny this Host; do not publish the S3 API on WAN.",
+      "evidence": [
+        "apps/garage/compose.yml:traefik.http.routers.garage-s3.rule",
+        "apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port"
+      ]
+    },
+    {
       "source": "gatus",
       "target": "docker",
       "type": "hostedBy",
@@ -3540,6 +3888,26 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/gatus/compose.yml:gatus.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "gluetun",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/media-acquisition/compose.yml:gluetun.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "gluetun",
+      "target": "protonvpn",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "The download namespace egresses only through the ProtonVPN WireGuard tunnel.",
+      "evidence": [
+        "apps/media-acquisition/compose.yml:VPN_SERVICE_PROVIDER"
       ]
     },
     {
@@ -3684,26 +4052,6 @@
       ]
     },
     {
-      "source": "homarr",
-      "target": "docker",
-      "type": "consumesApi",
-      "strength": "optional",
-      "description": "Homarr discovers and manages containers through the read-only Docker socket proxy.",
-      "evidence": [
-        "apps/homarr/compose.yml:DOCKER_HOSTNAMES"
-      ]
-    },
-    {
-      "source": "homarr",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/homarr/compose.yml:homarr.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "homarr-sync",
       "target": "docker",
       "type": "hostedBy",
@@ -3724,6 +4072,26 @@
       ]
     },
     {
+      "source": "homarr",
+      "target": "docker",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Homarr discovers and manages containers through the read-only Docker socket proxy.",
+      "evidence": [
+        "apps/homarr/compose.yml:DOCKER_HOSTNAMES"
+      ]
+    },
+    {
+      "source": "homarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/homarr/compose.yml:homarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "homeassistant",
       "target": "docker",
       "type": "hostedBy",
@@ -3741,6 +4109,26 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/influxdb/compose.yml:influxdb.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "jellyfin",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/jellyfin/compose.yml:jellyfin.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "jellyfin",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes Jellyfin only through jellyfin.int.albandrieu.com.",
+      "evidence": [
+        "apps/jellyfin/compose.yml:traefik.http.routers.jellyfin"
       ]
     },
     {
@@ -3774,16 +4162,6 @@
       ]
     },
     {
-      "source": "kafka",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "kafka-exporter",
       "target": "docker",
       "type": "hostedBy",
@@ -3811,6 +4189,16 @@
       "description": "Prometheus scrapes Kafka topic/group lag and membership metrics.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=kafka_exporter"
+      ]
+    },
+    {
+      "source": "kafka",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/kafka/compose.yml:kafka.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -4035,6 +4423,46 @@
       ]
     },
     {
+      "source": "lidarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/lidarr/compose.yml:lidarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "lidarr",
+      "target": "prowlarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Lidarr searches indexers synchronized by Prowlarr.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "lidarr",
+      "target": "qbittorrent",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Lidarr sends releases to qBittorrent through gluetun:8080.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P4 download client gluetun:8080"
+      ]
+    },
+    {
+      "source": "lidarr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the UI only through lidarr.int.albandrieu.com.",
+      "evidence": [
+        "apps/lidarr/compose.yml:traefik.http.routers.lidarr"
+      ]
+    },
+    {
       "source": "litellm",
       "target": "docker",
       "type": "hostedBy",
@@ -4226,44 +4654,6 @@
       ]
     },
     {
-      "source": "netbox",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/netbox/compose.yml:netbox.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "netbox",
-      "target": "postgresql",
-      "type": "storesIn",
-      "strength": "required",
-      "evidence": [
-        "apps/netbox/compose.yml:DB_HOST"
-      ]
-    },
-    {
-      "source": "netbox",
-      "target": "prometheus",
-      "type": "observedBy",
-      "strength": "optional",
-      "description": "Prometheus scrapes the NetBox metrics endpoint.",
-      "evidence": [
-        "apps/netbox/compose.yml:METRICS_ENABLED"
-      ]
-    },
-    {
-      "source": "netbox",
-      "target": "redis",
-      "type": "storesIn",
-      "strength": "required",
-      "evidence": [
-        "apps/netbox/compose.yml:REDIS_HOST"
-      ]
-    },
-    {
       "source": "netbox-housekeeping",
       "target": "docker",
       "type": "hostedBy",
@@ -4299,6 +4689,44 @@
       "strength": "required",
       "evidence": [
         "apps/netbox/compose.yml:netbox-worker"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/netbox/compose.yml:netbox.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "postgresql",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:DB_HOST"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "prometheus",
+      "type": "observedBy",
+      "strength": "optional",
+      "description": "Prometheus scrapes the NetBox metrics endpoint.",
+      "evidence": [
+        "apps/netbox/compose.yml:METRICS_ENABLED"
+      ]
+    },
+    {
+      "source": "netbox",
+      "target": "redis",
+      "type": "storesIn",
+      "strength": "required",
+      "evidence": [
+        "apps/netbox/compose.yml:REDIS_HOST"
       ]
     },
     {
@@ -4512,16 +4940,6 @@
       ]
     },
     {
-      "source": "opensearch",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/opensearch/compose.yml:opensearch.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "opensearch-dashboards",
       "target": "docker",
       "type": "hostedBy",
@@ -4572,16 +4990,6 @@
       ]
     },
     {
-      "source": "opensearch-security",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/opensearch/compose.yml:opensearch-security.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "opensearch-security-exporter",
       "target": "docker",
       "type": "hostedBy",
@@ -4609,6 +5017,26 @@
       "description": "Prometheus scrapes metrics from the OpenSearch Security exporter.",
       "evidence": [
         "apps/prometheus/prometheus.yml:job_name=opensearch-security"
+      ]
+    },
+    {
+      "source": "opensearch-security",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/opensearch/compose.yml:opensearch-security.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "opensearch",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/opensearch/compose.yml:opensearch.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -4714,13 +5142,13 @@
       ]
     },
     {
-      "source": "pihole",
-      "target": "docker",
-      "type": "hostedBy",
+      "source": "pihole-dns-sync",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
       "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "description": "DNS Sync discovers services through the restricted Docker socket proxy.",
       "evidence": [
-        "apps/pihole/compose.yml:pihole.x-nabla.runtime.containerService"
+        "apps/pihole/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
       ]
     },
     {
@@ -4731,16 +5159,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/pihole/compose.yml:pihole-dns-sync.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "pihole-dns-sync",
-      "target": "docker-socket-proxy",
-      "type": "consumesApi",
-      "strength": "required",
-      "description": "DNS Sync discovers services through the restricted Docker socket proxy.",
-      "evidence": [
-        "apps/pihole/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375"
       ]
     },
     {
@@ -4774,22 +5192,13 @@
       ]
     },
     {
-      "source": "plumber",
+      "source": "pihole",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/plumber/compose.yml:plumber.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "plumber",
-      "target": "plumber-api",
-      "type": "consumesApi",
-      "strength": "required",
-      "evidence": [
-        "apps/plumber/compose.yml:API_DOMAIN"
+        "apps/pihole/compose.yml:pihole.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -4840,6 +5249,25 @@
       ]
     },
     {
+      "source": "plumber",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/plumber/compose.yml:plumber.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "plumber",
+      "target": "plumber-api",
+      "type": "consumesApi",
+      "strength": "required",
+      "evidence": [
+        "apps/plumber/compose.yml:API_DOMAIN"
+      ]
+    },
+    {
       "source": "portracker",
       "target": "docker",
       "type": "hostedBy",
@@ -4880,6 +5308,16 @@
       ]
     },
     {
+      "source": "prometheus-alertmanager",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/prometheus/compose.yml:alertmanager.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "prometheus",
       "target": "docker",
       "type": "hostedBy",
@@ -4900,13 +5338,63 @@
       ]
     },
     {
-      "source": "prometheus-alertmanager",
+      "source": "prowlarr",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/prometheus/compose.yml:alertmanager.x-nabla.runtime.containerService"
+        "apps/prowlarr/compose.yml:prowlarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "prowlarr",
+      "target": "gluetun",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Prowlarr sends indexer traffic only through the Gluetun HTTP proxy (Settings > General > Proxy).",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 proxy gluetun:8888"
+      ]
+    },
+    {
+      "source": "prowlarr",
+      "target": "lidarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Prowlarr pushes synchronized indexers to Lidarr (Full Sync).",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "prowlarr",
+      "target": "radarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Prowlarr pushes synchronized indexers to Radarr (Full Sync).",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "prowlarr",
+      "target": "sonarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Prowlarr pushes synchronized indexers to Sonarr (Full Sync).",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "prowlarr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the UI only through prowlarr.int.albandrieu.com.",
+      "evidence": [
+        "apps/prowlarr/compose.yml:traefik.http.routers.prowlarr"
       ]
     },
     {
@@ -4940,6 +5428,106 @@
       ]
     },
     {
+      "source": "qbittorrent",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/media-acquisition/compose.yml:qbittorrent.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "qbittorrent",
+      "target": "gluetun",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "qBittorrent shares the Gluetun network namespace and has no other egress.",
+      "evidence": [
+        "apps/media-acquisition/compose.yml:network_mode"
+      ]
+    },
+    {
+      "source": "qbittorrent",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the WebUI only through qbittorrent.int.albandrieu.com.",
+      "evidence": [
+        "apps/media-acquisition/compose.yml:traefik.http.routers.qbittorrent"
+      ]
+    },
+    {
+      "source": "radarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/radarr/compose.yml:radarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "radarr",
+      "target": "prowlarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Radarr searches indexers synchronized by Prowlarr.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "radarr",
+      "target": "qbittorrent",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Radarr sends releases to qBittorrent through gluetun:8080.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P4 download client gluetun:8080"
+      ]
+    },
+    {
+      "source": "radarr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the UI only through radarr.int.albandrieu.com.",
+      "evidence": [
+        "apps/radarr/compose.yml:traefik.http.routers.radarr"
+      ]
+    },
+    {
+      "source": "recyclarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/recyclarr/compose.yml:recyclarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "recyclarr",
+      "target": "radarr",
+      "type": "automates",
+      "strength": "required",
+      "description": "Recyclarr rewrites Radarr quality profiles and custom-format scores.",
+      "evidence": [
+        "apps/recyclarr/config/recyclarr.yml:radarr"
+      ]
+    },
+    {
+      "source": "recyclarr",
+      "target": "sonarr",
+      "type": "automates",
+      "strength": "required",
+      "description": "Recyclarr rewrites Sonarr quality profiles and custom-format scores.",
+      "evidence": [
+        "apps/recyclarr/config/recyclarr.yml:sonarr"
+      ]
+    },
+    {
       "source": "redis",
       "target": "docker",
       "type": "hostedBy",
@@ -4947,6 +5535,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/redis/compose.yml:redis.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scanopy-daemon",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/scanopy/compose.yml:scanopy-daemon.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -4980,13 +5578,23 @@
       ]
     },
     {
-      "source": "scanopy-daemon",
+      "source": "scrutiny-collector",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/scanopy/compose.yml:scanopy-daemon.x-nabla.runtime.containerService"
+        "apps/scrutiny/compose.yml:scrutiny-collector.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "scrutiny-collector",
+      "target": "scrutiny",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The collector posts SMART inventory and metrics to the Scrutiny web/API service.",
+      "evidence": [
+        "apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT"
       ]
     },
     {
@@ -5010,73 +5618,53 @@
       ]
     },
     {
-      "source": "scrutiny-collector",
+      "source": "seerr",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/scrutiny/compose.yml:scrutiny-collector.x-nabla.runtime.containerService"
+        "apps/seerr/compose.yml:seerr.x-nabla.runtime.containerService"
       ]
     },
     {
-      "source": "scrutiny-collector",
-      "target": "scrutiny",
+      "source": "seerr",
+      "target": "jellyfin",
+      "type": "authenticatesVia",
+      "strength": "required",
+      "description": "Seerr signs users in with their Jellyfin accounts and reads the library.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P5 Seerr"
+      ]
+    },
+    {
+      "source": "seerr",
+      "target": "radarr",
       "type": "consumesApi",
       "strength": "required",
-      "description": "The collector posts SMART inventory and metrics to the Scrutiny web/API service.",
+      "description": "Seerr sends approved movie requests to Radarr.",
       "evidence": [
-        "apps/scrutiny/compose.yml:COLLECTOR_API_ENDPOINT"
+        "docs/arr-media-library-roadmap.md:P5 Seerr"
       ]
     },
     {
-      "source": "sentry",
-      "target": "docker",
-      "type": "hostedBy",
+      "source": "seerr",
+      "target": "sonarr",
+      "type": "consumesApi",
       "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "description": "Seerr sends approved series requests to Sonarr.",
       "evidence": [
-        "apps/sentry/compose.yml:sentry-web.x-nabla.runtime.containerService"
+        "docs/arr-media-library-roadmap.md:P5 Seerr"
       ]
     },
     {
-      "source": "sentry",
-      "target": "kafka",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Sentry publishes and consumes event streams through shared Kafka.",
+      "source": "seerr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes Seerr only through seerr.int.albandrieu.com.",
       "evidence": [
-        "apps/sentry/compose.yml:SENTRY_EVENTSTREAM"
-      ]
-    },
-    {
-      "source": "sentry",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Sentry application metadata is stored in the dedicated sentry PostgreSQL database.",
-      "evidence": [
-        "apps/sentry/compose.yml:SENTRY_POSTGRES_HOST=172.17.0.24"
-      ]
-    },
-    {
-      "source": "sentry",
-      "target": "redis",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Sentry uses the shared Redis database 3.",
-      "evidence": [
-        "apps/sentry/compose.yml:SENTRY_REDIS_HOST=redis"
-      ]
-    },
-    {
-      "source": "sentry",
-      "target": "sentry-snuba-api",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Sentry queries event data through Snuba.",
-      "evidence": [
-        "apps/sentry/compose.yml:SNUBA=http://snuba-api:1218"
+        "apps/seerr/compose.yml:traefik.http.routers.seerr"
       ]
     },
     {
@@ -5101,22 +5689,22 @@
     },
     {
       "source": "sentry-edge",
-      "target": "sentry",
-      "type": "routesTo",
-      "strength": "required",
-      "description": "The Sentry edge routes application traffic to Sentry web.",
-      "evidence": [
-        "apps/sentry/config/nginx.conf:sentry_upstream"
-      ]
-    },
-    {
-      "source": "sentry-edge",
       "target": "sentry-relay",
       "type": "routesTo",
       "strength": "required",
       "description": "The Sentry edge routes ingestion traffic through Relay.",
       "evidence": [
         "apps/sentry/config/nginx.conf:relay_upstream"
+      ]
+    },
+    {
+      "source": "sentry-edge",
+      "target": "sentry",
+      "type": "routesTo",
+      "strength": "required",
+      "description": "The Sentry edge routes application traffic to Sentry web.",
+      "evidence": [
+        "apps/sentry/config/nginx.conf:sentry_upstream"
       ]
     },
     {
@@ -5240,6 +5828,56 @@
       ]
     },
     {
+      "source": "sentry",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sentry/compose.yml:sentry-web.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "sentry",
+      "target": "kafka",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Sentry publishes and consumes event streams through shared Kafka.",
+      "evidence": [
+        "apps/sentry/compose.yml:SENTRY_EVENTSTREAM"
+      ]
+    },
+    {
+      "source": "sentry",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Sentry application metadata is stored in the dedicated sentry PostgreSQL database.",
+      "evidence": [
+        "apps/sentry/compose.yml:SENTRY_POSTGRES_HOST=172.17.0.24"
+      ]
+    },
+    {
+      "source": "sentry",
+      "target": "redis",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Sentry uses the shared Redis database 3.",
+      "evidence": [
+        "apps/sentry/compose.yml:SENTRY_REDIS_HOST=redis"
+      ]
+    },
+    {
+      "source": "sentry",
+      "target": "sentry-snuba-api",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Sentry queries event data through Snuba.",
+      "evidence": [
+        "apps/sentry/compose.yml:SNUBA=http://snuba-api:1218"
+      ]
+    },
+    {
       "source": "sonarqube",
       "target": "docker",
       "type": "hostedBy",
@@ -5257,6 +5895,46 @@
       "description": "SonarQube persists application state in the existing PostgreSQL service.",
       "evidence": [
         "apps/sonarqube/compose.yml:SONAR_JDBC_URL"
+      ]
+    },
+    {
+      "source": "sonarr",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/sonarr/compose.yml:sonarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "sonarr",
+      "target": "prowlarr",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Sonarr searches indexers synchronized by Prowlarr.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P3 Full Sync"
+      ]
+    },
+    {
+      "source": "sonarr",
+      "target": "qbittorrent",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "Sonarr sends releases to qBittorrent through gluetun:8080.",
+      "evidence": [
+        "docs/arr-media-library-roadmap.md:P4 download client gluetun:8080"
+      ]
+    },
+    {
+      "source": "sonarr",
+      "target": "traefik",
+      "type": "exposedBy",
+      "strength": "optional",
+      "description": "Traefik exposes the UI only through sonarr.int.albandrieu.com.",
+      "evidence": [
+        "apps/sonarr/compose.yml:traefik.http.routers.sonarr"
       ]
     },
     {
@@ -5372,16 +6050,6 @@
       ]
     },
     {
-      "source": "vaultwarden",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/vaultwarden/compose.yml:vaultwarden.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "vaultwarden-rest-api",
       "target": "cloudflared",
       "type": "dependsOn",
@@ -5412,13 +6080,13 @@
       ]
     },
     {
-      "source": "watchtower",
+      "source": "vaultwarden",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/watchtower/compose.yml:watchtower.x-nabla.runtime.containerService"
+        "apps/vaultwarden/compose.yml:vaultwarden.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -5432,6 +6100,16 @@
       ]
     },
     {
+      "source": "watchtower",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/watchtower/compose.yml:watchtower.x-nabla.runtime.containerService"
+      ]
+    },
+    {
       "source": "wazuh-dashboard",
       "target": "docker",
       "type": "hostedBy",
@@ -5439,16 +6117,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/wazuh/compose.yml:wazuh.dashboard.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "wazuh-dashboard",
-      "target": "wazuh",
-      "type": "partOf",
-      "strength": "required",
-      "description": "Wazuh Dashboard is a runtime workload of the Wazuh security platform.",
-      "evidence": [
-        "apps/wazuh/compose.yml:x-nabla.relations[0]"
       ]
     },
     {
@@ -5469,6 +6137,16 @@
       "description": "Wazuh Dashboard consumes the Wazuh Manager API.",
       "evidence": [
         "apps/wazuh/compose.yml:WAZUH_API_URL"
+      ]
+    },
+    {
+      "source": "wazuh-dashboard",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "Wazuh Dashboard is a runtime workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
       ]
     },
     {
@@ -5493,22 +6171,22 @@
     },
     {
       "source": "wazuh-forwarder",
-      "target": "wazuh",
-      "type": "partOf",
-      "strength": "required",
-      "description": "The forwarder is an integration workload of the Wazuh security platform.",
-      "evidence": [
-        "apps/wazuh/compose.yml:x-nabla.relations[0]"
-      ]
-    },
-    {
-      "source": "wazuh-forwarder",
       "target": "wazuh-manager",
       "type": "dependsOn",
       "strength": "required",
       "description": "The forwarder reads Wazuh alert files produced by Wazuh Manager.",
       "evidence": [
         "apps/wazuh/compose.yml:wazuh_logs"
+      ]
+    },
+    {
+      "source": "wazuh-forwarder",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "The forwarder is an integration workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
       ]
     },
     {
@@ -5543,22 +6221,22 @@
     },
     {
       "source": "wazuh-manager",
-      "target": "wazuh",
-      "type": "partOf",
-      "strength": "required",
-      "description": "Wazuh Manager is a runtime workload of the Wazuh security platform.",
-      "evidence": [
-        "apps/wazuh/compose.yml:x-nabla.relations[0]"
-      ]
-    },
-    {
-      "source": "wazuh-manager",
       "target": "wazuh-indexer",
       "type": "dependsOn",
       "strength": "required",
       "description": "Wazuh Manager indexes security events in the Wazuh Indexer.",
       "evidence": [
         "apps/wazuh/compose.yml:INDEXER_URL"
+      ]
+    },
+    {
+      "source": "wazuh-manager",
+      "target": "wazuh",
+      "type": "partOf",
+      "strength": "required",
+      "description": "Wazuh Manager is a runtime workload of the Wazuh security platform.",
+      "evidence": [
+        "apps/wazuh/compose.yml:x-nabla.relations[0]"
       ]
     }
   ]
