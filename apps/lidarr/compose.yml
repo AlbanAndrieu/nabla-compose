@@ -1,0 +1,107 @@
+---
+# Lidarr of the *arr media stack (status planned).
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: lidarr
+
+services:
+  lidarr:
+    image: ghcr.io/linuxserver/lidarr:3.1.6@sha256:d5707cfe084da21a3864c7ef0edd9c0543b5e26c79c551f84dad5ef8683af8c7
+    container_name: lidarr
+    restart: unless-stopped
+    x-nabla:
+      id: lidarr
+      name: Lidarr
+      kind: media-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        Music library manager; imports with hardlinks into /data/library/music.
+      url: https://lidarr.int.albandrieu.com
+      internalUrl: http://lidarr:8686
+      runtime:
+        provider: truenas-app
+        containerService: lidarr
+      lifecycle:
+        phase: applications
+        priority: 75
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30071/ping
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: qbittorrent
+          type: consumesApi
+          strength: required
+          description: Lidarr sends releases to qBittorrent through gluetun:8080.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P4 download client gluetun:8080
+        - target: prowlarr
+          type: consumesApi
+          strength: optional
+          description: Lidarr searches indexers synchronized by Prowlarr.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the UI only through lidarr.int.albandrieu.com.
+          evidence:
+            - apps/lidarr/compose.yml:traefik.http.routers.lidarr
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      # LIDARR__AUTH__APIKEY from Vaultwarden item nabla/prod/lidarr; never committed.
+      - /mnt/cpool/secrets/runtime/lidarr/.env.secrets
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+      LIDARR__AUTH__METHOD: Forms
+      LIDARR__AUTH__REQUIRED: Enabled
+      LIDARR__LOG__ANALYTICSENABLED: "False"
+    ports:
+      - name: web
+        target: 8686
+        published: "30071"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/lidarr/config:/config
+      - /mnt/cpool/media:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:8686/ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/lidarr
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.lidarr.rule: Host(`lidarr.int.albandrieu.com`)
+      traefik.http.routers.lidarr.entrypoints: websecure
+      traefik.http.routers.lidarr.tls.certresolver: letsencrypt
+      traefik.http.routers.lidarr.service: lidarr
+      traefik.http.services.lidarr.loadbalancer.server.port: "8686"
+    networks:
+      - media
+      - traefik_network
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network

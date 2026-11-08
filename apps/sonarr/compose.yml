@@ -1,0 +1,107 @@
+---
+# Sonarr of the *arr media stack (status planned).
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: sonarr
+
+services:
+  sonarr:
+    image: ghcr.io/linuxserver/sonarr:4.0.20@sha256:673dc4609a5672bc8e46069c86ffcea283a86b48d34a6c93d8da8c24a1b87571
+    container_name: sonarr
+    restart: unless-stopped
+    x-nabla:
+      id: sonarr
+      name: Sonarr
+      kind: media-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        TV series library manager; imports with hardlinks into /data/library/tv.
+      url: https://sonarr.int.albandrieu.com
+      internalUrl: http://sonarr:8989
+      runtime:
+        provider: truenas-app
+        containerService: sonarr
+      lifecycle:
+        phase: applications
+        priority: 74
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30113/ping
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: qbittorrent
+          type: consumesApi
+          strength: required
+          description: Sonarr sends releases to qBittorrent through gluetun:8080.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P4 download client gluetun:8080
+        - target: prowlarr
+          type: consumesApi
+          strength: optional
+          description: Sonarr searches indexers synchronized by Prowlarr.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the UI only through sonarr.int.albandrieu.com.
+          evidence:
+            - apps/sonarr/compose.yml:traefik.http.routers.sonarr
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      # SONARR__AUTH__APIKEY from Vaultwarden item nabla/prod/sonarr; never committed.
+      - /mnt/cpool/secrets/runtime/sonarr/.env.secrets
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+      SONARR__AUTH__METHOD: Forms
+      SONARR__AUTH__REQUIRED: Enabled
+      SONARR__LOG__ANALYTICSENABLED: "False"
+    ports:
+      - name: web
+        target: 8989
+        published: "30113"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/sonarr/config:/config
+      - /mnt/cpool/media:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:8989/ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/sonarr
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.sonarr.rule: Host(`sonarr.int.albandrieu.com`)
+      traefik.http.routers.sonarr.entrypoints: websecure
+      traefik.http.routers.sonarr.tls.certresolver: letsencrypt
+      traefik.http.routers.sonarr.service: sonarr
+      traefik.http.services.sonarr.loadbalancer.server.port: "8989"
+    networks:
+      - media
+      - traefik_network
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network

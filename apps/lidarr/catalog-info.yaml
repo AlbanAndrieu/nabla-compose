@@ -1,0 +1,22 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: lidarr
+  title: Lidarr
+  description: Planned Lidarr instance of the media stack (media-manager).
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - media
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/lidarr/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/qbittorrent

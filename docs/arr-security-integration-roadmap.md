@@ -1,6 +1,6 @@
 # ARR, VPN and security integration roadmap
 
-Last reviewed: 2026-09-13.
+Last reviewed: 2026-09-13. ARR/VPN/storage scope moved to `arr-media-library-roadmap.md` on 2026-11-07.
 
 This document is the detailed analysis behind the concise items tracked in `docs/roadmap.md`. It is intentionally architectural: each service must still be introduced through a reviewed `apps/<service>/compose.yml`, `x-nabla` topology metadata, runtime-secret materialization and bounded acceptance checks before deployment.
 
@@ -31,142 +31,13 @@ These links are analysis inputs, not configuration sources of truth. Image tags,
 - SysWarden: https://syswarden.io/
 - World Intelligence MCP: https://github.com/marc-shade/world-intel-mcp
 
-## 1. Current ARR state and migration gap
+## 1–4. ARR, storage and VPN — superseded
 
-### Already represented in the repository
-
-`truenas-file-structure.sh` already contains an older generated stack/layout for at least:
-
-- Prowlarr;
-- Radarr;
-- Sonarr;
-- Bazarr;
-- qBittorrent;
-- Seerr-family configuration;
-- Dozzle.
-
-The service catalogue also contains Prowlarr, Radarr, Sonarr and Lidarr runtime-facing definitions. This proves prior intent/runtime exposure, but the generated shell implementation must not become the new canonical deployment mechanism.
-
-### Already canonical under `apps/`
-
-- `apps/dozzle/compose.yml` exists and is repository-owned.
-- `apps/crowdsec/compose.yml` exists and is repository-owned.
-- Existing media/runtime services such as Plex or Lidarr must be checked individually before migration; presence in the service catalogue or TrueNAS Apps UI is not equivalent to having a canonical `apps/<service>/compose.yml`.
-
-### TrueNAS-native / legacy runtime migration candidates
-
-The next inventory pass must reconcile live TrueNAS Apps against `apps/*/compose.yml`. Priority media candidates from the current homelab inventory include:
-
-- Lidarr — previously running as a native TrueNAS App; migrate only after preserving its config/database and media paths.
-- Transmission — previously retained but stopped; decide whether to migrate it or retire it in favour of qBittorrent + VPN rather than running two torrent clients without a defined reason.
-- Plex — preserve native runtime until storage/GPU/transcoding/device mappings and metadata backup/restore are proven in Compose.
-- Tracearr — useful companion for media playback observability; migrate after Plex/Jellyfin ownership is clear.
-- Wizarr — optional invitation workflow; migrate only if still needed after the request/user-management choice.
-- Emby — previously stopped; explicitly decide retain/retire instead of migrating by default.
-- Scrutiny — already tracked elsewhere for completing disk visibility including the workstation; keep it in the native-to-Compose migration inventory.
-- Grafana — already explicitly tracked in the main roadmap as native -> Compose and remains a precedent for safe config/data preservation.
-
-The inventory must be generated from live TrueNAS state plus repository ownership before implementation; do not infer canonical ownership from a historical runtime snapshot alone.
-
-## 2. Target ARR baseline
-
-The initial target should stay intentionally smaller than the full Awesome *Arr list.
-
-### Phase A — core acquisition and organization
-
-1. **Prowlarr** — single indexer manager for Sonarr/Radarr/Lidarr and compatible applications.
-2. **Radarr** — movies.
-3. **Sonarr** — TV/series.
-4. **Lidarr** — music, migrating the existing TrueNAS-native instance rather than creating a second instance.
-5. **Bazarr** — subtitles for Radarr/Sonarr.
-6. **qBittorrent** — preferred torrent client candidate behind a dedicated VPN namespace.
-7. **Seerr/Jellyseerr** — request/discovery layer only if the current media-server choice justifies it.
-8. **Recyclarr** — synchronize reviewed TRaSH profiles/custom formats into Sonarr/Radarr; configuration must be versioned and reviewed because it can materially change download/quality policy.
-
-### Phase B — useful supporting services
-
-- **Cleanuparr** — clean dead/malicious/stalled torrent state after download-client integration is stable.
-- **Maintainerr** — retention/library cleanup only after deletion policies are explicit and reversible.
-- **Tdarr** — transcoding/health analytics; schedule after storage and hardware acceleration are defined because it can create substantial CPU/GPU and I/O load.
-- **Scraparr or Exportarr** — Prometheus telemetry for ARR services; prefer one metrics path, not both, unless their coverage materially differs.
-- **Unpackerr** — only if archive extraction is actually needed by the selected download sources.
-- **Notifiarr** — optional; n8n may already cover enough notification/orchestration use cases.
-
-### Defer / evaluate instead of installing blindly
-
-Awesome *Arr is a discovery catalogue, not an installation checklist. Defer overlapping or specialised tools such as Jackett when Prowlarr is selected, multiple request frontends, duplicate cleaners, alternative Radarr/Sonarr managers, FlareSolverr-style bypass tooling, and adult-media-specific managers unless there is an explicit use case.
-
-## 3. Storage design: hardlinks before containers
-
-The Servers@Home and TRaSH model is correct in one important respect: downloads and final media that need hardlinks must live on the same filesystem/dataset boundary.
-
-Recommended logical layout (final pool/dataset names must follow the existing TrueNAS storage contract):
-
-```text
-media/
-  downloads/
-    torrents/
-  movies/
-  tv/
-  music/
-
-configs/
-  prowlarr/
-  radarr/
-  sonarr/
-  lidarr/
-  bazarr/
-  qbittorrent/
-  seerr/
-  recyclarr/
-```
-
-Nabla-specific constraints:
-
-- application config/data follows `docs/truenas-runtime-layout.md` and repository ownership rules;
-- secrets never live inside tracked Compose or media datasets;
-- keep one consistent container path (for example `/data`) across qBittorrent and ARR services so paths are identical from every container's point of view;
-- do not split downloads and final media across filesystems if hardlinks are required;
-- validate UID/GID/ACL behaviour against TrueNAS before importing an existing library;
-- test hardlink behaviour explicitly (`stat` inode/link count) before declaring the storage design accepted.
-
-## 4. VPN design for download clients
-
-Reference: https://wiki.servarr.com/vpn
-
-The Servarr applications themselves should **not** all be forced through a VPN. Their documentation recommends keeping Radarr/Sonarr/Prowlarr-style applications on normal networking and placing the download client behind the VPN when required. This avoids broken LAN callbacks, authentication/captcha issues, rate limiting and difficult inter-container routing.
-
-### Preferred pattern
-
-Use a dedicated VPN gateway container, preferably **Gluetun**, and attach only the download client network namespace to it:
-
-```text
-Internet
-  |
-  v
-Gluetun / ProtonVPN
-  |
-  +-- qBittorrent
-
-Prowlarr/Radarr/Sonarr/Lidarr/Bazarr
-  |
-  +-- normal internal Docker networking -> qBittorrent exposed through Gluetun service ports
-```
-
-Acceptance must prove:
-
-- kill-switch behaviour: qBittorrent has no internet egress if the VPN tunnel is down;
-- LAN/API reachability remains available only through explicit Gluetun firewall rules;
-- DNS does not leak outside the VPN namespace;
-- external IP from the qBittorrent namespace is ProtonVPN, not the ISP WAN;
-- torrent listening port follows ProtonVPN port-forwarding state where enabled;
-- health failure of the VPN blocks qBittorrent rather than silently failing open.
-
-### ProtonVPN assessment
-
-**Compatible candidate.** Gluetun has native WireGuard support for ProtonVPN, and ProtonVPN supports P2P plus NAT-PMP port forwarding on compatible paid/P2P servers. The main operational caveat is that the forwarded port can change after reconnects, so qBittorrent's listening port needs automatic reconciliation.
-
-Do not route Traefik, CrowdSec, ARR managers, Plex/Jellyfin, or management traffic through this VPN namespace.
+Sections 1–4 (ARR inventory, target baseline, hardlink storage and the download VPN boundary)
+were superseded on 2026-11-07 by the canonical
+[`arr-media-library-roadmap.md`](arr-media-library-roadmap.md), which also owns the DNS
+strategy, the phased installation order and the anonymity acceptance tests. Do not
+re-add ARR planning here.
 
 ## 5. CrowdSec + Traefik reconciliation
 
@@ -302,11 +173,7 @@ Integration plan:
 
 | Component | Status | Main compatibility concern |
 | --- | --- | --- |
-| Prowlarr/Radarr/Sonarr/Lidarr/Bazarr | Compatible | shared paths, UID/GID, API keys, hardlinks |
-| qBittorrent + Gluetun + ProtonVPN | Compatible | kill switch, LAN API, dynamic NAT-PMP forwarded port |
-| Transmission + qBittorrent | Avoid duplicate by default | overlapping download-client role |
-| Recyclarr | Compatible | configuration can materially alter quality/custom-format policy |
-| Tdarr | Compatible with capacity review | GPU/CPU/I/O load and device passthrough |
+| ARR / qBittorrent / Gluetun / media | See `arr-media-library-roadmap.md` | owned by the canonical media roadmap |
 | CrowdSec central LAPI + pfSense bouncer | Already intended | preserve one decision engine and PF ownership |
 | CrowdSec + Traefik bouncer | Compatible / recommended | middleware order, real client IP, Cloudflare/Tunnel headers |
 | CrowdSec + Suricata | Already intended | prove `eve.json` acquisition end-to-end |
@@ -321,29 +188,20 @@ Integration plan:
 
 ## 9. Recommended implementation order
 
-1. **Inventory and storage first**
-   - live TrueNAS Apps vs `apps/*/compose.yml` diff;
-   - choose media dataset and hardlink-safe paths;
-   - snapshot/export configs for every native service to be migrated.
-2. **VPN/download boundary**
-   - add Gluetun + ProtonVPN with kill-switch tests;
-   - deploy/migrate qBittorrent; decide Transmission retirement.
-3. **Core ARR**
-   - Prowlarr -> Radarr/Sonarr -> migrate Lidarr -> Bazarr -> Seerr/Jellyseerr.
-4. **Policy automation**
-   - Recyclarr with reviewed config; then optional cleanup/notification tools.
-5. **Observability**
-   - add Scraparr or Exportarr Prometheus telemetry;
+1. **ARR, storage, VPN and media services** — follow the phases of
+   [`arr-media-library-roadmap.md`](arr-media-library-roadmap.md).
+2. **Observability**
+   - ARR telemetry (Exportarr or Scraparr) is tracked in the media roadmap;
    - reconcile Dozzle to Docker Socket Proxy and safe remote-agent mode.
-6. **Security edge**
+3. **Security edge**
    - Traefik access logs -> CrowdSec acquisition;
    - Traefik CrowdSec bouncer/middleware;
    - validate pfSense + Traefik remediation without duplicate ownership.
-7. **Security MCPs**
+4. **Security MCPs**
    - CVE MCP first; World Intelligence MCP second.
-8. **Isolated offensive security**
+5. **Isolated offensive security**
    - CyberStrike only in a dedicated disposable VM/segment.
-9. **Host security evaluation**
+6. **Host security evaluation**
    - SysWarden only on a dedicated supported Linux host if there is a clear firewall-ownership use case.
 
 ## 10. Acceptance criteria for every new Compose service

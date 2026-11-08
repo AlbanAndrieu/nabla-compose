@@ -1,0 +1,118 @@
+---
+# Prowlarr of the *arr media stack (status planned).
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: prowlarr
+
+services:
+  prowlarr:
+    image: ghcr.io/linuxserver/prowlarr:2.7.0@sha256:431d7efebcef466e56adaa40a7a2fa2b0e85159a037b8bf465eaadbf0cf5bedf
+    container_name: prowlarr
+    restart: unless-stopped
+    x-nabla:
+      id: prowlarr
+      name: Prowlarr
+      kind: indexer-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        Indexer manager of the media stack. Every outbound indexer request goes through the authenticated Gluetun HTTP proxy, so searches fail closed when the VPN is down.
+      url: https://prowlarr.int.albandrieu.com
+      internalUrl: http://prowlarr:9696
+      runtime:
+        provider: truenas-app
+        containerService: prowlarr
+      lifecycle:
+        phase: applications
+        priority: 72
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30050/ping
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: gluetun
+          type: dependsOn
+          strength: required
+          description: Prowlarr sends indexer traffic only through the Gluetun HTTP proxy (Settings > General > Proxy).
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 proxy gluetun:8888
+        - target: radarr
+          type: consumesApi
+          strength: optional
+          description: Prowlarr pushes synchronized indexers to Radarr (Full Sync).
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: sonarr
+          type: consumesApi
+          strength: optional
+          description: Prowlarr pushes synchronized indexers to Sonarr (Full Sync).
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: lidarr
+          type: consumesApi
+          strength: optional
+          description: Prowlarr pushes synchronized indexers to Lidarr (Full Sync).
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the UI only through prowlarr.int.albandrieu.com.
+          evidence:
+            - apps/prowlarr/compose.yml:traefik.http.routers.prowlarr
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      # PROWLARR__AUTH__APIKEY from Vaultwarden item nabla/prod/prowlarr; never committed.
+      - /mnt/cpool/secrets/runtime/prowlarr/.env.secrets
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__REQUIRED: Enabled
+      PROWLARR__LOG__ANALYTICSENABLED: "False"
+    ports:
+      - name: web
+        target: 9696
+        published: "30050"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/prowlarr/config:/config
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:9696/ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/prowlarr
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.prowlarr.rule: Host(`prowlarr.int.albandrieu.com`)
+      traefik.http.routers.prowlarr.entrypoints: websecure
+      traefik.http.routers.prowlarr.tls.certresolver: letsencrypt
+      traefik.http.routers.prowlarr.service: prowlarr
+      traefik.http.services.prowlarr.loadbalancer.server.port: "9696"
+    networks:
+      - media
+      - traefik_network
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network

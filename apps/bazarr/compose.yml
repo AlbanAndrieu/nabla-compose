@@ -1,0 +1,101 @@
+---
+# Bazarr of the *arr media stack (status planned).
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: bazarr
+
+services:
+  bazarr:
+    image: ghcr.io/linuxserver/bazarr:1.6.2@sha256:7ef0e58216900dbce30b123e0eb65f5cb30e36f126de9474acdd2022fb069c54
+    container_name: bazarr
+    restart: unless-stopped
+    x-nabla:
+      id: bazarr
+      name: Bazarr
+      kind: subtitle-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        Subtitle manager for the Radarr and Sonarr libraries (French and English).
+      url: https://bazarr.int.albandrieu.com
+      internalUrl: http://bazarr:6767
+      runtime:
+        provider: truenas-app
+        containerService: bazarr
+      lifecycle:
+        phase: applications
+        priority: 76
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30046/
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: radarr
+          type: consumesApi
+          strength: required
+          description: Bazarr reads the movie library through the Radarr API.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P5 Bazarr
+        - target: sonarr
+          type: consumesApi
+          strength: required
+          description: Bazarr reads the series library through the Sonarr API.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P5 Bazarr
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the UI only through bazarr.int.albandrieu.com.
+          evidence:
+            - apps/bazarr/compose.yml:traefik.http.routers.bazarr
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+    ports:
+      - name: web
+        target: 6767
+        published: "30046"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/bazarr/config:/config
+      - /mnt/cpool/media:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:6767/
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/bazarr
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.bazarr.rule: Host(`bazarr.int.albandrieu.com`)
+      traefik.http.routers.bazarr.entrypoints: websecure
+      traefik.http.routers.bazarr.tls.certresolver: letsencrypt
+      traefik.http.routers.bazarr.service: bazarr
+      traefik.http.services.bazarr.loadbalancer.server.port: "6767"
+    networks:
+      - media
+      - traefik_network
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network
