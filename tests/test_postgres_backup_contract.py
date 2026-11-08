@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import re
+import subprocess
 
 import yaml
 
@@ -54,6 +56,37 @@ def test_backup_script_verifies_prunes_and_keeps_the_password_off_argv() -> None
     assert "-mtime +\"${KEEP_DAYS}\"" in script
     assert ".last-success.json" in script
     assert re.search(r"\[\[ \"\$\{database\}\" =~ \^\[a-z\]", script)
+
+
+def test_all_missing_databases_never_mark_backup_success(tmp_path: Path) -> None:
+    # The fake server is reachable but has no database yet: common during rollout.
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_psql = fake_bin / "psql"
+    fake_psql.write_text("#!/bin/sh\\nprintf '0\\\\n'\\n", encoding="utf-8")
+    fake_psql.chmod(0o755)
+    existing = tmp_path / ".last-success.json"
+    existing.write_text('{"completed_at":"previous-validated-backup"}\\n', encoding="utf-8")
+    env = {
+        **os.environ,
+        "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
+        "POSTGRES_HOST": "127.0.0.1",
+        "POSTGRES_USER": "pgbackup",
+        "POSTGRES_PASSWORD": f"test-fixture-{os.getpid()}",
+        "BACKUP_DATABASES": "not_created_a not_created_b",
+        "BACKUP_DIR": str(tmp_path),
+        "BACKUP_REQUIRE_ALL": "false",
+    }
+    result = subprocess.run(
+        ["bash", str(SCRIPT)], env=env, capture_output=True,
+        text=True, check=False, timeout=10,
+    )
+    assert result.returncode == 1, result.stderr
+    assert "FAIL no database backup completed" in result.stderr
+    assert existing.read_text(encoding="utf-8") == (
+        '{"completed_at":"previous-validated-backup"}\\n'
+    )
+    assert not list(tmp_path.rglob("*.dump"))
 
 
 def test_cron_reconciler_registers_disabled_and_gates_enable() -> None:
