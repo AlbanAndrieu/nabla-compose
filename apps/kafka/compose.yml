@@ -23,6 +23,8 @@ services:
     restart: unless-stopped
     # JVM memory cap (2026-11-06): 1g max heap (KAFKA_HEAP_OPTS) plus off-heap; an OOM stays in this cgroup.
     mem_limit: 1536m
+    # Reap orphaned java children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     environment:
       KAFKA_HEAP_OPTS: -Xms512m -Xmx1g
       KAFKA_PROCESS_ROLES: broker,controller

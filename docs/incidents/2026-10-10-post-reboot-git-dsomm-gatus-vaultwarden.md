@@ -317,6 +317,25 @@ Both catalog generators completed `--check` on the operator host.
 The resulting generated artifacts were not yet committed or tested
 through the complete L3 gate; do not mistake that for CI acceptance.
 
+## 9. Git file modes and the local-first quality gate
+
+The same day, converging `just loop` then `just pre-push` on the TrueNAS
+checkout hit the same Git ownership/mode family of causes:
+
+| Symptom | Cause | Durable action |
+| --- | --- | --- |
+| `QG_BASE_STALE` although `git pull` says up to date | Pulling the PR branch does not integrate the latest `origin/master` | `git fetch origin master <branch>`, integrate it, check `git merge-base --is-ancestor origin/master HEAD`; never skip the check |
+| `git merge` refuses a file whose only change is `100644 → 100755` | Git protects local index/worktree changes | Compare `git diff --cached --summary` and both diffs, keep content changes, then restore and record the mode; no `reset --hard` |
+| Git shows `100755`, `stat` shows `700` | Git versions only the executable bit; restrictive POSIX modes can be legitimate | Check `git ls-files --stage`, `stat`, `getfacl`, `core.fileMode` separately; tests require `S_IXUSR` + Git `100755`, never group/other exec |
+| The gate silently widened `0700 → 0755` | Old `chmod 755`, in a `check_exec_bits()` defined twice (the second Bash definition wins) | One definition per critical function, guarded by a regression test; fix shebang files with `git add --chmod=+x` (and `chmod u+x` only if needed), never an automatic `chmod 755` |
+| Mock executables report "UNREACHABLE" or empty inventories | Fixture not executed; `/tmp` `noexec` suspected, inherited Bash functions possible | Put fixtures on the repository filesystem, neutralize `BASH_ENV`/`BASH_FUNC_*`, run with `bash -ec`; validators stay fail-closed |
+| `QG_FIX_STALLED` after a pass without diff | A failing hook has no autofix | Read the private log, fix that hook, then rerun L1 → L2 → L3 |
+
+Quality levels are not interchangeable: L1 targeted tests and linters, L2
+`just loop`, L3 `just pre-push` on a clean committed checkout. A green L2 is
+not L3. Never use `SKIP`, `--no-verify` or disable ShellCheck to get there;
+capture verbose hook output in a `mktemp` log and show a bounded summary.
+
 ## Acceptance
 
 - Checkout writable by operator without `sudo git` and nested

@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "cloudflare" / "diagnose-cloudflare-api.py"
-DOC = ROOT / "docs" / "cloudflare-zero-trust-observer.md"
+DOC = ROOT / "docs" / "cloudflare-sentry-platform-diagnostics.md"
 
 
 def test_cloudflare_diagnostic_reads_dashboard_managed_tunnel_configuration() -> None:

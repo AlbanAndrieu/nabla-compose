@@ -27,6 +27,8 @@ services:
         host: sentry-clickhouse
         port: 9000
     restart: unless-stopped
+    # Reap orphaned wget children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     env_file:
       - /mnt/cpool/sentry-clickhouse/.env.secrets
     environment:

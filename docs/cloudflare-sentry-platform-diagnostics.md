@@ -53,6 +53,126 @@ Check each script's runtime dependencies and command-line options before
 execution; these commands do not themselves prove a live Access token path.
 Avoid probing public services repeatedly during incident recovery.
 
+## Cloudflare observer contract
+
+The observer is read-only: it reconciles Cloudflare API state with the
+declared topology and never mutates Cloudflare configuration. The shared
+Tunnel Public Hostnames, the DNS records and the protected Access
+Applications are declared in [`terraform/cloudflare`](../terraform/cloudflare/README.md)
+(OpenTofu, import-first); reusable Access policies stay in the dashboard and
+are referenced by ID. Once a resource is adopted there, do not edit it in the
+dashboard: the next apply overwrites the drift.
+
+### Dashboard surfaces and API mapping
+
+Dashboard surfaces for the current account (the account ID is not a secret;
+API tokens and Service Token secrets must never be logged or committed):
+
+- **Tunnel Public Hostnames**:
+  <https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/one/networks/connectors/cloudflare-tunnels/cloudflared/1d98bede-6fa0-42a8-971c-cd390d74d7f6/edit/public-hostname>
+- **Access Applications**:
+  <https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/one/access-controls/apps>
+- **Access reusable Policies**:
+  <https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/one/access-controls/policies>
+- **Access Service Tokens**:
+  <https://dash.cloudflare.com/bdfe00eeee5845782ab91adfbff71ee1/one/access-controls/service-credentials/service-tokens>
+
+A Tunnel **ingress rule** is the API representation of a dashboard Public
+Hostname: which origin `cloudflared` contacts for a hostname. In operator
+docs say **Tunnel Public Hostname** and keep `config.ingress[]` for the API
+field. The hostname-to-origin mapping is **not** an Access policy: Access
+decides whether a request is authorized, the Public Hostname decides where an
+authorized request is routed.
+
+For a dashboard/API-managed Tunnel (`config_src=cloudflare`) the routes are
+read through:
+
+```text
+GET /accounts/{account_id}/cfd_tunnel
+GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}
+GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations
+  -> result.config.ingress[]  (hostname, service, originRequest)
+```
+
+A local `cloudflared` YAML file is authoritative only for a locally-managed
+Tunnel (`config_src=local`); it is not required to observe this Tunnel.
+
+Access objects:
+
+```text
+GET /accounts/{account_id}/access/apps
+GET /accounts/{account_id}/access/apps/{app_id}/policies
+GET /accounts/{account_id}/access/policies
+GET /accounts/{account_id}/access/service_tokens
+```
+
+- **Application**: protected hostname/path and settings.
+- **Application policies**: policies actually attached, reusable ones included.
+- **Reusable policies**: account-level objects available for assignment.
+- **Service Tokens**: machine credentials selected by a `Service Auth` policy.
+
+A machine-to-machine policy uses action **Service Auth** with an Include rule
+selecting the intended Service Token. A token present in the account does not
+prove it is assigned to the application.
+
+### Read permissions and resource scope
+
+The observer API token is account-scoped (**Include → Specific account →
+bdfe00eeee5845782ab91adfbff71ee1**) with **Cloudflare Tunnel Read** (or
+**Cloudflare One Connector: cloudflared Read**), **Access: Apps and Policies
+Read** and, for Service Token correlation, **Access: Service Tokens Read**.
+
+Token validity and resource authorization are separate. A user-owned token can
+be active on `/user/tokens/verify` while `/accounts/{account_id}/tokens/verify`
+returns `401`; that does not invalidate it. List endpoints are
+authorization-aware: **HTTP 200 with an empty Tunnel list is not proof that
+the account has no Tunnels**, and a direct lookup of a known Tunnel returning
+`401 Not authorized` proves missing permission/scope for that token. The same
+rule applies to Access inventory: an empty list is never a positive claim that
+no Application, Policy or Service Token exists when edge evidence says
+otherwise.
+
+### Diagnostic
+
+Run from the workstation, TrueNAS, then the FastAPI container:
+
+```bash
+python3 scripts/cloudflare/diagnose-cloudflare-api.py \
+  --tunnel-id 1d98bede-6fa0-42a8-971c-cd390d74d7f6 \
+  --expect-hostname 2fauth.albandrieu.com \
+  --access-url https://2fauth.albandrieu.com/
+```
+
+- The direct Tunnel lookup distinguishes an empty inventory from an
+  authorization-filtered list (`result_count=0`).
+- The Access edge probe does not follow redirects: following a challenge to
+  the login page would turn it into a final 200 and a false
+  `access_blocked=false`. Strong Service Auth proof is anonymous request
+  blocked/challenged **and** Service Token request allowed; two unblocked 200s
+  prove nothing, so inspect the application/policy inventory.
+- On TrueNAS without `mise`, export the variables first (`set -a`, source
+  `.env.local` / `.env.secrets` if present, `set +a`) and never print the
+  environment afterwards.
+- The FastAPI container is a separate context with its own credentials; test
+  exactly what it sees with
+  `docker exec -i fastapi-sample python - <same arguments> < scripts/cloudflare/diagnose-cloudflare-api.py`.
+
+### Layered evidence for health verdicts
+
+1. public DNS / HTTP / TLS;
+2. Cloudflare edge headers;
+3. Tunnel object and `config_src`;
+4. Tunnel Public Hostname (`config.ingress[]`) hostname-to-origin mapping;
+5. Access application;
+6. policies attached to the application;
+7. Service Token inventory and Service Auth selection;
+8. live anonymous-vs-Service-Token edge probe.
+
+A failure, timeout, authorization filtering or empty control-plane inventory
+is a **warning/unknown** state, never enough to mark an application DOWN or a
+Tunnel/Application absent. Conversely, an HTTP 200 alone does not prove the
+declared Access protection.
+
 ## Self-hosted Sentry: transport vs ingestion
 
 The self-hosted Sentry intake is reached through the declared LAN endpoint

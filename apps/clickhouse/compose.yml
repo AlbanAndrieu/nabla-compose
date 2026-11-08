@@ -24,6 +24,8 @@ services:
             - apps/clickhouse/config/prometheus.xml
             - apps/prometheus/prometheus.yml:job_name=clickhouse
     restart: unless-stopped
+    # Reap orphaned wget children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     user: "101:101"
     env_file:
       - /mnt/cpool/clickhouse/.env.secrets

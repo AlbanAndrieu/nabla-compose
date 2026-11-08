@@ -1,16 +1,31 @@
 # Service catalog v2 normalization and one-shot cutover
 
-Last reviewed: 2026-09-20.
+Last reviewed: 2026-11-06.
 
 This document refines the architecture in
 `docs/service-catalog-security-graph.md`. The goal is to minimize Nabla-specific
 schema while keeping the operational semantics needed by the homelab.
 
+## Status (2026-11-06)
+
+- Backstage descriptors (`apps/<app>/catalog-info.yaml`,
+  `catalog/catalog-info.yaml`) and the generated read models
+  `catalog/generated/{entities,homelab.cdx,identity-map}.json` are committed;
+  `python scripts/generate-catalog-v2-artifacts.py --check` fails on stale
+  output.
+- Homarr, Gatus and AutoKuma consume Backstage v2 directly (PR #265, 21/10).
+- The v1 files (`services.json`, `service-topology.json`,
+  `homelab-services.json`, `homelab-exposure-overrides.json`) remain for other
+  scripts and repositories: destructive cleanup (P2.1.f) is **not done** and
+  stays gated on the parity audit (see *Materialization debt workflow*).
+- Pre-commit hooks `catalog-v2-preparation-contract`,
+  `catalog-v2-native-identity-contract` and `catalog-v2-pilot-contract` run the
+  parity audit and the catalog tests when these sources change.
+
 ## Executive decision
 
-Do **not** grow `x-nabla` into a clone of Backstage.
-
-Use the standards where they already exist:
+Do **not** grow `x-nabla` into a clone of Backstage. Use the standards where they
+already exist:
 
 - **Backstage `catalog-info.yaml`** for catalog identity, ownership, component /
   resource / API classification, lifecycle, system membership, standard
@@ -29,64 +44,34 @@ Use the standards where they already exist:
 
 Retain `x-nabla` only for information with no sufficiently good standard
 representation **after Backstage, Compose and provider control planes have been
-consulted**.
+consulted**:
 
-The target is smaller than the first v2 draft:
-
-1. operational state becomes a qualified Backstage label
-   (`albandrieu.com/operational-state`) rather than a second service identity;
+1. operational state is a qualified Backstage label
+   (`albandrieu.com/operational-state`), not a second service identity;
 2. boot metadata exists only for exceptional cross-application ordering that
    cannot be derived from Backstage `dependsOn`, Compose `depends_on` and
    readiness;
 3. **desired exposure/security intent remains declared in Git** until the real
    provider configuration is itself Git/IaC-managed; provider APIs are observed
    state, never the sole memory of what should exist;
-4. endpoint/backend facts that are derivable from Compose/Kubernetes/providers
-   are not copied into the intent model;
+4. endpoint/backend facts derivable from Compose/Kubernetes/providers are not
+   copied into the intent model;
 5. custom relation metadata is exceptional and only enriches a standard edge;
 6. structured risk acceptance remains a legitimate custom policy payload.
 
-A standard relation is authored exactly once. For example,
+A standard relation is authored exactly once:
 `spec.dependsOn: [resource:default/neo4j-security]` is the canonical Cartography
-→ Neo4j dependency; it must not be repeated as an `x-nabla` `storesIn` edge
-merely to rename the same relation.
+→ Neo4j dependency and must not be repeated as an `x-nabla` `storesIn` edge.
 
 This is a deliberate breaking v2 cutover. Do not maintain a long-lived v1/v2
 compatibility layer.
 
-## Why this is more normalized
+Why separate files: putting Backstage structure inside a Compose vendor
+extension would look like Backstage without being consumable by Backstage. The
+real descriptor sits next to the real deployment:
 
-Backstage already recommends Git-managed `catalog-info.yaml` descriptors as the
-source of catalog entities. Its descriptors use the same entity envelope in YAML
-and JSON:
-
-```yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: example
-spec:
-  type: service
-  lifecycle: production
-  owner: group:default/nabla-platform
-  system: system:default/nabla-homelab
-```
-
-Putting that structure inside a Compose vendor extension would make the data look
-like Backstage without actually being directly consumable by Backstage.
-
-Instead, place the real descriptor next to the real deployment:
-
-```text
-apps/cartography/
-├── catalog-info.yaml
-└── compose.yml
-```
-
-The repository stays GitOps-native, while the two files have distinct concerns:
-
-- `catalog-info.yaml` = what the entity **is**;
-- `compose.yml` = how it **runs**;
+- `apps/<app>/catalog-info.yaml` = what the entity **is**;
+- `apps/<app>/compose.yml` = how it **runs**;
 - minimal `x-nabla` = Nabla-specific operational policy.
 
 ## Migration mapping: legacy x-nabla -> Backstage / Compose / minimal x-nabla
@@ -131,15 +116,8 @@ catalog/
 ├── catalog-info.yaml                  # Domain/System/Group + static infra
 ├── service-icons.json                 # presentation only; not security truth
 ├── business-criticality-policy.yaml   # Nabla tier thresholds over BIA inputs
-├── generated/
-│   ├── entities.json                  # Backstage entity/API-shaped JSON
-│   ├── operations.json                # normalized Nabla-only operational data
-│   ├── relations.json                 # resolved relations + provenance/evidence
-│   └── homelab.cdx.json               # CycloneDX 1.7 aggregate BOM
-└── schemas/
-    ├── nabla-operations.schema.json
-    └── nabla-relations.schema.json
-
+└── generated/                         # Backstage-shaped JSON, identity map,
+                                       # CycloneDX 1.7 aggregate BOM
 apps/<app>/
 ├── catalog-info.yaml
 └── compose.yml
@@ -150,105 +128,28 @@ manually-maintained service inventory.
 
 ## Backstage entity taxonomy
 
-Stop using the current free-form `kind` field as both catalog kind and technical
-type.
+Use native Backstage kinds instead of the old free-form `kind`:
 
-Use native Backstage kinds:
-
-### Component
-
-Deployable software/processes:
-
-- FastAPI Sample;
-- Prometheus;
-- Grafana;
-- Traefik;
-- Cartography;
-- exporters;
-- workers;
-- collectors;
-- controllers;
-- websites.
-
-Use a small controlled `spec.type` taxonomy:
-
-```text
-service
-website
-worker
-job
-controller
-collector
-exporter
-proxy
-security-tool
-ai-service
-```
-
-Backstage permits adopter-defined component types, so keep the list small rather
-than reproducing every current `kind`.
-
-### Resource
-
-Infrastructure/stateful dependencies:
-
-```text
-database
-graph-database
-cache
-object-storage
-message-broker
-search-engine
-kubernetes-cluster
-host
-virtualization-platform
-network
-dns
-identity-provider
-```
-
-Examples:
-
-- PostgreSQL -> Resource / database;
-- Neo4j -> Resource / graph-database;
-- Redis -> Resource / cache;
-- Garage / MinIO -> Resource / object-storage;
-- Kafka -> Resource / message-broker;
-- TrueNAS -> Resource / virtualization-platform;
-- Kubernetes -> Resource / kubernetes-cluster.
-
-### API
-
-Create API entities only for stable interfaces that have an actual contract or a
-meaningful machine API:
-
-- OpenAPI;
-- AsyncAPI;
-- GraphQL;
-- gRPC;
-- MCP server.
-
-Do not create an API entity merely because a web UI listens on HTTP.
-
-### System / Domain / Group
-
-Initial hierarchy:
-
-```text
-Domain:  nabla
-System:  nabla-homelab
-Owner:   group:default/nabla-platform
-```
-
-Keep current categories such as `security`, `observability`, `network`,
-`data`, `ai` as tags initially. Do not create dozens of Systems simply to
-replace a category string.
+- **Component** — deployable software/processes (FastAPI Sample, Prometheus,
+  Grafana, Traefik, Cartography, exporters, workers, collectors, controllers,
+  websites). Controlled `spec.type`: `service`, `website`, `worker`, `job`,
+  `controller`, `collector`, `exporter`, `proxy`, `security-tool`,
+  `ai-service`. Keep the list small.
+- **Resource** — infrastructure/stateful dependencies: `database`,
+  `graph-database`, `cache`, `object-storage`, `message-broker`,
+  `search-engine`, `kubernetes-cluster`, `host`, `virtualization-platform`,
+  `network`, `dns`, `identity-provider` (e.g. PostgreSQL → database, Neo4j →
+  graph-database, Redis → cache, Garage/MinIO → object-storage, Kafka →
+  message-broker, TrueNAS → virtualization-platform).
+- **API** — only for stable interfaces with a real contract (OpenAPI,
+  AsyncAPI, GraphQL, gRPC, MCP server); not merely because a web UI listens on
+  HTTP.
+- **System / Domain / Group** — `Domain: nabla`, `System: nabla-homelab`,
+  `Owner: group:default/nabla-platform`. Keep categories (`security`,
+  `observability`, `network`, `data`, `ai`) as tags; do not create dozens of
+  Systems to replace a category string.
 
 ## Backstage metadata conventions
-
-Use standard fields wherever possible.
-
-Example:
 
 ```yaml
 apiVersion: backstage.io/v1alpha1
@@ -279,24 +180,16 @@ spec:
 
 Rules:
 
-- `metadata.name` is the canonical stable ID.
-- `metadata.title` is display text.
-- `metadata.description` replaces duplicate UI descriptions.
+- `metadata.name` is the canonical stable ID (lowercase kebab-case).
+- `metadata.title` is display text; `metadata.description` replaces duplicate
+  UI descriptions.
 - `metadata.tags` holds category and NIST CSF classifications.
 - `metadata.labels` holds short queryable Nabla values.
 - `metadata.annotations` holds source/external-system references.
-- `spec.lifecycle` is the software/catalog lifecycle, not boot order.
-
-Suggested catalog lifecycle values:
-
-```text
-experimental
-production
-deprecated
-```
-
-The current `active | planned | disabled` field is **not** the same concept and
-must therefore stay as Nabla operational intent.
+- `spec.lifecycle` (`experimental | production | deprecated`) is the
+  software/catalog lifecycle, not boot order. The operational
+  `active | planned | disabled` state is a different concept and stays in the
+  `albandrieu.com/operational-state` label.
 
 ## Business criticality and BIA
 
@@ -322,19 +215,16 @@ Use ISO terminology as the canonical vocabulary:
 - **RTO** — recovery time objective / objectif de délai de rétablissement.
   RTO must be lower than MTPD/DMTP.
 - **RPO** — recovery point objective / point de rétablissement des données.
-  This is applicable to data-bearing services; it may be omitted for a
-  stateless/rebuildable service.
+  Applicable to data-bearing services; may be omitted for a stateless or
+  rebuildable service.
 - **MBCO / OMCA** — minimum business continuity objective / objectif minimal de
-  continuité d'activité. Keep it as a qualitative minimum acceptable service
-  level; do not force it into a numeric score.
+  continuité d'activité. A qualitative minimum acceptable service level; do not
+  force it into a numeric score.
 
-ISO/TS 22317 also requires the BIA to consider the impact of disruption over
-time, legal/regulatory/contractual obligations, resources and dependencies.
-NIST SP 800-34 uses MTD/RTO/RPO and recovery priorities, while NIST IR 8286D
-extends BIA beyond availability toward enterprise-value impacts including
+ISO/TS 22317 requires the BIA to consider impact over time,
+legal/regulatory/contractual obligations, resources and dependencies. NIST SP
+800-34 uses MTD/RTO/RPO and recovery priorities; NIST IR 8286D extends BIA to
 financial, reputational, operational and regulatory consequences.
-
-References:
 
 - ISO/TS 22317:2021 — https://www.iso.org/standard/79000.html
 - ISO 22300:2025 vocabulary — https://www.iso.org/obp/ui/en/#iso:std:iso:22300:ed-4:v1:fr
@@ -343,11 +233,7 @@ References:
 
 ### Backstage representation
 
-Use a queryable calculated label plus scalar annotations. Backstage labels are
-appropriate for catalog classification/filtering; annotations carry the
-supporting non-identifying BIA metadata.
-
-Example:
+A queryable calculated label plus scalar annotations:
 
 ```yaml
 metadata:
@@ -371,103 +257,66 @@ metadata:
     albandrieu.com/bia-impact-privacy: medium
 ```
 
-Durations use the bounded ISO-8601 subset used by the repository policy
+Durations use the bounded ISO-8601 subset of the repository policy
 (`PT15M`, `PT4H`, `P1D`, `P3D`, ...).
 
 ### Calculation policy
 
-`catalog/business-criticality-policy.yaml` is the single source for the Nabla
-tier thresholds. The thresholds are deliberately identified as **Nabla
-policy**, not ISO/NIST thresholds.
-
-Current method: `max-of-drivers`.
+`catalog/business-criticality-policy.yaml` is the single source for the tier
+thresholds, deliberately identified as **Nabla policy**, not ISO/NIST
+thresholds. Current method: `max-of-drivers`.
 
 1. Convert MTPD, RTO and applicable RPO into a
    `low | medium | high | critical` tier using the policy thresholds.
-2. Convert each assessed impact dimension into the same tier vocabulary.
+2. Convert each assessed impact dimension (`operational`, `customer`,
+   `financial`, `legal-regulatory`, `reputation`, `confidentiality`,
+   `integrity`, `privacy`) into the same vocabulary.
 3. Business criticality is the most severe driver.
 4. Report the driver list and the recovery margin `MTPD - RTO`.
 5. Fail the catalog gate if `RTO >= MTPD`, duration syntax is invalid, an
    impact value is unknown, or the declared business-criticality label differs
    from the calculated value.
 
-Current impact dimensions are:
-
-```text
-operational
-customer
-financial
-legal-regulatory
-reputation
-confidentiality
-integrity
-privacy
-```
-
-These dimensions are not an attempt to invent a universal scoring standard.
-They are a compact catalog projection of BIA concerns from ISO/NIST and remain
-reviewable policy.
+The dimensions are a compact, reviewable projection of ISO/NIST BIA concerns,
+not a universal scoring standard.
 
 ### Assessment maturity
 
-Pilot values in PR #215 use:
-
-```text
-albandrieu.com/bia-status: provisional
-```
-
-A technically passing gate does **not** mean the BIA has been approved.
-`validated` is reserved for an assessment reviewed by the responsible owner.
-The bulk migration must not silently turn provisional values into validated
-values.
+Pilot values (PR #215) use `albandrieu.com/bia-status: provisional`. A passing
+gate does **not** mean the BIA is approved: `validated` is reserved for an
+assessment reviewed by the responsible owner, and bulk migration must never
+silently turn provisional values into validated ones.
 
 ### Coverage gate
 
-The catalog gate now prevents silent BIA omissions during P2.1.c:
-
-- every materialized Backstage `Component` / `Resource` must declare
-  `albandrieu.com/operational-state` so BIA scope cannot be bypassed by a
+- every materialized Backstage `Component` / `Resource` declares
+  `albandrieu.com/operational-state`, so BIA scope cannot be bypassed by a
   missing label;
-- every `active` Component/Resource must also declare
+- every `active` Component/Resource declares
   `albandrieu.com/bia-scope: direct | inherited`;
-- `direct` means the entity owns a BIA and therefore requires a
-  business-criticality label, MTPD/DMTP, RTO, MBCO/OMCA, assessment status,
-  review date and at least one assessed impact dimension;
-- data-bearing `direct` types listed in
-  `catalog/business-criticality-policy.yaml` additionally require RPO;
-- `inherited` means the technical subcomponent does **not** duplicate an own
-  business-criticality/BIA. Its effective criticality is derived from required
-  dependents through the Backstage graph;
-- `planned` / `disabled` entities may remain incomplete until activation,
-  but their missing BIA is explicit lifecycle debt rather than an inferred
-  low-criticality assessment.
+- `direct` owns a BIA and requires a business-criticality label, MTPD/DMTP,
+  RTO, MBCO/OMCA, assessment status, review date and at least one assessed
+  impact dimension; data-bearing `direct` types listed in
+  `catalog/business-criticality-policy.yaml` also require RPO;
+- `inherited` does **not** duplicate a BIA: its effective criticality comes
+  from required dependents through the Backstage graph;
+- `planned` / `disabled` entities may stay incomplete until activation; their
+  missing BIA is explicit lifecycle debt, not an inferred low criticality.
 
 ### Dependency amplification
 
-Do not overwrite an infrastructure Resource's own BIA because a critical
-service depends on it. Keep two separate concepts:
-
-- **own business criticality** — calculated from that entity's BIA;
-- **effective dependency criticality** — generated as a separate read-model
-  signal by traversing required Backstage `spec.dependsOn` edges transitively.
-
-The implementation reports `ownBusinessCriticality`,
-`effectiveDependencyCriticality`, whether the entity was elevated, and the
-upstream business entities in `inheritedFrom`. An `inherited` entity is
-expected to have no own BIA and receives its effective value through this graph.
-Duplicate entity refs, malformed dependencies and unresolved dependency refs
-fail closed.
-
-This preserves provenance, avoids recursive score inflation and lets FastAPI /
-Site consumers explain why an infrastructure dependency is effectively critical
-without mutating its own BIA.
+Never overwrite an infrastructure Resource's own BIA because a critical service
+depends on it. The read model reports `ownBusinessCriticality`,
+`effectiveDependencyCriticality` (transitive over required Backstage
+`spec.dependsOn` edges), whether the entity was elevated, and the upstream
+business entities in `inheritedFrom`. Duplicate entity refs, malformed
+dependencies and unresolved refs fail closed. This preserves provenance and
+prevents recursive score inflation.
 
 ## Kubernetes model: do not flatten catalog, network and status
 
-Kubernetes provides the strongest design lesson for this migration: it does not
-keep one manually merged `services + exposure overrides` inventory.
-
-It splits concerns into resources and reconciles them:
+Kubernetes does not keep one manually merged `services + exposure overrides`
+inventory; it splits concerns and reconciles them:
 
 | Concern | Kubernetes source | Nabla equivalent |
 | --- | --- | --- |
@@ -480,93 +329,41 @@ It splits concerns into resources and reconciles them:
 | process health | startup/readiness/liveness probes | Compose healthcheck + observer probes, normalized to Kubernetes semantics |
 | current state | resource `status.conditions` | FastAPI observation conditions |
 
-Important consequences:
+Consequences: desired and observed state stay separate; desired public
+exposure must survive a Cloudflare/Docker/TrueNAS outage; endpoints are not
+copied into catalog identity because a UI finds them useful; while a provider is
+not Git/IaC-managed, Nabla keeps the intended route/security policy in Git and
+provider APIs report whether it is realized; runtime backend addresses are
+observations (like EndpointSlices); consumers join resources through stable
+references. Losing the controller does not erase the desired `spec`.
 
-1. **desired state and observed state stay separate**;
-2. desired public exposure must survive a Cloudflare/Docker/TrueNAS outage;
-3. an endpoint is not copied into catalog identity metadata merely because it is
-   useful to a UI;
-4. when a provider is not yet Git/IaC-managed, Nabla must temporarily retain the
-   intended route/security policy in Git;
-5. provider APIs report whether that intent is actually realized;
-6. runtime backend addresses are observations, like EndpointSlices, not catalog
-   fields;
-7. consumers build a view by joining resources through stable references.
+### Kubernetes-style metadata and status
 
-This mirrors Kubernetes `spec` versus `status`: losing the controller does not
-erase the desired `spec`.
-### Kubernetes-style metadata conventions
+Generated Kubernetes resources use the recommended `app.kubernetes.io/name`,
+`instance`, `version`, `component`, `part-of` and `managed-by` labels, with
+`app.kubernetes.io/name` = Backstage `metadata.name` (no second
+Kubernetes-only ID). Docker/Compose runtime correlation uses only
+`com.albandrieu.nabla.entity-ref=component:default/example`.
 
-Where Kubernetes resources are generated later, use the recommended labels:
-
-```text
-app.kubernetes.io/name
-app.kubernetes.io/instance
-app.kubernetes.io/version
-app.kubernetes.io/component
-app.kubernetes.io/part-of
-app.kubernetes.io/managed-by
-```
-
-Map `app.kubernetes.io/name` to Backstage `metadata.name`; do not create a
-second Kubernetes-only service ID.
-
-For Docker/Compose runtime correlation, keep only the equivalent qualified label:
-
-```text
-com.albandrieu.nabla.entity-ref=component:default/example
-```
-
-### Kubernetes-style status conditions
-
-FastAPI should normalize runtime/network observations into Kubernetes-like
-conditions instead of storing another declared catalog.
-
-Use the condition shape and semantics:
-
-```json
-{
-  "type": "Ready",
-  "status": "True",
-  "reason": "HealthcheckPassed",
-  "message": "Compose container healthcheck is healthy",
-  "lastTransitionTime": "..."
-}
-```
-
-Useful condition types for the homelab can reuse established terminology rather
-than inventing one status enum:
-
-- `Ready` — service can accept intended traffic;
-- `Healthy` / provider-specific health evidence where required;
-- `Accepted`, `Programmed`, `ResolvedRefs` for route/Gateway-style
-  reconciliation;
-- `Available` for workload/runtime availability;
-- `Degraded` only as a derived presentation state, not as declared intent.
-
-Keep `Unknown` when evidence is stale/unavailable. This matches the existing
-FastAPI principle that missing Cloudflare evidence must not fabricate a failure.
+FastAPI normalizes runtime/network observations into conditions
+(`type`, `status`, `reason`, `message`, `lastTransitionTime`; e.g.
+`Ready=True reason=HealthcheckPassed`) rather than storing another declared
+catalog. Condition types: `Ready`; `Healthy` / provider-specific health where required;
+`Accepted`, `Programmed`, `ResolvedRefs` for route reconciliation; `Available`
+for workload availability; `Degraded` only as a derived presentation state.
+`status` is `True | False | Unknown`, plus `observedGeneration`/revision where
+applicable. Keep `Unknown` when evidence is stale or unavailable: missing
+Cloudflare evidence must not fabricate a failure.
 
 ### Gateway API as the exposure model
 
-The conceptual exposure graph is:
-
 ```text
-Gateway/listener
-       │
-       ▼
-HTTPRoute/TCPRoute
-       │ backendRef
-       ▼
-Service
-       │
-       ▼
-EndpointSlice / runtime backends
+Gateway/listener -> HTTPRoute/TCPRoute -> (backendRef) Service -> EndpointSlice / runtime backends
 ```
 
-For the current non-Kubernetes TrueNAS stack, **do not create fake Kubernetes
-HTTPRoute objects merely to look standard**. Instead, implement provider adapters
-that project the existing source into the same concepts:
+For the non-Kubernetes TrueNAS stack, **do not create fake Kubernetes HTTPRoute
+objects merely to look standard**. Provider adapters project existing sources
+into the same concepts:
 
 - Traefik labels -> Route + backend;
 - Cloudflare Tunnel Public Hostname -> Route + origin;
@@ -575,20 +372,14 @@ that project the existing source into the same concepts:
 - Compose published port -> Service-like internal surface;
 - TrueNAS/Docker container -> observed backend.
 
-When the workload is actually deployed on Kubernetes, consume the native
-Service/EndpointSlice/Gateway API objects directly.
+Kubernetes workloads consume native Service/EndpointSlice/Gateway API objects.
 
 ### Desired exposure intent while providers are not fully IaC-managed
 
-The previous draft went too far by proposing that all exposure be inferred from
-provider state. That would lose security intent during an outage or API
-authorization failure.
-
-Until Cloudflare/pfSense exposure configuration is managed declaratively in Git,
-retain a **small route-intent spec** beside the service.
-
-Use Gateway API concepts and references, but do not fabricate Kubernetes objects
-for Docker workloads:
+Inferring all exposure from provider state would lose security intent during an
+outage or API authorization failure. Until Cloudflare/pfSense exposure is
+managed declaratively in Git, keep a **small route-intent spec** beside the
+service (Gateway API concepts, no fabricated Kubernetes objects):
 
 ```yaml
 x-nabla:
@@ -604,7 +395,8 @@ x-nabla:
         required: true
 ```
 
-The Compose port is named once:
+The Compose port is named once (long syntax), so the exposure spec does **not**
+repeat IP, numeric port, container name or runtime health:
 
 ```yaml
 ports:
@@ -616,116 +408,61 @@ ports:
     app_protocol: http
 ```
 
-The exposure spec therefore does **not** repeat IP address, numeric backend port,
-container name or runtime health.
-
-Semantics:
-
-- `hostnames` = desired names that should exist even when the provider is down;
+- `hostnames` = desired names that must exist even when the provider is down;
 - `protocol` = desired listener/application transport;
-- `visibility` = intended security boundary (`public | lan | cluster | host`);
-- `gatewayRef` = Backstage entity ref for the desired edge/gateway provider;
-- `backendPort` = named Compose/Kubernetes service port, not a duplicate number;
+- `visibility` = intended boundary (`public | lan | cluster | host`);
+- `gatewayRef` = Backstage entity ref of the desired edge/gateway provider;
+- `backendPort` = named Compose/Kubernetes port, not a duplicate number;
 - `access.required` = desired protection intent, independent of whether the
   Cloudflare Access API can currently prove it.
 
-FastAPI then exposes a reconciled view:
-
-```text
-spec:
-  desired route intent from Git
-
-status:
-  Accepted
-  ResolvedRefs
-  Programmed
-  AccessProtected
-  Ready
-```
-
-If Cloudflare is unreachable:
-
-```text
-desired public hostname = still present
-access.required = still true
-Programmed = Unknown
-AccessProtected = Unknown
-```
-
-Never convert the provider outage into `external=false`.
+FastAPI exposes `spec` (desired route intent from Git) and `status`
+(`Accepted`, `ResolvedRefs`, `Programmed`, `AccessProtected`, `Ready`). If
+Cloudflare is unreachable, the desired hostname and `access.required` remain,
+and `Programmed` / `AccessProtected` become `Unknown`. **Never convert a
+provider outage into `external=false`.**
 
 ### Future migration of route intent
 
-The route-intent extension is explicitly transitional:
-
-- Traefik desired routing should remain native Traefik configuration/labels in
-  Git and can be projected into the normalized route view.
-- Kubernetes workloads should move to native Gateway API resources.
-- Cloudflare Tunnel/Access desired state should move to an OpenTofu/Terraform
-  Cloudflare provider when that management path is introduced.
-- pfSense HAProxy desired state should move to its reviewed API/IaC source when
-  safe automation exists.
-
-Once a provider has a real declarative Git source, delete the duplicate
-`x-nabla.exposure` record for that route. The provider-native configuration
-becomes `spec`; FastAPI/provider observation remains `status`.
+The route-intent extension is transitional. Traefik routing stays native
+Traefik labels/config in Git; Kubernetes workloads move to Gateway API;
+Cloudflare Tunnel/Access moves to an OpenTofu/Terraform provider when
+introduced; pfSense HAProxy moves to a reviewed API/IaC source when safe. Once a
+provider has a real declarative Git source, delete the duplicate
+`x-nabla.exposure` record: provider-native configuration becomes `spec`,
+FastAPI/provider observation remains `status`.
 
 ## Separate Backstage lifecycle from boot semantics
 
-Backstage `spec.lifecycle` remains exclusively the catalog/software lifecycle:
-
-```text
-experimental | production | deprecated
-```
-
-For reboot/startup, combine the useful parts of **systemd** and **Kubernetes**
-without copying either API.
-
-Systemd provides the key semantic distinction:
-
-- requirement dependencies (`Requires` / `Wants`);
-- ordering dependencies (`After` / `Before`).
-
-Kubernetes adds the more important operational lesson: avoid a global boot phase
-model when controllers can reconcile independently and gate availability on
+Backstage `spec.lifecycle` stays the catalog/software lifecycle. For
+reboot/startup, combine systemd's distinction between requirement
+(`Requires`/`Wants`) and ordering (`After`/`Before`) with the Kubernetes lesson:
+no global boot phase when controllers can reconcile independently and gate on
 readiness.
 
 ### Target boot algorithm
 
-The TrueNAS resume planner should therefore:
+The TrueNAS resume planner:
 
-1. discover active entities from Backstage's qualified operational-state label;
-2. derive same-project dependencies from Compose `depends_on`;
-3. derive required cross-entity dependencies from Backstage `spec.dependsOn`;
-4. wait for the dependency's declared readiness evidence before unblocking a
+1. discovers active entities from the qualified operational-state label;
+2. derives same-project dependencies from Compose `depends_on`;
+3. derives required cross-entity dependencies from Backstage `spec.dependsOn`;
+4. waits for the dependency's declared readiness evidence before unblocking a
    dependent;
-5. start/reconcile independent branches concurrently;
-6. use systemd-style `after` / `before` only for exceptional order-only
-   constraints;
-7. use `wants` only for a weak/optional boot dependency;
-8. keep retry/reconciliation idempotent rather than requiring one global phase to
-   finish perfectly.
+5. starts/reconciles independent branches concurrently;
+6. uses systemd-style `after` / `before` only for exceptional order-only
+   constraints and `wants` only for a weak/optional dependency;
+7. keeps retry/reconciliation idempotent instead of requiring one global phase
+   to finish perfectly.
 
-Delete the current global:
-
-```yaml
-lifecycle:
-  phase: primary-data
-  priority: 20
-  blocksLaterWaves: true
-```
-
-There is **no v2 replacement for phase or priority**.
-
-Required Backstage dependencies block only their dependents. A failed Vaultwarden
-recovery, for example, does not block an unrelated PostgreSQL branch merely
-because both formerly belonged to ordered waves.
+The legacy `lifecycle: {phase, priority, blocksLaterWaves}` block is deleted and
+**has no v2 replacement**. Required dependencies block only their dependents: a
+failed Vaultwarden recovery does not block an unrelated PostgreSQL branch.
 
 ### Exceptional boot metadata
 
-Most services have no x-nabla boot block.
-
-When a true order-only constraint exists:
+Most services have no boot block. When a true order-only or weak constraint
+exists:
 
 ```yaml
 x-nabla:
@@ -734,88 +471,26 @@ x-nabla:
       - resource:default/special-host-service
     before:
       - component:default/consumer
-```
-
-For a weak/optional boot requirement:
-
-```yaml
-x-nabla:
-  boot:
     wants:
       - component:default/optional-observer
 ```
 
-Rules:
-
-- `after` / `before` express ordering only;
-- `wants` expresses a weak dependency;
-- required dependencies remain Backstage `spec.dependsOn`;
-- intra-project dependencies remain native Compose `depends_on`;
-- there is no `target`, `phase`, `priority`,
-  `blocksDependents` or duplicate `requires` field.
-
-This yields a DAG/reconciliation planner instead of a custom wave scheduler.
+`after` / `before` express ordering only; `wants` a weak dependency; required
+dependencies stay in Backstage `spec.dependsOn` and intra-project ones in
+Compose `depends_on`. There is no `target`, `phase`, `priority`,
+`blocksDependents` or duplicate `requires` field. The result is a DAG
+reconciliation planner, not a custom wave scheduler.
 
 ## Minimal x-nabla v2
 
-The preferred state is **no `x-nabla` block at all** for a normal service.
-
-Cartography:
-
-```yaml
-# apps/cartography/catalog-info.yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: cartography
-  labels:
-    albandrieu.com/operational-state: active
-spec:
-  type: job
-  lifecycle: production
-  owner: group:default/nabla-platform
-  system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/neo4j-security
-```
-
-```yaml
-# apps/cartography/compose.yml
-name: cartography
-
-services:
-  cartography:
-    image: ghcr.io/cartography-cncf/cartography:latest
-    profiles:
-      - manual
-    labels:
-      com.albandrieu.nabla.entity-ref: component:default/cartography
-```
-
-No x-nabla metadata is required here.
-
-### Legitimate remaining x-nabla
-
-Use the extension only when a source cannot yet be represented by a provider-
-native Git/IaC object or derived elsewhere:
+The preferred state is **no `x-nabla` block at all** for a normal service (see
+the Cartography example). Use the extension only when a source cannot yet be
+represented by a provider-native Git/IaC object or derived elsewhere:
+`exposure` (route intent) and `boot` (exceptional ordering), both described
+above, plus:
 
 ```yaml
 x-nabla:
-  exposure:
-    - name: public
-      hostnames:
-        - example.albandrieu.com
-      protocol: HTTPS
-      visibility: public
-      gatewayRef: resource:default/cloudflare-tunnel
-      backendPort: web
-      access:
-        required: true
-
-  boot:
-    after:
-      - resource:default/special-host-service
-
   riskAcceptances:
     - id: truenas-public-admin
       status: accepted
@@ -835,151 +510,46 @@ security/operational query, remove it.
 
 ## Normalize Compose itself
 
-### 1. Add top-level project name
-
-Every repository-managed Compose application should declare:
-
-```yaml
-name: cartography
-```
-
-Compose defines this as the project name. This gives the catalog, runtime and
-TrueNAS reconciliation a stable application identity without another
-`runtime.appId` copy.
-
-Only retain a Nabla `runtime.appId` override where the actual TrueNAS App ID
-cannot be made equal to the project name.
-
-### 2. Remove unnecessary container_name
-
-Prefer:
-
-```yaml
-services:
-  neo4j-security:
-    image: neo4j:5-community
-```
-
-over:
-
-```yaml
-container_name: neo4j-security
-```
-
-Compose already has canonical project/service identity and creates
-`com.docker.compose.project` / `com.docker.compose.service` labels.
-
-Keep `container_name` only when a verified external integration requires the
-literal Docker container name.
-
-### 3. Add one runtime correlation label
-
-Use Docker's reverse-DNS label convention:
-
-```yaml
-labels:
-  com.albandrieu.nabla.entity-ref: resource:default/neo4j-security
-```
-
-The key is deliberately namespaced as `com.albandrieu.nabla.*`: reverse-DNS
-ownership minimizes collisions with Docker/Compose built-ins and third-party
-labels such as `com.docker.compose.*`, `org.opencontainers.*` or
-`traefik.*`. The value is the full Backstage entity ref, so it remains
-unambiguous across entity kinds and namespaces.
-
-This label is a **runtime correlation key**, not catalog metadata. Compose
-places it on the live container, where Docker/TrueNAS observers can read it
-through the Docker API and join observed runtime state back to the canonical
-Backstage entity without guessing from display names or container names.
-
-Do not use a Backstage annotation for this runtime join. Backstage
-`metadata.annotations` belong to the catalog descriptor and are useful for
-source locations, external-system references and longer metadata, but Docker
-does not automatically materialize those annotations on a running container.
-Duplicating the entity ref as both a Backstage annotation and a Docker label
-would therefore add a second catalog-owned copy without improving the join.
-
-Conversely, do not overload Docker labels with the complete catalog. Identity,
-ownership, lifecycle, BIA and business metadata remain in Backstage; Compose
-labels carry only runtime/provider configuration and the minimum stable
-correlation key.
-
-### 4. Derive instead of duplicate
-
-The generator should infer:
-
-- Compose project from top-level `name`;
-- Compose service from the service key;
-- image reference from `image`;
-- networks from `networks`;
-- published ports, names and application protocols from long-syntax `ports` (`name`, `target`, `published`, `host_ip`, `protocol`, `app_protocol`);
-- manual/job intent from `profiles`;
-- local dependency edges from `depends_on`;
-- container health capability from `healthcheck`;
-- restart semantics from `restart`;
-- configs and secrets from native Compose declarations.
-
-Only require metadata when it cannot be derived safely.
-
-### 5. Health checks
-
-Prefer native Compose `healthcheck` for container health and use Kubernetes
-probe semantics in the observer:
-
-- **startup**: has the application completed initialization?
-- **readiness**: should traffic be sent to it?
-- **liveness**: should the runtime restart it?
-
-Do not persist those probes in a second catalog when they can be derived.
-
-Cross-plane checks (LAN, public edge, Access-authenticated route, DNS,
-WebSocket, functional dependency) belong to FastAPI observer configuration/code
-or provider-derived routes and produce status conditions. They are observations,
-not service identity metadata.
-
-### 6. Standard configs/secrets
-
-Where practical:
-
-- use Compose `configs` for non-secret configuration files;
-- use Compose `secrets` when the target application supports file-based secrets;
-- retain Vaultwarden-rendered `env_file` only where applications require
-  environment variables.
-
-Do not force file-based secrets onto software that only supports environment
-variables merely for schema purity.
-
-### 7. OCI metadata
-
-For images built by Nabla, set OCI image annotations at build time:
-
-```text
-org.opencontainers.image.source
-org.opencontainers.image.revision
-org.opencontainers.image.version
-org.opencontainers.image.documentation
-org.opencontainers.image.licenses
-```
-
-Do not add misleading OCI vendor/source labels to third-party images that Nabla
-does not build.
-
-### 8. Version/digest security
-
-Prefer a pinned version and, for critical services, an immutable image digest.
-
-This improves:
-
-- CycloneDX identity;
-- Trivy correlation;
-- rollback reproducibility;
-- runtime-to-SBOM joins.
-
-Treat `:latest` as explicit supply-chain debt.
+1. **Top-level project name** — every repository-managed application declares
+   `name: <app>`. This gives catalog, runtime and TrueNAS reconciliation a
+   stable identity; keep a `runtime.appId` override only where the TrueNAS App
+   ID cannot equal the project name.
+2. **No unnecessary `container_name`** — Compose already provides
+   `com.docker.compose.project` / `com.docker.compose.service`. Keep
+   `container_name` only when a verified external integration needs the literal
+   name.
+3. **One runtime correlation label** —
+   `com.albandrieu.nabla.entity-ref: resource:default/neo4j-security`. The
+   reverse-DNS `com.albandrieu.nabla.*` namespace avoids collisions with
+   `com.docker.compose.*`, `org.opencontainers.*` or `traefik.*`; the value is
+   the full entity ref, unambiguous across kinds and namespaces. Compose puts it
+   on the live container, so Docker/TrueNAS observers join runtime state to the
+   entity without guessing from names. Do not use a Backstage annotation for
+   this join (Docker never materializes annotations on a container), and do not
+   overload Docker labels with catalog metadata: identity, ownership, lifecycle,
+   BIA and business metadata stay in Backstage.
+4. **Derive instead of duplicate** — project from `name`, service from the key,
+   image, networks, ports (long syntax: `name`, `target`, `published`,
+   `host_ip`, `protocol`, `app_protocol`), manual/job intent from `profiles`,
+   local edges from `depends_on`, health from `healthcheck`, restart semantics,
+   configs and secrets. Require metadata only when it cannot be derived safely.
+5. **Health checks** — native Compose `healthcheck`, interpreted with Kubernetes
+   probe semantics (startup / readiness / liveness). Cross-plane checks (LAN,
+   public edge, Access-authenticated route, DNS, WebSocket, functional
+   dependency) are FastAPI observations producing conditions, not identity
+   metadata.
+6. **Configs/secrets** — Compose `configs` for non-secret files, Compose
+   `secrets` where the application supports file-based secrets, Vaultwarden-
+   rendered `env_file` only where environment variables are required. Do not
+   force file-based secrets for schema purity.
+7. **OCI metadata** — for images Nabla builds, set
+   `org.opencontainers.image.{source,revision,version,documentation,licenses}`
+   at build time; never add misleading OCI labels to third-party images.
+8. **Version/digest security** — pinned version and, for critical services, an
+   immutable digest (CycloneDX identity, Trivy correlation, rollback,
+   runtime-to-SBOM joins). Treat `:latest` as explicit supply-chain debt.
 
 ## OpenTelemetry identity alignment
-
-For telemetry-capable applications, use:
 
 ```text
 service.name                 = Backstage metadata.name
@@ -989,113 +559,45 @@ service.version              = deployed application/image version
 service.criticality          = critical | high | medium | low
 ```
 
-The same service name must remain stable across production/staging deployments;
-the deployment environment is a separate attribute.
-
-Do not invent environment-specific service IDs such as
+The service name stays stable across environments; do not invent IDs such as
 `sample-production` unless they are genuinely different logical services.
 
 ## CycloneDX projection
 
-Map every Backstage service/component to a deterministic CycloneDX reference.
-
-Recommended reference:
-
-```text
-nabla:component:default/cartography
-nabla:resource:default/neo4j-security
-```
-
-CycloneDX services natively support:
-
-- endpoints;
-- authenticated boolean;
-- trust-boundary boolean;
-- trust zone;
-- service hierarchy;
-- data flows/classification;
-- dependency references.
-
-Map the operational endpoint model into those fields where semantics are
-lossless. Preserve richer ingress/access/risk-acceptance details as namespaced
-CycloneDX properties.
-
-Package/image SBOMs generated by Trivy remain separate artifacts linked through
-image digest / pURL and the Backstage entity reference.
+Every Backstage component/resource maps to a deterministic reference
+(`nabla:component:default/cartography`, `nabla:resource:default/neo4j-security`).
+Map endpoints, authentication, trust boundary/zone, service hierarchy, data
+flows and dependency references where semantics are lossless; keep richer
+ingress/access/risk-acceptance details as namespaced CycloneDX properties.
+Trivy package/image SBOMs remain separate artifacts linked through image digest
+/ pURL and the entity ref.
 
 ## Relation normalization: one edge, one authority
 
-Backstage well-known relations are the canonical declared graph:
+Backstage well-known relations (`ownedBy`, `partOf`, `dependsOn`,
+`providesApi`, `consumesApi`) are the canonical declared graph, authored
+natively in `catalog-info.yaml`. Never author both `spec.dependsOn` and an
+`x-nabla.relations` entry (e.g. `semantic: storesIn`) for the same logical
+edge: Neo4j is already typed `Resource` / `graph-database`.
 
-```text
-ownedBy
-partOf
-dependsOn
-providesApi
-consumesApi
-```
+Keep relation metadata only when **all three** hold: Backstage cannot express
+the distinction; runtime/configuration cannot derive it reliably; an
+operational/security query uses it (e.g. an explicit authentication path, proxy
+route or security observation path). Even then, enrich the existing edge.
 
-Use them natively in `catalog-info.yaml`.
-
-### No duplicated semantic aliases
-
-Do **not** author both:
-
-```yaml
-spec:
-  dependsOn:
-    - resource:default/neo4j-security
-```
-
-and:
-
-```yaml
-x-nabla:
-  relations:
-    - targetRef: resource:default/neo4j-security
-      semantic: storesIn
-```
-
-for the same logical edge.
-
-For the Cartography → Neo4j case, `dependsOn` is sufficient: Neo4j is already
-typed as a `Resource` / `graph-database`, so consumers can understand the
-dependency without a second edge.
-
-### When enrichment is justified
-
-Keep relation metadata only when all three are true:
-
-1. Backstage cannot express the distinction;
-2. runtime/configuration cannot derive it reliably;
-3. the distinction is used by an operational/security query.
-
-Examples that may qualify are an explicit authentication path, proxy route or
-security observation path. Even then, enrich the existing edge rather than
-creating a second independently-owned topology relation whenever possible.
-
-### Derivation policy
-
-Prefer:
-
-- Compose `depends_on` for same-project runtime dependency;
-- Backstage `spec.dependsOn` for cross-entity functional dependency;
-- Backstage `providesApis` / `consumesApis` for API relationships;
-- Backstage System/Domain fields for `partOf`;
-- runtime/provider observations for hosting, routing and exposure;
-- Neo4j relationship enrichment for observed attack-path semantics.
-
-This deliberately removes `storesIn`, `hostedBy`, `routesTo`,
-`observedBy`, `authenticatesVia`, `exposedBy` and `automates` from the
-mandatory authoring vocabulary. They may still exist as generated/observed graph
-semantics when evidence proves them.
+Derivation policy: Compose `depends_on` for same-project runtime dependency;
+Backstage `spec.dependsOn` for cross-entity functional dependency;
+`providesApis` / `consumesApis` for APIs; System/Domain for `partOf`;
+runtime/provider observations for hosting, routing and exposure; Neo4j
+enrichment for observed attack-path semantics. `storesIn`, `hostedBy`,
+`routesTo`, `observedBy`, `authenticatesVia`, `exposedBy` and `automates` are
+removed from the mandatory authoring vocabulary; they may exist as
+generated/observed semantics when evidence proves them.
 
 ## Cartography ontology alignment
 
-Do not try to force Nabla's whole schema to match provider-specific Cartography
-nodes.
-
-Use semantic graph labels during import:
+Do not force the Nabla schema to match provider-specific Cartography nodes. Use
+semantic labels at import:
 
 ```text
 Backstage Component -> :NablaEntity:Application
@@ -1104,26 +606,18 @@ Backstage Resource/host -> :NablaEntity:ComputeInstance
 API -> :NablaEntity:Service
 ```
 
-The Cartography project is itself moving toward lightweight ontology and
-relationship normalization. Keep the mapping layer explicit so the Nabla model
-can follow those canonical semantic labels without making Cartography's internal
-schema the Git authoring format.
+Keep the mapping layer explicit so Nabla can follow Cartography's canonical
+semantic labels without making its internal schema the Git authoring format.
 
 ## Delete homelab-services.json and homelab-exposure-overrides.json
 
-The Kubernetes comparison changes the previous recommendation: **do not replace
-these files with another canonical flat endpoint document**.
-
-However, do not discard the desired exposure/security intent they currently
-contain. First migrate that intent into Backstage/Compose/provider-native Git
-sources or the temporary minimal `x-nabla.exposure` spec. Only then delete the
-legacy files in the coordinated cutover.
-
-Both files exist because identity, endpoint discovery, desired exposure,
-observed routing and presentation were collapsed into one UI-oriented schema and
-then patched with precedence overrides.
-
-Delete the flat model, not the intent.
+Both files collapsed identity, endpoint discovery, desired exposure, observed
+routing and presentation into one UI-oriented schema patched with precedence
+overrides. **Do not replace them with another flat endpoint document**, and do
+not discard the desired exposure/security intent they contain: first migrate it
+into Backstage/Compose/provider-native Git sources or the temporary
+`x-nabla.exposure` spec, then delete the legacy files in the coordinated
+cutover. Delete the flat model, not the intent.
 
 ### homelab-services.json field disposition
 
@@ -1158,195 +652,65 @@ Delete the flat model, not the intent.
 
 ### Provider authority
 
-For the current homelab:
+| Plane | Desired state | Observed state |
+| --- | --- | --- |
+| internal Docker endpoint | Compose | TrueNAS/Docker observation |
+| internal HTTP ingress | Traefik labels/config | Traefik routes |
+| public Cloudflare route | Git route intent until Cloudflare is IaC-managed | Tunnel Public Hostname API |
+| public authorization | route intent `access.required` until Access policy is IaC-managed | Access Application + attached policies + Service Token/live-edge evidence |
+| direct WAN | route intent until pfSense HAProxy has a reviewed declarative owner | pfSense HAProxy frontend/backend |
+| Kubernetes workload | Service + Gateway API manifests | EndpointSlice + Gateway status |
 
-- **internal Docker endpoint desired state:** Compose;
-- **internal HTTP ingress desired state:** Traefik labels/config;
-- **public Cloudflare route desired state:** temporary Git route intent until
-  Cloudflare configuration is IaC-managed;
-- **public Cloudflare route observed state:** Tunnel Public Hostname API;
-- **public authorization desired state:** route intent `access.required` until
-  Cloudflare Access policy is IaC-managed;
-- **public authorization observed state:** Access Application + attached policies
-  + Service Token/live-edge evidence;
-- **direct WAN desired state:** temporary route intent until pfSense HAProxy
-  configuration has a reviewed declarative owner;
-- **direct WAN observed state:** pfSense HAProxy frontend/backend;
-- **runtime backend:** TrueNAS/Docker observation;
-- **Kubernetes workload:** native Service + EndpointSlice + Gateway API, whose
-  spec/status separation already solves this natively.
+FastAPI provider adapters are the source of the network view; their results are
+not copied into static JSON. A direct exposure needing a policy exception also
+keeps a structured `riskAcceptance`. Do not add a generic
+`external: true/false` Backstage field to recreate the old override file.
 
-FastAPI already observes several of these providers. The migration should make
-those adapters the source of the network view instead of copying their result
-into static JSON.
+## Consumer contracts: FastAPI Sample and Site Alban
 
-### Desired exposure versus observed exposure
+FastAPI is a **read-model / reconciler** (controller plus API view), not a
+second declared inventory. It drops `homelab-services.json`,
+`homelab-exposure-overrides.json`, `DeclaredService`, `DeploymentEnvironment`,
+`RuntimeBinding`, `ServiceLifecycle` and `HomelabTopologyNode`, and consumes
+Backstage entities/relations, temporary Git route/security intent,
+Compose-derived runtime facts, TrueNAS/Docker and Kubernetes observations,
+Traefik, Cloudflare Tunnel + Access and pfSense HAProxy observations, and
+security findings/SBOM enrichments.
 
-Kubernetes separates `spec` from `status`; Nabla should too.
+- **API shape:** resource-oriented views (`/api/catalog/entities`,
+  `/api/catalog/relations`, `/api/runtime/observations`,
+  `/api/network/routes`, `/api/network/backends`,
+  `/api/security/findings-summary`); the health-board aggregate is generated
+  from them and is not a source of truth.
+- **Join key:** only the full entity ref (`component:default/prometheus`);
+  never join runtime evidence on display names.
+- **Cold start:** an optional generated last-known-good cache (e.g.
+  `nabla/api/data/catalog-snapshot.json`) is an implementation cache, never
+  hand-edited and never a third catalog; observations stay
+  fresh/stale/unknown separately.
 
-Whenever possible, move desired exposure into the actual controller's
-declarative source:
-
-- Traefik labels/config in Git;
-- Kubernetes Gateway API manifests in Git;
-- Cloudflare configuration-as-code if/when the dashboard-managed configuration
-  is migrated to OpenTofu/Terraform;
-- pfSense/HAProxy configuration source when safely automatable.
-
-Until a provider is Git-managed, the minimal Git route-intent spec is the
-**desired state**, and FastAPI/provider APIs supply the **observed status**.
-
-A direct exposure that needs an explicit policy exception additionally keeps a
-structured `riskAcceptance`.
-
-Do not add a generic `external: true/false` Backstage field merely to recreate
-the old override file; keep exposure intent as a route/policy object with a
-hostname/gateway/access context.
-
-## FastAPI Sample one-shot changes
-
-FastAPI becomes a **read-model / reconciler**, analogous to a Kubernetes
-controller plus API view. It does not own a second declared inventory.
-
-Delete:
-
-```text
-homelab-services.json
-homelab-exposure-overrides.json
-DeclaredService
-DeploymentEnvironment
-RuntimeBinding
-ServiceLifecycle
-HomelabTopologyNode
-```
-
-Consume directly:
-
-```text
-Backstage entities/relations
-temporary Git route/security intent for providers not yet IaC-managed
-Compose-derived desired runtime facts
-TrueNAS/Docker observations
-Kubernetes Service/EndpointSlice/Gateway objects when applicable
-Traefik route configuration
-Cloudflare Tunnel + Access observations
-pfSense HAProxy observations
-security findings/SBOM enrichments
-```
-
-### API shape
-
-Do not create one giant replacement DTO.
-
-Prefer resource-oriented endpoints/views:
-
-```text
-/api/catalog/entities
-/api/catalog/relations
-/api/runtime/observations
-/api/network/routes
-/api/network/backends
-/api/security/findings-summary
-```
-
-The existing health-board aggregate can remain a presentation-optimized endpoint,
-but it is generated from those views and is not the source of truth.
-
-### Status
-
-Normalize evidence with Kubernetes-style conditions:
-
-```text
-type
-status = True | False | Unknown
-reason
-message
-lastTransitionTime
-observedGeneration/revision where applicable
-```
-
-Gateway-like route observations should expose `Accepted`, `Programmed` and
-`ResolvedRefs` semantics where meaningful.
-
-### Join key
-
-Use only the full Backstage entity reference:
-
-```text
-component:default/prometheus
-resource:default/postgresql
-```
-
-Never join runtime evidence on display names.
-
-### Cold-start/offline behavior
-
-A build may embed an **optional generated last-known-good cache**, but that file
-is an implementation cache, not a third canonical catalog and is never hand
-edited.
-
-If present, name it generically (for example
-`nabla/api/data/catalog-snapshot.json`) and generate it solely from the standard
-sources. Runtime/provider observations remain separately fresh/stale/unknown.
-
-## Site Alban one-shot changes
-
-Replace the current service DTO with the same entity-ref model.
-
-React Flow node ID:
-
-```text
-component:default/prometheus
-```
-
-not:
-
-```text
-Prometheus
-prometheus
-```
-
-Consume:
-
-- Backstage entity metadata for title/description/type/owner/system/tags;
-- desired exposure/security intent from provider-native Git/IaC or temporary route-intent declarations;
-- Backstage relations for declared graph edges/evidence;
-- FastAPI runtime observations separately;
-- security enrichment separately.
-
-Remove presentation-critical operational fields from the catalog UI fallback.
-
-The Site may keep its own icon/layout mapping, because icon choice and graph
-position are presentation concerns rather than infrastructure truth.
+Site Alban uses the entity ref as React Flow node ID (not `Prometheus` /
+`prometheus`), consumes Backstage metadata and relations, desired exposure
+intent, FastAPI runtime observations and security enrichment separately, and
+keeps only presentation-only icons/layout locally.
 
 ## Static infrastructure normalization
 
-Replace `catalog/service-topology.static.json` with standards-first sources.
-
-Use `catalog/catalog-info.yaml` for Domain/System/Group and static Resources
-such as TrueNAS, pfSense, Kubernetes and Talos.
-
-Do **not** recreate a static endpoint inventory. Their endpoints/routes are
-derived from provider configuration and observations just like Kubernetes
-Service/Gateway/status resources.
-
-A small qualified annotation or x-nabla block is permitted only for an
-exceptional risk acceptance or order-only constraint that cannot be represented
-elsewhere.
-
-This removes the current dependency where static topology nodes point their
-`sourcePath` at `catalog/homelab-services.json`.
+`catalog/service-topology.static.json` is replaced by `catalog/catalog-info.yaml`
+(Domain/System/Group and static Resources such as TrueNAS, pfSense, Kubernetes,
+Talos). Do **not** recreate a static endpoint inventory: endpoints and routes are
+derived from provider configuration and observations. A small qualified
+annotation or `x-nabla` block is allowed only for an exceptional risk acceptance
+or order-only constraint.
 
 ## Generator v2
 
-Replace `generate-service-topology.py` responsibilities with a standards-first
-pipeline:
+Standards-first pipeline replacing `generate-service-topology.py`:
 
 1. discover all `apps/**/catalog-info.yaml`;
 2. validate Backstage entities and entity refs;
 3. read tracked Compose files;
-4. bind each Compose service through
-   `com.albandrieu.nabla.entity-ref`;
+4. bind each Compose service through `com.albandrieu.nabla.entity-ref`;
 5. read minimal `x-nabla.operations` and custom relations;
 6. derive Compose-native runtime facts;
 7. merge static catalog/operations;
@@ -1356,8 +720,7 @@ pipeline:
 11. calculate one revision across all declared catalog inputs;
 12. fail `--check` if generated output is stale.
 
-Do not generate a replacement static exposure inventory. Network/runtime views are
-built from controller/provider sources.
+Do not generate a replacement static exposure inventory.
 
 ### Mandatory quality gates
 
@@ -1376,22 +739,17 @@ Fail if:
 - a standard Backstage relation is duplicated as custom x-nabla metadata;
 - generated artifacts do not share the same revision.
 
-## Example: Neo4j
-
-### apps/neo4j/catalog-info.yaml
+## Examples: Neo4j and Cartography
 
 ```yaml
+# apps/neo4j/catalog-info.yaml
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: neo4j-security
   title: Neo4j Security Graph
   description: Analytical graph store for attack-path and blast-radius analysis.
-  tags:
-    - security
-    - graph
-    - nist-identify
-    - nist-detect
+  tags: [security, graph, nist-identify, nist-detect]
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
@@ -1404,236 +762,81 @@ spec:
   system: system:default/nabla-homelab
 ```
 
-### apps/neo4j/compose.yml
-
 ```yaml
+# apps/neo4j/compose.yml: named long-syntax ports (web 7474, bolt 7687,
+# app_protocol http/bolt) and a native healthcheck, plus:
 name: neo4j
-
 services:
   neo4j-security:
     image: neo4j:5-community
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/neo4j-security
 
-    ports:
-      - name: web
-        target: 7474
-        published: "31086"
-        host_ip: 172.17.0.24
-        protocol: tcp
-        app_protocol: http
-      - name: bolt
-        target: 7687
-        published: "31087"
-        host_ip: 172.17.0.24
-        protocol: tcp
-        app_protocol: bolt
-
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - wget --no-verbose --tries=1 --spider http://127.0.0.1:7474/ || exit 1
-
-```
-
-Notice what disappeared from x-nabla:
-
-- id/name/description;
-- kind/category;
-- criticality;
-- security functions;
-- runtime containerService;
-- endpoint inventory now derived from Compose/provider routing;
-- monitoring URL already represented by Compose healthcheck or observer;
-- network membership;
-- phase/priority boot metadata.
-
-## Example: Cartography
-
-### apps/cartography/catalog-info.yaml
-
-```yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: cartography
-  title: Cartography
-  description: Security asset and relationship ingestion into Neo4j.
-  tags:
-    - security
-    - nist-identify
-    - nist-detect
-  labels:
-    albandrieu.com/status: active
-    albandrieu.com/operational-criticality: low
-spec:
-  type: job
-  lifecycle: production
-  owner: group:default/nabla-platform
-  system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/neo4j-security
-```
-
-### apps/cartography/compose.yml
-
-```yaml
+# apps/cartography/compose.yml (descriptor: see Backstage metadata conventions)
 name: cartography
-
 services:
   cartography:
     image: ghcr.io/cartography-cncf/cartography:latest
-    profiles:
-      - manual
+    profiles: [manual]
     labels:
       com.albandrieu.nabla.entity-ref: component:default/cartography
-
 ```
 
-The standard Backstage `dependsOn` is the **only declared Cartography → Neo4j edge**. No x-nabla relation duplicates it.
+Gone from `x-nabla`: id/name/description, kind/category, criticality, security
+functions, `runtime.containerService`, endpoint inventory, monitoring URL,
+network membership and phase/priority boot metadata. The Backstage `dependsOn`
+is the **only declared Cartography → Neo4j edge**.
 
 ## One-shot implementation scope
 
-This should be implemented as one coordinated schema cutover, not as a long
-compatibility migration.
+Prepared in stages, switched over once: "one-shot" describes the externally
+visible schema switch, **not** an unreviewed big-bang edit. `docs/roadmap.md` is
+the execution tracker; the P2.1 phases are:
 
-The execution is deliberately **prepared in stages but switched over once**.
-`docs/roadmap.md` is the concise execution tracker. The detailed P2.1 phase definitions live in this document:
+1. **P2.1.a — preparation:** freeze/inventory v1, v1→v2 parity report, schemas
+   and anti-duplication gates; no runtime behavior change.
+2. **P2.1.b — representative pilot:** Neo4j, Cartography, PostgreSQL, FastAPI
+   Sample and Traefik; prove desired intent survives provider outages.
+3. **P2.1.c — bulk nabla-compose migration:** materialize all descriptors,
+   normalize Compose, migrate exposure intent/risk acceptances, prove 100%
+   semantic parity.
+4. **P2.1.d — consumer preparation:** FastAPI and Site Alban understand only v2
+   while legacy runtime contracts still exist for rollback.
+5. **P2.1.e — coordinated cutover:** deploy the prepared repositories and run
+   desired-vs-observed/network/topology smokes.
+6. **P2.1.f — destructive cleanup:** delete legacy JSON
+   (`services.json`, `service-topology.json`, `homelab-services.json`,
+   `homelab-exposure-overrides.json`) and wave metadata only after the
+   desired-intent parity gate, consumer and reboot gates pass.
+7. **P2.1.g — provider-native IaC cleanup:** move temporary `x-nabla.exposure`
+   records into Cloudflare/pfSense IaC or Gateway API, deleting each when its
+   native source exists.
 
-1. **P2.1.a — preparation:** freeze/inventory v1, generate the v1→v2 parity
-   report, define schemas and anti-duplication gates; no runtime behavior change.
-2. **P2.1.b — representative pilot:** migrate Neo4j, Cartography, PostgreSQL,
-   FastAPI Sample and Traefik; prove desired intent survives provider outages.
-3. **P2.1.c — bulk nabla-compose migration:** materialize all Backstage
-   descriptors, normalize Compose, migrate exposure intent/risk acceptances and
-   prove 100% semantic parity.
-4. **P2.1.d — consumer preparation:** make FastAPI and Site Alban understand only
-   the v2 model while legacy runtime contracts still exist for rollback.
-5. **P2.1.e — coordinated cutover:** deploy the three prepared repositories and
-   run desired-vs-observed/network/topology smokes.
-6. **P2.1.f — destructive cleanup:** delete legacy JSON and wave metadata only
-   after parity, consumer and reboot gates pass.
-7. **P2.1.g — provider-native IaC cleanup:** later move temporary
-   `x-nabla.exposure` records into Cloudflare/pfSense IaC or Kubernetes Gateway
-   API and delete each temporary record when its native desired-state source
-   exists.
+### Cross-repository merge order
 
-Thus "one-shot" describes the externally visible schema switch, **not** an
-unreviewed big-bang edit.
+GitHub cannot make three repositories transactional, so prepare all PRs first:
 
-### nabla-compose
-
-- add Backstage descriptors;
-- bulk-convert all current x-nabla blocks;
-- add Compose project names;
-- add entity-ref runtime labels;
-- remove redundant `container_name` values where safe;
-- derive networks/ports/profiles/health/dependencies from Compose;
-- replace static topology source;
-- replace generator and schemas;
-- generate Backstage projections and CycloneDX;
-- derive provider/runtime network views instead of generating another static
-  service/exposure inventory;
-- migrate every legacy desired hostname/visibility/access requirement into
-  provider-native Git/IaC or temporary `x-nabla.exposure`;
-- remove old `services.json`, `service-topology.json`,
-  `homelab-services.json` and `homelab-exposure-overrides.json` only after
-  that desired-intent parity gate and the coordinated consumer PRs are ready.
-
-### fastapi-sample
-
-- replace old catalog/topology Pydantic models;
-- delete both packaged legacy service/exposure JSON files;
-- consume Backstage entities plus provider/runtime resources directly;
-- normalize observations to Kubernetes-style conditions;
-- remove name-based and legacy-field joins;
-- expose entity-ref-based resource-oriented read APIs;
-- keep any cold-start snapshot explicitly derived/cache-only.
-
-### nabla-site-alban
-
-- replace old catalog DTO;
-- use entity refs as graph IDs;
-- consume Backstage relations plus FastAPI runtime/network resource views;
-- keep presentation-only icons/layout local;
-- remove the old bundled service/exposure shape.
-
-## Merge/cutover order
-
-GitHub cannot make three repositories transactional, so prepare all PRs before
-cutover.
-
-Recommended controlled order:
-
-1. make all three PRs ready and locally validated;
+1. make the `nabla-compose`, `fastapi-sample` and `nabla-site-alban` PRs ready
+   and locally validated;
 2. merge/deploy `nabla-compose` generator/artifacts;
 3. immediately merge/deploy `fastapi-sample` against the new artifacts;
 4. immediately merge/deploy `nabla-site-alban`;
-5. run cross-repository catalogRevision/health/topology smoke;
-6. remove any temporary deployment-only rollback artifact if one was required.
+5. run the cross-repository catalogRevision/health/topology smoke;
+6. remove any temporary deployment-only rollback artifact.
 
-There should be no permanent dual schema and no long-running compatibility code.
-
-## References
-
-- Backstage descriptor format:
-  https://backstage.io/docs/features/software-catalog/descriptor-format/
-- Backstage catalog graph / GitOps:
-  https://backstage.io/docs/features/software-catalog/creating-the-catalog-graph/
-- Backstage well-known relations:
-  https://backstage.io/docs/features/software-catalog/well-known-relations/
-- Backstage well-known annotations:
-  https://backstage.io/docs/features/software-catalog/well-known-annotations/
-- Docker Compose extensions:
-  https://docs.docker.com/reference/compose-file/extension/
-- Docker Compose service labels:
-  https://docs.docker.com/reference/compose-file/services/
-- Docker Compose project name:
-  https://docs.docker.com/reference/compose-file/version-and-name/
-- Kubernetes object model:
-  https://kubernetes.io/docs/concepts/overview/working-with-objects/
-- Kubernetes recommended labels:
-  https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
-- Kubernetes Service / EndpointSlice:
-  https://kubernetes.io/docs/concepts/services-networking/
-- Kubernetes probes:
-  https://kubernetes.io/docs/concepts/workloads/pods/probes/
-- Gateway API HTTP routing:
-  https://gateway-api.sigs.k8s.io/guides/user-guides/http-routing/
-- Gateway API specification/status conditions:
-  https://gateway-api.sigs.k8s.io/reference/api-spec/main/spec/
-- OpenTelemetry service semantic conventions:
-  https://opentelemetry.io/docs/specs/semconv/resource/service/
-- OpenTelemetry deployment environment:
-  https://opentelemetry.io/docs/specs/semconv/registry/entities/deployment/
-- OCI image annotations:
-  https://github.com/opencontainers/image-spec/blob/main/annotations.md
-- CycloneDX 1.7 service schema:
-  https://cyclonedx.org/docs/1.7/json/
-- Cartography:
-  https://github.com/cartography-cncf/cartography
+No permanent dual schema and no long-running compatibility code.
 
 ## Implemented standard projections
 
-PR #224 now includes the first executable standard projections:
-
-- `scripts/nabla_ops/catalog_exports.py` loads the real Backstage descriptors,
-  assigns stable full `entityRef` identities and computes one deterministic
-  SHA-256 `catalogRevision`;
-- `scripts/generate-catalog-v2-artifacts.py` produces
-  `catalog/generated/entities.json` and
-  `catalog/generated/homelab.cdx.json`;
-- the CycloneDX document uses **specVersion 1.7**, carries the same catalog
-  revision and projects resolved Backstage dependencies into the CycloneDX
-  dependency graph;
+- `scripts/nabla_ops/catalog_exports.py` loads the Backstage descriptors,
+  assigns full `entityRef` identities and computes one deterministic SHA-256
+  `catalogRevision`;
+- `scripts/generate-catalog-v2-artifacts.py` produces `entities.json`,
+  `homelab.cdx.json` and `identity-map.json` under `catalog/generated/`;
+- the CycloneDX document uses **specVersion 1.7**, carries the same revision
+  and projects resolved Backstage dependencies into its dependency graph;
 - `tests/test_catalog_v2_exports.py` covers deterministic revision and
-  dependency preservation.
-
-The generated files are intentionally not yet committed as authoritative
-artifacts while Backstage materialization is incomplete. Once P2.1.c reaches the
-required coverage, the generator should become a local quality-gate
-`--check` and the generated artifacts can be consumed by FastAPI, Site Alban
-and Cartography without creating another manually-maintained inventory.
+  dependency preservation (first delivered in PR #224).
 
 ## Materialization debt workflow
 
@@ -1644,12 +847,33 @@ count. Use the repository audit as the source of truth:
 python scripts/audit-service-catalog-v2-parity.py --check --debt-json
 ```
 
-The focused output contains the total debt plus `byState`,
-`byCriticality` and the exact generated service records still lacking a
-unique Backstage entity. OpenCode `/catalog-wave` consumes this contract.
+The output contains the total debt plus `byState`, `byCriticality` and the
+exact generated service records still lacking a unique Backstage entity.
+OpenCode `/catalog-wave` consumes this contract.
 
 When the highest-priority remaining entries are `unclassified`, switch to
 **classification-first** work. Do not invent business criticality, DMTP/MTPD,
 RTO, RPO, MBCO or impact dimensions merely to create a descriptor. Inspect one
 coherent runtime group, establish statefulness/dependencies and owner evidence,
 then materialize only the entities whose classification can be justified.
+
+## References
+
+- Backstage: [descriptor format](https://backstage.io/docs/features/software-catalog/descriptor-format/),
+  [catalog graph / GitOps](https://backstage.io/docs/features/software-catalog/creating-the-catalog-graph/),
+  [well-known relations](https://backstage.io/docs/features/software-catalog/well-known-relations/),
+  [well-known annotations](https://backstage.io/docs/features/software-catalog/well-known-annotations/)
+- Docker Compose: [extensions](https://docs.docker.com/reference/compose-file/extension/),
+  [services/labels](https://docs.docker.com/reference/compose-file/services/),
+  [project name](https://docs.docker.com/reference/compose-file/version-and-name/)
+- Kubernetes: [object model](https://kubernetes.io/docs/concepts/overview/working-with-objects/),
+  [recommended labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/),
+  [Service / EndpointSlice](https://kubernetes.io/docs/concepts/services-networking/),
+  [probes](https://kubernetes.io/docs/concepts/workloads/pods/probes/)
+- Gateway API: [HTTP routing](https://gateway-api.sigs.k8s.io/guides/user-guides/http-routing/),
+  [spec/status conditions](https://gateway-api.sigs.k8s.io/reference/api-spec/main/spec/)
+- OpenTelemetry: [service](https://opentelemetry.io/docs/specs/semconv/resource/service/),
+  [deployment environment](https://opentelemetry.io/docs/specs/semconv/registry/entities/deployment/)
+- [OCI image annotations](https://github.com/opencontainers/image-spec/blob/main/annotations.md),
+  [CycloneDX 1.7 schema](https://cyclonedx.org/docs/1.7/json/),
+  [Cartography](https://github.com/cartography-cncf/cartography)

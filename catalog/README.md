@@ -16,8 +16,7 @@ converted into zero. The current static v2 catalog has **154 total
 entities**, **151 Component/Resource refs** and **141 Compose identity
 mappings**; these counts do NOT establish which services are RUNNING.
 Only the LAN-generated timestamped private snapshot provides runtime
-measurements. See
-[27 October operations runbook](../docs/runbooks/2026-10-27-defectdojo-resources-vault-observability.md).
+measurements.
 
 ## Observed resource reference (RAM / GPU / storage)
 

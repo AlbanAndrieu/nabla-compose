@@ -33,7 +33,6 @@ EXPECTED_SANDBOX = {
     "compose.yml", "Dockerfile", "catalog-info.yaml", "test-docker.sh",
 }
 SOURCE_CONSUMERS = (
-    "scripts/workstation/apply-openclaw-heartbeat-scratch.py",
     "scripts/workstation/check-openclaw-runtime-alignment.py",
     "scripts/workstation/openclaw-heartbeat-gitops.py",
     "scripts/workstation/openclaw_runtime_paths.py",

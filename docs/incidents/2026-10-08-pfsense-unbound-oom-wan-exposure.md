@@ -7,7 +7,7 @@ Netgate 1100 memory/DNS failures and the concurrent exposure of the pfSense
 WebConfigurator/API listener on TCP/10443.
 
 Current policy and remaining actions stay in
-[`pfsense-wan-exposure-roadmap.md`](../pfsense-wan-exposure-roadmap.md),
+[`pfsense-ingress-exposure-policy.md`](../runbooks/pfsense-ingress-exposure-policy.md),
 [`pfsense-php-fpm-hardening.md`](../pfsense-php-fpm-hardening.md) and
 [`roadmap.md`](../roadmap.md).
 

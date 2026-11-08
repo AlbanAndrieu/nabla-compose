@@ -117,6 +117,11 @@ app_json() {
   midclt_bounded app.query "[[\"id\",\"=\",\"$1\"]]"
 }
 
+# A full app.query collects every workload's stats and hits "Call timeout" on a loaded host.
+apps_snapshot() {
+  midclt_bounded app.query '[]' '{"select":["id","name","state","version","custom_app"]}'
+}
+
 app_state() {
   app_json "$1" | jq -r 'if length == 1 then .[0].state else "UNKNOWN" end'
 }
@@ -315,6 +320,7 @@ make_plans() {
   python3 "${PLANNER}" \
     --apps "${apps}" \
     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING \
+    --keep-inactive \
     --services "${REPO_ROOT}/catalog/services.json" \
     --topology "${REPO_ROOT}/catalog/service-topology.json" \
     --pretty >"${dir}/shutdown-plan.json"
@@ -686,7 +692,7 @@ verify_bundle_integrity
 if [[ "${MODE}" == --check ]]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "${tmp}"' EXIT
-  midclt_bounded app.query >"${tmp}/apps-before.json"
+  apps_snapshot >"${tmp}/apps-before.json"
   make_plans "${tmp}/apps-before.json" "${tmp}"
   vm_policy_gate
   cluster_client_preflight
@@ -710,7 +716,7 @@ if [[ "${MODE}" == --prepare ]]; then
   chmod 700 "${state_dir}"
 
   docker_storage_debt_preflight "${state_dir}/docker-storage-debt-before.txt"
-  midclt_bounded app.query >"${state_dir}/apps-before.json"
+  apps_snapshot >"${state_dir}/apps-before.json"
   midclt_bounded vm.query >"${state_dir}/vms-before.json"
   midclt_bounded docker.config >"${state_dir}/docker-config-before.json"
   docker network ls >"${state_dir}/docker-networks-before.txt"
