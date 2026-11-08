@@ -1,3 +1,14 @@
+## [0.59.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.0...0.59.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **backups:** fail closed when every staged database is absent; preserve prior backups ([1674fec](https://github.com/AlbanAndrieu/nabla-compose/commit/1674fec6712d71d9a3d876b23ad24955123c22cb))
+* **backups:** retain old recovery points when any database backup fails ([3830f6a](https://github.com/AlbanAndrieu/nabla-compose/commit/3830f6aed670236d886b3d944f0a04458638069c))
+* **catalog:** order topology relations by canonical source,target,type tuple ([0f0448f](https://github.com/AlbanAndrieu/nabla-compose/commit/0f0448f2d6e52dd8ce52c05430e4f7169d76facf))
+* **quality:** preserve executable mode on pending Apps rollout command ([b63281c](https://github.com/AlbanAndrieu/nabla-compose/commit/b63281c01da92aa20377167646d659c30669918a))
+* **rebase:** reconcile PR [#330](https://github.com/AlbanAndrieu/nabla-compose/issues/330) with master monitoring, scripts and catalog ([96248bb](https://github.com/AlbanAndrieu/nabla-compose/commit/96248bba87a44a2a726cbdbc1ac9be65906dc532))
+
 # [0.59.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.58.0...0.59.0) (2026-11-08)
 
 
