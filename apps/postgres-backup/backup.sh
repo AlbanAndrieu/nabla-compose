@@ -71,13 +71,12 @@ if (("${#completed[@]}" == 0)); then
   exit 1
 fi
 
-# Prune archives older than the retention window. Today's archive is never
-# older than KEEP_DAYS, so at least the newest backup per database survives.
-find "${BACKUP_DIR}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
-  -mtime +"${KEEP_DAYS}" -delete
-find "${BACKUP_DIR}" -type f -name '.*.dump.part' -mmin +720 -delete
-
 if ((failures == 0)); then
+  # Prune only after the entire backup wave completed successfully. A failed
+  # database must keep its older recovery points intact.
+  find "${BACKUP_DIR}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
+    -mtime +"${KEEP_DAYS}" -delete
+  find "${BACKUP_DIR}" -type f -name '.*.dump.part' -mmin +720 -delete
   printf '{"completed_at":"%s","databases":"%s","skipped":"%s","keep_days":%s}\n' \
     "${stamp}" "${completed[*]}" "${skipped[*]}" "${KEEP_DAYS}" >"${BACKUP_DIR}/.last-success.json"
   echo "backup completed: ${completed[*]}${skipped[*]:+ (skipped: ${skipped[*]})}"
