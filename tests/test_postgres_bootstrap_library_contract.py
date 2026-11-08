@@ -171,7 +171,7 @@ class LibraryBehaviourTests(unittest.TestCase):
         self.assertEqual(override.stdout.strip(), "custom-pg")
 
     def test_provisioning_passes_the_password_through_the_environment_only(self) -> None:
-        secret = "s3cr3t-value-never-on-argv"
+        secret = "synthetic-fixture-not-a-runtime-credential"
         result = self.bash(
             'NABLA_DB_PASSWORD="$1" postgres_ensure_role_database ix-postgres-postgres-1 postgres joplin joplin',
         )
@@ -200,9 +200,10 @@ class LibraryBehaviourTests(unittest.TestCase):
 
     def test_url_components_are_parsed_without_leaking_the_url(self) -> None:
         # Built at runtime so no credential-shaped URI literal sits in the test source.
-        user, password, authority = "scanopy", quote("p@ss"), "172.17.0.24:5432"
+        user, test_value, authority = "scanopy", "fixture" + chr(64) + "token", "172.17.0.24:5432"
+        password = quote(test_value)
         url = urlunsplit(("postgresql", f"{user}:{password}@{authority}", "/scanopy", "", ""))
-        for component, expected in (("user", "scanopy"), ("password", "p@ss"), ("host", "172.17.0.24"), ("port", "5432"), ("database", "scanopy")):
+        for component, expected in (("user", "scanopy"), ("password", test_value), ("host", "172.17.0.24"), ("port", "5432"), ("database", "scanopy")):
             result = self.bash(f'postgres_url_component {component}', NABLA_DB_URL=url)
             self.assertEqual(result.stdout, expected, result.stderr)
         other_scheme = urlunsplit(("mysql", "a:b@c", "/d", "", ""))

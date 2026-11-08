@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:c9b0be1f0454e5291ab72bd98c951f82b48b734928ae04ecd6d9b3eaa845d0c6",
+  "catalogRevision": "sha256:617fbfb4267c99da183aeda74407e02714d1eff2fd30eb635751ad2816498420",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -993,7 +993,7 @@
         "provider": "truenas-app",
         "containerService": "homeassistant",
         "networks": [
-          "iot_macvlan",
+          "intranet",
           "traefik"
         ]
       }
@@ -1108,13 +1108,13 @@
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service.",
       "presentationRole": "core",
       "criticality": "critical",
-      "status": "planned",
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "keycloak",
         "containerService": "keycloak",
         "networks": [
           "intranet"
@@ -1961,6 +1961,27 @@
       "runtime": {
         "provider": "truenas-app",
         "containerService": "portracker"
+      }
+    },
+    {
+      "id": "postgres-backup",
+      "name": "PostgreSQL Backup",
+      "kind": "database-backup",
+      "category": "data",
+      "sourcePath": "apps/postgres-backup/compose.yml",
+      "composeService": "postgres-backup",
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "host",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {

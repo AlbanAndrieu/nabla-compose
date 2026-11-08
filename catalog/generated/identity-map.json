@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd",
+  "catalogRevision": "sha256:c3d58377d9e2b3be4d9ad8a2d57c48368d5aaa759ff687409dc97e4ec25187be",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -539,6 +539,12 @@
       "entityRef": "component:default/portracker",
       "evidence": "apps/portracker/compose.yml:services.portracker.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/portracker/compose.yml#services/portracker",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/postgres-backup",
+      "evidence": "apps/postgres-backup/compose.yml:services.postgres-backup.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/postgres-backup/compose.yml#services/postgres-backup",
       "sourceType": "compose"
     },
     {

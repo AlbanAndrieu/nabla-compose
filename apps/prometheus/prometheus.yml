@@ -274,6 +274,28 @@ scrape_configs:
           platform: truenas
           role: identity-provider
 
+  # Dependency-Track API server (ALPINE_METRICS_ENABLED) on its LAN port.
+  - job_name: dependency_track
+    metrics_path: /metrics
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - 172.17.0.24:31083
+        labels:
+          platform: truenas
+          role: software-supply-chain
+
+  # NetBox (METRICS_ENABLED) on its LAN web port.
+  - job_name: netbox
+    metrics_path: /metrics
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - 172.17.0.24:31082
+        labels:
+          platform: truenas
+          role: network-source-of-truth
+
   - job_name: crowdsec
     static_configs:
       - targets:

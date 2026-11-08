@@ -162,15 +162,20 @@ ready=0
 # Run one step; the complete output goes to a private log, the report line
 # stays bounded. Returns the step's exit status.
 run_step() {
-  local app="$1" name="$2" command="$3" log rc=0 detail
+  local app="$1" name="$2" command="$3" log rc
   log="${LOG_DIR}/${app}-${name}.log"
   if bash -c "${command}" >"${log}" 2>&1; then
     printf 'rollout app=%s step=%s result=OK\n' "${app}" "${name}"
     return 0
+  else
+    # Capture status in the else branch: after a failed 'if' without 'else',
+    # $? is zero and can falsely report success.
+    rc=$?
   fi
-  rc=$?
-  detail="$(tail -n 1 "${log}" | cut -c1-160)"
-  printf 'rollout app=%s step=%s result=BLOCKED exit=%s detail=%s\n' "${app}" "${name}" "${rc}" "${detail:-see log}"
+  # Child output is private. Never forward it to the operator/CI summary:
+  # even the last line may contain a credential or a database URL.
+  printf 'rollout app=%s step=%s result=BLOCKED exit=%s log=private\n' \
+    "${app}" "${name}" "${rc}"
   return "${rc}"
 }
 

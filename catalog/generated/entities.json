@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:95df4f01ed1af4bde86b7f815a627683c1263f6f345076cbcd1483f2b7aa12fd",
+  "catalogRevision": "sha256:c3d58377d9e2b3be4d9ad8a2d57c48368d5aaa759ff687409dc97e4ec25187be",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3145,6 +3145,54 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/postgres-backup",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "zfs-snapshots-of-cpool-backup-and-the-last-verified-dump-remain-restorable",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-07",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-backup/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "postgres-backup",
+        "tags": [
+          "data",
+          "backup"
+        ],
+        "title": "PostgreSQL Backup"
+      },
+      "sourcePath": "apps/postgres-backup/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "job"
       }
     },
     {

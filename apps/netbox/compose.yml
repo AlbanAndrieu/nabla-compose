@@ -20,6 +20,8 @@ services:
       REDIS_CACHE_PORT: ${NETBOX_REDIS_CACHE_PORT:-6379}
       REDIS_CACHE_DATABASE: ${NETBOX_REDIS_CACHE_DATABASE:-6}
       SKIP_SUPERUSER: ${NETBOX_SKIP_SUPERUSER:-true}
+      # Prometheus metrics at /metrics on the LAN web port; scraped by apps/prometheus.
+      METRICS_ENABLED: "true"
     healthcheck:
       test: ["CMD-SHELL", "/opt/netbox/health.sh || exit 1"]
       start_period: 90s
@@ -61,6 +63,12 @@ services:
         host: 172.17.0.24
         port: 31082
       relations:
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes the NetBox metrics endpoint.
+          evidence:
+            - apps/netbox/compose.yml:METRICS_ENABLED
         - target: postgresql
           type: storesIn
           strength: required

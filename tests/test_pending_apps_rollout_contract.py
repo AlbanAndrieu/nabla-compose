@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shlex
 import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +77,57 @@ class RolloutGateTests(unittest.TestCase):
         self.assertEqual(unapproved.returncode, 1)
         self.assertIn("NABLA_RUNTIME_CHANGE_APPROVED=yes", unapproved.stderr)
 
+    def test_failed_step_returns_real_exit_status_and_redacts_child_output(self) -> None:
+        # Extract the real function; no TrueNAS, root, middleware or private DNS.
+        source = SCRIPT.read_text(encoding="utf-8")
+        start = source.index("run_step() {")
+        end = source.index("\ncheck_prerequisites() {", start)
+        fragment = source[start:end]
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = "TEST-ONLY-CHILD-OUTPUT-NOT-FOR-REPORT"
+            command = f"printf '%s\\n' {shlex.quote(marker)} >&2; exit 17"
+            shell = "\n".join((
+                "set -u",
+                f"LOG_DIR={shlex.quote(tmp)}",
+                fragment,
+                "set +e",
+                f"run_step demo smoke {shlex.quote(command)}",
+                "rc=$?",
+                'printf "STEP_RC=%s\\n" "$rc"',
+                "exit 0",
+            ))
+            result = subprocess.run(
+                ["bash", "-c", shell], capture_output=True, text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("result=BLOCKED exit=17", result.stdout)
+            self.assertIn("STEP_RC=17", result.stdout)
+            self.assertNotIn(marker, result.stdout + result.stderr)
+            self.assertIn(
+                marker,
+                (Path(tmp) / "demo-smoke.log").read_text(encoding="utf-8"),
+            )
+
+    def test_successful_step_remains_successful(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        fragment = source[source.index("run_step() {"):source.index("\ncheck_prerequisites() {")]
+        with tempfile.TemporaryDirectory() as tmp:
+            shell = "\n".join((
+                "set -u",
+                f"LOG_DIR={shlex.quote(tmp)}",
+                fragment,
+                "run_step demo smoke 'exit 0'",
+                'printf "STEP_RC=%s\\n" "$?"',
+            ))
+            result = subprocess.run(
+                ["bash", "-c", shell], capture_output=True, text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("result=OK", result.stdout)
+            self.assertIn("STEP_RC=0", result.stdout)
+
     def test_check_and_apply_never_bypass_the_owning_deployers(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("docker compose up", text)
@@ -83,6 +136,7 @@ class RolloutGateTests(unittest.TestCase):
         self.assertNotIn("truenas_reconcile_custom_app", text)
         self.assertIn('run_phase "${app}" check no', text)
         self.assertIn('run_phase "${app}" apply yes', text)
+        self.assertIn('result=BLOCKED exit=%s log=private', text)
         self.assertIn("mutations=0", text)
         self.assertIn('chmod 0700 "${LOG_DIR}"', text)
         self.assertLess(text.index('require_root'), text.index('run_step()'))
