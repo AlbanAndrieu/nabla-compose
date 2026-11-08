@@ -55,16 +55,20 @@ jobs:
       - name: Validate Prometheus configuration
         shell: bash
         run: |
-          # promtool requires credentials_file to exist during validation.
-          # Mount synthetic, empty files by name; never read production secrets.
+          # promtool reads credentials_file and bearer_token_file during validation.
+          # Synthetic CI-only tokens are world-readable INSIDE the temporary
+          # fixture directory so the unprivileged Prometheus image can read
+          # the bind mount. No production secret is copied or accessed.
           umask 077
           auth_dir="$(mktemp -d)"
           trap 'rm -rf -- "$auth_dir"' EXIT
-          { grep -ho 'credentials_file: /run/secrets/[A-Za-z0-9._-]*' apps/prometheus/prometheus.yml || true; } |
+          chmod 0755 "$auth_dir"
+          { grep -Eho '(credentials_file|bearer_token_file):[[:space:]]*/run/secrets/[A-Za-z0-9._-]+' apps/prometheus/prometheus.yml || true; } |
             sed 's#.*/run/secrets/##' | sort -u |
             while IFS= read -r name; do
               [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || exit 1
-              : > "$auth_dir/$name"
+              printf '%s\n' 'synthetic-ci-only-token' > "$auth_dir/$name"
+              chmod 0644 "$auth_dir/$name"
             done
           docker run --rm \
             --read-only \
