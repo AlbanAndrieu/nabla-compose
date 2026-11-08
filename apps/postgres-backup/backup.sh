@@ -62,6 +62,15 @@ for database in ${BACKUP_DATABASES}; do
   fi
 done
 
+# A successful run must produce at least one validated archive. During a
+# staged rollout every database can be absent: that is NOT backup success and
+# must not refresh the last-success marker or prune older recovery points.
+if (("${#completed[@]}" == 0)); then
+  printf 'FAIL no database backup completed (skipped=%s failed=%s)\n' \
+    "${#skipped[@]}" "${failures}" >&2
+  exit 1
+fi
+
 # Prune archives older than the retention window. Today's archive is never
 # older than KEEP_DAYS, so at least the newest backup per database survives.
 find "${BACKUP_DIR}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
