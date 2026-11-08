@@ -54,6 +54,10 @@ def test_backup_script_verifies_prunes_and_keeps_the_password_off_argv() -> None
     assert 'export PGPASSWORD="${POSTGRES_PASSWORD}"' in script and "unset POSTGRES_PASSWORD" in script
     assert "--password" not in script and "PGPASSWORD=" not in script.replace('export PGPASSWORD="${POSTGRES_PASSWORD}"', "")
     assert "-mtime +\"${KEEP_DAYS}\"" in script
+    # Only a successful complete wave may prune older recovery archives.
+    assert script.index("if ((failures == 0)); then") < script.index(
+        'find "${BACKUP_DIR}" -type f'
+    )
     assert ".last-success.json" in script
     assert re.search(r"\[\[ \"\$\{database\}\" =~ \^\[a-z\]", script)
 
