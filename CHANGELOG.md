@@ -1,3 +1,36 @@
+## [0.59.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.0...0.59.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **backups:** fail closed when every staged database is absent; preserve prior backups ([1674fec](https://github.com/AlbanAndrieu/nabla-compose/commit/1674fec6712d71d9a3d876b23ad24955123c22cb))
+* **backups:** retain old recovery points when any database backup fails ([3830f6a](https://github.com/AlbanAndrieu/nabla-compose/commit/3830f6aed670236d886b3d944f0a04458638069c))
+* **catalog:** order topology relations by canonical source,target,type tuple ([0f0448f](https://github.com/AlbanAndrieu/nabla-compose/commit/0f0448f2d6e52dd8ce52c05430e4f7169d76facf))
+* **quality:** preserve executable mode on pending Apps rollout command ([b63281c](https://github.com/AlbanAndrieu/nabla-compose/commit/b63281c01da92aa20377167646d659c30669918a))
+* **rebase:** reconcile PR [#330](https://github.com/AlbanAndrieu/nabla-compose/issues/330) with master monitoring, scripts and catalog ([96248bb](https://github.com/AlbanAndrieu/nabla-compose/commit/96248bba87a44a2a726cbdbc1ac9be65906dc532))
+
+# [0.59.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.58.0...0.59.0) (2026-11-08)
+
+
+### Bug Fixes
+
+* **catalog:** start cloudflared before vaultwarden on reboot resume ([e31785e](https://github.com/AlbanAndrieu/nabla-compose/commit/e31785ee29ffe2dd15b0632bd677659f4ad2171b))
+* **ci:** use ephemeral non-secret fixture for promtool credential file ([b95803f](https://github.com/AlbanAndrieu/nabla-compose/commit/b95803f5d445f3e572c03bb77ebf2594e3d76f57))
+* **monitoring:** stop alerting on services never deployed on TrueNAS ([e5a4c16](https://github.com/AlbanAndrieu/nabla-compose/commit/e5a4c165bd8bf9becb5f95af383e25d26cfc798c))
+* **rebase:** reconcile removed catalog Apps, regenerated observability artifacts and current runbooks ([9af9987](https://github.com/AlbanAndrieu/nabla-compose/commit/9af9987cf96b60c70a25077b730bc83d8d7c96f4))
+* **submodules:** fetch apps/fastapi-sample over HTTPS ([512aad4](https://github.com/AlbanAndrieu/nabla-compose/commit/512aad42c2e7e24918c41a783757f9f64dcf4ba9)), closes [#300](https://github.com/AlbanAndrieu/nabla-compose/issues/300)
+
+
+### Features
+
+* **compose:** cap memory of every JVM service ([77e3d7c](https://github.com/AlbanAndrieu/nabla-compose/commit/77e3d7c6f0fcc4b416bcb25fee15bd0c346ba74c))
+* **ddns-updater:** move DDNS updater to a dedicated Custom App ([1e2d110](https://github.com/AlbanAndrieu/nabla-compose/commit/1e2d110fe4574c2b56ef6b47de4374a37a64f86e))
+* **dockhand:** prepare migration from catalog App to Custom App ([ffdfeaf](https://github.com/AlbanAndrieu/nabla-compose/commit/ffdfeafa71b084e324ee49fbc6549afecb5942ff)), closes [hi#risk](https://github.com/hi/issues/risk)
+* **doco-cd:** disable Doco-CD and document its intended role ([d692200](https://github.com/AlbanAndrieu/nabla-compose/commit/d6922003a7822fd54d9db32600f74e1755f69df5))
+* **prometheus:** scrape full workstation host metrics as workstation_node ([d8fb205](https://github.com/AlbanAndrieu/nabla-compose/commit/d8fb205ec5d9ae19fce040f186dc11416a3d3168))
+* **truenas:** manifest-driven Custom App recreation and capture ([2424604](https://github.com/AlbanAndrieu/nabla-compose/commit/24246047b2fadb68262df795c7ed5c9ebd53d5c1))
+* **truenas:** reconcile repository Compose Apps as TrueNAS Custom Apps ([dc618b7](https://github.com/AlbanAndrieu/nabla-compose/commit/dc618b7b3d57776fd0455f8e0d6dd0bf3553c7f8))
+
 # [0.58.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.57.1...0.58.0) (2026-11-06)
 
 

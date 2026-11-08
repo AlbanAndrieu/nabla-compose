@@ -120,10 +120,11 @@ After the canonical secret and shared database contract are valid:
 cd /mnt/cpool/compose/nabla-compose
 sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check scanopy
 sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --check
-sudo bash scripts/truenas/deploy-scanopy.sh
+sudo bash scripts/truenas/deploy-scanopy.sh --check
+sudo NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/deploy-scanopy.sh --apply
 ```
 
-The deployment helper refuses to start/update Scanopy when the shared PostgreSQL role/database cannot be authenticated.
+`deploy-scanopy.sh` defaults to the read-only `--check` preflight (`scanopy_mutations=0`); `--apply` reconciles the TrueNAS Custom App only with an explicit approval. The deployment helper refuses to start/update Scanopy when the shared PostgreSQL role/database cannot be authenticated. `bootstrap-scanopy-postgres.sh` is a wrapper around `scripts/truenas/bootstrap-app-postgres.sh`; `rollout-pending-apps.sh --check scanopy` runs the complete preflight.
 
 The deployment helper invokes `check-scanopy-image-lock.sh` **before any
 runtime bootstrap or TrueNAS `app.create` / `app.update`**. It rejects an empty or failed Docker

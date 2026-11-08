@@ -44,6 +44,27 @@ build/cleanup cycle when only validation is intended.
 - `scripts/lib/`: small side-effect-free shell primitives shared by operator
   entry points.
 
+## Consolidated TrueNAS entry points (2026-11-08)
+
+- `scripts/truenas/bootstrap-app-postgres.sh [--check|--apply|--describe] <app>`
+  provisions one application's role/database on the shared PostgreSQL App
+  from its canonical runtime secret (`homeassistant`, `joplin`, `scanopy`,
+  `plumber`, `netbox`, `dependency-track`, `defectdojo`, `keycloak`).
+  `bootstrap-joplin-postgres.sh`, `bootstrap-scanopy-postgres.sh`,
+  `bootstrap-homeassistant-postgres.sh` and
+  `bootstrap-security-tooling-postgres.sh` are thin compatibility wrappers.
+  `scripts/lib/postgres.sh` owns container resolution, idempotent SQL and the
+  login proof; passwords only travel through `docker exec -e`.
+- `scripts/lib/app-deploy.sh` is the shared `--check`/`--apply` contract of the
+  single-App deployers (`deploy-joplin.sh`, `deploy-scanopy.sh`): canonical
+  checkout gate, Compose validation, `<app>_mutations=0` preflight report and
+  middleware reconciliation gated by `NABLA_RUNTIME_CHANGE_APPROVED=yes`.
+- `scripts/truenas/rollout-pending-apps.sh [--plan|--check|--apply] [app]`
+  is the single operator entry point for the Apps declared but not deployed
+  yet: `--plan` prints the ordered steps without root, `--check` runs every
+  read-only gate and reports READY/BLOCKED per App, `--apply <app>` deploys
+  one App through its owning deployer and re-applies the backup role.
+
 ## Refactor rules
 
 1. Preserve existing operator entry-point paths while extracting shared code.

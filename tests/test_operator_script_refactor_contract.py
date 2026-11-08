@@ -13,11 +13,15 @@ TRUENAS = ROOT / "scripts/lib/truenas.sh"
 DOCKER_PRUNE = ROOT / "scripts/truenas/prune-docker-images.sh"
 DOCKER_IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
 APP_QUERY_CONSUMERS = (
-    ROOT / "scripts/truenas/deploy-joplin.sh",
+    ROOT / "scripts/lib/app-deploy.sh",
     ROOT / "scripts/truenas/deploy-docling.sh",
-    ROOT / "scripts/truenas/deploy-scanopy.sh",
     ROOT / "scripts/truenas/deploy-wazuh.sh",
     ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh",
+)
+# Single-App deployers built on the shared deploy contract: no inline middleware calls.
+APP_DEPLOY_CONSUMERS = (
+    ROOT / "scripts/truenas/deploy-joplin.sh",
+    ROOT / "scripts/truenas/deploy-scanopy.sh",
 )
 STUCK_APPS = ROOT / "scripts/truenas/diagnose-stuck-apps.sh"
 NPM_DIAGNOSTIC = ROOT / "scripts/truenas/diagnose-nginx-proxy-manager.sh"
@@ -115,6 +119,23 @@ class OperatorScriptRefactorContractTests(unittest.TestCase):
                     'midclt call app.query "[[\\"id\\",\\"=\\",\\"${APP_ID}\\"]]"',
                     script,
                 )
+
+    def test_single_app_deployers_share_the_deploy_contract(self) -> None:
+        library = (ROOT / "scripts/lib/app-deploy.sh").read_text(encoding="utf-8")
+        self.assertIn("app_deploy_mode()", library)
+        self.assertIn("app_deploy_canonical_checkout()", library)
+        self.assertIn("app_deploy_check_report()", library)
+        self.assertIn("app_deploy_reconcile()", library)
+        self.assertIn("truenas_reconcile_custom_app", library)
+        self.assertNotIn("midclt call", library)
+        for path in APP_DEPLOY_CONSUMERS:
+            with self.subTest(script=path):
+                script = path.read_text(encoding="utf-8")
+                self.assertIn('source "${SCRIPT_DIR}/../lib/app-deploy.sh"', script)
+                self.assertIn('MODE="$(app_deploy_mode "${1:-}" "$0")" || exit 2', script)
+                self.assertIn('if [[ "${MODE}" == "--check" ]]; then', script)
+                self.assertNotIn("midclt call", script)
+                self.assertNotIn("truenas_job_compact", script)
 
     def test_immutable_reboot_bundle_tracks_shared_dependencies(self) -> None:
         text = MATERIALIZER.read_text(encoding="utf-8")

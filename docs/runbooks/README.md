@@ -13,6 +13,7 @@
 | FastAPI Sample et LiteLLM | [Diagnostic consolidé](fastapi-consolidated-diagnostics-20261030.md) | Identité, routes, métriques, secrets 0600 |
 | OpenClaw et heartbeat | [Plan inter-dépôts](../roadmap-openclaw-yubikey-extraction-20261030.md) | Gateway cible, budget, logs et aucun double heartbeat |
 | Home Assistant / Open WebUI | [Identité canonique](openwebui-homeassistant-canonical-rename.md) | Sauvegarde, middleware, Access et rollback |
+| Secrets Vaultwarden | [Clôture active — 6 novembre](vaultwarden-migration-closure-20261106.md) | Item, rendu 0600, comparaison et réception runtime |
 | Secrets TrueNAS | [Gates avant `--finalize`](../secrets-runtime-initialization.md#gates-before---finalize-app) | Provenance et alignement runtime |
 | Talos Kubernetes | [Préflight CSI](../kubernetes-csi-preflight.md) | `democratic-csi` et multi-nœuds |
 | Sécurité et test de non-régression | [Registre des refactorings](homelab-refactoring-risk-register.md) | Tests négatifs et qualité L3 |

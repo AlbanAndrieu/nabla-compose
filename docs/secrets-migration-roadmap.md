@@ -1,5 +1,24 @@
 # Homelab secrets migration roadmap
 
+> **Bilan vérifié côté Git, 6 novembre 2026 (PR #326) :** 43 entrées
+> applicatives / 117 champs dans le manifeste, 6 éléments bootstrap.
+> **La migration vers Vaultwarden n'est pas déclarée terminée** :
+> ce total n'atteste ni l'import dans le coffre ni l'utilisation runtime.
+> La réception se fait service par service : item unique dans le dossier
+> correct → rendu `0600` → égalité du fichier → consommation conteneur →
+> smoke fonctionnel et rollback. La [procédure de clôture](runbooks/vaultwarden-migration-closure-20261106.md)
+> et l'[outil de couverture](../scripts/secrets/audit-vaultwarden-migration.py)
+> remplacent les anciennes suites de commandes non qualifiées.
+>
+> **P0 actuel :** comparer l'entrée `nabla/prod/homarr`
+> (`HOMARR_API_KEY`, `SECRET_ENCRYPTION_KEY`) au fichier TrueNAS :
+> `homarr-sync` utilisait `HOMARR_API_TOKEN` (ancienne identité).
+> Ne pas émettre de nouveau jeton tant que la provenance n'est pas établie.
+> **P1 :** OpenRAG, LiteLLM, OpenSearch, puis la couverture des autres
+> applications actives ; ne pas forcer une rotation des identités partagées.
+> Les anciennes étapes ci-dessous décrivent une **méthode**, pas un état
+> runtime actuel.
+
 This document is the operational roadmap for moving TrueNAS/Compose runtime secrets from shell exports and scattered `.env*` files into Vaultwarden-backed canonical materializations without breaking existing services or losing migration-critical keys.
 
 It complements `docs/roadmap.md` and `docs/truenas-runtime-layout.md`.

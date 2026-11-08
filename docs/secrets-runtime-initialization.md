@@ -787,6 +787,9 @@ other services need their own adapter and non-regression tests.
    sudo -E bash scripts/truenas/bootstrap-security-tooling-postgres.sh --apply netbox
    ```
 
+   It wraps `scripts/truenas/bootstrap-app-postgres.sh` (same modes and
+   role/database table; `--describe <app>` prints the contract without root).
+
    `sudo -E` is required by this helper: run it from a shell where
    `BW_SESSION` is unset (see the session privilege boundary above).
 

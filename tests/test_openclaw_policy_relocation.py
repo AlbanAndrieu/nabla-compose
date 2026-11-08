@@ -16,7 +16,6 @@ SANDBOX = ROOT / "apps/openclaw"
 EXPECTED_POLICY_FILES = {
     "BACKUP.md",
     "HEARTBEAT-RESTORED.candidate.md",
-    "HEARTBEAT-SCRATCH.template.md",
     "HEARTBEAT.md",
     "LEGACY_HEARTBEAT_RECOVERY.md",
     "MORNING_BRIEFING.md",
@@ -53,6 +52,12 @@ class RelocationContract(unittest.TestCase):
         self.assertEqual(
             {str(p.relative_to(MOVED)) for p in MOVED.rglob("*") if p.is_file()},
             EXPECTED_POLICY_FILES,
+        )
+
+    def test_retired_workstation_scratch_mutator_does_not_survive_cutover(self):
+        self.assertFalse((MOVED / "HEARTBEAT-SCRATCH.template.md").exists())
+        self.assertFalse(
+            (ROOT / "scripts/workstation/apply-openclaw-heartbeat-scratch.py").exists()
         )
 
     def test_sandbox_comes_from_the_nabla_openclaw_submodule(self):

@@ -35,25 +35,28 @@ EOF
 }
 
 case "${MODE}" in
-  --check | --stage | --accept) ;;
-  -h | --help)
-    usage
-    exit 0
-    ;;
-  *)
-    usage >&2
-    exit 2
-    ;;
+--check | --stage | --accept) ;;
+-h | --help)
+  usage
+  exit 0
+  ;;
+*)
+  usage >&2
+  exit 2
+  ;;
 esac
 
 case "${APP_FILTER}" in
-  scanopy | joplin | autokuma | code | all) ;;
-  *)
-    fail "unsupported first-wave service: ${APP_FILTER}"
-    ;;
+scanopy | joplin | autokuma | code | all) ;;
+*)
+  fail "unsupported first-wave service: ${APP_FILTER}"
+  ;;
 esac
 if [[ "${MODE}" == "--accept" && "${APP_FILTER}" == "all" ]]; then
   fail "--accept is deliberately one service at a time"
+fi
+if [[ "${MODE}" == "--accept" && "${NABLA_RUNTIME_CHANGE_APPROVED:-}" != "yes" ]]; then
+  fail "--accept mutates TrueNAS; set NABLA_RUNTIME_CHANGE_APPROVED=yes after a reviewed --check"
 fi
 
 require_root "run as root on TrueNAS"
@@ -85,18 +88,18 @@ function check_secret_contract {
   local app="$1" file
   file="$(secret_file "${app}")"
   case "${app}" in
-    scanopy)
-      secrets_assert_file "${file}" POSTGRES_PASSWORD SCANOPY_DATABASE_URL
-      ;;
-    joplin)
-      secrets_assert_file "${file}" POSTGRES_PASSWORD
-      ;;
-    autokuma)
-      secrets_assert_file "${file}" AUTOKUMA__KUMA__AUTH_TOKEN
-      ;;
-    code)
-      secrets_assert_file "${file}" PASSWORD
-      ;;
+  scanopy)
+    secrets_assert_file "${file}" POSTGRES_PASSWORD SCANOPY_DATABASE_URL
+    ;;
+  joplin)
+    secrets_assert_file "${file}" POSTGRES_PASSWORD
+    ;;
+  autokuma)
+    secrets_assert_file "${file}" AUTOKUMA__KUMA__AUTH_TOKEN
+    ;;
+  code)
+    secrets_assert_file "${file}" PASSWORD
+    ;;
   esac
 }
 
@@ -147,40 +150,41 @@ function stage_service {
 function accept_dependency {
   local app="$1"
   case "${app}" in
-    scanopy)
-      bash scripts/truenas/bootstrap-scanopy-postgres.sh --apply
-      ;;
-    joplin)
-      bash scripts/truenas/bootstrap-joplin-postgres.sh --apply
-      ;;
-    autokuma)
-      if ! midclt call app.query '[["id","=","uptime-kuma"]]' |
-        jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
-        fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
-      fi
-      probe_http_success http://172.17.0.24:31050/ 3 10 ||
-        fail "autokuma: Uptime Kuma API/UI is not reachable on 172.17.0.24:31050"
-      ;;
-    code)
-      return 0
-      ;;
+  scanopy)
+    bash scripts/truenas/bootstrap-scanopy-postgres.sh --apply
+    ;;
+  joplin)
+    bash scripts/truenas/bootstrap-joplin-postgres.sh --apply
+    ;;
+  autokuma)
+    if ! midclt call app.query '[["id","=","uptime-kuma"]]' |
+      jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
+      fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
+    fi
+    probe_http_success http://172.17.0.24:31050/ 3 10 ||
+      fail "autokuma: Uptime Kuma API/UI is not reachable on 172.17.0.24:31050"
+    ;;
+  code)
+    return 0
+    ;;
   esac
 }
 
 function deploy_service {
   local app="$1" state
   case "${app}" in
-    scanopy) bash scripts/truenas/deploy-scanopy.sh ;;
-    joplin) bash scripts/truenas/deploy-joplin.sh ;;
-    autokuma) bash scripts/truenas/deploy-autokuma.sh ;;
-    code)
-      truenas_reconcile_custom_app "${app}" "${CANONICAL_ROOT}/apps/${app}/compose.yml"
-      state="$(truenas_app_state "${app}")"
-      if [[ "${state}" == "STOPPED" ]]; then
-        midclt call -j app.start "${app}"
-      fi
-      truenas_wait_app_running "${app}" 600 5
-      ;;
+  # Both deployers default to a read-only --check; acceptance must apply.
+  scanopy) bash scripts/truenas/deploy-scanopy.sh --apply ;;
+  joplin) bash scripts/truenas/deploy-joplin.sh --apply ;;
+  autokuma) bash scripts/truenas/deploy-autokuma.sh ;;
+  code)
+    truenas_reconcile_custom_app "${app}" "${CANONICAL_ROOT}/apps/${app}/compose.yml"
+    state="$(truenas_app_state "${app}")"
+    if [[ "${state}" == "STOPPED" ]]; then
+      midclt call -j app.start "${app}"
+    fi
+    truenas_wait_app_running "${app}" 600 5
+    ;;
   esac
   bash "${HEALTH_SCRIPT}" "${app}"
 }
@@ -188,20 +192,20 @@ function deploy_service {
 function functional_probe {
   local app="$1"
   case "${app}" in
-    scanopy)
-      probe_http_success http://172.17.0.24:60072/ 3 10
-      ;;
-    joplin)
-      probe_http_success http://172.17.0.24:22300/api/ping 3 10
-      ;;
-    autokuma)
-      # AutoKuma is a controller without an HTTP surface of its own. Runtime
-      # stability plus the explicit Uptime Kuma dependency probe is its gate.
-      return 0
-      ;;
-    code)
-      probe_http_success http://172.17.0.24:8443/healthz 3 10
-      ;;
+  scanopy)
+    probe_http_success http://172.17.0.24:60072/ 3 10
+    ;;
+  joplin)
+    probe_http_success http://172.17.0.24:22300/api/ping 3 10
+    ;;
+  autokuma)
+    # AutoKuma is a controller without an HTTP surface of its own. Runtime
+    # stability plus the explicit Uptime Kuma dependency probe is its gate.
+    return 0
+    ;;
+  code)
+    probe_http_success http://172.17.0.24:8443/healthz 3 10
+    ;;
   esac
 }
 
@@ -223,8 +227,8 @@ function accept_service {
 while IFS= read -r app; do
   [[ -n "${app}" ]] || continue
   case "${MODE}" in
-    --check) check_service "${app}" ;;
-    --stage) stage_service "${app}" ;;
-    --accept) accept_service "${app}" ;;
+  --check) check_service "${app}" ;;
+  --stage) stage_service "${app}" ;;
+  --accept) accept_service "${app}" ;;
   esac
 done < <(selected_services)

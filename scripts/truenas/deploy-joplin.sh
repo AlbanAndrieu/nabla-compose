@@ -1,81 +1,44 @@
 #!/usr/bin/env bash
+# Controlled TrueNAS Joplin Server Custom App deployment on the shared PostgreSQL.
+#   sudo bash scripts/truenas/deploy-joplin.sh --check    # read-only preflight (default)
+#   sudo NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/deploy-joplin.sh --apply
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/truenas.sh
-source "${SCRIPT_DIR}/../lib/truenas.sh"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
-truenas_repo_provenance "$(git rev-parse --show-toplevel)"
+# shellcheck source=../lib/secrets.sh
+source "${SCRIPT_DIR}/../lib/secrets.sh"
+# shellcheck source=../lib/truenas.sh
+source "${SCRIPT_DIR}/../lib/truenas.sh"
+# shellcheck source=../lib/app-deploy.sh
+source "${SCRIPT_DIR}/../lib/app-deploy.sh"
 
+MODE="$(app_deploy_mode "${1:-}" "$0")" || exit 2
 APP_ID="${JOPLIN_APP_ID:-joplin}"
 CANONICAL_ROOT="${JOPLIN_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
 SECRETS_FILE="${JOPLIN_SECRETS_FILE:-/mnt/cpool/secrets/runtime/joplin/.env.secrets}"
+compose_path="${CANONICAL_ROOT}/apps/joplin/compose.yml"
 
-[[ "${EUID}" -eq 0 ]] ||
-  fail "run with sudo so TrueNAS middleware and ZFS can be managed"
-for command in docker git grep jq midclt stat; do
-  command -v "${command}" >/dev/null 2>&1 || fail "${command} is required"
-done
+app_deploy_canonical_checkout "${CANONICAL_ROOT}"
 
-ROOT="$(git rev-parse --show-toplevel)"
-[[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
-  fail "run from canonical TrueNAS checkout ${CANONICAL_ROOT}; current checkout is ${ROOT}"
-cd "${CANONICAL_ROOT}"
-
-bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+if [[ "${MODE}" == "--apply" ]]; then
+  [[ "${NABLA_RUNTIME_CHANGE_APPROVED:-}" == "yes" ]] ||
+    fail "set NABLA_RUNTIME_CHANGE_APPROVED=yes after a reviewed --check preflight"
+  bash scripts/truenas/bootstrap-repository-runtime.sh --apply "${APP_ID}"
+fi
 bash scripts/truenas/bootstrap-repository-runtime.sh --check "${APP_ID}"
 
-[[ -f "${SECRETS_FILE}" ]] || fail "missing Joplin secret file: ${SECRETS_FILE}"
-[[ "$(stat -c '%u:%g %a' "${SECRETS_FILE}")" == "0:0 600" ]] ||
-  fail "${SECRETS_FILE} must be root:root mode 0600"
-grep -Eq '^POSTGRES_PASSWORD=.+$' "${SECRETS_FILE}" ||
-  fail "${SECRETS_FILE} must define POSTGRES_PASSWORD"
-
-if ! bash scripts/truenas/bootstrap-joplin-postgres.sh --check; then
+secrets_assert_file "${SECRETS_FILE}" POSTGRES_PASSWORD ||
+  fail "Joplin secret contract is not satisfied (root:root mode 0600 with POSTGRES_PASSWORD)"
+bash scripts/truenas/bootstrap-joplin-postgres.sh --check ||
   fail "shared PostgreSQL role/database joplin is not ready; run: sudo bash scripts/truenas/bootstrap-joplin-postgres.sh --apply"
+ok "shared PostgreSQL dependency verified: 172.17.0.24:5432 role/database=joplin"
+
+app_deploy_compose_validate "${compose_path}"
+
+if [[ "${MODE}" == "--check" ]]; then
+  app_deploy_check_report "${APP_ID}"
+  exit 0
 fi
-
-compose_path="${CANONICAL_ROOT}/apps/joplin/compose.yml"
-[[ -f "${compose_path}" ]] || fail "missing ${compose_path}"
-
-docker compose \
-  -f "${compose_path}" \
-  config \
-  --quiet \
-  --no-interpolate \
-  --no-env-resolution
-
-if truenas_app_query_by_id "${APP_ID}" |
-  jq -e 'length > 0' >/dev/null; then
-  printf 'Updating existing TrueNAS Custom App %s...\n' "${APP_ID}"
-  truenas_job_compact app.update "${APP_ID}" "$(
-    jq -cn --arg include "${compose_path}" '{
-      custom_compose_config: {
-        include: [$include]
-      }
-    }'
-  )"
-else
-  printf 'Creating missing TrueNAS Custom App %s...\n' "${APP_ID}"
-  wrapper="$(printf 'include:\n  - %s\n' "${compose_path}")"
-  truenas_job_compact app.create "$(
-    jq -cn \
-      --arg app_name "${APP_ID}" \
-      --arg compose "${wrapper}" \
-      '{
-        app_name: $app_name,
-        custom_app: true,
-        custom_compose_config_string: $compose
-      }'
-  )"
-fi
-
-app_json="$(truenas_app_query_by_id "${APP_ID}")"
-printf '%s\n' "${app_json}" | jq -e 'length == 1' >/dev/null ||
-  fail "TrueNAS app ${APP_ID} is not uniquely present after reconciliation"
-truenas_app_summary "${APP_ID}"
-
-printf '✅ shared PostgreSQL dependency verified: 172.17.0.24:5432 role/database=joplin\n'
-printf 'Expected Custom App YAML include:\n'
-printf 'include:\n  - %s\n' "${compose_path}"
+app_deploy_reconcile "${APP_ID}" "${compose_path}"

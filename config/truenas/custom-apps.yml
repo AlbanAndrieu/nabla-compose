@@ -87,6 +87,11 @@ apps:
     include:
       - apps/kafka/compose.yml
     state: running
+  - name: keycloak
+    include:
+      - apps/keycloak/compose.yml
+    state: stopped
+    note: start by hand once its database and secret exist (see apps/keycloak/README.md)
   - name: langflow
     include:
       - apps/langflow/compose.yml
