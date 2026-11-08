@@ -110,11 +110,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "homelab" {
         service        = "http://172.17.0.24:30041"
       },
       {
-        hostname       = "emby.albandrieu.com"
-        origin_request = {}
-        service        = "http://172.17.0.24:8096"
-      },
-      {
         hostname       = "ha.albandrieu.com"
         origin_request = {}
         service        = "http://172.17.0.24:30103"

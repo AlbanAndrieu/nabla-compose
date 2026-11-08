@@ -21,6 +21,7 @@ DEPLOY_HELPERS = {
     "joplin": ROOT / "scripts" / "truenas" / "deploy-joplin.sh",
     "autokuma": ROOT / "scripts" / "truenas" / "deploy-autokuma.sh",
     "docling": ROOT / "scripts" / "truenas" / "deploy-docling.sh",
+    "media-stack": ROOT / "scripts" / "truenas" / "deploy-media-stack.sh",
 }
 
 
