@@ -260,6 +260,10 @@
       "reason": "Downloadable AI models."
     },
     {
+      "dataset": "cpool/openclaw-devbox",
+      "reason": "OpenClaw coder devbox: disposable clones and caches; work is pushed to GitHub and SSH keys are recreated by nabla-openclaw scripts/coder/bootstrap-truenas.sh."
+    },
+    {
       "dataset": "cpool/prometheus",
       "reason": "Metrics TSDB, high churn, bounded by its own retention."
     },

@@ -1084,9 +1084,13 @@ openclaw-truenas-litellm-recreate-apply:
 openclaw-truenas-virtual-keys-plan:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode plan
 
-# Explicitly create the two OpenClaw virtual keys (budget 2 each).
+# Explicitly create the OpenClaw virtual keys (main, cron, coder; budget 2 each).
 openclaw-truenas-virtual-keys-apply:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode apply
+
+# Explicit: register only keys LiteLLM does not know yet (404), e.g. openclaw-coder.
+openclaw-truenas-virtual-keys-add-missing:
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode add-missing
 
 # Works from either canonical TrueNAS checkout or Workstation; no tunnel required.
 openclaw-truenas-virtual-keys-status:

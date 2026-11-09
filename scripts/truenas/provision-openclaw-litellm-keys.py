@@ -16,6 +16,8 @@ KEYS = (
     ("LITELLM_OPENCLAW_MAIN_API_KEY", "openclaw-main",
      ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"]),
     ("LITELLM_OPENCLAW_CRON_API_KEY", "openclaw-cron", ["workstation-qwen", "gpt-4.1-mini"]),
+    # Agent `coder` (nabla-openclaw docs/coder-agent.md): coding model only.
+    ("LITELLM_OPENCLAW_CODER_API_KEY", "openclaw-coder", ["gpt-4.1"]),
 )
 
 
@@ -97,6 +99,46 @@ def quota_audit(master, env):
     return max(outcomes)
 
 
+def generate(master, env, keys):
+    """Register existing key values with LiteLLM; the values are never printed."""
+    for variable, alias, models in keys:
+        code, _ = request("/key/generate", master, {
+            "key": env[variable],
+            "key_alias": alias,
+            "models": models,
+            "max_budget": 2,
+            "metadata": {"managed_by": "nabla-compose", "purpose": alias},
+        })
+        print(alias + "_creation_http=" + str(code or "unavailable"))
+        if code not in (200, 201):
+            print("provisioning=partial_or_failed")
+            return 2
+    return 0
+
+
+def add_missing(master, env):
+    """Register only the keys LiteLLM reports as unknown (404); never regenerate."""
+    missing = []
+    for variable, alias, models in KEYS:
+        key_id = hashlib.sha256(env[variable].encode("utf-8")).hexdigest()
+        status, payload = request("/key/info?key=" + key_id, master)
+        label = alias.replace("-", "_")
+        if status == 200 and isinstance(payload, dict) and isinstance(payload.get("info"), dict):
+            print(label + "_presence=existing")
+        elif status == 404:
+            print(label + "_presence=missing")
+            missing.append((variable, alias, models))
+        else:
+            print(label + "_presence=unverified")
+            print("provisioning=blocked_unverified_key")
+            return 2
+    if not missing:
+        print("provisioning=no_missing_key")
+    elif generate(master, env, missing):
+        return 2
+    return quota_audit(master, env)
+
+
 def update_scope(master, env):
     """Align only the model grant of existing keys, addressed by hash; never regenerate."""
     for variable, alias, models in KEYS:
@@ -127,6 +169,8 @@ def main(argv=None):
     options.add_argument("--quota-audit", action="store_true")
     options.add_argument("--update-scope", action="store_true",
                          help="explicit: align model grants of existing keys only")
+    options.add_argument("--add-missing", action="store_true",
+                         help="explicit: register keys LiteLLM does not know yet (404), never regenerate")
     args = parser.parse_args(argv)
     env = container_environment()
     if not env:
@@ -136,7 +180,8 @@ def main(argv=None):
     if not master or any(not env.get(name) for name, _, _ in KEYS):
         print("required_credentials=missing")
         return 2
-    if env[KEYS[0][0]] == env[KEYS[1][0]] or master in (env[KEYS[0][0]], env[KEYS[1][0]]):
+    values = [env[name] for name, _, _ in KEYS]
+    if len(set(values)) != len(values) or master in values:
         print("credential_separation=failed")
         return 2
     if args.quota_audit:
@@ -180,6 +225,8 @@ def main(argv=None):
             print("scope_update=blocked_no_existing_keys")
             return 2
         return update_scope(master, env)
+    if args.add_missing:
+        return add_missing(master, env)
     if existing["keys"]:
         # Existing virtual keys must NEVER be regenerated. The scope and
         # budget can be established by GET /key/info using key hashes only.
@@ -189,30 +236,21 @@ def main(argv=None):
             print("provisioning=already_present_verified_noop")
             return 0
         print("provisioning=blocked_existing_keys_unverified")
+        print("hint=--add-missing registers a new key only when LiteLLM answers 404")
         return 2
     if not args.apply:
         print("provisioning=planned")
-        print("key_count=2")
+        print("key_count=" + str(len(KEYS)))
         print("max_budget_each=2")
         return 0
-    for variable, alias, models in KEYS:
-        code, _ = request("/key/generate", master, {
-            "key": env[variable],
-            "key_alias": alias,
-            "models": models,
-            "max_budget": 2,
-            "metadata": {"managed_by": "nabla-compose", "purpose": alias},
-        })
-        print(alias + "_creation_http=" + str(code or "unavailable"))
-        if code not in (200, 201):
-            print("provisioning=partial_or_failed")
-            return 2
+    if generate(master, env, KEYS):
+        return 2
     code, result = request("/key/list", master)
     print("post_provision_inventory_http=" + str(code or "unavailable"))
     if code != 200 or not isinstance(result, dict) or not isinstance(result.get("keys"), list):
         return 2
     print("post_provision_key_count=" + str(len(result["keys"])))
-    return 0 if len(result["keys"]) >= 2 else 2
+    return 0 if len(result["keys"]) >= len(KEYS) else 2
 
 
 if __name__ == "__main__":
