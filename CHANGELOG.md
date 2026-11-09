@@ -1,3 +1,22 @@
+# [0.60.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.1...0.60.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** allow non-root promtool to read synthetic bearer-token fixtures ([5abc2bc](https://github.com/AlbanAndrieu/nabla-compose/commit/5abc2bc15512ba6635d73098290bd76bfc1d3957))
+* **media:** reconcile Backstage, CycloneDX, Homarr and secret manifests ([e5e6c60](https://github.com/AlbanAndrieu/nabla-compose/commit/e5e6c60304254618efb01c40b9697e3624cfaf69))
+* **media:** reconcile roadmap, Cloudflare, documentation and runtime contracts ([7bdc606](https://github.com/AlbanAndrieu/nabla-compose/commit/7bdc606302f9877c3fb00b7530170e94800278ad))
+* **media:** restore canonical tuple ordering for topology relations ([d5f64a8](https://github.com/AlbanAndrieu/nabla-compose/commit/d5f64a833a1afc69acac7eb038734de02d18751e))
+* **media:** structurally reconcile service catalogs and topology against master ([937dbb7](https://github.com/AlbanAndrieu/nabla-compose/commit/937dbb7203716cd28f1c05aefc4c6f4ad786b331))
+* **media:** synchronize canonical catalog revision after rebase ([b4a7117](https://github.com/AlbanAndrieu/nabla-compose/commit/b4a7117e565119bb099889f2682904a51ad922f4))
+
+
+### Features
+
+* **iac:** manage tunnel DNS records and the media dataset profile as code ([e3a7373](https://github.com/AlbanAndrieu/nabla-compose/commit/e3a7373b22a3f92a9f06402336871771ff09c5f2))
+* **media:** add telemetry and application configuration as code ([a0e1722](https://github.com/AlbanAndrieu/nabla-compose/commit/a0e1722d2459f5933538d6d4644b074aa311ce89))
+* **truenas:** production-readiness matrix and per-App operations dispatcher ([8405845](https://github.com/AlbanAndrieu/nabla-compose/commit/8405845970834ba67b894ab0a97c67262125912d))
+
 ## [0.59.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.0...0.59.1) (2026-11-08)
 
 
