@@ -203,5 +203,5 @@ else
   printf 'ℹ️  TRUENAS_CSI_API_KEY is not exported; read-only preflight does not require it\n'
 fi
 
-printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 26 and track SCRAM/username support before TrueNAS 27.\n' "${EXPECTED_CSI_VERSION}"
+printf '⚠️  Upstream TrueNAS CSI %s still authenticates with deprecated auth.login_with_api_key. Validate it on TrueNAS 27 and track SCRAM/username support before TrueNAS 28.\n' "${EXPECTED_CSI_VERSION}"
 printf '✅ CSI preflight complete: cluster, NFS reachability, controller runtime, publish path, RBAC and pinned manifests are ready for the explicit storage smoke\n'

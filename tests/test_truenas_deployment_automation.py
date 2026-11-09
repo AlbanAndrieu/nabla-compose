@@ -203,7 +203,7 @@ def test_deployment_automation_documents_sample_ownership_boundary() -> None:
     doc = DOC.read_text(encoding="utf-8")
 
     assert "Layer 0" in doc
-    assert "Git synchronization only" in doc
+    assert "never redeploys a TrueNAS App" in doc
     assert "Layer 1" in doc
     assert "docker-compose-truenas.yml" in doc
     assert "docker-compose.yml,docker-compose.override.yml" in doc
@@ -272,3 +272,110 @@ def test_docker_prune_cron_uses_single_line_without_escaped_spaces() -> None:
     assert "flock -n 9" in script
     assert "PREPARING | PREPARED | RESUMED" in script
     assert "docker system prune" not in script
+
+
+def _stub(bin_dir: Path, name: str, body: str) -> None:
+    path = bin_dir / name
+    path.write_text("#!/usr/bin/env bash\n" + body + "\n", encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _git(cwd: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_cron_reports_runtime_and_gates_fastapi_on_cloud_health(tmp_path: Path) -> None:
+    origin = tmp_path / "origin.git"
+    seed = tmp_path / "seed"
+    checkout = tmp_path / "checkout"
+    _git(tmp_path, "init", "-q", "--bare", "-b", "master", str(origin))
+    _git(tmp_path, "clone", "-q", str(origin), str(seed))
+    (seed / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(seed, "add", "README.md")
+    _git(seed, "commit", "-q", "-m", "seed")
+    _git(seed, "push", "-q", "origin", "HEAD:master")
+    _git(tmp_path, "clone", "-q", "-b", "master", str(origin), str(checkout))
+    (seed / "apps" / "foo").mkdir(parents=True)
+    (seed / "apps" / "foo" / "compose.yml").write_text("services: {}\n", encoding="utf-8")
+    _git(seed, "add", "apps")
+    _git(seed, "commit", "-q", "-m", "feat(foo): add app")
+    _git(seed, "push", "-q", "origin", "HEAD:master")
+
+    # A deployed FastAPI Sample checkout behind its remote master.
+    sample_remote = tmp_path / "sample.git"
+    sample_seed = tmp_path / "sample-seed"
+    _git(tmp_path, "init", "-q", "--bare", "-b", "master", str(sample_remote))
+    _git(tmp_path, "clone", "-q", str(sample_remote), str(sample_seed))
+    (sample_seed / "app.py").write_text("v1\n", encoding="utf-8")
+    _git(sample_seed, "add", "app.py")
+    _git(sample_seed, "commit", "-q", "-m", "v1")
+    _git(sample_seed, "push", "-q", "origin", "HEAD:master")
+    _git(tmp_path, "clone", "-q", str(sample_remote), str(checkout / "apps" / "fastapi-sample"))
+    (sample_seed / "app.py").write_text("v2\n", encoding="utf-8")
+    _git(sample_seed, "commit", "-q", "-am", "v2")
+    _git(sample_seed, "push", "-q", "origin", "HEAD:master")
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _stub(bin_dir, "logger", "exit 0")
+    _stub(bin_dir, "sudo", 'echo "sudo must not run: $*" >&2; exit 97')
+    _stub(
+        bin_dir,
+        "midclt",
+        """echo '[{"id":"foo","state":"RUNNING"},{"id":"bar","state":"STOPPED"}]'""",
+    )
+    _stub(
+        bin_dir,
+        "docker",
+        """case "$1" in
+  info) exit 0 ;;
+  ps) echo abc123 ;;
+  inspect) echo "/ix-foo-web-1|ix-foo|$(date -u +%Y-%m-%dT%H:%M:%S.000000000Z)|0" ;;
+esac""",
+    )
+    _stub(
+        bin_dir,
+        "curl",
+        """for arg in "$@"; do url="$arg"; done
+case "$url" in
+  */healthz) echo '{"status":"degraded","components":{"api":{"status":"healthy"}},"checks":{"openstack_me":{"reachable":false}}}' ;;
+  *) printf 200 ;;
+esac""",
+    )
+
+    env = {
+        "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "HOME": str(tmp_path),
+        "NABLA_CRON_LOCK_FILE": str(tmp_path / "cron.lock"),
+        "NABLA_CRON_FASTAPI_REMOTE": str(sample_remote),
+        "NABLA_CRON_LOG_DIR": str(tmp_path / "logs"),
+    }
+    result = subprocess.run(
+        ["bash", str(CRON), str(checkout)],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    out = result.stdout
+    assert "Hourly sync of" in out
+    assert "1 new commit(s):" in out
+    assert "feat(foo): add app" in out
+    assert "Updating files" not in out + result.stderr
+    assert "Impacted TrueNAS Apps for " in out
+    assert "redeploy in dependency order: none" in out
+    assert "skipped: foo (not in the service catalog)" in out
+    assert "TrueNAS Apps: RUNNING=1, STOPPED=1" in out
+    assert "Apps not RUNNING: bar (STOPPED)" in out
+    assert "ix-foo-web-1: TrueNAS App foo" in out
+    assert "FastAPI Cloud is not fully healthy (status=degraded, failing: openstack_me)" in out
+    assert "sudo must not run" not in result.stderr
+    assert _git(checkout, "rev-parse", "HEAD") == _git(seed, "rev-parse", "HEAD")

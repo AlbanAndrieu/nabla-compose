@@ -599,3 +599,254 @@ values are never printed. A non-zero exit means the sources still differ.
 For Scrutiny, determine which source the accepted runtime actually consumes
 before restaging. Preserve the other file until functional and reboot acceptance
 prove the selected canonical materialization.
+
+Comparator semantics:
+
+- run it with the operator venv **without `sudo`**
+  (`"$HOME/.cache/nabla-compose/dev-venv/bin/python"`, bootstrapped by
+  `bash scripts/truenas/bootstrap-dev-tools.sh`); it elevates only the
+  private file reads and never passes `BW_SESSION` to `sudo`. Never run an
+  interpreter installed in `$HOME` as root;
+- exit `0` = semantically equal, `1` = confirmed differences, `2` =
+  comparison impossible (missing `python-dotenv`/`jsonschema`).
+  `bootstrap-repository-env-files.sh` stops with `BLOCKED` and no mutation
+  on `2`: it is not evidence of a value conflict;
+- `relationship=right_has_additional_keys` (canonical file has extra keys,
+  no differing common value) still exits `1`. Do **not** `--restage`: it
+  would drop the extra keys. Prove those keys are loaded and authenticate
+  at runtime first.
+
+## Inspect secret files without printing them
+
+From the reviewed revision on TrueNAS, run each step separately:
+
+```bash
+sudo bash scripts/truenas/bootstrap-repository-runtime.sh --check
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check
+sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check <app>
+sudo python3 scripts/truenas/diagnose-ai-secret-recovery.py --check --strict --scope <openrag|litellm>
+sudo bash scripts/truenas/reconcile-openrag-opensearch-secret.sh --check
+```
+
+`diagnose-ai-secret-recovery.py` reports `ready`, `missingKeys` and
+`blockers`, validates formats (Base64/32-byte keys, unbalanced dotenv
+quotes) and never prints values. `ready=true` is syntax only: it does not
+prove that the container reloaded the file or that the credential
+authenticates.
+
+When the comparator names a source (`canonical_env`, `canonical_secret`,
+`legacy_env`, `operator_selected`), inspect **only that file's metadata**:
+
+```bash
+for path in \
+  /mnt/cpool/secrets/runtime/opensearch/.env \
+  /mnt/cpool/secrets/runtime/opensearch/.env.secrets \
+  /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
+do
+  if sudo test -e "$path"; then
+    sudo stat -Lc 'path=%n uid=%u gid=%g mode=%a type=%F' -- "$path"
+  fi
+done
+```
+
+The comparator expects a regular file, **uid 0**, mode **0600, 0400 or
+0640**, and refuses a non-compliant candidate without printing the value.
+Never `cat`, unbounded `grep PASSWORD` or `docker inspect` an environment.
+Fix a single file only after identifying the authoritative source and its
+ZFS ACLs; never `chmod -R` or change the owner of every file.
+
+### Scoped mode repair under the runtime pool
+
+```bash
+sudo python3 scripts/truenas/audit-runtime-secret-permissions.py --check
+# after reviewing the report:
+sudo python3 scripts/truenas/audit-runtime-secret-permissions.py --apply \
+  --acknowledge I_ACCEPT_SCOPED_SECRET_MODE_REPAIR
+```
+
+The scope is **only** `/mnt/cpool/secrets/runtime` and its directories. The
+script reads metadata, never secrets, and refuses symlinks, hardlinks,
+non-root owners and non-regular types. It removes other-user access and
+group write, preserves uid/gid and group read/traverse, applies to every
+regular file (JSON/PEM/`.key` and dotenv) and drops the executable bit on
+dotenv files only. Legacy paths outside the scope are untouched. Do not use
+`chmod -R 600` or `chown -R root:root`, and do not delete or mass-finalize
+legacy paths still used by containers.
+
+## Vaultwarden import and materialization rules
+
+- The manifest maps legacy import names to runtime names (for example
+  `importEnv=CODE_PASSWORD` -> `env=PASSWORD` for code-server); never copy a
+  legacy key name verbatim into the target file. The importer refuses
+  contradictory values when both names are present.
+- `importEnv` names are globally unique and namespaced per consumer
+  (`OPENRAG_OPENSEARCH_PASSWORD`, `OPENRAG_LITELLM_IDE_API_KEY`,
+  `KARAKEEP_OPENAI_API_KEY`); runtime names are unchanged. Import sources
+  are a security boundary: do not relax uniqueness.
+- The importer dry-run (`mapped=N/N`) only proves the keys were found; it
+  creates nothing. A targeted `--apply` writes one exact Vaultwarden item
+  after review; it rotates nothing and does not replace runtime files.
+- `materialize_runtime.py --verify` is non-mutating and compares
+  **byte-for-byte**: a hand-edited file fails even with the right value
+  (missing generated header). `found 0` means the exact item is absent, not
+  that a password is wrong; do not use `--verify` as installation proof
+  until the item exists.
+- `--install` replaces the canonical file: one application at a time, after
+  a private backup, review of the rendered output and explicit approval.
+  Never loop installs. Reloading the container is a separate runtime
+  acceptance.
+- `render_from_bitwarden.py` never prints `bw` stderr (only the operation
+  and exit code, 60 s timeout) and passes `BW_SESSION` only to calls that
+  need it.
+- An empty or incomplete source never justifies generating a new value:
+  recover it from its authority (backup, validated configuration, running
+  service).
+
+### Key-specific rules
+
+- `OPENRAG_ENCRYPTION_KEY` is an AES-256-GCM master key, 32 bytes Base64.
+  **Recover it first** (initial configuration, Vaultwarden, OpenRAG backup);
+  a new key cannot decrypt existing credentials/indexes. Only if no
+  encrypted data was ever persisted, generate one with
+  `python3 -c 'import base64,secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())'`
+  and store it in Vaultwarden immediately.
+- The LiteLLM `env_file` is `/mnt/cpool/secrets/runtime/litellm/.env.secrets`;
+  a file under `runtime/openrag/litellm/` is never loaded. Merge missing
+  consumer keys into the canonical file without replacing
+  `LITELLM_MASTER_KEY` or `LITELLM_SALT_KEY`.
+- `LANGFUSE_PUBLIC_KEY` (`pk-lf-…`) and `LANGFUSE_SECRET_KEY` (`sk-lf-…`)
+  come from the **same Langfuse project**; never confuse them with Langfuse
+  server secrets, `NEXTAUTH_SECRET` or `OPENRAG_ENCRYPTION_KEY`.
+- `apps/opensearch/compose.yml` still reads the legacy
+  `/mnt/cpool/compose/nabla-compose/apps/opensearch/.env`. It must stay a
+  regular file `uid=0 gid=568 mode=0640` (repair only that file with
+  `chown 0:568` and `chmod 0640`, never replay when the check passes). If
+  the comparator then finds a divergence, stop: never sync or rotate
+  `OPENSEARCH_PASSWORD` automatically. Do not delete, rename or finalize
+  this path without a dedicated migration.
+
+## Gates before `--finalize <app>`
+
+1. Restore the **existing** credentials from their authoritative source,
+   without regenerating or printing them.
+2. Confirm every required key name for the App and its dependencies
+   (for OpenRAG: OpenRAG and LiteLLM scopes of
+   `diagnose-ai-secret-recovery.py`).
+3. Confirm shared-credential equality after file metadata fixes (for
+   example the OpenSearch password); equality does not prove which value
+   the service actually loaded.
+4. Inspect the effective TrueNAS Custom App configuration and its
+   `env_file` without publishing it.
+5. Confirm a targeted, backed-up reconciliation is reversible.
+6. Prove an authenticated connection and a functional smoke (for OpenRAG:
+   OpenRAG/LiteLLM/OpenSearch). An HTTP `401` proves transport, not auth.
+7. Only after runtime acceptance, run
+   `bootstrap-repository-env-files.sh --finalize <app>` with explicit
+   review, then repeat every check.
+
+Forbidden: automatic `OPENSEARCH_PASSWORD` rotation, deleting legacy files
+before acceptance, copying dotenv files into Git, mass redeploys and
+reindexing `cpool/bababou`.
+
+## Deploy one App at a time
+
+Applies to the security-tooling wrapper
+`scripts/truenas/prepare-security-tooling-secrets.sh`, which covers only
+plumber, netbox, dependency-track, defectdojo, neo4j, cartography,
+scorecard and dsomm. **Do not call `all` to migrate TrueNAS as a whole**;
+other services need their own adapter and non-regression tests.
+
+1. Export only the `importEnv` names of `config/secrets/manifest.json` for
+   the target App (the importer reads the process environment, never
+   sources files, never prints values). Do not regenerate a
+   `rotation: preserve` value an existing installation already owns.
+2. Dry-run, then create the exact item (refuses an existing item; updates
+   stay a reviewed `import_env_to_bitwarden.py --update-existing`):
+
+   ```bash
+   bash scripts/truenas/prepare-security-tooling-secrets.sh --import-env netbox
+   bash scripts/truenas/prepare-security-tooling-secrets.sh --import-env-apply netbox
+   ```
+
+3. Render and verify as the unlocked operator (the wrapper refuses root;
+   only the final root-owned install escalates):
+
+   ```bash
+   bash scripts/truenas/prepare-security-tooling-secrets.sh --apply netbox
+   bash scripts/truenas/prepare-security-tooling-secrets.sh --verify-vaultwarden netbox
+   ```
+
+   Accept when the exact item exists in the `TrueNAS` folder, the runtime
+   file is `root:root 0600`, parity is byte-for-byte and no value appears
+   in output, Git, logs or PR text.
+4. For shared PostgreSQL consumers, prove the dedicated role and database,
+   ownership and `SELECT 1` authentication without printing the password:
+
+   ```bash
+   sudo -E bash scripts/truenas/bootstrap-security-tooling-postgres.sh --check netbox
+   sudo -E bash scripts/truenas/bootstrap-security-tooling-postgres.sh --apply netbox
+   ```
+
+   It wraps `scripts/truenas/bootstrap-app-postgres.sh` (same modes and
+   role/database table; `--describe <app>` prints the contract without root).
+
+   `sudo -E` is required by this helper: run it from a shell where
+   `BW_SESSION` is unset (see the session privilege boundary above).
+
+5. Deploy through the TrueNAS Custom App middleware path:
+
+   ```bash
+   sudo bash scripts/truenas/deploy-security-tooling.sh --check netbox
+   sudo bash scripts/truenas/deploy-security-tooling.sh --apply netbox
+   ```
+
+   Acceptance requires valid Compose and catalog contracts, datasets
+   reconciled without deleting data, secrets present, PostgreSQL accepted
+   when applicable, the Custom App pointing at the repository Compose file,
+   middleware `RUNNING`, stable containers, `healthy` healthchecks
+   (one-shot initializers may stay `Exited(0)`), no restarting, unhealthy or
+   non-zero exited container, and a successful HTTP endpoint. **Stop at the
+   first failed acceptance.**
+
+Cartography and Scorecard are manual jobs (`manual` profile, bounded
+scope): validate them with `--check`, never add them to the reboot resume
+set. After a controlled reboot, rerun
+`deploy-security-tooling.sh --check all`: it adds the HTTP acceptance the
+generic reboot health barrier cannot infer.
+
+For services outside the wrapper, the same order applies: inventory the
+consumed source, back it up root-only and prove it is recoverable, dry-run
+and import without collision, materialize and compare without printing,
+then switch **only** that consumer and keep the return path until
+post-reboot acceptance. Order: non-critical services without circular
+dependencies, then observability and security, then shared foundations
+(PostgreSQL, Redis, network, Vaultwarden).
+
+### DefectDojo preflight
+
+After the shared PostgreSQL and Redis diagnostic succeeds:
+
+```bash
+sudo bash scripts/truenas/preflight-defectdojo.sh
+```
+
+It is read-only. Check every Redis consumer before assigning a new Redis DB.
+The TrueNAS Custom App must set `DD_DATABASE_HOST=172.17.0.24`: the
+initializer and workers use it for `wait-for-it.sh` independently of
+`DD_DATABASE_URL`. Pin Django and nginx images and restrict
+`DD_ALLOWED_HOSTS`; a persistent `DD_ALLOWED_HOSTS=*` override in the App
+cancels that hardening. Never expose `docker compose config` output with
+interpolated secrets.
+
+### Rollback rules
+
+- Never delete a non-empty application dataset as part of rollback.
+- Never regenerate a `rotation: preserve` secret.
+- Keep runtime secret files and Vaultwarden items until rollback completes.
+- Stop/remove only the newly reconciled Custom App; do not restart unrelated
+  shared PostgreSQL/Redis to recover one application.
+- Keep a legacy deployment (for example the Plumber submodule) until the
+  repository-managed App passes functional and reboot acceptance.
+- Preserve lifecycle logs and container diagnostics of a failed deployment.
+- Never use `docker system prune`, `docker network prune` or broad ZFS
+  destruction as recovery.

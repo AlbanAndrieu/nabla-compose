@@ -23,10 +23,8 @@ YubiKey procedures or a checkout that must survive restart.
   child. Never apply `set -euo pipefail` to the interactive parent shell.
 - Stop at the first blocking step and report the exit code and private log path.
 
-For PR #274 compatibility use
-`scripts/workstation/run-pr274-local-quality.sh` and
-`docs/runbooks/2026-10-24-pr274-local-quality-one-shot.md`. For YubiKey PIV82
-recovery read `nabla-yubikey/docs/runbooks/yubikey-piv82-postmerge-diagnostics.md`.
+For YubiKey PIV82 recovery read
+`nabla-yubikey/docs/runbooks/yubikey-piv82-postmerge-diagnostics.md`.
 
 Do not turn a repository validation into a reboot, key generation, SOPS
 rotation, Docker lifecycle action or hardware mutation without explicit user

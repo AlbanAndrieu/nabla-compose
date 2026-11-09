@@ -32,6 +32,7 @@ usage() {
   cat <<'EOF'
 usage:
   sudo bash scripts/truenas/recovery-reboot-homelab.sh --prepare
+  sudo bash scripts/truenas/recovery-reboot-homelab.sh --stop-apps
   sudo bash scripts/truenas/recovery-reboot-homelab.sh --continue
   sudo bash scripts/truenas/recovery-reboot-homelab.sh --status
   sudo bash scripts/truenas/recovery-reboot-homelab.sh --reboot
@@ -46,6 +47,11 @@ reboot-homelab.sh.
 --prepare
   Snapshot current intent, quiesce all Apps with bounded App-scoped ghost repair,
   gracefully stop Talos workers then control-plane, and stop at READY_TO_REBOOT.
+
+--stop-apps
+  App-only cycle without host reboot: same snapshot and topology-ordered quiesce,
+  but Talos keeps running. Stops at QUIESCED; --resume-safe then restarts the
+  saved Apps wave by wave on the same boot.
 
 --continue
   Resume an interrupted recovery transaction from its persisted phase.
@@ -69,7 +75,7 @@ EOF
 }
 
 case "${MODE}" in
-  --prepare | --continue | --status | --reboot | --post-reboot-check | --resume-safe | --resume-reviewed) ;;
+  --prepare | --stop-apps | --continue | --status | --reboot | --post-reboot-check | --resume-safe | --resume-reviewed) ;;
   -h | --help)
     usage
     exit 0
@@ -142,9 +148,18 @@ app_state() {
     jq -r 'if length == 1 then .[0].state else "MISSING" end'
 }
 
+# A full app.query collects every workload's stats and hits "Call timeout" on a loaded host.
+apps_snapshot() {
+  midclt_bounded app.query '[]' '{"select":["id","name","state","version","custom_app"]}'
+}
+
 all_apps_stopped() {
-  midclt_bounded app.query |
+  apps_snapshot |
     jq -e 'length > 0 and all(.[]; .state == "STOPPED")' >/dev/null
+}
+
+apps_only() {
+  [[ -f "${STATE_DIR}/apps-only" ]]
 }
 
 ghost_apps() {
@@ -308,7 +323,7 @@ create_snapshot() {
     if [[ -d "${previous}" && -f "${previous}/boot-id-before" ]]; then
       previous_boot="$(cat "${previous}/boot-id-before")"
       previous_phase="$(cat "${previous}/phase" 2>/dev/null || true)"
-      if [[ "${previous_boot}" == "${boot}" && "${previous_phase}" != "COMPLETE" ]]; then
+      if [[ "${previous_boot}" == "${boot}" && "${previous_phase}" != "COMPLETE" && "${previous_phase}" != RESUMED_* ]]; then
         fail "same-boot recovery transaction exists at ${previous} phase=${previous_phase:-UNKNOWN}; use --continue"
       fi
     fi
@@ -316,7 +331,7 @@ create_snapshot() {
 
   STATE_DIR="${dir}"
   printf '%s\n' "${boot}" >"${STATE_DIR}/boot-id-before"
-  midclt_bounded app.query >"${STATE_DIR}/apps-before-cleanup.json"
+  apps_snapshot >"${STATE_DIR}/apps-before-cleanup.json"
   vm_payload >"${STATE_DIR}/talos-vms-before-shutdown.json"
   midclt_bounded docker.status >"${STATE_DIR}/docker-status-before.json"
   midclt_bounded docker.config >"${STATE_DIR}/docker-config-before.json"
@@ -333,10 +348,11 @@ create_snapshot() {
   ' "${STATE_DIR}/apps-before-cleanup.json" |
     sort -u >"${STATE_DIR}/resume-review.txt"
 
-  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/shutdown-plan.json"
+  python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING,CRASHED,ERROR,STOPPING     --keep-inactive     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/shutdown-plan.json"
 
   python3 "${PLANNER}"     --apps "${STATE_DIR}/apps-before-cleanup.json"     --states RUNNING,DEPLOYING     --services "${REPO_ROOT}/catalog/services.json"     --topology "${REPO_ROOT}/catalog/service-topology.json"     --pretty >"${STATE_DIR}/resume-safe-plan.json"
 
+  [[ "${MODE}" != "--stop-apps" ]] || touch "${STATE_DIR}/apps-only"
   write_phase SNAPSHOT
   printf '%s\n' "${STATE_DIR}" >"${STATE_ROOT}/latest"
   ok "recovery snapshot created: ${STATE_DIR}"
@@ -378,7 +394,7 @@ quiesce_apps() {
     recover_app_for_quiesce "${app}"
   done
 
-  midclt_bounded app.query >"${STATE_DIR}/apps-after-quiesce.json"
+  apps_snapshot >"${STATE_DIR}/apps-after-quiesce.json"
   docker ps -a --format '{{.Names}}\t{{.Status}}' >"${STATE_DIR}/containers-after-quiesce.txt"
   bash "${ORPHAN_SHIMS}" --check >"${STATE_DIR}/orphan-check-after-quiesce.txt"
 
@@ -463,10 +479,10 @@ continue_prepare() {
   case "${current_phase}" in
     SNAPSHOT | QUIESCING)
       quiesce_apps
-      shutdown_talos
+      apps_only || shutdown_talos
       ;;
     QUIESCED | SHUTTING_DOWN_TALOS)
-      shutdown_talos
+      apps_only || shutdown_talos
       ;;
     READY_TO_REBOOT)
       ok "recovery transaction already READY_TO_REBOOT: ${STATE_DIR}"
@@ -513,7 +529,7 @@ post_reboot_check() {
   [[ "${status}" == "RUNNING" ]] ||
     fail "TrueNAS docker.status=${status:-UNKNOWN} after IPAM readiness gate"
 
-  midclt_bounded app.query >"${STATE_DIR}/apps-post-reboot.json"
+  apps_snapshot >"${STATE_DIR}/apps-post-reboot.json"
   docker ps -a --format '{{.Names}}\t{{.Status}}' >"${STATE_DIR}/containers-post-reboot.txt"
   bash "${ORPHAN_SHIMS}" --check >"${STATE_DIR}/orphan-check-post-reboot.txt"
 
@@ -548,12 +564,15 @@ run_resume_plan() {
   cp "${STATE_DIR}/boot-id-before" "${txn}/boot-id-before"
   printf '%s\n' "${txn}" >"${root}/latest"
 
-  NABLA_REBOOT_STATE_ROOT="${root}"     NABLA_APP_HEALTH_GATE="${HEALTH_GATE}"     bash "${RESUME_RECONCILER}" --apply
+  NABLA_REBOOT_STATE_ROOT="${root}"     NABLA_APP_HEALTH_GATE="${HEALTH_GATE}" \
+    NABLA_RESUME_ALLOW_SAME_BOOT="$(apps_only && echo true || echo false)" \
+    bash "${RESUME_RECONCILER}" --apply
 }
 
 resume_safe() {
   [[ "$(phase)" == "POST_REBOOT_READY" || "$(phase)" == "RESUMED_SAFE" ]] ||
-    fail "--resume-safe requires POST_REBOOT_READY"
+    { [[ "$(phase)" == "QUIESCED" ]] && apps_only; } ||
+    fail "--resume-safe requires POST_REBOOT_READY (or QUIESCED after --stop-apps)"
   run_resume_plan "${STATE_DIR}/resume-safe-plan.json" safe
   write_phase RESUMED_SAFE
   ok "safe recovery resume completed"
@@ -565,6 +584,7 @@ resume_reviewed() {
 
   case "$(phase)" in
     POST_REBOOT_READY | RESUMED_SAFE | RESUMED_REVIEWED) ;;
+    QUIESCED) apps_only || fail "--resume-reviewed requires successful post-reboot infrastructure validation" ;;
     *) fail "--resume-reviewed requires successful post-reboot infrastructure validation" ;;
   esac
 
@@ -593,7 +613,7 @@ show_status() {
   printf 'boot-before=%s\n' "$(cat "${STATE_DIR}/boot-id-before" 2>/dev/null || echo unknown)"
   printf 'boot-current=%s\n' "$(current_boot_id)"
   printf '\nApps:\n'
-  midclt_bounded app.query |
+  apps_snapshot |
     jq 'group_by(.state) | map({state:.[0].state,count:length})'
   printf '\nDocker running:\n'
   docker ps --format 'table {{.Names}}\t{{.Status}}'
@@ -615,6 +635,13 @@ case "${MODE}" in
     create_snapshot
     quiesce_apps
     shutdown_talos
+    ;;
+  --stop-apps)
+    [[ -z "${STATE_DIR}" ]] ||
+      fail "--stop-apps creates a new transaction; do not set NABLA_RECOVERY_DIR"
+    create_snapshot
+    quiesce_apps
+    ok "App-only stop complete: Talos untouched; restart with --resume-safe"
     ;;
   --continue)
     resolve_state_dir

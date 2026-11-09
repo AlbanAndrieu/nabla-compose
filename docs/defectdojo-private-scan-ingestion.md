@@ -262,3 +262,116 @@ rendre ZAP automatique, remplacer ce dépôt brut par une sortie
 pré-expurgée ou lancer ce scan dans l'environnement privé. Vérifier la
 version du parser OSS sur l'instance et l'absence d'en-tête de bypass.
 Ce point reste ouvert, sans changer la fréquence des scans.
+
+## Collecteur unique des artefacts GitHub Actions
+
+Un seul collecteur déclaratif dans `nabla-compose` :
+`scripts/security/poll-defectdojo-gh-artifacts.py`. Aucun runner GitHub,
+collecteur par application, webhook entrant, Tunnel public ni conteneur
+additionnel. Les rapports sont produits **une seule fois** par leurs
+workflows existants, récupérés via l'API GitHub `Actions:read` et
+importés séparément depuis le LAN. Le collecteur reste **pull** et ne
+s'exécute que sur TrueNAS :
+
+- `--check` est non mutant (sans GitHub, DefectDojo ni secret) ;
+- `--pull` exige la configuration GitHub App ;
+- `--pull-and-import` garde une approbation distincte, un engagement
+  préexistant et une validation RBAC.
+
+Aucune provenance de PR, rapport incomplet ou ancienne exécution réussie
+après un scan récent en échec ne déclenche un import. Un rapport absent
+ou une dernière exécution échouée reste `NOT_OBSERVED`.
+
+### Sources configurées
+
+| Source | Workflow | Type | Import |
+| --- | --- | --- | --- |
+| `alban` | `security-supply-chain.yml`, `nuclei-public.yml`, `master-dast.yml` | Trivy, Nuclei, ZAP | Validation/approbation distincte ; ZAP seulement au schéma réduit |
+| `bababou` | `production-dast.yml` | ZAP | **Refusé** tant que le rapport brut n'est pas minimisé à la source |
+| `compose` | `defectdojo-compose-handoff.yml` | Trivy | Contrat propriétaire existant |
+| `fastapi-sample` | `docker-build.yml` (workflow `Docker CI`) | Trivy image JSON natif | Stage uniquement ; import auto interdit |
+
+Pour `fastapi-sample`, le scan Trivy hebdomadaire (`schedule`, mercredi)
+produit `trivy-results.json`, converti ensuite en `trivy-results.sarif`
+sans second scan. Le ZIP `defectdojo-fastapi-trivy-<sha40>` contient
+**uniquement** `trivy-results.json`, rétention **3 jours**, sur un run
+`master` réussi. Aucun exporteur ni filtre spécifique DefectDojo : les
+champs natifs sont transmis tels quels, le filtrage par sévérité est
+celui du scanner `Docker CI`. Le collecteur impose la provenance
+(dépôt/workflow/événement/branche, SHA), le ZIP exact, les limites de
+taille, un objet Trivy natif valide et refuse les blocs
+`Secrets`/`Misconfigurations`.
+
+### Gate contractuel ZAP
+
+Le producteur émet `zap-production-report/report_json.json` à schéma
+réduit. Le collecteur rejette **avant toute écriture privée** tout autre
+JSON ZAP : objet `site` seul, chaque site `@name` (origine HTTPS
+autorisée) et `alerts`, chaque alerte HIGH limitée à `pluginid`,
+`riskcode=3` et `alert="ZAP passive rule <pluginid>"`. La conversion XML
+interne reste nommée **`ZAP Scan`**, jamais un archivage de requêtes
+HTTP. Un filtrage **après** téléchargement ne protège pas l'artefact
+GitHub déjà téléversé : la minimisation se fait à la source. Pas de
+repli permissif ni d'exception pour un ancien JSON brut.
+
+### Identités, permissions et réseau
+
+1. **GitHub** : GitHub App installée seulement sur les dépôts autorisés,
+   permission `Actions:read`, jeton court (≤1 h) restreint à un dépôt
+   par collecte ; pas de PAT permanent. Clé privée et configuration
+   runtime dans `/mnt/cpool/secrets/runtime/defectdojo`, `root:root 0600`.
+   L'authentification GitHub n'est jamais transmise au stockage ZIP
+   après la redirection HTTPS signée. Voir
+   [configuration GitHub App](github-app-defectdojo.md).
+2. **DefectDojo UI** : item Vaultwarden `nabla/prod/defectdojo`.
+   `scripts/secrets/bootstrap_defectdojo_admin.py --check` inspecte hors
+   réseau ; `--apply` est volontaire et exige une session Vaultwarden
+   déverrouillée **non-root**. Le bootstrap ne prouve pas que le compte
+   existe en base. Les fichiers `.env`/`.env.secrets` sont matérialisés
+   uniquement par `scripts/truenas/prepare-security-tooling-secrets.sh`.
+3. **Import API** : identité robot non-admin **distincte de l'UI**, jeton
+   `0600`, Product/Engagement préexistants par dépôt. Vérifier un refus
+   RBAC sur un autre Product/Engagement avant d'automatiser. Pas de
+   création automatique de contexte.
+4. **Réseau** : DefectDojo reste LAN uniquement, via
+   `defectdojo.int.albandrieu.com` et Traefik, sans DNS public, NAT,
+   HAProxy WAN ni Cloudflare Tunnel. Le port interne `172.17.0.24:31085`
+   doit avoir des ACL effectives. L'importeur `fastapi-sample` utilise
+   TLS/SNI et vérifie l'origine LAN ; `import-scan-defectdojo.sh` utilise
+   encore le port HTTP direct interne : le migrer vers HTTPS Traefik ou
+   attester les ACL locales avant d'ouvrir l'automatisation.
+
+### Exécution et économie CI
+
+La tâche Cron native TrueNAS est déclarée par
+`scripts/truenas/reconcile-defectdojo-artifact-cron.py` à **06:50**
+(heure de l'appliance), **désactivée** par défaut. L'activer uniquement
+avec `DEFECTDOJO_GH_POLL_APPROVED=YES`, après contrôle des permissions.
+Aucune modification de la crontab root, aucun DAST ni scan CI
+supplémentaire lancé par le collecteur.
+
+```bash
+# Local, sans GitHub, DefectDojo ni secret
+python3 scripts/security/poll-defectdojo-gh-artifacts.py --check
+python3 -m unittest tests.test_defectdojo_fastapi_handoff -v
+
+# Sur TrueNAS uniquement, après configuration de la GitHub App
+python3 scripts/security/poll-defectdojo-gh-artifacts.py \
+  --source fastapi-sample --kind trivy --pull
+```
+
+Ne pas lancer `--pull-and-import` avant validation RBAC et Celery. La
+validation locale ne remplace pas : récupération effective d'un artefact
+`Docker CI` sur `master`, import au bon Engagement, traitement Celery,
+déduplication, audit WAN négatif et rotation/révocation du jeton. Un
+HTTP 2xx signifie seulement « accepté ».
+
+### Ce qui doit rester privé
+
+Rapports Betterleaks/GitGuardian, correspondances de secrets, PII, SBOM,
+licences détaillées, sorties DAST authentifiées, requêtes/réponses ZAP
+et informations LAN ne vont jamais dans des artefacts GitHub publics
+sans politique explicite. La validation de formats et de secrets reste
+dans `config/security/defectdojo-allowed-imports.json` et
+`scripts/security/validate-defectdojo-report.py` ; ne pas transformer le
+JSON de vulnérabilités natif pour l'adapter à DefectDojo.

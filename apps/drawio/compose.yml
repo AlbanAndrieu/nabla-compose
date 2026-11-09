@@ -23,6 +23,8 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/drawio
     restart: unless-stopped
+    # Reap orphaned curl children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     ports:
       - name: web
         target: 8080

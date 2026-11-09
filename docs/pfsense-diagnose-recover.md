@@ -4,78 +4,73 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
-## Réception ACB du 1er novembre — HEAD et GET racine en EOF
+## Auto Config Backup (ACB) et notices `write_config`
 
-Les sondes IPv4 `HEAD /` et `GET /` (HTTP/1.1)
-vers `acb.netgate.com` ont chacune donné
-`curl (56)`, `http=000`,
-`ssl_verify_result=0`. La deuxième a duré
-**0,627649 s**. Aucune réponse HTTP n'a été obtenue.
-L'ancien upload chiffré du **27 octobre** avait
-quant à lui échoué avec `curl (28)` (timeout).
-**Aucune corrélation technique certaine n'est
-établie entre les deux erreurs.**
+Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du
+27/10 22:46:33 (`curl (28)`, timeout) ; provenance du
+`write_config() was called without description` de 22:45:52 inconnue. Deux
+événements distincts : leur proximité ne prouve pas une cause commune.
+Aucune modification DNS, WAN, pare-feu, certificat, Device Key, mot de passe
+de chiffrement ou ACL n'est nécessaire pour diagnostiquer.
 
-L'implémentation pfSense ACB utilise des
-**POST authentifiés** sur `/list` et `/save` ;
-les sondes GET/HEAD vers `/` n'exercent
-pas ces endpoints. Les relancer n'est
-**plus une étape utile de réception ACB**.
+Lecture des preuves :
 
-La GUI `Services > Auto Config Backup > Restore`
-affiche **Hosted backup count: 100**, le plafond
-de rétention Netgate : c'est l'existence de
-sauvegardes historiques, **pas un quota bloquant
-ni une preuve d'upload récent**. L'extrait
-fourni contient des révisions datées au plus
-tard du **27 octobre 20:48** ; si c'est
-effectivement la dernière entrée hébergée,
-elle précède l'échec d'upload de 22:46.
+- ACB utilise des **POST authentifiés** sur `/list`, `/save` et `/getbkp`
+  ([`acb.inc`](https://github.com/pfsense/pfsense/blob/master/src/etc/inc/acb.inc)) :
+  un `HEAD /` ou `GET /` anonyme vers `acb.netgate.com` n'exerce aucun de ces
+  parcours et ne prouve rien (ni succès, ni panne). Ne jamais fabriquer de
+  `POST /list` ou `/save` à la main.
+- **Hosted backup count: 100** est le plafond de rétention Netgate (les plus
+  anciennes sont évincées) : ni quota bloquant, ni preuve d'upload récent.
+- `acb_backup_upload()` supprime les fichiers staged `.form`/`.data` quelle
+  que soit l'issue : `staged=0` ne prouve pas la réussite.
+- `ssl_verify_result=0` signifie seulement qu'aucun échec de vérification du
+  certificat n'a été rapporté.
+- `/tmp/acb_debug.txt` (écrit sur erreur curl) peut contenir des paramètres
+  sensibles : ne jamais l'afficher ni le partager, comme `config.xml`, la
+  Device Key ou les paramètres ACB. Pas de `curl -v`, `--trace` ni `-k` sur
+  une requête ACB authentifiée.
 
-**Prochaine preuve décisive :** noter l'horodatage
-de l'entrée hébergée la plus récente, créer
-**une seule sauvegarde manuelle** via
-`Services > Auto Config Backup > Backup Now`
-avec motif descriptif, puis contrôler son apparition
-côté `Restore` et les logs `acbupload.php`.
-Ne pas partager les paramètres ACB, Device Key,
-`config.xml` ni `/tmp/acb_debug.txt` :
-ce dernier peut contenir des détails sensibles.
+Réception (UI pfSense, après un backup local chiffré via
+`Diagnostics > Backup & Restore`, sans jamais restaurer en production) :
 
-Statut actuel : **`ACB_UPLOAD_NOT_VERIFIED`**,
-`write_config` provenance toujours inconnue ;
-pas de changement pfSense réalisé.
-[Runbook et critères de réception](runbooks/pfsense-acb-timeout-write-config-20261027.md).
+1. `Services > Auto Config Backup > Restore` : noter l'horodatage de l'entrée
+   hébergée la plus récente (vérifier l'ordre d'affichage) et
+   `Staged backups waiting to upload`.
+2. `Services > Auto Config Backup > Backup Now` : créer **une seule** entrée
+   avec une *Revision Reason* descriptive, sans changer Device Key ni mot de
+   passe.
+3. Après au moins une minute (Netgate traite la file environ chaque minute),
+   vérifier l'entrée dans `Restore` et les lignes `acbupload.php`
+   *Staging → Starting upload → Completed (success)* de
+   `Status > System Logs > System > General`.
+4. Si absente : diagnostiquer **depuis pfSense** (`Diagnostics > DNS Lookup`,
+   `Status > Gateways`, `Diagnostics > Routes`, NTP et CA système), sans
+   relance en boucle ni changement WAN/TLS.
 
-## Notification ACB du 27 octobre 2026 — diagnostic ciblé (1er novembre)
+Provenance `write_config` : chercher le contexte de l'appel dans
+`Status > System Logs > System > General` et
+`Diagnostics > Backup & Restore > Config History`. Le seul appel du dépôt,
+`scripts/pfsense/manage-api-identities.php`, passe déjà le motif
+`Reconciled pfSense REST API service identities` : rien ne l'incrimine. Si un
+autre appelant est démontré, corriger **son** appel en
+`write_config("motif explicite")` (test et rollback), sans masquer le message
+ni patcher les fichiers système pfSense.
 
-Deux notifications distinctes ont été remontées :
-`write_config() was called without description` (22:45:52)
-et échec de sauvegarde distante chiffrée ACB vers
-`acb.netgate.com (28)` (22:46:33). Le code curl **28**
-signifie *timeout*. Le premier message signale un appel
-sans description et non une panne pfSense prouvée ;
-l'association entre les deux événements n'est pas
-établie. **Aucune panne ACB actuelle n'est démontrée**
-par ces seuls logs anciens.
+| Contrôle | Condition DONE | Si information absente |
+| --- | --- | --- |
+| ACB stockage distant | nouvelle entrée dans `Restore`, datée après l'incident, déchiffrement vérifié en privé | `ACB_UPLOAD_NOT_VERIFIED` |
+| ACB transport | DNS/HTTPS pfSense corrects et `Backup Now` reçu côté service | `ACB_TRANSPORT_NOT_VERIFIED` |
+| Avertissement config | appelant identifié, pas de récurrence après correctif ciblé | `WRITE_CONFIG_PROVENANCE_UNKNOWN` |
+| Intégrité runtime | UI, règles, passerelles et services inchangés | STOP, diagnostic séparé |
 
-**Prochaine réception en lecture seule :** vérifier le
-dernier backup distant visible sous
-`Services > Auto Config Backup > Restore` et le nombre
-d'uploads staged ; consulter les logs `acbupload.php`
-plus récents et tester DNS/HTTPS **depuis pfSense**,
-pas depuis la workstation. Une requête HEAD HTTP
-ne prouve pas un upload ACB réussi. Si nécessaire,
-créer ensuite **une** sauvegarde manuelle dans l'UI
-avec une description explicite, sans rotation de
-Device Key ni modification du WAN.
-
-Runbook et diagnostics expurgés :
-[ACB timeout 28 / provenance write_config](runbooks/pfsense-acb-timeout-write-config-20261027.md).
-Un appel `write_config` présent dans
-`scripts/pfsense/manage-api-identities.php`
-possède déjà une description explicite ; sa responsabilité
-n'est donc pas établie sans corrélation de logs.
+Une entrée présente et récupérable donne `ACB_UPLOAD_PASS` ; un échec
+explicite dans les journaux, `ACB_UPLOAD_FAILED`. Ne jamais clore en effaçant
+la notification GUI avant d'avoir vérifié l'état distant. Sources :
+[ACB status](https://docs.netgate.com/pfsense/en/latest/backup/acb-status.html),
+[ACB info](https://docs.netgate.com/pfsense/en/latest/backup/acb-info.html),
+[`config.lib.inc`](https://github.com/pfsense/pfsense/blob/master/src/etc/inc/config.lib.inc),
+[libcurl errors](https://curl.se/libcurl/c/libcurl-errors.html).
 
 ## Incident 502 WebConfigurator / REST API (September 2026)
 
@@ -234,6 +229,46 @@ an empty curl `remote_ip` remains `peer=unknown` instead of shifting latency
 fields.
 
 
+## Workstation console output
+
+`scripts/pfsense/console.sh` formats the workstation-side pfSense diagnostics
+(Unbound, Snort, pflow, memory, split DNS, Prometheus, WhatsApp, CrowdSec).
+It runs **only on the workstation**: remote commands stay plain `/bin/sh`,
+with nothing installed or colored on pfSense. Native helpers
+(`check-central-crowdsec-bouncer.sh`, `manage-api-identities.php`) do not load
+it; `audit-posture.sh` and `diagnose-recover.sh` keep their own colored
+summaries.
+
+| Context | Output |
+| --- | --- |
+| Workstation TTY | 🔎 sections, ✅ / ⚠️ / ❌ status, colors and summary |
+| `PFSENSE_OUTPUT=compact` | condensed view even without a TTY; ANSI only if allowed |
+| `PFSENSE_OUTPUT=verbose` | every displayable line; raw syslog stays hidden |
+| `PFSENSE_OUTPUT=raw` | exact collector output, no header or summary |
+| Pipe / file / CI | exact output by default, for scripts, CSV and JSON |
+| `NO_COLOR=1`, `TERM=dumb`, `PFSENSE_COLOR=never` | no ANSI sequences |
+
+Colors never certify service health and never change probe exit codes.
+Explicit errors stay visible even past 14 lines per section; `unknown` stays
+inconclusive. Kernel OOM lines are deduplicated by precise timestamp and
+grouped per minute (processes killed vs. incidents) as **historical
+events**, not active failures; the minute key keeps the UTC offset (the two
+`02:10` of a DST change stay distinct, a log line without offset shows
+`(offset unknown)`). RFC5424 lines are classified (Unbound bind conflict,
+restart notice, DNSBL Python exit, DNSSEC failure, socket buffer, CrowdSec
+lifecycle) without printing raw messages; unrecognized messages show only a
+count (compact) or timestamp and category (verbose). Formatting is not a
+redaction mechanism: review a `raw` output before sharing it.
+
+Validation, one step at a time:
+
+```bash
+just pfsense-console-test
+just pfsense-unbound-wifi-test
+bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check
+PFSENSE_OUTPUT=verbose bash scripts/pfsense/diagnose-pfblocker-unbound-whatsapp.sh --check
+```
+
 ## CrowdSec / edge-memory read-only diagnostics
 
 The normal `--check` path now includes the CrowdSec and pfBlockerNG evidence
@@ -292,6 +327,16 @@ The canonical service accounts are deliberately split:
 Neither identity should belong to a named privilege-bearing group such as
 `admins`. The only normal group membership is pfSense's implicit `all`
 group.
+
+Keep each service user **enabled**: do not check `This user cannot login`,
+because pfREST rejects API keys owned by a disabled user. API keys cannot log
+into the webConfigurator or SSH; harden the users by withholding
+`WebCfg - All pages`, `page-all`, shell access and every unneeded privilege.
+Keep one key per identity (posture and Snort/PF telemetry are never collapsed
+back into a shared `PFSENSE_API_KEY`), keep TLS verification on, and rotate any
+key pasted into chat, logs, tickets or shell history. When the security
+observer reaches pfSense through the same path Snort/PF may block, a transport
+failure is a telemetry blind spot, not proof that Snort caused it.
 
 The privilege ID observed on the appliance for the DNS Resolver settings GET is
 `api-v2-services-dns-resolver-settings-get` (hyphens), while the REST path
@@ -410,6 +455,13 @@ The evidence must be interpreted precisely:
   deployed plaintext produces HTTP `401`, rotate it;
 - `api-v2-auth-key-post` is a **temporary rotation privilege** and must not
   remain in the steady-state role after a successful rotation.
+
+Keep the REST API in **global read-only mode** in normal operation: posture,
+exporter and Snort telemetry only need GET. Key creation is a write
+(`POST /api/v2/auth/key`) and is rejected in read-only mode with
+`405 ENDPOINT_METHOD_NOT_ALLOWED_IN_READ_ONLY_MODE`. Disable read-only mode only
+for the duration of a rotation, re-enable it immediately after the key is
+stored, then validate the allowed GETs and at least one forbidden endpoint.
 
 The helper models the two explicit states.
 

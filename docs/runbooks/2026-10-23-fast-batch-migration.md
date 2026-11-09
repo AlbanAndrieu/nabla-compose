@@ -139,6 +139,60 @@ l'absence de la clé Anthropic, une image PHP obsolète, ou une App STOPPED
 ne sont **pas réparés** automatiquement par ce script ; documenter
 les écarts et corriger individuellement.
 
+## Choix des versions : support, pas « LTS »
+
+Une cible est choisie d'après la **politique de support** de chaque projet,
+jamais d'après une étiquette générique « LTS » ni `latest` :
+
+| Composant | Règle |
+| --- | --- |
+| Talos | Une des deux branches mineures les plus récentes ; jamais alpha/RC |
+| Kubernetes | Pas de LTS : une des trois branches officielles supportées |
+| PHP | Branche en support actif, au moins le dernier patch de sécurité |
+| Python | Branche bugfix supportée et dernier patch ; une mineure plus récente exige une revue de compatibilité plus large |
+
+`config/talos/VERSION`, `config/talos/KUBERNETES_VERSION` et `mise.toml`
+déclarent des **cibles**, jamais une preuve que le cluster est à jour.
+
+Inventaire hors ligne de toutes les Apps Compose et Dockerfiles, puis sonde
+bornée des interpréteurs réellement en cours d'exécution sur TrueNAS
+(`php -v`, `python3 --version` ; 200 conteneurs, 300 s, sans environnement
+ni secret) :
+
+```bash
+just upgrade-runtime-test
+just upgrade-runtime-audit
+python3 scripts/quality/audit-supported-runtimes.py --strict-eol
+sudo python3 scripts/truenas/audit-live-language-runtimes.py --check
+```
+
+Un patch PHP explicitement épinglé sous le plancher de sécurité donne
+`critical-patch-missing` et échoue `--strict-eol` ; une image épinglée
+seulement en `php:8.5` est `unverified-patch`, **jamais PASS**. `unknown` ou
+un interpréteur non détecté n'est pas une preuve de santé : utiliser une
+commande du fournisseur ou un SBOM pour les images distroless. Prioriser
+`eol`, puis `security-only`, puis `floating` et `unknown`, sur les digests
+réels (`docker inspect`). Un inventaire n'autorise aucune montée de version.
+
+Cas connus :
+
+- **WordPress** (`ntninja/wordpress-postgresql:latest` + PG4WP) : image non
+  officielle, PHP inconnu ; l'image officielle exige MySQL/MariaDB, donc une
+  migration de données. Garder le lab isolé jusqu'à un pilote compatible
+  testé.
+- **OpenClaw tools** : Python fourni par Debian ; changer Python sans la
+  distribution casse le contrat de paquets : migration de distribution dédiée.
+- **LiteLLM, Sentry, DefectDojo, Langflow, OpenRAG, Docling** : le runtime
+  appartient à l'image amont ; monter l'image amont validée complète (digest,
+  schéma), jamais `apt`/pip par-dessus.
+
+Les runtimes de service passent par **vagues**, pas par redémarrage global :
+inventaire en lecture seule groupé par base et version amont ; une image peu
+critique à la fois en isolation (santé, ingress, persistance, restauration,
+labels) ; dépendances stateful partagées (Postgres, Sentry, Kafka,
+ClickHouse, OpenSearch) traitées à part ; chaque release figée par digest
+après validation. Jamais de `midclt app.update` en masse pour un runtime.
+
 ## Tests, limites et retrait du script temporaire
 
 `just fast-maintenance-test` vérifie en local la détermination du plan,

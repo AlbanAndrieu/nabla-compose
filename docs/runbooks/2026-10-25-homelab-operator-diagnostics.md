@@ -1,8 +1,6 @@
 # Homelab — diagnostics opérateur spécialisés
 
-**Mis à jour : 25 octobre 2026.** L'ancien inventaire de commandes
-datées est conservé dans
-[archive](../archive/2026-10-24/2026-10-24-homelab-operator-next-commands.md).
+**Mis à jour : 25 octobre 2026.**
 Cette page complète le [runbook d'acceptation canonique](homelab-runtime-acceptance.md) pour les sondes individuelles en lecture seule.
 Aucune commande ici ne démarre, redéploie ou efface un service.
 
@@ -119,7 +117,7 @@ au moins un échec de sonde est établi, `2` sinon si une preuve manque.
 La validation en lecture seule est possible hors TrueNAS mais les
 exécutables absents sont `NOT_RUN` ; ne pas en déduire que le service est
 indisponible. Pour les critères de clôture, consulter
-[runbook observabilité](2026-10-24-prometheus-pyroscope-dns-dot-recovery.md).
+[l'incident observabilité](../incidents/2026-10-24-truenas-observability-recovery.md).
 
 Le triage postmigration utilise également les compteurs expurgés
 `verdict_counts` du diagnostic Gatus : `DENIED` seul produit
@@ -142,13 +140,13 @@ python3 -m pytest -q tests/test_service_diagnostic_bundle.py tests/test_postmigr
 
 ```bash
 bash scripts/pfsense/diagnose-unbound-split-dns.sh --check
-bash scripts/pfsense/diagnose-memory-pressure.sh --check
+bash scripts/pfsense/sample-oom-pressure.sh --check
 ```
 
 L'absence d'argument `--check` n'autorise **aucune** mutation.
 Ne pas multiplier les scrapes pfSense, reboots, mises à jour Snort
 ou reconstructions pfBlockerNG pendant le diagnostic.
-Voir [runbook pfSense](2026-10-24-pfsense-unbound-pfblocker-whatsapp.md).
+Voir [incident pfSense](../incidents/2026-10-24-pfsense-unbound-restarts.md).
 
 ## 3. Services applicatifs (TrueNAS)
 

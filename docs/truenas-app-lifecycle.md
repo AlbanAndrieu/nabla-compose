@@ -102,6 +102,13 @@ account: open **OAuth2 Tokens**, choose **Delete Token** for the unusable token,
 then repeat the OAuth2 authorization flow. Do not edit encrypted token records
 directly.
 
+Open item (2026-11-06): Bichon 2.0.3 syncs both IMAP accounts, but one
+encrypted OAuth2 token is still unusable. Identify the account in the UI, run
+`OAuth2 Tokens -> Delete Token`, re-authorize it, then rerun
+`scripts/truenas/audit-app-lifecycle.sh`. Gate: `oauth2-token-refresh-task`
+no longer logs `Decryption failed`; never rotate `BICHON_ENCRYPT_PASSWORD`
+(it matches the pre-migration snapshot).
+
 ## Shared MongoDB then Graylog
 
 MongoDB is a standalone reusable application in `apps/mongo`. Graylog no
@@ -816,6 +823,58 @@ addition to inventory/container checks it now runs the specialist read-only
 diagnostics for InfluxDB, Scrutiny, Sentry and Wazuh. A green TrueNAS app state
 alone is therefore insufficient: these critical services must also pass their
 application-level dependency/health contracts.
+
+## Suricata capture interface
+
+The repository-owned Suricata Compose definition uses host networking. On
+this TrueNAS host the LAN bridge is `br0`; the default capture interface must
+therefore not assume `eth0`. Only redeploy after reviewing the effective
+`SURICATA_OPTIONS`, Docker exit/restart state, recent logs and persistent
+path permissions.
+
+Acceptance:
+
+- TrueNAS App `suricata` is `RUNNING` and the container is not restarting;
+- `br0` exists and is the intended capture interface;
+- Suricata starts without config/interface errors;
+- `eve.json` receives fresh events;
+- CrowdSec/Alloy consumers can read the expected Suricata log path.
+
+## Triage of `app_lifecycle.log`
+
+`/var/log/app_lifecycle.log` records past deploy failures, **not** the current
+state of the applications. Classify it read-only, then check the live state:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+sudo python3 scripts/truenas/triage-app-lifecycle-log.py --check --since <YYYY-MM-DD>
+sudo midclt call app.query | jq -r '.[] | [.id, .state] | @tsv'
+sudo bash scripts/truenas/audit-app-lifecycle.sh
+```
+
+The triage script reads at most the last 8 MiB of the journal, never prints
+message bodies or secret variables, and reports one category and the last
+event per application without claiming the problem is still active.
+
+Do not redeploy the whole fleet from the journal: work per root cause, from
+the current state. Two deterministic causes seen in this journal:
+
+- **Stale Custom App definition keeps the old path.** The TrueNAS-stored
+  Custom App Compose can still reference a legacy path (for example
+  `/mnt/cpool/scrutiny/.env.secrets`) while the repository already uses the
+  canonical `/mnt/cpool/secrets/runtime/<service>/` file. A plain
+  `app.redeploy` reuses the stored definition and reproduces the failure;
+  rewrite it with the service deploy script (see
+  [InfluxDB and Scrutiny](#influxdb-and-scrutiny)).
+- **Missing mandatory bind source.** A Compose bind to an absent file, such as
+  Prometheus `/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key`,
+  prevents container creation; a target diagnostic may then report `URLError`
+  without any target being evaluated. Install the existing credential with
+  `scripts/truenas/reconcile-fastapi-metrics-credential.py` (`--check`, then
+  `--apply`), never a newly generated key, then `app.redeploy` once.
+
+Old `healthcheck` failures followed by a healthy container, and Docker
+`did not receive an exit event` errors, are historical.
 
 ## Historical TrueNAS lifecycle failures
 

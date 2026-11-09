@@ -21,11 +21,11 @@
 
 This document is the operational roadmap for moving TrueNAS/Compose runtime secrets from shell exports and scattered `.env*` files into Vaultwarden-backed canonical materializations without breaking existing services or losing migration-critical keys.
 
-It complements `docs/roadmap.md`, `docs/truenas-runtime-layout.md`, and `docs/homelab-platform-migration-roadmap.md`.
+It complements `docs/roadmap.md` and `docs/truenas-runtime-layout.md`.
 
 ## Reprise P0.3 — secrets à inventorier avant les migrations (2026-10-24)
 
-- [ ] Exécuter le contrôle sans valeurs `sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section secrets`, après fusion et synchronisation de TrueNAS. Lire aussi [le runbook opérateur](runbooks/2026-10-24-homelab-operator-next-commands.md).
+- [ ] Exécuter le contrôle sans valeurs `sudo bash scripts/truenas/finish-migrations-20261024.sh --check --section secrets`, après fusion et synchronisation de TrueNAS. Lire aussi [le runbook opérateur](runbooks/truenas-migration-operator.md).
 - [x] Déclarer `openrag` dans `config/secrets/manifest.json` avec les **noms** `OPENSEARCH_PASSWORD` et `LITELLM_IDE_API_KEY`, sans valeur. Ces identités sont des **copies consommateur** : l'autorité des clés reste respectivement le service OpenSearch et l'identité LiteLLM existante. Ne jamais faire de rotation indépendante d'un mot de passe partagé.
 - [ ] Vérifier que le rendu Vaultwarden d'OpenRAG existe, correspond aux identités fournisseurs et conserve les clés nécessaires. La déclaration dans Git ne prouve ni l'existence de l'item Vaultwarden ni la disponibilité des fichiers sous `/mnt/cpool/secrets/runtime/openrag/`. N'activer le nouveau chemin Compose qu'après ce contrôle.
 - [ ] Relever depuis Vaultwarden uniquement les noms/états pour `scanopy`, `joplin`, `autokuma`, `code`, `openrag`, `opensearch`, `litellm` et les services actifs du manifeste. Une session Bitwarden absente signifie NOT_RUN, pas conforme.

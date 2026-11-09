@@ -17,7 +17,6 @@ CATALOG = ROOT / "catalog/catalog-info.yaml"
 STATIC_TOPOLOGY = ROOT / "catalog/service-topology.static.json"
 VM_POLICY = ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh"
 IPAM = ROOT / "scripts/truenas/migrate-docker-address-pool.sh"
-APP_RECONCILE = ROOT / "scripts/truenas/reconcile-apps-after-ipam.sh"
 ORPHAN_SHIMS = ROOT / "scripts/truenas/diagnose-docker-orphan-shims.sh"
 GHOST_RECOVERY = ROOT / "scripts/truenas/recover-app-after-docker-ghost.sh"
 RECOVERY_REBOOT = ROOT / "scripts/truenas/recovery-reboot-homelab.sh"
@@ -104,7 +103,6 @@ class HomelabRebootContractTests(unittest.TestCase):
             REBOOT,
             VM_POLICY,
             IPAM,
-            APP_RECONCILE,
             ORPHAN_SHIMS,
             GHOST_RECOVERY,
             RECOVERY_REBOOT,
@@ -435,6 +433,7 @@ class HomelabRebootContractTests(unittest.TestCase):
         text = RECOVERY_REBOOT.read_text(encoding="utf-8")
         for mode in (
             "--prepare",
+            "--stop-apps",
             "--continue",
             "--status",
             "--reboot",
@@ -451,6 +450,15 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("all_apps_stopped", text)
         self.assertIn("shutdown --wait", text)
         self.assertIn("172.17.0.51 172.17.0.52 172.17.0.50", text)
+        # App-only cycle: Talos stays up and only that transaction may resume on the same boot.
+        self.assertIn("apps_only || shutdown_talos", text)
+        self.assertIn('NABLA_RESUME_ALLOW_SAME_BOOT="$(apps_only', text)
+        self.assertIn("--keep-inactive", text)
+        self.assertIn('"select":["id","name","state"', text)
+        reconciler = (ROOT / "scripts/truenas/reconcile-reboot-resume.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"${NABLA_RESUME_ALLOW_SAME_BOOT:-false}" == "true"', reconciler)
         self.assertNotIn("docker kill", text)
         self.assertNotIn("systemctl restart docker", text)
         self.assertNotIn("systemctl restart containerd", text)
@@ -563,14 +571,6 @@ class HomelabRebootContractTests(unittest.TestCase):
         self.assertIn("Pid=0", text)
         self.assertIn("containerd-shim-runc-v2", text)
         self.assertIn("do not run a fresh `--prepare`", text)
-
-    def test_app_reconcile_network_detail_is_best_effort(self) -> None:
-        text = APP_RECONCILE.read_text(encoding="utf-8")
-        self.assertIn(
-            "app.get_instance timed out/unavailable; network detail skipped",
-            text,
-        )
-        self.assertIn("TRUENAS_APP_RECONCILE_CALL_TIMEOUT", text)
 
     def test_planner_orders_dependency_and_reverses_stop(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

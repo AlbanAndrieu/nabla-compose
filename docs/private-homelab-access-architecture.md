@@ -202,7 +202,7 @@ commiter une configuration concrète.
 ## Renvoi : gateway et diagnostic transverse
 
 Le choix de la gateway, les étapes POC et la politique de rollback sont
-centralisés dans [le document APISIX](api-gateway-selection.md).
+centralisés dans [l'ADR APISIX](adr/0001-apisix-api-gateway-poc.md).
 Les procédures de recherche d'incident traversant Compose, FastAPI et Site
 sont dans [le runbook unique](runbooks/homelab-e2e-diagnostics.md).
 Conserver ici seulement le design Cloudflare Access / Tunnel du domaine

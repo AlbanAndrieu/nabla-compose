@@ -123,12 +123,12 @@ esac
 
 UI = ROOT / "scripts/lib/diagnostic-ui.sh"
 GATUS = ROOT / "scripts/truenas/diagnose-gatus.sh"
-RESOURCES = ROOT / "scripts/truenas/diagnose-resource-usage.sh"
+INFLUXDB = ROOT / "scripts/truenas/diagnose-influxdb.sh"
 
 
 def test_shared_diagnostic_ui_in_three_scripts() -> None:
     assert UI.is_file()
-    for script in (DIAG, GATUS, RESOURCES):
+    for script in (DIAG, GATUS, INFLUXDB):
         assert "diagnostic-ui.sh" in script.read_text(encoding="utf-8")
         result = subprocess.run(
             ["bash", "-n", str(script)], capture_output=True, text=True, check=False

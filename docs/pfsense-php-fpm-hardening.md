@@ -566,7 +566,7 @@ PFSENSE_OUTPUT=verbose just pfsense-unbound-restart-check
 Comparer le PID, la date de lancement, les empreintes de
 configuration, les stop/start pfBlockerNG et les éventuels
 OOM postérieurs à 00:00 avec la baseline conservée dans
-`docs/runbooks/2026-10-25-pfsense-unbound-restart-causality.md`.
+[l'incident des redémarrages Unbound](incidents/2026-10-24-pfsense-unbound-restarts.md).
 **Ne pas réappliquer le profil PHP-FPM** pour cette vérification.
 
 ## Après cron DNSBL — 26/10/2026 à 00:12 CET

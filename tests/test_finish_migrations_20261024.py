@@ -41,10 +41,8 @@ def fake_operator(tmp_path):
         encoding="utf-8",
     )
     # Operator commands are a tracked, non-executable runbook.
-    runbook = root / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
-    runbook.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(SOURCE.parents[2] / "docs/runbooks" / runbook.name, runbook)
     canonical = root / "docs/runbooks/truenas-migration-operator.md"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
         SOURCE.parents[2] / "docs/runbooks" / canonical.name, canonical,
     )
@@ -254,10 +252,9 @@ def test_new_read_only_sections_are_documented():
         "secrets", "convergence", "lan",
     ):
         assert f"    {section})" in script
-    assert f" --check --section {section}" in (
-        SOURCE.parents[2]
-        / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
-    ).read_text(encoding="utf-8")
+        assert f" --check --section {section}" in (
+            SOURCE.parents[2] / "docs/runbooks/truenas-migration-operator.md"
+        ).read_text(encoding="utf-8")
     assert "--require-inserts --observe-seconds" in script
     assert "verify-fastapi-lan-probes.sh" in script
 
@@ -368,19 +365,6 @@ def test_legacy_openrag_secret_apply_is_rejected(fake_operator):
     assert "Invalid migration step" in result.stderr
     script = SOURCE.read_text(encoding="utf-8")
     assert 'openrag-secret) SCRIPT=' not in script
-
-
-def test_operator_runbook_mentions_merged_site_and_api_prs(fake_operator):
-    runbook = (
-        SOURCE.parents[2]
-        / "docs/runbooks/2026-10-24-homelab-operator-next-commands.md"
-    ).read_text(encoding="utf-8")
-    assert "PR site #254 et FastAPI" in runbook
-    assert "ont été fusionnées" in runbook
-    assert "--check --section prometheus" in runbook
-    assert "--check --section openrag" in runbook
-    assert "--check --section akvorado" in runbook
-    assert "Ne pas lancer l'ancien reconciler en" in runbook
 
 
 @pytest.mark.parametrize("args", [

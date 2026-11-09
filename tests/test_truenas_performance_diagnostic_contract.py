@@ -27,6 +27,32 @@ def test_containerd_pid_is_looked_up_only_once() -> None:
     assert "process not found" in source
 
 
+def test_zombie_parents_are_attributed_to_containers_with_one_docker_call() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert source.count("docker ps --no-trunc --format '{{.ID}} {{.Names}}'") == 1
+    assert '"/proc/${ppid}/cgroup"' in source
+    assert "[0-9a-f]{64}" in source
+    assert "parent zombie container" in source
+    # Host-level parents stay visible instead of being dropped.
+    assert '"${container:-host}"' in source
+
+
+def test_stuck_container_locks_are_detected_with_bounded_probes() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    # A hung inspect blocked TrueNAS app.query on 2026-11-04: every probe is bounded.
+    assert "xargs -r timeout 60 docker inspect" in source
+    assert "timeout 5 docker inspect --format '{{.Name}}'" in source
+    assert "$2 ~ /^Z/ && $3 > 1" in source
+    assert "zombies with live threads" in source
+
+
+def test_memory_limits_are_sized_from_cgroup_peaks() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"${dir}/memory.peak"' in source
+    assert '"/sys/fs/cgroup/docker/${id}"' in source
+    assert '"/sys/fs/cgroup/system.slice/docker-${id}.scope"' in source
+
+
 def test_shell_syntax_is_valid_without_running_true_nas_diagnostics() -> None:
     result = subprocess.run(
         ["bash", "-n", str(SCRIPT)],

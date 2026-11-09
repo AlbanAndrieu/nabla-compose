@@ -153,5 +153,14 @@ for the read-only correlation and `EBUSY` recovery procedure.
 
 Keep the TrueNAS host and CSI authentication debts coupled:
 
-- TrueNAS is currently validated on `26.0.0-BETA.3`; a stable 26.x upgrade requires rollback/boot-environment, Apps/Compose, Talos VM/network, NFS/CSI, API clients, observer and MCP validation.
-- TrueNAS CSI `v1.0.3` still uses deprecated `auth.login_with_api_key`; migrate to the modern username + API-key/SCRAM authentication path before TrueNAS 27 and rerun provision/persistence/reclaim validation.
+- TrueNAS 26 was renamed TrueNAS 27 at `27.0.0-RC.1`. The host was validated on `26.0.0-BETA.3`; from a 26 beta the release notes require no pre-update action. Keep the previous boot environment until the post-upgrade checks below pass.
+- TrueNAS 27 has no REST API (`/api/v2.0`, already gone in 26). No repository client uses it: OpenTofu (`PjSalty/truenas` 2.x), CSI, FastAPI Sample and the MCP use the `/api/current` JSON-RPC WebSocket; host scripts use `midclt`.
+- `auth.login_with_api_key` is deprecated in 27 and planned for removal in 28 ([deprecations](https://www.truenas.com/docs/scale/27/gettingstarted/deprecations/)). TrueNAS CSI `v1.0.3`, `@profanter-dev/truenas-mcp` `1.0.6` and portracker (legacy `/websocket` DDP handshake) still use it; migrate them to `auth.login_ex` (`API_KEY_PLAIN` or SCRAM) before TrueNAS 28 and rerun CSI provision/persistence/reclaim validation.
+
+Post-upgrade checks on 27, from the TrueNAS host over SSH (`midclt` exists only there; checkout `/mnt/cpool/compose/nabla-compose`):
+
+- `midclt call system.version` reports `TrueNAS-27.*`;
+- `just talos-stopped-vms-check`: the Talos VMs use the classic `vm.*` API, not the legacy Instances VMs that 27 deletes;
+- `just truenas-readiness-check` and `just truenas-fastapi-check` (Apps, observer API key, `/api/current`);
+- the `truenas-readonly` MCP connects, portracker still lists TrueNAS apps/VMs, and a CSI PVC provisions and binds;
+- 2FA still works: a TOTP interval other than 30 or 60 seconds breaks only on an update from 25.10.

@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 BASE_URL = os.getenv("HOMARR_BASE_URL", "http://homarr:7575").rstrip("/")
 API_KEY = os.getenv("HOMARR_API_KEY", "").strip()
 MANIFEST_PATH = Path(os.getenv("HOMARR_MANIFEST", "/config/nabla/apps.json"))
-BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/nabla/boards.json"))
+BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/boards.json"))
 DRY_RUN = os.getenv("HOMARR_SYNC_DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 MAX_ATTEMPTS = int(os.getenv("HOMARR_SYNC_ATTEMPTS", "20"))
 RETRY_SECONDS = float(os.getenv("HOMARR_SYNC_RETRY_SECONDS", "3"))
