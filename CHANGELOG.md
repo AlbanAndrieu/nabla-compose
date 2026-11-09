@@ -1,3 +1,10 @@
+## [0.60.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.0...0.60.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **truenas:** replay PR [#332](https://github.com/AlbanAndrieu/nabla-compose/issues/332) on current master and reconcile documentation ([8db35d3](https://github.com/AlbanAndrieu/nabla-compose/commit/8db35d355dd90e8b735007a94cb7e07a436647e2))
+
 # [0.60.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.1...0.60.0) (2026-11-09)
 
 
