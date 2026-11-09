@@ -3,6 +3,17 @@
 
 set -euo pipefail
 
+# FROZEN (2026-11-08): superseded by apps/media-acquisition, apps/prowlarr,
+# apps/radarr, apps/sonarr, apps/lidarr, apps/bazarr, apps/recyclarr,
+# apps/jellyfin, apps/seerr and scripts/truenas/deploy-media-stack.sh.
+# It uses floating images, a VPN configuration hotio no longer supports and a
+# privileged toparr container. Kept only as history; see
+# docs/arr-media-library-roadmap.md.
+if [[ "${NABLA_RUN_FROZEN_ARR_SCRIPT:-}" != "yes-i-know" ]]; then
+  printf 'ERROR: truenas-file-structure.sh is frozen; use scripts/truenas/deploy-media-stack.sh\n' >&2
+  exit 1
+fi
+
 # See https://raw.githubusercontent.com/serversathome/ServersatHome/refs/heads/main/truenas-file-structure.sh
 
 # Prompt the user for pool names

@@ -296,6 +296,98 @@ scrape_configs:
           platform: truenas
           role: network-source-of-truth
 
+  # *arr media stack (docs/arr-media-library-roadmap.md). Exporters join the
+  # intranet network; Jellyfin exposes native /metrics (EnableMetrics) on its
+  # LAN port. operational_state=planned until each App is deployed and active.
+  - job_name: exportarr_prowlarr
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 50s
+    static_configs:
+      - targets:
+          - prowlarr-exporter:9707
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: prowlarr
+
+  - job_name: exportarr_radarr
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 50s
+    static_configs:
+      - targets:
+          - radarr-exporter:9707
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: radarr
+
+  - job_name: exportarr_sonarr
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 50s
+    static_configs:
+      - targets:
+          - sonarr-exporter:9707
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: sonarr
+
+  - job_name: exportarr_lidarr
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 50s
+    static_configs:
+      - targets:
+          - lidarr-exporter:9707
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: lidarr
+
+  - job_name: exportarr_bazarr
+    metrics_path: /metrics
+    scrape_interval: 60s
+    scrape_timeout: 50s
+    static_configs:
+      - targets:
+          - bazarr-exporter:9707
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: bazarr
+
+  - job_name: qbittorrent
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - qbittorrent-exporter:8090
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: qbittorrent
+
+  - job_name: jellyfin
+    metrics_path: /metrics
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - 172.17.0.24:30013
+        labels:
+          platform: truenas
+          operational_state: planned
+          role: media
+          app: jellyfin
+
   - job_name: crowdsec
     static_configs:
       - targets:

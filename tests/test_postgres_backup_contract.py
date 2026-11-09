@@ -116,3 +116,15 @@ def test_role_bootstrap_is_read_only_and_matches_the_job() -> None:
     assert ":-pgbackup}" in script
     assert "LOGIN NOREPLICATION" in script and "pg_read_all_data" in script
     assert "REPLICATION PASSWORD" not in script.replace("NOREPLICATION", "")
+
+
+def test_backup_database_list_has_one_value_in_compose_and_role_bootstrap() -> None:
+    import re
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
+    declared = compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]
+    script = (root / "scripts/truenas/bootstrap-postgres-backup-role.sh").read_text(encoding="utf-8")
+    role_default = re.search(r'POSTGRES_BACKUP_DATABASES:-([^}"]+)\}', script).group(1)
+    assert declared.split() == role_default.split()

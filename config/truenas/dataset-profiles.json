@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "description": "Declarative ZFS profile of repository-owned datasets that need more than the TrueNAS APPS preset. Reconciled by scripts/truenas/bootstrap-repository-storage.sh (--check reports drift, --apply converges through the middleware). Snapshot classes stay in snapshot-tasks.json.",
+  "datasets": {
+    "media": {
+      "purpose": "*arr media library and torrents. One dataset so qBittorrent and Radarr/Sonarr/Lidarr can hardlink and move atomically (docs/arr-media-library-roadmap.md section 7).",
+      "properties": {
+        "recordsize": "1M",
+        "compression": "lz4",
+        "atime": "off"
+      },
+      "quotaPercentOfPool": 40,
+      "owner": "568:568",
+      "directories": [
+        "torrents",
+        "torrents/incomplete",
+        "torrents/movies",
+        "torrents/tv",
+        "torrents/music",
+        "library",
+        "library/movies",
+        "library/tv",
+        "library/music"
+      ]
+    }
+  }
+}

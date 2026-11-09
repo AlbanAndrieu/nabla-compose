@@ -1,0 +1,46 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bazarr
+  title: Bazarr
+  description: Planned subtitle manager of the media stack.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - media
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/bazarr/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/radarr
+    - component:default/sonarr
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bazarr-exporter
+  title: Bazarr exporter
+  description: Planned Exportarr metrics exporter for Bazarr.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - media
+    - observability
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/bazarr/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/bazarr

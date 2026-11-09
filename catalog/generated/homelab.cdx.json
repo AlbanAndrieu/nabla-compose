@@ -50,6 +50,19 @@
       "ref": "component:default/autoxpose"
     },
     {
+      "dependsOn": [
+        "component:default/radarr",
+        "component:default/sonarr"
+      ],
+      "ref": "component:default/bazarr"
+    },
+    {
+      "dependsOn": [
+        "component:default/bazarr"
+      ],
+      "ref": "component:default/bazarr-exporter"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/bichon"
     },
@@ -180,6 +193,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/gluetun"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/grafana"
     },
     {
@@ -217,6 +234,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/homeassistant"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/jellyfin"
     },
     {
       "dependsOn": [
@@ -257,6 +278,18 @@
     {
       "dependsOn": [],
       "ref": "component:default/languagetool"
+    },
+    {
+      "dependsOn": [
+        "component:default/qbittorrent"
+      ],
+      "ref": "component:default/lidarr"
+    },
+    {
+      "dependsOn": [
+        "component:default/lidarr"
+      ],
+      "ref": "component:default/lidarr-exporter"
     },
     {
       "dependsOn": [
@@ -432,8 +465,49 @@
       "ref": "component:default/prometheus-node-exporter"
     },
     {
+      "dependsOn": [
+        "component:default/gluetun"
+      ],
+      "ref": "component:default/prowlarr"
+    },
+    {
+      "dependsOn": [
+        "component:default/prowlarr"
+      ],
+      "ref": "component:default/prowlarr-exporter"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/pyroscope"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/qbittorrent"
+    },
+    {
+      "dependsOn": [
+        "component:default/qbittorrent"
+      ],
+      "ref": "component:default/qbittorrent-exporter"
+    },
+    {
+      "dependsOn": [
+        "component:default/qbittorrent"
+      ],
+      "ref": "component:default/radarr"
+    },
+    {
+      "dependsOn": [
+        "component:default/radarr"
+      ],
+      "ref": "component:default/radarr-exporter"
+    },
+    {
+      "dependsOn": [
+        "component:default/radarr",
+        "component:default/sonarr"
+      ],
+      "ref": "component:default/recyclarr"
     },
     {
       "dependsOn": [],
@@ -458,6 +532,14 @@
     {
       "dependsOn": [],
       "ref": "component:default/scrutiny-collector"
+    },
+    {
+      "dependsOn": [
+        "component:default/jellyfin",
+        "component:default/radarr",
+        "component:default/sonarr"
+      ],
+      "ref": "component:default/seerr"
     },
     {
       "dependsOn": [
@@ -551,6 +633,18 @@
     {
       "dependsOn": [],
       "ref": "component:default/sonarqube"
+    },
+    {
+      "dependsOn": [
+        "component:default/qbittorrent"
+      ],
+      "ref": "component:default/sonarr"
+    },
+    {
+      "dependsOn": [
+        "component:default/sonarr"
+      ],
+      "ref": "component:default/sonarr-exporter"
     },
     {
       "dependsOn": [],
@@ -703,7 +797,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:c3d58377d9e2b3be4d9ad8a2d57c48368d5aaa759ff687409dc97e4ec25187be"
+        "value": "sha256:6936590bc6649c02ef77e084abab0cd9711242c71dea66143c8bf22b5e16e0ff"
       },
       {
         "name": "nabla:catalog-authority",
@@ -711,7 +805,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:c3d58377-d9e2-b3be-4d9a-d8a2d57c4836",
+  "serialNumber": "urn:uuid:6936590b-c664-9c02-ef77-e084abab0cd9",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -951,6 +1045,60 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/bazarr",
+      "description": "Planned subtitle manager of the media stack.",
+      "name": "Bazarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/bazarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/bazarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/bazarr-exporter",
+      "description": "Planned Exportarr metrics exporter for Bazarr.",
+      "name": "Bazarr exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/bazarr-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/bazarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },
@@ -1677,6 +1825,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/gluetun",
+      "description": "Planned WireGuard VPN gateway and kill switch for the media download namespace.",
+      "name": "Gluetun",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/gluetun"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/media-acquisition/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/grafana",
       "name": "Grafana",
       "properties": [
@@ -1890,6 +2065,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/jellyfin",
+      "description": "Planned LAN media server of the media stack with a read-only library.",
+      "name": "Jellyfin",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/jellyfin"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/jellyfin/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/joplin",
       "description": "Private Joplin synchronization server backed by shared PostgreSQL.",
       "name": "Joplin Server",
@@ -2098,6 +2300,60 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/lidarr",
+      "description": "Planned Lidarr instance of the media stack (media-manager).",
+      "name": "Lidarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/lidarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/lidarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/lidarr-exporter",
+      "description": "Planned Exportarr metrics exporter for Lidarr.",
+      "name": "Lidarr exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/lidarr-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/lidarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },
@@ -3061,6 +3317,60 @@
       ]
     },
     {
+      "bom-ref": "component:default/prowlarr",
+      "description": "Planned Prowlarr instance of the media stack (indexer-manager).",
+      "name": "Prowlarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/prowlarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prowlarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/prowlarr-exporter",
+      "description": "Planned Exportarr metrics exporter for Prowlarr.",
+      "name": "Prowlarr exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/prowlarr-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/prowlarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/pyroscope",
       "description": "Continuous profiling backend with persistent profiling metadata and profile data.",
       "name": "Grafana Pyroscope",
@@ -3084,6 +3394,141 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/qbittorrent",
+      "description": "Planned BitTorrent client confined to the Gluetun network namespace.",
+      "name": "qBittorrent",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/qbittorrent"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/media-acquisition/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/qbittorrent-exporter",
+      "description": "Planned Prometheus exporter for qBittorrent, outside the VPN namespace.",
+      "name": "qBittorrent exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/qbittorrent-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/qbittorrent-exporter/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/radarr",
+      "description": "Planned Radarr instance of the media stack (media-manager).",
+      "name": "Radarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/radarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/radarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/radarr-exporter",
+      "description": "Planned Exportarr metrics exporter for Radarr.",
+      "name": "Radarr exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/radarr-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/radarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/recyclarr",
+      "description": "Planned scheduled sync of TRaSH quality profiles into Radarr and Sonarr.",
+      "name": "Recyclarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/recyclarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/recyclarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },
@@ -3218,6 +3663,33 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/seerr",
+      "description": "Planned LAN request manager connected to Jellyfin, Radarr and Sonarr.",
+      "name": "Seerr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/seerr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/seerr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },
@@ -3740,6 +4212,60 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sonarr",
+      "description": "Planned Sonarr instance of the media stack (media-manager).",
+      "name": "Sonarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sonarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sonarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sonarr-exporter",
+      "description": "Planned Exportarr metrics exporter for Sonarr.",
+      "name": "Sonarr exporter",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sonarr-exporter"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/sonarr/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },

@@ -20,6 +20,7 @@
 | Keycloak et Home Assistant (#330) | **CODED** : realm `nabla`, refus `master` au Tunnel ; HA bridge et bootstrap DB commun | **NOT_VERIFIED** : démarrage contrôlé, import realm avec autorisation, migration recorder et tests négatifs Cloudflare |
 | Apps en attente (#330) | **CODED** : `rollout-pending-apps.sh` `--plan/--check/--apply`, scripts PostgreSQL partagés, métriques NetBox/Dependency-Track déclarées | **NOT_VERIFIED** : préflight sur TrueNAS puis déploiement **une App à la fois** avec accord, preuve de rollback |
 | DefectDojo / sécurité | **CODED** : import et normalisation des rapports outillés | **NOT_VERIFIED** : réception API/Celery et déduplication sans données sensibles |
+| Préparation production (toutes Apps) | **CODED** : matrice générée [`production-readiness.md`](production-readiness.md), `app-ops.sh` (status/storage/secrets/deploy/restart/diagnose/monitor/backup, mutations sous `--apply` + `NABLA_RUNTIME_CHANGE_APPROVED=yes`), [runbook](runbooks/production-app-operations.md) ; `postgres-backup` couvre aussi `defectdojo`, `langfuse`, `n8n`, `sonarqube` ; datasets `ddns-updater`, `dockhand`, `npm` classés `app-state` | **NOT_VERIFIED** au runtime (pas d'accès SSH). Écarts restants à traiter App par App : `NO_AVAILABILITY_PROBE` (30), `NO_DEPLOY_PATH` (21), `SECRETS_LEGACY_PATH` (17), `SERVICE_WITHOUT_HEALTHCHECK` (48 hors stack média) ; décision requise pour la sauvegarde logique de `sentry` (nodestore volumineux) et le nom de base de `sample` |
 
 Les champs et nombres ci-dessus sont des **états déclaratifs datés**, pas un inventaire de santé temps réel. Les anciens comptes d'alertes ne sont pas des pannes actuelles. Un service écarté du rendu Gatus faute de déploiement n'est pas `PASS` ; il est `NOT_RUN` / `planned`.
 
@@ -30,7 +31,7 @@ Les champs et nombres ci-dessus sont des **états déclaratifs datés**, pas un 
 | Priorité | Travail restant | Critère de clôture |
 | --- | --- | --- |
 | P0 | Valider les changements de la PR #330 au HEAD rebasé, sans confondre génération de catalogue et santé effective | `generate-service-topology.py --check`, `generate-service-consumers.py --check`, `generate-catalog-v2-artifacts.py --check` et quality gate ciblée |
-| P0 | Diagnostiquer `graylog`, `lidarr`, `homarr`, ainsi que les Apps arrêtées `bitcoind` / `elastic-search` / `hermes-agent` ; respecter les arrêts volontaires | État TrueNAS et preuves HTTP/health concordants, sans forcer un démarrage |
+| P0 | Diagnostiquer `graylog`, `homarr`, ainsi que les Apps arrêtées `bitcoind` / `elastic-search` / `hermes-agent` ; respecter les arrêts volontaires | État TrueNAS et preuves HTTP/health concordants, sans forcer un démarrage |
 | P0 | Déployer sous contrôle `dependency-track`, `netbox`, `plumber`, `scanopy`, `joplin`, `ntopng` sur TrueNAS, si prérequis validés | `app.query` + `/api/homelab/status` = `in_sync` et sondes fraîches |
 | P1 | Trancher l'exposition externe de Joplin, actuellement `external=true` mais DNS uniquement privé | Contrat et politique Access/Traefik alignés sans ouverture non autorisée |
 | P1 | Garder AIStor et WordPress **retirés du catalogue** ; vérifier l'absence de consommateur et de snapshot avant toute éventuelle suppression de `cpool/aistor` | Plan de retrait, sauvegarde, vérification des tâches ZFS et approbation séparée ; aucune suppression automatique |
@@ -55,7 +56,7 @@ Références : [runbook de réception](runbooks/2026-11-04-probe-remediation.md)
 
 ## P0 — Cloudflare, secrets et frontières d'accès
 
-1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, et la précédence du refus `/realms/master` avant les routes Keycloak publiques ; n'appliquer qu'avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md).
+1. **Cloudflare Tunnel / Access** : valider le plan OpenTofu de retrait des routes `external=false`, le renommage public FastAPI Sample, et la précédence du refus `/realms/master` avant les routes Keycloak publiques ; n'appliquer qu'avec approbation et comparaison exacte des effets. Aucune exception WAF/Bot pour Keycloak/LiteLLM ; l'observateur TrueNAS fournit la preuve LAN. [Module IaC](../terraform/cloudflare/README.md). Inclut les sept noms média publics observés le 7/11 (`radarr`, `sonarr`, `prowlarr`, `lidarr`, `transmission`, `sabnzbd`, `emby` : `403` Cloudflare sans Access, [§2.3](arr-media-library-roadmap.md)).
 2. **Service Auth observateur** : aligner les politiques des applications concernées sans `Bypass` général ; protéger le coffre web et `/admin` Vaultwarden en limitant les exceptions aux chemins clients. Recetter depuis un client externe avant retrait d'une ancienne politique.
 3. **Secrets** : prouver la concordance Vaultwarden → fichier canonique 0600 → environnement conteneur, sans afficher de valeur. Une ancienne session `BW_SESSION` exposée ne doit jamais être réutilisée. [Roadmap secrets](secrets-migration-roadmap.md).
 4. **OVH / FastAPI Cloud** : vérifier la nouvelle identité de lecture seule et les scopes ; `pfSense` y reste `transport_only` (contrat accepté) et la sonde Tavily `GET /usage` ne nécessite plus de migration.
@@ -88,6 +89,17 @@ Références : [performance](../scripts/truenas/diagnose-performance.sh), [snaps
 - Le cutover OpenClaw TrueNAS est **ACCEPTED historiquement (03–05/11)**. Ne pas rouvrir le chantier Workstation ; vérifier, lors des changements, qu'une seule Gateway/planification est active. Les anciennes tâches/mutateurs Workstation sont supprimés du dépôt ; le rollback reste documenté.
 - [Roadmap inter-dépôts et historique](roadmap-openclaw-yubikey-extraction-20261030.md), [roadmap OpenClaw historique](openclaw-workstation-roadmap.md). Les fonctions Slack/Discord demeurent désactivées jusqu'à validation distincte.
 - `nabla-yubikey` conserve le cycle matériel et les politiques ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite. Les sauvegardes age/SOPS doivent rester restaurables sur supports distincts.
+
+## P1 — Bibliothèque média \*arr (acquisition anonymisée)
+
+- [Roadmap canonique](arr-media-library-roadmap.md) : Gluetun + qBittorrent seuls dans un namespace VPN (kill switch, DoT Quad9 dans le tunnel), Prowlarr via le proxy HTTP Gluetun, reste du homelab et DNS pfSense/Unbound inchangés ; schéma réseau et tableau des flux au §4.1.
+- Décisions du 7/11 : ProtonVPN (à souscrire), Jellyfin cible, Emby seulement si la Samsung Frame l'exige, aucun accès distant, Usenet différé. Les Apps \*arr natives sont des PoC : suppression sans migration (Transmission et Readarr d'abord) ; le diagnostic `lidarr` est remplacé par cette suppression.
+- Ordre : P0 suppression des sept noms publics, test de la TV, suppression des PoC, souscription → stockage `cpool/media` avec quota → frontière VPN → Prowlarr → Radarr/Sonarr/Lidarr/Recyclarr → Jellyfin/Bazarr/Seerr.
+- IaC et télémétrie `CODED` le 8/11 : DNS public en OpenTofu (CNAME des routes du tunnel, retrait en deux plans des 7 noms média), profil déclaratif `cpool/media` dans le bootstrap de stockage, câblage \*arr en OpenTofu (`terraform/media`) et réconciliateur `config/media/settings.yml`, exporters + règles + tableau Grafana + journaux Loki ([§10.1](arr-media-library-roadmap.md)).
+- `CODED` le 8/11 (non déployé, `status: planned`) : `apps/media-acquisition`, `prowlarr`, `radarr`, `sonarr`, `lidarr`, `bazarr`, `recyclarr`, `jellyfin`, `seerr`, `scripts/truenas/deploy-media-stack.sh` et `tests/test_media_stack_contract.py` ; route Tunnel `emby` retirée du code. Suppression de Plex et Whisparr confirmée.
+
+**Clôture** : batterie de tests d'anonymat (§9) verte et datée sur le SHA déployé ; aucun service média joignable depuis l'extérieur.
+
 
 ## P1 — Fiabilité des scripts et documentation
 

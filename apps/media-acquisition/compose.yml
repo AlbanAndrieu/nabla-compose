@@ -1,0 +1,190 @@
+---
+# Download boundary of the *arr media stack: only qBittorrent shares Gluetun's
+# network namespace. Design, DNS strategy and acceptance tests:
+# docs/arr-media-library-roadmap.md (sections 4 to 9).
+name: media-acquisition
+
+x-nabla:
+  nodes:
+    - id: protonvpn
+      name: ProtonVPN
+      kind: vpn-provider
+      category: network
+      description: >-
+        External WireGuard VPN provider (P2P servers with NAT-PMP port
+        forwarding). Only the media-acquisition namespace egresses through it.
+
+services:
+  gluetun:
+    image: ghcr.io/qdm12/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+    container_name: gluetun
+    restart: unless-stopped
+    x-nabla:
+      id: gluetun
+      name: Gluetun
+      kind: vpn-gateway
+      category: media
+      status: planned
+      presentationRole: support
+      criticality: medium
+      securityFunctions:
+        - protect
+      description: >-
+        WireGuard VPN gateway and kill switch for the media download namespace,
+        with DNS over TLS inside the tunnel and an authenticated HTTP proxy for
+        Prowlarr.
+      runtime:
+        provider: truenas-app
+        containerService: gluetun
+      lifecycle:
+        phase: applications
+        priority: 70
+      relations:
+        - target: protonvpn
+          type: dependsOn
+          strength: required
+          description: The download namespace egresses only through the ProtonVPN WireGuard tunnel.
+          evidence:
+            - apps/media-acquisition/compose.yml:VPN_SERVICE_PROVIDER
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      # WIREGUARD_PRIVATE_KEY, HTTPPROXY_USER, HTTPPROXY_PASSWORD (Vaultwarden item
+      # nabla/prod/media-acquisition); never committed.
+      - /mnt/cpool/secrets/runtime/media-acquisition/.env.secrets
+    environment:
+      TZ: Europe/Paris
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      SERVER_COUNTRIES: ${MEDIA_VPN_SERVER_COUNTRIES:-Switzerland}
+      # Only P2P servers that support NAT-PMP port forwarding. The forwarded
+      # port is pushed into qBittorrent by the UP command; never pin it here.
+      PORT_FORWARD_ONLY: "on"
+      VPN_PORT_FORWARDING: "on"
+      VPN_PORT_FORWARDING_UP_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data
+        "json={\"listen_port\":{{PORT}},\"current_network_interface\":\"{{VPN_INTERFACE}}\",\"random_port\":false,\"upnp\":false}"
+        http://127.0.0.1:8080/api/v2/app/setPreferences'
+      VPN_PORT_FORWARDING_DOWN_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data
+        "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}"
+        http://127.0.0.1:8080/api/v2/app/setPreferences'
+      # DNS over TLS from inside the tunnel; never forward to Pi-hole or pfSense.
+      DNS_UPSTREAM_RESOLVER_TYPE: dot
+      DNS_UPSTREAM_RESOLVERS: quad9
+      DNS_UPSTREAM_IPV6: "off"
+      BLOCK_MALICIOUS: "on"
+      # Authenticated HTTP proxy used by Prowlarr for indexer traffic.
+      HTTPPROXY: "on"
+      HTTPPROXY_LISTENING_ADDRESS: ":8888"
+      HTTPPROXY_STEALTH: "on"
+      HTTPPROXY_LOG: "off"
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: 1
+    ports:
+      # qBittorrent WebUI shares this namespace; LAN only.
+      - name: qbittorrent-web
+        target: 8080
+        published: "30024"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/gluetun
+      com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: image
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.qbittorrent.rule: Host(`qbittorrent.int.albandrieu.com`)
+      traefik.http.routers.qbittorrent.entrypoints: websecure
+      traefik.http.routers.qbittorrent.tls.certresolver: letsencrypt
+      traefik.http.routers.qbittorrent.service: qbittorrent
+      traefik.http.services.qbittorrent.loadbalancer.server.port: "8080"
+    networks:
+      - media
+      - traefik_network
+
+  qbittorrent:
+    image: ghcr.io/linuxserver/qbittorrent:5.3.0@sha256:05c1454f9a32967affc1f34f67f8cc0cc57dd805dca45489fe797095a6286556
+    container_name: qbittorrent
+    restart: unless-stopped
+    x-nabla:
+      id: qbittorrent
+      name: qBittorrent
+      kind: download-client
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        BitTorrent client confined to the Gluetun network namespace; no traffic
+        can leave outside the VPN tunnel.
+      url: https://qbittorrent.int.albandrieu.com
+      internalUrl: http://gluetun:8080
+      runtime:
+        provider: truenas-app
+        containerService: qbittorrent
+      lifecycle:
+        phase: applications
+        priority: 71
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30024/
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: gluetun
+          type: dependsOn
+          strength: required
+          description: qBittorrent shares the Gluetun network namespace and has no other egress.
+          evidence:
+            - apps/media-acquisition/compose.yml:network_mode
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the WebUI only through qbittorrent.int.albandrieu.com.
+          evidence:
+            - apps/media-acquisition/compose.yml:traefik.http.routers.qbittorrent
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+      WEBUI_PORT: "8080"
+    volumes:
+      - /mnt/cpool/qbittorrent/config:/config
+      - /mnt/cpool/media:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:8080/
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/qbittorrent
+      com.albandrieu.nabla.logs: media
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network

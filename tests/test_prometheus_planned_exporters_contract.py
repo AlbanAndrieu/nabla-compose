@@ -26,6 +26,14 @@ EXPORTER_ENTITIES = {
         "apps/opensearch-exporter/catalog-info.yaml",
         "opensearch-security-exporter",
     ),
+    # *arr media stack (docs/arr-media-library-roadmap.md).
+    "exportarr_prowlarr": ("apps/prowlarr/catalog-info.yaml", "prowlarr-exporter"),
+    "exportarr_radarr": ("apps/radarr/catalog-info.yaml", "radarr-exporter"),
+    "exportarr_sonarr": ("apps/sonarr/catalog-info.yaml", "sonarr-exporter"),
+    "exportarr_lidarr": ("apps/lidarr/catalog-info.yaml", "lidarr-exporter"),
+    "exportarr_bazarr": ("apps/bazarr/catalog-info.yaml", "bazarr-exporter"),
+    "qbittorrent": ("apps/qbittorrent-exporter/catalog-info.yaml", "qbittorrent-exporter"),
+    "jellyfin": ("apps/jellyfin/catalog-info.yaml", "jellyfin"),
 }
 
 

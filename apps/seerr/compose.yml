@@ -1,0 +1,110 @@
+---
+# Seerr request manager of the *arr media stack (status planned).
+# LAN only (decision D5). Design and acceptance: docs/arr-media-library-roadmap.md
+name: seerr
+
+services:
+  seerr:
+    image: ghcr.io/seerr-team/seerr:v3.5.1@sha256:d8fab675b55ad293ded98fd71efcfd46054cbad9746534ae1cc4794a88c0b3be
+    container_name: seerr
+    restart: unless-stopped
+    init: true
+    user: "568:568"
+    x-nabla:
+      id: seerr
+      name: Seerr
+      kind: request-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        Discovery and request manager for movies and series, connected to
+        Jellyfin, Radarr and Sonarr on the LAN.
+      url: https://seerr.int.albandrieu.com
+      internalUrl: http://seerr:5055
+      runtime:
+        provider: truenas-app
+        containerService: seerr
+      lifecycle:
+        phase: applications
+        priority: 79
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30357/api/v1/status
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: radarr
+          type: consumesApi
+          strength: required
+          description: Seerr sends approved movie requests to Radarr.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P5 Seerr
+        - target: sonarr
+          type: consumesApi
+          strength: required
+          description: Seerr sends approved series requests to Sonarr.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P5 Seerr
+        - target: jellyfin
+          type: authenticatesVia
+          strength: required
+          description: Seerr signs users in with their Jellyfin accounts and reads the library.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P5 Seerr
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes Seerr only through seerr.int.albandrieu.com.
+          evidence:
+            - apps/seerr/compose.yml:traefik.http.routers.seerr
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      TZ: Europe/Paris
+      LOG_LEVEL: info
+      PORT: "5055"
+    ports:
+      - name: web
+        target: 5055
+        published: "30357"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/seerr/config:/app/config
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1:5055/api/v1/status
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/seerr
+      com.albandrieu.nabla.logs: media
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.seerr.rule: Host(`seerr.int.albandrieu.com`)
+      traefik.http.routers.seerr.entrypoints: websecure
+      traefik.http.routers.seerr.tls.certresolver: letsencrypt
+      traefik.http.routers.seerr.service: seerr
+      traefik.http.services.seerr.loadbalancer.server.port: "5055"
+    networks:
+      - media
+      - traefik_network
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network

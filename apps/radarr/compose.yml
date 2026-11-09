@@ -1,0 +1,168 @@
+---
+# Radarr of the *arr media stack (status planned).
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: radarr
+
+services:
+  radarr:
+    image: ghcr.io/linuxserver/radarr:6.4.4@sha256:ade5937813c6ae415b29db729386e53fea3ecf067a019849bafbe2d2a6ec02ba
+    container_name: radarr
+    restart: unless-stopped
+    x-nabla:
+      id: radarr
+      name: Radarr
+      kind: media-manager
+      category: media
+      status: planned
+      presentationRole: service
+      criticality: low
+      description: >-
+        Movie library manager; imports with hardlinks into /data/library/movies.
+      url: https://radarr.int.albandrieu.com
+      internalUrl: http://radarr:7878
+      runtime:
+        provider: truenas-app
+        containerService: radarr
+      lifecycle:
+        phase: applications
+        priority: 73
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30025/ping
+        conditions:
+          - "[STATUS] == 200"
+      relations:
+        - target: qbittorrent
+          type: consumesApi
+          strength: required
+          description: Radarr sends releases to qBittorrent through gluetun:8080.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P4 download client gluetun:8080
+        - target: prowlarr
+          type: consumesApi
+          strength: optional
+          description: Radarr searches indexers synchronized by Prowlarr.
+          evidence:
+            - docs/arr-media-library-roadmap.md:P3 Full Sync
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik exposes the UI only through radarr.int.albandrieu.com.
+          evidence:
+            - apps/radarr/compose.yml:traefik.http.routers.radarr
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      # RADARR__AUTH__APIKEY from Vaultwarden item nabla/prod/radarr; never committed.
+      - /mnt/cpool/secrets/runtime/radarr/.env.secrets
+    environment:
+      PUID: "568"
+      PGID: "568"
+      UMASK: "002"
+      TZ: Europe/Paris
+      RADARR__AUTH__METHOD: Forms
+      RADARR__AUTH__REQUIRED: Enabled
+      RADARR__LOG__ANALYTICSENABLED: "False"
+    ports:
+      - name: web
+        target: 7878
+        published: "30025"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
+    volumes:
+      - /mnt/cpool/radarr/config:/config
+      - /mnt/cpool/media:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:7878/ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/radarr
+      com.albandrieu.nabla.logs: media
+      traefik.enable: "true"
+      traefik.docker.network: traefik_network
+      traefik.http.routers.radarr.rule: Host(`radarr.int.albandrieu.com`)
+      traefik.http.routers.radarr.entrypoints: websecure
+      traefik.http.routers.radarr.tls.certresolver: letsencrypt
+      traefik.http.routers.radarr.service: radarr
+      traefik.http.services.radarr.loadbalancer.server.port: "7878"
+    networks:
+      - media
+      - traefik_network
+
+  radarr-exporter:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0@sha256:af535d94061cf97a52e1661945ffba78c03f9443eae7c0da1a80a5a4be56b520
+    container_name: radarr-exporter
+    restart: unless-stopped
+    command:
+      - radarr
+    x-nabla:
+      id: radarr-exporter
+      name: Radarr exporter
+      kind: metrics-exporter
+      category: observability
+      status: planned
+      presentationRole: support
+      criticality: low
+      description: >-
+        Exportarr metrics for Radarr (library, queue, health issues) scraped
+        by Prometheus over the intranet network.
+      runtime:
+        provider: truenas-app
+        containerService: radarr-exporter
+      lifecycle:
+        phase: applications
+        priority: 90
+      relations:
+        - target: radarr
+          type: consumesApi
+          strength: required
+          description: The exporter reads the Radarr API with the instance API key.
+          evidence:
+            - apps/radarr/compose.yml:URL=http://radarr:7878
+        - target: prometheus
+          type: observedBy
+          strength: optional
+          description: Prometheus scrapes radarr-exporter:9707 (job exportarr_radarr).
+          evidence:
+            - apps/prometheus/prometheus.yml:job_name=exportarr_radarr
+    user: "65534:65534"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      # API_KEY: same Vaultwarden field as the Radarr instance key.
+      - /mnt/cpool/secrets/runtime/radarr/.env.secrets
+    environment:
+      PORT: "9707"
+      URL: http://radarr:7878
+      LOG_LEVEL: info
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/radarr-exporter
+      com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: prometheus-up
+    networks:
+      - media
+      - intranet
+
+networks:
+  media:
+    external: true
+    name: media
+  traefik_network:
+    external: true
+    name: traefik_network
+  intranet:
+    external: true
+    name: intranet

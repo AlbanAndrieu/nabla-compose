@@ -33,6 +33,7 @@ place for current priorities.
 
 ## Current runbooks and diagnostics
 
+- [Opérations de production des Apps TrueNAS](runbooks/production-app-operations.md) : `app-ops.sh` (état, stockage, secrets, déploiement, redémarrage, diagnostic, supervision, sauvegarde) et [matrice générée](production-readiness.md).
 - [Clôture des secrets Vaultwarden — 6 novembre](runbooks/vaultwarden-migration-closure-20261106.md) : preuves par application, sans divulgation de valeurs.
 
 - [Entrée opérateur consolidée (lecture seule)](runbooks/2026-10-25-homelab-operator-diagnostics.md)
@@ -68,6 +69,7 @@ roadmap. The main active families are:
 - security inventory/SBOM/findings: [`security-inventory-tooling-roadmap.md`](./security-inventory-tooling-roadmap.md);
 - service catalog v2: [`service-catalog-v2-normalization.md`](./service-catalog-v2-normalization.md);
 - pfSense WAN exposure: [`pfsense-wan-exposure-roadmap.md`](./pfsense-wan-exposure-roadmap.md).
+- \*arr media library, download VPN and DNS: [`arr-media-library-roadmap.md`](./arr-media-library-roadmap.md).
 
 ## Debt-control rules
 

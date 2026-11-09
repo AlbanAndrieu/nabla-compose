@@ -1,0 +1,68 @@
+---
+# Recyclarr of the *arr media stack (status planned).
+# Syncs reviewed TRaSH quality profiles into Radarr and Sonarr on a schedule.
+# Design and acceptance: docs/arr-media-library-roadmap.md
+name: recyclarr
+
+services:
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:8.8.1@sha256:3e9c41b9ec29bbf65fe846864058730d321a21f7695d8c0d9437b73e34d50ad9
+    container_name: recyclarr
+    restart: unless-stopped
+    user: "568:568"
+    x-nabla:
+      id: recyclarr
+      name: Recyclarr
+      kind: config-sync
+      category: media
+      status: planned
+      presentationRole: support
+      criticality: low
+      description: >-
+        Scheduled sync of the versioned TRaSH French MULTi.VF quality profiles
+        and custom formats into Radarr and Sonarr.
+      runtime:
+        provider: truenas-app
+        containerService: recyclarr
+      lifecycle:
+        phase: applications
+        priority: 77
+      relations:
+        - target: radarr
+          type: automates
+          strength: required
+          description: Recyclarr rewrites Radarr quality profiles and custom-format scores.
+          evidence:
+            - apps/recyclarr/config/recyclarr.yml:radarr
+        - target: sonarr
+          type: automates
+          strength: required
+          description: Recyclarr rewrites Sonarr quality profiles and custom-format scores.
+          evidence:
+            - apps/recyclarr/config/recyclarr.yml:sonarr
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      # RADARR_API_KEY, SONARR_API_KEY from Vaultwarden item nabla/prod/recyclarr;
+      # imported from the same sources as the Radarr and Sonarr keys.
+      - /mnt/cpool/secrets/runtime/recyclarr/.env.secrets
+    environment:
+      TZ: Europe/Paris
+      CRON_SCHEDULE: "@daily"
+      RECYCLARR_CREATE_CONFIG: "false"
+    volumes:
+      - /mnt/cpool/recyclarr/config:/config
+      - ./config/recyclarr.yml:/config/recyclarr.yml:ro
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/recyclarr
+      com.albandrieu.nabla.logs: media
+      com.albandrieu.nabla.healthcheck: scheduled-job
+    networks:
+      - media
+
+networks:
+  media:
+    external: true
+    name: media

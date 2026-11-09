@@ -31,3 +31,28 @@ variable "fastapi_sample_api_access_application_id" {
   description = "Path-scoped Access application for FastAPI Sample /api (no monitor service token)."
   type        = string
 }
+
+# Written by scripts/cloudflare/capture-dns-records.py --write into
+# dns-record-ids.auto.tfvars.json (record identifiers are not secrets).
+variable "dns_tunnel_record_ids" {
+  description = "Live record id of each tunnel hostname CNAME, keyed by hostname (import-first)."
+  type        = map(string)
+  default     = {}
+}
+
+variable "dns_retired_record_ids" {
+  description = "Live record id of each retired record, keyed by \"<name>/<TYPE>\"."
+  type        = map(string)
+  default     = {}
+}
+
+variable "dns_retirement_phase" {
+  description = "adopt: import retired records unchanged; retire: destroy them (second reviewed plan)."
+  type        = string
+  default     = "adopt"
+
+  validation {
+    condition     = contains(["adopt", "retire"], var.dns_retirement_phase)
+    error_message = "dns_retirement_phase must be adopt or retire."
+  }
+}

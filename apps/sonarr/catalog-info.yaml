@@ -1,0 +1,45 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sonarr
+  title: Sonarr
+  description: Planned Sonarr instance of the media stack (media-manager).
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - media
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sonarr/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/qbittorrent
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sonarr-exporter
+  title: Sonarr exporter
+  description: Planned Exportarr metrics exporter for Sonarr.
+  labels:
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: low
+  tags:
+    - media
+    - observability
+  annotations:
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/sonarr/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - component:default/sonarr

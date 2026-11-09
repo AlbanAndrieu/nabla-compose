@@ -114,6 +114,30 @@
       "description": "Reconciles Docker service exposure and DNS/proxy provider state."
     },
     {
+      "id": "bazarr",
+      "entityRef": "component:default/bazarr",
+      "name": "Bazarr",
+      "group": "media",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "composeService": "bazarr",
+      "dockerManaged": true,
+      "href": "https://bazarr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned subtitle manager of the media stack."
+    },
+    {
+      "id": "bazarr-exporter",
+      "entityRef": "component:default/bazarr-exporter",
+      "name": "Bazarr exporter",
+      "group": "media",
+      "sourcePath": "apps/bazarr/compose.yml",
+      "composeService": "bazarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Bazarr."
+    },
+    {
       "id": "bichon",
       "entityRef": "component:default/bichon",
       "name": "Bichon UI",
@@ -454,6 +478,18 @@
       "description": "Declarative endpoint and status monitoring for the Nabla homelab."
     },
     {
+      "id": "gluetun",
+      "entityRef": "component:default/gluetun",
+      "name": "Gluetun",
+      "group": "media",
+      "sourcePath": "apps/media-acquisition/compose.yml",
+      "composeService": "gluetun",
+      "dockerManaged": true,
+      "href": "https://qbittorrent.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned WireGuard VPN gateway and kill switch for the media download namespace."
+    },
+    {
       "id": "grafana",
       "entityRef": "component:default/grafana",
       "name": "Grafana",
@@ -559,6 +595,18 @@
       "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers."
     },
     {
+      "id": "jellyfin",
+      "entityRef": "component:default/jellyfin",
+      "name": "Jellyfin",
+      "group": "media",
+      "sourcePath": "apps/jellyfin/compose.yml",
+      "composeService": "jellyfin",
+      "dockerManaged": true,
+      "href": "https://jellyfin.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned LAN media server of the media stack with a read-only library."
+    },
+    {
       "id": "joplin",
       "entityRef": "component:default/joplin",
       "name": "Joplin Server",
@@ -661,6 +709,30 @@
       "href": "https://languagetool.int.albandrieu.com",
       "syncEligible": true,
       "description": "Self-hosted grammar and style checking API."
+    },
+    {
+      "id": "lidarr",
+      "entityRef": "component:default/lidarr",
+      "name": "Lidarr",
+      "group": "media",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "composeService": "lidarr",
+      "dockerManaged": true,
+      "href": "https://lidarr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned Lidarr instance of the media stack (media-manager)."
+    },
+    {
+      "id": "lidarr-exporter",
+      "entityRef": "component:default/lidarr-exporter",
+      "name": "Lidarr exporter",
+      "group": "media",
+      "sourcePath": "apps/lidarr/compose.yml",
+      "composeService": "lidarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Lidarr."
     },
     {
       "id": "litellm",
@@ -1173,6 +1245,30 @@
       "syncEligible": false
     },
     {
+      "id": "prowlarr",
+      "entityRef": "component:default/prowlarr",
+      "name": "Prowlarr",
+      "group": "media",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "composeService": "prowlarr",
+      "dockerManaged": true,
+      "href": "https://prowlarr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned Prowlarr instance of the media stack (indexer-manager)."
+    },
+    {
+      "id": "prowlarr-exporter",
+      "entityRef": "component:default/prowlarr-exporter",
+      "name": "Prowlarr exporter",
+      "group": "media",
+      "sourcePath": "apps/prowlarr/compose.yml",
+      "composeService": "prowlarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Prowlarr."
+    },
+    {
       "id": "pyroscope",
       "entityRef": "component:default/pyroscope",
       "name": "Grafana Pyroscope",
@@ -1183,6 +1279,66 @@
       "href": "http://172.17.0.24:4040",
       "syncEligible": true,
       "description": "Continuous profiling backend with persistent profiling metadata and profile data."
+    },
+    {
+      "id": "qbittorrent",
+      "entityRef": "component:default/qbittorrent",
+      "name": "qBittorrent",
+      "group": "media",
+      "sourcePath": "apps/media-acquisition/compose.yml",
+      "composeService": "qbittorrent",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned BitTorrent client confined to the Gluetun network namespace."
+    },
+    {
+      "id": "qbittorrent-exporter",
+      "entityRef": "component:default/qbittorrent-exporter",
+      "name": "qBittorrent exporter",
+      "group": "media",
+      "sourcePath": "apps/qbittorrent-exporter/compose.yml",
+      "composeService": "qbittorrent-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Prometheus exporter for qBittorrent, outside the VPN namespace."
+    },
+    {
+      "id": "radarr",
+      "entityRef": "component:default/radarr",
+      "name": "Radarr",
+      "group": "media",
+      "sourcePath": "apps/radarr/compose.yml",
+      "composeService": "radarr",
+      "dockerManaged": true,
+      "href": "https://radarr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned Radarr instance of the media stack (media-manager)."
+    },
+    {
+      "id": "radarr-exporter",
+      "entityRef": "component:default/radarr-exporter",
+      "name": "Radarr exporter",
+      "group": "media",
+      "sourcePath": "apps/radarr/compose.yml",
+      "composeService": "radarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Radarr."
+    },
+    {
+      "id": "recyclarr",
+      "entityRef": "component:default/recyclarr",
+      "name": "Recyclarr",
+      "group": "media",
+      "sourcePath": "apps/recyclarr/compose.yml",
+      "composeService": "recyclarr",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned scheduled sync of TRaSH quality profiles into Radarr and Sonarr."
     },
     {
       "id": "redis",
@@ -1254,6 +1410,18 @@
       "href": null,
       "syncEligible": false,
       "description": "SMART inventory and metrics collector feeding the Scrutiny web/API service."
+    },
+    {
+      "id": "seerr",
+      "entityRef": "component:default/seerr",
+      "name": "Seerr",
+      "group": "media",
+      "sourcePath": "apps/seerr/compose.yml",
+      "composeService": "seerr",
+      "dockerManaged": true,
+      "href": "https://seerr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned LAN request manager connected to Jellyfin, Radarr and Sonarr."
     },
     {
       "id": "sentry",
@@ -1488,6 +1656,30 @@
       "dockerManaged": true,
       "href": "http://172.17.0.24:9001",
       "syncEligible": false
+    },
+    {
+      "id": "sonarr",
+      "entityRef": "component:default/sonarr",
+      "name": "Sonarr",
+      "group": "media",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "composeService": "sonarr",
+      "dockerManaged": true,
+      "href": "https://sonarr.int.albandrieu.com",
+      "syncEligible": false,
+      "description": "Planned Sonarr instance of the media stack (media-manager)."
+    },
+    {
+      "id": "sonarr-exporter",
+      "entityRef": "component:default/sonarr-exporter",
+      "name": "Sonarr exporter",
+      "group": "media",
+      "sourcePath": "apps/sonarr/compose.yml",
+      "composeService": "sonarr-exporter",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Planned Exportarr metrics exporter for Sonarr."
     },
     {
       "id": "squid",
