@@ -6,6 +6,8 @@ services:
     image: jasonish/suricata:8.0.6
     container_name: suricata
     restart: unless-stopped
+    # Reap orphaned anacron children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     x-nabla:
       id: suricata
       name: Suricata

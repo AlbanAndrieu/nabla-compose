@@ -33,10 +33,8 @@ class BuildFailureIntegrationContract(unittest.TestCase):
         self.assertNotIn("run_build_attempt", block)
         self.assertIn('diag_info "Private Docker build evidence:', block)
 
-    def test_roadmap_and_runbook_keep_same_gate(self):
-        roadmap = (ROOT / "docs/roadmap.md").read_text()
-        runbook = (ROOT / "docs/runbooks/fastapi-truenas-build-failure-20261027.md").read_text()
-        self.assertIn("Échec du build FastAPI TrueNAS #380", roadmap)
+    def test_incident_keeps_build_failure_gate(self):
+        runbook = (ROOT / "docs/incidents/2026-10-27-fastapi-truenas-build-dockerhub-429.md").read_text()
         self.assertIn("classify-fastapi-build-failure.py", runbook)
         self.assertIn("l'ancien conteneur a été préservé", runbook)
         self.assertIn("Ne pas utiliser cat, tail, grep", runbook)

@@ -2,7 +2,7 @@
 
 **Propriétaire :** Compose (observateur et routage). **Mode :** lecture seule.
 Voir [ADR/dispatch](../architecture-governance.md) pour attribuer les corrections au bon dépôt.
-[Architecture et gateway](../api-gateway-selection.md).
+[Architecture et gateway](../adr/0001-apisix-api-gateway-poc.md).
 [Contrat FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/diagnostic-provenance-contract.md).
 [Contrat Site](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-diagnostics-and-access.md).
 

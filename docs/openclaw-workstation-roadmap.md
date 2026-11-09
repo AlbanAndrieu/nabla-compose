@@ -30,5 +30,4 @@
 - Ne pas remettre en marche le Gateway Workstation en parallèle du TrueNAS.
 
 Référence des anciens dysfonctionnements :
-[diagnostic 429](runbooks/openclaw-litellm-429-attribution.md) et
-[incidents mémorisables](incidents/2026-11-06-migrations-retour-experience.md).
+[incidents mémorisables, dont le diagnostic 429](incidents/2026-11-06-migrations-retour-experience.md).

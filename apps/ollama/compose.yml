@@ -4,6 +4,8 @@ services:
     image: docker.io/ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
+    # Reap orphaned ollama children; the app PID 1 left zombies (diagnostic 2026-11-04).
+    init: true
     x-nabla:
       id: ollama
       name: Ollama

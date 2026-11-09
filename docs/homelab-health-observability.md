@@ -380,6 +380,111 @@ alerts for notification routing.
 Do not assume every node-exporter filesystem series maps one-to-one to a ZFS
 dataset until verified on the deployed TrueNAS host.
 
+## Functional exporters
+
+Exporters exist to detect broken data paths even when containers, ports and
+basic healthchecks remain green.
+
+### Design rule
+
+Prefer the service's native metrics surface first, then a thin exporter. Do
+not add an exporter only to reproduce a TCP/HTTP healthcheck that already
+exists. The useful evidence hierarchy is:
+
+1. process/container state;
+2. protocol readiness;
+3. queue/backlog/consumer membership;
+4. successful end-to-end work;
+5. durable downstream result.
+
+An incident is not closed at level 1 or 2 when the service is a pipeline
+component. Functional recovery always comes before new telemetry. Before
+deploying a new receiver/exporter on TrueNAS, run:
+
+```bash
+sudo bash scripts/truenas/check-observability-exporter-conflicts.sh --check
+```
+
+TrueNAS 26 uses Netdata internally for system reporting; its Reporting
+Exporter path is Graphite (`172.17.0.57:2003`) and disabled. It is not an
+application StatsD receiver. The 2026-09-11 preflight found ports `8125`,
+`9125` and `9102` free for a future StatsD exporter.
+
+### Sentry / Taskbroker / Taskworker
+
+`recover-sentry-taskbroker.sh` validates the bind-mounted
+`/etc/taskbroker/config.yml` before restarting: an explicit non-loopback
+`statsd_addr` must resolve from the Sentry network or the restart is refused.
+After restart, `restarting`/`exited`/`dead` is a fast failure and Taskworker
+must reach `taskbroker:50051`. The repository configuration intentionally
+declares no `statsd_addr` (effective default `127.0.0.1:8126`): an
+unresolvable StatsD hostname makes Taskbroker panic in `src/metrics.rs`
+(`exit=101` restart loop).
+
+A repository-managed `statsd-exporter` remains a candidate design if an
+observability gap remains:
+
+```text
+Sentry / Taskbroker -> statsd-exporter:9125 (Docker intranet only)
+                              |
+                              v
+                     Prometheus :9102
+```
+
+Requirements: no LAN publication of unauthenticated StatsD ingestion, only the
+Prometheus exposition host-published, pinned exporter version, metric names
+validated against the running Sentry/Taskbroker version before alerting, and no
+Sentry startup dependency on a DNS name absent from the Docker network.
+StatsD accelerates diagnosis; it never replaces the end-to-end Sentry smoke.
+
+### Kafka
+
+`kafka-exporter` belongs to the Kafka service boundary: it lives in
+`apps/kafka/compose.yml` beside the broker (`danielqsj/kafka-exporter`,
+`:9308`), waits for Kafka health and is bound to TrueNAS App ID `kafka`.
+Prometheus scrapes it as job `kafka_exporter`;
+`apps/prometheus/rules/sentry-kafka.rules.yml` holds the Taskbroker
+membership/lag alerts. Changing it is a Kafka App lifecycle mutation: use a
+controlled Kafka App update window, never during a Sentry recovery.
+
+Primary metrics: `kafka_consumergroup_members`, `kafka_consumergroup_lag`,
+`kafka_consumergroup_current_offset`, topic/partition offsets and broker
+count. Add a JMX exporter only if broker-internal metrics are needed once
+consumer membership/lag is observable.
+
+### Suricata
+
+No dedicated exporter. Suricata 8 already emits periodic statistics and EVE
+`stats` records:
+
+```text
+Suricata eve.json -> Alloy -> Loki -> Grafana
+                  -> CrowdSec acquisition
+```
+
+Prove recent `event_type=stats` records, then build Loki panels and alerts for
+capture drops, decoder errors and EVE freshness, and prove that CrowdSec and
+Alloy both advance while Suricata writes EVE. Introduce a Prometheus exporter
+only if Loki-derived statistics are insufficient.
+
+### Wazuh
+
+`scripts/truenas/diagnose-wazuh.sh` reads the official manager state files
+`/var/ossec/var/run/wazuh-remoted.state` and `wazuh-analysisd.state` without
+API credentials: queue usage, discarded messages, received/processed/dropped
+events and EPS. A community Prometheus exporter stays deferred until a
+least-privilege API identity, credential handling and metric cardinality are
+reviewed.
+
+### Existing surfaces worth using first
+
+TrueNAS node exporter, PostgreSQL exporter, pfSense exporter (intentionally
+slow 300 s cadence to avoid pfREST fan-out on the Netgate), CrowdSec metrics,
+ClickHouse `/metrics`, OpenSearch exporters, Akvorado inlet/outlet metrics and
+Grafana/Alloy/Loki/Mimir/Tempo/Alertmanager self-metrics. Reconcile
+connection-refused targets before adding broad exporter coverage; Mimir
+`:9009` comes first because Prometheus remote-write depends on it.
+
 ## Direct Talos/Kubernetes gate
 
 `scripts/talos/validate-cluster.sh` is the independent direct path. It is
@@ -526,6 +631,68 @@ The service-first presentation is now implemented by
 `AlbanAndrieu/fastapi-sample#196`. A later application-side metrics
 aggregation change should consume only fixed `nabla:*` recording rules from
 the trusted LAN; no separate follow-up PR number is reserved yet.
+
+### Prometheus -> FastAPI Sample contract
+
+The repository declares the scrape jobs `gatus` (`172.17.0.24:8085/metrics`),
+`fastapi_sample` (`:8091/metrics`), `postgres_exporter` (`:9187`),
+`redis_exporter` (`redis_exporter:9121`), `pfsense_exporter` (`:9945` proxy,
+300 s), `crowdsec` (`:6060`) and `truenas_node` (`:9100`). This is declared
+state, not proof of successful scrapes. No `cloudflare_exporter` job exists:
+never invent Cloudflare data or expose an API token in `/metrics`.
+
+FastAPI Sample (`nabla/api/platform_metrics.py`,
+`nabla/api/topology_telemetry.py`) reads the `nabla:core:*` rules,
+`nabla:telemetry:gatus_up`, Gatus synthetic probe metrics,
+`pfsense_metrics_up` and Akvorado/cAdvisor flows. It does not yet consume
+Postgres/Redis functional state or a normalized CrowdSec/Cloudflare collection
+state; that consumption gap differs from a missing or broken exporter.
+
+`apps/prometheus/rules/nabla-core.rules.yml` exports for the consumer:
+
+- `nabla:telemetry:service_exporter_up{job=...}`: scrape state for Gatus,
+  FastAPI, PostgreSQL, Redis, pfSense, CrowdSec, Cloudflare (when a job
+  exists) and node-exporter;
+- `nabla:telemetry:postgres_functional_up` from `pg_up`;
+- `nabla:telemetry:redis_functional_up` from `redis_up`.
+
+These rules produce no series for an undeployed exporter. `up=1` only proves
+the metrics endpoint answers; functional series and end-to-end checks remain
+required. Consumer changes belong to the `fastapi-sample` repository and must
+treat `not_declared`/`no_up_series`/`scrape_down`/`metric_present` as
+observability evidence, never as a service DOWN.
+
+Known gaps: confirm `gatus_results_total` carries `nabla_service_id` and
+`type` for every real monitor; deploy the PostgreSQL exporter with a dedicated
+read-only SQL identity and no startup dependency on PostgreSQL; prove
+`redis_exporter:9121` resolves from the Prometheus network; confirm cAdvisor
+collection before showing container CPU/RAM.
+
+### Coverage audit and scrape interpretation
+
+```bash
+python3 scripts/prometheus/audit-telemetry-coverage.py
+# Optional live mode from the trusted LAN:
+python3 scripts/prometheus/audit-telemetry-coverage.py \
+  --prometheus-url http://172.17.0.24:9090
+```
+
+The audit treats each job as a **set of targets** and reports `targets_up` and
+`targets_total` from valid `up` samples. Mixed reachable and unreachable
+targets give `scrape_partial`, not `scrape_up`; malformed or nonfinite samples
+give `query_unavailable`; an empty vector is `no_up_series`, not evidence of
+health. `metric_present=true` does not override `scrape_partial`. No service is
+declared DOWN solely because of a scrape failure.
+
+Query boundary: the audit is an opt-in, read-only diagnostic, not a general
+PromQL client. Its only origin is an explicit loopback/TrueNAS LAN HTTP
+endpoint; it disables ambient proxies and **does not follow redirects**, so an
+internal query cannot be forwarded to an untrusted endpoint. Responses are
+capped at 1 MiB, must be a Prometheus instant vector and are aggregated
+without printing labels or series. A redirect, non-vector payload or
+connection failure means `query_unavailable`. It reads no secrets, user labels,
+HTTP bodies or logs, never modifies Prometheus and never calls pfSense
+directly.
 
 ## Hardening follow-ups
 

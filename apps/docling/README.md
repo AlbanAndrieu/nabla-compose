@@ -15,6 +15,8 @@ This directory owns the repository-managed Docling Serve instance used by OpenRA
 
 The service is deliberately private. Do not add Cloudflare public exposure for the `*.int.albandrieu.com` hostname.
 
+The pinned CPU image keeps document ingestion independent of the workstation GPU, which stays the preferred LiteLLM chat/embedding path (`172.17.0.57:4000/v1`). Revisit a CUDA Docling only after the CPU path is accepted and measurements show conversion is the bottleneck. Model the OpenRAG → Docling relation in catalog metadata, never as a cross-App Compose `depends_on`.
+
 ## Latest TrueNAS status (25 October 2026)
 
 The latest operator snapshot reports `app=RUNNING`,
@@ -52,6 +54,18 @@ The preflight checks the compose syntax, presence of `intranet` and
 pull, App creation, or modification happens during `--check`.
 If the image is absent, stop and review the explicit ~5GB image pull
 separately; do not repeatedly schedule middleware installation jobs.
+
+On a rebuild, also confirm port ownership and that no stopped native App
+still claims Docling:
+
+```bash
+sudo ss -lntp | grep ':5001 ' || true
+sudo midclt call app.query |
+  jq -r '.[] | select((.id // "") | test("docling"; "i")) | [.id,.state] | @tsv'
+```
+
+Never reuse an opaque native App data path. Docling output is not the
+OpenRAG source of truth: OpenSearch and the OpenRAG document workflow are.
 
 After successful preflight and only after approving this *single-App*
 creation:
@@ -152,8 +166,26 @@ collection with a verified removal path before permitting any
 personal-document ingestion.
 
 
-Acceptance is not complete until one small document is ingested through OpenRAG, indexed in OpenSearch and retrieved successfully. Only then activate or revalidate the workstation LiteLLM GPU chat/embedding path.
+Docling/OpenRAG is accepted only when:
+
+- Docling `/health` and `/ready` return HTTP 200;
+- Prometheus reports the `docling` job UP
+  (`/api/v1/targets`, `.labels.job=="docling"`);
+- the bounded synthetic conversion succeeds;
+- `openrag-backend` reaches Docling through Docker DNS;
+- one small controlled document reaches successful OpenRAG ingestion, is
+  queryable in OpenSearch and is retrieved by one RAG query, then is removed
+  through the OpenRAG/OpenSearch cleanup path (never by deleting indices);
+- the workstation LiteLLM chat and embedding preflight stays green;
+- rollback needs neither OpenSearch data deletion nor unrelated secret rotation.
+
+Only then activate or revalidate the workstation LiteLLM GPU path, separately
+from any Docling recovery: `docker exec openrag-backend python
+/app/config/bootstrap_litellm.py` (preflight) before `--apply`.
 
 ## Rollback
 
-The previous OpenRAG compatibility path used `http://host.docker.internal:5001`. Keep that only as an explicit `DOCLING_SERVE_URL` override if a known-good host-published Docling endpoint is restored. The canonical repository path is `http://docling:5001`.
+If Docling itself is unhealthy, keep OpenRAG core running and mark ingestion
+unavailable rather than degrading the whole application.
+
+The previous OpenRAG compatibility path used `http://host.docker.internal:5001`. Keep that only as an explicit `DOCLING_SERVE_URL` override if a known-good host-published Docling endpoint is restored. The canonical repository path is `http://docling:5001`. Otherwise keep ingestion disabled while preserving OpenRAG/OpenSearch data: do not delete OpenSearch indices, do not rotate OpenRAG/Langflow/LiteLLM secrets, and retain Docling logs plus the failed bounded-ingestion evidence.

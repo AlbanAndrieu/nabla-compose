@@ -43,8 +43,8 @@ initial workstation pilot, export a short-lived `GITHUB_TOKEN` with only the
 permissions required to read/plan the selected repositories.
 
 Do not commit tokens, private keys, or GitHub App credentials. The target state
-is a dedicated governance GitHub App / short-lived credential path documented in
-`docs/github-governance-roadmap.md`.
+is a dedicated governance GitHub App / short-lived credential path; record only
+its verified App ID in secret-free configuration.
 
 ## Safe validation
 
@@ -87,5 +87,4 @@ Activation must be a separate reviewed change:
     behavior is proven;
 11. expand repository-by-repository with drift detection.
 
-The detailed rollout and acceptance criteria live in
-`docs/github-governance-roadmap.md`.
+The open rollout item is tracked in `docs/roadmap.md` (GitHub et CI).

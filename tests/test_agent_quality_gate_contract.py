@@ -593,7 +593,7 @@ class AgentQualityGateContractTests(unittest.TestCase):
             "tests.test_service_topology_generator",
         ):
             self.assertIn(module, consumer_gate)
-        self.assertIn("homelab-platform-migration-roadmap", config)
+        self.assertIn("docs/(?:truenas-app-lifecycle|roadmap)[.]md", config)
         self.assertIn("agent-quality-gate-contract", config)
         self.assertIn(
             "entry: python -m pytest -q tests/test_agent_quality_gate_contract.py",

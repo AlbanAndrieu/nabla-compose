@@ -236,7 +236,7 @@ repos:
         entry: python -m unittest tests.test_secret_materialization_contract -v
         pass_filenames: false
         files: >-
-          ^(scripts/(?:lib/secrets[.]sh|secrets/materialize_runtime[.]py|truenas/(?:install-runtime-secret|prepare-security-tooling-secrets)[.]sh)|tests/test_secret_materialization_contract[.]py|docs/(?:security-tooling-runtime-bootstrap|secrets-runtime-initialization)[.]md|config/secrets/README[.]md)$
+          ^(scripts/(?:lib/secrets[.]sh|secrets/materialize_runtime[.]py|truenas/(?:install-runtime-secret|prepare-security-tooling-secrets)[.]sh)|tests/test_secret_materialization_contract[.]py|docs/secrets-runtime-initialization[.]md|config/secrets/README[.]md)$
 
       - id: legacy-secret-import-contract
         name: "🔐 secrets · Validate bounded legacy dotenv migration"
@@ -332,7 +332,7 @@ repos:
         entry: python -m unittest tests.test_truenas_app_lifecycle_contract -v
         pass_filenames: false
         files: >-
-          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/(?:truenas-app-lifecycle|homelab-platform-migration-roadmap)[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
+          ^(apps/(?:bichon|gatus|graylog|influxdb|langflow|mongo|openrag|opensearch)/|scripts/(?:generate-service-consumers[.]py|truenas/audit-app-lifecycle[.]sh)|docs/(?:truenas-app-lifecycle|roadmap)[.]md|tests/test_truenas_app_lifecycle_contract[.]py)$
 
       - id: agent-quality-gate-contract
         name: "✅ quality · Validate agent-first gate contract"
@@ -409,7 +409,7 @@ repos:
         additional_dependencies: ["PyYAML==6.0.3"]
         pass_filenames: false
         files: >-
-          ^(kubernetes/truenas-csi/|scripts/lib/truenas[.]sh|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|homelab-platform-migration-roadmap|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
+          ^(kubernetes/truenas-csi/|scripts/lib/truenas[.]sh|scripts/talos/(?:validate-csi-prereqs|install-truenas-csi-nfs|smoke-truenas-csi-nfs)[.]sh|docs/(?:kubernetes-csi-preflight|roadmap)[.]md|tests/test_truenas_csi_nfs_contract[.]py)$
 
       - id: pfsense-posture-audit-contract
         name: "🛡️ pfSense · Parse posture regression audit"
@@ -425,7 +425,7 @@ repos:
         entry: python -m unittest tests.test_dns_recovery_contract -v
         pass_filenames: false
         files: >-
-          ^(scripts/(?:pfsense/audit-posture|talos/generate-config)[.]sh|docs/(?:talos-local-machine-config|truenas-talos-bootstrap|dns-ingress-ownership)[.]md|docs/incidents/2026-09-27-pfsense-dns-truenas-dependency[.]md|tests/test_dns_recovery_contract[.]py)$
+          ^(scripts/(?:pfsense/audit-posture|talos/generate-config)[.]sh|docs/(?:truenas-talos-bootstrap|dns-ingress-ownership)[.]md|docs/incidents/2026-09-27-pfsense-dns-truenas-dependency[.]md|tests/test_dns_recovery_contract[.]py)$
 
       - id: pfsense-recovery-contract
         name: "🛡️ pfSense · Validate diagnosis/recovery ownership contract"
@@ -540,7 +540,7 @@ repos:
         entry: bash -c 'python3 scripts/security/check-migration-readiness.py --check && python3 -m unittest tests.test_migration_readiness_contract -v'
         pass_filenames: false
         files: >-
-          ^(config/migrations/workstreams[.]json|scripts/security/check-migration-readiness[.]py|tests/test_migration_readiness_contract[.]py|docs/migration-batch-execution-2026-10-18[.]md)$
+          ^(config/migrations/workstreams[.]json|scripts/security/check-migration-readiness[.]py|tests/test_migration_readiness_contract[.]py)$
 
       - id: quality-gate-content-scope
         name: "✅ quality · Validate content-only lint scope without skipping exec-bit checks"
@@ -563,7 +563,7 @@ repos:
         entry: python3 -m unittest tests.test_defectdojo_admin_bootstrap tests.test_defectdojo_artifact_collector tests.test_defectdojo_artifact_cron tests.test_github_app_auth tests.test_github_app_manifest tests.test_github_app_installation tests.test_defectdojo_four_repo_handoff -v
         pass_filenames: false
         files: >-
-          ^(scripts/(?:secrets/bootstrap_defectdojo_admin[.]py|security/(?:github_actions_artifact_api|github_app_auth|bootstrap-github-app-manifest|discover-github-app-installation|poll-defectdojo-gh-artifacts|pull-site-alban-security-report|export-defectdojo-compose-trivy|sync-nabla-github-app-vaultwarden|run-nabla-github-app-cron)[.]py|truenas/reconcile-defectdojo-artifact-cron[.]py)|tests/(?:test_defectdojo_(?:admin_bootstrap|artifact_collector|artifact_cron)|test_github_app_auth|test_github_app_manifest|test_github_app_installation|test_defectdojo_four_repo_handoff)[.]py|docs/(?:defectdojo-artifact-poller|github-app-defectdojo)[.]md|config/github-apps/defectdojo-artifacts[.]manifest[.]json)$
+          ^(scripts/(?:secrets/bootstrap_defectdojo_admin[.]py|security/(?:github_actions_artifact_api|github_app_auth|bootstrap-github-app-manifest|discover-github-app-installation|poll-defectdojo-gh-artifacts|pull-site-alban-security-report|export-defectdojo-compose-trivy|sync-nabla-github-app-vaultwarden|run-nabla-github-app-cron)[.]py|truenas/reconcile-defectdojo-artifact-cron[.]py)|tests/(?:test_defectdojo_(?:admin_bootstrap|artifact_collector|artifact_cron)|test_github_app_auth|test_github_app_manifest|test_github_app_installation|test_defectdojo_four_repo_handoff)[.]py|docs/(?:defectdojo-private-scan-ingestion|github-app-defectdojo)[.]md|config/github-apps/defectdojo-artifacts[.]manifest[.]json)$
 
       - id: precommit-manifest-integrity
         name: "✅ pre-commit · Reject duplicated security/quality hooks"

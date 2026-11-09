@@ -4,7 +4,7 @@ _Last reviewed: 2026-10-01._
 
 This document inventories security tooling evidenced across `nabla-compose`,
 `nabla-site-alban` and `fastapi-sample`, then classifies it using a consistent
-control model. It complements `docs/security-inventory-tooling-roadmap.md` and
+control model. Open tooling work is tracked in `docs/roadmap.md`; see also
 the Notion **Nabla — Système opérationnel DevSecOps sur 90 jours** roadmap.
 
 The objective is not to maximize the number of scanners. It is to make every

@@ -67,3 +67,7 @@ Do not delete this datastore merely because a newer shared ClickHouse exists.
 Retire this app only after a future supported Sentry/Snuba release passes fresh
 migrations, synthetic event ingestion, querying, restart persistence and
 rollback validation against the single shared ClickHouse.
+
+Open item (2026-11-06): replay `scripts/truenas/smoke-sentry-event.sh` end to
+end (Relay → Kafka → Snuba → ClickHouse) on this bridge. Once Snuba supports the
+shared ClickHouse 26.8, migrate Sentry and retire `apps/sentry-clickhouse`.

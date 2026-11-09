@@ -37,7 +37,6 @@ COMMON_USERS = (
     ROOT / "scripts/truenas/materialize-reboot-bundle.sh",
     ROOT / "scripts/truenas/reconcile-reboot-resume.sh",
     ROOT / "scripts/truenas/reconcile-talos-vm-policy.sh",
-    ROOT / "scripts/truenas/verify-talos-vm-autostart.sh",
 )
 
 

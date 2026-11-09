@@ -31,6 +31,7 @@ Timeouts:
   NABLA_APP_JOB_TIMEOUT_SECONDS     app.start job, default 900
   NABLA_APP_START_WAIT_SECONDS      post-job RUNNING acceptance, default 600
   NABLA_APP_START_WAIT_OVERRIDES    optional "app=seconds app=seconds" overrides
+  NABLA_RESUME_ALLOW_SAME_BOOT      true only for an App-only stop cycle (no reboot)
 EOF
 }
 
@@ -252,7 +253,8 @@ blocks_later_waves() {
 state_dir="$(latest_state_dir)"
 before_boot_id="$(cat "${state_dir}/boot-id-before")"
 current_boot_id="$(midclt_bounded system.boot_id | tr -d '"')"
-[[ "${current_boot_id}" != "${before_boot_id}" ]] || fail "refusing resume reconciliation before an actual reboot"
+[[ "${current_boot_id}" != "${before_boot_id}" || "${NABLA_RESUME_ALLOW_SAME_BOOT:-false}" == "true" ]] ||
+  fail "refusing resume reconciliation before an actual reboot"
 
 ready="$(midclt_bounded system.ready | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 [[ "${ready}" == "true" ]] || fail "TrueNAS system.ready is not true"

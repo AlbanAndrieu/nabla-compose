@@ -229,7 +229,7 @@ class TrueNasCsiNfsContractTests(unittest.TestCase):
         self.assertIn("without exposing the key in argv or output", text)
         self.assertNotIn("set -x", text)
         self.assertIn("auth.login_with_api_key", text)
-        self.assertIn("TrueNAS 27", text)
+        self.assertIn("TrueNAS 28", text)
         self.assertIn("TRUENAS_CSI_ROTATE_CREDENTIAL", text)
         self.assertIn("TRUENAS_CSI_FORCE_CREDENTIAL_RELOAD", text)
         self.assertIn("sha256sum", text)

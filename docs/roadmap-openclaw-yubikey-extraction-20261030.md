@@ -54,7 +54,7 @@ la [roadmap Homelab](roadmap.md).
   cutover.
 
 Les procédures détaillées sont conservées dans
-[les incidents et diagnostics OpenClaw](runbooks/openclaw-litellm-429-attribution.md)
+[les incidents et diagnostics OpenClaw](incidents/2026-11-06-migrations-retour-experience.md)
 et la [roadmap Workstation archivée](openclaw-workstation-roadmap.md).
 Une ancienne section « NO-GO / aucun Gateway TrueNAS » n'a plus de valeur
 opérationnelle. Aucune activité en production n'est déclenchée par cette page.

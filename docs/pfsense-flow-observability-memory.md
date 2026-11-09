@@ -839,4 +839,4 @@ growth, but the default-pass logging reduction itself is accepted.
 - Keep ClickHouse `9000/tcp` and Akvorado `2055/udp` LAN-only; do not expose
   them to the WAN.
 - Continue the separate pfSense WAN administration hardening work tracked in
-  `docs/pfsense-wan-exposure-roadmap.md`.
+  `docs/roadmap.md`.

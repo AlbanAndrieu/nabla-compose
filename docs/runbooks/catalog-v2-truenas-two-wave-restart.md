@@ -199,6 +199,45 @@ sans variables d'environnement ni contenu de secrets.
 via TrueNAS middleware uniquement. Aucun usage `apt`, aucun
 redémarrage du TrueNAS hôte, aucun stockage de mot de passe.
 
+## Pré-vérification Vaultwarden (opérateur non-root)
+
+Avant toute vague, depuis le shell non-root avec une session `BW_SESSION`
+déverrouillée :
+
+```bash
+python3 scripts/secrets/inventory_vaultwarden.py --json
+python3 scripts/secrets/materialize_runtime.py --app <id> --verify
+```
+
+`inventory_vaultwarden.py` vérifie l'unicité et la présence de l'item
+`nabla/prod/<app>` dans le dossier configuré. `materialize_runtime.py
+--verify` compare le rendu des champs requis, en mémoire et via un fichier
+temporaire protégé, avec le fichier installé : aucune valeur en log, pas de
+`BW_SESSION` transmis à `sudo`. Le statut `present-root-only` ne prouve pas
+que les clés sont valides ; une App sans item manifeste ou sans fichier
+runtime explicite reste non vérifiée et bloquée jusqu'à recette. Ne jamais
+inventer une clé manquante ; `--install` seulement après confirmation de la
+source et des valeurs.
+
+## Acceptation après chaque App
+
+- TrueNAS `app.query` : `RUNNING` attendu (ou `STOPPED` sur décision
+  explicite), conteneurs stables, pas de restart loop.
+- Docker/Compose : healthcheck vérifié, aucun chemin vers un ancien
+  `.env.secrets` non normalisé.
+- Gatus : endpoint et conditions **natives**, pas seulement un port ouvert ;
+  AutoKuma et Prometheus sont des preuves complémentaires. Une sonde échouée
+  ne prouve pas à elle seule `DOWN`.
+- FastAPI : même `catalogRevision` que le dépôt, `observedAt` et provenance
+  conservés, aucune clé téléchargée depuis un navigateur.
+- Site Alban : la clé Vercel volontairement invalide donne
+  `access-denied`/HTTP 503 privé sans repli v1 ; la vérification positive est
+  distincte.
+
+Ne publier ni logs Docker bruts, ni sortie `bw`, ni détail privé
+d'`app.query` dans une issue : seulement des états et identifiants
+déclaratifs.
+
 ## Diagnostic Vaultwarden CLI lent
 
 L'inventaire utilise dorénavant un délai par requête borné et configurable

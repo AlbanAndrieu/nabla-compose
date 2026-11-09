@@ -132,9 +132,8 @@ un déploiement.
   ce point d'observation. Playwright absent = NOT_RUN navigateur.
 
 Voir aussi la [roadmap](../roadmap.md),
-le [runbook FastAPI IA](fastapi-truenas-ai-bababou-20261026.md),
-la [recette LiteLLM](fastapi-truenas-ai-acceptance-20261027.md)
-et le [scrape Prometheus](fastapi-prometheus-scrape-secret-20261026.md).
+le [runbook FastAPI IA](openrag-babou-ingestion-diagnostics.md)
+et le [scrape Prometheus](2026-10-25-observability-triage.md).
 
 ## Lire seulement les blocages (mode bref)
 

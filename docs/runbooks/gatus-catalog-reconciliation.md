@@ -90,6 +90,27 @@ d'accès ou une preuve insuffisante sans échec confirmé. L'ancien compteur
 seul du code de sortie**. Les consommateurs du rapport doivent privilégier
 `verdict_counts`.
 
+### Services HTTP protégés : Garage et LiteLLM
+
+Un 401/403 est une barrière d'authentification attendue, ni un 200 ni une
+preuve fonctionnelle ; un 403 vu du LAN ne prouve pas non plus une exposition
+Internet.
+
+| Service | Sonde anonyme | Réponse attendue | Vérification fonctionnelle distincte |
+| --- | --- | --- | --- |
+| Garage S3 `:3900` | `GET /` LAN | HTTP 401/403 = **auth attendue**, pas S3 OK | Opération S3 signée, identifiant limité, aucun secret dans les logs |
+| LiteLLM `:4000` | `GET /health` LAN | HTTP 401 = **auth attendue**, pas modèles OK | `GET /health/liveliness` = 200, puis requête API autorisée et upstreams |
+| LiteLLM Docker | `apps/litellm/compose.yml` | `healthcheck` interne sur `/health/liveliness` (30 s) | `docker inspect` : `healthy/unhealthy/starting` |
+| Gatus | `apps/gatus/config/config.yml` | **TCP CONNECTED** sur `:3900` et `:4000` | Ne valide ni l'auth, ni l'écriture S3, ni l'inférence |
+
+Garder ces sondes Gatus en **TCP** : ne pas les remplacer par
+`[STATUS] == 200` sur un endpoint protégé. `just protected-http-diagnostics`
+(`scripts/truenas/diagnose-protected-service-http.py --check`) n'interroge que
+ces trois URLs LAN, sans proxy ni redirection, timeout 4 s, sans secret ni
+corps HTTP ; `auth_required_expected` et `liveness_up` ne sont ni un test
+d'inférence ni une preuve S3 signée. Une absence de healthcheck Docker n'est
+jamais convertie en `healthy`.
+
 Tests locaux ciblés, sans connexion au homelab :
 
 ```bash

@@ -109,7 +109,5 @@ La CI GitHub payante reste suspendue sur les PR Draft.
 Les scripts de migration du 24 octobre conservent leurs sous-commandes
 `--plan-wave`, `--apply-wave` et `--apply-step`, mais **ne sont
 pas autorisés** par la simple lecture de ce document.
-Pour les critères de planHash, les vagues et les preuves d'origine,
-consulter le [runbook historique des migrations](2026-10-24-truenas-migration-acceptance.md).
-Les observations datées sont conservées dans le
-[compte rendu opérateur historique](2026-10-24-homelab-operator-next-commands.md).
+Pour les vagues et les commandes, consulter le
+[runbook opérateur des migrations](truenas-migration-operator.md).

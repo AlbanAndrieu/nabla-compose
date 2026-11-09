@@ -186,7 +186,7 @@ export TRUENAS_MCP_API_KEY='...read-only API key...'
 export TRUENAS_MCP_INSECURE=false
 ```
 
-`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. Keep TLS verification enabled when possible. The selected MCP still authenticates with `auth.login_with_api_key`, which is deprecated in TrueNAS 26; before TrueNAS 27, reassess it or move to an MCP/wrapper using the modern `truenas/api_client`/SCRAM path.
+`TRUENAS_MCP_HOST` is `host[:port]`, without an `https://` prefix. Keep TLS verification enabled when possible. The selected MCP still authenticates with `auth.login_with_api_key`, which is deprecated since TrueNAS 26 (renamed 27); before TrueNAS 28, reassess it or move to an MCP/wrapper using the modern `truenas/api_client`/SCRAM path.
 
 Do not reuse the OpenTofu/Terragrunt write credential for MCP inspection.
 
@@ -207,6 +207,60 @@ export FASTAPI_SAMPLE_MCP_URL='http://127.0.0.1:8080/mcp'
 ```
 
 Cursor points directly to the production URL.
+
+### Site catalog v2 contract
+
+`nabla-compose` publishes `catalog/generated/entities.json` and
+`catalog/generated/identity-map.json` with the **same** `catalogRevision`.
+The identity map (crosswalk) is **generated** from the Compose
+`com.albandrieu.nabla.entity-ref` labels and Gatus identifiers, with
+`sourceType`, `sourceId`, `entityRef` and `evidence`; there is no
+hand-maintained second mapping. Counts in these artifacts describe Git, not
+the TrueNAS runtime.
+
+`fastapi-sample` serves the verified Backstage graph to the site on
+`GET /api/site/catalog/v2` (server-side `X-Diagnostics-Key` header):
+`schemaVersion=2`, `model=backstage`, `catalogRevision` and redacted
+`entities[]`. Site Alban (`lib/homelabSiteCatalog.ts`,
+`lib/homelabServicesServer.ts`) reads this endpoint, not
+`/api/homelab-services`.
+
+`DIAGNOSTICS_ACCESS_KEY=1234` is a deliberate **negative Vercel fixture**: a
+FastAPI 401/403 maps to `access-denied`, with no alternative key attempt, no
+secret in the browser, no v1 fallback and no false application DOWN state.
+The real key is never written to Git nor requested in a PR. Do not add Vercel
+egress IPs to `HOMELAB_TRUSTED_CIDRS`: the SERVICE key and the OWNER
+authorization are two separate controls.
+
+Acceptance to maintain:
+
+- JSON projections are reproducible (`--check`);
+- correlation IDs are unique and audited with provenance, never inferred from
+  a name or IP address alone;
+- health logic distinguishes `unknown`/`access-denied`/`probe failed` from a
+  confirmed `DOWN`;
+- remaining v1 readers (TrueNAS scripts, FastAPI, site) are retired through
+  their own migrations.
+
+For multi-layer catalog errors, use the
+[cross-cutting diagnostics runbook](runbooks/homelab-e2e-diagnostics.md).
+
+### Synthetic Open Schema outside-in checks
+
+`scripts/generate-synthetic-open-schema.py` generates one SOS v1 YAML
+resource per check (`<service>-public-{dns,tls,http}.yaml` under
+`generated/synthetic-open-schema/`) for the independent FastAPI
+Cloud/outside-in observer, not for the TrueNAS Gatus observer. Public exposure
+intent still comes from `catalog/homelab-services.json` as a **transitional
+exposure overlay**; it must move to the canonical v2 exposure authority before
+the legacy catalog is removed.
+
+Cloudflare Access protected HTTP checks only carry environment placeholders
+(`CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}`,
+`CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}`); no credential value is
+copied. SOS does **not** replace the anonymous Cloudflare default-deny probe:
+the FastAPI adapter still proves anonymous access is blocked/challenged before
+a machine Service Token is tried.
 
 ## Legacy monitoring metadata (not part of v2)
 

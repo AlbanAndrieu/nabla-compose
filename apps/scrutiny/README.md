@@ -178,7 +178,7 @@ sudo bash scripts/truenas/diagnose-scrutiny.sh --check
 Le helper vérifie désormais que le Compose rendu utilise exclusivement
 le fichier canonique. Ne pas tourner le token InfluxDB ni réinitialiser
 SQLite pour cette erreur de chemin. Voir le
-[runbook de reprise du 26 octobre](../../docs/runbooks/2026-10-26-scrutiny-prometheus-lifecycle-recovery.md).
+[triage de `app_lifecycle.log`](../../docs/truenas-app-lifecycle.md#triage-of-app_lifecyclelog).
 
 ## Canonical runtime secret path
 
