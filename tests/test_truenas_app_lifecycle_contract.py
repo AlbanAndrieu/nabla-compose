@@ -88,7 +88,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         compose = self.read("apps/keycloak/compose.yml")
         readme = self.read("apps/keycloak/README.md")
 
-        self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
+        self.assertIn("quay.io/keycloak/keycloak:26.8.2", compose)
         self.assertIn("KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:-172.17.0.24}:5432/keycloak", compose)
         self.assertIn("KC_DB_TLS_MODE: verify-server", compose)
         self.assertIn("KC_DB_TLS_TRUST_STORE_FILE: /etc/nabla/pki/postgres-ca.crt", compose)
