@@ -7,6 +7,7 @@ import argparse
 from contextlib import suppress
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -197,8 +198,13 @@ def extract_secret(item: dict[str, Any], spec: dict[str, Any]) -> str:
     return value
 
 
+SAFE_BARE_VALUE = re.compile(r"[A-Za-z0-9_./:@%+,=-]+")
+
+
 def dotenv_literal(value: str) -> str:
-    """Quote a Compose env-file value literally, without variable interpolation."""
+    """Write a Compose env-file value literally: bare when safe, else quoted without interpolation."""
+    if SAFE_BARE_VALUE.fullmatch(value):
+        return value
     return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 

@@ -25,6 +25,7 @@ import base64
 import json
 import os
 from pathlib import Path
+import re
 import secrets as token_source
 import subprocess
 import sys
@@ -107,6 +108,23 @@ def http(method: str, url: str, body: dict | None = None, headers: dict[str, str
         return 0, {}
 
 
+# Kept identical to scripts/secrets/audit_dotenv_quoting.py:dotenv_value (checked by its test).
+def dotenv_value(raw):
+    """Value as Docker Compose reads it: one quoted string, or bare text up to ` #`.
+
+    None when Compose could read the line differently (unterminated quote, text
+    after the closing quote, backslash escapes): callers fail closed.
+    """
+    raw = raw.strip()
+    if raw[:1] in ("'", '"'):
+        end = raw.find(raw[0], 1)
+        rest = raw[end + 1:].lstrip() if end > 0 else "?"
+        if (rest and not rest.startswith("#")) or "\\" in raw[1:end]:
+            return None
+        return raw[1:end]
+    return re.split(r"\s+#", raw, maxsplit=1)[0].rstrip()
+
+
 def litellm_master() -> str | None:
     master = read_secret(LITELLM_MASTER_ITEM)
     if master or not LITELLM_ENV_FILE.is_file():
@@ -114,7 +132,7 @@ def litellm_master() -> str | None:
     for line in LITELLM_ENV_FILE.read_text().splitlines():
         key, _, value = line.strip().partition("=")
         if key == "LITELLM_MASTER_KEY" and value:
-            return value.strip("'\"")
+            return dotenv_value(value) or None
     return None
 
 

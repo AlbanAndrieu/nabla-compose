@@ -217,6 +217,11 @@ class SecretsRendererTests(TestCase):
         self.assertEqual(renderer.dotenv_literal("a$B${C}"), "'a$B${C}'")
         self.assertEqual(renderer.dotenv_literal("let's\\go"), "'let\\'s\\\\go'")
 
+    def test_dotenv_literal_adds_no_needless_quotes(self) -> None:
+        self.assertEqual(renderer.dotenv_literal("sk-AbC_1.2/x:y@z+w=,%"), "sk-AbC_1.2/x:y@z+w=,%")
+        self.assertEqual(renderer.dotenv_literal("two words"), "'two words'")
+        self.assertEqual(renderer.dotenv_literal(""), "''")
+
     def test_extract_secret_requires_exact_field(self) -> None:
         item = {
             "name": "nabla/prod/app",
