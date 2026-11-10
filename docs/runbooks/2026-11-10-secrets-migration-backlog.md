@@ -13,46 +13,53 @@ Le manifeste fait foi : déclarer les clés avant tout import, puis importer
 (`scripts/secrets/audit-vaultwarden-migration.py --verify --app <app>`).
 Nouveaux noms : sans tiret (`postgresbackup`, `fastapisample`).
 
-Bilan : 6 faits, 14 à importer,
+Bilan : 17 faits, 3 à importer,
 15 à déclarer puis importer, 32 à créer au déploiement.
 
 ## 1. Faits (item présent)
 
 | Service | Item | Clés runtime hors manifeste |
 | --- | --- | --- |
+| `akvorado` | `nabla/prod/akvorado` | `AKVORADO_CLICKHOUSE_PASSWORD` |
+| `code` | `nabla/prod/code` | `CODE_PASSWORD` |
+| `crowdsec` | `nabla/prod/crowdsec` | — |
 | `cyberbro` | `nabla/prod/cyberbro` | — |
 | `defectdojo` | `nabla/prod/defectdojo` | — |
 | `fastapisample` | `nabla/prod/fastapisample` | `AZURE_OPENAI_DEFAULT_MODEL`, `AZURE_OPENAI_INSTANCE__A__API_ALIAS`, `AZURE_OPENAI_INSTANCE__A__API_KEY`, `AZURE_OPENAI_INSTANCE__A__AVAILABLE_MODELS`, `AZURE_OPENAI_INSTANCE__A__URL`, `AZURE_OPENAI_INSTANCE__B__API_ALIAS`, `AZURE_OPENAI_INSTANCE__B__API_KEY`, `AZURE_OPENAI_INSTANCE__B__AVAILABLE_MODELS`, `AZURE_OPENAI_INSTANCE__B__URL`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `CF_SERVICE_TOKEN_CLIENT_ID`, `CF_SERVICE_TOKEN_CLIENT_SECRET`, `CLOUDFLARE_API_TOKEN`, `DD_API_KEY`, `DIAGNOSTICS_ACCESS_KEY`, `KEYCLOAK_CLIENT_SECRET`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LITELLM_API_KEY`, `MAIL_PASSWORD`, `METRICS_SCRAPE_KEY`, `MIGRATION_DB_URL`, `OAUTH_TOKEN_SECRET`, `OPENAI_API_KEY`, `OPENAI_API_VERSION`, `OPENRAG_API_KEY`, `OVH_APPLICATION_KEY`, `OVH_APPLICATION_NAME`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`, `PFSENSE_POSTURE_API_KEY`, `PFSENSE_SECURITY_API_KEY`, `POSTGRES_PASSWORD`, `REDIS_AUTH`, `STATSIG_API_KEY`, `SUPABASE_DATABASE_URL`, `SUPABASE_KEY`, `SUPABASE_PASSWORD`, `SUPABASE_PROJECT_REF`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_TOKEN`, `SUPABASE_URL`, `TRUENAS_API_KEY`, `TRUENAS_INFRA_API_KEY`, `UNLEASH_API_TOKEN`, `UNLEASH_API_URL`, `UNLEASH_APP_NAME`, `UNLEASH_INSTANCE_ID`, `VERCEL_OIDC_TOKEN` |
+| `homarr` | `nabla/prod/homarr` | `HOMARR_API_TOKEN`, `HOMARR_ENCRYPTION_KEY` |
+| `keycloak` | `nabla/prod/keycloak` | — |
 | `langfuse` | `nabla/prod/langfuse` | `CLICKHOUSE_VERSION`, `DB_URL`, `DIRECT_URL`, `LANGFUSE_BASE_URL`, `LANGFUSE_INIT_ORG_ID`, `LANGFUSE_INIT_ORG_NAME`, `LANGFUSE_INIT_PROJECT_ID`, `LANGFUSE_INIT_PROJECT_NAME`, `LANGFUSE_INIT_USER_EMAIL`, `LANGFUSE_INIT_USER_NAME`, `LANGFUSE_INIT_USER_PASSWORD`, `LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID`, `LANGFUSE_S3_BATCH_EXPORT_ENABLED`, `LANGFUSE_S3_BATCH_EXPORT_REGION`, `LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY`, `LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID`, `LANGFUSE_S3_EVENT_UPLOAD_BUCKET`, `LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT`, `LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE`, `LANGFUSE_S3_EVENT_UPLOAD_REGION`, `LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY`, `LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID`, `LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY`, `MINIO_ROOT_PASSWORD`, `MINIO_ROOT_USER`, `POSTGRES_PASSWORD`, `POSTGRES_USER`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_URL` |
+| `litellm` | `nabla/prod/litellm` | `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `AZURE_API_BASE`, `AZURE_API_KEY`, `AZURE_API_VERSION`, `DATABASE_URL`, `DEFAULT_MODELS`, `GEMINI_API_KEY`, `LANGFUSE_INIT_PROJECT_PUBLIC_KEY`, `LANGFUSE_INIT_PROJECT_SECRET_KEY`, `LITELLM_API_KEY`, `LITELLM_MODEL`, `LITELLM_N8N_API_KEY`, `LITELLM_REACTIVE_API_KEY`, `LITELLM_TRUENAS_MASTER_KEY`, `OPENAI_BASE_URL`, `STORE_MODEL_IN_DB`, `V1__AZURE_OPENAI_INSTANCE__A__API_KEY`, `V1__AZURE_OPENAI_INSTANCE__A__URL`, `V1__AZURE_OPENAI_INSTANCE__B__API_KEY`, `V1__AZURE_OPENAI_INSTANCE__B__URL`, `V2__AZURE__SUB__C__A__API_KEY`, `V2__AZURE__SUB__C__B__API_KEY`, `V2__AZURE__SUB__C__C__API_KEY`, `V2__AZURE__SUB__C__D__API_KEY`, `V2__AZURE__SUB__C__E__API_KEY`, `V2__AZURE__SUB__C__F__API_KEY`, `V2__AZURE__SUB__C__G__API_KEY`, `V2__AZURE__SUB__C__H__API_KEY`, `V2__AZURE__SUB__C__I__API_KEY`, `V2__AZURE__SUB__C__J__API_KEY`, `V2__AZURE__SUB__C__K__API_KEY`, `V2__AZURE__SUB__C__L__API_KEY`, `V2__AZURE__SUB__E__A__API_KEY`, `V2__AZURE__SUB__E__B__API_KEY`, `V2__AZURE__SUB__E__C__API_KEY`, `V2__AZURE__SUB__E__D__API_KEY`, `V2__AZURE__SUB__E__E__API_KEY`, `V2__AZURE__SUB__E__F__API_KEY`, `V2__AZURE__SUB__E__G__API_KEY`, `V2__AZURE__SUB__E__H__API_KEY`, `V2__AZURE__SUB__E__I__API_KEY`, `V2__AZURE__SUB__E__J__API_KEY`, `V2__AZURE__SUB__E__K__API_KEY`, `V2__AZURE__SUB__E__L__API_KEY` |
+| `minio` | `nabla/prod/minio` | `MINIO_ROOT_USER` |
 | `n8n` | `nabla/prod/n8n` | — |
+| `openrag` | `nabla/prod/openrag` | `LANGFLOW_KEY` |
+| `opensearch` | `nabla/prod/opensearch` | — |
+| `openwebui` | `nabla/prod/openwebui` | `LANGFUSE_INIT_PROJECT_PUBLIC_KEY`, `LANGFUSE_INIT_PROJECT_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LITELLM_MASTER_KEY`, `OPEN_WEBUI_API_KEY`, `OPEN_WEBUI_EMAIL`, `OPEN_WEBUI_PASSWORD`, `OPEN_WEBUI_PORT`, `OPEN_WEBUI_URL`, `PIPELINES_API_KEY`, `WEBUI_ADMIN_EMAIL`, `WEBUI_ADMIN_NAME` |
 | `postgresbackup` | `nabla/prod/postgresbackup` | — |
+| `scrutiny` | `nabla/prod/scrutiny` | — |
 
 `fastapisample` : seul `POSTGRES_PASSWORD` est dans l'item ; les autres clés
 restent à déclarer. `postgresbackup` : renommé depuis `postgres-backup`.
+Imports du 10/11 (homarr à scrutiny) : parité runtime/coffre vérifiée par
+empreinte pour chaque clé déclarée. Les clés « hors manifeste » restent à
+déclarer puis importer. `code` : le runtime porte `CODE_PASSWORD` alors que
+le rendu produit `PASSWORD` ; aligner avant de rematérialiser.
 
 ## 2. À importer (déclarés, fichier runtime présent, item absent)
 
 À trier avant import : des clés de `.env.compose` sont des réglages non secrets
 (`*_VERSION`, `*_HOST`, `*_PORT`, `MINIO_ROOT_USER`, `BRAVE_PLAN`…) à garder
-hors Vaultwarden. Pour `dozzle` et `scanopy`, aucune clé `KEY=value` n'a été
-lue dans `.env.secrets` : fichier vide ou format à vérifier.
+hors Vaultwarden. Bloqués : `dozzle` (valeurs seulement dans des lignes
+commentées, dont un mot de passe en clair à purger), `scanopy` (`.env.secrets`
+vide : secret à créer au déploiement), `hermes` (secrets hors
+`/mnt/cpool/secrets/runtime`, probablement `/mnt/cpool/hermes`).
+`opensearch` : `OPENSEARCH_PASSWORD` est rangé dans `.env` (non secret).
 
 | Service | Fichiers | Clés runtime hors manifeste | Déclarées absentes du runtime |
 | --- | --- | --- | --- |
-| `akvorado` | `.env.secrets` | `AKVORADO_CLICKHOUSE_PASSWORD` | — |
-| `code` | `.env`, `.env.secrets` | `CODE_PASSWORD` | `PASSWORD` |
-| `crowdsec` | `.env.secrets` | — | — |
 | `dozzle` | `.env`, `.env.secrets` | — | `DOZZLE_ADMIN_PASSWORD_BCRYPTED` |
 | `hermes` | `.env` | — | `DISCORD_ALLOWED_USERS`, `DISCORD_BOT_TOKEN`, `HERMES_LITELLM_API_KEY`, `TELEGRAM_ALLOWED_USERS`, `TELEGRAM_BOT_TOKEN` |
-| `homarr` | `.env.secrets` | `HOMARR_API_TOKEN`, `HOMARR_ENCRYPTION_KEY` | — |
-| `keycloak` | `.env.secrets` | — | — |
-| `litellm` | `.env.secrets` | `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `AZURE_API_BASE`, `AZURE_API_KEY`, `AZURE_API_VERSION`, `DATABASE_URL`, `DEFAULT_MODELS`, `GEMINI_API_KEY`, `LANGFUSE_INIT_PROJECT_PUBLIC_KEY`, `LANGFUSE_INIT_PROJECT_SECRET_KEY`, `LITELLM_API_KEY`, `LITELLM_MODEL`, `LITELLM_N8N_API_KEY`, `LITELLM_REACTIVE_API_KEY`, `LITELLM_TRUENAS_MASTER_KEY`, `OPENAI_BASE_URL`, `STORE_MODEL_IN_DB`, `V1__AZURE_OPENAI_INSTANCE__A__API_KEY`, `V1__AZURE_OPENAI_INSTANCE__A__URL`, `V1__AZURE_OPENAI_INSTANCE__B__API_KEY`, `V1__AZURE_OPENAI_INSTANCE__B__URL`, `V2__AZURE__SUB__C__A__API_KEY`, `V2__AZURE__SUB__C__B__API_KEY`, `V2__AZURE__SUB__C__C__API_KEY`, `V2__AZURE__SUB__C__D__API_KEY`, `V2__AZURE__SUB__C__E__API_KEY`, `V2__AZURE__SUB__C__F__API_KEY`, `V2__AZURE__SUB__C__G__API_KEY`, `V2__AZURE__SUB__C__H__API_KEY`, `V2__AZURE__SUB__C__I__API_KEY`, `V2__AZURE__SUB__C__J__API_KEY`, `V2__AZURE__SUB__C__K__API_KEY`, `V2__AZURE__SUB__C__L__API_KEY`, `V2__AZURE__SUB__E__A__API_KEY`, `V2__AZURE__SUB__E__B__API_KEY`, `V2__AZURE__SUB__E__C__API_KEY`, `V2__AZURE__SUB__E__D__API_KEY`, `V2__AZURE__SUB__E__E__API_KEY`, `V2__AZURE__SUB__E__F__API_KEY`, `V2__AZURE__SUB__E__G__API_KEY`, `V2__AZURE__SUB__E__H__API_KEY`, `V2__AZURE__SUB__E__I__API_KEY`, `V2__AZURE__SUB__E__J__API_KEY`, `V2__AZURE__SUB__E__K__API_KEY`, `V2__AZURE__SUB__E__L__API_KEY` | `LITELLM_OPENCLAW_CODER_API_KEY` |
-| `minio` | `.env.compose` | `MINIO_ROOT_USER` | — |
-| `openrag` | `.env.secrets` | `LANGFLOW_KEY` | — |
-| `opensearch` | `.env` | — | `OPENSEARCH_PASSWORD` |
-| `openwebui` | `.env.compose` | `LANGFUSE_INIT_PROJECT_PUBLIC_KEY`, `LANGFUSE_INIT_PROJECT_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LITELLM_MASTER_KEY`, `OPEN_WEBUI_API_KEY`, `OPEN_WEBUI_EMAIL`, `OPEN_WEBUI_PASSWORD`, `OPEN_WEBUI_PORT`, `OPEN_WEBUI_URL`, `PIPELINES_API_KEY`, `WEBUI_ADMIN_EMAIL`, `WEBUI_ADMIN_NAME` | — |
 | `scanopy` | `.env.secrets` | — | `POSTGRES_PASSWORD`, `SCANOPY_DATABASE_URL` |
-| `scrutiny` | `.env.secrets` | — | — |
 
 ## 3. À déclarer dans le manifeste, puis importer
 
