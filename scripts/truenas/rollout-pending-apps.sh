@@ -10,7 +10,7 @@
 # and reads middleware state; it reports every gate instead of stopping at the
 # first failure. --apply deploys exactly one App through its owning deployer,
 # then re-applies the backup role so the new database is covered by
-# apps/postgres-backup. Nothing here starts a Compose project directly.
+# apps/postgresbackup. Nothing here starts a Compose project directly.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -113,7 +113,7 @@ app_steps() {
     ;;
   esac
   [[ -z "$(app_database "${app}")" ]] ||
-    printf '%s\n' "post|backup-role|bash scripts/truenas/bootstrap-postgres-backup-role.sh --apply"
+    printf '%s\n' "post|backup-role|bash scripts/truenas/bootstrap-postgresbackup-role.sh --apply"
 }
 
 app_acceptance() {
@@ -222,7 +222,7 @@ if [[ "${MODE}" == "--check" ]]; then
     fi
   done
   # The backup role is informative here: it is re-applied after every deploy.
-  run_step backup role-check "bash scripts/truenas/bootstrap-postgres-backup-role.sh --check" || true
+  run_step backup role-check "bash scripts/truenas/bootstrap-postgresbackup-role.sh --check" || true
   printf 'rollout_summary mode=check ready=%s blocked=%s mutations=0\n' "${ready}" "${blocked}"
   ((blocked == 0))
   exit $?

@@ -42,7 +42,7 @@ class RolloutPlanTests(unittest.TestCase):
     def test_backup_role_follows_every_database_app_but_not_ntopng(self) -> None:
         stdout = run("--plan").stdout
         for app in ORDER[:-1]:
-            self.assertIn(f"plan app={app} post backup-role: bash scripts/truenas/bootstrap-postgres-backup-role.sh --apply", stdout)
+            self.assertIn(f"plan app={app} post backup-role: bash scripts/truenas/bootstrap-postgresbackup-role.sh --apply", stdout)
         self.assertNotIn("plan app=ntopng post backup-role", stdout)
         self.assertIn("plan app=ntopng note: export NTOPNG_INTERFACE", stdout)
         self.assertIn("NABLA_NTOPNG_LICENSE_VALIDATED=yes", stdout)

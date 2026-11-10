@@ -2,7 +2,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: postgres-backup
+  name: postgresbackup
   title: PostgreSQL Backup
   description: Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.
   labels:
@@ -28,7 +28,7 @@ metadata:
     albandrieu.com/bia-impact-confidentiality: medium
     albandrieu.com/bia-impact-integrity: high
     albandrieu.com/bia-impact-privacy: medium
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-backup/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgresbackup/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
   type: job

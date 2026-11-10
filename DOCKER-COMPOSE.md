@@ -381,10 +381,10 @@ docker volume ls
 docker volume inspect nabla-compose_postgres-data
 
 # Backup volume
-docker run --rm -v nabla-compose_postgres-data:/data -v $(pwd):/backup alpine tar czf /backup/postgres-backup.tar.gz /data
+docker run --rm -v nabla-compose_postgres-data:/data -v $(pwd):/backup alpine tar czf /backup/postgresbackup.tar.gz /data
 
 # Restore volume
-docker run --rm -v nabla-compose_postgres-data:/data -v $(pwd):/backup alpine tar xzf /backup/postgres-backup.tar.gz -C /
+docker run --rm -v nabla-compose_postgres-data:/data -v $(pwd):/backup alpine tar xzf /backup/postgresbackup.tar.gz -C /
 ```
 
 ### Resource Limits

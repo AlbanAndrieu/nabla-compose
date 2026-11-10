@@ -1166,18 +1166,6 @@
       "description": "Host and Docker port inventory used to detect exposure and allocation drift."
     },
     {
-      "id": "postgres-backup",
-      "entityRef": "component:default/postgres-backup",
-      "name": "PostgreSQL Backup",
-      "group": "data",
-      "sourcePath": "apps/postgres-backup/compose.yml",
-      "composeService": "postgres-backup",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false,
-      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age."
-    },
-    {
       "id": "postgres-exporter",
       "entityRef": "component:default/postgres-exporter",
       "name": "PostgreSQL Exporter",
@@ -1188,6 +1176,18 @@
       "href": null,
       "syncEligible": false,
       "description": "Prometheus exporter for the shared PostgreSQL Resource."
+    },
+    {
+      "id": "postgresbackup",
+      "entityRef": "component:default/postgresbackup",
+      "name": "PostgreSQL Backup",
+      "group": "data",
+      "sourcePath": "apps/postgresbackup/compose.yml",
+      "composeService": "postgresbackup",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age."
     },
     {
       "id": "prometheus",

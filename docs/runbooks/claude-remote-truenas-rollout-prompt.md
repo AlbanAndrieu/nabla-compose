@@ -35,7 +35,7 @@ Règles non négociables :
 2. python3 scripts/truenas/audit-master-readiness.py --check.
 3. Pour chaque App de docs/master-readiness.md : app-ops.sh status <app>.
    Fais un tableau : état TrueNAS réel vs dépôt, écarts.
-4. python3 scripts/truenas/reconcile-postgres-backup-cron.py --check.
+4. python3 scripts/truenas/reconcile-postgresbackup-cron.py --check.
 
 Étape 1 — FastAPI Sample : répertoire runtime et base fastapisample
 1. Snapshot : app-ops.sh backup sample --apply (après accord).
@@ -57,13 +57,13 @@ Règles non négociables :
    --role=fastapisample dans `fastapisample`, puis compare les comptes de
    lignes table par table. Ne supprime rien dans `postgres`.
 6. Redéploie l'App sample (app-ops.sh restart sample --apply), puis
-   app-ops.sh diagnose sample et /api/health. En cas d'échec : remets
+   app-ops.sh diagnose sample et /health. En cas d'échec : remets
    l'ancien répertoire et l'ancien item, redéploie, rapporte.
-7. sudo bash scripts/truenas/bootstrap-postgres-backup-role.sh --check puis
+7. sudo bash scripts/truenas/bootstrap-postgresbackup-role.sh --check puis
    --apply (CONNECT sur fastapisample et sentry).
 
 Étape 2 — Sauvegardes PostgreSQL
-1. python3 scripts/truenas/reconcile-postgres-backup-cron.py --apply
+1. python3 scripts/truenas/reconcile-postgresbackup-cron.py --apply
    (enregistre trois tâches DÉSACTIVÉES : quotidienne, sentry-monthly,
    sentry-yearly).
 2. Exécution manuelle unique de chaque série (app-ops.sh backup <app> pour une
@@ -71,7 +71,7 @@ Règles non négociables :
    base temporaire séparée, sans toucher aux bases de production.
 3. Seulement après restauration réussie et mon accord :
    POSTGRES_BACKUP_CRON_APPROVED=YES python3
-   scripts/truenas/reconcile-postgres-backup-cron.py --enable.
+   scripts/truenas/reconcile-postgresbackup-cron.py --enable.
 4. bash scripts/truenas/reconcile-snapshot-tasks.sh (check puis apply).
 
 Étape 3 — Stockage média et Apps sans VPN

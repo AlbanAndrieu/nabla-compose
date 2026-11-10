@@ -87,7 +87,7 @@ def test_app_ops_approved_backup_snapshots_and_dumps_only_the_app(tmp_path: Path
     assert result.returncode == 0, result.stderr
     calls = mutations(tmp_path)
     assert calls[0].startswith("zfs snapshot cpool/defectdojo@manual-defectdojo-")
-    assert "-e BACKUP_DATABASES=defectdojo -e BACKUP_REQUIRE_ALL=true postgres-backup" in calls[1]
+    assert "-e BACKUP_DATABASES=defectdojo -e BACKUP_REQUIRE_ALL=true postgresbackup" in calls[1]
     assert len(calls) == 2
 
 

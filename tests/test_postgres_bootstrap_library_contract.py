@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / "scripts/lib/postgres.sh"
 APP_DEPLOY_LIB = ROOT / "scripts/lib/app-deploy.sh"
 BOOTSTRAP = ROOT / "scripts/truenas/bootstrap-app-postgres.sh"
-BACKUP_ROLE = ROOT / "scripts/truenas/bootstrap-postgres-backup-role.sh"
+BACKUP_ROLE = ROOT / "scripts/truenas/bootstrap-postgresbackup-role.sh"
 WRAPPERS = {
     "joplin": ROOT / "scripts/truenas/bootstrap-joplin-postgres.sh",
     "scanopy": ROOT / "scripts/truenas/bootstrap-scanopy-postgres.sh",

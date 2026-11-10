@@ -124,6 +124,16 @@ services:
       SENTRY_ENABLED: "true"
       SENTRY_ENVIRONMENT: homelab
       SENTRY_AI_INTEGRATIONS_ENABLED: "true"
+      # Dedicated role/database from bootstrap-app-postgres.sh sample; the
+      # password stays in .env.secrets (Vaultwarden nabla/prod/fastapisample).
+      POSTGRES_HOST: 172.17.0.24
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: fastapisample
+      POSTGRES_DB: fastapisample
+      POSTGRES_QUERY: sslmode=verify-full&sslrootcert=/etc/nabla/pki/postgres-ca.crt
+
+    volumes:
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro
 
     # Keep appliance probes on the trusted LAN while preserving public DNS
     # names for TLS hostname verification.

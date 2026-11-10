@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:0cdbdeedb239da9849a90540d61caaac83fbc3dff8a03d550192ea5f859afe3f",
+  "catalogRevision": "sha256:ca6ece0ad24d11f4066acada14291530ff5898fa4e3eb4fa113d02dd9c885ab8",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -572,15 +572,15 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/postgres-backup",
-      "evidence": "apps/postgres-backup/compose.yml:services.postgres-backup.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/postgres-backup/compose.yml#services/postgres-backup",
-      "sourceType": "compose"
-    },
-    {
       "entityRef": "component:default/postgres-exporter",
       "evidence": "apps/postgres/compose.yml:services.postgres_exporter.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/postgres/compose.yml#services/postgres_exporter",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/postgresbackup",
+      "evidence": "apps/postgresbackup/compose.yml:services.postgresbackup.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/postgresbackup/compose.yml#services/postgresbackup",
       "sourceType": "compose"
     },
     {

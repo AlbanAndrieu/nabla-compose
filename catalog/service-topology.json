@@ -2196,26 +2196,6 @@
       }
     },
     {
-      "id": "postgres-backup",
-      "name": "PostgreSQL Backup",
-      "kind": "database-backup",
-      "category": "data",
-      "sourcePath": "apps/postgres-backup/compose.yml",
-      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
-      "presentationRole": "support",
-      "criticality": "high",
-      "lifecycle": {
-        "phase": "platform-services",
-        "priority": 40
-      },
-      "runtime": {
-        "provider": "host",
-        "networks": [
-          "intranet"
-        ]
-      }
-    },
-    {
       "id": "postgres-exporter",
       "name": "PostgreSQL Exporter",
       "kind": "metrics-exporter",
@@ -2235,6 +2215,26 @@
         "type": "port",
         "host": "172.17.0.24",
         "port": 9187
+      }
+    },
+    {
+      "id": "postgresbackup",
+      "name": "PostgreSQL Backup",
+      "kind": "database-backup",
+      "category": "data",
+      "sourcePath": "apps/postgresbackup/compose.yml",
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "host",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -5457,16 +5457,6 @@
       ]
     },
     {
-      "source": "postgres-backup",
-      "target": "postgresql",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Dumps the listed databases from the shared PostgreSQL service with the read-only pgbackup role.",
-      "evidence": [
-        "apps/postgres-backup/compose.yml:POSTGRES_HOST"
-      ]
-    },
-    {
       "source": "postgres-exporter",
       "target": "docker",
       "type": "hostedBy",
@@ -5484,6 +5474,16 @@
       "description": "The exporter queries the shared PostgreSQL service.",
       "evidence": [
         "apps/postgres/compose.yml:DATA_SOURCE_NAME"
+      ]
+    },
+    {
+      "source": "postgresbackup",
+      "target": "postgresql",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Dumps the listed databases from the shared PostgreSQL service with the read-only pgbackup role.",
+      "evidence": [
+        "apps/postgresbackup/compose.yml:POSTGRES_HOST"
       ]
     },
     {

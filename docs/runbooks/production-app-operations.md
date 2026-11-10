@@ -27,11 +27,11 @@ L'état de chaque App est dans la matrice générée
 | 4. Déploiement | `app-ops.sh deploy <app>` | `deploy-<app>.sh`, `deploy-media-stack.sh` ou plan `reconcile-custom-apps.py` |
 | 5. Configuration | voir « Configuration as code » ci-dessous | API, OpenTofu |
 | 6. Supervision | `app-ops.sh monitor <app>` | `x-nabla.monitoring`, jobs Prometheus |
-| 7. Sauvegarde | `app-ops.sh backup <app>` | `zfs snapshot` + `postgres-backup` ponctuel |
+| 7. Sauvegarde | `app-ops.sh backup <app>` | `zfs snapshot` + `postgresbackup` ponctuel |
 
 Les snapshots périodiques se convergent avec
 `scripts/truenas/reconcile-snapshot-tasks.sh` (`config/truenas/snapshot-tasks.json`).
-La sauvegarde logique planifiée se règle avec `scripts/truenas/reconcile-postgres-backup-cron.py`.
+La sauvegarde logique planifiée se règle avec `scripts/truenas/reconcile-postgresbackup-cron.py`.
 Il gère trois tâches, toutes enregistrées désactivées :
 
 | Tâche | Bases | Planification | Rétention |
@@ -54,7 +54,7 @@ NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/app-ops.sh backup defectd
 ```
 
 `backup` crée `<dataset>@manual-<app>-<UTC>`. Il ignore les datasets classés
-`noSnapshot` (médias, cache), et lance un dump `postgres-backup` limité aux bases de
+`noSnapshot` (médias, cache), et lance un dump `postgresbackup` limité aux bases de
 l'App, avec `BACKUP_REQUIRE_ALL=true`. Une restauration se teste avant d'activer le cron.
 
 ## Configuration as code

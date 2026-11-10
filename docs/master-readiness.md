@@ -84,8 +84,8 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `pihole` | active | custom-apps.yml | `cpool/pihole` (app-state)<br>`cpool/traefik` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `plumber` | planned | ❌ | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `postgres` | active | native App | — | legacy | ✅ | postgres_exporter | — | diagnose-defectdojo-postgres-waits.py<br>diagnose-postgres-exporter.sh | bootstrap-app-postgres.sh<br>bootstrap-homeassistant-postgres.sh<br>bootstrap-joplin-postgres.sh<br>bootstrap-postgres-backup-role.sh<br>bootstrap-scanopy-postgres.sh<br>bootstrap-security-tooling-postgres.sh<br>reconcile-postgres-backup-cron.py | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `postgres-backup` | active | ❌ | `cpool/backup` (backup-targets) | manifest | ❌ | — | — | générique | bootstrap-postgres-backup-role.sh<br>reconcile-postgres-backup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
+| `postgres` | active | native App | — | legacy | ✅ | postgres_exporter | — | diagnose-defectdojo-postgres-waits.py<br>diagnose-postgres-exporter.sh | bootstrap-app-postgres.sh<br>bootstrap-homeassistant-postgres.sh<br>bootstrap-joplin-postgres.sh<br>bootstrap-postgresbackup-role.sh<br>bootstrap-scanopy-postgres.sh<br>bootstrap-security-tooling-postgres.sh<br>reconcile-postgresbackup-cron.py | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
 | `prometheus` | active | custom-apps.yml | `cpool/prometheus` (none (noSnapshot)) | n/a | ✅ | alertmanager, pfsense-exporter, prometheus | — | diagnose-prometheus-targets.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `prowlarr` | planned | deploy-media-stack.sh | `cpool/prowlarr` (app-state) | manifest | ✅ | prowlarr-exporter | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `pyroscope` | active | custom-apps.yml | `cpool/pyroscope` (none (noSnapshot)) | n/a | ✅ | pyroscope | — | diagnose-pyroscope.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -93,7 +93,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `radarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/radarr` (app-state) | manifest | ✅ | radarr-exporter | — | générique | terraform/media | ✅ |
 | `recyclarr` | planned | deploy-media-stack.sh | `cpool/recyclarr` (app-state) | manifest | — | — | — | générique | apps/recyclarr/config/ | ✅ |
 | `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `sample` | active | custom-apps.yml | — | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
+| `sample` | active | custom-apps.yml | `cpool/secrets` (critical) | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
 | `scanopy` | planned | deploy-scanopy.sh | `cpool/scanopy` (app-state) | manifest | ✅ | — | ✅ scanopy | générique | bootstrap-scanopy-postgres.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `scorecard` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `scrutiny` | active | custom-apps.yml | `cpool/scrutiny` (app-state) | manifest | ✅ | — | — | diagnose-scrutiny.sh | bootstrap-scrutiny-influxdb.sh | `SERVICE_WITHOUT_HEALTHCHECK` |

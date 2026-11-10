@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Provision the read-only PostgreSQL role used by the versioned backup job
-# (apps/postgres-backup) on the shared TrueNAS PostgreSQL.
+# (apps/postgresbackup) on the shared TrueNAS PostgreSQL.
 # --check (default) only verifies; --apply creates/updates the role and grants
 # CONNECT on the listed databases. The role is LOGIN NOREPLICATION and a member
 # of pg_read_all_data: enough for logical (pg_dump) backups, deliberately not
@@ -17,12 +17,12 @@ source "${SCRIPT_DIR}/../lib/secrets.sh"
 source "${SCRIPT_DIR}/../lib/postgres.sh"
 
 MODE="${1:---check}"
-SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets}"
+SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgresbackup/.env.secrets}"
 BACKUP_ROLE="${POSTGRES_BACKUP_USER:-pgbackup}"
-# Space-separated databases the job may dump (keep in sync with apps/postgres-backup/compose.yml).
+# Space-separated databases the job may dump (keep in sync with apps/postgresbackup/compose.yml).
 BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-keycloak joplin homeassistant netbox dependencytrack scanopy jobs defectdojo langfuse n8n sonarqube fastapisample}"
 # Databases dumped only by the monthly/yearly archive jobs
-# (scripts/truenas/reconcile-postgres-backup-cron.py); they also need CONNECT.
+# (scripts/truenas/reconcile-postgresbackup-cron.py); they also need CONNECT.
 ARCHIVE_DATABASES="${POSTGRES_BACKUP_ARCHIVE_DATABASES:-sentry}"
 BACKUP_DATABASES="${BACKUP_DATABASES} ${ARCHIVE_DATABASES}"
 
@@ -39,7 +39,7 @@ for database in ${BACKUP_DATABASES}; do
 done
 
 secrets_assert_file "${SECRETS_FILE}" POSTGRES_PASSWORD ||
-  fail "postgres-backup secret contract is not satisfied"
+  fail "postgresbackup secret contract is not satisfied"
 backup_password="$(secrets_get_value "${SECRETS_FILE}" POSTGRES_PASSWORD)" ||
   fail "unable to read POSTGRES_PASSWORD from ${SECRETS_FILE}"
 [[ -n "${backup_password}" ]] ||
@@ -111,4 +111,4 @@ for database in ${BACKUP_DATABASES}; do
 done
 unset backup_password
 
-ok "shared PostgreSQL ready for postgres-backup: role=${BACKUP_ROLE} (read-only) databases=${BACKUP_DATABASES}"
+ok "shared PostgreSQL ready for postgresbackup: role=${BACKUP_ROLE} (read-only) databases=${BACKUP_DATABASES}"
