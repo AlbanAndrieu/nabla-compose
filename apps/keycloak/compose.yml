@@ -3,7 +3,7 @@ services:
   keycloak:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/keycloak
-    image: quay.io/keycloak/keycloak:26.7.3
+    image: quay.io/keycloak/keycloak:26.8.2
     container_name: keycloak
     x-nabla:
       id: keycloak
