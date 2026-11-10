@@ -97,7 +97,7 @@ if have docker; then
 
     printf '\n-- container anomalies --\n'
     docker ps -q |
-      xargs -r docker inspect --format '{{.Name}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} mem_limit={{.HostConfig.Memory}}' |
+      xargs -r timeout 60 docker inspect --format '{{.Name}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} mem_limit={{.HostConfig.Memory}}' |
       awk '
         /health=unhealthy/ || $3 !~ /restarts=0$/ { print }
         / mem_limit=0$/ { unlimited++ }
@@ -107,11 +107,38 @@ if have docker; then
     printf 'defunct processes: '
     pgrep -c -r Z || true
     # Zombies pile up under container init processes that never reap healthcheck children.
-    printf 'top zombie parents (count ppid command):\n'
-    ps -eo ppid=,stat= | awk '$2 ~ /^Z/ { print $1 }' | sort | uniq -c | sort -rn | head -5 |
-      while read -r count ppid; do
-        printf '  %s %s %s\n' "${count}" "${ppid}" "$(ps -o comm= -p "${ppid}" 2>/dev/null)"
+    # Resolve each parent's container from its cgroup ID against one docker ps listing,
+    # so the fix (init: true) targets the right service without per-PID docker calls.
+    container_names="$(docker ps --no-trunc --format '{{.ID}} {{.Names}}' 2>/dev/null || true)"
+    printf 'top zombie parents (count ppid parent zombie container):\n'
+    ps -eo ppid=,stat=,comm= | awk '$2 ~ /^Z/ { print $1, $3 }' | sort | uniq -c | sort -rn | head -10 |
+      while read -r count ppid child; do
+        container_id="$(grep -oE '[0-9a-f]{64}' "/proc/${ppid}/cgroup" 2>/dev/null | head -1 || true)"
+        container="$(awk -v id="${container_id}" 'id != "" && $1 == id { print $2; exit }' <<<"${container_names}")"
+        printf '  %s %s %s %s %s\n' "${count}" "${ppid}" \
+          "$(ps -o comm= -p "${ppid}" 2>/dev/null)" "${child}" "${container:-host}"
       done
+    # cgroup v2 memory.peak is the high-water mark since container start: size
+    # mem_limit from it rather than from one docker stats sample.
+    printf 'container memory peak, top 20 (peak_MiB current_MiB limit name):\n'
+    while read -r id name; do
+      [[ -n "${id}" ]] || continue
+      for dir in "/sys/fs/cgroup/docker/${id}" "/sys/fs/cgroup/system.slice/docker-${id}.scope"; do
+        [[ -r "${dir}/memory.peak" ]] || continue
+        printf '%s %s %s %s\n' "$(($(<"${dir}/memory.peak") / 1048576))" \
+          "$(($(<"${dir}/memory.current") / 1048576))" "$(<"${dir}/memory.max")" "${name}"
+        break
+      done
+    done <<<"${container_names}" | sort -rn | head -20 | sed 's/^/  /'
+    # A zombie that keeps live threads is stuck in the kernel with SIGKILL pending
+    # (2026-11-04: wazuh-indexer JVM). Its containerd shim then holds the container
+    # lock, so docker inspect and TrueNAS app.query hang; only a reboot frees it.
+    printf 'zombies with live threads (pid threads elapsed command):\n'
+    ps -eo pid=,stat=,nlwp=,etime=,comm= | awk '$2 ~ /^Z/ && $3 > 1 { print "  " $1, $3, $4, $5 }'
+    printf 'containers whose inspect exceeds 5s (stuck lock):\n'
+    docker ps -aq | while read -r id; do
+      timeout 5 docker inspect --format '{{.Name}}' "${id}" >/dev/null 2>&1 || printf '  %s\n' "${id}"
+    done
     # containerd logged "too many open files" while container starts hung.
     # Only resolve its PID once; do not enumerate /proc for a missing process.
     containerd_pid="$(pgrep -o -x containerd 2>/dev/null || true)"
@@ -131,12 +158,11 @@ section "TrueNAS app states"
 if have midclt && have jq; then
   # app.query may be expensive under TrueNAS pressure. Collect metadata once,
   # then render both views from the already sanitized tabular projection.
+  app_query_timeout=0 # timeout(1) treats 0 as no limit.
   if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
-    app_query=(timeout 10 midclt call app.query)
-  else
-    app_query=(midclt call app.query)
+    app_query_timeout=10
   fi
-  if app_rows="$("${app_query[@]}" | jq -r '
+  if app_rows="$(timeout "${app_query_timeout}" midclt call app.query | jq -r '
     .[]
     | [.id, .state, ((.active_workloads.containers // 0) | tostring)]
     | @tsv
@@ -176,12 +202,11 @@ fi
 
 section "Recent kernel pressure / I/O events"
 if have journalctl; then
+  journalctl_lines=all
   if [[ "${DIAGNOSTIC_MODE}" == quick ]]; then
-    journalctl_args=(-k -b -n 500 --no-pager)
-  else
-    journalctl_args=(-k -b --no-pager)
+    journalctl_lines=500
   fi
-  journalctl "${journalctl_args[@]}" 2>/dev/null |
+  journalctl -k -b -n "${journalctl_lines}" --no-pager 2>/dev/null |
     grep -Ei       'oom|out of memory|memory cgroup|blocked for more than|hung task|I/O error|nvme.*error|ata.*error|reset controller' |
     tail -100 || true
 else

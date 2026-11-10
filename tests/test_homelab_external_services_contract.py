@@ -34,7 +34,7 @@ def test_selected_homelab_services_are_external() -> None:
     assert services["Joplin"]["id"] == "joplin"
     assert services["Joplin"]["internalHost"] == "172.17.0.24"
     assert services["Joplin"]["internalPort"] == 22300
-    assert services["Joplin"]["tunnelUrl"] == "https://joplin.int.albandrieu.com"
+    assert services["Joplin"]["tunnelUrl"] == "https://joplin.albandrieu.com"
 
 
 def test_exposure_overrides_do_not_disable_selected_external_services() -> None:

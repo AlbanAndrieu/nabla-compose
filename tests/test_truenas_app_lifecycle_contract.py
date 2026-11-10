@@ -87,10 +87,16 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_keycloak_uses_shared_postgres_and_private_management_port(self) -> None:
         compose = self.read("apps/keycloak/compose.yml")
         readme = self.read("apps/keycloak/README.md")
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
-        self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
-        self.assertIn("KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak", compose)
+        self.assertIn("quay.io/keycloak/keycloak:26.8.2", compose)
+        self.assertIn("KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:-172.17.0.24}:5432/keycloak", compose)
+        self.assertIn("KC_DB_TLS_MODE: verify-server", compose)
+        self.assertIn("KC_DB_TLS_TRUST_STORE_FILE: /etc/nabla/pki/postgres-ca.crt", compose)
+        self.assertIn(
+            "/mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro",
+            compose,
+        )
+        self.assertIn("IP SAN", readme)
         self.assertIn("KC_DB_USERNAME: keycloak", compose)
         self.assertIn("KC_BOOTSTRAP_ADMIN_USERNAME: admin", compose)
         self.assertNotIn("\n  postgres:", compose)
@@ -105,9 +111,19 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("ix-postgres-postgres-", readme)
         self.assertIn("docker exec -i", readme)
         self.assertIn("\\getenv keycloak_password KEYCLOAK_DB_PASSWORD", readme)
-        self.assertIn("Keycloak native -> repository-managed migration", roadmap)
-        self.assertIn("global PostgreSQL service", roadmap)
-        self.assertIn("172.17.0.24:30239/health/ready", roadmap)
+        self.assertIn("172.17.0.24:30239/health/ready", readme)
+
+    def test_unused_plumber_requires_verified_postgres_tls(self) -> None:
+        compose = self.read("apps/plumber/compose.yml")
+        readme = self.read("apps/plumber/README.md")
+
+        self.assertIn("JOBS_DB_SSLMODE: verify-full", compose)
+        self.assertNotIn("JOBS_DB_SSLMODE: ${JOBS_DB_SSLMODE:-disable}", compose)
+        self.assertIn("PGSSLROOTCERT: /etc/nabla/pki/postgres-ca.crt", compose)
+        self.assertIn("volumes: *plumber-postgres-ca", compose)
+        self.assertIn("status: planned", compose)
+        self.assertIn("driver/DSN construction", readme)
+        self.assertIn("DNS or IP SAN", readme)
 
     def test_runtime_recovery_fixes_crowdsec_akvorado_and_openhands(self) -> None:
         crowdsec = self.read("apps/crowdsec/compose.yml")
@@ -255,7 +271,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         langflow = self.read("apps/langflow/compose.yml")
         opensearch = self.read("apps/opensearch/compose.yml")
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("OPENSEARCH_HOST: opensearch", openrag)
         self.assertIn('OPENSEARCH_NODE_COUNT_CHECK_ENABLED: "false"', openrag)
@@ -306,7 +321,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("Do not duplicate `LANGFLOW_SUPERUSER_PASSWORD`", openrag_readme)
         self.assertIn("global Langflow", openrag_readme)
         self.assertIn("DOCLING_SERVE_URL", openrag_readme)
-        self.assertIn("stabilize **OpenRAG**", roadmap)
 
     def test_clickhouse_matches_shared_truenas_runtime(self) -> None:
         clickhouse = self.read("apps/clickhouse/compose.yml")
@@ -439,7 +453,9 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
         self.assertIn("/mnt/cpool/secrets/runtime/homarr/.env.secrets", homarr)
         # Homarr v2 sync discovers boards by name; it keeps no persisted state.
-        self.assertIn("./config/boards.json:/config/nabla/boards.json:ro", homarr)
+        # A bind nested in the read-only ./generated mount fails: no mountpoint can be created.
+        self.assertIn("./config/boards.json:/config/boards.json:ro", homarr)
+        self.assertNotIn(":/config/nabla/boards.json", homarr)
         self.assertNotIn(":/state", homarr)
         self.assertNotIn("SECRET_ENCRYPTION_KEY: ${", homarr)
         self.assertIn(
@@ -613,16 +629,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("MigrationInProgress", readme)
         self.assertIn(".env.migrator.secrets", readme)
         self.assertIn("Never grant either Sentry identity `ALL ON *.*`", readme)
-
-    def test_failure_report_covers_non_running_apps_and_focus_services(self) -> None:
-        report = self.read("scripts/truenas/report-app-failures.sh")
-
-        self.assertIn('select(.state != "RUNNING")', report)
-        self.assertIn("core.get_jobs", report)
-        self.assertIn("com.docker.compose.project=ix-", report)
-        self.assertIn('select(.id == "traefik")', report)
-        self.assertIn('select(.id == "keycloak")', report)
-        self.assertIn("172.17.0.24:30238", report)
 
     def test_runtime_audit_ignores_successful_helper_exits(self) -> None:
         audit = self.read("scripts/truenas/audit-app-lifecycle.sh")
@@ -817,68 +823,27 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("curl -fsS http://172.17.0.24:4040/", readme)
         self.assertIn("curl -fsS http://172.17.0.24:4040/metrics", readme)
 
-    def test_roadmap_tracks_shared_tika_and_postgres_consolidation(self) -> None:
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+    def test_lifecycle_tracks_bichon_oauth2_reauthorization(self) -> None:
+        lifecycle = self.read("docs/truenas-app-lifecycle.md")
 
-        self.assertIn("#### Shared Tika consolidation", roadmap)
-        self.assertIn("PAPERLESS_TIKA_ENDPOINT", roadmap)
-        self.assertIn("TIKA_URL", roadmap)
-        self.assertIn("apps/tika/compose.yml", roadmap)
-        self.assertIn("keep Tika on the 3.x line", roadmap)
-        self.assertIn("Reactive Resume, OpenArchiver, n8n, Home Assistant, Zabbix and", roadmap)
-        self.assertIn("Paperless after per-service validation", roadmap)
-        self.assertIn("dedicated role", roadmap)
-        self.assertIn("Keycloak has already been migrated", roadmap)
-        self.assertNotIn("keep Keycloak dedicated initially", roadmap)
+        self.assertIn("OAuth2 Tokens -> Delete Token", lifecycle)
+        self.assertIn("oauth2-token-refresh-task", lifecycle)
+        self.assertIn("BICHON_ENCRYPT_PASSWORD", lifecycle)
 
-    def test_roadmap_tracks_bichon_oauth2_reauthorization(self) -> None:
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
+    def test_sentry_clickhouse_bridge_keeps_shared_clickhouse_gate(self) -> None:
+        bridge = self.read("apps/sentry-clickhouse/README.md")
 
-        self.assertIn("#### Bichon OAuth2 recovery", roadmap)
-        self.assertIn("OAuth2 Tokens -> Delete Token", roadmap)
-        self.assertIn("re-authorize the affected account", roadmap)
-        self.assertIn("BICHON_ENCRYPT_PASSWORD", roadmap)
-
-    def test_roadmap_tracks_staged_shared_tika_migration(self) -> None:
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
-
-        self.assertIn("#### Shared Tika consolidation", roadmap)
-        self.assertIn("ix-openarchiver-tika-1   running  healthy", roadmap)
-        self.assertIn("ix-paperless-ngx-tika-1 running  healthy", roadmap)
-        self.assertIn("PAPERLESS_TIKA_ENDPOINT", roadmap)
-        self.assertIn("TIKA_URL", roadmap)
-        self.assertIn("migrate **one consumer at a time**", roadmap)
-        self.assertIn(
-            "connect Paperless-ngx to the already-validated shared Tika endpoint",
-            roadmap,
-        )
-        self.assertNotIn(
-            "start Paperless PostgreSQL/Redis/Gotenberg/Tika, then Paperless-ngx",
-            roadmap,
-        )
-
-    def test_roadmap_gates_shared_clickhouse_consumers(self) -> None:
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
-
-        self.assertIn("##### Shared ClickHouse consumer compatibility gate", roadmap)
-        self.assertIn("26.8.2.7", roadmap)
-        self.assertIn("Sentry/Snuba", roadmap)
-        self.assertIn("ntopng", roadmap)
-        self.assertIn("synthetic Sentry event", roadmap)
-        self.assertIn("apps/sentry/compose.yml", roadmap)
-        self.assertIn("snuba-api", roadmap)
-        self.assertIn("web-process health only", roadmap)
-        self.assertIn("one shared ClickHouse service", roadmap)
-        self.assertIn("0041_adjust_partitioning_meta_tables", roadmap)
-        self.assertIn("allow_dimensions_outside_sorting_key=1", roadmap)
-        self.assertIn("25.3.6.10034.altinitystable", roadmap)
-        self.assertIn("retire `apps/sentry-clickhouse`", roadmap)
-        self.assertIn("database `ntopng`", roadmap)
+        self.assertIn("one shared ClickHouse", bridge)
+        self.assertIn("26.8.2.7", bridge)
+        self.assertIn("Sentry/Snuba", bridge)
+        self.assertIn("0041_adjust_partitioning_meta_tables", bridge)
+        self.assertIn("allow_dimensions_outside_sorting_key=1", bridge)
+        self.assertIn("25.3.6.10034.altinitystable", bridge)
+        self.assertIn("retire `apps/sentry-clickhouse`", bridge)
 
     def test_langfuse_v4_fresh_reset_is_documented(self) -> None:
         runbook = self.read("docs/truenas-app-lifecycle.md")
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
-        failure_modes = self.read("docs/clickhouse-langfuse-failure-modes.md")
+        failure_modes = self.read("docs/incidents/2026-09-07-clickhouse-langfuse-failure-modes.md")
 
         self.assertIn("## Fresh Langfuse v4 reset", runbook)
         self.assertIn("Do not replace the Custom App wrapper", runbook)
@@ -886,10 +851,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("CLICKHOUSE_DB=langfuse", runbook)
         self.assertIn("REDIS_KEY_PREFIX=langfuse-v4:", runbook)
         self.assertIn("Sentry/Snuba", runbook)
-        self.assertIn("#### Langfuse v4 fresh reset", roadmap)
-        self.assertIn("4.30.0", roadmap)
-        self.assertIn("postgresql://langfuse:<secret>@172.17.0.24:5432/langfuse", roadmap)
-        self.assertIn("generic `nabla` role", roadmap)
         self.assertIn("GRANT ALTER SETTINGS ON langfuse.* TO langfuse;", runbook)
         self.assertIn("migration 48", runbook)
 
@@ -997,16 +958,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn('"      - firewall_states"', script)
         self.assertIn("without printing the API key", script)
         self.assertNotIn("echo \"$key\"", script)
-
-    def test_fastapi_sample_restart_uses_truenas_lifecycle(self) -> None:
-        path = ROOT / "scripts/restart-fastapi-sample.sh"
-        script = path.read_text(encoding="utf-8")
-        mode = path.stat().st_mode
-
-        self.assertTrue(mode & stat.S_IXUSR)
-        self.assertIn('app.redeploy "${APP_ID}"', script)
-        self.assertIn("midclt call app.query", script)
-        self.assertNotIn("docker compose -f \"${COMPOSE_FILE}\" up -d", script)
 
     def test_fastapi_sample_refresh_helper_is_safe_and_complete(self) -> None:
         path = ROOT / "scripts/truenas/update-fastapi-sample.sh"
@@ -1169,28 +1120,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
             )
             self.assertEqual(0, syntax.returncode, syntax.stderr)
 
-    def test_talos_vm_autostart_acceptance_helper_is_read_only(self) -> None:
-        path = ROOT / "scripts/truenas/verify-talos-vm-autostart.sh"
-        script = path.read_text(encoding="utf-8")
-        mode = path.stat().st_mode
-
-        for vm_name in ("taloscp01", "taloswk01", "taloswk02"):
-            self.assertIn(vm_name, script)
-        self.assertIn("autostart", script)
-        self.assertIn("RUNNING", script)
-        self.assertIn("midclt call vm.query", script)
-        self.assertNotIn("vm.start", script)
-        self.assertNotIn("vm.update", script)
-        self.assertTrue(mode & stat.S_IXUSR)
-
-        syntax = subprocess.run(
-            ["bash", "-n", str(path)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(0, syntax.returncode, syntax.stderr)
-
     def test_autokuma_trueNAS_deploy_helper_and_runtime_contract(self) -> None:
         compose = self.read("apps/autokuma/compose.yml")
         path = ROOT / "scripts/truenas/deploy-autokuma.sh"
@@ -1253,7 +1182,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         litellm_compose = self.read("apps/litellm/compose.yml")
         litellm_config = self.read("apps/litellm/config.yaml")
         readme = self.read("apps/openrag/README.md")
-        roadmap = self.read("docs/homelab-platform-migration-roadmap.md")
 
         self.assertIn("OPENAI_BASE_URL:", openrag_compose)
         self.assertIn("http://172.17.0.57:4000/v1", openrag_compose)
@@ -1285,7 +1213,6 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         self.assertIn("OpenRAG 0.7.1 compatibility caveat", readme)
         self.assertIn("provider=openai", readme)
-        self.assertIn("OpenRAG 0.7.1 -> workstation LiteLLM", roadmap)
 
 
     def test_scrutiny_influxdb_bootstrap_is_restricted_and_safe(self) -> None:

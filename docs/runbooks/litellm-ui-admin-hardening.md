@@ -37,26 +37,41 @@ The second command requires the optional SSH forward `127.0.0.1:14000 -> 127.0.0
 
 Budget migration remains a separate change: copy policy intent only; **do not transfer historical consumption or reset state**.
 
-## Incident session dashboard du 26 octobre 2026
+## Dashboard `401 Expired Key` : session UI périmée
 
 Une erreur `401 Authentication Error - Expired Key` avec
-`user_api_key_team_id=litellm-dashboard`, zéro token et navigateur
-Linux correspond à une **clé de session UI périmée**. Cela ne
-prouve aucun échec de `LITELLM_IDE_API_KEY`, OpenClaw ou FastAPI.
-Un onglet ancien peut continuer d'interroger les routes du dashboard
-et polluer les `SpendLogs` avec de faux appels LLM
+`user_api_key_team_id=litellm-dashboard`, zéro token et un User-Agent
+navigateur correspond à une **clé de session UI temporaire périmée**,
+indépendante des clés virtuelles de services. Cela ne prouve aucun
+échec de `LITELLM_IDE_API_KEY`, OpenClaw ou FastAPI. Un onglet ancien
+peut continuer d'interroger `/key/list`, `/user/info` et `/models` et
+polluer les `SpendLogs` avec de faux échecs LLM, sans appel fournisseur
 (upstream [#35789](https://github.com/BerriAI/litellm/issues/35789),
 [PR #35791](https://github.com/BerriAI/litellm/pull/35791)).
 
-Réparation : fermer tous les onglets `/ui`, effectuer Logout,
-puis se connecter avec le compte nominatif. Si la session est
+Réparation, sans redeploy : fermer tous les onglets `/ui`, effectuer
+Logout, puis se connecter avec le compte nominatif. Si la session est
 toujours réutilisée, effacer uniquement les données de site LiteLLM.
-Ne pas tourner les clés métier, désactiver l'expiration, ou
-redémarrer le proxy pour une session navigateur.
+Vérifier ensuite l'absence de nouveaux `401 Expired Key` pour
+`litellm-dashboard` ; les anciens `SpendLogs` restent. Ne pas tourner
+`LITELLM_MASTER_KEY` ni les clés métier (FastAPI, OpenClaw, OpenRAG),
+ne pas prolonger leurs expirations, ne pas désactiver l'expiration de
+session ni redémarrer le proxy pour une session navigateur.
 
-Contrat offline : `python3 scripts/truenas/diagnose-litellm-dashboard-auth.py
---check --input /chemin/prive/evenement.json`; la sortie ne divulgue
-aucun hash de clé ni adresse IP.
+Classification offline d'un événement exporté dans un fichier privé
+(aucun hash de clé, IP, User-Agent ni identifiant de requête affiché) :
+
+```bash
+python3 scripts/truenas/diagnose-litellm-dashboard-auth.py \
+  --check --input /chemin/prive/litellm-event.json
+```
+
+`EXPIRED_DASHBOARD_SESSION` signifie
+`close_stale_ui_tabs_and_sign_in_again` ; une clé de service expirée
+est classée `EXPIRED_VIRTUAL_KEY`. Cette classification ne teste ni le
+proxy, ni sa base PostgreSQL, ni les modèles : contrôler la
+disponibilité du proxy séparément avec
+`python3 scripts/truenas/diagnose-protected-service-http.py --check`.
 
 ## Post-merge runtime validation — PR #258
 

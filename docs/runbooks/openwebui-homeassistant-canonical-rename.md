@@ -13,10 +13,12 @@
 | Open WebUI Tunnel hostname | `open-webui.albandrieu.com` | `openwebui.albandrieu.com` |
 | Open WebUI origin | `http://172.17.0.24:31028` | inchangé |
 | Open WebUI données | `/mnt/cpool/openwebui/data` | inchangé |
-| Home Assistant données | `/mnt/storage0/home-assistant/config` | inchangé |
+| Home Assistant données | `/mnt/cpool/ha/{config,media}` (relevé du 6/11) | inchangé |
 | Images Docker officielles | `ghcr.io/open-webui/open-webui`, `ghcr.io/home-assistant/home-assistant` | inchangées |
 
 N'enlevez **pas** les tirets des noms de produit, images officielles, chemins existants contenant des données ou clés d'environnement du fournisseur. La normalisation concerne les identifiants de service et le hostname du nouveau point d'entrée.
+
+Home Assistant : la bascule de l'App native `home-assistant` vers la Custom App `homeassistant` passe par `scripts/truenas/migrate-homeassistant-to-compose.sh` (`--check`, puis `--apply`, retour arrière `--rollback`). La procédure ci-dessous concerne Open WebUI.
 
 ## Procédure — une action par étape
 

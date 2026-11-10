@@ -59,6 +59,12 @@ build/cleanup cycle when only validation is intended.
   single-App deployers (`deploy-joplin.sh`, `deploy-scanopy.sh`): canonical
   checkout gate, Compose validation, `<app>_mutations=0` preflight report and
   middleware reconciliation gated by `NABLA_RUNTIME_CHANGE_APPROVED=yes`.
+- `scripts/truenas/diagnose-homeassistant.sh`, `diagnose-homeassistant-usb.sh`
+  and `diagnose-homeassistant-overkiz.sh --host <ip>` are read-only Home
+  Assistant checks (runtime owner, integrations, HACS, USB dongle hand-off,
+  Overkiz io gateway local API). `scripts/lib/homeassistant.sh` owns container
+  resolution and the optional API token (`HA_TOKEN`, root:root 600, sent only
+  through `secrets_curl_headers`).
 - `scripts/truenas/rollout-pending-apps.sh [--plan|--check|--apply] [app]`
   is the single operator entry point for the Apps declared but not deployed
   yet: `--plan` prints the ordered steps without root, `--check` runs every

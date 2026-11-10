@@ -54,6 +54,32 @@ Relier les informations dans Cartography/Neo4j via un adaptateur d'enrichissemen
 **lecture seule** quand des API d'export documentées existent. Ne pas inventer
 de contrat direct Scanopy/ntopng/Akvorado avant vérification.
 
+### Cardinalité et jointure des observations
+
+**Une identité déclarée** (Backstage) pour **N données observées** par entité
+ou ressource. Une découverte Scanopy, ntopng ou Akvorado n'est jamais importée
+comme nouveau `Component` par défaut.
+
+- **Services observés** : OpenTelemetry `service.namespace`, `service.name`,
+  `service.instance.id` ; la correspondance vers Backstage est établie avec
+  provenance (label Compose, annotation K8s ou règle révisée).
+- **Infrastructure** : identifiant fournisseur stable (ID de nœud K8s, ID
+  d'instance, UUID matériel) ; IP, port, FQDN ou adresse MAC ne sont **pas**
+  une clé primaire : plusieurs alias désignent un actif et sont réutilisés.
+- Une relation réseau *observée* ne devient pas automatiquement
+  `spec.dependsOn`, qui décrit une dépendance **déclarée**.
+- Une observation porte au minimum `source`, `observedAt`, `identity`,
+  `entityRef` (uniquement si prouvé), `evidence` et `confidence`, et se
+  déduplique par identifiant de preuve (idempotence).
+- `declared`, `observed` et `finding` restent séparés : une vulnérabilité,
+  une sonde négative ou une découverte ne modifie jamais `operational-state`
+  dans les descripteurs Backstage. DefectDojo associe un finding à une entité
+  ou un actif existant, avec la preuve source.
+- Métriques vers Prometheus/OpenTelemetry, findings vers le DefectDojo privé,
+  avec les mécanismes d'import existants. OSCAL, CSAF et SPDX restent des
+  formats d'échange optionnels, jamais un catalogue parallèle ; ne pas
+  maintenir deux BOMs à la main ni utiliser un BOM comme vérité runtime.
+
 ## Correspondances aux cadres de sécurité reconnus
 
 | Cadre | Usage pertinent | Exemple de preuve, non preuve automatique de conformité |

@@ -34,7 +34,7 @@ réconciliation OpenRAG *unique* et son smoke backend/frontend.
 Ne pas exécuter l'ancien `reconcile-openrag-opensearch-secret.sh --apply` ;
 il est volontairement interdit.
 
-Voir la [reprise ciblée](../../docs/runbooks/2026-10-25-critical-acceptance-followup.md).
+Voir le [runbook opérateur des migrations](../../docs/runbooks/truenas-migration-operator.md).
 
 ## Reprise prioritaire OpenRAG (24 octobre 2026)
 
@@ -630,6 +630,6 @@ validated. The current runtime configuration is not yet isolated by purpose.
 - [ ] Ensure no actual consumer configuration or index is changed until
       runtime endpoint reachability and isolation are verified.
 
-See `docs/runbooks/openclaw-embedding-secret-remediation.md` for the
-OpenClaw SecretRef work. This section describes a **target design**; it
+See `ops/openclaw-workstation/NFS-BACKUP.md` for the OpenClaw embedding
+policy. This section describes a **target design**; it
 does not claim the shared fallback is currently enabled.

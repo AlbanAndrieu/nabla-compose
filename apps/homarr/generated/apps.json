@@ -419,17 +419,6 @@
       "description": "Planned evidence scanner producing supporting DSOMM baseline reports for human review."
     },
     {
-      "id": "elasticsearch",
-      "entityRef": "resource:default/elasticsearch",
-      "name": "Elasticsearch",
-      "group": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "elasticsearch",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "fastapi-sample",
       "entityRef": "component:default/fastapi-sample",
       "name": "FastAPI Sample",
@@ -578,7 +567,7 @@
       "sourcePath": "apps/homeassistant/compose.yml",
       "composeService": "homeassistant",
       "dockerManaged": true,
-      "href": "https://homeassistant.albanandrieu.com",
+      "href": "https://homeassistant.int.albandrieu.com",
       "syncEligible": true,
       "description": "Home automation control plane exposed through the dedicated IoT network."
     },
@@ -653,17 +642,6 @@
       "href": "http://172.17.0.24:30238",
       "syncEligible": false,
       "description": "Central OIDC/SAML identity provider backed by the shared PostgreSQL service."
-    },
-    {
-      "id": "kibana",
-      "entityRef": "component:default/kibana",
-      "name": "Kibana",
-      "group": "observability",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "kibana",
-      "dockerManaged": true,
-      "href": "http://172.17.0.24:5601",
-      "syncEligible": true
     },
     {
       "id": "langflow",

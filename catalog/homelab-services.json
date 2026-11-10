@@ -226,7 +226,7 @@
       "internalHost": "172.17.0.24",
       "internalPort": 8091,
       "internalSecure": false,
-      "tunnelUrl": "https://sample.albandrieu.com",
+      "tunnelUrl": "https://fastapi-sample.albandrieu.com",
       "tunnelSecure": true,
       "external": true
     },
@@ -403,7 +403,7 @@
       "internalHost": "172.17.0.24",
       "internalPort": 22300,
       "internalSecure": false,
-      "tunnelUrl": "https://joplin.int.albandrieu.com",
+      "tunnelUrl": "https://joplin.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/joplin.png",
       "external": true

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:6936590bc6649c02ef77e084abab0cd9711242c71dea66143c8bf22b5e16e0ff",
+  "catalogRevision": "sha256:0cdbdeedb239da9849a90540d61caaac83fbc3dff8a03d550192ea5f859afe3f",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -197,18 +197,6 @@
       "entityRef": "component:default/dsomm-baseline",
       "evidence": "apps/dsomm/compose.yml:services.dsomm-baseline.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/dsomm/compose.yml#services/dsomm-baseline",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "resource:default/elasticsearch",
-      "evidence": "apps/elasticsearch/compose.yml:services.elasticsearch.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/elasticsearch/compose.yml#services/elasticsearch",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/kibana",
-      "evidence": "apps/elasticsearch/compose.yml:services.kibana.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/elasticsearch/compose.yml#services/kibana",
       "sourceType": "compose"
     },
     {
@@ -1040,12 +1028,6 @@
       "sourceType": "gatus"
     },
     {
-      "entityRef": "resource:default/elasticsearch",
-      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "elasticsearch",
-      "sourceType": "gatus"
-    },
-    {
       "entityRef": "component:default/fastapi-sample",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "fastapi-sample",
@@ -1121,12 +1103,6 @@
       "entityRef": "component:default/kafka-exporter",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "kafka-exporter",
-      "sourceType": "gatus"
-    },
-    {
-      "entityRef": "component:default/kibana",
-      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "kibana",
       "sourceType": "gatus"
     },
     {

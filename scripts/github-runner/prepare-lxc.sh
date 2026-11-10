@@ -85,5 +85,5 @@ The runner is intentionally NOT activated:
 - no systemd service has been installed;
 - TrueNAS LXC Autostart must remain disabled until you explicitly decide to enable it.
 
-See docs/github-actions-runner-lxc.md for the manual activation procedure and security constraints.
+See docs/archive/github-actions-runner-lxc.md for the manual activation procedure and security constraints.
 EOF

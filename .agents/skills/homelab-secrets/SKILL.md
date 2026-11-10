@@ -17,7 +17,7 @@ Before changing storage, `env_file`, project `.env`, or stopping a native applic
 - `config/secrets/README.md`;
 - `docs/truenas-runtime-layout.md`;
 - `docs/secrets-migration-roadmap.md`;
-- `docs/homelab-platform-migration-roadmap.md`.
+- `docs/roadmap.md`.
 
 If the application is missing from the manifest, inventory its secret **names and semantics** before implementing its cutover. Never place a live value in tracked metadata.
 

@@ -12,9 +12,12 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE_URL = os.getenv("HOMARR_BASE_URL", "http://homarr:7575").rstrip("/")
-API_KEY = os.getenv("HOMARR_API_KEY", "").strip()
+# HOMARR_API_KEY is canonical (config/secrets/manifest.json). Runtime files
+# materialised before the 06/11 migration still carry HOMARR_API_TOKEN.
+API_KEY = (os.getenv("HOMARR_API_KEY") or os.getenv("HOMARR_API_TOKEN") or "").strip()
+LEGACY_KEY_NAME = not os.getenv("HOMARR_API_KEY") and bool(os.getenv("HOMARR_API_TOKEN"))
 MANIFEST_PATH = Path(os.getenv("HOMARR_MANIFEST", "/config/nabla/apps.json"))
-BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/nabla/boards.json"))
+BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/boards.json"))
 DRY_RUN = os.getenv("HOMARR_SYNC_DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 MAX_ATTEMPTS = int(os.getenv("HOMARR_SYNC_ATTEMPTS", "20"))
 RETRY_SECONDS = float(os.getenv("HOMARR_SYNC_RETRY_SECONDS", "3"))
@@ -212,8 +215,13 @@ def reconcile_board(
 
 def main() -> int:
     if not API_KEY:
-        log("HOMARR_API_KEY is required for declarative reconciliation")
-        return 2
+        # A one-shot job exiting non-zero marks the whole TrueNAS App CRASHED
+        # although the Homarr UI is healthy. Report the skipped reconciliation
+        # loudly and exit 0; the gate is the SKIPPED marker, not the App state.
+        log("RECONCILE_SKIPPED: HOMARR_API_KEY is not set; Homarr UI unaffected")
+        return 0
+    if LEGACY_KEY_NAME:
+        log("WARNING: using legacy HOMARR_API_TOKEN; rematerialise HOMARR_API_KEY from Vaultwarden")
 
     manifest = load_json(MANIFEST_PATH, {})
     if not isinstance(manifest, dict) or not isinstance(manifest.get("applications"), list):

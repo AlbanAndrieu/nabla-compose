@@ -14,7 +14,7 @@ services:
       criticality: medium
       status: planned
       description: Private Joplin synchronization server backed by the shared PostgreSQL service.
-      url: https://joplin.int.albandrieu.com
+      url: https://joplin.albandrieu.com
       internalUrl: http://joplin:22300
       runtime:
         provider: truenas-app
@@ -22,6 +22,18 @@ services:
       lifecycle:
         phase: applications
         priority: 60
+      exposure:
+        - name: public
+          hostnames:
+            - joplin.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            # Joplin desktop/mobile sync cannot pass an interactive Access login;
+            # Joplin Server authentication protects the route (owner decision 10/11).
+            required: false
       monitoring:
         type: http
         target: http://172.17.0.24:22300/api/ping
@@ -34,17 +46,23 @@ services:
           description: Joplin persists notes, users and synchronization state in the shared PostgreSQL service.
           evidence:
             - apps/joplin/compose.yml:POSTGRES_HOST
-        - target: traefik
+        - target: cloudflared
           type: exposedBy
           strength: required
-          description: Traefik exposes Joplin only through the private joplin.int.albandrieu.com hostname.
+          description: The shared Cloudflare Tunnel publishes Joplin at joplin.albandrieu.com for remote sync clients.
+          evidence:
+            - terraform/cloudflare/tunnel.tofu:joplin.albandrieu.com
+        - target: traefik
+          type: exposedBy
+          strength: optional
+          description: Traefik also serves Joplin on the private joplin.int.albandrieu.com hostname.
           evidence:
             - apps/joplin/compose.yml:traefik.http.routers.joplin
     env_file:
       - /mnt/cpool/secrets/runtime/joplin/.env.secrets
     environment:
       APP_PORT: "22300"
-      APP_BASE_URL: https://joplin.int.albandrieu.com
+      APP_BASE_URL: https://joplin.albandrieu.com
       DB_CLIENT: pg
       POSTGRES_HOST: 172.17.0.24
       POSTGRES_PORT: "5432"

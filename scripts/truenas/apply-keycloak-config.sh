@@ -21,7 +21,7 @@ KEYCLOAK_LAN_URL="${KEYCLOAK_LAN_URL:-http://172.17.0.24:30238}"
 KEYCLOAK_NETWORK_URL="${KEYCLOAK_NETWORK_URL:-http://keycloak:8080}"
 DOCKER_NETWORK="${KEYCLOAK_CONFIG_NETWORK:-intranet}"
 # keycloak-config-cli 6.5.1 built for Keycloak 26.5.5 (Admin REST API is stable
-# within 26.x; the server runs 26.7.3). Bump with Renovate, never a floating tag.
+# within 26.x; the server is pinned to 26.8.2; verify config-cli import compatibility). Bump with Renovate, never a floating tag.
 CONFIG_CLI_IMAGE="docker.io/adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274"
 
 case "${MODE}" in

@@ -207,3 +207,15 @@ class HomarrSyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_missing_key_skips_without_crashing_the_truenas_app(capsys) -> None:
+    with patch.object(homarr_sync, "API_KEY", ""):
+        assert homarr_sync.main() == 0
+    assert "RECONCILE_SKIPPED" in capsys.readouterr().out + capsys.readouterr().err
+
+
+def test_legacy_token_name_is_accepted_but_flagged() -> None:
+    source = (Path(__file__).resolve().parents[1] / "apps/homarr/sync.py").read_text(encoding="utf-8")
+    assert 'os.getenv("HOMARR_API_KEY") or os.getenv("HOMARR_API_TOKEN")' in source
+    assert "rematerialise HOMARR_API_KEY" in source

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:32a5cc7dbc5e4232a1f134d160868113803ed93cebe00d8bbc04101e457f502c",
+  "catalogRevision": "sha256:e15d15152402930ba87deaa600f5d97c1123999d91046542f53ea7e2d02fc81b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -793,23 +793,6 @@
       }
     },
     {
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "elasticsearch",
-      "runtime": {
-        "provider": "truenas-app",
-        "appId": "elastic-search",
-        "containerService": "elasticsearch",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "🔎"
-    },
-    {
       "id": "fastapi-sample",
       "name": "FastAPI Sample",
       "kind": "api",
@@ -828,7 +811,7 @@
         },
         {
           "name": "staging",
-          "url": "https://sample.albandrieu.com/api",
+          "url": "https://fastapi-sample.albandrieu.com/api",
           "external": true,
           "cloudflareTunnel": true
         }
@@ -1074,15 +1057,23 @@
       "category": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
       "composeService": "homeassistant",
-      "description": "Home automation control plane exposed through the dedicated IoT network.",
+      "description": "Home automation control plane on the TrueNAS bridge network; IoT devices on the pfSense OPT network are reached by explicit address.",
       "presentationRole": "service",
       "criticality": "medium",
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30103/manifest.json",
+        "conditions": [
+          "[STATUS] == 200"
+        ]
+      },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "homeassistant",
         "containerService": "homeassistant",
         "networks": [
           "intranet",
-          "traefik"
+          "traefik_network"
         ]
       }
     },
@@ -1146,7 +1137,7 @@
       "category": "productivity",
       "sourcePath": "apps/joplin/compose.yml",
       "composeService": "joplin",
-      "url": "https://joplin.int.albandrieu.com",
+      "url": "https://joplin.albandrieu.com",
       "internalUrl": "http://joplin:22300",
       "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
       "presentationRole": "service",
@@ -1241,22 +1232,6 @@
           "intranet"
         ]
       }
-    },
-    {
-      "id": "kibana",
-      "name": "Kibana",
-      "kind": "dashboard",
-      "category": "observability",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "kibana",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "kibana",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "📊"
     },
     {
       "id": "langflow",

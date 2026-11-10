@@ -15,6 +15,27 @@ https://fastapi-sample.fastapicloud.dev
 
 Do not reduce all status questions to one endpoint. The API intentionally separates declarations, runtime observation, functional health and external exposure.
 
+## Politique d'expérimentation du homelab
+
+Le laboratoire vise la mise à jour fréquente et l'expérimentation des
+fonctionnalités récentes. **Les interruptions de service sont acceptées**, y
+compris celles des services partagés lors d'une migration. Préférer une
+bascule simple, testable et éventuellement disruptive à une orchestration
+blue/green disproportionnée. Ne pas demander une approbation supplémentaire
+pour une coupure réversible déjà autorisée.
+
+Conserver en revanche la sécurité des secrets, la vérification des droits,
+l'absence d'exposition réseau imprévue et un moyen de restaurer les données
+persistantes qui comptent. Ne pas assimiler tolérance à l'indisponibilité et
+tolérance à la corruption/effacement des données. Les opérations réellement
+destructives doivent être explicitement approuvées.
+
+Pendant un essai TLS 1.3/FIPS/PG18, l'échec d'un client non critique peut être
+accepté et documenté ; laisser une configuration sécurisée en échec fermé au
+lieu de réactiver automatiquement un algorithme ou un transport faible.
+Après chaque changement, rapporter précisément `CODED`, `TESTED`,
+`ACCEPTED`, `FAILED` et `NOT_VERIFIED`.
+
 ## Endpoint map
 
 ### `/api/homelab/status`

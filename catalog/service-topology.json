@@ -817,22 +817,6 @@
       }
     },
     {
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "runtime": {
-        "provider": "truenas-app",
-        "appId": "elastic-search",
-        "containerService": "elasticsearch",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "🔎"
-    },
-    {
       "id": "etcd",
       "name": "etcd",
       "kind": "control-plane-store",
@@ -861,7 +845,7 @@
         },
         {
           "name": "staging",
-          "url": "https://sample.albandrieu.com/api",
+          "url": "https://fastapi-sample.albandrieu.com/api",
           "external": true,
           "cloudflareTunnel": true
         }
@@ -1118,15 +1102,23 @@
       "kind": "home-automation",
       "category": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
-      "description": "Home automation control plane exposed through the dedicated IoT network.",
+      "description": "Home automation control plane on the TrueNAS bridge network; IoT devices on the pfSense OPT network are reached by explicit address.",
       "presentationRole": "service",
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "homeassistant",
         "containerService": "homeassistant",
         "networks": [
           "intranet",
-          "traefik"
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30103/manifest.json",
+        "conditions": [
+          "[STATUS] == 200"
         ]
       }
     },
@@ -1187,7 +1179,7 @@
       "kind": "notes-sync",
       "category": "productivity",
       "sourcePath": "apps/joplin/compose.yml",
-      "url": "https://joplin.int.albandrieu.com",
+      "url": "https://joplin.albandrieu.com",
       "internalUrl": "http://joplin:22300",
       "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
       "presentationRole": "service",
@@ -1279,21 +1271,6 @@
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
       }
-    },
-    {
-      "id": "kibana",
-      "name": "Kibana",
-      "kind": "dashboard",
-      "category": "observability",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "kibana",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "📊"
     },
     {
       "id": "kubernetes",
@@ -3909,16 +3886,6 @@
       ]
     },
     {
-      "source": "elasticsearch",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:elasticsearch.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "etcd",
       "target": "talos",
       "type": "hostedBy",
@@ -3933,9 +3900,9 @@
       "target": "cloudflared",
       "type": "exposedBy",
       "strength": "optional",
-      "description": "The TrueNAS staging endpoint sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.",
+      "description": "The TrueNAS staging endpoint fastapi-sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.",
       "evidence": [
-        "docs/dns-ingress-ownership.md:sample.albandrieu.com",
+        "docs/dns-ingress-ownership.md:fastapi-sample.albandrieu.com",
         "apps/sample/README.md:Cloudflare Access"
       ]
     },
@@ -4325,6 +4292,16 @@
     },
     {
       "source": "joplin",
+      "target": "cloudflared",
+      "type": "exposedBy",
+      "strength": "required",
+      "description": "The shared Cloudflare Tunnel publishes Joplin at joplin.albandrieu.com for remote sync clients.",
+      "evidence": [
+        "terraform/cloudflare/tunnel.tofu:joplin.albandrieu.com"
+      ]
+    },
+    {
+      "source": "joplin",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
@@ -4347,8 +4324,8 @@
       "source": "joplin",
       "target": "traefik",
       "type": "exposedBy",
-      "strength": "required",
-      "description": "Traefik exposes Joplin only through the private joplin.int.albandrieu.com hostname.",
+      "strength": "optional",
+      "description": "Traefik also serves Joplin on the private joplin.int.albandrieu.com hostname.",
       "evidence": [
         "apps/joplin/compose.yml:traefik.http.routers.joplin"
       ]
@@ -4421,26 +4398,6 @@
       "description": "Prometheus scrapes Keycloak metrics from the private management interface.",
       "evidence": [
         "apps/keycloak/compose.yml:KC_METRICS_ENABLED"
-      ]
-    },
-    {
-      "source": "kibana",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:kibana.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "kibana",
-      "target": "elasticsearch",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
       ]
     },
     {

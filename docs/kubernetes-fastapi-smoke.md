@@ -4,7 +4,7 @@ This runbook uses the existing FastAPI Sample application as the explicit
 Kubernetes acceptance workload behind `test.int.albandrieu.com`.
 
 The smoke test is intentionally separate from the TrueNAS deployment behind
-`sample.albandrieu.com`.
+`fastapi-sample.albandrieu.com`.
 
 ## Preconditions
 

@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: "Optional live FastAPI target (for example https://sample.albandrieu.com)"
+        description: "Optional live FastAPI target (for example https://fastapi-sample.albandrieu.com)"
         required: false
         type: string
       allow_http:

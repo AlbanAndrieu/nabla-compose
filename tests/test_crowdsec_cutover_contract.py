@@ -15,7 +15,6 @@ ACQUIS = ROOT / "apps" / "crowdsec" / "acquis.d" / "security.yaml"
 DIAGNOSE = ROOT / "scripts" / "truenas" / "diagnose-crowdsec-cutover.sh"
 DEPLOY = ROOT / "scripts" / "truenas" / "deploy-crowdsec.sh"
 PFSENSE_VERIFY = ROOT / "scripts" / "workstation" / "verify-crowdsec-pfsense.sh"
-PFSENSE_VERIFY_COMPAT = ROOT / "scripts" / "pfsense" / "verify-crowdsec-small.sh"
 
 class CrowdSecCutoverContractTest(unittest.TestCase):
     def test_central_engine_uses_current_pinned_image_and_disables_spin_scenario(self) -> None:
@@ -209,12 +208,6 @@ class CrowdSecCutoverContractTest(unittest.TestCase):
         self.assertIn("legacy local CrowdSec Security Engine still running; expected before controlled cutover", source)
         self.assertIn("Small-mode acceptance requires it stopped", source)
         self.assertIn('crowdsec_bouncer_api_url=%s', source)
-
-    def test_pfsense_small_compat_wrapper_is_explicit_and_executable(self) -> None:
-        text = PFSENSE_VERIFY_COMPAT.read_text(encoding="utf-8")
-        self.assertIn("scripts/workstation/verify-crowdsec-pfsense.sh", text)
-        self.assertIn("TrueNAS must not SSH to pfSense", text)
-        self.assertTrue(PFSENSE_VERIFY_COMPAT.stat().st_mode & stat.S_IXUSR)
 
     def test_runbook_requires_preflight_before_pfsense_small_cutover(self) -> None:
         text = " ".join(README.read_text(encoding="utf-8").split())

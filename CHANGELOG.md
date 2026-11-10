@@ -1,3 +1,88 @@
+# [0.64.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.63.0...0.64.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **zfs,secrets:** light snapshot class for Nexus, Homarr vault import names ([36540b1](https://github.com/AlbanAndrieu/nabla-compose/commit/36540b1835dd1d0a76c06b96ec0ece15bbc3eb49)), closes [#335](https://github.com/AlbanAndrieu/nabla-compose/issues/335)
+* **zfs:** rare snapshots for re-creatable data (Nexus monthly+yearly, bitcoind monthly) ([44ada56](https://github.com/AlbanAndrieu/nabla-compose/commit/44ada56fd6d2662fa87c91267265e6492bb6a4f8))
+
+
+### Features
+
+* **homeassistant:** migrate to Compose custom app and add read-only diagnostics ([a6f589f](https://github.com/AlbanAndrieu/nabla-compose/commit/a6f589f3b29eeeb33470adccd31ea15df27df816))
+
+# [0.63.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.62.0...0.63.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **tests:** let the mocked dig answer for fastapi-sample.albandrieu.com ([9d803b0](https://github.com/AlbanAndrieu/nabla-compose/commit/9d803b0bd41530d859cfee571a04f8d9d0186e5c))
+
+
+### Features
+
+* **openclaw:** provision a scoped LiteLLM key for the coder agent ([10b3cca](https://github.com/AlbanAndrieu/nabla-compose/commit/10b3cca11ed13e2ad6f72f11b943ea477c1926b4))
+* **openclaw:** ship the coder key at 10 EUR per week without restarts ([58db190](https://github.com/AlbanAndrieu/nabla-compose/commit/58db1909e218e10bbd9a396d778073ecf8735028))
+
+# [0.62.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.61.0...0.62.0) (2026-11-10)
+
+
+### Features
+
+* **homelab:** publish Joplin via the tunnel, remove Elasticsearch/Kibana, fix Homarr sync, Keycloak on Talos, observability verifier ([7ad0173](https://github.com/AlbanAndrieu/nabla-compose/commit/7ad0173d165210f6608db1257d6c7c8e6c58948d))
+
+# [0.61.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.2...0.61.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **catalog:** declare fastapi-sample.albandrieu.com as the FastAPI Sample staging hostname ([f3e9a2d](https://github.com/AlbanAndrieu/nabla-compose/commit/f3e9a2d681b1449f28c4b8648afef7f0f28ba9c9)), closes [#333](https://github.com/AlbanAndrieu/nabla-compose/issues/333)
+
+
+### Features
+
+* **homelab:** HA on bridge network, Keycloak as active Custom App, Databasus backup role ([14d12e2](https://github.com/AlbanAndrieu/nabla-compose/commit/14d12e240abb5b42d22568de01e564278f93a726))
+* **keycloak:** nabla realm as code, master realm refused at the edge; HA and observability follow-ups ([b23e92e](https://github.com/AlbanAndrieu/nabla-compose/commit/b23e92e3366fea081629d7744f6502f7bcf43564)), closes [#380](https://github.com/AlbanAndrieu/nabla-compose/issues/380)
+* **observability:** Prometheus jobs for Dependency-Track and NetBox, staged pg_dump databases, startup order for pending Apps ([d8ae22b](https://github.com/AlbanAndrieu/nabla-compose/commit/d8ae22b26ebf14bf1ebe5e38c7fc8f04366a5baa))
+* **postgres-backup:** versioned pg_dump job replacing UI-only Databasus as the backup reference ([8bdadf4](https://github.com/AlbanAndrieu/nabla-compose/commit/8bdadf44f4cf2a3ba170dbe9be43cc46084da205))
+* **secrets:** add value-blind Vaultwarden migration coverage and runtime parity receipt [skip ci] ([243b64a](https://github.com/AlbanAndrieu/nabla-compose/commit/243b64ad5c1d972fe0ab03f05705f5f9e7bbda4a))
+
+## [0.60.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.1...0.60.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **compose:** retain existing DB endpoints with SAN verified TLS [skip ci] ([b0d73ab](https://github.com/AlbanAndrieu/nabla-compose/commit/b0d73ab1c29a57b9d89e7d978c8c1b88fd93098f))
+* **compose:** retain existing DB endpoints with SAN verified TLS [skip ci] ([e639e65](https://github.com/AlbanAndrieu/nabla-compose/commit/e639e655033650319c65a21ccaaa3f5ef39b3d19))
+* **security:** enforce verified PostgreSQL TLS for unused services [skip ci] ([17aa84a](https://github.com/AlbanAndrieu/nabla-compose/commit/17aa84a1f48eb125df14dcc4ae5a0ff706dfd3af))
+* **security:** enforce verified PostgreSQL TLS for unused services [skip ci] ([e20b9fb](https://github.com/AlbanAndrieu/nabla-compose/commit/e20b9fbf40f1fc09f056fb03a3729932399be823))
+
+## [0.60.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.0...0.60.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **truenas:** replay PR [#332](https://github.com/AlbanAndrieu/nabla-compose/issues/332) on current master and reconcile documentation ([8db35d3](https://github.com/AlbanAndrieu/nabla-compose/commit/8db35d355dd90e8b735007a94cb7e07a436647e2))
+
+# [0.60.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.1...0.60.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** allow non-root promtool to read synthetic bearer-token fixtures ([5abc2bc](https://github.com/AlbanAndrieu/nabla-compose/commit/5abc2bc15512ba6635d73098290bd76bfc1d3957))
+* **media:** reconcile Backstage, CycloneDX, Homarr and secret manifests ([e5e6c60](https://github.com/AlbanAndrieu/nabla-compose/commit/e5e6c60304254618efb01c40b9697e3624cfaf69))
+* **media:** reconcile roadmap, Cloudflare, documentation and runtime contracts ([7bdc606](https://github.com/AlbanAndrieu/nabla-compose/commit/7bdc606302f9877c3fb00b7530170e94800278ad))
+* **media:** restore canonical tuple ordering for topology relations ([d5f64a8](https://github.com/AlbanAndrieu/nabla-compose/commit/d5f64a833a1afc69acac7eb038734de02d18751e))
+* **media:** structurally reconcile service catalogs and topology against master ([937dbb7](https://github.com/AlbanAndrieu/nabla-compose/commit/937dbb7203716cd28f1c05aefc4c6f4ad786b331))
+* **media:** synchronize canonical catalog revision after rebase ([b4a7117](https://github.com/AlbanAndrieu/nabla-compose/commit/b4a7117e565119bb099889f2682904a51ad922f4))
+
+
+### Features
+
+* **iac:** manage tunnel DNS records and the media dataset profile as code ([e3a7373](https://github.com/AlbanAndrieu/nabla-compose/commit/e3a7373b22a3f92a9f06402336871771ff09c5f2))
+* **media:** add telemetry and application configuration as code ([a0e1722](https://github.com/AlbanAndrieu/nabla-compose/commit/a0e1722d2459f5933538d6d4644b074aa311ce89))
+* **truenas:** production-readiness matrix and per-App operations dispatcher ([8405845](https://github.com/AlbanAndrieu/nabla-compose/commit/8405845970834ba67b894ab0a97c67262125912d))
+
 ## [0.59.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.59.0...0.59.1) (2026-11-08)
 
 

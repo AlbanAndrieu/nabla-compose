@@ -113,7 +113,7 @@ services:
     environment:
       HOMARR_BASE_URL: http://homarr:7575
       HOMARR_MANIFEST: /config/nabla/apps.json
-      HOMARR_BOARDS_CONFIG: /config/nabla/boards.json
+      HOMARR_BOARDS_CONFIG: /config/boards.json
       HOMARR_SYNC_DRY_RUN: ${HOMARR_SYNC_DRY_RUN:-false}
       # Boards (name, columns, visibility, members) are code-managed in boards.json.
       HOMARR_BOARD_ENABLED: ${HOMARR_BOARD_ENABLED:-true}
@@ -122,7 +122,8 @@ services:
       - /opt/nabla/sync.py
     volumes:
       - ./generated:/config/nabla:ro
-      - ./config/boards.json:/config/nabla/boards.json:ro
+      # Outside the read-only generated mount: runc cannot create a nested mountpoint there.
+      - ./config/boards.json:/config/boards.json:ro
       - ./sync.py:/opt/nabla/sync.py:ro
     networks:
       - intranet

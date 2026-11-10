@@ -30,7 +30,7 @@ from scripts.lib.http_diagnostics import (  # noqa: E402
 from scripts.lib.bounded_subprocess import capture_bounded  # noqa: E402
 UI_TARGETS = {
     'truenas': 'http://172.17.0.24:8091',
-    'staging': 'https://sample.albandrieu.com',
+    'staging': 'https://fastapi-sample.albandrieu.com',
     'cloud': 'https://fastapi-sample.fastapicloud.dev',
 }
 UI_PATHS = ('/api', '/api/ui/session', '/api/ui/services')

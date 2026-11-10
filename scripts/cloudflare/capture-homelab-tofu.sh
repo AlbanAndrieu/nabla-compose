@@ -8,7 +8,7 @@ usage() {
 usage: scripts/cloudflare/capture-homelab-tofu.sh [public-hostname]
 
 Discover the zone, DNS record and the two Access applications (host-wide and
-/api) of <public-hostname> (default: sample.albandrieu.com), write their identifiers to
+/api) of <public-hostname> (default: fastapi-sample.albandrieu.com), write their identifiers to
 terraform/cloudflare/import-ids.auto.tfvars, then let OpenTofu
 generate their live configuration into terraform/cloudflare/generated.tofu.
 

@@ -7,7 +7,7 @@ case "${MODE}" in
   --check|--workstation|--truenas) (( $# <= 1 )) || exit 2 ;;
   *) echo "Usage: $0 [--check|--truenas|--workstation]" >&2; exit 2 ;;
 esac
-PUBLIC_HOST="${SAMPLE_DNS_PUBLIC_HOST:-sample.albandrieu.com}"
+PUBLIC_HOST="${SAMPLE_DNS_PUBLIC_HOST:-fastapi-sample.albandrieu.com}"
 PRIVATE_HOST="${SAMPLE_DNS_PRIVATE_HOST:-sample.int.albandrieu.com}"
 TRUENAS_IP="${SAMPLE_DNS_TRUENAS_IP:-172.17.0.24}"
 PFSENSE_DNS="${SAMPLE_DNS_PFSENSE_IP:-172.17.0.1}"
