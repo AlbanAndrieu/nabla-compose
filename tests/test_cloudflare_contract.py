@@ -37,8 +37,13 @@ class CloudflareContract(unittest.TestCase):
                 imports,
                 rf"to = {re.escape(address)}\n\s*id = {re.escape(import_id)}",
             )
+        # Resources that never existed in the dashboard: created by the module, never imported.
+        created = {"cloudflare_zero_trust_access_application.postgres"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
+            if f"{kind}.{name}" in created:
+                self.assertNotIn(f"to = {kind}.{name}\n", imports)
+                continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
 
     def test_declared_resources_cannot_be_destroyed(self):

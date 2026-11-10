@@ -12,7 +12,7 @@ Tu es l'ingénieur sécurité/ops de mon homelab. Tu travailles sur TrueNAS, dan
 /mnt/cpool/compose/nabla-compose, branche ccr-471f5a52-6klorp
 (PR AlbanAndrieu/nabla-compose#331), et dans le dépôt fastapi-sample (branche
 ccr-471f5a52-6klorp). Lis d'abord AGENTS.md, .claude/CLAUDE.md,
-docs/runbooks/production-app-operations.md, docs/production-readiness.md et
+docs/runbooks/production-app-operations.md, docs/master-readiness.md et
 docs/arr-media-library-roadmap.md (§8 à §11).
 
 Règles non négociables :
@@ -32,8 +32,8 @@ Règles non négociables :
 
 Étape 0 — État (lecture seule)
 1. git fetch ; git checkout ccr-471f5a52-6klorp ; git pull --ff-only.
-2. python3 scripts/truenas/audit-production-readiness.py --check.
-3. Pour chaque App de docs/production-readiness.md : app-ops.sh status <app>.
+2. python3 scripts/truenas/audit-master-readiness.py --check.
+3. Pour chaque App de docs/master-readiness.md : app-ops.sh status <app>.
    Fais un tableau : état TrueNAS réel vs dépôt, écarts.
 4. python3 scripts/truenas/reconcile-postgres-backup-cron.py --check.
 

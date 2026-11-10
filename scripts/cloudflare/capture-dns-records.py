@@ -14,7 +14,7 @@ Classifies every live record against the DNS-as-code contract:
 Only GET requests are sent. CLOUDFLARE_API_TOKEN is read from the environment
 and never printed. Record contents are never printed (A/AAAA may carry the
 home WAN address). ``--write`` stores record identifiers (not secrets) in
-terraform/cloudflare/dns-record-ids.auto.tfvars.json for the import blocks.
+terraform/cloudflare/dns-record-ids.auto.tfvars for the import blocks.
 """
 
 from __future__ import annotations
@@ -96,6 +96,19 @@ def classify(records: list[dict], facts: dict) -> dict:
     }
 
 
+def render_tfvars(maps: dict[str, dict[str, str]]) -> str:
+    """HCL tfvars in `tofu fmt` layout; hostnames like keycloak.* trip secret scanners, hence the marker."""
+    lines: list[str] = []
+    for variable, ids in maps.items():
+        if not ids:
+            lines += [f"{variable} = {{}}", ""]
+            continue
+        width = max(len(json.dumps(key)) for key in ids)
+        body = [f"  {json.dumps(key):<{width}} = {json.dumps(value)} # gitleaks:allow" for key, value in ids.items()]
+        lines += [f"{variable} = {{", *body, "}", ""]
+    return "\n".join(lines[:-1]) + "\n"
+
+
 def api_get(path: str, token: str) -> dict:
     request = urllib.request.Request(
         f"{API}{path}", headers={"Authorization": f"Bearer {token}"}, method="GET"
@@ -121,7 +134,7 @@ def fetch_records(zone_id: str, token: str) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--write", action="store_true", help="write dns-record-ids.auto.tfvars.json")
+    parser.add_argument("--write", action="store_true", help="write dns-record-ids.auto.tfvars")
     parser.add_argument("--json", action="store_true", help="print the redacted report as JSON")
     parser.add_argument("--strict", action="store_true", help="exit 4 on drift, orphans or missing records")
     args = parser.parse_args(argv)
@@ -149,12 +162,12 @@ def main(argv: list[str] | None = None) -> int:
             print("missing tunnel records:", ", ".join(report["missing_tunnel_records"]))
 
     if args.write:
-        target = MODULE / "dns-record-ids.auto.tfvars.json"
+        target = MODULE / "dns-record-ids.auto.tfvars"
         data = {
             "dns_tunnel_record_ids": report["dns_tunnel_record_ids"],
             "dns_retired_record_ids": report["dns_retired_record_ids"],
         }
-        target.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        target.write_text(render_tfvars(data), encoding="utf-8")
         print(f"wrote {target.relative_to(ROOT)}")
 
     drift = any(r["class"] in {"tunnel-drift", "orphan-tunnel", "private-namespace"} for r in report["rows"])

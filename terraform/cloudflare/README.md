@@ -20,6 +20,7 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_dns_record.fastapi_sample` | CNAME proxied vers `<tunnel>.cfargotunnel.com` | Renommage = update in-place (`name` ne force pas de remplacement). |
 | `cloudflare_zero_trust_access_application.fastapi_sample` | Application Access `sample` (tout le hostname) | Politiques `nabla` (allow) et `fastapi-sample-monitor` (jeton de service). Le tag AUD ne change pas : la validation JWT côté FastAPI reste valide. |
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
+| `cloudflare_zero_trust_access_application.postgres` | Application Access `postgres` (route TCP `5432`) | **Créée** par le module (seule exception à l'import-first) : sans elle, tout client `cloudflared access tcp` atteignait PostgreSQL. Politique `nabla` seule. |
 
 Les politiques réutilisables ne contiennent aucun hostname et `nabla` est
 partagée avec d'autres applications : elles restent gérées dans le dashboard,
@@ -181,7 +182,9 @@ explicite ; le script de capture les classe `unmanaged`.
 
    Seuls des `GET` partent ; le contenu des enregistrements n'est jamais affiché
    (un A peut porter l'IP WAN). `--write` met à jour
-   `dns-record-ids.auto.tfvars.json` (identifiants non secrets, à commiter).
+   `dns-record-ids.auto.tfvars` (identifiants non secrets, à commiter ; chaque
+   ligne porte `# gitleaks:allow`, car un nom comme `keycloak.*` déclenche
+   l'heuristique `generic-api-key`).
    Classes à traiter : `tunnel-drift` (le plan le corrigera), `orphan-tunnel`
    (CNAME sans route : l'ajouter à `retired_hostnames`), `private-namespace`
    (dérive `*.int`), `missing` (route sans DNS : `new_tunnel_hostnames`).

@@ -79,3 +79,29 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample_api" {
     prevent_destroy = true
   }
 }
+
+# The tunnel publishes PostgreSQL over TCP: without this app any cloudflared client reaches port 5432.
+resource "cloudflare_zero_trust_access_application" "postgres" {
+  account_id           = var.account_id
+  app_launcher_visible = false
+  destinations = [
+    {
+      type = "public"
+      uri  = "postgres.albandrieu.com"
+    },
+  ]
+  domain = "postgres.albandrieu.com"
+  name   = "postgres"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
