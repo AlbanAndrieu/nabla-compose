@@ -1,3 +1,10 @@
+## [0.66.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.66.0...0.66.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **cloudflare:** stop publishing postgres.albandrieu.com ([ebeeb0c](https://github.com/AlbanAndrieu/nabla-compose/commit/ebeeb0c589679a3ec40b71dc1f229503d7222e82))
+
 # [0.66.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.2...0.66.0) (2026-11-10)
 
 
