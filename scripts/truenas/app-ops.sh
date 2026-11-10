@@ -53,7 +53,7 @@ compose_project_containers() {
 
 action_status() {
   section "Repository contract (${APP_ID})"
-  field '"status=\(.status) deploy=\(.deploy // "none") secrets=\(.secrets)"'
+  field '"status=\(.status) deploy=\(.deploy // "none") env=\(.env_layout)"'
   field '"gaps: \(if (.gaps | length) == 0 then "none" else (.gaps | join(", ")) end)"'
   section "TrueNAS App"
   midclt call app.query "[[\"id\",\"=\",\"${APP_ID}\"]]" |
@@ -70,7 +70,7 @@ action_storage() {
 }
 
 action_secrets() {
-  case "$(field .secrets)" in
+  case "$(field .env_layout)" in
     n/a) info "${APP_ID} declares no runtime env_file"; return 0 ;;
     legacy) fail "${APP_ID} still reads a legacy env_file path: migrate it to /mnt/cpool/secrets/runtime/${APP_ID}/ first" ;;
     unmanaged) fail "${APP_ID} has no entry in config/secrets/manifest.json" ;;

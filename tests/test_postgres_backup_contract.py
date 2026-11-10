@@ -119,9 +119,6 @@ def test_role_bootstrap_is_read_only_and_matches_the_job() -> None:
 
 
 def test_backup_database_list_has_one_value_in_compose_and_role_bootstrap() -> None:
-    import re
-    import yaml
-
     root = Path(__file__).resolve().parents[1]
     compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
     declared = compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]

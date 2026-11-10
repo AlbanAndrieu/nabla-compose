@@ -54,7 +54,7 @@ def context(root: Path = ROOT) -> dict:
     return {
         "classes": classes, "excluded": excluded,
         "profiles": set(profiles.get("datasets", {})),
-        "secret_apps": {item["app"] for item in manifest["items"]},
+        "manifest_apps": {item["app"] for item in manifest["items"]},
         "custom": {e["name"] for e in custom.get("apps") or []},
         "native": set(custom.get("catalog_native") or []),
         "jobs": {job["job_name"] for job in prometheus.get("scrape_configs") or []},
@@ -116,11 +116,11 @@ def row(app: str, ctx: dict, root: Path = ROOT) -> dict:
     canonical = f"/mnt/cpool/secrets/runtime/{app}/"
     legacy = sorted(f for f in env_files if not f.startswith(canonical))
     if not env_files:
-        secrets = "n/a"
+        env_layout = "n/a"
     elif legacy:
-        secrets = "legacy"
+        env_layout = "legacy"
     else:
-        secrets = "manifest" if app in ctx["secret_apps"] else "unmanaged"
+        env_layout = "manifest" if app in ctx["manifest_apps"] else "unmanaged"
 
     # com.albandrieu.nabla.healthcheck declares why a service has no Compose
     # healthcheck; any other value counts as a gap.
@@ -162,9 +162,9 @@ def row(app: str, ctx: dict, root: Path = ROOT) -> dict:
     gaps = []
     if any(v is None for v in snapshot.values()):
         gaps.append("SNAPSHOT_UNCLASSIFIED")
-    if secrets == "legacy":
+    if env_layout == "legacy":
         gaps.append("SECRETS_LEGACY_PATH")
-    if secrets == "unmanaged":
+    if env_layout == "unmanaged":
         gaps.append("SECRETS_NOT_IN_MANIFEST")
     if status == "active" and not monitored:
         gaps.append("NO_AVAILABILITY_PROBE")
@@ -177,7 +177,7 @@ def row(app: str, ctx: dict, root: Path = ROOT) -> dict:
     return {
         "app": app, "status": status, "deploy": deploy, "datasets": datasets, "snapshot": snapshot,
         "profiled": sorted(f"cpool/{r}" for r in roots if r in ctx["profiles"]),
-        "secrets": secrets, "unhealthy": unhealthy, "monitored": monitored, "metrics": metrics,
+        "env_layout": env_layout, "unhealthy": unhealthy, "monitored": monitored, "metrics": metrics,
         "postgres": uses_pg, "db_backup": db_backed, "diagnose": diagnose,
         "config": sorted(set(config)), "gaps": gaps,
     }
@@ -222,7 +222,7 @@ def render(data: list[dict]) -> str:
         datasets = "<br>".join(f"`{ds}` ({d['snapshot'][ds] or '❌'})" for ds in d["datasets"]) or "—"
         db = ("✅ " + ", ".join(d["db_backup"])) if d["db_backup"] else ("❌" if d["postgres"] else "—")
         lines.append("| " + " | ".join([
-            f"`{d['app']}`", d["status"], d["deploy"] or "❌", datasets, d["secrets"],
+            f"`{d['app']}`", d["status"], d["deploy"] or "❌", datasets, d["env_layout"],
             "✅" if d["monitored"] else ("❌" if d["status"] == "active" else "—"),
             ", ".join(d["metrics"]) or "—", db,
             "<br>".join(d["diagnose"]) or "générique", "<br>".join(d["config"]) or "—",
