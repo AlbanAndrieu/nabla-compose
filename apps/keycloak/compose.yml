@@ -44,8 +44,8 @@ services:
       - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro
     environment:
       KC_DB: postgres
-      # Compose interpolation must receive a DNS name present in the PostgreSQL cert SAN.
-      KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:?Set KEYCLOAK_DB_HOST to PostgreSQL certificate DNS name}:5432/keycloak
+      # Override KEYCLOAK_DB_HOST for DNS SAN; default IP requires a matching IP SAN.
+      KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:-172.17.0.24}:5432/keycloak
       KC_DB_TLS_MODE: verify-server
       KC_DB_TLS_TRUST_STORE_FILE: /etc/nabla/pki/postgres-ca.crt
       KC_DB_USERNAME: keycloak
