@@ -39,9 +39,15 @@ services:
     command: ["start"]
     env_file:
       - /mnt/cpool/keycloak/.env.secrets
+    # Public CA certificate, no private key. Fail closed until the PostgreSQL PKI is provisioned.
+    volumes:
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak
+      # Compose interpolation must receive a DNS name present in the PostgreSQL cert SAN.
+      KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:?Set KEYCLOAK_DB_HOST to PostgreSQL certificate DNS name}:5432/keycloak
+      KC_DB_TLS_MODE: verify-server
+      KC_DB_TLS_TRUST_STORE_FILE: /etc/nabla/pki/postgres-ca.crt
       KC_DB_USERNAME: keycloak
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_HOSTNAME: https://keycloak.albandrieu.com
