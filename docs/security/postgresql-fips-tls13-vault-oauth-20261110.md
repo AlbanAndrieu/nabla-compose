@@ -16,8 +16,8 @@ Date : 2026-11-10. Statut : **CODED (documentation) / NOT_VERIFIED (runtime)**. 
 
 | Composant | Indice Git | Risque / statut |
 | --- | --- | --- |
-| Keycloak | `apps/keycloak/compose.yml` image `keycloak:26.7.3`, `KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak` | Pas de `sslmode=verify-full` déclaré dans l'URL ; TLS réel **non vérifié**. Aucune bascule forcée car le certificat serveur et la CA ne sont pas inventoriés. |
-| Plumber | `apps/plumber/compose.yml` : `JOBS_DB_SSLMODE: ${JOBS_DB_SSLMODE:-disable}` | Valeur par défaut **non chiffrée**, à corriger après qualification du client et de la CA. |
+| Keycloak | `apps/keycloak/compose.yml` image `keycloak:26.8.2`, `KC_DB_TLS_MODE=verify-server` et CA PEM en lecture seule | **CODED** : authentification TLS serveur exigée ; **NOT_VERIFIED** : certificat, IP SAN/DNS SAN, TLS réel et déploiement. |
+| Plumber | `apps/plumber/compose.yml` : `JOBS_DB_SSLMODE: verify-full` et `PGSSLROOTCERT` | **CODED** : connexion vérifiée exigée ; **NOT_VERIFIED** : respect de `PGSSLROOTCERT` par le driver backend réel, CA et test runtime. |
 | SonarQube | `apps/sonarqube/compose.yml` : URL JDBC par défaut sans paramètre TLS explicite | Configuration réelle à qualifier ; `verify-full` selon driver JDBC et truststore. |
 | Dependency-Track | `apps/dependency-track/compose.yml` : URL JDBC par défaut sans paramètre TLS explicite | Configuration réelle à qualifier et certificat Java/truststore à valider. |
 | postgres-exporter | `apps/postgres/compose.yml` : DSN dans `/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets` | SSL mode inconnu ; ne jamais lire ou journaliser le mot de passe. |
@@ -51,10 +51,10 @@ accessibles depuis cette PR.
 
 ## Matrice d'acceptation des clients PostgreSQL
 
-- [ ] Keycloak / JDBC : driver, hostname DNS (pas IP hors SAN), truststore, `sslmode=verify-full`, redémarrage et reconnexion après rotation
+- [ ] Keycloak / JDBC : `KC_DB_TLS_MODE=verify-server` (déclaré), `KEYCLOAK_DB_HOST` ou IP avec SAN correspondant, truststore PEM, redémarrage et reconnexion après rotation
 - [ ] SonarQube / JDBC : driver Java et truststore, test TLS 1.3 et SQL applicatif
 - [ ] Dependency-Track / JDBC : driver Java, gestion des migrations
-- [ ] Plumber : `JOBS_DB_SSLMODE` actuellement `disable` par défaut ; vérifier support `verify-full`
+- [ ] Plumber : `JOBS_DB_SSLMODE=verify-full` déclaré ; vérifier respect effectif et chargement de `PGSSLROOTCERT` par le driver
 - [ ] postgres-exporter : DSN runtime expurgé, `sslmode=verify-full`, récupération métriques sans secret
 - [ ] FastAPI Sample et éventuels clients asyncpg/psycopg ; vérifier les chemins réseau réels, les racines de confiance et pool reconnect
 - [ ] LiteLLM, Langfuse, Sentry, n8n, SonarQube, NetBox, Joplin, Home Assistant, Scanopy, DefectDojo : confirmer connexion au PostgreSQL partagé, driver, TLS, extension, protocole de migration et rollback
