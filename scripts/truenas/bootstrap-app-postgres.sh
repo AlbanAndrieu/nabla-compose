@@ -26,7 +26,7 @@ APP="${2:-}"
 RUNTIME_SECRETS_ROOT="${NABLA_RUNTIME_ENV_ROOT:-/mnt/cpool/secrets/runtime}"
 EXPECTED_HOST="${NABLA_POSTGRES_HOST:-172.17.0.24}"
 EXPECTED_PORT="${NABLA_POSTGRES_PORT:-5432}"
-SUPPORTED_APPS="homeassistant joplin scanopy plumber netbox dependency-track defectdojo keycloak"
+SUPPORTED_APPS="homeassistant joplin scanopy plumber netbox dependency-track defectdojo keycloak sample"
 
 usage() {
   printf 'usage: %s [--check|--apply|--describe] <%s>\n' "$0" "${SUPPORTED_APPS// /|}" >&2
@@ -78,6 +78,16 @@ keycloak)
   SECRET_KEY="KC_DB_PASSWORD"
   DB_USER="keycloak"
   DB_NAME="keycloak"
+  ;;
+sample)
+  # FastAPI Sample staging: dedicated role/database instead of the `postgres`
+  # database. The TrueNAS App keeps its id; its runtime directory is
+  # /mnt/cpool/secrets/runtime/fastapisample. POSTGRES_PASSWORD must be the new
+  # role's own password, never the PostgreSQL administrator's.
+  SECRETS_FILE="${RUNTIME_SECRETS_ROOT}/fastapisample/.env.secrets"
+  SECRET_KEY="POSTGRES_PASSWORD"
+  DB_USER="fastapisample"
+  DB_NAME="fastapisample"
   ;;
 *) fail "unsupported app: ${APP} (supported: ${SUPPORTED_APPS})" ;;
 esac

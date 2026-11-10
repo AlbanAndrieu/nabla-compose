@@ -19,6 +19,14 @@ ROLE = ROOT / "scripts" / "truenas" / "bootstrap-postgres-backup-role.sh"
 SERVER_IMAGE = "postgres:18.6-trixie@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6"
 
 
+def load_cron():
+    spec = importlib.util.spec_from_file_location("reconcile_postgres_backup_cron", CRON)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 def _service() -> dict:
     return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]["postgres-backup"]
 
@@ -56,9 +64,9 @@ def test_backup_script_verifies_prunes_and_keeps_the_password_off_argv() -> None
     assert "-mtime +\"${KEEP_DAYS}\"" in script
     # Only a successful complete wave may prune older recovery archives.
     assert script.index("if ((failures == 0)); then") < script.index(
-        'find "${BACKUP_DIR}" -type f'
+        'find "${target_dir}" -type f'
     )
-    assert ".last-success.json" in script
+    assert 'marker="${BACKUP_DIR}/.last-success${SERIES:+-${SERIES}}.json"' in script
     assert re.search(r"\[\[ \"\$\{database\}\" =~ \^\[a-z\]", script)
 
 
@@ -119,12 +127,58 @@ def test_role_bootstrap_is_read_only_and_matches_the_job() -> None:
 
 
 def test_backup_database_list_has_one_value_in_compose_and_role_bootstrap() -> None:
-    import re
-    import yaml
-
     root = Path(__file__).resolve().parents[1]
     compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
     declared = compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]
     script = (root / "scripts/truenas/bootstrap-postgres-backup-role.sh").read_text(encoding="utf-8")
     role_default = re.search(r'POSTGRES_BACKUP_DATABASES:-([^}"]+)\}', script).group(1)
     assert declared.split() == role_default.split()
+
+
+def test_sentry_is_archived_monthly_and_yearly_never_daily() -> None:
+    module = load_cron()
+    root = Path(__file__).resolve().parents[1]
+    compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
+    assert "sentry" not in compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"].split()
+    assert module.JOBS["daily"]["command"].endswith("--profile manual run --rm --no-deps postgres-backup")
+    monthly, yearly = module.JOBS["sentry-monthly"], module.JOBS["sentry-yearly"]
+    assert monthly["schedule"]["dom"] == "1" and monthly["schedule"]["month"] == "*"
+    assert yearly["schedule"]["month"] == "1"
+    for spec, series in ((monthly, "monthly"), (yearly, "yearly")):
+        assert spec["enabled"] is False
+        assert f"-e BACKUP_DATABASES=sentry -e BACKUP_SERIES={series}" in spec["command"]
+    script = (root / "scripts/truenas/bootstrap-postgres-backup-role.sh").read_text(encoding="utf-8")
+    assert 'POSTGRES_BACKUP_ARCHIVE_DATABASES:-sentry}' in script
+
+
+def test_daily_prune_never_touches_archive_series(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "psql").write_text("#!/bin/sh\necho 1\n", encoding="utf-8")
+    (fake_bin / "pg_dump").write_text(
+        '#!/bin/sh\nfor a in "$@"; do case "$a" in --file=*) : > "${a#--file=}";; esac; done\n',
+        encoding="utf-8")
+    (fake_bin / "pg_restore").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    for tool in fake_bin.iterdir():
+        tool.chmod(0o755)
+    backups = tmp_path / "backups"
+    archive = backups / "sentry-monthly"
+    archive.mkdir(parents=True)
+    old_archive = archive / "sentry-20250101T000000Z.dump"
+    old_archive.write_text("", encoding="utf-8")
+    os.utime(old_archive, (1, 1))
+    env = {
+        **os.environ,
+        "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
+        "POSTGRES_HOST": "127.0.0.1",
+        "POSTGRES_USER": "pgbackup",
+        "POSTGRES_PASSWORD": f"test-fixture-{os.getpid()}",
+        "BACKUP_DATABASES": "keycloak",
+        "BACKUP_DIR": str(backups),
+    }
+    result = subprocess.run(["bash", str(SCRIPT)], env=env, capture_output=True,
+                            text=True, check=False, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert old_archive.exists(), "the daily wave must not prune the monthly Sentry archive"
+    assert (backups / ".last-success.json").exists()
+    assert list((backups / "keycloak").glob("keycloak-*.dump"))

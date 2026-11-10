@@ -108,7 +108,7 @@ def inspect_declared(sources: dict[str, str | None]) -> dict[str, str]:
     bridge = (
         "LITELLM_URL: http://172.17.0.24:4000" in sample
         and "DEFAULT_CHAT_MODEL: fastapi-qwen" in sample
-        and "/mnt/cpool/secrets/runtime/sample/.env.secrets" in sample
+        and "/mnt/cpool/secrets/runtime/fastapisample/.env.secrets" in sample
         and "      intranet: {}" in sample
     )
     upstream = (

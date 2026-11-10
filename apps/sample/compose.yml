@@ -51,7 +51,7 @@ services:
           strength: optional
           description: FastAPI Sample uses the shared Redis service for L2 probe caches and runtime heartbeat aggregation.
           evidence:
-            - apps/sample/compose.yml:/mnt/cpool/secrets/runtime/sample/.env.secrets:REDIS_URL
+            - apps/sample/compose.yml:/mnt/cpool/secrets/runtime/fastapisample/.env.secrets:REDIS_URL
         - target: litellm
           type: routesTo
           strength: optional
@@ -89,8 +89,8 @@ services:
     # PostgreSQL/Supabase, pfSense, TrueNAS and other optional provider settings
     # can be supplied through the same files without duplicating secrets here.
     env_file:
-      - /mnt/cpool/secrets/runtime/sample/.env
-      - /mnt/cpool/secrets/runtime/sample/.env.secrets
+      - /mnt/cpool/secrets/runtime/fastapisample/.env
+      - /mnt/cpool/secrets/runtime/fastapisample/.env.secrets
 
     environment:
       FASTAPI_ENV: production

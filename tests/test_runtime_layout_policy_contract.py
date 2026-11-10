@@ -116,8 +116,8 @@ def test_value_blind_env_inventory_classifies_secret_risk() -> None:
 def test_sample_uses_canonical_runtime_env_files() -> None:
     compose = (ROOT / "apps" / "sample" / "compose.yml").read_text(encoding="utf-8")
 
-    assert "/mnt/cpool/secrets/runtime/sample/.env" in compose
-    assert "/mnt/cpool/secrets/runtime/sample/.env.secrets" in compose
+    assert "/mnt/cpool/secrets/runtime/fastapisample/.env" in compose
+    assert "/mnt/cpool/secrets/runtime/fastapisample/.env.secrets" in compose
     assert "/mnt/cpool/sample/.env" not in compose
     assert "/mnt/cpool/sample/.env.secrets" not in compose
     assert 'MCP_OPS_REQUIRE_KEY: "true"' in compose
@@ -257,6 +257,10 @@ def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
         "clickhouse",
         "litellm",
         "sentry-clickhouse",
+        # Owner decision 2026-11-10: the runtime directory of the `sample` App is
+        # /mnt/cpool/secrets/runtime/fastapisample. Remove once the TrueNAS App
+        # itself is renamed `fastapisample` (docs/roadmap.md).
+        "sample",
     }
     observed_legacy: set[str] = set()
 

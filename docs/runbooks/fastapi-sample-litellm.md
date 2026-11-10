@@ -46,7 +46,7 @@ LiteLLM **master key** as `LITELLM_API_KEY`.
 | Mode du provisionneur | `--target truenas --native-truenas` | `--target workstation` |
 | Fichier transitoire (0600, dossier 0700) | `~/.local/share/nabla-compose/fastapi-litellm/truenas.key` (opérateur TrueNAS) | `~/.local/share/nabla-compose/fastapi-litellm/workstation.key` (Workstation) |
 | Vaultwarden (dossier `TrueNAS`, champ masqué) | `nabla/prod/sample-litellm` → `LITELLM_API_KEY` | `nabla/prod/litellm` → `LITELLM_FASTAPI_WORKSTATION_API_KEY` |
-| Consommateur runtime | `/mnt/cpool/secrets/runtime/sample/.env.secrets` | `/mnt/cpool/secrets/runtime/litellm/.env.secrets` |
+| Consommateur runtime | `/mnt/cpool/secrets/runtime/fastapisample/.env.secrets` | `/mnt/cpool/secrets/runtime/litellm/.env.secrets` |
 
 Une clé `fastapi-sample-staging` créée dans TrueNAS ne rend **pas** la
 route `fastapi-qwen` disponible tant que

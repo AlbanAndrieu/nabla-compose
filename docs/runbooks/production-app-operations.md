@@ -32,6 +32,16 @@ L'état de chaque App est dans la matrice générée
 Les snapshots périodiques se convergent avec
 `scripts/truenas/reconcile-snapshot-tasks.sh` (`config/truenas/snapshot-tasks.json`).
 La sauvegarde logique planifiée se règle avec `scripts/truenas/reconcile-postgres-backup-cron.py`.
+Il gère trois tâches, toutes enregistrées désactivées :
+
+| Tâche | Bases | Planification | Rétention |
+| --- | --- | --- | --- |
+| quotidienne | `BACKUP_DATABASES` du Compose | chaque jour à 03:20 | 14 jours |
+| `sentry-monthly` | `sentry` | le 1er du mois à 04:20 | 370 jours |
+| `sentry-yearly` | `sentry` | le 2 janvier à 05:20 | 1100 jours |
+
+Sentry est exclu de la vague quotidienne : son nodestore est volumineux.
+Chaque série écrit dans `<base>-<série>/` et ne purge que ses propres répertoires.
 
 ## Exploitation courante
 

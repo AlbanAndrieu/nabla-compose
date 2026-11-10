@@ -48,6 +48,7 @@ the rest in git history.
 - [Talos and TrueNAS batch upgrade](./runbooks/2026-10-23-fast-batch-migration.md)
 - [Operator tools and TrueNAS upgrade coupling](./truenas-operator-tools.md)
 - [Deployment automation](./truenas-deployment-automation.md)
+- [Prompt de déploiement pour une session Claude sur TrueNAS](runbooks/claude-remote-truenas-rollout-prompt.md) : ordre complet, ProtonVPN en dernière étape.
 - [Opérations de production des Apps TrueNAS](runbooks/production-app-operations.md) : `app-ops.sh` (état, stockage, secrets, déploiement, redémarrage, diagnostic, supervision, sauvegarde) et [matrice générée](production-readiness.md).
 - [Service resource inventory](./runbooks/2026-10-26-homelab-service-resource-inventory.md)
 - [CSI orphan datasets](./truenas-csi-orphan-datasets.md)
