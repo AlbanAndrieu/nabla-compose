@@ -37,8 +37,16 @@ class CloudflareContract(unittest.TestCase):
                 imports,
                 rf"to = {re.escape(address)}\n\s*id = {re.escape(import_id)}",
             )
+        # Resources that never existed in the dashboard: created by the module, never imported.
+        created = {
+            f"cloudflare_zero_trust_access_application.{name}"
+            for name in ("keycloak_oidc", "joplin")
+        }
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
+            if f"{kind}.{name}" in created:
+                self.assertNotIn(f"to = {kind}.{name}\n", imports)
+                continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
 
     def test_postgres_is_not_published(self):
@@ -55,6 +63,12 @@ class CloudflareContract(unittest.TestCase):
             len(re.findall(r'^resource "', source, re.MULTILINE)),
             source.count("prevent_destroy = true"),
         )
+
+    def test_keycloak_bypass_never_covers_the_master_realm(self):
+        source = (TF / "access.tofu").read_text(encoding="utf-8")
+        block = source.split('"keycloak_oidc"', 1)[1].split("\nresource ", 1)[0]
+        self.assertIn("access_policy_everyone_bypass_id", block)
+        self.assertNotRegex(block, r'uri\s*=\s*"keycloak\.albandrieu\.com(/realms/master)?/?"')
 
     def test_terragrunt_inherits_private_garage_state(self):
         source = (ROOT / "infrastructure/cloudflare/terragrunt.hcl").read_text()

@@ -20,6 +20,8 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_dns_record.fastapi_sample` | CNAME proxied vers `<tunnel>.cfargotunnel.com` | Renommage = update in-place (`name` ne force pas de remplacement). |
 | `cloudflare_zero_trust_access_application.fastapi_sample` | Application Access `sample` (tout le hostname) | Politiques `nabla` (allow) et `fastapi-sample-monitor` (jeton de service). Le tag AUD ne change pas : la validation JWT côté FastAPI reste valide. |
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
+| `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. |
+| `cloudflare_zero_trust_access_application.joplin` | Application Access `joplin` (tout le hostname) | **Créée**. `Everyone bypass` : les clients de synchronisation ne savent pas passer un login Access ; l'authentification Joplin protège le serveur. |
 
 Les politiques réutilisables ne contiennent aucun hostname et `nabla` est
 partagée avec d'autres applications : elles restent gérées dans le dashboard,
