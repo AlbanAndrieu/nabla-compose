@@ -154,16 +154,16 @@ action_backup() {
   section "Logical PostgreSQL backup"
   mapfile -t databases < <(field '.db_backup[]')
   if ((${#databases[@]} == 0)); then
-    info "no database of ${APP_ID} is in the postgres-backup list"
+    info "no database of ${APP_ID} is in the postgresbackup list"
     return 0
   fi
   for database in "${databases[@]}"; do
     if require_approval; then
-      docker compose --project-directory apps/postgres-backup --file apps/postgres-backup/compose.yml \
+      docker compose --project-directory apps/postgresbackup --file apps/postgresbackup/compose.yml \
         --profile manual run --rm --no-deps \
-        -e "BACKUP_DATABASES=${database}" -e BACKUP_REQUIRE_ALL=true postgres-backup
+        -e "BACKUP_DATABASES=${database}" -e BACKUP_REQUIRE_ALL=true postgresbackup
     else
-      printf 'PLAN: pg_dump %s through apps/postgres-backup (one-off, BACKUP_REQUIRE_ALL=true)\n' "${database}"
+      printf 'PLAN: pg_dump %s through apps/postgresbackup (one-off, BACKUP_REQUIRE_ALL=true)\n' "${database}"
     fi
   done
 }

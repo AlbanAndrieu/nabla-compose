@@ -28,7 +28,7 @@ REPORT = ROOT / "docs" / "master-readiness.md"
 MOUNT_RE = re.compile(r"^/mnt/cpool/([A-Za-z0-9._-]+)")
 DB_KEYS = re.compile(r"(^|_)(POSTGRES_DB|POSTGRES_DATABASE|POSTGRESDB_DATABASE|DB_NAME|DATABASE_NAME)$")
 DB_URL_RE = re.compile(r"postgres(?:ql)?://[^/\s]+/([A-Za-z0-9_]+)")
-DB_SERVERS = {"postgres", "postgres-backup"}
+DB_SERVERS = {"postgres", "postgresbackup"}
 DEFAULT_RE = re.compile(r"^\$\{[A-Z0-9_]+:-([^}]+)\}$")
 # image: the image ships a Dockerfile HEALTHCHECK; prometheus-up: an exporter
 # whose liveness is the Prometheus `up` series; scheduled-job: no listener.
@@ -48,10 +48,10 @@ def context(root: Path = ROOT) -> dict:
     manifest = json.loads((root / "config/secrets/manifest.json").read_text(encoding="utf-8"))
     custom = load_yaml(root / "config/truenas/custom-apps.yml")
     prometheus = load_yaml(root / "apps/prometheus/prometheus.yml")
-    backup = load_yaml(root / "apps/postgres-backup/compose.yml")
-    databases = set(str(backup["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]).split())
+    backup = load_yaml(root / "apps/postgresbackup/compose.yml")
+    databases = set(str(backup["services"]["postgresbackup"]["environment"]["BACKUP_DATABASES"]).split())
     # Monthly/yearly archive jobs (e.g. Sentry) dump outside the daily wave.
-    cron = (root / "scripts/truenas/reconcile-postgres-backup-cron.py").read_text(encoding="utf-8")
+    cron = (root / "scripts/truenas/reconcile-postgresbackup-cron.py").read_text(encoding="utf-8")
     databases |= set(re.findall(r"BACKUP_DATABASES=([a-z][a-z0-9_]*)", cron))
     # Databases whose name is not in the Compose file (runtime env only) are
     # declared in the shared-PostgreSQL bootstrap table.

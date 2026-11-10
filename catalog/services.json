@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:83dc8438a953f700e6166a05888898e52d237b788f475a2f3e49c5b858a911dd",
+  "catalogRevision": "sha256:07a639542aa7fe1375d90c83a8e6c7794e8e2b86da1fe124a254629215fcd776",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2117,27 +2117,6 @@
       }
     },
     {
-      "id": "postgres-backup",
-      "name": "PostgreSQL Backup",
-      "kind": "database-backup",
-      "category": "data",
-      "sourcePath": "apps/postgres-backup/compose.yml",
-      "composeService": "postgres-backup",
-      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
-      "presentationRole": "support",
-      "criticality": "high",
-      "lifecycle": {
-        "phase": "platform-services",
-        "priority": 40
-      },
-      "runtime": {
-        "provider": "host",
-        "networks": [
-          "intranet"
-        ]
-      }
-    },
-    {
       "id": "postgres-exporter",
       "name": "PostgreSQL Exporter",
       "kind": "metrics-exporter",
@@ -2157,6 +2136,27 @@
         "containerService": "postgres_exporter",
         "networks": [
           "default"
+        ]
+      }
+    },
+    {
+      "id": "postgresbackup",
+      "name": "PostgreSQL Backup",
+      "kind": "database-backup",
+      "category": "data",
+      "sourcePath": "apps/postgresbackup/compose.yml",
+      "composeService": "postgresbackup",
+      "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified with pg_restore --list and pruned by age.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "host",
+        "networks": [
+          "intranet"
         ]
       }
     },

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:0cdbdeedb239da9849a90540d61caaac83fbc3dff8a03d550192ea5f859afe3f",
+  "catalogRevision": "sha256:ca6ece0ad24d11f4066acada14291530ff5898fa4e3eb4fa113d02dd9c885ab8",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3288,54 +3288,6 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/postgres-backup",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/bia-impact-confidentiality": "medium",
-          "albandrieu.com/bia-impact-customer": "low",
-          "albandrieu.com/bia-impact-financial": "low",
-          "albandrieu.com/bia-impact-integrity": "high",
-          "albandrieu.com/bia-impact-legal-regulatory": "low",
-          "albandrieu.com/bia-impact-operational": "medium",
-          "albandrieu.com/bia-impact-privacy": "medium",
-          "albandrieu.com/bia-impact-reputation": "low",
-          "albandrieu.com/bia-mbco": "zfs-snapshots-of-cpool-backup-and-the-last-verified-dump-remain-restorable",
-          "albandrieu.com/bia-mtpd": "P7D",
-          "albandrieu.com/bia-reviewed-at": "2026-11-07",
-          "albandrieu.com/bia-rpo": "P1D",
-          "albandrieu.com/bia-rto": "P1D",
-          "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-backup/",
-          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
-        },
-        "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.",
-        "labels": {
-          "albandrieu.com/bia-scope": "direct",
-          "albandrieu.com/business-criticality": "high",
-          "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "postgres-backup",
-        "tags": [
-          "data",
-          "backup"
-        ],
-        "title": "PostgreSQL Backup"
-      },
-      "sourcePath": "apps/postgres-backup/catalog-info.yaml",
-      "spec": {
-        "dependsOn": [
-          "resource:default/postgresql"
-        ],
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "job"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/postgres-exporter",
       "kind": "Component",
       "metadata": {
@@ -3378,6 +3330,54 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/postgresbackup",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "high",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-impact-privacy": "medium",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "zfs-snapshots-of-cpool-backup-and-the-last-verified-dump-remain-restorable",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-07",
+          "albandrieu.com/bia-rpo": "P1D",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgresbackup/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Scheduled logical pg_dump backups of the shared PostgreSQL databases, verified and pruned by age.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "postgresbackup",
+        "tags": [
+          "data",
+          "backup"
+        ],
+        "title": "PostgreSQL Backup"
+      },
+      "sourcePath": "apps/postgresbackup/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/postgresql"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "job"
       }
     },
     {

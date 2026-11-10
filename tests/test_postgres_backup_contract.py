@@ -11,10 +11,10 @@ import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSE = ROOT / "apps" / "postgres-backup" / "compose.yml"
-SCRIPT = ROOT / "apps" / "postgres-backup" / "backup.sh"
-CRON = ROOT / "scripts" / "truenas" / "reconcile-postgres-backup-cron.py"
-ROLE = ROOT / "scripts" / "truenas" / "bootstrap-postgres-backup-role.sh"
+COMPOSE = ROOT / "apps" / "postgresbackup" / "compose.yml"
+SCRIPT = ROOT / "apps" / "postgresbackup" / "backup.sh"
+CRON = ROOT / "scripts" / "truenas" / "reconcile-postgresbackup-cron.py"
+ROLE = ROOT / "scripts" / "truenas" / "bootstrap-postgresbackup-role.sh"
 # Shared TrueNAS PostgreSQL server image observed on 2026-11-06 (app `postgres`).
 SERVER_IMAGE = "postgres:18.6-trixie@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6"
 
@@ -28,7 +28,7 @@ def load_cron():
 
 
 def _service() -> dict:
-    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]["postgres-backup"]
+    return yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]["postgresbackup"]
 
 
 def test_job_uses_the_server_image_digest_and_never_starts_a_server() -> None:
@@ -43,7 +43,7 @@ def test_job_uses_the_server_image_digest_and_never_starts_a_server() -> None:
 def test_job_is_hardened_and_uses_canonical_runtime_secret() -> None:
     service = _service()
 
-    assert service["env_file"] == ["/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets"]
+    assert service["env_file"] == ["/mnt/cpool/secrets/runtime/postgresbackup/.env.secrets"]
     assert service["read_only"] is True
     assert "ALL" in service["cap_drop"]
     assert "no-new-privileges:true" in service["security_opt"]
@@ -109,8 +109,8 @@ def test_cron_reconciler_registers_disabled_and_gates_enable() -> None:
 
     assert module.JOB["enabled"] is False
     assert module.JOB["user"] == "root"
-    assert "--profile manual run --rm --no-deps postgres-backup" in module.JOB["command"]
-    assert "/mnt/cpool/compose/nabla-compose/apps/postgres-backup" in module.JOB["command"]
+    assert "--profile manual run --rm --no-deps postgresbackup" in module.JOB["command"]
+    assert "/mnt/cpool/compose/nabla-compose/apps/postgresbackup" in module.JOB["command"]
     source = CRON.read_text(encoding="utf-8")
     assert "POSTGRES_BACKUP_CRON_APPROVED" in source
     assert "refuse mutation" in source
@@ -120,7 +120,7 @@ def test_role_bootstrap_is_read_only_and_matches_the_job() -> None:
     script = ROLE.read_text(encoding="utf-8")
 
     assert 'MODE="${1:---check}"' in script
-    assert "/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets" in script
+    assert "/mnt/cpool/secrets/runtime/postgresbackup/.env.secrets" in script
     assert ":-pgbackup}" in script
     assert "LOGIN NOREPLICATION" in script and "pg_read_all_data" in script
     assert "REPLICATION PASSWORD" not in script.replace("NOREPLICATION", "")
@@ -128,9 +128,9 @@ def test_role_bootstrap_is_read_only_and_matches_the_job() -> None:
 
 def test_backup_database_list_has_one_value_in_compose_and_role_bootstrap() -> None:
     root = Path(__file__).resolve().parents[1]
-    compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
-    declared = compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]
-    script = (root / "scripts/truenas/bootstrap-postgres-backup-role.sh").read_text(encoding="utf-8")
+    compose = yaml.safe_load((root / "apps/postgresbackup/compose.yml").read_text(encoding="utf-8"))
+    declared = compose["services"]["postgresbackup"]["environment"]["BACKUP_DATABASES"]
+    script = (root / "scripts/truenas/bootstrap-postgresbackup-role.sh").read_text(encoding="utf-8")
     role_default = re.search(r'POSTGRES_BACKUP_DATABASES:-([^}"]+)\}', script).group(1)
     assert declared.split() == role_default.split()
 
@@ -138,16 +138,16 @@ def test_backup_database_list_has_one_value_in_compose_and_role_bootstrap() -> N
 def test_sentry_is_archived_monthly_and_yearly_never_daily() -> None:
     module = load_cron()
     root = Path(__file__).resolve().parents[1]
-    compose = yaml.safe_load((root / "apps/postgres-backup/compose.yml").read_text(encoding="utf-8"))
-    assert "sentry" not in compose["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"].split()
-    assert module.JOBS["daily"]["command"].endswith("--profile manual run --rm --no-deps postgres-backup")
+    compose = yaml.safe_load((root / "apps/postgresbackup/compose.yml").read_text(encoding="utf-8"))
+    assert "sentry" not in compose["services"]["postgresbackup"]["environment"]["BACKUP_DATABASES"].split()
+    assert module.JOBS["daily"]["command"].endswith("--profile manual run --rm --no-deps postgresbackup")
     monthly, yearly = module.JOBS["sentry-monthly"], module.JOBS["sentry-yearly"]
     assert monthly["schedule"]["dom"] == "1" and monthly["schedule"]["month"] == "*"
     assert yearly["schedule"]["month"] == "1"
     for spec, series in ((monthly, "monthly"), (yearly, "yearly")):
         assert spec["enabled"] is False
         assert f"-e BACKUP_DATABASES=sentry -e BACKUP_SERIES={series}" in spec["command"]
-    script = (root / "scripts/truenas/bootstrap-postgres-backup-role.sh").read_text(encoding="utf-8")
+    script = (root / "scripts/truenas/bootstrap-postgresbackup-role.sh").read_text(encoding="utf-8")
     assert 'POSTGRES_BACKUP_ARCHIVE_DATABASES:-sentry}' in script
 
 

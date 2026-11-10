@@ -68,7 +68,7 @@ Constat : rien n'alimente `defectdojo` ; Dependency-Track n'est pas déployé.
 
 ## 5. Données : sauvegardes et dépendances PostgreSQL
 
-- **Existant :** 16 services déclarent PostgreSQL ; `apps/postgres-backup`
+- **Existant :** 16 services déclarent PostgreSQL ; `apps/postgresbackup`
   sauvegarde `keycloak`, `joplin`, `homeassistant`, `netbox`, `dependencytrack`,
   `scanopy` et `jobs` (Plumber) ; les bases absentes sont ignorées (`SKIP`)
   jusqu'à leur création.

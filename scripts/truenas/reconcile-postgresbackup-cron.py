@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconcile the native TrueNAS cron jobs that run apps/postgres-backup.
+"""Reconcile the native TrueNAS cron jobs that run apps/postgresbackup.
 
 Three owned jobs: the daily wave (BACKUP_DATABASES of the Compose, 14 days),
 and the Sentry archives, monthly (kept 12 months) and yearly (kept 3 years).
@@ -20,9 +20,9 @@ import os
 from pathlib import Path
 import subprocess
 
-NAME = "nabla-postgres-backup"
+NAME = "nabla-postgresbackup"
 CHECKOUT = Path("/mnt/cpool/compose/nabla-compose")
-APP_DIR = CHECKOUT / "apps" / "postgres-backup"
+APP_DIR = CHECKOUT / "apps" / "postgresbackup"
 BASE_COMMAND = (
     "/usr/bin/docker compose "
     f"--project-directory {APP_DIR} "
@@ -39,7 +39,7 @@ def job(name: str, schedule: dict[str, str], overrides: str = "") -> dict:
         "stdout": True,
         "stderr": True,
         "schedule": {"minute": "20", "hour": "03", "dom": "*", "month": "*", "dow": "*", **schedule},
-        "command": f"{BASE_COMMAND}{overrides} postgres-backup",
+        "command": f"{BASE_COMMAND}{overrides} postgresbackup",
     }
 
 
@@ -89,7 +89,7 @@ def require_environment() -> None:
     if os.geteuid() != 0 or CHECKOUT.is_symlink() or not CHECKOUT.is_dir():
         raise RuntimeError("must run as root on canonical TrueNAS checkout")
     if not (APP_DIR / "compose.yml").is_file() or not (APP_DIR / "backup.sh").is_file():
-        raise RuntimeError("apps/postgres-backup is incomplete in the canonical checkout")
+        raise RuntimeError("apps/postgresbackup is incomplete in the canonical checkout")
 
 
 def reconcile(spec: dict, args: argparse.Namespace) -> None:
