@@ -1,3 +1,22 @@
+# [0.67.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.66.1...0.67.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **kafka:** reap zombies in the exporter container too ([92cdf9d](https://github.com/AlbanAndrieu/nabla-compose/commit/92cdf9d9c1acc3b5d77e8ca7d1e4278f468a0dee))
+* **monitoring:** pause local Grafana alert evaluation ([5bc64b9](https://github.com/AlbanAndrieu/nabla-compose/commit/5bc64b99db622774d1052e324cbd1c624c48029d))
+* **sample:** connect with sslmode=prefer while PostgreSQL TLS is off ([b773cc5](https://github.com/AlbanAndrieu/nabla-compose/commit/b773cc56cf49fdd2d32da84f1aaffc18661c733d))
+* **scanopy:** pin server and daemon to v0.19.5 by digest ([4441992](https://github.com/AlbanAndrieu/nabla-compose/commit/44419922781a442e2d996e381d49590721cccc98))
+* **secrets:** fail closed instead of public default passwords ([9fa9b79](https://github.com/AlbanAndrieu/nabla-compose/commit/9fa9b798b4cc56826b5a0e95ac89aa16755963bb))
+* **truenas:** count only repository-owned Apps in the readiness report ([f4e3b05](https://github.com/AlbanAndrieu/nabla-compose/commit/f4e3b05233ab652c0e84a34caa392e30dede1e72))
+
+
+### Features
+
+* **cloudflare:** bypass Access for the Keycloak nabla realm and Joplin ([30474d5](https://github.com/AlbanAndrieu/nabla-compose/commit/30474d50603dff60726fea0f4a32636b62c81ee9))
+* **cloudflare:** keep Vaultwarden /admin behind the nabla Access policy ([9bae623](https://github.com/AlbanAndrieu/nabla-compose/commit/9bae6237a211a0de92bff155712dca18e43e339a))
+* **secrets:** declare ten legacy-path services in the manifest ([363b1eb](https://github.com/AlbanAndrieu/nabla-compose/commit/363b1ebc409167f53722e5d135bfc1625a1251f3))
+
 ## [0.66.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.66.0...0.66.1) (2026-11-10)
 
 
