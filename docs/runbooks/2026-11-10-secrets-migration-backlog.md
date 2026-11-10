@@ -14,7 +14,9 @@ Le manifeste fait foi : déclarer les clés avant tout import, puis importer
 Nouveaux noms : sans tiret (`postgresbackup`, `fastapisample`).
 
 Bilan : 17 faits, 3 à importer,
-15 à déclarer puis importer, 32 à créer au déploiement.
+15 à déclarer puis importer, 32 à créer au déploiement. Mise à jour du soir :
+10 des 15 services de la section 3 sont déclarés et importés (voir cette
+section) ; restent `garage`, `openclaw`, `sentry`, `traefik` et `npmplus`.
 
 ## 1. Faits (item présent)
 
@@ -62,6 +64,16 @@ vide : secret à créer au déploiement), `hermes` (secrets hors
 | `scanopy` | `.env.secrets` | — | `POSTGRES_PASSWORD`, `SCANOPY_DATABASE_URL` |
 
 ## 3. À déclarer dans le manifeste, puis importer
+
+**Fait le 10/11 au soir** pour `bichon`, `clickhouse`, `graylog`, `langflow`,
+`mongo`, `nexus`, `ollama`, `pihole`, `redis` et `sentry-clickhouse` : copies
+runtime identiques (empreintes) aux anciens fichiers `/mnt/cpool/<service>/`
+encore lus par le Compose, items `nabla/prod/<app>` créés, parité vérifiée.
+Hors manifeste : `FTLCONF_webserver_api_password` de Pi-hole (nom en
+minuscules refusé par le schéma), égal à `PIHOLE_PASSWORD`, et les clés non
+secrètes (`CLICKHOUSE_VERSION`). Prochaine étape pour ces dix services : faire
+lire au Compose `/mnt/cpool/secrets/runtime/<service>/`, puis retirer l'ancien
+fichier.
 
 | Service | Fichiers | Clés runtime |
 | --- | --- | --- |
