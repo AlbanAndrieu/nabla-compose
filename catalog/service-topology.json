@@ -1102,15 +1102,23 @@
       "kind": "home-automation",
       "category": "automation",
       "sourcePath": "apps/homeassistant/compose.yml",
-      "description": "Home automation control plane exposed through the dedicated IoT network.",
+      "description": "Home automation control plane on the TrueNAS bridge network; IoT devices on the pfSense OPT network are reached by explicit address.",
       "presentationRole": "service",
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "homeassistant",
         "containerService": "homeassistant",
         "networks": [
           "intranet",
-          "traefik"
+          "traefik_network"
+        ]
+      },
+      "monitoring": {
+        "type": "http",
+        "target": "http://172.17.0.24:30103/manifest.json",
+        "conditions": [
+          "[STATUS] == 200"
         ]
       }
     },

@@ -37,7 +37,7 @@ class CanonicalAppMigrationTests(unittest.TestCase):
         svc = compose["services"]["homeassistant"]
         self.assertEqual(svc["container_name"], "homeassistant")
         self.assertEqual(svc["x-nabla"]["runtime"]["containerService"], "homeassistant")
-        self.assertIn("/mnt/storage0/home-assistant/config:/config", svc["volumes"])
+        self.assertIn("/mnt/cpool/ha/config:/config", svc["volumes"])
 
     def test_exposure_catalog_and_private_bichon_policy(self) -> None:
         services = json.loads((ROOT / "catalog/homelab-services.json").read_text())["services"]

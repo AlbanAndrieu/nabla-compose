@@ -223,7 +223,7 @@ endpoints:
     nabla_monitor_id: homeassistant
     nabla_service_id: homeassistant
     nabla_entity_ref: component:default/homeassistant
-  url: https://homeassistant.albanandrieu.com
+  url: http://172.17.0.24:30103/manifest.json
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'

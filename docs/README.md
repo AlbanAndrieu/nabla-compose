@@ -20,6 +20,7 @@ the rest in git history.
 
 - [APISIX API gateway PoC and gateway selection](./adr/0001-apisix-api-gateway-poc.md)
 - [Workstation option A](./adr/adr-workstation-option-a.md)
+- [Home Assistant installation type (proposed)](./adr/0002-home-assistant-installation-type.md)
 - [Hermes Secure by Design](./security/hermes-secure-by-design.md)
 - [Hermes on Talos (broker/sandbox migration)](./security/hermes-talos-migration.md) — gateway details in [`../apps/hermes/README.md`](../apps/hermes/README.md)
 
