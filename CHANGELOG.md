@@ -1,3 +1,18 @@
+# [0.66.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.2...0.66.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **catalog:** map the postgresbackup icon explicitly ([b5018a2](https://github.com/AlbanAndrieu/nabla-compose/commit/b5018a23eb73cc681486288fa2e87fb070c6bb73))
+* **cloudflare:** encrypt the token unit state and plans client-side ([3753f1d](https://github.com/AlbanAndrieu/nabla-compose/commit/3753f1db79d3db6d819ac49c59f48513f8bd87b3))
+* **cloudflare:** resolve token permission groups per scope ([7f65854](https://github.com/AlbanAndrieu/nabla-compose/commit/7f658549285cf6ca7f1d81bf7532b85bfd92ae0b))
+
+
+### Features
+
+* **cloudflare:** manage the OpenTofu apply token as code ([bcb9112](https://github.com/AlbanAndrieu/nabla-compose/commit/bcb911292e8b3a02108b9d54b0f32e9cb9454d9c))
+* **sample:** connect FastAPI Sample to its dedicated fastapisample database over verified TLS ([fd98421](https://github.com/AlbanAndrieu/nabla-compose/commit/fd98421b814176c0ee586cc1e6cd286f220c8e63))
+
 ## [0.65.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.1...0.65.2) (2026-11-10)
 
 
