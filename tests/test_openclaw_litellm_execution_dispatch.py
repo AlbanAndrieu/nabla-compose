@@ -130,11 +130,19 @@ class ProvisionerStatusTests(unittest.TestCase):
                        for who in ("main", "cron", "coder")}
         self.models_by_hash = {self.hashes["main"]: self.main_models, self.hashes["cron"]: self.cron_models,
                                self.hashes["coder"]: self.coder_models}
+        # main/cron: 2 USD lifetime; coder: 11 USD per 7 days (10 EUR per week).
+        self.budget_by_hash = {self.hashes["main"]: (2, None), self.hashes["cron"]: (2, None),
+                               self.hashes["coder"]: (11, "7d")}
+        runtime_file = patch.object(self.provisioner, "runtime_file_values", return_value={})
+        self.runtime_file = runtime_file.start()
+        self.addCleanup(runtime_file.stop)
 
     def info_for(self, path, **fields):
         """Key metadata of the key addressed by hash in /key/info?key=<hash>."""
-        return 200, {"info": {"models": self.models_by_hash[path.rsplit("=", 1)[1]],
-                              "max_budget": 2, "spend": 0.0, **fields}}
+        key_hash = path.rsplit("=", 1)[1]
+        budget, duration = self.budget_by_hash[key_hash]
+        return 200, {"info": {"models": self.models_by_hash[key_hash], "max_budget": budget,
+                              "budget_duration": duration, "spend": 0.0, **fields}}
 
     def test_status_reports_missing_alias_without_attempting_creation(self):
         calls = []
@@ -289,9 +297,10 @@ class ProvisionerStatusTests(unittest.TestCase):
         paths = []
         def exhausted(path, master, body=None):
             paths.append(path)
+            budget, duration = self.budget_by_hash[path.rsplit("=", 1)[1]]
             return 200, {"info": {"models": ["workstation-qwen", "qwen"]
                                   if not paths[:-1] else ["workstation-qwen"],
-                                  "max_budget": 2, "spend": 2.0}}
+                                  "max_budget": budget, "budget_duration": duration, "spend": float(budget)}}
         with patch.object(self.provisioner, "container_environment", return_value=self.env), \
              patch.object(self.provisioner, "request", side_effect=exhausted), \
              contextlib.redirect_stdout(io.StringIO()) as output:
@@ -312,8 +321,10 @@ class ProvisionerStatusTests(unittest.TestCase):
             if path == "/key/list":
                 return 200, {"keys": ["hashed-main", "hashed-cron", "hashed-coder"]}
             if path.startswith("/key/info?key="):
-                who = who_by_hash[path.rsplit("=", 1)[1]]
-                return 200, {"info": {"models": grants[who], "max_budget": 2, "spend": 0.0}}
+                key_hash = path.rsplit("=", 1)[1]
+                budget, duration = self.budget_by_hash[key_hash]
+                return 200, {"info": {"models": grants[who_by_hash[key_hash]], "max_budget": budget,
+                                      "budget_duration": duration, "spend": 0.0}}
             if path == "/key/update":
                 posts.append(body)
                 grants[who_by_hash[body["key"]]] = body["models"]
@@ -380,8 +391,10 @@ class ProvisionerStatusTests(unittest.TestCase):
         code, posts, output = self.add_missing_run(404)
         self.assertEqual(code, 0)
         self.assertEqual(posts, [{"key": self.env["LITELLM_OPENCLAW_CODER_API_KEY"], "key_alias": "openclaw-coder",
-                                  "models": self.coder_models, "max_budget": 2,
+                                  "models": self.coder_models, "max_budget": 11, "budget_duration": "7d",
                                   "metadata": {"managed_by": "nabla-compose", "purpose": "openclaw-coder"}}])
+        self.assertIn("openclaw_coder_budget_cap=11", output)
+        self.assertIn("openclaw_coder_budget_duration=7d", output)
         self.assertIn("openclaw_main_presence=existing", output)
         self.assertIn("openclaw_coder_presence=missing", output)
         self.assertIn("openclaw_coder_model_scope=verified", output)
@@ -391,6 +404,37 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(posts, [])
         self.assertIn("provisioning=blocked_unverified_key", output)
+
+    def test_coder_value_from_runtime_file_needs_no_litellm_recreate(self):
+        value = self.env.pop("LITELLM_OPENCLAW_CODER_API_KEY")
+        self.runtime_file.return_value = {"LITELLM_OPENCLAW_CODER_API_KEY": value}
+        code, posts, output = self.add_missing_run(404)
+        self.assertEqual(code, 0)
+        self.assertEqual(posts[0]["key"], value)
+        self.assertNotIn(value, output)
+
+    def test_container_and_runtime_file_disagreement_fails_closed(self):
+        self.runtime_file.return_value = {"LITELLM_OPENCLAW_CODER_API_KEY": "sk-OTHER-SYNTHETIC"}
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=AssertionError("no request")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--status"])
+        self.assertEqual(code, 2)
+        self.assertIn("credential_source=container_and_runtime_file_differ", output.getvalue())
+        self.assertNotIn("SYNTHETIC", output.getvalue())
+
+    def test_lifetime_budget_on_coder_key_is_a_scope_mismatch(self):
+        self.budget_by_hash[self.hashes["coder"]] = (11, None)
+
+        def info(path, master, body=None):
+            return self.info_for(path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=info), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--quota-audit"])
+        self.assertEqual(code, 2)
+        self.assertIn("openclaw_coder_budget_cap=mismatch_or_unverified", output.getvalue())
 
     def test_shared_key_values_fail_credential_separation(self):
         self.env["LITELLM_OPENCLAW_CODER_API_KEY"] = self.env["LITELLM_OPENCLAW_MAIN_API_KEY"]
