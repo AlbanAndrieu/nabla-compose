@@ -57,7 +57,7 @@ Règles non négociables :
    --role=fastapisample dans `fastapisample`, puis compare les comptes de
    lignes table par table. Ne supprime rien dans `postgres`.
 6. Redéploie l'App sample (app-ops.sh restart sample --apply), puis
-   app-ops.sh diagnose sample et /api/health. En cas d'échec : remets
+   app-ops.sh diagnose sample et /health. En cas d'échec : remets
    l'ancien répertoire et l'ancien item, redéploie, rapporte.
 7. sudo bash scripts/truenas/bootstrap-postgres-backup-role.sh --check puis
    --apply (CONNECT sur fastapisample et sentry).
