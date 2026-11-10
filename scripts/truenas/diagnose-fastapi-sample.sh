@@ -206,7 +206,7 @@ diag_info "HTTP 302/403 : route Cloudflare Access, pas preuve de santé ou d'acc
 
 section '3/7' 'DNS Sample : public Cloudflare, Pi-hole et overrides'
 # Shared read-only probe also supports workstation --workstation mode.
-# A Pi-hole 172.17.0.24 answer for sample.albandrieu.com makes Chrome's
+# A Pi-hole 172.17.0.24 answer for fastapi-sample.albandrieu.com makes Chrome's
 # Cloudflare ECH unusable despite a healthy application at localhost:8091.
 if command -v dig >/dev/null 2>&1; then
     if bash "${SCRIPT_DIR}/../ingress/diagnose-sample-dns.sh" --truenas; then

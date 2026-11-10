@@ -264,7 +264,7 @@ The homelab currently has several exposure classes:
    are tunneled.
 2. **Direct pfSense HAProxy -> Traefik** for deliberately direct hostnames.
 3. **Cloudflare Tunnel + Access** for protected public services such as
-   `sample.albandrieu.com`, which maps to the private origin
+   `fastapi-sample.albandrieu.com`, which maps to the private origin
    `http://172.17.0.24:8091`.
 4. **AutoXpose -> Cloudflare DNS / NPM** for other Docker services explicitly
    assigned to AutoXpose ownership.
@@ -289,7 +289,7 @@ For a direct public hostname intentionally using pfSense, the DNS record must
 resolve to the pfSense WAN address and HAProxy must have a host ACL/backend path
 that forwards the hostname to Traefik while preserving the HTTP Host.
 
-`sample.albandrieu.com` is no longer in that category: its target architecture
+`fastapi-sample.albandrieu.com` is no longer in that category: its target architecture
 is Cloudflare Access -> Cloudflare Tunnel -> `http://172.17.0.24:8091`.
 
 For a LAN-only `*.int.albandrieu.com` hostname resolving directly to

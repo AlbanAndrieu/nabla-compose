@@ -527,7 +527,7 @@ following are true:
 - the local controller profile is registered only for
   `FASTAPI_RUNTIME_MODE=homelab`;
 - MCP/ops authentication fails closed when required credentials are absent;
-- the public `sample.albandrieu.com` Cloudflare Access path cannot reach
+- the public `fastapi-sample.albandrieu.com` Cloudflare Access path cannot reach
   privileged Nabla routes;
 - the existing `fastapi_observer` TrueNAS credential stays read-only;
 - a separate least-privilege execution identity is used for bounded mutations;

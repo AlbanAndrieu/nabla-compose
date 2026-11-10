@@ -21,7 +21,7 @@ def test_sample_staging_declares_cloudflare_tunnel_and_access_path() -> None:
 
     assert environments["staging"] == {
         "name": "staging",
-        "url": "https://sample.albandrieu.com/api",
+        "url": "https://fastapi-sample.albandrieu.com/api",
         "external": True,
         "cloudflareTunnel": True,
     }

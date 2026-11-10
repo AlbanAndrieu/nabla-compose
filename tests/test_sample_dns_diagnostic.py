@@ -31,7 +31,7 @@ done
 [ "$type" = A ] || exit 0
 case "$host" in
   sample.int.albandrieu.com) echo 172.17.0.24 ;;
-  sample.albandrieu.com)
+  fastapi-sample.albandrieu.com)
     if [ "$server" = 172.17.0.24 ] && [ "$MOCK_BAD_PIHOLE" = 1 ]; then
       echo 172.17.0.24
     else
@@ -41,8 +41,8 @@ esac
 """,
             "getent": """#!/bin/sh
 case "$2" in
-  sample.albandrieu.com)
-    printf '%s STREAM sample.albandrieu.com\\n' "${MOCK_SYSTEM_IP:-188.114.96.2}" ;;
+  fastapi-sample.albandrieu.com)
+    printf '%s STREAM fastapi-sample.albandrieu.com\\n' "${MOCK_SYSTEM_IP:-188.114.96.2}" ;;
   sample.int.albandrieu.com)
     [ "${MOCK_PRIVATE_SYS:-good}" = good ] &&
       printf '172.17.0.24 STREAM sample.int.albandrieu.com\\n'

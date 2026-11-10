@@ -532,7 +532,7 @@ The internal Traefik route is `https://sample.int.albandrieu.com`.
 It is intentionally the only `Host(...)` router for this container because the
 current Pi-hole synchronizer extracts one hostname per Docker container.
 
-The protected public route is `https://sample.albandrieu.com`.
+The protected public route is `https://fastapi-sample.albandrieu.com`.
 
 ### Ingress ownership
 
@@ -570,7 +570,7 @@ fastapi-sample:8080
 
 For the Cloudflare Tunnel published application, use:
 
-- public hostname: `sample.albandrieu.com`;
+- public hostname: `fastapi-sample.albandrieu.com`;
 - service type: `HTTP`;
 - service URL: `http://172.17.0.24:8091`.
 
@@ -590,7 +590,7 @@ Nginx Proxy Manager provider for other services, but it is not an owner of
 either Sample hostname:
 
 - `sample.int.albandrieu.com` -> Pi-hole / Traefik;
-- `sample.albandrieu.com` -> Cloudflare Tunnel / Access.
+- `fastapi-sample.albandrieu.com` -> Cloudflare Tunnel / Access.
 
 ### TLS / Access acceptance
 
@@ -747,7 +747,7 @@ CF_ACCESS_CLIENT_SECRET='...' \
 ```
 
 The script then sends the standard Cloudflare Access service-token headers and
-requires `https://sample.albandrieu.com/health` to return successfully.
+requires `https://fastapi-sample.albandrieu.com/health` to return successfully.
 
 A workstation-local FastAPI process listening on `0.0.0.0:8080` is a
 different runtime. To test it deliberately, override only the direct health
@@ -870,7 +870,7 @@ The internal Traefik route is `https://sample.int.albandrieu.com`.
 It is intentionally the only `Host(...)` router for this container because the
 current Pi-hole synchronizer extracts one hostname per Docker container.
 
-The protected public route is `https://sample.albandrieu.com`.
+The protected public route is `https://fastapi-sample.albandrieu.com`.
 
 ### Ingress ownership
 
@@ -908,7 +908,7 @@ fastapi-sample:8080
 
 For the Cloudflare Tunnel published application, use:
 
-- public hostname: `sample.albandrieu.com`;
+- public hostname: `fastapi-sample.albandrieu.com`;
 - service type: `HTTP`;
 - service URL: `http://172.17.0.24:8091`.
 
@@ -928,7 +928,7 @@ Nginx Proxy Manager provider for other services, but it is not an owner of
 either Sample hostname:
 
 - `sample.int.albandrieu.com` -> Pi-hole / Traefik;
-- `sample.albandrieu.com` -> Cloudflare Tunnel / Access.
+- `fastapi-sample.albandrieu.com` -> Cloudflare Tunnel / Access.
 
 ### TLS / Access acceptance
 
@@ -1039,7 +1039,7 @@ CF_ACCESS_CLIENT_SECRET='...' \
 ```
 
 The script then sends the standard Cloudflare Access service-token headers and
-requires `https://sample.albandrieu.com/health` to return successfully.
+requires `https://fastapi-sample.albandrieu.com/health` to return successfully.
 
 A workstation-local FastAPI process listening on `0.0.0.0:8080` is a
 different runtime. To test it deliberately, override only the direct health
@@ -1133,7 +1133,7 @@ value-blind inventory, then import the existing values after path normalization
 is accepted.
 
 Do not add privileged Nabla Service routes while the same local container is
-reachable through `sample.albandrieu.com`. Route non-registration/public-path
+reachable through `fastapi-sample.albandrieu.com`. Route non-registration/public-path
 denial and fail-closed authentication are prerequisites.
 
 

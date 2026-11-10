@@ -17,7 +17,7 @@ class FastApiSampleTopologyContractTest(unittest.TestCase):
             },
             {
                 "name": "staging",
-                "url": "https://sample.albandrieu.com/api",
+                "url": "https://fastapi-sample.albandrieu.com/api",
                 "external": True,
                 "cloudflareTunnel": True,
             },
