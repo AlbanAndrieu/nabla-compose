@@ -47,6 +47,40 @@ This precedence is a repository contract for agents that read `AGENTS.md`.
 An external agent that does not load these instructions cannot be assumed to
 obey them; use the offline policy checks and code review.
 
+## Politique homelab : disponibilité sacrifiable, intégrité et sécurité non négociables
+
+Ce dépôt pilote un **laboratoire personnel d'expérimentation**, pas une plateforme
+avec SLO de production. L'opérateur accepte explicitement les interruptions de
+service, redémarrages, reconfigurations et mises à niveau, y compris de composants
+partagés, pour expérimenter les dernières fonctionnalités et configurations de
+sécurité. **Ne pas imposer de stratégie zéro-downtime ou multiplier les demandes
+de validation pour une interruption réversible déjà autorisée.**
+
+- Privilégier les versions maintenues et les configurations sécurisées modernes
+  (PostgreSQL TLS 1.3/SCRAM, FIPS comme cible de laboratoire, OAuth DBA en POC).
+  Une rupture de compatibilité peut être délibérée et documentée.
+- Avant une mutation affectant des **données persistantes**, conserver un point
+  de restauration exploitable ou une sauvegarde vérifiée si les données
+  comptent. Rendre explicite l'absence de sauvegarde si la cible est jetable.
+  L'acceptation d'une coupure **n'autorise pas** une destruction de données,
+  un effacement de sauvegardes ni une réinitialisation irréversible.
+- Interdire toute fuite de secrets, désactivation des contrôles d'identité,
+  ouverture WAN injustifiée ou dégradation des gardes de sécurité/qualité.
+  Une PKI manquante peut légitimement laisser un service non démarré :
+  **fail closed plutôt que connexion en clair**.
+- Procéder par itérations courtes : inspection des dépendances importantes,
+  mutation autorisée, test fonctionnel et observation des régressions.
+  Un service volontairement arrêté ou dégradé après une expérience doit être
+  signalé comme tel, sans prétendre à une réception réussie.
+- L'accord permanent porte sur la **disponibilité** ; pour une opération
+  destructive ou portant sur un domaine hors homelab, une approbation
+  spécifique reste nécessaire. Si l'agent n'a pas accès au runtime, livrer une
+  PR et indiquer explicitement qu'aucun changement live n'a été appliqué.
+
+Cette politique complète les skills `homelab-runtime-status` et
+`docker-compose-orchestration` ; elle prévaut sur les pratiques génériques
+d'exploitation production, mais ne contourne pas les restrictions des outils.
+
 ## GitHub Actions credit-saving PR lifecycle
 
 - Agents should create and retain pull requests as **Draft** while iterating, and run the targeted local `just`/quality-gate checks before requesting review.
