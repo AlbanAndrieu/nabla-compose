@@ -89,7 +89,14 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         readme = self.read("apps/keycloak/README.md")
 
         self.assertIn("quay.io/keycloak/keycloak:26.7.3", compose)
-        self.assertIn("KC_DB_URL: jdbc:postgresql://172.17.0.24:5432/keycloak", compose)
+        self.assertIn("KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:-172.17.0.24}:5432/keycloak", compose)
+        self.assertIn("KC_DB_TLS_MODE: verify-server", compose)
+        self.assertIn("KC_DB_TLS_TRUST_STORE_FILE: /etc/nabla/pki/postgres-ca.crt", compose)
+        self.assertIn(
+            "/mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro",
+            compose,
+        )
+        self.assertIn("IP SAN", readme)
         self.assertIn("KC_DB_USERNAME: keycloak", compose)
         self.assertIn("KC_BOOTSTRAP_ADMIN_USERNAME: admin", compose)
         self.assertNotIn("\n  postgres:", compose)
@@ -105,6 +112,18 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("docker exec -i", readme)
         self.assertIn("\\getenv keycloak_password KEYCLOAK_DB_PASSWORD", readme)
         self.assertIn("172.17.0.24:30239/health/ready", readme)
+
+    def test_unused_plumber_requires_verified_postgres_tls(self) -> None:
+        compose = self.read("apps/plumber/compose.yml")
+        readme = self.read("apps/plumber/README.md")
+
+        self.assertIn("JOBS_DB_SSLMODE: verify-full", compose)
+        self.assertNotIn("JOBS_DB_SSLMODE: ${JOBS_DB_SSLMODE:-disable}", compose)
+        self.assertIn("PGSSLROOTCERT: /etc/nabla/pki/postgres-ca.crt", compose)
+        self.assertIn("volumes: *plumber-postgres-ca", compose)
+        self.assertIn("status: planned", compose)
+        self.assertIn("driver/DSN construction", readme)
+        self.assertIn("DNS or IP SAN", readme)
 
     def test_runtime_recovery_fixes_crowdsec_akvorado_and_openhands(self) -> None:
         crowdsec = self.read("apps/crowdsec/compose.yml")
