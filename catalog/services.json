@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:32a5cc7dbc5e4232a1f134d160868113803ed93cebe00d8bbc04101e457f502c",
+  "catalogRevision": "sha256:337105a67f768c135df2eaff0232ed724370bb008e0bbc06076cd42d75d4fa2a",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -828,7 +828,7 @@
         },
         {
           "name": "staging",
-          "url": "https://sample.albandrieu.com/api",
+          "url": "https://fastapi-sample.albandrieu.com/api",
           "external": true,
           "cloudflareTunnel": true
         }

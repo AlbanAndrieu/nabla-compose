@@ -77,7 +77,7 @@ x-nabla:
   exposure:
     - name: public
       hostnames:
-        - sample.albandrieu.com
+        - fastapi-sample.albandrieu.com
       protocol: HTTPS
       visibility: public
       gatewayRef: resource:default/cloudflare-tunnel

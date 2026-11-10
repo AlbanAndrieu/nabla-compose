@@ -861,7 +861,7 @@
         },
         {
           "name": "staging",
-          "url": "https://sample.albandrieu.com/api",
+          "url": "https://fastapi-sample.albandrieu.com/api",
           "external": true,
           "cloudflareTunnel": true
         }
@@ -3933,9 +3933,9 @@
       "target": "cloudflared",
       "type": "exposedBy",
       "strength": "optional",
-      "description": "The TrueNAS staging endpoint sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.",
+      "description": "The TrueNAS staging endpoint fastapi-sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.",
       "evidence": [
-        "docs/dns-ingress-ownership.md:sample.albandrieu.com",
+        "docs/dns-ingress-ownership.md:fastapi-sample.albandrieu.com",
         "apps/sample/README.md:Cloudflare Access"
       ]
     },

@@ -146,7 +146,7 @@ class CatalogV2PilotTests(unittest.TestCase):
         exposure = service["x-nabla"]["exposure"]
         self.assertEqual(len(exposure), 1)
         route = exposure[0]
-        self.assertEqual(route["hostnames"], ["sample.albandrieu.com"])
+        self.assertEqual(route["hostnames"], ["fastapi-sample.albandrieu.com"])
         self.assertEqual(route["protocol"], "HTTPS")
         self.assertEqual(route["visibility"], "public")
         self.assertEqual(

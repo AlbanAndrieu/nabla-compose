@@ -29,7 +29,7 @@ services:
           external: false
           cloudflareTunnel: false
         - name: staging
-          url: https://sample.albandrieu.com/api
+          url: https://fastapi-sample.albandrieu.com/api
           external: true
           cloudflareTunnel: true
       runtime:
@@ -38,7 +38,7 @@ services:
       exposure:
         - name: staging-public
           hostnames:
-            - sample.albandrieu.com
+            - fastapi-sample.albandrieu.com
           protocol: HTTPS
           visibility: public
           gatewayRef: resource:default/cloudflare-tunnel
@@ -74,9 +74,9 @@ services:
         - target: cloudflared
           type: exposedBy
           strength: optional
-          description: The TrueNAS staging endpoint sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.
+          description: The TrueNAS staging endpoint fastapi-sample.albandrieu.com is exposed through Cloudflare Access and an outbound-established Cloudflare Tunnel; production FastAPI Cloud remains independent.
           evidence:
-            - docs/dns-ingress-ownership.md:sample.albandrieu.com
+            - docs/dns-ingress-ownership.md:fastapi-sample.albandrieu.com
             - apps/sample/README.md:Cloudflare Access
       monitoring:
         type: http
@@ -161,7 +161,7 @@ services:
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/fastapi-sample"
       # Internal DNS is synchronized from Traefik routers into Pi-hole.
-      # sample.albandrieu.com is a separate Cloudflare Tunnel + Access endpoint
+      # fastapi-sample.albandrieu.com is a separate Cloudflare Tunnel + Access endpoint
       # whose origin is the LAN-bound :8091 service; it is not a Traefik router.
       - "traefik.enable=true"
       - "traefik.docker.network=traefik_network"

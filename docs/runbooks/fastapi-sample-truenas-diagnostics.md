@@ -9,7 +9,7 @@ FastAPI Cloud or Cloudflare policies. The stage endpoint is
 Le [dossier d'incident](../incidents/2026-10-23-sample-pihole-ech-split-dns.md)
 compare les incidents du 27 septembre (DHCP vers Pi-hole), du 10 octobre
 (Vaultwarden Unbound public override), et l'incident actuel : **Pi-hole v6**
-a une entrée `172.17.0.24 sample.albandrieu.com` dans `pihole.toml`.
+a une entrée `172.17.0.24 fastapi-sample.albandrieu.com` dans `pihole.toml`.
 Le DHCP LAN pfSense annonce déjà **172.17.0.1**, donc ne pas le modifier.
 
 Sur TrueNAS, `diagnose-fastapi-sample.sh` ajoute une septième étape
