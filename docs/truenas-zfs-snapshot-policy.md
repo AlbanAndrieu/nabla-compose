@@ -20,17 +20,19 @@ toutes une durée de vie.
 | Classe | Fréquences | Datasets (extrait) | Motif |
 | --- | --- | --- | --- |
 | `critical` | 1×/h gardé 48 h, 1×/j gardé 30 j | `vaultwarden`, `secrets`, `2fauth` | Secrets : RPO court, plus une copie hors site chiffrée (à faire) |
-| `databases` | 1×/h gardé 24 h, 1×/j gardé 7 j | `clickhouse`, `mongo`, `neo4j`, `opensearch`, `wazuh`, `nexus3`… | Cohérence « crash » ; les dumps applicatifs restent la restauration de référence |
+| `databases` | 1×/h gardé 24 h, 1×/j gardé 7 j | `clickhouse`, `mongo`, `neo4j`, `opensearch`, `wazuh`… | Cohérence « crash » ; les dumps applicatifs restent la restauration de référence |
 | `backup-targets` | 1×/j gardé 14 j, 1×/sem gardé 8 sem | `backup`, `garage` | Un client NFS/S3 peut effacer son propre dépôt ; seul le snapshot côté TrueNAS le protège |
 | `app-state` | 1×/j gardé 30 j, 1×/sem gardé 12 sem | `traefik`, `pihole`, `grafana`, `homarr`, `keycloak`… | Configuration et petit état applicatif |
 | `user-data` | 1×/j gardé 30 j, 1×/mois gardé 12 mois | `bababou` | Documents et médias ; ajouter photo/musique/www après l'audit |
+| `recreatable` | 1×/mois gardé 3 mois, 1×/an gardé 1 an | `nexus3` | Données reconstructibles depuis l'amont (artefacts proxifiés) : points rares pour ne pas retenir les blobs purgés (10/11). Les anciennes tâches horaires/quotidiennes de `cpool/nexus3` ne sont **pas** supprimées par la réconciliation : `midclt call pool.snapshottask.query '[["dataset","=","cpool/nexus3"]]'` puis `pool.snapshottask.delete <id>` |
+| `resync-shortcut` | 1×/mois gardé 1 mois | `bitcoind` | Nœud élagué : un seul point évite plusieurs jours de synchronisation initiale en ne retenant qu'un mois de blocs tournants (des snapshots fréquents en retenaient plus de 100 Go) |
 
 Le prune Restic de la workstation doit rester hebdomadaire : il réécrit des
 packs et gonfle les snapshots de `cpool/backup`.
 
 ## Datasets sans snapshot
 
-Données reproductibles ou à forte rotation : `bitcoind` (chaîne resynchronisée),
+Données reproductibles ou à forte rotation (`bitcoind` est passé en `resync-shortcut` le 10/11) :
 `ix-apps/docker` (images et cache de build), modèles (`ollama`, `model`),
 séries temporelles et journaux (`prometheus`, `mimir`, `loki`, `tempo`,
 `pyroscope`, `influxdb`, `logs`), flux réseau (`akvorado`, `ntopng`,

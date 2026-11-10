@@ -12,11 +12,11 @@ Apps : 90 ; actives : 57 ; planifiées : 29.
 | Écart | Apps |
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 2 |
-| `NO_AVAILABILITY_PROBE` | 30 |
+| `NO_AVAILABILITY_PROBE` | 29 |
 | `NO_DEPLOY_PATH` | 21 |
 | `SECRETS_LEGACY_PATH` | 18 |
 | `SECRETS_NOT_IN_MANIFEST` | 2 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 49 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
 
 ## Matrice
 
@@ -29,7 +29,7 @@ Apps : 90 ; actives : 57 ; planifiées : 29.
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `bazarr` | planned | deploy-media-stack.sh | `cpool/bazarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | bazarr-exporter | — | générique | — | ✅ |
 | `bichon` | active | custom-apps.yml | `cpool/bichon` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (none (noSnapshot)) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | legacy | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
@@ -51,7 +51,7 @@ Apps : 90 ; actives : 57 ; planifiées : 29.
 | `haproxy-exporter` | planned | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homarr` | active | custom-apps.yml | `cpool/homarr` (app-state) | manifest | ❌ | — | — | générique | apps/homarr/config/ | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `homeassistant` | active | ❌ | — | n/a | ❌ | — | — | générique | bootstrap-homeassistant-postgres.sh | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `homeassistant` | active | ❌ | `cpool/ha` (app-state) | n/a | ✅ | — | — | diagnose-homeassistant-overkiz.sh<br>diagnose-homeassistant-usb.sh<br>diagnose-homeassistant.sh | bootstrap-homeassistant-postgres.sh | `NO_DEPLOY_PATH` |
 | `influxdb` | active | custom-apps.yml | `cpool/influxdb` (none (noSnapshot)) | n/a | ❌ | influxdb | — | diagnose-influxdb.sh | bootstrap-scrutiny-influxdb.sh | `NO_AVAILABILITY_PROBE` |
 | `jellyfin` | planned | deploy-media-stack.sh | `cpool/jellyfin` (app-state)<br>`cpool/jellyfin-cache` (none (noSnapshot))<br>`cpool/media` (none (noSnapshot)) | n/a | ✅ | jellyfin | — | générique | config/media/settings.yml | ✅ |
 | `joplin` | planned | deploy-joplin.sh | — | manifest | ✅ | — | ✅ joplin | générique | bootstrap-joplin-postgres.sh | ✅ |
@@ -68,7 +68,7 @@ Apps : 90 ; actives : 57 ; planifiées : 29.
 | `n8n` | planned | native App | — | n/a | — | n8n | ✅ n8n | générique | — | ✅ |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `nexus` | active | custom-apps.yml | `cpool/nexus3` (databases) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `npmplus` | planned | ❌ | `cpool/npmplus` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
