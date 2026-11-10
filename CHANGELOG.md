@@ -1,3 +1,10 @@
+# [0.62.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.61.0...0.62.0) (2026-11-10)
+
+
+### Features
+
+* **homelab:** publish Joplin via the tunnel, remove Elasticsearch/Kibana, fix Homarr sync, Keycloak on Talos, observability verifier ([7ad0173](https://github.com/AlbanAndrieu/nabla-compose/commit/7ad0173d165210f6608db1257d6c7c8e6c58948d))
+
 # [0.61.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.2...0.61.0) (2026-11-10)
 
 
