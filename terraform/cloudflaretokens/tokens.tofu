@@ -3,17 +3,23 @@ data "cloudflare_account_api_token_permission_groups_list" "all" {
 }
 
 locals {
-  permission_group_ids = {
-    for group in data.cloudflare_account_api_token_permission_groups_list.all.result : group.name => group.id
+  # Some names (e.g. "Access: Apps and Policies Write") exist in both scopes.
+  account_group_ids = {
+    for group in data.cloudflare_account_api_token_permission_groups_list.all.result : group.name => group.id...
+    if contains(group.scopes, "com.cloudflare.api.account")
+  }
+  zone_group_ids = {
+    for group in data.cloudflare_account_api_token_permission_groups_list.all.result : group.name => group.id...
+    if contains(group.scopes, "com.cloudflare.api.account.zone")
   }
   # Exactly what terraform/cloudflare plans and applies: Access applications,
   # the shared tunnel configuration and the albandrieu.com DNS records.
   opentofu_account_permissions = ["Access: Apps and Policies Write", "Cloudflare Tunnel Write"]
   opentofu_zone_permissions    = ["DNS Write"]
-  opentofu_missing_permissions = [
-    for name in concat(local.opentofu_account_permissions, local.opentofu_zone_permissions) : name
-    if !contains(keys(local.permission_group_ids), name)
-  ]
+  opentofu_missing_permissions = concat(
+    [for name in local.opentofu_account_permissions : name if !contains(keys(local.account_group_ids), name)],
+    [for name in local.opentofu_zone_permissions : name if !contains(keys(local.zone_group_ids), name)],
+  )
 }
 
 resource "cloudflare_account_token" "opentofu" {
@@ -24,12 +30,12 @@ resource "cloudflare_account_token" "opentofu" {
   policies = [
     {
       effect            = "allow"
-      permission_groups = [for name in local.opentofu_account_permissions : { id = local.permission_group_ids[name] }]
+      permission_groups = [for name in local.opentofu_account_permissions : { id = local.account_group_ids[name][0] }]
       resources         = jsonencode({ "com.cloudflare.api.account.${var.account_id}" = "*" })
     },
     {
       effect            = "allow"
-      permission_groups = [for name in local.opentofu_zone_permissions : { id = local.permission_group_ids[name] }]
+      permission_groups = [for name in local.opentofu_zone_permissions : { id = local.zone_group_ids[name][0] }]
       resources         = jsonencode({ "com.cloudflare.api.account.zone.${var.zone_id}" = "*" })
     },
   ]
