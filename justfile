@@ -1105,11 +1105,17 @@ openclaw-coder-key-plan:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
-      sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py
+      plan=$(sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py)
     else
-      ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-openclaw-coder-key.py
+      plan=$(ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-openclaw-coder-key.py)
     fi
-    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    printf '%s\n' "$plan"
+    # The LiteLLM status needs every key, so it can only pass after the first apply.
+    if grep -qx "litellm_runtime_key=missing" <<<"$plan"; then
+      echo "litellm_status=skipped (coder key not created yet)"
+    else
+      python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    fi
 
 # Explicit, NABLA_RUNTIME_CHANGE_APPROVED=yes: generate the value once (never rotated),
 # sync the Gateway file, register the key (11 USD / 7 days) with no LiteLLM or Gateway restart.
