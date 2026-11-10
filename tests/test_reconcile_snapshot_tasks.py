@@ -135,12 +135,12 @@ class ReconcileSnapshotTasksTests(unittest.TestCase):
             "schedule": {"minute": "0", "hour": "0", "dom": "*", "month": "*", "dow": "*"},
         }
         result, calls = self.run_script(
-            [parent], datasets=("cpool", "cpool/backup", "cpool/bitcoind", "cpool/ollama")
+            [parent], datasets=("cpool", "cpool/backup", "cpool/akvorado", "cpool/ollama")
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("pool.snapshottask.create", calls)
         output = result.stdout + result.stderr
-        self.assertIn("task 9 on cpool covers cpool/bitcoind", output)
+        self.assertIn("task 9 on cpool covers cpool/akvorado", output)
         self.assertNotIn("covers cpool/ollama", output)
 
 
