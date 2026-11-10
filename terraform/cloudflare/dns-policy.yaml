@@ -39,6 +39,8 @@ retired_hostnames:
   - portracker.albandrieu.com
   - speedtest.albandrieu.com
   - stirling.albandrieu.com
+  # PostgreSQL unpublished 10/11: internal-only, every client uses 172.17.0.24:5432.
+  - postgres.albandrieu.com
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
