@@ -7,7 +7,7 @@
 - `CODED` : code présent dans Git ; `TESTED` : contrat local exécuté sur un SHA identifié ; `ACCEPTED (runtime)` : mesure fonctionnelle datée du service cible ; `NOT_VERIFIED` : preuve absente. Ne jamais déduire le dernier état du premier.
 - Le catalogue `x-nabla` est l'autorité des identités ; `entityRef` et `catalogRevision` assurent le rapprochement entre Compose, FastAPI et sites. Les chemins `/mnt/cpool` et les secrets privés restent hors du dépôt.
 - L'observation Cloudflare `DENIED`/`challenge`, un diagnostic non exécuté, ou une absence de télémétrie ne deviennent pas des services DOWN.
-- Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante. La quality gate locale s'exécute sans CI payante.
+- Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
 
 ## Suivi consolidé — état du code et réception (8 novembre 2026)
 
