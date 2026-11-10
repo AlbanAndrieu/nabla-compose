@@ -115,6 +115,33 @@ resource "cloudflare_zero_trust_access_application" "keycloak_oidc" {
   }
 }
 
+# The dashboard-managed "vaultwarden" app bypasses Access on the whole host for
+# Bitwarden clients; this more specific path keeps /admin behind the nabla policy.
+resource "cloudflare_zero_trust_access_application" "vaultwarden_admin" {
+  account_id           = var.account_id
+  app_launcher_visible = false
+  destinations = [
+    {
+      type = "public"
+      uri  = "vaultwarden.albandrieu.com/admin"
+    },
+  ]
+  domain = "vaultwarden.albandrieu.com/admin"
+  name   = "vaultwardenadmin"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 # Joplin sync clients cannot complete an interactive Access login: Joplin's own
 # authentication protects the server (roadmap decision, 10/11/2026).
 resource "cloudflare_zero_trust_access_application" "joplin" {
