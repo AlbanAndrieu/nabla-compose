@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 from urllib.error import HTTPError, URLError
@@ -69,6 +70,23 @@ def container_environment():
         return None
 
 
+# Copy of scripts/secrets/audit_dotenv_quoting.py:dotenv_value (stdin-run script, no import).
+def dotenv_value(raw):
+    """Value as Docker Compose reads it: one quoted string, or bare text up to ` #`.
+
+    None when Compose could read the line differently (unterminated quote, text
+    after the closing quote, backslash escapes): callers fail closed.
+    """
+    raw = raw.strip()
+    if raw[:1] in ("'", '"'):
+        end = raw.find(raw[0], 1)
+        rest = raw[end + 1:].lstrip() if end > 0 else "?"
+        if (rest and not rest.startswith("#")) or "\\" in raw[1:end]:
+            return None
+        return raw[1:end]
+    return re.split(r"\s+#", raw, maxsplit=1)[0].rstrip()
+
+
 def runtime_file_values(path=RUNTIME_ENV):
     """Key values from the canonical runtime file; values are never printed."""
     names = {variable for variable, *_ in KEYS}
@@ -80,9 +98,7 @@ def runtime_file_values(path=RUNTIME_ENV):
     for line in text.splitlines():
         name, separator, value = line.strip().partition("=")
         if separator and name in names:
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
-                value = value[1:-1]
+            value = dotenv_value(value)
             if value:
                 values[name] = value
     return values

@@ -811,6 +811,17 @@ runtime-secret-modes-check:
 runtime-secret-modes-apply:
     sudo -n python3 scripts/truenas/audit-runtime-secret-permissions.py --apply --acknowledge I_ACCEPT_SCOPED_SECRET_MODE_REPAIR
 
+# Read-only: runtime dotenv lines read differently by Compose and our parsers (names only).
+runtime-secret-quoting-check:
+    sudo -n python3 scripts/secrets/audit_dotenv_quoting.py
+
+# Normalize them (0600 backup, values proven unchanged, no restart); malformed lines stay for review.
+runtime-secret-quoting-apply:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ "${NABLA_RUNTIME_CHANGE_APPROVED:-}" = yes ] || { echo "approval=missing (NABLA_RUNTIME_CHANGE_APPROVED=yes)"; exit 2; }
+    sudo -n python3 scripts/secrets/audit_dotenv_quoting.py --apply
+
 # Read-only test of an already-approved private PDF, no indexing or upload.
 openrag-private-pdf-check file:
     sudo -n bash scripts/truenas/check-openrag-private-pdf.sh --check --file "{{file}}"

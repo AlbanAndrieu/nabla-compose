@@ -14,6 +14,7 @@ import argparse
 import datetime
 import os
 from pathlib import Path
+import re
 import secrets
 import sys
 import tempfile
@@ -24,15 +25,29 @@ GATEWAY_KEY = Path("/mnt/cpool/openclaw/state/credentials/litellm/coder.key")
 GATEWAY_UID = GATEWAY_GID = 1000
 
 
+# Copy of scripts/secrets/audit_dotenv_quoting.py:dotenv_value (stdin-run script, no import).
+def dotenv_value(raw):
+    """Value as Docker Compose reads it: one quoted string, or bare text up to ` #`.
+
+    None when Compose could read the line differently (unterminated quote, text
+    after the closing quote, backslash escapes): callers fail closed.
+    """
+    raw = raw.strip()
+    if raw[:1] in ("'", '"'):
+        end = raw.find(raw[0], 1)
+        rest = raw[end + 1:].lstrip() if end > 0 else "?"
+        if (rest and not rest.startswith("#")) or "\\" in raw[1:end]:
+            return None
+        return raw[1:end]
+    return re.split(r"\s+#", raw, maxsplit=1)[0].rstrip()
+
+
 def env_value(path, name=NAME):
     """Return the value of `name` in a dotenv file, or None."""
     for line in path.read_text(encoding="utf-8").splitlines():
         key, separator, value = line.strip().partition("=")
         if separator and key == name:
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
-                value = value[1:-1]
-            return value or None
+            return dotenv_value(value) or None
     return None
 
 

@@ -129,6 +129,15 @@ Dry-run is default and never prints values. Existing exact items are not overwri
 
 For historical TrueNAS `.env*` files, migration tooling may copy bytes but must never parse/print their values to build logs or PR output.
 
+### Normalize quoting before any import (2026-11-10)
+
+Lines such as `KEY="value" # comment` are read as `value` by Docker Compose but as `"value" # comment` by naive parsers: on 2026-11-10 this made the OpenClaw LiteLLM keys look rotated and blocked the coder key rollout. Importing such a line would also store the wrong value in Vaultwarden.
+
+- [x] One Compose-compatible `dotenv_value` parser (`scripts/secrets/audit_dotenv_quoting.py`, identical copies in the stdin-run scripts, checked by `tests/test_audit_dotenv_quoting.py`); ambiguous lines fail closed.
+- [x] `render_from_bitwarden.py` writes bare values when safe and quotes only when needed.
+- [ ] On TrueNAS, before each `import_dotenv_to_bitwarden.py --apply`: `just runtime-secret-quoting-check` (key names only), then `NABLA_RUNTIME_CHANGE_APPROVED=yes just runtime-secret-quoting-apply` (0600 backup, values proven unchanged, no restart). Review every `malformed` or `needs_review` line by hand.
+- [ ] Inventory of 2026-11-10 (28 lines): `openclaw/.env.secrets`, `openclaw/.env.compose`, `litellm/.env.secrets` (`LITELLM_REACTIVE_API_KEY`), `nexus/.env.secrets`, `fastapisample/.env` and `.env.secrets`.
+
 ## P0.5 — canonical runtime env staging
 
 Migration is split into an explicit transaction so a single bootstrap cannot destructively rewrite every service.
