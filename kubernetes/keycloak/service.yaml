@@ -1,0 +1,19 @@
+# NodePorts keep the TrueNAS port numbers so the Cloudflare route and the Gatus
+# probe only change host (TrueNAS 172.17.0.24 -> a Talos node) at cut-over.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30238
+    - name: management
+      port: 9000
+      targetPort: management
+      nodePort: 30239

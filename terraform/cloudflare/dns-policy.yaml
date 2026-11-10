@@ -17,10 +17,33 @@ retired_hostnames:
   - sabnzbd.albandrieu.com
   - sonarr.albandrieu.com
   - transmission.albandrieu.com
+  # Elasticsearch/Kibana removed 10/11: OpenSearch is the only search engine.
+  - kibana.albandrieu.com
+  # Routes removed from the tunnel (04-06/11 probe remediation, LiteLLM
+  # unpublished 05/11): their CNAMEs would otherwise dangle (10/11 DoH check).
+  - anythingllm.albandrieu.com
+  - bichon.albandrieu.com
+  - clamav.albandrieu.com
+  - convertx.albandrieu.com
+  - domain-watchdog.albandrieu.com
+  - garage-admin.albandrieu.com
+  - litellm.albandrieu.com
+  - localai.albandrieu.com
+  - netbootxyz.albandrieu.com
+  - open-speed-test.albandrieu.com
+  - openarchiver.albandrieu.com
+  - paperless-ai.albandrieu.com
+  - paperless-ngx.albandrieu.com
+  - pgadmin.albandrieu.com
+  - portainer.albandrieu.com
+  - portracker.albandrieu.com
+  - speedtest.albandrieu.com
+  - stirling.albandrieu.com
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
-new_tunnel_hostnames: []
+new_tunnel_hostnames:
+  - joplin.albandrieu.com
 
 # Private namespace served by Pi-hole; a public record under it is drift
 # (docs/dns-ingress-ownership.md).

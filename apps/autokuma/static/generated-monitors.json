@@ -149,17 +149,6 @@
     "port": 9080
   },
   {
-    "id": "elasticsearch",
-    "type": "port",
-    "name": "Elasticsearch",
-    "description": "Nabla generated monitor: elasticsearch",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9200
-  },
-  {
     "id": "fastapi-sample",
     "type": "http",
     "name": "FastAPI Sample",
@@ -264,17 +253,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:9308/metrics"
-  },
-  {
-    "id": "kibana",
-    "type": "port",
-    "name": "Kibana",
-    "description": "Nabla generated monitor: kibana",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 5601
   },
   {
     "id": "langflow",

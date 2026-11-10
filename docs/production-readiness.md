@@ -5,18 +5,18 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 89 ; actives : 57 ; planifiées : 29.
+Apps : 88 ; actives : 56 ; planifiées : 29.
 
 ## Écarts par type
 
 | Écart | Apps |
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 2 |
-| `NO_AVAILABILITY_PROBE` | 30 |
-| `NO_DEPLOY_PATH` | 20 |
+| `NO_AVAILABILITY_PROBE` | 29 |
+| `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 17 |
 | `SECRETS_NOT_IN_MANIFEST` | 2 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
 
 ## Matrice
 
@@ -44,7 +44,6 @@ Apps : 89 ; actives : 57 ; planifiées : 29.
 | `dozzle` | active | custom-apps.yml | `cpool/dozzle` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `drawio` | active | custom-apps.yml | — | n/a | ✅ | — | — | générique | — | ✅ |
 | `dsomm` | planned | deploy-dsomm.sh | `cpool/dsomm` (app-state) | manifest | ✅ | — | — | diagnose-dsomm-assessment.sh | apps/dsomm/config/ | ✅ |
-| `elasticsearch` | active | ❌ | `cpool/elasticsearch` (databases) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `garage` | active | custom-apps.yml | `cpool/garage` (backup-targets) | legacy | ❌ | — | — | générique | terraform/garage | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | n/a | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/ | `SERVICE_WITHOUT_HEALTHCHECK` |

@@ -41,7 +41,6 @@ FALLBACK_APP_POLICIES: dict[str, tuple[str, int]] = {
     "sentry-clickhouse": ("secondary-data", 30),
     "clickhouse": ("secondary-data", 30),
     "opensearch": ("secondary-data", 30),
-    "elasticsearch": ("secondary-data", 30),
     "elastic-search": ("secondary-data", 30),
     "minio": ("secondary-data", 30),
     "garage": ("secondary-data", 30),

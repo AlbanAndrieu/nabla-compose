@@ -817,22 +817,6 @@
       }
     },
     {
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "runtime": {
-        "provider": "truenas-app",
-        "appId": "elastic-search",
-        "containerService": "elasticsearch",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "🔎"
-    },
-    {
       "id": "etcd",
       "name": "etcd",
       "kind": "control-plane-store",
@@ -1187,7 +1171,7 @@
       "kind": "notes-sync",
       "category": "productivity",
       "sourcePath": "apps/joplin/compose.yml",
-      "url": "https://joplin.int.albandrieu.com",
+      "url": "https://joplin.albandrieu.com",
       "internalUrl": "http://joplin:22300",
       "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
       "presentationRole": "service",
@@ -1279,21 +1263,6 @@
         "type": "http",
         "target": "http://172.17.0.24:30239/health/ready"
       }
-    },
-    {
-      "id": "kibana",
-      "name": "Kibana",
-      "kind": "dashboard",
-      "category": "observability",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "kibana",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "📊"
     },
     {
       "id": "kubernetes",
@@ -3909,16 +3878,6 @@
       ]
     },
     {
-      "source": "elasticsearch",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:elasticsearch.x-nabla.runtime.containerService"
-      ]
-    },
-    {
       "source": "etcd",
       "target": "talos",
       "type": "hostedBy",
@@ -4325,6 +4284,16 @@
     },
     {
       "source": "joplin",
+      "target": "cloudflared",
+      "type": "exposedBy",
+      "strength": "required",
+      "description": "The shared Cloudflare Tunnel publishes Joplin at joplin.albandrieu.com for remote sync clients.",
+      "evidence": [
+        "terraform/cloudflare/tunnel.tofu:joplin.albandrieu.com"
+      ]
+    },
+    {
+      "source": "joplin",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
@@ -4347,8 +4316,8 @@
       "source": "joplin",
       "target": "traefik",
       "type": "exposedBy",
-      "strength": "required",
-      "description": "Traefik exposes Joplin only through the private joplin.int.albandrieu.com hostname.",
+      "strength": "optional",
+      "description": "Traefik also serves Joplin on the private joplin.int.albandrieu.com hostname.",
       "evidence": [
         "apps/joplin/compose.yml:traefik.http.routers.joplin"
       ]
@@ -4421,26 +4390,6 @@
       "description": "Prometheus scrapes Keycloak metrics from the private management interface.",
       "evidence": [
         "apps/keycloak/compose.yml:KC_METRICS_ENABLED"
-      ]
-    },
-    {
-      "source": "kibana",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:kibana.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "kibana",
-      "target": "elasticsearch",
-      "type": "dependsOn",
-      "strength": "required",
-      "description": "Kibana queries Elasticsearch for indexed data and saved objects.",
-      "evidence": [
-        "apps/elasticsearch/compose.yml:ELASTICSEARCH_HOSTS"
       ]
     },
     {

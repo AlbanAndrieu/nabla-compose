@@ -146,16 +146,6 @@ endpoints:
   url: tcp://172.17.0.24:9080
   conditions:
   - '[CONNECTED] == true'
-- name: Elasticsearch
-  group: data
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: elasticsearch
-    nabla_service_id: elasticsearch
-    nabla_entity_ref: resource:default/elasticsearch
-  url: tcp://172.17.0.24:9200
-  conditions:
-  - '[CONNECTED] == true'
 - name: FastAPI Sample
   group: development
   interval: 60s
@@ -257,16 +247,6 @@ endpoints:
   url: http://172.17.0.24:9308/metrics
   conditions:
   - '[STATUS] == 200'
-- name: Kibana
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: kibana
-    nabla_service_id: kibana
-    nabla_entity_ref: component:default/kibana
-  url: tcp://172.17.0.24:5601
-  conditions:
-  - '[CONNECTED] == true'
 - name: Langflow
   group: ai
   interval: 60s

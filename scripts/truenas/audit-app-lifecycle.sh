@@ -34,7 +34,6 @@ done < <(jq -r '.[] | [(.id // .name), (.state // "UNKNOWN")] | @tsv' "${tmp}")
 
 declare -A app_alias=(
   [2fauth]="twofactor-auth"
-  [elasticsearch]="elastic-search"
   [homeassistant]="home-assistant"
   [reactive]="reactive-resume"
 )

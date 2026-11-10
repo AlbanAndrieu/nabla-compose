@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:337105a67f768c135df2eaff0232ed724370bb008e0bbc06076cd42d75d4fa2a",
+  "catalogRevision": "sha256:4d6074d70a8cf7f4f6883698c230499e58dbbb33ec2d4fa1170ae4199e1275e7",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -793,23 +793,6 @@
       }
     },
     {
-      "id": "elasticsearch",
-      "name": "Elasticsearch",
-      "kind": "search",
-      "category": "data",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "elasticsearch",
-      "runtime": {
-        "provider": "truenas-app",
-        "appId": "elastic-search",
-        "containerService": "elasticsearch",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "🔎"
-    },
-    {
       "id": "fastapi-sample",
       "name": "FastAPI Sample",
       "kind": "api",
@@ -1146,7 +1129,7 @@
       "category": "productivity",
       "sourcePath": "apps/joplin/compose.yml",
       "composeService": "joplin",
-      "url": "https://joplin.int.albandrieu.com",
+      "url": "https://joplin.albandrieu.com",
       "internalUrl": "http://joplin:22300",
       "description": "Private Joplin synchronization server backed by the shared PostgreSQL service.",
       "presentationRole": "service",
@@ -1241,22 +1224,6 @@
           "intranet"
         ]
       }
-    },
-    {
-      "id": "kibana",
-      "name": "Kibana",
-      "kind": "dashboard",
-      "category": "observability",
-      "sourcePath": "apps/elasticsearch/compose.yml",
-      "composeService": "kibana",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "kibana",
-        "networks": [
-          "traefik_network"
-        ]
-      },
-      "icon": "📊"
     },
     {
       "id": "langflow",

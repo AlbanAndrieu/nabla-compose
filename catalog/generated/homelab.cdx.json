@@ -254,10 +254,6 @@
       "ref": "component:default/keycloak"
     },
     {
-      "dependsOn": [],
-      "ref": "component:default/kibana"
-    },
-    {
       "dependsOn": [
         "resource:default/opensearch"
       ],
@@ -712,10 +708,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "resource:default/elasticsearch"
-    },
-    {
-      "dependsOn": [],
       "ref": "resource:default/gpu-openai-compatible-inference"
     },
     {
@@ -797,7 +789,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:6936590bc6649c02ef77e084abab0cd9711242c71dea66143c8bf22b5e16e0ff"
+        "value": "sha256:0cdbdeedb239da9849a90540d61caaac83fbc3dff8a03d550192ea5f859afe3f"
       },
       {
         "name": "nabla:catalog-authority",
@@ -805,7 +797,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:6936590b-c664-9c02-ef77-e084abab0cd9",
+  "serialNumber": "urn:uuid:0cdbdeed-b239-da98-49a9-0540d61caaac",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2169,32 +2161,6 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "experimental"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/kibana",
-      "name": "Kibana",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/kibana"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/elasticsearch/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "dashboard"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
         }
       ]
     },
@@ -4678,28 +4644,6 @@
         {
           "name": "nabla:backstage:type",
           "value": "container-runtime"
-        }
-      ]
-    },
-    {
-      "bom-ref": "resource:default/elasticsearch",
-      "name": "Elasticsearch",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Resource"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "resource:default/elasticsearch"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/elasticsearch/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "search"
         }
       ]
     },
