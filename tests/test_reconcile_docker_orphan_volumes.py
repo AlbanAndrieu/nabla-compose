@@ -57,7 +57,7 @@ class ReconcileOrphanVolumesTests(unittest.TestCase):
             ages.append(f'"{mount.parent}") echo {now - age * DAY} ;;')
         (self.tmp / "listing.tsv").write_text("\n".join(listing) + "\n")
         self.stub("date", f'[[ "$1" == "+%s" ]] && echo {now} || /bin/date "$@"')
-        self.stub("du", 'case "${@: -1}" in\n' + "\n".join(sizes) + "\nesac")
+        self.stub("du", 'case "${@: -1}" in\n' + "\n".join(sizes) + '\n*) echo "1\t${@: -1}" ;;\nesac')
         self.stub("stat", 'case "${@: -1}" in\n' + "\n".join(ages) + "\nesac")
         self.stub(
             "docker",
@@ -111,6 +111,16 @@ class ReconcileOrphanVolumesTests(unittest.TestCase):
         )
         self.assertEqual(oct(self.plan.stat().st_mode & 0o777), "0o600")
         self.assertNotIn("volume rm", self.log.read_text())
+
+    def test_plan_larger_than_a_pipe_buffer_exits_zero(self):
+        # 10/11 on TrueNAS: 725 rows made `sort | head -15` die of SIGPIPE under pipefail.
+        extra = "".join(f"{i:064x}\t{self.volumes}/{i:064x}/_data\t\t\n" for i in range(1, 901))
+        with (self.tmp / "listing.tsv").open("a") as listing:
+            listing.write(extra)
+        result = self.run_script("--plan", str(self.plan))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("nothing removed", result.stdout + result.stderr)
+        self.assertEqual(len(self.plan.read_text().splitlines()), 906)
 
     def test_apply_requires_approval(self):
         self.run_script("--plan", str(self.plan))
