@@ -141,7 +141,7 @@ Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrat
 
 ## P0/P1/P2 — Cible cryptographique FIPS, PostgreSQL 16 → 18, TLS 1.3, Vault et OAuth (10 novembre 2026)
 
-**Décision** : le homelab vise un **alignement FIPS 140-3 vérifiable**, sans revendiquer de certification ni supposer que DORA impose FIPS. Aucun changement TLS, certificat, compte ou serveur ne peut être appliqué tant que la compatibilité n'est pas prouvée.
+**Décision** : le homelab vise un **alignement FIPS 140-3 vérifiable**, sans revendiquer de certification ni supposer que DORA impose FIPS. Le homelab accepte les indisponibilités pendant les tests TLS/certificats et migrations ; conserver toutefois la récupération des données, les secrets et un accès d'administration de secours.
 
 | Priorité | Objectif | État | Critère de réception |
 | --- | --- | --- | --- |
