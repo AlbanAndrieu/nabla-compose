@@ -12,7 +12,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-AUDIT = ROOT / "scripts" / "truenas" / "audit-production-readiness.py"
+AUDIT = ROOT / "scripts" / "truenas" / "audit-master-readiness.py"
 OPS = ROOT / "scripts" / "truenas" / "app-ops.sh"
 MEDIA_APPS = (
     "media-acquisition", "prowlarr", "radarr", "sonarr", "lidarr",
@@ -21,7 +21,7 @@ MEDIA_APPS = (
 
 
 def load():
-    spec = importlib.util.spec_from_file_location("audit_production_readiness", AUDIT)
+    spec = importlib.util.spec_from_file_location("audit_master_readiness", AUDIT)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -31,7 +31,7 @@ def load():
 def test_committed_report_is_current() -> None:
     module = load()
     text = module.render(module.rows())
-    assert (ROOT / "docs" / "production-readiness.md").read_text(encoding="utf-8") == text
+    assert (ROOT / "docs" / "master-readiness.md").read_text(encoding="utf-8") == text
 
 
 def test_media_stack_is_ready_for_deployment() -> None:

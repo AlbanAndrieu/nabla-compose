@@ -1,6 +1,6 @@
 # Préparation à la production des Apps TrueNAS
 
-> Fichier généré par `scripts/truenas/audit-production-readiness.py --write` à partir
+> Fichier généré par `scripts/truenas/audit-master-readiness.py --write` à partir
 > du dépôt seul (aucun appel réseau). Ne pas éditer à la main. Opérations par App :
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).

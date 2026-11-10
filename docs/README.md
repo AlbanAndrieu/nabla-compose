@@ -48,7 +48,7 @@ the rest in git history.
 - [Talos and TrueNAS batch upgrade](./runbooks/2026-10-23-fast-batch-migration.md)
 - [Operator tools and TrueNAS upgrade coupling](./truenas-operator-tools.md)
 - [Deployment automation](./truenas-deployment-automation.md)
-- [Opérations de production des Apps TrueNAS](runbooks/production-app-operations.md) : `app-ops.sh` (état, stockage, secrets, déploiement, redémarrage, diagnostic, supervision, sauvegarde) et [matrice générée](production-readiness.md).
+- [Opérations de production des Apps TrueNAS](runbooks/production-app-operations.md) : `app-ops.sh` (état, stockage, secrets, déploiement, redémarrage, diagnostic, supervision, sauvegarde) et [matrice générée](master-readiness.md).
 - [Service resource inventory](./runbooks/2026-10-26-homelab-service-resource-inventory.md)
 - [CSI orphan datasets](./truenas-csi-orphan-datasets.md)
 - [ZFS snapshot policy](./truenas-zfs-snapshot-policy.md)

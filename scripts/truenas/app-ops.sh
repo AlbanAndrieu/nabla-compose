@@ -4,7 +4,7 @@
 # It dispatches to the existing, tested tools and adds no new mutation logic.
 # Every action is read-only unless --apply is given; --apply also needs
 # NABLA_RUNTIME_CHANGE_APPROVED=yes. The App facts (datasets, deployment path,
-# databases, probes) come from scripts/truenas/audit-production-readiness.py.
+# databases, probes) come from scripts/truenas/audit-master-readiness.py.
 # Runbook: docs/runbooks/production-app-operations.md
 set -euo pipefail
 
@@ -33,7 +33,7 @@ fi
 [[ -f "${REPO_ROOT}/apps/${APP_ID}/compose.yml" ]] || fail "apps/${APP_ID}/compose.yml is absent"
 cd "${REPO_ROOT}"
 
-ROW="$(python3 scripts/truenas/audit-production-readiness.py --app "${APP_ID}")"
+ROW="$(python3 scripts/truenas/audit-master-readiness.py --app "${APP_ID}")"
 field() { jq -r "$1" <<<"${ROW}"; }
 
 # Refuse before any step runs, so a partial --apply never happens.

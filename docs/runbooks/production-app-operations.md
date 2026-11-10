@@ -2,8 +2,8 @@
 
 Procédure commune à toutes les Apps du dépôt, déjà installées ou à installer.
 L'état de chaque App est dans la matrice générée
-[`docs/production-readiness.md`](../production-readiness.md) (régénérée par
-`scripts/truenas/audit-production-readiness.py --write`, sans réseau).
+[`docs/master-readiness.md`](../master-readiness.md) (régénérée par
+`scripts/truenas/audit-master-readiness.py --write`, sans réseau).
 
 ## Règles
 
