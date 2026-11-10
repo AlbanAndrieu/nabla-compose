@@ -403,7 +403,7 @@
       "internalHost": "172.17.0.24",
       "internalPort": 22300,
       "internalSecure": false,
-      "tunnelUrl": "https://joplin.int.albandrieu.com",
+      "tunnelUrl": "https://joplin.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/joplin.png",
       "external": true

@@ -231,11 +231,6 @@ locals {
       service        = "http://172.17.0.24:9005"
     },
     {
-      hostname       = "kibana.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:5601"
-    },
-    {
       hostname       = "fastapi-sample.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:8091"
@@ -249,6 +244,13 @@ locals {
       hostname       = "garage.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:3900"
+    },
+    # Joplin Server (10/11): sync clients cannot complete an interactive
+    # Access login, so this route relies on Joplin's own authentication.
+    {
+      hostname       = "joplin.albandrieu.com"
+      origin_request = {}
+      service        = "http://172.17.0.24:22300"
     },
     {
       service = "http_status:404"

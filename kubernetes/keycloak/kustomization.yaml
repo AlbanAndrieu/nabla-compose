@@ -1,0 +1,33 @@
+# Keycloak on Talos — replaces the TrueNAS Custom App apps/keycloak (owner
+# decision 10/11). NOT applied. Stateless: the realm data stays in the shared
+# TrueNAS PostgreSQL (database `keycloak`, TLS verify-server), so the cut-over
+# is a stop on TrueNAS + start here against the same database.
+#
+#   kubectl kustomize kubernetes/keycloak            # render, no cluster access
+#   kubectl apply -k kubernetes/keycloak             # owner only, after the gates
+#
+# Required out-of-band objects (never committed, materialised from Vaultwarden
+# item nabla/prod/keycloak by the operator):
+#   Secret keycloak-runtime   keys KC_DB_PASSWORD, KC_BOOTSTRAP_ADMIN_PASSWORD
+#   ConfigMap postgres-ca     key  ca.crt (public PostgreSQL CA certificate)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: keycloak
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - networkpolicy.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: keycloak
+      app.kubernetes.io/managed-by: nabla-compose
+    includeSelectors: false
+
+images:
+  # Fail closed: replace with the verified immutable digest of 26.8.2 before any apply.
+  - name: quay.io/keycloak/keycloak
+    newTag: 26.8.2
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

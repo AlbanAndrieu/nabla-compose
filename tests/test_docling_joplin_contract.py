@@ -56,9 +56,11 @@ def test_joplin_uses_shared_postgres_and_private_ingress() -> None:
     assert service["environment"]["POSTGRES_USER"] == "joplin"
     assert "/mnt/cpool/secrets/runtime/joplin/.env.secrets" in service["env_file"]
     assert "POSTGRES_PASSWORD" not in service["environment"]
-    assert metadata["url"] == "https://joplin.int.albandrieu.com"
+    assert metadata["url"] == "https://joplin.albandrieu.com"
     assert metadata["monitoring"]["target"].endswith(":22300/api/ping")
 
     relations = {(item["target"], item["type"]) for item in metadata["relations"]}
     assert ("postgresql", "dependsOn") in relations
     assert ("traefik", "exposedBy") in relations
+    assert ("cloudflared", "exposedBy") in relations
+    assert service["environment"]["APP_BASE_URL"] == "https://joplin.albandrieu.com"
