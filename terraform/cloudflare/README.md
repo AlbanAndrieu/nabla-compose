@@ -182,7 +182,9 @@ explicite ; le script de capture les classe `unmanaged`.
 
    Seuls des `GET` partent ; le contenu des enregistrements n'est jamais affiché
    (un A peut porter l'IP WAN). `--write` met à jour
-   `dns-record-ids.auto.tfvars.json` (identifiants non secrets, à commiter).
+   `dns-record-ids.auto.tfvars` (identifiants non secrets, à commiter ; chaque
+   ligne porte `# gitleaks:allow`, car un nom comme `keycloak.*` déclenche
+   l'heuristique `generic-api-key`).
    Classes à traiter : `tunnel-drift` (le plan le corrigera), `orphan-tunnel`
    (CNAME sans route : l'ajouter à `retired_hostnames`), `private-namespace`
    (dérive `*.int`), `missing` (route sans DNS : `new_tunnel_hostnames`).

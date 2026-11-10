@@ -33,7 +33,7 @@ variable "fastapi_sample_api_access_application_id" {
 }
 
 # Written by scripts/cloudflare/capture-dns-records.py --write into
-# dns-record-ids.auto.tfvars.json (record identifiers are not secrets).
+# dns-record-ids.auto.tfvars (record identifiers are not secrets).
 variable "dns_tunnel_record_ids" {
   description = "Live record id of each tunnel hostname CNAME, keyed by hostname (import-first)."
   type        = map(string)

@@ -100,6 +100,23 @@ def test_capture_classification() -> None:
     assert all("content" not in row for row in report["rows"]), "contents are never reported"
 
 
+def test_written_ids_are_hcl_with_scanner_markers() -> None:
+    text = load_capture().render_tfvars(
+        {"dns_tunnel_record_ids": {"keycloak.albandrieu.com": "a" * 32, "ha.albandrieu.com": "b" * 32},
+         "dns_retired_record_ids": {}}
+    )
+    assert text == (
+        "dns_tunnel_record_ids = {\n"
+        f'  "keycloak.albandrieu.com" = "{"a" * 32}" # gitleaks:allow\n'
+        f'  "ha.albandrieu.com"       = "{"b" * 32}" # gitleaks:allow\n'
+        "}\n\n"
+        "dns_retired_record_ids = {}\n"
+    )
+    committed = (MODULE / "dns-record-ids.auto.tfvars").read_text(encoding="utf-8")
+    ids = [line for line in committed.splitlines() if re.search(r'= "[0-9a-f]{32}"', line)]
+    assert ids and all(line.endswith("# gitleaks:allow") for line in ids)
+
+
 @pytest.mark.skipif(shutil.which("tofu") is None, reason="OpenTofu not installed")
 def test_dns_records_module_offline_contract() -> None:
     module = MODULE / "modules" / "dns-records"
