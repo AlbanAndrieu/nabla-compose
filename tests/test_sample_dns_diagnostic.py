@@ -24,7 +24,7 @@ host=''; server=''; type=''
 for arg in "$@"; do
   case "$arg" in
     @*) server="$(echo "$arg" | cut -c2-)" ;;
-    sample.*) host="$arg" ;;
+    sample.*|fastapi-sample.*) host="$arg" ;;
     A|AAAA|HTTPS) type="$arg" ;;
   esac
 done

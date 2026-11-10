@@ -67,6 +67,13 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(remote[-1], "sudo -n python3 - --quota-audit")
         self.assertNotIn("ssh", local)
 
+    def test_add_missing_mode_forwards_only_its_flag(self):
+        local = module.build_command("add-missing", "truenas_local")
+        remote = module.build_command("add-missing", "workstation_ssh")
+        self.assertEqual(local[-1], "--add-missing")
+        self.assertEqual(remote[-1], "sudo -n python3 - --add-missing")
+        self.assertNotIn("--apply", " ".join(local + remote))
+
     def test_quota_audit_is_registered_in_argument_parser(self):
         from types import SimpleNamespace
         with patch.object(module, "execution_target", return_value="truenas_local"), \
@@ -112,10 +119,30 @@ class ProvisionerStatusTests(unittest.TestCase):
             "LITELLM_MASTER_KEY": "sk-ADMIN-SYNTHETIC",
             "LITELLM_OPENCLAW_MAIN_API_KEY": "sk-MAIN-SYNTHETIC",
             "LITELLM_OPENCLAW_CRON_API_KEY": "sk-CRON-SYNTHETIC",
+            "LITELLM_OPENCLAW_CODER_API_KEY": "sk-CODER-SYNTHETIC",
         }
         self.main_models = ["workstation-qwen", "qwen", "gpt-4.1", "gpt-4.1-mini"]
         self.cron_models = ["workstation-qwen", "gpt-4.1-mini"]
+        self.coder_models = ["gpt-4.1"]
         self.served = {"data": [{"id": name} for name in self.main_models]}
+        import hashlib
+        self.hashes = {who: hashlib.sha256(self.env[f"LITELLM_OPENCLAW_{who.upper()}_API_KEY"].encode()).hexdigest()
+                       for who in ("main", "cron", "coder")}
+        self.models_by_hash = {self.hashes["main"]: self.main_models, self.hashes["cron"]: self.cron_models,
+                               self.hashes["coder"]: self.coder_models}
+        # main/cron: 2 USD lifetime; coder: 11 USD per 7 days (10 EUR per week).
+        self.budget_by_hash = {self.hashes["main"]: (2, None), self.hashes["cron"]: (2, None),
+                               self.hashes["coder"]: (11, "7d")}
+        runtime_file = patch.object(self.provisioner, "runtime_file_values", return_value={})
+        self.runtime_file = runtime_file.start()
+        self.addCleanup(runtime_file.stop)
+
+    def info_for(self, path, **fields):
+        """Key metadata of the key addressed by hash in /key/info?key=<hash>."""
+        key_hash = path.rsplit("=", 1)[1]
+        budget, duration = self.budget_by_hash[key_hash]
+        return 200, {"info": {"models": self.models_by_hash[key_hash], "max_budget": budget,
+                              "budget_duration": duration, "spend": 0.0, **fields}}
 
     def test_status_reports_missing_alias_without_attempting_creation(self):
         calls = []
@@ -205,14 +232,9 @@ class ProvisionerStatusTests(unittest.TestCase):
             if path == "/v1/models":
                 return 200, self.served
             if path == "/key/list":
-                return 200, {"keys": ["hashed-main", "hashed-cron"]}
+                return 200, {"keys": ["hashed-main", "hashed-cron", "hashed-coder"]}
             if path.startswith("/key/info?key="):
-                main_hash = hashlib.sha256(self.env[
-                    "LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()
-                main = path.endswith(main_hash)
-                return 200, {"info": {"models": self.main_models
-                                      if main else self.cron_models,
-                                      "max_budget": 2, "spend": 0.0}}
+                return self.info_for(path)
             raise AssertionError("No mutation allowed: " + path)
 
         for args in ([], ["--apply"]):
@@ -222,7 +244,7 @@ class ProvisionerStatusTests(unittest.TestCase):
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 result = self.provisioner.main(args)
             self.assertEqual(result, 0)
-            self.assertEqual(len(paths), 4)
+            self.assertEqual(len(paths), 5)
             self.assertTrue(all(body is None for _, body in paths))
             self.assertIn("provisioning=already_present_verified_noop", output.getvalue())
             self.assertNotIn("SYNTHETIC", output.getvalue())
@@ -254,22 +276,19 @@ class ProvisionerStatusTests(unittest.TestCase):
             self.assertEqual(master, self.env["LITELLM_MASTER_KEY"])
             if "key=" not in path:
                 raise AssertionError("Only hashed key metadata GET allowed")
-            if path.endswith(__import__("hashlib").sha256(
-                    self.env["LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()):
-                return 200, {"info": {"models": self.main_models,
-                                     "max_budget": 2, "spend": 0.3,
-                                     "rpm_limit": 30, "tpm_limit": 9000}}
-            return 200, {"info": {"models": self.cron_models,
-                                 "max_budget": 2, "spend": 0.7}}
+            if path.endswith(self.hashes["main"]):
+                return self.info_for(path, spend=0.3, rpm_limit=30, tpm_limit=9000)
+            return self.info_for(path, spend=0.7)
         with patch.object(self.provisioner, "container_environment", return_value=self.env), \
              patch.object(self.provisioner, "request", side_effect=info), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             code = self.provisioner.main(["--quota-audit"])
         self.assertEqual(code, 0)
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
         self.assertTrue(all(body is None for _, body in calls))
         self.assertIn("openclaw_main_quota_state=below_cap", output.getvalue())
         self.assertIn("openclaw_cron_model_scope=verified", output.getvalue())
+        self.assertIn("openclaw_coder_model_scope=verified", output.getvalue())
         self.assertIn("openclaw_main_budget_cap=2", output.getvalue())
         for value in self.env.values():
             self.assertNotIn(value, output.getvalue())
@@ -278,34 +297,37 @@ class ProvisionerStatusTests(unittest.TestCase):
         paths = []
         def exhausted(path, master, body=None):
             paths.append(path)
+            budget, duration = self.budget_by_hash[path.rsplit("=", 1)[1]]
             return 200, {"info": {"models": ["workstation-qwen", "qwen"]
                                   if not paths[:-1] else ["workstation-qwen"],
-                                  "max_budget": 2, "spend": 2.0}}
+                                  "max_budget": budget, "budget_duration": duration, "spend": float(budget)}}
         with patch.object(self.provisioner, "container_environment", return_value=self.env), \
              patch.object(self.provisioner, "request", side_effect=exhausted), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             code = self.provisioner.main(["--quota-audit"])
         self.assertEqual(code, 1)
-        self.assertEqual(len(paths), 2)
+        self.assertEqual(len(paths), 3)
         self.assertIn("openclaw_main_quota_state=exhausted", output.getvalue())
 
     def test_update_scope_posts_hashed_key_models_only(self):
         import hashlib
         posts = []
-        grants = {"main": ["workstation-qwen", "qwen"], "cron": ["workstation-qwen"]}
-        main_hash = hashlib.sha256(self.env["LITELLM_OPENCLAW_MAIN_API_KEY"].encode()).hexdigest()
+        grants = {"main": ["workstation-qwen", "qwen"], "cron": ["workstation-qwen"], "coder": ["qwen"]}
+        who_by_hash = {digest: who for who, digest in self.hashes.items()}
 
         def fake(path, master, body=None):
             if path == "/v1/models":
                 return 200, self.served
             if path == "/key/list":
-                return 200, {"keys": ["hashed-main", "hashed-cron"]}
+                return 200, {"keys": ["hashed-main", "hashed-cron", "hashed-coder"]}
             if path.startswith("/key/info?key="):
-                who = "main" if path.endswith(main_hash) else "cron"
-                return 200, {"info": {"models": grants[who], "max_budget": 2, "spend": 0.0}}
+                key_hash = path.rsplit("=", 1)[1]
+                budget, duration = self.budget_by_hash[key_hash]
+                return 200, {"info": {"models": grants[who_by_hash[key_hash]], "max_budget": budget,
+                                      "budget_duration": duration, "spend": 0.0}}
             if path == "/key/update":
                 posts.append(body)
-                grants["main" if body["key"] == main_hash else "cron"] = body["models"]
+                grants[who_by_hash[body["key"]]] = body["models"]
                 return 200, {}
             raise AssertionError("Unexpected call: " + path)
 
@@ -314,9 +336,10 @@ class ProvisionerStatusTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             code = self.provisioner.main(["--update-scope"])
         self.assertEqual(code, 0)
-        self.assertEqual([sorted(body) for body in posts], [["key", "models"]] * 2)
-        self.assertEqual(posts[0], {"key": main_hash, "models": self.main_models})
+        self.assertEqual([sorted(body) for body in posts], [["key", "models"]] * 3)
+        self.assertEqual(posts[0], {"key": self.hashes["main"], "models": self.main_models})
         self.assertEqual(posts[1]["models"], self.cron_models)
+        self.assertEqual(posts[2], {"key": self.hashes["coder"], "models": self.coder_models})
         self.assertIn("openclaw_cron_model_scope=verified", output.getvalue())
         for value in self.env.values():
             self.assertNotIn(value, output.getvalue())
@@ -338,6 +361,89 @@ class ProvisionerStatusTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("openclaw_main_scope_update=blocked_unverified_key", output.getvalue())
 
+
+    def add_missing_run(self, coder_info_status):
+        posts = []
+
+        def fake(path, master, body=None):
+            if path == "/v1/models":
+                return 200, self.served
+            if path == "/key/list":
+                return 200, {"keys": ["hashed-main", "hashed-cron"]}
+            if path.startswith("/key/info?key="):
+                if path.endswith(self.hashes["coder"]) and not posts:
+                    return coder_info_status, None
+                return self.info_for(path)
+            if path == "/key/generate":
+                posts.append(body)
+                return 200, {}
+            raise AssertionError("Unexpected call: " + path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=fake), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--add-missing"])
+        for value in self.env.values():
+            self.assertNotIn(value, output.getvalue())
+        return code, posts, output.getvalue()
+
+    def test_add_missing_registers_only_the_unknown_coder_key(self):
+        code, posts, output = self.add_missing_run(404)
+        self.assertEqual(code, 0)
+        self.assertEqual(posts, [{"key": self.env["LITELLM_OPENCLAW_CODER_API_KEY"], "key_alias": "openclaw-coder",
+                                  "models": self.coder_models, "max_budget": 11, "budget_duration": "7d",
+                                  "metadata": {"managed_by": "nabla-compose", "purpose": "openclaw-coder"}}])
+        self.assertIn("openclaw_coder_budget_cap=11", output)
+        self.assertIn("openclaw_coder_budget_duration=7d", output)
+        self.assertIn("openclaw_main_presence=existing", output)
+        self.assertIn("openclaw_coder_presence=missing", output)
+        self.assertIn("openclaw_coder_model_scope=verified", output)
+
+    def test_add_missing_fails_closed_on_unverified_key(self):
+        code, posts, output = self.add_missing_run(500)
+        self.assertEqual(code, 2)
+        self.assertEqual(posts, [])
+        self.assertIn("provisioning=blocked_unverified_key", output)
+
+    def test_coder_value_from_runtime_file_needs_no_litellm_recreate(self):
+        value = self.env.pop("LITELLM_OPENCLAW_CODER_API_KEY")
+        self.runtime_file.return_value = {"LITELLM_OPENCLAW_CODER_API_KEY": value}
+        code, posts, output = self.add_missing_run(404)
+        self.assertEqual(code, 0)
+        self.assertEqual(posts[0]["key"], value)
+        self.assertNotIn(value, output)
+
+    def test_container_and_runtime_file_disagreement_fails_closed(self):
+        self.runtime_file.return_value = {"LITELLM_OPENCLAW_CODER_API_KEY": "sk-OTHER-SYNTHETIC"}
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=AssertionError("no request")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--status"])
+        self.assertEqual(code, 2)
+        self.assertIn("credential_source=container_and_runtime_file_differ", output.getvalue())
+        self.assertNotIn("SYNTHETIC", output.getvalue())
+
+    def test_lifetime_budget_on_coder_key_is_a_scope_mismatch(self):
+        self.budget_by_hash[self.hashes["coder"]] = (11, None)
+
+        def info(path, master, body=None):
+            return self.info_for(path)
+
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=info), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--quota-audit"])
+        self.assertEqual(code, 2)
+        self.assertIn("openclaw_coder_budget_cap=mismatch_or_unverified", output.getvalue())
+
+    def test_shared_key_values_fail_credential_separation(self):
+        self.env["LITELLM_OPENCLAW_CODER_API_KEY"] = self.env["LITELLM_OPENCLAW_MAIN_API_KEY"]
+        with patch.object(self.provisioner, "container_environment", return_value=self.env), \
+             patch.object(self.provisioner, "request", side_effect=AssertionError("no request")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            code = self.provisioner.main(["--add-missing"])
+        self.assertEqual(code, 2)
+        self.assertIn("credential_separation=failed", output.getvalue())
 
 
 if __name__ == "__main__":

@@ -1084,9 +1084,39 @@ openclaw-truenas-litellm-recreate-apply:
 openclaw-truenas-virtual-keys-plan:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode plan
 
-# Explicitly create the two OpenClaw virtual keys (budget 2 each).
+# Explicitly create the OpenClaw virtual keys (main, cron, coder; budget 2 each).
 openclaw-truenas-virtual-keys-apply:
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode apply
+
+# OpenClaw coder key (nabla-openclaw docs/coder-agent.md), read-only: runtime value,
+# Gateway SecretRef file and LiteLLM registration state. Workstation (SSH) or TrueNAS.
+openclaw-coder-key-plan:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
+      sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py
+    else
+      ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-openclaw-coder-key.py
+    fi
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+
+# Explicit, NABLA_RUNTIME_CHANGE_APPROVED=yes: generate the value once (never rotated),
+# sync the Gateway file, register the key (11 USD / 7 days) with no LiteLLM or Gateway restart.
+openclaw-coder-key-apply:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ "${NABLA_RUNTIME_CHANGE_APPROVED:-}" = yes ] || { echo "approval=missing (NABLA_RUNTIME_CHANGE_APPROVED=yes)"; exit 2; }
+    if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
+      sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py --apply
+    else
+      ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/ensure-openclaw-coder-key.py
+    fi
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode add-missing
+    echo "next=import into Vaultwarden: BW_SESSION=... python3 scripts/secrets/import_dotenv_to_bitwarden.py --app litellm --input /mnt/cpool/secrets/runtime/litellm/.env.secrets --apply"
+
+# Explicit: register only keys LiteLLM does not know yet (404), e.g. openclaw-coder.
+openclaw-truenas-virtual-keys-add-missing:
+    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode add-missing
 
 # Works from either canonical TrueNAS checkout or Workstation; no tunnel required.
 openclaw-truenas-virtual-keys-status:
