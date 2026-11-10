@@ -34,6 +34,10 @@ BOARD_SYNC_ENABLED = os.getenv("HOMARR_BOARD_ENABLED", "true").lower() in {
 # Board names, columns, visibility and members are declared in BOARDS_PATH.
 
 
+class AuthRejected(RuntimeError):
+    """Homarr refused the API key: retrying cannot help."""
+
+
 def log(message: str) -> None:
     print(f"[homarr-sync] {message}", flush=True)
 
@@ -55,7 +59,8 @@ def request_json(method: str, path: str, payload: object | None = None) -> Any:
             body = response.read()
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
+        error = AuthRejected if exc.code in {401, 403} else RuntimeError
+        raise error(
             f"Homarr API {method} {path} returned {exc.code}: {body[:400]}"
         ) from exc
     except URLError as exc:
@@ -81,6 +86,8 @@ def wait_for_homarr() -> list[dict[str, Any]]:
             if isinstance(apps, list):
                 return [app for app in apps if isinstance(app, dict)]
             raise RuntimeError("Homarr /api/apps did not return an array")
+        except AuthRejected:
+            raise
         except (RuntimeError, json.JSONDecodeError) as exc:
             last_error = exc
             log(f"API not ready ({attempt}/{MAX_ATTEMPTS}): {exc}")
@@ -235,7 +242,12 @@ def main() -> int:
     ]
     state: dict[str, str] = {}
 
-    apps = wait_for_homarr()
+    try:
+        apps = wait_for_homarr()
+    except AuthRejected as exc:
+        # Same contract as a missing key: a revoked key must not mark the App CRASHED.
+        log(f"RECONCILE_SKIPPED: Homarr rejected the API key; rematerialise HOMARR_API_KEY ({exc})")
+        return 0
     created = updated = unchanged = 0
 
     for item in desired_items:

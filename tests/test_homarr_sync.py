@@ -219,3 +219,17 @@ def test_legacy_token_name_is_accepted_but_flagged() -> None:
     source = (Path(__file__).resolve().parents[1] / "apps/homarr/sync.py").read_text(encoding="utf-8")
     assert 'os.getenv("HOMARR_API_KEY") or os.getenv("HOMARR_API_TOKEN")' in source
     assert "rematerialise HOMARR_API_KEY" in source
+
+
+def test_rejected_key_skips_at_once_without_crashing_the_truenas_app(capsys) -> None:
+    request_json = Mock(side_effect=homarr_sync.AuthRejected("Homarr API GET /api/apps returned 401"))
+    with (
+        patch.object(homarr_sync, "API_KEY", "revoked"),
+        patch.object(homarr_sync, "load_json", return_value={"applications": [GRAFANA]}),
+        patch.object(homarr_sync, "request_json", request_json),
+        patch.object(homarr_sync.time, "sleep") as sleep,
+    ):
+        assert homarr_sync.main() == 0
+    assert request_json.call_count == 1
+    sleep.assert_not_called()
+    assert "RECONCILE_SKIPPED" in capsys.readouterr().out

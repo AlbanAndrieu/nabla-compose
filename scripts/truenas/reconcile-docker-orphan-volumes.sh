@@ -112,5 +112,8 @@ printf 'by action (count bytes):\n'
 awk -F '\t' '{ n[$1]++; if ($3 ~ /^[0-9]+$/) b[$1] += $3 }
   END { for (a in n) printf "  %-24s %5d %s\n", a, n[a], b[a] + 0 }' "${PLAN}" | sort
 printf 'largest volumes (action bytes name project):\n'
-awk -F '\t' '$3 ~ /^[0-9]+$/ { print $1, $3, $2, $5 }' "${PLAN}" | sort -k2,2nr | head -15 | sed 's/^/  /'
+# sort -o, not a pipe: head closing early made sort fail with SIGPIPE under pipefail (exit 2).
+sort -t $'\t' -k3,3nr -o "${tmp_plan}" "${PLAN}"
+trap 'rm -f "${tmp_plan}"' EXIT
+awk -F '\t' '$3 ~ /^[0-9]+$/ && n++ < 15 { print "  " $1, $3, $2, $5 }' "${tmp_plan}"
 info "nothing removed; review the plan, delete rows to keep, then run --apply with NABLA_VOLUME_PURGE_APPROVED=yes"

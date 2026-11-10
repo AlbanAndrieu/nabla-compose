@@ -1,3 +1,11 @@
+## [0.64.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.64.0...0.64.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **mise:** relock Python on the 3.14.9 pin from mise.toml ([7e3efa1](https://github.com/AlbanAndrieu/nabla-compose/commit/7e3efa104834d1e848d6ee56fd613a5db683525b))
+* **truenas:** stop homarr-sync crashing on a revoked key, give OpenRAG time to start, fix the volume plan exit code ([da2f76c](https://github.com/AlbanAndrieu/nabla-compose/commit/da2f76c26d314cde3765b3526b51d9a10c8409f8))
+
 # [0.64.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.63.0...0.64.0) (2026-11-10)
 
 

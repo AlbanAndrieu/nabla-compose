@@ -59,7 +59,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      # 2026-11-07: ~7 min to healthy under IO load; 60s left openrag-frontend Created.
+      start_period: 600s
     volumes:
       # ZFS dataset cpool/bababou; source mountpoint must be verified on TrueNAS.
       # Read-only, no :U ownership rewrite and no SELinux :z relabel of private files.
