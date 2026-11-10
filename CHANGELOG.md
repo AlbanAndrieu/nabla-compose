@@ -1,3 +1,19 @@
+# [0.61.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.2...0.61.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **catalog:** declare fastapi-sample.albandrieu.com as the FastAPI Sample staging hostname ([f3e9a2d](https://github.com/AlbanAndrieu/nabla-compose/commit/f3e9a2d681b1449f28c4b8648afef7f0f28ba9c9)), closes [#333](https://github.com/AlbanAndrieu/nabla-compose/issues/333)
+
+
+### Features
+
+* **homelab:** HA on bridge network, Keycloak as active Custom App, Databasus backup role ([14d12e2](https://github.com/AlbanAndrieu/nabla-compose/commit/14d12e240abb5b42d22568de01e564278f93a726))
+* **keycloak:** nabla realm as code, master realm refused at the edge; HA and observability follow-ups ([b23e92e](https://github.com/AlbanAndrieu/nabla-compose/commit/b23e92e3366fea081629d7744f6502f7bcf43564)), closes [#380](https://github.com/AlbanAndrieu/nabla-compose/issues/380)
+* **observability:** Prometheus jobs for Dependency-Track and NetBox, staged pg_dump databases, startup order for pending Apps ([d8ae22b](https://github.com/AlbanAndrieu/nabla-compose/commit/d8ae22b26ebf14bf1ebe5e38c7fc8f04366a5baa))
+* **postgres-backup:** versioned pg_dump job replacing UI-only Databasus as the backup reference ([8bdadf4](https://github.com/AlbanAndrieu/nabla-compose/commit/8bdadf44f4cf2a3ba170dbe9be43cc46084da205))
+* **secrets:** add value-blind Vaultwarden migration coverage and runtime parity receipt [skip ci] ([243b64a](https://github.com/AlbanAndrieu/nabla-compose/commit/243b64ad5c1d972fe0ab03f05705f5f9e7bbda4a))
+
 ## [0.60.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.1...0.60.2) (2026-11-10)
 
 
