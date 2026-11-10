@@ -12,11 +12,11 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | Écart | Apps |
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 2 |
-| `NO_AVAILABILITY_PROBE` | 29 |
+| `NO_AVAILABILITY_PROBE` | 28 |
 | `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 17 |
 | `SECRETS_NOT_IN_MANIFEST` | 2 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 
 ## Matrice
 
@@ -51,7 +51,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `haproxy-exporter` | planned | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homarr` | active | custom-apps.yml | `cpool/homarr` (app-state) | manifest | ❌ | — | — | générique | apps/homarr/config/ | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `homeassistant` | active | ❌ | — | n/a | ❌ | — | — | générique | bootstrap-homeassistant-postgres.sh | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `homeassistant` | active | ❌ | `cpool/ha` (app-state) | n/a | ✅ | — | — | diagnose-homeassistant-overkiz.sh<br>diagnose-homeassistant-usb.sh<br>diagnose-homeassistant.sh | bootstrap-homeassistant-postgres.sh | `NO_DEPLOY_PATH` |
 | `influxdb` | active | custom-apps.yml | `cpool/influxdb` (none (noSnapshot)) | n/a | ❌ | influxdb | — | diagnose-influxdb.sh | bootstrap-scrutiny-influxdb.sh | `NO_AVAILABILITY_PROBE` |
 | `jellyfin` | planned | deploy-media-stack.sh | `cpool/jellyfin` (app-state)<br>`cpool/jellyfin-cache` (none (noSnapshot))<br>`cpool/media` (none (noSnapshot)) | n/a | ✅ | jellyfin | — | générique | config/media/settings.yml | ✅ |
 | `joplin` | planned | deploy-joplin.sh | — | manifest | ✅ | — | ✅ joplin | générique | bootstrap-joplin-postgres.sh | ✅ |

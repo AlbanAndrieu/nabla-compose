@@ -156,6 +156,7 @@
         "cpool/dsomm",
         "cpool/gatus",
         "cpool/grafana",
+        "cpool/ha",
         "cpool/hermes",
         "cpool/homarr",
         "cpool/jellyfin",

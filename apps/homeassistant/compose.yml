@@ -3,8 +3,9 @@ name: homeassistant
 services:
   homeassistant:
     container_name: homeassistant
-    # Same release and digest as the native TrueNAS App it replaces, so the
-    # cutover changes the runtime owner, not the Home Assistant version.
+    # Same release and digest as the native TrueNAS App "home-assistant" it
+    # replaces: the cutover changes the runtime owner, not the version. Upgrade
+    # (2026.11+ for the built-in integration Marketplace) is a separate step.
     image: ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133
     x-nabla:
       id: homeassistant
@@ -13,10 +14,16 @@ services:
       category: automation
       presentationRole: service
       criticality: medium
-      description: Home automation control plane exposed through the dedicated IoT network.
+      description: Home automation control plane on the TrueNAS bridge network; IoT devices on the pfSense OPT network are reached by explicit address.
       runtime:
         provider: truenas-app
+        appId: homeassistant
         containerService: homeassistant
+      monitoring:
+        type: http
+        target: http://172.17.0.24:30103/manifest.json
+        conditions:
+          - "[STATUS] == 200"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -24,31 +31,48 @@ services:
     # shared PostgreSQL on 172.17.0.24:5432, which a macvlan container cannot
     # (it was bound to the TrueNAS host address itself). Multicast discovery of
     # IoT devices is not available on a bridge: integrations must use explicit
-    # host addresses.
+    # host addresses, allowed by pfSense from 172.17.0.24 to the OPT device only.
     networks:
       intranet:
-      traefik:
+      traefik_network:
     ports:
+      # Same LAN port as the native App: the Cloudflare Tunnel route
+      # ha.albandrieu.com -> 172.17.0.24:30103 and LAN clients stay unchanged.
       - target: 8123
-        published: 8123
+        published: 30103
         host_ip: 172.17.0.24
         protocol: tcp
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-      - /mnt/storage0/home-assistant/config:/config
+      # Data paths of the native App (relevé du 6/11): reused in place.
+      - /mnt/cpool/ha/config:/config
+      - /mnt/cpool/ha/media:/media
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "-o",
+          "/dev/null",
+          "http://127.0.0.1:8123/manifest.json",
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 3m
     labels:
       - "com.albandrieu.nabla.entity-ref=component:default/homeassistant"
       - "traefik.enable=true"
-      - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.albanandrieu.com`)"
-      - "traefik.http.routers.homeassistant.entrypoints=https"
-      - "traefik.http.routers.homeassistant.tls=true"
-      - "traefik.http.routers.homeassistant.tls.certresolver=cloudflare"
+      - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.int.albandrieu.com`)"
+      - "traefik.http.routers.homeassistant.entrypoints=websecure"
+      - "traefik.http.routers.homeassistant.tls.certresolver=letsencrypt"
       - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
 
 networks:
   intranet:
     external: true
     name: intranet
-  traefik:
+  traefik_network:
     external: true
