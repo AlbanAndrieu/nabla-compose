@@ -96,11 +96,6 @@ locals {
       service        = "http://172.17.0.24:30169"
     },
     {
-      hostname       = "postgres.albandrieu.com"
-      origin_request = {}
-      service        = "tcp://172.17.0.24:5432"
-    },
-    {
       hostname       = "karakeep.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:30147"
