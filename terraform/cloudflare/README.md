@@ -205,7 +205,10 @@ explicite ; le script de capture les classe `unmanaged`.
    `dns-policy.yaml` et leurs identifiants : le plan suivant est `No changes`.
    Les sept noms média (`emby`, `lidarr`, `prowlarr`, `radarr`, `sabnzbd`,
    `sonarr`, `transmission`) sont les premiers retirés (décision D5,
-   [roadmap média](../../docs/arr-media-library-roadmap.md)).
+   [roadmap média](../../docs/arr-media-library-roadmap.md)). Premier tour
+   fait le 10/11/2026 : 26 CNAME détruits, NXDOMAIN au serveur autoritaire,
+   liste vidée (historique Git). Second tour en attente : `postgres`,
+   dépublié le 10/11 (PR #345).
 
 Test hors ligne du module (fournisseur simulé, aucun appel API) :
 
