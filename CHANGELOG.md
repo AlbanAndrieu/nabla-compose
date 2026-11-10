@@ -1,3 +1,10 @@
+## [0.65.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.1...0.65.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **secrets:** read runtime dotenv values like Compose and stop needless quoting ([1514afa](https://github.com/AlbanAndrieu/nabla-compose/commit/1514afa66fadf784cad0a31d2f461aefac99c9b7))
+
 ## [0.65.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.0...0.65.1) (2026-11-10)
 
 
