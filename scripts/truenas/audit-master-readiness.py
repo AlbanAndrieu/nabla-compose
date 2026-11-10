@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline production-readiness matrix of every repository TrueNAS App.
+"""Offline master-readiness matrix of every repository TrueNAS App.
 
 For each apps/<app>/compose.yml it derives, from repository evidence only:
 deployment path, datasets to create, snapshot coverage, runtime secrets,
@@ -7,7 +7,7 @@ container healthchecks, availability probe, Prometheus metrics, logical
 database backup, specialised diagnostics and configuration-as-code entry
 points. No network, no TrueNAS call, no secret value is read.
 
-  --write   regenerate docs/production-readiness.md
+  --write   regenerate docs/master-readiness.md
   --check   fail when the committed report is stale (default)
   --app X   print the JSON row of one App
   --json    print every row as JSON
@@ -24,7 +24,7 @@ import sys
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-REPORT = ROOT / "docs" / "production-readiness.md"
+REPORT = ROOT / "docs" / "master-readiness.md"
 MOUNT_RE = re.compile(r"^/mnt/cpool/([A-Za-z0-9._-]+)")
 DB_KEYS = re.compile(r"(^|_)(POSTGRES_DB|POSTGRES_DATABASE|POSTGRESDB_DATABASE|DB_NAME|DATABASE_NAME)$")
 DB_URL_RE = re.compile(r"postgres(?:ql)?://[^/\s]+/([A-Za-z0-9_]+)")
@@ -210,7 +210,7 @@ def render(data: list[dict]) -> str:
     lines = [
         "# Préparation à la production des Apps TrueNAS",
         "",
-        "> Fichier généré par `scripts/truenas/audit-production-readiness.py --write` à partir",
+        "> Fichier généré par `scripts/truenas/audit-master-readiness.py --write` à partir",
         "> du dépôt seul (aucun appel réseau). Ne pas éditer à la main. Opérations par App :",
         "> [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :",
         "> [runbook](runbooks/production-app-operations.md).",
@@ -269,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {REPORT.relative_to(ROOT)}")
         return 0
     if not REPORT.exists() or REPORT.read_text(encoding="utf-8") != text:
-        print("docs/production-readiness.md is stale: run --write", file=sys.stderr)
+        print("docs/master-readiness.md is stale: run --write", file=sys.stderr)
         return 1
     print("✅ production readiness report is current")
     return 0
