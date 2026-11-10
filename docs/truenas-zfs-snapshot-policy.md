@@ -20,10 +20,11 @@ toutes une durée de vie.
 | Classe | Fréquences | Datasets (extrait) | Motif |
 | --- | --- | --- | --- |
 | `critical` | 1×/h gardé 48 h, 1×/j gardé 30 j | `vaultwarden`, `secrets`, `2fauth` | Secrets : RPO court, plus une copie hors site chiffrée (à faire) |
-| `databases` | 1×/h gardé 24 h, 1×/j gardé 7 j | `clickhouse`, `mongo`, `neo4j`, `opensearch`, `wazuh`, `nexus3`… | Cohérence « crash » ; les dumps applicatifs restent la restauration de référence |
+| `databases` | 1×/h gardé 24 h, 1×/j gardé 7 j | `clickhouse`, `mongo`, `neo4j`, `opensearch`, `wazuh`… | Cohérence « crash » ; les dumps applicatifs restent la restauration de référence |
 | `backup-targets` | 1×/j gardé 14 j, 1×/sem gardé 8 sem | `backup`, `garage` | Un client NFS/S3 peut effacer son propre dépôt ; seul le snapshot côté TrueNAS le protège |
 | `app-state` | 1×/j gardé 30 j, 1×/sem gardé 12 sem | `traefik`, `pihole`, `grafana`, `homarr`, `keycloak`… | Configuration et petit état applicatif |
 | `user-data` | 1×/j gardé 30 j, 1×/mois gardé 12 mois | `bababou` | Documents et médias ; ajouter photo/musique/www après l'audit |
+| `artifact-cache` | 1×/sem gardé 4 sem | `nexus3` | Artefacts proxifiés re-téléchargeables ; un point hebdomadaire protège les dépôts hébergés sans retenir longtemps les blobs purgés (10/11). Les anciennes tâches horaires et quotidiennes de `cpool/nexus3` ne sont **pas** supprimées par la réconciliation : les retirer à la main (`midclt call pool.snapshottask.query '[["dataset","=","cpool/nexus3"]]'` puis `pool.snapshottask.delete <id>`) |
 
 Le prune Restic de la workstation doit rester hebdomadaire : il réécrit des
 packs et gonfle les snapshots de `cpool/backup`.

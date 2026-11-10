@@ -79,6 +79,19 @@
         "dow": "sun"
       }
     },
+    "weekly-4w": {
+      "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 4,
+      "lifetime_unit": "WEEK",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "30",
+        "hour": "3",
+        "dom": "*",
+        "month": "*",
+        "dow": "sun"
+      }
+    },
     "weekly-12w": {
       "naming_schema": "auto-weekly-%Y-%m-%d_%H-%M",
       "lifetime_value": 12,
@@ -122,7 +135,6 @@
         "cpool/graylog",
         "cpool/mongo",
         "cpool/neo4j",
-        "cpool/nexus3",
         "cpool/opensearch",
         "cpool/opensearch-security",
         "cpool/sentry-clickhouse",
@@ -165,7 +177,6 @@
         "cpool/litellm",
         "cpool/minio",
         "cpool/netbox",
-        "cpool/nexus",
         "cpool/nginx",
         "cpool/npm",
         "cpool/npmplus",
@@ -193,6 +204,12 @@
       "rationale": "Documents and media owned by people, not by an application. Add photo/music/www datasets after the retention audit gives their exact names.",
       "schedules": ["daily-30d", "monthly-12m"],
       "datasets": ["cpool/bababou"]
+    },
+    {
+      "name": "artifact-cache",
+      "rationale": "Proxied artifacts re-downloadable from upstream; one weekly point protects hosted uploads without pinning purged blobs for long (owner decision 10/11).",
+      "schedules": ["weekly-4w"],
+      "datasets": ["cpool/nexus3"]
     }
   ],
   "noSnapshot": [
