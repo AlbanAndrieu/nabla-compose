@@ -28,6 +28,27 @@ Date : 2026-11-10. Statut : **CODED (documentation) / NOT_VERIFIED (runtime)**. 
 
 Ces écarts sont des risques de configuration à qualifier ; pas une affirmation qu'une connexion de production est actuellement en clair.
 
+## Modifications Compose effectuées après accord de coupure (10 novembre 2026)
+
+**CODED, non déployées** : Keycloak et Plumber sont actuellement inutilisés
+selon l'opérateur. Leur indisponibilité temporaire est acceptée ; les deux
+définitions Compose peuvent échouer en mode fermé jusqu'à provisionnement
+du certificat. `apps/keycloak/compose.yml` impose
+`KC_DB_TLS_MODE=verify-server` et une CA PEM montée en lecture seule.
+`apps/plumber/compose.yml` fixe `JOBS_DB_SSLMODE=verify-full` et monte
+la même CA dans API et worker ; `PGSSLROOTCERT` doit être confirmé sur
+l'image Plumber lors du premier test de connexion. Le défaut Keycloak par IP
+nécessite un **IP SAN** valide, ou le remplacement par `KEYCLOAK_DB_HOST`
+pointant vers un nom DNS couvert par le certificat.
+
+**Règle homelab** : un redémarrage ou une interruption ne bloque plus la
+modernisation, y compris sur des services partagés. Cela ne permet pas
+la suppression de données persistantes ni des sauvegardes sans autorisation
+spécifique, ni la désactivation de contrôles cryptographiques. Le changement
+de configuration serveur PostgreSQL reste **NOT_VERIFIED/NOT_APPLIED**,
+car son certificat, son chemin et l'accès TrueNAS runtime ne sont pas
+accessibles depuis cette PR.
+
 ## Matrice d'acceptation des clients PostgreSQL
 
 - [ ] Keycloak / JDBC : driver, hostname DNS (pas IP hors SAN), truststore, `sslmode=verify-full`, redémarrage et reconnexion après rotation
