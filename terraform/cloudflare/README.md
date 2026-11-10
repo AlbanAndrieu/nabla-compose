@@ -20,6 +20,9 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_dns_record.fastapi_sample` | CNAME proxied vers `<tunnel>.cfargotunnel.com` | Renommage = update in-place (`name` ne force pas de remplacement). |
 | `cloudflare_zero_trust_access_application.fastapi_sample` | Application Access `sample` (tout le hostname) | Politiques `nabla` (allow) et `fastapi-sample-monitor` (jeton de service). Le tag AUD ne change pas : la validation JWT côté FastAPI reste valide. |
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
+| `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. |
+| `cloudflare_zero_trust_access_application.vaultwarden_admin` | Application Access `vaultwardenadmin` (chemin `/admin`) | **Créée**. Politique `nabla` : l'application `vaultwarden` du dashboard laisse passer tout le hostname pour les clients Bitwarden ; ce chemin plus précis garde `/admin` derrière Access. |
+| `cloudflare_zero_trust_access_application.joplin` | Application Access `joplin` (tout le hostname) | **Créée**. `Everyone bypass` : les clients de synchronisation ne savent pas passer un login Access ; l'authentification Joplin protège le serveur. |
 
 Les politiques réutilisables ne contiennent aucun hostname et `nabla` est
 partagée avec d'autres applications : elles restent gérées dans le dashboard,
@@ -203,7 +206,10 @@ explicite ; le script de capture les classe `unmanaged`.
    `dns-policy.yaml` et leurs identifiants : le plan suivant est `No changes`.
    Les sept noms média (`emby`, `lidarr`, `prowlarr`, `radarr`, `sabnzbd`,
    `sonarr`, `transmission`) sont les premiers retirés (décision D5,
-   [roadmap média](../../docs/arr-media-library-roadmap.md)).
+   [roadmap média](../../docs/arr-media-library-roadmap.md)). Premier tour
+   fait le 10/11/2026 : 26 CNAME détruits, NXDOMAIN au serveur autoritaire,
+   liste vidée (historique Git). Second tour en attente : `postgres`,
+   dépublié le 10/11 (PR #345).
 
 Test hors ligne du module (fournisseur simulé, aucun appel API) :
 

@@ -4,8 +4,10 @@
 > [ansible-workstation/docs/homelab-split-dns-architecture.md](https://github.com/AlbanAndrieu/ansible-workstation/blob/master/docs/homelab-split-dns-architecture.md).
 > **Répartition :** [ansible-workstation](https://github.com/AlbanAndrieu/ansible-workstation)
 > (PR #15, fusionnée le 30/10) possède le profil `Wired eno1`, la NTA
-> persistante et le dispatcher ; nabla-compose possède les sondes, les
-> diagnostics homelab et la réception.
+> persistante et le dispatcher ; depuis le 10/11, il possède aussi les
+> sondes et la réception (`mise run workstation-*`, scripts retirés de
+> nabla-compose). nabla-compose garde le contrôle DefectDojo
+> (`just defectdojo-workstation-dns-check`).
 >
 > **État retenu — 28/10 :** dispatcher **installé**,
 > `nta_restored_by_event=PASS`, `diagnosis=PASS_REAPPLY_PERSISTENCE`
@@ -54,19 +56,19 @@ mesure isolée lente ou en timeout ne permet pas de déclarer pfSense DOWN.
 
 ## Recettes de diagnostic et réparation
 
-Toujours commencer **dans nabla-compose** (pas depuis le worktree
-ansible-workstation : « error: no justfile found » = mauvais répertoire,
-pas un échec DNS) :
+Les sondes tournent **dans ansible-workstation** (`mise run`) ; seul le
+contrôle DefectDojo reste dans nabla-compose (`just`) :
 
 ```bash
+cd ~/w/ansible-workstation
+mise run workstation-split-dns-check
+mise run test-offline
 cd ~/w/nabla-compose
-just workstation-split-dns-check
-just workstation-split-dns-test
 just defectdojo-workstation-dns-check
 ```
 
-`workstation-split-dns-check` (`scripts/workstation/homelab-split-dns.py
---check`) est en lecture seule : profil NetworkManager, domaine route-only
+`workstation-split-dns-check` (`scripts/homelab-split-dns.py --check`)
+est en lecture seule : profil NetworkManager, domaine route-only
 persistant, DNS effectif de systemd-resolved, getent/NSS, réponse directe
 de pfSense en UDP **et** TCP, statut des unités hide-location. Aucune
 valeur secrète. Sortie 0 uniquement si toutes les couches sont confirmées.
@@ -74,10 +76,10 @@ valeur secrète. Sortie 0 uniquement si toutes les couches sont confirmées.
 Réparation LOCALE et EXPLICITE (jamais en mode check) :
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-split-dns-repair
+cd ~/w/ansible-workstation
+mise run workstation-split-dns-repair
 # équivalent :
-python3 scripts/workstation/homelab-split-dns.py --apply --acknowledge I_APPROVE_WORKSTATION_SPLIT_DNS_REPAIR
+python3 scripts/homelab-split-dns.py --apply --acknowledge I_APPROVE_WORKSTATION_SPLIT_DNS_REPAIR
 ```
 
 Le mode apply :
@@ -117,8 +119,8 @@ Comparer au même instant, en lecture seule (pas de nouveau `--apply` tant
 que la configuration répond) :
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-split-dns-check
+cd ~/w/ansible-workstation
+mise run workstation-split-dns-check
 time resolvectl query -4 defectdojo.int.albandrieu.com
 time getent ahostsv4 defectdojo.int.albandrieu.com
 resolvectl status eno1
@@ -133,13 +135,12 @@ Direct pfSense rapide mais `resolvectl` lent → routage DNS du système ;
 ### Diagnostic différentiel NSS (lecture seule)
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-nss-path-test
-just workstation-nss-path
-just workstation-nss-path-samples   # --samples 2 --timeout 3, intermittence
+cd ~/w/ansible-workstation
+mise run test-offline
+mise run workstation-nss-path   # --samples 2 --timeout 3, intermittence
 ```
 
-`scripts/workstation/diagnose-nss-resolution.py` sonde cinq chemins, chacun
+`scripts/diagnose-nss-resolution.py` sonde cinq chemins, chacun
 avec un timeout, sans modifier de configuration :
 
 1. `resolvectl query -4` : API native `systemd-resolved` ;
@@ -160,7 +161,7 @@ panne. `getent -s` ne modifie pas `/etc/nsswitch.conf` : ne pas ajouter
 naît le délai ; toute correction se prépare **dans ansible-workstation**,
 réversible.
 
-**Critère de clôture :** `just workstation-nss-path` répond rapidement via
+**Critère de clôture :** `mise run workstation-nss-path` répond rapidement via
 la chaîne NSS par défaut, sur plusieurs essais et après redémarrage. Un
 `WARN: NSS query slow despite success` reste un problème ouvert même si le
 diagnostic DNS global est `PASS`.
@@ -180,12 +181,12 @@ mais n'est pas une cause prouvée : ne pas le désactiver à l'aveugle.
 ## DNSSEC privé : diagnostic
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-dnssec-test
-just workstation-dnssec-check
+cd ~/w/ansible-workstation
+mise run test-offline
+mise run workstation-dnssec-check
 ```
 
-`scripts/workstation/diagnose-dnssec-chain.py` compare en deux cycles
+`scripts/diagnose-dnssec-chain.py` compare en deux cycles
 bornés, sans `sudo`, mutation, reset de statistiques ni redémarrage :
 
 - `resolvectl query -4 defectdojo.int.albandrieu.com` avec et sans
@@ -220,25 +221,25 @@ les zones publiques.
 ### NTA runtime (opt-in, réversible, non persistante)
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-dnssec-nta-test
-just workstation-dnssec-nta-check || true   # exit 1 possible tant que DNSSEC privé expire
+cd ~/w/ansible-workstation
+mise run test-offline
+mise run workstation-dnssec-nta-check || true   # exit 1 possible tant que DNSSEC privé expire
 
 # Action explicite : NTA uniquement sur eno1. Refuse si le profil n'est pas
 # Wired eno1, DNS != 172.17.0.1, zone route-only absente ou autres NTA présentes.
-just workstation-dnssec-nta-try
+mise run workstation-dnssec-nta-try
 
 resolvectl query -4 defectdojo.int.albandrieu.com
 getent ahostsv4 defectdojo.int.albandrieu.com
 resolvectl query -4 cloudflare.com     # doit rester "Data is authenticated: yes"
-just workstation-nss-path
-just defectdojo-workstation-dns-check
+mise run workstation-nss-path
+just -f ~/w/nabla-compose/justfile defectdojo-workstation-dns-check
 ```
 
 Rollback, seulement si la liste NTA du lien était vide au départ :
 
 ```bash
-just workstation-dnssec-nta-rollback
+mise run workstation-dnssec-nta-rollback
 ```
 
 Il n'efface la liste que si elle contient exactement `int.albandrieu.com` ;
@@ -264,14 +265,14 @@ aucun fichier édité, `DNSSEC=yes` et DoT inchangés, aucun redémarrage.
 ### Réception du dispatcher
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-dnssec-dispatcher-test
-just workstation-dnssec-dispatcher-check
-just workstation-dnssec-dispatcher-exercise
-just workstation-dnssec-dispatcher-check
+cd ~/w/ansible-workstation
+mise run test-offline
+mise run workstation-dnssec-dispatcher-check
+mise run workstation-dnssec-dispatcher-exercise
+mise run workstation-dnssec-dispatcher-check
 ```
 
-`scripts/workstation/accept-private-nta-dispatcher.py` : `-check` est
+`scripts/accept-private-nta-dispatcher.py` : `-check` est
 strictement en lecture seule. `-exercise` est une opération root
 **explicite** : elle exige `eno1` dans `Wired eno1`, DNS uniquement
 `172.17.0.1`, `~int.albandrieu.com`, exactement la NTA privée attendue et
@@ -292,8 +293,8 @@ Après le **prochain reboot contrôlé** (ne pas redémarrer uniquement pour
 cette preuve), **uniquement en lecture seule** :
 
 ```bash
-cd ~/w/nabla-compose
-just workstation-dnssec-dispatcher-check
+cd ~/w/ansible-workstation
+mise run workstation-dnssec-dispatcher-check
 ```
 
 Attendu : `lan_profile=MATCH`, `dispatcher=ROOT_EXECUTABLE`,

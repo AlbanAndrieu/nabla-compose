@@ -33,13 +33,15 @@ def load_capture():
     return module
 
 
-def test_policy_retires_media_names_that_no_route_publishes() -> None:
+def test_retired_and_media_names_are_never_routed_nor_recorded() -> None:
     policy = yaml.safe_load((MODULE / "dns-policy.yaml").read_text(encoding="utf-8"))
     retired = set(policy["retired_hostnames"])
-    assert MEDIA_NAMES <= retired
     tunnel = (MODULE / "tunnel.tofu").read_text(encoding="utf-8")
     routed = set(re.findall(r'hostname\s*=\s*"([^"]+)"', tunnel))
-    assert not routed & retired, "a retired hostname is still routed by the tunnel"
+    assert not routed & (retired | MEDIA_NAMES), "a retired hostname is still routed by the tunnel"
+    # The media names were destroyed on 10/11/2026: their ids must not come back.
+    ids = (MODULE / "dns-record-ids.auto.tfvars").read_text(encoding="utf-8")
+    assert not [name for name in MEDIA_NAMES if f'"{name}' in ids]
     assert not [h for h in routed if h.endswith(".int.albandrieu.com")]
     assert policy["forbidden_public_suffixes"] == [".int.albandrieu.com"]
 

@@ -34,6 +34,8 @@ services:
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/postgres/1-global-db-overview.json
       GF_INSTALL_PLUGINS: marcusolsson-treemap-panel,grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel
+      # Paused: the Temporal rules query prometheus/loki, absent locally (13k errors in 6 h).
+      GF_UNIFIED_ALERTING_EXECUTE_ALERTS: "false"
     ports:
       - "${GRAFANA_PORT:-30037}:3000"
     restart: unless-stopped

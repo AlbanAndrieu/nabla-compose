@@ -2,7 +2,7 @@
 name: scanopy
 services:
   scanopy-daemon:
-    image: ghcr.io/scanopy/scanopy/daemon:latest
+    image: ghcr.io/scanopy/scanopy/daemon:v0.19.5@sha256:6b1acbde375dd2306aca6eba9388a94b7b28fb66eca46ffe484d4ce487b1d4c6
     container_name: scanopy-daemon
     labels:
       com.albandrieu.nabla.entity-ref: component:default/scanopy-daemon
@@ -40,7 +40,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   scanopy:
-    image: ghcr.io/scanopy/scanopy/server:latest
+    image: ghcr.io/scanopy/scanopy/server:v0.19.5@sha256:ec6a9b23af5094c009cb61d3078b4ba25c01471c9c3a126566b735b5df9cee3f
     container_name: scanopy
     labels:
       com.albandrieu.nabla.entity-ref: component:default/scanopy

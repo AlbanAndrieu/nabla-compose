@@ -20,9 +20,9 @@ services:
         phase: primary-data
         priority: 20
     restart: unless-stopped
-    # CHANGEME: row below to secure redis password
+    # Fail closed: a missing REDIS_AUTH must not start Redis with a public password.
     command: >
-      --requirepass ${REDIS_AUTH:-myredissecret}
+      --requirepass ${REDIS_AUTH:?REDIS_AUTH is required}
       --maxmemory-policy noeviction
     ports:
       - 30059:6379
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     environment:
       REDIS_ADDR: "redis:6379"
-      REDIS_PASSWORD: ${REDIS_AUTH:-myredissecret}
+      REDIS_PASSWORD: ${REDIS_AUTH:?REDIS_AUTH is required}
     ports:
       - 9121:9121
     depends_on:
