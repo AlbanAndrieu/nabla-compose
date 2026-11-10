@@ -1,3 +1,16 @@
+# [0.64.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.63.0...0.64.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **zfs,secrets:** light snapshot class for Nexus, Homarr vault import names ([36540b1](https://github.com/AlbanAndrieu/nabla-compose/commit/36540b1835dd1d0a76c06b96ec0ece15bbc3eb49)), closes [#335](https://github.com/AlbanAndrieu/nabla-compose/issues/335)
+* **zfs:** rare snapshots for re-creatable data (Nexus monthly+yearly, bitcoind monthly) ([44ada56](https://github.com/AlbanAndrieu/nabla-compose/commit/44ada56fd6d2662fa87c91267265e6492bb6a4f8))
+
+
+### Features
+
+* **homeassistant:** migrate to Compose custom app and add read-only diagnostics ([a6f589f](https://github.com/AlbanAndrieu/nabla-compose/commit/a6f589f3b29eeeb33470adccd31ea15df27df816))
+
 # [0.63.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.62.0...0.63.0) (2026-11-10)
 
 
