@@ -29,7 +29,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `bazarr` | planned | deploy-media-stack.sh | `cpool/bazarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | bazarr-exporter | — | générique | — | ✅ |
 | `bichon` | active | custom-apps.yml | `cpool/bichon` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (none (noSnapshot)) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | legacy | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
@@ -68,7 +68,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `n8n` | planned | native App | — | n/a | — | n8n | ✅ n8n | générique | — | ✅ |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `nexus` | active | custom-apps.yml | `cpool/nexus3` (artifact-cache) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `npmplus` | planned | ❌ | `cpool/npmplus` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |

@@ -52,7 +52,13 @@ class SnapshotPolicyTests(unittest.TestCase):
         self.assertEqual(len(datasets), len(set(datasets)))
         excluded = {entry["dataset"] for entry in POLICY["noSnapshot"]}
         self.assertFalse(set(datasets) & excluded)
-        self.assertTrue({"cpool/bitcoind", "cpool/ix-apps/docker"} <= excluded)
+        self.assertIn("cpool/ix-apps/docker", excluded)
+        # Re-creatable data (owner decision 10/11): rare, bounded points only.
+        classes = {c["name"]: c for c in POLICY["classes"]}
+        self.assertEqual(classes["resync-shortcut"]["datasets"], ["cpool/bitcoind"])
+        self.assertEqual(classes["resync-shortcut"]["schedules"], ["monthly-1m"])
+        self.assertEqual(classes["recreatable"]["schedules"], ["monthly-3m", "yearly-1y"])
+        self.assertIn("cpool/nexus3", classes["recreatable"]["datasets"])
         self.assertTrue(all(entry["reason"] for entry in POLICY["noSnapshot"]))
 
     def test_every_task_is_bounded_and_unique(self):

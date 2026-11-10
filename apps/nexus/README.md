@@ -1,15 +1,15 @@
 # Nexus Repository
 
 Data: `/mnt/cpool/nexus3` (dataset `cpool/nexus3`, snapshot class
-`artifact-cache`: one weekly snapshot kept 4 weeks, see
+`recreatable`: one monthly snapshot kept 3 months plus one yearly kept 1 year, see
 [`docs/truenas-zfs-snapshot-policy.md`](../../docs/truenas-zfs-snapshot-policy.md)).
 
 ## Purge of never-used artifacts (to enable when the Java services are back)
 
 Nexus keeps every proxied component forever. Purge what is never downloaded,
 in this order, from the Nexus UI (Administration). The order matters: the
-blob store is only compacted after the cleanup, and the weekly ZFS snapshot
-(Sunday 03:30) only releases space once the purged blobs age out of it.
+blob store is only compacted after the cleanup, and the monthly ZFS snapshot
+(1st of the month, 04:00) only releases space once the purged blobs age out of it.
 
 1. **Cleanup policy** `unused-proxy-90d` (Repository → Cleanup Policies),
    format *All*: *Component Usage* = not downloaded in the last **90 days**,
