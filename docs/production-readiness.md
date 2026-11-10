@@ -5,18 +5,18 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 88 ; actives : 56 ; planifiées : 29.
+Apps : 90 ; actives : 57 ; planifiées : 29.
 
 ## Écarts par type
 
 | Écart | Apps |
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 2 |
-| `NO_AVAILABILITY_PROBE` | 28 |
-| `NO_DEPLOY_PATH` | 19 |
-| `SECRETS_LEGACY_PATH` | 17 |
+| `NO_AVAILABILITY_PROBE` | 29 |
+| `NO_DEPLOY_PATH` | 21 |
+| `SECRETS_LEGACY_PATH` | 18 |
 | `SECRETS_NOT_IN_MANIFEST` | 2 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 48 |
 
 ## Matrice
 
@@ -76,6 +76,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `obsidian` | active | custom-apps.yml | `cpool/obsidian` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ollama` | active | custom-apps.yml | `cpool/model` (none (noSnapshot))<br>`cpool/ollama` (none (noSnapshot)) | legacy | ❌ | ollama | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
 | `opconnect` | disabled | ❌ | `cpool/opconnect` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `openclaw` | active | ❌ | — | n/a | ❌ | — | — | générique | provision-openclaw-litellm-keys.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `opencre` | planned | deploy-opencre.sh | `cpool/opencre` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `openhands` | active | custom-apps.yml | `cpool/openhands` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `openrag` | active | custom-apps.yml | — | manifest | ❌ | — | — | diagnose-openrag-dependencies.sh<br>diagnose-openrag-startup.sh | apps/openrag/config/<br>bootstrap-openrag-langflow-key.sh<br>reconcile-openrag-opensearch-secret.sh | `NO_AVAILABILITY_PROBE` |
@@ -92,6 +93,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `pyroscope` | active | custom-apps.yml | `cpool/pyroscope` (none (noSnapshot)) | n/a | ✅ | pyroscope | — | diagnose-pyroscope.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `qbittorrent-exporter` | planned | deploy-media-stack.sh | — | manifest | — | qbittorrent-exporter | — | générique | — | ✅ |
 | `radarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/radarr` (app-state) | manifest | ✅ | radarr-exporter | — | générique | terraform/media | ✅ |
+| `reactive` | untracked | ❌ | — | legacy | — | — | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `recyclarr` | planned | deploy-media-stack.sh | `cpool/recyclarr` (app-state) | manifest | — | — | — | générique | apps/recyclarr/config/ | ✅ |
 | `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sample` | active | custom-apps.yml | — | unmanaged | ✅ | — | ❌ | diagnose-fastapi-sample.sh | — | `SECRETS_NOT_IN_MANIFEST`, `DB_NOT_IN_LOGICAL_BACKUP` |
