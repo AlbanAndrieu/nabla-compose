@@ -137,3 +137,19 @@ Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrat
 `nabla-compose` : infrastructure déclarative ; `fastapi-sample` : sondes et statuts ; `nabla-site-alban` : rendu utilisateur. Le contrat `entityRef`/`catalogRevision` est partagé, mais aucune logique de déploiement ne doit se déplacer vers les sites.
 
 **DONE global** : catalogue et topology générés sans dérive, politiques d'accès conformes, services obligatoires prouvés `ACCEPTED (runtime)`, migrations de dépôts sans doublons et récupération testée. Toute ligne sans preuve demeure ouverte.
+
+
+## P0/P1/P2 — Cible cryptographique FIPS, PostgreSQL 16 → 18, TLS 1.3, Vault et OAuth (10 novembre 2026)
+
+**Décision** : le homelab vise un **alignement FIPS 140-3 vérifiable**, sans revendiquer de certification ni supposer que DORA impose FIPS. Aucun changement TLS, certificat, compte ou serveur ne peut être appliqué tant que la compatibilité n'est pas prouvée.
+
+| Priorité | Objectif | État | Critère de réception |
+| --- | --- | --- | --- |
+| P0 | Audit sans secrets du PostgreSQL TrueNAS et de ses clients (version, SSL/TLS, HBA, MD5/SCRAM, CA, SAN, dates et propriétaire du certificat) | **CODED : protocole ; NOT_VERIFIED : runtime** | Preuves SQL et TLS par client, aucune fuite de secret |
+| P0 | Rotation contrôlée MD5 → SCRAM, règles `hostssl`, rôles minimaux | **PLANIFIED** | Aucun login MD5, tests positifs et négatifs |
+| P1 | TLS 1.3 avec `verify-full` côté client et certificats correctement renouvelés, sans couper les clients non validés | **PLANIFIED** | Matrice de compatibilité, `pg_stat_ssl`, tests de rejet des protocoles faibles |
+| P1 | HashiCorp Vault database secrets engine : rôles dynamiques/statiques, rotation et révocation ; Vaultwarden reste la source transitoire | **PLANIFIED** | Lease, rotation et restauration démontrées |
+| P2 | PostgreSQL 18 + module OAuth de validation Keycloak pour DBA/psql, break-glass indépendant | **PLANIFIED** | Tests de permissions, MFA, révocation et indisponibilité IdP |
+| P2 | OIDC Keycloak des utilisateurs FastAPI et autres applications, indépendant de l'authentification SQL | **NOT_VERIFIED** | Validation issuer/audience/JWKS et RBAC, sondes et tests navigateur |
+
+[Runbook complet de durcissement PostgreSQL / FIPS / Vault / OAuth](security/postgresql-fips-tls13-vault-oauth-20261110.md).
