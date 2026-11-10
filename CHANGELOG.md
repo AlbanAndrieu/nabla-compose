@@ -1,3 +1,10 @@
+## [0.65.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.65.0...0.65.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **cloudflare:** put the public PostgreSQL TCP route behind Access ([9d97520](https://github.com/AlbanAndrieu/nabla-compose/commit/9d975206033a406ffd24c9dfe8b311f619e18fd7))
+
 # [0.65.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.64.1...0.65.0) (2026-11-10)
 
 
