@@ -57,6 +57,9 @@ services:
       com.albandrieu.nabla.entity-ref: component:default/plumber-api
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
+    # CA is deliberately required: no silent plaintext downgrade.
+    volumes: &plumber-postgres-ca
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro
     environment: &plumber-backend-env
       JOBS_LISTEN_ADDR: 0.0.0.0
       JOBS_LISTEN_PORT: 3000
@@ -67,7 +70,9 @@ services:
       JOBS_DB_PORT: ${JOBS_DB_PORT:-5432}
       JOBS_DB_USER: ${JOBS_DB_USER:-jobs}
       JOBS_DB_NAME: ${JOBS_DB_NAME:-jobs}
-      JOBS_DB_SSLMODE: ${JOBS_DB_SSLMODE:-disable}
+      JOBS_DB_SSLMODE: verify-full
+      # libpq/pgx-compatible root CA location; verify at runtime for Plumber's driver.
+      PGSSLROOTCERT: /etc/nabla/pki/postgres-ca.crt
       JOBS_DB_TIMEZONE: ${JOBS_DB_TIMEZONE:-Europe/Paris}
       JOBS_API_DOMAIN: ${PLUMBER_API_DOMAIN:-http://172.17.0.24:31071/api}
       LOG_LEVEL: ${PLUMBER_LOG_LEVEL:-info}
@@ -125,6 +130,7 @@ services:
     command: ["--worker"]
     env_file:
       - /mnt/cpool/secrets/runtime/plumber/.env.secrets
+    volumes: *plumber-postgres-ca
     environment: *plumber-backend-env
     networks:
       - intranet
