@@ -34,6 +34,23 @@ Use this skill whenever a task creates, migrates, removes, or materially modifie
 
 Read `AGENTS.md` first. Inspect the target Compose file and directly referenced files before widening the search.
 
+## Tolérance de coupure du homelab
+
+L'opérateur a autorisé les coupures temporaires, redémarrages et migrations
+réversibles pour expérimenter les versions les plus récentes. Lorsqu'une
+mutation runtime est explicitement demandée, ne pas ajouter des étapes
+blue/green ni une demande de confirmation par service uniquement pour
+garantir la disponibilité. Faire le minimum de préflight utile à la
+reproductibilité. Il est acceptable qu'un service prévu ou inutilisé ne
+démarre plus tant que sa configuration TLS/certificat sécurisée n'est pas
+prête.
+
+La tolérance de downtime **ne couvre pas** la suppression irréversible de
+données, la perte de sauvegardes, l'exfiltration de secrets ou l'ouverture de
+surfaces d'attaque. Maintenir les contrôles de sécurité et les tests de
+configuration. Distinguer systématiquement un fichier Compose modifié du
+runtime effectivement déployé.
+
 ## Mandatory TrueNAS service architecture
 
 Every created or modified TrueNAS Compose service must follow `docs/truenas-runtime-layout.md`.
