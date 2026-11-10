@@ -1,3 +1,15 @@
+# [0.65.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.64.1...0.65.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ci:** address CodeQL and Biome findings on the media PR ([e77847a](https://github.com/AlbanAndrieu/nabla-compose/commit/e77847abf7b375dbb3d927b9866c97f857f07daa))
+
+
+### Features
+
+* **backup:** monthly/yearly Sentry archives and fastapisample database ([d250dae](https://github.com/AlbanAndrieu/nabla-compose/commit/d250daea1ecf6ade9bbbb7e75946f744457c9218))
+
 ## [0.64.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.64.0...0.64.1) (2026-11-10)
 
 
