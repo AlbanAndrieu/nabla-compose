@@ -235,17 +235,13 @@
       "name": "recreatable",
       "rationale": "Data that can be rebuilt from upstream (proxied artifacts, blockchain): rare points only, so purges and rotations are not pinned for long (owner decisions 10/11).",
       "schedules": ["monthly-3m", "yearly-1y"],
-      "datasets": [
-        "cpool/nexus3"
-      ]
+      "datasets": ["cpool/nexus3"]
     },
     {
       "name": "resync-shortcut",
       "rationale": "Pruned Bitcoin node: one monthly point avoids a multi-day initial sync while pinning at most one month of rotated blocks (frequent snapshots retained >100 GB).",
       "schedules": ["monthly-1m"],
-      "datasets": [
-        "cpool/bitcoind"
-      ]
+      "datasets": ["cpool/bitcoind"]
     }
   ],
   "noSnapshot": [
