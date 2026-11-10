@@ -68,7 +68,7 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `n8n` | planned | native App | — | n/a | — | n8n | ✅ n8n | générique | — | ✅ |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `nexus` | active | custom-apps.yml | `cpool/nexus3` (databases) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `nexus` | active | custom-apps.yml | `cpool/nexus3` (artifact-cache) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `npmplus` | planned | ❌ | `cpool/npmplus` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
