@@ -104,6 +104,45 @@
         "month": "*",
         "dow": "*"
       }
+    },
+    "monthly-3m": {
+      "naming_schema": "auto-monthly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 3,
+      "lifetime_unit": "MONTH",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "0",
+        "hour": "4",
+        "dom": "1",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "monthly-1m": {
+      "naming_schema": "auto-monthly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 1,
+      "lifetime_unit": "MONTH",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "0",
+        "hour": "4",
+        "dom": "1",
+        "month": "*",
+        "dow": "*"
+      }
+    },
+    "yearly-1y": {
+      "naming_schema": "auto-yearly-%Y-%m-%d_%H-%M",
+      "lifetime_value": 1,
+      "lifetime_unit": "YEAR",
+      "allow_empty": false,
+      "schedule": {
+        "minute": "0",
+        "hour": "4",
+        "dom": "1",
+        "month": "1",
+        "dow": "*"
+      }
     }
   },
   "classes": [
@@ -122,7 +161,6 @@
         "cpool/graylog",
         "cpool/mongo",
         "cpool/neo4j",
-        "cpool/nexus3",
         "cpool/opensearch",
         "cpool/opensearch-security",
         "cpool/sentry-clickhouse",
@@ -166,7 +204,6 @@
         "cpool/litellm",
         "cpool/minio",
         "cpool/netbox",
-        "cpool/nexus",
         "cpool/nginx",
         "cpool/npm",
         "cpool/npmplus",
@@ -194,6 +231,18 @@
       "rationale": "Documents and media owned by people, not by an application. Add photo/music/www datasets after the retention audit gives their exact names.",
       "schedules": ["daily-30d", "monthly-12m"],
       "datasets": ["cpool/bababou"]
+    },
+    {
+      "name": "recreatable",
+      "rationale": "Data that can be rebuilt from upstream (proxied artifacts, blockchain): rare points only, so purges and rotations are not pinned for long (owner decisions 10/11).",
+      "schedules": ["monthly-3m", "yearly-1y"],
+      "datasets": ["cpool/nexus3"]
+    },
+    {
+      "name": "resync-shortcut",
+      "rationale": "Pruned Bitcoin node: one monthly point avoids a multi-day initial sync while pinning at most one month of rotated blocks (frequent snapshots retained >100 GB).",
+      "schedules": ["monthly-1m"],
+      "datasets": ["cpool/bitcoind"]
     }
   ],
   "noSnapshot": [
@@ -204,10 +253,6 @@
     {
       "dataset": "cpool/alloy",
       "reason": "Telemetry agent buffers."
-    },
-    {
-      "dataset": "cpool/bitcoind",
-      "reason": "Pruned blockchain: re-synchronised from the network; snapshots retained >100 GB of rotated blocks."
     },
     {
       "dataset": "cpool/compose",

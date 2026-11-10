@@ -42,7 +42,10 @@ def test_disposable_pruned_node_without_wallet() -> None:
     assert conf["disablewallet"] == "1"
     assert int(conf["prune"]) >= 550
     policy = json.loads((ROOT / "config/truenas/snapshot-tasks.json").read_text(encoding="utf-8"))
-    assert "cpool/bitcoind" in {entry["dataset"] for entry in policy["noSnapshot"]}
+    # One monthly point kept one month: bounded block pinning, no multi-day re-sync.
+    bitcoind = [c for c in policy["classes"] if "cpool/bitcoind" in c["datasets"]]
+    assert len(bitcoind) == 1 and bitcoind[0]["schedules"] == ["monthly-1m"]
+    assert policy["schedules"]["monthly-1m"]["lifetime_value"] == 1
 
 
 def test_container_is_restricted_and_bounded() -> None:
