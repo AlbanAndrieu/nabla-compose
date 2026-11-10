@@ -39,8 +39,8 @@ FastAPI Sample is currently treated as stateless. It does **not** need a dedicat
 The canonical runtime materialization is now root-owned outside the repository:
 
 ```text
-/mnt/cpool/secrets/runtime/sample/.env
-/mnt/cpool/secrets/runtime/sample/.env.secrets
+/mnt/cpool/secrets/runtime/fastapisample/.env
+/mnt/cpool/secrets/runtime/fastapisample/.env.secrets
 ```
 
 During the migration pilot, `/mnt/cpool/sample/.env` and
@@ -94,14 +94,14 @@ the shared PostgreSQL service rather than the `postgres` superuser:
 ```dotenv
 POSTGRES_HOST=172.17.0.24
 POSTGRES_PORT=5432
-POSTGRES_DB=sample
-POSTGRES_USER=sample
+POSTGRES_DB=fastapisample
+POSTGRES_USER=fastapisample
 ```
 
 The dedicated `sample` role must be LOGIN-only, must not be SUPERUSER,
 CREATEDB, CREATEROLE or REPLICATION, and should own only the `sample` database
 (and its application schema/objects). Its password belongs in
-`/mnt/cpool/secrets/runtime/sample/.env.secrets`; never put it in tracked
+`/mnt/cpool/secrets/runtime/fastapisample/.env.secrets`; never put it in tracked
 Compose or documentation.
 
 Before switching these values, add an idempotent
@@ -182,7 +182,7 @@ docker exec fastapi-sample env | \
   grep -E '^(FASTAPI_RUNTIME_MODE|SICKZ_INTERNAL_NETWORK|HOMELAB_INTERNAL_PROBES_ENABLED|PFSENSE_SECURITY_PATH_MODE|PYROSCOPE_SERVER_ADDRESS|SENTRY_ENABLED)='
 ```
 
-For self-hosted Sentry, keep the project DSN in `/mnt/cpool/secrets/runtime/sample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
+For self-hosted Sentry, keep the project DSN in `/mnt/cpool/secrets/runtime/fastapisample/.env.secrets`. The local Nginx ingress is cleartext HTTP on `172.17.0.24:9005`; TLS, when desired for browser access, terminates on the external/internal reverse proxy rather than that host port.
 
 ## Prometheus / core health metrics
 
@@ -222,7 +222,7 @@ observed on TrueNAS, FastAPI keeps Gatus-derived service evidence shadow-only.
 
 ## Supabase
 
-If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the canonical `/mnt/cpool/secrets/runtime/sample/.env.secrets` file, for example:
+If by “Sybase” you mean **Supabase**, no local Supabase stack is currently defined in `nabla-compose`. FastAPI Sample can consume an existing Supabase project through the canonical `/mnt/cpool/secrets/runtime/fastapisample/.env.secrets` file, for example:
 
 ```dotenv
 SUPABASE_URL=https://PROJECT_REF.supabase.co
@@ -1070,8 +1070,8 @@ down. The current FastAPI TrueNAS credential remains the read-only
 The canonical Compose in this PR now consumes:
 
 ```text
-/mnt/cpool/secrets/runtime/sample/.env
-/mnt/cpool/secrets/runtime/sample/.env.secrets
+/mnt/cpool/secrets/runtime/fastapisample/.env
+/mnt/cpool/secrets/runtime/fastapisample/.env.secrets
 ```
 
 Before changing Compose, inventory and plan the migration without printing
@@ -1112,7 +1112,7 @@ readlink -f /mnt/cpool/sample/.env.secrets
 ```
 
 Both legacy paths should then resolve into
-`/mnt/cpool/secrets/runtime/sample/`; the old secret bytes no longer exist as
+`/mnt/cpool/secrets/runtime/fastapisample/`; the old secret bytes no longer exist as
 independently editable files. Keep these compatibility symlinks through one
 additional clean restart/reboot observation. Only after repository and runtime
 consumer audits show no legacy-path references should the symlinks themselves

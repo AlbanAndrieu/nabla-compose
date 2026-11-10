@@ -20,7 +20,11 @@ MODE="${1:---check}"
 SECRETS_FILE="${POSTGRES_BACKUP_SECRETS_FILE:-/mnt/cpool/secrets/runtime/postgres-backup/.env.secrets}"
 BACKUP_ROLE="${POSTGRES_BACKUP_USER:-pgbackup}"
 # Space-separated databases the job may dump (keep in sync with apps/postgres-backup/compose.yml).
-BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-keycloak joplin homeassistant netbox dependencytrack scanopy jobs defectdojo langfuse n8n sonarqube}"
+BACKUP_DATABASES="${POSTGRES_BACKUP_DATABASES:-keycloak joplin homeassistant netbox dependencytrack scanopy jobs defectdojo langfuse n8n sonarqube fastapisample}"
+# Databases dumped only by the monthly/yearly archive jobs
+# (scripts/truenas/reconcile-postgres-backup-cron.py); they also need CONNECT.
+ARCHIVE_DATABASES="${POSTGRES_BACKUP_ARCHIVE_DATABASES:-sentry}"
+BACKUP_DATABASES="${BACKUP_DATABASES} ${ARCHIVE_DATABASES}"
 
 case "${MODE}" in
 --check | --apply) ;;

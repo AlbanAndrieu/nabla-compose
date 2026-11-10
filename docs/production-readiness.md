@@ -11,11 +11,10 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 
 | Écart | Apps |
 | --- | --- |
-| `DB_NOT_IN_LOGICAL_BACKUP` | 2 |
 | `NO_AVAILABILITY_PROBE` | 28 |
 | `NO_DEPLOY_PATH` | 19 |
-| `SECRETS_LEGACY_PATH` | 17 |
-| `SECRETS_NOT_IN_MANIFEST` | 2 |
+| `SECRETS_LEGACY_PATH` | 18 |
+| `SECRETS_NOT_IN_MANIFEST` | 1 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 
 ## Matrice
@@ -94,12 +93,12 @@ Apps : 88 ; actives : 56 ; planifiées : 29.
 | `radarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/radarr` (app-state) | manifest | ✅ | radarr-exporter | — | générique | terraform/media | ✅ |
 | `recyclarr` | planned | deploy-media-stack.sh | `cpool/recyclarr` (app-state) | manifest | — | — | — | générique | apps/recyclarr/config/ | ✅ |
 | `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `sample` | active | custom-apps.yml | — | unmanaged | ✅ | — | ❌ | diagnose-fastapi-sample.sh | — | `SECRETS_NOT_IN_MANIFEST`, `DB_NOT_IN_LOGICAL_BACKUP` |
+| `sample` | active | custom-apps.yml | — | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
 | `scanopy` | planned | deploy-scanopy.sh | `cpool/scanopy` (app-state) | manifest | ✅ | — | ✅ scanopy | générique | bootstrap-scanopy-postgres.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `scorecard` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `scrutiny` | active | custom-apps.yml | `cpool/scrutiny` (app-state) | manifest | ✅ | — | — | diagnose-scrutiny.sh | bootstrap-scrutiny-influxdb.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `seerr` | planned | deploy-media-stack.sh | `cpool/seerr` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
-| `sentry` | active | custom-apps.yml | `cpool/sentry` (app-state) | unmanaged | ✅ | — | ❌ | diagnose-sentry-consumers.sh<br>diagnose-sentry-migrator-credential.sh<br>diagnose-sentry-runtime-clickhouse-credential.sh<br>diagnose-sentry-taskbroker.sh<br>diagnose-sentry.sh | apps/sentry/config/<br>reconcile-sentry-migrator-credential.sh<br>reconcile-sentry-runtime-clickhouse-credential.sh<br>reconcile-sentry-system-secret.sh | `SECRETS_NOT_IN_MANIFEST`, `DB_NOT_IN_LOGICAL_BACKUP`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `sentry` | active | custom-apps.yml | `cpool/sentry` (app-state) | unmanaged | ✅ | — | ✅ sentry | diagnose-sentry-consumers.sh<br>diagnose-sentry-migrator-credential.sh<br>diagnose-sentry-runtime-clickhouse-credential.sh<br>diagnose-sentry-taskbroker.sh<br>diagnose-sentry.sh | apps/sentry/config/<br>reconcile-sentry-migrator-credential.sh<br>reconcile-sentry-runtime-clickhouse-credential.sh<br>reconcile-sentry-system-secret.sh | `SECRETS_NOT_IN_MANIFEST`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sentry-clickhouse` | active | custom-apps.yml | `cpool/sentry-clickhouse` (databases) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH` |
 | `sonarqube` | planned | ❌ | — | n/a | — | — | ✅ sonarqube | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sonarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/sonarr` (app-state) | manifest | ✅ | sonarr-exporter | — | générique | terraform/media | ✅ |

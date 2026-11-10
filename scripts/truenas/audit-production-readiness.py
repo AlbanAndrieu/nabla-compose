@@ -50,6 +50,18 @@ def context(root: Path = ROOT) -> dict:
     prometheus = load_yaml(root / "apps/prometheus/prometheus.yml")
     backup = load_yaml(root / "apps/postgres-backup/compose.yml")
     databases = set(str(backup["services"]["postgres-backup"]["environment"]["BACKUP_DATABASES"]).split())
+    # Monthly/yearly archive jobs (e.g. Sentry) dump outside the daily wave.
+    cron = (root / "scripts/truenas/reconcile-postgres-backup-cron.py").read_text(encoding="utf-8")
+    databases |= set(re.findall(r"BACKUP_DATABASES=([a-z][a-z0-9_]*)", cron))
+    # Databases whose name is not in the Compose file (runtime env only) are
+    # declared in the shared-PostgreSQL bootstrap table.
+    table = (root / "scripts/truenas/bootstrap-app-postgres.sh").read_text(encoding="utf-8")
+    app_databases: dict[str, set[str]] = {}
+    for arms, body in re.findall(r"^([a-z|\- ]+)\)\n(.*?)\n  ;;", table, re.M | re.S):
+        name = re.search(r'DB_NAME="([^"]+)"', body)
+        for arm in (a.strip() for a in arms.split("|")):
+            if name:
+                app_databases.setdefault(arm, set()).add(arm if name.group(1) == "${APP}" else name.group(1))
     scripts = sorted(p.name for p in (root / "scripts/truenas").iterdir() if p.is_file())
     return {
         "classes": classes, "excluded": excluded,
@@ -58,7 +70,7 @@ def context(root: Path = ROOT) -> dict:
         "custom": {e["name"] for e in custom.get("apps") or []},
         "native": set(custom.get("catalog_native") or []),
         "jobs": {job["job_name"] for job in prometheus.get("scrape_configs") or []},
-        "databases": databases, "scripts": scripts,
+        "databases": databases, "app_databases": app_databases, "scripts": scripts,
         "terraform": sorted(p.name for p in (root / "terraform").iterdir() if p.is_dir()),
         "media_settings": set(load_yaml(root / "config/media/settings.yml")) - {"version"},
         "media_apps": set(re.search(
@@ -137,7 +149,8 @@ def row(app: str, ctx: dict, root: Path = ROOT) -> dict:
                       or any(r.get("target") == "prometheus" and r.get("type") == "observedBy"
                              for r in m.get("relations") or [])})
     uses_pg = app not in DB_SERVERS and any(r.get("target") == "postgresql" for r in relations)
-    db_backed = sorted(database_candidates(app, services) & ctx["databases"]) if uses_pg else []
+    candidates = database_candidates(app, services) | ctx["app_databases"].get(app, set())
+    db_backed = sorted(candidates & ctx["databases"]) if uses_pg else []
 
     if app in ctx["custom"]:
         deploy = "custom-apps.yml"

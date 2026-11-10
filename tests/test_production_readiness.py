@@ -44,7 +44,8 @@ def test_media_stack_is_ready_for_deployment() -> None:
 def test_logical_backup_covers_databases_named_in_compose() -> None:
     rows = {row["app"]: row for row in load().rows()}
     for app, database in (("defectdojo", "defectdojo"), ("langfuse", "langfuse"),
-                          ("n8n", "n8n"), ("sonarqube", "sonarqube")):
+                          ("n8n", "n8n"), ("sonarqube", "sonarqube"),
+                          ("sentry", "sentry"), ("sample", "fastapisample")):
         assert database in rows[app]["db_backup"], app
 
 

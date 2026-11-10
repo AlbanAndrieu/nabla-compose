@@ -41,7 +41,7 @@ def test_compose_routes_qwen_through_both_litellm_proxies():
     sample = (ROOT / "apps/sample/compose.yml").read_text(encoding="utf-8")
     assert "LITELLM_URL: http://172.17.0.24:4000" in sample
     assert "DEFAULT_CHAT_MODEL: fastapi-qwen" in sample
-    assert "/mnt/cpool/secrets/runtime/sample/.env.secrets" in sample
+    assert "/mnt/cpool/secrets/runtime/fastapisample/.env.secrets" in sample
     assert "LITELLM_API_KEY:" not in sample # never interpolate a master key
 
 

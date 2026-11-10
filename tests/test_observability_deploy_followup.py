@@ -45,7 +45,7 @@ def test_fastapi_deploy_retries_only_transient_buildkit_frontend_failure() -> No
     assert script.index("build_fastapi_sample") < script.index(
         "Now replacing the staging container",
     )
-    assert "/mnt/cpool/secrets/runtime/sample" in script
+    assert "/mnt/cpool/secrets/runtime/fastapisample" in script
     assert "verify_runtime_env_pair" in script
     assert "root:root 600" in script
     assert "changed after staging" in script

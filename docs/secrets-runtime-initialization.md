@@ -423,7 +423,7 @@ already an active TrueNAS App and currently consumes
 This first step is path normalization only:
 
 1. inventory the legacy and canonical files without printing contents;
-2. stage exact copies under `/mnt/cpool/secrets/runtime/sample/`;
+2. stage exact copies under `/mnt/cpool/secrets/runtime/fastapisample/`;
 3. prove byte equality, ownership/mode and FastAPI runtime health;
 4. update Compose to the canonical paths only after acceptance;
 5. keep the old path until restart/reboot acceptance.

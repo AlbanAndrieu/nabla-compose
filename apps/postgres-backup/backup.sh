@@ -21,6 +21,13 @@ KEEP_DAYS="${BACKUP_KEEP_DAYS:-14}"
 # BACKUP_REQUIRE_ALL=true turns a missing database into a failure; by default a
 # database that is not created yet (staged rollout) is reported as SKIP.
 REQUIRE_ALL="${BACKUP_REQUIRE_ALL:-false}"
+# BACKUP_SERIES separates schedules with their own retention (for example the
+# monthly and yearly Sentry archives): archives land in <database>-<series>/
+# and only the directories written by this run are pruned, so the daily
+# 14-day retention never deletes a monthly or yearly archive.
+SERIES="${BACKUP_SERIES:-}"
+[[ "${SERIES}" =~ ^[a-z]{0,16}$ ]] || { echo "BACKUP_SERIES must be lowercase letters" >&2; exit 2; }
+marker="${BACKUP_DIR}/.last-success${SERIES:+-${SERIES}}.json"
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 failures=0
@@ -44,7 +51,7 @@ for database in ${BACKUP_DATABASES}; do
     fi
     continue
   fi
-  target_dir="${BACKUP_DIR}/${database}"
+  target_dir="${BACKUP_DIR}/${database}${SERIES:+-${SERIES}}"
   mkdir -p "${target_dir}"
   partial="${target_dir}/.${database}-${stamp}.dump.part"
   archive="${target_dir}/${database}-${stamp}.dump"
@@ -74,11 +81,14 @@ fi
 if ((failures == 0)); then
   # Prune only after the entire backup wave completed successfully. A failed
   # database must keep its older recovery points intact.
-  find "${BACKUP_DIR}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
-    -mtime +"${KEEP_DAYS}" -delete
-  find "${BACKUP_DIR}" -type f -name '.*.dump.part' -mmin +720 -delete
-  printf '{"completed_at":"%s","databases":"%s","skipped":"%s","keep_days":%s}\n' \
-    "${stamp}" "${completed[*]}" "${skipped[*]}" "${KEEP_DAYS}" >"${BACKUP_DIR}/.last-success.json"
+  for database in "${completed[@]}"; do
+    target_dir="${BACKUP_DIR}/${database}${SERIES:+-${SERIES}}"
+    find "${target_dir}" -type f \( -name '*.dump' -o -name '*.dump.sha256' \) \
+      -mtime +"${KEEP_DAYS}" -delete
+    find "${target_dir}" -type f -name '.*.dump.part' -mmin +720 -delete
+  done
+  printf '{"completed_at":"%s","series":"%s","databases":"%s","skipped":"%s","keep_days":%s}\n' \
+    "${stamp}" "${SERIES:-daily}" "${completed[*]}" "${skipped[*]}" "${KEEP_DAYS}" >"${marker}"
   echo "backup completed: ${completed[*]}${skipped[*]:+ (skipped: ${skipped[*]})}"
   exit 0
 fi

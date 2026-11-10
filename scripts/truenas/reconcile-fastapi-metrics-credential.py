@@ -18,7 +18,7 @@ import stat
 import sys
 import tempfile
 
-SOURCE = Path("/mnt/cpool/secrets/runtime/sample/.env.secrets")
+SOURCE = Path("/mnt/cpool/secrets/runtime/fastapisample/.env.secrets")
 DEST = Path("/mnt/cpool/prometheus/secrets/fastapi-sample-metrics.key")
 ACK = "I_APPROVE_FASTAPI_SCRAPE_CREDENTIAL_INSTALL"
 EXPECTED_GID = 568
