@@ -22,6 +22,17 @@ variable "opentofu_token_client_ips" {
   }
 }
 
+variable "state_passphrase" {
+  description = "State/plan encryption passphrase (TF_VAR_state_passphrase, from Vaultwarden); losing it loses the state."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.state_passphrase) >= 16
+    error_message = "state_passphrase must be at least 16 characters."
+  }
+}
+
 variable "opentofu_token_expires_on" {
   description = "RFC 3339 expiry of the OpenTofu apply token; rotate by moving it forward."
   type        = string

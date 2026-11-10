@@ -13,8 +13,11 @@ sont relisibles dans [`tokens.tofu`](tokens.tofu) au lieu du dashboard :
 | Expiration | `opentofu_token_expires_on` (rotation : avancer la date) |
 
 État séparé (`cloudflaretokens/tfstate.json` dans Garage) : seule cette unité
-exige le droit de gérer des jetons. **La valeur du jeton est dans l'état** :
-le bucket Garage et les sauvegardes de `terragrunt-safe.sh` restent sur le LAN.
+exige le droit de gérer des jetons. **La valeur du jeton est dans l'état**, et
+la CI détient une clé Garage : état et plans sont donc chiffrés côté client
+(`encryption`, `enforced = true`) avec `TF_VAR_state_passphrase`, conservée
+dans Vaultwarden (`nabla/prod/cloudflaretokens`). Perdre cette phrase, c'est
+perdre l'état : il faudrait réimporter le jeton.
 
 ## Identifiant d'amorçage (une fois)
 
@@ -27,6 +30,7 @@ ne suffit pas, même pour le `plan` (lecture des groupes de permissions).
 
 ```bash
 export TF_VAR_opentofu_token_client_ips='["<IP WAN>/32"]'
+export TF_VAR_state_passphrase="$(bw get item nabla/prod/cloudflaretokens | jq -r '.fields[] | select(.name=="TF_VAR_state_passphrase").value')"
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflaretokens init
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflaretokens plan -out=tokens.tfplan
 scripts/infra/terragrunt-safe.sh infrastructure/cloudflaretokens apply tokens.tfplan

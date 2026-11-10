@@ -26,3 +26,11 @@ def test_client_ips_come_from_the_operator_and_value_is_sensitive() -> None:
     assert "default" not in text.split('variable "opentofu_token_client_ips"')[1].split("variable ")[0]
     assert not re.search(r"\b\d{1,3}(\.\d{1,3}){3}/\d+\b(?<!203\.0\.113\.7/32)", text)
     assert re.search(r'output "opentofu_token" \{[^}]*sensitive\s*=\s*true', text, re.S)
+
+
+def test_state_and_plans_are_encrypted_with_an_operator_passphrase() -> None:
+    text = source()
+    assert "passphrase = var.state_passphrase" in text
+    for block in ("state", "plan"):
+        assert re.search(rf"{block} \{{\s*method\s*=\s*method\.aes_gcm\.operator\s*enforced\s*=\s*true", text)
+    assert "default" not in text.split('variable "state_passphrase"')[1].split("variable ")[0]
