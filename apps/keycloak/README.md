@@ -107,6 +107,42 @@ Keep `KEYCLOAK_DB_PASSWORD` in the current shell only long enough to import it
 into Vaultwarden or write the root-owned runtime secret file below, then
 `unset KEYCLOAK_DB_PASSWORD`.
 
+## PostgreSQL TLS 1.3 (homelab fail-closed)
+
+Keycloak is currently not used; temporary non-availability is acceptable.
+The tracked Compose configuration now sets `KC_DB_TLS_MODE=verify-server`
+and `KC_DB_TLS_TRUST_STORE_FILE=/etc/nabla/pki/postgres-ca.crt`.
+The public CA is mounted read-only from:
+
+```text
+/mnt/cpool/secrets/runtime/postgres/tls/ca.crt
+```
+
+This is a **certificate authority public certificate**, not a PostgreSQL
+private key. Provision this PEM file and the PostgreSQL server TLS certificate
+before starting Keycloak. By default the JDBC URL still connects to
+`172.17.0.24:5432`, so that **IP must be present as an IP SAN** in the
+server certificate. Prefer a stable internal DNS name with DNS SAN by setting
+`KEYCLOAK_DB_HOST` in the Compose **project interpolation** environment.
+The container's `env_file:` alone is not a source for Compose interpolation.
+
+Expected flow: PostgreSQL `ssl=on`, `ssl_min_protocol_version=TLSv1.3`,
+a certificate/chain valid for the chosen host/IP, `hostssl` rules, and a
+SCRAM-protected dedicated `keycloak` role. Do not disable verification
+to make a failing bootstrap pass. If the CA is missing or PostgreSQL is not
+ready, the application may remain stopped until the lab PKI is provisioned.
+
+Validation after provisioning:
+
+```sql
+SELECT a.usename, s.ssl, s.version, s.cipher
+FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid)
+WHERE a.usename = 'keycloak';
+```
+
+Docs: https://www.keycloak.org/server/db
+and https://www.postgresql.org/docs/18/ssl-tcp.html.
+
 ## Runtime secrets
 
 The Compose file consumes:
