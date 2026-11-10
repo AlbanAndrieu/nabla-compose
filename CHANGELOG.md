@@ -1,3 +1,16 @@
+# [0.63.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.62.0...0.63.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **tests:** let the mocked dig answer for fastapi-sample.albandrieu.com ([9d803b0](https://github.com/AlbanAndrieu/nabla-compose/commit/9d803b0bd41530d859cfee571a04f8d9d0186e5c))
+
+
+### Features
+
+* **openclaw:** provision a scoped LiteLLM key for the coder agent ([10b3cca](https://github.com/AlbanAndrieu/nabla-compose/commit/10b3cca11ed13e2ad6f72f11b943ea477c1926b4))
+* **openclaw:** ship the coder key at 10 EUR per week without restarts ([58db190](https://github.com/AlbanAndrieu/nabla-compose/commit/58db1909e218e10bbd9a396d778073ecf8735028))
+
 # [0.62.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.61.0...0.62.0) (2026-11-10)
 
 

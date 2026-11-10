@@ -11,6 +11,7 @@ import subprocess
 TRUENAS_ROOT = Path("/mnt/cpool/compose/nabla-compose")
 ROOT = Path(__file__).resolve().parents[2]
 PROVISIONER = ROOT / "scripts/truenas/provision-openclaw-litellm-keys.py"
+MODES = ("plan", "apply", "status", "quota-audit", "update-scope", "add-missing")
 SSH = ("ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "truenas")
 
 
@@ -20,10 +21,11 @@ def execution_target(root=ROOT):
 
 
 def build_command(mode, target):
-    if mode not in ("plan", "apply", "status", "quota-audit", "update-scope"):
+    if mode not in MODES:
         raise ValueError("unsupported_mode")
     arguments = {"plan": (), "apply": ("--apply",), "status": ("--status",),
-                 "quota-audit": ("--quota-audit",), "update-scope": ("--update-scope",)}[mode]
+                 "quota-audit": ("--quota-audit",), "update-scope": ("--update-scope",),
+                 "add-missing": ("--add-missing",)}[mode]
     if target == "truenas_local":
         return ["sudo", "-n", "python3", str(PROVISIONER), *arguments]
     if target == "workstation_ssh":
@@ -33,7 +35,7 @@ def build_command(mode, target):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("plan", "apply", "status", "quota-audit", "update-scope"), default="plan")
+    parser.add_argument("--mode", choices=MODES, default="plan")
     args = parser.parse_args(argv)
     if not PROVISIONER.is_file():
         print("provisioner=missing")
