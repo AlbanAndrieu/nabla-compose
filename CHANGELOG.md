@@ -1,3 +1,13 @@
+## [0.60.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.1...0.60.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **compose:** retain existing DB endpoints with SAN verified TLS [skip ci] ([b0d73ab](https://github.com/AlbanAndrieu/nabla-compose/commit/b0d73ab1c29a57b9d89e7d978c8c1b88fd93098f))
+* **compose:** retain existing DB endpoints with SAN verified TLS [skip ci] ([e639e65](https://github.com/AlbanAndrieu/nabla-compose/commit/e639e655033650319c65a21ccaaa3f5ef39b3d19))
+* **security:** enforce verified PostgreSQL TLS for unused services [skip ci] ([17aa84a](https://github.com/AlbanAndrieu/nabla-compose/commit/17aa84a1f48eb125df14dcc4ae5a0ff706dfd3af))
+* **security:** enforce verified PostgreSQL TLS for unused services [skip ci] ([e20b9fb](https://github.com/AlbanAndrieu/nabla-compose/commit/e20b9fbf40f1fc09f056fb03a3729932399be823))
+
 ## [0.60.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.60.0...0.60.1) (2026-11-09)
 
 
