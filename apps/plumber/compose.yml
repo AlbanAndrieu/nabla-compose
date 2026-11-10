@@ -66,7 +66,7 @@ services:
       JOBS_CORS_ORIGIN: ${PLUMBER_CORS_ORIGIN:-https://plumber-albandrieu.albandrieu.com}
       JOBS_FRONTEND_URL: ${PLUMBER_FRONTEND_URL:-https://plumber-albandrieu.albandrieu.com}
       JOBS_SESSION_TTL: 168h
-      JOBS_DB_HOST: ${JOBS_DB_HOST:?Set JOBS_DB_HOST to PostgreSQL certificate DNS name}
+      JOBS_DB_HOST: ${JOBS_DB_HOST:-postgres}
       JOBS_DB_PORT: ${JOBS_DB_PORT:-5432}
       JOBS_DB_USER: ${JOBS_DB_USER:-jobs}
       JOBS_DB_NAME: ${JOBS_DB_NAME:-jobs}
