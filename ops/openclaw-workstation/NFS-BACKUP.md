@@ -29,4 +29,4 @@ python3 scripts/workstation/audit-openclaw-litellm-models.py --auth master
 python3 scripts/workstation/audit-openclaw-litellm-models.py --auth local
 ```
 
-Use `bash scripts/workstation/openclaw-ops.sh --memory-audit` for a read-only, redacted memory status. `openclaw memory status --deep` probes the provider and may print a partially masked credential; never paste its raw output.
+The redacted `openclaw-ops.sh --memory-audit` wrapper was retired with the Workstation Gateway (2026-11-11). `openclaw memory status --deep` probes the provider and may print a partially masked credential; never paste its raw output.

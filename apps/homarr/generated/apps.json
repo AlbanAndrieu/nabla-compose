@@ -343,7 +343,7 @@
       "composeService": "dockhand",
       "dockerManaged": true,
       "href": "http://172.17.0.24:3050",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Docker container management UI for the homelab runtime."
     },
     {
@@ -379,7 +379,7 @@
       "composeService": "dozzle",
       "dockerManaged": true,
       "href": "https://dozzle.int.albandrieu.com",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Live Docker log viewer and MCP-enabled operations UI."
     },
     {
@@ -391,7 +391,7 @@
       "composeService": "drawio",
       "dockerManaged": true,
       "href": "http://172.17.0.24:9080",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Self-hosted diagrams.net editor for internal diagram authoring."
     },
     {
@@ -952,7 +952,7 @@
       "composeService": "openhands",
       "dockerManaged": true,
       "href": "http://172.17.0.24:3010",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Self-hosted coding-agent environment with Docker-backed sandboxes."
     },
     {

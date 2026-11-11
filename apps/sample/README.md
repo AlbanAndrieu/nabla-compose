@@ -43,10 +43,12 @@ The canonical runtime materialization is now root-owned outside the repository:
 /mnt/cpool/secrets/runtime/fastapisample/.env.secrets
 ```
 
-During the migration pilot, `/mnt/cpool/sample/.env` and
-`/mnt/cpool/sample/.env.secrets` remain rollback/staging sources only. Do not
-delete or replace them until runtime and reboot acceptance are complete. When a
-legacy source changes deliberately, refresh only Sample's canonical copy with:
+The legacy `/mnt/cpool/sample/.env` and `/mnt/cpool/sample/.env.secrets` were
+removed on 2026-11-11: after the move to `runtime/fastapisample` (2026-11-10)
+they were dangling links to the old `runtime/sample` directory, and
+`--check sample` failed on them, which failed the hourly FastAPI update.
+If a legacy source is ever restored and changes deliberately, refresh only
+Sample's canonical copy with:
 
 ```bash
 sudo bash scripts/truenas/bootstrap-repository-env-files.sh --restage sample

@@ -535,6 +535,9 @@ while IFS= read -r source; do
     else
       printf '❌ %s symlink target=%s expected=%s\n' \
         "${source}" "${resolved:-unresolved}" "${target}"
+      if [[ ! -e "${source}" ]]; then
+        printf '   Dangling link: if the declared env_file moved elsewhere, remove it: sudo unlink %s\n' "${source}"
+      fi
       invalid=$((invalid + 1))
     fi
     continue

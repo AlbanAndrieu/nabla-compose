@@ -73,17 +73,6 @@
     "url": "http://172.17.0.24:5100/"
   },
   {
-    "id": "ddns-updater",
-    "type": "port",
-    "name": "DDNS Updater",
-    "description": "Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 30007
-  },
-  {
     "id": "defectdojo",
     "type": "port",
     "name": "DefectDojo",
@@ -106,17 +95,6 @@
     "port": 2375
   },
   {
-    "id": "dockhand",
-    "type": "port",
-    "name": "Dockhand",
-    "description": "Docker container management UI for the homelab runtime.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3050
-  },
-  {
     "id": "docling",
     "type": "http",
     "name": "Docling Serve",
@@ -125,28 +103,6 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:5001/ready"
-  },
-  {
-    "id": "dozzle",
-    "type": "port",
-    "name": "Dozzle",
-    "description": "Live Docker log viewer and MCP-enabled operations UI.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 8888
-  },
-  {
-    "id": "drawio",
-    "type": "port",
-    "name": "Draw.io",
-    "description": "Self-hosted diagrams.net editor for internal diagram authoring.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 9080
   },
   {
     "id": "fastapi-sample",
@@ -382,17 +338,6 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 30068
-  },
-  {
-    "id": "openhands",
-    "type": "port",
-    "name": "OpenHands",
-    "description": "Self-hosted coding-agent environment with Docker-backed sandboxes.",
-    "interval": 60,
-    "max_retries": 3,
-    "retry_interval": 60,
-    "hostname": "172.17.0.24",
-    "port": 3010
   },
   {
     "id": "openrag-frontend",

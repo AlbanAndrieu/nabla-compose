@@ -1,0 +1,5 @@
+# Cilium replaces Talos' default flannel so NetworkPolicy is enforced; kube-proxy stays.
+cluster:
+  network:
+    cni:
+      name: none

@@ -50,7 +50,7 @@ class CloudflareContract(unittest.TestCase):
             self.assertIn(f"to = {kind}.{name}\n", imports)
 
     def test_postgres_is_not_published(self):
-        # Internal-only since 2026-11-10: no tunnel route, no Access app; CNAME destroyed 11/11.
+        # Internal-only since 2026-11-10; its CNAME was destroyed on 2026-11-11.
         source = module_source()
         self.assertNotIn('hostname       = "postgres.albandrieu.com"', source)
         self.assertNotIn("tcp://172.17.0.24:5432", source)

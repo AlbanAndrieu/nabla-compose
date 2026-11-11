@@ -6,7 +6,7 @@ metadata:
   title: Dozzle
   description: Live Docker log viewer and MCP-enabled operations UI.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: disabled
     albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

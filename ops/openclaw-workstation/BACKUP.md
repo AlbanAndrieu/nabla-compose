@@ -163,7 +163,6 @@ de transport LiteLLM.
 Contrôles après mise à jour (Workstation) :
 ```bash
 openclaw --version
-bash scripts/workstation/openclaw-ops.sh --memory
 python3 scripts/workstation/check-openclaw-litellm-memory-config.py --audit
 ```
 

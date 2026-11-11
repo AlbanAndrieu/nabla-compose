@@ -589,8 +589,8 @@ else
         )"
 fi
 
+# 6 min: under cpool write latency the Python imports alone took over 4 min (10/11).
 printf 'Waiting for FastAPI Sample health on :8091...\n'
-# 6 min: under cpool read latency the Python imports alone took over 4 min (10/11/2026).
 health_payload="$(
     wait_for_json_endpoint \
         "FastAPI Sample health" \
@@ -682,7 +682,13 @@ else
     summary_warn 'AI acceptance script unavailable in this checkout'
 fi
 
-quiet_step 'Canonical Sample runtime env post-check' sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample
+if env_check="$(sudo bash scripts/truenas/bootstrap-repository-env-files.sh --check sample 2>&1)"; then
+    summary_ok 'Canonical Sample runtime env post-check'
+else
+    # This check prints paths and statuses, never values: show them so the cron mail names the fix.
+    grep -E '^(❌|⚠️|   )' <<<"${env_check}" | head -n 20 || true
+    fail 'Canonical Sample runtime env post-check failed'
+fi
 
 runtime_sha="$(run_git git -C "${SUBMODULE}" rev-parse HEAD)"
 pinned_sha="$(run_git git ls-files -s "${SUBMODULE}" | awk '{print $2}')"

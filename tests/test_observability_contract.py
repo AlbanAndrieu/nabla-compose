@@ -51,7 +51,7 @@ class ObservabilityContractTests(unittest.TestCase):
 
         self.assertIn("retention_period: 720h", loki)
         self.assertIn("max_query_lookback: 720h", loki)
-        self.assertIn("deletion_mode: disabled", loki)
+        self.assertIn("deletion_mode: filter-only", loki)
         self.assertIn("retention_enabled: true", loki)
         self.assertIn("delete_request_store: filesystem", loki)
 
