@@ -6,7 +6,7 @@ metadata:
   title: Draw.io
   description: Self-hosted diagrams.net editor for internal diagram authoring.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: disabled
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

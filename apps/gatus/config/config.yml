@@ -76,16 +76,6 @@ endpoints:
   url: http://172.17.0.24:5100/
   conditions:
   - '[STATUS] == 200'
-- name: DDNS Updater
-  group: network
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: ddns-updater
-    nabla_service_id: ddns-updater
-    nabla_entity_ref: component:default/ddns-updater
-  url: tcp://172.17.0.24:30007
-  conditions:
-  - '[CONNECTED] == true'
 - name: DefectDojo
   group: security
   interval: 60s
@@ -106,16 +96,6 @@ endpoints:
   url: tcp://docker-socket-proxy:2375
   conditions:
   - '[CONNECTED] == true'
-- name: Dockhand
-  group: operations
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: dockhand
-    nabla_service_id: dockhand
-    nabla_entity_ref: component:default/dockhand
-  url: tcp://172.17.0.24:3050
-  conditions:
-  - '[CONNECTED] == true'
 - name: Docling Serve
   group: ai
   interval: 60s
@@ -126,26 +106,6 @@ endpoints:
   url: http://172.17.0.24:5001/ready
   conditions:
   - '[STATUS] == 200'
-- name: Dozzle
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: dozzle
-    nabla_service_id: dozzle
-    nabla_entity_ref: component:default/dozzle
-  url: tcp://172.17.0.24:8888
-  conditions:
-  - '[CONNECTED] == true'
-- name: Draw.io
-  group: productivity
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: drawio
-    nabla_service_id: drawio
-    nabla_entity_ref: component:default/drawio
-  url: tcp://172.17.0.24:9080
-  conditions:
-  - '[CONNECTED] == true'
 - name: FastAPI Sample
   group: development
   interval: 60s
@@ -366,16 +326,6 @@ endpoints:
     nabla_service_id: ollama
     nabla_entity_ref: component:default/ollama
   url: tcp://172.17.0.24:30068
-  conditions:
-  - '[CONNECTED] == true'
-- name: OpenHands
-  group: ai
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: openhands
-    nabla_service_id: openhands
-    nabla_entity_ref: component:default/openhands
-  url: tcp://172.17.0.24:3010
   conditions:
   - '[CONNECTED] == true'
 - name: OpenRAG Frontend

@@ -84,6 +84,11 @@ services:
     volumes:
       - ./config/loki.yml:/etc/loki/config.yml:ro
       - /mnt/cpool/loki:/loki
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   mimir:
     labels:
