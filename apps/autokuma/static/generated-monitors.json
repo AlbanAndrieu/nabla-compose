@@ -566,6 +566,17 @@
     "port": 9121
   },
   {
+    "id": "scanopy",
+    "type": "port",
+    "name": "Scanopy",
+    "description": "Agentless network discovery and continuously updated topology documentation.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 60072
+  },
+  {
     "id": "scrutiny",
     "type": "http",
     "name": "Scrutiny",

@@ -1350,7 +1350,7 @@
       "composeService": "scanopy",
       "dockerManaged": true,
       "href": "http://172.17.0.24:60072",
-      "syncEligible": false,
+      "syncEligible": true,
       "description": "Agentless network discovery and continuously updated topology documentation."
     },
     {

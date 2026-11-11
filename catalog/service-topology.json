@@ -2533,7 +2533,6 @@
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2557,10 +2556,9 @@
       "kind": "network-discovery-scanner",
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
-      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
+      "description": "Agentless scanner used by Scanopy to discover hosts, ports and network topology.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
