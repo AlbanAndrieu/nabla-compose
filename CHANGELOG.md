@@ -1,3 +1,16 @@
+# [0.68.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.67.0...0.68.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **litellm:** give the healthcheck a start period longer than the startup ([7a8b27d](https://github.com/AlbanAndrieu/nabla-compose/commit/7a8b27dfb84828a8c373cc396f73c9865aa3ee4f))
+* **openclaw:** let the coder key plan pass before the key exists ([54cadd7](https://github.com/AlbanAndrieu/nabla-compose/commit/54cadd7dcc9a7b489732127cb86b2c96f339dfbe))
+
+
+### Features
+
+* **prometheus:** scrape LiteLLM /metrics with a key limited to that route ([3409b15](https://github.com/AlbanAndrieu/nabla-compose/commit/3409b1565056ee7720e71999a9317ca4c191892e))
+
 # [0.67.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.66.1...0.67.0) (2026-11-10)
 
 
