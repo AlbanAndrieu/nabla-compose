@@ -89,6 +89,7 @@ GEN_ARGS=(
   --talos-version "${TALOS_VERSION}"
   --install-disk "${INSTALL_DISK}"
   --config-patch "${NETWORK_PATCH}"
+  --config-patch "@${ROOT}/config/talos/patches/cni-none.yaml"
   --output "${OUTPUT_DIR}"
   --with-docs=false
   --with-examples=false

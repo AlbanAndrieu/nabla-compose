@@ -72,16 +72,20 @@ a été tenté, pourquoi ça bloque et comment réessayer.
   pas (`neo4j`, `ddns-updater`, `opencre`, `recyclarr`, `bitcoind`) : corriger
   `config/truenas/snapshot-tasks.json`.
 
-### B8. Hermes, Keycloak, Vault sur Talos : la gate NetworkPolicy ne peut pas passer
+### ~~B8. Hermes, Keycloak, Vault sur Talos : la gate NetworkPolicy ne peut pas passer~~ (Cilium le 11/11)
 
-- Le CNI est **flannel**, qui accepte les NetworkPolicy sans les appliquer :
-  `smoke-networkpolicy-enforcement.sh` échoue par construction.
-- Retenu par l'opérateur : **Cilium** (filtrage par nom de domaine pour Telegram/Discord).
-  Bascule réseau de tout le cluster : `cluster.network.cni.name: none` dans la config Talos (et
-  `cluster.proxy.disabled: true` si Cilium remplace kube-proxy), puis Cilium par Helm. Restent aussi les digests d'images à épingler dans
-  `kubernetes/hermes` et `kubernetes/keycloak`.
-- Réessayer : `bash scripts/talos/smoke-networkpolicy-enforcement.sh` vert, puis
-  `kubectl apply -k kubernetes/keycloak` et `kubernetes/hermes`.
+- Le CNI était **flannel**, qui accepte les NetworkPolicy sans les appliquer.
+- Retenu par l'opérateur : **Cilium** (filtrage par nom de domaine pour Telegram/Discord). Basculé
+  le 11/11 de 18:30 à 18:40 UTC par `scripts/talos/migrate-cni-cilium.sh --apply` : snapshot etcd
+  (`etcd-20261111T183011Z-before-cilium.snapshot`), patch `config/talos/patches/cni-none.yaml`
+  sur les 3 nœuds, flannel retiré, Cilium 1.20.4 (`kubernetes/cilium/values.yaml`, kube-proxy
+  conservé), puis redémarrage des nœuds un par un. Agents `OK`, CoreDNS 2/2, contrôleur CSI 5/5.
+  Verts : `smoke-kubernetes-network.sh`, `smoke-networkpolicy-enforcement.sh` (ingress et egress,
+  autorisé et refusé, entre nœuds) et `smoke-truenas-csi-nfs.sh --check`.
+- Retour arrière : réappliquer la config Talos sans le patch, `helm uninstall cilium`,
+  redémarrer les nœuds ; flannel revient par les manifestes Talos.
+- Restent avant la migration : les digests d'images à épingler dans `kubernetes/hermes` et
+  `kubernetes/keycloak`, puis `kubectl apply -k kubernetes/keycloak` et `kubernetes/hermes`.
 
 ### ~~B9. Pyroscope : metastore Raft sans leader depuis le 6/11~~ (levé le 11/11 à 11:41 UTC)
 
@@ -147,7 +151,14 @@ a été tenté, pourquoi ça bloque et comment réessayer.
 - Code : `update-fastapi-sample.sh` écrit dans le mail les lignes `❌`/`⚠️` du contrôle (chemins
   seuls, jamais de valeur) au lieu d'un fichier `/tmp` privé ; `bootstrap-repository-env-files.sh`
   indique `sudo unlink` sur un lien mort ; README de Sample à jour.
-- Reste : `litellm: http_401` dans la recette IA de Sample (clé virtuelle refusée), à traiter à part.
+- `litellm: http_401` dans la recette IA : l'alias `fastapi-sample-staging` n'existait plus dans
+  LiteLLM. Clé recréée le 11/11 à 18:27 UTC par `provision-fastapi-litellm-keys.py --target truenas
+  --native-truenas --apply` (modèle `fastapi-qwen`, 8 USD à vie), installée dans
+  `fastapisample/.env.secrets` (copie `.bak-20261111T182733Z`), Sample redéployé : recette IA
+  `acceptance: pass`. **À faire par l'opérateur** : reporter la clé dans Vaultwarden
+  (`nabla/prod/sample-litellm`, champ `LITELLM_API_KEY`) depuis
+  `~/.local/share/nabla-compose/fastapi-litellm/truenas.key` sur TrueNAS, sinon une
+  rematérialisation depuis le coffre remettrait l'ancienne clé morte.
 
 ## Mesures TrueNAS
 
