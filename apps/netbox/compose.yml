@@ -8,8 +8,9 @@ services:
     user: "netbox:root"
     env_file:
       - /mnt/cpool/secrets/runtime/netbox/.env.secrets
+    # DB_HOST: the shared PostgreSQL App is not on the intranet network, use the host address.
     environment: &netbox-env
-      DB_HOST: ${NETBOX_DB_HOST:-postgres}
+      DB_HOST: ${NETBOX_DB_HOST:-172.17.0.24}
       DB_PORT: ${NETBOX_DB_PORT:-5432}
       DB_NAME: ${NETBOX_DB_NAME:-netbox}
       DB_USER: ${NETBOX_DB_USER:-netbox}
