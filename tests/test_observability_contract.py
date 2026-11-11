@@ -223,6 +223,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertNotIn("172.17.0.24:8089", prometheus)
         self.assertIn("- job_name: traefik", prometheus)
         self.assertIn("172.17.0.24:8080", prometheus)
+        self.assertIn("- job_name: garage", prometheus)
+        self.assertIn("172.17.0.24:3903", prometheus)
 
         prometheus_compose = (
             ROOT / "apps" / "prometheus" / "compose.yml"
