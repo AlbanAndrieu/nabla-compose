@@ -20,7 +20,8 @@ if ! docker inspect redis --format '{{.State.Running}}' 2>/dev/null | grep -qx t
   diag_fail 'Redis absent ou arrêté'
 else
   password="${REDIS_AUTH:-}"
-  secret_file=/mnt/cpool/secrets/runtime/redis/.env.secrets
+  # apps/redis/.env is an implicit-local env, staged as .env.compose.
+  secret_file=/mnt/cpool/secrets/runtime/redis/.env.compose
   if [[ -z "${password}" && -r "${secret_file}" ]]; then
     # Only REDIS_AUTH is read; the rest of the env file is never parsed.
     password="$(sed -n 's/^REDIS_AUTH=//p' "${secret_file}" | head -n 1)"

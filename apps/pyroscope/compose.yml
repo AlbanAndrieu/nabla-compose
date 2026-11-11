@@ -58,3 +58,9 @@ services:
       - "-storage.filesystem.dir=/var/lib/pyroscope/v2/shared"
     volumes:
       - /mnt/cpool/pyroscope/data:/var/lib/pyroscope
+    # A Raft election loop wrote a 6 GB json log on cpool (2026-11-11).
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
