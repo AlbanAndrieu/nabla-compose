@@ -208,8 +208,14 @@ explicite ; le script de capture les classe `unmanaged`.
    `sonarr`, `transmission`) sont les premiers retirés (décision D5,
    [roadmap média](../../docs/arr-media-library-roadmap.md)). Premier tour
    fait le 10/11/2026 : 26 CNAME détruits, NXDOMAIN au serveur autoritaire,
-   liste vidée (historique Git). Second tour en attente : `postgres`,
-   dépublié le 10/11 (PR #345).
+   liste vidée (historique Git). Second tour fait le 11/11/2026 : `postgres`
+   (PR #345), détruit en un seul apply, `dig @1.1.1.1` vide.
+
+   Un nom dont le CNAME est déjà dans l'état (`tunnel[...]`) n'a pas besoin
+   de ce circuit : retirer sa route suffit, le plan détruit l'enregistrement.
+   Le lister aussi dans `dns_retired_record_ids` l'importe une seconde fois
+   sous le même identifiant ; après l'apply, le plan `adopt` voudrait alors
+   recréer un `retired[...]` vide.
 
 Test hors ligne du module (fournisseur simulé, aucun appel API) :
 
