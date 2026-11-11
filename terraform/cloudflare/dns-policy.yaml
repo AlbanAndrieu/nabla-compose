@@ -8,11 +8,9 @@ version: 1
 # plans: dns_retirement_phase=adopt imports the live records unchanged, then
 # dns_retirement_phase=retire destroys them (terraform/cloudflare/README.md).
 # The 26 names of the first round (media PoCs, kibana, routes removed from the
-# tunnel 04-06/11) were destroyed on 10/11/2026 and answer NXDOMAIN; see git
-# history for the list.
-retired_hostnames:
-  # PostgreSQL unpublished 10/11: internal-only, every client uses 172.17.0.24:5432.
-  - postgres.albandrieu.com
+# tunnel 04-06/11) were destroyed on 10/11/2026, postgres on 11/11; all answer
+# NXDOMAIN, see git history for the lists.
+retired_hostnames: []
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).

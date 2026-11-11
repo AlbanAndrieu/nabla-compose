@@ -208,8 +208,8 @@ explicite ; le script de capture les classe `unmanaged`.
    `sonarr`, `transmission`) sont les premiers retirés (décision D5,
    [roadmap média](../../docs/arr-media-library-roadmap.md)). Premier tour
    fait le 10/11/2026 : 26 CNAME détruits, NXDOMAIN au serveur autoritaire,
-   liste vidée (historique Git). Second tour en attente : `postgres`,
-   dépublié le 10/11 (PR #345).
+   liste vidée (historique Git). Second tour : `postgres`, dépublié le 10/11
+   (PR #345), NXDOMAIN au serveur autoritaire le 11/11, liste de nouveau vide.
 
 Test hors ligne du module (fournisseur simulé, aucun appel API) :
 

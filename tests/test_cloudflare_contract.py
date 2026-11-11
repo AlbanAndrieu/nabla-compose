@@ -50,12 +50,12 @@ class CloudflareContract(unittest.TestCase):
             self.assertIn(f"to = {kind}.{name}\n", imports)
 
     def test_postgres_is_not_published(self):
-        # Internal-only since 2026-11-10: no tunnel route, no Access app, CNAME retired.
+        # Internal-only since 2026-11-10: no tunnel route, no Access app; CNAME destroyed 11/11.
         source = module_source()
         self.assertNotIn('hostname       = "postgres.albandrieu.com"', source)
         self.assertNotIn("tcp://172.17.0.24:5432", source)
-        policy = (ROOT / "terraform/cloudflare/dns-policy.yaml").read_text()
-        self.assertIn("- postgres.albandrieu.com\n", policy)
+        ids = (ROOT / "terraform/cloudflare/dns-record-ids.auto.tfvars").read_text()
+        self.assertNotIn("postgres.albandrieu.com", ids)
 
     def test_declared_resources_cannot_be_destroyed(self):
         source = module_source()
