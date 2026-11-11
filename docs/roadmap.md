@@ -1,6 +1,6 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **11 novembre 2026** (passes du jour : [runbook B1–B14](runbooks/2026-11-11-roadmap-pass-blockers.md) et [reprise des accords](runbooks/2026-11-10-roadmap-pass-blockers.md#4-reprise-du-1111-accords-1-à-7)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
+> Mise à jour : **11 novembre 2026** (passes du jour : runbook B1–B14 `docs/runbooks/2026-11-11-roadmap-pass-blockers.md` sur `master`, et [reprise des accords](runbooks/2026-11-10-roadmap-pass-blockers.md#4-reprise-du-1111-accords-1-à-7)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
 ## Règles de suivi
 
