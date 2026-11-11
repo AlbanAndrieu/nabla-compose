@@ -54,6 +54,13 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      # Provisioned by `just litellm-metrics-key-apply` before any redeploy.
+      - type: bind
+        source: /mnt/cpool/prometheus/secrets/litellm-metrics.key
+        target: /run/secrets/litellm-metrics.key
+        read_only: true
+        bind:
+          create_host_path: false
     # Prometheus joins the shared private Docker network so database metrics
     # such as InfluxDB can be scraped without publishing their full API on the
     # LAN. Host/LAN targets remain reachable through the Docker bridge route.
