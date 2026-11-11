@@ -1374,20 +1374,10 @@ openclaw-heartbeat-restore-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_restoration.py' -v
     python3 -m unittest discover -s tests -p 'test_openclaw_heartbeat_legacy_recovery_contract.py' -v
 
-# Complete local-first evidence sweep. Never changes Gateway, LiteLLM or cron.
+# Local-first migration contracts. Never changes Gateway, LiteLLM or cron.
 openclaw-migration-evidence-test:
     python3 -m unittest discover -s tests -p 'test_openclaw_policy_relocation.py' -v
     python3 -m unittest discover -s tests -p 'test_justfile_recipe_contract.py' -v
-    python3 -m unittest discover -s tests -p 'test_openclaw_migration_evidence.py' -v
-
-openclaw-migration-evidence-tests:
-    bash scripts/workstation/openclaw-migration-evidence.sh --tests
-
-openclaw-migration-evidence-inventory:
-    bash scripts/workstation/openclaw-migration-evidence.sh --inventory
-
-openclaw-migration-evidence-check:
-    bash scripts/workstation/openclaw-migration-evidence.sh --diagnose
 
 # Operator instructions; printing the runbook path does not change runtime.
 openclaw-migration-runbook:
