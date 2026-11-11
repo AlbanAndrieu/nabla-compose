@@ -345,7 +345,7 @@ endpoints:
     nabla_monitor_id: ntopng
     nabla_service_id: ntopng
     nabla_entity_ref: component:default/ntopng
-  url: tcp://172.17.0.24:3000
+  url: tcp://172.17.0.24:31080
   conditions:
   - '[CONNECTED] == true'
 - name: Obsidian

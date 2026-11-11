@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:1df51f0ad139998f2dd3622a00071874b0ed74b122db0a7cc79f837c56831588",
+  "catalogRevision": "sha256:dc45bbd001d705f845841d346e22456d9c4edc0680cd69c69ba314aafc6ab469",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1653,6 +1653,12 @@
       "category": "network",
       "sourcePath": "apps/ntopng/compose.yml",
       "composeService": "ntopng",
+      "url": "http://172.17.0.24:31080",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31080
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ntopng"

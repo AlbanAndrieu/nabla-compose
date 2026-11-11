@@ -1,11 +1,8 @@
 ---
-secrets:
-  ntopng_runtime_env:
-    file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets
-
 services:
   ntopng:
-    image: ntop/ntopng:latest
+    # Upstream only publishes a rolling `latest` (apt-stable, rebuilt daily): pinned by digest for Renovate.
+    image: ntop/ntopng:latest@sha256:72433036b248b7aaf5c8b59380dc6162aa292b7bd791f94843cd80a50c8b43d6
     container_name: ntopng
     restart: unless-stopped
     labels:
@@ -15,38 +12,30 @@ services:
       name: ntopng
       kind: network-observability
       category: network
+      url: http://172.17.0.24:31080
       runtime:
         provider: truenas-app
         containerService: ntopng
-      relations:
-        - target: clickhouse
-          type: storesIn
-          strength: required
-          description: ntopng stores historical flow data in the existing ClickHouse service.
-          evidence:
-            - apps/ntopng/compose.yml:CLICKHOUSE_HOST
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31080
+    # Host networking: ntopng captures br0 itself (ntopng.conf).
     network_mode: host
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    secrets:
-      - source: ntopng_runtime_env
-        target: ntopng_runtime_env
-        mode: "0400"
+    security_opt:
+      - no-new-privileges:true
     environment:
       TZ: ${TZ:-Europe/Paris}
-      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-172.17.0.24}
-      NTOPNG_INTERFACE: ${NTOPNG_INTERFACE:-eth0}
-      NTOPNG_HTTP_PORT: ${NTOPNG_HTTP_PORT:-3000}
     entrypoint:
       - /bin/sh
       - /usr/local/bin/nabla-ntopng-entrypoint.sh
     healthcheck:
       test:
         - CMD-SHELL
-        - >-
-          wget --quiet --spider --timeout=5
-          "http://127.0.0.1:${NTOPNG_HTTP_PORT:-3000}/"
+        - wget --quiet --spider --timeout=5 http://172.17.0.24:31080/
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,8 +44,8 @@ services:
       - /mnt/cpool/ntopng:/var/lib/ntopng
       - /mnt/cpool/ntopng/redis:/var/lib/redis
       - type: bind
-        source: /mnt/cpool/ntopng/ntopng.license
-        target: /etc/ntopng.license
+        source: /mnt/cpool/compose/nabla-compose/apps/ntopng/ntopng.conf
+        target: /etc/ntopng/nabla.conf
         read_only: true
         bind:
           create_host_path: false

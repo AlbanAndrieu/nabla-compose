@@ -336,53 +336,25 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('"172.17.0.24:9000:9000"', clickhouse)
         self.assertIn("aliases:\n          - clickhouse", clickhouse)
 
-    def test_ntopng_uses_dedicated_clickhouse_identity(self) -> None:
+    def test_ntopng_runs_community_from_a_reviewed_config(self) -> None:
         compose = self.read("apps/ntopng/compose.yml")
         wrapper = self.read("apps/ntopng/entrypoint.sh")
-        readme = self.read("apps/ntopng/README.md")
+        config = self.read("apps/ntopng/ntopng.conf")
 
-        self.assertIn("ntopng_runtime_env:", compose)
-        self.assertIn(
-            "file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets", compose
-        )
-        self.assertIn("source: ntopng_runtime_env", compose)
-        self.assertIn("target: ntopng_runtime_env", compose)
-        self.assertNotIn("\n    env_file:\n", compose)
-        self.assertIn("NTOPNG_INTERFACE: ${NTOPNG_INTERFACE:-eth0}", compose)
-        self.assertIn("NTOPNG_HTTP_PORT: ${NTOPNG_HTTP_PORT:-3000}", compose)
-        self.assertIn("/usr/local/bin/nabla-ntopng-entrypoint.sh", compose)
-        self.assertIn("source: /mnt/cpool/ntopng/ntopng.license", compose)
-        self.assertIn("target: /etc/ntopng.license", compose)
+        # No licence: anything Enterprise (ClickHouse flows, licence file) stays out.
+        self.assertIn("--community\n", config)
+        self.assertIn("--interface=br0\n", config)
+        self.assertIn("--http-port=172.17.0.24:31080\n", config)
+        self.assertNotIn("--dump-flows", config)
+        self.assertNotIn("ntopng.license", compose)
+        self.assertNotIn("secrets:", compose)
+        self.assertRegex(compose, r"image: ntop/ntopng:latest@sha256:[0-9a-f]{64}\n")
+        self.assertIn("target: /etc/ntopng/nabla.conf", compose)
         self.assertGreaterEqual(compose.count("create_host_path: false"), 2)
-        self.assertNotIn("\n    command:\n", compose)
-        self.assertIn("healthcheck:", compose)
-        self.assertIn("wget --quiet --spider --timeout=5", compose)
-        self.assertIn("http://127.0.0.1:${NTOPNG_HTTP_PORT:-3000}/", compose)
-        self.assertNotIn("${CLICKHOUSE_USER:-clickhouse}", compose)
-        self.assertNotIn("${CLICKHOUSE_PASSWORD:-clickhouse}", compose)
+        self.assertIn("wget --quiet --spider --timeout=5 http://172.17.0.24:31080/", compose)
 
-        self.assertIn("ntopng runtime secret file is missing or unreadable", wrapper)
-        self.assertIn("/run/secrets/ntopng_runtime_env", wrapper)
-        self.assertIn(
-            "NTOPNG_CLICKHOUSE_PASSWORD must be exactly 64 hexadecimal characters",
-            wrapper,
-        )
-        self.assertIn('config="/run/nabla-ntopng.conf"', wrapper)
-        self.assertIn("--dump-flows=clickhouse;", wrapper)
-        self.assertIn("--strict-startup=", wrapper)
-        self.assertIn('chmod 600 "${config}"', wrapper)
-        self.assertIn("unset NTOP_CONFIG NTOPNG_CLICKHOUSE_PASSWORD", wrapper)
-        self.assertIn('exec /run.sh "${config}"', wrapper)
-
-        self.assertIn("GRANT SELECT, INSERT, TRUNCATE ON ntopng.* TO ntopng;", readme)
-        self.assertIn("GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;", readme)
-        self.assertNotIn("GRANT ALL ON ntopng.* TO ntopng;", readme)
-        self.assertIn("Do not grant `ALL`, global `*.*`", readme)
-        self.assertIn("/mnt/cpool/ntopng/ntopng.license", readme)
-        self.assertIn("Docker `Config.Env`", readme)
-        self.assertIn("/run/secrets/ntopng_runtime_env", readme)
-        self.assertIn("Enterprise M/L/XL/XXL", readme)
-
+        self.assertIn("chown -R redis:redis /var/lib/redis", wrapper)
+        self.assertIn("exec /run.sh /etc/ntopng/nabla.conf", wrapper)
         wrapper_mode = (ROOT / "apps/ntopng/entrypoint.sh").stat().st_mode
         self.assertTrue(wrapper_mode & stat.S_IXUSR)
 
@@ -729,30 +701,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("Sentry/Snuba -> ClickHouse authenticated query failed", audit)
         self.assertIn("Sentry/Snuba ClickHouse auth: user=sentry database=sentry tables=", audit)
         self.assertIn("Sentry web health", audit)
-        self.assertIn("function probe_ntopng_clickhouse_contract_if_running", audit)
-        self.assertIn(
-            "NTOPNG_CLICKHOUSE_PASSWORD must be 64 hexadecimal characters",
-            audit,
-        )
-        self.assertIn("global *.* privileges are forbidden", audit)
-        self.assertIn("password absent from Docker Config.Env", audit)
-        self.assertIn("password exposed in Docker Config.Env", audit)
-        self.assertIn("runtime secret mounted", audit)
-        self.assertIn("runtime secret mount missing or empty", audit)
-        self.assertIn("Enterprise license file mounted", audit)
-        self.assertIn("supported Enterprise edition detected", audit)
-        self.assertIn("Enterprise M-or-higher edition required", audit)
-        self.assertIn("ephemeral config is a mode-0600 file", audit)
-        self.assertIn("password absent from process argv", audit)
-        self.assertIn("password is exposed in process argv", audit)
-        self.assertIn("-e NTOPNG_CLICKHOUSE_PASSWORD", audit)
-        self.assertNotIn('-e NTOPNG_CLICKHOUSE_PASSWORD="${password}"', audit)
-        self.assertIn("ALL ON ntopng.* is broader than required", audit)
-        self.assertIn(
-            "CHECK GRANT SELECT, INSERT, TRUNCATE, CREATE TABLE, DROP TABLE, ALTER ON ntopng.*",
-            audit,
-        )
-        self.assertIn("required database-scoped DML/DDL grants present", audit)
+        self.assertIn('probe_http_if_running ntopng "ntopng Community UI" "http://172.17.0.24:31080/"', audit)
+        self.assertNotIn("NTOPNG_CLICKHOUSE_PASSWORD", audit)
         self.assertIn("function probe_langfuse_worker_clickhouse_credentials_if_running", audit)
         self.assertIn("runtime credentials accepted", audit)
         self.assertIn("dedicated database/user present", audit)

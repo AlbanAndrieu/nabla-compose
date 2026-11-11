@@ -11,7 +11,7 @@ Apps : 88 ; actives : 57 ; planifiées : 28.
 
 | Écart | Apps |
 | --- | --- |
-| `NO_AVAILABILITY_PROBE` | 28 |
+| `NO_AVAILABILITY_PROBE` | 27 |
 | `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 18 |
 | `SECRETS_NOT_IN_MANIFEST` | 1 |
@@ -71,7 +71,7 @@ Apps : 88 ; actives : 57 ; planifiées : 28.
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `npmplus` | planned | ❌ | `cpool/npmplus` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `ntopng` | active | custom-apps.yml | `cpool/compose` (none (noSnapshot))<br>`cpool/ntopng` (none (noSnapshot)) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `ntopng` | active | custom-apps.yml | `cpool/compose` (none (noSnapshot))<br>`cpool/ntopng` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | ✅ |
 | `obsidian` | active | custom-apps.yml | `cpool/obsidian` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ollama` | active | custom-apps.yml | `cpool/model` (none (noSnapshot))<br>`cpool/ollama` (none (noSnapshot)) | legacy | ❌ | ollama | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
 | `opconnect` | disabled | ❌ | `cpool/opconnect` (app-state) | n/a | ✅ | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |

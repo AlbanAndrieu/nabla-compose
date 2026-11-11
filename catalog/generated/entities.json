@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:a54d9989c9bce3a22318c73255eaa18786935e6b6626d6855a437341bb187d80",
+  "catalogRevision": "sha256:593d95809a5db2c3edf23f4ef55453bb847dd9530eb5d69f63d0ccc8aa64c70d",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -2501,7 +2501,7 @@
           "albandrieu.com/bia-rto": "P3D",
           "albandrieu.com/bia-status": "provisional"
         },
-        "description": "LAN network traffic monitoring UI.",
+        "description": "TrueNAS br0 traffic monitoring UI (ntopng Community).",
         "labels": {
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
@@ -2511,7 +2511,7 @@
         "links": [
           {
             "title": "Dashboard",
-            "url": "http://172.17.0.24:3000"
+            "url": "http://172.17.0.24:31080"
           }
         ],
         "name": "ntopng",
@@ -2523,9 +2523,6 @@
       },
       "sourcePath": "apps/ntopng/catalog-info.yaml",
       "spec": {
-        "dependsOn": [
-          "resource:default/clickhouse"
-        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",

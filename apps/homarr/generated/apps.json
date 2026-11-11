@@ -881,9 +881,9 @@
       "sourcePath": "apps/ntopng/compose.yml",
       "composeService": "ntopng",
       "dockerManaged": true,
-      "href": "http://172.17.0.24:3000",
+      "href": "http://172.17.0.24:31080",
       "syncEligible": true,
-      "description": "LAN network traffic monitoring UI."
+      "description": "TrueNAS br0 traffic monitoring UI (ntopng Community)."
     },
     {
       "id": "obsidian",

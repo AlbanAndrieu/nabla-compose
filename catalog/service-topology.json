@@ -1691,9 +1691,15 @@
       "kind": "network-observability",
       "category": "network",
       "sourcePath": "apps/ntopng/compose.yml",
+      "url": "http://172.17.0.24:31080",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ntopng"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31080
       },
       "icon": "🌐"
     },
@@ -4934,16 +4940,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/npmplus/compose.yml:npmplus.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "ntopng",
-      "target": "clickhouse",
-      "type": "storesIn",
-      "strength": "required",
-      "description": "ntopng stores historical flow data in the existing ClickHouse service.",
-      "evidence": [
-        "apps/ntopng/compose.yml:CLICKHOUSE_HOST"
       ]
     },
     {
