@@ -77,7 +77,8 @@ Chaque point demande une décision ou un accord explicite avant mutation.
     `haproxy-exporter`, `opensearch-exporter`) : créer les Custom Apps ou
     retirer leurs jobs Prometheus ?
 12. **[P1] Alertmanager sans récepteur** : quel canal (Telegram via
-    OpenClaw, e-mail, ntfy, webhook n8n) ?
+    OpenClaw, e-mail, ntfy, webhook n8n) ? Réponse du 11/11 : Slack,
+    webhook entrant `NABLA_SLACK_WEBHOOK` (voir section 5).
 13. **[P1] bitcoind** : garder les données existantes ou resynchroniser avant
     `--apply --replace-catalog-app` ? Purge des anciens datasets ensuite ?
 14. **[P1] Home Assistant** : créer le secret et le rôle PostgreSQL, puis
@@ -159,10 +160,14 @@ Gestes runtime, dans l'ordre, chacun après accord :
    créer `HOMARR_ASSISTANT_API_KEY`, `OPENWEBUI_LITELLM_API_KEY`,
    `LANGFUSE_AI_API_KEY`, `GRAFANA_LLM_API_KEY`, `NTOPNG_ADMIN_PASSWORD`,
    `JOBS_REDIS_PASSWORD` (plumber, = `REDIS_AUTH`) et le login admin Scanopy.
+   Alertmanager : depuis le shell où `NABLA_SLACK_WEBHOOK` est défini,
+   `python3 scripts/secrets/import_env_to_bitwarden.py --app prometheus`
+   (aperçu), puis `--apply` ; crée `nabla/prod/prometheus`.
 2. Matérialiser `homarr`, `openwebui`, `langfuse`, `grafana`, `ntopng`,
-   `plumber` (`render_from_bitwarden.py` puis `install-runtime-secret.sh`).
+   `plumber`, `prometheus` (`render_from_bitwarden.py` puis
+   `install-runtime-secret.sh`).
 3. `sudo python3 scripts/truenas/register-litellm-app-keys.py` (plan), puis
-   `--apply`.
+   `--apply` ; budget Homarr porté à 5 USD/30 j.
 4. Redéployer une App à la fois : `homarr`, `openwebui`, `langfuse`,
    `grafana`, `prometheus` ; puis `rollout-pending-apps.sh --apply` pour
    `plumber` et `ntopng` ; bootstrap admin puis redémarrage de `scanopy`

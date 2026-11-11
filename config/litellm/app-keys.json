@@ -6,7 +6,7 @@
       "runtimeFile": "/mnt/cpool/secrets/runtime/homarr/.env.secrets",
       "variable": "HOMARR_ASSISTANT_API_KEY",
       "models": ["qwen"],
-      "maxBudgetUsd": 1,
+      "maxBudgetUsd": 5,
       "budgetDuration": "30d"
     },
     {

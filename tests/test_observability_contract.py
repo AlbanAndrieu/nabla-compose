@@ -55,6 +55,21 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("retention_enabled: true", loki)
         self.assertIn("delete_request_store: filesystem", loki)
 
+    def test_alertmanager_notifies_slack_from_the_runtime_secret(self) -> None:
+        prometheus = ROOT / "apps" / "prometheus"
+        config = (prometheus / "alertmanager.yml").read_text(encoding="utf-8")
+        compose = (prometheus / "compose.yml").read_text(encoding="utf-8")
+        manifest = json.loads((ROOT / "config" / "secrets" / "manifest.json").read_text(encoding="utf-8"))
+        item = next(i for i in manifest["items"] if i["app"] == "prometheus")
+
+        self.assertIn("receiver: slack", config)
+        self.assertIn("api_url_file: /tmp/slack-webhook.url", config)
+        self.assertNotIn("hooks.slack.com", config + compose)
+        self.assertIn("path: /mnt/cpool/secrets/runtime/prometheus/.env.secrets", compose)
+        self.assertIn("umask 077", compose)
+        self.assertIn('"$$ALERTMANAGER_SLACK_WEBHOOK_URL" > /tmp/slack-webhook.url', compose)
+        self.assertEqual([s["env"] for s in item["secrets"]], ["ALERTMANAGER_SLACK_WEBHOOK_URL"])
+
     def test_pfsense_dashboards_are_provisioned_for_existing_backends(self) -> None:
         provider = (GRAFANA / "config" / "grafana-dashboards.yml").read_text(
             encoding="utf-8"

@@ -86,7 +86,7 @@ Apps : 88 ; actives : 57 ; planifiées : 28.
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgres` | active | native App | — | legacy | ✅ | postgres_exporter | — | diagnose-defectdojo-postgres-waits.py<br>diagnose-postgres-exporter.sh | bootstrap-app-postgres.sh<br>bootstrap-homeassistant-postgres.sh<br>bootstrap-joplin-postgres.sh<br>bootstrap-postgresbackup-role.sh<br>bootstrap-scanopy-postgres.sh<br>bootstrap-security-tooling-postgres.sh<br>reconcile-postgresbackup-cron.py | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
-| `prometheus` | active | custom-apps.yml | `cpool/prometheus` (none (noSnapshot)) | n/a | ✅ | alertmanager, pfsense-exporter, prometheus | — | diagnose-prometheus-targets.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
+| `prometheus` | active | custom-apps.yml | `cpool/prometheus` (none (noSnapshot)) | manifest | ✅ | alertmanager, pfsense-exporter, prometheus | — | diagnose-prometheus-targets.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `prowlarr` | planned | deploy-media-stack.sh | `cpool/prowlarr` (app-state) | manifest | ✅ | prowlarr-exporter | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `pyroscope` | active | custom-apps.yml | `cpool/pyroscope` (none (noSnapshot)) | n/a | ✅ | pyroscope | — | diagnose-pyroscope.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `qbittorrent-exporter` | planned | deploy-media-stack.sh | — | manifest | — | qbittorrent-exporter | — | générique | — | ✅ |
