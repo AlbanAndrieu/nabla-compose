@@ -98,13 +98,19 @@ a été tenté, pourquoi ça bloque et comment réessayer.
   dans `data/v2/metastore`, relatif au `working_dir`, sur le dataset persistant.
 - Contrôle : `sudo tail -n 5000 <LogPath> | grep -c 'not the leader'` doit valoir 0.
 
-### B10. Loki : erreur du compacteur à chaque requête
+### ~~B10. Loki : erreur du compacteur à chaque requête~~ (code le 11/11)
 
 - `limits_config.deletion_mode: disabled` alors que les requêteurs demandent
   `GetCacheGenNumbers` au compacteur : `deletion is not available for this tenant` deux fois par
-  requête. La rotation des journaux (B11) borne désormais leur taille.
-- À décider : `deletion_mode: filter-only` ferait taire l'erreur mais ouvrirait l'API de suppression
-  de Loki, contraire au choix verrouillé par `tests/test_observability_contract.py`.
+  requête.
+- Décision de l'opérateur : `filter-only` (l'API de suppression peut masquer des lignes à la
+  lecture ; rien n'est effacé du stockage). Prend effet au prochain `app.redeploy grafana`.
+
+### Apps arrêtées dans Gatus (11/11)
+
+- OpenHands, DDNS Updater, Dozzle, Dockhand et Draw.io sont arrêtées : marquées
+  `albandrieu.com/operational-state: disabled`, elles sortent de Gatus, Homarr et AutoKuma. Les
+  repasser en `active` au redémarrage, puis régénérer (`scripts/generate-service-consumers.py`).
 
 ### ~~B11. Journaux Docker sans rotation sur TrueNAS~~ (code le 11/11)
 
