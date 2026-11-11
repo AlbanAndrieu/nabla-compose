@@ -590,11 +590,12 @@ else
 fi
 
 printf 'Waiting for FastAPI Sample health on :8091...\n'
+# 6 min: under cpool read latency the Python imports alone took over 4 min (10/11/2026).
 health_payload="$(
     wait_for_json_endpoint \
         "FastAPI Sample health" \
         "http://127.0.0.1:8091/health" \
-        90 \
+        180 \
         2
 )"
 health_status="$(jq -r '.status // "unknown"' <<<"${health_payload}")"

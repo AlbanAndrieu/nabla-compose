@@ -4,6 +4,12 @@ services:
   pyroscope:
     image: grafana/pyroscope:2.3.0
     container_name: pyroscope
+    # The json-file log had grown past 5 GB on cpool (11/11/2026).
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     # TrueNAS apps identity; provision the bind mount for UID/GID 568 before redeploy.
     user: "568:568"
     # Pyroscope v2 also creates ./data/v2 relative to its working directory.

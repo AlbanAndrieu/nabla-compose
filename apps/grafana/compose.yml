@@ -64,6 +64,12 @@ services:
     image: grafana/loki:3.7.6
     container_name: loki
     restart: unless-stopped
+    # The json-file log had grown past 2 GB on cpool (11/11/2026).
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     x-nabla:
       id: loki
       name: Loki
