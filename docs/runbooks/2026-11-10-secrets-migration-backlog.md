@@ -118,7 +118,7 @@ services gardent encore leurs secrets ailleurs (`SECRETS_LEGACY_PATH` de
 | `neo4j` | `NEO4J_AUTH` |
 | `netbox` | `DB_PASSWORD`, `SECRET_KEY` |
 | `nexus-infrastructure` | `NEXUS_PASSWORD`, `NEXUS_USERNAME` |
-| `ntopng` | aucune depuis le passage en Community (11/11) ; seul le login admin va dans `nabla/prod/ntopng` |
+| `ntopng` | `NTOPNG_ADMIN_PASSWORD` (Community depuis le 11/11, plus de `NTOPNG_CLICKHOUSE_PASSWORD`) |
 | `open-terminal` | `OPEN_TERMINAL_API_KEY` |
 | `pfsense-observability` | `PFSENSE_OBSERVABILITY_API_KEY` |
 | `plumber` | `JOBS_DB_PASSWORD`, `JOBS_REDIS_PASSWORD` (= `REDIS_AUTH` de Redis) |

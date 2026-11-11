@@ -137,7 +137,7 @@ if [[ "${MODE}" == "--plan" ]]; then
       printf 'plan app=%s %s %s: %s\n' "${app}" "${phase}" "${name}" "${command}"
     done < <(app_steps "${app}")
     [[ "${app}" != "ntopng" ]] ||
-      printf 'plan app=ntopng note: Community edition, capture interface from apps/ntopng/ntopng.conf; change the admin/admin password at first login\n'
+      printf 'plan app=ntopng note: Community edition, capture interface from apps/ntopng/ntopng.conf; admin password from nabla/prod/ntopng\n'
     printf 'plan app=%s acceptance: %s\n' "${app}" "$(app_acceptance "${app}")"
   done
   exit 0

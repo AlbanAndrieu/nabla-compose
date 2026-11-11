@@ -347,16 +347,32 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("--http-port=172.17.0.24:31080\n", config)
         self.assertNotIn("--dump-flows", config)
         self.assertNotIn("ntopng.license", compose)
-        self.assertNotIn("secrets:", compose)
+        self.assertIn("file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets", compose)
+        self.assertNotIn("\n    env_file:\n", compose)
         self.assertRegex(compose, r"image: ntop/ntopng:latest@sha256:[0-9a-f]{64}\n")
         self.assertIn("target: /etc/ntopng/nabla.conf", compose)
         self.assertGreaterEqual(compose.count("create_host_path: false"), 2)
         self.assertIn("wget --quiet --spider --timeout=5 http://172.17.0.24:31080/", compose)
 
         self.assertIn("chown -R redis:redis /var/lib/redis", wrapper)
-        self.assertIn("exec /run.sh /etc/ntopng/nabla.conf", wrapper)
+        # The admin hash is written before ntopng starts, so admin/admin never exists.
+        self.assertLess(
+            wrapper.index("redis-cli SET ntopng.user.admin.password"),
+            wrapper.index("exec ntopng /etc/ntopng/nabla.conf"),
+        )
+        self.assertIn("redis-cli SET ntopng.prefs.admin_password_changed 1", wrapper)
         wrapper_mode = (ROOT / "apps/ntopng/entrypoint.sh").stat().st_mode
         self.assertTrue(wrapper_mode & stat.S_IXUSR)
+
+    def test_ntopng_refuses_to_start_without_its_admin_secret(self) -> None:
+        if Path("/run/secrets/ntopng_runtime_env").exists():
+            self.skipTest("a real ntopng secret is mounted on this host")
+        result = subprocess.run(
+            ["sh", str(ROOT / "apps/ntopng/entrypoint.sh")],
+            capture_output=True, text=True, check=False, timeout=10,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("refusing admin/admin", result.stderr)
 
     def test_langfuse_v4_uses_isolated_shared_dependencies(self) -> None:
         langfuse = self.read("apps/langfuse/compose.yml")

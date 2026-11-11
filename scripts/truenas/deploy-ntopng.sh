@@ -19,12 +19,13 @@ CANONICAL_ROOT="/mnt/cpool/compose/nabla-compose"
 APP_ID="ntopng"
 COMPOSE_PATH="${CANONICAL_ROOT}/apps/ntopng/compose.yml"
 CONFIG_PATH="${CANONICAL_ROOT}/apps/ntopng/ntopng.conf"
+SECRET_FILE="/mnt/cpool/secrets/runtime/ntopng/.env.secrets"
 DATA_ROOT="/mnt/cpool/ntopng"
 
 [[ "${EUID}" -eq 0 ]] || fail "run via sudo on TrueNAS"
 [[ "${ROOT}" == "${CANONICAL_ROOT}" ]] ||
   fail "canonical TrueNAS checkout required: ${CANONICAL_ROOT}"
-for cmd in docker git jq midclt sed ip; do
+for cmd in docker git jq midclt sed stat ip; do
   command -v "${cmd}" >/dev/null 2>&1 || fail "missing required command: ${cmd}"
 done
 truenas_repo_provenance "${ROOT}"
@@ -35,6 +36,13 @@ for path in "${COMPOSE_PATH}" "${CONFIG_PATH}"; do
 done
 [[ -d "${DATA_ROOT}" && ! -L "${DATA_ROOT}" ]] ||
   fail "missing or symlinked persistent ntopng dataset; run bootstrap-repository-storage.sh --apply ntopng"
+# Without it the entrypoint refuses to start rather than expose admin/admin.
+[[ -f "${SECRET_FILE}" && ! -L "${SECRET_FILE}" && -s "${SECRET_FILE}" ]] ||
+  fail "missing, empty or symlinked ${SECRET_FILE}; materialize nabla/prod/ntopng first"
+[[ "$(stat -c '%u:%g %a' "${SECRET_FILE}")" == "0:0 600" ]] ||
+  fail "private file must be root:root mode 0600: ${SECRET_FILE}"
+grep -Eq '^NTOPNG_ADMIN_PASSWORD=.+' "${SECRET_FILE}" ||
+  fail "NTOPNG_ADMIN_PASSWORD missing or empty in ${SECRET_FILE}"
 
 # The capture interface is reviewed in Git (ntopng.conf); it must exist and never be lo.
 interface="$(sed -n 's/^--interface=//p' "${CONFIG_PATH}")"
@@ -72,5 +80,4 @@ fi
 truenas_reconcile_custom_app "${APP_ID}" "${COMPOSE_PATH}"
 truenas_wait_app_running "${APP_ID}" 600 5
 truenas_app_summary "${APP_ID}"
-printf '%s\n' "ntopng_deployment=middleware_reconciled" \
-  "ntopng_next=change the default admin/admin password at first login, store it in nabla/prod/ntopng"
+printf '%s\n' "ntopng_deployment=middleware_reconciled" "ntopng_admin_password=from_nabla/prod/ntopng"

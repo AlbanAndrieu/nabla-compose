@@ -14,9 +14,16 @@ at `/etc/ntopng/nabla.conf`:
 - `--http-port=172.17.0.24:31080`: LAN address only;
 - `--local-networks`: the LAN and the TrueNAS Docker pool.
 
-[`entrypoint.sh`](entrypoint.sh) gives the bind-mounted Redis directory to the
-image's `redis` user (ntopng keeps users and preferences in Redis), then hands
-the configuration file to the upstream `/run.sh`.
+[`entrypoint.sh`](entrypoint.sh) replaces the upstream `/run.sh`: it gives the
+bind-mounted Redis directory to the image's `redis` user (ntopng keeps users
+and preferences in Redis), starts Redis, writes the MD5 of
+`NTOPNG_ADMIN_PASSWORD` to `ntopng.user.admin.password`, then starts ntopng.
+ntopng only writes its default `admin`/`admin` when that key is absent, so the
+UI is never reachable with the default. The entrypoint refuses to start when
+the secret is missing. The password comes from `nabla/prod/ntopng`, rendered
+to `/mnt/cpool/secrets/runtime/ntopng/.env.secrets` and mounted as a Compose
+secret (not in Docker `Config.Env`); a password changed in the UI is reset to
+the Vaultwarden value at the next start.
 
 Persistent data: `/mnt/cpool/ntopng` (RRD time series) and
 `/mnt/cpool/ntopng/redis`.
@@ -38,12 +45,10 @@ sudo bash scripts/truenas/deploy-ntopng.sh --check
 # sudo env NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/deploy-ntopng.sh --apply
 ```
 
-`--check` changes nothing and verifies that the interface named in
-`ntopng.conf` exists on the host. If an `ntopng` App already exists, `--apply`
-also needs `NABLA_NTOPNG_UPDATE_APPROVED=yes`.
-
-At the first login ntopng asks to replace the default `admin`/`admin`
-password: do it immediately and store the new login in `nabla/prod/ntopng`.
+`--check` changes nothing; it verifies that the interface named in
+`ntopng.conf` exists on the host and that the runtime secret is a root-owned
+`0600` file holding `NTOPNG_ADMIN_PASSWORD`. If an `ntopng` App already exists,
+`--apply` also needs `NABLA_NTOPNG_UPDATE_APPROVED=yes`.
 
 ## Observability
 

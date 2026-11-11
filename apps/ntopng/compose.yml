@@ -1,4 +1,8 @@
 ---
+secrets:
+  ntopng_runtime_env:
+    file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets
+
 services:
   ntopng:
     # Upstream only publishes a rolling `latest` (apt-stable, rebuilt daily): pinned by digest for Renovate.
@@ -27,6 +31,11 @@ services:
       - NET_RAW
     security_opt:
       - no-new-privileges:true
+    # Mounted as a file, not env_file: the admin password stays out of Docker Config.Env.
+    secrets:
+      - source: ntopng_runtime_env
+        target: ntopng_runtime_env
+        mode: "0400"
     environment:
       TZ: ${TZ:-Europe/Paris}
     entrypoint:
