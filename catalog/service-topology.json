@@ -4486,6 +4486,16 @@
     },
     {
       "source": "langfuse-web",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Ask AI and project LLM connections call LiteLLM with a dedicated virtual key.",
+      "evidence": [
+        "apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL"
+      ]
+    },
+    {
+      "source": "langfuse-web",
       "target": "minio",
       "type": "storesIn",
       "strength": "required",

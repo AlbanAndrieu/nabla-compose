@@ -27,6 +27,14 @@
       ],
       "maxBudgetUsd": 10,
       "budgetDuration": "30d"
+    },
+    {
+      "alias": "langfuse",
+      "runtimeFile": "/mnt/cpool/secrets/runtime/langfuse/.env.secrets",
+      "variable": "LANGFUSE_AI_API_KEY",
+      "models": ["gpt-4.1-mini", "gpt-4.1", "qwen"],
+      "maxBudgetUsd": 5,
+      "budgetDuration": "30d"
     }
   ]
 }
