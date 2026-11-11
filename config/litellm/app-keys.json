@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "keys": [
+    {
+      "alias": "homarr-assistant",
+      "runtimeFile": "/mnt/cpool/secrets/runtime/homarr/.env.secrets",
+      "variable": "HOMARR_ASSISTANT_API_KEY",
+      "models": ["qwen"],
+      "maxBudgetUsd": 1,
+      "budgetDuration": "30d"
+    }
+  ]
+}

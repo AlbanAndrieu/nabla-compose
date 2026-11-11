@@ -4225,6 +4225,16 @@
       ]
     },
     {
+      "source": "homarr",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The Homarr assistant uses LiteLLM as a custom OpenAI-compatible provider (model qwen).",
+      "evidence": [
+        "apps/homarr/sync.py:ASSISTANT_BASE_URL"
+      ]
+    },
+    {
       "source": "homarr-sync",
       "target": "docker",
       "type": "hostedBy",
