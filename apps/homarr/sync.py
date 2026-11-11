@@ -19,7 +19,8 @@ LEGACY_KEY_NAME = not os.getenv("HOMARR_API_KEY") and bool(os.getenv("HOMARR_API
 MANIFEST_PATH = Path(os.getenv("HOMARR_MANIFEST", "/config/nabla/apps.json"))
 BOARDS_PATH = Path(os.getenv("HOMARR_BOARDS_CONFIG", "/config/boards.json"))
 DRY_RUN = os.getenv("HOMARR_SYNC_DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
-MAX_ATTEMPTS = int(os.getenv("HOMARR_SYNC_ATTEMPTS", "20"))
+# 3 min: on 2026-11-11 Homarr answered 502 for more than 60 s after app.redeploy.
+MAX_ATTEMPTS = int(os.getenv("HOMARR_SYNC_ATTEMPTS", "60"))
 RETRY_SECONDS = float(os.getenv("HOMARR_SYNC_RETRY_SECONDS", "3"))
 DEFAULT_ICON = os.getenv(
     "HOMARR_DEFAULT_ICON_URL",
