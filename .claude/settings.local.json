@@ -1,3 +1,36 @@
 {
-  "sandbox": { "enabled": false }
+  "permissions": {
+    "allow": [
+      "Bash(PATH=__TRACKED_VAR__/.venv/bin:__TRACKED_VAR__ git merge --no-edit origin/master)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git ls-remote *)",
+      "Bash(echo \"restants=$?\")",
+      "Bash(python3 scripts/truenas/audit-master-readiness.py --write)",
+      "Bash(python3 -m pytest -q tests/test_master_readiness.py)",
+      "Bash(git add *)",
+      "Bash(git push *)",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(curl -sSL --max-time 15 https://raw.githubusercontent.com/langflow-ai/langflow/main/docs/docs/Develop/observability-opentelemetry.mdx)",
+      "Bash(python3 -c ' *)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "truenas-readonly",
+    "homarr",
+    "gatus",
+    "uptime-kuma",
+    "bitwarden-local",
+    "fastapi-sample",
+    "grafana",
+    "sentry",
+    "context7",
+    "defectdojo",
+    "freshrss-security-readonly",
+    "cloudflare-api"
+  ],
+  "sandbox": {
+    "enabled": false
+  }
 }
