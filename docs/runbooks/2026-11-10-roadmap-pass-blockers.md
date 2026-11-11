@@ -143,3 +143,30 @@ Custom App).
    NetBox (`SKIP_SUPERUSER=true`).
 3. Wazuh : `rotate-wazuh-internal-users.sh --apply` puis `app.redeploy wazuh`.
 4. Redéployer `grafana` et `pyroscope` (rotation des journaux).
+
+## 5. Suite du 11/11 (branche `fix/scanopy-hardening-20261111`)
+
+Codé et testé (3 240 tests, pre-commit) : durcissement Scanopy, raccourci
+`sslmode=prefer` de Plumber (comme Sample) avec `JOBS_REDIS_PASSWORD` et
+images épinglées, ntopng en Community, assistant Homarr et clés LiteLLM
+dédiées (Homarr, Open WebUI, Langfuse, Grafana), alertes Prometheus
+réveillées. Loki `filter-only`, rotation des journaux, second tour DNS
+`postgres` et attente de Sample sont déjà sur `master` (autre session).
+
+Gestes runtime, dans l'ordre, chacun après accord :
+
+1. Vaultwarden : corriger `HOMARR_API_KEY` (dernier caractère manquant),
+   créer `HOMARR_ASSISTANT_API_KEY`, `OPENWEBUI_LITELLM_API_KEY`,
+   `LANGFUSE_AI_API_KEY`, `GRAFANA_LLM_API_KEY`, `NTOPNG_ADMIN_PASSWORD`,
+   `JOBS_REDIS_PASSWORD` (plumber, = `REDIS_AUTH`) et le login admin Scanopy.
+2. Matérialiser `homarr`, `openwebui`, `langfuse`, `grafana`, `ntopng`,
+   `plumber` (`render_from_bitwarden.py` puis `install-runtime-secret.sh`).
+3. `sudo python3 scripts/truenas/register-litellm-app-keys.py` (plan), puis
+   `--apply`.
+4. Redéployer une App à la fois : `homarr`, `openwebui`, `langfuse`,
+   `grafana`, `prometheus` ; puis `rollout-pending-apps.sh --apply` pour
+   `plumber` et `ntopng` ; bootstrap admin puis redémarrage de `scanopy`
+   (README).
+5. `chmod 600` des onze `.env` de projet lisibles par tous (accord 5). Le
+   redéploiement de Redis (accord 4) a été fait par l'autre session le 11/11
+   à 09:50 UTC (B14 du runbook du 11/11).
