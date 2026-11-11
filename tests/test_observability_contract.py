@@ -221,6 +221,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:9100", prometheus)
         self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
         self.assertNotIn("172.17.0.24:8089", prometheus)
+        self.assertIn("- job_name: traefik", prometheus)
+        self.assertIn("172.17.0.24:8080", prometheus)
 
         prometheus_compose = (
             ROOT / "apps" / "prometheus" / "compose.yml"
@@ -774,6 +776,19 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertEqual(secret["env"], "GRAFANA_SERVICE_ACCOUNT_TOKEN")
         self.assertEqual(secret["rotation"], "rotatable")
         self.assertNotIn("value", secret)
+
+    def test_active_rules_only_name_scraped_jobs(self) -> None:
+        import re
+
+        import yaml
+
+        prometheus = yaml.safe_load((ROOT / "apps/prometheus/prometheus.yml").read_text())
+        jobs = {job["job_name"] for job in prometheus["scrape_configs"]}
+        for path in sorted((ROOT / "apps/prometheus/rules").glob("*.rules.yml")):
+            for job in re.findall(r'job="([^"]+)"', path.read_text()):
+                self.assertIn(job, jobs, f"{path.name} alerts on unscraped job {job}")
+        self.assertFalse((ROOT / "apps/prometheus/rules/cadvisor.rules.yml").exists())
+        self.assertNotIn("expr: clickhouse_up", (ROOT / "apps/prometheus/rules/clickhouse.rules.yml").read_text())
 
 
 if __name__ == "__main__":
