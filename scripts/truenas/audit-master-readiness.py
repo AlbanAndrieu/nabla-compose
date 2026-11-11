@@ -198,7 +198,11 @@ def row(app: str, ctx: dict, root: Path = ROOT) -> dict:
 
 def rows(root: Path = ROOT) -> list[dict]:
     ctx = context(root)
-    apps = sorted(p.parent.name for p in (root / "apps").glob("*/compose.yml"))
+    apps = sorted(
+        p.parent.name for p in (root / "apps").glob("*/compose.yml")
+        # Submodules and symlinks to sibling checkouts are absent from CI clones.
+        if not (p.parent / ".git").exists() and not p.parent.is_symlink()
+    )
     return [row(app, ctx, root) for app in apps]
 
 

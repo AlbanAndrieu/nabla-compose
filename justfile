@@ -307,13 +307,7 @@ openclaw-cron-file-cutover:
     python3 scripts/workstation/cutover-openclaw-cron-secret.py --apply --reload-gateway
 
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
-# Separate radio association, IPv4 route, public DNS and local DNS without pfSense mutations.
-pfsense-wifi-path-test:
-    python3 -m py_compile scripts/workstation/diagnose-wifi-path.py tests/test_workstation_wifi_path.py
-    python3 -m unittest discover -s tests -p 'test_workstation_wifi_path.py' -v
-
-pfsense-wifi-path:
-    python3 scripts/workstation/diagnose-wifi-path.py --check
+# Wi-Fi path diagnostic moved to ansible-workstation: `mise run workstation-wifi-path`.
 
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:
@@ -937,73 +931,9 @@ defectdojo-workstation-dns-test:
 defectdojo-workstation-dns-check:
     bash scripts/workstation/diagnose-defectdojo-lan.sh --check
 
-# Read-only pfSense DNS UDP/TCP, NetworkManager, resolved and NSS evidence.
-workstation-split-dns-check:
-    python3 scripts/workstation/homelab-split-dns.py --check
-
-# Explicit workstation-only recovery; fails closed if pfSense UDP DNS is unverified.
-workstation-split-dns-repair:
-    python3 scripts/workstation/homelab-split-dns.py --apply --acknowledge I_APPROVE_WORKSTATION_SPLIT_DNS_REPAIR
-
-# Offline standard-library tests. Does not need pytest, LAN or root.
-workstation-split-dns-test:
-    python3 -m py_compile scripts/workstation/homelab-split-dns.py tests/test_homelab_split_dns_recovery.py
-    python3 -m unittest discover -s tests -p 'test_homelab_split_dns_recovery.py' -v
-
-# Diagnose glibc NSS vs systemd-resolved native API vs 127.0.0.53 stub.
-# Read-only and deadline-bounded; use if getent is slow but resolvectl is fast.
-workstation-nss-path:
-    python3 scripts/workstation/diagnose-nss-resolution.py --check
-
-# Two sequential, bounded samples help distinguish intermittent native/stub/NSS faults.
-workstation-nss-path-samples:
-    python3 scripts/workstation/diagnose-nss-resolution.py --check --samples 2 --timeout 3
-
-# Read-only DNSSEC validation comparison: no settings changed, no sudo.
-workstation-dnssec-check:
-    python3 scripts/workstation/diagnose-dnssec-chain.py --check --samples 2 --timeout 4
-
-# Offline checks: stub/upstream signatures and per-query validation controls.
-workstation-dnssec-test:
-    python3 -m py_compile scripts/workstation/diagnose-dnssec-chain.py tests/test_diagnose_dnssec_chain.py
-    python3 -m unittest discover -s tests -p 'test_diagnose_dnssec_chain.py' -v
-
-# No mutation: inspect per-link DNSSEC NTA and normal (validated) private lookup.
-workstation-dnssec-nta-check:
-    python3 scripts/workstation/recover-split-dns-nta.py --check
-
-# Offline tests; no network and no sudo.
-workstation-dnssec-nta-test:
-    python3 -m py_compile scripts/workstation/recover-split-dns-nta.py tests/test_recover_split_dns_nta.py
-    python3 -m unittest discover -s tests -p 'test_recover_split_dns_nta.py' -v
-
-# Explicit runtime-only negative trust anchor for private zone; not persistent.
-workstation-dnssec-nta-try:
-    python3 scripts/workstation/recover-split-dns-nta.py --apply --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
-
-# Explicit rollback; refuses if existing/additional NTAs would be lost.
-workstation-dnssec-nta-rollback:
-    python3 scripts/workstation/recover-split-dns-nta.py --remove --acknowledge I_APPROVE_SCOPED_PRIVATE_DNSSEC_NTA
-
-# Read-only: installed dispatcher, exact eno1 NTA and authenticated public DNS.
-workstation-dnssec-dispatcher-check:
-    python3 scripts/workstation/accept-private-nta-dispatcher.py --check
-
-# Offline contracts. No network configuration changes, sudo or GitHub CI.
-workstation-dnssec-dispatcher-test:
-    python3 -m py_compile scripts/workstation/accept-private-nta-dispatcher.py tests/test_accept_private_nta_dispatcher.py
-    python3 -m unittest discover -s tests -p 'test_accept_private_nta_dispatcher.py' -v
-
-# Explicit post-install acceptance: clear ONLY the exact private NTA,
-# request NetworkManager reapply, wait for its dispatcher to restore the NTA.
-# On failure, restore the private NTA only when the LAN profile still matches.
-workstation-dnssec-dispatcher-exercise:
-    sudo python3 scripts/workstation/accept-private-nta-dispatcher.py --exercise --acknowledge I_APPROVE_NTA_REAPPLY_SMOKE
-
-# Hermetic NSS differential test suite, no network, no sudo, no pytest.
-workstation-nss-path-test:
-    python3 -m py_compile scripts/workstation/diagnose-nss-resolution.py tests/test_diagnose_nss_resolution.py
-    python3 -m unittest discover -s tests -p 'test_diagnose_nss_resolution.py' -v
+# Workstation split-DNS, NSS, DNSSEC and NTA diagnostics moved to ansible-workstation
+# on 2026-11-10: `cd ~/w/ansible-workstation && mise run workstation-<check>`
+# (split-dns-check, nss-path, dnssec-check, dnssec-nta-check, dnssec-dispatcher-check...).
 
 # Hermetic suite: no LAN, root, database or secret access required.
 defectdojo-recovery-test:

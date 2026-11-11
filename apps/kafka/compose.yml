@@ -74,6 +74,8 @@ services:
   kafka-exporter:
     image: danielqsj/kafka-exporter:${KAFKA_EXPORTER_IMG:-v1.9.0}
     restart: unless-stopped
+    # Last container of the 10/11 zombie sweep still running without a reaper.
+    init: true
     labels:
       com.albandrieu.nabla.entity-ref: component:default/kafka-exporter
     x-nabla:

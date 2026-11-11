@@ -38,7 +38,7 @@ scripts/infra/terragrunt-safe.sh infrastructure/cloudflaretokens apply tokens.tf
 
 Attendu : `1 to add`. Une erreur « Unknown permission group names » signifie
 que Cloudflare a renommé un groupe : corriger le nom dans `tokens.tofu`.
-Ensuite, copier la valeur dans Vaultwarden (`nabla/prod/cloudflare`, champ
+Ensuite, copier la valeur dans Vaultwarden (`nabla/prod/cloudflaretokens`, champ
 `CLOUDFLARE_API_TOKEN_NABLA_OPENTOFU`) sans l'afficher, via
 `tofu output -raw opentofu_token` redirigé vers `bw`, puis l'exporter dans
 le shell de l'opérateur.
