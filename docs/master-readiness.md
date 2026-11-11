@@ -80,7 +80,7 @@ Apps : 88 ; actives : 57 ; planifiées : 28.
 | `openrag` | active | custom-apps.yml | — | manifest | ❌ | — | — | diagnose-openrag-dependencies.sh<br>diagnose-openrag-startup.sh | apps/openrag/config/<br>bootstrap-openrag-langflow-key.sh<br>reconcile-openrag-opensearch-secret.sh | `NO_AVAILABILITY_PROBE` |
 | `opensearch` | active | custom-apps.yml | `cpool/opensearch` (databases)<br>`cpool/opensearch-security` (databases) | legacy | ❌ | opensearch, opensearch-security | — | générique | reconcile-openrag-opensearch-secret.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `opensearch-exporter` | planned | ❌ | — | n/a | — | opensearch-exporter, opensearch-security-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `openwebui` | active | custom-apps.yml | `cpool/openwebui` (app-state) | n/a | ❌ | — | — | diagnose-openwebui-backup-pra.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `openwebui` | active | custom-apps.yml | `cpool/openwebui` (app-state) | manifest | ❌ | — | — | diagnose-openwebui-backup-pra.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `pihole` | active | custom-apps.yml | `cpool/pihole` (app-state)<br>`cpool/traefik` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `plumber` | planned | ❌ | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |

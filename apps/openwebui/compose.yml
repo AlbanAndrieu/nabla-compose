@@ -79,11 +79,15 @@ services:
         published: "${OPEN_WEBUI_PORT-31028}"
         protocol: tcp
         app_protocol: http
+    # OPENAI_API_KEY and RAG_OPENAI_API_KEY: dedicated LiteLLM virtual key
+    # (config/litellm/app-keys.json), never the LiteLLM master key.
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/openwebui/.env.secrets
+        required: true
     environment:
       - TZ=Europe/Paris
       - DEFAULT_LOCALE=en-US
       - OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
-      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENABLE_OPENAI_API=true
       # To use litellm
       - ENABLE_OLLAMA_API=false
@@ -107,7 +111,6 @@ services:
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_EMBEDDING_MODEL=embedding
       - RAG_OPENAI_API_BASE_URL=http://172.17.0.24:4000/v1
-      - RAG_OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - ENV=dev
       - WEBUI_NAME=Nabla
       - CORS_ALLOW_ORIGIN=https://openwebui.albandrieu.com,https://open-webui.albandrieu.com,https://fastapi-sample.fastapicloud.dev,https://www.albanandrieu.com

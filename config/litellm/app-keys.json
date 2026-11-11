@@ -8,6 +8,25 @@
       "models": ["qwen"],
       "maxBudgetUsd": 1,
       "budgetDuration": "30d"
+    },
+    {
+      "alias": "openwebui",
+      "runtimeFile": "/mnt/cpool/secrets/runtime/openwebui/.env.secrets",
+      "variable": "OPENAI_API_KEY",
+      "models": [
+        "qwen",
+        "workstation-qwen",
+        "llama3.2",
+        "llama3.1",
+        "llama3.8b",
+        "deepseek-coder-v2",
+        "gemma3",
+        "gpt-4.1-mini",
+        "gpt-4.1",
+        "embedding"
+      ],
+      "maxBudgetUsd": 10,
+      "budgetDuration": "30d"
     }
   ]
 }
