@@ -16,6 +16,7 @@ spec.loader.exec_module(module)
 COPIES = (
     "scripts/truenas/provision-openclaw-litellm-keys.py",
     "scripts/truenas/ensure-openclaw-coder-key.py",
+    "scripts/truenas/ensure-litellm-metrics-key.py",
     "scripts/secrets/emergency_revoke.py",
 )
 

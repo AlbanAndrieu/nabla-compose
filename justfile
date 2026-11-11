@@ -1035,11 +1035,17 @@ openclaw-coder-key-plan:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
-      sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py
+      plan=$(sudo -n python3 scripts/truenas/ensure-openclaw-coder-key.py)
     else
-      ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-openclaw-coder-key.py
+      plan=$(ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-openclaw-coder-key.py)
     fi
-    python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    printf '%s\n' "$plan"
+    # The LiteLLM status needs every key, so it can only pass after the first apply.
+    if grep -qx "litellm_runtime_key=missing" <<<"$plan"; then
+      echo "litellm_status=skipped (coder key not created yet)"
+    else
+      python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode status
+    fi
 
 # Explicit, NABLA_RUNTIME_CHANGE_APPROVED=yes: generate the value once (never rotated),
 # sync the Gateway file, register the key (11 USD / 7 days) with no LiteLLM or Gateway restart.
@@ -1054,6 +1060,28 @@ openclaw-coder-key-apply:
     fi
     python3 scripts/truenas/dispatch-openclaw-litellm-keys.py --mode add-missing
     echo "next=import into Vaultwarden: BW_SESSION=... python3 scripts/secrets/import_dotenv_to_bitwarden.py --app litellm --input /mnt/cpool/secrets/runtime/litellm/.env.secrets --apply"
+
+# Prometheus LiteLLM /metrics key (job litellm_hermes), read-only. Workstation (SSH) or TrueNAS.
+litellm-metrics-key-plan:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
+      sudo -n python3 scripts/truenas/ensure-litellm-metrics-key.py
+    else
+      ssh -o BatchMode=yes truenas 'sudo -n python3 -' < scripts/truenas/ensure-litellm-metrics-key.py
+    fi
+
+# Explicit, NABLA_RUNTIME_CHANGE_APPROVED=yes: generate once, register for /metrics only,
+# write the Prometheus file. Run before redeploying Prometheus: its mount fails closed.
+litellm-metrics-key-apply:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ "${NABLA_RUNTIME_CHANGE_APPROVED:-}" = yes ] || { echo "approval=missing (NABLA_RUNTIME_CHANGE_APPROVED=yes)"; exit 2; }
+    if [ "$(git rev-parse --show-toplevel)" = /mnt/cpool/compose/nabla-compose ]; then
+      sudo -n python3 scripts/truenas/ensure-litellm-metrics-key.py --apply
+    else
+      ssh -o BatchMode=yes truenas 'sudo -n python3 - --apply' < scripts/truenas/ensure-litellm-metrics-key.py
+    fi
 
 # Explicit: register only keys LiteLLM does not know yet (404), e.g. openclaw-coder.
 openclaw-truenas-virtual-keys-add-missing:

@@ -241,6 +241,11 @@ scrape_configs:
     scrape_interval: 60s
     scrape_timeout: 10s
     metrics_path: /metrics
+    # LiteLLM requires a proxy admin or a key allowed on /metrics: this one is
+    # limited to that route (scripts/truenas/ensure-litellm-metrics-key.py).
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/litellm-metrics.key
     static_configs:
       - targets:
           - 172.17.0.24:4000
