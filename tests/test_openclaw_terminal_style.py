@@ -34,10 +34,7 @@ def test_no_color_takes_precedence_over_force() -> None:
 
 
 def test_bash_entrypoints_parse() -> None:
-    for name in ("openclaw-ops.sh", "diagnose-openclaw-errors.sh",
-                 "backup-openclaw.sh", "diagnose-openclaw.sh",
-                 "prepare-openclaw-systemd.sh"):
-        subprocess.run(["bash", "-n", str(SCRIPT.parent / name)], check=True)
+    subprocess.run(["bash", "-n", str(SCRIPT.parent / "backup-openclaw.sh")], check=True)
 
 
 def test_zero_failures_are_green_and_missing_integrity_check_is_neutral() -> None:

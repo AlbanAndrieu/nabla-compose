@@ -44,6 +44,4 @@ dns_tunnel_record_ids = {
   "vaultwarden.albandrieu.com"  = "7aebc3d0801977833229b8652ba6a3f3" # gitleaks:allow
 }
 
-dns_retired_record_ids = {
-  "postgres.albandrieu.com/CNAME" = "c52a1fe14eaa9e1a447f4bc623f2cf89" # gitleaks:allow
-}
+dns_retired_record_ids = {}
