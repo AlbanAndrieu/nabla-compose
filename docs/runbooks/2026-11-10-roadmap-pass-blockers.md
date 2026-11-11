@@ -94,3 +94,52 @@ Chaque point demande une décision ou un accord explicite avant mutation.
     fois ?
 19. **[P2] TrueNAS 28** : ouvrir un ticket amont pour `login_ex` dans le CSI
     TrueNAS ? En attendant, ne pas monter en 28.
+
+## 4. Reprise du 11/11 (accords 1 à 7)
+
+Q4 (fusion de #346, `sample` sain) et Q7 (pod CSI `Failed` supprimé) avaient
+été traités dans la nuit par une autre session ; Q9 aussi (proxy Docker en
+Custom App).
+
+| Q | Fait | Preuve |
+| --- | --- | --- |
+| 1 | `/mnt/cpool/secrets/runtime/code/.env.secrets` rendu depuis `nabla/prod/code` (`PASSWORD`), `code` redéployé | `--auth password`, LAN `/` → 302 `/login`, `healthy` |
+| 3 | `vaultwarden_admin` appliqué **seul** (`-target`) : le plan complet contenait aussi le second tour `postgres` de #345 (1 import, 1 modification du tunnel, 2 suppressions), non validé | `/admin` → 302 Access ; `/alive`, `/api/config` → 200 |
+| 4 | Contrôle : `/health` `healthy` (4/4) | 11/11 |
+| 5 | Bloqué : la `HOMARR_API_KEY` du runtime est **déjà** celle de Vaultwarden (comparaison par empreinte) ; c'est Homarr qui la refuse (401) | Clé à recréer dans l'UI Homarr |
+| 6 | Items Vaultwarden générés (joplin, scanopy, plumber, dependency-track, netbox), runtime `0600` installé ; rôles et bases joplin, scanopy, netbox, dependency-track ; datasets `cpool/netbox`, `cpool/dependency-track` ; **scanopy déployé** (`rollout --apply`) | `scanopy` et `scanopy-daemon` `healthy`, `/api/health` 0.19.5 |
+| 6 | Joplin : `app.create` refusé, `joplin/server:3.7.18` n'existe pas ; image épinglée en 3.7.3 (branche `fix/pending-apps-rollout-20261111`) | App non créée, rien d'exposé |
+| 6 | netbox, dependency-track : hôte `postgres` introuvable sur `intranet`, Redis sans mot de passe ; corrigés dans la branche, `REDIS_PASSWORD`/`REDIS_CACHE_PASSWORD` ajoutés à `nabla/prod/netbox` | Redis : le `REDIS_AUTH` du runtime répond `PONG` sur le Redis en service (lève aussi le doute B14 du 11/11) |
+| 7 | Contrôleur déjà 5/5 : pas de redémarrage ; smoke CSI `--apply` (shims `midclt`/`zfs` en lecture seule par SSH) | PVC `Bound`, écriture `taloswk01`, lecture `taloswk02`, PV + dataset + partage NFS récupérés |
+| 2 | Rotation préparée : `nabla/prod/wazuh` généré et matérialisé, `rotate-wazuh-internal-users.sh`, Compose sans valeurs par défaut | Ports indexer/dashboard liés à `127.0.0.1` seulement : exposition locale |
+
+### Bloqué ou refusé
+
+- Le classifieur de permissions a refusé `bootstrap-app-postgres.sh --apply`
+  en lot (5 Apps) puis pour `plumber` + `bootstrap-postgresbackup-role.sh` ;
+  les Apps une par une ont été acceptées. Le rôle de sauvegarde est
+  réappliqué par chaque `rollout --apply`.
+- `plumber` : son Compose exige `verify-full` (« no silent plaintext
+  downgrade ») alors que PostgreSQL tourne sans TLS (Q15) ; pas de
+  `JOBS_REDIS_PASSWORD` ; images `latest`.
+- `ntopng` : licence et interface de capture toujours sans réponse.
+- Loki (B10 du 11/11) : `deletion_mode: disabled` est imposé par un test ;
+  passer en `filter-only` rouvre la suppression de journaux par l'API.
+
+### Nouveaux constats
+
+- Douze `.env` de projet sont lisibles par tous (`644 albandrieu:apps`) dans
+  le checkout TrueNAS, dont redis, vaultwarden, litellm, langfuse, garage,
+  minio, clickhouse ; le checkout est aussi monté dans code-server.
+- Gatus : 5 moniteurs en échec, tous des Apps `STOPPED` (OpenHands, DDNS
+  Updater, Dozzle, Dockhand, Draw.io) ; `sample` et « Docker API » rétablis.
+
+### Après fusion de la branche
+
+1. `rollout-pending-apps.sh --apply joplin`, puis remplacer immédiatement le
+   mot de passe du compte admin créé par défaut (public via le contournement
+   Access) et le ranger dans `nabla/prod/joplin`.
+2. `--apply netbox`, puis `--apply dependency-track` ; créer le superutilisateur
+   NetBox (`SKIP_SUPERUSER=true`).
+3. Wazuh : `rotate-wazuh-internal-users.sh --apply` puis `app.redeploy wazuh`.
+4. Redéployer `grafana` et `pyroscope` (rotation des journaux).
