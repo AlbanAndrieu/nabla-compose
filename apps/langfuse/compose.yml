@@ -112,11 +112,9 @@ services:
       LANGFUSE_AI_PROVIDER: openai
       LANGFUSE_AI_BASE_URL: http://172.17.0.24:4000/v1
       LANGFUSE_AI_MODEL: ${LANGFUSE_AI_MODEL:-gpt-4.1-mini}
-      # Project LLM connections (playground, evaluators) default to LiteLLM; the SSRF
-      # defence rejects private addresses unless allowed, so allow LiteLLM's only.
-      LANGFUSE_UI_DEFAULT_MODEL_ADAPTER: OpenAI
-      LANGFUSE_UI_DEFAULT_BASE_URL_OPENAI: http://172.17.0.24:4000/v1
-      LANGFUSE_LLM_CONNECTION_WHITELISTED_IPS: 172.17.0.24
+      # No LANGFUSE_LLM_CONNECTION_WHITELISTED_IPS=172.17.0.24: it would let project
+      # members reach every port of the host (SSRF). Project connections wait for
+      # LiteLLM on intranet and WHITELISTED_HOST=litellm.
     networks:
       - intranet
 
@@ -167,7 +165,7 @@ services:
         - target: litellm
           type: consumesApi
           strength: optional
-          description: Ask AI and project LLM connections call LiteLLM with a dedicated virtual key.
+          description: Ask AI calls LiteLLM with a dedicated virtual key.
           evidence:
             - apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL
     ports:

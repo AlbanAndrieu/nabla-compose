@@ -35,6 +35,14 @@
       "models": ["gpt-4.1-mini", "gpt-4.1", "qwen"],
       "maxBudgetUsd": 5,
       "budgetDuration": "30d"
+    },
+    {
+      "alias": "grafana",
+      "runtimeFile": "/mnt/cpool/secrets/runtime/grafana/.env.secrets",
+      "variable": "GRAFANA_LLM_API_KEY",
+      "models": ["gpt-4.1-mini", "gpt-4.1"],
+      "maxBudgetUsd": 5,
+      "budgetDuration": "30d"
     }
   ]
 }

@@ -1,0 +1,15 @@
+---
+# Grafana LLM features through LiteLLM (OpenAI-compatible). The plugin maps its
+# abstract models to gpt-4.1-mini (base) and gpt-4.1 (large), both LiteLLM aliases.
+apiVersion: 1
+
+apps:
+  - type: grafana-llm-app
+    disabled: false
+    jsonData:
+      provider: custom
+      openAI:
+        provider: custom
+        url: http://172.17.0.24:4000
+    secureJsonData:
+      openAIKey: $GRAFANA_LLM_API_KEY

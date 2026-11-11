@@ -4075,6 +4075,16 @@
     },
     {
       "source": "grafana",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The Grafana LLM plugin calls LiteLLM with a dedicated virtual key.",
+      "evidence": [
+        "apps/grafana/config/grafana-llm-app.yml"
+      ]
+    },
+    {
+      "source": "grafana",
       "target": "loki",
       "type": "consumesApi",
       "strength": "optional",
@@ -4489,7 +4499,7 @@
       "target": "litellm",
       "type": "consumesApi",
       "strength": "optional",
-      "description": "Ask AI and project LLM connections call LiteLLM with a dedicated virtual key.",
+      "description": "Ask AI calls LiteLLM with a dedicated virtual key.",
       "evidence": [
         "apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL"
       ]

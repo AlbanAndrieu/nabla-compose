@@ -39,12 +39,22 @@ services:
           description: Grafana queries Tempo for distributed traces.
           evidence:
             - apps/grafana/config/grafana-datasources.yml
+        - target: litellm
+          type: consumesApi
+          strength: optional
+          description: The Grafana LLM plugin calls LiteLLM with a dedicated virtual key.
+          evidence:
+            - apps/grafana/config/grafana-llm-app.yml
+    # Optional: without GRAFANA_LLM_API_KEY only the LLM features are unavailable.
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/grafana/.env.secrets
+        required: false
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_PATHS_DATA: /var/lib/grafana
       GF_PATHS_PLUGINS: /var/lib/grafana/plugins
-      GF_PLUGINS_PREINSTALL: ${GRAFANA_PLUGINS_PREINSTALL:-grafana-clock-panel,grafana-assistant-app}
+      GF_PLUGINS_PREINSTALL: ${GRAFANA_PLUGINS_PREINSTALL:-grafana-clock-panel,grafana-assistant-app,grafana-llm-app@1.2.0}
     ports:
       - "${GRAFANA_PORT:-30037}:3000"
     volumes:
@@ -52,6 +62,7 @@ services:
       - /mnt/cpool/grafana/plugin:/var/lib/grafana/plugins
       - ./config/grafana-datasources.yml:/etc/grafana/provisioning/datasources/nabla.yml:ro
       - ./config/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/nabla.yml:ro
+      - ./config/grafana-llm-app.yml:/etc/grafana/provisioning/plugins/nabla-llm.yml:ro
       - ./config/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - loki
