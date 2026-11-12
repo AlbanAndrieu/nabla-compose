@@ -1,3 +1,17 @@
+# [0.74.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.73.0...0.74.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **homarr:** stop crashing on boards Homarr v2.6 cannot list ([2108f06](https://github.com/AlbanAndrieu/nabla-compose/commit/2108f0657836873bb3feece51abd2451419c6a80))
+* **postgres:** verify the server certificate from Plumber and Sample ([8a38c6f](https://github.com/AlbanAndrieu/nabla-compose/commit/8a38c6f20a30b22af73e64c00efa6b58a8c18ab9))
+* **reboot:** reorder resume waves around display, CrowdSec and n8n ([64d9bb5](https://github.com/AlbanAndrieu/nabla-compose/commit/64d9bb5a6b4270c1f612093147b0f9a2acef0959))
+
+
+### Features
+
+* **homarr:** write code-managed boards in full with sections and status ([52aaf91](https://github.com/AlbanAndrieu/nabla-compose/commit/52aaf917f5f3f27ece97ed9de268cb15deebe4fc))
+
 # [0.73.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.72.0...0.73.0) (2026-11-12)
 
 
