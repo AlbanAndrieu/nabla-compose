@@ -22,6 +22,11 @@ services:
       category: security
       securityFunctions:
         - detect
+      lifecycle:
+        phase: secondary-data
+        priority: 30
+        # No other App requires Wazuh: its failure on 12/11 kept 48 later Apps down after reboot.
+        blocksLaterWaves: false
       runtime:
         provider: truenas-app
         containerService: wazuh.manager

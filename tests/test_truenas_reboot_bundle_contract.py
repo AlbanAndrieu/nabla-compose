@@ -22,6 +22,13 @@ def test_materializer_stages_before_atomic_activation() -> None:
     assert "cmp -s" in text
 
 
+def test_materializer_refuses_a_file_list_older_than_the_bundled_commit() -> None:
+    # 12/11: a 0.69.0 checkout bundled 98d592f8 without check-homelab-services.sh.
+    text = MATERIALIZER.read_text()
+    assert '"${COMMIT}:scripts/truenas/materialize-reboot-bundle.sh"' in text
+    assert 'cmp -s - "${BASH_SOURCE[0]}"' in text
+
+
 def test_materializer_uses_invoked_checkout_as_default_repo_root() -> None:
     text = MATERIALIZER.read_text()
     assert 'DEFAULT_REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"' in text

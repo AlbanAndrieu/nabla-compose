@@ -15,8 +15,25 @@ inputs = {
   manage_repository_settings  = true
 
   # Imported on the next apply; only delete_branch_on_merge is managed.
+  # Named repositories plus the 10 others with the most default-branch commits over 90 days (12/11/2026).
   managed_repositories = [
+    "ansible-cpp",
+    "ansible-jenkins-slave-docker",
+    "ansible-nabla",
+    "ansible-shell",
+    "ansible-workstation",
+    "fastapi-sample",
+    "nabla",
+    "nabla-compose",
+    "nabla-cpp",
+    "nabla-hooks",
+    "nabla-memo",
+    "nabla-openclaw",
+    "nabla-projects-interview-visma",
     "nabla-servers-bower-sample",
+    "nabla-site-alban",
+    "nabla-site-bababou",
+    "nabla-yubikey",
   ]
 
   # Personal-account rulesets cannot use evaluate mode. Start with a disabled

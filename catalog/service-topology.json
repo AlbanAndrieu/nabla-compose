@@ -3294,6 +3294,11 @@
       "securityFunctions": [
         "detect"
       ],
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30,
+        "blocksLaterWaves": false
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wazuh.manager"
@@ -5201,6 +5206,16 @@
       "description": "Sync and API form the 1Password Connect deployment.",
       "evidence": [
         "apps/opconnect/compose.yml"
+      ]
+    },
+    {
+      "source": "openclaw-gateway",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The heartbeat reads Docker through the proxy and the Gateway joins its external network docker-proxy, so it cannot start before the proxy.",
+      "evidence": [
+        "apps/openclaw/deploy/truenas/compose.yml:networks.docker-proxy"
       ]
     },
     {
