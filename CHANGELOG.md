@@ -1,3 +1,10 @@
+# [0.73.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.72.0...0.73.0) (2026-11-12)
+
+
+### Features
+
+* **secrets:** declare the runtime secrets missing from the Vaultwarden manifest ([170813f](https://github.com/AlbanAndrieu/nabla-compose/commit/170813f0afc854c2ccf0f20d0f922e37ee73306b))
+
 # [0.72.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.71.0...0.72.0) (2026-11-12)
 
 
