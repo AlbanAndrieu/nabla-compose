@@ -24,7 +24,7 @@ services:
         type: http
         target: http://172.17.0.24:20720/admin/
     env_file:
-      - /mnt/cpool/pihole/.env.secrets
+      - /mnt/cpool/secrets/runtime/pihole/.env.secrets
     environment:
       TZ: Europe/Paris
       # Docker bridge clients must be accepted by FTL. Keep the API session
@@ -90,7 +90,7 @@ services:
         condition: service_healthy
     env_file:
       # Preserve the currently working Pi-hole API credential during cutover.
-      # Consolidate it into /mnt/cpool/pihole/.env.secrets after validation.
+      # Consolidate it into /mnt/cpool/secrets/runtime/pihole/.env.secrets after validation.
       - /mnt/cpool/traefik/.env.secrets
     environment:
       # docker-socket-proxy is reached on the dedicated docker-proxy network
@@ -138,7 +138,7 @@ services:
             - apps/pihole/compose.yml:PIHOLE_HOSTNAME=pihole
     restart: unless-stopped
     env_file:
-      - /mnt/cpool/pihole/.env.secrets
+      - /mnt/cpool/secrets/runtime/pihole/.env.secrets
     environment:
       PIHOLE_HOSTNAME: pihole
       PIHOLE_PORT: "80"

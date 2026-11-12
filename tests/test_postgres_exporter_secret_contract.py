@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSE = ROOT / "apps/postgres/compose.yml"
+COMPOSE = ROOT / "apps/postgres-exporter/compose.yml"
 DIAG = ROOT / "scripts/truenas/diagnose-postgres-exporter.sh"
 INSTALLER = ROOT / "scripts/truenas/install-runtime-secret.sh"
 EXPECTED_SECRET = "/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets"

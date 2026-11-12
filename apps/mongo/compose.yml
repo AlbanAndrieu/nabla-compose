@@ -1,4 +1,5 @@
 ---
+name: mongo
 services:
   mongo:
     labels:
@@ -20,7 +21,7 @@ services:
         phase: primary-data
         priority: 20
     env_file:
-      - /mnt/cpool/mongo/.env.secrets
+      - /mnt/cpool/secrets/runtime/mongo/.env.secrets
     volumes:
       - /mnt/cpool/mongo/data:/data/db
     healthcheck:

@@ -5,13 +5,19 @@ terraform { source = find_in_parent_folders("terraform/github") }
 inputs = {
   github_owner = "AlbanAndrieu"
 
-  # Preparation only. These switches MUST remain false until an explicit,
-  # reviewed activation change is approved.
-  github_governance_enabled   = false
+  # Master switch on for repository settings only. The other switches MUST
+  # remain false until an explicit, reviewed activation change is approved.
+  github_governance_enabled   = true
   github_inventory_enabled    = false
   manage_rulesets             = false
   manage_actions_permissions  = false
   manage_workflow_permissions = false
+  manage_repository_settings  = true
+
+  # Imported on the next apply; only delete_branch_on_merge is managed.
+  managed_repositories = [
+    "nabla-servers-bower-sample",
+  ]
 
   # Personal-account rulesets cannot use evaluate mode. Start with a disabled
   # ruleset during the pilot, then activate only after the plan is reviewed.

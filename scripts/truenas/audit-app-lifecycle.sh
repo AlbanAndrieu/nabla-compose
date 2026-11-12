@@ -1576,9 +1576,9 @@ function probe_log_absence_if_running {
 
 printf '\n🔎 runtime secret contracts\n'
 probe_secret_if_present homarr "Homarr secrets" /mnt/cpool/homarr/.env.secrets SECRET_ENCRYPTION_KEY
-probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
+probe_secret_if_present langflow "Langflow secrets" /mnt/cpool/secrets/runtime/langflow/.env.secrets LANGFLOW_SUPERUSER_PASSWORD
 probe_secret_if_present openrag "OpenRAG secrets" /mnt/cpool/openrag/.env.secrets LANGFLOW_KEY
-probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
+probe_secret_if_present clickhouse "ClickHouse secrets" /mnt/cpool/secrets/runtime/clickhouse/.env.secrets CLICKHOUSE_PASSWORD
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets DATABASE_URL
 probe_secret_regex_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets DATABASE_URL 'postgresql:[/][/]langfuse:.+@172[.]17[.]0[.]24:5432/langfuse([?].*)?'
 probe_secret_if_present langfuse "Langfuse secrets" /mnt/cpool/secrets/runtime/langfuse/.env.secrets CLICKHOUSE_PASSWORD
@@ -1604,11 +1604,11 @@ probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_READONLY_PASSWORD
 probe_secret_if_present sentry "Sentry migrator secrets" /mnt/cpool/sentry/.env.migrator.secrets CLICKHOUSE_TRACE_PASSWORD
 probe_secret_if_present scrutiny "Scrutiny secrets" /mnt/cpool/secrets/runtime/scrutiny/.env.secrets SCRUTINY_WEB_INFLUXDB_TOKEN
-probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
-probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
-probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_MONGODB_URI
-probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
-probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/secrets/runtime/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/secrets/runtime/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2
+probe_secret_if_present graylog "Graylog secrets" /mnt/cpool/secrets/runtime/graylog/.env.secrets GRAYLOG_MONGODB_URI
+probe_secret_min_length_if_present graylog "Graylog secrets" /mnt/cpool/secrets/runtime/graylog/.env.secrets GRAYLOG_PASSWORD_SECRET 16
+probe_secret_regex_if_present graylog "Graylog secrets" /mnt/cpool/secrets/runtime/graylog/.env.secrets GRAYLOG_ROOT_PASSWORD_SHA2 '[0-9a-fA-F]{64}'
 probe_legacy_secret_name "Homarr secrets" /mnt/cpool/homarr/.env.secrets HOMARR_ENCRYPTION_KEY SECRET_ENCRYPTION_KEY
 probe_langfuse_init_contract_if_present
 

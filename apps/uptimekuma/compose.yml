@@ -1,14 +1,14 @@
 ---
-name: uptime-kuma
+name: uptimekuma
 
 services:
-  uptime-kuma:
+  uptimekuma:
     image: louislam/uptime-kuma:2.5.10-rootless
-    container_name: uptime-kuma
+    container_name: uptimekuma
     labels:
-      com.albandrieu.nabla.entity-ref: component:default/uptime-kuma
+      com.albandrieu.nabla.entity-ref: component:default/uptimekuma
     x-nabla:
-      id: uptime-kuma
+      id: uptimekuma
       name: Uptime Kuma
       kind: uptime-monitor
       category: observability
@@ -16,8 +16,8 @@ services:
       description: Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.
       runtime:
         provider: truenas-app
-        appId: uptime-kuma
-        containerService: uptime-kuma
+        appId: uptimekuma
+        containerService: uptimekuma
       lifecycle:
         phase: platform-services
         priority: 40
@@ -26,7 +26,7 @@ services:
     ports:
       - "172.17.0.24:31050:3001"
     volumes:
-      - /mnt/cpool/uptime-kuma:/app/data
+      - /mnt/cpool/uptimekuma:/app/data
     user: "568:568"
     healthcheck:
       test: ["CMD", "extra/healthcheck"]

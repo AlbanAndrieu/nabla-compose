@@ -611,7 +611,7 @@ scripts/infra/terragrunt-safe.sh infrastructure/truenas apply
 
 This allows create/update operations while retaining provider-level protection against deletion. The wrapper serializes the local writer and snapshots existing state before apply.
 
-The repository CD workflow `.github/workflows/terragrunt-cd.yaml` is currently **plan-only**, manual-dispatch, and restricted to the private `infra-runners` label. Remote apply remains disabled while Garage lacks the conditional-write semantics required for distributed S3 locking. Do not re-enable CI apply until a shared lock service or equivalent distributed locking contract is in place.
+There is no Terragrunt CD workflow: plan and apply run only from the operator workstation through `scripts/infra/terragrunt-safe.sh`, because the Garage state backend is LAN-only and has a single writer. GitHub Actions (`terragrunt-ci.yaml`) only runs backend-less static checks. Do not add a CI plan or apply until a shared lock service or equivalent distributed locking contract is in place, together with a reviewed trusted runner.
 
 The default test nodes are intentionally small:
 

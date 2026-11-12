@@ -666,7 +666,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "component:default/uptime-kuma"
+      "ref": "component:default/uptimekuma"
     },
     {
       "dependsOn": [],
@@ -791,7 +791,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36"
+        "value": "sha256:768d84aa06b3b7689c12b87da81f4e5e660b43321be569b5d62cc5ad45928b14"
       },
       {
         "name": "nabla:catalog-authority",
@@ -799,7 +799,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:5646238e-58f8-15b3-5495-11fea263284c",
+  "serialNumber": "urn:uuid:768d84aa-06b3-b768-9c12-b87da81f4e5e",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3167,7 +3167,7 @@
         },
         {
           "name": "nabla:source-path",
-          "value": "apps/postgres/catalog-info.yaml"
+          "value": "apps/postgres-exporter/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -4396,7 +4396,7 @@
       ]
     },
     {
-      "bom-ref": "component:default/uptime-kuma",
+      "bom-ref": "component:default/uptimekuma",
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
       "name": "Uptime Kuma",
       "properties": [
@@ -4406,11 +4406,11 @@
         },
         {
           "name": "nabla:backstage:entity-ref",
-          "value": "component:default/uptime-kuma"
+          "value": "component:default/uptimekuma"
         },
         {
           "name": "nabla:source-path",
-          "value": "apps/uptime-kuma/catalog-info.yaml"
+          "value": "apps/uptimekuma/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

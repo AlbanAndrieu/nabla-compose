@@ -906,9 +906,9 @@
       "kind": "api",
       "category": "data",
       "sourcePath": "apps/garage/compose.yml",
-      "url": "https://garage-admin.albandrieu.com",
+      "url": "http://172.17.0.24:3903",
       "internalUrl": "http://172.17.0.24:3903",
-      "description": "Garage Admin API exposed through Cloudflare Tunnel to the LAN-bound :3903 origin without Traefik.",
+      "description": "Garage Admin API on the LAN-bound :3903 origin only; its Cloudflare Tunnel route was removed on 04/11/2026.",
       "presentationRole": "support",
       "criticality": "high"
     },
@@ -2314,10 +2314,11 @@
       "name": "PostgreSQL Exporter",
       "kind": "metrics-exporter",
       "category": "observability",
-      "sourcePath": "apps/postgres/compose.yml",
+      "sourcePath": "apps/postgres-exporter/compose.yml",
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "postgres_exporter",
@@ -3148,11 +3149,11 @@
       "criticality": "critical"
     },
     {
-      "id": "uptime-kuma",
+      "id": "uptimekuma",
       "name": "Uptime Kuma",
       "kind": "uptime-monitor",
       "category": "observability",
-      "sourcePath": "apps/uptime-kuma/compose.yml",
+      "sourcePath": "apps/uptimekuma/compose.yml",
       "url": "http://172.17.0.24:31050",
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
       "lifecycle": {
@@ -3161,8 +3162,8 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "uptime-kuma",
-        "containerService": "uptime-kuma",
+        "appId": "uptimekuma",
+        "containerService": "uptimekuma",
         "networks": [
           "intranet"
         ]
@@ -3515,7 +3516,7 @@
     },
     {
       "source": "autokuma",
-      "target": "uptime-kuma",
+      "target": "uptimekuma",
       "type": "consumesApi",
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
@@ -4140,16 +4141,6 @@
       "evidence": [
         "apps/garage/compose.yml:traefik.http.routers.garage-s3.rule",
         "apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port"
-      ]
-    },
-    {
-      "source": "garage-admin",
-      "target": "cloudflared",
-      "type": "exposedBy",
-      "strength": "required",
-      "description": "Cloudflare Tunnel forwards garage-admin.albandrieu.com through cloudflared directly to Garage Admin :3903.",
-      "evidence": [
-        "docs/dns-ingress-ownership.md:Garage exposure boundary"
       ]
     },
     {
@@ -5688,7 +5679,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/postgres/compose.yml:postgres_exporter.x-nabla.runtime.containerService"
+        "apps/postgres-exporter/compose.yml:postgres_exporter.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -5698,7 +5689,7 @@
       "strength": "required",
       "description": "The exporter queries the shared PostgreSQL service.",
       "evidence": [
-        "apps/postgres/compose.yml:DATA_SOURCE_NAME"
+        "apps/postgres-exporter/compose.yml:DATA_SOURCE_NAME"
       ]
     },
     {
@@ -6584,13 +6575,13 @@
       ]
     },
     {
-      "source": "uptime-kuma",
+      "source": "uptimekuma",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/uptime-kuma/compose.yml:uptime-kuma.x-nabla.runtime.containerService"
+        "apps/uptimekuma/compose.yml:uptimekuma.x-nabla.runtime.containerService"
       ]
     },
     {

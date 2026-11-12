@@ -57,7 +57,7 @@ Until the coordinated v2 cutover removes the legacy generator contract, every
 newly tracked runtime service must normally define the minimum service-local
 `x-nabla` compatibility block with:
 
-- `id`: stable lowercase kebab-case identifier;
+- `id`: stable lowercase identifier; a **new** `id` has no dash (`uptimekuma`), existing kebab-case ids stay until a planned migration (see the naming rule in `docker-compose-orchestration`);
 - `name`: human-readable service name;
 - `kind`: architectural role;
 - `category`: catalog grouping;

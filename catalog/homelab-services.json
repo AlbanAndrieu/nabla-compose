@@ -1081,7 +1081,7 @@
       "external": false
     },
     {
-      "id": "uptime-kuma",
+      "id": "uptimekuma",
       "name": "Uptime Kuma",
       "icons": ["fas fa-heart-pulse"],
       "description": "Uptime monitoring",

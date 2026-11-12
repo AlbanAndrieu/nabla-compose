@@ -89,9 +89,6 @@ class InfrastructureStateContractTests(unittest.TestCase):
         preflight = (ROOT / "scripts/infra/preflight-truenas-talos.sh").read_text(
             encoding="utf-8"
         )
-        workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
-            encoding="utf-8"
-        )
         manifest = json.loads(
             (ROOT / "config" / "secrets" / "manifest.json").read_text(
                 encoding="utf-8"
@@ -107,11 +104,6 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("TRUENAS_INFRA_API_USERNAME", preflight)
         self.assertIn("TRUENAS_INFRA_API_KEY", preflight)
         self.assertIn("ignored by infrastructure", preflight)
-
-        self.assertIn("TRUENAS_INFRA_API_USERNAME", workflow)
-        self.assertIn("TRUENAS_INFRA_API_KEY", workflow)
-        self.assertNotIn(" TRUENAS_USER ", workflow)
-        self.assertNotIn(" TRUENAS_API_KEY;", workflow)
 
         infra = next(
             item for item in manifest["items"]
@@ -212,16 +204,17 @@ class InfrastructureStateContractTests(unittest.TestCase):
         self.assertIn("Garage admin token rejected", preflight)
         self.assertIn("${GARAGE_ADMIN_TOKEN:-}", preflight)
 
-    def test_trusted_workflow_is_plan_only(self) -> None:
-        workflow = (ROOT / ".github/workflows/terragrunt-cd.yaml").read_text(
-            encoding="utf-8"
-        )
-
-        self.assertIn('TRUENAS_READ_ONLY: "true"', workflow)
-        self.assertIn("terragrunt plan", workflow)
-        self.assertNotIn("terragrunt apply", workflow)
-        self.assertNotIn("-auto-approve", workflow)
-        self.assertNotIn("init -upgrade", workflow)
+    def test_no_workflow_reaches_the_state_backend(self) -> None:
+        # Garage is LAN-only and single-writer: plan/apply run on the workstation.
+        workflows = sorted((ROOT / ".github/workflows").glob("*.y*ml"))
+        self.assertTrue(workflows)
+        for workflow in workflows:
+            text = workflow.read_text(encoding="utf-8")
+            self.assertNotRegex(
+                text,
+                r"\bterragrunt\s+(?:init|plan|apply)\b|\btofu\s+(?:plan|apply)\b",
+                workflow.name,
+            )
 
     def test_operator_runbook_uses_serialized_wrapper(self) -> None:
         runbook = (ROOT / "docs/infrastructure-bootstrap.md").read_text(

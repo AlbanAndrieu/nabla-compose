@@ -1,9 +1,9 @@
 ---
-name: postgres
+name: postgres-exporter
 
 services:
   postgres_exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
     container_name: postgres_exporter
     labels:
       com.albandrieu.nabla.entity-ref: component:default/postgres-exporter
@@ -14,6 +14,7 @@ services:
       category: observability
       presentationRole: support
       criticality: medium
+      status: planned
       description: Prometheus exporter for the shared PostgreSQL service.
       runtime:
         provider: truenas-app
@@ -28,7 +29,7 @@ services:
           strength: required
           description: The exporter queries the shared PostgreSQL service.
           evidence:
-            - apps/postgres/compose.yml:DATA_SOURCE_NAME
+            - apps/postgres-exporter/compose.yml:DATA_SOURCE_NAME
     restart: unless-stopped
     # Scoped runtime secret materialized from Vaultwarden by the operator.
     # Do not inherit all application DB secrets or interpolate a missing DSN.

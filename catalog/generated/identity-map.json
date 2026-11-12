@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36",
+  "catalogRevision": "sha256:768d84aa06b3b7689c12b87da81f4e5e660b43321be569b5d62cc5ad45928b14",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -573,8 +573,8 @@
     },
     {
       "entityRef": "component:default/postgres-exporter",
-      "evidence": "apps/postgres/compose.yml:services.postgres_exporter.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/postgres/compose.yml#services/postgres_exporter",
+      "evidence": "apps/postgres-exporter/compose.yml:services.postgres_exporter.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/postgres-exporter/compose.yml#services/postgres_exporter",
       "sourceType": "compose"
     },
     {
@@ -878,9 +878,9 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/uptime-kuma",
-      "evidence": "apps/uptime-kuma/compose.yml:services.uptime-kuma.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/uptime-kuma/compose.yml#services/uptime-kuma",
+      "entityRef": "component:default/uptimekuma",
+      "evidence": "apps/uptimekuma/compose.yml:services.uptimekuma.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/uptimekuma/compose.yml#services/uptimekuma",
       "sourceType": "compose"
     },
     {
@@ -1406,9 +1406,9 @@
       "sourceType": "gatus"
     },
     {
-      "entityRef": "component:default/uptime-kuma",
+      "entityRef": "component:default/uptimekuma",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "uptime-kuma",
+      "sourceId": "uptimekuma",
       "sourceType": "gatus"
     },
     {

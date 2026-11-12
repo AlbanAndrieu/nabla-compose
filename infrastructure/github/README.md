@@ -3,10 +3,10 @@
 This live Terragrunt stack prepares GitHub repository governance as code for
 repositories owned by `AlbanAndrieu`.
 
-**It is intentionally inert.** The committed configuration keeps every mutation
-switch disabled:
+**Only repository settings are active.** `github_governance_enabled` and
+`manage_repository_settings` are on; every other mutation switch stays
+disabled:
 
-- `github_governance_enabled = false`;
 - `manage_rulesets = false`;
 - `manage_actions_permissions = false`;
 - `manage_workflow_permissions = false`;
@@ -15,6 +15,20 @@ switch disabled:
 A normal checkout, CI run, `tofu validate`, or Terragrunt plan must therefore
 not create or modify repository rules, Actions permissions, or workflow-token
 permissions.
+
+## Repository settings
+
+Each name in `managed_repositories` is imported as a `github_repository` on the
+next apply (`import` block, nothing to run by hand). Only
+`delete_branch_on_merge = true` is enforced: every other setting is in
+`ignore_changes` and stays as configured on GitHub.
+
+- Add a repository: append its name, then plan. Expect `1 to import` and an
+  in-place change limited to `archive_on_destroy` (state only).
+- Stop managing one: first
+  `scripts/infra/terragrunt-safe.sh infrastructure/github state rm 'github_repository.managed["<name>"]'`,
+  then remove its name. Removing the name alone fails on `prevent_destroy`;
+  were it forced, `archive_on_destroy` archives instead of deleting.
 
 ## What the module prepares
 
@@ -65,7 +79,8 @@ scripts/infra/terragrunt-safe.sh infrastructure/github validate
 scripts/infra/terragrunt-safe.sh infrastructure/github plan
 ```
 
-Do **not** run `apply` as part of this preparation.
+`apply` only imports and maintains the repository settings above; the ruleset
+activation below stays a separate reviewed change.
 
 ## Activation sequence
 

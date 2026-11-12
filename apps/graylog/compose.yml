@@ -1,4 +1,5 @@
 ---
+name: graylog
 services:
   graylog:
     labels:
@@ -35,7 +36,7 @@ services:
           evidence:
             - apps/graylog/compose.yml:GRAYLOG_ELASTICSEARCH_HOSTS
     env_file:
-      - /mnt/cpool/graylog/.env.secrets
+      - /mnt/cpool/secrets/runtime/graylog/.env.secrets
     environment:
       GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"
       GRAYLOG_HTTP_EXTERNAL_URI: "${GRAYLOG_HTTP_EXTERNAL_URI:-http://172.17.0.24:9003/}"

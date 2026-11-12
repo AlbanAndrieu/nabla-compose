@@ -606,7 +606,7 @@
     "port": 7000
   },
   {
-    "id": "uptime-kuma",
+    "id": "uptimekuma",
     "type": "port",
     "name": "Uptime Kuma",
     "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",

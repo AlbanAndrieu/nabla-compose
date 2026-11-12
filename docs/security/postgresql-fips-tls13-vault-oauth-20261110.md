@@ -20,7 +20,7 @@ Date : 2026-11-10. Statut : **CODED (documentation) / NOT_VERIFIED (runtime)**. 
 | Plumber | `apps/plumber/compose.yml` : `JOBS_DB_SSLMODE: verify-full` et `PGSSLROOTCERT` | **CODED** : connexion vérifiée exigée ; **NOT_VERIFIED** : respect de `PGSSLROOTCERT` par le driver backend réel, CA et test runtime. |
 | SonarQube | `apps/sonarqube/compose.yml` : URL JDBC par défaut sans paramètre TLS explicite | Configuration réelle à qualifier ; `verify-full` selon driver JDBC et truststore. |
 | Dependency-Track | `apps/dependency-track/compose.yml` : URL JDBC par défaut sans paramètre TLS explicite | Configuration réelle à qualifier et certificat Java/truststore à valider. |
-| postgres-exporter | `apps/postgres/compose.yml` : DSN dans `/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets` | SSL mode inconnu ; ne jamais lire ou journaliser le mot de passe. |
+| postgres-exporter | `apps/postgres-exporter/compose.yml` : DSN dans `/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets` | SSL mode inconnu ; ne jamais lire ou journaliser le mot de passe. |
 | FastAPI Sample | `mise.toml` déclare `POSTGRES_HOST/USER/PASSWORD`; la topologie seule ne prouve pas un OIDC FastAPI actif | Auditer code runtime, JWT validation, audience, endpoints et session ; **OIDC actuellement non prouvé**. |
 | Keycloak SSO | `docs/integration-synergies-20261107.md` indique qu'aucun service n'est encore déclaré consommateur de Keycloak | Intégration SSO cible, non réceptionnée ; ne pas présenter comme déployée. |
 | Vault | `config/secrets/README.md` : Vaultwarden source transitoire, Vault/OpenBao cible future | Moteur PostgreSQL dynamic credentials **non prouvé activé**. |

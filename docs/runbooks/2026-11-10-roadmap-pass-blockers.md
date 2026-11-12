@@ -78,7 +78,7 @@ Chaque point demande une décision ou un accord explicite avant mutation.
     retirer leurs jobs Prometheus ?
 12. **[P1] Alertmanager sans récepteur** : quel canal (Telegram via
     OpenClaw, e-mail, ntfy, webhook n8n) ? Réponse du 11/11 : Slack,
-    webhook entrant `NABLA_SLACK_WEBHOOK` (voir section 5).
+    webhook entrant `SLACK_WEBHOOK` d'un espace Slack perso (voir section 5).
 13. **[P1] bitcoind** : garder les données existantes ou resynchroniser avant
     `--apply --replace-catalog-app` ? Purge des anciens datasets ensuite ?
 14. **[P1] Home Assistant** : créer le secret et le rôle PostgreSQL, puis
@@ -160,7 +160,7 @@ Gestes runtime, dans l'ordre, chacun après accord :
    créer `HOMARR_ASSISTANT_API_KEY`, `OPENWEBUI_LITELLM_API_KEY`,
    `LANGFUSE_AI_API_KEY`, `GRAFANA_LLM_API_KEY`, `NTOPNG_ADMIN_PASSWORD`,
    `JOBS_REDIS_PASSWORD` (plumber, = `REDIS_AUTH`) et le login admin Scanopy.
-   Alertmanager : depuis le shell où `NABLA_SLACK_WEBHOOK` est défini,
+   Alertmanager : depuis le shell où `SLACK_WEBHOOK` est défini,
    `python3 scripts/secrets/import_env_to_bitwarden.py --app prometheus`
    (aperçu), puis `--apply` ; crée `nabla/prod/prometheus`.
 2. Matérialiser `homarr`, `openwebui`, `langfuse`, `grafana`, `ntopng`,
@@ -175,3 +175,18 @@ Gestes runtime, dans l'ordre, chacun après accord :
 5. `chmod 600` des onze `.env` de projet lisibles par tous (accord 5). Le
    redéploiement de Redis (accord 4) a été fait par l'autre session le 11/11
    à 09:50 UTC (B14 du runbook du 11/11).
+
+## 6. Reprise du 12/11 (accords 1, 2, 4, 5 de la section 5)
+
+| Point | État | Preuve ou reste à faire |
+| --- | --- | --- |
+| 5.1 Vaultwarden | Champs ajoutés : `HOMARR_ASSISTANT_API_KEY`, `OPENWEBUI_LITELLM_API_KEY`, `LANGFUSE_AI_API_KEY`, `JOBS_REDIS_PASSWORD` ; item `nabla/prod/ntopng` créé ; login admin Scanopy rangé | Relecture : aucun champ manquant. Restent, par SSH : `HOMARR_API_KEY` (dernier caractère), item `nabla/prod/grafana` (`GRAFANA_ADMIN_PASSWORD` n'est que dans le `.env` TrueNAS) |
+| Slack (Q12) | `SLACK_WEBHOOK` vaut l'exemple `replace_this_with_your_slack_webhook` ; `SLACK_TOKEN` est le bot d'un espace d'entreprise, écarté | Créer un webhook entrant dans un espace perso, l'exporter en `SLACK_WEBHOOK`, puis `import_env_to_bitwarden.py --app prometheus` |
+| Q8 / B7 | Rien de neuf | Vérifier par SSH les noms réels des datasets absents (Apps encore planifiées ?), puis supprimer les tâches 17 à 19 après un cycle des tâches par classe |
+| Q11 | `planned` exclut déjà les quatre jobs depuis e5a4c165 : le Prometheus de TrueNAS n'a pas été rechargé. `postgres_exporter` passe dans `apps/postgres-exporter` (le répertoire `apps/postgres` portait le nom de l'App native) | `docker kill -s HUP prometheus` ; puis rôle `pg_monitor`, secret et App (`apps/postgres-exporter/README.md`). TLS : `lib/pq` refuse `prefer`, seul `disable` marche tant que Q15 n'est pas fait |
+| Q16 | `s3.int` est le seul `*.int` public non autorisé (IP WAN) ; `hello.int` reste, c'est le canari approuvé | Plan d'adoption : 1 import, 0 ajout, 0 modification, 0 destruction. Apply, puis plan `retire` (1 destruction), puis apply |
+| Q17 | Workflow `terragrunt-cd.yaml` retiré : aucun runner `infra-runners`, environnement `TrueNAS` vide, backend Garage LAN seul | Supprimer à la main l'environnement GitHub `TrueNAS`, vide |
+| Q18 | 9 services sur 10 lisent `/mnt/cpool/secrets/runtime/<app>/` (`env_file` obligatoire) ; Redis reste, son mot de passe est interpolé dans `command:` | Par App : vérifier `root:root 600`, redéployer une à une (bichon, langflow, nexus, ollama, sentry-clickhouse, mongo, clickhouse, pihole en dernier), puis `--finalize`. Ne pas relancer `materialize_runtime.py --install` (Pi-hole perdrait `FTLCONF_webserver_api_password`) |
+| Q19 | Aucun ticket amont ; v1.4.0 appelle toujours `auth.login_with_api_key` | Brouillon prêt, à publier sur accord |
+| B12 | Le login admin `nabla/prod/defectdojo` n'a pas de mot de passe ; le MCP DefectDojo n'a pas d'URL | Lire `DD_ADMIN_PASSWORD` sur TrueNAS sans l'afficher, puis produit `nabla-compose`, engagement `Trivy images`, compte `nabla-import` (API Importer), jeton dans `nabla/prod/defectdojo-import` et `import-token` |
+| B6, Q13, Q14, Q15 | Rien de neuf | Demandent l'accès SSH (et une décision pour Q13 et Q15) |

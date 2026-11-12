@@ -21,7 +21,7 @@ services:
         phase: platform-services
         priority: 40
       relations:
-        - target: uptime-kuma
+        - target: uptimekuma
           type: consumesApi
           strength: required
           description: AutoKuma reconciles generated monitors into Uptime Kuma.
@@ -32,7 +32,7 @@ services:
       - path: /mnt/cpool/secrets/runtime/autokuma/.env.secrets
         required: false
     environment:
-      # AutoKuma 2.x requires kuma.url at startup: apps/uptime-kuma on :31050.
+      # AutoKuma 2.x requires kuma.url at startup: apps/uptimekuma on :31050.
       AUTOKUMA__KUMA__URL: ${UPTIME_KUMA_URL:-http://172.17.0.24:31050}
       AUTOKUMA__STATIC_MONITORS: /config/static
       AUTOKUMA__FILES__ENABLED: "true"

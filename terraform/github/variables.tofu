@@ -34,6 +34,18 @@ variable "manage_workflow_permissions" {
   default     = false
 }
 
+variable "manage_repository_settings" {
+  description = "Allow this module to import managed_repositories and enforce delete_branch_on_merge when github_governance_enabled is also true."
+  type        = bool
+  default     = false
+}
+
+variable "managed_repositories" {
+  description = "Repositories imported as github_repository. Only delete_branch_on_merge is managed; every other setting stays as configured on GitHub."
+  type        = set(string)
+  default     = []
+}
+
 variable "ruleset_enforcement" {
   description = "Ruleset enforcement mode. Keep disabled during inventory/pilot preparation."
   type        = string

@@ -1,4 +1,5 @@
 ---
+name: ollama
 services:
   ollama:
     image: docker.io/ollama/ollama:latest
@@ -28,8 +29,8 @@ services:
           evidence:
             - apps/ollama/compose.yml:prometheus.scrape
     env_file:
-      - /mnt/cpool/ollama/.env
-    #  - /mnt/cpool/ollama/.env.secrets
+      - /mnt/cpool/secrets/runtime/ollama/.env
+    #  - /mnt/cpool/secrets/runtime/ollama/.env.secrets
     environment:
       - TZ=Europe/Paris
       - OLLAMA_HOST=0.0.0.0:30068

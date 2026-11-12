@@ -2,26 +2,22 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: uptime-kuma
-  title: Uptime Kuma
-  description: Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.
+  name: postgres-exporter
+  title: PostgreSQL Exporter
+  description: Prometheus exporter for the shared PostgreSQL Resource.
   labels:
-    albandrieu.com/operational-state: active
-    albandrieu.com/operational-criticality: low
+    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-criticality: medium
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
   tags:
     - observability
-  links:
-    - url: http://172.17.0.24:31050
-      title: Application
   annotations:
     albandrieu.com/bia-mtpd: P7D
     albandrieu.com/bia-rto: P3D
-    albandrieu.com/bia-rpo: P7D
-    albandrieu.com/bia-mbco: monitors-are-reconciled-again-by-autokuma-after-restore
+    albandrieu.com/bia-mbco: database-observability-can-be-temporarily-degraded
     albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-11-12"
+    albandrieu.com/bia-reviewed-at: "2026-09-21"
     albandrieu.com/bia-impact-operational: low
     albandrieu.com/bia-impact-customer: low
     albandrieu.com/bia-impact-financial: low
@@ -30,10 +26,12 @@ metadata:
     albandrieu.com/bia-impact-confidentiality: low
     albandrieu.com/bia-impact-integrity: low
     albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptime-kuma/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-exporter/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
-  type: application
+  type: exporter
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/postgresql

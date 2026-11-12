@@ -108,12 +108,12 @@ else
   printf 'WARNING: autokuma TrueNAS app not present; generated monitor inventory is ready but not reconciled.\n' >&2
 fi
 
-if midclt call app.query '[["id","=","uptime-kuma"]]' |
+if midclt call app.query '[["id","=","uptimekuma"]]' |
   jq -e 'length > 0' >/dev/null; then
-  midclt call app.query '[["id","=","uptime-kuma"]]' |
+  midclt call app.query '[["id","=","uptimekuma"]]' |
     jq -r '.[0] | "OK: Uptime Kuma state=\(.state // \"UNKNOWN\") (monitor configuration reconciled by AutoKuma)"'
 else
-  printf 'WARNING: uptime-kuma TrueNAS app not present.\n' >&2
+  printf 'WARNING: uptimekuma TrueNAS app not present.\n' >&2
 fi
 
 for consumer in gatus homarr; do

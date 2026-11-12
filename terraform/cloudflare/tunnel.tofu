@@ -235,10 +235,11 @@ locals {
       origin_request = {}
       service        = "http://172.17.0.24:31060"
     },
+    # Garage WebUI, not the S3 API (:3900), which must stay on s3.int (LAN).
     {
       hostname       = "garage.albandrieu.com"
       origin_request = {}
-      service        = "http://172.17.0.24:3900"
+      service        = "http://172.17.0.24:3909"
     },
     # Joplin Server (10/11): sync clients cannot complete an interactive
     # Access login, so this route relies on Joplin's own authentication.
