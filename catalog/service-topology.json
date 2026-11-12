@@ -5205,6 +5205,16 @@
     },
     {
       "source": "openclaw-gateway",
+      "target": "docker-socket-proxy",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The heartbeat reads Docker through the proxy and the Gateway joins its external network docker-proxy, so it cannot start before the proxy.",
+      "evidence": [
+        "apps/openclaw/deploy/truenas/compose.yml:networks.docker-proxy"
+      ]
+    },
+    {
+      "source": "openclaw-gateway",
       "target": "litellm",
       "type": "consumesApi",
       "strength": "required",

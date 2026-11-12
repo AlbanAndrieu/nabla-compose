@@ -107,13 +107,46 @@ class HomelabRebootContractTests(unittest.TestCase):
             if relation["source"] == "openclaw-gateway"
             and relation["strength"] == "required"
         }
-        self.assertEqual(required, {"litellm", "openclaw-devbox"})
+        self.assertEqual(required, {"docker-socket-proxy", "litellm", "openclaw-devbox"})
         app_ids = {
             node["runtime"]["appId"]
             for node in topology["nodes"]
             if node.get("runtime", {}).get("provider") == "truenas-app"
         }
         self.assertLessEqual({"openclaw-gateway", "openclaw-devbox", "clamav"}, app_ids)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            apps = Path(tmp) / "apps-before.json"
+            apps.write_text(
+                json.dumps(
+                    [
+                        {"id": app, "state": "RUNNING"}
+                        for app in (
+                            "openclaw-gateway",
+                            "openclaw-devbox",
+                            "litellm",
+                            "docker-socket-proxy",
+                        )
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                ["python3", str(PLANNER), "--apps", str(apps)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        wave = {
+            app: index
+            for index, members in enumerate(json.loads(result.stdout)["start_waves"])
+            for app in members
+        }
+        for dependency in ("docker-socket-proxy", "litellm", "openclaw-devbox"):
+            with self.subTest(dependency=dependency):
+                self.assertLess(wave[dependency], wave["openclaw-gateway"])
+        self.assertLess(wave["docker-socket-proxy"], wave["openclaw-devbox"])
 
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
