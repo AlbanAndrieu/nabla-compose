@@ -1,3 +1,12 @@
+## [0.69.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.69.0...0.69.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **homarr:** wait up to 3 minutes for the API before syncing apps ([80221d1](https://github.com/AlbanAndrieu/nabla-compose/commit/80221d12cb88c134b4c4d93377071b979ca12ba0))
+* **reboot:** map the 14 runtime-only Apps into the lifecycle topology ([6f96acb](https://github.com/AlbanAndrieu/nabla-compose/commit/6f96acbb303627cce48e843352ccb1a227bd62c1))
+* **reboot:** run App gates after resume and ship them in the bundle ([4f9c00b](https://github.com/AlbanAndrieu/nabla-compose/commit/4f9c00b65ccf852c8f7dbab6f46d64cef5076d27))
+
 # [0.69.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.68.0...0.69.0) (2026-11-12)
 
 
