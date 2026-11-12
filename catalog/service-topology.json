@@ -384,8 +384,8 @@
         "appId": "cloudflared"
       },
       "lifecycle": {
-        "phase": "applications",
-        "priority": 50
+        "phase": "foundation",
+        "priority": 10
       }
     },
     {

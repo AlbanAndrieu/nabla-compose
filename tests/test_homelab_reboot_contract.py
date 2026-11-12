@@ -93,9 +93,10 @@ class HomelabRebootContractTests(unittest.TestCase):
             cloudflared["runtime"],
             {"provider": "truenas-app", "appId": "cloudflared"},
         )
+        # No required dependency: the tunnel, then Vaultwarden, come up before the data waves.
         self.assertEqual(
             cloudflared["lifecycle"],
-            {"phase": "applications", "priority": 50},
+            {"phase": "foundation", "priority": 10},
         )
 
     def test_openclaw_gateway_starts_after_its_external_networks(self) -> None:
