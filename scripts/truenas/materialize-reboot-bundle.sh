@@ -86,6 +86,11 @@ FILES=(
   scripts/truenas/repair-opensearch-security-permissions.sh
   scripts/truenas/ensure-docker-socket-proxy-intranet.sh
   scripts/truenas/verify-pihole-dns-sync.sh
+  scripts/truenas/check-homelab-services.sh
+  scripts/truenas/audit-homelab-service-dependencies.py
+  scripts/truenas/check-dsomm-post-reboot.py
+  scripts/truenas/diagnose-pyroscope.sh
+  scripts/truenas/diagnose-fastapi-integrations.py
   scripts/truenas/reboot-homelab.sh
 )
 

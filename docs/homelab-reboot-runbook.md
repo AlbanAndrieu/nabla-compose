@@ -372,8 +372,10 @@ Acceptance:
 - if all three Talos VMs are `RUNNING`, Kubernetes and all three Talos APIs must be reachable through `.50`;
 - if all three Talos VMs are already `STOPPED`, the preflight accepts that quiesced state for shutdown-only preparation, records an explicit unavailable Kubernetes snapshot marker, and does not attempt Talos API calls;
 - any mixed Talos VM state fails closed;
-- lifecycle waves are reviewed;
-- explicit maintenance resume set is correct;
+- lifecycle waves are reviewed (printed before the gates, so a failing gate never hides them);
+- explicit maintenance resume set is correct: the `stopped but NOT resumed` warning lists RUNNING
+  Apps whose catalog status is `planned`/`disabled` (or CRASHED/ERROR Apps); put the reviewed
+  ones in `NABLA_REBOOT_RESUME_STOPPED_APPS`, otherwise they stay stopped after the reboot;
 - no state is mutated.
 
 The post-reboot gate is unchanged and strict: autostart must return all three
@@ -779,7 +781,8 @@ Acceptance requires:
 - all Talos APIs reachable through `.50`;
 - Kubernetes 3/3 Ready.
 
-Do not resume Apps if this phase fails.
+Do not resume Apps if this phase fails. It is infrastructure-only: the App-level gates (FastAPI,
+DSOMM, Pyroscope, ingress) need resumed Apps and run in `--verify`.
 
 ## Phase 2.5 — fresh CSI regression
 
@@ -847,6 +850,10 @@ bash scripts/talos/install-truenas-csi-nfs.sh --check
 sudo bash scripts/truenas/audit-docker-network-migration.sh --check
 sudo bash scripts/truenas/diagnose-docker-orphan-shims.sh --check
 ```
+
+`--verify` also runs the bundled `check-homelab-services.sh`: dependency audit, CRASHED/ERROR
+Apps, unhealthy containers, then DSOMM, Pyroscope and FastAPI gates for the Apps that are
+RUNNING. The same script can be run alone between resume waves.
 
 The transaction is accepted only when lifecycle, cluster/network, fresh CSI and
 Docker/runtime gates are green.
