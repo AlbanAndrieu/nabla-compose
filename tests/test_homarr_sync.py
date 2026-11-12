@@ -235,6 +235,19 @@ def test_rejected_key_skips_at_once_without_crashing_the_truenas_app(capsys) -> 
     assert "RECONCILE_SKIPPED" in capsys.readouterr().out
 
 
+def test_read_timeout_keeps_waiting_for_the_api() -> None:
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    response.read.return_value = b"[]"
+    with (
+        patch.object(homarr_sync, "urlopen", side_effect=[TimeoutError("timed out"), response]) as urlopen,
+        patch.object(homarr_sync.time, "sleep"),
+    ):
+        assert homarr_sync.wait_for_homarr() == []
+    assert urlopen.call_count == 2
+
+
 def test_assistant_points_homarr_at_litellm_through_trpc() -> None:
     request_json = Mock(return_value=None)
     with (

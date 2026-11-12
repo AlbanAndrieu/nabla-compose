@@ -68,9 +68,10 @@ def request_json(method: str, path: str, payload: object | None = None) -> Any:
         raise error(
             f"Homarr API {method} {path} returned {exc.code}: {body[:400]}"
         ) from exc
-    except URLError as exc:
+    # A read timeout raises TimeoutError, not URLError: on a cold boot it ended the wait loop.
+    except (URLError, TimeoutError) as exc:
         raise RuntimeError(
-            f"Homarr API {method} {path} unavailable: {exc.reason}"
+            f"Homarr API {method} {path} unavailable: {getattr(exc, 'reason', exc)}"
         ) from exc
     if not body:
         return None
