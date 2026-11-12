@@ -91,6 +91,10 @@ Références : [runbook de réception](runbooks/2026-11-04-probe-remediation.md)
 
 Références : [performance](../scripts/truenas/diagnose-performance.sh), [snapshots ZFS](truenas-zfs-snapshot-policy.md), [cycle de vie des Apps](truenas-app-lifecycle.md).
 
+## P1 — Janvier 2027 : mise à niveau TrueNAS 27.0 finale
+
+La 27.0 finale est annoncée début décembre 2026 (hôte en 27.0.0-RC.1, profil Early Adopter, aucune RC.2). Planifier la mise à niveau en **janvier 2027**, une fois les premiers retours publiés, avec la transaction du [runbook de reboot](homelab-reboot-runbook.md) : bundle régénéré depuis `master`, `--check`, `--prepare` avec `NABLA_REBOOT_RESUME_STOPPED_APPS="akvorado crowdsec dsomm n8n"` (Apps `planned` à relancer), mise à niveau, puis `--post-reboot-check`, `--resume` et `--verify`. Avant : relire les [notes de version 27](https://www.truenas.com/docs/scale/27/gettingstarted/versionnotes/) et les reboots bloqués après un échec du script de mise à niveau signalés sur le forum. Ne pas lancer `zpool upgrade` (le flag `dynamic_gang_header` empêche le retour arrière en lecture seule) et garder l'environnement de boot précédent. **Clôture** : 27.0 installée, transaction `VERIFIED`, contrôles post-upgrade du P0 TrueNAS 27 passés.
+
 ## P1 — Avant TrueNAS 28 : sortir de `auth.login_with_api_key`
 
 `auth.login_with_api_key` est déprécié en 27 et supprimé en 28. TrueNAS CSI `v1.0.3` (encore en `v1.3.0`), `@profanter-dev/truenas-mcp` `1.0.6` et portracker (ancien `/websocket`) l'utilisent : les migrer vers `auth.login_ex` (`API_KEY_PLAIN` ou SCRAM), puis rejouer provision/persistance/reclaim CSI. **Clôture** : aucun client sur l'ancienne méthode avant toute mise à niveau en 28. [Upgrade coupling](truenas-operator-tools.md#upgrade-coupling).

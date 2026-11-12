@@ -98,6 +98,22 @@ class HomelabRebootContractTests(unittest.TestCase):
             {"phase": "applications", "priority": 50},
         )
 
+    def test_openclaw_gateway_starts_after_its_external_networks(self) -> None:
+        topology = json.loads(STATIC_TOPOLOGY.read_text(encoding="utf-8"))
+        required = {
+            relation["target"]
+            for relation in topology["relations"]
+            if relation["source"] == "openclaw-gateway"
+            and relation["strength"] == "required"
+        }
+        self.assertEqual(required, {"litellm", "openclaw-devbox"})
+        app_ids = {
+            node["runtime"]["appId"]
+            for node in topology["nodes"]
+            if node.get("runtime", {}).get("provider") == "truenas-app"
+        }
+        self.assertLessEqual({"openclaw-gateway", "openclaw-devbox", "clamav"}, app_ids)
+
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
             REBOOT,

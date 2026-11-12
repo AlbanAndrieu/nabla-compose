@@ -345,7 +345,11 @@
       "securityFunctions": [
         "protect",
         "detect"
-      ]
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "clamav"
+      }
     },
     {
       "id": "clickhouse",
@@ -868,6 +872,18 @@
       }
     },
     {
+      "id": "freshrss",
+      "name": "FreshRSS",
+      "kind": "feed-reader",
+      "category": "productivity",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "TrueNAS catalog App with its own bundled PostgreSQL.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "freshrss"
+      }
+    },
+    {
       "id": "garage",
       "name": "Garage S3 API",
       "kind": "object-storage",
@@ -928,6 +944,18 @@
           "docker-proxy",
           "intranet"
         ]
+      }
+    },
+    {
+      "id": "glances",
+      "name": "Glances",
+      "kind": "host-monitor",
+      "category": "operations",
+      "sourcePath": "catalog/service-topology.static.json",
+      "description": "Standalone TrueNAS catalog App.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "glances"
       }
     },
     {
@@ -1142,6 +1170,18 @@
       }
     },
     {
+      "id": "it-tools",
+      "name": "IT Tools",
+      "kind": "web-tool",
+      "category": "productivity",
+      "sourcePath": "catalog/service-topology.static.json",
+      "description": "Standalone static TrueNAS catalog App.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "it-tools"
+      }
+    },
+    {
       "id": "jellyfin",
       "name": "Jellyfin",
       "kind": "media-server",
@@ -1248,6 +1288,18 @@
         "conditions": [
           "[STATUS] == 200"
         ]
+      }
+    },
+    {
+      "id": "karakeep",
+      "name": "Karakeep",
+      "kind": "bookmark-manager",
+      "category": "productivity",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "TrueNAS catalog App with its own bundled Meilisearch and Chrome.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "karakeep"
       }
     },
     {
@@ -1422,6 +1474,18 @@
         "containerService": "litellm"
       },
       "icon": "🧠"
+    },
+    {
+      "id": "localai",
+      "name": "LocalAI",
+      "kind": "inference-server",
+      "category": "ai",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Standalone TrueNAS catalog App; no other App points to it.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "localai"
+      }
     },
     {
       "id": "loki",
@@ -1769,13 +1833,57 @@
       }
     },
     {
+      "id": "open-speed-test",
+      "name": "OpenSpeedTest",
+      "kind": "web-tool",
+      "category": "network",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "Standalone TrueNAS catalog App.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "open-speed-test"
+      },
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 50
+      }
+    },
+    {
       "id": "open-terminal",
       "name": "Open Terminal",
       "kind": "tool-service",
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
       "description": "Optional agent terminal API consumed by Open WebUI tools.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "open-terminal"
+      },
       "icon": "⌨️"
+    },
+    {
+      "id": "openclaw-devbox",
+      "name": "OpenClaw Coder Devbox",
+      "kind": "development-environment",
+      "category": "ai",
+      "sourcePath": "apps/openclaw/deploy/truenas/devbox/compose.yml",
+      "description": "Declared here because the generator does not read the apps/openclaw submodule.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "openclaw-devbox"
+      }
+    },
+    {
+      "id": "openclaw-gateway",
+      "name": "OpenClaw Gateway",
+      "kind": "ai-agent-gateway",
+      "category": "ai",
+      "sourcePath": "apps/openclaw/deploy/truenas/compose.yml",
+      "description": "Declared here because the generator does not read the apps/openclaw submodule.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "openclaw-gateway"
+      }
     },
     {
       "id": "opencre",
@@ -2489,6 +2597,18 @@
       }
     },
     {
+      "id": "reactive-resume",
+      "name": "Reactive Resume",
+      "kind": "application",
+      "category": "productivity",
+      "sourcePath": "catalog/homelab-services.json",
+      "description": "TrueNAS catalog App with its own bundled PostgreSQL and the shared Redis.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "reactive-resume"
+      }
+    },
+    {
       "id": "recyclarr",
       "name": "Recyclarr",
       "kind": "config-sync",
@@ -2620,6 +2740,14 @@
       "category": "ai",
       "sourcePath": "apps/openwebui/compose.yml",
       "description": "Optional metasearch backend consumed by Open WebUI web-search tooling.",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 50
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "searxng"
+      },
       "icon": "🌐"
     },
     {
@@ -2971,6 +3099,22 @@
       "icon": "⏱️"
     },
     {
+      "id": "three-proxy",
+      "name": "3proxy",
+      "kind": "forward-proxy",
+      "category": "network",
+      "sourcePath": "catalog/service-topology.static.json",
+      "description": "Standalone TrueNAS catalog App (HTTP 30388, SOCKS 30389); no other App points to it.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "three-proxy"
+      },
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 50
+      }
+    },
+    {
       "id": "traefik",
       "name": "Traefik",
       "kind": "edge",
@@ -3150,6 +3294,18 @@
         "containerService": "wazuh.manager"
       },
       "icon": "🛡️"
+    },
+    {
+      "id": "zabbix",
+      "name": "Zabbix",
+      "kind": "monitoring",
+      "category": "observability",
+      "sourcePath": "catalog/service-topology.static.json",
+      "description": "TrueNAS catalog App with its own bundled PostgreSQL.",
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "zabbix"
+      }
     }
   ],
   "relations": [
@@ -5053,6 +5209,47 @@
       ]
     },
     {
+      "source": "openclaw-gateway",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "The Gateway calls LiteLLM and joins its external network ix-litellm_default, so it cannot start before LiteLLM.",
+      "evidence": [
+        "apps/openclaw/deploy/truenas/compose.yml:networks.litellm",
+        "apps/openclaw/deploy/truenas/openclaw.json:models.providers"
+      ]
+    },
+    {
+      "source": "openclaw-gateway",
+      "target": "n8n",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Gateway skills trigger n8n workflows.",
+      "evidence": [
+        "truenas:openclaw-gateway:N8N_BASE_URL"
+      ]
+    },
+    {
+      "source": "openclaw-gateway",
+      "target": "openclaw-devbox",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "The Gateway joins the external network openclaw-devbox created by the devbox App.",
+      "evidence": [
+        "apps/openclaw/deploy/truenas/compose.yml:networks.devbox"
+      ]
+    },
+    {
+      "source": "openclaw-gateway",
+      "target": "searxng",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Gateway web search uses SearXNG and falls back to another backend (WEB_SEARCH_BACKEND=auto).",
+      "evidence": [
+        "truenas:openclaw-gateway:SEARXNG_BASE_URL"
+      ]
+    },
+    {
       "source": "opencre",
       "target": "docker",
       "type": "hostedBy",
@@ -5788,6 +5985,16 @@
       "description": "The exporter reads the Radarr API with the instance API key.",
       "evidence": [
         "apps/radarr/compose.yml:URL=http://radarr:7878"
+      ]
+    },
+    {
+      "source": "reactive-resume",
+      "target": "redis",
+      "type": "dependsOn",
+      "strength": "required",
+      "description": "Reactive Resume uses the shared Redis App at 172.17.0.24:30059.",
+      "evidence": [
+        "truenas:ix-reactive-resume-reactive-resume-1:REDIS_URL"
       ]
     },
     {

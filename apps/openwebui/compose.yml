@@ -7,11 +7,21 @@ x-nabla:
       kind: search
       category: ai
       description: Optional metasearch backend consumed by Open WebUI web-search tooling.
+      runtime:
+        provider: truenas-app
+        appId: searxng
+      # Without it, kind "search" falls back to secondary-data, which blocks later waves.
+      lifecycle:
+        phase: applications
+        priority: 50
     - id: open-terminal
       name: Open Terminal
       kind: tool-service
       category: ai
       description: Optional agent terminal API consumed by Open WebUI tools.
+      runtime:
+        provider: truenas-app
+        appId: open-terminal
   # v1 topology compatibility projection only. The v2 desired-exposure
   # authority is services.openwebui.x-nabla.exposure below; remove this edge
   # with the one-shot v1 topology cutover.
