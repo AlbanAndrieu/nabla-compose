@@ -21,6 +21,11 @@ def _boards(*boards: dict) -> dict:
     return {"version": 1, "boards": list(boards)}
 
 
+def _board_items(*items: dict) -> dict:
+    """tRPC board.getBoardByName response, reduced to its items."""
+    return {"result": {"data": {"json": {"items": list(items)}}}}
+
+
 def _reconcile(definitions: object, request_json: Mock, state: dict[str, str], *, dry_run: bool = False):
     with (
         patch.object(homarr_sync, "BOARD_SYNC_ENABLED", True),
@@ -118,7 +123,7 @@ class HomarrSyncTests(unittest.TestCase):
         request_json = Mock(side_effect=[
             [],
             {"boardId": "board-nabla"},
-            [],
+            _board_items(),
             {"itemId": "item-grafana"},
             {"itemId": "item-pfsense"},
         ])
@@ -136,7 +141,7 @@ class HomarrSyncTests(unittest.TestCase):
             [
                 call("GET", "/api/boards"),
                 call("POST", "/api/boards", {"name": "Nabla", "columnCount": 12, "isPublic": False}),
-                call("GET", "/api/boards/board-nabla/items"),
+                call("GET", "/api/trpc/board.getBoardByName?input=%7B%22json%22%3A%20%7B%22name%22%3A%20%22Nabla%22%7D%7D"),
                 call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-grafana"}}),
                 call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-pfsense"}}),
             ],
@@ -148,7 +153,7 @@ class HomarrSyncTests(unittest.TestCase):
         request_json = Mock(side_effect=[
             [{"id": "user-board", "name": "Personal"}],
             {"boardId": "board-infra"},
-            [],
+            _board_items(),
             {"itemId": "item-pfsense"},
         ])
 
@@ -169,7 +174,7 @@ class HomarrSyncTests(unittest.TestCase):
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
         request_json = Mock(side_effect=[
             [{"id": "board-nabla", "name": "Nabla"}],
-            [{"options": {"appId": "homarr-grafana"}}, {"options": {"appId": "homarr-pfsense"}}],
+            _board_items({"options": {"appId": "homarr-grafana"}}, {"options": {"appId": "homarr-pfsense"}}),
         ])
 
         created, added = _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, state)
@@ -184,7 +189,7 @@ class HomarrSyncTests(unittest.TestCase):
             _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, {})
 
     def test_reconcile_board_rejects_unknown_applications(self) -> None:
-        request_json = Mock(side_effect=[[{"id": "board-sec", "name": "Security"}], []])
+        request_json = Mock(side_effect=[[{"id": "board-sec", "name": "Security"}], _board_items()])
 
         with self.assertRaisesRegex(ValueError, "unknown or ineligible application crowdsec"):
             _reconcile(_boards({"name": "Security", "applications": ["crowdsec"]}), request_json, {})

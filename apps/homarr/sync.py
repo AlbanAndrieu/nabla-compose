@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 BASE_URL = os.getenv("HOMARR_BASE_URL", "http://homarr:7575").rstrip("/")
@@ -194,8 +195,11 @@ def reconcile_board(
                 raise RuntimeError(f"missing boardId for {name}")
             board_id = str(result["boardId"])
             created = True
-        # Read remote membership; refuse writes if endpoint is absent rather than duplicate items.
-        items = request_json("GET", f"/api/boards/{board_id}/items")
+        # Read remote membership; refuse writes if it is unreadable rather than duplicate items.
+        # Homarr v2.6 dropped GET /api/boards/{id}/items; its UI reads items through tRPC.
+        query = quote(json.dumps({"json": {"name": name}}))
+        board = request_json("GET", f"/api/trpc/board.getBoardByName?input={query}")
+        items = board.get("result", {}).get("data", {}).get("json", {}).get("items") if isinstance(board, dict) else None
         if not isinstance(items, list):
             raise RuntimeError("board items endpoint must return an array")
         existing_ids = {
