@@ -83,6 +83,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: loki
+      # Loki and Mimir hold CrowdSec logs and Prometheus remote_write: the App starts with the data layer.
+      lifecycle:
+        phase: secondary-data
+        priority: 30
       monitoring:
         type: http
         target: http://172.17.0.24:3100/ready

@@ -245,7 +245,6 @@ catalog_native:
   - databasus
   - docker-socket-proxy
   - domain-watchdog
-  - elastic-search
   - emby
   - freshrss
   - glances

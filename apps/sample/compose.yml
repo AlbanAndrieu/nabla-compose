@@ -35,6 +35,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: fastapi-sample
+      # Display only, nothing requires it: its probes then see every other App up.
+      lifecycle:
+        phase: applications
+        priority: 90
       exposure:
         - name: staging-public
           hostnames:
@@ -130,9 +134,7 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_USER: fastapisample
       POSTGRES_DB: fastapisample
-      # shortcut: the shared server still runs ssl=off (10/11), so verify-full
-      # cannot connect; restore verify-full with the TLS 1.3 roadmap item.
-      POSTGRES_QUERY: sslmode=prefer&sslrootcert=/etc/nabla/pki/postgres-ca.crt
+      POSTGRES_QUERY: sslmode=verify-full&sslrootcert=/etc/nabla/pki/postgres-ca.crt
 
     volumes:
       - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/etc/nabla/pki/postgres-ca.crt:ro

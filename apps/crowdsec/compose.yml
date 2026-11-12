@@ -35,6 +35,12 @@ services:
       runtime:
         provider: truenas-app
         containerService: crowdsec
+      # pfSense uses the LAPI: start right after Loki, next to Wazuh.
+      lifecycle:
+        phase: platform-services
+        priority: 30
+        # No App requires CrowdSec: its failure must not keep later waves down.
+        blocksLaterWaves: false
       relations:
         - target: pfsense
           type: providesApi

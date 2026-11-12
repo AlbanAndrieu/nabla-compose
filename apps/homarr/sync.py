@@ -37,6 +37,9 @@ BOARD_SYNC_ENABLED = os.getenv("HOMARR_BOARD_ENABLED", "true").lower() in {
 ASSISTANT_API_KEY = os.getenv("HOMARR_ASSISTANT_API_KEY", "").strip()
 ASSISTANT_BASE_URL = os.getenv("HOMARR_ASSISTANT_BASE_URL", "http://172.17.0.24:4000/v1")
 ASSISTANT_MODEL = os.getenv("HOMARR_ASSISTANT_MODEL", "qwen")
+MOBILE_COLUMNS = 3
+WIDGET_WIDTH = 3
+WIDGET_HEIGHT = 2
 
 
 class AuthRejected(RuntimeError):
@@ -111,8 +114,8 @@ def desired_payload(item: dict[str, Any]) -> dict[str, Any]:
         "description": str(description)[:512] if description else None,
         "iconUrl": icon,
         "href": str(item["href"]),
-        # Homarr v2.6 requires the key again (URL, "" or null); null keeps pings off.
-        "pingUrl": None,
+        # Homarr v2.6 requires the key (URL, "" or null): pinging the app URL shows its status.
+        "pingUrl": str(item["href"]),
     }
 
 
@@ -142,21 +145,86 @@ def find_existing(
 
 
 def differs(existing: dict[str, Any], desired: dict[str, Any]) -> bool:
-    for key in ("name", "description", "iconUrl", "href"):
+    for key in ("name", "description", "iconUrl", "href", "pingUrl"):
         if existing.get(key) != desired.get(key):
             return True
     return False
+
+
+def board_content(
+    board_id: str,
+    columns: int,
+    widgets: list[dict[str, Any]],
+    groups: dict[str, list[str]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Lay out the widgets, then one titled section per group of Homarr app ids."""
+    layouts = [
+        {"id": f"{board_id}-base", "name": "Base", "columnCount": columns, "breakpoint": 768, "role": "base"},
+        {"id": f"{board_id}-mobile", "name": "Mobile", "columnCount": MOBILE_COLUMNS, "breakpoint": 0, "role": "mobile"},
+    ]
+    root = f"{board_id}-root"
+    sections: list[dict[str, Any]] = [{"id": root, "kind": "empty", "xOffset": 0, "yOffset": 0}]
+    items: list[dict[str, Any]] = []
+    next_row: dict[str, int] = {}
+    for layout in layouts:
+        per_row = max(layout["columnCount"] // WIDGET_WIDTH, 1)
+        next_row[layout["id"]] = -(-len(widgets) // per_row) * WIDGET_HEIGHT
+    for index, widget in enumerate(widgets):
+        placements = []
+        for layout in layouts:
+            per_row = max(layout["columnCount"] // WIDGET_WIDTH, 1)
+            placements.append({
+                "layoutId": layout["id"], "sectionId": root,
+                "xOffset": index % per_row * WIDGET_WIDTH, "yOffset": index // per_row * WIDGET_HEIGHT,
+                "width": min(WIDGET_WIDTH, layout["columnCount"]), "height": WIDGET_HEIGHT,
+            })
+        items.append({
+            "id": f"{board_id}-widget-{index}", "kind": str(widget["kind"]),
+            "options": dict(widget.get("options", {})),
+            "integrationIds": [], "advancedOptions": {}, "layouts": placements,
+        })
+    for group, app_ids in sorted(groups.items()):
+        section = f"{board_id}-group-{group}"
+        section_layouts = []
+        for layout in layouts:
+            # One extra row holds the section title.
+            height = -(-len(app_ids) // layout["columnCount"]) + 1
+            section_layouts.append({
+                "layoutId": layout["id"], "parentSectionId": root, "xOffset": 0,
+                "yOffset": next_row[layout["id"]], "width": layout["columnCount"], "height": height,
+            })
+            next_row[layout["id"]] += height
+        sections.append({
+            "id": section, "kind": "container", "collapsed": False,
+            "options": {"title": group.capitalize()}, "layouts": section_layouts,
+        })
+        for index, app_id in enumerate(app_ids):
+            items.append({
+                "id": f"{section}-{app_id}", "kind": "app",
+                "options": {"appId": app_id, "openInNewTab": True, "showTitle": True},
+                "integrationIds": [], "advancedOptions": {},
+                "layouts": [
+                    {
+                        "layoutId": layout["id"], "sectionId": section,
+                        "xOffset": index % layout["columnCount"], "yOffset": index // layout["columnCount"],
+                        "width": 1, "height": 1,
+                    }
+                    for layout in layouts
+                ],
+            })
+    return layouts, {"sections": sections, "items": items}
 
 
 def reconcile_board(
     state: dict[str, str],
     desired_items: list[dict[str, Any]],
 ) -> tuple[bool, int]:
-    """Converge the boards declared in boards.json; code owns them.
+    """Write the boards declared in boards.json in full; code owns them.
 
-    Boards are matched by name without persisted mapping state: a declared
-    board that is missing (never created or deleted by hand) is created again,
-    and missing application items are added. Nothing is ever deleted.
+    Boards are matched by name: a missing board is created, then its layouts
+    and whole content (widgets, one section per application group) are
+    replaced, so manual edits to these boards do not survive a sync. Other
+    boards are never touched.
     """
     if not BOARD_SYNC_ENABLED:
         return False, 0
@@ -170,21 +238,33 @@ def reconcile_board(
     if not isinstance(remote, list):
         raise RuntimeError("Homarr /api/boards response is not an array")
     created = False
-    added = 0
+    written = 0
     eligible = {str(item["id"]): item for item in desired_items}
     for config in boards_config:
         if not isinstance(config, dict):
             raise ValueError("Invalid board configuration")
         name = str(config["name"])
+        selected = config.get("applications", [])
+        if selected == "*":
+            selected = sorted(eligible)
+        if not isinstance(selected, list):
+            raise ValueError(f"invalid applications for board {name}")
+        selected = list(dict.fromkeys(str(nabla_id) for nabla_id in selected))
+        for nabla_id in selected:
+            if nabla_id not in eligible:
+                raise ValueError(f"unknown or ineligible application {nabla_id}")
+        widgets = config.get("widgets", [])
+        if not isinstance(widgets, list) or not all(isinstance(w, dict) and w.get("kind") for w in widgets):
+            raise ValueError(f"invalid widgets for board {name}")
         matches = [b for b in remote if isinstance(b, dict) and b.get("name") == name]
         if len(matches) > 1:
             raise RuntimeError(f"ambiguous board name: {name}")
+        if DRY_RUN:
+            log(f"would write board {name}: {len(selected)} applications, {len(widgets)} widgets")
+            continue
         if matches:
-            board_id = str(matches[0]["id"])
+            board = matches[0]
         else:
-            if DRY_RUN:
-                log(f"would create board {name}")
-                continue
             result = request_json("POST", "/api/boards", {
                 "name": name,
                 "columnCount": int(config.get("columns", 12)),
@@ -192,40 +272,24 @@ def reconcile_board(
             })
             if not isinstance(result, dict) or not result.get("boardId"):
                 raise RuntimeError(f"missing boardId for {name}")
-            board_id = str(result["boardId"])
+            board = {"id": result["boardId"]}
             created = True
-        # Read remote membership; refuse writes if endpoint is absent rather than duplicate items.
-        items = request_json("GET", f"/api/boards/{board_id}/items")
-        if not isinstance(items, list):
-            raise RuntimeError("board items endpoint must return an array")
-        existing_ids = {
-            str(i.get("options", {}).get("appId"))
-            for i in items if isinstance(i, dict) and isinstance(i.get("options"), dict)
-        }
-        selected = config.get("applications", [])
-        if selected == "*":
-            selected = sorted(eligible)
-        if not isinstance(selected, list):
-            raise ValueError(f"invalid applications for board {name}")
+        board_id = str(board["id"])
+        groups: dict[str, list[str]] = {}
         for nabla_id in selected:
-            nabla_id = str(nabla_id)
-            if nabla_id not in eligible:
-                raise ValueError(f"unknown or ineligible application {nabla_id}")
-            app_id = state.get(nabla_id)
-            if not app_id or app_id in existing_ids:
-                continue
-            if DRY_RUN:
-                log(f"would add {nabla_id} to {name}")
-                continue
-            result = request_json("POST", "/api/boards/items", {
-                "boardId": board_id, "kind": "app",
-                "options": {"appId": app_id}, "integrationIds": [],
-            })
-            if not isinstance(result, dict) or not result.get("itemId"):
-                raise RuntimeError(f"missing itemId for {nabla_id}")
-            existing_ids.add(app_id)
-            added += 1
-    return created, added
+            if state.get(nabla_id):
+                group = str(eligible[nabla_id].get("group") or "other")
+                groups.setdefault(group, []).append(state[nabla_id])
+        layouts, content = board_content(board_id, int(config.get("columns", 12)), widgets, groups)
+        # Content refers to these layout ids; both PUTs replace what the board held.
+        request_json("PUT", f"/api/boards/{board_id}/layouts", {"layouts": layouts})
+        request_json("PUT", f"/api/boards/{board_id}/content", content)
+        written += len(content["items"])
+        if config.get("home") is True:
+            for flag, path in (("isHome", "home"), ("isMobileHome", "mobile-home")):
+                if not board.get(flag):
+                    request_json("PATCH", f"/api/boards/{board_id}/{path}")
+    return created, written
 
 
 def reconcile_assistant() -> str:
@@ -306,12 +370,11 @@ def main() -> int:
         if DRY_RUN:
             log(f"would update {nabla_id} / {homarr_id}")
             continue
-        # Keep a ping URL set by hand in the Homarr UI.
-        request_json("PATCH", f"/api/apps/{homarr_id}", {**payload, "pingUrl": existing.get("pingUrl")})
+        request_json("PATCH", f"/api/apps/{homarr_id}", payload)
         updated += 1
         log(f"updated {nabla_id} / {homarr_id}")
 
-    board_created, board_items_added = reconcile_board(state, desired_items)
+    board_created, board_items = reconcile_board(state, desired_items)
     try:
         assistant = reconcile_assistant()
     except RuntimeError as exc:
@@ -322,9 +385,9 @@ def main() -> int:
     log(
         f"reconciliation complete: desired={len(desired_items)} created={created} "
         f"updated={updated} unchanged={unchanged} board_created={board_created} "
-        f"board_items_added={board_items_added} assistant={assistant} dry_run={DRY_RUN}"
+        f"board_items={board_items} assistant={assistant} dry_run={DRY_RUN}"
     )
-    log("no Homarr applications, boards or board items were deleted")
+    log("no Homarr applications or boards were deleted; code-managed board content was replaced")
     return 0
 
 

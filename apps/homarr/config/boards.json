@@ -5,28 +5,34 @@
       "name": "Nabla",
       "columns": 12,
       "public": false,
-      "applications": "*"
+      "home": true,
+      "applications": "*",
+      "widgets": [
+        {
+          "kind": "clock",
+          "options": {}
+        },
+        {
+          "kind": "weather",
+          "options": {
+            "showCity": true,
+            "hasForecast": true,
+            "forecastDayCount": 3
+          }
+        }
+      ]
     },
     {
       "name": "Infrastructure",
       "columns": 12,
       "public": false,
-      "applications": [
-        "truenas",
-        "pfsense",
-        "traefik",
-        "grafana"
-      ]
+      "applications": ["truenas", "pfsense", "traefik", "grafana"]
     },
     {
       "name": "Security",
       "columns": 12,
       "public": false,
-      "applications": [
-        "crowdsec",
-        "defectdojo",
-        "sentry"
-      ]
+      "applications": ["defectdojo", "sentry-edge"]
     }
   ]
 }

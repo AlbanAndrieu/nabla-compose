@@ -417,6 +417,11 @@
         "detect",
         "respond"
       ],
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 30,
+        "blocksLaterWaves": false
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "crowdsec"
@@ -486,6 +491,10 @@
         "detect",
         "respond"
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "defectdojo",
@@ -785,6 +794,10 @@
         "govern",
         "identify"
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "dsomm",
@@ -854,6 +867,10 @@
           "cloudflareTunnel": true
         }
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "fastapi-sample",
@@ -1100,6 +1117,10 @@
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
       "presentationRole": "support",
       "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "homarr",
@@ -1493,6 +1514,10 @@
       "kind": "log-store",
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "loki"
@@ -1696,6 +1721,10 @@
       "description": "Repository manager for development artifacts and package proxies.",
       "presentationRole": "service",
       "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "nexus",
@@ -4970,6 +4999,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/n8n/compose.yml:n8n.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "n8n",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "required",
+      "description": "n8n AI workflows call LiteLLM through credentials stored in the n8n database.",
+      "evidence": [
+        "operator:2026-11-12:n8n credentials target LiteLLM"
       ]
     },
     {

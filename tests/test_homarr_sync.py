@@ -63,8 +63,8 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertEqual(payload["href"], "https://pfsense.example.test")
         self.assertEqual(payload["description"], "Firewall")
         self.assertEqual(payload["iconUrl"], homarr_sync.DEFAULT_ICON)
-        # Homarr v2.6 rejects a create or edit without the pingUrl key.
-        self.assertIsNone(payload["pingUrl"])
+        # Homarr v2.6 rejects a create or edit without the pingUrl key; the app URL drives its status.
+        self.assertEqual(payload["pingUrl"], "https://pfsense.example.test")
 
     def test_main_creates_and_updates_without_deleting(self) -> None:
         manifest = {
@@ -106,40 +106,36 @@ class HomarrSyncTests(unittest.TestCase):
             [
                 call("PATCH", "/api/apps/homarr-grafana",
                      {"name": "Grafana", **payload, "href": "https://grafana.example.test",
-                      "pingUrl": "https://grafana.example.test/api/health"}),
+                      "pingUrl": "https://grafana.example.test"}),
                 call("POST", "/api/apps",
-                     {"name": "pfSense", **payload, "href": "https://pfsense.example.test", "pingUrl": None}),
+                     {"name": "pfSense", **payload, "href": "https://pfsense.example.test",
+                      "pingUrl": "https://pfsense.example.test"}),
             ],
         )
         self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
 
-    def test_reconcile_board_creates_and_populates_from_remote_membership(self) -> None:
+    def test_reconcile_board_creates_and_writes_a_new_board(self) -> None:
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
-        request_json = Mock(side_effect=[
-            [],
-            {"boardId": "board-nabla"},
-            [],
-            {"itemId": "item-grafana"},
-            {"itemId": "item-pfsense"},
-        ])
+        request_json = Mock(side_effect=[[], {"boardId": "board-nabla"}, None, None])
 
-        created, added = _reconcile(
+        created, written = _reconcile(
             _boards({"name": "Nabla", "columns": 12, "public": False, "applications": "*"}),
             request_json, state,
         )
 
-        self.assertTrue(created)
-        self.assertEqual(added, 2)
-        item = {"boardId": "board-nabla", "kind": "app", "integrationIds": []}
+        self.assertEqual((created, written), (True, 2))
+        calls = request_json.call_args_list
+        self.assertEqual(calls[:2], [
+            call("GET", "/api/boards"),
+            call("POST", "/api/boards", {"name": "Nabla", "columnCount": 12, "isPublic": False}),
+        ])
+        self.assertEqual([args[:2] for args, _ in calls[2:]], [
+            ("PUT", "/api/boards/board-nabla/layouts"),
+            ("PUT", "/api/boards/board-nabla/content"),
+        ])
+        content = calls[3].args[2]
         self.assertEqual(
-            request_json.call_args_list,
-            [
-                call("GET", "/api/boards"),
-                call("POST", "/api/boards", {"name": "Nabla", "columnCount": 12, "isPublic": False}),
-                call("GET", "/api/boards/board-nabla/items"),
-                call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-grafana"}}),
-                call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-pfsense"}}),
-            ],
+            [item["options"]["appId"] for item in content["items"]], ["homarr-grafana", "homarr-pfsense"]
         )
 
     def test_code_managed_board_is_recreated_after_manual_deletion(self) -> None:
@@ -148,8 +144,8 @@ class HomarrSyncTests(unittest.TestCase):
         request_json = Mock(side_effect=[
             [{"id": "user-board", "name": "Personal"}],
             {"boardId": "board-infra"},
-            [],
-            {"itemId": "item-pfsense"},
+            None,
+            None,
         ])
 
         created, added = _reconcile(
@@ -165,17 +161,42 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertFalse(any("user-board" in str(args) for args, _ in request_json.call_args_list[1:]))
         self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
 
-    def test_reconcile_board_is_idempotent_against_existing_items(self) -> None:
+    def test_existing_board_content_is_replaced_and_made_home(self) -> None:
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
         request_json = Mock(side_effect=[
-            [{"id": "board-nabla", "name": "Nabla"}],
-            [{"options": {"appId": "homarr-grafana"}}, {"options": {"appId": "homarr-pfsense"}}],
+            [{"id": "board-nabla", "name": "Nabla", "isHome": False, "isMobileHome": True}],
+            None,
+            None,
+            None,
         ])
 
-        created, added = _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, state)
+        created, written = _reconcile(
+            _boards({"name": "Nabla", "applications": "*", "home": True}), request_json, state,
+        )
 
-        self.assertEqual((created, added), (False, 0))
-        self.assertFalse(any(args[0] in {"POST", "DELETE"} for args, _ in request_json.call_args_list))
+        self.assertEqual((created, written), (False, 2))
+        self.assertEqual([args[:2] for args, _ in request_json.call_args_list], [
+            ("GET", "/api/boards"),
+            ("PUT", "/api/boards/board-nabla/layouts"),
+            ("PUT", "/api/boards/board-nabla/content"),
+            ("PATCH", "/api/boards/board-nabla/home"),
+        ])
+
+    def test_board_content_places_widgets_before_group_sections(self) -> None:
+        layouts, content = homarr_sync.board_content(
+            "b", 12, [{"kind": "clock"}, {"kind": "weather", "options": {"showCity": True}}],
+            {"network": ["a1", "a2"], "ai": ["a3"]},
+        )
+
+        self.assertEqual([layout["id"] for layout in layouts], ["b-base", "b-mobile"])
+        sections = {section["id"]: section for section in content["sections"]}
+        self.assertEqual(list(sections), ["b-root", "b-group-ai", "b-group-network"])
+        # Base: both widgets fit one row of height 2; mobile stacks them (4 rows).
+        self.assertEqual([s["yOffset"] for s in sections["b-group-ai"]["layouts"]], [2, 4])
+        self.assertEqual([s["yOffset"] for s in sections["b-group-network"]["layouts"]], [4, 6])
+        a2 = next(item for item in content["items"] if item["options"].get("appId") == "a2")
+        self.assertEqual({(p["sectionId"], p["xOffset"], p["yOffset"]) for p in a2["layouts"]},
+                         {("b-group-network", 1, 0)})
 
     def test_reconcile_board_refuses_ambiguous_board_names(self) -> None:
         request_json = Mock(return_value=[{"id": "a", "name": "Nabla"}, {"id": "b", "name": "Nabla"}])
@@ -205,6 +226,14 @@ class HomarrSyncTests(unittest.TestCase):
         definitions = homarr_sync.load_json(MODULE_PATH.parent / "config" / "boards.json", {})
         self.assertEqual(definitions["version"], 1)
         self.assertTrue(all(board["name"] for board in definitions["boards"]))
+        manifest = homarr_sync.load_json(MODULE_PATH.parent / "generated" / "apps.json", {})
+        eligible = {
+            item["id"] for item in manifest["applications"] if item.get("syncEligible") is True and item.get("href")
+        }
+        for board in definitions["boards"]:
+            if board["applications"] != "*":
+                # An ineligible id makes homarr-sync exit 1 and the TrueNAS App CRASHED.
+                self.assertLessEqual(set(board["applications"]), eligible, board["name"])
 
 
 if __name__ == "__main__":

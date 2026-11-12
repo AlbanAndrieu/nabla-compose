@@ -25,6 +25,12 @@ services:
           description: n8n is configured with Redis credentials for queue-backed execution.
           evidence:
             - apps/n8n/compose.yml:N8N_REDIS_PASSWORD
+        - target: litellm
+          type: consumesApi
+          strength: required
+          description: n8n AI workflows call LiteLLM through credentials stored in the n8n database.
+          evidence:
+            - operator:2026-11-12:n8n credentials target LiteLLM
         - target: traefik
           type: exposedBy
           strength: optional

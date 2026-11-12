@@ -7,9 +7,9 @@ authentication, separately from these Plumber clients.
 
 Both `plumber-api` and `plumber-worker` now use:
 
-- `JOBS_DB_SSLMODE=prefer`, a shortcut approved on 11/11/2026 like FastAPI
-  Sample: the shared server still runs `ssl=off`, so `verify-full` cannot
-  connect. Restore `verify-full` with the TLS 1.3 roadmap item;
+- `JOBS_DB_SSLMODE=verify-full`: since 12/11/2026 the shared server runs
+  TLS 1.3 with a certificate from the local CA
+  (`scripts/truenas/enable-postgres-tls.sh`);
 - `PGSSLROOTCERT=/etc/nabla/pki/postgres-ca.crt` for libpq/pgx-compatible
   clients, with a read-only PEM CA mount from
   `/mnt/cpool/secrets/runtime/postgres/tls/ca.crt`;
@@ -20,11 +20,11 @@ Both `plumber-api` and `plumber-worker` now use:
 - images pinned by digest (`backend:v2.44.1`, `frontend:v2.37.3`), updated
   by Renovate.
 
-**Certificate name verification (once TLS is on):** the server certificate
-must include the exact `JOBS_DB_HOST` as a DNS or IP SAN, or change that
-host to a name covered by its SAN. Never set `sslmode=disable`; `prefer`
-is only the temporary shortcut above. A CA file is public and is not a
-server private key.
+**Certificate name verification:** the server certificate covers
+`172.17.0.24`, `postgres` and `postgres.int.albandrieu.com`; another
+`JOBS_DB_HOST` must be a DNS or IP SAN of that certificate. Never set
+`sslmode=disable` or `prefer`. A CA file is public and is not a server
+private key.
 
 **Runtime check required:** the exact Plumber backend PostgreSQL
 driver/DSN construction has not yet been exercised. Verify that
