@@ -49,7 +49,7 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertIsNotNone(existing)
         self.assertEqual(existing["id"], "mapped")
 
-    def test_desired_payload_uses_safe_default_icon_without_ping_url(self) -> None:
+    def test_desired_payload_uses_safe_default_icon_and_null_ping_url(self) -> None:
         item = {
             "name": "pfSense",
             "href": "https://pfsense.example.test",
@@ -63,8 +63,9 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertEqual(payload["href"], "https://pfsense.example.test")
         self.assertEqual(payload["description"], "Firewall")
         self.assertEqual(payload["iconUrl"], homarr_sync.DEFAULT_ICON)
-        # Homarr v2 dropped pingUrl from the app payload.
-        self.assertNotIn("pingUrl", payload)
+        # Homarr v2.6 requires the key on create; null means no ping.
+        self.assertIn("pingUrl", payload)
+        self.assertIsNone(payload["pingUrl"])
 
     def test_main_creates_and_updates_without_deleting(self) -> None:
         manifest = {
@@ -99,7 +100,7 @@ class HomarrSyncTests(unittest.TestCase):
             result = homarr_sync.main()
 
         self.assertEqual(result, 0)
-        payload = {"description": None, "iconUrl": homarr_sync.DEFAULT_ICON}
+        payload = {"description": None, "iconUrl": homarr_sync.DEFAULT_ICON, "pingUrl": None}
         self.assertEqual(
             request_json.call_args_list,
             [

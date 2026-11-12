@@ -110,6 +110,8 @@ def desired_payload(item: dict[str, Any]) -> dict[str, Any]:
         "description": str(description)[:512] if description else None,
         "iconUrl": icon,
         "href": str(item["href"]),
+        # Homarr v2.6 rejects a missing pingUrl (400); null keeps "no ping".
+        "pingUrl": None,
     }
 
 
