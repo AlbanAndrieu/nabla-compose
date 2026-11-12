@@ -113,12 +113,11 @@ class HomarrSyncTests(unittest.TestCase):
         )
         self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
 
-    def test_reconcile_board_creates_and_populates_from_remote_membership(self) -> None:
+    def test_reconcile_board_creates_and_populates_a_new_board(self) -> None:
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
         request_json = Mock(side_effect=[
             [],
             {"boardId": "board-nabla"},
-            [],
             {"itemId": "item-grafana"},
             {"itemId": "item-pfsense"},
         ])
@@ -136,7 +135,6 @@ class HomarrSyncTests(unittest.TestCase):
             [
                 call("GET", "/api/boards"),
                 call("POST", "/api/boards", {"name": "Nabla", "columnCount": 12, "isPublic": False}),
-                call("GET", "/api/boards/board-nabla/items"),
                 call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-grafana"}}),
                 call("POST", "/api/boards/items", {**item, "options": {"appId": "homarr-pfsense"}}),
             ],
@@ -148,7 +146,6 @@ class HomarrSyncTests(unittest.TestCase):
         request_json = Mock(side_effect=[
             [{"id": "user-board", "name": "Personal"}],
             {"boardId": "board-infra"},
-            [],
             {"itemId": "item-pfsense"},
         ])
 
@@ -165,17 +162,15 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertFalse(any("user-board" in str(args) for args, _ in request_json.call_args_list[1:]))
         self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))
 
-    def test_reconcile_board_is_idempotent_against_existing_items(self) -> None:
+    def test_existing_board_is_left_untouched(self) -> None:
+        # Homarr v2.6 cannot list board items over REST: writing could duplicate them.
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
-        request_json = Mock(side_effect=[
-            [{"id": "board-nabla", "name": "Nabla"}],
-            [{"options": {"appId": "homarr-grafana"}}, {"options": {"appId": "homarr-pfsense"}}],
-        ])
+        request_json = Mock(return_value=[{"id": "board-nabla", "name": "Nabla"}])
 
         created, added = _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, state)
 
         self.assertEqual((created, added), (False, 0))
-        self.assertFalse(any(args[0] in {"POST", "DELETE"} for args, _ in request_json.call_args_list))
+        request_json.assert_called_once_with("GET", "/api/boards")
 
     def test_reconcile_board_refuses_ambiguous_board_names(self) -> None:
         request_json = Mock(return_value=[{"id": "a", "name": "Nabla"}, {"id": "b", "name": "Nabla"}])

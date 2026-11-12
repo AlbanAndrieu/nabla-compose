@@ -155,8 +155,8 @@ def reconcile_board(
     """Converge the boards declared in boards.json; code owns them.
 
     Boards are matched by name without persisted mapping state: a declared
-    board that is missing (never created or deleted by hand) is created again,
-    and missing application items are added. Nothing is ever deleted.
+    board that is missing (never created or deleted by hand) is created again
+    with its application items. Nothing is ever deleted.
     """
     if not BOARD_SYNC_ENABLED:
         return False, 0
@@ -176,46 +176,37 @@ def reconcile_board(
         if not isinstance(config, dict):
             raise ValueError("Invalid board configuration")
         name = str(config["name"])
-        matches = [b for b in remote if isinstance(b, dict) and b.get("name") == name]
-        if len(matches) > 1:
-            raise RuntimeError(f"ambiguous board name: {name}")
-        if matches:
-            board_id = str(matches[0]["id"])
-        else:
-            if DRY_RUN:
-                log(f"would create board {name}")
-                continue
-            result = request_json("POST", "/api/boards", {
-                "name": name,
-                "columnCount": int(config.get("columns", 12)),
-                "isPublic": bool(config.get("public", False)),
-            })
-            if not isinstance(result, dict) or not result.get("boardId"):
-                raise RuntimeError(f"missing boardId for {name}")
-            board_id = str(result["boardId"])
-            created = True
-        # Read remote membership; refuse writes if endpoint is absent rather than duplicate items.
-        items = request_json("GET", f"/api/boards/{board_id}/items")
-        if not isinstance(items, list):
-            raise RuntimeError("board items endpoint must return an array")
-        existing_ids = {
-            str(i.get("options", {}).get("appId"))
-            for i in items if isinstance(i, dict) and isinstance(i.get("options"), dict)
-        }
         selected = config.get("applications", [])
         if selected == "*":
             selected = sorted(eligible)
         if not isinstance(selected, list):
             raise ValueError(f"invalid applications for board {name}")
+        selected = list(dict.fromkeys(str(nabla_id) for nabla_id in selected))
         for nabla_id in selected:
-            nabla_id = str(nabla_id)
             if nabla_id not in eligible:
                 raise ValueError(f"unknown or ineligible application {nabla_id}")
+        matches = [b for b in remote if isinstance(b, dict) and b.get("name") == name]
+        if len(matches) > 1:
+            raise RuntimeError(f"ambiguous board name: {name}")
+        if matches:
+            # shortcut: an existing board never gets new apps (Homarr v2.6 cannot list its items, writes could duplicate), upgrade once Homarr exposes a board-items read.
+            log(f"board {name} exists: its items are left as they are")
+            continue
+        if DRY_RUN:
+            log(f"would create board {name}")
+            continue
+        result = request_json("POST", "/api/boards", {
+            "name": name,
+            "columnCount": int(config.get("columns", 12)),
+            "isPublic": bool(config.get("public", False)),
+        })
+        if not isinstance(result, dict) or not result.get("boardId"):
+            raise RuntimeError(f"missing boardId for {name}")
+        board_id = str(result["boardId"])
+        created = True
+        for nabla_id in selected:
             app_id = state.get(nabla_id)
-            if not app_id or app_id in existing_ids:
-                continue
-            if DRY_RUN:
-                log(f"would add {nabla_id} to {name}")
+            if not app_id:
                 continue
             result = request_json("POST", "/api/boards/items", {
                 "boardId": board_id, "kind": "app",
@@ -223,7 +214,6 @@ def reconcile_board(
             })
             if not isinstance(result, dict) or not result.get("itemId"):
                 raise RuntimeError(f"missing itemId for {nabla_id}")
-            existing_ids.add(app_id)
             added += 1
     return created, added
 
