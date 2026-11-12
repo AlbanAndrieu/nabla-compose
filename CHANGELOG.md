@@ -1,3 +1,31 @@
+# [0.69.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.68.0...0.69.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **joplin:** pin the published 3.7.3 server image by digest ([62747d8](https://github.com/AlbanAndrieu/nabla-compose/commit/62747d8c1ee0c3d07767b215fd8ebd0581a3fd50))
+* **netbox,dependency-track:** reach the shared PostgreSQL and Redis ([9401633](https://github.com/AlbanAndrieu/nabla-compose/commit/940163386c9abadb0651b38e75081514b32a47f0))
+* **ntopng:** set the admin password from Vaultwarden before the UI starts ([b3c21e6](https://github.com/AlbanAndrieu/nabla-compose/commit/b3c21e6c40122af68940612b1462a7527fa1e358))
+* **observability,sample:** bound noisy Docker logs and wait longer for Sample ([1e87f0b](https://github.com/AlbanAndrieu/nabla-compose/commit/1e87f0b4ba8c368a85df4020fd5325943aeb74c5))
+* **observability:** silence Loki deletion errors, unmonitor stopped apps ([cf1da09](https://github.com/AlbanAndrieu/nabla-compose/commit/cf1da0946e641ea8b5dfd3e2943c1fbe8bf975f5))
+* **openwebui:** use a dedicated LiteLLM virtual key, not the master key ([e3f2c15](https://github.com/AlbanAndrieu/nabla-compose/commit/e3f2c15c1649d564974d87bdde01b5ec6fc108eb))
+* **plumber:** reach the shared PostgreSQL and Redis with the Sample shortcut ([d3b9b79](https://github.com/AlbanAndrieu/nabla-compose/commit/d3b9b79fac52e028f0eb78327a0ed7ef43a86a95))
+* **prometheus:** wake the dead Traefik, ClickHouse and cAdvisor alerts ([f693f59](https://github.com/AlbanAndrieu/nabla-compose/commit/f693f596d2d2c059dffc4e724fbbdcd205c82b40))
+* **scanopy:** stop exposing a privileged, claimable discovery daemon ([74aad3d](https://github.com/AlbanAndrieu/nabla-compose/commit/74aad3d31fec85686ede1d8d9f279d90e59d8a4b))
+* **truenas:** make the FastAPI cron post-check explain itself ([1194f2e](https://github.com/AlbanAndrieu/nabla-compose/commit/1194f2e3a598a4d5465dec80c2afe9855dfd648a))
+
+
+### Features
+
+* **alertmanager:** notify Slack through an incoming webhook ([59e76a5](https://github.com/AlbanAndrieu/nabla-compose/commit/59e76a5c5478efb687d315b19041d40f72049df1))
+* **grafana,langfuse:** provision Grafana's LLM plugin, close Langfuse SSRF ([ad27c0d](https://github.com/AlbanAndrieu/nabla-compose/commit/ad27c0dbd502c754fcefe0d112f0691c88b54fe2))
+* **homarr,litellm:** connect the Homarr assistant to LiteLLM as code ([d3e7fb5](https://github.com/AlbanAndrieu/nabla-compose/commit/d3e7fb5d25a4310b0222f5e204c631a47a451e00))
+* **langfuse:** route Ask AI and LLM connections through LiteLLM ([04672ea](https://github.com/AlbanAndrieu/nabla-compose/commit/04672ea5777e785a72283fb6d03cc8d154ccd5b1))
+* **ntopng:** run the free Community edition from a reviewed config file ([df7ff66](https://github.com/AlbanAndrieu/nabla-compose/commit/df7ff66f634970224cd31f48257ee96d9ae12afd))
+* **prometheus:** scrape Garage metrics ([c6f9ef8](https://github.com/AlbanAndrieu/nabla-compose/commit/c6f9ef8f67fad31527c8d960e900c82aff9a3c6d))
+* **talos:** replace flannel with Cilium so NetworkPolicy is enforced ([5754a1f](https://github.com/AlbanAndrieu/nabla-compose/commit/5754a1f1c0fe2cd6b42bcb4d1186a8ac03a144f3))
+* **wazuh:** prepare the rotation of the indexer bootstrap passwords ([e51b39c](https://github.com/AlbanAndrieu/nabla-compose/commit/e51b39cbda1ff782b8d00b6e7a71cdf9a3bc85de))
+
 # [0.68.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.67.0...0.68.0) (2026-11-11)
 
 
