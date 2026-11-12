@@ -18,7 +18,6 @@ on:
       - config/infrastructure.env.example
       - tests/test_infrastructure_state_contract.py
       - .github/workflows/terragrunt-ci.yaml
-      - .github/workflows/terragrunt-cd.yaml
   workflow_dispatch:
 
 concurrency:
