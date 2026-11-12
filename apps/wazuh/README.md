@@ -68,11 +68,22 @@ The manager and dashboard read the shared container-facing `API_PASSWORD`
 from `/mnt/cpool/wazuh/.env.secrets`. Do not set
 `WAZUH_API_PASSWORD` as a Compose interpolation variable.
 
-The upstream bootstrap users in `internal_users.yml` still use the reviewed
-Wazuh sample indexer/dashboard passwords in this phase. Do **not** replace
-`WAZUH_INDEXER_PASSWORD` or `WAZUH_DASHBOARD_PASSWORD` with random values
-until the corresponding hashes in `internal_users.yml` are rotated in the
-same reviewed change.
+The indexer bootstrap users no longer use the Wazuh sample passwords.
+`INDEXER_PASSWORD` (user `admin`) and `DASHBOARD_PASSWORD` (user
+`kibanaserver`) come from `nabla/prod/wazuh`, materialized in
+`/mnt/cpool/secrets/runtime/wazuh/.env.secrets`; the repository
+`internal_users.yml` is only the template of the rendered copy the indexer
+mounts from that directory. Rotation, with a short Wazuh outage:
+
+```bash
+python3 scripts/secrets/materialize_runtime.py --app wazuh --install
+sudo bash scripts/truenas/rotate-wazuh-internal-users.sh --check
+sudo NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/rotate-wazuh-internal-users.sh --apply
+sudo midclt call -j app.redeploy wazuh
+```
+
+The rendered file must exist before the first redeploy of this Compose
+version: its bind mount does not create a missing host path.
 
 ## Incident recovery — TLS ownership and stale worktree
 

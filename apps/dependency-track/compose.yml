@@ -9,7 +9,8 @@ services:
       - /mnt/cpool/secrets/runtime/dependency-track/.env.secrets
     environment:
       ALPINE_DATABASE_MODE: external
-      ALPINE_DATABASE_URL: ${DEPENDENCY_TRACK_DATABASE_URL:-jdbc:postgresql://postgres:5432/dependencytrack}
+      # The shared PostgreSQL App is not on the intranet network: use the host address.
+      ALPINE_DATABASE_URL: ${DEPENDENCY_TRACK_DATABASE_URL:-jdbc:postgresql://172.17.0.24:5432/dependencytrack}
       ALPINE_DATABASE_DRIVER: org.postgresql.Driver
       ALPINE_DATABASE_USERNAME: ${DEPENDENCY_TRACK_DATABASE_USERNAME:-dependencytrack}
       ALPINE_DATABASE_POOL_ENABLED: "true"

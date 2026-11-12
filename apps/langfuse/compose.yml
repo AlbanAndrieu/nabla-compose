@@ -107,6 +107,14 @@ services:
       LANGFUSE_BULLMQ_SKIP_REDIS_VERSION_CHECK: ${LANGFUSE_BULLMQ_SKIP_REDIS_VERSION_CHECK:-false}
       REDIS_TLS_ENABLED: ${REDIS_TLS_ENABLED:-false}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      # Ask AI through LiteLLM; LANGFUSE_AI_API_KEY is a dedicated virtual key from the
+      # runtime file. Halo stays off: public beta that also needs an MCP connection and a sandbox.
+      LANGFUSE_AI_PROVIDER: openai
+      LANGFUSE_AI_BASE_URL: http://172.17.0.24:4000/v1
+      LANGFUSE_AI_MODEL: ${LANGFUSE_AI_MODEL:-gpt-4.1-mini}
+      # No LANGFUSE_LLM_CONNECTION_WHITELISTED_IPS=172.17.0.24: it would let project
+      # members reach every port of the host (SSRF). Project connections wait for
+      # LiteLLM on intranet and WHITELISTED_HOST=litellm.
     networks:
       - intranet
 
@@ -154,6 +162,12 @@ services:
           description: Langfuse Web uses Redis-backed queues and shared asynchronous state.
           evidence:
             - apps/langfuse/compose.yml:REDIS_HOST
+        - target: litellm
+          type: consumesApi
+          strength: optional
+          description: Ask AI calls LiteLLM with a dedicated virtual key.
+          evidence:
+            - apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL
     ports:
       - "172.17.0.24:3000:3000"
     healthcheck:

@@ -1691,9 +1691,15 @@
       "kind": "network-observability",
       "category": "network",
       "sourcePath": "apps/ntopng/compose.yml",
+      "url": "http://172.17.0.24:31080",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ntopng"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31080
       },
       "icon": "🌐"
     },
@@ -2533,7 +2539,6 @@
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2557,10 +2562,9 @@
       "kind": "network-discovery-scanner",
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
-      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
+      "description": "Agentless scanner used by Scanopy to discover hosts, ports and network topology.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -4071,6 +4075,16 @@
     },
     {
       "source": "grafana",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The Grafana LLM plugin calls LiteLLM with a dedicated virtual key.",
+      "evidence": [
+        "apps/grafana/config/grafana-llm-app.yml"
+      ]
+    },
+    {
+      "source": "grafana",
       "target": "loki",
       "type": "consumesApi",
       "strength": "optional",
@@ -4218,6 +4232,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/homarr/compose.yml:homarr.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "homarr",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "The Homarr assistant uses LiteLLM as a custom OpenAI-compatible provider (model qwen).",
+      "evidence": [
+        "apps/homarr/sync.py:ASSISTANT_BASE_URL"
       ]
     },
     {
@@ -4468,6 +4492,16 @@
       "description": "The web application is a runtime workload of the logical Langfuse platform.",
       "evidence": [
         "apps/langfuse/compose.yml:x-nabla.relations[0]"
+      ]
+    },
+    {
+      "source": "langfuse-web",
+      "target": "litellm",
+      "type": "consumesApi",
+      "strength": "optional",
+      "description": "Ask AI calls LiteLLM with a dedicated virtual key.",
+      "evidence": [
+        "apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL"
       ]
     },
     {
@@ -4936,16 +4970,6 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/npmplus/compose.yml:npmplus.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "ntopng",
-      "target": "clickhouse",
-      "type": "storesIn",
-      "strength": "required",
-      "description": "ntopng stores historical flow data in the existing ClickHouse service.",
-      "evidence": [
-        "apps/ntopng/compose.yml:CLICKHOUSE_HOST"
       ]
     },
     {

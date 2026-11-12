@@ -33,6 +33,10 @@ BOARD_SYNC_ENABLED = os.getenv("HOMARR_BOARD_ENABLED", "true").lower() in {
     "on",
 }
 # Board names, columns, visibility and members are declared in BOARDS_PATH.
+# LiteLLM virtual key registered by scripts/truenas/register-litellm-app-keys.py.
+ASSISTANT_API_KEY = os.getenv("HOMARR_ASSISTANT_API_KEY", "").strip()
+ASSISTANT_BASE_URL = os.getenv("HOMARR_ASSISTANT_BASE_URL", "http://172.17.0.24:4000/v1")
+ASSISTANT_MODEL = os.getenv("HOMARR_ASSISTANT_MODEL", "qwen")
 
 
 class AuthRejected(RuntimeError):
@@ -221,6 +225,28 @@ def reconcile_board(
     return created, added
 
 
+def reconcile_assistant() -> str:
+    """Point the Homarr assistant at LiteLLM as a custom OpenAI-compatible provider."""
+    if not ASSISTANT_API_KEY:
+        return "skipped_no_key"
+    if DRY_RUN:
+        log(f"would connect the assistant to {ASSISTANT_BASE_URL} model {ASSISTANT_MODEL}")
+        return "dry_run"
+    # No REST endpoint for the assistant: tRPC (superjson body), admin API key required.
+    request_json("POST", "/api/trpc/assistant.updateConnection", {"json": {
+        "provider": "custom",
+        "baseUrl": ASSISTANT_BASE_URL,
+        "modelDiscoveryPath": "/models",
+        "apiKey": ASSISTANT_API_KEY,
+    }})
+    request_json("POST", "/api/trpc/assistant.updateConfiguration", {"json": {
+        "enabled": True,
+        "modelId": ASSISTANT_MODEL,
+        "webSearchEnabled": False,
+    }})
+    return "connected"
+
+
 def main() -> int:
     if not API_KEY:
         # A one-shot job exiting non-zero marks the whole TrueNAS App CRASHED
@@ -282,11 +308,17 @@ def main() -> int:
         log(f"updated {nabla_id} / {homarr_id}")
 
     board_created, board_items_added = reconcile_board(state, desired_items)
+    try:
+        assistant = reconcile_assistant()
+    except RuntimeError as exc:
+        # Status line only: an error body could echo the request.
+        assistant = "failed"
+        log(f"ASSISTANT_RECONCILE_FAILED: {str(exc).split(':', 1)[0]}")
 
     log(
         f"reconciliation complete: desired={len(desired_items)} created={created} "
         f"updated={updated} unchanged={unchanged} board_created={board_created} "
-        f"board_items_added={board_items_added} dry_run={DRY_RUN}"
+        f"board_items_added={board_items_added} assistant={assistant} dry_run={DRY_RUN}"
     )
     log("no Homarr applications, boards or board items were deleted")
     return 0

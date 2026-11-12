@@ -49,7 +49,7 @@ def test_joplin_uses_shared_postgres_and_private_ingress() -> None:
     service = compose["services"]["joplin"]
     metadata = service["x-nabla"]
 
-    assert service["image"] == "joplin/server:${JOPLIN_VERSION:-3.7.18}"
+    assert service["image"].startswith("joplin/server:3.7.3@sha256:")
     assert service["environment"]["POSTGRES_HOST"] == "172.17.0.24"
     assert service["environment"]["POSTGRES_PORT"] == "5432"
     assert service["environment"]["POSTGRES_DATABASE"] == "joplin"

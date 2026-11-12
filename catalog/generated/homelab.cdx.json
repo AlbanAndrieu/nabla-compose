@@ -329,9 +329,7 @@
       "ref": "component:default/npmplus"
     },
     {
-      "dependsOn": [
-        "resource:default/clickhouse"
-      ],
+      "dependsOn": [],
       "ref": "component:default/ntopng"
     },
     {
@@ -789,7 +787,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:a543fbeda36dded36533cc2e0fc5c2b50e761f31108267fc4a4f1b0fb16667aa"
+        "value": "sha256:11b4b5c7867a370b4af523581b38e5ceee1ae61c24eb4511ab8c999f2ee2f3e2"
       },
       {
         "name": "nabla:catalog-authority",
@@ -797,7 +795,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:a543fbed-a36d-ded3-6533-cc2e0fc5c2b5",
+  "serialNumber": "urn:uuid:11b4b5c7-867a-370b-4af5-23581b38e5ce",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2565,7 +2563,7 @@
     },
     {
       "bom-ref": "component:default/ntopng",
-      "description": "LAN network traffic monitoring UI.",
+      "description": "TrueNAS br0 traffic monitoring UI (ntopng Community).",
       "name": "ntopng",
       "properties": [
         {

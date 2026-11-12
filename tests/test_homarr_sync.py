@@ -233,3 +233,47 @@ def test_rejected_key_skips_at_once_without_crashing_the_truenas_app(capsys) -> 
     assert request_json.call_count == 1
     sleep.assert_not_called()
     assert "RECONCILE_SKIPPED" in capsys.readouterr().out
+
+
+def test_assistant_points_homarr_at_litellm_through_trpc() -> None:
+    request_json = Mock(return_value=None)
+    with (
+        patch.object(homarr_sync, "ASSISTANT_API_KEY", "virtual-key"),
+        patch.object(homarr_sync, "DRY_RUN", False),
+        patch.object(homarr_sync, "request_json", request_json),
+    ):
+        assert homarr_sync.reconcile_assistant() == "connected"
+    connection, configuration = request_json.call_args_list
+    assert connection == call("POST", "/api/trpc/assistant.updateConnection", {"json": {
+        "provider": "custom", "baseUrl": "http://172.17.0.24:4000/v1",
+        "modelDiscoveryPath": "/models", "apiKey": "virtual-key"}})
+    assert configuration == call("POST", "/api/trpc/assistant.updateConfiguration", {"json": {
+        "enabled": True, "modelId": "qwen", "webSearchEnabled": False}})
+
+
+def test_assistant_without_key_sends_nothing() -> None:
+    request_json = Mock()
+    with (
+        patch.object(homarr_sync, "ASSISTANT_API_KEY", ""),
+        patch.object(homarr_sync, "request_json", request_json),
+    ):
+        assert homarr_sync.reconcile_assistant() == "skipped_no_key"
+    request_json.assert_not_called()
+
+
+def test_assistant_failure_neither_crashes_nor_logs_the_error_body(capsys) -> None:
+    failure = RuntimeError("Homarr API POST /api/trpc/assistant.updateConnection returned 400: echoed-body")
+    with (
+        patch.object(homarr_sync, "API_KEY", "test-api-key"),
+        patch.object(homarr_sync, "ASSISTANT_API_KEY", "virtual-key"),
+        patch.object(homarr_sync, "BOARD_SYNC_ENABLED", False),
+        patch.object(homarr_sync, "DRY_RUN", False),
+        patch.object(homarr_sync, "load_json", return_value={"applications": []}),
+        patch.object(homarr_sync, "wait_for_homarr", return_value=[]),
+        patch.object(homarr_sync, "request_json", Mock(side_effect=failure)),
+    ):
+        assert homarr_sync.main() == 0
+    out = capsys.readouterr().out
+    assert "ASSISTANT_RECONCILE_FAILED" in out
+    assert "assistant=failed" in out
+    assert "echoed-body" not in out

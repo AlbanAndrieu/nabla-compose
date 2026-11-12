@@ -172,6 +172,10 @@ apps:
     include:
       - apps/sample/compose.yml
     state: running
+  - name: scanopy
+    include:
+      - apps/scanopy/compose.yml
+    state: running
   - name: scorecard
     include:
       - apps/scorecard/compose.yml

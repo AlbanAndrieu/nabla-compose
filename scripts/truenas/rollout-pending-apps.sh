@@ -22,7 +22,7 @@ source "${SCRIPT_DIR}/../lib/truenas.sh"
 MODE="${1:---plan}"
 TARGET="${2:-all}"
 CANONICAL_ROOT="${NABLA_CANONICAL_ROOT:-/mnt/cpool/compose/nabla-compose}"
-# Prepared order: shared data consumers first, ntopng last (licence + host network).
+# Prepared order: shared data consumers first, ntopng last (host network).
 ORDER=(netbox dependency-track plumber scanopy joplin ntopng)
 
 usage() {
@@ -75,9 +75,8 @@ app_database() {
 
 app_prerequisites() {
   case "$1" in
-  netbox) printf 'postgres redis\n' ;;
-  dependency-track | plumber | scanopy | joplin) printf 'postgres\n' ;;
-  ntopng) printf 'clickhouse\n' ;;
+  netbox | plumber) printf 'postgres redis\n' ;;
+  dependency-track | scanopy | joplin) printf 'postgres\n' ;;
   esac
 }
 
@@ -108,6 +107,7 @@ app_steps() {
     ;;
   ntopng)
     printf '%s\n' \
+      "check|storage|bash scripts/truenas/bootstrap-repository-storage.sh --check ntopng" \
       "check|deploy-preflight|bash scripts/truenas/deploy-ntopng.sh --check" \
       "apply|deploy|bash scripts/truenas/deploy-ntopng.sh --apply"
     ;;
@@ -137,7 +137,7 @@ if [[ "${MODE}" == "--plan" ]]; then
       printf 'plan app=%s %s %s: %s\n' "${app}" "${phase}" "${name}" "${command}"
     done < <(app_steps "${app}")
     [[ "${app}" != "ntopng" ]] ||
-      printf 'plan app=ntopng note: export NTOPNG_INTERFACE=<approved capture interface>; --apply also needs NABLA_NTOPNG_LICENSE_VALIDATED=yes and NABLA_NTOPNG_CLICKHOUSE_VALIDATED=yes\n'
+      printf 'plan app=ntopng note: Community edition, capture interface from apps/ntopng/ntopng.conf; admin password from nabla/prod/ntopng\n'
     printf 'plan app=%s acceptance: %s\n' "${app}" "$(app_acceptance "${app}")"
   done
   exit 0

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:07a639542aa7fe1375d90c83a8e6c7794e8e2b86da1fe124a254629215fcd776",
+  "catalogRevision": "sha256:2a2d01988d76906134ee1108f96f3208134de1697ec56e5dbb7b2d5a01da297e",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1653,6 +1653,12 @@
       "category": "network",
       "sourcePath": "apps/ntopng/compose.yml",
       "composeService": "ntopng",
+      "url": "http://172.17.0.24:31080",
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31080
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "ntopng"
@@ -2443,7 +2449,6 @@
       "description": "Agentless network discovery and continuously updated topology documentation backed by the shared PostgreSQL service.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2468,10 +2473,9 @@
       "category": "network",
       "sourcePath": "apps/scanopy/compose.yml",
       "composeService": "scanopy-daemon",
-      "description": "Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.",
+      "description": "Agentless scanner used by Scanopy to discover hosts, ports and network topology.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"

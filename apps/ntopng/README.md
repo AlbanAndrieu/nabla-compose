@@ -1,149 +1,61 @@
 # ntopng
 
-The service captures the host interface configured by `NTOPNG_INTERFACE` and
-uses the existing shared ClickHouse server for historical flows.
+ntopng **Community** (free, no licence) captures the TrueNAS bridge `br0`
+(172.17.0.24, physical uplink `enp10s0` plus the Talos VMs) and serves its UI on
+<http://172.17.0.24:31080>. Port 3000 is taken by Langfuse.
 
-The ClickHouse integration requires an **ntopng Enterprise M or higher**
-license. Do not enable the ClickHouse flow backend until the required ntopng
-license is installed and validated.
+## Configuration as code
 
-The TrueNAS app mounts the persistent license from
-`/mnt/cpool/ntopng/ntopng.license` with `create_host_path: false`. The
-deployment therefore fails instead of allowing Docker to create a directory
-when the expected license file is missing. If a legacy host license already
-exists at `/etc/ntopng.license`, migrate it without printing its contents:
+Every runtime option lives in [`ntopng.conf`](ntopng.conf), mounted read-only
+at `/etc/ntopng/nabla.conf`:
 
-```bash
-sudo install -d -m 700 /mnt/cpool/ntopng
-if sudo test -f /etc/ntopng.license; then
-  sudo install -m 600 /etc/ntopng.license /mnt/cpool/ntopng/ntopng.license
-fi
-sudo test -s /mnt/cpool/ntopng/ntopng.license
-```
+- `--community`: forces the free edition, so no licence file is mounted;
+- `--interface=br0`: reviewed capture interface (host networking);
+- `--http-port=172.17.0.24:31080`: LAN address only;
+- `--local-networks`: the LAN and the TrueNAS Docker pool.
 
-Otherwise place the licensed file directly at the persistent path with mode
-`0600` before creating the TrueNAS app.
+[`entrypoint.sh`](entrypoint.sh) replaces the upstream `/run.sh`: it gives the
+bind-mounted Redis directory to the image's `redis` user (ntopng keeps users
+and preferences in Redis), starts Redis, writes the MD5 of
+`NTOPNG_ADMIN_PASSWORD` to `ntopng.user.admin.password`, then starts ntopng.
+ntopng only writes its default `admin`/`admin` when that key is absent, so the
+UI is never reachable with the default. The entrypoint refuses to start when
+the secret is missing. The password comes from `nabla/prod/ntopng`, rendered
+to `/mnt/cpool/secrets/runtime/ntopng/.env.secrets` and mounted as a Compose
+secret (not in Docker `Config.Env`); a password changed in the UI is reset to
+the Vaultwarden value at the next start.
 
-## Dedicated ClickHouse identity
+Persistent data: `/mnt/cpool/ntopng` (RRD time series) and
+`/mnt/cpool/ntopng/redis`.
 
-ntopng must not reuse the shared administrative `clickhouse` account or the
-ClickHouse `default` user. The runtime contract is intentionally fixed to:
+## Out of scope without a licence
 
-```text
-host     = 172.17.0.24 (override with CLICKHOUSE_HOST only when reviewed)
-database = ntopng
-user     = ntopng
-password = NTOPNG_CLICKHOUSE_PASSWORD from /mnt/cpool/secrets/runtime/ntopng/.env.secrets
-           mounted as /run/secrets/ntopng_runtime_env
-```
+- historical flows in ClickHouse (`--dump-flows=clickhouse`): Enterprise M+;
+- nAnalyst, the LLM assistant: it reads those ClickHouse flows. Revisit both
+  only with a licence; LiteLLM would then be configured as a custom
+  OpenAI-compatible endpoint (`http://172.17.0.24:4000/v1`).
 
-Create a dedicated database/user with the ClickHouse administrative identity.
-Grant only the database-scoped DML/DDL that ntopng actually uses. The upstream
-schema creates tables/views, applies ALTER migrations, and the maintenance
-paths can truncate data. Do not grant `ALL`, global `*.*`, access-management,
-or administrative privileges to this service account:
-
-```sql
-CREATE DATABASE IF NOT EXISTS ntopng;
-CREATE USER IF NOT EXISTS ntopng IDENTIFIED WITH sha256_password BY '<secret>';
-
--- Runtime DML plus explicit maintenance/purge support.
-GRANT SELECT, INSERT, TRUNCATE ON ntopng.* TO ntopng;
-
--- ntopng bootstraps tables/views and applies schema migrations at startup.
--- CREATE TABLE includes CREATE VIEW; DROP TABLE includes DROP VIEW.
-GRANT CREATE TABLE, DROP TABLE, ALTER ON ntopng.* TO ntopng;
-```
-
-Generate and store the password outside Git:
-
-```bash
-sudo install -d -m 700 /mnt/cpool/secrets/runtime/ntopng
-umask 077
-printf 'NTOPNG_CLICKHOUSE_PASSWORD=%s\n' "$(openssl rand -hex 32)" |
-  sudo tee /mnt/cpool/secrets/runtime/ntopng/.env.secrets >/dev/null
-sudo chmod 600 /mnt/cpool/secrets/runtime/ntopng/.env.secrets
-```
-
-Use the same password when creating/resetting the ClickHouse `ntopng` user.
-Keep this dedicated credential exactly 64 hexadecimal characters. This matches
-`openssl rand -hex 32` and allows the runtime wrapper to decode the
-Vaultwarden-rendered outer dotenv quotes without evaluating the secret file as
-shell code. Do not print the value during runtime validation.
-
-## Runtime behavior
-
-The host `.env.secrets` file is mounted with the Compose secrets mechanism as
-`/run/secrets/ntopng_runtime_env`; it is **not** injected through `env_file`.
-The wrapper extracts `NTOPNG_CLICKHOUSE_PASSWORD`, renders
-`/run/nabla-ntopng.conf` at container startup with mode `0600`, then
-delegates to the upstream `/run.sh` entrypoint using only that
-configuration-file path. The ClickHouse password is therefore absent from the
-repository, Compose interpolation, Docker `Config.Env`, and the ntopng process
-command line. The wrapper also unsets its local password variable before
-starting ntopng, leaving the ephemeral root-readable configuration file as the
-runtime credential carrier.
-
-The generated configuration enables `--strict-startup`. If ntopng cannot
-initialize its ClickHouse backend, the service must fail startup instead of
-silently running without historical flow persistence.
-
-Default ClickHouse target: `172.17.0.24:9000`, database `ntopng`.
-
-Before treating the service as operational, validate:
-
-1. the dedicated `ntopng` database and user exist;
-2. the dedicated credentials can execute an authenticated query against
-   database `ntopng`;
-3. Docker `Config.Env` does not contain `NTOPNG_CLICKHOUSE_PASSWORD`;
-4. the user has the required database-scoped DML/DDL grants but neither
-   `ALL ON ntopng.*` nor any global `*.*` grant;
-5. the mounted license is a regular non-empty file and `ntopng -V` reports
-   Enterprise M/L/XL/XXL;
-6. ntopng remains running with strict startup enabled;
-7. new flows appear in ClickHouse and remain queryable after both ntopng and
-   ClickHouse restarts.
-
-The lifecycle audit performs the first four checks when the TrueNAS ntopng app
-is running. Flow persistence remains an explicit runtime acceptance test.
-
-## Migration TrueNAS — sécurité et reprise
-
-Le déployeur `scripts/truenas/deploy-ntopng.sh` possède deux modes : `--check`
-(**lecture seule**) et `--apply` (**création / mise à jour réelle via middleware**).
-Il ne crée ni licence, ni secret, ni base ClickHouse, ni dataset. Le chemin du
-secret canonique est `/mnt/cpool/secrets/runtime/ntopng/.env.secrets` ;
-`/mnt/cpool/ntopng/.env.secrets` est un ancien chemin de documentation,
-à **ne pas** réintroduire.
-
-Depuis le checkout canonique TrueNAS, avec une interface de capture revue :
+## Deploy
 
 ```bash
 cd /mnt/cpool/compose/nabla-compose
-sudo env NTOPNG_INTERFACE=br0 bash scripts/truenas/deploy-ntopng.sh --check
+sudo bash scripts/truenas/bootstrap-repository-storage.sh --check ntopng
+sudo bash scripts/truenas/deploy-ntopng.sh --check
+# After review:
+# sudo env NABLA_RUNTIME_CHANGE_APPROVED=yes bash scripts/truenas/deploy-ntopng.sh --apply
 ```
 
-`br0` est **un exemple** : vérifier l'interface physique ou bridge concerné
-avec l'opérateur et les implications de `network_mode: host` avant de l'adopter.
-Un échec de préflight pour licence/secret/répertoire manquant est **attendu**,
-pas une autorisation d'inventer un secret ou d'activer la version communautaire.
+`--check` changes nothing; it verifies that the interface named in
+`ntopng.conf` exists on the host and that the runtime secret is a root-owned
+`0600` file holding `NTOPNG_ADMIN_PASSWORD`. If an `ntopng` App already exists,
+`--apply` also needs `NABLA_NTOPNG_UPDATE_APPROVED=yes`.
 
-L'application volontaire requiert une approbation distincte pour le changement
-runtime, la licence Enterprise M+ et les grants ClickHouse. Ces variables
-attestent une **revue opérateur**, pas un contrôle automatisé de licence ou de
-la validité de la clé. Si une App `ntopng` existe déjà, ajouter aussi
-`NABLA_NTOPNG_UPDATE_APPROVED=yes` seulement après vérification de son état.
+## Observability
 
-```bash
-# Après sauvegarde, validation de licence, de ClickHouse et du plan :
-# sudo env NTOPNG_INTERFACE=<interface-validée> \
-#   NABLA_RUNTIME_CHANGE_APPROVED=yes \
-#   NABLA_NTOPNG_LICENSE_VALIDATED=yes \
-#   NABLA_NTOPNG_CLICKHOUSE_VALIDATED=yes \
-#   bash scripts/truenas/deploy-ntopng.sh --apply
-```
-
-La fin du script n'atteste pas la persistance des flux. Faire ensuite un
-test de flux synthétique autorisé, vérifier son arrivée en ClickHouse
-et sa conservation après redémarrage. **Aucun démarrage n'est déclenché par
-la PR GitHub.**
+- Gatus and the lifecycle audit probe `172.17.0.24:31080`.
+- Prometheus: ntopng has no native endpoint. The maintained
+  [`aauren/ntopng-exporter`](https://github.com/aauren/ntopng-exporter) (v1.x
+  for the v2 REST API) needs a read-only ntopng user created in the UI; add it
+  once ntopng runs.
+- Alerts: Community supports webhook, Telegram, e-mail and Discord endpoints
+  (UI, *Notifications*).

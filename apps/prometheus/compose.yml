@@ -98,7 +98,7 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/prometheus-alertmanager
     network_mode: bridge
-    image: prom/alertmanager
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     restart: unless-stopped
     x-nabla:
       id: prometheus-alertmanager
@@ -121,6 +121,21 @@ services:
         target: /etc/alertmanager/config.yml
         read_only: true
     # networks: ["traefik_network"]
+    # Optional so a missing webhook never blocks the Prometheus redeploy.
+    env_file:
+      - path: /mnt/cpool/secrets/runtime/prometheus/.env.secrets
+        required: false
+    # Alertmanager reads secrets only from files: the wrapper writes the webhook to /tmp, mode 600.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        umask 077
+        printf '%s' "$$ALERTMANAGER_SLACK_WEBHOOK_URL" > /tmp/slack-webhook.url
+        unset ALERTMANAGER_SLACK_WEBHOOK_URL
+        [ -s /tmp/slack-webhook.url ] || echo "ALERTMANAGER_SLACK_WEBHOOK_URL is empty: Slack notifications will fail" >&2
+        exec /bin/alertmanager "$$@"
+      - alertmanager
     command:
       - "--config.file=/etc/alertmanager/config.yml"
       - "--storage.path=/alertmanager"

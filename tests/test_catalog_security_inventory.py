@@ -20,9 +20,8 @@ def test_discovery_stack_uses_single_declared_entity_for_shared_stores() -> None
     assert entities["component:default/cartography"]["spec"]["dependsOn"] == [
         "resource:default/neo4j-security"
     ]
-    assert entities["component:default/ntopng"]["spec"]["dependsOn"] == [
-        "resource:default/clickhouse"
-    ]
+    # ntopng Community has no ClickHouse flow backend (Enterprise M+ only).
+    assert "dependsOn" not in entities["component:default/ntopng"]["spec"]
     assert entities["component:default/scanopy"]["spec"]["dependsOn"] == [
         "resource:default/postgresql"
     ]

@@ -1,4 +1,5 @@
 ---
+# Template only: rotate-wazuh-internal-users.sh renders the mounted copy with rotated hashes.
 _meta:
   type: internalusers
   config_version: 2

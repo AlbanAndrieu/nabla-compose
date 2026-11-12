@@ -4,7 +4,7 @@ kind: Component
 metadata:
   name: ntopng
   title: ntopng
-  description: LAN network traffic monitoring UI.
+  description: TrueNAS br0 traffic monitoring UI (ntopng Community).
   labels:
     albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
@@ -28,12 +28,10 @@ metadata:
     - network
     - observability
   links:
-    - url: http://172.17.0.24:3000
+    - url: http://172.17.0.24:31080
       title: Dashboard
 spec:
   type: network-observability
   lifecycle: production
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/clickhouse
