@@ -13,31 +13,39 @@ services:
       category: network
       presentationRole: support
       criticality: medium
-      status: planned
       securityFunctions:
         - identify
         - detect
-      description: Privileged agentless scanner used by Scanopy to discover hosts, ports, containers, and network topology.
+      description: Agentless scanner used by Scanopy to discover hosts, ports and network topology.
       runtime:
         provider: truenas-app
         containerService: scanopy-daemon
+    # Host networking stays for LAN/ARP discovery, which needs raw sockets, not privileged mode.
     network_mode: host
-    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     environment:
+      # /api/initialize is unauthenticated until the first org claims the daemon: listen on
+      # docker0 (TrueNAS pool 10.200.0.0/16), which host.docker.internal reaches, not the LAN.
+      SCANOPY_BIND_ADDRESS: 10.200.0.1
       SCANOPY_LOG_LEVEL: ${SCANOPY_LOG_LEVEL:-info}
       SCANOPY_SERVER_URL: http://172.17.0.24:60072
       TZ: ${TZ:-Europe/Paris}
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:60073/api/health || exit 1"]
+      test:
+        ["CMD-SHELL", "curl -f http://10.200.0.1:60073/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 15s
     volumes:
       - /mnt/cpool/scanopy/daemon-config:/root/.config/scanopy/daemon
-      # Required for native Docker discovery. Keep the socket read-only.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # No Docker socket: a ro bind does not restrict the Docker API. Docker discovery goes
+      # through docker-socket-proxy, configured as a credential in the Scanopy UI.
 
   scanopy:
     image: ghcr.io/scanopy/scanopy/server:v0.19.5@sha256:ec6a9b23af5094c009cb61d3078b4ba25c01471c9c3a126566b735b5df9cee3f
@@ -51,7 +59,6 @@ services:
       category: network
       presentationRole: service
       criticality: medium
-      status: planned
       securityFunctions:
         - identify
         - detect
@@ -86,6 +93,9 @@ services:
       SCANOPY_WEB_EXTERNAL_PATH: /app/static
       SCANOPY_PUBLIC_URL: ${SCANOPY_PUBLIC_URL:-http://172.17.0.24:60072}
       SCANOPY_INTEGRATED_DAEMON_URL: http://host.docker.internal:60073
+      # Every sign-up creates its own org and the first one claims the integrated daemon:
+      # closed unless the one-time admin bootstrap (README) sets it to false.
+      SCANOPY_DISABLE_REGISTRATION: ${SCANOPY_DISABLE_REGISTRATION:-true}
       TZ: ${TZ:-Europe/Paris}
     ports:
       - name: web

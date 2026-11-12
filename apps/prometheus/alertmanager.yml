@@ -1,6 +1,6 @@
 ---
 route:
-  receiver: default
+  receiver: slack
   group_by:
     - alertname
     - instance
@@ -9,4 +9,9 @@ route:
   repeat_interval: 4h
 
 receivers:
-  - name: default
+  # Incoming webhook rather than a bot token: it can only post to its own channel.
+  - name: slack
+    slack_configs:
+      # Written from ALERTMANAGER_SLACK_WEBHOOK_URL by the compose entrypoint.
+      - api_url_file: /tmp/slack-webhook.url
+        send_resolved: true

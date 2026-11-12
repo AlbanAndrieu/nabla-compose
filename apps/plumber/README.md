@@ -7,16 +7,24 @@ authentication, separately from these Plumber clients.
 
 Both `plumber-api` and `plumber-worker` now use:
 
-- `JOBS_DB_SSLMODE=verify-full` (no plaintext fallback);
+- `JOBS_DB_SSLMODE=prefer`, a shortcut approved on 11/11/2026 like FastAPI
+  Sample: the shared server still runs `ssl=off`, so `verify-full` cannot
+  connect. Restore `verify-full` with the TLS 1.3 roadmap item;
 - `PGSSLROOTCERT=/etc/nabla/pki/postgres-ca.crt` for libpq/pgx-compatible
   clients, with a read-only PEM CA mount from
   `/mnt/cpool/secrets/runtime/postgres/tls/ca.crt`;
-- the existing `JOBS_DB_HOST` parameter (default `postgres`).
+- `JOBS_DB_HOST` defaulting to `172.17.0.24`: the shared PostgreSQL App is
+  not on the `intranet` network;
+- `JOBS_REDIS_PASSWORD` from `nabla/prod/plumber`, equal to the shared
+  Redis `REDIS_AUTH` (Redis refuses unauthenticated clients);
+- images pinned by digest (`backend:v2.44.1`, `frontend:v2.37.3`), updated
+  by Renovate.
 
-**Certificate name verification:** the server certificate must include
-the exact `JOBS_DB_HOST` as a DNS or IP SAN, or change that host to a
-name covered by its SAN. Never set `sslmode=disable` or `require` as
-a workaround. A CA file is public and is not a server private key.
+**Certificate name verification (once TLS is on):** the server certificate
+must include the exact `JOBS_DB_HOST` as a DNS or IP SAN, or change that
+host to a name covered by its SAN. Never set `sslmode=disable`; `prefer`
+is only the temporary shortcut above. A CA file is public and is not a
+server private key.
 
 **Runtime check required:** the exact Plumber backend PostgreSQL
 driver/DSN construction has not yet been exercised. Verify that

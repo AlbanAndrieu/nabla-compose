@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:a543fbeda36dded36533cc2e0fc5c2b50e761f31108267fc4a4f1b0fb16667aa",
+  "catalogRevision": "sha256:11b4b5c7867a370b4af523581b38e5ceee1ae61c24eb4511ab8c999f2ee2f3e2",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -2501,7 +2501,7 @@
           "albandrieu.com/bia-rto": "P3D",
           "albandrieu.com/bia-status": "provisional"
         },
-        "description": "LAN network traffic monitoring UI.",
+        "description": "TrueNAS br0 traffic monitoring UI (ntopng Community).",
         "labels": {
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
@@ -2511,7 +2511,7 @@
         "links": [
           {
             "title": "Dashboard",
-            "url": "http://172.17.0.24:3000"
+            "url": "http://172.17.0.24:31080"
           }
         ],
         "name": "ntopng",
@@ -2523,9 +2523,6 @@
       },
       "sourcePath": "apps/ntopng/catalog-info.yaml",
       "spec": {
-        "dependsOn": [
-          "resource:default/clickhouse"
-        ],
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
@@ -3812,7 +3809,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "links": [
           {
@@ -3849,7 +3846,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "scanopy-daemon",
         "tags": [

@@ -4,7 +4,7 @@ This directory deploys a private Joplin Server for note synchronization.
 
 ## Runtime contract
 
-- image: `joplin/server:3.7.18` by default;
+- image: `joplin/server:3.7.3`, pinned by digest (3.7.18 was never published);
 - host port: `172.17.0.24:22300`;
 - private URL: `https://joplin.int.albandrieu.com`;
 - Docker DNS identity: `joplin:22300`;

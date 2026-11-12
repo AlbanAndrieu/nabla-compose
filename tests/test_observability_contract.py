@@ -55,6 +55,21 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("retention_enabled: true", loki)
         self.assertIn("delete_request_store: filesystem", loki)
 
+    def test_alertmanager_notifies_slack_from_the_runtime_secret(self) -> None:
+        prometheus = ROOT / "apps" / "prometheus"
+        config = (prometheus / "alertmanager.yml").read_text(encoding="utf-8")
+        compose = (prometheus / "compose.yml").read_text(encoding="utf-8")
+        manifest = json.loads((ROOT / "config" / "secrets" / "manifest.json").read_text(encoding="utf-8"))
+        item = next(i for i in manifest["items"] if i["app"] == "prometheus")
+
+        self.assertIn("receiver: slack", config)
+        self.assertIn("api_url_file: /tmp/slack-webhook.url", config)
+        self.assertNotIn("hooks.slack.com", config + compose)
+        self.assertIn("path: /mnt/cpool/secrets/runtime/prometheus/.env.secrets", compose)
+        self.assertIn("umask 077", compose)
+        self.assertIn('"$$ALERTMANAGER_SLACK_WEBHOOK_URL" > /tmp/slack-webhook.url', compose)
+        self.assertEqual([s["env"] for s in item["secrets"]], ["ALERTMANAGER_SLACK_WEBHOOK_URL"])
+
     def test_pfsense_dashboards_are_provisioned_for_existing_backends(self) -> None:
         provider = (GRAFANA / "config" / "grafana-dashboards.yml").read_text(
             encoding="utf-8"
@@ -221,6 +236,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("172.17.0.24:9100", prometheus)
         self.assertNotIn("- job_name: truenas_cadvisor", prometheus)
         self.assertNotIn("172.17.0.24:8089", prometheus)
+        self.assertIn("- job_name: traefik", prometheus)
+        self.assertIn("172.17.0.24:8080", prometheus)
+        self.assertIn("- job_name: garage", prometheus)
+        self.assertIn("172.17.0.24:3903", prometheus)
 
         prometheus_compose = (
             ROOT / "apps" / "prometheus" / "compose.yml"
@@ -774,6 +793,19 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertEqual(secret["env"], "GRAFANA_SERVICE_ACCOUNT_TOKEN")
         self.assertEqual(secret["rotation"], "rotatable")
         self.assertNotIn("value", secret)
+
+    def test_active_rules_only_name_scraped_jobs(self) -> None:
+        import re
+
+        import yaml
+
+        prometheus = yaml.safe_load((ROOT / "apps/prometheus/prometheus.yml").read_text())
+        jobs = {job["job_name"] for job in prometheus["scrape_configs"]}
+        for path in sorted((ROOT / "apps/prometheus/rules").glob("*.rules.yml")):
+            for job in re.findall(r'job="([^"]+)"', path.read_text()):
+                self.assertIn(job, jobs, f"{path.name} alerts on unscraped job {job}")
+        self.assertFalse((ROOT / "apps/prometheus/rules/cadvisor.rules.yml").exists())
+        self.assertNotIn("expr: clickhouse_up", (ROOT / "apps/prometheus/rules/clickhouse.rules.yml").read_text())
 
 
 if __name__ == "__main__":

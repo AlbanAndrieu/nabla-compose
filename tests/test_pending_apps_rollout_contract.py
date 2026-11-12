@@ -44,16 +44,16 @@ class RolloutPlanTests(unittest.TestCase):
         for app in ORDER[:-1]:
             self.assertIn(f"plan app={app} post backup-role: bash scripts/truenas/bootstrap-postgresbackup-role.sh --apply", stdout)
         self.assertNotIn("plan app=ntopng post backup-role", stdout)
-        self.assertIn("plan app=ntopng note: export NTOPNG_INTERFACE", stdout)
-        self.assertIn("NABLA_NTOPNG_LICENSE_VALIDATED=yes", stdout)
+        self.assertIn("plan app=ntopng note: Community edition, capture interface from apps/ntopng/ntopng.conf", stdout)
+        self.assertNotIn("NABLA_NTOPNG_LICENSE_VALIDATED", stdout)
 
     def test_acceptance_names_gatus_status_and_prometheus_jobs(self) -> None:
         stdout = run("--plan").stdout
         self.assertIn('plan app=netbox acceptance: app.query netbox state=RUNNING; Gatus monitor netbox green; /api/homelab/status netbox=in_sync; up{job="netbox"}=1', stdout)
         self.assertIn('up{job="dependency_track"}=1', stdout)
-        self.assertIn("plan app=plumber order=3 database=jobs prerequisites=postgres", stdout)
+        self.assertIn("plan app=plumber order=3 database=jobs prerequisites=postgres,redis", stdout)
         self.assertIn("plan app=netbox order=1 database=netbox prerequisites=postgres,redis", stdout)
-        self.assertIn("plan app=ntopng order=6 database= prerequisites=clickhouse", stdout)
+        self.assertIn("plan app=ntopng order=6 database= prerequisites=\n", stdout)
 
     def test_single_app_plan(self) -> None:
         result = run("--plan", "joplin")

@@ -54,6 +54,12 @@ services:
           description: Homarr discovers and manages containers through the read-only Docker socket proxy.
           evidence:
             - apps/homarr/compose.yml:DOCKER_HOSTNAMES
+        - target: litellm
+          type: consumesApi
+          strength: optional
+          description: The Homarr assistant uses LiteLLM as a custom OpenAI-compatible provider (model qwen).
+          evidence:
+            - apps/homarr/sync.py:ASSISTANT_BASE_URL
     restart: unless-stopped
     env_file:
       - /mnt/cpool/secrets/runtime/homarr/.env.secrets

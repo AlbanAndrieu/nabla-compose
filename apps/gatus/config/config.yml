@@ -305,7 +305,7 @@ endpoints:
     nabla_monitor_id: ntopng
     nabla_service_id: ntopng
     nabla_entity_ref: component:default/ntopng
-  url: tcp://172.17.0.24:3000
+  url: tcp://172.17.0.24:31080
   conditions:
   - '[CONNECTED] == true'
 - name: Obsidian
@@ -489,6 +489,16 @@ endpoints:
     nabla_service_id: redis-redis-exporter
     nabla_entity_ref: component:default/redis-redis-exporter
   url: tcp://172.17.0.24:9121
+  conditions:
+  - '[CONNECTED] == true'
+- name: Scanopy
+  group: network
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: scanopy
+    nabla_service_id: scanopy
+    nabla_entity_ref: component:default/scanopy
+  url: tcp://172.17.0.24:60072
   conditions:
   - '[CONNECTED] == true'
 - name: Scrutiny

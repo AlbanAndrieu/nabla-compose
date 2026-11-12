@@ -162,12 +162,40 @@ sudo bash scripts/truenas/bootstrap-scanopy-postgres.sh --check
 
 Expected Scanopy workloads are the server and discovery daemon; there is intentionally no `scanopy-postgres` workload.
 
-The discovery daemon currently uses `privileged: true`, host networking and
-the raw Docker socket for discovery. **A `:ro` Unix-socket bind does not make the
-Docker API read-only**: treat the daemon as having host-control privileges.
-Before production acceptance, verify the live image digest, initialization
-state, listener/firewall exposure (especially TCP/60073), authentication and
-the smallest Docker API/packet-capture privileges that preserve discovery.
+## Hardening (11/11/2026)
+
+The first deployment ran the daemon `privileged`, with the raw Docker socket and
+its API on `0.0.0.0:60073`. Scanopy's `/api/initialize` is unauthenticated until
+the first organization claims the daemon, and every sign-up creates its own
+organization, so whoever registered first on the LAN would have driven a
+host-network scanner. The Compose now:
+
+- keeps host networking (LAN/ARP discovery) with `NET_RAW`/`NET_ADMIN` and
+  `no-new-privileges` instead of `privileged`;
+- binds the daemon to `10.200.0.1` (`docker0`, what `host.docker.internal`
+  resolves to): the server reaches it, LAN clients do not;
+- mounts no Docker socket (**a `:ro` Unix-socket bind does not make the Docker
+  API read-only**). For container discovery, add `docker-socket-proxy`
+  (`POST=0`) as a Docker credential in the Scanopy UI;
+- closes registration (`SCANOPY_DISABLE_REGISTRATION`, default `true`).
+
+### One-time admin bootstrap
+
+Registration must be open for the very first account only. Store the login in
+`nabla/prod/scanopy` first, then on TrueNAS:
+
+```bash
+cd /mnt/cpool/compose/nabla-compose
+printf 'SCANOPY_DISABLE_REGISTRATION=false\n' > apps/scanopy/.env   # gitignored
+sudo midclt call -j app.redeploy scanopy
+# POST /api/auth/setup {organization_name, site:{name}} then
+# POST /api/auth/register {email, password, terms_accepted} with the same session
+rm apps/scanopy/.env
+sudo midclt call -j app.redeploy scanopy
+```
+
+Prove afterwards: `/api/auth/register` answers 403, the daemon holds a site id,
+and `curl http://172.17.0.24:60073/api/health` fails from another LAN host.
 ARP/port discovery may also be visible to Snort/Suricata.
 
 Only after runtime acceptance should the historical empty secret placeholder be finalized:

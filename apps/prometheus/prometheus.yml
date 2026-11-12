@@ -398,6 +398,25 @@ scrape_configs:
       - targets:
           - 172.17.0.24:6060
 
+  # --metrics.prometheus without its own entrypoint serves /metrics on the API
+  # entrypoint (:8080); traefik.rules.yml needs traefik_service_server_up from here.
+  - job_name: traefik
+    static_configs:
+      - targets:
+          - 172.17.0.24:8080
+        labels:
+          platform: truenas
+
+  # Garage serves /metrics on its admin API without a token (no metrics_token);
+  # :3903 is LAN-only since its tunnel route was removed on 04/11/2026.
+  - job_name: garage
+    static_configs:
+      - targets:
+          - 172.17.0.24:3903
+        labels:
+          platform: truenas
+          role: object-storage
+
   # This exporter is intentionally a pfSense HAProxy observer. Its scrape input
   # is configured by PFSENSE_HAPROXY_SCRAPE_URI in apps/haproxy-exporter.
   - job_name: haproxy
