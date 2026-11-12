@@ -42,7 +42,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -67,7 +67,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -95,7 +95,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -116,7 +116,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -412,7 +412,7 @@
       "kind": "security-agent",
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "detect",
         "respond"
@@ -780,7 +780,7 @@
       "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
       "presentationRole": "service",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "govern",
         "identify"
@@ -807,7 +807,7 @@
       "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "govern",
         "identify"
@@ -1591,7 +1591,7 @@
       "kind": "workflow",
       "category": "automation",
       "sourcePath": "apps/n8n/compose.yml",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "n8n"

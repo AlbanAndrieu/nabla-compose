@@ -30,7 +30,8 @@ services:
         protocol: tcp
         app_protocol: http
     volumes:
-      - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/meta.yaml:/srv/assets/YAML/meta.yaml:ro
+      # Relative: deploy-dsomm.sh renders it to an absolute path; ${VAR:-…} fails compose-config.
+      - ./config/meta.yaml:/srv/assets/YAML/meta.yaml:ro
       - /mnt/cpool/dsomm/state/model.yaml:/srv/assets/YAML/default/model.yaml:ro
       - /mnt/cpool/dsomm/state/team-progress.yaml:/srv/assets/YAML/team-progress.yaml:ro
       - /mnt/cpool/dsomm/state/team-evidence.yaml:/srv/assets/YAML/team-evidence.yaml:ro
@@ -43,7 +44,7 @@ services:
       name: OWASP DevSecOps Maturity Model
       kind: security-maturity-assessment
       category: security
-      status: planned
+      status: active
       presentationRole: service
       criticality: low
       securityFunctions:
@@ -86,7 +87,7 @@ services:
       - ALL
     volumes:
       - /mnt/cpool/dsomm/reports:/reports
-      - ${NABLA_COMPOSE_ROOT:-/mnt/cpool/compose/nabla-compose}/apps/dsomm/config/repository-contexts.yaml:/config/repository-contexts.yaml:ro
+      - ./config/repository-contexts.yaml:/config/repository-contexts.yaml:ro
     networks:
       - intranet
     labels:
@@ -96,7 +97,7 @@ services:
       name: DSOMM GitHub Baseline
       kind: security-maturity-evidence-scanner
       category: security
-      status: planned
+      status: active
       presentationRole: support
       criticality: low
       securityFunctions:

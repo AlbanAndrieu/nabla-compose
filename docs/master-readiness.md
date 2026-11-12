@@ -5,13 +5,13 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 89 ; actives : 58 ; planifiées : 28.
+Apps : 89 ; actives : 62 ; planifiées : 24.
 
 ## Écarts par type
 
 | Écart | Apps |
 | --- | --- |
-| `NO_AVAILABILITY_PROBE` | 28 |
+| `NO_AVAILABILITY_PROBE` | 30 |
 | `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 18 |
 | `SECRETS_NOT_IN_MANIFEST` | 1 |
@@ -22,7 +22,7 @@ Apps : 89 ; actives : 58 ; planifiées : 28.
 | App | État | Déploiement | Datasets (snapshot) | Secrets | Sonde | Métriques | Sauvegarde BD | Diagnostic | Config as code | Écarts |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `2fauth` | active | ❌ | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
-| `akvorado` | planned | ❌ | `cpool/akvorado` (none (noSnapshot)) | legacy | ✅ | — | — | diagnose-akvorado-config.sh<br>diagnose-akvorado-flow.py | apps/akvorado/config/ | `SECRETS_LEGACY_PATH`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `akvorado` | active | ❌ | `cpool/akvorado` (none (noSnapshot)) | legacy | ✅ | — | — | diagnose-akvorado-config.sh<br>diagnose-akvorado-flow.py | apps/akvorado/config/ | `SECRETS_LEGACY_PATH`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `apisix` | planned | ❌ | — | n/a | — | — | — | générique | apps/apisix/config/ | `NO_DEPLOY_PATH` |
 | `autokuma` | active | custom-apps.yml | `cpool/autokuma` (app-state) | manifest | ❌ | — | — | générique | bootstrap-autokuma-token.sh<br>render-autokuma-monitors.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
@@ -32,7 +32,7 @@ Apps : 89 ; actives : 58 ; planifiées : 28.
 | `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | legacy | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
-| `crowdsec` | planned | deploy-crowdsec.sh | — | manifest | — | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | ✅ |
+| `crowdsec` | active | deploy-crowdsec.sh | — | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
 | `cyberbro` | active | custom-apps.yml | `cpool/cyberbro` (app-state) | manifest | ✅ | — | — | diagnose-cyberbro.sh | bootstrap-cyberbro-env.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `ddns-updater` | active | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -42,7 +42,7 @@ Apps : 89 ; actives : 58 ; planifiées : 28.
 | `docling` | active | custom-apps.yml | — | n/a | ✅ | docling | — | diagnose-docling-readiness.py | — | ✅ |
 | `dozzle` | active | custom-apps.yml | `cpool/dozzle` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `drawio` | active | custom-apps.yml | — | n/a | ✅ | — | — | générique | — | ✅ |
-| `dsomm` | planned | deploy-dsomm.sh | `cpool/dsomm` (app-state) | manifest | ✅ | — | — | diagnose-dsomm-assessment.sh | apps/dsomm/config/ | ✅ |
+| `dsomm` | active | deploy-dsomm.sh | `cpool/dsomm` (app-state) | manifest | ✅ | — | — | diagnose-dsomm-assessment.sh | apps/dsomm/config/ | ✅ |
 | `garage` | active | custom-apps.yml | `cpool/garage` (backup-targets) | legacy | ❌ | garage | — | générique | terraform/garage | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | manifest | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/ | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -64,7 +64,7 @@ Apps : 89 ; actives : 58 ; planifiées : 28.
 | `media-acquisition` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/qbittorrent` (app-state) | manifest | ✅ | qbittorrent | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `minio` | active | custom-apps.yml | `cpool/minio` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `mongo` | active | custom-apps.yml | `cpool/mongo` (databases) | legacy | ❌ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE` |
-| `n8n` | planned | native App | — | n/a | — | n8n | ✅ n8n | générique | — | ✅ |
+| `n8n` | active | native App | — | n/a | ❌ | n8n | ✅ n8n | générique | — | `NO_AVAILABILITY_PROBE` |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | legacy | ✅ | — | — | générique | terraform/nexus | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
