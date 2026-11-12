@@ -250,7 +250,6 @@ def test_runtime_layout_blocks_new_legacy_env_file_apps() -> None:
         "keycloak",
         "akvorado",
         "langfuse",
-        "postgres",
         "langflow",
         "crowdsec",
         "opensearch",

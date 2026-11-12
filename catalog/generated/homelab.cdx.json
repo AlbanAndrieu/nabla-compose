@@ -791,7 +791,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36"
+        "value": "sha256:e1b86f555319da73084e28efb201e0be1dcf7a2a9ac98a42e050c40669527155"
       },
       {
         "name": "nabla:catalog-authority",
@@ -799,7 +799,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:5646238e-58f8-15b3-5495-11fea263284c",
+  "serialNumber": "urn:uuid:e1b86f55-5319-da73-084e-28efb201e0be",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3167,7 +3167,7 @@
         },
         {
           "name": "nabla:source-path",
-          "value": "apps/postgres/catalog-info.yaml"
+          "value": "apps/postgres-exporter/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

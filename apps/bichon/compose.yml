@@ -1,4 +1,5 @@
 ---
+name: bichon
 services:
   bichon:
     labels:
@@ -27,7 +28,7 @@ services:
       - /mnt/cpool/bichon:/data
     user: "568:568"
     env_file:
-      - /mnt/cpool/bichon/.env.secrets
+      - /mnt/cpool/secrets/runtime/bichon/.env.secrets
     environment:
       BICHON_ROOT_DIR: /data
       BICHON_LOG_LEVEL: info

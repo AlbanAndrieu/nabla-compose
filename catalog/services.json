@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:ebad8ba2ca44ed363861a263de76baf6452e751f8ef4c3841abcff195696c77e",
+  "catalogRevision": "sha256:d88af73a53319b3e2e62a048859a2496fb7bd05a388304e2bb33667f80435786",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2127,11 +2127,12 @@
       "name": "PostgreSQL Exporter",
       "kind": "metrics-exporter",
       "category": "observability",
-      "sourcePath": "apps/postgres/compose.yml",
+      "sourcePath": "apps/postgres-exporter/compose.yml",
       "composeService": "postgres_exporter",
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",

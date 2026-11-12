@@ -26,7 +26,7 @@ metadata:
     albandrieu.com/bia-impact-confidentiality: low
     albandrieu.com/bia-impact-integrity: low
     albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-exporter/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
   type: exporter

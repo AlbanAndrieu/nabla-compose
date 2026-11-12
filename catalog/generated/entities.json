@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36",
+  "catalogRevision": "sha256:e1b86f555319da73084e28efb201e0be1dcf7a2a9ac98a42e050c40669527155",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3302,7 +3302,7 @@
           "albandrieu.com/bia-reviewed-at": "2026-09-21",
           "albandrieu.com/bia-rto": "P3D",
           "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres/",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/postgres-exporter/",
           "github.com/project-slug": "AlbanAndrieu/nabla-compose"
         },
         "description": "Prometheus exporter for the shared PostgreSQL Resource.",
@@ -3318,7 +3318,7 @@
         ],
         "title": "PostgreSQL Exporter"
       },
-      "sourcePath": "apps/postgres/catalog-info.yaml",
+      "sourcePath": "apps/postgres-exporter/catalog-info.yaml",
       "spec": {
         "dependsOn": [
           "resource:default/postgresql"

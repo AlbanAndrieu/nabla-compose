@@ -1,4 +1,5 @@
 ---
+name: clickhouse
 services:
   clickhouse:
     image: docker.io/clickhouse/clickhouse-server:26.8.2.7
@@ -28,7 +29,7 @@ services:
     init: true
     user: "101:101"
     env_file:
-      - /mnt/cpool/clickhouse/.env.secrets
+      - /mnt/cpool/secrets/runtime/clickhouse/.env.secrets
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse

@@ -2314,10 +2314,11 @@
       "name": "PostgreSQL Exporter",
       "kind": "metrics-exporter",
       "category": "observability",
-      "sourcePath": "apps/postgres/compose.yml",
+      "sourcePath": "apps/postgres-exporter/compose.yml",
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
+      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "postgres_exporter",
@@ -5688,7 +5689,7 @@
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/postgres/compose.yml:postgres_exporter.x-nabla.runtime.containerService"
+        "apps/postgres-exporter/compose.yml:postgres_exporter.x-nabla.runtime.containerService"
       ]
     },
     {
@@ -5698,7 +5699,7 @@
       "strength": "required",
       "description": "The exporter queries the shared PostgreSQL service.",
       "evidence": [
-        "apps/postgres/compose.yml:DATA_SOURCE_NAME"
+        "apps/postgres-exporter/compose.yml:DATA_SOURCE_NAME"
       ]
     },
     {

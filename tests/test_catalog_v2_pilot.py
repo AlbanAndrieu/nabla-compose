@@ -46,7 +46,7 @@ class CatalogV2PilotTests(unittest.TestCase):
             ROOT / "apps" / "cartography" / "catalog-info.yaml",
             ROOT / "apps" / "sample" / "catalog-info.yaml",
             ROOT / "apps" / "traefik" / "catalog-info.yaml",
-            ROOT / "apps" / "postgres" / "catalog-info.yaml",
+            ROOT / "apps" / "postgres-exporter" / "catalog-info.yaml",
         ]
         refs = [_entity_ref(entity) for path in paths for entity in _documents(path)]
         self.assertEqual(len(refs), len(set(refs)))
@@ -67,7 +67,7 @@ class CatalogV2PilotTests(unittest.TestCase):
             ROOT / "apps" / "cartography" / "catalog-info.yaml",
             ROOT / "apps" / "sample" / "catalog-info.yaml",
             ROOT / "apps" / "traefik" / "catalog-info.yaml",
-            ROOT / "apps" / "postgres" / "catalog-info.yaml",
+            ROOT / "apps" / "postgres-exporter" / "catalog-info.yaml",
         ]
         entities = [entity for path in paths for entity in _documents(path)]
         refs = {_entity_ref(entity) for entity in entities}
@@ -170,7 +170,7 @@ class CatalogV2PilotTests(unittest.TestCase):
         self.assertEqual(postgres["spec"]["type"], "database")
 
         exporter = _documents(
-            ROOT / "apps" / "postgres" / "catalog-info.yaml"
+            ROOT / "apps" / "postgres-exporter" / "catalog-info.yaml"
         )[0]
         self.assertEqual(_entity_ref(exporter), "component:default/postgres-exporter")
         self.assertEqual(
@@ -179,11 +179,11 @@ class CatalogV2PilotTests(unittest.TestCase):
         )
 
         compose = yaml.safe_load(
-            (ROOT / "apps" / "postgres" / "compose.yml").read_text(
+            (ROOT / "apps" / "postgres-exporter" / "compose.yml").read_text(
                 encoding="utf-8"
             )
         )
-        self.assertEqual(compose["name"], "postgres")
+        self.assertEqual(compose["name"], "postgres-exporter")
         service = compose["services"]["postgres_exporter"]
         self.assertEqual(
             _labels(service)["com.albandrieu.nabla.entity-ref"],

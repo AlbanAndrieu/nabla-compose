@@ -1170,7 +1170,7 @@
       "entityRef": "component:default/postgres-exporter",
       "name": "PostgreSQL Exporter",
       "group": "observability",
-      "sourcePath": "apps/postgres/compose.yml",
+      "sourcePath": "apps/postgres-exporter/compose.yml",
       "composeService": "postgres_exporter",
       "dockerManaged": true,
       "href": null,

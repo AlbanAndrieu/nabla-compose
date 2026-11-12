@@ -195,7 +195,7 @@ justifiée par les dernières preuves.
 
 ### Exporter PostgreSQL
 
-Le [Compose](../../apps/postgres/compose.yml) utilise un secret
+Le [Compose](../../apps/postgres-exporter/compose.yml) utilise un secret
 `/mnt/cpool/secrets/runtime/postgres-exporter/.env.secrets`
 avec `env_file.format: raw`, `required: true` et listener
 `172.17.0.24:9187`.

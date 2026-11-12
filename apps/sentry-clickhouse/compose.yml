@@ -30,7 +30,7 @@ services:
     # Reap orphaned wget children; the app PID 1 left zombies (diagnostic 2026-11-04).
     init: true
     env_file:
-      - /mnt/cpool/sentry-clickhouse/.env.secrets
+      - /mnt/cpool/secrets/runtime/sentry-clickhouse/.env.secrets
     environment:
       CLICKHOUSE_DB: sentry
       CLICKHOUSE_USER: clickhouse

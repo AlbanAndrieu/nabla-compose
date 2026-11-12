@@ -19,7 +19,7 @@ CORE_RULES = ROOT / "apps" / "prometheus" / "rules" / "nabla-core.rules.yml"
 
 # Prometheus job -> (catalog-info.yaml, Backstage entity name)
 EXPORTER_ENTITIES = {
-    "postgres_exporter": ("apps/postgres/catalog-info.yaml", "postgres-exporter"),
+    "postgres_exporter": ("apps/postgres-exporter/catalog-info.yaml", "postgres-exporter"),
     "haproxy": ("apps/haproxy-exporter/catalog-info.yaml", "haproxy-exporter"),
     "opensearch": ("apps/opensearch-exporter/catalog-info.yaml", "opensearch-exporter"),
     "opensearch-security": (
