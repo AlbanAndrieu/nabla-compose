@@ -10,10 +10,9 @@ version: 1
 # The 26 names of the first round (media PoCs, kibana, routes removed from the
 # tunnel 04-06/11) were destroyed on 10/11/2026 and answer NXDOMAIN; see git
 # history for the list. The second round, postgres.albandrieu.com, was
-# destroyed on 11/11/2026. Third round: s3.int (Garage S3 must stay LAN-only,
-# config/public-int-dns-exceptions.txt), 12/11/2026.
-retired_hostnames:
-  - s3.int.albandrieu.com
+# destroyed on 11/11/2026. The third round, s3.int (Garage S3 must stay
+# LAN-only), was destroyed on 12/11/2026.
+retired_hostnames: []
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
