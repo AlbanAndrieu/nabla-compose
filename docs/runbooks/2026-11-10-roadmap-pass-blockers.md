@@ -194,3 +194,14 @@ Gestes runtime, dans l'ordre, chacun après accord :
 | B12 | Le login admin `nabla/prod/defectdojo` n'a pas de mot de passe ; le MCP DefectDojo n'a pas d'URL | Lire `DD_ADMIN_PASSWORD` sur TrueNAS sans l'afficher, puis produit `nabla-compose`, engagement `Trivy images`, compte `nabla-import` (API Importer), jeton dans `nabla/prod/defectdojo-import` et `import-token` |
 | Q15 | Aucune CA n'a existé : `runtime/postgres/tls/ca.crt` est un répertoire vide créé par Docker le 10/11. Traefik n'est qu'un client ACME (Let's Encrypt), pas une CA ; son STARTTLS PostgreSQL forcerait à changer hôte et port de chaque client | `sudo bash scripts/truenas/enable-postgres-tls.sh` (contrôle), puis `--apply` sur accord ; redéployer Keycloak, Plumber et Sample, puis repasser Plumber et Sample en `verify-full` |
 | B6, Q13, Q14 | Rien de neuf | Demandent l'accès SSH (et une décision pour Q13) |
+
+## 7. Suite du 12/11 au soir (accords Q13, Q15, B12, Scanopy)
+
+| Point | État | Preuve ou reste à faire |
+| --- | --- | --- |
+| Q15 | Appliqué : CA locale dans `/mnt/cpool/secrets/pki/local-ca`, `ca.crt` publié à la place du répertoire vide, certificat serveur dans PGDATA, `ssl=on` TLS 1.3 minimum par rechargement | `--check` : 6/6 OK (TLS 1.3 vérifié contre la CA, TLS 1.2 rejeté). Sample redéployé (11 connexions TLSv1.3), Plumber déployé (4 connexions TLSv1.3). `verify-full` commité pour les deux : à redéployer après fusion |
+| Q13 | App catalogue `bitcoind` supprimée avec ses `ix-volumes` (885 Go), Custom App créée sur `cpool/bitcoind`, nœud `healthy` (en-têtes en cours). Premier essai sous `systemd-run` arrêté sans effet par git (« dubious ownership », HOME de root) : relancé avec `GIT_CONFIG_*` `safe.directory` limité au processus | `cpool/bitcoin` (712 Go, 41 snapshots) non détruit : partage NFS 17 actif et automount `/media/bitcoin` dans le `/etc/fstab` de la workstation. Supprimer le partage, retirer l'entrée fstab (ansible-workstation ?), puis `zfs destroy -r cpool/bitcoin` |
+| Plumber, ntopng | Déployés par `rollout-pending-apps.sh --apply` | 3 conteneurs Plumber sans erreur ; ntopng `healthy` |
+| Scanopy | Admin initialisé : `.env` d'ouverture, redéploiement, `setup` 200 + `register` 200, `.env` supprimé, redéploiement | Login 200, inscription étrangère 403, `SCANOPY_DISABLE_REGISTRATION=true`, daemon injoignable depuis la workstation. Reste `bootstrap-repository-env-files.sh --finalize scanopy` |
+| B12 | `DD_ADMIN_PASSWORD` du runtime ne correspond plus au compte admin (`api-token-auth` 400) | Script prêt : jeton admin par `manage.py drf_create_token admin` (sans `-r`), puis produit, engagement, compte `nabla-import`, item `nabla/prod/defectdojo-import` et `import-token` root 0600. Exécution refusée par le classifieur : à lancer par l'opérateur |
+| Push | Le pre-push refuse : pointeur du sous-module `apps/openclaw` indexé par une autre session | Commiter ou désindexer ce pointeur, puis `git push` |
