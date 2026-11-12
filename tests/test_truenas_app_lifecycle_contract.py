@@ -113,13 +113,13 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("\\getenv keycloak_password KEYCLOAK_DB_PASSWORD", readme)
         self.assertIn("172.17.0.24:30239/health/ready", readme)
 
-    def test_plumber_postgres_tls_shortcut_stays_documented(self) -> None:
+    def test_plumber_postgres_verifies_the_server_certificate(self) -> None:
         compose = self.read("apps/plumber/compose.yml")
         readme = self.read("apps/plumber/README.md")
 
-        # Same approved shortcut as FastAPI Sample until the server runs TLS 1.3.
-        self.assertIn("shortcut: the shared server still runs ssl=off", compose)
-        self.assertIn("JOBS_DB_SSLMODE: prefer", compose)
+        # The shared server runs TLS 1.3 with the local CA since 12/11/2026.
+        self.assertIn("JOBS_DB_SSLMODE: verify-full", compose)
+        self.assertNotIn("prefer", compose)
         self.assertNotIn("disable", compose)
         self.assertIn("PGSSLROOTCERT: /etc/nabla/pki/postgres-ca.crt", compose)
         self.assertIn("volumes: *plumber-postgres-ca", compose)
