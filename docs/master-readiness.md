@@ -15,7 +15,6 @@ Apps : 89 ; actives : 61 ; planifiées : 25.
 | `NO_AVAILABILITY_PROBE` | 30 |
 | `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SECRETS_NOT_IN_MANIFEST` | 1 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 
 ## Matrice
@@ -99,7 +98,7 @@ Apps : 89 ; actives : 61 ; planifiées : 25.
 | `scorecard` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `scrutiny` | active | custom-apps.yml | `cpool/scrutiny` (app-state) | manifest | ✅ | — | — | diagnose-scrutiny.sh | bootstrap-scrutiny-influxdb.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `seerr` | planned | deploy-media-stack.sh | `cpool/seerr` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
-| `sentry` | active | custom-apps.yml | `cpool/sentry` (app-state) | unmanaged | ✅ | — | ✅ sentry | diagnose-sentry-consumers.sh<br>diagnose-sentry-migrator-credential.sh<br>diagnose-sentry-runtime-clickhouse-credential.sh<br>diagnose-sentry-taskbroker.sh<br>diagnose-sentry.sh | apps/sentry/config/<br>reconcile-sentry-migrator-credential.sh<br>reconcile-sentry-runtime-clickhouse-credential.sh<br>reconcile-sentry-system-secret.sh | `SECRETS_NOT_IN_MANIFEST`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `sentry` | active | custom-apps.yml | `cpool/sentry` (app-state) | manifest | ✅ | — | ✅ sentry | diagnose-sentry-consumers.sh<br>diagnose-sentry-migrator-credential.sh<br>diagnose-sentry-runtime-clickhouse-credential.sh<br>diagnose-sentry-taskbroker.sh<br>diagnose-sentry.sh | apps/sentry/config/<br>reconcile-sentry-migrator-credential.sh<br>reconcile-sentry-runtime-clickhouse-credential.sh<br>reconcile-sentry-system-secret.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sentry-clickhouse` | active | custom-apps.yml | `cpool/sentry-clickhouse` (databases) | manifest | ✅ | — | — | générique | — | ✅ |
 | `sonarqube` | planned | ❌ | — | n/a | — | — | ✅ sonarqube | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sonarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/sonarr` (app-state) | manifest | ✅ | sonarr-exporter | — | générique | terraform/media | ✅ |
