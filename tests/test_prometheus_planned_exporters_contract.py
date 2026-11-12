@@ -34,6 +34,10 @@ EXPORTER_ENTITIES = {
     "exportarr_bazarr": ("apps/bazarr/catalog-info.yaml", "bazarr-exporter"),
     "qbittorrent": ("apps/qbittorrent-exporter/catalog-info.yaml", "qbittorrent-exporter"),
     "jellyfin": ("apps/jellyfin/catalog-info.yaml", "jellyfin"),
+    # Applications with native /metrics, not deployed yet (roadmap P0).
+    "keycloak": ("apps/keycloak/catalog-info.yaml", "keycloak"),
+    "netbox": ("apps/netbox/catalog-info.yaml", "netbox"),
+    "dependency_track": ("apps/dependency-track/catalog-info.yaml", "dependency-track-api"),
 }
 
 
