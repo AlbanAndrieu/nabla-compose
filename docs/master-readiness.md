@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 89 ; actives : 61 ; planifiées : 25.
+Apps : 89 ; actives : 62 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -13,7 +13,7 @@ Apps : 89 ; actives : 61 ; planifiées : 25.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 30 |
-| `NO_DEPLOY_PATH` | 19 |
+| `NO_DEPLOY_PATH` | 18 |
 | `SECRETS_LEGACY_PATH` | 9 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 
@@ -84,7 +84,7 @@ Apps : 89 ; actives : 61 ; planifiées : 25.
 | `pihole` | active | custom-apps.yml | `cpool/pihole` (app-state)<br>`cpool/traefik` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `plumber` | planned | ❌ | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `postgres-exporter` | planned | ❌ | — | manifest | ✅ | postgres_exporter | ❌ | diagnose-postgres-exporter.sh | — | `DB_NOT_IN_LOGICAL_BACKUP`, `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `postgres-exporter` | active | custom-apps.yml | — | manifest | ✅ | postgres_exporter | ❌ | diagnose-postgres-exporter.sh | — | `DB_NOT_IN_LOGICAL_BACKUP`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
 | `prometheus` | active | custom-apps.yml | `cpool/prometheus` (none (noSnapshot)) | manifest | ✅ | alertmanager, pfsense-exporter, prometheus | — | diagnose-prometheus-targets.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `prowlarr` | planned | deploy-media-stack.sh | `cpool/prowlarr` (app-state) | manifest | ✅ | prowlarr-exporter | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
