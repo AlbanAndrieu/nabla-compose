@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:e1b86f555319da73084e28efb201e0be1dcf7a2a9ac98a42e050c40669527155",
+  "catalogRevision": "sha256:768d84aa06b3b7689c12b87da81f4e5e660b43321be569b5d62cc5ad45928b14",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4863,7 +4863,7 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/uptime-kuma",
+      "entityRef": "component:default/uptimekuma",
       "kind": "Component",
       "metadata": {
         "annotations": {
@@ -4881,7 +4881,7 @@
           "albandrieu.com/bia-rpo": "P7D",
           "albandrieu.com/bia-rto": "P3D",
           "albandrieu.com/bia-status": "provisional",
-          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptime-kuma/",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptimekuma/",
           "github.com/project-slug": "AlbanAndrieu/nabla-compose"
         },
         "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
@@ -4897,13 +4897,13 @@
             "url": "http://172.17.0.24:31050"
           }
         ],
-        "name": "uptime-kuma",
+        "name": "uptimekuma",
         "tags": [
           "observability"
         ],
         "title": "Uptime Kuma"
       },
-      "sourcePath": "apps/uptime-kuma/catalog-info.yaml",
+      "sourcePath": "apps/uptimekuma/catalog-info.yaml",
       "spec": {
         "lifecycle": "production",
         "owner": "group:default/nabla-platform",

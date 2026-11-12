@@ -587,9 +587,9 @@ endpoints:
   group: observability
   interval: 60s
   extra-labels:
-    nabla_monitor_id: uptime-kuma
-    nabla_service_id: uptime-kuma
-    nabla_entity_ref: component:default/uptime-kuma
+    nabla_monitor_id: uptimekuma
+    nabla_service_id: uptimekuma
+    nabla_entity_ref: component:default/uptimekuma
   url: tcp://172.17.0.24:31050
   conditions:
   - '[CONNECTED] == true'

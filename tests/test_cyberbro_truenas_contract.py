@@ -63,7 +63,7 @@ def test_cyberbro_deploy_reconciles_generated_observability_consumers() -> None:
     assert "generate-service-topology.py --check" in script
     assert "generate-service-consumers.py --check" in script
     assert "deploy-autokuma.sh" in script
-    assert "uptime-kuma" in script
+    assert "uptimekuma" in script
     assert "gatus" in script
     assert "homarr" in script
     assert "Prometheus not redeployed" in script

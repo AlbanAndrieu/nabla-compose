@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:e1b86f555319da73084e28efb201e0be1dcf7a2a9ac98a42e050c40669527155",
+  "catalogRevision": "sha256:768d84aa06b3b7689c12b87da81f4e5e660b43321be569b5d62cc5ad45928b14",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -878,9 +878,9 @@
       "sourceType": "compose"
     },
     {
-      "entityRef": "component:default/uptime-kuma",
-      "evidence": "apps/uptime-kuma/compose.yml:services.uptime-kuma.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/uptime-kuma/compose.yml#services/uptime-kuma",
+      "entityRef": "component:default/uptimekuma",
+      "evidence": "apps/uptimekuma/compose.yml:services.uptimekuma.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/uptimekuma/compose.yml#services/uptimekuma",
       "sourceType": "compose"
     },
     {
@@ -1406,9 +1406,9 @@
       "sourceType": "gatus"
     },
     {
-      "entityRef": "component:default/uptime-kuma",
+      "entityRef": "component:default/uptimekuma",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
-      "sourceId": "uptime-kuma",
+      "sourceId": "uptimekuma",
       "sourceType": "gatus"
     },
     {

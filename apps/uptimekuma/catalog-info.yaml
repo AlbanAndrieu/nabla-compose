@@ -2,7 +2,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: uptime-kuma
+  name: uptimekuma
   title: Uptime Kuma
   description: Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.
   labels:
@@ -30,7 +30,7 @@ metadata:
     albandrieu.com/bia-impact-confidentiality: low
     albandrieu.com/bia-impact-integrity: low
     albandrieu.com/bia-impact-privacy: low
-    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptime-kuma/
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptimekuma/
     github.com/project-slug: AlbanAndrieu/nabla-compose
 spec:
   type: application

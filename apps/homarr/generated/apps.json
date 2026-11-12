@@ -1751,12 +1751,12 @@
       "description": "Always-on storage, virtualization and Docker application platform."
     },
     {
-      "id": "uptime-kuma",
-      "entityRef": "component:default/uptime-kuma",
+      "id": "uptimekuma",
+      "entityRef": "component:default/uptimekuma",
       "name": "Uptime Kuma",
       "group": "observability",
-      "sourcePath": "apps/uptime-kuma/compose.yml",
-      "composeService": "uptime-kuma",
+      "sourcePath": "apps/uptimekuma/compose.yml",
+      "composeService": "uptimekuma",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31050",
       "syncEligible": true,

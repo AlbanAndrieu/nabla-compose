@@ -150,6 +150,7 @@ Legacy `x-nabla` remains transitional until the coordinated v2 cutover.
 ## Repository rules
 
 - Prefer the existing `apps/<service>/compose.yml` pattern and reuse neighboring conventions instead of inventing a parallel layout.
+- Name every **new** service without a dash: `apps/<dir>`, Compose project `name`, service key, `container_name`, TrueNAS App, `x-nabla.id`, `entity-ref`, dataset and data path all use lowercase letters and digits only (`postgresbackup`, `fastapisample`, `uptimekuma`, not `uptime-kuma`). Keep the dash in product names, official images (`louislam/uptime-kuma`), provider environment keys, and in existing identifiers, hostnames or paths that already hold data or secrets: renaming those is a migration, not a cleanup ([rename runbook](../../../docs/runbooks/openwebui-homeassistant-canonical-rename.md)).
 - Preserve TrueNAS host paths, UID/GID, external networks, ports, and deployment-specific variables unless the task explicitly changes them.
 - Prefer pinned image versions/digests where practical and let Renovate handle routine updates. Do not add obsolete Compose `version:` keys.
 - Add a real application healthcheck when the application exposes a documented health mechanism. Do not invent `/health` endpoints merely to obtain a green monitor.

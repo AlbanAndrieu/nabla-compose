@@ -219,9 +219,9 @@ apps:
     include:
       - apps/traefik/compose.yml
     state: running
-  - name: uptime-kuma
+  - name: uptimekuma
     include:
-      - apps/uptime-kuma/compose.yml
+      - apps/uptimekuma/compose.yml
     state: running
   - name: vaultwarden
     include:

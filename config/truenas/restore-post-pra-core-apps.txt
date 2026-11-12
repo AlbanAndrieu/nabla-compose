@@ -12,7 +12,7 @@
 # - prometheus: repository-owned Compose, but catalog declares required
 #   "prometheus storesIn mimir"; Mimir belongs to the pending Grafana Compose
 #   stack, so do not bypass that required dependency during staged recovery.
-# - uptime-kuma: former native App is gone; target is a repository-owned Uptime
+# - uptimekuma: former native App uptime-kuma is gone; target is a repository-owned Uptime
 #   Kuma Compose workload on :31050, then AutoKuma as its declarative reconciler.
 #   AutoKuma is not an Uptime Kuma server replacement and remains stopped until
 #   the Compose Uptime Kuma endpoint is healthy.

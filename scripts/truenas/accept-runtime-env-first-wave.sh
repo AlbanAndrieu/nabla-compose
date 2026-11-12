@@ -157,8 +157,8 @@ function accept_dependency {
     bash scripts/truenas/bootstrap-joplin-postgres.sh --apply
     ;;
   autokuma)
-    if ! midclt call app.query '[["id","=","uptime-kuma"]]' |
-      jq -e '[.[] | select(.id == "uptime-kuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
+    if ! midclt call app.query '[["id","=","uptimekuma"]]' |
+      jq -e '[.[] | select(.id == "uptimekuma" and .state == "RUNNING")] | length == 1' >/dev/null; then
       fail "autokuma: Uptime Kuma must exist and be RUNNING before acceptance"
     fi
     probe_http_success http://172.17.0.24:31050/ 3 10 ||

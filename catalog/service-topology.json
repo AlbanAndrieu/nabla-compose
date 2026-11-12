@@ -3149,11 +3149,11 @@
       "criticality": "critical"
     },
     {
-      "id": "uptime-kuma",
+      "id": "uptimekuma",
       "name": "Uptime Kuma",
       "kind": "uptime-monitor",
       "category": "observability",
-      "sourcePath": "apps/uptime-kuma/compose.yml",
+      "sourcePath": "apps/uptimekuma/compose.yml",
       "url": "http://172.17.0.24:31050",
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
       "lifecycle": {
@@ -3162,8 +3162,8 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "uptime-kuma",
-        "containerService": "uptime-kuma",
+        "appId": "uptimekuma",
+        "containerService": "uptimekuma",
         "networks": [
           "intranet"
         ]
@@ -3516,7 +3516,7 @@
     },
     {
       "source": "autokuma",
-      "target": "uptime-kuma",
+      "target": "uptimekuma",
       "type": "consumesApi",
       "strength": "required",
       "description": "AutoKuma reconciles generated monitors into Uptime Kuma.",
@@ -6575,13 +6575,13 @@
       ]
     },
     {
-      "source": "uptime-kuma",
+      "source": "uptimekuma",
       "target": "docker",
       "type": "hostedBy",
       "strength": "required",
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
-        "apps/uptime-kuma/compose.yml:uptime-kuma.x-nabla.runtime.containerService"
+        "apps/uptimekuma/compose.yml:uptimekuma.x-nabla.runtime.containerService"
       ]
     },
     {

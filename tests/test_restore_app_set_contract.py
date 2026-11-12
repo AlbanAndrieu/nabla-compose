@@ -39,7 +39,7 @@ def test_post_pra_core_restore_set_is_catalog_driven_and_excludes_runtime_drift(
 
     assert set(active) == {"vaultwarden"}
     for native_or_pending in (
-        "adguard-home", "grafana", "prometheus", "uptime-kuma", "autokuma"
+        "adguard-home", "grafana", "prometheus", "uptimekuma", "autokuma"
     ):
         assert native_or_pending not in active
 
