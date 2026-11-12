@@ -1,3 +1,16 @@
+# [0.71.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.70.0...0.71.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **garage:** route the public hostname to the WebUI, keep the Admin API LAN-only ([709aa79](https://github.com/AlbanAndrieu/nabla-compose/commit/709aa79b01b4dbd02943cc2f5e3ab0c3beb9b4ab))
+* **secrets:** read canonical runtime files and give postgres-exporter its own App ([1673f32](https://github.com/AlbanAndrieu/nabla-compose/commit/1673f329bd19d682ad9af04060274e36562bd354))
+
+
+### Features
+
+* **github:** import nabla-servers-bower-sample to enforce delete_branch_on_merge ([b1e3084](https://github.com/AlbanAndrieu/nabla-compose/commit/b1e30849fc2b1719bd505cdce8f2bc4dbcca02ac))
+
 # [0.70.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.69.1...0.70.0) (2026-11-12)
 
 
