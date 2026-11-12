@@ -49,7 +49,7 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertIsNotNone(existing)
         self.assertEqual(existing["id"], "mapped")
 
-    def test_desired_payload_uses_safe_default_icon_without_ping_url(self) -> None:
+    def test_desired_payload_uses_safe_default_icon_and_null_ping_url(self) -> None:
         item = {
             "name": "pfSense",
             "href": "https://pfsense.example.test",
@@ -63,8 +63,8 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertEqual(payload["href"], "https://pfsense.example.test")
         self.assertEqual(payload["description"], "Firewall")
         self.assertEqual(payload["iconUrl"], homarr_sync.DEFAULT_ICON)
-        # Homarr v2 dropped pingUrl from the app payload.
-        self.assertNotIn("pingUrl", payload)
+        # Homarr v2.6 rejects a create or edit without the pingUrl key.
+        self.assertIsNone(payload["pingUrl"])
 
     def test_main_creates_and_updates_without_deleting(self) -> None:
         manifest = {
@@ -81,6 +81,7 @@ class HomarrSyncTests(unittest.TestCase):
                 "description": None,
                 "iconUrl": homarr_sync.DEFAULT_ICON,
                 "href": "https://grafana.example.test",
+                "pingUrl": "https://grafana.example.test/api/health",
             }
         ]
         request_json = Mock(side_effect=[None, {"id": "homarr-pfsense", "name": "pfSense"}])
@@ -104,9 +105,10 @@ class HomarrSyncTests(unittest.TestCase):
             request_json.call_args_list,
             [
                 call("PATCH", "/api/apps/homarr-grafana",
-                     {"name": "Grafana", **payload, "href": "https://grafana.example.test"}),
+                     {"name": "Grafana", **payload, "href": "https://grafana.example.test",
+                      "pingUrl": "https://grafana.example.test/api/health"}),
                 call("POST", "/api/apps",
-                     {"name": "pfSense", **payload, "href": "https://pfsense.example.test"}),
+                     {"name": "pfSense", **payload, "href": "https://pfsense.example.test", "pingUrl": None}),
             ],
         )
         self.assertFalse(any(args[0] == "DELETE" for args, _ in request_json.call_args_list))

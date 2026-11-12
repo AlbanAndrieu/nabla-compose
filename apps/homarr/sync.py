@@ -111,6 +111,8 @@ def desired_payload(item: dict[str, Any]) -> dict[str, Any]:
         "description": str(description)[:512] if description else None,
         "iconUrl": icon,
         "href": str(item["href"]),
+        # Homarr v2.6 requires the key again (URL, "" or null); null keeps pings off.
+        "pingUrl": None,
     }
 
 
@@ -304,7 +306,8 @@ def main() -> int:
         if DRY_RUN:
             log(f"would update {nabla_id} / {homarr_id}")
             continue
-        request_json("PATCH", f"/api/apps/{homarr_id}", payload)
+        # Keep a ping URL set by hand in the Homarr UI.
+        request_json("PATCH", f"/api/apps/{homarr_id}", {**payload, "pingUrl": existing.get("pingUrl")})
         updated += 1
         log(f"updated {nabla_id} / {homarr_id}")
 
