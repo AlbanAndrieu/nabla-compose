@@ -22,7 +22,7 @@ services:
         phase: platform-services
         priority: 40
     restart: unless-stopped
-    # Internal only: LAN-bound host port, no Traefik/Cloudflare route.
+    # LAN-bound host port; the Cloudflare tunnel route to it sits behind Access (README).
     ports:
       - "172.17.0.24:31050:3001"
     volumes:

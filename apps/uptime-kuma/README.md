@@ -7,8 +7,12 @@ native TrueNAS Uptime Kuma App and is the server that
 - TrueNAS Custom App: `uptime-kuma` (`config/truenas/custom-apps.yml`);
 - image: `louislam/uptime-kuma` rootless 2.x, run as the TrueNAS `apps` user
   (`568:568`);
-- endpoint: `http://172.17.0.24:31050` (container port `3001`), internal only,
-  with no Traefik or Cloudflare route;
+- endpoint: `http://172.17.0.24:31050` (container port `3001`), LAN-bound, no
+  Traefik route. `terraform/cloudflare/tunnel.tofu` already publishes
+  `uptime-kuma.albandrieu.com` to this port behind a Cloudflare Access login
+  (302 to Access on 2026-11-12, application managed outside this repository).
+  The first-run page creates the admin account: create it right after the first
+  deploy, from the LAN;
 - data: ZFS dataset `cpool/uptime-kuma` mounted at `/mnt/cpool/uptime-kuma`,
   covered by the snapshot task in `config/truenas/snapshot-tasks.json`.
 
