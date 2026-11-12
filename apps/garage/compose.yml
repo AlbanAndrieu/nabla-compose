@@ -12,11 +12,11 @@ x-nabla:
       name: Garage Admin API
       kind: api
       category: data
-      url: https://garage-admin.albandrieu.com
+      url: http://172.17.0.24:3903
       internalUrl: http://172.17.0.24:3903
       presentationRole: support
       criticality: high
-      description: Garage Admin API exposed through Cloudflare Tunnel to the LAN-bound :3903 origin without Traefik.
+      description: Garage Admin API on the LAN-bound :3903 origin only; its Cloudflare Tunnel route was removed on 04/11/2026.
   relations:
     - source: garage-webui
       target: cloudflared
@@ -32,13 +32,6 @@ x-nabla:
       description: Garage Admin :3903 is the administration API of the Garage object-storage service.
       evidence:
         - apps/garage/garage.toml:[admin] api_bind_addr=:3903
-    - source: garage-admin
-      target: cloudflared
-      type: exposedBy
-      strength: required
-      description: Cloudflare Tunnel forwards garage-admin.albandrieu.com through cloudflared directly to Garage Admin :3903.
-      evidence:
-        - docs/dns-ingress-ownership.md:Garage exposure boundary
 
 configs:
   garage_config:

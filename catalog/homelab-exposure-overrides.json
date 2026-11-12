@@ -48,7 +48,7 @@
       "cloudflareAccessRequired": false,
       "tunnelUrl": "https://garage-admin.albandrieu.com",
       "endpointEnabled": true,
-      "healthNote": "Garage Admin API :3903 must be LAN/VPN only. Existing garage-admin.albandrieu.com public Tunnel mapping is suspected drift until live Cloudflare config is audited.",
+      "healthNote": "Garage Admin API :3903 is LAN/VPN only; the garage-admin.albandrieu.com Tunnel route was removed on 04/11/2026 (absent from terraform/cloudflare/tunnel.tofu).",
       "securityException": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API.",
       "probePriority": 1
     },
