@@ -71,12 +71,24 @@ def test_reject_empty_progress() -> None:
             module.probe("http://example.test")
 
 
-def test_reboot_hook_keeps_existing_gates() -> None:
+def test_reboot_runs_app_gates_after_resume_from_the_bundle() -> None:
     source = (SCRIPT.parent / "reboot-homelab.sh").read_text()
-    assert 'DSOMM_POST_REBOOT_CHECK=' in source
-    assert 'python3 "${DSOMM_POST_REBOOT_CHECK}"' in source
-    assert 'python3 "${FASTAPI_REBOOT_DIAGNOSTIC}"' in source
-    assert 'python3 "${INGRESS_ROUTE_AUDIT}" --strict' in source
+    post_reboot = source.split('if [[ "${MODE}" == --post-reboot-check ]]; then', 1)[1].split("exit 0", 1)[0]
+    verify = source.rsplit("# --verify", 1)[1]
+    assert "SERVICE_HEALTH_CHECK" not in post_reboot
+    assert 'bash "${SERVICE_HEALTH_CHECK}"' in verify
+    services = (SCRIPT.parent / "check-homelab-services.sh").read_text()
+    assert "check-dsomm-post-reboot.py" in services
+    assert "diagnose-fastapi-integrations.py" in services
+    bundle = (SCRIPT.parent / "materialize-reboot-bundle.sh").read_text()
+    for helper in (
+        "check-homelab-services.sh",
+        "audit-homelab-service-dependencies.py",
+        "check-dsomm-post-reboot.py",
+        "diagnose-pyroscope.sh",
+        "diagnose-fastapi-integrations.py",
+    ):
+        assert f"scripts/truenas/{helper}" in bundle
     assert subprocess.run(["bash", "-n", str(SCRIPT.parent / "reboot-homelab.sh")], check=False).returncode == 0
 
 

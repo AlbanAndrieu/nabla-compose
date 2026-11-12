@@ -33,10 +33,8 @@ RESUME_RECONCILER="${NABLA_REBOOT_RESUME_RECONCILER:-${SCRIPT_DIR}/reconcile-reb
 ORPHAN_SHIMS="${NABLA_ORPHAN_SHIM_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-docker-orphan-shims.sh}"
 GHOST_RECOVERY="${NABLA_APP_GHOST_RECOVERY_HELPER:-${SCRIPT_DIR}/recover-app-after-docker-ghost.sh}"
 DOCKER_STORAGE_AUDIT="${NABLA_DOCKER_STORAGE_AUDIT:-${SCRIPT_DIR}/audit-docker-storage-debt.sh}"
-FASTAPI_REBOOT_DIAGNOSTIC="${NABLA_FASTAPI_REBOOT_DIAGNOSTIC:-${SCRIPT_DIR}/diagnose-fastapi-integrations.py}"
-INGRESS_ROUTE_AUDIT="${NABLA_INGRESS_ROUTE_AUDIT:-${BUNDLE_ROOT}/scripts/ingress/audit-internal-routes.py}"
-DSOMM_POST_REBOOT_CHECK="${NABLA_DSOMM_POST_REBOOT_CHECK:-${BUNDLE_ROOT}/scripts/truenas/check-dsomm-post-reboot.py}"
-PYROSCOPE_POST_REBOOT_CHECK="${NABLA_PYROSCOPE_POST_REBOOT_CHECK:-${BUNDLE_ROOT}/scripts/truenas/diagnose-pyroscope.sh}"
+# FastAPI, DSOMM, Pyroscope and ingress gates need resumed Apps: they run in --verify only.
+SERVICE_HEALTH_CHECK="${NABLA_SERVICE_HEALTH_CHECK:-${SCRIPT_DIR}/check-homelab-services.sh}"
 [[ -f "${PLANNER}" ]] || PLANNER="${REPO_ROOT}/scripts/truenas/plan-app-lifecycle-order.py"
 [[ -f "${IPAM_CHECK}" ]] || IPAM_CHECK="${REPO_ROOT}/scripts/truenas/migrate-docker-address-pool.sh"
 [[ -f "${RESUME_RECONCILER}" ]] || RESUME_RECONCILER="${REPO_ROOT}/scripts/truenas/reconcile-reboot-resume.sh"
@@ -355,6 +353,12 @@ print_plan_summary() {
     unmapped="$(jq -r '.unmapped_apps|join(" ")' "${dir}/${plan}.json")"
     [[ -z "${unmapped}" ]] || warn "${plan}: no topology mapping for: ${unmapped}"
   done
+  not_resumed="$(
+    jq -r --slurpfile resume "${dir}/resume-plan.json" \
+      '.selected_apps - $resume[0].selected_apps | join(" ")' "${dir}/shutdown-plan.json"
+  )"
+  [[ -z "${not_resumed}" ]] ||
+    warn "stopped but NOT resumed (planned/disabled catalog status or CRASHED/ERROR); add reviewed ones to NABLA_REBOOT_RESUME_STOPPED_APPS: ${not_resumed}"
 }
 
 assert_manifest_fresh() {
@@ -694,10 +698,11 @@ if [[ "${MODE}" == --check ]]; then
   trap 'rm -rf "${tmp}"' EXIT
   apps_snapshot >"${tmp}/apps-before.json"
   make_plans "${tmp}/apps-before.json" "${tmp}"
+  # Show the waves before the gates, so a failing gate never hides the plan review.
+  print_plan_summary "${tmp}"
   vm_policy_gate
   cluster_client_preflight
   docker_storage_debt_preflight
-  print_plan_summary "${tmp}"
   printf 'READ-ONLY: reboot preflight passed; no App or VM changed.\n'
   exit 0
 fi
@@ -797,67 +802,7 @@ if [[ "${MODE}" == --post-reboot-check ]]; then
   done
   run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=5m
   run_operator "${KUBECTL}" get nodes -o wide
-
-  # --resume restores Apps separately; this mode remains read-only.
-  postcheck_failed=0
-  if [[ -f "${FASTAPI_REBOOT_DIAGNOSTIC}" ]]; then
-    python3 "${FASTAPI_REBOOT_DIAGNOSTIC}" ||
-      { warn "FastAPI integration check failed"; postcheck_failed=1; }
-  else
-    warn "FastAPI integration script missing: ${FASTAPI_REBOOT_DIAGNOSTIC}"
-    postcheck_failed=1
-  fi
-  if [[ -f "${INGRESS_ROUTE_AUDIT}" ]]; then
-    python3 "${INGRESS_ROUTE_AUDIT}" --strict ||
-      { warn "strict internal ingress audit failed"; postcheck_failed=1; }
-  else
-    warn "strict ingress audit unavailable: ${INGRESS_ROUTE_AUDIT}"
-    postcheck_failed=1
-  fi
-  # Pyroscope post-reboot evidence: inspect process, persistent mounts and readiness.
-  # This check is read-only; never attempt Raft recovery or alter its WAL.
-  if [[ -f "${PYROSCOPE_POST_REBOOT_CHECK}" ]]; then
-    if [[ "$(app_state pyroscope)" == RUNNING ]]; then
-      pyroscope_report="$(mktemp)"
-      if bash "${PYROSCOPE_POST_REBOOT_CHECK}" >"${pyroscope_report}" 2>&1; then
-        grep -E '^(Pyroscope diagnostic|HTTP |owner=|container_user=|WARNING:|ERROR:|MISSING:)' "${pyroscope_report}" || true
-      else
-        tail -n 30 "${pyroscope_report}"
-        warn "Pyroscope diagnostic failed"
-        postcheck_failed=1
-      fi
-      rm -f "${pyroscope_report}"
-      # Diagnostic evidence alone is not acceptance: readiness must succeed.
-      if ! curl --silent --show-error --fail --max-time 8 \
-        --output /dev/null "http://127.0.0.1:4040/ready"; then
-        warn "Pyroscope metastore/ingester/segment-writer readiness failed"
-        postcheck_failed=1
-      fi
-    else
-      warn "Pyroscope is not RUNNING; runtime readiness cannot be accepted"
-      postcheck_failed=1
-    fi
-  else
-    warn "Pyroscope diagnostic unavailable: ${PYROSCOPE_POST_REBOOT_CHECK}"
-    postcheck_failed=1
-  fi
-  # Run after App resume: DSOMM must serve real YAML, not the Caddy SPA HTML fallback.
-  # No reboot/restart or change to persisted assessment data.
-  if [[ -f "${DSOMM_POST_REBOOT_CHECK}" ]]; then
-    if [[ "$(app_state dsomm)" == RUNNING ]]; then
-      python3 "${DSOMM_POST_REBOOT_CHECK}" ||
-        { warn "DSOMM YAML/context acceptance failed"; postcheck_failed=1; }
-    else
-      warn "DSOMM is not RUNNING; runtime assessment cannot be accepted yet"
-      postcheck_failed=1
-    fi
-  else
-    warn "DSOMM acceptance script missing: ${DSOMM_POST_REBOOT_CHECK}"
-    postcheck_failed=1
-  fi
-  ((postcheck_failed == 0)) ||
-    fail "post-reboot integration/ingress acceptance failed (Apps may require --resume first)"
-  printf 'SUCCESS: post-reboot acceptance passed.\n'
+  printf 'SUCCESS: post-reboot infrastructure gate passed; next: --resume\n'
   exit 0
 fi
 
@@ -894,6 +839,8 @@ while IFS= read -r app; do
 done <"${state_dir}/intentional-stopped.txt"
 vm_policy_gate
 run_operator "${KUBECTL}" wait --for=condition=Ready node --all --timeout=60s
+[[ -f "${SERVICE_HEALTH_CHECK}" ]] || fail "service health check not found: ${SERVICE_HEALTH_CHECK}"
+bash "${SERVICE_HEALTH_CHECK}" || fail "post-resume service health gate failed"
 printf '%s\n' "${current_boot_id}" >"${state_dir}/boot-id-after"
 chmod 0600 "${state_dir}/boot-id-after"
 printf 'VERIFIED\n' >"${state_dir}/phase"

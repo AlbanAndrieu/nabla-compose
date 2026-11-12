@@ -39,7 +39,9 @@ if ! command -v midclt >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
 fi
 
 printf '🏠 Homelab health · topology-ordered checks\n'
-apps_json="$(midclt call app.query)" || { echo 'FAIL app.query'; exit 2; }
+# A full app.query collects every workload's stats and hits "Call timeout" on a loaded host.
+apps_json="$(timeout 180 midclt call app.query '[]' '{"select":["id","name","state","version","custom_app"]}')" ||
+  { echo 'FAIL app.query'; exit 2; }
 if [[ "${DEEP}" == true ]]; then
   echo '🔗 Deep probes enabled'
 fi
