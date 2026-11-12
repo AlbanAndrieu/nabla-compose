@@ -15,7 +15,8 @@
       "Bash(python3 -m pytest -q tests/test_master_readiness.py)",
       "Bash(git add *)",
       "Bash(git push)",
-      "Bash(curl -sSL --max-time 15 https://raw.githubusercontent.com/langflow-ai/langflow/main/docs/docs/Develop/observability-opentelemetry.mdx)"
+      "Bash(curl -sSL --max-time 15 https://raw.githubusercontent.com/langflow-ai/langflow/main/docs/docs/Develop/observability-opentelemetry.mdx)",
+      "Bash(printf *)"
     ]
   },
   "enabledMcpjsonServers": [
