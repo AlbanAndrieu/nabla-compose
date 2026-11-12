@@ -9,6 +9,10 @@
 version: 1
 canonical_root: /mnt/cpool/compose/nabla-compose
 apps:
+  - name: akvorado
+    include:
+      - apps/akvorado/compose.yml
+    state: running
   - name: autokuma
     include:
       - apps/autokuma/compose.yml
@@ -32,6 +36,10 @@ apps:
   - name: code
     include:
       - apps/code/compose.yml
+    state: running
+  - name: crowdsec
+    include:
+      - apps/crowdsec/compose.yml
     state: running
   - name: cyberbro
     include:
@@ -63,6 +71,11 @@ apps:
     include:
       - apps/drawio/compose.yml
     state: running
+  - name: dsomm
+    include:
+      - apps/dsomm/compose.yml
+    state: running
+    note: deployed as a rendered Compose by scripts/truenas/deploy-dsomm.sh, not an include wrapper
   - name: garage
     include:
       - apps/garage/compose.yml
