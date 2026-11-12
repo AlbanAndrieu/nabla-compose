@@ -2347,7 +2347,6 @@
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "postgres_exporter",

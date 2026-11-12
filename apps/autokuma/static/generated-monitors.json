@@ -437,6 +437,17 @@
     "url": "http://172.17.0.24:30233/metrics"
   },
   {
+    "id": "postgres-exporter",
+    "type": "port",
+    "name": "PostgreSQL Exporter",
+    "description": "Prometheus exporter for the shared PostgreSQL Resource.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 9187
+  },
+  {
     "id": "postgresql",
     "type": "port",
     "name": "PostgreSQL",

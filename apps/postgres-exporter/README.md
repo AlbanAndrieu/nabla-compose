@@ -24,13 +24,13 @@ holds only `DATA_SOURCE_NAME`, rendered from the Vaultwarden item
 `nabla/prod/postgres-exporter` (`config/secrets/manifest.json`):
 
 ```text
-DATA_SOURCE_NAME=postgresql://postgres_exporter:REDACTED@172.17.0.24:5432/postgres?sslmode=disable
+DATA_SOURCE_NAME=postgresql://postgres_exporter:REDACTED@172.17.0.24:5432/postgres?sslmode=require
 ```
 
-The exporter uses `lib/pq`, which rejects `sslmode=prefer` and defaults to
-`require`. `disable` is the only mode that works while the server runs with
-`ssl = off`. Switch to `verify-full` (with the CA mounted) once PostgreSQL TLS
-is enabled.
+The exporter uses `lib/pq`, which rejects `sslmode=prefer`. Since 12/11/2026
+the server runs TLS 1.3, so `require` encrypts the connection. `verify-full`
+needs the CA mounted; that mount lives under `/mnt/cpool/secrets` and counts
+as secret debt until the public CA moves out of it.
 
 ## Activation
 

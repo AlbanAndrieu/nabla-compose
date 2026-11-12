@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:70242cce308e2da689dad5a237df82e0d984f154bd659c9e202e3850f3ea2750",
+  "catalogRevision": "sha256:a20a742fa17ec4fc3fb894714e66d2f15edffee399a68a71821d677d992b2d2b",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2161,7 +2161,6 @@
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",

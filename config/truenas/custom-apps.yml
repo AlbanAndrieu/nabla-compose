@@ -169,6 +169,10 @@ apps:
     include:
       - apps/pihole/compose.yml
     state: running
+  - name: postgres-exporter
+    include:
+      - apps/postgres-exporter/compose.yml
+    state: running
   - name: prometheus
     include:
       - apps/prometheus/compose.yml
