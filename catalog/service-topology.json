@@ -3294,6 +3294,11 @@
       "securityFunctions": [
         "detect"
       ],
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30,
+        "blocksLaterWaves": false
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "wazuh.manager"

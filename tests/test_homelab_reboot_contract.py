@@ -148,6 +148,37 @@ class HomelabRebootContractTests(unittest.TestCase):
                 self.assertLess(wave[dependency], wave["openclaw-gateway"])
         self.assertLess(wave["docker-socket-proxy"], wave["openclaw-devbox"])
 
+    def test_wazuh_failure_does_not_block_later_resume_waves(self) -> None:
+        topology = json.loads(
+            (ROOT / "catalog/service-topology.json").read_text(encoding="utf-8")
+        )
+        app_ids = set()
+        for node in topology["nodes"]:
+            runtime = node.get("runtime", {})
+            if runtime.get("provider") != "truenas-app":
+                continue
+            parts = Path(node.get("sourcePath") or "").parts
+            app_ids.add(
+                runtime.get("appId")
+                or (parts[1] if parts[:1] == ("apps",) else node["id"])
+            )
+        with tempfile.TemporaryDirectory() as tmp:
+            apps = Path(tmp) / "apps-before.json"
+            apps.write_text(
+                json.dumps([{"id": app, "state": "RUNNING"} for app in sorted(app_ids)]),
+                encoding="utf-8",
+            )
+            # The planner rejects blocksLaterWaves=false once another App requires Wazuh.
+            result = subprocess.run(
+                ["python3", str(PLANNER), "--apps", str(apps)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        policy = json.loads(result.stdout)["lifecycle_phase_by_app"]["wazuh"]
+        self.assertIs(policy.get("blocksLaterWaves"), False)
+
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
             REBOOT,
