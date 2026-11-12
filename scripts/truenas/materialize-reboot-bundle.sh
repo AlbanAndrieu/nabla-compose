@@ -54,6 +54,10 @@ mkdir -p "${BUNDLE_ROOT}"
 chmod 755 "${BUNDLE_ROOT}"
 
 COMMIT="$(git -C "${REPO_ROOT}" rev-parse --verify "${REF}^{commit}")"
+# FILES below comes from this script: an older checkout would ship a bundle without the newer gates.
+git -C "${REPO_ROOT}" show "${COMMIT}:scripts/truenas/materialize-reboot-bundle.sh" |
+  cmp -s - "${BASH_SOURCE[0]}" ||
+  fail "this materializer differs from ${COMMIT}; run it from a checkout of that commit"
 FINAL="${BUNDLE_ROOT}/${COMMIT}"
 STAGE="$(mktemp -d "${BUNDLE_ROOT}/.${COMMIT}.tmp.XXXXXX")"
 chmod 755 "${STAGE}"
