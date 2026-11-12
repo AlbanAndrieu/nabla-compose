@@ -139,6 +139,8 @@ services:
     command:
       - "--config.file=/etc/alertmanager/config.yml"
       - "--storage.path=/alertmanager"
+      # Slack links otherwise point at the container hostname.
+      - "--web.external-url=http://172.17.0.24:9093"
 
   # cAdvisor is intentionally not part of this TrueNAS Custom App. Its retained
   # manual definition lives in apps/cadvisor/disabled.yml. Historical
