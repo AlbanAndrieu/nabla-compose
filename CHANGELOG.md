@@ -1,3 +1,17 @@
+# [0.70.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.69.1...0.70.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **catalog:** declare the newly active Apps in the operator inventories ([366dcb4](https://github.com/AlbanAndrieu/nabla-compose/commit/366dcb46d00355e213c42779892b9fd33c35ec9d))
+* **reboot:** start cloudflared and Vaultwarden before the data waves ([2dd4bd7](https://github.com/AlbanAndrieu/nabla-compose/commit/2dd4bd7420a4cac5e0fc15582859e7d070225c42))
+
+
+### Features
+
+* **catalog:** mark akvorado, crowdsec, dsomm and n8n active ([bd5fadf](https://github.com/AlbanAndrieu/nabla-compose/commit/bd5fadfc9e919478e92134b4c333bdf30f011c69))
+* **uptime-kuma:** add repository-owned Uptime Kuma Custom App ([5b506cf](https://github.com/AlbanAndrieu/nabla-compose/commit/5b506cf80ed53b9c5cdb4072bd8293d257f3fafd))
+
 ## [0.69.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.69.0...0.69.1) (2026-11-12)
 
 
