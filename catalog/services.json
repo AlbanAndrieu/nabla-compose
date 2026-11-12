@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:4efe815445ff24bf196b7f23be29b91eff60a5da8d94df0983db20eac9645413",
+  "catalogRevision": "sha256:c406b373832305777fd338a60facb92e2caf67010df8dfeadefe3c2a2ab11f14",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2874,6 +2874,28 @@
         ]
       },
       "icon": "🚦"
+    },
+    {
+      "id": "uptime-kuma",
+      "name": "Uptime Kuma",
+      "kind": "uptime-monitor",
+      "category": "observability",
+      "sourcePath": "apps/uptime-kuma/compose.yml",
+      "composeService": "uptime-kuma",
+      "url": "http://172.17.0.24:31050",
+      "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 40
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "appId": "uptime-kuma",
+        "containerService": "uptime-kuma",
+        "networks": [
+          "intranet"
+        ]
+      }
     },
     {
       "id": "vaultwarden",

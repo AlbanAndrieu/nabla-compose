@@ -5,13 +5,13 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 88 ; actives : 57 ; planifiées : 28.
+Apps : 89 ; actives : 58 ; planifiées : 28.
 
 ## Écarts par type
 
 | Écart | Apps |
 | --- | --- |
-| `NO_AVAILABILITY_PROBE` | 27 |
+| `NO_AVAILABILITY_PROBE` | 28 |
 | `NO_DEPLOY_PATH` | 19 |
 | `SECRETS_LEGACY_PATH` | 18 |
 | `SECRETS_NOT_IN_MANIFEST` | 1 |
@@ -106,6 +106,7 @@ Apps : 88 ; actives : 57 ; planifiées : 28.
 | `suricata` | active | custom-apps.yml | `cpool/suricata` (none (noSnapshot)) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `sybase-exporter` | planned | ❌ | — | n/a | — | sybase-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `traefik` | active | custom-apps.yml | `cpool/traefik` (app-state) | legacy | ❌ | traefik | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `uptime-kuma` | active | custom-apps.yml | `cpool/uptime-kuma` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `vaultwarden` | active | custom-apps.yml | `cpool/vaultwarden` (critical) | n/a | ❌ | — | — | diagnose-vaultwarden-cli.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `watchtower` | planned | ❌ | — | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `wazuh` | active | custom-apps.yml | `cpool/secrets` (critical)<br>`cpool/wazuh` (databases) | legacy | ❌ | — | — | diagnose-wazuh.sh | apps/wazuh/config/<br>bootstrap-wazuh.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |

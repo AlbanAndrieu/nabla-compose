@@ -3150,18 +3150,22 @@
     {
       "id": "uptime-kuma",
       "name": "Uptime Kuma",
-      "kind": "native-truenas-uptime-monitor",
+      "kind": "uptime-monitor",
       "category": "observability",
-      "sourcePath": "apps/autokuma/compose.yml",
+      "sourcePath": "apps/uptime-kuma/compose.yml",
       "url": "http://172.17.0.24:31050",
-      "description": "Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.",
+      "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
       "lifecycle": {
         "phase": "platform-services",
         "priority": 40
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "uptime-kuma"
+        "appId": "uptime-kuma",
+        "containerService": "uptime-kuma",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -6577,6 +6581,16 @@
       "evidence": [
         "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl",
         "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
+      ]
+    },
+    {
+      "source": "uptime-kuma",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/uptime-kuma/compose.yml:uptime-kuma.x-nabla.runtime.containerService"
       ]
     },
     {

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:11b4b5c7867a370b4af523581b38e5ceee1ae61c24eb4511ab8c999f2ee2f3e2",
+  "catalogRevision": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -878,6 +878,12 @@
       "sourceType": "compose"
     },
     {
+      "entityRef": "component:default/uptime-kuma",
+      "evidence": "apps/uptime-kuma/compose.yml:services.uptime-kuma.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/uptime-kuma/compose.yml#services/uptime-kuma",
+      "sourceType": "compose"
+    },
+    {
       "entityRef": "component:default/vaultwarden-rest-api",
       "evidence": "apps/vaultwarden/compose.yml:services.bitwarden-api.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/vaultwarden/compose.yml#services/bitwarden-api",
@@ -1397,6 +1403,12 @@
       "entityRef": "resource:default/truenas",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "truenas",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/uptime-kuma",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "uptime-kuma",
       "sourceType": "gatus"
     },
     {

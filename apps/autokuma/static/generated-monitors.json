@@ -606,6 +606,17 @@
     "port": 7000
   },
   {
+    "id": "uptime-kuma",
+    "type": "port",
+    "name": "Uptime Kuma",
+    "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31050
+  },
+  {
     "id": "vaultwarden",
     "type": "port",
     "name": "Vaultwarden",
