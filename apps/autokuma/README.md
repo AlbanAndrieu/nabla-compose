@@ -7,13 +7,19 @@ creates/updates those monitors through an already-running Uptime Kuma API.
 The former native TrueNAS Uptime Kuma App has been removed. The target
 architecture is therefore two repository-owned Compose workloads:
 
-1. **Uptime Kuma** — monitoring engine/UI, exposed on TrueNAS host port `31050`;
+1. **Uptime Kuma** — monitoring engine/UI, exposed on TrueNAS host port `31050`
+   ([`apps/uptime-kuma`](../uptime-kuma/README.md));
 2. **AutoKuma** — declarative controller that reconciles generated Nabla
    monitors into Uptime Kuma.
 
-Until the Uptime Kuma Compose service exists and `172.17.0.24:31050` is
-reachable, keep AutoKuma stopped. Starting AutoKuma alone cannot provide uptime
-monitoring and will fail its required `kuma.url`/connection contract.
+Until `172.17.0.24:31050` is reachable, keep AutoKuma stopped. Starting
+AutoKuma alone cannot provide uptime monitoring and will fail its required
+`kuma.url`/connection contract. Deployment order:
+
+1. deploy the `uptime-kuma` Custom App;
+2. create the admin user in the Uptime Kuma UI;
+3. `sudo bash scripts/truenas/bootstrap-autokuma-token.sh --url http://172.17.0.24:31050 --username <user>`;
+4. `bash scripts/truenas/deploy-autokuma.sh`.
 
 The sole editable probe authority is `config/monitoring/gatus-endpoints.yml`.
 The repository-generated **intermediate** manifest is:

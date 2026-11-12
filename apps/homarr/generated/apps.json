@@ -1751,6 +1751,18 @@
       "description": "Always-on storage, virtualization and Docker application platform."
     },
     {
+      "id": "uptime-kuma",
+      "entityRef": "component:default/uptime-kuma",
+      "name": "Uptime Kuma",
+      "group": "observability",
+      "sourcePath": "apps/uptime-kuma/compose.yml",
+      "composeService": "uptime-kuma",
+      "dockerManaged": true,
+      "href": "http://172.17.0.24:31050",
+      "syncEligible": true,
+      "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma."
+    },
+    {
       "id": "vaultwarden",
       "entityRef": "component:default/vaultwarden",
       "name": "Vaultwarden",

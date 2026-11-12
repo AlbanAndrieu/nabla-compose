@@ -35,7 +35,7 @@ class DsommContractTests(unittest.TestCase):
         self.assertEqual("31088", port["published"])
         self.assertEqual("172.17.0.24", port["host_ip"])
         self.assertEqual("dsomm", service["x-nabla"]["id"])
-        self.assertEqual("planned", service["x-nabla"]["status"])
+        self.assertEqual("active", service["x-nabla"]["status"])
         self.assertIn("healthcheck", service)
         self.assertEqual(["ALL"], service["cap_drop"])
         self.assertEqual(["NET_BIND_SERVICE"], service["cap_add"])
@@ -77,7 +77,8 @@ class DsommContractTests(unittest.TestCase):
         payload = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
         service = payload["services"]["dsomm-baseline"]
         self.assertEqual(["manual"], service["profiles"])
-        self.assertEqual("planned", service["x-nabla"]["status"])
+        # Same TrueNAS App as the UI: mixed statuses make the reboot planner fail closed.
+        self.assertEqual("active", service["x-nabla"]["status"])
         self.assertEqual("no", service["restart"])
         env_file = service["env_file"][0]
         self.assertEqual("/mnt/cpool/secrets/runtime/dsomm/.env.secrets", env_file["path"])

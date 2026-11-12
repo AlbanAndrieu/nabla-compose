@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:11b4b5c7867a370b4af523581b38e5ceee1ae61c24eb4511ab8c999f2ee2f3e2",
+  "catalogRevision": "sha256:5646238e58f815b3549511fea263284c5d592c9fc9e43d022c9b6962a5347c36",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4859,6 +4859,56 @@
         "subcomponentOf": "component:default/traefik",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/uptime-kuma",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "monitors-are-reconciled-again-by-autokuma-after-restore",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-12",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/uptime-kuma/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "links": [
+          {
+            "title": "Application",
+            "url": "http://172.17.0.24:31050"
+          }
+        ],
+        "name": "uptime-kuma",
+        "tags": [
+          "observability"
+        ],
+        "title": "Uptime Kuma"
+      },
+      "sourcePath": "apps/uptime-kuma/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "application"
       }
     },
     {

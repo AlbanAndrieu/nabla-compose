@@ -8,7 +8,7 @@ services:
       name: n8n
       kind: workflow
       category: automation
-      status: planned
+      status: active
       runtime:
         provider: truenas-app
         containerService: n8n

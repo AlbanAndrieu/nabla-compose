@@ -223,7 +223,8 @@
         "cpool/seerr",
         "cpool/sentry",
         "cpool/sonarr",
-        "cpool/traefik"
+        "cpool/traefik",
+        "cpool/uptime-kuma"
       ]
     },
     {

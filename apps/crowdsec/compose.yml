@@ -28,7 +28,7 @@ services:
       name: CrowdSec
       kind: security-agent
       category: security
-      status: planned
+      status: active
       securityFunctions:
         - detect
         - respond

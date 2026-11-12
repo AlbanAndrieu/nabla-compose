@@ -42,7 +42,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -67,7 +67,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -95,7 +95,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -116,7 +116,7 @@
       "sourcePath": "apps/akvorado/compose.yml",
       "presentationRole": "support",
       "criticality": "high",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "detect"
@@ -384,8 +384,8 @@
         "appId": "cloudflared"
       },
       "lifecycle": {
-        "phase": "applications",
-        "priority": 50
+        "phase": "foundation",
+        "priority": 10
       }
     },
     {
@@ -412,7 +412,7 @@
       "kind": "security-agent",
       "category": "security",
       "sourcePath": "apps/crowdsec/compose.yml",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "detect",
         "respond"
@@ -780,7 +780,7 @@
       "description": "OWASP DSOMM assessment UI. Assessment state is browser/YAML evidence; automated baseline results are supporting evidence, not an authoritative maturity verdict.",
       "presentationRole": "service",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "govern",
         "identify"
@@ -807,7 +807,7 @@
       "description": "Manual pinned Tweag dsomm-baseline runner that inventories automatable GitHub evidence and writes CSV reports for later human review in DSOMM.",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "govern",
         "identify"
@@ -1591,7 +1591,7 @@
       "kind": "workflow",
       "category": "automation",
       "sourcePath": "apps/n8n/compose.yml",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "n8n"
@@ -3150,18 +3150,22 @@
     {
       "id": "uptime-kuma",
       "name": "Uptime Kuma",
-      "kind": "native-truenas-uptime-monitor",
+      "kind": "uptime-monitor",
       "category": "observability",
-      "sourcePath": "apps/autokuma/compose.yml",
+      "sourcePath": "apps/uptime-kuma/compose.yml",
       "url": "http://172.17.0.24:31050",
-      "description": "Intended native TrueNAS Uptime Kuma target on host port 31050, reconciled by AutoKuma until the service is migrated to repository-owned Compose. Confirm the native App still exists before enabling AutoKuma.",
+      "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
       "lifecycle": {
         "phase": "platform-services",
         "priority": 40
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "uptime-kuma"
+        "appId": "uptime-kuma",
+        "containerService": "uptime-kuma",
+        "networks": [
+          "intranet"
+        ]
       }
     },
     {
@@ -6577,6 +6581,16 @@
       "evidence": [
         "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl",
         "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
+      ]
+    },
+    {
+      "source": "uptime-kuma",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/uptime-kuma/compose.yml:uptime-kuma.x-nabla.runtime.containerService"
       ]
     },
     {

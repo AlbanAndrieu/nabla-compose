@@ -583,6 +583,16 @@ endpoints:
   url: tcp://172.17.0.24:7000
   conditions:
   - '[CONNECTED] == true'
+- name: Uptime Kuma
+  group: observability
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: uptime-kuma
+    nabla_service_id: uptime-kuma
+    nabla_entity_ref: component:default/uptime-kuma
+  url: tcp://172.17.0.24:31050
+  conditions:
+  - '[CONNECTED] == true'
 - name: Vaultwarden
   group: security
   interval: 60s
