@@ -35,6 +35,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: fastapi-sample
+      # Display only, nothing requires it: its probes then see every other App up.
+      lifecycle:
+        phase: applications
+        priority: 90
       exposure:
         - name: staging-public
           hostnames:

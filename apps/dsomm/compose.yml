@@ -55,6 +55,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: dsomm
+      # Display only, nothing requires it: start in the last wave.
+      lifecycle:
+        phase: applications
+        priority: 90
       monitoring:
         type: port
         host: 172.17.0.24

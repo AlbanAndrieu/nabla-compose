@@ -179,6 +179,42 @@ class HomelabRebootContractTests(unittest.TestCase):
         policy = json.loads(result.stdout)["lifecycle_phase_by_app"]["wazuh"]
         self.assertIs(policy.get("blocksLaterWaves"), False)
 
+    def test_resume_waves_follow_the_operator_order(self) -> None:
+        topology = json.loads(
+            (ROOT / "catalog/service-topology.json").read_text(encoding="utf-8")
+        )
+        app_ids = set()
+        for node in topology["nodes"]:
+            runtime = node.get("runtime", {})
+            if runtime.get("provider") != "truenas-app":
+                continue
+            parts = Path(node.get("sourcePath") or "").parts
+            app_ids.add(
+                runtime.get("appId")
+                or (parts[1] if parts[:1] == ("apps",) else node["id"])
+            )
+        with tempfile.TemporaryDirectory() as tmp:
+            apps = Path(tmp) / "apps-before.json"
+            apps.write_text(
+                json.dumps([{"id": app, "state": "RUNNING"} for app in sorted(app_ids)]),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                ["python3", str(PLANNER), "--apps", str(apps)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        waves = json.loads(result.stdout)["start_waves"]
+        wave_of = {app: index for index, wave in enumerate(waves) for app in wave}
+        # Display and build-only Apps start once everything they show is up.
+        self.assertEqual(set(waves[-1]), {"defectdojo", "dsomm", "homarr", "nexus", "sample"})
+        # pfSense uses the CrowdSec LAPI: it starts with Wazuh, after Loki (grafana App).
+        self.assertEqual(wave_of["crowdsec"], wave_of["wazuh"])
+        self.assertLess(wave_of["grafana"], wave_of["crowdsec"])
+        self.assertLess(wave_of["litellm"], wave_of["n8n"])
+
     def test_shell_helpers_pass_bash_syntax(self) -> None:
         for path in (
             REBOOT,

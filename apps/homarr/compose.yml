@@ -47,6 +47,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: homarr
+      # Display only, nothing requires it: start after the Apps it shows.
+      lifecycle:
+        phase: applications
+        priority: 90
       relations:
         - target: docker
           type: consumesApi

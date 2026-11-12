@@ -15,6 +15,10 @@ services:
       runtime:
         provider: truenas-app
         containerService: nexus
+      # Build-time only, nothing requires it: its 5g JVM starts after the critical waves.
+      lifecycle:
+        phase: applications
+        priority: 90
       monitoring:
         type: port
         host: 172.17.0.24

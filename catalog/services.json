@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:593f72f67f6c8afc618e94ffe1fdd60dd81ba955a40cbf47e465df1b9c4828ac",
+  "catalogRevision": "sha256:70242cce308e2da689dad5a237df82e0d984f154bd659c9e202e3850f3ea2750",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -382,6 +382,11 @@
         "detect",
         "respond"
       ],
+      "lifecycle": {
+        "phase": "platform-services",
+        "priority": 30,
+        "blocksLaterWaves": false
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "crowdsec"
@@ -454,6 +459,10 @@
         "detect",
         "respond"
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
@@ -756,6 +765,10 @@
         "govern",
         "identify"
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
@@ -816,6 +829,10 @@
           "cloudflareTunnel": true
         }
       ],
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:8091/health",
@@ -1025,6 +1042,10 @@
       "description": "Homelab application dashboard generated from the Nabla service inventory.",
       "presentationRole": "support",
       "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "runtime": {
         "provider": "truenas-app",
         "containerService": "homarr",
@@ -1378,6 +1399,10 @@
       "category": "observability",
       "sourcePath": "apps/grafana/compose.yml",
       "composeService": "loki",
+      "lifecycle": {
+        "phase": "secondary-data",
+        "priority": 30
+      },
       "monitoring": {
         "type": "http",
         "target": "http://172.17.0.24:3100/ready",
@@ -1591,6 +1616,10 @@
       "description": "Repository manager for development artifacts and package proxies.",
       "presentationRole": "service",
       "criticality": "medium",
+      "lifecycle": {
+        "phase": "applications",
+        "priority": 90
+      },
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
