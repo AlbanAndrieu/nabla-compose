@@ -1,3 +1,21 @@
+# [0.72.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.71.0...0.72.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **homarr:** keep waiting when the API read times out ([9055166](https://github.com/AlbanAndrieu/nabla-compose/commit/9055166c7553bb253eb58c0aac961ff862c9bc22))
+* **homarr:** send pingUrl, which Homarr v2.6 requires again ([8cb584a](https://github.com/AlbanAndrieu/nabla-compose/commit/8cb584ad929b0e36773858f9a4e9ba8563d09979))
+* **reboot:** keep resuming later waves when Wazuh fails ([59188a2](https://github.com/AlbanAndrieu/nabla-compose/commit/59188a295305758552d489f383ee52c2578af80d))
+* **reboot:** refuse to bundle a commit with an older materializer ([efa603e](https://github.com/AlbanAndrieu/nabla-compose/commit/efa603ec984ee19a18d9e742085f7e7668a225a5))
+* **reboot:** start openclaw-gateway after the Docker socket proxy ([950984a](https://github.com/AlbanAndrieu/nabla-compose/commit/950984a7f0db1c3e64ed79224faf85aa3aaa72f7))
+* **secrets:** let the Grafana item exist without an admin password ([b3e413b](https://github.com/AlbanAndrieu/nabla-compose/commit/b3e413b18e4232200713f7543519cd80c5b22be2))
+
+
+### Features
+
+* **github:** import 16 more repositories to enforce delete_branch_on_merge ([83648c8](https://github.com/AlbanAndrieu/nabla-compose/commit/83648c85a7307518b3a4579dfb82ffe8976031c0))
+* **postgres:** enable TLS 1.3 with a small local CA ([1d4900f](https://github.com/AlbanAndrieu/nabla-compose/commit/1d4900f4098167c01bbbf86f19942123746e3eb0))
+
 # [0.71.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.70.0...0.71.0) (2026-11-12)
 
 
