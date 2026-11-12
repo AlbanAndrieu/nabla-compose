@@ -181,6 +181,7 @@ Gestes runtime, dans l'ordre, chacun après accord :
 | Point | État | Preuve ou reste à faire |
 | --- | --- | --- |
 | 5.1 Vaultwarden | Champs ajoutés : `HOMARR_ASSISTANT_API_KEY`, `OPENWEBUI_LITELLM_API_KEY`, `LANGFUSE_AI_API_KEY`, `JOBS_REDIS_PASSWORD` ; item `nabla/prod/ntopng` créé ; login admin Scanopy rangé | Relecture : aucun champ manquant. Restent, par SSH : `HOMARR_API_KEY` (dernier caractère), item `nabla/prod/grafana` (`GRAFANA_ADMIN_PASSWORD` n'est que dans le `.env` TrueNAS) |
+| 5.3 LiteLLM | Clés `homarr_assistant` (5 USD), `openwebui`, `langfuse`, `grafana` enregistrées (HTTP 200) | Replanification : `existing`, périmètre de modèles `verified` pour les quatre |
 | Slack (Q12) | `SLACK_WEBHOOK` vaut l'exemple `replace_this_with_your_slack_webhook` ; `SLACK_TOKEN` est le bot d'un espace d'entreprise, écarté | Créer un webhook entrant dans un espace perso, l'exporter en `SLACK_WEBHOOK`, puis `import_env_to_bitwarden.py --app prometheus` |
 | Q8 / B7 | Rien de neuf | Vérifier par SSH les noms réels des datasets absents (Apps encore planifiées ?), puis supprimer les tâches 17 à 19 après un cycle des tâches par classe |
 | Q11 | `planned` exclut déjà les quatre jobs depuis e5a4c165 : le Prometheus de TrueNAS n'a pas été rechargé. `postgres_exporter` passe dans `apps/postgres-exporter` (le répertoire `apps/postgres` portait le nom de l'App native) | `docker kill -s HUP prometheus` ; puis rôle `pg_monitor`, secret et App (`apps/postgres-exporter/README.md`). TLS : `lib/pq` refuse `prefer`, seul `disable` marche tant que Q15 n'est pas fait |
