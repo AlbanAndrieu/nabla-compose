@@ -1,5 +1,5 @@
 ---
-# Shared Redis on `intranet` (no password). Sentry/Snuba use REDIS_HOST=redis; Prowler uses VALKEY_HOST=redis.
+# Shared Redis on `intranet`, password REDIS_AUTH from .env (LiteLLM's only client on the workstation).
 services:
   redis-server:
     # image: docker.io/redis:7-alpine
@@ -8,22 +8,18 @@ services:
     container_name: redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6379:6379" # no password, and Docker publishing bypasses UFW: loopback only
+      - "127.0.0.1:6379:6379" # Docker publishing bypasses UFW: loopback only
     volumes:
       - redis_socket_vol:/run/redis/
     environment:
-      REDIS_AUTH: ${REDIS_AUTH:-myredissecret}
+      REDIS_AUTH: ${REDIS_AUTH:?REDIS_AUTH is required}
     command: >
-      --requirepass ${REDIS_AUTH:-myredissecret}
+      --requirepass ${REDIS_AUTH:?REDIS_AUTH is required}
       --maxmemory-policy noeviction
     # Unix socket only (port 0); required for depends_on condition: service_healthy (e.g. Prowler).
     healthcheck:
       # test: ["CMD", "redis-cli", "ping"]
-      test:
-        [
-          "CMD-SHELL",
-          'redis-cli -a "$${REDIS_AUTH:-myredissecret}" ping | grep PONG',
-        ]
+      test: ["CMD-SHELL", 'redis-cli -a "$${REDIS_AUTH}" ping | grep PONG']
       # test: ["CMD", "redis-cli", "-s", "/run/redis/redis.sock", "ping"]
       # test: ["CMD-SHELL", "redis-cli -a \"$$JOBS_REDIS_PASSWORD\" ping"]
       interval: 10s
