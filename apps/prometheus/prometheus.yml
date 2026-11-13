@@ -277,6 +277,7 @@ scrape_configs:
           - 172.17.0.24:30239
         labels:
           platform: truenas
+          operational_state: planned
           role: identity-provider
 
   # Dependency-Track API server (ALPINE_METRICS_ENABLED) on its LAN port.
@@ -288,6 +289,7 @@ scrape_configs:
           - 172.17.0.24:31083
         labels:
           platform: truenas
+          operational_state: planned
           role: software-supply-chain
 
   # NetBox (METRICS_ENABLED) on its LAN web port.
@@ -299,6 +301,7 @@ scrape_configs:
           - 172.17.0.24:31082
         labels:
           platform: truenas
+          operational_state: planned
           role: network-source-of-truth
 
   # *arr media stack (docs/arr-media-library-roadmap.md). Exporters join the

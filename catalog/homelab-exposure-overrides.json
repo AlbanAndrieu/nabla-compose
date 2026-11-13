@@ -117,6 +117,14 @@
     {
       "name": "Grafana",
       "probePriority": 9
+    },
+    {
+      "name": "Redis",
+      "probePriority": 4
+    },
+    {
+      "name": "Pyroscope",
+      "probePriority": 11
     }
   ]
 }

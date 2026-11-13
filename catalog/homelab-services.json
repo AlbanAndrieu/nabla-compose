@@ -76,6 +76,15 @@
       "external": false
     },
     {
+      "id": "autoxpose",
+      "name": "AutoXpose",
+      "description": "Exposure inventory of the TrueNAS Docker services",
+      "internalHost": "172.17.0.24",
+      "internalPort": 4949,
+      "internalSecure": false,
+      "external": false
+    },
+    {
       "id": "bichon",
       "name": "Bichon UI",
       "icons": ["fas fa-paw"],
@@ -94,7 +103,7 @@
       "icons": ["fas fa-virus-slash"],
       "description": "Antivirus engine",
       "internalHost": "172.17.0.24",
-      "internalPort": 3310,
+      "internalPort": 30005,
       "internalSecure": false,
       "tunnelUrl": "https://clamav.albandrieu.com",
       "tunnelSecure": true,
@@ -108,7 +117,7 @@
       "description": "Clickhouse",
       "internalHost": "172.17.0.24",
       "internalPort": 8123,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://clickhouse.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/clickhouse.png",
@@ -135,6 +144,15 @@
       "tunnelUrl": "https://convertx.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/convertx.png",
+      "external": false
+    },
+    {
+      "id": "crowdsec",
+      "name": "CrowdSec",
+      "description": "CrowdSec Local API (security engine)",
+      "internalHost": "172.17.0.24",
+      "internalPort": 8084,
+      "internalSecure": false,
       "external": false
     },
     {
@@ -255,7 +273,7 @@
       "description": "FreshRSS service",
       "internalHost": "172.17.0.24",
       "internalPort": 30108,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://freshrss.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/freshrss.png",
@@ -359,7 +377,7 @@
       "description": "Hello World NGINX service",
       "internalHost": "172.17.0.24",
       "internalPort": 8099,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://hello.int.albandrieu.com",
       "tunnelSecure": false,
       "iconSrc": "assets/selfh-icons/nginx.png",
@@ -454,13 +472,22 @@
       "healthPath": "/realms/nabla/.well-known/openid-configuration"
     },
     {
+      "id": "langflow",
+      "name": "Langflow",
+      "description": "Visual LLM flow builder used by OpenRAG",
+      "internalHost": "172.17.0.24",
+      "internalPort": 7860,
+      "internalSecure": false,
+      "external": false
+    },
+    {
       "id": "langfuse",
       "name": "Langfuse",
       "icons": ["fas fa-screwdriver-wrench"],
       "description": "langfuse",
       "internalHost": "172.17.0.24",
       "internalPort": 3000,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://langfuse.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/langfuse.png",
@@ -498,7 +525,7 @@
       "description": "LLM proxy and gateway",
       "internalHost": "172.17.0.24",
       "internalPort": 4000,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://litellm.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
@@ -511,7 +538,7 @@
       "description": "LLM proxy and gateway",
       "internalHost": "172.17.0.57",
       "internalPort": 4000,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://litellm-albandrieu.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/litellm.png",
@@ -619,12 +646,21 @@
       "name": "ntopng",
       "icons": ["fas fa-network-wired"],
       "description": "Network traffic visibility",
-      "internalHost": "172.17.0.57",
-      "internalPort": 4000,
-      "internalSecure": true,
+      "internalHost": "172.17.0.24",
+      "internalPort": 31080,
+      "internalSecure": false,
       "tunnelUrl": "https://ntopng.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/ntopng.png",
+      "external": false
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "description": "Obsidian desktop served in the browser",
+      "internalHost": "172.17.0.24",
+      "internalPort": 3002,
+      "internalSecure": false,
       "external": false
     },
     {
@@ -667,6 +703,15 @@
       "external": false
     },
     {
+      "id": "open-terminal",
+      "name": "Open Terminal",
+      "description": "Browser terminal used by Open WebUI tools",
+      "internalHost": "172.17.0.24",
+      "internalPort": 30377,
+      "internalSecure": false,
+      "external": false
+    },
+    {
       "id": "openarchiver",
       "name": "OpenArchiver",
       "icons": ["fas fa-box-archive"],
@@ -702,13 +747,31 @@
       "internalSecure": false
     },
     {
+      "id": "openrag",
+      "name": "OpenRAG",
+      "description": "OpenRAG retrieval front end",
+      "internalHost": "172.17.0.24",
+      "internalPort": 31060,
+      "internalSecure": false,
+      "external": false
+    },
+    {
+      "id": "opensearch",
+      "name": "OpenSearch",
+      "description": "OpenSearch search and analytics engine",
+      "internalHost": "172.17.0.24",
+      "internalPort": 9200,
+      "internalSecure": true,
+      "external": false
+    },
+    {
       "id": "openwebui",
       "name": "Open WebUI",
       "icons": ["fas fa-window-maximize"],
       "description": "Open WebUI served by the canonical openwebui deployment. Cloudflare hostname cutover requires a separate Access/Tunnel/DNS approval.",
       "internalHost": "172.17.0.24",
       "internalPort": 31028,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://openwebui.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/open-webui.png",
@@ -875,6 +938,15 @@
       "healthPath": "/-/ready"
     },
     {
+      "id": "pyroscope",
+      "name": "Pyroscope",
+      "description": "Grafana Pyroscope continuous profiling",
+      "internalHost": "172.17.0.24",
+      "internalPort": 4040,
+      "internalSecure": false,
+      "external": false
+    },
+    {
       "id": "prowlarr",
       "name": "Prowlarr",
       "icons": ["fas fa-magnifying-glass"],
@@ -922,6 +994,15 @@
       "external": false,
       "id": "reactive-resume",
       "healthPath": "/api/health"
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "description": "Shared Redis cache and queue",
+      "internalHost": "172.17.0.24",
+      "internalPort": 30059,
+      "internalSecure": false,
+      "external": false
     },
     {
       "id": "sabnzbd",
@@ -977,7 +1058,7 @@
       "description": "SearXNG service",
       "internalHost": "172.17.0.24",
       "internalPort": 30053,
-      "internalSecure": true,
+      "internalSecure": false,
       "tunnelUrl": "https://searxng.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/searxng.png",
@@ -1015,6 +1096,15 @@
       "tunnelUrl": "https://speedtest.albandrieu.com",
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/speedtest.png",
+      "external": false
+    },
+    {
+      "id": "squid",
+      "name": "Squid",
+      "description": "Outbound HTTP proxy",
+      "internalHost": "172.17.0.24",
+      "internalPort": 3128,
+      "internalSecure": false,
       "external": false
     },
     {
@@ -1105,6 +1195,15 @@
       "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/vaultwarden.png",
       "external": true
+    },
+    {
+      "id": "wazuh",
+      "name": "Wazuh",
+      "description": "Wazuh manager agent events port",
+      "internalHost": "172.17.0.24",
+      "internalPort": 1514,
+      "internalSecure": false,
+      "external": false
     }
   ]
 }

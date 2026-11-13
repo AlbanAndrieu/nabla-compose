@@ -7,6 +7,7 @@
 | Opération | Document de référence | Gate |
 | --- | --- | --- |
 | Remédiations des sondes et Apps TrueNAS après PR #326 | [Sondes — tâches restantes](2026-11-04-probe-remediation.md) | Parité `x-nabla` et santé runtime réelle |
+| Audit SSD, Gatus/Prometheus et couverture des sondes (13/11) | [Audit et matrice de couverture](2026-11-13-truenas-audit-ssd-coverage.md) | Keycloak, Uptime Kuma et entités `planned` dont l'App tourne |
 | Opérateur de migration TrueNAS | [Migration contrôlée](truenas-migration-operator.md) | `--check` / plan / rollback, accord explicite |
 | Migration des Apps du catalogue TrueNAS vers Compose | [Plan de migration](2026-11-06-catalog-apps-to-compose.md) | Plan/read-only, sauvegarde, décision opérateur et rollback |
 | Diagnostic runtime Gatus / Prometheus / OpenRAG | [Acceptation Homelab](homelab-runtime-acceptance.md) | Preuves read-only, sans fusionner `DENIED` et `DOWN` |

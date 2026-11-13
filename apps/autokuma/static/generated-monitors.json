@@ -190,6 +190,16 @@
     "url": "http://172.17.0.24:30103/manifest.json"
   },
   {
+    "id": "influxdb",
+    "type": "http",
+    "name": "InfluxDB",
+    "description": "Shared InfluxDB 2.x time-series database for Scrutiny and future homelab consumers.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://influxdb:8086/health"
+  },
+  {
     "id": "kafka",
     "type": "port",
     "name": "Apache Kafka",
@@ -294,6 +304,17 @@
     "retry_interval": 60,
     "hostname": "172.17.0.24",
     "port": 9002
+  },
+  {
+    "id": "mongo",
+    "type": "port",
+    "name": "MongoDB",
+    "description": "Nabla generated monitor: mongo",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "mongo",
+    "port": 27017
   },
   {
     "id": "nexus",

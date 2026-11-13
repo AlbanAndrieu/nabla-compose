@@ -187,6 +187,16 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: InfluxDB
+  group: data
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: influxdb
+    nabla_service_id: influxdb
+    nabla_entity_ref: resource:default/influxdb
+  url: http://influxdb:8086/health
+  conditions:
+  - '[STATUS] == 200'
 - name: Apache Kafka
   group: data
   interval: 60s
@@ -286,6 +296,16 @@ endpoints:
     nabla_service_id: minio
     nabla_entity_ref: resource:default/minio
   url: tcp://172.17.0.24:9002
+  conditions:
+  - '[CONNECTED] == true'
+- name: MongoDB
+  group: data
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: mongo
+    nabla_service_id: mongo
+    nabla_entity_ref: resource:default/mongo
+  url: tcp://mongo:27017
   conditions:
   - '[CONNECTED] == true'
 - name: Nexus Repository
