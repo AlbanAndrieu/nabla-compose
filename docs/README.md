@@ -11,7 +11,7 @@ the rest in git history.
 | Need | Canonical document |
 | --- | --- |
 | **Priorités approuvées H01 → H02 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
-| Roadmap générale et options complémentaires | [`roadmap.md`](./roadmap.md), dont décisions inter-dépôts du 13/11 |
+| Index général allégé | [`roadmap.md`](./roadmap.md) ; [archive du 13/11](./archive/2026-11-13-roadmap-before-compaction.md) |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
 | Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |
@@ -72,6 +72,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 - [Infrastructure bootstrap](./infrastructure-bootstrap.md)
 - [Talos on TrueNAS: bootstrap, image factory, machine config](./truenas-talos-bootstrap.md)
 - [Kubernetes CSI preflight and pod security](./kubernetes-csi-preflight.md)
+- [Home Assistant studies: EnOcean and Somfy](./roadmap-homeassistant-integrations.md)
 - [Kubernetes FastAPI smoke](./kubernetes-fastapi-smoke.md)
 - [Kubernetes platform tools](./kubernetes-platform-tools.md)
 

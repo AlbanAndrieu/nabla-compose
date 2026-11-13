@@ -20,18 +20,8 @@ L'opérateur valide **H01 → H02 → H05** dans le [portefeuille inter-dépôts
 - Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
-
-Cette vue **classe** les travaux déjà détaillés ci-dessous et ne constitue pas une seconde liste d’actions. Les preuves et critères de clôture restent dans la section propriétaire ; CODED et merge ne valent jamais ACCEPTED.
-
-| Option | Priorité proposée | Résultat à réceptionner | Où agir |
-| --- | --- | --- | --- |
-| **G1 — Fiabilité et données** | P0 | Premier backup PostgreSQL restauré sur cible indépendante, secrets matérialisés et accès de secours ; corriger le secret postgres-exporter signalé exposé le 13/11 | [PostgreSQL / Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [secrets](#p0--cloudflare-secrets-et-frontières-daccès) |
-| **G2 — FastAPI Cloud** | P0 | Réception navigateur, SHA réel et coût Nano CPU/RAM/réplicas mesuré ; sondes sans faux vert | [FastAPI F1/F2](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) |
-| **G4 — Réseau et sécurité** | P0 | Contrôle des accès Cloudflare/Traefik et déploiements DNS ; préparer pfSense 26.03.1 → 26.07 sans exécuter l’upgrade dans cette PR | [Frontières](#p0--cloudflare-secrets-et-frontières-daccès), [pfSense #362](https://github.com/AlbanAndrieu/nabla-compose/pull/362) (Draft) |
-| **G3 — Couverture des services** | P0/P1 | NetBox, Dependency-Track et Joplin réellement RUNNING, Gatus/Prometheus avec preuve fraîche, catalogue réconcilié | [Catalogue/sondes](#p0--réception-du-catalogue-et-des-sondes-pr-326) |
-| **G5 — Exploitation TrueNAS** | P1 | Premier plan réel de redéploiement ciblé, conformité des ressources et diagnostics, préparation upgrade TrueNAS | [Scripts et docs](#p1--fiabilité-des-scripts-et-documentation) |
-| **G6 — Sites et FinOps Vercel** | P1 | Performance et privacy des deux sites, métriques CPU d’équipe réellement disponibles, validation des documents Bababou | [Alban](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/quality-roadmap.md), [Bababou](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md), [OpenClaw FinOps](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) |
-| **G7 — Fonctionnalités avancées** | P1/P2 | Keycloak/Talos, APISIX, Vault PKI/OAuth, ZFS et observabilité enrichie | [P0 Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [cryptographie](#p0p1p2--cible-cryptographique-fips-postgresql-16--18-tls-13-vault-et-oauth-10-novembre-2026) |
+  
+**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre approuvé : H01 → H02 → H05.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
 
@@ -44,53 +34,23 @@ Cette vue **classe** les travaux déjà détaillés ci-dessous et ne constitue p
 **Politique de nettoyage :** les migrations OpenClaw/YubiKey déjà réceptionnées ne sont pas rouvertes ; conserver les wrappers de rollback qui ont encore des consommateurs. Déplacer une procédure datée en archive uniquement après mise à jour de ses références et des tests de contrat. Les documents historiques ne réintroduisent pas de tâches clôturées.
 
 ## Suivi consolidé — état du code et réception (8 novembre 2026)
-
-| Chantier | État du code | Preuve runtime et prochain contrôle |
-| --- | --- | --- |
-| Catalogue V2 : bascule P2.1.c–f ([normalisation](service-catalog-v2-normalization.md)) | **CODED** (13/11, branche `feat/catalog-v2-cutover-20261113`) : intention d'exposition legacy reportée dans `x-nabla.exposure` (Compose) ou à la racine des descripteurs statiques, projetée dans `entities.json` ; parité legacy → V2 à 100 % (`audit-service-catalog-v2-parity.py --check`) ; 37 entités créées dont 35 avec BIA **provisoire basse** à relire (Apps du catalogue TrueNAS et instances workstation) | **Reste** : fusionner nabla-compose, puis fastapi-sample et nabla-site-alban (consommateurs V2), smoke `catalogRevision`/santé/topologie, puis seulement supprimer `homelab-services.json` et `homelab-exposure-overrides.json` (accord explicite) |
-| Catalogue / moniteurs (#326, #327) | **CODED** : appId natifs corrigés, alarmes des Apps `planned` / `disabled` exclues des alertes d'indisponibilité ; Gatus et Prometheus restent distincts | **NOT_VERIFIED** après déploiement : vérifier `app.query`, Gatus frais et `/api/homelab/status` |
-| OpenClaw TrueNAS (#314, #323) | **CODED**, anciens scripts Workstation mutateurs retirés de Compose (#330) | **ACCEPTED** le 03–05/11 pour Gateway, Telegram/WhatsApp, LiteLLM, heartbeat/digest ; revérifier absence de doublons et rollback lors de tout changement |
-| Vaultwarden / secrets | **CODED** : audit sans valeurs et procédure de clôture ; référence historique de 43 Apps / 117 champs déclarés | 10/11 : 14 items `nabla/prod/<app>` créés ou importés depuis `/mnt/cpool/secrets/runtime`, parité vérifiée par empreinte ; reste à faire : [backlog sans valeur](runbooks/2026-11-10-secrets-migration-backlog.md). **NOT_VERIFIED globalement** : item → fichier canonique `0600` → conteneur ; `homarr-sync` exige `HOMARR_API_KEY` et non l'ancien jeton |
-| PostgreSQL logique (#330) | **CODED** : job `postgresbackup`, contrôle `pg_restore --list`, SHA-256, 14 j, rôle `pgbackup` et cron créé **désactivé** | Rôle `pgbackup` créé le 10/11 (lecture seule sur keycloak, defectdojo, langfuse, fastapisample, sentry). **NOT_VERIFIED** : sauvegarde manuelle + restauration sur cible séparée, avant toute activation du cron |
-| Keycloak et Home Assistant (#330) | **CODED** : realm `nabla`, refus `master` au Tunnel ; HA bridge et bootstrap DB commun | **NOT_VERIFIED** : démarrage contrôlé, import realm avec autorisation, migration recorder et tests négatifs Cloudflare |
-| Apps en attente (#330) | **CODED** : `rollout-pending-apps.sh` `--plan/--check/--apply`, scripts PostgreSQL partagés, métriques NetBox/Dependency-Track déclarées | **Déployées** : `scanopy` (11/11, durci sans daemon privilégié ni socket Docker ; admin initialisé le 12/11, inscription refermée, `--finalize` le 13/11), `plumber` (12/11, `verify-full` le 13/11), `ntopng` Community (12/11, `br0`, port 31080), `postgres-exporter` (App créée le 13/11). **Restent** `joplin`, `netbox`, `dependency-track` : items Vaultwarden, runtime `0600`, rôles et bases créés ; déploiement après fusion de leurs correctifs (image Joplin, hôtes PostgreSQL/Redis) |
-| DefectDojo / sécurité | **CODED** : import et normalisation des rapports outillés | 13/11 : compte d'import `nabla-import` autorisé sur le produit `nabla-compose` (engagement `Trivy images` 200, utilisateurs 403), jeton dans `nabla/prod/defectdojo-import` (B12). **NOT_VERIFIED** : réception API/Celery et déduplication sans données sensibles |
-| Préparation production (toutes Apps) | **CODED** : matrice générée [`master-readiness.md`](master-readiness.md), `app-ops.sh` (status/storage/secrets/deploy/restart/diagnose/monitor/backup, mutations sous `--apply` + `NABLA_RUNTIME_CHANGE_APPROVED=yes`), [runbook](runbooks/production-app-operations.md) ; `postgresbackup` couvre aussi `defectdojo`, `langfuse`, `n8n`, `sonarqube` ; datasets `ddns-updater`, `dockhand`, `npm` classés `app-state` | **NOT_VERIFIED** au runtime (pas d'accès SSH). Écarts restants à traiter App par App : `NO_AVAILABILITY_PROBE` (30), `NO_DEPLOY_PATH` (21), `SECRETS_LEGACY_PATH` (17), `SERVICE_WITHOUT_HEALTHCHECK` (48 hors stack média) ; `sentry` archivé mensuellement (370 j) et annuellement (1100 j) ; `sample` quitte Supabase pour la base et le rôle `fastapisample` (créés le 10/11, secrets dans `/mnt/cpool/secrets/runtime/fastapisample`) ; décision opérateur du 10/11 : repartir d'une base vide, Supabase reste le retour arrière ; Sample en `verify-full` depuis le 13/11 ; App `sample` à renommer `fastapisample` pour lever `SECRETS_LEGACY_PATH` |
-
-Les champs et nombres ci-dessus sont des **états déclaratifs datés**, pas un inventaire de santé temps réel. Les anciens comptes d'alertes ne sont pas des pannes actuelles. Un service écarté du rendu Gatus faute de déploiement n'est pas `PASS` ; il est `NOT_RUN` / `planned`.
+  
+Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [archivé intégralement](archive/2026-11-13-roadmap-before-compaction.md) : ne pas le confondre avec la situation runtime actuelle. Pour l'état `CODED` vs `ACCEPTED (runtime)`, consulter [H01–H19](roadmap-portfolio.md).
 
 ## P0 — Réception du catalogue et des sondes (PR #326)
 
-[PR Compose #326](https://github.com/AlbanAndrieu/nabla-compose/pull/326) : les `appId` de `graylog`, `bitcoind`, `elasticsearch` (`elastic-search`) et `hermes` (`hermes-agent`) sont **corrigés dans le code**, en conservant `containerService`. Cela supprime le double comptage `declared_only` + `observed_only` des Apps arrêtées, mais **ne les démarre pas**.
-
-| Priorité | Travail restant | Critère de clôture |
-| --- | --- | --- |
-| P0 | Valider les changements de la PR #330 au HEAD rebasé, sans confondre génération de catalogue et santé effective | `generate-service-topology.py --check`, `generate-service-consumers.py --check`, `generate-catalog-v2-artifacts.py --check` et quality gate ciblée |
-| P0 | Décisions du 10/11 : `graylog` **arrêté volontairement** (consommation) ; `elastic-search`/Kibana **supprimés** (OpenSearch seul ; App, Gatus, AutoKuma, secret, snapshot et route Tunnel retirés, `kibana.albandrieu.com` en retrait DNS ; App TrueNAS supprimée le 13/11, sans consommateur : le port 9200 est OpenSearch) ; `bitcoind` : Custom App Compose **déployée le 12/11** (suite au P1 stockage) ; `homarr` CRASHED = job `homarr-sync` sans `HOMARR_API_KEY` (le runtime porte `HOMARR_API_TOKEN`) : le job accepte l'ancien nom, signale `RECONCILE_SKIPPED` sans faire crasher l'App | `homarr` RUNNING, journal `homarr-sync` sans `RECONCILE_SKIPPED` après rematérialisation de `HOMARR_API_KEY` ; dataset `cpool/elasticsearch` (17,5 Mo, seul reste) détruit après sauvegarde éventuelle |
-| P0 | Migrer `hermes-agent`, Keycloak et Vault sur Talos, puis supprimer les services TrueNAS : manifestes `kubernetes/hermes` (phase 2), `kubernetes/keycloak` (10/11, NodePorts 30238/30239, base PostgreSQL TrueNAS en `verify-server`) et `kubernetes/platform-tools/vault-values.yaml` ; **non appliqués** (digests à épingler, gate NetworkPolicy B1) | `kubectl apply -k` validé, `/health/ready` Keycloak via NodePort, route Tunnel et sonde Gatus repointées vers le nœud Talos, puis `app.delete` des Apps TrueNAS correspondantes |
-| P0 | Déployer sous contrôle `dependency-track`, `netbox` et `joplin` sur TrueNAS (`rollout-pending-apps.sh` ; `plumber`, `scanopy` et `ntopng` le sont depuis le 11–12/11), puis passer `albandrieu.com/operational-state: active` dans leur `catalog-info.yaml` (seule condition d'émission Gatus) | `scripts/truenas/verify-service-observability.py` vert : réponse directe, dernier résultat Gatus OK, `gatus_results_endpoint_success` et `up{job}` à 1 dans Prometheus |
-| P1 | Joplin publié via le Tunnel (`joplin.albandrieu.com`, 10/11) **sans Access** : les clients de synchronisation ne savent pas passer un login interactif ; protection = authentification Joplin. `APP_BASE_URL` public, Traefik `.int` conservé. Le compte refuse tout hostname du Tunnel sans application Access (403 « error code: 1050 ») : application `joplin` en contournement (`Everyone bypass`) appliquée le 10/11 ; l'origine répond 502 tant que l'App n'est pas déployée | Après `tofu apply` : synchronisation d'un client, 401 sans identifiants, mots de passe forts et compte admin par défaut supprimé |
-| P1 | Données reconstructibles (10/11) : `cpool/nexus3` → classe `recreatable` (mensuel 3 mois + annuel 1 an) ; `cpool/bitcoind` → `resync-shortcut` (un point mensuel gardé 1 mois) ; télémétrie, caches et modèles téléchargeables restent sans snapshot. Purge Nexus des composants proxifiés jamais téléchargés au retour des services Java ([`apps/nexus/README.md`](../apps/nexus/README.md)) | `reconcile-snapshot-tasks.sh` appliqué ; anciennes tâches horaires/quotidiennes de `cpool/nexus3` supprimées ; espace retenu par les snapshots `cpool/bitcoind` < 20 Go ; builds Java verts après purge |
-| P0 | Homarr : aucune `HOMARR_API_KEY` n'a jamais été créée ; la sauvegarde contient `HOMARR_API_TOKEN` (même rôle) et `HOMARR_ENCRYPTION_KEY`. Le manifeste importe désormais ces deux noms vers les champs canoniques `HOMARR_API_KEY` et `SECRET_ENCRYPTION_KEY` de `nabla/prod/homarr` (**importés le 10/11**, parité vérifiée ; 11/11 : clé recréée dans l'UI par l'opérateur, mais la valeur rangée dans l'item a perdu son dernier caractère (56 au lieu de 57, comparaison bcrypt) : corriger l'item, puis rematérialiser. L'assistant Homarr est câblé sur LiteLLM par `homarr-sync`, **CODED**) | workstation : `set -a; . <sauvegarde homarr>; set +a; python3 scripts/secrets/import_env_to_bitwarden.py --app homarr` (aperçu sans valeurs) puis `--apply` avec `BW_SESSION` (ajouter `--update-existing` si l'item existe) ; matérialisation ; journal `homarr-sync` sans `RECONCILE_SKIPPED` ni avertissement de nom hérité |
-| P1 | `cpool/aistor` **détruit** (10/11). Politique ZFS : les 80 datasets montés par les Compose ont une décision (classe ou `noSnapshot`) ; `cpool/nexus` et `cpool/drawio` ajoutés à `app-state`. AIStor et WordPress restent retirés ; vérifier l'absence de consommateur et de snapshot avant toute éventuelle suppression de `cpool/aistor` | Plan de retrait, sauvegarde, vérification des tâches ZFS et approbation séparée ; aucune suppression automatique |
-| P1 | Migration du nom canonique `openwebui` via procédure TrueNAS, pas par simple changement d'`appId` ; `homeassistant` : voir l'étape 3 ci-dessous | Sauvegarde et rollback attestés, middleware + URL + Access + données validés |
-
-Le [runbook des remédiations encore ouvertes](runbooks/2026-11-04-probe-remediation.md) contient **uniquement** les gestes non réceptionnés et le diagnostic des cas atypiques. Les identités canonisées, le mode pfSense `transport_only` et la décision de ne pas exempter Keycloak/LiteLLM au WAF sont des décisions **déjà intégrées**, pas des nouvelles tâches.
+- **H05** : fraîcheur des résultats Gatus, jobs Prometheus, contrôle direct, `app.query`, `entityRef` et `catalogRevision` ; respecter `NOT_RUN`/`DENIED`/`planned`. [Runbook](runbooks/2026-11-04-probe-remediation.md).
+- **H17** : [#365 Compose](https://github.com/AlbanAndrieu/nabla-compose/pull/365) fusionnée, [#424 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) en attente ; réception inter-dépôts du catalogue V2 avant suppression de l'inventaire legacy. [Contrat](service-catalog-v2-normalization.md).
+- **H03/H08** : matérialisation Homarr/secret `0600`, puis NetBox, Dependency-Track, Joplin. [Secrets](runbooks/2026-11-10-secrets-migration-backlog.md) et [Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
+- Anciennes instructions Kibana/Graylog/AIStor et Apps déjà déployées : [archive du 13/11](archive/2026-11-13-roadmap-before-compaction.md), **ne pas relancer**.
 
 ## P0 — Keycloak, Home Assistant, PostgreSQL et Apps en attente (#330)
 
-| Ordre | Étape préparée dans Git | Gate indispensable avant mutation | Terminé quand |
-| --- | --- | --- | --- |
-| 1 | `bootstrap-app-postgres.sh --describe` puis `--check` ; `rollout-pending-apps.sh --plan` | Exécuter `sudo bash scripts/truenas/rollout-pending-apps.sh --check` sur TrueNAS ; aucun diagnostic refusé ne vaut validation | Parité des fichiers privés et prérequis Docker/middleware, sans mutation |
-| 2 | Keycloak : realm applicatif `nabla`, import via `apply-keycloak-config.sh` | Realm `master` jamais piloté, règles Tunnel ordonnées ; migration sauvegardée, autorisation explicite avant `--apply` | OIDC `nabla` sain en LAN ; `/realms/master/` refusé depuis Internet |
-| 3 | Home Assistant : Custom App `homeassistant` sur les données natives `/mnt/cpool/ha` et le port `30103` du Tunnel, route Traefik corrigée ; bascule [`migrate-homeassistant-to-compose.sh`](../scripts/truenas/migrate-homeassistant-to-compose.sh) (**CODED 9/11**) | `--check` ; recorder sur le PostgreSQL partagé ; `trusted_proxies` Tunnel + Traefik ; `--apply` : snapshot, arrêt natif, retour arrière auto | Historique accessible, `ha.albandrieu.com` répond ; App native supprimée après accord |
-| 4 | Backup PostgreSQL : `apps/postgresbackup`, rôle lecture seule, politique ZFS | Première sauvegarde manuelle vérifiée **et restauration indépendante** ; cron TrueNAS désactivé jusqu'à approbation | `pg_restore --list`, checksum, test de récupération, suivi `last-success` |
-| 5 | Apps : NetBox → Dependency-Track → Plumber → Scanopy → Joplin → ntopng | Un seul `--apply <app>` à la fois ; ordre révisé par opérateur ; ntopng en Community (pas de licence), interface `br0` revue dans `apps/ntopng/ntopng.conf` ; aucune preuve de métriques tant qu'elles ne sont pas observées | `RUNNING` confirmé, Gatus frais ; `up{job="netbox"}=1` / `up{job="dependency_track"}=1` quand déployées |
-| 6 | Retirer Databasus après réconciliation des sauvegardes | Relever et préserver tout backup restant ; `app.stop` ne vaut pas autorisation de supprimer | Sauvegarde de substitution restaurable et retrait documenté |
-
-L'outillage **ne déploie pas** ces Apps à l'occasion du rebase. Le contrat `--check` implique une exécution en lecture seule ; `--apply` doit conserver la validation des paramètres et l'accord `NABLA_RUNTIME_CHANGE_APPROVED=yes`. La récupération du code de retour des sous-processus doit rester **fail-closed** et ne jamais afficher les logs privés. Les scripts de bootstrap/refactoring remplacent les duplications historiques sans supprimer les points d'entrée documentés.
-
-Références : [runbook de réception](runbooks/2026-11-04-probe-remediation.md), [migration des Apps du catalogue](runbooks/2026-11-06-catalog-apps-to-compose.md), [audit des secrets](runbooks/vaultwarden-migration-closure-20261106.md) et [synergies d'intégration](integration-synergies-20261107.md). Les synergies OIDC/SBOM/IPAM/SOAR sont **P2 proposées**, jamais des dépendances en production tant qu'elles ne sont pas vérifiées.
+- **H01** : ne pas déplacer Keycloak/Hermes/Vault sur Talos sans preuve CSI RWX, reclaim et NetworkPolicy. [Préflight CSI](kubernetes-csi-preflight.md).
+- **H02** : `postgresbackup` dump signé par SHA-256 puis **restore isolé** avant d'activer le cron. [Runbook sauvegarde](runbooks/production-app-operations.md).
+- **H19** : migration de Home Assistant vers une App Compose, recorder sur PostgreSQL et rollback prouvés. [Runbook Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
+- **H08** : NetBox, Dependency-Track, Joplin, `rollout-pending-apps.sh --check` et un seul `--apply` à la fois après la séquence P0.
+- L'ancien ordre de déploiement et le retrait de Databasus restent dans [l'archive](archive/2026-11-13-roadmap-before-compaction.md), sans autoriser de suppression de données.
 
 ## P0 — Cloudflare, secrets et frontières d'accès
 
@@ -136,10 +96,7 @@ La 27.0 finale est annoncée début décembre 2026 (hôte en 27.0.0-RC.1, profil
 
 ## P1 — Séparation OpenClaw / Workstation / YubiKey
 
-- `nabla-openclaw` possède Gateway, heartbeat, cron et tests ; `nabla-compose` conserve LiteLLM, réseau, datasets, inventaire et rollback ; `ansible-workstation` gère le système d'exploitation.
-- Le cutover OpenClaw TrueNAS est **ACCEPTED historiquement (03–05/11)**. Ne pas rouvrir le chantier Workstation ; vérifier, lors des changements, qu'une seule Gateway/planification est active. Les anciennes tâches/mutateurs Workstation sont supprimés du dépôt ; le rollback reste documenté.
-- [Roadmap inter-dépôts et historique](roadmap-openclaw-yubikey-extraction-20261030.md), [roadmap OpenClaw historique](openclaw-workstation-roadmap.md). Les fonctions Slack/Discord demeurent désactivées jusqu'à validation distincte.
-- `nabla-yubikey` conserve le cycle matériel et les politiques ; aucune mutation PIN/PUK/OTP/PIV/SSH-sk sans consentement explicite. Les sauvegardes age/SOPS doivent rester restaurables sur supports distincts.
+Migration de dépôt **historiquement réceptionnée**. Les futurs travaux Gateway/heartbeat relèvent de [nabla-openclaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md), les mutations matérielles et certificats de [nabla-yubikey](https://github.com/AlbanAndrieu/nabla-yubikey). [Bilan figé](roadmap-openclaw-yubikey-extraction-20261030.md).
 
 ## P1 — Bibliothèque média \*arr (acquisition anonymisée)
 
@@ -153,21 +110,9 @@ La 27.0 finale est annoncée début décembre 2026 (hôte en 27.0.0-RC.1, profil
 
 ## P1 — Assistants IA, IaC et observabilité (11 novembre 2026)
 
-Chaque application dotée d'un assistant passe par LiteLLM (TrueNAS, `:4000`) avec **sa propre clé virtuelle**, jamais la clé maître. Les clés sont déclarées dans [`config/litellm/app-keys.json`](../config/litellm/app-keys.json) (modèles et budget par App). [`register-litellm-app-keys.py`](../scripts/truenas/register-litellm-app-keys.py) lit la valeur dans le fichier runtime du consommateur ; il est en lecture seule par défaut, et `--apply` n'enregistre que les clés inconnues de LiteLLM (404).
-
-| App | Assistant / usage | État |
-| --- | --- | --- |
-| Homarr | Assistant (`/manage/assistant`), fournisseur `custom`, modèle `qwen`, 5 USD/30 j | **CODED** (`homarr-sync`, tRPC `assistant.updateConnection`/`updateConfiguration`) ; clé `HOMARR_ASSISTANT_API_KEY` enregistrée dans LiteLLM le 12/11 |
-| Open WebUI | Chat et RAG ; **clé maître remplacée** par `OPENWEBUI_LITELLM_API_KEY` (10 USD/30 j) | Clé enregistrée et App recréée après ses secrets le 12/11 (`healthy`) |
-| Langfuse | Ask AI (`gpt-4.1-mini`, 5 USD/30 j) | Clé enregistrée, redéployé le 12/11 ; Halo (bêta, MCP et sandbox) non activé ; connexions LLM de projet en attente de LiteLLM sur `intranet` (`WHITELISTED_HOST=litellm`), l'allowlist d'IP de l'hôte ouvrirait une SSRF |
-| Grafana | Plugin `grafana-llm-app` 1.2.0 provisionné (`gpt-4.1-mini`/`gpt-4.1`, 5 USD/30 j) | Clé enregistrée, redéployé le 12/11 (`/api/health` 200) ; `env_file` optionnel, Grafana démarre sans la clé |
-| ntopng | nAnalyst | Hors périmètre : Enterprise uniquement (lit les flux ClickHouse) |
-| OpenRAG / Langflow | Chat et embeddings | Restent sur le LiteLLM Workstation (`.57`) avec `LITELLM_IDE_API_KEY` : bascule vers `.24` avec une clé dédiée à faire seule (12 tests et les scripts de révocation d'urgence en dépendent) |
-| Home Assistant, n8n, OpenHands, Karakeep, Paperless | Intégrations LLM | UI ou variables à reprendre App par App, même modèle de clé dédiée |
-
-Observabilité (**CODED** le 11/11) : jobs Prometheus `traefik` (`:8080/metrics`, réveille `TraefikServiceDown`) et `garage` (`:3903/metrics`, LAN seul) ; `ClickHouseDown` sur `up{job="clickhouse"}` ; règle cAdvisor active en doublon retirée ; un contrat refuse toute règle qui vise un job non collecté. Récepteur Alertmanager Slack (Q12) **actif le 12/11** : webhook entrant `SLACK_WEBHOOK` dans `nabla/prod/prometheus`, lu par `api_url_file`. `postgres_exporter` : App créée et Prometheus rechargé le 13/11 (`up` = 1) ; `pg_up` = 0 tant que le DSN reste entre apostrophes (`format: raw`, corrigé dans #361) et son mot de passe, affiché par erreur le 13/11, doit être changé ; port 9187 ouvert au LAN sans authentification, risque accepté par l'opérateur. Restent : job MinIO (jeton bearer `mc admin prometheus generate`, sinon `MinioClusterDiskOffline` reste muette), `ntopng-exporter` (utilisateur ntopng en lecture seule). Garage (12/11) : `garage-admin` n'est plus modélisé derrière le Tunnel et la route `garage.albandrieu.com` vise la WebUI `:3909` au lieu de l'API S3 `:3900` (effectif au prochain apply Cloudflare).
-
-IaC candidates (P2, non commencées) : provider `cyrilgdn/postgresql` pour les rôles et bases (remplacerait `bootstrap-app-postgres.sh`), extension du provider TrueNAS (datasets, tâches de snapshot), `jianyuan/sentry` et `grafana/grafana` (dossiers, alertes, contact points).
+- **H12** : OpenRAG/LiteLLM/Docling, embeddings workstation, clés virtuelles non maîtresses, corpus privé. [Runbook](runbooks/openrag-babou-ingestion-diagnostics.md).
+- **H05** : vérifier les exports `postgres-exporter`/`pg_up`, jobs Gatus/Prometheus et la fraîcheur ; aucun succès supposé à partir des chiffres du 11/11. [Remédiation](runbooks/2026-11-04-probe-remediation.md).
+- États de livraison des assistants, clés LiteLLM, Slack et exporters : [archive datée](archive/2026-11-13-roadmap-before-compaction.md).
 
 ## P1 — Fiabilité des scripts et documentation
 
@@ -180,56 +125,15 @@ IaC candidates (P2, non commencées) : provider `cyrilgdn/postgresql` pour les r
 
 ## P2 — Étude : EnOcean (NodOn) dans Home Assistant
 
-Évaluer [NodOcean for HA](https://nodon.fr/blogs/infos/nodocean-for-ha-les-produits-enocean-nodon-dans-home-assistant-sans-prise-de-tete) pour piloter des produits NodOn EnOcean (modules encastrés relais, volet, fil pilote ; prises ; interrupteurs sans pile ; capteurs d'ouverture, mouvement, température) depuis l'App `homeassistant`. **État : NOT_STARTED** — étude seulement, aucune installation.
-
-- **Provenance** : intégration tierce open source (MIT) d'eHome Labs ([dépôt](https://github.com/eHomeLabs/NodOcean-for-HA)), ni NodOn ni Nabu Casa. Elle s'exécute dans le processus Home Assistant : relire le code, épingler une release, vérifier l'absence d'appel réseau sortant ; laisser désactivé le pont MQTT optionnel.
-- **Installation** : HA `2026.10.4` → dépôt personnalisé HACS ; le Marketplace intégré n'arrive qu'en 2026.11. Ordre retenu : migrer d'abord l'App native vers la Custom App (même version), puis monter HA en 2026.11 dans une PR séparée et installer NodOcean depuis le Marketplace.
-- **Contexte Flexom (10/11)** : les interrupteurs et relais de l'installation Flexom (Ubiant, Bouygues Immobilier) sont en EnOcean ; un dongle USB est déjà branché sur TrueNAS. `scripts/truenas/diagnose-homeassistant-usb.sh` identifie son type et vérifie son passage jusqu'à l'intégration HA.
-- **Matériel** : clé USB EnOcean USB300 ou compatible ESP3 (TCM310, USB500) branchée sur TrueNAS, seule connexion documentée (pas de ser2net/TCP). Versionner dans `apps/homeassistant/compose.yml` un `devices:` sur le chemin stable `/dev/serial/by-id/…`, sans `privileged` ni montage de `/dev` ; vérifier la persistance après reboot et mise à niveau TrueNAS.
-- **Radio** : 868 MHz, portée intérieure limitée depuis l'emplacement du TrueNAS (rallonge USB à prévoir). Une clé ne sert qu'à une intégration : ne pas activer l'intégration EnOcean native sur la même clé. Le support d'EnOcean Security n'est pas documenté : considérer les télégrammes comme non authentifiés et n'y confier aucune action de sécurité (alarme, serrure, ouverture).
-- **Limites connues** : réglages non relus sur les produits (HA affiche la dernière valeur envoyée) ; un appairage de module ou de prise peut exiger une réinitialisation usine.
-- **Sauvegarde** : les appairages vivent dans `/mnt/cpool/ha/config`, couvert par la classe `app-state` de la rétention ZFS (`cpool/ha`) ; vérifier aussi la sauvegarde interne de HA.
-
-**Clôture de l'étude** : décision datée (installer, attendre ou écarter) avec la liste des produits visés, la version revue et épinglée, le chemin `by-id` de la clé, un essai sur un capteur et un actionneur, le comportement après redémarrage de HA et de TrueNAS, et le retour arrière (suppression de l'intégration et du `devices:`).
+**H18 · PLANNED** — [Étude EnOcean/Somfy et radio Flexom](roadmap-homeassistant-integrations.md), sans configuration ni achat implicite.
 
 ## P2 — Étude : volets et alarme Somfy dans Home Assistant
 
-Évaluer le pilotage des volets et de l'alarme Somfy depuis l'App `homeassistant`, en complément de l'étude EnOcean. Référence : [liste de compatibilité TaHoma switch / Rail-DIN S (mise à jour 1.16, mars 2023)](https://www.somfy.fr/file.cfm/Liste_des_compatibilit%C3%A9s_TaHoma_juillet_2019.pdf?contentid=442583). **État : NOT_STARTED** — étude seulement.
-
-- **Inventaire (10/11)** : **pas de box TaHoma** ; volets **probablement io-homecontrol**, appairés à la passerelle io Overkiz de l'offre Flexom (Ubiant, Bouygues Immobilier) installée dans le tableau électrique, application plus maintenue. Alarme pilotée par l'app **Somfy Protect** (box sur OPT) : Home Alarm, Home Alarm Advanced ou Somfy ONE / ONE+, à lire dans la liste des équipements de l'app.
-- **Comptes séparés** : Somfy Protect (ex-Myfox) et l'écosystème Overkiz (TaHoma, Flexom) sont deux plateformes distinctes ; le compte de l'alarme ne verra jamais les volets.
-- **Passerelle Flexom** : HA « Bouygues Flexom » n'est qu'un renvoi vers l'intégration Overkiz **cloud** ; la communauté signale l'échec d'authentification des box Flexom 2.0 et aucune API locale documentée. `diagnose-homeassistant-overkiz.sh --host <IP>` tranche : certificat Overkiz, port 8443, réponse de l'API locale.
-- **Voie indépendante** : passerelle io à API locale (ci-dessous) + réappairage des moteurs, verrouillés par la clé io de la box Flexom (transfert de clé ou remise à zéro par double coupure au disjoncteur, un volet à la fois, procédure Somfy du moteur) + interrupteurs EnOcean repris par la clé USB300 de HA ; les automatisations HA remplacent la logique Ubiant.
-- **Volets io-homecontrol** : une passerelle io est indispensable (aucune aujourd'hui). Comparaison du 9/11, avec la contrainte HA en réseau bridge (décision du 6/11 : pas de multicast, équipements OPT joints par IP) :
-  - **Velux KLF 200 — recommandé** : intégration officielle [`velux`](https://www.home-assistant.io/integrations/velux), 100 % locale, sans compte cloud. Moteurs Somfy io appairés via la touche PROG de la télécommande ; position et retour d'état rapportés par la communauté. Box Ethernet sur OPT, déclarée par IP ; pfSense : TCP 51200 (TLS, certificat auto-signé) depuis 172.17.0.24 seulement. Firmware > 2.0.0.0.
-  - **KLF 200 — sécurité** : mot de passe d'usine = clé Wi-Fi imprimée sous la box ; le changer, le stocker dans Vaultwarden, jamais dans Git. Point d'accès Wi-Fi de configuration actif seulement après redémarrage. Risques connus : délais TLS et reconnexions signalés par la communauté ; disponibilité et prix à vérifier avant achat.
-  - **TaHoma switch — alternative** : intégration officielle Overkiz en **API locale** (mode développeur, jeton, interrogation 5 s, file d'environ 10 commandes) ; pfSense TCP 8443 depuis 172.17.0.24. Une seule box pour io, RTS et module EnOcean 1824033, mais compte Somfy requis pour le jeton et box reliée au cloud (sortie Internet depuis OPT).
-  - **Connectivity Kit / KIG 300 — écarté** : HomeKit local et moins cher, mais HomeKit Controller exige la découverte mDNS (réflecteur obligatoire entre réseaux) : incompatible avec HA en bridge sans Avahi sur pfSense et passage en réseau hôte. Retours : positions OK, pas de groupes, « stop » absent en 2022.
-  - **Télécommande io + ESP — écartée** : pas de retour d'état, électronique à intégrer dans le boîtier.
-- **Volets RTS** : pilotables sans box par un émetteur 433,42 MHz : clé RFXtrx sur TrueNAS (intégration officielle, `devices:` par chemin `by-id`) ou module ESPSomfy-RTS (ESP32 + CC1101, intégration HACS) posé près des volets sur OPT, joint par IP. Radio unidirectionnelle : pas de retour de position (cover optimiste).
-- **Alarme PROTEXIAL io / Protexiom** : intégration HACS [`somfy-protexial`](https://github.com/the8tre/somfy-protexial) sur l'interface web locale de la centrale (HTTP en clair, une seule session à la fois, maintenance communautaire irrégulière). Centrale sur OPT : règle pfSense TCP 80 depuis 172.17.0.24 vers la seule centrale.
-- **Logo io de l'alarme** : inutile de le chercher sur la sirène ou les capteurs : les accessoires Somfy Protect parlent la radio propriétaire 868 MHz Somfy Protect ; selon la FAQ Somfy « produits compatibles avec Somfy Protect », seule la Home Alarm Advanced communique aussi en io-homecontrol.
-- **Alarme Somfy Home Alarm / ONE / ONE +** : passe par le cloud Somfy, la box sur OPT n'a besoin que d'Internet. Seule voie connue : [SomfyProtect2MQTT](https://github.com/Minims/SomfyProtect2MQTT) (API rétro-ingénierée, GPL-3.0, compte propriétaire dédié) : conteneur Compose séparé (pas d'add-on en HA Container), broker MQTT à ajouter, jeton OAuth hors Git, flux HLS 8090 limité à `127.0.0.1`.
-- **Sécurité de l'alarme** : lecture d'état et notifications d'abord ; armement ou désarmement depuis HA seulement après revue du code, identifiants dans Vaultwarden et journalisation des commandes.
-- **Diagnostics (lecture seule)** : `sudo bash scripts/truenas/diagnose-homeassistant.sh` (propriétaire du runtime, durcissement, API, intégrations, HACS, joignabilité depuis le conteneur), `diagnose-homeassistant-usb.sh` (dongle → pilote → `devices:` → intégration) et `diagnose-homeassistant-overkiz.sh --host <IP>` (passerelle io). Jetons facultatifs en fichiers `root:root 600`, jamais en argument.
-- **Lien avec EnOcean** : sans TaHoma, le module Somfy 1824033 (clé EnOcean pour TaHoma) est sans objet ; EnOcean passe par la clé USB300 de HA (étude ci-dessus). Les volets Somfy ne sont pas EnOcean.
-
-**Clôture de l'étude** : sorties des trois diagnostics jointes, protocole des moteurs et modèle d'alarme relevés, voie retenue par équipement (émetteur RTS, achat KLF 200 ou TaHoma switch pour l'io, Protexial, SomfyProtect2MQTT ou écartée), règle pfSense minimale vers OPT, secrets dans Vaultwarden, essai de lecture d'état puis de commande d'un volet, retour arrière documenté.
+**H18 · PLANNED** — [Même étude](roadmap-homeassistant-integrations.md) ; protocole des moteurs et modèle d'alarme à identifier.
 
 ## Historique minimal : problèmes à ne pas reproduire
 
-| Problème passé | Leçon conservée |
-| --- | --- |
-| App TrueNAS arrêtée et sans conteneur | `containerService` seul ne suffit pas : `appId` est nécessaire pour le rapprochement |
-| OOM TrueNAS / instabilité Unbound, build, indexeurs | Diagnostiquer PSI/ARC/journaux avant d'accuser le réseau ou de redémarrer |
-| Cloudflare challenge et 401 d'exporter | Séparer la preuve LAN, l'authentification et la protection du bord |
-| Dépendances PyYAML de Pre-commit | Les hooks doivent déclarer leurs dépendances ; ne pas supposer le Python de `mise` |
-| Drift cron OpenClaw, rate limits mal attribués | Inspecter l'identité et la session effectives ; éviter les tests de modèle coûteux |
-| Anciens scripts de migration et données ZFS | Un runbook daté n'autorise jamais une nouvelle mutation ni une suppression sans preuve |
-| UI Apps vide, `app.query` en timeout (4/11) | Un shim containerd bloqué tient le verrou d'un conteneur : isoler le conteneur dont `docker inspect` dépasse 5 s et tuer son seul shim, sans redémarrer dockerd ni containerd ([incident](incidents/2026-11-04-truenas-app-query-stuck-container-lock.md)) |
-| Consolidation docs/scripts (6/11) | Les migrations terminées sont retirées du dépôt ; leur historique reste dans Git |
-
-Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrations-retour-experience.md). Les opérations anciennes déjà exécutées ne sont plus suivies comme des tâches.
+Les leçons d'exploitation sont dans [les incidents](incidents/2026-11-06-migrations-retour-experience.md) ; le tableau original est dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md). Aucune ancienne procédure n'autorise une mutation actuelle.
 
 ## Gouvernance et clôture
 
@@ -240,15 +144,8 @@ Voir [les symptômes et remédiations mémorisables](incidents/2026-11-06-migrat
 
 ## P0/P1/P2 — Cible cryptographique FIPS, PostgreSQL 16 → 18, TLS 1.3, Vault et OAuth (10 novembre 2026)
 
-**Décision** : le homelab vise un **alignement FIPS 140-3 vérifiable**, sans revendiquer de certification ni supposer que DORA impose FIPS. Le homelab accepte les indisponibilités pendant les tests TLS/certificats et migrations ; conserver toutefois la récupération des données, les secrets et un accès d'administration de secours.
+**H09** : durcir les clients PostgreSQL restants en `verify-full` avec CA/SAN contrôlés. PostgreSQL 18.6, SCRAM et `hostssl` ont été préparés, mais cela n'atteste pas la conformité de tous les clients.
 
-| Priorité | Objectif | État | Critère de réception |
-| --- | --- | --- | --- |
-| P0 | Audit sans secrets du PostgreSQL TrueNAS et de ses clients (version, SSL/TLS, HBA, MD5/SCRAM, CA, SAN, dates et propriétaire du certificat) | **Fait** : PostgreSQL **18.6** audité le 10/11 (alors `ssl=off`, HBA `trust` local au conteneur, `scram-sha-256` ailleurs) ; 13/11 : tous les rôles applicatifs en TLSv1.3 (`pg_stat_ssl`), après redémarrage des clients ouverts avant l'activation | Preuves SQL et TLS par client, aucune fuite de secret |
-| P0 | Rotation contrôlée MD5 → SCRAM, règles `hostssl`, rôles minimaux | **SCRAM fait** (10/11 : `password_encryption=scram-sha-256`, 10 rôles de connexion SCRAM, 0 MD5) ; **`hostssl` appliqué le 13/11** (`enable-postgres-tls.sh --apply` : règle distante `hostssl`, boucle locale du conteneur inchangée, connexion TCP en clair refusée, aucun client applicatif rejeté ; Joplin passe `PGSSLMODE=no-verify`) | Aucun login MD5, tests positifs et négatifs |
-| P1 | TLS 1.3 avec `verify-full` côté client et certificats correctement renouvelés, sans couper les clients non validés. En attendant Vault PKI : petite CA locale (`scripts/truenas/enable-postgres-tls.sh`, clé root 0600 sur TrueNAS, certificat serveur EC P-256 825 j, SAN IP + `postgres` + `postgres.int`), `ssl=on` et TLS 1.3 minimum par rechargement, sans redémarrage. **Appliqué le 12/11** ; `--check` 8/8 le 13/11 (CA, `ca.crt` publié, certificat, TLS 1.3 vérifié contre la CA, TLS 1.2 rejeté, `hostssl`, clair refusé). Plumber et Sample en `verify-full` depuis le 13/11 ; tous les rôles applicatifs en TLSv1.3. Restent Keycloak en `verify-full` à son déploiement, et `verify-full` pour les autres clients quand la CA publique sortira de `/mnt/cpool/secrets` (dette `specialHostSecretFiles`) | **VERIFIED** côté serveur et pour Plumber, Sample ; `require` ou `prefer` ailleurs | Matrice de compatibilité, `pg_stat_ssl`, tests de rejet des protocoles faibles |
-| P1 | HashiCorp Vault database secrets engine : rôles dynamiques/statiques, rotation et révocation ; Vaultwarden reste la source transitoire | **PLANIFIED** | Lease, rotation et restauration démontrées |
-| P2 | PostgreSQL 18 + module OAuth de validation Keycloak pour DBA/psql, break-glass indépendant | **PLANIFIED** | Tests de permissions, MFA, révocation et indisponibilité IdP |
-| P2 | OIDC Keycloak des utilisateurs FastAPI et autres applications, indépendant de l'authentification SQL | **NOT_VERIFIED** | Validation issuer/audience/JWKS et RBAC, sondes et tests navigateur |
+**H16** : pilote Vault PKI/OAuth SQL/OIDC Keycloak, révocation et break-glass. L'objectif FIPS 140-3 est un **alignement technique**, non une certification.
 
-[Runbook complet de durcissement PostgreSQL / FIPS / Vault / OAuth](security/postgresql-fips-tls13-vault-oauth-20261110.md).
+[Runbook détaillé FIPS, TLS 1.3, Vault et OAuth](security/postgresql-fips-tls13-vault-oauth-20261110.md). La matrice datée initiale est [archivée](archive/2026-11-13-roadmap-before-compaction.md).

@@ -19,6 +19,7 @@ FIELDS = ("id", "priority", "owner", "code", "runtime", "next_proof")
 PRIORITIES = {"P0", "P1", "P2"}
 CODE_STATES = {"CODED", "TESTED", "DEPLOYED", "PARTIAL", "PLANNED", "NOT_VERIFIED"}
 RUNTIME_STATES = {"ACCEPTED", "NOT_VERIFIED", "PARTIAL"}
+APPROVED_ORDER = ("H01", "H02", "H05")
 ROW = re.compile(r"^H[0-9]{2}$")
 LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 
@@ -66,7 +67,7 @@ def audit(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     if not rows:
         issues.append("no active portfolio rows")
     order = re.search(r"^## Séquence validée — (.+)$", source, re.M)
-    if not order or re.findall(r"H[0-9]{2}", order.group(1)) != ["H01", "H02", "H05"]:
+    if not order or tuple(re.findall(r"H[0-9]{2}", order.group(1))) != APPROVED_ORDER:
         issues.append("approved execution order must be H01 → H02 → H05")
     if rows and not {"P0", "P1", "P2"}.issubset({row["priority"] for row in rows}):
         issues.append("all three priority bands must be represented")
@@ -78,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="validate table (default)")
     mode.add_argument("--json", action="store_true", help="emit validated active rows")
+    mode.add_argument("--worklist", action="store_true", help="emit approved work in execution order")
     parser.add_argument("--root", type=Path, default=ROOT)
     args = parser.parse_args(argv)
     entries, errors = audit(args.root)
@@ -85,7 +87,13 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"FAIL {error}", file=sys.stderr)
         return 1
-    if args.json:
+    if args.json or args.worklist:
+        if args.worklist:
+            by_id = {entry["id"]: entry for entry in entries}
+            if any(identifier not in by_id for identifier in APPROVED_ORDER):
+                print("FAIL approved item missing", file=sys.stderr)
+                return 1
+            entries = [by_id[identifier] for identifier in APPROVED_ORDER]
         print(json.dumps(entries, ensure_ascii=False, indent=2))
     else:
         print(f"PASS roadmap portfolio: {len(entries)} active items")
