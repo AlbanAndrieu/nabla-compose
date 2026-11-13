@@ -15,11 +15,13 @@ Cette vue **classe** les travaux déjà détaillés ci-dessous et ne constitue p
 
 | Option | Priorité proposée | Résultat à réceptionner | Où agir |
 | --- | --- | --- | --- |
-| **A — Fiabilité et données** | P0 | Premier backup PostgreSQL restauré sur cible indépendante, secrets matérialisés et accès de secours ; corriger le secret postgres-exporter signalé exposé le 13/11 | [PostgreSQL / Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [secrets](#p0--cloudflare-secrets-et-frontières-daccès) |
-| **B — Réseau et sécurité** | P0 | Contrôle des accès Cloudflare/Traefik et déploiements DNS ; préparer pfSense 26.03.1 → 26.07 sans exécuter l’upgrade dans cette PR | [Frontières](#p0--cloudflare-secrets-et-frontières-daccès), [pfSense #362](https://github.com/AlbanAndrieu/nabla-compose/pull/362) (Draft) |
-| **C — Couverture des services** | P0/P1 | NetBox, Dependency-Track et Joplin réellement RUNNING, Gatus/Prometheus avec preuve fraîche, catalogue réconcilié | [Catalogue/sondes](#p0--réception-du-catalogue-et-des-sondes-pr-326) |
-| **D — Exploitation TrueNAS** | P1 | Premier plan réel de redéploiement ciblé, conformité des ressources et diagnostics, préparation upgrade TrueNAS | [Scripts et docs](#p1--fiabilité-des-scripts-et-documentation) |
-| **E — Fonctionnalités avancées** | P1/P2 | Keycloak/Talos, APISIX, Vault PKI/OAuth, ZFS et observabilité enrichie | [P0 Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [cryptographie](#p0p1p2--cible-cryptographique-fips-postgresql-16--18-tls-13-vault-et-oauth-10-novembre-2026) |
+| **G1 — Fiabilité et données** | P0 | Premier backup PostgreSQL restauré sur cible indépendante, secrets matérialisés et accès de secours ; corriger le secret postgres-exporter signalé exposé le 13/11 | [PostgreSQL / Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [secrets](#p0--cloudflare-secrets-et-frontières-daccès) |
+| **G2 — FastAPI Cloud** | P0 | Réception navigateur, SHA réel et coût Nano CPU/RAM/réplicas mesuré ; sondes sans faux vert | [FastAPI F1/F2](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) |
+| **G4 — Réseau et sécurité** | P0 | Contrôle des accès Cloudflare/Traefik et déploiements DNS ; préparer pfSense 26.03.1 → 26.07 sans exécuter l’upgrade dans cette PR | [Frontières](#p0--cloudflare-secrets-et-frontières-daccès), [pfSense #362](https://github.com/AlbanAndrieu/nabla-compose/pull/362) (Draft) |
+| **G3 — Couverture des services** | P0/P1 | NetBox, Dependency-Track et Joplin réellement RUNNING, Gatus/Prometheus avec preuve fraîche, catalogue réconcilié | [Catalogue/sondes](#p0--réception-du-catalogue-et-des-sondes-pr-326) |
+| **G5 — Exploitation TrueNAS** | P1 | Premier plan réel de redéploiement ciblé, conformité des ressources et diagnostics, préparation upgrade TrueNAS | [Scripts et docs](#p1--fiabilité-des-scripts-et-documentation) |
+| **G6 — Sites et FinOps Vercel** | P1 | Performance et privacy des deux sites, métriques CPU d’équipe réellement disponibles, validation des documents Bababou | [Alban](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/quality-roadmap.md), [Bababou](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md), [OpenClaw FinOps](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) |
+| **G7 — Fonctionnalités avancées** | P1/P2 | Keycloak/Talos, APISIX, Vault PKI/OAuth, ZFS et observabilité enrichie | [P0 Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [cryptographie](#p0p1p2--cible-cryptographique-fips-postgresql-16--18-tls-13-vault-et-oauth-10-novembre-2026) |
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
 
