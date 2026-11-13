@@ -1,6 +1,6 @@
 # Portefeuille Homelab — arbitrage inter-dépôts
 
-> Synthèse au **13 novembre 2026**, établie à partir des deux roadmaps versionnées. **H01 → H02 → H05 approuvés le 13 novembre 2026 ; autres chantiers à arbitrer.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
+> Synthèse au **13 novembre 2026**, établie à partir des deux roadmaps versionnées. **Priorité révisée le 13 novembre au soir : G1/H02 → H01 → H05 ; autres chantiers à arbitrer.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
 
 ## Autorités et règles
 
@@ -15,7 +15,7 @@
 | ID | Priorité | Propriétaire | Code/préparation | Réception runtime | Preuve à produire et référence |
 | --- | --- | --- | --- | --- | --- |
 | H01 | P0 | nabla-compose | CODED | NOT_VERIFIED | CSI Talos : #367 fusionnée (diagnostic code uniquement) ; identifier le driver installé, le rapprocher du pilote officiel TrueNAS CSI déclaré, prouver RWX/persistance/reclaim et valider NetworkPolicy avant Keycloak/Hermes/Vault — [Préflight CSI](kubernetes-csi-preflight.md) |
-| H02 | P0 | nabla-compose | CODED | NOT_VERIFIED | PostgreSQL : exécuter une sauvegarde logique manuelle, restaurer dans une cible distincte puis seulement activer le cron — [Opérations Apps](runbooks/production-app-operations.md) |
+| H02 | P0 | nabla-compose | CODED | NOT_VERIFIED | G1 : rotation postgres_exporter, sauvegarde manuelle en TLS verify-full, restauration isolée et comparaison ciblée puis seulement activer le cron — [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md) |
 | H03 | P0 | nabla-compose | PARTIAL | NOT_VERIFIED | Secrets : finir les matérialisations 0600, corriger la clé Homarr sans afficher de valeur, contrôler fichier → conteneur — [Backlog des secrets](runbooks/2026-11-10-secrets-migration-backlog.md) |
 | H04 | P0 | nabla-compose | PARTIAL | NOT_VERIFIED | Edge : prouver les politiques Access/Service Auth, retirer s3.int public après plan approuvé, vérifier le DNS FastAPI public — [IaC Cloudflare](../terraform/cloudflare/README.md) |
 | H05 | P0 | nabla-compose + fastapi-sample | PARTIAL | NOT_VERIFIED | Catalogue : réconcilier Gatus, Prometheus, exports et app.query avec preuves fraîches, sans DOWN sur DENIED ou NOT_RUN — [Sondes TrueNAS](runbooks/2026-11-04-probe-remediation.md) |
@@ -44,10 +44,10 @@
 - **Scripts** : extractions `scripts/lib/postgres.sh` et `scripts/lib/app-deploy.sh` fusionnées dans #330 ; conserver les wrappers compatibles jusqu'aux tests de leur remplacement. Le runner GitHub LXC reste **préparé mais inactif**.
 - **FastAPI** : heatmap triable #418 et garde budgétaire Nano #419 fusionnées le 11 novembre. Pas de mesure CPU/réplicas ni de recette OWNER post-déploiement attribuée à ces PR.
 
-## Séquence validée — H01 → H02 → H05
+## Séquence validée — H02 → H01 → H05
 
-1. **H01** — vérifier le pilote CSI réellement installé (pilote officiel TrueNAS versionné), puis PVC RWX, persistance multi-workers et nettoyage après suppression.
-2. **H02** — sauvegarde PostgreSQL puis **restauration indépendante** ; n'activer le cron qu'après cette preuve.
+1. **H02/G1** — tourner le secret `postgres_exporter`, réaliser un backup en TLS `verify-full` et une **restauration indépendante** avant activation du cron. [Runbook](runbooks/postgres-g1-restore-and-secret-rotation.md).
+2. **H01** — vérifier le pilote CSI réellement installé (pilote officiel TrueNAS versionné), puis PVC RWX, persistance multi-workers et nettoyage après suppression.
 3. **H05** — statut du catalogue, disponibilité directe, Gatus frais et scrapes Prometheus corrélés sans faux DOWN.
 4. **Recevoir H17**, catalogue V2 Compose → FastAPI #424 → Site Alban, et retirer le legacy seulement après preuve.
 5. **Fermer les frontières de sécurité** : H03 (secrets) et H04 (Access/DNS), sans changement de privilèges implicite.

@@ -19,7 +19,7 @@ FIELDS = ("id", "priority", "owner", "code", "runtime", "next_proof")
 PRIORITIES = {"P0", "P1", "P2"}
 CODE_STATES = {"CODED", "TESTED", "DEPLOYED", "PARTIAL", "PLANNED", "NOT_VERIFIED"}
 RUNTIME_STATES = {"ACCEPTED", "NOT_VERIFIED", "PARTIAL"}
-APPROVED_ORDER = ("H01", "H02", "H05")
+APPROVED_ORDER = ("H02", "H01", "H05")
 ROW = re.compile(r"^H[0-9]{2}$")
 LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 
@@ -68,7 +68,7 @@ def audit(root: Path) -> tuple[list[dict[str, str]], list[str]]:
         issues.append("no active portfolio rows")
     order = re.search(r"^## Séquence validée — (.+)$", source, re.M)
     if not order or tuple(re.findall(r"H[0-9]{2}", order.group(1))) != APPROVED_ORDER:
-        issues.append("approved execution order must be H01 → H02 → H05")
+        issues.append("approved execution order must be H02 → H01 → H05")
     if rows and not {"P0", "P1", "P2"}.issubset({row["priority"] for row in rows}):
         issues.append("all three priority bands must be represented")
     return rows, issues

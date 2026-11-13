@@ -47,6 +47,9 @@ services:
       POSTGRES_HOST: 172.17.0.24
       POSTGRES_PORT: "5432"
       POSTGRES_USER: pgbackup
+      # Never silently downgrade backup traffic to cleartext or an untrusted CA.
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /opt/nabla/pg-ca/ca.crt
       # Space-separated databases; the pgbackup role must have CONNECT on each
       # (scripts/truenas/bootstrap-postgresbackup-role.sh).
       # Databases not created yet are reported SKIP (BACKUP_REQUIRE_ALL=true to fail).
@@ -59,6 +62,7 @@ services:
     entrypoint: ["bash", "/opt/nabla/backup.sh"]
     volumes:
       - /mnt/cpool/backup/postgres:/backups
+      - /mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/opt/nabla/pg-ca/ca.crt:ro
       - ./backup.sh:/opt/nabla/backup.sh:ro
     networks:
       - intranet
