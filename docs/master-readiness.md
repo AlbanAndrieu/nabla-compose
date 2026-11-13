@@ -87,7 +87,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `plumber` | planned | ❌ | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgres-exporter` | active | custom-apps.yml | — | manifest | ✅ | postgres_exporter | ❌ | diagnose-postgres-exporter.sh | — | `DB_NOT_IN_LOGICAL_BACKUP`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
+| `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets)<br>`cpool/secrets` (critical) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
 | `prometheus` | active | custom-apps.yml | `cpool/prometheus` (none (noSnapshot)) | manifest | ✅ | alertmanager, pfsense-exporter, prometheus | — | diagnose-prometheus-targets.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `prowlarr` | planned | deploy-media-stack.sh | `cpool/prowlarr` (app-state) | manifest | ✅ | prowlarr-exporter | — | générique | config/media/settings.yml<br>terraform/media | ✅ |
 | `pyroscope` | active | custom-apps.yml | `cpool/pyroscope` (none (noSnapshot)) | n/a | ✅ | pyroscope | — | diagnose-pyroscope.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
