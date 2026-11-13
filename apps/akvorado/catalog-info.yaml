@@ -4,14 +4,30 @@ kind: Component
 metadata:
   name: akvorado-orchestrator
   title: Akvorado Orchestrator
-  description: Planned Akvorado configuration and coordination control plane.
+  description: Akvorado configuration and coordination control plane.
   labels:
-    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
   tags:
     - network
     - observability
     - netflow
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: akvorado-restored-best-effort
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
 spec:
   type: controller
   lifecycle: experimental
@@ -26,10 +42,11 @@ kind: Component
 metadata:
   name: akvorado-inlet
   title: Akvorado Inlet
-  description: Planned NetFlow/IPFIX UDP receiver and Kafka producer.
+  description: NetFlow/IPFIX UDP receiver and Kafka producer.
   labels:
-    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
   tags:
     - network
     - observability
@@ -39,6 +56,7 @@ spec:
   lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/akvorado-orchestrator
   dependsOn:
     - resource:default/kafka
 ---
@@ -47,10 +65,11 @@ kind: Component
 metadata:
   name: akvorado-outlet
   title: Akvorado Outlet
-  description: Planned Kafka flow consumer and ClickHouse ingestion pipeline.
+  description: Kafka flow consumer and ClickHouse ingestion pipeline.
   labels:
-    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: high
+    albandrieu.com/bia-scope: inherited
   tags:
     - network
     - observability
@@ -60,6 +79,7 @@ spec:
   lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/akvorado-orchestrator
   dependsOn:
     - resource:default/kafka
     - resource:default/clickhouse
@@ -69,13 +89,14 @@ kind: Component
 metadata:
   name: akvorado-console
   title: Akvorado Console
-  description: Planned UI for historical network-flow search and analysis.
+  description: UI for historical network-flow search and analysis.
   links:
     - url: http://172.17.0.24:31056/
       title: Console
   labels:
-    albandrieu.com/operational-state: planned
+    albandrieu.com/operational-state: active
     albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
   tags:
     - network
     - observability
@@ -85,5 +106,6 @@ spec:
   lifecycle: experimental
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+  subcomponentOf: component:default/akvorado-orchestrator
   dependsOn:
     - resource:default/clickhouse
