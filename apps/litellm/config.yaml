@@ -195,13 +195,15 @@ model_list:
       num_ctx: 8192
       keep_alive: "30m"
 
-  # reactive resume
+  # Reactive Resume: same model and num_ctx as "qwen", so both routes share one GPU instance.
+  # Its chat sends the whole resume JSON and a patch_resume tool (3/3 edits vs 2/3 for qwen2.5:3b).
   - model_name: rr-json
     litellm_params:
-      model: "ollama_chat/qwen2.5:3b" # :14b
+      model: ollama_chat/bonsai-2:9b
       api_base: "http://172.17.0.57:11434"
       temperature: 0
-      num_ctx: 8192
+      num_ctx: 32768
+      think: false
 
   # Optional generic external providers: do not enable until the matching
   # private runtime credentials and model availability have been validated.

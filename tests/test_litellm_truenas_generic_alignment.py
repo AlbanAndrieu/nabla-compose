@@ -34,9 +34,11 @@ class TrueNASGenericLiteLLMTests(unittest.TestCase):
                 self.assertIn("172.17.0.57:11434", routes[name])
         self.assertEqual(len(routes), len(set(routes)))
         # A num_ctx unlike the workstation "qwen" reloads the model on the shared GPU.
-        self.assertIn("model: ollama_chat/bonsai-2:9b", routes["qwen"])
-        self.assertIn("num_ctx: 32768", routes["qwen"])
-        self.assertIn("think: false", routes["qwen"])
+        for name in ("qwen", "rr-json"):
+            with self.subTest(gpu_route=name):
+                self.assertIn("model: ollama_chat/bonsai-2:9b", routes[name])
+                self.assertIn("num_ctx: 32768", routes[name])
+                self.assertIn("think: false", routes[name])
 
     def test_critical_existing_routes_are_preserved(self):
         routes = dict(active_models())
