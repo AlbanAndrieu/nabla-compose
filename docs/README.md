@@ -76,6 +76,8 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 
 ## Network edge: pfSense, DNS, Cloudflare
 
+- [pfSense Plus 26.03.1 → 26.07 upgrade (Netgate arm64)](./pfsense-upgrade-26-07.md)
+
 - [pfSense diagnosis/recovery and WebConfigurator 502](./pfsense-diagnose-recover.md)
 - [pfSense flow observability and memory](./pfsense-flow-observability-memory.md)
 - [pfSense PHP-FPM hardening](./pfsense-php-fpm-hardening.md)
