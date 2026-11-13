@@ -6,7 +6,8 @@ cron, journaux noyau et pfBlockerNG). Précédent :
 [OOM du 2026-10-08](2026-10-08-pfsense-unbound-oom-wan-exposure.md).
 
 > Mise à jour 13/11 : la reconstruction des règles Snort est le premier
-> processus tué par l'OOM, et Unbound figurait déjà dans le Service Watchdog.
+> processus tué par l'OOM. Le `NOT_LISTED` d'Unbound dans le Service Watchdog
+> était juste pour l'environnement 26.07 en service.
 > Voir [l'incident du 2026-11-13](2026-11-13-pfsense-unbound-oom-snort-crowdsec.md).
 
 ## Résumé

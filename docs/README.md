@@ -153,7 +153,7 @@ All date-specific incidents belong under [`incidents/`](./incidents/).
 - [2026-10-27 · FastAPI TrueNAS build, Docker Hub 429](./incidents/2026-10-27-fastapi-truenas-build-dockerhub-429.md)
 - [2026-11-04 · TrueNAS `app.query` blocked by a stuck container lock](./incidents/2026-11-04-truenas-app-query-stuck-container-lock.md)
 - [2026-11-06 · migration lessons: STOPPED App binding, WAF, OOM, OpenClaw, secrets, pre-commit](./incidents/2026-11-06-migrations-retour-experience.md)
-- [2026-11-13 · pfSense Unbound OOM during Snort rules rebuild, CrowdSec Small mode reverted](./incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
+- [2026-11-13 · pfSense Unbound OOM during Snort rules rebuild, then boot environment rollback](./incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
 
 Incident documents retain evidence needed for diagnosis: symptoms, commands,
 observations, root cause, recovery boundary and acceptance. They are not the
