@@ -64,6 +64,16 @@ services:
           description: The Homarr assistant uses LiteLLM as a custom OpenAI-compatible provider (model qwen).
           evidence:
             - apps/homarr/sync.py:ASSISTANT_BASE_URL
+      exposure:
+        - name: public
+          hostnames:
+            - homarr.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     env_file:
       - /mnt/cpool/secrets/runtime/homarr/.env.secrets
@@ -73,7 +83,12 @@ services:
       DOCKER_HOSTNAMES: docker-socket-proxy
       DOCKER_PORTS: "2375"
     ports:
-      - "172.17.0.24:30100:7575"
+      - name: web
+        target: 7575
+        published: "30100"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/homarr:/appdata
       - ./generated:/config/nabla:ro

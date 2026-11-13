@@ -84,6 +84,12 @@ services:
           description: Scanopy consumes discovery data from its integrated daemon.
           evidence:
             - apps/scanopy/compose.yml:SCANOPY_INTEGRATED_DAEMON_URL
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     env_file:
       # Must define SCANOPY_DATABASE_URL for role/database scanopy on 172.17.0.24:5432.

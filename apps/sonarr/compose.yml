@@ -50,6 +50,12 @@ services:
           description: Traefik exposes the UI only through sonarr.int.albandrieu.com.
           evidence:
             - apps/sonarr/compose.yml:traefik.http.routers.sonarr
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     security_opt:
       - no-new-privileges:true
     env_file:

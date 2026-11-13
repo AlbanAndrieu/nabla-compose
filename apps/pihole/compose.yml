@@ -23,6 +23,12 @@ services:
       monitoring:
         type: http
         target: http://172.17.0.24:20720/admin/
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     env_file:
       - /mnt/cpool/secrets/runtime/pihole/.env.secrets
     environment:
@@ -40,7 +46,11 @@ services:
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      - "20720:80/tcp"
+      - name: web
+        target: 80
+        published: "20720"
+        protocol: tcp
+        app_protocol: http
       - "30132:443/tcp"
     volumes:
       - /mnt/cpool/pihole/config:/etc/pihole

@@ -79,7 +79,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("SANDBOX_RUNTIME_CONTAINER_IMAGE", compose)
         self.assertNotIn("WORKSPACE_MOUNT_PATH", compose)
         self.assertNotIn(".openhands-state", compose)
-        self.assertIn('"172.17.0.24:3010:3000"', compose)
+        self.assertIn('target: 3000\n        published: "3010"\n        host_ip: 172.17.0.24', compose)
         self.assertIn("docker.openhands.dev/v2/", readme)
         self.assertIn("https://ghcr.io/v2/", readme)
         self.assertIn("pfSense/Unbound", readme)
@@ -101,7 +101,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn("KC_BOOTSTRAP_ADMIN_USERNAME: admin", compose)
         self.assertNotIn("\n  postgres:", compose)
         self.assertIn('KC_HOSTNAME: https://keycloak.albandrieu.com', compose)
-        self.assertIn('"172.17.0.24:30238:8080"', compose)
+        self.assertIn('target: 8080\n        published: "30238"\n        host_ip: 172.17.0.24', compose)
         self.assertIn('"172.17.0.24:30239:9000"', compose)
         self.assertIn('KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"', compose)
         self.assertIn("/mnt/cpool/keycloak/.env.secrets", compose)
@@ -187,7 +187,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
     def test_squid_declares_lan_only_shared_intranet_network(self) -> None:
         compose = self.read("apps/squid/compose.yml")
 
-        self.assertIn('"172.17.0.24:3128:3128"', compose)
+        self.assertIn('target: 3128\n        published: "3128"\n        host_ip: 172.17.0.24', compose)
         self.assertIn("    networks:\n      - intranet", compose)
         self.assertIn(
             "networks:\n  intranet:\n    external: true\n    name: intranet",
@@ -332,7 +332,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertIn('CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"', clickhouse)
         self.assertIn("/mnt/cpool/secrets/runtime/clickhouse/.env.secrets", clickhouse)
         self.assertIn("/mnt/cpool/clickhouse:/var/lib/clickhouse", clickhouse)
-        self.assertIn('"172.17.0.24:8123:8123"', clickhouse)
+        self.assertIn('target: 8123\n        published: "8123"\n        host_ip: 172.17.0.24', clickhouse)
         self.assertIn('"172.17.0.24:9000:9000"', clickhouse)
         self.assertIn("aliases:\n          - clickhouse", clickhouse)
 
@@ -439,7 +439,7 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
 
         # Renovate owns the exact tag; the contract only requires a pinned release.
         self.assertRegex(homarr, r"image: ghcr\.io/homarr-labs/homarr:v\d+\.\d+\.\d+\n")
-        self.assertIn("172.17.0.24:30100:7575", homarr)
+        self.assertIn('target: 7575\n        published: "30100"\n        host_ip: 172.17.0.24', homarr)
         self.assertIn("/mnt/cpool/homarr:/appdata", homarr)
         self.assertIn("/mnt/cpool/secrets/runtime/homarr/.env.secrets", homarr)
         # Homarr v2 sync discovers boards by name; it keeps no persisted state.

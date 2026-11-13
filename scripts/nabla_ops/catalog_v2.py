@@ -472,20 +472,35 @@ def desired_exposure_errors(
             errors.append(f"{prefix}: exposure must be a non-empty list")
             continue
 
-        route_names: set[str] = set()
+        route_names: set[tuple[str, str]] = set()
         for index, route in enumerate(exposures):
             route_prefix = f"{prefix}:exposure[{index}]"
             if not isinstance(route, Mapping):
                 errors.append(f"{route_prefix}: route must be an object")
                 continue
 
+            # A logical endpoint (garage-admin) may be served by another container.
+            owner = str(route.get("entityRef") or entity_ref).strip().lower()
+            if owner not in by_ref:
+                errors.append(f"{route_prefix}: entityRef is unresolved: {owner}")
             name = str(route.get("name") or "").strip()
             if not name:
                 errors.append(f"{route_prefix}: name is required")
-            elif name in route_names:
+            elif (owner, name) in route_names:
                 errors.append(f"{prefix}: duplicate exposure name: {name}")
             else:
-                route_names.add(name)
+                route_names.add((owner, name))
+
+            risk = route.get("riskAcceptance")
+            if risk is not None and (
+                not isinstance(risk, Mapping)
+                or risk.get("status") not in {"accepted", "rejected"}
+                or not all(str(risk.get(key) or "").strip() for key in ("id", "reason", "control"))
+            ):
+                errors.append(
+                    f"{route_prefix}: riskAcceptance needs id, reason, control "
+                    "and status accepted|rejected"
+                )
 
             visibility = str(route.get("visibility") or "").strip().lower()
             if visibility not in allowed_visibility:
@@ -520,7 +535,15 @@ def desired_exposure_errors(
                 )
 
             backend_port = str(route.get("backendPort") or "").strip()
-            if not backend_port:
+            backend_url = urlsplit(str(route.get("backend") or ""))
+            if route.get("backend"):
+                # Static descriptors and host-network services have no port to name.
+                if backend_port or not backend_url.hostname or backend_url.port is None:
+                    errors.append(
+                        f"{route_prefix}: backend must be one scheme://host:port "
+                        "URL without backendPort"
+                    )
+            elif not backend_port:
                 errors.append(f"{route_prefix}: backendPort is required")
             elif backend_port not in named_ports:
                 errors.append(
@@ -919,6 +942,124 @@ def build_parity_report(
         },
         "entries": entries,
     }
+
+
+LEGACY_ENTITY_ALIASES = {
+    "hello-int": "component:default/hello-nginx",
+    "home": "resource:default/pfsense",
+    "langfuse": "component:default/langfuse-web",
+    "openrag": "component:default/openrag-frontend",
+    "plumber": "component:default/plumber-albandrieu",
+    "wazuh": "component:default/wazuh-manager",
+}
+# The v2 route intent records a newer owner decision; the legacy row is stale.
+ACCEPTED_DIVERGENCES = {
+    "joplin: access differs on component:default/joplin":
+        "Joplin sync clients cannot pass an Access login (owner decision 10/11)",
+    "vaultwarden: access differs on component:default/vaultwarden":
+        "Bitwarden clients cannot pass an Access login (#216)",
+}
+
+
+def merged_legacy_rows(
+    legacy_catalog: Mapping[str, Any],
+    exposure_overrides: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    overrides = {
+        str(item.get("name")): item
+        for item in _services(exposure_overrides, "homelab-exposure-overrides")
+    }
+    rows = []
+    for service in _services(legacy_catalog, "homelab-services"):
+        row = dict(service)
+        override = overrides.get(str(service.get("name")), {})
+        row.update({key: value for key, value in override.items() if key != "name"})
+        rows.append(row)
+    return rows
+
+
+def route_intent_parity(
+    rows: list[Mapping[str, Any]],
+    entities: list[Mapping[str, Any]],
+) -> list[str]:
+    """Compare every legacy row with the projected v2 route intent.
+
+    The legacy files may be deleted only when this returns no mismatch.
+    """
+    by_ref = {str(entity.get("entityRef")): entity for entity in entities}
+    by_name = {
+        str(entity["metadata"]["name"]): str(entity.get("entityRef"))
+        for entity in entities
+        if entity.get("kind") in {"Component", "Resource"}
+    }
+    mismatches: list[str] = []
+    ranked: list[tuple[int, str]] = []
+
+    for row in rows:
+        legacy_id = str(row.get("id") or "")
+        ref = LEGACY_ENTITY_ALIASES.get(legacy_id) or by_name.get(legacy_id)
+        if ref is None or ref not in by_ref:
+            mismatches.append(f"{legacy_id}: no v2 entity")
+            continue
+        if row.get("probePriority") is not None:
+            ranked.append((int(row["probePriority"]), ref))
+        if not row.get("internalHost") or not row.get("internalPort"):
+            continue
+
+        routes = (by_ref[ref].get("x-nabla") or {}).get("exposure") or []
+        url = urlsplit(str(row["tunnelUrl"])) if row.get("tunnelUrl") else None
+        if url is not None:
+            candidates = [
+                route for route in routes
+                if url.hostname in (route.get("hostnames") or [])
+                and route.get("port") == (url.port if url.port not in (80, 443) else None)
+            ]
+        else:
+            candidates = [
+                route for route in routes
+                if not route.get("hostnames")
+                and route["backend"]["port"] == row["internalPort"]
+            ]
+        if len(candidates) != 1:
+            mismatches.append(f"{legacy_id}: {len(candidates)} matching v2 routes on {ref}")
+            continue
+        route = candidates[0]
+        backend = route["backend"]
+        public = bool(row.get("external"))
+        checks = {
+            "visibility": (route.get("visibility") == "public") == public,
+            "backend host": backend.get("host") == row["internalHost"],
+            "backend port": backend.get("port") == row["internalPort"],
+            "backend TLS": (backend.get("appProtocol") == "https") == bool(row.get("internalSecure")),
+            "probe path": route.get("probePath") == row.get("healthPath"),
+            "risk reason": (route.get("riskAcceptance") or {}).get("reason") == row.get("securityException"),
+        }
+        if public:
+            edge = route.get("gatewayRef") == "resource:default/cloudflare-tunnel"
+            access = row.get("cloudflareAccessRequired")
+            if access is None:
+                access = row.get("tunnelSecure") is True
+            checks["edge"] = row.get("tunnelSecure") is None or edge == bool(row["tunnelSecure"])
+            checks["access"] = (route.get("access") or {}).get("required") == access
+        mismatches.extend(
+            f"{legacy_id}: {name} differs on {ref}" for name, ok in checks.items() if not ok
+        )
+
+    legacy_order = [ref for _, ref in sorted(ranked)]
+    policies = {
+        ref: (entity.get("x-nabla") or {}).get("probePolicy")
+        for ref, entity in by_ref.items()
+    }
+    v2_order = [
+        ref for _, _, ref in sorted(
+            (policy["rank"], policy["position"], ref)
+            for ref, policy in policies.items()
+            if policy
+        )
+    ]
+    if legacy_order != v2_order:
+        mismatches.append(f"probe order differs: legacy {legacy_order} vs v2 {v2_order}")
+    return sorted(item for item in mismatches if item not in ACCEPTED_DIVERGENCES)
 
 
 def preparation_errors(report: Mapping[str, Any]) -> list[str]:

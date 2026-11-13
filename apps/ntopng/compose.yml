@@ -24,6 +24,14 @@ services:
         type: port
         host: 172.17.0.24
         port: 31080
+      exposure:
+        - name: lan
+          hostnames:
+            - ntopng.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backend: http://172.17.0.24:31080
     # Host networking: ntopng captures br0 itself (ntopng.conf).
     network_mode: host
     cap_add:

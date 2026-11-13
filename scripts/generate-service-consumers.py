@@ -126,9 +126,13 @@ def load_native_adapter_policy() -> dict[str, Any]:
         fail("Homarr must declare its Docker socket proxy network")
     host = None
     for value in svc.get("ports") or []:
-        parts = str(value).split(":")
-        if len(parts) == 3 and re.fullmatch(r"[0-9.]+", parts[0]):
-            host = parts[0]
+        if isinstance(value, dict):
+            candidate = str(value.get("host_ip") or "")
+        else:
+            parts = str(value).split(":")
+            candidate = parts[0] if len(parts) == 3 else ""
+        if re.fullmatch(r"[0-9.]+", candidate):
+            host = candidate
             break
     if not host:
         fail("Homarr published port must provide an explicit host IP")

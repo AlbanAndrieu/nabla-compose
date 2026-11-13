@@ -41,6 +41,12 @@ services:
           description: Wazuh Manager indexes security events in the Wazuh Indexer.
           evidence:
             - apps/wazuh/compose.yml:INDEXER_URL
+      exposure:
+        - name: lan
+          protocol: TCP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: agent
     ulimits:
       memlock:
         soft: -1
@@ -49,7 +55,10 @@ services:
         soft: 655360
         hard: 655360
     ports:
-      - "${WAZUH_AGENT_PORT:-1514}:1514"
+      - name: agent
+        target: 1514
+        published: "${WAZUH_AGENT_PORT:-1514}"
+        protocol: tcp
       - "${WAZUH_ENROLLMENT_PORT:-1515}:1515"
       - "${WAZUH_SYSLOG_PORT:-514}:514/udp"
       - "127.0.0.1:${WAZUH_API_PORT:-55000}:55000"

@@ -19,6 +19,12 @@ services:
         type: port
         host: 172.17.0.24
         port: 3050
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

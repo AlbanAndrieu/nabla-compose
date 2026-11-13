@@ -19,6 +19,16 @@ services:
         type: port
         host: 172.17.0.24
         port: 30007
+      exposure:
+        - name: public
+          hostnames:
+            - ddns-updater.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     # Upstream image is FROM scratch, runs as 1000:1000 and ships its own
     # HEALTHCHECK; it only writes to /updater/data.

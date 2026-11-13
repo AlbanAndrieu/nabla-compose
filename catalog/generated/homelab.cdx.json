@@ -6,6 +6,14 @@
       "ref": "component:default/2fauth"
     },
     {
+      "dependsOn": [],
+      "ref": "component:default/adguardhome"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/affine"
+    },
+    {
       "dependsOn": [
         "resource:default/clickhouse"
       ],
@@ -34,6 +42,16 @@
     {
       "dependsOn": [],
       "ref": "component:default/alloy"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/anythingllm"
+    },
+    {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/anythingllm-albandrieu"
     },
     {
       "dependsOn": [],
@@ -85,6 +103,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/code-server"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/convertx"
     },
     {
       "dependsOn": [],
@@ -158,6 +180,10 @@
       "ref": "component:default/doco-cd"
     },
     {
+      "dependsOn": [],
+      "ref": "component:default/domain-watchdog"
+    },
+    {
       "dependsOn": [
         "resource:default/docker"
       ],
@@ -180,6 +206,10 @@
         "resource:default/postgresql"
       ],
       "ref": "component:default/fastapi-sample"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/freshrss"
     },
     {
       "dependsOn": [],
@@ -218,6 +248,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/heimdall"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/hello-nginx"
     },
     {
@@ -243,6 +277,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/ittools"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/jellyfin"
     },
     {
@@ -254,6 +292,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/kafka-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/karakeep"
     },
     {
       "dependsOn": [],
@@ -300,12 +342,34 @@
       "ref": "component:default/litellm"
     },
     {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/litellm-albandrieu"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/localai"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/localai-gpu"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/mcp-cyberbro"
     },
     {
       "dependsOn": [],
       "ref": "component:default/n8n"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/netalertx"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/netbootxyz"
     },
     {
       "dependsOn": [
@@ -348,11 +412,31 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/ollama-gpu"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/op-connect-api"
     },
     {
       "dependsOn": [],
       "ref": "component:default/op-connect-sync"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/open-speed-test"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/open-terminal"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/openarchiver"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/openclaw"
     },
     {
       "dependsOn": [],
@@ -405,7 +489,19 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/paperless-ai"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/paperless-ngx"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/pfsense-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/pgadmin"
     },
     {
       "dependsOn": [
@@ -425,20 +521,42 @@
     },
     {
       "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/plumber-albandrieu"
+    },
+    {
+      "dependsOn": [
         "resource:default/postgresql",
         "resource:default/redis"
       ],
       "ref": "component:default/plumber-api"
     },
     {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/plumber-api-albandrieu"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/plumber-worker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/portainer"
     },
     {
       "dependsOn": [
         "resource:default/docker"
       ],
       "ref": "component:default/portracker"
+    },
+    {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/portracker-albandrieu"
     },
     {
       "dependsOn": [
@@ -504,6 +622,16 @@
     },
     {
       "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/reactive-albandrieu"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/reactive-resume"
+    },
+    {
+      "dependsOn": [
         "component:default/radarr",
         "component:default/sonarr"
       ],
@@ -512,6 +640,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/redis-redis-exporter"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/sabnzbd"
     },
     {
       "dependsOn": [
@@ -532,6 +664,16 @@
     {
       "dependsOn": [],
       "ref": "component:default/scrutiny-collector"
+    },
+    {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/scrutiny-collector-albandrieu"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/searxng"
     },
     {
       "dependsOn": [
@@ -648,7 +790,21 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/speedtest"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/squid"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/stirling"
+    },
+    {
+      "dependsOn": [
+        "resource:default/workstation"
+      ],
+      "ref": "component:default/stirling-albandrieu"
     },
     {
       "dependsOn": [],
@@ -669,6 +825,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/traefik-dnsupdater"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/transmission"
     },
     {
       "dependsOn": [],
@@ -791,13 +951,17 @@
     {
       "dependsOn": [],
       "ref": "resource:default/truenas"
+    },
+    {
+      "dependsOn": [],
+      "ref": "resource:default/workstation"
     }
   ],
   "metadata": {
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32"
+        "value": "sha256:e5397a6b02bf7bde0a6353b8ab80fef4680f60765d19051ccabdb694029ee4aa"
       },
       {
         "name": "nabla:catalog-authority",
@@ -805,7 +969,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:949a8c65-bcb6-a1e6-b067-bde3cfc911b9",
+  "serialNumber": "urn:uuid:e5397a6b-02bf-7bde-0a63-53b8ab80fef4",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -826,6 +990,60 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-app"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/adguardhome",
+      "description": "Network-wide DNS ad blocking, installed as a TrueNAS catalog App.",
+      "name": "AdGuard Home",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/adguardhome"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/affine",
+      "description": "Knowledge base and notes, installed as a TrueNAS catalog App.",
+      "name": "Affine",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/affine"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -960,6 +1178,60 @@
         {
           "name": "nabla:backstage:type",
           "value": "telemetry-collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/anythingllm",
+      "description": "Private LLM workspace and RAG, installed as a TrueNAS catalog App.",
+      "name": "AnythingLLM",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/anythingllm"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/anythingllm-albandrieu",
+      "description": "Private LLM workspace and RAG running on the workstation.",
+      "name": "AnythingLLM - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/anythingllm-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -1229,6 +1501,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "development-environment"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/convertx",
+      "description": "File conversion service, installed as a TrueNAS catalog App.",
+      "name": "ConvertX",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/convertx"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -1609,6 +1908,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/domain-watchdog",
+      "description": "Domain registration monitoring, installed as a TrueNAS catalog App.",
+      "name": "Domain Watchdog",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/domain-watchdog"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/dozzle",
       "description": "Live Docker log viewer and MCP-enabled operations UI.",
       "name": "Dozzle",
@@ -1736,6 +2062,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/freshrss",
+      "description": "RSS feed reader, installed as a TrueNAS catalog App.",
+      "name": "FreshRSS",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/freshrss"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -1957,6 +2310,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/heimdall",
+      "description": "Application dashboard, installed as a TrueNAS catalog App.",
+      "name": "Heimdall",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/heimdall"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/hello-nginx",
       "description": "Small internal Nginx service used for ingress and routing experiments.",
       "name": "Hello Nginx",
@@ -2092,6 +2472,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/ittools",
+      "description": "Developer utilities collection, installed as a TrueNAS catalog App.",
+      "name": "IT Tools",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/ittools"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/jellyfin",
       "description": "Planned LAN media server of the media stack with a read-only library.",
       "name": "Jellyfin",
@@ -2165,6 +2572,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/karakeep",
+      "description": "Bookmark and read-later manager, installed as a TrueNAS catalog App.",
+      "name": "KaraKeep",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/karakeep"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -2386,6 +2820,87 @@
       ]
     },
     {
+      "bom-ref": "component:default/litellm-albandrieu",
+      "description": "LLM proxy and gateway running on the workstation.",
+      "name": "LiteLLM - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/litellm-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/localai",
+      "description": "Local AI models, installed as a TrueNAS catalog App.",
+      "name": "LocalAI",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/localai"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/localai-gpu",
+      "description": "Local AI models on the GPU instance, installed as a TrueNAS catalog App.",
+      "name": "LocalAI (GPU)",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/localai-gpu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/mcp-cyberbro",
       "description": "MCP bridge exposing Cyberbro analysis tools to MCP-capable clients.",
       "name": "Cyberbro MCP",
@@ -2435,6 +2950,60 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netalertx",
+      "description": "Network presence scanning and alerts, installed as a TrueNAS catalog App.",
+      "name": "NetAlertX",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netalertx"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netbootxyz",
+      "description": "Network boot utility, installed as a TrueNAS catalog App.",
+      "name": "Netbootxyz",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netbootxyz"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
         }
       ]
     },
@@ -2678,6 +3247,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/ollama-gpu",
+      "description": "Large language models on the GPU instance, installed as a TrueNAS catalog App.",
+      "name": "Ollama (GPU)",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/ollama-gpu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/op-connect-api",
       "description": "1Password Connect API for machine-readable secret access.",
       "name": "1Password Connect API",
@@ -2728,6 +3324,114 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "experimental"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/open-speed-test",
+      "description": "Browser network speed test, installed as a TrueNAS catalog App.",
+      "name": "Open SpeedTest",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/open-speed-test"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/open-terminal",
+      "description": "Browser terminal used by Open WebUI tools, installed as a TrueNAS catalog App.",
+      "name": "Open Terminal",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/open-terminal"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openarchiver",
+      "description": "Email archive management, installed as a TrueNAS catalog App.",
+      "name": "OpenArchiver",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openarchiver"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/openclaw",
+      "description": "OpenClaw agent gateway, installed as a TrueNAS App outside this repository's Compose files.",
+      "name": "OpenClaw",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/openclaw"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
         }
       ]
     },
@@ -2998,6 +3702,60 @@
       ]
     },
     {
+      "bom-ref": "component:default/paperless-ai",
+      "description": "AI document tagging for Paperless-ngx, installed as a TrueNAS catalog App.",
+      "name": "Paperless AI",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/paperless-ai"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "ai-service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/paperless-ngx",
+      "description": "Document management system, installed as a TrueNAS catalog App.",
+      "name": "Paperless-ngx",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/paperless-ngx"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/pfsense-exporter",
       "name": "pfSense Exporter",
       "properties": [
@@ -3016,6 +3774,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/pgadmin",
+      "description": "PostgreSQL administration, installed as a TrueNAS catalog App.",
+      "name": "pgAdmin",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/pgadmin"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -3105,6 +3890,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/plumber-albandrieu",
+      "description": "Plumber web UI instance running on the workstation.",
+      "name": "Plumber - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/plumber-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/plumber-api",
       "description": "Backend API for the Plumber developer platform.",
       "name": "Plumber API",
@@ -3120,6 +3932,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/plumber/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/plumber-api-albandrieu",
+      "description": "Plumber API instance running on the workstation.",
+      "name": "Plumber API - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/plumber-api-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -3159,6 +3998,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/portainer",
+      "description": "Container management, installed as a TrueNAS catalog App.",
+      "name": "Portainer",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/portainer"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/portracker",
       "description": "Host and Docker port inventory used to detect exposure and allocation drift.",
       "name": "Portracker",
@@ -3178,6 +4044,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-tool"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/portracker-albandrieu",
+      "description": "Port tracking instance running on the workstation.",
+      "name": "PortTracker - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/portracker-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -3507,6 +4400,60 @@
       ]
     },
     {
+      "bom-ref": "component:default/reactive-albandrieu",
+      "description": "Reactive Resume instance running on the workstation.",
+      "name": "Reactive Resume - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/reactive-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/reactive-resume",
+      "description": "Resume builder, installed as a TrueNAS catalog App.",
+      "name": "Reactive Resume",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/reactive-resume"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/recyclarr",
       "description": "Planned scheduled sync of TRaSH quality profiles into Radarr and Sonarr.",
       "name": "Recyclarr",
@@ -3548,6 +4495,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/redis/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/sabnzbd",
+      "description": "Usenet downloader, installed as a TrueNAS catalog App.",
+      "name": "SABnzbd",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/sabnzbd"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -3660,6 +4634,60 @@
         {
           "name": "nabla:backstage:type",
           "value": "collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/scrutiny-collector-albandrieu",
+      "description": "Workstation SMART collector posting disk telemetry to the Scrutiny API hosted on TrueNAS.",
+      "name": "Scrutiny Collector - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/scrutiny-collector-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "collector"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/searxng",
+      "description": "Private metasearch engine, installed as a TrueNAS catalog App.",
+      "name": "SearXNG",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/searxng"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -4271,6 +5299,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/speedtest",
+      "description": "Scheduled internet speed tests, installed as a TrueNAS catalog App.",
+      "name": "Speedtest Tracker",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/speedtest"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/squid",
       "description": "Internal forward proxy for controlled HTTP(S) egress experiments.",
       "name": "Squid Proxy",
@@ -4290,6 +5345,60 @@
         {
           "name": "nabla:backstage:type",
           "value": "proxy"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/stirling",
+      "description": "PDF toolkit, installed as a TrueNAS catalog App.",
+      "name": "Stirling PDF",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/stirling"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/stirling-albandrieu",
+      "description": "PDF toolkit instance running on the workstation.",
+      "name": "Stirling PDF - albandrieu",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/stirling-albandrieu"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "website"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -4417,6 +5526,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/traefik/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/transmission",
+      "description": "BitTorrent client, installed as a TrueNAS catalog App.",
+      "name": "Transmission",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/transmission"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -5137,6 +6273,29 @@
         {
           "name": "nabla:backstage:type",
           "value": "virtualization-platform"
+        }
+      ]
+    },
+    {
+      "bom-ref": "resource:default/workstation",
+      "description": "Operator Linux workstation hosting GPU inference and personal service instances on the LAN.",
+      "name": "Workstation",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Resource"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "resource:default/workstation"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "host"
         }
       ]
     }

@@ -23,6 +23,7 @@ from nabla_ops.catalog_v2 import (  # noqa: E402
     compatibility_relation_debt,
     desired_exposure_errors,
     preparation_errors,
+    route_intent_parity,
 )
 
 
@@ -389,6 +390,95 @@ class CatalogV2ParityTests(unittest.TestCase):
             "apps/service/compose.yml:service:exposure[0]: public exposure "
             "requires explicit access.required boolean",
             errors,
+        )
+
+    def test_static_backend_and_risk_acceptance_are_validated(self) -> None:
+        entities = [
+            {
+                "apiVersion": "backstage.io/v1alpha1",
+                "kind": "Resource",
+                "metadata": {"name": "host"},
+                "spec": {"type": "host", "owner": "group:default/team"},
+            }
+        ]
+        route = {
+            "name": "admin",
+            "protocol": "HTTPS",
+            "visibility": "lan",
+            "gatewayRef": "resource:default/host",
+            "backend": "https://10.0.0.1:443",
+            "riskAcceptance": {
+                "id": "host-admin", "status": "rejected",
+                "reason": "LAN only.", "control": "allowlist",
+            },
+        }
+        binding = {
+            "sourcePath": "catalog/catalog-info.yaml",
+            "composeService": "host",
+            "entityRef": "resource:default/host",
+            "namedPorts": [],
+            "exposure": [route],
+        }
+        self.assertEqual(desired_exposure_errors(entities, [binding]), [])
+
+        broken = {
+            **route,
+            "backend": "not-a-url",
+            "entityRef": "component:default/missing",
+            "riskAcceptance": {"id": "x", "status": "maybe"},
+        }
+        errors = desired_exposure_errors(entities, [{**binding, "exposure": [broken]}])
+        prefix = "catalog/catalog-info.yaml:host:exposure[0]"
+        self.assertIn(f"{prefix}: entityRef is unresolved: component:default/missing", errors)
+        self.assertIn(
+            f"{prefix}: backend must be one scheme://host:port URL without backendPort", errors
+        )
+        self.assertIn(
+            f"{prefix}: riskAcceptance needs id, reason, control and status accepted|rejected",
+            errors,
+        )
+
+    def test_route_intent_parity_reports_every_legacy_difference(self) -> None:
+        entity = {
+            "kind": "Component",
+            "entityRef": "component:default/app",
+            "metadata": {"name": "app"},
+            "x-nabla": {
+                "exposure": [
+                    {
+                        "name": "public",
+                        "hostnames": ["app.example.test"],
+                        "visibility": "public",
+                        "gatewayRef": "resource:default/cloudflare-tunnel",
+                        "access": {"required": True},
+                        "backend": {"host": "10.0.0.2", "port": 8080, "appProtocol": "http"},
+                    }
+                ],
+                "probePolicy": {"rank": 0, "position": 0},
+            },
+        }
+        row = {
+            "id": "app", "external": True, "tunnelSecure": True,
+            "tunnelUrl": "https://app.example.test", "internalHost": "10.0.0.2",
+            "internalPort": 8080, "internalSecure": False, "probePriority": 5,
+        }
+        self.assertEqual(route_intent_parity([row], [entity]), [])
+        self.assertEqual(
+            route_intent_parity(
+                [{**row, "internalPort": 9090, "cloudflareAccessRequired": False}],
+                [entity],
+            ),
+            [
+                "app: access differs on component:default/app",
+                "app: backend port differs on component:default/app",
+            ],
+        )
+        self.assertEqual(
+            route_intent_parity([{**row, "id": "ghost"}], [entity]),
+            [
+                "ghost: no v2 entity",
+                "probe order differs: legacy [] vs v2 ['component:default/app']",
+            ],
         )
 
     def test_relation_duplication_is_reported_as_transition_debt(self) -> None:

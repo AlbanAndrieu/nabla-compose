@@ -20,6 +20,12 @@ services:
         type: port
         host: 172.17.0.24
         port: 9080
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     labels:
       com.albandrieu.nabla.entity-ref: component:default/drawio
     restart: unless-stopped

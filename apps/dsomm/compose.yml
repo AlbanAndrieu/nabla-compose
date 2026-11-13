@@ -63,6 +63,12 @@ services:
         type: port
         host: 172.17.0.24
         port: 31088
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
 
   dsomm-baseline:
     build:

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32",
+  "catalogRevision": "sha256:e5397a6b02bf7bde0a6353b8ab80fef4680f60765d19051ccabdb694029ee4aa",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -39,6 +39,141 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-app"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30081
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "2fauth.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/2fauth/compose.yml#services/2fauth",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/adguardhome",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Network-wide DNS ad blocking, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "adguardhome",
+        "tags": [
+          "network"
+        ],
+        "title": "AdGuard Home"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30004
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "adguardhome.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/affine",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Knowledge base and notes, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "affine",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Affine"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30169
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "affine.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -74,6 +209,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31056
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/akvorado/compose.yml#services/akvorado-console",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -188,6 +340,116 @@
         "subcomponentOf": "component:default/grafana",
         "system": "system:default/nabla-homelab",
         "type": "telemetry-collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/anythingllm",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Private LLM workspace and RAG, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "anythingllm",
+        "tags": [
+          "ai"
+        ],
+        "title": "AnythingLLM"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30318
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "anythingllm.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/anythingllm-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Private LLM workspace and RAG running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "anythingllm-albandrieu",
+        "tags": [
+          "ai",
+          "workstation"
+        ],
+        "title": "AnythingLLM - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.57",
+              "port": 3007
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "anythingllm-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -312,6 +574,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 4949
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/autoxpose/compose.yml#services/autoxpose",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -422,6 +701,33 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 15630
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "bichon.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "lan-only-drift-reported-by-sickz",
+              "id": "bichon-private",
+              "reason": "Bichon must stay private. Any public DNS or Cloudflare Tunnel entry is configuration drift and must be reported by sickz.",
+              "reviewAfter": null,
+              "status": "rejected"
+            },
+            "source": "apps/bichon/compose.yml#services/bichon",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -565,6 +871,25 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "host": "172.17.0.24",
+              "port": 30005
+            },
+            "backendPort": "clamd",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "clamav.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "TCP",
+            "source": "apps/clamav/compose.yml#services/clamav",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -609,6 +934,76 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "development-environment"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8443
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/code/compose.yml#services/code-server",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/convertx",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "File conversion service, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "convertx",
+        "tags": [
+          "productivity"
+        ],
+        "title": "ConvertX"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30154
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "convertx.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -632,6 +1027,22 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-agent"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8084
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/crowdsec/compose.yml#services/crowdsec",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -679,6 +1090,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 5100
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/cyberbro/compose.yml#services/cyberbro",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -728,6 +1156,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30007
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "ddns-updater.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/ddns-updater/compose.yml#services/ddns-updater",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -776,6 +1227,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31085
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/defectdojo/compose.yml#services/defectdojo",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -931,6 +1399,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31084
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/dependency-track/compose.yml#services/dependency-track",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1042,6 +1527,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "operations-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3050
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/dockhand/compose.yml#services/dockhand",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1087,6 +1589,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 5001
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/docling/compose.yml#services/docling",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1140,6 +1659,59 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/domain-watchdog",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Domain registration monitoring, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "domain-watchdog",
+        "tags": [
+          "network"
+        ],
+        "title": "Domain Watchdog"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30317
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "domain-watchdog.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/dozzle",
       "kind": "Component",
       "metadata": {
@@ -1185,6 +1757,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8888
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/dozzle/compose.yml#services/dozzle",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1229,6 +1818,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 9080
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/drawio/compose.yml#services/drawio",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1255,6 +1861,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31088
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/dsomm/compose.yml#services/dsomm",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1329,6 +1952,85 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8091
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "fastapi-sample.albandrieu.com"
+            ],
+            "name": "staging-public",
+            "protocol": "HTTPS",
+            "source": "apps/sample/compose.yml#services/fastapi-sample",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/freshrss",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "RSS feed reader, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "freshrss",
+        "tags": [
+          "productivity"
+        ],
+        "title": "FreshRSS"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30108
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "freshrss.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -1374,6 +2076,37 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "object-storage"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "host": "172.17.0.24",
+              "port": 3900
+            },
+            "backendPort": "s3",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "s3.int.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "lan-only-no-public-dns",
+              "id": "garage-s3-internal-only",
+              "reason": "Garage S3 s3.int.albandrieu.com is internal-only; public DNS and WAN HAProxy/NAT routes are unauthorized. Verify OpenTofu state backend connectivity before the infrastructure-side cutover.",
+              "reviewAfter": null,
+              "status": "rejected"
+            },
+            "source": "apps/garage/compose.yml#services/garage",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "garage",
+          "position": 0,
+          "rank": 0
+        }
       }
     },
     {
@@ -1405,6 +2138,38 @@
         "subcomponentOf": "component:default/garage",
         "system": "system:default/nabla-homelab",
         "type": "api"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3903
+            },
+            "backendPort": "admin",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "garage-admin.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "lan-or-vpn-only",
+              "id": "garage-admin-lan-only",
+              "reason": "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API.",
+              "reviewAfter": null,
+              "status": "rejected"
+            },
+            "source": "apps/garage/compose.yml#services/garage",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "garage",
+          "position": 1,
+          "rank": 0
+        }
       }
     },
     {
@@ -1436,6 +2201,34 @@
         "subcomponentOf": "component:default/garage",
         "system": "system:default/nabla-homelab",
         "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3909
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "garage.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/garage/compose.yml#services/webui",
+            "visibility": "public"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "garage",
+          "position": 2,
+          "rank": 0
+        }
       }
     },
     {
@@ -1483,6 +2276,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "status-monitor"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8085
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "gatus.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/gatus/compose.yml#services/gatus",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -1559,6 +2375,34 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability-ui"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30037
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "grafana.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/grafana/compose.yml#services/grafana",
+            "visibility": "public"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "grafana",
+          "position": 0,
+          "rank": 9
+        }
       }
     },
     {
@@ -1609,6 +2453,25 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "log-management"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30319
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "graylog.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/graylog/compose.yml#services/graylog",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -1653,6 +2516,62 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/heimdall",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Application dashboard, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "heimdall",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Heimdall"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30120
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "heimdall.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/hello-nginx",
       "kind": "Component",
       "metadata": {
@@ -1693,6 +2612,36 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8099
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/pfsense-haproxy",
+            "hostnames": [
+              "hello.int.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "static-content-no-data",
+              "id": "hello-int-public-static-page",
+              "reason": "hello.int.albandrieu.com is an intentionally public static nginx test page reached directly through pfSense WAN HAProxy and Traefik, without Cloudflare. It serves no data and needs no authentication; keep it static and remove the public DNS record if it ever serves anything else.",
+              "reviewAfter": null,
+              "status": "accepted"
+            },
+            "source": "apps/nginx/compose.yml#services/nginx",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -1775,6 +2724,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "operations-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30100
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "homarr.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/homarr/compose.yml#services/homarr",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -1851,6 +2823,62 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ittools",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Developer utilities collection, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "ittools",
+        "tags": [
+          "development"
+        ],
+        "title": "IT Tools"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30063
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "ittools.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/jellyfin",
       "kind": "Component",
       "metadata": {
@@ -1923,6 +2951,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 22300
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "joplin.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/joplin/compose.yml#services/joplin",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -1958,6 +3009,62 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/karakeep",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Bookmark and read-later manager, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "karakeep",
+        "tags": [
+          "productivity"
+        ],
+        "title": "KaraKeep"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30147
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "karakeep.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/keycloak",
       "kind": "Component",
       "metadata": {
@@ -1984,6 +3091,30 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "identity-provider"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30238
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "keycloak.albandrieu.com"
+            ],
+            "name": "public",
+            "probePath": "/realms/nabla/.well-known/openid-configuration",
+            "protocol": "HTTPS",
+            "source": "apps/keycloak/compose.yml#services/keycloak",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -2033,6 +3164,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "workflow"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 7860
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/langflow/compose.yml#services/langflow",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2066,6 +3214,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3000
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "langfuse.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/langfuse/compose.yml#services/langfuse-web",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -2138,6 +3309,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "productivity-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8010
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "languagetool.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/languagetool/compose.yml#services/languagetool",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -2169,6 +3363,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30071
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/lidarr/compose.yml#services/lidarr",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2235,6 +3446,189 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-gateway"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 4000
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "litellm.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/litellm/compose.yml#services/litellm",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/litellm-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "LLM proxy and gateway running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "litellm-albandrieu",
+        "tags": [
+          "ai",
+          "workstation"
+        ],
+        "title": "LiteLLM - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.57",
+              "port": 4000
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "litellm-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/localai",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Local AI models, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "localai",
+        "tags": [
+          "ai"
+        ],
+        "title": "LocalAI"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30286
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "localai.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/localai-gpu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Local AI models on the GPU instance, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "localai-gpu",
+        "tags": [
+          "ai"
+        ],
+        "title": "LocalAI (GPU)"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30320
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "localai-gpu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2291,6 +3685,148 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "workflow"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30109
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "n8n.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "narrow-access-bypass-to-webhook-path",
+              "id": "n8n-public-webhook",
+              "reason": "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth.",
+              "reviewAfter": null,
+              "status": "accepted"
+            },
+            "source": "apps/n8n/compose.yml#services/n8n",
+            "visibility": "public"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "n8n",
+          "position": 0,
+          "rank": 10
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netalertx",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Network presence scanning and alerts, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netalertx",
+        "tags": [
+          "network",
+          "security"
+        ],
+        "title": "NetAlertX"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30321
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "netalertx.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netbootxyz",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Network boot utility, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netbootxyz",
+        "tags": [
+          "network"
+        ],
+        "title": "Netbootxyz"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31010
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "netbootxyz.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2341,6 +3877,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31082
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/netbox/compose.yml#services/netbox",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2437,6 +3990,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "artifact-repository"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8081
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/nexus/compose.yml#services/nexus",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2576,6 +4146,25 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "network-observability"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31080
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "ntopng.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/ntopng/compose.yml#services/ntopng",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2622,6 +4211,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3002
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/obsidian/compose.yml#services/obsidian",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2668,6 +4274,85 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "model-runtime"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30068
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "ollama.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/ollama/compose.yml#services/ollama",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/ollama-gpu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Large language models on the GPU instance, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "ollama-gpu",
+        "tags": [
+          "ai"
+        ],
+        "title": "Ollama (GPU)"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30323
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "ollama-gpu.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -2728,6 +4413,215 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "secrets-sync"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/open-speed-test",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Browser network speed test, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "open-speed-test",
+        "tags": [
+          "network"
+        ],
+        "title": "Open SpeedTest"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30117
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "open-speed-test.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/open-terminal",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Browser terminal used by Open WebUI tools, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "open-terminal",
+        "tags": [
+          "ai"
+        ],
+        "title": "Open Terminal"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30377
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openarchiver",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Email archive management, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openarchiver",
+        "tags": [
+          "productivity"
+        ],
+        "title": "OpenArchiver"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30288
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "openarchiver.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/openclaw",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "OpenClaw agent gateway, installed as a TrueNAS App outside this repository's Compose files.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "openclaw",
+        "tags": [
+          "ai"
+        ],
+        "title": "OpenClaw"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30325
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "openclaw.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2804,6 +4698,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3010
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/openhands/compose.yml#services/openhands",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -2866,6 +4777,23 @@
         "subcomponentOf": "component:default/openrag-backend",
         "system": "system:default/nabla-homelab",
         "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31060
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/openrag/compose.yml#services/openrag-frontend",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3085,6 +5013,136 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31028
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "openwebui.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/openwebui/compose.yml#services/openwebui",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/paperless-ai",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "AI document tagging for Paperless-ngx, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "paperless-ai",
+        "tags": [
+          "ai",
+          "productivity"
+        ],
+        "title": "Paperless AI"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "ai-service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30226
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "paperless-ai.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/paperless-ngx",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Document management system, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "paperless-ngx",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Paperless-ngx"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30070
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "paperless-ngx.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3110,6 +5168,59 @@
         "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/pgadmin",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "PostgreSQL administration, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "pgadmin",
+        "tags": [
+          "data"
+        ],
+        "title": "pgAdmin"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30056
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "pgadmin.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3228,6 +5339,63 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/plumber-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Plumber web UI instance running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "plumber-albandrieu",
+        "tags": [
+          "development",
+          "workstation"
+        ],
+        "title": "Plumber - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.57",
+              "port": 3001
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "plumber-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/plumber-api",
       "kind": "Component",
       "metadata": {
@@ -3259,6 +5427,66 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/plumber-api-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Plumber API instance running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "plumber-api-albandrieu",
+        "tags": [
+          "development",
+          "workstation"
+        ],
+        "title": "Plumber API - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.57",
+              "port": 3003
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "plumber-api-albandrieu.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/plumber-worker",
       "kind": "Component",
       "metadata": {
@@ -3281,6 +5509,59 @@
         "subcomponentOf": "component:default/plumber",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/portainer",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Container management, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "portainer",
+        "tags": [
+          "infrastructure"
+        ],
+        "title": "Portainer"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 31015
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "portainer.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3330,6 +5611,83 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30233
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "portracker.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/portracker/compose.yml#services/portracker",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/portracker-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Port tracking instance running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "portracker-albandrieu",
+        "tags": [
+          "network",
+          "workstation"
+        ],
+        "title": "PortTracker - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.57",
+              "port": 4999
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "portracker-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3470,6 +5828,35 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 9090
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "prometheus.albandrieu.com"
+            ],
+            "name": "public",
+            "probePath": "/-/ready",
+            "protocol": "HTTPS",
+            "source": "apps/prometheus/compose.yml#services/prometheus",
+            "visibility": "public"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "prometheus",
+          "position": 0,
+          "rank": 8
+        }
       }
     },
     {
@@ -3554,6 +5941,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30050
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/prowlarr/compose.yml#services/prowlarr",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3631,6 +6035,28 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 4040
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/pyroscope/compose.yml#services/pyroscope",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "pyroscope",
+          "position": 0,
+          "rank": 11
+        }
       }
     },
     {
@@ -3723,6 +6149,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30025
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/radarr/compose.yml#services/radarr",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3755,6 +6198,120 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/reactive-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Reactive Resume instance running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "reactive-albandrieu",
+        "tags": [
+          "productivity",
+          "workstation"
+        ],
+        "title": "Reactive Resume - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.57",
+              "port": 3008
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "reactive-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/reactive-resume",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Resume builder, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "reactive-resume",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Reactive Resume"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30393
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "reactive.albandrieu.com"
+            ],
+            "name": "public",
+            "probePath": "/api/health",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -3832,6 +6389,56 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/sabnzbd",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Usenet downloader, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "sabnzbd",
+        "tags": [
+          "media"
+        ],
+        "title": "SABnzbd"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30055
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/scanopy",
       "kind": "Component",
       "metadata": {
@@ -3884,6 +6491,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 60072
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/scanopy/compose.yml#services/scanopy",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -3960,6 +6584,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "observability"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31054
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "scrutiny.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/scrutiny/compose.yml#services/scrutiny",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -3987,6 +6634,100 @@
         "subcomponentOf": "component:default/scrutiny",
         "system": "system:default/nabla-homelab",
         "type": "collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/scrutiny-collector-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Workstation SMART collector posting disk telemetry to the Scrutiny API hosted on TrueNAS.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "scrutiny-collector-albandrieu",
+        "tags": [
+          "observability",
+          "workstation"
+        ],
+        "title": "Scrutiny Collector - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "collector"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/searxng",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Private metasearch engine, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "searxng",
+        "tags": [
+          "productivity"
+        ],
+        "title": "SearXNG"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30053
+            },
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "searxng.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -4069,6 +6810,28 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 9005
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/sentry/compose.yml#services/nginx",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "sentry",
+          "position": 0,
+          "rank": 7
+        }
       }
     },
     {
@@ -4651,6 +7414,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30113
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/sonarr/compose.yml#services/sonarr",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -4683,6 +7463,59 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/speedtest",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Scheduled internet speed tests, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "speedtest",
+        "tags": [
+          "network"
+        ],
+        "title": "Speedtest Tracker"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 30221
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "speedtest.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -4728,6 +7561,133 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 3128
+            },
+            "backendPort": "proxy",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/squid/compose.yml#services/squid",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/stirling",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "PDF toolkit, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "stirling",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Stirling PDF"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30124
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "stirling.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/stirling-albandrieu",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "PDF toolkit instance running on the workstation.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "stirling-albandrieu",
+        "tags": [
+          "productivity",
+          "workstation"
+        ],
+        "title": "Stirling PDF - albandrieu"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/workstation"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "website"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.57",
+              "port": 8085
+            },
+            "gatewayRef": "resource:default/workstation",
+            "hostnames": [
+              "stirling-albandrieu.albandrieu.com"
+            ],
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -4852,6 +7812,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 443
+            },
+            "backendPort": "websecure",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/traefik/compose.yml#services/traefik",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -4912,6 +7889,56 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/transmission",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "BitTorrent client, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "transmission",
+        "tags": [
+          "media"
+        ],
+        "title": "Transmission"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30096
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/uptimekuma",
       "kind": "Component",
       "metadata": {
@@ -4958,6 +7985,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31050
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "uptime-kuma.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/uptimekuma/compose.yml#services/uptimekuma",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -5004,6 +8054,34 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30032
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "vaultwarden.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/vaultwarden/compose.yml#services/vaultwarden",
+            "visibility": "public"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "vaultwarden",
+          "position": 0,
+          "rank": 6
+        }
       }
     },
     {
@@ -5158,6 +8236,22 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-manager"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "host": "172.17.0.24",
+              "port": 1514
+            },
+            "backendPort": "agent",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "TCP",
+            "source": "apps/wazuh/compose.yml#services/wazuh.manager",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -5210,6 +8304,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "database"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 8123
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "clickhouse.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/clickhouse/compose.yml#services/clickhouse",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -5483,6 +8600,29 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "object-storage"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": true
+            },
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 9091
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "hostnames": [
+              "minio.albandrieu.com"
+            ],
+            "name": "public",
+            "protocol": "HTTPS",
+            "source": "apps/minio/compose.yml#services/minio",
+            "visibility": "public"
+          }
+        ]
       }
     },
     {
@@ -5575,6 +8715,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "search"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 9200
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTPS",
+            "source": "apps/opensearch/compose.yml#services/opensearch",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -5596,7 +8753,8 @@
           "albandrieu.com/bia-reviewed-at": "2026-09-21",
           "albandrieu.com/bia-rpo": "P1D",
           "albandrieu.com/bia-rto": "PT15M",
-          "albandrieu.com/bia-status": "provisional"
+          "albandrieu.com/bia-status": "provisional",
+          "albandrieu.com/lan-address": "172.17.0.1"
         },
         "description": "Homelab firewall, router and network-edge appliance.",
         "labels": {
@@ -5623,6 +8781,55 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "firewall-router"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.1",
+              "port": 10443
+            },
+            "gatewayRef": "resource:default/pfsense",
+            "hostnames": [
+              "pfsense.albandrieu.com"
+            ],
+            "name": "admin",
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "trusted-source-allowlist",
+              "id": "pfsense-admin-trusted-sources",
+              "reason": "The pfSense administration/API listener on 10443 is a trusted-source-only endpoint. FastAPI Cloud is not an approved administration source: direct reachability from that runtime is a negative exposure check and a security-policy failure. Keep administration limited to approved stable sources, use dedicated least-privilege API identities, and move durable posture/Snort telemetry to an out-of-band observer.",
+              "reviewAfter": null,
+              "status": "rejected"
+            },
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          },
+          {
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.1",
+              "port": 10443
+            },
+            "gatewayRef": "resource:default/pfsense",
+            "hostnames": [
+              "home.albandrieu.com"
+            ],
+            "name": "home",
+            "port": 10443,
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "trusted-source-allowlist",
+              "id": "pfsense-home-alias-trusted-sources",
+              "reason": "home.albandrieu.com:10443 aliases the pfSense administration/API listener. This source-aware policy permits only approved stable administration sources; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used.",
+              "reviewAfter": null,
+              "status": "rejected"
+            },
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -5719,6 +8926,23 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "dns"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 20720
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/pihole/compose.yml#services/pihole",
+            "visibility": "lan"
+          }
+        ]
       }
     },
     {
@@ -5760,6 +8984,30 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "database"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "tcp",
+              "host": "172.17.0.24",
+              "port": 5432
+            },
+            "gatewayRef": "resource:default/truenas",
+            "hostnames": [
+              "postgres.albandrieu.com"
+            ],
+            "name": "lan",
+            "port": 5432,
+            "protocol": "TCP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "position": 0,
+          "rank": 3
+        }
       }
     },
     {
@@ -5789,6 +9037,27 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "cache"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "host": "172.17.0.24",
+              "port": 30059
+            },
+            "backendPort": "redis",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "TCP",
+            "source": "apps/redis/compose.yml#services/redis",
+            "visibility": "lan"
+          }
+        ],
+        "probePolicy": {
+          "deploymentUnit": "redis",
+          "position": 0,
+          "rank": 4
+        }
       }
     },
     {
@@ -5904,6 +9173,7 @@
           "albandrieu.com/bia-rpo": "PT1H",
           "albandrieu.com/bia-rto": "PT1H",
           "albandrieu.com/bia-status": "provisional",
+          "albandrieu.com/lan-address": "172.17.0.24",
           "albandrieu.com/pra-last-tested-at": "2026-10-03",
           "albandrieu.com/pra-recovery-result": "passed-after-manual-power-cycle",
           "albandrieu.com/pra-rpo-result": "not-exercised",
@@ -5935,6 +9205,64 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "virtualization-platform"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "access": {
+              "required": false
+            },
+            "backend": {
+              "appProtocol": "https",
+              "host": "172.17.0.24",
+              "port": 7000
+            },
+            "gatewayRef": "resource:default/pfsense-haproxy",
+            "hostnames": [
+              "truenas.albandrieu.com"
+            ],
+            "name": "public",
+            "port": 7000,
+            "protocol": "HTTPS",
+            "riskAcceptance": {
+              "control": "tls-and-api-auth",
+              "id": "truenas-public-admin",
+              "reason": "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately.",
+              "reviewAfter": null,
+              "status": "accepted"
+            },
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "public"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "resource:default/workstation",
+      "kind": "Resource",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/lan-address": "172.17.0.57"
+        },
+        "description": "Operator Linux workstation hosting GPU inference and personal service instances on the LAN.",
+        "labels": {
+          "albandrieu.com/bia-scope": "inherited",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "workstation",
+        "tags": [
+          "infrastructure",
+          "workstation"
+        ],
+        "title": "Workstation"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "host"
       }
     },
     {

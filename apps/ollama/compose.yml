@@ -28,6 +28,16 @@ services:
           description: Ollama is marked for Prometheus scraping.
           evidence:
             - apps/ollama/compose.yml:prometheus.scrape
+      exposure:
+        - name: public
+          hostnames:
+            - ollama.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     env_file:
       - /mnt/cpool/secrets/runtime/ollama/.env
     #  - /mnt/cpool/secrets/runtime/ollama/.env.secrets
@@ -59,7 +69,11 @@ services:
       - /mnt/cpool/ollama/:/root/.ollama
       - /mnt/cpool/model/ollama/:/mnt/cpool/model/ollama/
     ports:
-      - 30068:30068
+      - name: web
+        target: 30068
+        published: "30068"
+        protocol: tcp
+        app_protocol: http
     #  --- Internal Traefik labels
     labels:
       - com.albandrieu.nabla.entity-ref=component:default/ollama

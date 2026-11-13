@@ -22,6 +22,14 @@ services:
         type: port
         host: 172.17.0.24
         port: 30005
+      exposure:
+        - name: lan
+          hostnames:
+            - clamav.albandrieu.com
+          protocol: TCP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: clamd
     restart: unless-stopped
     # Same limits and capabilities as the catalog App it replaces.
     mem_limit: 2g

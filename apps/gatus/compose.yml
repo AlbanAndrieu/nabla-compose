@@ -15,9 +15,23 @@ services:
       runtime:
         provider: truenas-app
         containerService: gatus
+      exposure:
+        - name: public
+          hostnames:
+            - gatus.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     ports:
-      - 8085:8080
+      - name: web
+        target: 8080
+        published: "8085"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - ./config:/config:ro
       - /mnt/cpool/gatus:/data

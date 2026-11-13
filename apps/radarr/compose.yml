@@ -50,6 +50,12 @@ services:
           description: Traefik exposes the UI only through radarr.int.albandrieu.com.
           evidence:
             - apps/radarr/compose.yml:traefik.http.routers.radarr
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     security_opt:
       - no-new-privileges:true
     env_file:

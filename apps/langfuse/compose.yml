@@ -168,8 +168,23 @@ services:
           description: Ask AI calls LiteLLM with a dedicated virtual key.
           evidence:
             - apps/langfuse/compose.yml:LANGFUSE_AI_BASE_URL
+      exposure:
+        - name: public
+          hostnames:
+            - langfuse.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     ports:
-      - "172.17.0.24:3000:3000"
+      - name: web
+        target: 3000
+        published: "3000"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     healthcheck:
       test:
         - CMD-SHELL

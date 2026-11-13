@@ -70,6 +70,90 @@ spec:
         )
         self.assertEqual(dependencies["resource:default/database"], [])
 
+    def test_route_intent_is_projected_on_the_owning_entity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            descriptor = self._fixture(root)[0]
+            descriptor.write_text(
+                descriptor.read_text(encoding="utf-8")
+                + """---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: truenas
+  annotations:
+    albandrieu.com/lan-address: 10.0.0.2
+spec:
+  type: host
+  owner: group:default/nabla-platform
+x-nabla:
+  exposure:
+    - name: admin
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://10.0.0.2:7000
+  probePolicy:
+    rank: 1
+""",
+                encoding="utf-8",
+            )
+            compose = root / "apps" / "api" / "compose.yml"
+            compose.parent.mkdir(parents=True)
+            compose.write_text(
+                """name: api
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 0
+      primaryEndpoint: component:default/api
+services:
+  api:
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/api
+    ports:
+      - name: web
+        target: 8080
+        published: "${API_PORT:-8091}"
+        app_protocol: http
+    x-nabla:
+      exposure:
+        - name: public
+          hostnames: [api.example.test]
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/truenas
+          backendPort: web
+          access:
+            required: true
+        - name: db
+          entityRef: resource:default/database
+          protocol: TCP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backend: tcp://10.0.0.2:5432
+""",
+                encoding="utf-8",
+            )
+            artifacts = build_standard_artifacts([descriptor], [compose], root)
+
+        by_ref = {
+            entity["entityRef"]: entity.get("x-nabla")
+            for entity in artifacts["entities.json"]["entities"]
+        }
+        api = by_ref["component:default/api"]
+        # No host_ip: the backend lives on the default deployment host.
+        self.assertEqual(
+            api["exposure"][0]["backend"],
+            {"appProtocol": "http", "host": "10.0.0.2", "port": 8091},
+        )
+        self.assertEqual(api["probePolicy"], {"deploymentUnit": "api", "position": 0, "rank": 0})
+        self.assertEqual(by_ref["resource:default/database"]["exposure"][0]["backend"]["port"], 5432)
+        self.assertEqual(by_ref["resource:default/truenas"]["probePolicy"], {"position": 0, "rank": 1})
+        self.assertEqual(
+            by_ref["resource:default/truenas"]["exposure"][0]["source"], "catalog-info.yaml"
+        )
+
     def test_revision_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             entities = load_backstage_entities(self._fixture(Path(tmp)))

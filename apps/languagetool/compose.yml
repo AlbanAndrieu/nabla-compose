@@ -18,6 +18,16 @@ services:
       monitoring:
         type: http
         target: http://172.17.0.24:8010/v2/check?language=en-US&text=healthcheck
+      exposure:
+        - name: public
+          hostnames:
+            - languagetool.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     healthcheck:
       test:
         [

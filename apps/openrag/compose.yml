@@ -112,6 +112,12 @@ services:
           description: Frontend collective health checks the shared global Langflow service.
           evidence:
             - apps/openrag/compose.yml:LANGFLOW_HOST
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     environment:
       OPENRAG_BACKEND_HOST: openrag-backend
       OPENRAG_BACKEND_PORT: "8000"
@@ -135,7 +141,11 @@ services:
       retries: 10
       start_period: 60s
     ports:
-      - "${OPENRAG_FRONTEND_PORT:-31060}:3000"
+      - name: web
+        target: 3000
+        published: "${OPENRAG_FRONTEND_PORT:-31060}"
+        protocol: tcp
+        app_protocol: http
     networks:
       - intranet
       - traefik_network

@@ -21,6 +21,32 @@ schema while keeping the operational semantics needed by the homelab.
 - Pre-commit hooks `catalog-v2-preparation-contract`,
   `catalog-v2-native-identity-contract` and `catalog-v2-pilot-contract` run the
   parity audit and the catalog tests when these sources change.
+- 2026-11-13 (P2.1.c): every legacy row's exposure intent lives in
+  `x-nabla.exposure` (see *Route intent as authored and projected*) and the
+  parity audit fails on any legacy/v2 difference (`routeIntentParityMismatches`,
+  two documented owner decisions excepted). Legacy-only services became
+  Backstage entities in `catalog/catalog-info.yaml` with a **provisional** BIA
+  awaiting owner review.
+
+### Route intent as authored and projected
+
+- A Compose service declares routes in `services.<svc>.x-nabla.exposure`;
+  `backendPort` names a long-syntax port. `entityRef` assigns a route to a
+  logical endpoint served by another container (Garage Admin, Sentry edge).
+- An entity without a Compose port (TrueNAS catalog App, workstation instance,
+  pfSense, host networking) declares `backend: scheme://host:port` instead, in
+  a root `x-nabla` block of its descriptor or on its Compose service.
+- `riskAcceptance` sits on the route it concerns: `status: accepted` for a
+  tolerated exposure, `rejected` when any exposure beyond `visibility` is drift.
+- `probePriority` became `x-nabla.deploymentUnit.probePolicy.rank` (with
+  `primaryEndpoint`/`secondaryEndpoints`, or the existing `probeOrder`), and
+  `probePolicy.rank` on a static descriptor.
+- `generate-catalog-v2-artifacts.py` projects all of this onto each entity of
+  `entities.json` under `x-nabla`: `exposure[]` with a resolved
+  `backend {host, port, appProtocol}` (`host_ip`, or the
+  `albandrieu.com/lan-address` annotation of the deployment host, TrueNAS by
+  default) and `probePolicy {deploymentUnit, rank, position}`. Consumers sort
+  probes by `(rank, position)` and join on the full entity ref only.
 
 ## Executive decision
 

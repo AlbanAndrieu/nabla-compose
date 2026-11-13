@@ -33,6 +33,17 @@ services:
           description: Prometheus scrapes Keycloak metrics from the private management interface.
           evidence:
             - apps/keycloak/compose.yml:KC_METRICS_ENABLED
+      exposure:
+        - name: public
+          hostnames:
+            - keycloak.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          probePath: "/realms/nabla/.well-known/openid-configuration"
+          access:
+            required: true
     restart: unless-stopped
     # JVM memory cap (2026-11-06): Quarkus sizes its heap at 70% of the cgroup limit; without a limit it used host RAM; an OOM stays in this cgroup.
     mem_limit: 1536m
@@ -59,7 +70,12 @@ services:
       KC_HTTP_MANAGEMENT_PORT: "9000"
       KC_HTTP_MANAGEMENT_HEALTH_ENABLED: "true"
     ports:
-      - "172.17.0.24:30238:8080"
+      - name: web
+        target: 8080
+        published: "30238"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
       - "172.17.0.24:30239:9000"
     networks:
       - intranet
