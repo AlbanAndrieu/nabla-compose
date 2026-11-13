@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:56b69fc813f310e660ce19055b9ba61b8f3fb93bbfb59b5c96fdc874f9ab0f31",
+  "catalogRevision": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -516,6 +516,55 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "job"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/clamav",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "medium",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "medium",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "datasets-scanned-weekly",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "albandrieu.com/migration-provenance": "truenas-catalog-app",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/clamav/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "clamd scans the TrueNAS datasets through the clamav-scan cron jobs.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "medium",
+          "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "clamav",
+        "tags": [
+          "security",
+          "antivirus"
+        ],
+        "title": "ClamAV"
+      },
+      "sourcePath": "apps/clamav/catalog-info.yaml",
+      "spec": {
+        "dependsOn": [
+          "resource:default/docker"
+        ],
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {

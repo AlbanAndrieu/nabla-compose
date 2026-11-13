@@ -77,6 +77,12 @@
       "ref": "component:default/cartography"
     },
     {
+      "dependsOn": [
+        "resource:default/docker"
+      ],
+      "ref": "component:default/clamav"
+    },
+    {
       "dependsOn": [],
       "ref": "component:default/code-server"
     },
@@ -791,7 +797,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:56b69fc813f310e660ce19055b9ba61b8f3fb93bbfb59b5c96fdc874f9ab0f31"
+        "value": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32"
       },
       {
         "name": "nabla:catalog-authority",
@@ -799,7 +805,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:56b69fc8-13f3-10e6-60ce-19055b9ba61b",
+  "serialNumber": "urn:uuid:949a8c65-bcb6-a1e6-b067-bde3cfc911b9",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1169,6 +1175,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "job"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/clamav",
+      "description": "clamd scans the TrueNAS datasets through the clamav-scan cron jobs.",
+      "name": "ClamAV",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/clamav"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/clamav/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",

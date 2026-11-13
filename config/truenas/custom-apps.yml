@@ -29,6 +29,11 @@ apps:
     include:
       - apps/cartography/compose.yml
     state: running
+  - name: clamav
+    include:
+      - apps/clamav/compose.yml
+    state: running
+    note: catalog App until migrated (see apps/clamav/README.md)
   - name: clickhouse
     include:
       - apps/clickhouse/compose.yml
@@ -242,7 +247,6 @@ catalog_native:
   - adguard-home
   - arti
   - bitcoind
-  - clamav
   - cleanuparr
   - cloudflared
   - convertx
