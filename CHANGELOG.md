@@ -1,3 +1,10 @@
+## [0.76.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.76.0...0.76.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **catalog:** mark CrowdSec, DSOMM, n8n and Akvorado active ([727745a](https://github.com/AlbanAndrieu/nabla-compose/commit/727745a3afac72b59d3a629e07bfaf1a1c7855c3))
+
 # [0.76.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.75.0...0.76.0) (2026-11-13)
 
 
