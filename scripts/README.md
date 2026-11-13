@@ -39,6 +39,10 @@ build/cleanup cycle when only validation is intended.
 - `scripts/truenas/`: TrueNAS lifecycle, diagnostics, deployment and recovery.
 - `scripts/talos/`: Talos/Kubernetes installation, validation and smoke tests.
 - `scripts/pfsense/`: pfSense posture, diagnosis and recovery.
+- `scripts/pfsense/prepare-upgrade.sh --ssh <alias>`: read-only version, arm64,
+  memory/storage and package inventory before upgrade; see
+  [`docs/pfsense-upgrade-26-07.md`](../docs/pfsense-upgrade-26-07.md) for backup,
+  upgrade and REST API reinstall steps.
 - `scripts/secrets/`: metadata-driven secret rendering and validation.
 - `scripts/observability/`: monitoring/telemetry helpers.
 - `scripts/lib/`: small side-effect-free shell primitives shared by operator
@@ -70,6 +74,10 @@ build/cleanup cycle when only validation is intended.
   yet: `--plan` prints the ordered steps without root, `--check` runs every
   read-only gate and reports READY/BLOCKED per App, `--apply <app>` deploys
   one App through its owning deployer and re-applies the backup role.
+
+## Documentation and cross-repository script ownership
+
+The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and script-acceptance decisions. The [FastAPI engineering roadmap](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) owns Python API/UI test runners and probes; [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) owns Gateway/heartbeat. Do not copy launchers between repositories. Retain a compatibility wrapper only while a live recipe, test or rollback procedure calls it; track that consumer before removal. No removal of historical OpenClaw or YubiKey entry points without their contract tests.
 
 ## Refactor rules
 

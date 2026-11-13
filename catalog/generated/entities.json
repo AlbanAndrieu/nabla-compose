@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:718fa7af6e596690ab9aa4f44e84d40636bd97ba7b2f6ae3431c8aa2545a676e",
+  "catalogRevision": "sha256:4a68e9e5ae4b7ca23782f4b256061ba8440d7ab9635df9ef13e41ee4300ac8de",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -178,10 +178,11 @@
       "entityRef": "component:default/akvorado-console",
       "kind": "Component",
       "metadata": {
-        "description": "Planned UI for historical network-flow search and analysis.",
+        "description": "UI for historical network-flow search and analysis.",
         "labels": {
+          "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "links": [
           {
@@ -204,6 +205,7 @@
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/akvorado-orchestrator",
         "system": "system:default/nabla-homelab",
         "type": "website"
       },
@@ -230,10 +232,11 @@
       "entityRef": "component:default/akvorado-inlet",
       "kind": "Component",
       "metadata": {
-        "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer.",
+        "description": "NetFlow/IPFIX UDP receiver and Kafka producer.",
         "labels": {
+          "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "akvorado-inlet",
         "tags": [
@@ -250,6 +253,7 @@
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/akvorado-orchestrator",
         "system": "system:default/nabla-homelab",
         "type": "worker"
       }
@@ -259,10 +263,27 @@
       "entityRef": "component:default/akvorado-orchestrator",
       "kind": "Component",
       "metadata": {
-        "description": "Planned Akvorado configuration and coordination control plane.",
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "akvorado-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Akvorado configuration and coordination control plane.",
         "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "akvorado-orchestrator",
         "tags": [
@@ -289,10 +310,11 @@
       "entityRef": "component:default/akvorado-outlet",
       "kind": "Component",
       "metadata": {
-        "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline.",
+        "description": "Kafka flow consumer and ClickHouse ingestion pipeline.",
         "labels": {
+          "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "high",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "akvorado-outlet",
         "tags": [
@@ -310,6 +332,7 @@
         ],
         "lifecycle": "experimental",
         "owner": "group:default/nabla-platform",
+        "subcomponentOf": "component:default/akvorado-orchestrator",
         "system": "system:default/nabla-homelab",
         "type": "worker"
       }
@@ -1008,9 +1031,26 @@
       "entityRef": "component:default/crowdsec",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "crowdsec-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "crowdsec",
         "tags": [
@@ -1839,10 +1879,27 @@
       "entityRef": "component:default/dsomm",
       "kind": "Component",
       "metadata": {
-        "description": "Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "dsomm-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
         "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "dsomm",
         "tags": [
@@ -3660,9 +3717,26 @@
       "entityRef": "component:default/n8n",
       "kind": "Component",
       "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "n8n-restored-best-effort",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-13",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
         "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "links": [
           {
