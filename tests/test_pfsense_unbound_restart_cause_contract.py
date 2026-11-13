@@ -113,11 +113,11 @@ class UnboundRestartCauseContract(unittest.TestCase):
             output,
             [
                 "signal_source=system event=snort_rules_rebuild "
-                "timestamp=2026-11-13T02:11:12.1+01:00",
+                + "timestamp=2026-11-13T02:11:12.1+01:00",
                 "signal_source=system event=kernel_oom_other "
-                "timestamp=2026-11-13T02:12:15.1+01:00 victim=php",
+                + "timestamp=2026-11-13T02:12:15.1+01:00 victim=php",
                 "WARN: signal_source=system event=kernel_oom_unbound "
-                "timestamp=2026-11-13T02:12:21.1+01:00 victim=unbound",
+                + "timestamp=2026-11-13T02:12:21.1+01:00 victim=unbound",
             ],
         )
 
