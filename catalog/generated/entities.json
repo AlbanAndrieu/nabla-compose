@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:4a68e9e5ae4b7ca23782f4b256061ba8440d7ab9635df9ef13e41ee4300ac8de",
+  "catalogRevision": "sha256:9fb25382454bb4b2bec4fe67144c1f38270a3ddb416238fafe17ca46a6abc9be",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -61,7 +61,12 @@
             "source": "apps/2fauth/compose.yml#services/2fauth",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "twofactor-auth",
+          "provider": "truenas-app",
+          "source": "apps/2fauth/compose.yml#services/2fauth"
+        }
       }
     },
     {
@@ -224,7 +229,12 @@
             "source": "apps/akvorado/compose.yml#services/akvorado-console",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "akvorado-console",
+          "provider": "truenas-app",
+          "source": "apps/akvorado/compose.yml#services/akvorado-console"
+        }
       }
     },
     {
@@ -256,6 +266,13 @@
         "subcomponentOf": "component:default/akvorado-orchestrator",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "akvorado-inlet",
+          "provider": "truenas-app",
+          "source": "apps/akvorado/compose.yml#services/akvorado-inlet"
+        }
       }
     },
     {
@@ -303,6 +320,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "controller"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "akvorado-orchestrator",
+          "provider": "truenas-app",
+          "source": "apps/akvorado/compose.yml#services/akvorado-orchestrator"
+        }
       }
     },
     {
@@ -335,6 +359,13 @@
         "subcomponentOf": "component:default/akvorado-orchestrator",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "akvorado-outlet",
+          "provider": "truenas-app",
+          "source": "apps/akvorado/compose.yml#services/akvorado-outlet"
+        }
       }
     },
     {
@@ -360,6 +391,13 @@
         "subcomponentOf": "component:default/grafana",
         "system": "system:default/nabla-homelab",
         "type": "telemetry-collector"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "alloy",
+          "provider": "truenas-app",
+          "source": "apps/grafana/compose.yml#services/alloy"
+        }
       }
     },
     {
@@ -499,6 +537,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "api-gateway"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "apisix",
+          "provider": "truenas-app",
+          "source": "apps/apisix/compose.yml#services/apisix"
+        }
       }
     },
     {
@@ -544,6 +589,14 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "controller"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "autokuma",
+          "containerService": "autokuma",
+          "provider": "truenas-app",
+          "source": "apps/autokuma/compose.yml#services/autokuma"
+        }
       }
     },
     {
@@ -610,7 +663,12 @@
             "source": "apps/autoxpose/compose.yml#services/autoxpose",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "autoxpose",
+          "provider": "truenas-app",
+          "source": "apps/autoxpose/compose.yml#services/autoxpose"
+        }
       }
     },
     {
@@ -643,6 +701,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "bazarr",
+          "provider": "truenas-app",
+          "source": "apps/bazarr/compose.yml#services/bazarr"
+        }
       }
     },
     {
@@ -675,6 +740,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "bazarr-exporter",
+          "provider": "truenas-app",
+          "source": "apps/bazarr/compose.yml#services/bazarr-exporter"
+        }
       }
     },
     {
@@ -747,7 +819,12 @@
             "source": "apps/bichon/compose.yml#services/bichon",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "bichon",
+          "provider": "truenas-app",
+          "source": "apps/bichon/compose.yml#services/bichon"
+        }
       }
     },
     {
@@ -793,6 +870,14 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "blockchain-node"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "bitcoind",
+          "containerService": "bitcoind",
+          "provider": "truenas-app",
+          "source": "apps/bitcoind/compose.yml#services/bitcoind"
+        }
       }
     },
     {
@@ -842,6 +927,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "job"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "cartography",
+          "provider": "truenas-app",
+          "source": "apps/cartography/compose.yml#services/cartography"
+        }
       }
     },
     {
@@ -909,7 +1001,12 @@
             "source": "apps/clamav/compose.yml#services/clamav",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "clamav",
+          "provider": "truenas-app",
+          "source": "apps/clamav/compose.yml#services/clamav"
+        }
       }
     },
     {
@@ -970,7 +1067,12 @@
             "source": "apps/code/compose.yml#services/code-server",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "code-server",
+          "provider": "truenas-app",
+          "source": "apps/code/compose.yml#services/code-server"
+        }
       }
     },
     {
@@ -1079,7 +1181,12 @@
             "source": "apps/crowdsec/compose.yml#services/crowdsec",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "crowdsec",
+          "provider": "truenas-app",
+          "source": "apps/crowdsec/compose.yml#services/crowdsec"
+        }
       }
     },
     {
@@ -1143,7 +1250,12 @@
             "source": "apps/cyberbro/compose.yml#services/cyberbro",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "cyberbro",
+          "provider": "truenas-app",
+          "source": "apps/cyberbro/compose.yml#services/cyberbro"
+        }
       }
     },
     {
@@ -1215,7 +1327,12 @@
             "source": "apps/ddns-updater/compose.yml#services/ddns-updater",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "ddns-updater",
+          "provider": "truenas-app",
+          "source": "apps/ddns-updater/compose.yml#services/ddns-updater"
+        }
       }
     },
     {
@@ -1280,7 +1397,12 @@
             "source": "apps/defectdojo/compose.yml#services/defectdojo",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "defectdojo",
+          "provider": "truenas-app",
+          "source": "apps/defectdojo/compose.yml#services/defectdojo"
+        }
       }
     },
     {
@@ -1311,6 +1433,13 @@
         "subcomponentOf": "component:default/defectdojo",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "defectdojo-uwsgi",
+          "provider": "truenas-app",
+          "source": "apps/defectdojo/compose.yml#services/defectdojo-uwsgi"
+        }
       }
     },
     {
@@ -1336,6 +1465,13 @@
         "subcomponentOf": "component:default/defectdojo",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "defectdojo-celerybeat",
+          "provider": "truenas-app",
+          "source": "apps/defectdojo/compose.yml#services/defectdojo-celerybeat"
+        }
       }
     },
     {
@@ -1364,6 +1500,13 @@
         "subcomponentOf": "component:default/defectdojo",
         "system": "system:default/nabla-homelab",
         "type": "job"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "defectdojo-initializer",
+          "provider": "truenas-app",
+          "source": "apps/defectdojo/compose.yml#services/defectdojo-initializer"
+        }
       }
     },
     {
@@ -1389,6 +1532,13 @@
         "subcomponentOf": "component:default/defectdojo",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "defectdojo-celeryworker",
+          "provider": "truenas-app",
+          "source": "apps/defectdojo/compose.yml#services/defectdojo-celeryworker"
+        }
       }
     },
     {
@@ -1452,7 +1602,12 @@
             "source": "apps/dependency-track/compose.yml#services/dependency-track",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "dependency-track",
+          "provider": "truenas-app",
+          "source": "apps/dependency-track/compose.yml#services/dependency-track"
+        }
       }
     },
     {
@@ -1482,6 +1637,13 @@
         "subcomponentOf": "component:default/dependency-track",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "dependency-track-api",
+          "provider": "truenas-app",
+          "source": "apps/dependency-track/compose.yml#services/dependency-track-api"
+        }
       }
     },
     {
@@ -1516,6 +1678,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "docker-socket-proxy",
+          "provider": "truenas-app",
+          "source": "apps/docker-socket-proxy/compose.yml#services/docker-socket-proxy"
+        }
       }
     },
     {
@@ -1580,7 +1749,12 @@
             "source": "apps/dockhand/compose.yml#services/dockhand",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "dockhand",
+          "provider": "truenas-app",
+          "source": "apps/dockhand/compose.yml#services/dockhand"
+        }
       }
     },
     {
@@ -1642,7 +1816,12 @@
             "source": "apps/docling/compose.yml#services/docling",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "docling",
+          "provider": "truenas-app",
+          "source": "apps/docling/compose.yml#services/docling"
+        }
       }
     },
     {
@@ -1692,6 +1871,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "deployment-automation"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "doco-cd",
+          "provider": "truenas-app",
+          "source": "docker-compose-truenas.yml#services/doco-cd"
+        }
       }
     },
     {
@@ -1810,7 +1996,12 @@
             "source": "apps/dozzle/compose.yml#services/dozzle",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "dozzle",
+          "provider": "truenas-app",
+          "source": "apps/dozzle/compose.yml#services/dozzle"
+        }
       }
     },
     {
@@ -1871,7 +2062,12 @@
             "source": "apps/drawio/compose.yml#services/drawio",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "drawio",
+          "provider": "truenas-app",
+          "source": "apps/drawio/compose.yml#services/drawio"
+        }
       }
     },
     {
@@ -1931,7 +2127,12 @@
             "source": "apps/dsomm/compose.yml#services/dsomm",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "dsomm",
+          "provider": "truenas-app",
+          "source": "apps/dsomm/compose.yml#services/dsomm"
+        }
       }
     },
     {
@@ -1959,6 +2160,13 @@
         "subcomponentOf": "component:default/dsomm",
         "system": "system:default/nabla-homelab",
         "type": "tool"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "dsomm-baseline",
+          "provider": "truenas-app",
+          "source": "apps/dsomm/compose.yml#services/dsomm-baseline"
+        }
       }
     },
     {
@@ -2028,7 +2236,12 @@
             "source": "apps/sample/compose.yml#services/fastapi-sample",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "fastapi-sample",
+          "provider": "truenas-app",
+          "source": "apps/sample/compose.yml#services/fastapi-sample"
+        }
       }
     },
     {
@@ -2160,6 +2373,11 @@
           "deploymentUnit": "garage",
           "position": 0,
           "rank": 0
+        },
+        "runtime": {
+          "containerService": "garage",
+          "provider": "truenas-app",
+          "source": "apps/garage/compose.yml#services/garage"
         }
       }
     },
@@ -2282,6 +2500,11 @@
           "deploymentUnit": "garage",
           "position": 2,
           "rank": 0
+        },
+        "runtime": {
+          "containerService": "webui",
+          "provider": "truenas-app",
+          "source": "apps/garage/compose.yml#services/webui"
         }
       }
     },
@@ -2352,7 +2575,12 @@
             "source": "apps/gatus/compose.yml#services/gatus",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "gatus",
+          "provider": "truenas-app",
+          "source": "apps/gatus/compose.yml#services/gatus"
+        }
       }
     },
     {
@@ -2383,6 +2611,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "gluetun",
+          "provider": "truenas-app",
+          "source": "apps/media-acquisition/compose.yml#services/gluetun"
+        }
       }
     },
     {
@@ -2456,6 +2691,11 @@
           "deploymentUnit": "grafana",
           "position": 0,
           "rank": 9
+        },
+        "runtime": {
+          "containerService": "grafana",
+          "provider": "truenas-app",
+          "source": "apps/grafana/compose.yml#services/grafana"
         }
       }
     },
@@ -2525,7 +2765,13 @@
             "source": "apps/graylog/compose.yml#services/graylog",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "graylog",
+          "containerService": "graylog",
+          "provider": "truenas-app",
+          "source": "apps/graylog/compose.yml#services/graylog"
+        }
       }
     },
     {
@@ -2566,6 +2812,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "haproxy-exporter",
+          "provider": "truenas-app",
+          "source": "apps/haproxy-exporter/compose.yml#services/haproxy-exporter"
+        }
       }
     },
     {
@@ -2695,7 +2948,12 @@
             "source": "apps/nginx/compose.yml#services/nginx",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "nginx",
+          "provider": "truenas-app",
+          "source": "apps/nginx/compose.yml#services/nginx"
+        }
       }
     },
     {
@@ -2730,6 +2988,14 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "hermes-agent",
+          "containerService": "hermes",
+          "provider": "truenas-app",
+          "source": "apps/hermes/compose.yml#services/hermes"
+        }
       }
     },
     {
@@ -2800,7 +3066,12 @@
             "source": "apps/homarr/compose.yml#services/homarr",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "homarr",
+          "provider": "truenas-app",
+          "source": "apps/homarr/compose.yml#services/homarr"
+        }
       }
     },
     {
@@ -2828,6 +3099,13 @@
         "subcomponentOf": "component:default/homarr",
         "system": "system:default/nabla-homelab",
         "type": "controller"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "homarr-sync",
+          "provider": "truenas-app",
+          "source": "apps/homarr/compose.yml#services/homarr-sync"
+        }
       }
     },
     {
@@ -2873,6 +3151,14 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "home-automation"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "homeassistant",
+          "containerService": "homeassistant",
+          "provider": "truenas-app",
+          "source": "apps/homeassistant/compose.yml#services/homeassistant"
+        }
       }
     },
     {
@@ -2957,6 +3243,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "jellyfin",
+          "provider": "truenas-app",
+          "source": "apps/jellyfin/compose.yml#services/jellyfin"
+        }
       }
     },
     {
@@ -3027,7 +3320,12 @@
             "source": "apps/joplin/compose.yml#services/joplin",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "joplin",
+          "provider": "truenas-app",
+          "source": "apps/joplin/compose.yml#services/joplin"
+        }
       }
     },
     {
@@ -3059,6 +3357,14 @@
         "subcomponentOf": "resource:default/kafka",
         "system": "system:default/nabla-homelab",
         "type": "exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "kafka",
+          "containerService": "kafka-exporter",
+          "provider": "truenas-app",
+          "source": "apps/kafka/compose.yml#services/kafka-exporter"
+        }
       }
     },
     {
@@ -3168,7 +3474,13 @@
             "source": "apps/keycloak/compose.yml#services/keycloak",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "keycloak",
+          "containerService": "keycloak",
+          "provider": "truenas-app",
+          "source": "apps/keycloak/compose.yml#services/keycloak"
+        }
       }
     },
     {
@@ -3234,7 +3546,12 @@
             "source": "apps/langflow/compose.yml#services/langflow",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "langflow",
+          "provider": "truenas-app",
+          "source": "apps/langflow/compose.yml#services/langflow"
+        }
       }
     },
     {
@@ -3290,7 +3607,12 @@
             "source": "apps/langfuse/compose.yml#services/langfuse-web",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "langfuse-web",
+          "provider": "truenas-app",
+          "source": "apps/langfuse/compose.yml#services/langfuse-web"
+        }
       }
     },
     {
@@ -3319,6 +3641,13 @@
         "subcomponentOf": "component:default/langfuse-web",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "langfuse-worker",
+          "provider": "truenas-app",
+          "source": "apps/langfuse/compose.yml#services/langfuse-worker"
+        }
       }
     },
     {
@@ -3385,7 +3714,12 @@
             "source": "apps/languagetool/compose.yml#services/languagetool",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "languagetool",
+          "provider": "truenas-app",
+          "source": "apps/languagetool/compose.yml#services/languagetool"
+        }
       }
     },
     {
@@ -3433,7 +3767,12 @@
             "source": "apps/lidarr/compose.yml#services/lidarr",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "lidarr",
+          "provider": "truenas-app",
+          "source": "apps/lidarr/compose.yml#services/lidarr"
+        }
       }
     },
     {
@@ -3466,6 +3805,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "lidarr-exporter",
+          "provider": "truenas-app",
+          "source": "apps/lidarr/compose.yml#services/lidarr-exporter"
+        }
       }
     },
     {
@@ -3519,7 +3865,12 @@
             "source": "apps/litellm/compose.yml#services/litellm",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "litellm",
+          "provider": "truenas-app",
+          "source": "apps/litellm/compose.yml#services/litellm"
+        }
       }
     },
     {
@@ -3710,6 +4061,13 @@
         "subcomponentOf": "component:default/cyberbro",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mcp-cyberbro",
+          "provider": "truenas-app",
+          "source": "apps/cyberbro/compose.yml#services/mcp-cyberbro"
+        }
       }
     },
     {
@@ -3790,6 +4148,11 @@
           "deploymentUnit": "n8n",
           "position": 0,
           "rank": 10
+        },
+        "runtime": {
+          "containerService": "n8n",
+          "provider": "truenas-app",
+          "source": "apps/n8n/compose.yml#services/n8n"
         }
       }
     },
@@ -3964,7 +4327,12 @@
             "source": "apps/netbox/compose.yml#services/netbox",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "netbox",
+          "provider": "truenas-app",
+          "source": "apps/netbox/compose.yml#services/netbox"
+        }
       }
     },
     {
@@ -3990,6 +4358,13 @@
         "subcomponentOf": "component:default/netbox",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "netbox-housekeeping",
+          "provider": "truenas-app",
+          "source": "apps/netbox/compose.yml#services/netbox-housekeeping"
+        }
       }
     },
     {
@@ -4015,6 +4390,13 @@
         "subcomponentOf": "component:default/netbox",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "netbox-worker",
+          "provider": "truenas-app",
+          "source": "apps/netbox/compose.yml#services/netbox-worker"
+        }
       }
     },
     {
@@ -4077,7 +4459,12 @@
             "source": "apps/nexus/compose.yml#services/nexus",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "nexus",
+          "provider": "truenas-app",
+          "source": "apps/nexus/compose.yml#services/nexus"
+        }
       }
     },
     {
@@ -4124,6 +4511,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "app",
+          "provider": "truenas-app",
+          "source": "apps/nginx-proxy-manager/compose.yml#services/app"
+        }
       }
     },
     {
@@ -4169,6 +4563,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "npmplus",
+          "provider": "truenas-app",
+          "source": "apps/npmplus/compose.yml#services/npmplus"
+        }
       }
     },
     {
@@ -4235,7 +4636,12 @@
             "source": "apps/ntopng/compose.yml#services/ntopng",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "ntopng",
+          "provider": "truenas-app",
+          "source": "apps/ntopng/compose.yml#services/ntopng"
+        }
       }
     },
     {
@@ -4298,7 +4704,12 @@
             "source": "apps/obsidian/compose.yml#services/obsidian",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "obsidian",
+          "provider": "truenas-app",
+          "source": "apps/obsidian/compose.yml#services/obsidian"
+        }
       }
     },
     {
@@ -4367,7 +4778,12 @@
             "source": "apps/ollama/compose.yml#services/ollama",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "ollama",
+          "provider": "truenas-app",
+          "source": "apps/ollama/compose.yml#services/ollama"
+        }
       }
     },
     {
@@ -4454,6 +4870,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "secrets-api"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "op-connect-api",
+          "provider": "truenas-app",
+          "source": "apps/opconnect/compose.yml#services/op-connect-api"
+        }
       }
     },
     {
@@ -4484,6 +4907,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "secrets-sync"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "op-connect-sync",
+          "provider": "truenas-app",
+          "source": "apps/opconnect/compose.yml#services/op-connect-sync"
+        }
       }
     },
     {
@@ -4720,6 +5150,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "security-tool"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "opencre",
+          "provider": "truenas-app",
+          "source": "apps/opencre/compose.yml#services/opencre"
+        }
       }
     },
     {
@@ -4785,7 +5222,12 @@
             "source": "apps/openhands/compose.yml#services/openhands",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "openhands",
+          "provider": "truenas-app",
+          "source": "apps/openhands/compose.yml#services/openhands"
+        }
       }
     },
     {
@@ -4820,6 +5262,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ai-service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "openrag-backend",
+          "provider": "truenas-app",
+          "source": "apps/openrag/compose.yml#services/openrag-backend"
+        }
       }
     },
     {
@@ -4864,7 +5313,12 @@
             "source": "apps/openrag/compose.yml#services/openrag-frontend",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "openrag-frontend",
+          "provider": "truenas-app",
+          "source": "apps/openrag/compose.yml#services/openrag-frontend"
+        }
       }
     },
     {
@@ -4896,6 +5350,13 @@
         "subcomponentOf": "component:default/opensearch-security",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "dashboards",
+          "provider": "truenas-app",
+          "source": "apps/opensearch/compose.yml#services/dashboards"
+        }
       }
     },
     {
@@ -4936,6 +5397,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "opensearch-exporter",
+          "provider": "truenas-app",
+          "source": "apps/opensearch-exporter/compose.yml#services/opensearch-exporter"
+        }
       }
     },
     {
@@ -4960,6 +5428,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "search"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "opensearch-security",
+          "provider": "truenas-app",
+          "source": "apps/opensearch/compose.yml#services/opensearch-security"
+        }
       }
     },
     {
@@ -4988,6 +5463,13 @@
         "subcomponentOf": "component:default/opensearch-exporter",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "opensearch-security-exporter",
+          "provider": "truenas-app",
+          "source": "apps/opensearch-exporter/compose.yml#services/opensearch-security-exporter"
+        }
       }
     },
     {
@@ -5034,6 +5516,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "job"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "scorecard",
+          "provider": "truenas-app",
+          "source": "apps/scorecard/compose.yml#services/scorecard"
+        }
       }
     },
     {
@@ -5106,7 +5595,13 @@
             "source": "apps/openwebui/compose.yml#services/openwebui",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "openwebui",
+          "containerService": "openwebui",
+          "provider": "truenas-app",
+          "source": "apps/openwebui/compose.yml#services/openwebui"
+        }
       }
     },
     {
@@ -5239,6 +5734,13 @@
         "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "pfsense-exporter",
+          "provider": "truenas-app",
+          "source": "apps/prometheus/compose.yml#services/pfsense-exporter"
+        }
       }
     },
     {
@@ -5326,6 +5828,13 @@
         "subcomponentOf": "resource:default/pihole",
         "system": "system:default/nabla-homelab",
         "type": "controller"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "pihole-dns-sync",
+          "provider": "truenas-app",
+          "source": "apps/pihole/compose.yml#services/pihole-dns-sync"
+        }
       }
     },
     {
@@ -5357,6 +5866,13 @@
         "subcomponentOf": "resource:default/pihole",
         "system": "system:default/nabla-homelab",
         "type": "exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "pihole-exporter",
+          "provider": "truenas-app",
+          "source": "apps/pihole/compose.yml#services/pihole-exporter"
+        }
       }
     },
     {
@@ -5406,6 +5922,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "developer-platform"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "plumber",
+          "provider": "truenas-app",
+          "source": "apps/plumber/compose.yml#services/plumber"
+        }
       }
     },
     {
@@ -5516,7 +6039,12 @@
             "source": "apps/plumber/compose.yml#services/plumber-api",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "plumber-api",
+          "provider": "truenas-app",
+          "source": "apps/plumber/compose.yml#services/plumber-api"
+        }
       }
     },
     {
@@ -5543,6 +6071,13 @@
         "subcomponentOf": "component:default/plumber",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "plumber-worker",
+          "provider": "truenas-app",
+          "source": "apps/plumber/compose.yml#services/plumber-worker"
+        }
       }
     },
     {
@@ -5664,7 +6199,12 @@
             "source": "apps/portracker/compose.yml#services/portracker",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "portracker",
+          "provider": "truenas-app",
+          "source": "apps/portracker/compose.yml#services/portracker"
+        }
       }
     },
     {
@@ -5768,6 +6308,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "postgres_exporter",
+          "provider": "truenas-app",
+          "source": "apps/postgres-exporter/compose.yml#services/postgres_exporter"
+        }
       }
     },
     {
@@ -5816,6 +6363,12 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "job"
+      },
+      "x-nabla": {
+        "runtime": {
+          "provider": "host",
+          "source": "apps/postgresbackup/compose.yml#services/postgresbackup"
+        }
       }
     },
     {
@@ -5890,6 +6443,11 @@
           "deploymentUnit": "prometheus",
           "position": 0,
           "rank": 8
+        },
+        "runtime": {
+          "containerService": "prometheus",
+          "provider": "truenas-app",
+          "source": "apps/prometheus/compose.yml#services/prometheus"
         }
       }
     },
@@ -5916,6 +6474,13 @@
         "subcomponentOf": "component:default/prometheus",
         "system": "system:default/nabla-homelab",
         "type": "alerting"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "alertmanager",
+          "provider": "truenas-app",
+          "source": "apps/prometheus/compose.yml#services/alertmanager"
+        }
       }
     },
     {
@@ -5991,7 +6556,12 @@
             "source": "apps/prowlarr/compose.yml#services/prowlarr",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "prowlarr",
+          "provider": "truenas-app",
+          "source": "apps/prowlarr/compose.yml#services/prowlarr"
+        }
       }
     },
     {
@@ -6024,6 +6594,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "prowlarr-exporter",
+          "provider": "truenas-app",
+          "source": "apps/prowlarr/compose.yml#services/prowlarr-exporter"
+        }
       }
     },
     {
@@ -6090,6 +6667,11 @@
           "deploymentUnit": "pyroscope",
           "position": 0,
           "rank": 11
+        },
+        "runtime": {
+          "containerService": "pyroscope",
+          "provider": "truenas-app",
+          "source": "apps/pyroscope/compose.yml#services/pyroscope"
         }
       }
     },
@@ -6120,6 +6702,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "qbittorrent",
+          "provider": "truenas-app",
+          "source": "apps/media-acquisition/compose.yml#services/qbittorrent"
+        }
       }
     },
     {
@@ -6152,6 +6741,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "qbittorrent-exporter",
+          "provider": "truenas-app",
+          "source": "apps/qbittorrent-exporter/compose.yml#services/qbittorrent-exporter"
+        }
       }
     },
     {
@@ -6199,7 +6795,12 @@
             "source": "apps/radarr/compose.yml#services/radarr",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "radarr",
+          "provider": "truenas-app",
+          "source": "apps/radarr/compose.yml#services/radarr"
+        }
       }
     },
     {
@@ -6232,6 +6833,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "radarr-exporter",
+          "provider": "truenas-app",
+          "source": "apps/radarr/compose.yml#services/radarr-exporter"
+        }
       }
     },
     {
@@ -6378,6 +6986,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "recyclarr",
+          "provider": "truenas-app",
+          "source": "apps/recyclarr/compose.yml#services/recyclarr"
+        }
       }
     },
     {
@@ -6541,7 +7156,12 @@
             "source": "apps/scanopy/compose.yml#services/scanopy",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "scanopy",
+          "provider": "truenas-app",
+          "source": "apps/scanopy/compose.yml#services/scanopy"
+        }
       }
     },
     {
@@ -6569,6 +7189,13 @@
         "subcomponentOf": "component:default/scanopy",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "scanopy-daemon",
+          "provider": "truenas-app",
+          "source": "apps/scanopy/compose.yml#services/scanopy-daemon"
+        }
       }
     },
     {
@@ -6640,7 +7267,12 @@
             "source": "apps/scrutiny/compose.yml#services/scrutiny",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "scrutiny",
+          "provider": "truenas-app",
+          "source": "apps/scrutiny/compose.yml#services/scrutiny"
+        }
       }
     },
     {
@@ -6668,6 +7300,13 @@
         "subcomponentOf": "component:default/scrutiny",
         "system": "system:default/nabla-homelab",
         "type": "collector"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "scrutiny-collector",
+          "provider": "truenas-app",
+          "source": "apps/scrutiny/compose.yml#services/scrutiny-collector"
+        }
       }
     },
     {
@@ -6795,6 +7434,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "seerr",
+          "provider": "truenas-app",
+          "source": "apps/seerr/compose.yml#services/seerr"
+        }
       }
     },
     {
@@ -6865,6 +7511,11 @@
           "deploymentUnit": "sentry",
           "position": 0,
           "rank": 7
+        },
+        "runtime": {
+          "containerService": "sentry-web",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/sentry-web"
         }
       }
     },
@@ -6892,6 +7543,13 @@
         "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "nginx",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/nginx"
+        }
       }
     },
     {
@@ -6950,6 +7608,13 @@
         "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "proxy"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "relay",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/relay"
+        }
       }
     },
     {
@@ -7122,6 +7787,13 @@
         "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "snuba-api",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/snuba-api"
+        }
       }
     },
     {
@@ -7346,6 +8018,13 @@
         "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "taskbroker",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/taskbroker"
+        }
       }
     },
     {
@@ -7371,6 +8050,13 @@
         "subcomponentOf": "component:default/sentry",
         "system": "system:default/nabla-homelab",
         "type": "worker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "sentry-taskworker",
+          "provider": "truenas-app",
+          "source": "apps/sentry/compose.yml#services/sentry-taskworker"
+        }
       }
     },
     {
@@ -7417,6 +8103,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "code-quality"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "sonarqube",
+          "provider": "truenas-app",
+          "source": "apps/sonarqube/compose.yml#services/sonarqube"
+        }
       }
     },
     {
@@ -7464,7 +8157,12 @@
             "source": "apps/sonarr/compose.yml#services/sonarr",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "sonarr",
+          "provider": "truenas-app",
+          "source": "apps/sonarr/compose.yml#services/sonarr"
+        }
       }
     },
     {
@@ -7497,6 +8195,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "sonarr-exporter",
+          "provider": "truenas-app",
+          "source": "apps/sonarr/compose.yml#services/sonarr-exporter"
+        }
       }
     },
     {
@@ -7611,7 +8316,12 @@
             "source": "apps/squid/compose.yml#services/squid",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "squid",
+          "provider": "truenas-app",
+          "source": "apps/squid/compose.yml#services/squid"
+        }
       }
     },
     {
@@ -7762,6 +8472,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "ids"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "suricata",
+          "provider": "truenas-app",
+          "source": "apps/suricata/compose.yml#services/suricata"
+        }
       }
     },
     {
@@ -7802,6 +8519,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "metrics-exporter"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "sybase-exporter",
+          "provider": "truenas-app",
+          "source": "apps/sybase-exporter/compose.yml#services/sybase-exporter"
+        }
       }
     },
     {
@@ -7862,7 +8586,12 @@
             "source": "apps/traefik/compose.yml#services/traefik",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "traefik",
+          "provider": "truenas-app",
+          "source": "apps/traefik/compose.yml#services/traefik"
+        }
       }
     },
     {
@@ -8041,7 +8770,13 @@
             "source": "apps/uptimekuma/compose.yml#services/uptimekuma",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "uptimekuma",
+          "containerService": "uptimekuma",
+          "provider": "truenas-app",
+          "source": "apps/uptimekuma/compose.yml#services/uptimekuma"
+        }
       }
     },
     {
@@ -8115,6 +8850,11 @@
           "deploymentUnit": "vaultwarden",
           "position": 0,
           "rank": 6
+        },
+        "runtime": {
+          "containerService": "vaultwarden",
+          "provider": "truenas-app",
+          "source": "apps/vaultwarden/compose.yml#services/vaultwarden"
         }
       }
     },
@@ -8147,6 +8887,13 @@
         "subcomponentOf": "component:default/vaultwarden",
         "system": "system:default/nabla-homelab",
         "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "bitwarden-api",
+          "provider": "truenas-app",
+          "source": "apps/vaultwarden/compose.yml#services/bitwarden-api"
+        }
       }
     },
     {
@@ -8171,6 +8918,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "image-update-auditor"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "watchtower",
+          "provider": "truenas-app",
+          "source": "apps/watchtower/compose.yml#services/watchtower"
+        }
       }
     },
     {
@@ -8196,6 +8950,13 @@
         "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "application"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "wazuh.dashboard",
+          "provider": "truenas-app",
+          "source": "apps/wazuh/compose.yml#services/wazuh.dashboard"
+        }
       }
     },
     {
@@ -8221,6 +8982,13 @@
         "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "telemetry-forwarder"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "wazuh-forwarder",
+          "provider": "truenas-app",
+          "source": "apps/wazuh/compose.yml#services/wazuh-forwarder"
+        }
       }
     },
     {
@@ -8246,6 +9014,13 @@
         "subcomponentOf": "component:default/wazuh-manager",
         "system": "system:default/nabla-homelab",
         "type": "search"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "wazuh.indexer",
+          "provider": "truenas-app",
+          "source": "apps/wazuh/compose.yml#services/wazuh.indexer"
+        }
       }
     },
     {
@@ -8285,7 +9060,12 @@
             "source": "apps/wazuh/compose.yml#services/wazuh.manager",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "wazuh.manager",
+          "provider": "truenas-app",
+          "source": "apps/wazuh/compose.yml#services/wazuh.manager"
+        }
       }
     },
     {
@@ -8360,7 +9140,12 @@
             "source": "apps/clickhouse/compose.yml#services/clickhouse",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "clickhouse",
+          "provider": "truenas-app",
+          "source": "apps/clickhouse/compose.yml#services/clickhouse"
+        }
       }
     },
     {
@@ -8489,6 +9274,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "time-series-database"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "influxdb",
+          "provider": "truenas-app",
+          "source": "apps/influxdb/compose.yml#services/influxdb"
+        }
       }
     },
     {
@@ -8518,6 +9310,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "message-broker"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "kafka",
+          "provider": "truenas-app",
+          "source": "apps/kafka/compose.yml#services/kafka"
+        }
       }
     },
     {
@@ -8582,6 +9381,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "log-store"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "loki",
+          "provider": "truenas-app",
+          "source": "apps/grafana/compose.yml#services/loki"
+        }
       }
     },
     {
@@ -8605,6 +9411,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "metrics-store"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mimir",
+          "provider": "truenas-app",
+          "source": "apps/grafana/compose.yml#services/mimir"
+        }
       }
     },
     {
@@ -8656,7 +9469,12 @@
             "source": "apps/minio/compose.yml#services/minio",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "minio",
+          "provider": "truenas-app",
+          "source": "apps/minio/compose.yml#services/minio"
+        }
       }
     },
     {
@@ -8680,6 +9498,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "database"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "mongo",
+          "provider": "truenas-app",
+          "source": "apps/mongo/compose.yml#services/mongo"
+        }
       }
     },
     {
@@ -8726,6 +9551,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "graph-database"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "neo4j-security",
+          "provider": "truenas-app",
+          "source": "apps/neo4j/compose.yml#services/neo4j-security"
+        }
       }
     },
     {
@@ -8765,7 +9597,12 @@
             "source": "apps/opensearch/compose.yml#services/opensearch",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "opensearch",
+          "provider": "truenas-app",
+          "source": "apps/opensearch/compose.yml#services/opensearch"
+        }
       }
     },
     {
@@ -8976,7 +9813,12 @@
             "source": "apps/pihole/compose.yml#services/pihole",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "containerService": "pihole",
+          "provider": "truenas-app",
+          "source": "apps/pihole/compose.yml#services/pihole"
+        }
       }
     },
     {
@@ -9091,6 +9933,11 @@
           "deploymentUnit": "redis",
           "position": 0,
           "rank": 4
+        },
+        "runtime": {
+          "containerService": "redis",
+          "provider": "truenas-app",
+          "source": "apps/redis/compose.yml#services/redis"
         }
       }
     },
@@ -9121,6 +9968,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "database"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "sentry-clickhouse",
+          "provider": "truenas-app",
+          "source": "apps/sentry-clickhouse/compose.yml#services/sentry-clickhouse"
+        }
       }
     },
     {
@@ -9185,6 +10039,13 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "trace-store"
+      },
+      "x-nabla": {
+        "runtime": {
+          "containerService": "tempo",
+          "provider": "truenas-app",
+          "source": "apps/grafana/compose.yml#services/tempo"
+        }
       }
     },
     {
