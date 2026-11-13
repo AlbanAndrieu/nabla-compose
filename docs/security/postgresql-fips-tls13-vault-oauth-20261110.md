@@ -1,11 +1,11 @@
 # PostgreSQL 16 → 18 : cible FIPS, TLS 1.3, Keycloak/OAuth et Vault
 
-Date : 2026-11-10. Statut : **CODED (documentation) / NOT_VERIFIED (runtime)**. Aucune mutation de base, certificat, compte, `pg_hba.conf`, secret ni réseau.
+Date : 2026-11-10. Statut au 13/11 : TLS 1.3 par CA locale et `hostssl` **appliqués et vérifiés** (`scripts/truenas/enable-postgres-tls.sh --check` 8/8, détail dans la [roadmap](../roadmap.md)) ; Vault et OAuth **PLANIFIED**.
 
 ## Décision de sécurité
 
 - **Cible homelab : alignement FIPS 140-3 vérifiable**, avec inventaire des modules, modes et algorithmes, sans prétendre que PostgreSQL/TrueNAS sont certifiés. Le règlement DORA ne rend pas FIPS obligatoire de façon générale ; appliquer une politique cryptographique fondée sur les risques (articles 6 et 9).
-- **P0** : documenter la version réelle de PostgreSQL TrueNAS (l'App native n'est pas définie comme service serveur dans `apps/postgres/compose.yml`, qui ne contient que l'exporter), les paramètres TLS, les chaînes de confiance et tous les clients.
+- **P0** : documenter la version réelle de PostgreSQL TrueNAS (l'App native n'a pas de Compose dans le dépôt ; `apps/postgres-exporter` ne contient que l'exporter), les paramètres TLS, les chaînes de confiance et tous les clients.
 - **P0** : SCRAM-SHA-256 pour les rôles techniques ; inventorier MD5 sans afficher les hashes, puis rotation contrôlée. Ne pas supprimer les accès de secours avant validation.
 - **P1** : imposer TLS 1.3 pour les connexions TCP **uniquement après matrice de compatibilité et vérification SAN/CA**, retirer TLS 1.0/1.1 et suites obsolètes, limiter TLS 1.2 selon exigences et capacité des clients. PostgreSQL 16 supporte déjà TLS 1.3 ; `ssl_tls13_ciphers` est nouveau en PostgreSQL 18.
 - **P1** : passage HashiCorp Vault/OpenBao database secrets engine pour les identifiants temporaires des services. Vaultwarden est aujourd'hui la source de vérité transitoire ; la présence du Helm Vault dans Git n'atteste pas l'activation du moteur ni sa disponibilité. Politique de rotation, TTL, révocation, gestion des pools et chemin break-glass obligatoires.
