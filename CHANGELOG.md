@@ -1,3 +1,21 @@
+# [0.76.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.75.0...0.76.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **catalog:** project Pyroscope into the homelab services catalog ([914b9f8](https://github.com/AlbanAndrieu/nabla-compose/commit/914b9f8e106f1f00d1740eca2a89d54057a468da))
+* **cloudflare:** name the Access apps after the fastapi-sample host ([19d428d](https://github.com/AlbanAndrieu/nabla-compose/commit/19d428d7997a3651e6c7b3e568f9eef21b01f12e))
+* **mcp:** start the Sentry MCP server when SENTRY_URL is exported ([997e0c9](https://github.com/AlbanAndrieu/nabla-compose/commit/997e0c982613985f80929519d5338fb5a603d750))
+* **postgres-exporter:** read the rendered DSN without its quotes ([bda23dd](https://github.com/AlbanAndrieu/nabla-compose/commit/bda23ddb1c2f68af37d87577618081615cd80b77))
+* **postgres:** refuse plaintext remote connections with hostssl ([9ed3ab7](https://github.com/AlbanAndrieu/nabla-compose/commit/9ed3ab74ad582b8d352252197ab38f15a80ff24b))
+* **postgres:** silence SC2317 for report-invoked TLS checks ([869ba44](https://github.com/AlbanAndrieu/nabla-compose/commit/869ba4421cd510f63e39fb7e4fd7c4e5fa4dfd95))
+
+
+### Features
+
+* **clamav:** move ClamAV from the TrueNAS catalog to a Compose App ([6135f5f](https://github.com/AlbanAndrieu/nabla-compose/commit/6135f5f857896eb16071df820b299a3773bc37dc))
+* **postgres-exporter:** activate the exporter App ([9707f1c](https://github.com/AlbanAndrieu/nabla-compose/commit/9707f1cfdf763f7f761c6296181256b3016c2b11))
+
 # [0.75.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.74.0...0.75.0) (2026-11-13)
 
 
