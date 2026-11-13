@@ -1,3 +1,10 @@
+# [0.81.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.80.0...0.81.0) (2026-11-13)
+
+
+### Features
+
+* **litellm:** serve qwen with bonsai-2:9b on the workstation GPU [skip ci] ([956f4b0](https://github.com/AlbanAndrieu/nabla-compose/commit/956f4b0062690665b71d87eaa4b01f2c4c7f8d12))
+
 # [0.80.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.79.0...0.80.0) (2026-11-13)
 
 
