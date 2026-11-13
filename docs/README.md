@@ -10,11 +10,20 @@ the rest in git history.
 
 | Need | Canonical document |
 | --- | --- |
-| Current priorities / next actions | [`roadmap.md`](./roadmap.md) |
+| Current priorities / next actions | [`roadmap.md`](./roadmap.md), incl. 13 Nov cross-repository decisions |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
 | Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |
 | Secrets migration (blocked workstream) | [`secrets-migration-roadmap.md`](./secrets-migration-roadmap.md) |
+
+## Canonical backlogs in related repositories
+
+- [FastAPI Sample engineering](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) — API, Cloud runtime, probe evidence; its historical details are archived, not an infrastructure to-do list.
+- [Site Alban quality](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/quality-roadmap.md) and [homelab UI](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-roadmap.md) — Next.js and Vercel.
+- [Site Bababou](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md) — content and legal-document publication.
+- [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) — Gateway, heartbeat, FinOps Vercel; Compose owns only its infrastructure.
+
+The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-20261030.md) is a **dated handoff**; completed migrations stay closed. Outstanding compatibility cleanup belongs to the Compose roadmap, not a parallel migration plan.
 
 ## Decisions (ADR)
 

@@ -9,6 +9,28 @@
 - L'observation Cloudflare `DENIED`/`challenge`, un diagnostic non exécuté, ou une absence de télémétrie ne deviennent pas des services DOWN.
 - Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
 
+## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
+
+Cette vue **classe** les travaux déjà détaillés ci-dessous et ne constitue pas une seconde liste d’actions. Les preuves et critères de clôture restent dans la section propriétaire ; CODED et merge ne valent jamais ACCEPTED.
+
+| Option | Priorité proposée | Résultat à réceptionner | Où agir |
+| --- | --- | --- | --- |
+| **A — Fiabilité et données** | P0 | Premier backup PostgreSQL restauré sur cible indépendante, secrets matérialisés et accès de secours ; corriger le secret postgres-exporter signalé exposé le 13/11 | [PostgreSQL / Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [secrets](#p0--cloudflare-secrets-et-frontières-daccès) |
+| **B — Réseau et sécurité** | P0 | Contrôle des accès Cloudflare/Traefik et déploiements DNS ; préparer pfSense 26.03.1 → 26.07 sans exécuter l’upgrade dans cette PR | [Frontières](#p0--cloudflare-secrets-et-frontières-daccès), [pfSense #362](https://github.com/AlbanAndrieu/nabla-compose/pull/362) (Draft) |
+| **C — Couverture des services** | P0/P1 | NetBox, Dependency-Track et Joplin réellement RUNNING, Gatus/Prometheus avec preuve fraîche, catalogue réconcilié | [Catalogue/sondes](#p0--réception-du-catalogue-et-des-sondes-pr-326) |
+| **D — Exploitation TrueNAS** | P1 | Premier plan réel de redéploiement ciblé, conformité des ressources et diagnostics, préparation upgrade TrueNAS | [Scripts et docs](#p1--fiabilité-des-scripts-et-documentation) |
+| **E — Fonctionnalités avancées** | P1/P2 | Keycloak/Talos, APISIX, Vault PKI/OAuth, ZFS et observabilité enrichie | [P0 Apps](#p0--keycloak-home-assistant-postgresql-et-apps-en-attente-330), [cryptographie](#p0p1p2--cible-cryptographique-fips-postgresql-16--18-tls-13-vault-et-oauth-10-novembre-2026) |
+
+### Responsabilités canoniques (ne pas dupliquer les checklists)
+
+- **Compose** : réseau, sécurité edge, TrueNAS/Talos/pfSense, catalogue infra, secrets, Gatus et Prometheus ; scripts opérateur sous [scripts/README.md](../scripts/README.md).
+- **[FastAPI engineering](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md)** : API, collecte et preuve exposée, cache, front FastAPI Cloud, qualité et budget Nano ; aucune réimplémentation dans Compose.
+- **[Site Alban](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/quality-roadmap.md)** : SSR/SSG, sécurité Vercel, a11y et [interfaces homelab Next.js](https://github.com/AlbanAndrieu/nabla-site-alban/blob/master/docs/homelab-roadmap.md).
+- **[Site Bababou](https://github.com/AlbanAndrieu/nabla-site-bababou/blob/master/docs/roadmap.md)** : pages, preuves documentaires, NRE, contrôle de diffusion ; [#270](https://github.com/AlbanAndrieu/nabla-site-bababou/pull/270) encore Draft.
+- **[OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md)** : Gateway, heartbeat et FinOps Vercel ; intégration Compose limitée au runtime et à l’observabilité, le code de collecte appartient à OpenClaw.
+
+**Politique de nettoyage :** les migrations OpenClaw/YubiKey déjà réceptionnées ne sont pas rouvertes ; conserver les wrappers de rollback qui ont encore des consommateurs. Déplacer une procédure datée en archive uniquement après mise à jour de ses références et des tests de contrat. Les documents historiques ne réintroduisent pas de tâches clôturées.
+
 ## Suivi consolidé — état du code et réception (8 novembre 2026)
 
 | Chantier | État du code | Preuve runtime et prochain contrôle |
