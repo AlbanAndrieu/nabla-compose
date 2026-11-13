@@ -488,15 +488,14 @@ spec:
   system: system:default/nabla-homelab
 x-nabla:
   exposure:
-    - name: public
+    # LAN only (owner decision 13/11): its tunnel route was removed.
+    - name: lan
       hostnames:
         - adguardhome.albandrieu.com
-      protocol: HTTPS
-      visibility: public
-      gatewayRef: resource:default/cloudflare-tunnel
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
       backend: http://172.17.0.24:30004
-      access:
-        required: true
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -1323,46 +1322,6 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: https://172.17.0.57:3001
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: plumber-api-albandrieu
-  title: Plumber API - albandrieu
-  description: Plumber API instance running on the workstation.
-  labels:
-    albandrieu.com/operational-state: active
-    albandrieu.com/operational-criticality: low
-    albandrieu.com/business-criticality: low
-    albandrieu.com/bia-scope: direct
-  tags:
-    - development
-    - workstation
-  annotations:
-    albandrieu.com/bia-mtpd: P7D
-    albandrieu.com/bia-rto: P3D
-    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
-    albandrieu.com/bia-status: provisional
-    albandrieu.com/bia-reviewed-at: "2026-11-13"
-    albandrieu.com/bia-impact-operational: low
-spec:
-  type: service
-  lifecycle: production
-  owner: group:default/nabla-platform
-  system: system:default/nabla-homelab
-  dependsOn:
-    - resource:default/workstation
-x-nabla:
-  exposure:
-    - name: public
-      hostnames:
-        - plumber-api-albandrieu.albandrieu.com
-      protocol: HTTPS
-      visibility: public
-      gatewayRef: resource:default/cloudflare-tunnel
-      backend: https://172.17.0.57:3003
-      access:
-        required: true
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component

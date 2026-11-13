@@ -533,12 +533,6 @@
       "ref": "component:default/plumber-api"
     },
     {
-      "dependsOn": [
-        "resource:default/workstation"
-      ],
-      "ref": "component:default/plumber-api-albandrieu"
-    },
-    {
       "dependsOn": [],
       "ref": "component:default/plumber-worker"
     },
@@ -961,7 +955,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:e5397a6b02bf7bde0a6353b8ab80fef4680f60765d19051ccabdb694029ee4aa"
+        "value": "sha256:718fa7af6e596690ab9aa4f44e84d40636bd97ba7b2f6ae3431c8aa2545a676e"
       },
       {
         "name": "nabla:catalog-authority",
@@ -969,7 +963,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:e5397a6b-02bf-7bde-0a63-53b8ab80fef4",
+  "serialNumber": "urn:uuid:718fa7af-6e59-6690-ab9a-a4f44e84d406",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3932,33 +3926,6 @@
         {
           "name": "nabla:source-path",
           "value": "apps/plumber/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "service"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/plumber-api-albandrieu",
-      "description": "Plumber API instance running on the workstation.",
-      "name": "Plumber API - albandrieu",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/plumber-api-albandrieu"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",

@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:e5397a6b02bf7bde0a6353b8ab80fef4680f60765d19051ccabdb694029ee4aa",
+  "catalogRevision": "sha256:718fa7af6e596690ab9aa4f44e84d40636bd97ba7b2f6ae3431c8aa2545a676e",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -100,22 +100,19 @@
       "x-nabla": {
         "exposure": [
           {
-            "access": {
-              "required": true
-            },
             "backend": {
               "appProtocol": "http",
               "host": "172.17.0.24",
               "port": 30004
             },
-            "gatewayRef": "resource:default/cloudflare-tunnel",
+            "gatewayRef": "resource:default/truenas",
             "hostnames": [
               "adguardhome.albandrieu.com"
             ],
-            "name": "public",
-            "protocol": "HTTPS",
+            "name": "lan",
+            "protocol": "HTTP",
             "source": "catalog/catalog-info.yaml",
-            "visibility": "public"
+            "visibility": "lan"
           }
         ]
       }
@@ -5423,44 +5420,6 @@
         "subcomponentOf": "component:default/plumber",
         "system": "system:default/nabla-homelab",
         "type": "service"
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/plumber-api-albandrieu",
-      "kind": "Component",
-      "metadata": {
-        "annotations": {
-          "albandrieu.com/bia-impact-operational": "low",
-          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
-          "albandrieu.com/bia-mtpd": "P7D",
-          "albandrieu.com/bia-reviewed-at": "2026-11-13",
-          "albandrieu.com/bia-rto": "P3D",
-          "albandrieu.com/bia-status": "provisional"
-        },
-        "description": "Plumber API instance running on the workstation.",
-        "labels": {
-          "albandrieu.com/bia-scope": "direct",
-          "albandrieu.com/business-criticality": "low",
-          "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
-        },
-        "name": "plumber-api-albandrieu",
-        "tags": [
-          "development",
-          "workstation"
-        ],
-        "title": "Plumber API - albandrieu"
-      },
-      "sourcePath": "catalog/catalog-info.yaml",
-      "spec": {
-        "dependsOn": [
-          "resource:default/workstation"
-        ],
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "system": "system:default/nabla-homelab",
-        "type": "service"
       },
       "x-nabla": {
         "exposure": [
@@ -5469,17 +5428,18 @@
               "required": true
             },
             "backend": {
-              "appProtocol": "https",
-              "host": "172.17.0.57",
-              "port": 3003
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31071
             },
+            "backendPort": "api",
             "gatewayRef": "resource:default/cloudflare-tunnel",
             "hostnames": [
               "plumber-api-albandrieu.albandrieu.com"
             ],
             "name": "public",
             "protocol": "HTTPS",
-            "source": "catalog/catalog-info.yaml",
+            "source": "apps/plumber/compose.yml#services/plumber-api",
             "visibility": "public"
           }
         ]

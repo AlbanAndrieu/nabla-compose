@@ -950,6 +950,7 @@ LEGACY_ENTITY_ALIASES = {
     "langfuse": "component:default/langfuse-web",
     "openrag": "component:default/openrag-frontend",
     "plumber": "component:default/plumber-albandrieu",
+    "plumber-api-albandrieu": "component:default/plumber-api",
     "wazuh": "component:default/wazuh-manager",
 }
 # The v2 route intent records a newer owner decision; the legacy row is stale.

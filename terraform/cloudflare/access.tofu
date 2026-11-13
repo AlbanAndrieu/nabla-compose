@@ -168,3 +168,121 @@ resource "cloudflare_zero_trust_access_application" "joplin" {
     prevent_destroy = true
   }
 }
+
+# Affine is public behind the nabla policy; the monitor token keeps it probed.
+resource "cloudflare_zero_trust_access_application" "affine" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "affine.albandrieu.com"
+    },
+  ]
+  domain = "affine.albandrieu.com"
+  name   = "affine"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+    {
+      id         = local.access_policy_fastapi_sample_monitor_id
+      precedence = 2
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# nabla-site-alban reads the GReader API with its own service token
+# (FRESHRSS_CF_ACCESS_CLIENT_ID/SECRET); the owner creates it, then sets
+# freshrss_site_service_token_id. No public bypass.
+resource "cloudflare_zero_trust_access_policy" "freshrss_site" {
+  count      = var.freshrss_site_service_token_id == "" ? 0 : 1
+  account_id = var.account_id
+  decision   = "non_identity"
+  include = [
+    {
+      service_token = {
+        token_id = var.freshrss_site_service_token_id
+      }
+    },
+  ]
+  name = "freshrss-site-service-auth"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "cloudflare_zero_trust_access_application" "freshrss" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "freshrss.albandrieu.com"
+    },
+  ]
+  domain = "freshrss.albandrieu.com"
+  name   = "freshrss"
+  policies = concat(
+    [
+      {
+        id         = local.access_policy_nabla_id
+        precedence = 1
+      },
+      {
+        id         = local.access_policy_fastapi_sample_monitor_id
+        precedence = 2
+      },
+    ],
+    [
+      for policy in cloudflare_zero_trust_access_policy.freshrss_site : {
+        id         = policy.id
+        precedence = 3
+      }
+    ],
+  )
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# GitHub Actions CI calls the Plumber API with the fastapi-sample monitor token.
+resource "cloudflare_zero_trust_access_application" "plumber_api" {
+  account_id           = var.account_id
+  app_launcher_visible = false
+  destinations = [
+    {
+      type = "public"
+      uri  = "plumber-api-albandrieu.albandrieu.com"
+    },
+  ]
+  domain = "plumber-api-albandrieu.albandrieu.com"
+  name   = "plumber-api"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+    {
+      id         = local.access_policy_fastapi_sample_monitor_id
+      precedence = 2
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
