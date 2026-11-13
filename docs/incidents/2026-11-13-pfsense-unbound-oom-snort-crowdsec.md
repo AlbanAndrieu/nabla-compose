@@ -151,10 +151,12 @@ en lecture seule (`user-config-readonly`).
 ## Non fait
 
 - Cause des échecs de démarrage du point de restauration et de
-  l'environnement d'octobre : console série nécessaire. Ne pas les supprimer
-  avant.
-- `default_clone` garde la config de mai pour le reste (HAProxy relancé en
-  boucle par le Watchdog, notamment).
+  l'environnement d'octobre : console série nécessaire. Nettoyage et upgrade
+  26.07 planifiés dans le
+  [runbook dédié](../runbooks/pfsense-26.07-upgrade.md).
+- `default_clone` garde la config de mai pour le reste : règles WAN de
+  l'ancien bureau, HAProxy, overrides Unbound et paquets d'octobre absents
+  (détail dans le runbook).
 - `SSL_PORTS` sans 7000 ni 10443 ; fichiers `emerging*` et `openappid*` encore
   sur le disque.
 - Côté FastAPI, les appels avec les clés `posture` et `security` ne sont pas
