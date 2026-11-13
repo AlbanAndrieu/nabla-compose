@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 89 ; actives : 62 ; planifiées : 24.
+Apps : 90 ; actives : 63 ; planifiées : 24.
 
 ## Écarts par type
 
@@ -15,7 +15,8 @@ Apps : 89 ; actives : 62 ; planifiées : 24.
 | `NO_AVAILABILITY_PROBE` | 30 |
 | `NO_DEPLOY_PATH` | 18 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
+| `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
 
@@ -30,6 +31,7 @@ Apps : 89 ; actives : 62 ; planifiées : 24.
 | `bichon` | active | custom-apps.yml | `cpool/bichon` (app-state) | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `clamav` | active | custom-apps.yml | `cpool/clamav` (❌)<br>`cpool/logs` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | `SNAPSHOT_UNCLASSIFIED`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | manifest | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
 | `crowdsec` | active | custom-apps.yml | — | manifest | ❌ | crowdsec | — | diagnose-crowdsec-cutover.sh | provision-crowdsec-pfsense-bouncer.sh | `NO_AVAILABILITY_PROBE` |
