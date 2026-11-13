@@ -4,13 +4,13 @@
 
 ## Ordre d’exécution validé — 13 novembre 2026
 
-L'opérateur valide **H01 → H02 → H05** dans le [portefeuille inter-dépôts](roadmap-portfolio.md). Les options G1–G7 ci-dessous restent des regroupements de décision, **pas** une séquence concurrente.
+**Ordre modifié dans la PR #369 : H02/G1 → H01 → H05.** G1 (sauvegardes et rotation du secret exposé `postgres_exporter`) est avancé sans déclarer H01 terminé. Conserver le [portefeuille unique H01–H19](roadmap-portfolio.md), sans rouvrir les anciens groupes G1–G7.
 
-1. **H01 — Talos / CSI TrueNAS NFS** : identifier le driver installé, le comparer au pilote `truenas/truenas-csi` versionné, examiner controller/DaemonSet, PVC `Bound`, écriture/lecture entre workers et reclaim ZFS. Valider NetworkPolicy avant de nouveaux workloads. [Contrat CSI](kubernetes-csi-preflight.md).
-2. **H02 — Sauvegardes PostgreSQL** : réaliser un dump manuel `postgresbackup` avec SHA-256 et `pg_restore --list`, **puis le restaurer dans une base/instance isolée** et comparer les données. Conserver le cron désactivé tant que cette restauration n'est pas prouvée. [Runbook Apps](runbooks/production-app-operations.md).
-3. **H05 — Gatus / Prometheus** : réconcilier le catalogue `x-nabla` et les états TrueNAS avec les réponses directes, les résultats Gatus horodatés et les séries `up` / `gatus_results_endpoint_success`. Ne pas convertir `NOT_RUN`, `DENIED` ou `planned` en panne effective. [Remédiations](runbooks/2026-11-04-probe-remediation.md).
+1. **H02 — Sauvegarde et restauration PostgreSQL** : rotation privée du secret exporter, backup TLS `verify-full` avec SHA-256, restauration Docker sans réseau, puis comparaison des données. Code proposé dans cette PR ; **rotation et restauration runtime non vérifiées**. Cron désactivé. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
+2. **H01 — CSI TrueNAS / Talos** : controller/DaemonSet, PVC RWX multi-workers, reclaim ZFS, NetworkPolicy et driver installé à réceptionner. [Préflight](kubernetes-csi-preflight.md).
+3. **H05 — Gatus et Prometheus** : preuves fraîches `app.query`, Gatus et scrapes `up` ; `NOT_RUN` et `DENIED` ne prouvent pas `DOWN`. [Runbook](runbooks/2026-11-04-probe-remediation.md).
 
-**Gates communes** : lectures seules avant mutation, preuves horodatées et SHA déployé, tests locaux au HEAD, puis recette depuis le LAN. Les coupures réversibles sont acceptées, pas les suppressions de données ni les expositions publiques non approuvées.
+**Gates communes** : contrôles en lecture seule, tests locaux, SHA et preuves datées avant toute réception LAN. Aucune suppression de données ni exposition WAN implicite.
 
 ## Règles de suivi
 
@@ -21,7 +21,7 @@ L'opérateur valide **H01 → H02 → H05** dans le [portefeuille inter-dépôts
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
   
-**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre approuvé : H01 → H02 → H05.**
+**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre proposé par la PR #369 : H02/G1 → H01 → H05.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
 

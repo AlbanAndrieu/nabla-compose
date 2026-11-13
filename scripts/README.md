@@ -81,12 +81,18 @@ The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and 
 
 ## Approved execution and offline portfolio check
 
-The approved priority is **H01 (Talos / CSI) → H02 (PostgreSQL restore) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
+The priority proposed in PR #369 is **H02/G1 (PostgreSQL) → H01 (CSI) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
 
 - `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
 - `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.
-- `python3 scripts/quality/check-roadmap-portfolio.py --worklist` prints only the approved H01/H02/H05 order (read-only).
+- `python3 scripts/quality/check-roadmap-portfolio.py --worklist` prints only the H02/H01/H05 order of PR #369 (read-only).
 - For H01 use the dedicated `scripts/talos/validate-csi-prereqs.sh` and `smoke-truenas-csi-nfs.sh`. For H02 use the existing `postgresbackup` restoration process. For H05 use `scripts/truenas/verify-service-observability.py`. These scripts have different privileges: do not fuse them into a mutating all-in-one operation.
+
+## G1 — Backup verification and secret rotation
+
+- `scripts/truenas/verify-postgresbackup-restore.py`: verify checksum, then optionally restore in a disposable Docker container with `--network none` and `--pull never`.
+- [G1 operator runbook](../docs/runbooks/postgres-g1-restore-and-secret-rotation.md): rotate the exposed exporter secret privately and accept a dated independent restoration.
+- The cron remains disabled; code and `pg_restore --list` alone do not close H02.
 
 ## Refactor rules
 

@@ -53,6 +53,15 @@ def test_job_is_hardened_and_uses_canonical_runtime_secret() -> None:
     assert "POSTGRES_PASSWORD" not in service["environment"]
 
 
+def test_backup_connection_requires_tls13_validated_ca() -> None:
+    service = _service()
+    env = service["environment"]
+    assert env["PGSSLMODE"] == "verify-full"
+    assert env["PGSSLROOTCERT"] == "/opt/nabla/pg-ca/ca.crt"
+    assert "/mnt/cpool/secrets/runtime/postgres/tls/ca.crt:/opt/nabla/pg-ca/ca.crt:ro" in service["volumes"]
+    assert env["POSTGRES_HOST"] == "172.17.0.24"
+
+
 def test_backup_script_verifies_prunes_and_keeps_the_password_off_argv() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 

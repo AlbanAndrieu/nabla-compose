@@ -26,7 +26,7 @@ def test_portfolio_is_valid_without_network() -> None:
     assert {'H17', 'H18', 'H19'}.issubset({item['id'] for item in entries})
     assert {item["priority"] for item in entries} == {"P0", "P1", "P2"}
     assert all(item["runtime"] != "ACCEPTED" for item in entries)
-    assert "## Séquence validée — H01 → H02 → H05" in (ROOT / "docs/roadmap-portfolio.md").read_text(encoding="utf-8")
+    assert "## Séquence validée — H02 → H01 → H05" in (ROOT / "docs/roadmap-portfolio.md").read_text(encoding="utf-8")
 
 
 def test_duplicate_or_invalid_status_fails_closed(tmp_path: Path) -> None:
@@ -56,4 +56,4 @@ def test_cli_json_and_check_are_read_only() -> None:
         assert "H01" in result.stdout or "PASS roadmap portfolio:" in result.stdout
         if option == "--worklist":
             import json
-            assert [item["id"] for item in json.loads(result.stdout)] == ["H01", "H02", "H05"]
+            assert [item["id"] for item in json.loads(result.stdout)] == ["H02", "H01", "H05"]

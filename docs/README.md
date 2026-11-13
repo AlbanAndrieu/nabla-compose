@@ -10,7 +10,7 @@ the rest in git history.
 
 | Need | Canonical document |
 | --- | --- |
-| **Priorités approuvées H01 → H02 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
+| **Ordre G1 de #369 : H02 → H01 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
 | Index général allégé | [`roadmap.md`](./roadmap.md) ; [archive du 13/11](./archive/2026-11-13-roadmap-before-compaction.md) |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
@@ -59,6 +59,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 - [Operator tools and TrueNAS upgrade coupling](./truenas-operator-tools.md)
 - [Deployment automation](./truenas-deployment-automation.md)
 - [Prompt de déploiement pour une session Claude sur TrueNAS](runbooks/claude-remote-truenas-rollout-prompt.md) : ordre complet, ProtonVPN en dernière étape.
+- [G1 PostgreSQL : rotation et restauration isolée](runbooks/postgres-g1-restore-and-secret-rotation.md)
 - [Opérations de production des Apps TrueNAS](runbooks/production-app-operations.md) : `app-ops.sh` (état, stockage, secrets, déploiement, redémarrage, diagnostic, supervision, sauvegarde) et [matrice générée](master-readiness.md).
 - [Service resource inventory](./runbooks/2026-10-26-homelab-service-resource-inventory.md)
 - [CSI orphan datasets](./truenas-csi-orphan-datasets.md)
