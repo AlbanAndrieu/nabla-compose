@@ -1,3 +1,17 @@
+# [0.80.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.79.0...0.80.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **litellm:** drop the three TrueNAS routes whose models are gone ([18293fa](https://github.com/AlbanAndrieu/nabla-compose/commit/18293fab5ea340cc5ec510cd3c5b84d0bd8e3e54))
+* **redis:** refuse to start the workstation Redis without REDIS_AUTH ([a5c58b1](https://github.com/AlbanAndrieu/nabla-compose/commit/a5c58b1a75fb40aee025243b4a64ccd12f72eb11))
+* **scripts:** make the postgres restore proof executable ([8dbe4dc](https://github.com/AlbanAndrieu/nabla-compose/commit/8dbe4dcb99847093d2f93e6eee4db52e227c5216))
+
+
+### Features
+
+* **prometheus:** alert on worn or failing workstation disks ([034d1df](https://github.com/AlbanAndrieu/nabla-compose/commit/034d1dff8253dc0849b2f4fc44091095d958f73a))
+
 # [0.79.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.78.1...0.79.0) (2026-11-13)
 
 
