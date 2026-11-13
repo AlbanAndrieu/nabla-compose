@@ -1,3 +1,16 @@
+# [0.78.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.77.0...0.78.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **truenas:** repair homarr-sync layouts, clamd OOM and bitcoind health ([2feee5f](https://github.com/AlbanAndrieu/nabla-compose/commit/2feee5f256a56c4da93418b7a756ed3fb9f728da))
+
+
+### Features
+
+* **catalog:** cut the service catalog over to V2 exposure intent ([13aa9dd](https://github.com/AlbanAndrieu/nabla-compose/commit/13aa9dd97a128a9f80260a6ae75dba32ef32366b))
+* **cloudflare:** apply the 13/11 exposure decisions to the V2 intent ([0b9dc53](https://github.com/AlbanAndrieu/nabla-compose/commit/0b9dc53abe71e2176e88672b9bb8455f980213ef))
+
 # [0.77.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.76.1...0.77.0) (2026-11-13)
 
 
