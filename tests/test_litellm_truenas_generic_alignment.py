@@ -26,8 +26,8 @@ class TrueNASGenericLiteLLMTests(unittest.TestCase):
 
     def test_generic_models_align_with_gpu_workstation(self):
         routes = dict(active_models())
-        generic = ("llama3.2", "llama3.1", "llama3.8b",
-                   "deepseek-coder-v2", "qwen", "gemma3", "rr-json")
+        # llama3.1, llama3:8b and deepseek-coder-v2 left the 6 GB GPU on 7 Nov 2026.
+        generic = ("llama3.2", "qwen", "gemma3", "rr-json")
         for name in generic:
             with self.subTest(model=name):
                 self.assertIn(name, routes)
