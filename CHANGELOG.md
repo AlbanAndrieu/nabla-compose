@@ -1,3 +1,10 @@
+## [0.78.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.78.0...0.78.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **csi:** fail closed on stale controller rollout evidence [skip ci] ([1b500ba](https://github.com/AlbanAndrieu/nabla-compose/commit/1b500ba63581e7b9de548f64b1da9612a7b69f6a))
+
 # [0.78.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.77.0...0.78.0) (2026-11-13)
 
 
