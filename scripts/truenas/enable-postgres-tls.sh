@@ -68,7 +68,7 @@ ssl_enabled() {
     "$(postgres_admin_query "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" "SHOW ssl_min_protocol_version")" == "TLSv1.3" ]]
 }
 
-# shellcheck disable=SC2329 # invoked through report
+# shellcheck disable=SC2317,SC2329 # invoked through report
 tls13_verified() {
   local out
   out="$(openssl s_client -starttls postgres -connect "${TLS_HOST}:${TLS_PORT}" -tls1_3 \
@@ -77,7 +77,7 @@ tls13_verified() {
 }
 
 # Only meaningful once TLS 1.3 answers: a server without ssl rejects TLS 1.2 too.
-# shellcheck disable=SC2329 # invoked through report
+# shellcheck disable=SC2317,SC2329 # invoked through report
 tls12_rejected() {
   tls13_verified && ! openssl s_client -starttls postgres -connect "${TLS_HOST}:${TLS_PORT}" -tls1_2 </dev/null >/dev/null 2>&1
 }
@@ -91,7 +91,7 @@ hostssl_enforced() {
   grep -Eq "^hostssl${REMOTE_RULE}" <<<"${hba}" && ! grep -Eq "^host${REMOTE_RULE}" <<<"${hba}"
 }
 
-# shellcheck disable=SC2329 # invoked through report
+# shellcheck disable=SC2317,SC2329 # invoked through report
 plaintext_rejected() {
   local out
   out="$(docker exec "${POSTGRES_CONTAINER}" psql -w \
