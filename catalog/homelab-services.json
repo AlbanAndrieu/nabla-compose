@@ -886,6 +886,15 @@
       "external": false
     },
     {
+      "id": "pyroscope",
+      "name": "Grafana Pyroscope",
+      "description": "Continuous profiling backend",
+      "internalHost": "172.17.0.24",
+      "internalPort": 4040,
+      "internalSecure": false,
+      "external": false
+    },
+    {
       "id": "radarr",
       "name": "Radarr",
       "icons": ["fas fa-film"],

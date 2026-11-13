@@ -21,8 +21,9 @@ EXPECTED_PRIORITIES = {
     "prometheus": 8,
     "grafana": 9,
     "n8n": 10,
+    "pyroscope": 11,
 }
-ABSENT_FROM_CATALOG = {"redis", "cloudflared", "pyroscope"}
+ABSENT_FROM_CATALOG = {"redis", "cloudflared"}
 
 
 def _overrides() -> list[dict]:

@@ -117,6 +117,10 @@
     {
       "name": "Grafana",
       "probePriority": 9
+    },
+    {
+      "name": "Grafana Pyroscope",
+      "probePriority": 11
     }
   ]
 }

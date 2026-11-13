@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:a20a742fa17ec4fc3fb894714e66d2f15edffee399a68a71821d677d992b2d2b",
+  "catalogRevision": "sha256:1fd53a06f7643fbc322b438e8d5e4a7f99ea615018ebf8b8c199b2ea39d58756",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2302,7 +2302,7 @@
       "sourcePath": "apps/pyroscope/compose.yml",
       "composeService": "pyroscope",
       "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
-      "presentationRole": "support",
+      "presentationRole": "service",
       "criticality": "medium",
       "monitoring": {
         "type": "http",
