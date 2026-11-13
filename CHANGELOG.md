@@ -1,3 +1,16 @@
+# [0.75.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.74.0...0.75.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **catalog:** repoint wrong Sample probes and cover running TrueNAS services ([b692abb](https://github.com/AlbanAndrieu/nabla-compose/commit/b692abbf3308f8bc96b9516df7993e29f9e6eee5))
+* **prometheus:** mark Keycloak, NetBox and Dependency-Track planned ([2693416](https://github.com/AlbanAndrieu/nabla-compose/commit/2693416d3a4378f1a2dc91d6e55f49d03d40e10e))
+
+
+### Features
+
+* **gatus:** monitor InfluxDB, MongoDB and the running planned Apps ([11b41e2](https://github.com/AlbanAndrieu/nabla-compose/commit/11b41e2e4102b3b809e02b93f6133c4219d502e3))
+
 # [0.74.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.73.0...0.74.0) (2026-11-12)
 
 
