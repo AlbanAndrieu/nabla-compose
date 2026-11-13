@@ -85,6 +85,7 @@ The approved priority is **H01 (Talos / CSI) → H02 (PostgreSQL restore) → H0
 
 - `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
 - `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.
+- `python3 scripts/quality/check-roadmap-portfolio.py --worklist` prints only the approved H01/H02/H05 order (read-only).
 - For H01 use the dedicated `scripts/talos/validate-csi-prereqs.sh` and `smoke-truenas-csi-nfs.sh`. For H02 use the existing `postgresbackup` restoration process. For H05 use `scripts/truenas/verify-service-observability.py`. These scripts have different privileges: do not fuse them into a mutating all-in-one operation.
 
 ## Refactor rules
