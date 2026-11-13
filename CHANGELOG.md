@@ -1,3 +1,10 @@
+# [0.77.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.76.1...0.77.0) (2026-11-13)
+
+
+### Features
+
+* **pfsense:** prepare 26.07 upgrade preflight ([4ac24bb](https://github.com/AlbanAndrieu/nabla-compose/commit/4ac24bb6ae30a4b9fad4784c00db3f21189c7d43))
+
 ## [0.76.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.76.0...0.76.1) (2026-11-13)
 
 
