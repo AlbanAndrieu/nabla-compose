@@ -11,6 +11,16 @@
     "port": 30081
   },
   {
+    "id": "akvorado-console",
+    "type": "http",
+    "name": "Akvorado Console",
+    "description": "UI for historical network-flow search and analysis.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31056/api/v0/console/healthcheck"
+  },
+  {
     "id": "alloy",
     "type": "http",
     "name": "Grafana Alloy",
@@ -63,6 +73,16 @@
     "url": "http://172.17.0.24:8443/healthz"
   },
   {
+    "id": "crowdsec",
+    "type": "http",
+    "name": "CrowdSec",
+    "description": "Nabla generated monitor: crowdsec",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:8084/health"
+  },
+  {
     "id": "cyberbro",
     "type": "http",
     "name": "Cyberbro",
@@ -103,6 +123,16 @@
     "max_retries": 3,
     "retry_interval": 60,
     "url": "http://172.17.0.24:5001/ready"
+  },
+  {
+    "id": "dsomm",
+    "type": "http",
+    "name": "DSOMM",
+    "description": "DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:31088/"
   },
   {
     "id": "fastapi-sample",
@@ -315,6 +345,16 @@
     "retry_interval": 60,
     "hostname": "mongo",
     "port": 27017
+  },
+  {
+    "id": "n8n",
+    "type": "http",
+    "name": "n8n",
+    "description": "Nabla generated monitor: n8n",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "url": "http://172.17.0.24:30109/healthz"
   },
   {
     "id": "nexus",

@@ -30,26 +30,26 @@ def test_discovery_stack_uses_single_declared_entity_for_shared_stores() -> None
     )
 
 
-def test_akvorado_inactive_and_not_silently_monitored() -> None:
+def test_akvorado_active_and_monitored_through_its_console() -> None:
     entities = catalog()
     names = {
         "akvorado-orchestrator", "akvorado-inlet", "akvorado-outlet", "akvorado-console"
     }
     for name in names:
         component = entities[f"component:default/{name}"]
-        assert component["metadata"]["labels"]["albandrieu.com/operational-state"] == "planned"
+        assert component["metadata"]["labels"]["albandrieu.com/operational-state"] == "active"
         assert component["spec"]["system"] == "system:default/nabla-homelab"
         assert set(component["spec"].get("dependsOn", [])) <= {
             "resource:default/clickhouse", "resource:default/kafka"
         }
     homarr = json.loads((ROOT / "apps/homarr/generated/apps.json").read_text())
     apps = {item["id"]: item for item in homarr["applications"]}
-    for name in names:
-        assert name in apps
-        assert apps[name]["syncEligible"] is False
+    assert names <= set(apps)
+    # Only the console has a UI worth a Homarr tile.
+    assert {name for name in names if apps[name]["syncEligible"]} == {"akvorado-console"}
     gatus = yaml.safe_load((ROOT / "apps/gatus/config/config.yml").read_text())
     monitored = {e.get("extra-labels", {}).get("nabla_service_id") for e in gatus["endpoints"]}
-    assert names.isdisjoint(monitored)
+    assert names & monitored == {"akvorado-console"}
 
 
 def test_backstage_compose_mapping_is_declared_once() -> None:
