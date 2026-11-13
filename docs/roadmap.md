@@ -2,6 +2,16 @@
 
 > Mise à jour : **13 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
+## Ordre d’exécution validé — 13 novembre 2026
+
+L'opérateur valide **H01 → H02 → H05** dans le [portefeuille inter-dépôts](roadmap-portfolio.md). Les options G1–G7 ci-dessous restent des regroupements de décision, **pas** une séquence concurrente.
+
+1. **H01 — Talos / CSI TrueNAS NFS** : identifier le driver installé, le comparer au pilote `truenas/truenas-csi` versionné, examiner controller/DaemonSet, PVC `Bound`, écriture/lecture entre workers et reclaim ZFS. Valider NetworkPolicy avant de nouveaux workloads. [Contrat CSI](kubernetes-csi-preflight.md).
+2. **H02 — Sauvegardes PostgreSQL** : réaliser un dump manuel `postgresbackup` avec SHA-256 et `pg_restore --list`, **puis le restaurer dans une base/instance isolée** et comparer les données. Conserver le cron désactivé tant que cette restauration n'est pas prouvée. [Runbook Apps](runbooks/production-app-operations.md).
+3. **H05 — Gatus / Prometheus** : réconcilier le catalogue `x-nabla` et les états TrueNAS avec les réponses directes, les résultats Gatus horodatés et les séries `up` / `gatus_results_endpoint_success`. Ne pas convertir `NOT_RUN`, `DENIED` ou `planned` en panne effective. [Remédiations](runbooks/2026-11-04-probe-remediation.md).
+
+**Gates communes** : lectures seules avant mutation, preuves horodatées et SHA déployé, tests locaux au HEAD, puis recette depuis le LAN. Les coupures réversibles sont acceptées, pas les suppressions de données ni les expositions publiques non approuvées.
+
 ## Règles de suivi
 
 - `CODED` : code présent dans Git ; `TESTED` : contrat local exécuté sur un SHA identifié ; `ACCEPTED (runtime)` : mesure fonctionnelle datée du service cible ; `NOT_VERIFIED` : preuve absente. Ne jamais déduire le dernier état du premier.
