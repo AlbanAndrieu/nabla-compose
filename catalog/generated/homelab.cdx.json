@@ -797,7 +797,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32"
+        "value": "sha256:879cfb509f1efcee062738b70fdf2ebbe175ec9616ca4def0b574486422095ef"
       },
       {
         "name": "nabla:catalog-authority",
@@ -805,7 +805,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:949a8c65-bcb6-a1e6-b067-bde3cfc911b9",
+  "serialNumber": "urn:uuid:879cfb50-9f1e-fcee-0627-38b70fdf2ebb",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -835,7 +835,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-console",
-      "description": "Planned UI for historical network-flow search and analysis.",
+      "description": "UI for historical network-flow search and analysis.",
       "name": "Akvorado Console",
       "properties": [
         {
@@ -862,7 +862,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-inlet",
-      "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer.",
+      "description": "NetFlow/IPFIX UDP receiver and Kafka producer.",
       "name": "Akvorado Inlet",
       "properties": [
         {
@@ -889,7 +889,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-orchestrator",
-      "description": "Planned Akvorado configuration and coordination control plane.",
+      "description": "Akvorado configuration and coordination control plane.",
       "name": "Akvorado Orchestrator",
       "properties": [
         {
@@ -916,7 +916,7 @@
     },
     {
       "bom-ref": "component:default/akvorado-outlet",
-      "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline.",
+      "description": "Kafka flow consumer and ClickHouse ingestion pipeline.",
       "name": "Akvorado Outlet",
       "properties": [
         {
@@ -1664,7 +1664,7 @@
     },
     {
       "bom-ref": "component:default/dsomm",
-      "description": "Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
+      "description": "DSOMM assessment UI for evidence-backed DevSecOps maturity reviews.",
       "name": "OWASP DevSecOps Maturity Model",
       "properties": [
         {

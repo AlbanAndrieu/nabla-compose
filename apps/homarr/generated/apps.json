@@ -27,8 +27,8 @@
       "composeService": "akvorado-console",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31056/",
-      "syncEligible": false,
-      "description": "Planned UI for historical network-flow search and analysis."
+      "syncEligible": true,
+      "description": "UI for historical network-flow search and analysis."
     },
     {
       "id": "akvorado-inlet",
@@ -40,7 +40,7 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned NetFlow/IPFIX UDP receiver and Kafka producer."
+      "description": "NetFlow/IPFIX UDP receiver and Kafka producer."
     },
     {
       "id": "akvorado-orchestrator",
@@ -52,7 +52,7 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned Akvorado configuration and coordination control plane."
+      "description": "Akvorado configuration and coordination control plane."
     },
     {
       "id": "akvorado-outlet",
@@ -64,7 +64,7 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned Kafka flow consumer and ClickHouse ingestion pipeline."
+      "description": "Kafka flow consumer and ClickHouse ingestion pipeline."
     },
     {
       "id": "alloy",
@@ -416,7 +416,7 @@
       "dockerManaged": true,
       "href": null,
       "syncEligible": false,
-      "description": "Planned DSOMM assessment UI for evidence-backed DevSecOps maturity reviews."
+      "description": "DSOMM assessment UI for evidence-backed DevSecOps maturity reviews."
     },
     {
       "id": "dsomm-baseline",
@@ -801,7 +801,7 @@
       "composeService": "n8n",
       "dockerManaged": true,
       "href": "https://n8n.int.albandrieu.com",
-      "syncEligible": false
+      "syncEligible": true
     },
     {
       "id": "neo4j-security",

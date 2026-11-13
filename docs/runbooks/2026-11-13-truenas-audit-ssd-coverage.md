@@ -133,7 +133,7 @@ Updater, Dozzle, Dockhand, Draw.io) ne sont plus générées : leurs entités Ba
 | Schéma Sample | `internalSecure` faux sur 8 ports servis en HTTP clair : clickhouse, freshrss, hello-int, langfuse, litellm, litellm-albandrieu, openwebui, searxng |
 | Priorités Sample | Redis (4) et Pyroscope (11) classés selon l'ordre d'amorçage de fastapi-sample |
 | Gatus actif | InfluxDB (`http://influxdb:8086/health`), MongoDB (`tcp://mongo:27017`), via le réseau `intranet` |
-| Gatus déclaré, inactif | CrowdSec, DSOMM, n8n, Akvorado Console : leurs Apps tournent mais l'entité Backstage est `planned`, le générateur les filtre jusqu'au passage à `active` |
+| Gatus et Backstage | CrowdSec (`/health`), DSOMM (`/`), n8n (`/healthz`), Akvorado Console (`/api/v0/console/healthcheck`) : leurs Apps tournent, leurs entités étaient `planned` depuis la bascule Backstage v2 du 21/10. Entités passées à `active` (décision opérateur du 13/11) avec un profil BIA `provisional` copié de Grafana (criticité faible, MTPD 7 j, RTO 3 j, à revoir) ; inlet, outlet et console héritent de `akvorado-orchestrator`. Effet de bord : tuiles Homarr pour CrowdSec, DSOMM, n8n et la console Akvorado |
 | Prometheus | `operational_state: planned` sur `keycloak`, `netbox`, `dependency_track` (miroir de Backstage) ; ces jobs entrent dans `NablaExporterTargetDown`, qui alertera dès leur passage à `active` (aucune alerte ne couvrait Keycloak) |
 
 ## 5. Trous restants et blocages
@@ -187,9 +187,10 @@ vérifiées le 13/11, à déclarer avec l'entité lors de la [migration catalogu
 - Sans port réseau joignable par Sample : autokuma, cloudflared, suricata, bitcoind (aucun port
   publié), openclaw-gateway (127.0.0.1), openclaw-devbox, docker-socket-proxy (réseau dédié),
   influxdb (127.0.0.1), mongo et kafka (réseau `intranet` seul).
-- Entités `planned` dont l'App tourne : crowdsec, dsomm, n8n, akvorado, plumber. Les passer à
-  `active` active leurs sondes Gatus. L'id Sample `plumber` vise l'instance du poste ; la Plumber
-  TrueNAS (31070/31071) n'a pas de sonde.
+- Plumber : l'App TrueNAS tourne (31070/31071) mais son entité reste `planned` (roadmap P0,
+  déploiement contrôlé) ; l'id Sample `plumber` vise l'instance du poste.
+- Profils BIA `provisional` de crowdsec, dsomm, n8n et akvorado : valeurs reprises de Grafana,
+  à valider par l'opérateur.
 - Métriques Prometheus : aucune App en marche sans métriques n'expose de `/metrics` exploitable
   sans authentification (`/metrics` de Langflow et Open WebUI renvoient du HTML ; MinIO exige
   `MINIO_PROMETHEUS_AUTH_TYPE=public` ; Nexus et Home Assistant un jeton). Il faut un exporter ou
@@ -224,7 +225,7 @@ fonctionnement (login, redirection, API sans page racine, protocole non HTTP), �
 | 2fauth | RUNNING | oui | non | oui `172.17.0.24:30081` | 200 |
 | adguardhome | RUNNING | non | non | oui `172.17.0.24:30004` | 302 → login : attendu (authentification) |
 | affine | absente | non | non | oui `172.17.0.24:30169` | fermé : App absente (non déployée) |
-| akvorado-console | RUNNING | déclarée, inactive (entité `planned`) | akvorado_inlet up, akvorado_outlet up | oui `172.17.0.24:31056` | 200 |
+| akvorado-console | RUNNING | ajoutée | akvorado_inlet up, akvorado_outlet up | oui `172.17.0.24:31056` | 200 |
 | alloy | — (autre App) | oui | alloy up | non | — |
 | anythingllm | absente | non | non | oui `172.17.0.24:30318` | fermé : App absente (non déployée) |
 | anythingllm-albandrieu | absente | non | non | oui `172.17.0.57:3007` | fermé : hors TrueNAS (poste), service arrêté |
@@ -239,7 +240,7 @@ fonctionnement (login, redirection, API sans page racine, protocole non HTTP), �
 | cloudflared | RUNNING | non | non | non | — |
 | code-server | RUNNING | oui | non | oui `172.17.0.24:8443` | 302 → login : attendu (authentification) |
 | convertx | STOPPED | non | non | oui `172.17.0.24:30154` | fermé : App STOPPED (arrêt volontaire) |
-| crowdsec | RUNNING | déclarée, inactive (entité `planned`) | crowdsec up | ajoutée `172.17.0.24:8084` | 404 : attendu (API, pas de page racine) |
+| crowdsec | RUNNING | ajoutée | crowdsec up | ajoutée `172.17.0.24:8084` | 404 : attendu (API, pas de page racine) |
 | cyberbro | RUNNING | oui | non | oui `172.17.0.24:5100` | 200 |
 | ddns-updater | STOPPED | déclarée, inactive (entité `planned`) | non | oui `172.17.0.24:30007` | fermé : App STOPPED (arrêt volontaire) |
 | defectdojo | RUNNING | oui | non | oui `172.17.0.24:31085` | 302 → login : attendu (authentification) |
@@ -252,7 +253,7 @@ fonctionnement (login, redirection, API sans page racine, protocole non HTTP), �
 | domain-watchdog | STOPPED | non | non | oui `172.17.0.24:30317` | fermé : App STOPPED (arrêt volontaire) |
 | dozzle | STOPPED | déclarée, inactive (entité `planned`) | non | oui `172.17.0.24:8888` | fermé : App STOPPED (arrêt volontaire) |
 | drawio | STOPPED | déclarée, inactive (entité `planned`) | non | oui `172.17.0.24:9080` | fermé : App STOPPED (arrêt volontaire) |
-| dsomm | RUNNING | déclarée, inactive (entité `planned`) | non | oui `172.17.0.24:31088` | 200 |
+| dsomm | RUNNING | ajoutée | non | oui `172.17.0.24:31088` | 200 |
 | elasticsearch | STOPPED | non | non | non | — |
 | emby | STOPPED | non | non | non | — |
 | fastapi-sample | RUNNING | oui | fastapi_sample up | oui `172.17.0.24:8091` | 200 |
@@ -294,7 +295,7 @@ fonctionnement (login, redirection, API sans page racine, protocole non HTTP), �
 | mimir | — (autre App) | oui | mimir up | non | — |
 | minio | RUNNING | oui | non | oui `172.17.0.24:9091` | 200 |
 | mongo | RUNNING | ajoutée | non | non | — |
-| n8n | RUNNING | déclarée, inactive (entité `planned`) | n8n up | oui `172.17.0.24:30109` | 200 |
+| n8n | RUNNING | ajoutée | n8n up | oui `172.17.0.24:30109` | 200 |
 | neo4j-security | absente | déclarée, inactive (entité `planned`) | non | non | — |
 | netalertx | absente | non | non | oui `172.17.0.24:30321` | fermé : App absente (non déployée) |
 | netbootxyz | absente | non | non | oui `172.17.0.24:31010` | fermé : App absente (non déployée) |
