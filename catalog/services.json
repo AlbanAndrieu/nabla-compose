@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:70242cce308e2da689dad5a237df82e0d984f154bd659c9e202e3850f3ea2750",
+  "catalogRevision": "sha256:23ef0277a846d2d53dc9a7f9f9a8cf125043984136945378a25e020e82cd72ab",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -329,6 +329,32 @@
         "networks": [
           "intranet"
         ]
+      }
+    },
+    {
+      "id": "clamav",
+      "name": "ClamAV",
+      "kind": "antivirus-engine",
+      "category": "security",
+      "sourcePath": "apps/clamav/compose.yml",
+      "composeService": "clamav",
+      "url": "https://clamav.albandrieu.com",
+      "internalUrl": "https://clamav.int.albandrieu.com",
+      "description": "clamd scans the TrueNAS datasets through the clamav-scan cron jobs; TCP/3310 on port 30005.",
+      "presentationRole": "support",
+      "criticality": "high",
+      "securityFunctions": [
+        "protect",
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 30005
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "clamav"
       }
     },
     {
@@ -2161,7 +2187,6 @@
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "monitoring": {
         "type": "port",
         "host": "172.17.0.24",
@@ -2303,7 +2328,7 @@
       "sourcePath": "apps/pyroscope/compose.yml",
       "composeService": "pyroscope",
       "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
-      "presentationRole": "support",
+      "presentationRole": "service",
       "criticality": "medium",
       "monitoring": {
         "type": "http",

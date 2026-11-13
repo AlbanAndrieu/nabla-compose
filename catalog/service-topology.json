@@ -336,10 +336,10 @@
       "name": "ClamAV",
       "kind": "antivirus-engine",
       "category": "security",
-      "sourcePath": "catalog/homelab-services.json",
+      "sourcePath": "apps/clamav/compose.yml",
       "url": "https://clamav.albandrieu.com",
       "internalUrl": "https://clamav.int.albandrieu.com",
-      "description": "Internal ClamAV/clamd service. The .int URL is the private DNS identity; functional health remains a TCP/3310 probe.",
+      "description": "clamd scans the TrueNAS datasets through the clamav-scan cron jobs; TCP/3310 on port 30005.",
       "presentationRole": "support",
       "criticality": "high",
       "securityFunctions": [
@@ -348,7 +348,12 @@
       ],
       "runtime": {
         "provider": "truenas-app",
-        "appId": "clamav"
+        "containerService": "clamav"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 30005
       }
     },
     {
@@ -2347,7 +2352,6 @@
       "description": "Prometheus exporter for the shared PostgreSQL service.",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "postgres_exporter",
@@ -2508,7 +2512,7 @@
       "category": "observability",
       "sourcePath": "apps/pyroscope/compose.yml",
       "description": "Continuous profiling backend with persistent Pyroscope v2 metastore state.",
-      "presentationRole": "support",
+      "presentationRole": "service",
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
@@ -3685,6 +3689,16 @@
       "strength": "required",
       "evidence": [
         "apps/cartography/compose.yml:NEO4J_URL"
+      ]
+    },
+    {
+      "source": "clamav",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/clamav/compose.yml:clamav.x-nabla.runtime.containerService"
       ]
     },
     {

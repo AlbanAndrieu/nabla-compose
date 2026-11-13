@@ -166,7 +166,6 @@ scrape_configs:
           - 172.17.0.24:9187
         labels:
           platform: truenas
-          operational_state: planned
           role: database
           database: postgresql
 

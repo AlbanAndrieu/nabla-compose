@@ -440,6 +440,16 @@ endpoints:
   conditions:
   - '[STATUS] >= 200'
   - '[STATUS] < 400'
+- name: PostgreSQL Exporter
+  group: observability
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: postgres-exporter
+    nabla_service_id: postgres-exporter
+    nabla_entity_ref: component:default/postgres-exporter
+  url: tcp://172.17.0.24:9187
+  conditions:
+  - '[CONNECTED] == true'
 - name: PostgreSQL
   group: data
   interval: 60s

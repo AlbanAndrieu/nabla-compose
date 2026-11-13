@@ -28,7 +28,7 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample" {
   domain                     = "fastapi-sample.albandrieu.com"
   enable_binding_cookie      = false
   http_only_cookie_attribute = false
-  name                       = "sample"
+  name                       = "fastapi-sample"
   options_preflight_bypass   = false
   policies = [
     {
@@ -65,7 +65,7 @@ resource "cloudflare_zero_trust_access_application" "fastapi_sample_api" {
   domain                     = "fastapi-sample.albandrieu.com/api"
   enable_binding_cookie      = false
   http_only_cookie_attribute = false
-  name                       = "sample-api"
+  name                       = "fastapi-sample-api"
   options_preflight_bypass   = false
   policies = [
     {

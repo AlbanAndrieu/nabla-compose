@@ -24,23 +24,22 @@ holds only `DATA_SOURCE_NAME`, rendered from the Vaultwarden item
 `nabla/prod/postgres-exporter` (`config/secrets/manifest.json`):
 
 ```text
-DATA_SOURCE_NAME=postgresql://postgres_exporter:REDACTED@172.17.0.24:5432/postgres?sslmode=disable
+DATA_SOURCE_NAME=postgresql://postgres_exporter:REDACTED@172.17.0.24:5432/postgres?sslmode=require
 ```
 
-The exporter uses `lib/pq`, which rejects `sslmode=prefer` and defaults to
-`require`. `disable` is the only mode that works while the server runs with
-`ssl = off`. Switch to `verify-full` (with the CA mounted) once PostgreSQL TLS
-is enabled.
+The exporter uses `lib/pq`, which rejects `sslmode=prefer`. Since 12/11/2026
+the server runs TLS 1.3, so `require` encrypts the connection. `verify-full`
+needs the CA mounted; that mount lives under `/mnt/cpool/secrets` and counts
+as secret debt until the public CA moves out of it.
 
-## Activation
+## Exposure
 
-In the change that deploys the App:
+Port 9187 is published on the LAN address only, like the other exporters.
+Without `--web.config.file`, any LAN client can read `/metrics` and use
+`/probe?target=<dsn>` to make the exporter open PostgreSQL connections with
+credentials it supplies (the exporter's own DSN is never reused there).
 
-- remove `status: planned` from `compose.yml` and set
-  `albandrieu.com/operational-state: active` in `catalog-info.yaml`;
-- remove `operational_state: planned` from the `postgres_exporter` job in
-  `apps/prometheus/prometheus.yml`;
-- add `postgres-exporter` to `config/truenas/custom-apps.yml`.
+## Check
 
-Check with `sudo bash scripts/truenas/diagnose-postgres-exporter.sh`, then
+`sudo bash scripts/truenas/diagnose-postgres-exporter.sh`, then
 `up{job="postgres_exporter"} == 1` and `pg_up == 1`.

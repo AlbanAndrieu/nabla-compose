@@ -3,10 +3,7 @@
     "truenas-readonly": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "@profanter-dev/truenas-mcp@1.0.6"
-      ],
+      "args": ["-y", "@profanter-dev/truenas-mcp@1.0.6"],
       "env": {
         "TRUENAS_HOST": "${TRUENAS_MCP_HOST}",
         "TRUENAS_API_KEY": "${TRUENAS_MCP_API_KEY}",
@@ -27,10 +24,7 @@
     "uptime-kuma": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "@davidfuchs/mcp-uptime-kuma@0.11.9"
-      ],
+      "args": ["-y", "@davidfuchs/mcp-uptime-kuma@0.11.9"],
       "env": {
         "UPTIME_KUMA_URL": "${UPTIME_KUMA_URL}",
         "UPTIME_KUMA_USERNAME": "${UPTIME_KUMA_USERNAME}",
@@ -41,10 +35,7 @@
     "bitwarden-local": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "@bitwarden/mcp-server@2026.7.0"
-      ],
+      "args": ["-y", "@bitwarden/mcp-server@2026.7.0"],
       "env": {
         "BW_SESSION": "${BW_SESSION}",
         "BW_CLI_PATH": "${BW_CLI_PATH:-bw}"
@@ -91,7 +82,8 @@
         "--sentry-dsn="
       ],
       "env": {
-        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}"
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}",
+        "SENTRY_URL": ""
       }
     },
     "context7": {
@@ -114,9 +106,7 @@
     "freshrss-security-readonly": {
       "type": "stdio",
       "command": "python3",
-      "args": [
-        "scripts/mcp/freshrss_readonly.py"
-      ],
+      "args": ["scripts/mcp/freshrss_readonly.py"],
       "env": {
         "FRESHRSS_MCP_AUTH": "${FRESHRSS_MCP_AUTH}",
         "FRESHRSS_CF_ACCESS_CLIENT_ID": "${FRESHRSS_CF_ACCESS_CLIENT_ID}",

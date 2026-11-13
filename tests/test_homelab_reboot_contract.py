@@ -113,7 +113,7 @@ class HomelabRebootContractTests(unittest.TestCase):
             for node in topology["nodes"]
             if node.get("runtime", {}).get("provider") == "truenas-app"
         }
-        self.assertLessEqual({"openclaw-gateway", "openclaw-devbox", "clamav"}, app_ids)
+        self.assertLessEqual({"openclaw-gateway", "openclaw-devbox"}, app_ids)
 
         with tempfile.TemporaryDirectory() as tmp:
             apps = Path(tmp) / "apps-before.json"

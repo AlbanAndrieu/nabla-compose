@@ -14,7 +14,7 @@ services:
       name: Grafana Pyroscope
       kind: continuous-profiler
       category: observability
-      presentationRole: support
+      presentationRole: service
       criticality: medium
       description: Continuous profiling backend with persistent Pyroscope v2 metastore state.
       runtime:

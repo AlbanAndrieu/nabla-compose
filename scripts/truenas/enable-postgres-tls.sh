@@ -3,9 +3,9 @@
 # pending the Vault PKI (docs/roadmap.md, TLS 1.3 item).
 # --check (default) only reports; --apply creates the CA when missing, issues
 # the server certificate when missing, expiring or not matching the SANs,
-# publishes the CA certificate where clients mount it, then enables ssl by
-# reload (no restart). Private keys stay in root 0600 files or in PGDATA
-# (postgres 0600) and are never printed.
+# publishes the CA certificate where clients mount it, enables ssl, then turns
+# the remote pg_hba rule into hostssl, by reload (no restart). Private keys
+# stay in root 0600 files or in PGDATA (postgres 0600) and are never printed.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,7 +29,7 @@ case "${MODE}" in
 esac
 
 require_root "run with sudo: the CA key and the PostgreSQL container are root-only"
-require_commands docker openssl install cmp mktemp grep
+require_commands docker openssl install cmp mktemp grep sed
 
 POSTGRES_CONTAINER="$(postgres_shared_container)" || exit 1
 POSTGRES_ADMIN="$(postgres_admin_role "${POSTGRES_CONTAINER}")" || exit 1
@@ -68,7 +68,7 @@ ssl_enabled() {
     "$(postgres_admin_query "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" "SHOW ssl_min_protocol_version")" == "TLSv1.3" ]]
 }
 
-# shellcheck disable=SC2329 # invoked through report
+# shellcheck disable=SC2317,SC2329 # invoked through report
 tls13_verified() {
   local out
   out="$(openssl s_client -starttls postgres -connect "${TLS_HOST}:${TLS_PORT}" -tls1_3 \
@@ -77,9 +77,36 @@ tls13_verified() {
 }
 
 # Only meaningful once TLS 1.3 answers: a server without ssl rejects TLS 1.2 too.
-# shellcheck disable=SC2329 # invoked through report
+# shellcheck disable=SC2317,SC2329 # invoked through report
 tls12_rejected() {
   tls13_verified && ! openssl s_client -starttls postgres -connect "${TLS_HOST}:${TLS_PORT}" -tls1_2 </dev/null >/dev/null 2>&1
+}
+
+# Remote clients must use TLS; the loopback trust rules inside the container stay.
+REMOTE_RULE='[[:space:]]+all[[:space:]]+all[[:space:]]+all[[:space:]]+scram-sha-256'
+
+hostssl_enforced() {
+  local hba
+  hba="$(pgdata_cat pg_hba.conf)" || return 1
+  grep -Eq "^hostssl${REMOTE_RULE}" <<<"${hba}" && ! grep -Eq "^host${REMOTE_RULE}" <<<"${hba}"
+}
+
+# shellcheck disable=SC2317,SC2329 # invoked through report
+plaintext_rejected() {
+  local out
+  out="$(docker exec "${POSTGRES_CONTAINER}" psql -w \
+    "host=${TLS_HOST} port=${TLS_PORT} sslmode=disable dbname=postgres user=nabla_hba_probe" -c 'SELECT 1' 2>&1)" && return 1
+  grep -q 'no pg_hba.conf entry' <<<"${out}"
+}
+
+enforce_hostssl() {
+  pgdata_cat pg_hba.conf | sed -E "s/^host(${REMOTE_RULE})/hostssl\\1/" >"${WORK_DIR}/pg_hba.conf"
+  pgdata_install pg_hba.conf <"${WORK_DIR}/pg_hba.conf"
+  postgres_admin_query "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" "SELECT pg_reload_conf()" >/dev/null
+  [[ "$(postgres_admin_query "${POSTGRES_CONTAINER}" "${POSTGRES_ADMIN}" \
+    "SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL")" == "0" ]] ||
+    fail "pg_hba.conf has errors after the edit; PostgreSQL keeps the previous rules, fix it by hand"
+  ok "remote pg_hba rule is now hostssl (reloaded)"
 }
 
 issue_ca() {
@@ -142,6 +169,7 @@ if [[ "${MODE}" == "--apply" ]]; then
   client_ca_ready || publish_client_ca
   server_cert_ready || issue_server_cert
   ssl_enabled || enable_ssl
+  hostssl_enforced || enforce_hostssl
 fi
 
 failed=0
@@ -157,4 +185,6 @@ report "server certificate signed by the local CA for ${SERVER_SAN}, valid 30+ d
 report "ssl=on with ssl_min_protocol_version=TLSv1.3" ssl_enabled
 report "TLS 1.3 handshake verified against the CA on ${TLS_HOST}:${TLS_PORT}" tls13_verified
 report "TLS 1.2 handshake rejected" tls12_rejected
+report "remote pg_hba rule is hostssl" hostssl_enforced
+report "plaintext TCP connection refused by pg_hba" plaintext_rejected
 exit "${failed}"

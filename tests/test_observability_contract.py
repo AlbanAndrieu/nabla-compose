@@ -776,6 +776,8 @@ class ObservabilityContractTests(unittest.TestCase):
             self.assertIn("--sentry-dsn=", sentry["args"])
             self.assertIn("SENTRY_ACCESS_TOKEN", sentry["env"])
             self.assertNotIn("SENTRY_ACCESS_TOKEN=", " ".join(sentry["args"]))
+            # An inherited SENTRY_URL makes the server refuse --insecure-http and exit.
+            self.assertEqual(sentry["env"].get("SENTRY_URL"), "")
 
     def test_grafana_mcp_token_is_metadata_only_vaultwarden_secret(self) -> None:
         manifest = json.loads(

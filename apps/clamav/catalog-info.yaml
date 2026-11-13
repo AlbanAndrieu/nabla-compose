@@ -1,0 +1,40 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: clamav
+  title: ClamAV
+  description: clamd scans the TrueNAS datasets through the clamav-scan cron jobs.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: high
+    albandrieu.com/business-criticality: medium
+    albandrieu.com/bia-scope: direct
+  tags:
+    - security
+    - antivirus
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: datasets-scanned-weekly
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: medium
+    albandrieu.com/bia-impact-integrity: medium
+    albandrieu.com/bia-impact-privacy: low
+    albandrieu.com/migration-provenance: truenas-catalog-app
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/clamav/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/docker

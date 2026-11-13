@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:768d84aa06b3b7689c12b87da81f4e5e660b43321be569b5d62cc5ad45928b14",
+  "catalogRevision": "sha256:949a8c65bcb6a1e6b067bde3cfc911b9a03607b10469490b6163128b8517db32",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -77,6 +77,12 @@
       "entityRef": "component:default/cartography",
       "evidence": "apps/cartography/compose.yml:services.cartography.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/cartography/compose.yml#services/cartography",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/clamav",
+      "evidence": "apps/clamav/compose.yml:services.clamav.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/clamav/compose.yml#services/clamav",
       "sourceType": "compose"
     },
     {

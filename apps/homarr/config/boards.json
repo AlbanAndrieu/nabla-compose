@@ -21,18 +21,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "Infrastructure",
-      "columns": 12,
-      "public": false,
-      "applications": ["truenas", "pfsense", "traefik", "grafana"]
-    },
-    {
-      "name": "Security",
-      "columns": 12,
-      "public": false,
-      "applications": ["defectdojo", "sentry-edge"]
     }
   ]
 }

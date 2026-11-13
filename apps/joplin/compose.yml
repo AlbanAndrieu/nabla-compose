@@ -68,6 +68,8 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_DATABASE: joplin
       POSTGRES_USER: joplin
+      # node-postgres skips TLS by default and pg_hba is hostssl; no-verify = libpq require.
+      PGSSLMODE: no-verify
     ports:
       - name: web
         target: 22300

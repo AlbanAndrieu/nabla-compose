@@ -29,6 +29,11 @@ apps:
     include:
       - apps/cartography/compose.yml
     state: running
+  - name: clamav
+    include:
+      - apps/clamav/compose.yml
+    state: running
+    note: catalog App until migrated (see apps/clamav/README.md)
   - name: clickhouse
     include:
       - apps/clickhouse/compose.yml
@@ -169,6 +174,10 @@ apps:
     include:
       - apps/pihole/compose.yml
     state: running
+  - name: postgres-exporter
+    include:
+      - apps/postgres-exporter/compose.yml
+    state: running
   - name: prometheus
     include:
       - apps/prometheus/compose.yml
@@ -200,13 +209,11 @@ apps:
   - name: sentry
     include:
       - apps/sentry/compose.yml
-    state: stopped
-    reason: temporary RAM relief, owner decision 2026-11-06
+    state: running
   - name: sentry-clickhouse
     include:
       - apps/sentry-clickhouse/compose.yml
-    state: stopped
-    reason: stopped with Sentry, owner decision 2026-11-06
+    state: running
   - name: squid
     include:
       - apps/squid/compose.yml
@@ -238,7 +245,6 @@ catalog_native:
   - adguard-home
   - arti
   - bitcoind
-  - clamav
   - cleanuparr
   - cloudflared
   - convertx

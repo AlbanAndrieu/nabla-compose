@@ -173,6 +173,18 @@
       "description": "Scheduled or manual security asset and relationship ingestion into Neo4j."
     },
     {
+      "id": "clamav",
+      "entityRef": "component:default/clamav",
+      "name": "ClamAV",
+      "group": "security",
+      "sourcePath": "apps/clamav/compose.yml",
+      "composeService": "clamav",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "clamd scans the TrueNAS datasets through the clamav-scan cron jobs."
+    },
+    {
       "id": "clickhouse",
       "entityRef": "resource:default/clickhouse",
       "name": "ClickHouse",
