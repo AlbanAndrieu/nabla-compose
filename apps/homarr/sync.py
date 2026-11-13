@@ -317,7 +317,8 @@ def reconcile_board(
         if config.get("home") is True:
             for flag, path in (("isHome", "home"), ("isMobileHome", "mobile-home")):
                 if not board.get(flag):
-                    request_json("PATCH", f"/api/boards/{board_id}/{path}")
+                    # Homarr 2.6 parses a JSON body: an empty one is a 400 PARSE_ERROR.
+                    request_json("PATCH", f"/api/boards/{board_id}/{path}", {})
     return created, written
 
 

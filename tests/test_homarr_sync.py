@@ -189,6 +189,8 @@ class HomarrSyncTests(unittest.TestCase):
             ("PUT", "/api/boards/board-nabla/content"),
             ("PATCH", "/api/boards/board-nabla/home"),
         ])
+        # Homarr 2.6 answers 400 PARSE_ERROR to a JSON request without a body.
+        self.assertEqual(request_json.call_args_list[-1], call("PATCH", "/api/boards/board-nabla/home", {}))
 
     def test_board_content_places_widgets_before_group_sections(self) -> None:
         layouts, content = homarr_sync.board_content(
