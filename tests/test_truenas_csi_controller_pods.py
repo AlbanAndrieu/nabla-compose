@@ -14,7 +14,14 @@ spec.loader.exec_module(MODULE)
 
 
 def inventory():
-    deploy = {"spec": {"replicas": 1}, "status": {"availableReplicas": 1}}
+    deploy = {
+        "metadata": {"generation": 4},
+        "spec": {"replicas": 1},
+        "status": {
+            "availableReplicas": 1, "updatedReplicas": 1,
+            "readyReplicas": 1, "observedGeneration": 4, "conditions": [],
+        },
+    }
     rss = {"items": [
         {"metadata": {"name": "truenas-csi-controller-6556bff5d6"},
          "spec": {"replicas": 1}},
@@ -47,6 +54,34 @@ class CSIControllerPodReadOnlyTests(unittest.TestCase):
         dep, rs, pods = inventory()
         dep["status"]["availableReplicas"] = 0
         self.assertEqual(MODULE.assess(dep, rs, pods)["status"], "UNVERIFIED")
+
+    def test_stale_observed_generation_is_not_ready(self):
+        dep, rs, pods = inventory()
+        dep["status"]["observedGeneration"] = 3
+        result = MODULE.assess(dep, rs, pods)
+        self.assertEqual(result["status"], "UNVERIFIED")
+        self.assertEqual(result["generation"], 4)
+
+    def test_previous_revision_pod_does_not_prove_updated_rollout(self):
+        dep, rs, pods = inventory()
+        dep["status"]["updatedReplicas"] = 0
+        self.assertEqual(MODULE.assess(dep, rs, pods)["status"], "UNVERIFIED")
+
+    def test_progress_deadline_exceeded_never_reports_ready(self):
+        dep, rs, pods = inventory()
+        dep["status"]["conditions"] = [
+            {"type": "Progressing", "status": "False",
+             "reason": "ProgressDeadlineExceeded"}
+        ]
+        result = MODULE.assess(dep, rs, pods)
+        self.assertEqual(result["status"], "UNVERIFIED")
+        self.assertTrue(result["progressDeadlineExceeded"])
+
+    def test_missing_observed_generation_is_unverified(self):
+        dep, rs, pods = inventory()
+        del dep["status"]["observedGeneration"]
+        with self.assertRaises(ValueError):
+            MODULE.assess(dep, rs, pods)
 
     def test_multiple_active_replicasets_are_ambiguous(self):
         dep, rs, pods = inventory()
