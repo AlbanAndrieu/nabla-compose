@@ -1,3 +1,15 @@
+# [0.82.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.81.0...0.82.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **pfsense:** flag Snort posture drift and CrowdSec Small reversal ([531d912](https://github.com/AlbanAndrieu/nabla-compose/commit/531d91288aa843c175c5f849fa134330f3315006))
+
+
+### Features
+
+* **pfsense:** check and apply the Netgate 1100 posture over SSH ([7810da6](https://github.com/AlbanAndrieu/nabla-compose/commit/7810da62dbd0c840e65886e4dc1577024ee81d9c))
+
 # [0.81.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.80.0...0.81.0) (2026-11-13)
 
 
