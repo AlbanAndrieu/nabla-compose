@@ -16,8 +16,10 @@
       "Bash(git add *)",
       "Bash(git push)",
       "Bash(curl -sSL --max-time 15 https://raw.githubusercontent.com/langflow-ai/langflow/main/docs/docs/Develop/observability-opentelemetry.mdx)",
-      "Bash(printf *)"
-    ]
+      "Bash(printf *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\([\\(i['name'], [\\(f['name'], bool\\(f.get\\('value'\\)\\)\\) for f in i.get\\('fields'\\) or []]\\) for i in d]\\)\")"
+    ],
+    "ask": ["Bash(printf *>*)"]
   },
   "enabledMcpjsonServers": [
     "truenas-readonly",
