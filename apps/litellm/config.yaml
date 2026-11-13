@@ -1,19 +1,8 @@
 model_list:
   # ========== Ollama ==========
-  # - model_name: llama3.2
-  #  litellm_params:
-  #    model: "ollama/llama3.2"
-  #    api_base: "http://172.17.0.57:11434"
-  #    request_timeout: 300
-  #    num_ctx: 4096
-
-  - model_name: llama3.2
-    litellm_params:
-      model: "ollama_chat/llama3.2:3b"
-      api_base: "http://172.17.0.57:11434"
-      request_timeout: 1800
-      temperature: 0
-      num_ctx: 8192
+  # The 6 GB workstation GPU holds one chat model: every route to 172.17.0.57:11434 uses
+  # bonsai-2:9b at num_ctx 32768, like the workstation LiteLLM, so they share one instance.
+  # llama3.2 and gemma3 were removed on 14 Nov 2026: each loaded a second model.
 
   # - model_name: qwen
   #   litellm_params:
@@ -40,6 +29,20 @@ model_list:
       mode: chat
       # OpenClaw tool calls require this model-specific capability.
       supports_function_calling: true
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # Same GPU instance with the reasoning trace (about 3x slower): think does not reload the model.
+  - model_name: qwen-think
+    litellm_params:
+      model: ollama_chat/bonsai-2:9b
+      api_base: http://172.17.0.57:11434 # using RTX 2060
+      num_ctx: 32768
+      think: true
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_reasoning: true
       input_cost_per_token: 0
       output_cost_per_token: 0
 
@@ -187,14 +190,6 @@ model_list:
       input_cost_per_token: 0.000001
       output_cost_per_token: 0.000002
 
-  - model_name: gemma3
-    litellm_params:
-      model: "ollama_chat/gemma3"
-      api_base: "http://172.17.0.57:11434"
-      request_timeout: 1800
-      num_ctx: 8192
-      keep_alive: "30m"
-
   # Reactive Resume: same model and num_ctx as "qwen", so both routes share one GPU instance.
   # Its chat sends the whole resume JSON and a patch_resume tool (3/3 edits vs 2/3 for qwen2.5:3b).
   - model_name: rr-json
@@ -257,7 +252,10 @@ litellm_settings:
   fallbacks:
     # Only use aliases configured on this TrueNAS proxy.
     # Private paid upstream routes remain outside this deployment.
-    - { "qwen": ["llama3.2"] }
+    # Another local model would only swap the GPU model; the GPU routes share one instance.
+    - { "qwen": [] }
+    - { "qwen-think": [] }
+    - { "rr-json": [] }
     # Explicitly no alternate paid/local model for this budget-scoped service.
     - { "fastapi-qwen": [] }
     # Strict paid-model order for Hermes (no local/random model substitution).
@@ -270,7 +268,7 @@ litellm_settings:
     - { "hermes-opus-5": ["hermes-opus-4-8", "hermes-openai"] }
     - { "hermes-opus-4-8": ["hermes-openai"] }
     - { "hermes-openai": [] }
-  default_fallbacks: ["llama3.2"]
+  default_fallbacks: ["qwen"]
   cache: true
   cache_params:
     type: redis
