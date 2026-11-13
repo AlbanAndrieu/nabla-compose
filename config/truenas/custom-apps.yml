@@ -209,13 +209,11 @@ apps:
   - name: sentry
     include:
       - apps/sentry/compose.yml
-    state: stopped
-    reason: temporary RAM relief, owner decision 2026-11-06
+    state: running
   - name: sentry-clickhouse
     include:
       - apps/sentry-clickhouse/compose.yml
-    state: stopped
-    reason: stopped with Sentry, owner decision 2026-11-06
+    state: running
   - name: squid
     include:
       - apps/squid/compose.yml
