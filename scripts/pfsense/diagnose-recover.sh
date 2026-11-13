@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 IDENTITY_HELPER="${SCRIPT_DIR}/manage-api-identities.php"
+POSTURE_HELPER="${SCRIPT_DIR}/manage-posture.php"
 
 MODE="check"
 SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
@@ -18,6 +19,7 @@ VERBOSE=false
 CONSOLE_OUTPUT=true
 IDENTITY_ACTION=""
 IDENTITY_TARGET="all"
+POSTURE_ACTION=""
 REPORT="${PFSENSE_RECOVERY_REPORT:-/tmp/pfsense-recovery-$(date +%Y%m%d-%H%M%S).log}"
 
 COLOR_ENABLED=false
@@ -72,6 +74,12 @@ Options:
   --finalize-key-rotation ID Restore posture|security|exporter to steady state after a
                             persisted key is visible: remove key POST, restore
                             Deny Config Write. Refuses finalization with zero keys.
+  --check-posture           SSH-only audit of the Netgate 1100 posture: Snort ET Open/
+                            OpenAppID off, WAN HTTP Inspect memcap and ports alias,
+                            Service Watchdog (unbound in, crowdsec out), CrowdSec Small.
+  --apply-posture           Reconcile that posture, regenerate Snort/CrowdSec runtime
+                            and stop a looping CrowdSec engine supervisor. Refuses to
+                            run during a package install; never writes the bouncer key.
   --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
   --port PORT               Optional SSH port; otherwise SSH config/default applies.
   --api-url URL             Hostname/public HTTPS URL.
@@ -219,6 +227,12 @@ while (($# > 0)); do
       IDENTITY_ACTION="finalize"
       IDENTITY_TARGET="$1"
       ;;
+    --check-posture)
+      POSTURE_ACTION="check"
+      ;;
+    --apply-posture)
+      POSTURE_ACTION="apply"
+      ;;
     --target)
       shift
       (($# > 0)) || fail "--target requires USER@HOST"
@@ -280,6 +294,9 @@ fi
 if [[ -n "${IDENTITY_ACTION}" && ( "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
   fail "identity lifecycle options cannot be combined with --api-only, --apply, or --unblock-sources"
 fi
+if [[ -n "${POSTURE_ACTION}" && ( -n "${IDENTITY_ACTION}" || "${API_ONLY}" == true || "${MODE}" == "apply" || "${UNBLOCK_SOURCES}" == true ) ]]; then
+  fail "posture options cannot be combined with identity options, --api-only, --apply, or --unblock-sources"
+fi
 if [[ "${IDENTITY_TARGET}" != "all" && "${IDENTITY_TARGET}" != "posture" && "${IDENTITY_TARGET}" != "security" && "${IDENTITY_TARGET}" != "exporter" ]]; then
   fail "identity target must be posture, security, or exporter"
 fi
@@ -323,13 +340,7 @@ identity_ssh_preflight() {
   fi
 }
 
-run_identity_admin() {
-  local action="$1"
-  local target="$2"
-  local posture_password_b64=""
-  local security_password_b64=""
-  local exporter_password_b64=""
-  local status=0
+pfsense_php() {
   local -a ssh_opts=(
     -o BatchMode=yes
     -o ConnectTimeout=8
@@ -338,11 +349,34 @@ run_identity_admin() {
     -o ControlMaster=no
     -o ControlPath=none
   )
-
-  [[ -f "${IDENTITY_HELPER}" ]] || fail "identity helper not found: ${IDENTITY_HELPER}"
   if [[ -n "${SSH_PORT}" ]]; then
     ssh_opts+=(-p "${SSH_PORT}")
   fi
+  ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
+}
+
+run_posture_admin() {
+  local status=0
+  [[ -f "${POSTURE_HELPER}" ]] || fail "posture helper not found: ${POSTURE_HELPER}"
+  set +e
+  {
+    printf "<?php define('NABLA_POSTURE_ACTION', '%s'); ?>\n" "$1"
+    cat "${POSTURE_HELPER}"
+  } | pfsense_php
+  status=${PIPESTATUS[1]}
+  set -e
+  return "${status}"
+}
+
+run_identity_admin() {
+  local action="$1"
+  local target="$2"
+  local posture_password_b64=""
+  local security_password_b64=""
+  local exporter_password_b64=""
+  local status=0
+
+  [[ -f "${IDENTITY_HELPER}" ]] || fail "identity helper not found: ${IDENTITY_HELPER}"
   if [[ "${action}" == "apply" ]]; then
     posture_password_b64="$(password_file_b64 "${PFSENSE_POSTURE_PASSWORD_FILE:-}" "posture")"
     security_password_b64="$(password_file_b64 "${PFSENSE_SECURITY_PASSWORD_FILE:-}" "security")"
@@ -359,7 +393,7 @@ run_identity_admin() {
     printf "define('NABLA_EXPORTER_PASSWORD_B64', '%s');\n" "${exporter_password_b64}"
     printf '?>\n'
     cat "${IDENTITY_HELPER}"
-  } | ssh "${ssh_opts[@]}" "${SSH_TARGET}" /usr/local/bin/php
+  } | pfsense_php
   status=${PIPESTATUS[1]}
   set -e
   return "${status}"
@@ -371,6 +405,15 @@ if [[ -n "${IDENTITY_ACTION}" ]]; then
   identity_ssh_preflight
   run_identity_admin "${IDENTITY_ACTION}" "${IDENTITY_TARGET}" ||
     fail "pfSense identity lifecycle action failed"
+  exit 0
+fi
+
+if [[ -n "${POSTURE_ACTION}" ]]; then
+  command -v ssh >/dev/null 2>&1 || fail "ssh is required for posture actions"
+  identity_ssh_preflight
+  if ! run_posture_admin "${POSTURE_ACTION}" | while IFS= read -r line; do console_line "${line}"; done; then
+    fail "pfSense posture action failed"
+  fi
   exit 0
 fi
 
@@ -832,6 +875,15 @@ if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
 else
   printf 'crowdsec_metrics=skipped_engine_stopped\n'
 fi
+# pfSense Small since 2026-10-27: engine and LAPI run on TrueNAS, not here.
+CROWDSEC_AGENT="$(/usr/local/sbin/read_xml_tag.sh string installedpackages/crowdsec/config/enable_agent 2>/dev/null || true)"
+CROWDSEC_LAPI="$(/usr/local/sbin/read_xml_tag.sh string installedpackages/crowdsec/config/enable_lapi 2>/dev/null || true)"
+if [ "${CROWDSEC_AGENT}" = on ] || [ "${CROWDSEC_LAPI}" = on ] || [ -n "${CROWDSEC_ENGINE_PID}" ]; then
+  printf 'WARN: crowdsec_small_mode=reverted agent=%s lapi=%s engine_pid=%s expected=off/off/absent\n' \
+    "${CROWDSEC_AGENT:-off}" "${CROWDSEC_LAPI:-off}" "${CROWDSEC_ENGINE_PID:-absent}"
+else
+  echo 'OK: crowdsec_small_mode=engine_and_lapi_off'
+fi
 if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
   ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
 fi
@@ -872,6 +924,12 @@ if [ -f "${CROWDSEC_BOUNCER_CONF}" ]; then
 else
   printf 'crowdsec_firewall_bouncer_config=missing\n'
   printf 'crowdsec_firewall_bouncer_api_url=<none> mode=missing\n'
+fi
+if [ -n "${CROWDSEC_BOUNCER_PID}" ] && [ "${CROWDSEC_BOUNCER_LAPI_MODE:-missing}" = remote-truenas ]; then
+  echo 'OK: crowdsec_bouncer=running lapi=remote-truenas'
+else
+  printf 'WARN: crowdsec_bouncer=%s lapi=%s expected=running/remote-truenas\n' \
+    "${CROWDSEC_BOUNCER_PID:-absent}" "${CROWDSEC_BOUNCER_LAPI_MODE:-missing}"
 fi
 printf 'Recent CrowdSec firewall bouncer warnings/errors (bounded):\n'
 if [ -f "${CROWDSEC_BOUNCER_LOG}" ]; then
@@ -1115,6 +1173,25 @@ else
   echo 'SNORT_HTTP_MEMCAP=unknown'
 fi
 
+# Netgate 1100 Snort posture applied on 2026-11-13 (see the dated incident).
+if [ "${HTTP_MEMCAP:-}" = 33554432 ]; then
+  echo 'OK: snort_http_memcap=33554432'
+else
+  printf 'WARN: snort_http_memcap=%s expected=33554432\n' "${HTTP_MEMCAP:-unknown}"
+fi
+if [ -n "${SNORT_CONF}" ] && ! printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+  echo 'OK: snort_http_inspect_7000=absent'
+else
+  echo 'WARN: snort_http_inspect_7000=present_or_unknown expected=absent'
+fi
+for SNORT_FLAG in emergingthreats openappid_detectors openappid_rules_detectors; do
+  if [ "$(/usr/local/sbin/read_xml_tag.sh string "installedpackages/snortglobal/${SNORT_FLAG}" 2>/dev/null)" = on ]; then
+    printf 'WARN: snort_download_%s=on expected=off\n' "${SNORT_FLAG}"
+  else
+    printf 'OK: snort_download_%s=off\n' "${SNORT_FLAG}"
+  fi
+done
+
 if [ "${BLOCK_MATCH_COUNT}" -gt 0 ]; then
   echo 'INGRESS_ATTRIBUTION=blocked_source_present'
 elif [ -n "${SNORT_CONF}" ] && ! printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
@@ -1155,9 +1232,12 @@ else
   if [[ "${VERBOSE}" != true ]]; then
     log "SSH summary (full evidence: ${REPORT})"
     while IFS= read -r summary_line; do
-      [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
+      case "${summary_line}" in
+        OK:* | WARN:*) console_line "${summary_line}" ;;
+        ?*) console_line "INFO: ${summary_line}" ;;
+      esac
     done < <(
-      grep -E '^(unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 52 || true
+      grep -E '^((OK|WARN): (snort|crowdsec)_|unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 64 || true
     )
   fi
 fi

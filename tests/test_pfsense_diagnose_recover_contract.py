@@ -9,6 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "pfsense" / "diagnose-recover.sh"
 IDENTITY_HELPER = ROOT / "scripts" / "pfsense" / "manage-api-identities.php"
+POSTURE_HELPER = ROOT / "scripts" / "pfsense" / "manage-posture.php"
 DOC = ROOT / "docs" / "pfsense-diagnose-recover.md"
 
 
@@ -260,6 +261,54 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("asn_token_present", text)
         self.assertIn("Recent IPinfo/ASN retry evidence", text)
         self.assertNotIn("grep -nEi '<asn_reporting>|<asn_token>'", text)
+
+    def test_posture_drift_from_2026_11_13_incident_is_flagged(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("WARN: snort_http_memcap=%s expected=33554432", text)
+        self.assertIn("WARN: snort_http_inspect_7000=present_or_unknown", text)
+        for flag in ("emergingthreats", "openappid_detectors", "openappid_rules_detectors"):
+            self.assertIn(flag, text)
+        # pfSense Small: a local engine or LAPI is drift, not health.
+        self.assertIn("WARN: crowdsec_small_mode=reverted", text)
+        self.assertIn("OK: crowdsec_bouncer=running lapi=remote-truenas", text)
+        self.assertNotIn("crowdsec_engine=absent enabled=on", text)
+        self.assertIn("^((OK|WARN): (snort|crowdsec)_|", text)
+        self.assertIn('OK:* | WARN:*) console_line "${summary_line}"', text)
+
+    def test_posture_lifecycle_reconciles_without_touching_secrets(self) -> None:
+        shell = SCRIPT.read_text(encoding="utf-8")
+        helper = POSTURE_HELPER.read_text(encoding="utf-8")
+        doc = DOC.read_text(encoding="utf-8")
+
+        for option in ("--check-posture", "--apply-posture"):
+            self.assertIn(option, shell)
+            self.assertIn(option, doc)
+        self.assertIn('cat "${POSTURE_HELPER}"', shell)
+        self.assertIn("NABLA_POSTURE_ACTION", shell)
+        self.assertIn("posture options cannot be combined", shell)
+
+        for wanted in (
+            "'emergingthreats', 'openappid_detectors', 'openappid_rules_detectors'",
+            "NABLA_SNORT_MEMCAP = '33554432'",
+            "NABLA_SNORT_ALIAS = 'snort_http_inspect'",
+            "NABLA_CROWDSEC_LAPI_URL = 'http://172.17.0.24:8084/'",
+            "'enable_agent' => '', 'enable_lapi' => ''",
+            "installedpackages/servicewatchdog/item",
+            "!== 'crowdsec'",
+            "a package install or upgrade is running",
+            "sync_snort_package_config();",
+            "crowdsec_resync_config();",
+            "posix_kill((int)$supervisor, SIGTERM);",
+        ):
+            self.assertIn(wanted, helper)
+        # The bouncer key is only ever tested for presence, never written or printed.
+        key_lines = [line for line in helper.splitlines() if "remote_fw_bouncer_api_key" in line]
+        self.assertEqual(len(key_lines), 1)
+        self.assertIn("config_get_path(", key_lines[0])
+        self.assertIn("? 'empty' : 'set'", key_lines[0])
+        # Check mode must exit before any write.
+        self.assertLess(helper.index("if (!$apply) {"), helper.index("write_config("))
 
     def test_transport_metadata_preserves_empty_remote_ip_fields(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")

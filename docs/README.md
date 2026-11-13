@@ -56,6 +56,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 - [Migration operator](./runbooks/truenas-migration-operator.md)
 - [Catalog v2 two-wave restart](./runbooks/catalog-v2-truenas-two-wave-restart.md)
 - [Talos and TrueNAS batch upgrade](./runbooks/2026-10-23-fast-batch-migration.md)
+- [pfSense Plus 26.07 sur le Netgate 1100 : environnements de boot et upgrade](./runbooks/pfsense-26.07-upgrade.md)
 - [Operator tools and TrueNAS upgrade coupling](./truenas-operator-tools.md)
 - [Deployment automation](./truenas-deployment-automation.md)
 - [Prompt de déploiement pour une session Claude sur TrueNAS](runbooks/claude-remote-truenas-rollout-prompt.md) : ordre complet, ProtonVPN en dernière étape.
@@ -153,6 +154,7 @@ All date-specific incidents belong under [`incidents/`](./incidents/).
 - [2026-10-27 · FastAPI TrueNAS build, Docker Hub 429](./incidents/2026-10-27-fastapi-truenas-build-dockerhub-429.md)
 - [2026-11-04 · TrueNAS `app.query` blocked by a stuck container lock](./incidents/2026-11-04-truenas-app-query-stuck-container-lock.md)
 - [2026-11-06 · migration lessons: STOPPED App binding, WAF, OOM, OpenClaw, secrets, pre-commit](./incidents/2026-11-06-migrations-retour-experience.md)
+- [2026-11-13 · pfSense Unbound OOM during Snort rules rebuild, then boot environment rollback](./incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
 
 Incident documents retain evidence needed for diagnosis: symptoms, commands,
 observations, root cause, recovery boundary and acceptance. They are not the

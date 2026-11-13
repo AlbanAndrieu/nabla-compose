@@ -314,6 +314,46 @@ Also distinguish service enablement from runtime state: exporter metrics such as
 `pfsense_service_enabled{name="crowdsec"} 1` show configuration enablement,
 not proof that the CrowdSec engine process is running.
 
+Since the 2026-10-27 pfSense Small cutover, the engine and LAPI run on
+TrueNAS: a stopped local engine is healthy. The SSH summary prints
+`WARN: crowdsec_small_mode=reverted` when the local agent, LAPI or engine is
+back, and `WARN: crowdsec_bouncer=...` unless the bouncer runs against
+`http://172.17.0.24:8084`. In Small mode, `service crowdsec.sh restart`
+returning `1` with `crowdsec not running?` is the expected stop-only path.
+The same summary flags Snort posture drift (`snort_http_memcap`,
+`snort_http_inspect_7000`, `snort_download_*`); see the
+[2026-11-13 incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md).
+
+## Netgate 1100 posture
+
+`--check-posture` audits, and `--apply-posture` reconciles, the settings that
+keep the 1 GiB appliance out of OOM and on the CrowdSec Small contract:
+
+| Item | Desired state |
+| --- | --- |
+| Snort downloads | ET Open, OpenAppID detectors and AppID Open Text Rules `off` |
+| Snort WAN HTTP Inspect | `http_inspect_memcap` `33554432`; `default` engine ports `snort_http_inspect` |
+| Port alias | `snort_http_inspect` = `80` |
+| Service Watchdog | `unbound` watched, `crowdsec` not watched |
+| CrowdSec | Log Processor and Local API off, firewall bouncer on, Remote LAPI `http://172.17.0.24:8084/`, bouncer key set |
+| CrowdSec runtime | no `daemon: crowdsec` supervisor left running |
+
+Both run `scripts/pfsense/manage-posture.php` over the same SSH contract as the
+identity lifecycle (`admin@home.albandrieu.com:9922`). Apply mode:
+
+- refuses to run while a package install or upgrade is running, because the
+  install writes back the config it loaded at start;
+- regenerates Snort (`sync_snort_package_config`) and restarts the WAN
+  instance;
+- refreshes the Service Watchdog cron;
+- stops a looping CrowdSec engine supervisor before `crowdsec_resync_config`;
+- never writes or prints the bouncer key, which is entered in the CrowdSec
+  page from the TrueNAS LAPI.
+
+These writes do not go through the REST API. pfREST 2.11 has no Snort,
+CrowdSec or Service Watchdog endpoint, and its alias endpoint would need a
+config-write key, whereas every API identity is read-only by design.
+
 ## REST API service identities
 
 The canonical service accounts are deliberately split:

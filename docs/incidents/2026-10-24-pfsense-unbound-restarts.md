@@ -5,6 +5,11 @@ en lecture seule (`just pfsense-unbound-restart-check`, captures avant/après
 cron, journaux noyau et pfBlockerNG). Précédent :
 [OOM du 2026-10-08](2026-10-08-pfsense-unbound-oom-wan-exposure.md).
 
+> Mise à jour 13/11 : la reconstruction des règles Snort est le premier
+> processus tué par l'OOM. Le `NOT_LISTED` d'Unbound dans le Service Watchdog
+> était juste pour l'environnement 26.07 en service.
+> Voir [l'incident du 2026-11-13](2026-11-13-pfsense-unbound-oom-snort-crowdsec.md).
+
 ## Résumé
 
 Lenteurs WhatsApp sur le Wi-Fi et coupures DNS intermittentes. Deux
