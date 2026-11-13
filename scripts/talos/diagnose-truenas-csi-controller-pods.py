@@ -23,10 +23,30 @@ def kubectl(*args: str) -> object:
 def assess(deploy: object, replicas: object, pods: object) -> dict:
     if not isinstance(deploy, dict) or not isinstance(replicas, dict) or not isinstance(pods, dict):
         raise ValueError("Malformed CSI inventory")
-    desired = deploy.get("spec", {}).get("replicas")
-    available = deploy.get("status", {}).get("availableReplicas", 0)
-    if not isinstance(desired, int) or not isinstance(available, int):
-        raise ValueError("Invalid deployment replica counts")
+    spec = deploy.get("spec")
+    state = deploy.get("status")
+    meta = deploy.get("metadata")
+    if not all(isinstance(part, dict) for part in (spec, state, meta)):
+        raise ValueError("Malformed CSI Deployment metadata/spec/status")
+    desired = spec.get("replicas")
+    available = state.get("availableReplicas", 0)
+    updated = state.get("updatedReplicas", 0)
+    ready_replicas = state.get("readyReplicas", 0)
+    generation = meta.get("generation")
+    observed = state.get("observedGeneration")
+    counters = (desired, available, updated, ready_replicas, generation, observed)
+    if any(type(number) is not int or number < 0 for number in counters):
+        raise ValueError("Invalid deployment readiness counters")
+    conditions = state.get("conditions") or []
+    if not isinstance(conditions, list):
+        raise ValueError("Invalid deployment conditions")
+    deadline = any(
+        isinstance(condition, dict)
+        and condition.get("type") == "Progressing"
+        and condition.get("status") == "False"
+        and condition.get("reason") == "ProgressDeadlineExceeded"
+        for condition in conditions
+    )
     rs_rows = replicas.get("items", [])
     pod_rows = pods.get("items", [])
     if not isinstance(rs_rows, list) or not isinstance(pod_rows, list):
@@ -60,13 +80,27 @@ def assess(deploy: object, replicas: object, pods: object) -> dict:
             running.append(name)
         elif phase in ("Failed", "Succeeded"):
             failed.append({"name": name, "phase": phase})
-    service_ready = desired == 1 and available == 1 and len(running) == 1
+    # Never report ready from a stale rollout merely because one old Pod is Running.
+    service_ready = (
+        desired == 1
+        and available == 1
+        and ready_replicas == desired
+        and updated == desired
+        and observed >= generation
+        and not deadline
+        and len(running) == desired
+    )
     return {
         "status": "CONTROLLER_READY_WITH_TERMINATED_PODS" if service_ready and failed
                   else "CONTROLLER_READY" if service_ready else "UNVERIFIED",
         "activeReplicaSet": active,
         "desired": desired,
         "available": available,
+        "updatedReplicas": updated,
+        "readyReplicas": ready_replicas,
+        "generation": generation,
+        "observedGeneration": observed,
+        "progressDeadlineExceeded": deadline,
         "readyPodCount": len(running),
         "terminatedPods": failed,
         "next": "inspect_exact_pod_owner_and_events_before_optional_cleanup" if failed

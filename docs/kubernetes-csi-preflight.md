@@ -132,6 +132,29 @@ The CSI preflight verifies:
 - the manifests pass `kubectl --dry-run=client`;
 - existing `CSIDriver` and StorageClass ownership is surfaced before apply.
 
+### H01 — Diagnostic des anciens Pods `Error` sans faux DOWN (13/11)
+
+Avant toute suppression de Pod, exécuter dans le contexte de l'opérateur Talos :
+
+```bash
+python3 scripts/talos/diagnose-truenas-csi-controller-pods.py --check
+bash scripts/talos/validate-csi-prereqs.sh
+```
+
+Le diagnostic distingue les Pods `Failed` historiques du ReplicaSet actif
+d'un contrôleur vraiment non convergé. Il vérifie que la génération a été
+observée, que les réplicas `updated`, `ready` et `available` concordent,
+et qu'aucune condition `ProgressDeadlineExceeded` ne persiste. Une seule
+ancienne erreur de Pod ne prouve pas une panne si le contrôleur et le Pod
+de remplacement sont effectivement prêts. Aucun Pod n'est supprimé.
+
+**`CONTROLLER_READY` n'est pas la clôture H01** : poursuivre avec
+`smoke-truenas-csi-nfs.sh --check`, le smoke RWX entre workers, le reclaim
+du PV et du dataset TrueNAS, puis la preuve NetworkPolicy.
+La présence du manifest officiel TrueNAS CSI dans Git ne prouve pas
+quelle version est déployée : comparer `kubectl -n truenas-csi get deploy
+truenas-csi-controller -o json` aux images versionnées.
+
 ## 2. Dedicated TrueNAS CSI credential
 
 Create a dedicated TrueNAS identity/API key for CSI. Do **not** reuse:
