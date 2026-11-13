@@ -39,6 +39,10 @@ build/cleanup cycle when only validation is intended.
 - `scripts/truenas/`: TrueNAS lifecycle, diagnostics, deployment and recovery.
 - `scripts/talos/`: Talos/Kubernetes installation, validation and smoke tests.
 - `scripts/pfsense/`: pfSense posture, diagnosis and recovery.
+- `scripts/pfsense/prepare-upgrade.sh --ssh <alias>`: read-only version, arm64,
+  memory/storage and package inventory before upgrade; see
+  [`docs/pfsense-upgrade-26-07.md`](../docs/pfsense-upgrade-26-07.md) for backup,
+  upgrade and REST API reinstall steps.
 - `scripts/secrets/`: metadata-driven secret rendering and validation.
 - `scripts/observability/`: monitoring/telemetry helpers.
 - `scripts/lib/`: small side-effect-free shell primitives shared by operator
