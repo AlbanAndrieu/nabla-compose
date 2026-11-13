@@ -10,7 +10,8 @@ the rest in git history.
 
 | Need | Canonical document |
 | --- | --- |
-| Current priorities / next actions | [`roadmap.md`](./roadmap.md), incl. 13 Nov cross-repository decisions |
+| **Priorités approuvées H01 → H02 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
+| Roadmap générale et options complémentaires | [`roadmap.md`](./roadmap.md), dont décisions inter-dépôts du 13/11 |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
 | Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |

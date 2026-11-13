@@ -79,6 +79,14 @@ build/cleanup cycle when only validation is intended.
 
 The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and script-acceptance decisions. The [FastAPI engineering roadmap](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) owns Python API/UI test runners and probes; [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) owns Gateway/heartbeat. Do not copy launchers between repositories. Retain a compatibility wrapper only while a live recipe, test or rollback procedure calls it; track that consumer before removal. No removal of historical OpenClaw or YubiKey entry points without their contract tests.
 
+## Approved execution and offline portfolio check
+
+The approved priority is **H01 (Talos / CSI) → H02 (PostgreSQL restore) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
+
+- `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
+- `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.
+- For H01 use the dedicated `scripts/talos/validate-csi-prereqs.sh` and `smoke-truenas-csi-nfs.sh`. For H02 use the existing `postgresbackup` restoration process. For H05 use `scripts/truenas/verify-service-observability.py`. These scripts have different privileges: do not fuse them into a mutating all-in-one operation.
+
 ## Refactor rules
 
 1. Preserve existing operator entry-point paths while extracting shared code.
