@@ -13,6 +13,16 @@ services:
       runtime:
         provider: truenas-app
         containerService: minio
+      exposure:
+        - name: public
+          hostnames:
+            - minio.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     # Reap orphaned mc children; the app PID 1 left zombies (diagnostic 2026-11-04).
     init: true
@@ -29,7 +39,11 @@ services:
       # S3 API, pour Langfuse
       - "9002:9000"
       # Console admin
-      - "9091:9001"
+      - name: web
+        target: 9001
+        published: "9091"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/minio:/data
       # - langfuse_minio_data:/export

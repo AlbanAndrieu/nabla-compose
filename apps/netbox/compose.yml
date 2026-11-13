@@ -80,6 +80,12 @@ services:
           strength: required
           evidence:
             - apps/netbox/compose.yml:REDIS_HOST
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
 
   netbox-worker:
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}

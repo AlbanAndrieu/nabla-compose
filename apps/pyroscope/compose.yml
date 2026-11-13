@@ -1,5 +1,10 @@
 ---
 name: pyroscope
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 11
+      primaryEndpoint: component:default/pyroscope
 services:
   pyroscope:
     image: grafana/pyroscope:2.3.0
@@ -37,6 +42,12 @@ services:
           description: Prometheus scrapes Pyroscope self-metrics from /metrics.
           evidence:
             - apps/pyroscope/compose.yml:pyroscope.x-nabla.monitoring.url
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     labels:
       com.albandrieu.nabla.entity-ref: component:default/pyroscope

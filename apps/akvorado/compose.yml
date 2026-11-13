@@ -155,9 +155,20 @@ services:
           description: The Akvorado console queries flow history from the shared ClickHouse service.
           evidence:
             - apps/akvorado/config/akvorado.yaml:clickhousedb
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     command: ["console", "http://akvorado-orchestrator:8080"]
     ports:
-      - "172.17.0.24:31056:8080"
+      - name: web
+        target: 8080
+        published: "31056"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - ./config:/etc/akvorado:ro
       - /mnt/cpool/akvorado/console:/run/akvorado

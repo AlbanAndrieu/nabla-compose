@@ -22,8 +22,19 @@ services:
         type: port
         host: 172.17.0.24
         port: 3010
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     ports:
-      - "172.17.0.24:3010:3000"
+      - name: web
+        target: 3000
+        published: "3010"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     environment:
       AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server
       AGENT_SERVER_IMAGE_TAG: 1.26.0-python

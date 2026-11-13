@@ -21,6 +21,14 @@ services:
         host: 172.17.0.24
         port: 30233
         path: /metrics
+      exposure:
+        - name: lan
+          hostnames:
+            - portracker.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     labels:
       com.albandrieu.nabla.entity-ref: component:default/portracker

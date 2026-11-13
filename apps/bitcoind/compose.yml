@@ -52,7 +52,8 @@ services:
         - -conf=/etc/bitcoin/bitcoin.conf
         - -datadir=/data
         - -rpcclienttimeout=10
-        - getnetworkinfo
+        # uptime skips cs_main: getnetworkinfo took 11-33 s during IBD and failed the 10 s check.
+        - uptime
       interval: 60s
       timeout: 20s
       retries: 5

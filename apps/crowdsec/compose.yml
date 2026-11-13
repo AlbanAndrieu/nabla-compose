@@ -70,6 +70,13 @@ services:
           evidence:
             - apps/crowdsec/compose.yml:CROWDSEC_METRICS_PORT
             - apps/prometheus/prometheus.yml:job_name=crowdsec
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          # Long syntax cannot keep the interpolated LAN bind address.
+          backend: http://172.17.0.24:8084
     # Vaultwarden import alias: CROWDSEC_PFSENSE_BOUNCER_KEY
     env_file:
       - path: /mnt/cpool/secrets/runtime/crowdsec/.env.secrets

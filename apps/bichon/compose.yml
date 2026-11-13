@@ -22,8 +22,27 @@ services:
         target: tcp://172.17.0.24:15630
         conditions:
           - "[CONNECTED] == true"
+      exposure:
+        - name: lan
+          hostnames:
+            - bichon.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
+          riskAcceptance:
+            id: bichon-private
+            status: rejected
+            reason: "Bichon must stay private. Any public DNS or Cloudflare Tunnel entry is configuration drift and must be reported by sickz."
+            control: lan-only-drift-reported-by-sickz
+            reviewAfter: null
     ports:
-      - "172.17.0.24:15630:15630"
+      - name: web
+        target: 15630
+        published: "15630"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/bichon:/data
     user: "568:568"

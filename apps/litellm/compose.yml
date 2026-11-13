@@ -49,6 +49,14 @@ services:
           description: LiteLLM exposes Cyberbro threat-intelligence tools through its MCP gateway.
           evidence:
             - apps/litellm/config.yaml:mcp_servers.cyberbro
+      exposure:
+        - name: lan
+          hostnames:
+            - litellm.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     # user: "568:568" # TrueNAS apps user
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -61,7 +69,11 @@ services:
       # - "--use_v2_migration_resolver"
       # - "--detailed_debug"
     ports:
-      - "4000:4000"
+      - name: web
+        target: 4000
+        published: "4000"
+        protocol: tcp
+        app_protocol: http
     # All proxy credentials and upstream keys come from the canonical runtime
     # materialization. Missing secrets must fail deployment, never fall back to
     # a developer checkout's .env or the LiteLLM master key.

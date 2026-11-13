@@ -7,11 +7,6 @@ locals {
   # are always added or removed together.
   tunnel_ingress = [
     {
-      hostname       = "adguardhome.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:30004"
-    },
-    {
       hostname = "heimdall.albandrieu.com"
       origin_request = {
         no_tls_verify = true
@@ -129,6 +124,11 @@ locals {
       hostname       = "reactive.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:30393"
+    },
+    {
+      hostname       = "plumber-api-albandrieu.albandrieu.com"
+      origin_request = {}
+      service        = "http://172.17.0.24:31071"
     },
     {
       hostname       = "traefik.albandrieu.com"

@@ -22,6 +22,15 @@ services:
       lifecycle:
         phase: platform-services
         priority: 40
+      exposure:
+        - name: lan
+          hostnames:
+            - graylog.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          # The live App answers on 30319 (TLS), not this file's 9003 default.
+          backend: https://172.17.0.24:30319
       relations:
         - target: mongo
           type: dependsOn

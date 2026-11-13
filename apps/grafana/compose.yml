@@ -1,4 +1,9 @@
 ---
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 9
+      primaryEndpoint: component:default/grafana
 services:
   grafana:
     labels:
@@ -45,6 +50,16 @@ services:
           description: The Grafana LLM plugin calls LiteLLM with a dedicated virtual key.
           evidence:
             - apps/grafana/config/grafana-llm-app.yml
+      exposure:
+        - name: public
+          hostnames:
+            - grafana.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     # Optional: without GRAFANA_LLM_API_KEY only the LLM features are unavailable.
     env_file:
       - path: /mnt/cpool/secrets/runtime/grafana/.env.secrets
@@ -56,7 +71,11 @@ services:
       GF_PATHS_PLUGINS: /var/lib/grafana/plugins
       GF_PLUGINS_PREINSTALL: ${GRAFANA_PLUGINS_PREINSTALL:-grafana-clock-panel,grafana-assistant-app,grafana-llm-app@1.2.0}
     ports:
-      - "${GRAFANA_PORT:-30037}:3000"
+      - name: web
+        target: 3000
+        published: "${GRAFANA_PORT:-30037}"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/grafana/data:/var/lib/grafana
       - /mnt/cpool/grafana/plugin:/var/lib/grafana/plugins

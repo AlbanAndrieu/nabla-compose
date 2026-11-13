@@ -21,6 +21,12 @@ services:
       lifecycle:
         phase: secondary-data
         priority: 30
+      exposure:
+        - name: lan
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     env_file:
       - /mnt/cpool/compose/nabla-compose/apps/opensearch/.env
     environment:
@@ -31,7 +37,11 @@ services:
       - OPENRAG_BACKEND_HOST=${OPENRAG_BACKEND_HOST:-openrag-backend}
       - OPENRAG_BACKEND_INTERNAL_URL=${OPENRAG_BACKEND_INTERNAL_URL:-http://${OPENRAG_BACKEND_HOST:-openrag-backend}:${OPENRAG_BACKEND_PORT:-8000}}
     ports:
-      - "${OPENSEARCH_PORT:-9200}:9200"
+      - name: web
+        target: 9200
+        published: "${OPENSEARCH_PORT:-9200}"
+        protocol: tcp
+        app_protocol: https
       - "${OPENSEARCH_PERF_PORT:-9600}:9600"
     volumes:
       - /mnt/cpool/opensearch/data:/usr/share/opensearch/data

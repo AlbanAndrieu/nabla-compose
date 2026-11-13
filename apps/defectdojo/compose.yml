@@ -224,6 +224,12 @@ services:
           strength: required
           evidence:
             - apps/defectdojo/compose.yml:DD_UWSGI_HOST
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
 
 networks:
   intranet:

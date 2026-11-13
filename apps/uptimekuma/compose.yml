@@ -21,10 +21,25 @@ services:
       lifecycle:
         phase: platform-services
         priority: 40
+      exposure:
+        - name: public
+          hostnames:
+            - uptime-kuma.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     # LAN-bound host port; the Cloudflare tunnel route to it sits behind Access (README).
     ports:
-      - "172.17.0.24:31050:3001"
+      - name: web
+        target: 3001
+        published: "31050"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     volumes:
       - /mnt/cpool/uptimekuma:/app/data
     user: "568:568"

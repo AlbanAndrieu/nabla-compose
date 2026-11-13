@@ -20,12 +20,15 @@ from nabla_ops.business_criticality import (  # noqa: E402
 )
 from nabla_ops.catalog_v2 import (  # noqa: E402
     backstage_compose_dependency_duplicates,
+    backstage_entity_ref,
     backstage_graph_errors,
     backstage_runtime_binding_errors,
     build_parity_report,
     compatibility_relation_debt,
     desired_exposure_errors,
+    merged_legacy_rows,
     preparation_errors,
+    route_intent_parity,
 )
 from nabla_ops.compose_paths import app_catalog_descriptors  # noqa: E402
 from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_paths  # noqa: E402
@@ -33,6 +36,7 @@ from nabla_ops.compose_paths import tracked_compose_paths as discover_compose_pa
 LEGACY_CATALOG = ROOT / "catalog" / "homelab-services.json"
 EXPOSURE_OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 GENERATED_CATALOG = ROOT / "catalog" / "services.json"
+GENERATED_ENTITIES = ROOT / "catalog" / "generated" / "entities.json"
 BUSINESS_CRITICALITY_POLICY = ROOT / "catalog" / "business-criticality-policy.yaml"
 
 
@@ -231,6 +235,20 @@ def _compose_exposure_bindings() -> list[dict]:
                     "exposure": exposure,
                 }
             )
+    for path in [ROOT / "catalog" / "catalog-info.yaml", *app_catalog_descriptors(ROOT)]:
+        for entity in yaml.safe_load_all(path.read_text(encoding="utf-8")):
+            exposure = ((entity or {}).get("x-nabla") or {}).get("exposure")
+            if exposure is None:
+                continue
+            result.append(
+                {
+                    "sourcePath": path.relative_to(ROOT).as_posix(),
+                    "composeService": entity["metadata"]["name"],
+                    "entityRef": backstage_entity_ref(entity),
+                    "namedPorts": [],
+                    "exposure": exposure,
+                }
+            )
     return result
 
 
@@ -312,6 +330,13 @@ def main() -> int:
         )
         report["errors"] = sorted(set(report["errors"]) | set(exposure_errors))
         report["summary"]["desiredExposureSpecErrors"] = len(exposure_errors)
+        route_mismatches = route_intent_parity(
+            merged_legacy_rows(_load(LEGACY_CATALOG), _load(EXPOSURE_OVERRIDES)),
+            _load(GENERATED_ENTITIES)["entities"],
+        )
+        report["routeIntentParityMismatches"] = route_mismatches
+        report["summary"]["routeIntentParityMismatches"] = len(route_mismatches)
+        report["errors"] = sorted(set(report["errors"]) | set(route_mismatches))
 
         business_policy = _load_yaml_mapping(BUSINESS_CRITICALITY_POLICY)
         business_inventory = business_criticality_inventory(

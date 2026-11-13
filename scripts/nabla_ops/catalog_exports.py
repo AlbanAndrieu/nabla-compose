@@ -9,8 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import uuid
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -160,8 +162,156 @@ def cyclonedx_projection(entities: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def build_standard_artifacts(paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+_DEFAULT_VALUE_RE = re.compile(r"^\$\{[A-Za-z0-9_]+:?-([^}]*)\}$")
+_LAN_ADDRESS = "albandrieu.com/lan-address"
+_DEFAULT_HOST_REF = "resource:default/truenas"
+
+
+def _compose_default(value: Any) -> str:
+    """Resolve a literal or ``${VAR:-default}`` Compose value to its default."""
+    text = str(value).strip()
+    match = _DEFAULT_VALUE_RE.fullmatch(text)
+    return match.group(1) if match else text
+
+
+def _backend_from_url(url: str, source: str) -> dict[str, Any]:
+    parsed = urlsplit(url)
+    if not parsed.scheme or not parsed.hostname or parsed.port is None:
+        raise ValueError(f"{source}: backend must be scheme://host:port")
+    return {"appProtocol": parsed.scheme, "host": parsed.hostname, "port": parsed.port}
+
+
+def _backend_from_port(
+    service: dict[str, Any], name: str, default_host: str, source: str
+) -> dict[str, Any]:
+    for port in service.get("ports") or []:
+        if isinstance(port, dict) and port.get("name") == name:
+            published = _compose_default(port.get("published", ""))
+            host = _compose_default(port["host_ip"]) if port.get("host_ip") else default_host
+            if not published.isdigit() or not host:
+                raise ValueError(f"{source}: port {name} needs a published number and host")
+            backend: dict[str, Any] = {"host": host, "port": int(published)}
+            if port.get("app_protocol"):
+                backend["appProtocol"] = str(port["app_protocol"])
+            return backend
+    raise ValueError(f"{source}: backendPort {name} is not a named Compose port")
+
+
+def _projected_route(
+    route: dict[str, Any], backend: dict[str, Any], source: str
+) -> dict[str, Any]:
+    projected = {
+        key: value for key, value in route.items()
+        if key not in {"backend", "entityRef"}
+    }
+    projected["backend"] = backend
+    projected["source"] = source
+    return projected
+
+
+def project_route_intent(
+    entities: list[dict[str, Any]],
+    compose_files: Iterable[Path],
+    root: Path,
+) -> None:
+    """Attach desired route intent and probe policy to each entity in place.
+
+    Authors keep route intent beside the runtime (Compose service or static
+    descriptor); consumers join it on the full entity ref only.
+    """
+    by_ref = {entity["entityRef"]: entity for entity in entities}
+    by_name: dict[str, list[str]] = {}
+    for entity in entities:
+        by_name.setdefault(str(entity["metadata"]["name"]), []).append(entity["entityRef"])
+
+    def lan_address(ref: str) -> str:
+        annotations = (by_ref.get(ref) or {}).get("metadata", {}).get("annotations") or {}
+        return str(annotations.get(_LAN_ADDRESS) or "")
+
+    def extension(ref: str, source: str) -> dict[str, Any]:
+        if ref not in by_ref:
+            raise ValueError(f"{source}: unresolved entity ref {ref}")
+        return by_ref[ref].setdefault("x-nabla", {})
+
+    for entity in entities:
+        authored = entity.get("x-nabla")
+        if not isinstance(authored, dict):
+            continue
+        source = entity["sourcePath"]
+        authored["exposure"] = [
+            _projected_route(route, _backend_from_url(str(route.get("backend") or ""), source), source)
+            for route in authored.get("exposure") or []
+        ]
+        if not authored["exposure"]:
+            del authored["exposure"]
+        if "probePolicy" in authored:
+            authored["probePolicy"] = {"rank": authored["probePolicy"]["rank"], "position": 0}
+
+    for path in sorted(compose_files):
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        services = data.get("services") if isinstance(data, dict) else None
+        if not isinstance(services, dict):
+            continue
+        relative = path.relative_to(root).as_posix()
+        unit = (data.get("x-nabla") or {}).get("deploymentUnit") or {}
+        default_host = lan_address(str(unit.get("hostRef") or _DEFAULT_HOST_REF))
+        for service_name, service in sorted(services.items()):
+            if not isinstance(service, dict):
+                continue
+            routes = (service.get("x-nabla") or {}).get("exposure") or []
+            labels = service.get("labels") or {}
+            if isinstance(labels, list):
+                labels = dict(item.split("=", 1) for item in labels if "=" in str(item))
+            owner_default = str(labels.get("com.albandrieu.nabla.entity-ref") or "").strip().lower()
+            source = f"{relative}#services/{service_name}"
+            for route in routes:
+                owner = str(route.get("entityRef") or owner_default).strip().lower()
+                if route.get("backend"):
+                    backend = _backend_from_url(str(route["backend"]), source)
+                else:
+                    backend = _backend_from_port(service, str(route.get("backendPort")), default_host, source)
+                extension(owner, source).setdefault("exposure", []).append(
+                    _projected_route(route, backend, source)
+                )
+
+        policy = unit.get("probePolicy")
+        if not isinstance(policy, dict):
+            continue
+        if policy.get("primaryEndpoint"):
+            members = [policy["primaryEndpoint"], *(policy.get("secondaryEndpoints") or [])]
+        else:
+            members = []
+            for name in unit.get("probeOrder") or []:
+                refs = by_name.get(str(name), [])
+                if len(refs) != 1:
+                    raise ValueError(f"{relative}: probeOrder member {name} is ambiguous")
+                members.append(refs[0])
+        unit_id = str(unit.get("id") or data.get("name") or path.parent.name)
+        for position, ref in enumerate(members):
+            extension(str(ref), relative)["probePolicy"] = {
+                "deploymentUnit": unit_id,
+                "position": position,
+                "rank": int(policy["rank"]),
+            }
+
+    for entity in entities:
+        routes = (entity.get("x-nabla") or {}).get("exposure") or []
+        names = [route.get("name") for route in routes]
+        if len(names) != len(set(names)):
+            raise ValueError(f"{entity['entityRef']}: duplicate exposure route name")
+        routes.sort(key=lambda route: str(route.get("name")))
+        if entity.get("x-nabla") == {}:
+            del entity["x-nabla"]
+
+
+def build_standard_artifacts(
+    paths: Iterable[Path],
+    compose_files: Iterable[Path] = (),
+    root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
     entities = load_backstage_entities(paths)
+    if root is not None:
+        project_route_intent(entities, compose_files, root)
     return {
         "entities.json": backstage_projection(entities),
         "homelab.cdx.json": cyclonedx_projection(entities),

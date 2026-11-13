@@ -1,5 +1,10 @@
 ---
 name: redis
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 4
+      primaryEndpoint: resource:default/redis
 services:
   redis:
     image: docker.io/redis:8.8.0
@@ -19,13 +24,22 @@ services:
       lifecycle:
         phase: primary-data
         priority: 20
+      exposure:
+        - name: lan
+          protocol: TCP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: redis
     restart: unless-stopped
     # Fail closed: a missing REDIS_AUTH must not start Redis with a public password.
     command: >
       --requirepass ${REDIS_AUTH:?REDIS_AUTH is required}
       --maxmemory-policy noeviction
     ports:
-      - 30059:6379
+      - name: redis
+        target: 6379
+        published: "30059"
+        protocol: tcp
     volumes:
       - /mnt/cpool/redis:/data
     healthcheck:

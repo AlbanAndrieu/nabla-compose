@@ -50,6 +50,12 @@ services:
           description: Prometheus scrapes Docling Serve OpenTelemetry metrics from /metrics.
           evidence:
             - apps/docling/compose.yml:docling.x-nabla.monitoring.url
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     environment:
       DOCLING_SERVE_ENABLE_UI: "true"
     ports:

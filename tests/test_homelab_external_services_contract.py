@@ -7,7 +7,6 @@ CATALOG = ROOT / "catalog" / "homelab-services.json"
 OVERRIDES = ROOT / "catalog" / "homelab-exposure-overrides.json"
 
 EXPECTED_EXTERNAL = {
-    "AdGuard Home",
     "Prometheus",
     "Grafana",
     "Gatus UI",

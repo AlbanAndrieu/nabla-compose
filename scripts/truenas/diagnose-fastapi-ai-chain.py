@@ -116,7 +116,9 @@ def inspect_declared(sources: dict[str, str | None]) -> dict[str, str]:
         and "LITELLM_FASTAPI_WORKSTATION_API_KEY" in litellm
         and "LITELLM_WORKSTATION_API_BASE" in litellm
     )
-    local = "OLLAMA_HOST=0.0.0.0:30068" in ollama and "30068:30068" in ollama
+    local = "OLLAMA_HOST=0.0.0.0:30068" in ollama and re.search(
+        r'target: 30068\s+published: "30068"', ollama
+    ) is not None
     mount = (
         "OPENRAG_BABABOU_SOURCE" in openrag
         and "target: /mnt/bababou" in openrag

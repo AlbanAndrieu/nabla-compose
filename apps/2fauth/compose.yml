@@ -17,6 +17,16 @@ services:
       runtime:
         provider: truenas-app
         appId: twofactor-auth
+      exposure:
+        - name: public
+          hostnames:
+            - 2fauth.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     environment:
       APP_ENV: ${TWOFAUTH_APP_ENV:-local}
       APP_KEY: ${TWOFAUTH_APP_KEY}
@@ -32,7 +42,11 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /srv/database/database.sqlite
     ports:
-      - "${TWOFAUTH_PORT:-30081}:8000"
+      - name: web
+        target: 8000
+        published: "${TWOFAUTH_PORT:-30081}"
+        protocol: tcp
+        app_protocol: http
     volumes:
       - "${TWOFAUTH_DATA_PATH:-/mnt/cpool/2fauth}:/2fauth"
     healthcheck:

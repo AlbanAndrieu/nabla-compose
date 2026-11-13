@@ -15,6 +15,10 @@ SPEC.loader.exec_module(homarr_sync)
 
 GRAFANA = {"id": "grafana", "name": "Grafana", "href": "https://grafana.example.test", "syncEligible": True}
 PFSENSE = {"id": "pfsense", "name": "pfSense", "href": "https://pfsense.example.test", "syncEligible": True}
+LAYOUTS = {"result": {"data": {"json": {"layouts": [
+    {"id": "layout-base", "name": "Base", "role": "base"},
+    {"id": "layout-mobile", "name": "Mobile", "role": "mobile"},
+]}}}}
 
 
 def _boards(*boards: dict) -> dict:
@@ -116,7 +120,7 @@ class HomarrSyncTests(unittest.TestCase):
 
     def test_reconcile_board_creates_and_writes_a_new_board(self) -> None:
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
-        request_json = Mock(side_effect=[[], {"boardId": "board-nabla"}, None, None])
+        request_json = Mock(side_effect=[[], {"boardId": "board-nabla"}, LAYOUTS, None, None])
 
         created, written = _reconcile(
             _boards({"name": "Nabla", "columns": 12, "public": False, "applications": "*"}),
@@ -125,15 +129,16 @@ class HomarrSyncTests(unittest.TestCase):
 
         self.assertEqual((created, written), (True, 2))
         calls = request_json.call_args_list
-        self.assertEqual(calls[:2], [
+        self.assertEqual(calls[:3], [
             call("GET", "/api/boards"),
             call("POST", "/api/boards", {"name": "Nabla", "columnCount": 12, "isPublic": False}),
+            call("GET", "/api/trpc/board.getBoardByName?input=%7B%22json%22%3A%7B%22name%22%3A%22Nabla%22%7D%7D"),
         ])
-        self.assertEqual([args[:2] for args, _ in calls[2:]], [
+        self.assertEqual([args[:2] for args, _ in calls[3:]], [
             ("PUT", "/api/boards/board-nabla/layouts"),
             ("PUT", "/api/boards/board-nabla/content"),
         ])
-        content = calls[3].args[2]
+        content = calls[4].args[2]
         self.assertEqual(
             [item["options"]["appId"] for item in content["items"]], ["homarr-grafana", "homarr-pfsense"]
         )
@@ -144,6 +149,7 @@ class HomarrSyncTests(unittest.TestCase):
         request_json = Mock(side_effect=[
             [{"id": "user-board", "name": "Personal"}],
             {"boardId": "board-infra"},
+            LAYOUTS,
             None,
             None,
         ])
@@ -165,6 +171,7 @@ class HomarrSyncTests(unittest.TestCase):
         state = {"grafana": "homarr-grafana", "pfsense": "homarr-pfsense"}
         request_json = Mock(side_effect=[
             [{"id": "board-nabla", "name": "Nabla", "isHome": False, "isMobileHome": True}],
+            LAYOUTS,
             None,
             None,
             None,
@@ -177,6 +184,7 @@ class HomarrSyncTests(unittest.TestCase):
         self.assertEqual((created, written), (False, 2))
         self.assertEqual([args[:2] for args, _ in request_json.call_args_list], [
             ("GET", "/api/boards"),
+            ("GET", "/api/trpc/board.getBoardByName?input=%7B%22json%22%3A%7B%22name%22%3A%22Nabla%22%7D%7D"),
             ("PUT", "/api/boards/board-nabla/layouts"),
             ("PUT", "/api/boards/board-nabla/content"),
             ("PATCH", "/api/boards/board-nabla/home"),
@@ -185,10 +193,10 @@ class HomarrSyncTests(unittest.TestCase):
     def test_board_content_places_widgets_before_group_sections(self) -> None:
         layouts, content = homarr_sync.board_content(
             "b", 12, [{"kind": "clock"}, {"kind": "weather", "options": {"showCity": True}}],
-            {"network": ["a1", "a2"], "ai": ["a3"]},
+            {"network": ["a1", "a2"], "ai": ["a3"]}, {"base": "lb", "mobile": "lm"},
         )
 
-        self.assertEqual([layout["id"] for layout in layouts], ["b-base", "b-mobile"])
+        self.assertEqual([layout["id"] for layout in layouts], ["lb", "lm"])
         sections = {section["id"]: section for section in content["sections"]}
         self.assertEqual(list(sections), ["b-root", "b-group-ai", "b-group-network"])
         # Base: both widgets fit one row of height 2; mobile stacks them (4 rows).
@@ -197,6 +205,29 @@ class HomarrSyncTests(unittest.TestCase):
         a2 = next(item for item in content["items"] if item["options"].get("appId") == "a2")
         self.assertEqual({(p["sectionId"], p["xOffset"], p["yOffset"]) for p in a2["layouts"]},
                          {("b-group-network", 1, 0)})
+
+    def test_board_layouts_reuse_the_existing_layout_ids(self) -> None:
+        # Homarr 2.6 answers 400 "New layouts must use the custom role" to invented ids.
+        request_json = Mock(side_effect=[
+            [{"id": "board-nabla", "name": "Nabla"}], LAYOUTS, None, None,
+        ])
+
+        _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, {"grafana": "homarr-grafana"})
+
+        layouts = request_json.call_args_list[2].args[2]["layouts"]
+        self.assertEqual([(layout["id"], layout["role"]) for layout in layouts],
+                         [("layout-base", "base"), ("layout-mobile", "mobile")])
+        content = request_json.call_args_list[3].args[2]
+        self.assertEqual({p["layoutId"] for item in content["items"] for p in item["layouts"]},
+                         {"layout-base", "layout-mobile"})
+
+    def test_board_without_a_mobile_layout_fails_with_the_roles_found(self) -> None:
+        only_base = {"result": {"data": {"json": {"layouts": [{"id": "layout-base", "role": "base"}]}}}}
+        request_json = Mock(side_effect=[[{"id": "board-nabla", "name": "Nabla"}], only_base])
+
+        with self.assertRaisesRegex(RuntimeError, r"board Nabla has no mobile layout \(roles found: \['base'\]\)"):
+            _reconcile(_boards({"name": "Nabla", "applications": "*"}), request_json, {})
+        self.assertFalse(any(args[0] == "PUT" for args, _ in request_json.call_args_list))
 
     def test_reconcile_board_refuses_ambiguous_board_names(self) -> None:
         request_json = Mock(return_value=[{"id": "a", "name": "Nabla"}, {"id": "b", "name": "Nabla"}])

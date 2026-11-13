@@ -20,6 +20,22 @@ services:
         type: port
         host: 172.17.0.24
         port: 8099
+      exposure:
+        - name: public
+          hostnames:
+            - hello.int.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/pfsense-haproxy
+          backendPort: web
+          access:
+            required: false
+          riskAcceptance:
+            id: hello-int-public-static-page
+            status: accepted
+            reason: "hello.int.albandrieu.com is an intentionally public static nginx test page reached directly through pfSense WAN HAProxy and Traefik, without Cloudflare. It serves no data and needs no authentication; keep it static and remove the public DNS record if it ever serves anything else."
+            control: static-content-no-data
+            reviewAfter: null
     restart: unless-stopped
     environment:
       UID: 1000

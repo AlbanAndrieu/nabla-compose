@@ -56,3 +56,9 @@ variable "dns_retirement_phase" {
     error_message = "dns_retirement_phase must be adopt or retire."
   }
 }
+
+variable "freshrss_site_service_token_id" {
+  description = "Access service token of nabla-site-alban for the FreshRSS GReader API; empty until the owner creates it."
+  type        = string
+  default     = ""
+}

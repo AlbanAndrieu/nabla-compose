@@ -38,11 +38,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    artifacts = build_standard_artifacts(descriptor_paths())
+    compose_files = [ROOT / path for path in tracked_compose_paths(ROOT)]
+    artifacts = build_standard_artifacts(descriptor_paths(), compose_files, ROOT)
     # Derived crosswalk is a join across native authorities, never authored by hand.
     artifacts["identity-map.json"] = identity_mapping_projection(
         artifacts["entities.json"]["entities"],
-        [ROOT / path for path in tracked_compose_paths(ROOT)],
+        compose_files,
         ROOT / "config/monitoring/gatus-endpoints.yml",
         ROOT,
     )

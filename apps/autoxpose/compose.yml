@@ -25,6 +25,12 @@ services:
           description: AutoXpose discovers containers through the restricted Docker API proxy.
           evidence:
             - apps/autoxpose/compose.yml:DOCKER_HOST=tcp://docker-socket-proxy:2375
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     user: "568:568" # TrueNAS apps user
     ports:

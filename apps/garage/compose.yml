@@ -7,6 +7,8 @@ x-nabla:
     stateful: true
     upgradePolicy: controlled
     probeOrder: [garage, garage-admin, garage-webui]
+    probePolicy:
+      rank: 0
   nodes:
     - id: garage-admin
       name: Garage Admin API
@@ -60,6 +62,34 @@ services:
           evidence:
             - apps/garage/compose.yml:traefik.http.routers.garage-s3.rule
             - apps/garage/compose.yml:traefik.http.services.garage-s3.loadbalancer.server.port
+      exposure:
+        - name: lan
+          hostnames:
+            - s3.int.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: s3
+          riskAcceptance:
+            id: garage-s3-internal-only
+            status: rejected
+            reason: "Garage S3 s3.int.albandrieu.com is internal-only; public DNS and WAN HAProxy/NAT routes are unauthorized. Verify OpenTofu state backend connectivity before the infrastructure-side cutover."
+            control: lan-only-no-public-dns
+            reviewAfter: null
+        - name: lan
+          entityRef: component:default/garage-admin
+          hostnames:
+            - garage-admin.albandrieu.com
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: admin
+          riskAcceptance:
+            id: garage-admin-lan-only
+            status: rejected
+            reason: "No WAN or Cloudflare Tunnel exposure approved for Garage Admin API."
+            control: lan-or-vpn-only
+            reviewAfter: null
     configs:
       - source: garage_config
         target: /etc/garage.toml
@@ -124,6 +154,16 @@ services:
           evidence:
             - apps/garage/compose.yml:API_BASE_URL
             - apps/garage/compose.yml:S3_ENDPOINT_URL
+      exposure:
+        - name: public
+          hostnames:
+            - garage.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     configs:
       - source: garage_config
         target: /etc/garage.toml

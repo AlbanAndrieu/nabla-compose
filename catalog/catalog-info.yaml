@@ -57,6 +57,18 @@ spec:
   type: database
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - postgres.albandrieu.com
+      port: 5432
+      protocol: TCP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: tcp://172.17.0.24:5432
+  probePolicy:
+    rank: 3
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -110,6 +122,7 @@ metadata:
     - network
     - security
   annotations:
+    albandrieu.com/lan-address: 172.17.0.1
     albandrieu.com/bia-mtpd: PT1H
     albandrieu.com/bia-rto: PT15M
     albandrieu.com/bia-rpo: P1D
@@ -128,6 +141,35 @@ spec:
   type: firewall-router
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: home
+      hostnames:
+        - home.albandrieu.com
+      port: 10443
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/pfsense
+      backend: https://172.17.0.1:10443
+      riskAcceptance:
+        id: pfsense-home-alias-trusted-sources
+        status: rejected
+        reason: "home.albandrieu.com:10443 aliases the pfSense administration/API listener. This source-aware policy permits only approved stable administration sources; FastAPI Cloud direct reachability is intentionally treated as a policy failure until a controlled workload identity or out-of-band observer is used."
+        control: trusted-source-allowlist
+        reviewAfter: null
+    - name: admin
+      hostnames:
+        - pfsense.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/pfsense
+      backend: https://172.17.0.1:10443
+      riskAcceptance:
+        id: pfsense-admin-trusted-sources
+        status: rejected
+        reason: "The pfSense administration/API listener on 10443 is a trusted-source-only endpoint. FastAPI Cloud is not an approved administration source: direct reachability from that runtime is a negative exposure check and a security-policy failure. Keep administration limited to approved stable sources, use dedicated least-privilege API identities, and move durable posture/Snort telemetry to an out-of-band observer."
+        control: trusted-source-allowlist
+        reviewAfter: null
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -182,6 +224,7 @@ metadata:
   tags:
     - infrastructure
   annotations:
+    albandrieu.com/lan-address: 172.17.0.24
     albandrieu.com/bia-mtpd: PT4H
     albandrieu.com/bia-rto: PT1H
     albandrieu.com/bia-rpo: PT1H
@@ -206,6 +249,24 @@ spec:
   type: virtualization-platform
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - truenas.albandrieu.com
+      port: 7000
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/pfsense-haproxy
+      backend: https://172.17.0.24:7000
+      access:
+        required: false
+      riskAcceptance:
+        id: truenas-public-admin
+        status: accepted
+        reason: "TrueNAS HTTPS/API is intentionally published on public port 7000 by pfSense HAProxy, which terminates public TLS and re-encrypts to 172.17.0.24:7000. FastAPI Cloud requires this WAN path and currently has no user-controlled static egress/tunnel; keep the exposure visible as an accepted security exception, require TLS/API authentication, and validate access from approved and untrusted origins separately."
+        control: tls-and-api-auth
+        reviewAfter: null
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -379,3 +440,1274 @@ spec:
   type: ai-inference-capability
   owner: group:default/nabla-platform
   system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: workstation
+  title: Workstation
+  description: Operator Linux workstation hosting GPU inference and personal service instances on the LAN.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/bia-scope: inherited
+  tags:
+    - infrastructure
+    - workstation
+  annotations:
+    albandrieu.com/lan-address: 172.17.0.57
+spec:
+  type: host
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: adguardhome
+  title: AdGuard Home
+  description: Network-wide DNS ad blocking, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    # LAN only (owner decision 13/11): its tunnel route was removed.
+    - name: lan
+      hostnames:
+        - adguardhome.albandrieu.com
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30004
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: affine
+  title: Affine
+  description: Knowledge base and notes, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - affine.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30169
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: anythingllm
+  title: AnythingLLM
+  description: Private LLM workspace and RAG, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - anythingllm.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30318
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: anythingllm-albandrieu
+  title: AnythingLLM - albandrieu
+  description: Private LLM workspace and RAG running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - anythingllm-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: http://172.17.0.57:3007
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: convertx
+  title: ConvertX
+  description: File conversion service, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - convertx.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30154
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: domain-watchdog
+  title: Domain Watchdog
+  description: Domain registration monitoring, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - domain-watchdog.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30317
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: freshrss
+  title: FreshRSS
+  description: RSS feed reader, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - freshrss.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30108
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: heimdall
+  title: Heimdall
+  description: Application dashboard, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - heimdall.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: https://172.17.0.24:30120
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ittools
+  title: IT Tools
+  description: Developer utilities collection, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - development
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - ittools.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30063
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: karakeep
+  title: KaraKeep
+  description: Bookmark and read-later manager, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - karakeep.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30147
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: litellm-albandrieu
+  title: LiteLLM - albandrieu
+  description: LLM proxy and gateway running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - litellm-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: http://172.17.0.57:4000
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: localai
+  title: LocalAI
+  description: Local AI models, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - localai.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30286
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: localai-gpu
+  title: LocalAI (GPU)
+  description: Local AI models on the GPU instance, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - localai-gpu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:30320
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: netalertx
+  title: NetAlertX
+  description: Network presence scanning and alerts, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: security-tool
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - netalertx.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:30321
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: netbootxyz
+  title: Netbootxyz
+  description: Network boot utility, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - netbootxyz.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:31010
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ollama-gpu
+  title: Ollama (GPU)
+  description: Large language models on the GPU instance, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - ollama-gpu.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: https://172.17.0.24:30323
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: open-speed-test
+  title: Open SpeedTest
+  description: Browser network speed test, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - open-speed-test.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:30117
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: open-terminal
+  title: Open Terminal
+  description: Browser terminal used by Open WebUI tools, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30377
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: openarchiver
+  title: OpenArchiver
+  description: Email archive management, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - openarchiver.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30288
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: openclaw
+  title: OpenClaw
+  description: OpenClaw agent gateway, installed as a TrueNAS App outside this repository's Compose files.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - openclaw.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:30325
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: paperless-ai
+  title: Paperless AI
+  description: AI document tagging for Paperless-ngx, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - ai
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: ai-service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - paperless-ai.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30226
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: paperless-ngx
+  title: Paperless-ngx
+  description: Document management system, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - paperless-ngx.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30070
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: pgadmin
+  title: pgAdmin
+  description: PostgreSQL administration, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - data
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - pgadmin.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30056
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: plumber-albandrieu
+  title: Plumber - albandrieu
+  description: Plumber web UI instance running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - development
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - plumber-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: https://172.17.0.57:3001
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: portainer
+  title: Portainer
+  description: Container management, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - infrastructure
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - portainer.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:31015
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: portracker-albandrieu
+  title: PortTracker - albandrieu
+  description: Port tracking instance running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - portracker-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: http://172.17.0.57:4999
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: reactive-albandrieu
+  title: Reactive Resume - albandrieu
+  description: Reactive Resume instance running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - reactive-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: http://172.17.0.57:3008
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: reactive-resume
+  title: Reactive Resume
+  description: Resume builder, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - reactive.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30393
+      probePath: "/api/health"
+      access:
+        required: false
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sabnzbd
+  title: SABnzbd
+  description: Usenet downloader, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30055
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: scrutiny-collector-albandrieu
+  title: Scrutiny Collector - albandrieu
+  description: Workstation SMART collector posting disk telemetry to the Scrutiny API hosted on TrueNAS.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - observability
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: collector
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: searxng
+  title: SearXNG
+  description: Private metasearch engine, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: public
+      hostnames:
+        - searxng.albandrieu.com
+      protocol: HTTPS
+      visibility: public
+      gatewayRef: resource:default/cloudflare-tunnel
+      backend: http://172.17.0.24:30053
+      access:
+        required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: speedtest
+  title: Speedtest Tracker
+  description: Scheduled internet speed tests, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - speedtest.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: https://172.17.0.24:30221
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: stirling
+  title: Stirling PDF
+  description: PDF toolkit, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - stirling.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30124
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: stirling-albandrieu
+  title: Stirling PDF - albandrieu
+  description: PDF toolkit instance running on the workstation.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+    - workstation
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: website
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+  dependsOn:
+    - resource:default/workstation
+x-nabla:
+  exposure:
+    - name: lan
+      hostnames:
+        - stirling-albandrieu.albandrieu.com
+      protocol: HTTPS
+      visibility: lan
+      gatewayRef: resource:default/workstation
+      backend: http://172.17.0.57:8085
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: transmission
+  title: Transmission
+  description: BitTorrent client, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-13"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30096

@@ -18,11 +18,22 @@ services:
         type: port
         host: 172.17.0.24
         port: 3128
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: proxy
     restart: unless-stopped
     labels:
       com.albandrieu.nabla.entity-ref: component:default/squid
     ports:
-      - "172.17.0.24:3128:3128"
+      - name: proxy
+        target: 3128
+        published: "3128"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
     tmpfs:
       - /var/spool/squid:rw,noexec,nosuid,nodev,size=64m
       - /var/log/squid:rw,noexec,nosuid,nodev,size=16m

@@ -23,6 +23,12 @@ services:
         type: port
         host: 172.17.0.24
         port: 8081
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     # JVM memory cap (2026-11-06): 2g heap plus 2g MaxDirectMemorySize (INSTALL4J_ADD_VM_PARAMS) plus metaspace; an OOM stays in this cgroup.
     mem_limit: 5g

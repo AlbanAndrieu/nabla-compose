@@ -40,8 +40,11 @@ class CloudflareContract(unittest.TestCase):
         # Resources that never existed in the dashboard: created by the module, never imported.
         created = {
             f"cloudflare_zero_trust_access_application.{name}"
-            for name in ("keycloak_oidc", "joplin", "vaultwarden_admin")
-        }
+            for name in (
+                "keycloak_oidc", "joplin", "vaultwarden_admin",
+                "affine", "freshrss", "plumber_api",
+            )
+        } | {"cloudflare_zero_trust_access_policy.freshrss_site"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
             if f"{kind}.{name}" in created:

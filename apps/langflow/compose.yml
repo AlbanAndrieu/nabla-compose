@@ -24,10 +24,20 @@ services:
           description: The OpenRAG Langflow runtime accesses the shared OpenSearch service.
           evidence:
             - apps/langflow/compose.yml:OPENSEARCH_HOST
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     env_file:
       - /mnt/cpool/secrets/runtime/langflow/.env.secrets
     ports:
-      - "7860:7860"
+      - name: web
+        target: 7860
+        published: "7860"
+        protocol: tcp
+        app_protocol: http
     volumes:
       # Do not bind an unversioned/empty ./flows directory over /app/flows:
       # the pinned OpenRAG Langflow image already contains the compatible flow

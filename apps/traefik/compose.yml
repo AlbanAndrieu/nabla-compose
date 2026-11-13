@@ -41,6 +41,12 @@ services:
           evidence:
             - "pfSense HAProxy generated config: frontend fWeb_HTTPS binds 82.66.4.247:443 in HTTP mode with ssl"
             - "pfSense HAProxy generated config: backend prod_front-traefik-https_ipvANY routes to 172.17.0.24:443 with ssl verify none"
+      exposure:
+        - name: lan
+          protocol: HTTPS
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: websecure
     env_file:
       - /mnt/cpool/traefik/.env
       - /mnt/cpool/traefik/.env.secrets

@@ -121,6 +121,17 @@ services:
           strength: required
           evidence:
             - apps/plumber/compose.yml:JOBS_REDIS_HOST
+      # GitHub Actions CI reaches the API with the fastapi-sample monitor token.
+      exposure:
+        - name: public
+          hostnames:
+            - plumber-api-albandrieu.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: api
+          access:
+            required: true
 
   plumber-worker:
     image: ${PLUMBER_BACKEND_IMAGE:-docker.io/getplumber/backend:v2.44.1@sha256:76a83cafdb5aa218852e94700334e48072dd10f94700ea938f67e7aa25ec9fae}

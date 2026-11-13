@@ -27,6 +27,12 @@ services:
         target: http://172.17.0.24:5100/
         conditions:
           - "[STATUS] == 200"
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     env_file:
       - path: /mnt/cpool/secrets/runtime/cyberbro/.env
         required: true

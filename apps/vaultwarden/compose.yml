@@ -1,5 +1,10 @@
 ---
 name: vaultwarden
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 6
+      primaryEndpoint: component:default/vaultwarden
 services:
   vaultwarden:
     image: vaultwarden/server:1.37.3

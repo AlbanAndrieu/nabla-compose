@@ -19,6 +19,12 @@ services:
       monitoring:
         type: http
         target: http://172.17.0.24:8443/healthz
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8443/healthz"]
       interval: 30s

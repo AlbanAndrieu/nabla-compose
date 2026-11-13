@@ -27,6 +27,12 @@ services:
         type: port
         host: 172.17.0.24
         port: 8888
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
     restart: unless-stopped
     ports:
       - name: web

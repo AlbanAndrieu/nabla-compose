@@ -24,6 +24,16 @@ services:
           evidence:
             - apps/clickhouse/config/prometheus.xml
             - apps/prometheus/prometheus.yml:job_name=clickhouse
+      exposure:
+        - name: public
+          hostnames:
+            - clickhouse.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
     restart: unless-stopped
     # Reap orphaned wget children; the app PID 1 left zombies (diagnostic 2026-11-04).
     init: true
@@ -39,7 +49,12 @@ services:
       - /mnt/cpool/logs/clickhouse-server:/var/log/clickhouse-server
       - ./config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
     ports:
-      - "172.17.0.24:8123:8123"
+      - name: web
+        target: 8123
+        published: "8123"
+        host_ip: 172.17.0.24
+        protocol: tcp
+        app_protocol: http
       - "172.17.0.24:9000:9000"
       - "172.17.0.24:9363:9363"
     healthcheck:

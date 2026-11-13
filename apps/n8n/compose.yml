@@ -1,4 +1,9 @@
 ---
+x-nabla:
+  deploymentUnit:
+    probePolicy:
+      rank: 10
+      primaryEndpoint: component:default/n8n
 services:
   n8n:
     image: n8nio/n8n:latest
@@ -43,6 +48,22 @@ services:
           description: n8n exposes metrics for Prometheus scraping.
           evidence:
             - apps/n8n/compose.yml:prometheus.scrape
+      exposure:
+        - name: public
+          hostnames:
+            - n8n.albandrieu.com
+          protocol: HTTPS
+          visibility: public
+          gatewayRef: resource:default/cloudflare-tunnel
+          backendPort: web
+          access:
+            required: true
+          riskAcceptance:
+            id: n8n-public-webhook
+            status: accepted
+            reason: "n8n currently needs a public webhook path for integrations such as Slack. A broad Cloudflare Access bypass/Everyone policy is intentionally treated as a red security exception; narrow it to the webhook path or replace it with Service Auth."
+            control: narrow-access-bypass-to-webhook-path
+            reviewAfter: null
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5678/healthz" ]
@@ -61,7 +82,11 @@ services:
       - prometheus.scrape=true
       - prometheus.port=5678
     ports:
-      - "30109:5678"
+      - name: web
+        target: 5678
+        published: "30109"
+        protocol: tcp
+        app_protocol: http
     environment:
       DOMAIN_NAME: albandrieu.com
       SUBDOMAIN: n8n
