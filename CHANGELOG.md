@@ -1,3 +1,15 @@
+# [0.79.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.78.1...0.79.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **homarr:** send a JSON body when setting the home board ([b35db22](https://github.com/AlbanAndrieu/nabla-compose/commit/b35db22a71000bd3699386a09945ff2f95b4b8a0))
+
+
+### Features
+
+* **g1:** rebase restore proof on compacted H01-H19 roadmap [skip ci] ([fae19f2](https://github.com/AlbanAndrieu/nabla-compose/commit/fae19f256bb9ecc2b039e5a49a516237b86a1f67))
+
 ## [0.78.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.78.0...0.78.1) (2026-11-13)
 
 
