@@ -314,6 +314,16 @@ Also distinguish service enablement from runtime state: exporter metrics such as
 `pfsense_service_enabled{name="crowdsec"} 1` show configuration enablement,
 not proof that the CrowdSec engine process is running.
 
+Since the 2026-10-27 pfSense Small cutover, the engine and LAPI run on
+TrueNAS: a stopped local engine is healthy. The SSH summary prints
+`WARN: crowdsec_small_mode=reverted` when the local agent, LAPI or engine is
+back, and `WARN: crowdsec_bouncer=...` unless the bouncer runs against
+`http://172.17.0.24:8084`. In Small mode, `service crowdsec.sh restart`
+returning `1` with `crowdsec not running?` is the expected stop-only path.
+The same summary flags Snort posture drift (`snort_http_memcap`,
+`snort_http_inspect_7000`, `snort_download_*`); see the
+[2026-11-13 incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md).
+
 ## REST API service identities
 
 The canonical service accounts are deliberately split:

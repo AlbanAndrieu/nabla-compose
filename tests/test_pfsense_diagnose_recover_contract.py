@@ -261,6 +261,20 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("Recent IPinfo/ASN retry evidence", text)
         self.assertNotIn("grep -nEi '<asn_reporting>|<asn_token>'", text)
 
+    def test_posture_drift_from_2026_11_13_incident_is_flagged(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("WARN: snort_http_memcap=%s expected=33554432", text)
+        self.assertIn("WARN: snort_http_inspect_7000=present_or_unknown", text)
+        for flag in ("emergingthreats", "openappid_detectors", "openappid_rules_detectors"):
+            self.assertIn(flag, text)
+        # pfSense Small: a local engine or LAPI is drift, not health.
+        self.assertIn("WARN: crowdsec_small_mode=reverted", text)
+        self.assertIn("OK: crowdsec_bouncer=running lapi=remote-truenas", text)
+        self.assertNotIn("crowdsec_engine=absent enabled=on", text)
+        self.assertIn("^((OK|WARN): (snort|crowdsec)_|", text)
+        self.assertIn('OK:* | WARN:*) console_line "${summary_line}"', text)
+
     def test_transport_metadata_preserves_empty_remote_ip_fields(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
 

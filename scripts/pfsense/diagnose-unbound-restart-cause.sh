@@ -231,13 +231,19 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
     {
       event=""
       marker=""
+      victim=""
       if(source=="pfblockerng") {
         marker=pfblocker_time_marker($0)
         if(marker!="") {last_header_time=marker;last_header_line=NR}
       }
       if(source=="system" || source=="resolver") {
-        if($0 ~ /failed to reclaim memory|out of swap|waited too long to allocate a page/)
+        if($0 ~ /failed to reclaim memory|out of swap|waited too long to allocate a page/) {
           event=($0 ~ /[(]unbound[)]/ ? "kernel_oom_unbound" : "kernel_oom_other")
+          # The first victim is the largest process: name it, nothing else.
+          if(match($0, /[(][A-Za-z0-9_.-]+[)]/))
+            victim=substr($0, RSTART+1, RLENGTH-2)
+        }
+        else if($0 ~ /\[Snort\] Updating rules configuration/) event="snort_rules_rebuild"
         else if($0 ~ /pfb_unbound[.]py script exiting/) event="dnsbl_python_exit"
         else if($0 ~ /Restart of unbound/) event="unbound_restart_notice"
         else if($0 ~ /bind: address already in use|fatal error: could not open ports/)
@@ -270,6 +276,7 @@ for file in /var/log/system.log /var/log/system.log.0 /var/log/system.log.1 \
                event=="watchdog_unbound_restart" ? "WARN: " : "")
         record=sprintf("%ssignal_source=%s event=%s timestamp=%s",
           level,source,event,stamp($0))
+        if(victim!="") record=record " victim=" victim
         # The preceding header is context, never the event timestamp.
         if(source=="pfblockerng" && last_header_time!="" &&
            (NR-last_header_line)<=80) {
@@ -386,8 +393,10 @@ printf 'feed_artifact_summary scope=snort checked=%d warning=%d critical=%d warn
 echo 'feed_artifact_status=METADATA_ONLY_NO_LIVE_DOWNLOAD'
 echo '=== Memory context (sample only, not a nocturnal measurement) ==='
 sysctl vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_page_size 2>/dev/null || true
+sysctl kstat.zfs.misc.arcstats.size kstat.zfs.misc.arcstats.c_max 2>/dev/null || true
 echo '=== Evidence interpretation ==='
 echo 'kernel_oom_unbound=CONFIRMED_KERNEL_KILL_WHEN_TIMESTAMP_MATCHES'
+echo 'snort_rules_rebuild=MEMORY_PEAK_SUSPECT_WHEN_NEXT_OOM_VICTIM_IS_PHP'
 echo 'dnsbl_python_exit=MODULE_SHUTDOWN_NOT_PROOF_OF_CALLER'
 echo 'dnsbl_service_restart_marker=DNSBL_ACTION_NOT_PROOF_OF_UNBOUND_PID_CHANGE'
 echo 'pfblocker_unbound_stop_marker=SOURCE_REPORTS_A_STOP_REQUEST_NOT_PID_VERIFIED'

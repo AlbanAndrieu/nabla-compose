@@ -832,6 +832,15 @@ if [ -n "${CROWDSEC_ENGINE_PID}" ]; then
 else
   printf 'crowdsec_metrics=skipped_engine_stopped\n'
 fi
+# pfSense Small since 2026-10-27: engine and LAPI run on TrueNAS, not here.
+CROWDSEC_AGENT="$(/usr/local/sbin/read_xml_tag.sh string installedpackages/crowdsec/config/enable_agent 2>/dev/null || true)"
+CROWDSEC_LAPI="$(/usr/local/sbin/read_xml_tag.sh string installedpackages/crowdsec/config/enable_lapi 2>/dev/null || true)"
+if [ "${CROWDSEC_AGENT}" = on ] || [ "${CROWDSEC_LAPI}" = on ] || [ -n "${CROWDSEC_ENGINE_PID}" ]; then
+  printf 'WARN: crowdsec_small_mode=reverted agent=%s lapi=%s engine_pid=%s expected=off/off/absent\n' \
+    "${CROWDSEC_AGENT:-off}" "${CROWDSEC_LAPI:-off}" "${CROWDSEC_ENGINE_PID:-absent}"
+else
+  echo 'OK: crowdsec_small_mode=engine_and_lapi_off'
+fi
 if [ -n "${CROWDSEC_BOUNCER_PID}" ]; then
   ps -p "${CROWDSEC_BOUNCER_PID}" -o pid,ppid,rss,vsz,pcpu,pmem,etime,state,command 2>/dev/null || true
 fi
@@ -872,6 +881,12 @@ if [ -f "${CROWDSEC_BOUNCER_CONF}" ]; then
 else
   printf 'crowdsec_firewall_bouncer_config=missing\n'
   printf 'crowdsec_firewall_bouncer_api_url=<none> mode=missing\n'
+fi
+if [ -n "${CROWDSEC_BOUNCER_PID}" ] && [ "${CROWDSEC_BOUNCER_LAPI_MODE:-missing}" = remote-truenas ]; then
+  echo 'OK: crowdsec_bouncer=running lapi=remote-truenas'
+else
+  printf 'WARN: crowdsec_bouncer=%s lapi=%s expected=running/remote-truenas\n' \
+    "${CROWDSEC_BOUNCER_PID:-absent}" "${CROWDSEC_BOUNCER_LAPI_MODE:-missing}"
 fi
 printf 'Recent CrowdSec firewall bouncer warnings/errors (bounded):\n'
 if [ -f "${CROWDSEC_BOUNCER_LOG}" ]; then
@@ -1115,6 +1130,25 @@ else
   echo 'SNORT_HTTP_MEMCAP=unknown'
 fi
 
+# Netgate 1100 Snort posture applied on 2026-11-13 (see the dated incident).
+if [ "${HTTP_MEMCAP:-}" = 33554432 ]; then
+  echo 'OK: snort_http_memcap=33554432'
+else
+  printf 'WARN: snort_http_memcap=%s expected=33554432\n' "${HTTP_MEMCAP:-unknown}"
+fi
+if [ -n "${SNORT_CONF}" ] && ! printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
+  echo 'OK: snort_http_inspect_7000=absent'
+else
+  echo 'WARN: snort_http_inspect_7000=present_or_unknown expected=absent'
+fi
+for SNORT_FLAG in emergingthreats openappid_detectors openappid_rules_detectors; do
+  if [ "$(/usr/local/sbin/read_xml_tag.sh string "installedpackages/snortglobal/${SNORT_FLAG}" 2>/dev/null)" = on ]; then
+    printf 'WARN: snort_download_%s=on expected=off\n' "${SNORT_FLAG}"
+  else
+    printf 'OK: snort_download_%s=off\n' "${SNORT_FLAG}"
+  fi
+done
+
 if [ "${BLOCK_MATCH_COUNT}" -gt 0 ]; then
   echo 'INGRESS_ATTRIBUTION=blocked_source_present'
 elif [ -n "${SNORT_CONF}" ] && ! printf '%s\n' "${HTTP_BLOCK}" | grep -Eq '(^|[^0-9])7000([^0-9]|$)'; then
@@ -1155,9 +1189,12 @@ else
   if [[ "${VERBOSE}" != true ]]; then
     log "SSH summary (full evidence: ${REPORT})"
     while IFS= read -r summary_line; do
-      [[ -n "${summary_line}" ]] && console_line "INFO: ${summary_line}"
+      case "${summary_line}" in
+        OK:* | WARN:*) console_line "${summary_line}" ;;
+        ?*) console_line "INFO: ${summary_line}" ;;
+      esac
     done < <(
-      grep -E '^(unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 52 || true
+      grep -E '^((OK|WARN): (snort|crowdsec)_|unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 64 || true
     )
   fi
 fi

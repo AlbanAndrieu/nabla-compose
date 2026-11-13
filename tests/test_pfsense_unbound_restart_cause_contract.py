@@ -99,6 +99,28 @@ class UnboundRestartCauseContract(unittest.TestCase):
         self.assertNotIn("PRIVATE", output)
         self.assertNotIn("private.example", output)
 
+    def test_oom_names_victim_after_snort_rules_rebuild(self):
+        source = (
+            "<13>1 2026-11-13T02:11:12.1+01:00 fw php 45681 - - NOTICE "
+            "[Snort] Updating rules configuration for: WAN ...\n"
+            "<3>1 2026-11-13T02:12:15.1+01:00 fw kernel - - - pid 45681 "
+            "(php), jid 0, uid 0, was killed: failed to reclaim memory\n"
+            "<3>1 2026-11-13T02:12:21.1+01:00 fw kernel - - - pid 44747 "
+            "(unbound), jid 0, uid 59, was killed: failed to reclaim memory\n"
+        )
+        output = classify("system", source).splitlines()
+        self.assertEqual(
+            output,
+            [
+                "signal_source=system event=snort_rules_rebuild "
+                "timestamp=2026-11-13T02:11:12.1+01:00",
+                "signal_source=system event=kernel_oom_other "
+                "timestamp=2026-11-13T02:12:15.1+01:00 victim=php",
+                "WARN: signal_source=system event=kernel_oom_unbound "
+                "timestamp=2026-11-13T02:12:21.1+01:00 victim=unbound",
+            ],
+        )
+
     def test_cron_actual_matches_are_signals_not_schedules(self):
         sample = (
             "<78>1 2026-10-24T02:09:00+02:00 fw cron - - - CMD "

@@ -259,6 +259,13 @@ Do not edit generated `snort.conf` manually. Make persistent preprocessor
 changes through the pfSense Snort UI and use the generated file only for
 verification.
 
+Until 2026-11-13 the 32 MiB value existed only in the generated file and
+`config.xml` still held `150994944`. It is now saved through the UI, the HTTP
+Inspect `default` engine uses the port alias `snort_http_inspect` (`80`), and
+the unused ET Open and OpenAppID downloads are disabled. `diagnose-recover.sh
+--check` flags any drift; see the
+[2026-11-13 incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md).
+
 ### Stream5 sizing
 
 The generated configuration still contains large default session ceilings such
