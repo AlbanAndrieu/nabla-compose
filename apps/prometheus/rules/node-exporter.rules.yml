@@ -63,3 +63,41 @@ groups:
         annotations:
           summary: TrueNAS filesystem free space is critical
           description: "Filesystem {{ $labels.mountpoint }} has less than 5% available space."
+
+  # smartmon.prom and nvme.prom come from the workstation textfile collector (ansible-workstation).
+  - name: WorkstationDisks
+    rules:
+      - alert: WorkstationSsdWearHigh
+        expr: smartmon_wear_leveling_count_value{job="workstation_node"} < 20
+        for: 1h
+        labels:
+          severity: warning
+          scope: platform
+        annotations:
+          summary: "Worn SATA SSD {{ $labels.disk }} on the workstation"
+          description: "Wear_Leveling_Count normalized value is {{ $value }} (33 on 13 Nov 2026): plan its replacement."
+
+      - alert: WorkstationDiskSectorsFailing
+        expr: |
+          max by (disk) (
+            smartmon_reallocated_sector_ct_raw_value{job="workstation_node"}
+            or smartmon_current_pending_sector_raw_value{job="workstation_node"}
+            or smartmon_offline_uncorrectable_raw_value{job="workstation_node"}
+          ) > 0
+        for: 5m
+        labels:
+          severity: warning
+          scope: platform
+        annotations:
+          summary: "Failing sectors on workstation disk {{ $labels.disk }}"
+          description: "Reallocated, pending or uncorrectable sectors: back up and replace the disk (lvconvert --repair for the RAID1)."
+
+      - alert: WorkstationNvmeDegraded
+        expr: nvme_critical_warning{job="workstation_node"} > 0 or nvme_media_errors_total{job="workstation_node"} > 0
+        for: 5m
+        labels:
+          severity: critical
+          scope: platform
+        annotations:
+          summary: "NVMe {{ $labels.device }} on the workstation reports a critical warning or media errors"
+          description: "The NVMe holds /home, /workspace, /docker and the ollama models: back up now and check smartctl -a."
