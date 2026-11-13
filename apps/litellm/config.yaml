@@ -26,8 +26,9 @@ model_list:
   #       top_k: 20
   #       presence_penalty: 1.5
 
-  # Same model, num_ctx and think as the workstation LiteLLM "qwen": any difference reloads the
-  # model on the 6 GB GPU. Qwen3.5 9B ternary, 100% GPU at 32k (ansible-workstation docs/gpu-llm-workstation.md).
+  # Same model and num_ctx as the workstation LiteLLM "qwen": another num_ctx reloads the model on
+  # the 6 GB GPU; think false skips the reasoning trace. Qwen3.5 9B ternary, 100% GPU at 32k
+  # (ansible-workstation docs/gpu-llm-workstation.md).
   - model_name: qwen
     litellm_params:
       model: ollama_chat/bonsai-2:9b
