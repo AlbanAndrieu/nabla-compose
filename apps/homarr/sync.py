@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 BASE_URL = os.getenv("HOMARR_BASE_URL", "http://homarr:7575").rstrip("/")
@@ -151,16 +152,42 @@ def differs(existing: dict[str, Any], desired: dict[str, Any]) -> bool:
     return False
 
 
+def board_layout_ids(name: str) -> dict[str, str]:
+    """Return the ids of the board's base and mobile layouts, keyed by role.
+
+    Homarr 2.6 rejects a layout id it does not know unless its role is custom,
+    and its REST API has no read for layouts: query tRPC (superjson envelope).
+    """
+    query = urlencode({"input": json.dumps({"json": {"name": name}}, separators=(",", ":"))})
+    response = request_json("GET", f"/api/trpc/board.getBoardByName?{query}")
+    try:
+        layouts = response["result"]["data"]["json"]["layouts"]
+    except (KeyError, TypeError) as exc:
+        raise RuntimeError(f"Homarr board.getBoardByName returned no layouts for board {name}") from exc
+    ids = {
+        str(layout["role"]): str(layout["id"])
+        for layout in layouts
+        if isinstance(layout, dict) and layout.get("id") and layout.get("role")
+    }
+    missing = sorted({"base", "mobile"} - ids.keys())
+    if missing:
+        raise RuntimeError(
+            f"board {name} has no {' or '.join(missing)} layout (roles found: {sorted(ids) or 'none'})"
+        )
+    return ids
+
+
 def board_content(
     board_id: str,
     columns: int,
     widgets: list[dict[str, Any]],
     groups: dict[str, list[str]],
+    layout_ids: dict[str, str],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Lay out the widgets, then one titled section per group of Homarr app ids."""
     layouts = [
-        {"id": f"{board_id}-base", "name": "Base", "columnCount": columns, "breakpoint": 768, "role": "base"},
-        {"id": f"{board_id}-mobile", "name": "Mobile", "columnCount": MOBILE_COLUMNS, "breakpoint": 0, "role": "mobile"},
+        {"id": layout_ids["base"], "name": "Base", "columnCount": columns, "breakpoint": 768, "role": "base"},
+        {"id": layout_ids["mobile"], "name": "Mobile", "columnCount": MOBILE_COLUMNS, "breakpoint": 0, "role": "mobile"},
     ]
     root = f"{board_id}-root"
     sections: list[dict[str, Any]] = [{"id": root, "kind": "empty", "xOffset": 0, "yOffset": 0}]
@@ -280,7 +307,9 @@ def reconcile_board(
             if state.get(nabla_id):
                 group = str(eligible[nabla_id].get("group") or "other")
                 groups.setdefault(group, []).append(state[nabla_id])
-        layouts, content = board_content(board_id, int(config.get("columns", 12)), widgets, groups)
+        layouts, content = board_content(
+            board_id, int(config.get("columns", 12)), widgets, groups, board_layout_ids(name)
+        )
         # Content refers to these layout ids; both PUTs replace what the board held.
         request_json("PUT", f"/api/boards/{board_id}/layouts", {"layouts": layouts})
         request_json("PUT", f"/api/boards/{board_id}/content", content)

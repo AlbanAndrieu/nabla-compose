@@ -50,6 +50,8 @@ services:
     environment:
       - CLAMAV_NO_MILTERD=true
       - CLAMD_STARTUP_TIMEOUT=1800
+      # A concurrent reload doubles signature memory: clamd was OOM-killed at the 2 GiB limit on 13/11.
+      - CLAMD_CONF_ConcurrentDatabaseReload=no
       - FRESHCLAMD_CHECKS=1
       - TZ=Etc/UTC
     volumes:
