@@ -938,6 +938,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/akvorado-console",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "akvorado-console",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/alloy",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "alloy",
@@ -965,6 +971,12 @@
       "entityRef": "component:default/code-server",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "code-server",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/crowdsec",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "crowdsec",
       "sourceType": "gatus"
     },
     {
@@ -1034,6 +1046,12 @@
       "sourceType": "gatus"
     },
     {
+      "entityRef": "component:default/dsomm",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "dsomm",
+      "sourceType": "gatus"
+    },
+    {
       "entityRef": "component:default/fastapi-sample",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "fastapi-sample",
@@ -1091,6 +1109,12 @@
       "entityRef": "component:default/homeassistant",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "homeassistant",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/influxdb",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "influxdb",
       "sourceType": "gatus"
     },
     {
@@ -1157,6 +1181,18 @@
       "entityRef": "resource:default/minio",
       "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
       "sourceId": "minio",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "resource:default/mongo",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "mongo",
+      "sourceType": "gatus"
+    },
+    {
+      "entityRef": "component:default/n8n",
+      "evidence": "config/monitoring/gatus-endpoints.yml:extra-labels.nabla_service_id",
+      "sourceId": "n8n",
       "sourceType": "gatus"
     },
     {

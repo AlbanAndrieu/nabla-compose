@@ -11,6 +11,15 @@ endpoints:
     url: tcp://172.17.0.24:30081
     conditions:
       - "[CONNECTED] == true"
+  - name: Akvorado Console
+    group: network
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: akvorado-console
+      nabla_service_id: akvorado-console
+    url: http://172.17.0.24:31056/api/v0/console/healthcheck
+    conditions:
+      - "[STATUS] == 200"
   - name: Grafana Alloy
     group: observability
     interval: 60s
@@ -58,6 +67,15 @@ endpoints:
     conditions:
       - "[STATUS] >= 200"
       - "[STATUS] < 400"
+  - name: CrowdSec
+    group: security
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: crowdsec
+      nabla_service_id: crowdsec
+    url: http://172.17.0.24:8084/health
+    conditions:
+      - "[STATUS] == 200"
   - name: Cyberbro
     group: security
     interval: 60s
@@ -157,6 +175,15 @@ endpoints:
     url: tcp://172.17.0.24:9080
     conditions:
       - "[CONNECTED] == true"
+  - name: DSOMM
+    group: security
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: dsomm
+      nabla_service_id: dsomm
+    url: http://172.17.0.24:31088/
+    conditions:
+      - "[STATUS] == 200"
   - name: FastAPI Sample
     group: development
     interval: 60s
@@ -249,6 +276,15 @@ endpoints:
     conditions:
       - "[STATUS] >= 200"
       - "[STATUS] < 400"
+  - name: InfluxDB
+    group: data
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: influxdb
+      nabla_service_id: influxdb
+    url: http://influxdb:8086/health
+    conditions:
+      - "[STATUS] == 200"
   - name: Joplin Server
     group: productivity
     interval: 60s
@@ -349,6 +385,24 @@ endpoints:
     url: tcp://172.17.0.24:9002
     conditions:
       - "[CONNECTED] == true"
+  - name: MongoDB
+    group: data
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: mongo
+      nabla_service_id: mongo
+    url: tcp://mongo:27017
+    conditions:
+      - "[CONNECTED] == true"
+  - name: n8n
+    group: operations
+    interval: 60s
+    extra-labels:
+      nabla_monitor_id: n8n
+      nabla_service_id: n8n
+    url: http://172.17.0.24:30109/healthz
+    conditions:
+      - "[STATUS] == 200"
   - name: Neo4j Security Graph
     group: security
     interval: 60s

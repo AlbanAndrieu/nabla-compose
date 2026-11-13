@@ -86,7 +86,7 @@ groups:
 
       - alert: NablaExporterTargetDown
         expr: >-
-          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node|exportarr_prowlarr|exportarr_radarr|exportarr_sonarr|exportarr_lidarr|exportarr_bazarr|qbittorrent|jellyfin",operational_state!="planned"} == 0
+          up{job=~"pihole_exporter|postgres_exporter|redis_exporter|pfsense_exporter|haproxy|opensearch|opensearch-security|crowdsec|truenas_node|exportarr_prowlarr|exportarr_radarr|exportarr_sonarr|exportarr_lidarr|exportarr_bazarr|qbittorrent|jellyfin|keycloak|netbox|dependency_track",operational_state!="planned"} == 0
         for: 2m
         labels:
           severity: warning

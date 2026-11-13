@@ -119,7 +119,11 @@
       "probePriority": 9
     },
     {
-      "name": "Grafana Pyroscope",
+      "name": "Redis",
+      "probePriority": 4
+    },
+    {
+      "name": "Pyroscope",
       "probePriority": 11
     }
   ]

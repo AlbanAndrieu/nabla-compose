@@ -16,6 +16,7 @@ EXPECTED_PRIORITIES = {
     "garage-admin": 1,
     "garage-webui": 2,
     "postgresql": 3,
+    "redis": 4,
     "vaultwarden": 6,
     "sentry": 7,
     "prometheus": 8,
@@ -23,7 +24,7 @@ EXPECTED_PRIORITIES = {
     "n8n": 10,
     "pyroscope": 11,
 }
-ABSENT_FROM_CATALOG = {"redis", "cloudflared"}
+ABSENT_FROM_CATALOG = {"cloudflared"}
 
 
 def _overrides() -> list[dict]:
