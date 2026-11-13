@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import re
+import subprocess
 
 import yaml
 
@@ -33,6 +34,22 @@ def test_script_checks_by_default_and_enforces_tls13() -> None:
     assert "-verify_return_error" in script
     assert _default("TLS_HOST") == "172.17.0.24"
     assert 'SERVER_SAN="IP:${TLS_HOST},DNS:postgres,DNS:${SERVER_DNS}"' in script
+
+
+def test_hostssl_rewrite_only_touches_the_remote_rule() -> None:
+    rule = re.search(r"^REMOTE_RULE='([^']+)'$", SCRIPT.read_text(encoding="utf-8"), re.M).group(1)
+    hba = "local all all trust\nhost all all 127.0.0.1/32 trust\nhost replication all ::1/128 trust\nhost all all all scram-sha-256\n"
+    rewritten = subprocess.run(
+        ["sed", "-E", f"s/^host({rule})/hostssl\\1/"], input=hba, capture_output=True, text=True, check=True
+    ).stdout
+
+    assert rewritten.splitlines() == [
+        "local all all trust",
+        "host all all 127.0.0.1/32 trust",
+        "host replication all ::1/128 trust",
+        "hostssl all all all scram-sha-256",
+    ]
+    assert "hostssl_enforced || enforce_hostssl" in SCRIPT.read_text(encoding="utf-8")
 
 
 def test_published_ca_is_the_file_every_client_mounts() -> None:
