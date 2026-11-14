@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 from unittest.mock import patch
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 
 FILE = Path(__file__).resolve().parents[1] / "scripts/quality/code-hotspots.py"
 SPEC = importlib.util.spec_from_file_location("nabla_code_hotspots", FILE)

@@ -12,6 +12,7 @@ the rest in git history.
 | --- | --- |
 | **Ordre G1 de #369 : H02 → H01 → H05** | [`roadmap-portfolio.md`](./roadmap-portfolio.md) |
 | Index général allégé | [`roadmap.md`](./roadmap.md) ; [archive du 13/11](./archive/2026-11-13-roadmap-before-compaction.md) |
+| Audit des fichiers source les plus volumineux (H11/F03/F11) | [`code-hotspots.md`](./code-hotspots.md) ; `just code-hotspots` |
 | Documentation ownership / navigation | this file |
 | Agent and repository policy | [`../AGENTS.md`](../AGENTS.md), [`agent-skills-architecture.md`](./agent-skills-architecture.md), [`architecture-governance.md`](./architecture-governance.md) |
 | Controlled TrueNAS reboot | [`homelab-reboot-runbook.md`](./homelab-reboot-runbook.md) |
