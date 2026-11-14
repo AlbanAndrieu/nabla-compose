@@ -49,9 +49,12 @@ def test_symlink_binary_and_absent_are_not_read(tmp_path):
 
 
 def test_path_traversal_outside_checkout_is_rejected(tmp_path):
-    outside = tmp_path.parent / "outside_hotspot.py"
-    outside.write_text("secret_like = True\n", encoding="utf-8")
-    report = MOD.scan(tmp_path, ["../outside_hotspot.py"])
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (tmp_path / "outside_hotspot.py").write_text(
+        "secret_like = True\n", encoding="utf-8"
+    )
+    report = MOD.scan(repo, ["../outside_hotspot.py"])
     assert report["files"] == 0
     assert report["skipped"] == 1
 
