@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 from pathlib import Path
@@ -137,6 +138,8 @@ def suggested_skills(paths: list[str]) -> list[str]:
             "justfile",
             "mise.toml",
             "AGENTS.md",
+            "CLAUDE.md",
+            ".claude/CLAUDE.md",
             "agent.md",
             "opencode.json",
             ".pre-commit-config.yaml",
@@ -144,6 +147,11 @@ def suggested_skills(paths: list[str]) -> list[str]:
             "dagger.toml",
         }
         or path.startswith("scripts/agent-")
+        or path.startswith("scripts/quality/agent-")
+        or path.startswith("tests/test_agent_")
+        or path.startswith("docs/agent-")
+        or path.startswith(".agents/skills/")
+        or path.startswith(".claude/rules/")
         or path.startswith(".github/workflows/")
         or path.startswith(".opencode/")
         for path in paths
@@ -159,13 +167,37 @@ def suggested_skills(paths: list[str]) -> list[str]:
     return sorted(skills)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Bounded local repository context")
+    parser.add_argument("--verbose", action="store_true",
+                        help="show historical full path/status output")
+    args = parser.parse_args(argv)
+
     branch = git("branch", "--show-current")
     head = git("rev-parse", "--verify", "HEAD", check=False) or "<unborn>"
     base = comparison_base()
     status = git("status", "--short")
     paths = changed_paths()
     skills = suggested_skills(paths)
+
+    if not args.verbose:
+        limit = int(os.environ.get("AGENT_CONTEXT_MAX_PATHS", "8"))
+        if not 1 <= limit <= 100:
+            raise ValueError("AGENT_CONTEXT_MAX_PATHS must be 1..100")
+        limit = min(limit, 8)
+        preview = paths[:limit]
+        print(f"branch: {branch or '<detached>'}")
+        print(f"head: {head}")
+        print(f"base: {base} | changed: {len(paths)} | dirty: {bool(status)}")
+        print("paths: " + (", ".join(preview) if preview else "none"))
+        if len(paths) > limit:
+            print(f"paths-remaining: {len(paths) - limit}")
+        print("skills: " + (", ".join(skills) if skills else "none"))
+        print("remote-pr-state: NOT_CHECKED; verify exact PR HEAD")
+        print("mode: capability-dependent; see docs/agent-execution-modes.md")
+        print("next: scoped L1; local agent-loop/agent-fix/agent-pre-push; "
+              "remote checkout L2/L3 and runtime NOT_RUN")
+        return 0
 
     print(f"branch: {branch or '<detached>'}")
     print(f"head: {head}")
