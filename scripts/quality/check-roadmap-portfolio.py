@@ -19,7 +19,7 @@ FIELDS = ("id", "priority", "owner", "code", "runtime", "next_proof")
 PRIORITIES = {"P0", "P1", "P2"}
 CODE_STATES = {"CODED", "TESTED", "DEPLOYED", "PARTIAL", "PLANNED", "NOT_VERIFIED"}
 RUNTIME_STATES = {"ACCEPTED", "NOT_VERIFIED", "PARTIAL"}
-APPROVED_ORDER = ("H02", "H01", "H05")
+APPROVED_ORDER = ("H01", "H02", "H04", "H05", "H12", "H13", "H16")
 ROW = re.compile(r"^H[0-9]{2}$")
 LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 
@@ -75,9 +75,13 @@ def audit(root: Path) -> tuple[list[dict[str, str]], list[str]]:
         rows.append(item)
     if not rows:
         issues.append("no active portfolio rows")
-    order = re.search(r"^## Séquence validée — (.+)$", source, re.M)
-    if not order or tuple(re.findall(r"H[0-9]{2}", order.group(1))) != APPROVED_ORDER:
-        issues.append("approved execution order must be H02 → H01 → H05")
+    order = re.search(r"^## Séquence approuvée — (.+)$", source, re.M)
+    if not order or "14 novembre 2026" not in order.group(1):
+        issues.append("approved execution heading must reference 14 novembre 2026")
+    sequence = source.split("## Séquence approuvée — ", 1)[-1].split("\n## ", 1)[0]
+    actual_order = tuple(re.findall(r"^\\|\\s*([1-7])\\s*\\|\\s*\\*\\*(H[0-9]{2})", sequence, re.M))
+    if tuple(identifier for _, identifier in actual_order) != APPROVED_ORDER or tuple(n for n, _ in actual_order) != tuple(map(str, range(1, len(APPROVED_ORDER) + 1))):
+        issues.append("approved execution table must list H01 → H02 → H04 → H05 → H12 → H13 → H16")
     if rows and not {"P0", "P1", "P2"}.issubset({row["priority"] for row in rows}):
         issues.append("all three priority bands must be represented")
     return rows, issues
