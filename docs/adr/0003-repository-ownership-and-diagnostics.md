@@ -1,7 +1,7 @@
 # ADR — Limites des dépôts et diagnostics Homelab
 
 **Proposé le 14 novembre 2026 · décision à valider par migration réelle.**
-Source de référence : [plan de séparation](../scripts/ops/plan-repository-split.py), [H11](../docs/roadmap-portfolio.md) et les roadmaps propres à `ansible-workstation` et `nabla-openclaw`.
+Source de référence : [plan de séparation](../scripts/ops/plan-repository-split.py), [H11](../roadmap-portfolio.md) et les roadmaps propres à `ansible-workstation` et `nabla-openclaw`.
 
 ## Décision proposée
 
