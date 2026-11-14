@@ -15,12 +15,8 @@
       "variable": "OPENAI_API_KEY",
       "models": [
         "qwen",
+        "qwen-think",
         "workstation-qwen",
-        "llama3.2",
-        "llama3.1",
-        "llama3.8b",
-        "deepseek-coder-v2",
-        "gemma3",
         "gpt-4.1-mini",
         "gpt-4.1",
         "embedding"

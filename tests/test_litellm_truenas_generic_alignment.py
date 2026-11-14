@@ -26,17 +26,17 @@ class TrueNASGenericLiteLLMTests(unittest.TestCase):
 
     def test_generic_models_align_with_gpu_workstation(self):
         routes = dict(active_models())
-        # llama3.1, llama3:8b and deepseek-coder-v2 left the 6 GB GPU on 7 Nov 2026.
-        generic = ("llama3.2", "qwen", "gemma3", "rr-json")
-        for name in generic:
-            with self.subTest(model=name):
-                self.assertIn(name, routes)
-                self.assertIn("172.17.0.57:11434", routes[name])
         self.assertEqual(len(routes), len(set(routes)))
-        # A num_ctx or think unlike the workstation "qwen" reloads the model on the shared GPU.
-        self.assertIn("model: ollama_chat/bonsai-2:9b", routes["qwen"])
-        self.assertIn("num_ctx: 32768", routes["qwen"])
+        gpu = {name for name, body in routes.items() if "172.17.0.57:11434" in body}
+        self.assertEqual(gpu, {"qwen", "qwen-think", "rr-json"})
+        # The 6 GB GPU holds one chat model: another model or num_ctx reloads it.
+        for name in gpu:
+            with self.subTest(gpu_route=name):
+                self.assertIn("model: ollama_chat/bonsai-2:9b", routes[name])
+                self.assertIn("num_ctx: 32768", routes[name])
         self.assertIn("think: false", routes["qwen"])
+        self.assertIn("think: true", routes["qwen-think"])
+        self.assertIn("default_fallbacks: [\"qwen\"]", SOURCE)
 
     def test_critical_existing_routes_are_preserved(self):
         routes = dict(active_models())
