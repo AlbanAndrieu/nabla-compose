@@ -8,6 +8,14 @@ description: Converge formatter, lint, generated artifacts and targeted contract
 Use this skill for quality failures, PR continuation, formatter/linter fixes and
 publication work. Keep remote CI as an independent safety net, not an edit loop.
 
+## Workstation vs remote capability
+
+If `AGENT_EXECUTION_MODE=offline` (the default for remote Codex/API-only),
+perform only feasible repository checks; **never** call LAN or claim L2/L3
+ran without a checkout/toolchain. In a verified connected Claude Code
+workstation session, explicitly choose `AGENT_EXECUTION_MODE=workstation`
+and use local pinned tools for L0–L3. The mode never replaces evidence.
+
 ## Invariants
 
 - Resolve the user-selected PR, its state, branch and exact remote HEAD before
