@@ -1,3 +1,10 @@
+## [0.85.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.85.0...0.85.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **pfsense:** extend posture check with readonly capacity and ASN evidence [skip ci] ([f906ce6](https://github.com/AlbanAndrieu/nabla-compose/commit/f906ce6d9b245693cfdd5ee11d8631890af0b0fc))
+
 # [0.85.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.84.1...0.85.0) (2026-11-14)
 
 
