@@ -73,6 +73,15 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 
 **Clôture** : `ACCEPTED (runtime)` sur le SHA déployé, avec date, source et un test négatif pour chaque frontière sensible ; sinon `NOT_VERIFIED`.
 
+### H07 — pfSense : écarts à contrôler (ouverts, non réceptionnés)
+
+- **Posture incomplète** : `scripts/pfsense/diagnose-recover.sh --check-posture` vérifie des paramètres Snort/CrowdSec/Watchdog, **mais ne mesure pas** la taille effective du DNSBL ni l'activation/consommation de l'ASN reporting. Ajouter des vérifications en lecture seule de la taille du fichier DNSBL, de sa croissance et de la politique ASN (avec statut `NOT_VERIFIED` si mesure indisponible).
+- **Snort arrêté après OOM ou kill** : `--check-posture` valide la configuration, **pas la continuité du processus WAN**. Une instance Snort tuée peut rester arrêtée alors que la configuration correspond. Ajouter `process/running`, âge et preuve de traitement du dernier rebuild, sans redémarrage automatique en cas de pression mémoire.
+- **PHP-FPM hors profil retenu** : dernier relevé détaillé documenté : **7 workers nginx PHP-FPM (environ 280 Mio RSS cumulés)**, contre le profil contraint validé le **24/10 : 4/30/1/2/500** (`PHPFPMMAX/IDLE/START/SPARE/REQ`). Ce relevé historique ne prouve pas l'état du 14/11. Mesurer séparément le générateur, le fichier généré et les workers réels avant toute correction ; prévoir le retour arrière et les smoke tests DNS/GUI.
+- **Critère de réception** : taille DNSBL + ASN reporting prouvés, Snort actif ou explicitement classé en panne avec horodatage, et PHP-FPM **≤ 4 workers** avec paramètres `4/30/1/2/500`, sans nouveaux OOM ; vérifier Unbound, pfREST et accès WebConfigurator après réglage.
+
+Sources : [incident pfSense du 13/11](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md), [profil PHP-FPM](pfsense-php-fpm-hardening.md) et [plan d'upgrade pfSense](pfsense-upgrade-26-07.md). Ne pas confondre absence de mesure et service sain.
+
 ## P1 — Performance, stockage et restauration TrueNAS
 
 - Mesurer mémoire/PSI/ARC, OOM, zombies, limites de conteneurs et descripteurs containerd, puis appliquer les limites mesurées à partir du pic cgroup `memory.peak` (4/11 : nexus 1,9 Gio, opensearch-security 1,8, docling 1,5, kafka 1,2, keycloak 0,9, litellm 0,7). L'arrêt de certains services par décision opérateur n'est pas une réparation définitive. 13/11 : 61 Gio, conteneurs ~35 Gio, ARC 11,7 Gio (plancher 1,9), PSI mémoire < 1 % ; Sentry et sa ClickHouse (~5,9 Gio, 18 conteneurs) repassent `running` par décision opérateur ; `bitcoind` plafonne à sa limite (1,36/1,5 Gio, CPU 100 % en synchronisation initiale).

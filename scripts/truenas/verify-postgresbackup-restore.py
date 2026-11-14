@@ -10,7 +10,9 @@ import argparse
 import hashlib
 import hmac
 import json
+import os
 import re
+import tempfile
 import shutil
 import subprocess
 import sys
@@ -22,6 +24,7 @@ from pathlib import Path
 BACKUP_ROOT = Path('/mnt/cpool/backup/postgres')
 POSTGRES_IMAGE = ('postgres:18.6-trixie@sha256:'
                   'edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6')
+RECEIPT_FILE = Path('/mnt/cpool/secrets/runtime/postgresbackup/restore-acceptance.json')
 NAME_RE = re.compile(r'^([a-z][a-z0-9_]{0,62})-\d{8}T\d{6}Z\.dump$')
 
 
@@ -102,6 +105,8 @@ def test_restore(archive: Path, timeout: int) -> int:
                      "AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','S')"])
         if not count.isdecimal():
             raise RuntimeError('invalid_restored_object_count')
+        if int(count) == 0:
+            raise RuntimeError('empty_restored_database')
         return int(count)
     finally:
         if started:
@@ -110,6 +115,32 @@ def test_restore(archive: Path, timeout: int) -> int:
                            stderr=subprocess.DEVNULL, timeout=30, check=False)
 
 
+
+def write_restore_receipt(payload: dict[str, object], path: Path = RECEIPT_FILE) -> None:
+    """Atomically write root-owned technical evidence; never claim business acceptance."""
+    if os.geteuid() != 0:
+        raise RuntimeError('restore_receipt_requires_root')
+    parent = path.parent
+    if parent.is_symlink() or not parent.is_dir():
+        raise RuntimeError('restore_receipt_directory_missing')
+    meta = parent.stat()
+    if meta.st_uid != 0 or meta.st_mode & 0o077:
+        raise RuntimeError('restore_receipt_directory_not_private')
+    if path.is_symlink():
+        raise RuntimeError('restore_receipt_symlink_rejected')
+    fd, name = tempfile.mkstemp(dir=parent, prefix='.restore-evidence-', suffix='.tmp')
+    temporary = Path(name)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            json.dump(payload, stream, sort_keys=True)
+            stream.write('\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -117,7 +148,11 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument('--restore-test', action='store_true', help='offline isolated Docker restore')
     parser.add_argument('--archive', required=True, type=Path)
     parser.add_argument('--timeout', type=int, default=1800)
+    parser.add_argument('--write-receipt', action='store_true',
+                        help='write root-only technical restore evidence after a successful restore')
     args = parser.parse_args(argv)
+    if args.write_receipt and not args.restore_test:
+        parser.error('--write-receipt requires --restore-test')
     if not 60 <= args.timeout <= 7200:
         parser.error('--timeout must be between 60 and 7200 seconds')
     try:
@@ -128,6 +163,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.restore_test:
             output['restored_relations'] = test_restore(args.archive, args.timeout)
             output['state'] = 'ISOLATED_RESTORE_VERIFIED'
+            output['checked_at'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+            if args.write_receipt:
+                write_restore_receipt({**output, 'schema': 1,
+                                       'archive': str(args.archive.resolve(strict=True)),
+                                       'image': POSTGRES_IMAGE})
         print(json.dumps(output, sort_keys=True))
         return 0
     except (ValueError, RuntimeError, OSError, UnicodeError) as exc:

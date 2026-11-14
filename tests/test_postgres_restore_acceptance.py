@@ -76,5 +76,33 @@ class RestoreContract(unittest.TestCase):
         self.assertIn('--restore-test', result.stdout)
 
 
+    def test_zero_relations_are_not_accepted(self) -> None:
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append(command)
+            if 'psql' in command:
+                return '0'
+            return ''
+        with patch.object(module.shutil, 'which', return_value='/usr/bin/docker'), \
+             patch.object(module, 'run', side_effect=fake_run), \
+             patch.object(module.subprocess, 'run'):
+            with self.assertRaisesRegex(RuntimeError, 'empty_restored_database'):
+                module.test_restore(self.archive, 60)
+
+    def test_receipt_requires_explicit_restore_test(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), '--check', '--archive', str(self.archive),
+             '--write-receipt'], capture_output=True, text=True, check=False
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires --restore-test', result.stderr)
+
+    def test_receipt_write_rejects_unprivileged_process(self) -> None:
+        with patch.object(module.os, 'geteuid', return_value=1000):
+            with self.assertRaisesRegex(RuntimeError, 'requires_root'):
+                module.write_restore_receipt({'state': 'ISOLATED_RESTORE_VERIFIED'})
+
+
 if __name__ == '__main__':
     unittest.main()
