@@ -414,6 +414,14 @@ if [[ -n "${POSTURE_ACTION}" ]]; then
   if ! run_posture_admin "${POSTURE_ACTION}" | while IFS= read -r line; do console_line "${line}"; done; then
     fail "pfSense posture action failed"
   fi
+  if [[ "${POSTURE_ACTION}" == "check" ]]; then
+    posture_args=(--ssh "${SSH_TARGET}")
+    if [[ -n "${SSH_PORT}" ]]; then
+      posture_args+=(--port "${SSH_PORT}")
+    fi
+    # Read-only capacity evidence; never run in --apply-posture mode.
+    bash "${SCRIPT_DIR}/audit-posture.sh" "${posture_args[@]}"
+  fi
   exit 0
 fi
 
