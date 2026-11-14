@@ -125,7 +125,7 @@ class PlanTests(unittest.TestCase):
             for root, value in ((compose, "--check"), (openclaw, "--apply")):
                 path = Path(root) / "scripts/workstation" / name
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(f'p.add_argument("{value}")\\n', encoding="utf-8")
+                path.write_text(f'p.add_argument("{value}")\n', encoding="utf-8")
             report = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))
             record = report["scripts"][0]
             self.assertFalse(record["static_options_equal"])
@@ -139,7 +139,7 @@ class PlanTests(unittest.TestCase):
             for root, value in ((compose, "print(1)"), (openclaw, "print(2)")):
                 path = Path(root) / "scripts/workstation" / name
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text('p.add_argument("--check")\\n' + value + "\\n", encoding="utf-8")
+                path.write_text('p.add_argument("--check")\n' + value + "\n", encoding="utf-8")
             record = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))["scripts"][0]
             self.assertTrue(record["static_options_equal"])
             self.assertFalse(record["source_identical"])
@@ -150,7 +150,7 @@ class PlanTests(unittest.TestCase):
               tempfile.TemporaryDirectory() as outside):
             name = mod.SHARED_OPENCLAW_SCRIPTS[0]
             private = Path(outside) / "secret.py"
-            private.write_text('SECRET = "do-not-emit"\\n', encoding="utf-8")
+            private.write_text('SECRET = "do-not-emit"\n', encoding="utf-8")
             link = Path(openclaw) / "scripts/workstation" / name
             link.parent.mkdir(parents=True, exist_ok=True)
             link.symlink_to(private)
