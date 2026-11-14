@@ -55,10 +55,10 @@ externes avec leurs propres paramètres.
 | Script homonyme | Taille Compose / OpenClaw (octets, texte UTF-8) | Options `add_argument` comparées | Conclusion |
 | --- | ---: | --- | --- |
 | `check-openclaw-runtime-alignment.py` | 4 325 / 5 824 | aucune option longue déclarée dans les deux | Sources différentes ; format JSON et vérifications internes à recetter |
-| `diagnose-openclaw-digest-top.py` | 7 205 / 5 787 | `--fixture` | Sources différentes ; contract de sortie texte et fixture à recetter |
+| `diagnose-openclaw-digest-top.py` | 7 205 / 5 787 | `--fixture` | Sources différentes ; contrat de sortie texte et fixture à recetter |
 | `openclaw-heartbeat-gitops.py` | 4 765 / 4 426 | `--check`, `--apply`, `--backup`, `--root`, `--briefing-check`, `--briefing-apply` | Sources différentes ; effets sur sauvegardes et fichiers à recetter |
 | `openclaw-host-context.py` | 1 659 / 958 | `--kind` | Sources différentes ; contexte hôte/arguments externes à recetter |
-| `reconcile-openclaw-digest-cron.py` | 7 148 / 6 701 | `--plan`, `--check`, `--apply`, `--expected-message-sha` | Sources différentes ; préservation cron, rollback et clés privées à recetter |
+| `reconcile-openclaw-digest-cron.py` | 7 152 / 6 705 | `--plan`, `--check`, `--apply`, `--expected-message-sha` | Sources différentes ; préservation cron, rollback et clés privées à recetter |
 
 Reproduire la comparaison hors réseau, avec **deux checkouts locaux explicites** :
 
