@@ -17,6 +17,23 @@ OPENCLAW = re.compile(r"(?i)openclaw")
 CROSSHOST = re.compile(r"(?i)(?:crowdsec|pfsense|truenas[-_]litellm|fastapi[-_]litellm|nexus[-_]haproxy|defectdojo)")
 SENSITIVE = re.compile(r"(?i)(?:^|/)(?:\.sops\.yaml|secrets\.env\.sops|\.env(?:\.secrets)?|.*\.age|.*\.key)$")
 
+
+# Five duplicated filenames need consumer review before relocating entry points.
+SHARED_OPENCLAW_SCRIPTS = (
+    "check-openclaw-runtime-alignment.py",
+    "diagnose-openclaw-digest-top.py",
+    "openclaw-heartbeat-gitops.py",
+    "openclaw-host-context.py",
+    "reconcile-openclaw-digest-cron.py",
+)
+REFERENCE_SUFFIXES = frozenset({
+    ".py", ".sh", ".bash", ".md", ".yaml", ".yml", ".json",
+    ".toml", ".service", ".conf", ".example", ".ini", ".txt", ".rst",
+    ".js", ".ts", ".tsx", ".jsx", ".mjs",
+})
+MAX_REFERENCE_BYTES = 512 * 1024
+REFERENCE_ROOTS = ("scripts/", "ops/", "tests/", "docs/", ".github/workflows/")
+
 def classify(path: str) -> str:
     """Candidate only; never infer authorization to migrate from a filename."""
     if SENSITIVE.search(path):
@@ -77,20 +94,98 @@ def summarize(files, just_text):
             "extraction_preconditions":["consumer_inventory","destination_parity",
                                      "least_privilege","rollback","exact_sha_gates"]}
 
+
+def reference_kind(path: str) -> str:
+    if path in ("justfile", "Makefile"):
+        return "recipe"
+    if path.startswith(".github/workflows/"):
+        return "ci"
+    if path.startswith("ops/") and "/systemd/" in path:
+        return "systemd"
+    if path.startswith("tests/"):
+        return "test"
+    if path.startswith("docs/"):
+        return "documentation"
+    if path.startswith(("scripts/", "ops/")):
+        return "script"
+    return "other"
+
+
+def openclaw_consumer_inventory(root: Path, tracked: list[str]) -> dict:
+    """Read tracked textual references, not runtime use or CLI parity."""
+    root = root.resolve()
+    known = set(tracked)
+    references = {name: [] for name in SHARED_OPENCLAW_SCRIPTS}
+    skipped = 0
+    for name in sorted(known):
+        path = Path(name)
+        if (name not in ("justfile", "Makefile", "AGENTS.md")
+                and (not name.startswith(REFERENCE_ROOTS)
+                     or path.suffix.lower() not in REFERENCE_SUFFIXES)):
+            continue
+        if SENSITIVE.search(name):
+            continue
+        if name.startswith("scripts/workstation/") and path.name in references:
+            continue
+        candidate = root / path
+        if (candidate.is_symlink()
+                or not candidate.resolve(strict=False).is_relative_to(root)
+                or not candidate.is_file()):
+            skipped += 1
+            continue
+        try:
+            if candidate.stat().st_size > MAX_REFERENCE_BYTES:
+                skipped += 1
+                continue
+            content = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            skipped += 1
+            continue
+        for script in SHARED_OPENCLAW_SCRIPTS:
+            mentions = content.count(script)
+            if mentions:
+                references[script].append({
+                    "path": name,
+                    "kind": reference_kind(name),
+                    "mentions": mentions,
+                })
+    return {
+        "schema": "nabla-openclaw-consumers/v1",
+        "read_only": True,
+        "removal_authorized": False,
+        "scope": "tracked textual mentions only, not verified runtime invocation",
+        "submodule_parity": "NOT_VERIFIED",
+        "skipped_files": skipped,
+        "scripts": [
+            {"name": script,
+             "compose_tracked": f"scripts/workstation/{script}" in known,
+             "reference_files": len(references[script]),
+             "references": references[script]}
+            for script in SHARED_OPENCLAW_SCRIPTS
+        ],
+    }
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--assert-clean-contract", action="store_true",
                    help="Only verifies source structure; does not require a clean git tree")
+    p.add_argument("--openclaw-consumers", action="store_true",
+                   help="Inspect tracked reference locations without executing scripts")
+    p.add_argument("--root", type=Path, default=ROOT,
+                   help="Local checkout to inspect; never follows external symlinks")
     args=p.parse_args()
-    if not (ROOT / "justfile").is_file():
+    root=args.root.resolve()
+    if not (root / "justfile").is_file():
         print("inventory=not_in_compose_checkout")
         return 2
     try:
-        result=summarize(inventory(), (ROOT/"justfile").read_text(encoding="utf-8"))
+        files=inventory(root)
+        result=(openclaw_consumer_inventory(root, files) if args.openclaw_consumers
+                else summarize(files, (root/"justfile").read_text(encoding="utf-8")))
     except (RuntimeError,OSError,UnicodeError):
         print("inventory=unavailable")
         return 2
-    if args.assert_clean_contract and result["recipe_groups"]["total"]==0:
+    if args.assert_clean_contract and not args.openclaw_consumers and result["recipe_groups"]["total"]==0:
         return 2
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

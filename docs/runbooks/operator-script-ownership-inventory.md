@@ -24,6 +24,22 @@ Cinq noms sont déjà présents dans les deux dépôts, avec **contenu différen
 `check-openclaw-runtime-alignment.py`, `diagnose-openclaw-digest-top.py`,
 `openclaw-heartbeat-gitops.py`, `openclaw-host-context.py`,
 `reconcile-openclaw-digest-cron.py`.
+**D0 implémenté (analyse statique uniquement) :**
+
+```bash
+python3 scripts/ops/plan-repository-split.py --openclaw-consumers
+```
+
+Le rapport `nabla-openclaw-consumers/v1` énumère par fichier commun
+les références textuelles classées (`recipe`, `systemd`, `ci`, `test`,
+`script`, `documentation`), sans afficher de lignes ni de secrets.
+Il utilise `git ls-files` et ne suit pas les liens symboliques ; les
+fichiers omis sont comptés. `removal_authorized=false` et
+`submodule_parity=NOT_VERIFIED` empêchent d'inférer une migration
+achevée ou une parité des scripts dans le gitlink OpenClaw.
+La validation locale du parseur ne vaut ni mesure d'exécution systemd,
+ni migration d'un consommateur.
+
 Leur comparaison doit porter sur les arguments CLI, codes retour, schémas JSON,
 garde-fous, effets de bord, dépendances et tests ; mêmes noms ne signifient pas
 même contrat. Exemples de consommateurs Compose : `justfile`,

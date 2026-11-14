@@ -2,6 +2,8 @@
 from pathlib import Path
 import importlib.util
 import unittest
+import json
+import tempfile
 
 FILE=Path(__file__).resolve().parents[1]/"scripts/ops/plan-repository-split.py"
 s=importlib.util.spec_from_file_location("repo_split",FILE)
@@ -50,6 +52,51 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(report["recipe_groups"]["total"],2)
         self.assertEqual(report["recipe_groups"]["yubikey"],1)
         self.assertEqual(report["candidate_groups"]["candidate_yubikey_review"],1)
+
+
+    def test_openclaw_reference_inventory_is_read_only_and_redacted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            documents = {
+                "justfile": "check:\n    python3 scripts/workstation/check-openclaw-runtime-alignment.py\n",
+                "ops/openclaw-workstation/systemd/30.conf.example": (
+                    "ExecStartPre=check-openclaw-runtime-alignment.py\n"
+                ),
+                "docs/.env.secrets": "SECRET=do-not-emit check-openclaw-runtime-alignment.py",
+                "docs/large.md": "check-openclaw-runtime-alignment.py" * 30000,
+                "scripts/workstation/check-openclaw-runtime-alignment.py": "private source",
+            }
+            for name, content in documents.items():
+                candidate = root / name
+                candidate.parent.mkdir(parents=True, exist_ok=True)
+                candidate.write_text(content, encoding="utf-8")
+            result = mod.openclaw_consumer_inventory(root, list(documents))
+            self.assertEqual(result["schema"], "nabla-openclaw-consumers/v1")
+            self.assertFalse(result["removal_authorized"])
+            self.assertEqual(result["submodule_parity"], "NOT_VERIFIED")
+            self.assertEqual(result["skipped_files"], 1)
+            record = result["scripts"][0]
+            self.assertTrue(record["compose_tracked"])
+            self.assertEqual(record["reference_files"], 2)
+            self.assertEqual(
+                {ref["kind"] for ref in record["references"]},
+                {"recipe", "systemd"},
+            )
+            self.assertNotIn("do-not-emit", json.dumps(result))
+            self.assertEqual((root / "justfile").read_text(encoding="utf-8"), documents["justfile"])
+
+    def test_reference_inventory_does_not_infer_missing_submodule(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "tests/test_consumers.py"
+            source.parent.mkdir()
+            source.write_text("openclaw-heartbeat-gitops.py", encoding="utf-8")
+            result = mod.openclaw_consumer_inventory(
+                root, ["tests/test_consumers.py", "docs/missing.md"]
+            )
+            self.assertFalse(result["scripts"][2]["compose_tracked"])
+            self.assertEqual(result["scripts"][2]["reference_files"], 1)
+            self.assertEqual(result["skipped_files"], 1)
 
 if __name__=="__main__":
     unittest.main()

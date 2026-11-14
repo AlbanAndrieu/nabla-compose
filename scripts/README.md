@@ -88,12 +88,21 @@ The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and 
 
 ## Approved execution and offline portfolio check
 
-The approved priority, recorded in merged PR #369, is **H02/G1 (PostgreSQL) → H01 (CSI) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
+The approved priority since 14 November 2026 is **H01 (CSI) → H02 (PostgreSQL) → H04 (Cloudflare) → H05 (Gatus / Prometheus) → H12 (OpenRAG) → H13 (DefectDojo) → H16 (Vault PKI / OIDC)**. See [portfolio](../docs/roadmap-portfolio.md).
 
 - `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
 - `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.
 - `python3 scripts/quality/check-roadmap-portfolio.py --worklist` prints only the H02/H01/H05 order of PR #369 (read-only).
 - For H01 use the dedicated `scripts/talos/validate-csi-prereqs.sh` and `smoke-truenas-csi-nfs.sh`. For H02 use the existing `postgresbackup` restoration process. For H05 use `scripts/truenas/verify-service-observability.py`. These scripts have different privileges: do not fuse them into a mutating all-in-one operation.
+
+## H11 D0 — OpenClaw consumer evidence (offline)
+
+`python3 scripts/ops/plan-repository-split.py --openclaw-consumers` prints only tracked file paths, reference counts and origin categories for
+the five OpenClaw filenames duplicated across repositories. No script executes;
+no Git submodule, LAN endpoint or secret is read. A textual reference is
+**not proof of a live caller**, CLI parity or removal readiness.
+`submodule_parity=NOT_VERIFIED` is deliberate until the OpenClaw checkout
+and runtime contract are checked independently.
 
 ## G1 — Backup verification and secret rotation
 
