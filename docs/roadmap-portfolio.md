@@ -1,6 +1,6 @@
 # Portefeuille Homelab — arbitrage inter-dépôts
 
-> Synthèse au **13 novembre 2026**, établie à partir des deux roadmaps versionnées. **Priorité révisée le 13 novembre au soir : G1/H02 → H01 → H05 ; autres chantiers à arbitrer.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
+> Synthèse révisée le **14 novembre 2026**, établie à partir des deux roadmaps versionnées. **Ordre validé : G1/H02 → H01 → H05 ; autres chantiers à arbitrer.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
 
 ## Autorités et règles
 
@@ -30,8 +30,7 @@
 | H14 | P1 | fastapi-sample | CODED | NOT_VERIFIED | Tableaux de bord : confirmer la heatmap cAdvisor OWNER, la distinction 0/absent et compléter séparément ZFS/NetFlow sourcés — [Roadmap FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) |
 | H15 | P2 | nabla-compose | CODED | NOT_VERIFIED | Média : tests de non-exposition et de kill-switch avant activation de la pile VPN et des Apps planned — [Architecture média](arr-media-library-roadmap.md) |
 | H16 | P2 | nabla-compose + fastapi-sample | PLANNED | NOT_VERIFIED | PKI Vault et OAuth PostgreSQL, OIDC Keycloak/FastAPI : pilote séparé avec break-glass, révocation et RBAC négatif — [Roadmap sécurité PG](security/postgresql-fips-tls13-vault-oauth-20261110.md) |
-
-| H17 | P0 | nabla-compose + fastapi-sample + nabla-site-alban | PARTIAL | NOT_VERIFIED | Backstage V2 : Compose #365 fusionnée ; FastAPI #424 puis site à recevoir, parité entityRef/catalogRevision avant suppression legacy — [Contrat V2](service-catalog-v2-normalization.md) |
+| H17 | P0 | nabla-compose + fastapi-sample + nabla-site-alban | PARTIAL | NOT_VERIFIED | Backstage V2 : Compose [#365](https://github.com/AlbanAndrieu/nabla-compose/pull/365) et FastAPI [#424](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) fusionnées ; [FastAPI #432](https://github.com/AlbanAndrieu/fastapi-sample/pull/432) propose synchronisation runtime + cartes V2. Parité entityRef/catalogRevision sur SHA déployé, puis migration Site Alban avant suppression legacy — [Contrat V2](service-catalog-v2-normalization.md) |
 | H18 | P2 | nabla-compose | PLANNED | NOT_VERIFIED | EnOcean NodOn et Somfy io/RTS dans Home Assistant : étude de compatibilité, dongle/Overkiz, tests avant achat/appairage — [Étude HA](roadmap-homeassistant-integrations.md) |
 | H19 | P1 | nabla-compose | CODED | NOT_VERIFIED | Home Assistant : migration de l'App native vers Compose et recorder PostgreSQL avec rollback et validation des intégrations — [Runbook Apps](runbooks/2026-11-06-catalog-apps-to-compose.md) |
 
@@ -42,6 +41,7 @@
 - **Apps** : Scanopy, Plumber, ntopng et Bitcoind déclarés déployés les 11–12 novembre ; le déploiement de NetBox, Joplin et Dependency-Track n'en découle pas.
 - **Cloudflare** : premier retrait de 26 CNAME appliqué le 10 novembre ; la preuve du dernier nom `s3.int` et des politiques exposées reste H04.
 - **Scripts** : extractions `scripts/lib/postgres.sh` et `scripts/lib/app-deploy.sh` fusionnées dans #330 ; conserver les wrappers compatibles jusqu'aux tests de leur remplacement. Le runner GitHub LXC reste **préparé mais inactif**.
+- **Catalogue V2** : génération Compose #365 et lecteur FastAPI #424 fusionnés le 13 novembre ; l'affichage révisé et la synchronisation du snapshot sont proposés dans FastAPI #432, encore à réceptionner sur runtime.
 - **FastAPI** : heatmap triable #418 et garde budgétaire Nano #419 fusionnées le 11 novembre. Pas de mesure CPU/réplicas ni de recette OWNER post-déploiement attribuée à ces PR.
 
 ## Séquence validée — H02 → H01 → H05
