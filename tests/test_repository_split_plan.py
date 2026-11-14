@@ -1,9 +1,9 @@
 """Offline, no-Git contract for migration planner categories."""
-from pathlib import Path
 import importlib.util
-import unittest
 import json
+from pathlib import Path
 import tempfile
+import unittest
 
 FILE=Path(__file__).resolve().parents[1]/"scripts/ops/plan-repository-split.py"
 s=importlib.util.spec_from_file_location("repo_split",FILE)
@@ -97,6 +97,26 @@ class PlanTests(unittest.TestCase):
             self.assertFalse(result["scripts"][2]["compose_tracked"])
             self.assertEqual(result["scripts"][2]["reference_files"], 1)
             self.assertEqual(result["skipped_files"], 1)
+
+
+    def test_external_symlink_cannot_be_read_as_consumer(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                tempfile.TemporaryDirectory() as outside_directory:
+            root = Path(directory)
+            secret = Path(outside_directory) / "secret.md"
+            secret.write_text(
+                "SECRET=outside-data check-openclaw-runtime-alignment.py",
+                encoding="utf-8",
+            )
+            link = root / "docs/outside.md"
+            link.parent.mkdir(parents=True)
+            link.symlink_to(secret)
+            result = mod.openclaw_consumer_inventory(
+                root, ["docs/outside.md"]
+            )
+            self.assertEqual(result["skipped_files"], 1)
+            self.assertEqual(result["scripts"][0]["reference_files"], 0)
+            self.assertNotIn("outside-data", json.dumps(result))
 
 if __name__=="__main__":
     unittest.main()
