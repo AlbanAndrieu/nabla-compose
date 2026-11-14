@@ -1,5 +1,13 @@
 # pfSense PHP-FPM memory hardening
 
+## Backlog de réception H07 — encore ouvert au 14/11/2026
+
+La cible revue le **24 octobre** reste \`PHPFPMMAX/IDLE/START/SPARE/REQ = 4/30/1/2/500\`. Un relevé historique a mesuré **7 workers nginx**, soit environ **280 Mio RSS cumulés** ; la mémoire RSS peut comptabiliser plusieurs fois des pages partagées. **Ne pas extrapoler ce relevé à l'état courant sans nouveau contrôle.**
+
+Deux autres angles morts de \`diagnose-recover.sh --check-posture\` doivent être corrigés dans un chantier pfSense dédié, sans mutation pendant la phase de diagnostic : **taille du DNSBL et ASN reporting non contrôlés**, et **Snort tué mais resté arrêté non détecté** lorsque ses réglages correspondent. La présence du paquet ou la conformité de sa configuration ne démontrent pas qu'une instance WAN traite effectivement du trafic.
+
+Critère de clôture : contrôle indépendant DNSBL/ASN, disponibilité effective Snort WAN, paramètres générés et workers PHP-FPM mesurés, sans régression d'Unbound ni nouvelle pression OOM. Référence canonique : [H07](roadmap.md#h07--pfsense--écarts-à-contrôler-ouverts-non-réceptionnés).
+
 ## Incident context — 2026-09-08
 
 The Netgate 1100 running pfSense 26.07-RELEASE suffered coupled CPU and memory

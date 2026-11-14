@@ -42,10 +42,12 @@ ARCHIVE=/mnt/cpool/backup/postgres/fastapisample/fastapisample-AAAAMMJJTHHMMSSZ.
 sudo python3 scripts/truenas/verify-postgresbackup-restore.py \
   --check --archive "$ARCHIVE"
 sudo python3 scripts/truenas/verify-postgresbackup-restore.py \
-  --restore-test --archive "$ARCHIVE" --timeout 1800
+  --restore-test --archive "$ARCHIVE" --timeout 1800 --write-receipt
 ```
 
 Le validateur refuse les symlinks, chemins hors base canonique, métadonnées SHA-256 mal formées et archives modifiées. Il utilise **la même image PostgreSQL 18.6 épinglée que le job**, uniquement si l'image est déjà présente (`--pull never`). Il crée un conteneur **sans réseau**, sans port publié ni accès au PostgreSQL en service, lance une restauration `pg_restore --exit-on-error`, relève le nombre de relations et détruit le conteneur. Il ne modifie ni cron, ni secrets, ni anciennes sauvegardes. Aucun résultat SQL brut n'est imprimé.
+
+La variante `--write-receipt` (option explicite en mode restauration) écrit une preuve technique JSON dans `/mnt/cpool/secrets/runtime/postgresbackup/restore-acceptance.json` (fichier root `0600`, dossier privé root), uniquement si la restauration a réussi et qu'au moins un objet a été restauré. Sans ce paramètre, la restauration ne modifie pas ce fichier. Cette preuve expire après 7 jours et n'est **pas** une attestation métier.
 
 États JSON : `ARCHIVE_CHECKSUM_VERIFIED` = intégrité **seulement**, `ISOLATED_RESTORE_VERIFIED` = restauration isolée achevée, `NOT_VERIFIED` = erreur, source absente ou étape non exécutée. Un nombre de relations égal à zéro exige un contrôle métier avant réception. Comparer ensuite, depuis une session autorisée, les comptages et contrôles fonctionnels choisis avec les données de référence à l'instant du dump ; une restauration réussie à elle seule ne prouve ni la fraîcheur ni la couverture de toutes les bases.
 
@@ -53,6 +55,10 @@ Le validateur refuse les symlinks, chemins hors base canonique, métadonnées SH
 
 ## G1.4 — Mise en service contrôlée
 
-Seulement après une preuve G1.3 horodatée, revérifier la liste des bases (celles non déployées restent `SKIP`) et arbitrer la couverture Sentry mensuelle/annuelle. Le cron existe déjà et reste désactivé. Il peut être activé via `reconcile-postgresbackup-cron.py --enable` avec `POSTGRES_BACKUP_CRON_APPROVED=YES` **uniquement après réception opérateur**, et non par une PR documentaire.
+Pour auditer sans mutation le **runtime** des tâches TrueNAS, distinguer `reconcile-postgresbackup-cron.py --check` (déclaration offline seulement) et `sudo python3 scripts/truenas/reconcile-postgresbackup-cron.py --check-live` (`cronjob.query`, état réellement activé/désactivé et dérive du contrat).
+
+Pour activer **uniquement la tâche quotidienne**, une preuve technique récente et intacte doit être présente, accompagnée de la décision opérateur : `sudo env POSTGRES_BACKUP_CRON_APPROVED=YES python3 scripts/truenas/reconcile-postgresbackup-cron.py --enable --job daily`. Les tâches Sentry mensuelle/annuelle restent bloquées à l'activation jusqu'à une preuve spécifique de leurs séries. En l'absence de fichier, en cas de mauvais propriétaire/mode, d'archive modifiée, de résultat vide ou d'expiration : **refus sans mutation**. Contrôler les données métier séparément avant de donner l'autorisation.
+
+Seulement après une preuve G1.3 horodatée, revérifier la liste des bases (celles non déployées restent `SKIP`) et arbitrer la couverture Sentry mensuelle/annuelle. Le cron existe déjà et reste désactivé. Son activation exige le reçu de restauration technique, le choix explicite `--job daily` et `POSTGRES_BACKUP_CRON_APPROVED=YES` **uniquement après réception opérateur**, et non par une PR documentaire.
 
 **Critères G1 complet :** compte compromis tourné, sauvegardes manuelles vérifiées, au moins une restauration indépendante constatée, contrôle de données représentatives, permissions et CA conformes, plan de restauration documenté, puis activation explicite du cron si voulue.

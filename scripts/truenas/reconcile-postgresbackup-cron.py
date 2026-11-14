@@ -15,12 +15,18 @@ different contract is refused, never overwritten.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
+import importlib.util
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 
 NAME = "nabla-postgresbackup"
+RESTORE_RECEIPT = Path('/mnt/cpool/secrets/runtime/postgresbackup/restore-acceptance.json')
+BACKUP_ROOT = Path('/mnt/cpool/backup/postgres')
+RESTORE_EVIDENCE_MAX_AGE = timedelta(days=7)
 CHECKOUT = Path("/mnt/cpool/compose/nabla-compose")
 APP_DIR = CHECKOUT / "apps" / "postgresbackup"
 BASE_COMMAND = (
@@ -113,10 +119,78 @@ def reconcile(spec: dict, args: argparse.Namespace) -> None:
     print(f"UPDATED: {label} " + ("enabled" if args.enable else "disabled"))
 
 
+
+def audit_live(selected: list[dict]) -> None:
+    """Compare the live middleware records, not the desired config alone."""
+    records = middleware("cronjob.query")
+    if not isinstance(records, list):
+        raise RuntimeError("cronjob.query returned non-array")
+    issues = []
+    for spec in selected:
+        matches = [item for item in records if isinstance(item, dict)
+                   and item.get("description") == spec["description"]]
+        if len(matches) != 1:
+            issues.append(f"{spec['description']}: expected one live cron job, got {len(matches)}")
+            continue
+        entry = matches[0]
+        if not same_contract(entry, spec):
+            issues.append(f"{spec['description']}: live cron contract drift")
+        print(f"LIVE: {spec['description']} enabled={bool(entry.get('enabled'))} "
+              f"contract={'MATCH' if same_contract(entry, spec) else 'DRIFT'}")
+    if issues:
+        raise RuntimeError("; ".join(issues))
+
+
+def validate_restore_receipt(path: Path = RESTORE_RECEIPT, *,
+                             backup_root: Path = BACKUP_ROOT,
+                             expected_uid: int = 0,
+                             now: datetime | None = None) -> dict:
+    """Require a private, fresh, checksum-matched independent restore receipt."""
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError("restore_receipt_missing_or_symlink")
+    metadata = path.stat()
+    parent = path.parent.stat()
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != expected_uid
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+            or parent.st_uid != expected_uid or parent.st_mode & 0o077):
+        raise RuntimeError("restore_receipt_permissions_invalid")
+    try:
+        receipt = json.loads(path.read_text(encoding='utf-8'))
+        if not isinstance(receipt, dict):
+            raise ValueError("expected an object")
+        if receipt.get("schema") != 1 or receipt.get("state") != "ISOLATED_RESTORE_VERIFIED":
+            raise ValueError("unexpected status")
+        count = receipt.get("restored_relations")
+        if type(count) is not int or count < 1:
+            raise ValueError("no restored objects")
+        timestamp = datetime.fromisoformat(receipt["checked_at"])
+        if timestamp.tzinfo is None:
+            raise ValueError("timestamp must have timezone")
+        age = (now or datetime.now(timezone.utc)) - timestamp.astimezone(timezone.utc)
+        if age < timedelta(minutes=-5) or age > RESTORE_EVIDENCE_MAX_AGE:
+            raise ValueError("stale or future receipt")
+        verifier_file = Path(__file__).with_name("verify-postgresbackup-restore.py")
+        spec = importlib.util.spec_from_file_location("postgresbackup_restore_check", verifier_file)
+        if spec is None or spec.loader is None:
+            raise ValueError("restore verifier unavailable")
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        archive = Path(receipt["archive"])
+        database, digest = verifier.verify_archive(archive, backup_root)
+        if (receipt.get("database") != database or receipt.get("sha256") != digest
+                or receipt.get("image") != verifier.POSTGRES_IMAGE):
+            raise ValueError("archive receipt mismatch")
+        if database == "sentry":
+            raise ValueError("Sentry series requires separate restoration evidence")
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+        raise RuntimeError("restore_receipt_not_verified") from exc
+    return receipt
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--check", action="store_true", help="offline desired-state contract only")
+    mode.add_argument("--check-live", action="store_true", help="read the actual TrueNAS cron state")
     mode.add_argument("--apply", action="store_true")
     mode.add_argument("--enable", action="store_true")
     mode.add_argument("--disable", action="store_true")
@@ -127,13 +201,20 @@ def main() -> int:
         for spec in selected:
             when = spec["schedule"]
             print(f"CHECK: {spec['description']}: {when['minute']} {when['hour']} {when['dom']} "
-                  f"{when['month']} {when['dow']} (appliance time); registered disabled")
+                  f"{when['month']} {when['dow']} (appliance time); desired disabled; live NOT_CHECKED")
             print(f"CHECK: command = {spec['command']}")
         print("CHECK: no container started, no cron mutated")
         return 0
     require_environment()
+    if args.check_live:
+        audit_live(selected)
+        return 0
     if args.enable and os.environ.get("POSTGRES_BACKUP_CRON_APPROVED") != "YES":
         raise RuntimeError("explicit POSTGRES_BACKUP_CRON_APPROVED=YES required (after a manual run and a restore test)")
+    if args.enable:
+        if args.job != "daily":
+            raise RuntimeError("enable daily job explicitly; Sentry archives require separate proof")
+        validate_restore_receipt()
     for spec in selected:
         reconcile(spec, args)
     return 0
