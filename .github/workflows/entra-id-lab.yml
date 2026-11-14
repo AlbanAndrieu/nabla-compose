@@ -132,7 +132,13 @@ jobs:
           json="$RUNNER_TEMP/entra-plan.json"
           trap 'rm -f "$plan" "$json"' EXIT
           cd terraform/entra-id-lab
-          tofu plan -input=false -no-color -out="$plan"
+          if [[ "$OPERATION" == plan ]]; then
+            # Advisory READ-ONLY plan: blob data Reader cannot take a lease.
+            # Real apply re-plans later using native distributed state locking.
+            tofu plan -lock=false -input=false -no-color -out="$plan"
+          else
+            tofu plan -input=false -no-color -out="$plan"
+          fi
           tofu show -json "$plan" > "$json"
           python3 ../../scripts/entra/check-plan.py "$json"
           if [[ "$OPERATION" == apply ]]; then

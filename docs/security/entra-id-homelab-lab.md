@@ -44,8 +44,12 @@ Directory.ReadWrite.All, Application.ReadWrite.All or Azure Owner/Contributor.
 The plan identity gets read-only Graph permissions appropriate for the test.
 Admin consent and app ownership bootstrap are **manual tenant-admin actions**.
 
-The Blob storage principal requires `Storage Blob Data Contributor` at
-the **state container** scope. Require `use_azuread_auth=true` and OIDC.
+The **plan** Blob principal should have `Storage Blob Data Reader` on the
+state container; the workflow uses `tofu plan -lock=false` to avoid needing
+write/lease permissions. This preview is advisory and could race a workstation
+writer: the apply job MUST re-plan using its own state lease. The **apply**
+Blob principal requires `Storage Blob Data Contributor` at the same container
+scope. Require `use_azuread_auth=true` and OIDC.
 Do not use shared-key, SAS or storage account access keys. Configure encryption
 at rest, private containers, soft-delete, state versioning and restore tests.
 A GitHub-hosted runner needs a reachable Azure Blob endpoint; do not expose
