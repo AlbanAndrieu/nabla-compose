@@ -2,15 +2,20 @@
 
 > Mise à jour : **14 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
-## Ordre d’exécution validé — 13 novembre 2026
+## Ordre d’exécution validé — 14 novembre 2026
 
-**Ordre modifié dans la PR #369 : H02/G1 → H01 → H05.** G1 (sauvegardes et rotation du secret exposé `postgres_exporter`) est avancé sans déclarer H01 terminé. Conserver le [portefeuille unique H01–H19](roadmap-portfolio.md), sans rouvrir les anciens groupes G1–G7.
+**Décision opérateur : H01 → H02 → H04 → H05 → H12 → H13 → H16.** Cet ordre remplace l'arbitrage du 13/11 (H02/G1 → H01 → H05). Garder un seul [portefeuille H01–H19](roadmap-portfolio.md) ; les tâches non retenues restent suivies sans être supprimées.
 
-1. **H02 — Sauvegarde et restauration PostgreSQL** : rotation privée du secret exporter, backup TLS `verify-full` avec SHA-256, restauration Docker sans réseau, puis comparaison des données. Préparation fusionnée via [#369](https://github.com/AlbanAndrieu/nabla-compose/pull/369), [#376](https://github.com/AlbanAndrieu/nabla-compose/pull/376) et refactoring atomique [#380](https://github.com/AlbanAndrieu/nabla-compose/pull/380). **Rotation, restauration et état réel du cron non vérifiés**. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
-2. **H01 — CSI TrueNAS / Talos** : controller/DaemonSet, PVC RWX multi-workers, reclaim ZFS, NetworkPolicy et driver installé à réceptionner. [Préflight](kubernetes-csi-preflight.md).
-3. **H05 — Gatus et Prometheus** : preuves fraîches `app.query`, Gatus et scrapes `up` ; `NOT_RUN` et `DENIED` ne prouvent pas `DOWN`. [Runbook](runbooks/2026-11-04-probe-remediation.md).
+1. **H01 — Talos / Kubernetes CSI** : établir le pilote réellement installé et sa compatibilité TrueNAS 27 ; vérifier controller/DaemonSet, PVC NFS RWX sur deux workers, persistance, reclaim ZFS et NetworkPolicy. Ne pas déplacer Keycloak/Hermes/Vault avant réception. [Préflight CSI](kubernetes-csi-preflight.md).
+2. **H02 — Sauvegardes PostgreSQL** : rotation privée de `postgres_exporter`, sauvegarde TLS `verify-full` avec SHA-256, restauration Docker isolée sans réseau et comparaison des données ; activer la planification seulement après restauration prouvée. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
+3. **H04 — Cloudflare / sécurité WAN** : contrôler DNS publics, routes Tunnel, Access et Service Auth, refus de `/realms/master`, absence d'exposition des services privés ; `s3.int` uniquement après plan et approbation explicite. [IaC Cloudflare](../terraform/cloudflare/README.md).
+4. **H05 — Gatus / Prometheus** : comparer `app.query`, Gatus, scrapes `up`, `entityRef` et `catalogRevision`, avec preuve horodatée ; `NOT_RUN`/`DENIED` ne signifient pas `DOWN`. [Runbook sondes](runbooks/2026-11-04-probe-remediation.md).
+5. **H12 — OpenRAG / Docling / LiteLLM** : vérifier ingestion, embeddings via GPU workstation (LiteLLM TrueNAS proxy), clés applicatives et isolation du corpus privé ; tests de refus sans clé maître. [Runbook OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md).
+6. **H13 — DefectDojo** : durcir l'import privé (RBAC de l'importeur, import asynchrone, déduplication) et prouver l'absence d'exposition WAN. [Runbook](defectdojo-private-scan-ingestion.md).
+7. **H16 — Vault PKI / OAuth / OIDC** : pilote de PKI et de fédération PostgreSQL/Keycloak/FastAPI avec break-glass, révocation et tests RBAC négatifs ; aucune migration d'identité globale sans recette. [Plan sécurité](security/postgresql-fips-tls13-vault-oauth-20261110.md).
 
-**Gates communes** : contrôles en lecture seule, tests locaux, SHA et preuves datées avant toute réception LAN. Aucune suppression de données ni exposition WAN implicite.
+**Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
+
 
 ## Règles de suivi
 
@@ -21,7 +26,7 @@
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
   
-**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre validé : H02/G1 → H01 → H05.**
+**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre validé le 14/11 : H01 → H02 → H04 → H05 → H12 → H13 → H16.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
 
