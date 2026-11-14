@@ -1,3 +1,10 @@
+# [0.84.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.83.0...0.84.0) (2026-11-14)
+
+
+### Features
+
+* **catalog:** project the Compose runtime binding into entities.json ([959dceb](https://github.com/AlbanAndrieu/nabla-compose/commit/959dceb68742769487262fb9f4a1f42ab1632d63))
+
 # [0.83.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.82.0...0.83.0) (2026-11-14)
 
 
