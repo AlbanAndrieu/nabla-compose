@@ -107,3 +107,14 @@ The priority proposed in PR #369 is **H02/G1 (PostgreSQL) → H01 (CSI) → H05 
 
 The long-term target is fewer entry points with explicit modes, thin wrappers
 for compatibility, and domain libraries only where duplication is proven.
+
+## Agent execution mode (workstation vs disconnected)
+
+`AGENT_EXECUTION_MODE=offline` is the default for API-only/Codex sessions;
+`bash scripts/agent-diagnostics.sh --static` runs the existing offline L1
+syntax gate. Live verification is explicitly blocked with `NOT_RUN` in that mode.
+On a connected Claude Code workstation choose `AGENT_EXECUTION_MODE=workstation`
+and `bash scripts/agent-diagnostics.sh --runtime <service>` for a bounded,
+read-only direct/Gatus/Prometheus triad (1–3 named services). This does not
+replace full local quality or a TrueNAS authenticated acceptance run.
+See [agent execution playbook](../docs/agent-execution-playbook.md).
