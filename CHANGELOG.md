@@ -1,3 +1,15 @@
+# [0.85.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.84.1...0.85.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **pfsense:** retire HAProxy and NAT targets aimed at the workstation [skip ci] ([af4c5c2](https://github.com/AlbanAndrieu/nabla-compose/commit/af4c5c253e4eecbfbc34f97e5cffb264fdbc77f7))
+
+
+### Features
+
+* **cloudflare:** adopt the nabla-albandrieu workstation tunnel import-first ([f9836d4](https://github.com/AlbanAndrieu/nabla-compose/commit/f9836d447c195855103619f3bef3f9dd4c352e5d))
+
 ## [0.84.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.84.0...0.84.1) (2026-11-14)
 
 
