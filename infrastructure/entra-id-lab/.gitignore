@@ -1,0 +1,8 @@
+*.tfplan
+*.tfstate
+*.tfstate.*
+*.auto.tfvars
+*.auto.tfvars.json
+.env*
+.terraform/
+.terragrunt-cache/
