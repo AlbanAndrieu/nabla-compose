@@ -9,6 +9,7 @@ on:
       - scripts/entra/**
       - tests/test_entra_id_lab_contract.py
       - tests/test_entra_plan_policy.py
+      - tests/test_entra_workflow_contract.py
       - .github/workflows/entra-id-lab.yml
   workflow_dispatch:
     inputs:
@@ -52,7 +53,7 @@ jobs:
           set -euo pipefail
           tofu fmt -check -diff terraform/entra-id-lab
           bash -n scripts/entra/entra-lab-preflight.sh
-          python3 -m unittest tests.test_entra_id_lab_contract tests.test_entra_plan_policy -v
+          python3 -m unittest tests.test_entra_id_lab_contract tests.test_entra_plan_policy tests.test_entra_workflow_contract -v
 
   remote:
     needs: static
