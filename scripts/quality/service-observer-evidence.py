@@ -78,7 +78,23 @@ def summarize(kind: str, payload: dict[str, Any] | None,
                     "binding_conflict", "runtime_unknown", "not_observed")][:3]
         return out
     if kind == "outside_in_exposure":
-        out = {"vantage": "FastAPI Cloud origin; not the requesting workstation"}
+        runtime = payload.get("runtime")
+        paas_confirmed = (
+            isinstance(runtime, dict)
+            and runtime.get("cloud_paas_detected") is True
+            and runtime.get("sickz_internal_network_effective") is False
+        )
+        checks = payload.get("checks")
+        probes_present = isinstance(checks, dict) and bool(checks)
+        out = {
+            "vantage": ("OUTSIDE_IN_CONFIRMED" if paas_confirmed and probes_present
+                        else "VANTAGE_UNVERIFIED"),
+            "cloud_paas_detected": (runtime.get("cloud_paas_detected")
+                                    if isinstance(runtime, dict)
+                                    and type(runtime.get("cloud_paas_detected")) is bool
+                                    else None),
+            "probe_count": len(checks) if isinstance(checks, dict) else 0,
+        }
         cache = payload.get("probe_cache")
         if isinstance(cache, dict):
             out["cache"] = {

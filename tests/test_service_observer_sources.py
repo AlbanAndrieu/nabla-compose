@@ -56,6 +56,22 @@ class ObserverContracts(unittest.TestCase):
         self.assertNotIn("DO_NOT_EXPOSE", json.dumps(report))
         self.assertFalse(report["runtime_accepted"])
 
+    def test_cloud_outside_in_requires_runtime_and_actual_probe_rows(self):
+        positive = MODULE.summarize("outside_in_exposure", {
+            "runtime": {"cloud_paas_detected": True,
+                        "sickz_internal_network_effective": False},
+            "checks": {"target": {"reachable": False}}}, ())
+        self.assertEqual(positive["vantage"], "OUTSIDE_IN_CONFIRMED")
+        internal = MODULE.summarize("outside_in_exposure", {
+            "runtime": {"cloud_paas_detected": False},
+            "checks": {"target": {"reachable": True}}}, ())
+        self.assertEqual(internal["vantage"], "VANTAGE_UNVERIFIED")
+        empty = MODULE.summarize("outside_in_exposure", {
+            "runtime": {"cloud_paas_detected": True,
+                        "sickz_internal_network_effective": False},
+            "checks": {}}, ())
+        self.assertEqual(empty["vantage"], "VANTAGE_UNVERIFIED")
+
     def test_stale_cache_is_not_outage(self):
         summary = MODULE.summarize("outside_in_exposure", {
             "probe_cache": {"age_seconds": 90, "ttl_seconds": 60}}, ())
