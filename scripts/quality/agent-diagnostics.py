@@ -37,10 +37,18 @@ OFFLINE = {
         ("secret-source-tests", (PYTHON, "-m", "unittest", "discover", "-s",
                                  "tests", "-p", "test_litellm_fastapi_upstream_source.py", "-q")),
     ),
+    "services": (
+        ("observer-contract-tests", (PYTHON, "-m", "unittest", "discover", "-s",
+                                     "tests", "-p", "test_service_observer_sources.py", "-q")),
+    ),
 }
 # Existing host probes, never attempted unless explicitly selected on Workstation.
 RUNTIME_READONLY = {
     "openclaw": ("openclaw-readonly", ("just", "openclaw-migration-evidence-check")),
+    "services": ("services-two-vantage", (
+        PYTHON, "scripts/quality/service-observer-evidence.py",
+        "--mode", "workstation", "--execute"
+    )),
 }
 
 # Whitelist only non-credential execution environment for offline contracts.
@@ -53,6 +61,7 @@ REQUIRED_TEST = {
     "precedence-tests": "test_agent_skill_precedence_contract.py",
     "openclaw-tests": "test_openclaw_migration_evidence.py",
     "secret-source-tests": "test_litellm_fastapi_upstream_source.py",
+    "observer-contract-tests": "test_service_observer_sources.py",
 }
 
 
@@ -113,15 +122,26 @@ def run_steps(steps: list[dict], root: Path, timeout: int) -> bool:
         try:
             # No shell; discard output to keep tokens, secrets and memory bounded.
             result = subprocess.run(
-                argv, cwd=root, stdout=subprocess.DEVNULL,
+                argv, cwd=root,
+                stdout=(subprocess.PIPE if step["id"] == "services-two-vantage"
+                        else subprocess.DEVNULL),
                 stderr=subprocess.DEVNULL, timeout=timeout,
-                env=safe_environment(step["type"] == "runtime_readonly"),
+                env=safe_environment(step["id"] == "openclaw-readonly"),
                 check=False,
             )
             step["status"] = ("PASS" if result.returncode == 0 else
                               "UNVERIFIED" if step["type"] == "runtime_readonly"
                               else "FAILED")
             step["exit_code"] = result.returncode
+            if step["id"] == "services-two-vantage" and result.stdout:
+                try:
+                    evidence = json.loads(result.stdout[:150_000])
+                    step["evidence"] = {
+                        "status": evidence.get("status", "UNVERIFIED"),
+                        "observations": evidence.get("observations", []),
+                    }
+                except (ValueError, TypeError, AttributeError):
+                    step["evidence"] = {"status": "UNVERIFIED"}
             if result.returncode:
                 ok = False
         except subprocess.TimeoutExpired:
@@ -168,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         # Offline source tests can run in a remote checkout. Runtime cannot.
         if not (root / "AGENTS.md").is_file():
             status = "NO_CHECKOUT"
-        elif args.runtime_readonly and not workstation_runtime_ready():
+        elif args.runtime_readonly and args.scope == "openclaw" and not workstation_runtime_ready():
             status = "HOST_UNVERIFIED"
         else:
             status = "PASS" if run_steps(steps, root, args.timeout) else "UNVERIFIED"

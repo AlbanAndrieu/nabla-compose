@@ -30,6 +30,18 @@ class AgentDiagnosticModes(unittest.TestCase):
         self.assertFalse(record["executed"])
         self.assertTrue(all(s["status"] == "NOT_RUN" for s in record["steps"]))
 
+    def test_services_scope_is_offline_until_workstation_explicit(self):
+        with patch.object(MOD.subprocess, "run") as run, contextlib.redirect_stdout(
+            io.StringIO()
+        ) as output:
+            self.assertEqual(MOD.main(["--scope", "services"]), 0)
+        run.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue())["status"], "PLAN_ONLY")
+        with self.assertRaises(ValueError):
+            MOD.planned("services", "remote", True)
+        steps = MOD.planned("services", "workstation", True)
+        self.assertEqual(steps[-1]["id"], "services-two-vantage")
+
     def test_remote_cannot_enable_runtime_even_as_plan(self):
         with patch.object(MOD.subprocess, "run") as run, \
              contextlib.redirect_stdout(io.StringIO()) as output:

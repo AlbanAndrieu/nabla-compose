@@ -38,4 +38,8 @@ for service in "${services[@]}"; do
     echo 'ERROR: invalid service ID' >&2; exit 2;
   }
 done
-exec python3 "$root/scripts/truenas/verify-service-observability.py" "${services[@]}"
+args=()
+for service in "${services[@]}"; do
+  args+=(--service "$service")
+done
+exec python3 "$root/scripts/quality/service-observer-evidence.py" --mode workstation --execute "${args[@]}"

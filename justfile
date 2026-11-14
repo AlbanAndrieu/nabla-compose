@@ -1468,3 +1468,7 @@ secrets-emergency-revoke-test:
 
 # YubiKey/age/SOPS client recipes moved to https://github.com/AlbanAndrieu/nabla-yubikey (1 Nov 2026):
 # same `yubikey-*` names there; serials come from YUBIKEY_PRIMARY_SERIAL / YUBIKEY_BACKUP_SERIAL.
+
+# FastAPI on TrueNAS first, then independent FastAPI Cloud /sickz from PaaS.
+agent-service-observers:
+    python3 scripts/quality/service-observer-evidence.py --mode workstation --execute
