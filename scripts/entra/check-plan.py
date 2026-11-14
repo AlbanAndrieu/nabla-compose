@@ -20,6 +20,8 @@ def evaluate(plan):
         address = item.get("address", "")
         change = item.get("change", {})
         actions = change.get("actions", [])
+        if address == "data.azuread_client_config.current" and actions in (["read"], ["no-op"]):
+            continue
         if actions == ["no-op"]:
             continue
         if actions != ["create"]:
