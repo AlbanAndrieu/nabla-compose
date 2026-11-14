@@ -1,78 +1,31 @@
-# Local agent runbook
+# Local agent runbook (OpenCode and smaller models)
 
-> `AGENTS.md` is the canonical repository policy. This file is an execution
-> runbook for smaller local models; it must never override or duplicate the
-> policy in `AGENTS.md`.
+`AGENTS.md` is authoritative; this file is a compact execution adapter.
+Never preload the entire repository, all skills, generated files or historical logs.
 
-## Start every implementation task
+## Start with capability, then scope
 
-Run:
+- **Connected workstation:** set `AGENT_EXECUTION_MODE=workstation` only when the shell and LAN are genuinely available; run `mise run agent-context`. Work with one Git worktree and use the local CPU and installed toolchain.
+- **Remote Codex/API-only:** default `AGENT_EXECUTION_MODE=offline`. Use GitHub refs, targeted source diffs and offline checks; no TrueNAS, pfSense, Vaultwarden or other LAN calls. If no checkout/mise exists, do not attempt a workstation command. Mark unavailable checks `NOT_RUN`.
+- Runtime diagnostic router: `bash scripts/agent-diagnostics.sh --help`; offline `--runtime` is intentionally refused.
 
-```bash
-mise run agent-context
-```
+## Route to the smallest skill
 
-Use the output to identify the current branch, changed paths, likely skills and
-the smallest useful validation scope. Then read `AGENTS.md` and load only the
-skills relevant to the current task through OpenCode's native `skill` tool.
+| Task | Skills |
+| --- | --- |
+| Compose service, catalog or env migration | `docker-compose-orchestration`, `nabla-service-catalog`; add `homelab-secrets` for credentials |
+| TrueNAS service acceptance | `homelab-runtime-status` and matching service skill (workstation only) |
+| pfSense, HAProxy, Snort, Unbound | `pfsense-api-debugging` |
+| Quality, CI or PR continuation | `local-first-quality` |
+| Security review | `security-audit` only when the task requests a security audit |
 
-Do not recursively read the repository to "understand everything". Verify paths
-with Git/search before assuming that a file, script, service or test exists.
+## Delivery loop
 
-## Task routing
+1. Confirm the selected PR and exact SHA, changed paths and nearest tests.
+2. Load the matching skill and only the reference subsection needed.
+3. Make one bounded patch; execute narrow L1 checks.
+4. Workstation only: `mise run agent-loop` → `mise run agent-fix` → review/commit → `mise run agent-pre-push`.
+5. Remote API-only: one Draft PR with expected-SHA updates; disclose missing local L2/L3 and runtime, do not silently trigger CI.
+6. Never mutate `master`, print secrets, bypass hooks or delete data without authorization. Record remaining acceptance in the roadmap.
 
-| Task evidence | Load these skills first | Prefer these repository entry points |
-| --- | --- | --- |
-| `.env`, `.env.secrets`, `env_file`, Vaultwarden | `homelab-secrets`, `docker-compose-orchestration`, `nabla-service-catalog` | `scripts/check-service-migration-bundle.py`, `scripts/truenas/bootstrap-repository-runtime.sh` |
-| Compose service/runtime/dependency | `docker-compose-orchestration`, `nabla-service-catalog` | Compose config validation, topology/consumer generators |
-| Backstage/catalog/security graph | `nabla-service-catalog` | `scripts/audit-service-catalog-v2-parity.py`, `scripts/generate-catalog-v2-artifacts.py` |
-| TrueNAS runtime acceptance | matching service skills + `homelab-runtime-status` | repository `scripts/truenas/*` helpers |
-| pfSense / HAProxy / PF / Snort / pfBlockerNG | `pfsense-api-debugging` | repository diagnostic scripts before appliance mutation |
-| Quality/CI failure or PR continuation | `local-first-quality` | failing local test/hook first, then `mise run agent-loop`, final `mise run agent-pre-push` |
-
-If several rows match, load the union of the named skills but do not preload
-unrelated skills.
-
-## Small-model execution loop
-
-1. **Observe** — run `mise run agent-context`; inspect `git status`, current
-   diff and the exact task.
-2. **Route** — load the matching skill(s); read only directly relevant files.
-3. **Plan one bounded batch** — state the intended files and acceptance check
-   before editing.
-4. **Edit minimally** — preserve existing patterns; do not refactor unrelated
-   code.
-5. **Validate narrowly** — run the closest unit/contract/config test first.
-6. **Converge locally** — run `mise run agent-loop` for changed-file feedback.
-7. **Review the deterministic diff** — do not blindly accept generated changes.
-8. **Commit only the logical batch**.
-9. **Publication gate** — run `mise run agent-pre-push`; this is where the full
-   repository suite must pass before push.
-
-If a check fails without producing a deterministic change, inspect and fix the
-first concrete error. Do not repeat the same command hoping for a different
-result, and do not switch to GitHub Actions as the edit loop.
-
-## Hard stop rules
-
-- Never read, print, source, grep or paste live secret values from `.env*`.
-- Never invent a file, test, endpoint, service relation or command; prove it from
-  the repository/runtime first.
-- Never modify `master` directly.
-- Never use `git push --no-verify`, force push, `git reset --hard` or
-  `git clean -fd`.
-- Never weaken tests, security gates or schema validation to get green output.
-- Never bulk-finalize secret migrations; acceptance remains one service at a
-  time.
-- Never claim a local gate passed unless its command actually completed green.
-
-## OpenCode helpers
-
-- `/continue-pr` — resume the current PR from bounded Git context and roadmap
-  evidence.
-- `/catalog-wave` — choose one Backstage wave from
-  `audit-service-catalog-v2-parity.py --check --debt-json`; unclassified debt
-  must be classification-first rather than assigned guessed BIA values.
-- `/migrate-service <service>` — execute the combined P0.3 + Backstage bundle.
-- `/review` — ask the read-only reviewer subagent to inspect the current diff.
-- `/quality` — converge and run the local publication workflow.
+Use the [conditional playbook](docs/agent-execution-playbook.md) for detailed commands, operator recovery and CI troubleshooting.
