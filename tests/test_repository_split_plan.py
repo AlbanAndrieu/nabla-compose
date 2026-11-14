@@ -118,5 +118,48 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(result["scripts"][0]["reference_files"], 0)
             self.assertNotIn("outside-data", json.dumps(result))
 
+
+    def test_openclaw_cli_contract_reports_flag_drift_without_executing(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as openclaw:
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            for root, value in ((compose, "--check"), (openclaw, "--apply")):
+                path = Path(root) / "scripts/workstation" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f'p.add_argument("{value}")\\n', encoding="utf-8")
+            report = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))
+            record = report["scripts"][0]
+            self.assertFalse(record["static_options_equal"])
+            self.assertFalse(record["source_identical"])
+            self.assertEqual(report["behavioral_parity"], "NOT_VERIFIED")
+            self.assertFalse(report["removal_authorized"])
+
+    def test_matching_options_do_not_claim_behavioral_parity(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as openclaw:
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            for root, value in ((compose, "print(1)"), (openclaw, "print(2)")):
+                path = Path(root) / "scripts/workstation" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('p.add_argument("--check")\\n' + value + "\\n", encoding="utf-8")
+            record = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))["scripts"][0]
+            self.assertTrue(record["static_options_equal"])
+            self.assertFalse(record["source_identical"])
+
+    def test_cli_contract_rejects_symlinks_and_missing_sources(self):
+        with (tempfile.TemporaryDirectory() as compose,
+              tempfile.TemporaryDirectory() as openclaw,
+              tempfile.TemporaryDirectory() as outside):
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            private = Path(outside) / "secret.py"
+            private.write_text('SECRET = "do-not-emit"\\n', encoding="utf-8")
+            link = Path(openclaw) / "scripts/workstation" / name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(private)
+            report = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))
+            record = report["scripts"][0]
+            self.assertIsNone(record["source_identical"])
+            self.assertIsNone(record["static_options_equal"])
+            self.assertEqual(record["openclaw"]["status"], "UNREADABLE")
+            self.assertNotIn("do-not-emit", json.dumps(report))
+
 if __name__=="__main__":
     unittest.main()
