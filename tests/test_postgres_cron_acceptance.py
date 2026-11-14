@@ -98,6 +98,15 @@ class CronAcceptanceTest(unittest.TestCase):
                 module.audit_live(specs)
 
 
+
+    def test_live_status_rejects_missing_or_string_enabled(self):
+        spec = module.JOB
+        for row in ({key: value for key, value in spec.items() if key != "enabled"},
+                    {**spec, "enabled": "false"}):
+            with patch.object(module, "middleware", return_value=[{**row, "id": 7}]):
+                with self.assertRaisesRegex(RuntimeError, "enabled state missing or invalid"):
+                    module.audit_live([spec])
+
     def test_enable_fails_before_middleware_without_receipt(self):
         with patch.object(module, "require_environment"), \
              patch.object(module, "validate_restore_receipt",

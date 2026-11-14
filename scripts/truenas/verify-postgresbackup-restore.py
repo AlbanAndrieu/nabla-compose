@@ -163,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.restore_test:
             output['restored_relations'] = test_restore(args.archive, args.timeout)
             output['state'] = 'ISOLATED_RESTORE_VERIFIED'
+            output['checked_at'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
             if args.write_receipt:
                 write_restore_receipt({**output, 'schema': 1,
                                        'archive': str(args.archive.resolve(strict=True)),

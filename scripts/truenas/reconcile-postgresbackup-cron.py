@@ -133,9 +133,14 @@ def audit_live(selected: list[dict]) -> None:
             issues.append(f"{spec['description']}: expected one live cron job, got {len(matches)}")
             continue
         entry = matches[0]
+        if type(entry.get("enabled")) is not bool:
+            issues.append(f"{spec['description']}: live cron enabled state missing or invalid")
+            enabled_label = "UNKNOWN"
+        else:
+            enabled_label = "true" if entry["enabled"] else "false"
         if not same_contract(entry, spec):
             issues.append(f"{spec['description']}: live cron contract drift")
-        print(f"LIVE: {spec['description']} enabled={bool(entry.get('enabled'))} "
+        print(f"LIVE: {spec['description']} enabled={enabled_label} "
               f"contract={'MATCH' if same_contract(entry, spec) else 'DRIFT'}")
     if issues:
         raise RuntimeError("; ".join(issues))
