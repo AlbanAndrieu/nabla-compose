@@ -31,6 +31,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 
 - [Frontières des dépôts et diagnostics / proposition ADR](adr/0003-repository-ownership-and-diagnostics.md)
 - [Audit des duplications FastAPI / Gatus / Prometheus](diagnostics-duplication-audit.md)
+- [Inventaire technique H11 : scripts opérateur, OpenClaw et pfSense](runbooks/operator-script-ownership-inventory.md) — annexe de l'ADR existante, pas une seconde ADR-0003.
 
 
 - [APISIX API gateway PoC and gateway selection](./adr/0001-apisix-api-gateway-poc.md)
@@ -130,7 +131,7 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 - [FastAPI Sample and LiteLLM](./runbooks/fastapi-sample-litellm.md)
 - [LiteLLM UI admin hardening](./runbooks/litellm-ui-admin-hardening.md)
 - [OpenRAG / Bababou ingestion diagnostics](./runbooks/openrag-babou-ingestion-diagnostics.md)
-- OpenClaw is owned by nabla-openclaw: [`../apps/openclaw/docs/`](../apps/openclaw/docs/);
+- OpenClaw is owned by [nabla-openclaw docs](https://github.com/AlbanAndrieu/nabla-openclaw/tree/master/docs);
   cross-repo split plan: [OpenClaw / workstation / YubiKey](./roadmap-openclaw-yubikey-extraction-20261030.md)
 
 ## Quality and CI
