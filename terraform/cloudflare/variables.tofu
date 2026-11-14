@@ -10,6 +10,12 @@ variable "tunnel_id" {
   default     = "1d98bede-6fa0-42a8-971c-cd390d74d7f6"
 }
 
+variable "workstation_tunnel_id" {
+  description = "Workstation tunnel nabla-albandrieu (cloudflared on 172.17.0.57); its config resource owns EVERY route of that tunnel."
+  type        = string
+  default     = "ab5097ef-dc8c-4409-9055-99eb22aa2fbe"
+}
+
 # The identifiers below are discovered read-only by
 # scripts/cloudflare/capture-homelab-tofu.sh into import-ids.auto.tfvars.
 variable "zone_id" {

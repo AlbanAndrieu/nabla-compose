@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "terraform" / "cloudflare"
 API = "https://api.cloudflare.com/client/v4"
 TUNNEL_ID_RE = re.compile(r'variable "tunnel_id".*?default\s*=\s*"([0-9a-f-]+)"', re.S)
+WORKSTATION_ID_RE = re.compile(r'variable "workstation_tunnel_id".*?default\s*=\s*"([0-9a-f-]+)"', re.S)
 HOSTNAME_RE = re.compile(r'hostname\s*=\s*"([^"]+)"')
 ZONE_ID_RE = re.compile(r'^zone_id\s*=\s*"([0-9a-f]{32})"', re.M)
 DEDICATED = {"fastapi-sample.albandrieu.com"}
@@ -48,9 +49,21 @@ def module_facts(module: Path = MODULE) -> dict:
     if tunnel_id is None:
         raise SystemExit("tunnel_id default not found in variables.tofu")
     zone = ZONE_ID_RE.search((module / "import-ids.auto.tfvars").read_text(encoding="utf-8"))
+    unpublished = set(policy.get("unpublished_tunnel_hostnames") or [])
+    target = f"{tunnel_id.group(1)}.cfargotunnel.com"
+    # Each routed hostname must be a CNAME to the tunnel that routes it.
+    targets = {name: target for name in set(HOSTNAME_RE.findall(tunnel)) - DEDICATED}
+    workstation_id = WORKSTATION_ID_RE.search(variables)
+    workstation = module / "tunnel-workstation.tofu"
+    if workstation_id and workstation.exists():
+        workstation_target = f"{workstation_id.group(1)}.cfargotunnel.com"
+        for name in HOSTNAME_RE.findall(workstation.read_text(encoding="utf-8")):
+            targets[name] = workstation_target
+    targets = {name: value for name, value in targets.items() if name not in unpublished}
     return {
-        "tunnel_hostnames": sorted(set(HOSTNAME_RE.findall(tunnel)) - DEDICATED),
-        "tunnel_target": f"{tunnel_id.group(1)}.cfargotunnel.com",
+        "tunnel_hostnames": sorted(targets),
+        "tunnel_target": target,
+        "tunnel_targets": targets,
         "zone_id": zone.group(1) if zone else None,
         "retired": set(policy.get("retired_hostnames") or []),
         "new_tunnel_hostnames": set(policy.get("new_tunnel_hostnames") or []),
@@ -61,11 +74,14 @@ def module_facts(module: Path = MODULE) -> dict:
 def classify(records: list[dict], facts: dict) -> dict:
     """Pure classification of live records; returns rows, id maps and gaps."""
     tunnel_names = set(facts["tunnel_hostnames"])
+    targets = facts.get("tunnel_targets") or {}
+    all_targets = {facts["tunnel_target"], *targets.values()}
     rows, tunnel_ids, retired_ids = [], {}, {}
     seen_tunnel: set[str] = set()
     for record in records:
         name, rtype = record["name"], record["type"]
-        to_tunnel = rtype == "CNAME" and record.get("content") == facts["tunnel_target"]
+        expected = targets.get(name, facts["tunnel_target"])
+        to_tunnel = rtype == "CNAME" and record.get("content") == expected
         if name in DEDICATED:
             kind = "fastapi-sample"
         elif name in facts["retired"]:
@@ -80,7 +96,7 @@ def classify(records: list[dict], facts: dict) -> dict:
                 tunnel_ids[name] = record["id"]
             else:
                 kind = "tunnel-drift"
-        elif to_tunnel:
+        elif rtype == "CNAME" and record.get("content") in all_targets:
             kind = "orphan-tunnel"
         elif facts["forbidden_suffixes"] and name.endswith(facts["forbidden_suffixes"]):
             kind = "private-namespace"

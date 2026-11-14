@@ -17,6 +17,7 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | Adresse | Objet Cloudflare | Particularité |
 | --- | --- | --- |
 | `cloudflare_zero_trust_tunnel_cloudflared_config.homelab` | Public Hostnames du tunnel partagé `1d98bede-…` (`config_src=cloudflare`) | Remplace la configuration **entière** : possède les routes de **tous** les services (Garage, OpenWebUI, Vaultwarden, 2FAuth…). Une route absente du code est supprimée à l'apply. |
+| `cloudflare_zero_trust_tunnel_cloudflared_config.workstation` | Routes du tunnel workstation `nabla-albandrieu` (`ab5097ef-…`) | Remplace la configuration **entière** de ce tunnel ; voir [Tunnel workstation](#tunnel-workstation-nabla-albandrieu). |
 | `cloudflare_dns_record.fastapi_sample` | CNAME proxied vers `<tunnel>.cfargotunnel.com` | Renommage = update in-place (`name` ne force pas de remplacement). |
 | `cloudflare_zero_trust_access_application.fastapi_sample` | Application Access `fastapi-sample` (tout le hostname) | Politiques `nabla` (allow) et `fastapi-sample-monitor` (jeton de service). Le tag AUD ne change pas : la validation JWT côté FastAPI reste valide. |
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `fastapi-sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
@@ -216,6 +217,34 @@ explicite ; le script de capture les classe `unmanaged`.
    Le lister aussi dans `dns_retired_record_ids` l'importe une seconde fois
    sous le même identifiant ; après l'apply, le plan `adopt` voudrait alors
    recréer un `retired[...]` vide.
+
+## Tunnel workstation `nabla-albandrieu`
+
+[`tunnel-workstation.tofu`](tunnel-workstation.tofu) adopte le second tunnel
+du compte (`ab5097ef-…`, cloudflared de la workstation, origines
+`*-albandrieu.albandrieu.com`). Comme `homelab`, la ressource
+`cloudflare_zero_trust_tunnel_cloudflared_config.workstation` remplace la
+configuration **entière** de ce tunnel : une route ajoutée dans le dashboard
+puis absente du code est supprimée à l'apply. Ses CNAME passent par une
+seconde instance du module `dns-records` (`module.workstation_dns_records`),
+avec la même table d'identifiants `dns_tunnel_record_ids` ; un bloc `check`
+interdit qu'un hostname soit routé par les deux tunnels.
+
+Adopté le 14/11/2026 (configuration live v54 : 14 routes, 13 CNAME). La route
+`stirling-albandrieu` n'a jamais eu de DNS : elle est listée dans
+`unpublished_tunnel_hostnames` (`dns-policy.yaml`) et n'est pas publiée. La
+publier = la déplacer dans `new_tunnel_hostnames`.
+
+`plumber-api-albandrieu` est la seule différence avec le live : la décision
+du 13/11 la publie depuis TrueNAS (`tunnel.tofu`, port 31071), son CNAME passe
+donc dans `module.dns_records`. Le premier plan contient ainsi, côté
+workstation : 13 imports (1 configuration + 12 CNAME) et 1 change (la route
+`plumber-api-albandrieu` quitte la configuration workstation) ; côté homelab :
+l'import du CNAME `plumber-api-albandrieu` puis son update vers le tunnel
+homelab, en plus des changements déjà en attente sur `master`. Aucun destroy.
+
+Ajouter ou retirer une route ensuite se fait dans
+`local.workstation_tunnel_ingress`, avant la règle `http_status:503`.
 
 Test hors ligne du module (fournisseur simulé, aucun appel API) :
 

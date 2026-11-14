@@ -102,6 +102,54 @@ def test_capture_classification() -> None:
     assert all("content" not in row for row in report["rows"]), "contents are never reported"
 
 
+def test_workstation_tunnel_is_adopted_import_first() -> None:
+    text = (MODULE / "tunnel-workstation.tofu").read_text(encoding="utf-8")
+    routed = re.findall(r'hostname\s*=\s*"([^"]+)"', text)
+    homelab = set(re.findall(r'hostname\s*=\s*"([^"]+)"', (MODULE / "tunnel.tofu").read_text(encoding="utf-8")))
+    assert routed and len(routed) == len(set(routed)) and not set(routed) & homelab
+    services = re.findall(r'service\s*=\s*"([^"]+)"', text)
+    assert services[-1] == "http_status:503" and services.count("http_status:503") == 1, "catch-all must stay last"
+    assert "prevent_destroy = true" in text
+    policy = yaml.safe_load((MODULE / "dns-policy.yaml").read_text(encoding="utf-8"))
+    unpublished = set(policy["unpublished_tunnel_hostnames"])
+    assert unpublished <= set(routed) | homelab
+    ids = (MODULE / "dns-record-ids.auto.tfvars").read_text(encoding="utf-8")
+    assert [h for h in routed if h not in unpublished and f'"{h}"' not in ids] == [], "published route without import id"
+    assert [h for h in unpublished if f'"{h}"' in ids] == []
+    imports = (MODULE / "imports.tofu").read_text(encoding="utf-8")
+    assert "to = cloudflare_zero_trust_tunnel_cloudflared_config.workstation" in imports
+    assert "to = module.workstation_dns_records.cloudflare_dns_record.tunnel[each.key]" in imports
+    facts = load_capture().module_facts(MODULE)
+    assert facts["tunnel_targets"][routed[0]].startswith("ab5097ef-")
+    assert not unpublished & set(facts["tunnel_hostnames"])
+
+
+def test_capture_classification_per_tunnel_target() -> None:
+    facts = {
+        "tunnel_hostnames": ["grafana.albandrieu.com", "nexus-albandrieu.albandrieu.com"],
+        "tunnel_target": "tid.cfargotunnel.com",
+        "tunnel_targets": {
+            "grafana.albandrieu.com": "tid.cfargotunnel.com",
+            "nexus-albandrieu.albandrieu.com": "wid.cfargotunnel.com",
+        },
+        "zone_id": "z",
+        "retired": set(),
+        "new_tunnel_hostnames": set(),
+        "forbidden_suffixes": (),
+    }
+    records = [
+        {"id": "1", "name": "grafana.albandrieu.com", "type": "CNAME", "content": "wid.cfargotunnel.com", "proxied": True},
+        {"id": "2", "name": "nexus-albandrieu.albandrieu.com", "type": "CNAME", "content": "wid.cfargotunnel.com", "proxied": True},
+        {"id": "3", "name": "old-albandrieu.albandrieu.com", "type": "CNAME", "content": "wid.cfargotunnel.com", "proxied": True},
+    ]
+    classes = {row["name"]: row["class"] for row in load_capture().classify(records, facts)["rows"]}
+    assert classes == {
+        "grafana.albandrieu.com": "tunnel-drift",
+        "nexus-albandrieu.albandrieu.com": "tunnel",
+        "old-albandrieu.albandrieu.com": "orphan-tunnel",
+    }
+
+
 def test_written_ids_are_hcl_with_scanner_markers() -> None:
     text = load_capture().render_tfvars(
         {"dns_tunnel_record_ids": {"keycloak.albandrieu.com": "a" * 32, "ha.albandrieu.com": "b" * 32},
