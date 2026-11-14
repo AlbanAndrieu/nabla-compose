@@ -1,12 +1,12 @@
 # Services Homelab — roadmap active
 
-> Mise à jour : **13 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
+> Mise à jour : **14 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
 ## Ordre d’exécution validé — 13 novembre 2026
 
 **Ordre modifié dans la PR #369 : H02/G1 → H01 → H05.** G1 (sauvegardes et rotation du secret exposé `postgres_exporter`) est avancé sans déclarer H01 terminé. Conserver le [portefeuille unique H01–H19](roadmap-portfolio.md), sans rouvrir les anciens groupes G1–G7.
 
-1. **H02 — Sauvegarde et restauration PostgreSQL** : rotation privée du secret exporter, backup TLS `verify-full` avec SHA-256, restauration Docker sans réseau, puis comparaison des données. Code proposé dans cette PR ; **rotation et restauration runtime non vérifiées**. Cron désactivé. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
+1. **H02 — Sauvegarde et restauration PostgreSQL** : rotation privée du secret exporter, backup TLS `verify-full` avec SHA-256, restauration Docker sans réseau, puis comparaison des données. Préparation fusionnée via [#369](https://github.com/AlbanAndrieu/nabla-compose/pull/369), [#376](https://github.com/AlbanAndrieu/nabla-compose/pull/376) et refactoring atomique [#380](https://github.com/AlbanAndrieu/nabla-compose/pull/380). **Rotation, restauration et état réel du cron non vérifiés**. [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md).
 2. **H01 — CSI TrueNAS / Talos** : controller/DaemonSet, PVC RWX multi-workers, reclaim ZFS, NetworkPolicy et driver installé à réceptionner. [Préflight](kubernetes-csi-preflight.md).
 3. **H05 — Gatus et Prometheus** : preuves fraîches `app.query`, Gatus et scrapes `up` ; `NOT_RUN` et `DENIED` ne prouvent pas `DOWN`. [Runbook](runbooks/2026-11-04-probe-remediation.md).
 
@@ -21,7 +21,7 @@
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
   
-**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre proposé par la PR #369 : H02/G1 → H01 → H05.**
+**[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre validé : H02/G1 → H01 → H05.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
 
@@ -40,7 +40,7 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 ## P0 — Réception du catalogue et des sondes (PR #326)
 
 - **H05** : fraîcheur des résultats Gatus, jobs Prometheus, contrôle direct, `app.query`, `entityRef` et `catalogRevision` ; respecter `NOT_RUN`/`DENIED`/`planned`. [Runbook](runbooks/2026-11-04-probe-remediation.md).
-- **H17** : [#365 Compose](https://github.com/AlbanAndrieu/nabla-compose/pull/365) fusionnée, [#424 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) en attente ; réception inter-dépôts du catalogue V2 avant suppression de l'inventaire legacy. [Contrat](service-catalog-v2-normalization.md).
+- **H17** : [#365 Compose](https://github.com/AlbanAndrieu/nabla-compose/pull/365) fusionnée, [#424 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) et [#432 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/432) fusionnées ; réception runtime et migration Site Alban en attente avant suppression de l'inventaire legacy. [Contrat](service-catalog-v2-normalization.md).
 - **H03/H08** : matérialisation Homarr/secret `0600`, puis NetBox, Dependency-Track, Joplin. [Secrets](runbooks/2026-11-10-secrets-migration-backlog.md) et [Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
 - Anciennes instructions Kibana/Graylog/AIStor et Apps déjà déployées : [archive du 13/11](archive/2026-11-13-roadmap-before-compaction.md), **ne pas relancer**.
 
