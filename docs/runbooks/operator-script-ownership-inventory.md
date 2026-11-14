@@ -60,6 +60,30 @@ externes avec leurs propres paramètres.
 | `openclaw-host-context.py` | 1 659 / 958 | `--kind` | Sources différentes ; contexte hôte/arguments externes à recetter |
 | `reconcile-openclaw-digest-cron.py` | 7 152 / 6 705 | `--plan`, `--check`, `--apply`, `--expected-message-sha` | Sources différentes ; préservation cron, rollback et clés privées à recetter |
 
+**Écarts concrets observés en lecture du code** (non exécutés) :
+
+- `check-openclaw-runtime-alignment.py` Compose publie `alignment` et
+  `checks`, tandis que la version OpenClaw construit `alignment` et les
+  champs de `report` ; la stabilité des clés JSON doit être testée.
+- `diagnose-openclaw-digest-top.py` dans OpenClaw expose un contrôle
+  `runtime_install` supplémentaire dans certains états. Les parseurs de
+  sortie texte ne sont pas présumés compatibles.
+- `openclaw-heartbeat-gitops.py` utilise une réconciliation atomique via
+  `atomic_replace` dans le dépôt propriétaire, avec contrôle explicite du
+  résultat et sortie d'erreur. La version Compose applique une logique locale
+  distincte de sauvegarde et remplacement : comparaison des postconditions
+  et permissions obligatoire avant substitution.
+- `openclaw-host-context.py` Compose invoque des commandes via
+  `subprocess`, tandis que le code propriétaire testé à cette date ne le fait
+  pas ; vérifier les valeurs de repli et le diagnostic d'hôte inconnu.
+- `reconcile-openclaw-digest-cron.py` OpenClaw ajoute des informations
+  d'installation runtime et un chemin de résultat d'apply différent. Le
+  contrôle des états `existing_job`, du rollback et des codes retour reste
+  impératif.
+
+Aucun de ces écarts n'autorise une suppression de wrapper ni un transfert
+automatique de l'unité systemd.
+
 Reproduire la comparaison hors réseau, avec **deux checkouts locaux explicites** :
 
 ```bash
