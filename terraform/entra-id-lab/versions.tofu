@@ -9,4 +9,7 @@ terraform {
 }
 provider "azuread" {
   tenant_id = var.tenant_id
+  use_oidc  = var.ci_use_oidc
+  use_cli   = !var.ci_use_oidc
+  client_id = var.ci_use_oidc ? var.ci_graph_client_id : null
 }

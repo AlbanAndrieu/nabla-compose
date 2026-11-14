@@ -26,3 +26,18 @@ variable "test_users" {
     error_message = "group must be readers or operators."
   }
 }
+
+variable "enable_group_management" {
+  description = "OFF in CI: avoid tenant-wide Graph group write permissions."
+  type        = bool
+  default     = false
+}
+variable "ci_use_oidc" {
+  type    = bool
+  default = false
+}
+variable "ci_graph_client_id" {
+  description = "CI Microsoft Graph application ID, separate from state storage identity."
+  type        = string
+  default     = ""
+}

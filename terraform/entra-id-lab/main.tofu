@@ -17,7 +17,7 @@ locals {
 }
 
 resource "azuread_group" "lab" {
-  for_each                = local.groups
+  for_each                = var.enable_group_management ? local.groups : toset([])
   display_name            = "${var.name_prefix}-${each.key}"
   description             = "Disposable Entra lab group"
   security_enabled        = true
@@ -42,13 +42,13 @@ resource "azuread_service_principal" "workload" {
 }
 
 data "azuread_user" "existing" {
-  for_each            = var.test_users
+  for_each            = var.enable_group_management ? var.test_users : {}
   user_principal_name = each.value.upn
   depends_on          = [terraform_data.personal_tenant_guard]
 }
 
 resource "azuread_group_member" "existing" {
-  for_each         = var.test_users
+  for_each         = var.enable_group_management ? var.test_users : {}
   group_object_id  = azuread_group.lab[each.value.group].object_id
   member_object_id = data.azuread_user.existing[each.key].object_id
 }
