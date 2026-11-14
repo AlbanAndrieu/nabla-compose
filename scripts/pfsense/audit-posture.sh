@@ -478,6 +478,50 @@ else
   emit WARN service.snort stopped "WAN Snort process was not found"
 fi
 
+
+# Read-only verification of ASN reporting, PHP-FPM runtime and constrained pool.
+asn_reporting="$(xml_value asn_reporting)"
+case "$asn_reporting" in
+  off|false|0) emit PASS pfblocker.asn_reporting disabled "ASN reporting explicitly disabled" ;;
+  '') emit WARN pfblocker.asn_reporting NOT_VERIFIED "ASN flag unavailable; cannot claim disabled" ;;
+  *) emit WARN pfblocker.asn_reporting "$asn_reporting" "ASN reporting needs a reviewed token/database policy" ;;
+esac
+if fpm_output="$(ps axww -o rss=,command= 2>/dev/null)"; then
+  fpm_stats="$(printf '%s\n' "$fpm_output" | awk '
+    /^[[:space:]]*[0-9]+[[:space:]]+php-fpm: pool nginx/ {n++; rss+=$1}
+    END {printf "%d %d", n+0, rss+0}
+  ')"
+  fpm_workers="$(printf '%s\n' "$fpm_stats" | awk '{print $1}')"
+  fpm_rss="$(printf '%s\n' "$fpm_stats" | awk '{print $2}')"
+  emit INFO php_fpm.nginx_rss_kib "$fpm_rss" "aggregate worker RSS KiB; shared pages may be double-counted"
+  if [ "$fpm_workers" -gt 0 ] && [ "$fpm_workers" -le 4 ]; then
+    emit PASS php_fpm.nginx_workers "$fpm_workers" "within four-worker memory profile"
+  else
+    emit WARN php_fpm.nginx_workers "$fpm_workers" "expected 1 to 4 nginx workers"
+  fi
+else
+  emit WARN php_fpm.nginx_workers NOT_VERIFIED "ps unavailable; worker state unknown"
+fi
+if [ -r /usr/local/lib/php-fpm.conf ]; then
+  fpm_profile="$(awk -F= '
+    /^[[:space:]]*pm[.]/ {
+      gsub(/[[:space:]]/, "", $1); gsub(/[[:space:]]/, "", $2); val[$1]=$2
+    }
+    END {
+      printf "%s/%s/%s/%s/%s", val["pm.max_children"],
+        val["pm.process_idle_timeout"], val["pm.start_servers"],
+        val["pm.max_spare_servers"], val["pm.max_requests"]
+    }
+  ' /usr/local/lib/php-fpm.conf)"
+  if [ "$fpm_profile" = "4/30/1/2/500" ]; then
+    emit PASS php_fpm.generated_profile "$fpm_profile" "reviewed 24/10 policy"
+  else
+    emit WARN php_fpm.generated_profile "$fpm_profile" "expected 4/30/1/2/500; inspect generator"
+  fi
+else
+  emit WARN php_fpm.generated_profile NOT_VERIFIED "generated pool configuration unavailable"
+fi
+
 if [ -n "$snort_conf" ]; then
   http_inspect_block="$(awk '
     /^preprocessor http_inspect_server/ {capture=1}
