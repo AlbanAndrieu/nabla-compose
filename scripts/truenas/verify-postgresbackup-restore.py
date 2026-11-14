@@ -54,35 +54,56 @@ def verify_archive(archive: Path, root: Path = BACKUP_ROOT) -> tuple[str, str]:
     return match.group(1), actual
 
 
-def run(command: list[str], *, timeout: int = 90, stdin=None) -> str:
-    """Never disclose subprocess output: tools can include SQL or credentials."""
+def run(command: list[str], *, timeout: int = 90, stdin=None,
+        discard_stdout: bool = False) -> str:
+    """Bound stdout when output is unused; never disclose SQL or credentials."""
     try:
-        result = subprocess.run(command, stdin=stdin, capture_output=True,
-                                check=False, timeout=timeout)
+        result = subprocess.run(command, stdin=stdin,
+                                stdout=subprocess.DEVNULL if discard_stdout else subprocess.PIPE,
+                                stderr=subprocess.PIPE, check=False, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(f'command_unavailable_or_timeout:{command[0]}') from exc
     if result.returncode:
         raise RuntimeError(f'command_failed:{command[0]}:exit_{result.returncode}')
-    return result.stdout.decode('utf-8', errors='replace').strip()
+    return (result.stdout or b'').decode('utf-8', errors='replace').strip()
+
+
+def cleanup_restore_container(name: str) -> None:
+    """Never claim success if a disposable database remains alive after the test."""
+    try:
+        result = subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, check=False, timeout=30)
+        if result.returncode == 0:
+            return
+        # docker rm can fail harmlessly if --rm already removed the container.
+        present = subprocess.run(['docker', 'ps', '-a', '--filter', f'name=^/{name}$',
+                                  '--format', '{{.ID}}'], capture_output=True,
+                                 check=False, timeout=15)
+        if present.returncode or present.stdout.strip():
+            raise RuntimeError('isolated_cleanup_not_verified')
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError('isolated_cleanup_not_verified') from exc
 
 
 def test_restore(archive: Path, timeout: int) -> int:
     if shutil.which('docker') is None:
         raise RuntimeError('docker_unavailable')
-    run(['docker', 'image', 'inspect', POSTGRES_IMAGE])
+    run(['docker', 'image', 'inspect', POSTGRES_IMAGE], discard_stdout=True)
     # The image cannot be fetched: this operation stays offline.
     with archive.open('rb') as stream:
         run(['docker', 'run', '--rm', '-i', '--pull', 'never', '--network', 'none',
-             '--entrypoint', 'pg_restore', POSTGRES_IMAGE, '--list', '-'],
-            stdin=stream, timeout=timeout)
+             '--memory', '512m', '--memory-swap', '512m', '--cpus', '1',
+             '--pids-limit', '128', '--entrypoint', 'pg_restore',
+             POSTGRES_IMAGE, '--list', '-'],
+            stdin=stream, timeout=timeout, discard_stdout=True)
     name = f'nabla-pg-restore-{uuid.uuid4().hex[:12]}'
-    started = False
     try:
         run(['docker', 'run', '-d', '--rm', '--pull', 'never', '--network', 'none',
+             '--memory', '1536m', '--memory-swap', '1536m', '--cpus', '2',
+             '--pids-limit', '256', '--label', 'nabla.restore-proof=true',
              '--security-opt', 'no-new-privileges:true', '--name', name,
              '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', POSTGRES_IMAGE,
              '-c', 'listen_addresses='], timeout=60)
-        started = True
         for attempt in range(60):
             try:
                 run(['docker', 'exec', name, 'pg_isready', '-q', '-U', 'postgres'],
@@ -109,10 +130,7 @@ def test_restore(archive: Path, timeout: int) -> int:
             raise RuntimeError('empty_restored_database')
         return int(count)
     finally:
-        if started:
-            # No output from a failed container is copied to a public log.
-            subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, timeout=30, check=False)
+        cleanup_restore_container(name)
 
 
 

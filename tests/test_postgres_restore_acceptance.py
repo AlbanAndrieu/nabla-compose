@@ -86,9 +86,10 @@ class RestoreContract(unittest.TestCase):
             return ''
         with patch.object(module.shutil, 'which', return_value='/usr/bin/docker'), \
              patch.object(module, 'run', side_effect=fake_run), \
-             patch.object(module.subprocess, 'run'):
+             patch.object(module, 'cleanup_restore_container') as cleanup:
             with self.assertRaisesRegex(RuntimeError, 'empty_restored_database'):
                 module.test_restore(self.archive, 60)
+        cleanup.assert_called_once()
 
     def test_receipt_requires_explicit_restore_test(self) -> None:
         result = subprocess.run(
