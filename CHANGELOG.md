@@ -1,3 +1,11 @@
+## [0.84.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.84.0...0.84.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **g1:** reject ambiguous cron enabled status and date receipt after restore [skip ci] ([cd6ba9d](https://github.com/AlbanAndrieu/nabla-compose/commit/cd6ba9decac833ac7a2ecc5a4ff5982df99b2365))
+* **postgresbackup:** require fresh restore receipt before cron activation; track pfSense gaps [skip ci] ([19b14e7](https://github.com/AlbanAndrieu/nabla-compose/commit/19b14e7bcd4729afddb9697d9b1f804ae6bc55eb))
+
 # [0.84.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.83.0...0.84.0) (2026-11-14)
 
 
