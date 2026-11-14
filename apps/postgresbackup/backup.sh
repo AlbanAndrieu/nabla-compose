@@ -4,6 +4,7 @@
 # Runs inside the postgres image (client == server version). Secrets come from
 # the environment (env_file); the password is never printed or passed on argv.
 set -euo pipefail
+umask 077
 
 : "${POSTGRES_HOST:?POSTGRES_HOST is required}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
@@ -53,20 +54,30 @@ for database in ${BACKUP_DATABASES}; do
   fi
   target_dir="${BACKUP_DIR}/${database}${SERIES:+-${SERIES}}"
   mkdir -p "${target_dir}"
-  partial="${target_dir}/.${database}-${stamp}.dump.part"
+  # Private unpredictable staging names; never overwrite a previous restore point.
+  partial="$(mktemp "${target_dir}/.${database}-${stamp}.XXXXXX.dump.part")"
+  checksum_tmp="$(mktemp "${target_dir}/.${database}-${stamp}.XXXXXX.sha256.tmp")"
   archive="${target_dir}/${database}-${stamp}.dump"
   if pg_dump -h "${POSTGRES_HOST}" -p "${PGPORT}" -U "${POSTGRES_USER}" -d "${database}" \
     --format=custom --compress=6 --no-owner --no-privileges --file="${partial}" &&
-    pg_restore --list "${partial}" >/dev/null; then
-    mv -f "${partial}" "${archive}"
-    (cd "${target_dir}" && sha256sum "$(basename "${archive}")" >"$(basename "${archive}").sha256")
-    printf 'OK %s %s bytes\n' "${database}" "$(stat -c %s "${archive}")"
-    completed+=("${database}")
+    pg_restore --list "${partial}" >/dev/null &&
+    ln "${partial}" "${archive}"; then
+    # Publish the sidecar only after the archive is complete and validated.
+    if (cd "${target_dir}" && sha256sum "$(basename "${archive}")" >"${checksum_tmp}") &&
+      ln "${checksum_tmp}" "${archive}.sha256"; then
+      printf 'OK %s %s bytes\n' "${database}" "$(stat -c %s "${archive}")"
+      completed+=("${database}")
+    else
+      # This invocation exclusively linked the new archive, so rollback is safe.
+      rm -f -- "${archive}"
+      printf 'FAIL %s (checksum publication)\n' "${database}" >&2
+      failures=$((failures + 1))
+    fi
   else
-    rm -f "${partial}"
-    printf 'FAIL %s\n' "${database}" >&2
+    printf 'FAIL %s (dump, list, or archive already exists)\n' "${database}" >&2
     failures=$((failures + 1))
   fi
+  rm -f -- "${partial}" "${checksum_tmp}"
 done
 
 # A successful run must produce at least one validated archive. During a

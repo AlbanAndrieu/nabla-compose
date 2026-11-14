@@ -51,6 +51,10 @@ La variante `--write-receipt` (option explicite en mode restauration) écrit une
 
 États JSON : `ARCHIVE_CHECKSUM_VERIFIED` = intégrité **seulement**, `ISOLATED_RESTORE_VERIFIED` = restauration isolée achevée, `NOT_VERIFIED` = erreur, source absente ou étape non exécutée. Un nombre de relations égal à zéro exige un contrôle métier avant réception. Comparer ensuite, depuis une session autorisée, les comptages et contrôles fonctionnels choisis avec les données de référence à l'instant du dump ; une restauration réussie à elle seule ne prouve ni la fraîcheur ni la couverture de toutes les bases.
 
+**Attention capacité :** le conteneur de restauration est limité à 1536 Mio de RAM, 2 CPU et 256 processus ; le contrôle `pg_restore --list` à 512 Mio, 1 CPU et 128 processus. Aucune image n'est téléchargée (`--pull never`) ni aucun réseau attaché. Le nettoyage est contrôlé même après un échec de démarrage ; un conteneur restant actif produit `isolated_cleanup_not_verified` plutôt qu'un reçu de succès. Les limites peuvent nécessiter une étude spécifique pour Sentry avant son activation.
+
+Une sauvegarde déjà présente avec le même nom UTC n'est plus écrasée : l'archive et le checksum sont publiés par liens exclusifs, en staging privé. Un échec de checksum retire l'archive créée par cette tentative sans supprimer l'ancienne.
+
 **Attention capacité :** une restauration de base volumineuse peut consommer du stockage Docker temporaire et de l'I/O. Les archives restent sur `cpool/backup`. Cette procédure n'implémente pas la réplication hors site ni la restauration ponctuelle WAL/PITR.
 
 ## G1.4 — Mise en service contrôlée
