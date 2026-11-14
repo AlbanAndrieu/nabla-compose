@@ -29,6 +29,10 @@ The [OpenClaw/YubiKey separation record](roadmap-openclaw-yubikey-extraction-202
 
 ## Decisions (ADR)
 
+- [Frontières des dépôts et diagnostics / proposition ADR](adr/0003-repository-ownership-and-diagnostics.md)
+- [Audit des duplications FastAPI / Gatus / Prometheus](diagnostics-duplication-audit.md)
+
+
 - [APISIX API gateway PoC and gateway selection](./adr/0001-apisix-api-gateway-poc.md)
 - [Workstation option A](./adr/adr-workstation-option-a.md)
 - [Home Assistant installation type (proposed)](./adr/0002-home-assistant-installation-type.md)

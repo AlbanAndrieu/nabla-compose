@@ -20,12 +20,33 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(mod.classify("scripts/workstation/diagnose-openclaw.sh"),"candidate_openclaw_target_review")
         self.assertEqual(mod.classify("apps/openclaw/compose.yml"),"retain_compose_service")
 
+    def test_pfsense_and_crosshost_scripts_need_owner_review(self):
+        self.assertEqual(
+            mod.classify("scripts/pfsense/diagnose-recover.sh"),
+            "candidate_pfsense_target_review",
+        )
+        self.assertEqual(
+            mod.classify("scripts/workstation/observe-crowdsec-pf-decision.py"),
+            "candidate_crosshost_boundary_review",
+        )
+        self.assertEqual(
+            mod.classify("scripts/workstation/preflight-truenas-litellm-openclaw.py"),
+            "candidate_openclaw_target_review",
+        )
+        self.assertEqual(
+            mod.classify("scripts/workstation/repair-user-toolchain.sh"),
+            "candidate_ansible_workstation_review",
+        )
+
     def test_summary_never_authorizes_copy(self):
         report=mod.summarize(["apps/litellm/config.yaml","scripts/workstation/inspect-yubikey.py"],
                              "yubikey-test:\n    echo test\n\nopenclaw-plan:\n    echo plan\n")
         self.assertFalse(report["copy_or_delete_authorized"])
         self.assertEqual(report["destination_access"],"not_checked_offline")
         self.assertEqual(len(report["declared_destination_repos"]),3)
+        self.assertEqual(report["proposed_pfsense_repository"], "AlbanAndrieu/nabla-pfsense")
+        self.assertEqual(report["submodule_policy"], "only_when_consumed_as_pinned_runtime_dependency")
+        self.assertIn("rollback", report["extraction_preconditions"])
         self.assertEqual(report["recipe_groups"]["total"],2)
         self.assertEqual(report["recipe_groups"]["yubikey"],1)
         self.assertEqual(report["candidate_groups"]["candidate_yubikey_review"],1)

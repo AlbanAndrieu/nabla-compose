@@ -14,12 +14,15 @@ ROOT = Path(__file__).resolve().parents[2]
 RECIPES = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)(?:\s+[^:#\n]+)?:\s*(?:#.*)?$")
 YUBI = re.compile(r"(?i)(?:yubikey|(?:age|sops)[-_](?:yubi|escrow)|escrow[-_](?:age|usb|nfs)|usb[-_]identity|backup[-_]sops)")
 OPENCLAW = re.compile(r"(?i)openclaw")
+CROSSHOST = re.compile(r"(?i)(?:crowdsec|pfsense|truenas[-_]litellm|fastapi[-_]litellm|nexus[-_]haproxy|defectdojo)")
 SENSITIVE = re.compile(r"(?i)(?:^|/)(?:\.sops\.yaml|secrets\.env\.sops|\.env(?:\.secrets)?|.*\.age|.*\.key)$")
 
 def classify(path: str) -> str:
     """Candidate only; never infer authorization to migrate from a filename."""
     if SENSITIVE.search(path):
         return "excluded_secret_or_crypto_policy"
+    if path.startswith("scripts/pfsense/"):
+        return "candidate_pfsense_target_review"
     if path.startswith("apps/litellm/") or path.startswith("scripts/truenas/"):
         return "retain_compose_server"
     if path.startswith("apps/openclaw/"):
@@ -30,6 +33,9 @@ def classify(path: str) -> str:
         return "candidate_yubikey_review"
     if path.startswith("scripts/workstation/") and OPENCLAW.search(path):
         return "candidate_openclaw_target_review"
+    if path.startswith("scripts/workstation/") and CROSSHOST.search(path):
+        # Cross-host security and infrastructure recovery is not Ubuntu OS ownership.
+        return "candidate_crosshost_boundary_review"
     if path.startswith("scripts/workstation/"):
         return "candidate_ansible_workstation_review"
     return "retain_or_review"
@@ -65,7 +71,11 @@ def summarize(files, just_text):
             "declared_destination_repos":["AlbanAndrieu/nabla-yubikey",
                                            "AlbanAndrieu/nabla-openclaw",
                                            "AlbanAndrieu/ansible-workstation"],
-            "destination_access":"not_checked_offline"}
+            "destination_access":"not_checked_offline",
+            "proposed_pfsense_repository":"AlbanAndrieu/nabla-pfsense",
+            "submodule_policy":"only_when_consumed_as_pinned_runtime_dependency",
+            "extraction_preconditions":["consumer_inventory","destination_parity",
+                                     "least_privilege","rollback","exact_sha_gates"]}
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
