@@ -27,6 +27,13 @@ schema while keeping the operational semantics needed by the homelab.
   two documented owner decisions excepted). Legacy-only services became
   Backstage entities in `catalog/catalog-info.yaml` with a **provisional** BIA
   awaiting owner review.
+- 2026-11-14 (P2.1.f preparation): `entities.json` carries the runtime join
+  that FastAPI reads from `services.json` today. Each Compose service's
+  `x-nabla.runtime` (`provider`, `appId`, `containerService`) is projected onto
+  its entity-ref as `x-nabla.runtime` with its `source`. A test fails if any
+  `services.json` binding differs, and two bindings on one entity are
+  rejected. Next steps: FastAPI reads this projection, the TrueNAS reboot path
+  drops the `lifecycle` waves, and only then can the v1 files go.
 
 ### Route intent as authored and projected
 

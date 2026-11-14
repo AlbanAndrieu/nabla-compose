@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -117,6 +118,10 @@ services:
         published: "${API_PORT:-8091}"
         app_protocol: http
     x-nabla:
+      runtime:
+        provider: truenas-app
+        appId: api-app
+        containerService: api
       exposure:
         - name: public
           hostnames: [api.example.test]
@@ -148,11 +153,67 @@ services:
             {"appProtocol": "http", "host": "10.0.0.2", "port": 8091},
         )
         self.assertEqual(api["probePolicy"], {"deploymentUnit": "api", "position": 0, "rank": 0})
+        self.assertEqual(
+            api["runtime"],
+            {
+                "provider": "truenas-app",
+                "appId": "api-app",
+                "containerService": "api",
+                "source": "apps/api/compose.yml#services/api",
+            },
+        )
+        self.assertNotIn("runtime", by_ref["resource:default/database"])
         self.assertEqual(by_ref["resource:default/database"]["exposure"][0]["backend"]["port"], 5432)
         self.assertEqual(by_ref["resource:default/truenas"]["probePolicy"], {"position": 0, "rank": 1})
         self.assertEqual(
             by_ref["resource:default/truenas"]["exposure"][0]["source"], "catalog-info.yaml"
         )
+
+    def test_one_entity_cannot_have_two_runtime_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            descriptor = self._fixture(root)[0]
+            compose = root / "apps" / "api" / "compose.yml"
+            compose.parent.mkdir(parents=True)
+            service = """    labels:
+      com.albandrieu.nabla.entity-ref: component:default/api
+    x-nabla:
+      runtime:
+        provider: truenas-app
+        containerService: {name}
+"""
+            compose.write_text(
+                "services:\n  api:\n" + service.format(name="api")
+                + "  worker:\n" + service.format(name="worker"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "runtime bound by"):
+                build_standard_artifacts([descriptor], [compose], root)
+
+    def test_generated_runtime_matches_every_legacy_service_binding(self) -> None:
+        # P2.1.f gate: services.json may only go once entities.json carries its runtime join.
+        legacy = json.loads((ROOT / "catalog/services.json").read_text(encoding="utf-8"))
+        entities = json.loads((ROOT / "catalog/generated/entities.json").read_text(encoding="utf-8"))
+        identity = json.loads((ROOT / "catalog/generated/identity-map.json").read_text(encoding="utf-8"))
+        ref_by_source = {
+            item["sourceId"]: item["entityRef"]
+            for item in identity["mappings"] if item["sourceType"] == "compose"
+        }
+        runtime_by_ref = {
+            entity["entityRef"]: entity.get("x-nabla", {}).get("runtime")
+            for entity in entities["entities"]
+        }
+        checked = 0
+        for row in legacy["services"]:
+            if "runtime" not in row:
+                continue
+            ref = ref_by_source[f"{row['sourcePath']}#services/{row['composeService']}"]
+            expected = {key: row["runtime"][key] for key in ("provider", "appId", "containerService") if key in row["runtime"]}
+            projected = dict(runtime_by_ref[ref] or {})
+            projected.pop("source", None)
+            self.assertEqual(projected, expected, ref)
+            checked += 1
+        self.assertGreater(checked, 100)
 
     def test_revision_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

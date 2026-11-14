@@ -165,6 +165,8 @@ def cyclonedx_projection(entities: list[dict[str, Any]]) -> dict[str, Any]:
 _DEFAULT_VALUE_RE = re.compile(r"^\$\{[A-Za-z0-9_]+:?-([^}]*)\}$")
 _LAN_ADDRESS = "albandrieu.com/lan-address"
 _DEFAULT_HOST_REF = "resource:default/truenas"
+# The runtime join consumers need once services.json is gone; networks derive from Compose.
+_RUNTIME_FIELDS = ("provider", "appId", "containerService")
 
 
 def _compose_default(value: Any) -> str:
@@ -214,7 +216,7 @@ def project_route_intent(
     compose_files: Iterable[Path],
     root: Path,
 ) -> None:
-    """Attach desired route intent and probe policy to each entity in place.
+    """Attach desired route intent, probe policy and runtime binding to each entity in place.
 
     Authors keep route intent beside the runtime (Compose service or static
     descriptor); consumers join it on the full entity ref only.
@@ -273,6 +275,19 @@ def project_route_intent(
                 extension(owner, source).setdefault("exposure", []).append(
                     _projected_route(route, backend, source)
                 )
+            runtime = (service.get("x-nabla") or {}).get("runtime")
+            if runtime:
+                if not owner_default:
+                    raise ValueError(f"{source}: x-nabla.runtime requires com.albandrieu.nabla.entity-ref")
+                target = extension(owner_default, source)
+                if "runtime" in target:
+                    raise ValueError(
+                        f"{owner_default}: runtime bound by {target['runtime']['source']} and {source}"
+                    )
+                target["runtime"] = {
+                    **{key: runtime[key] for key in _RUNTIME_FIELDS if runtime.get(key)},
+                    "source": source,
+                }
 
         policy = unit.get("probePolicy")
         if not isinstance(policy, dict):
