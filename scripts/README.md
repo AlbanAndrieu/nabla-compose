@@ -92,7 +92,7 @@ The approved priority since 14 November 2026 is **H01 (CSI) → H02 (PostgreSQL)
 
 - `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
 - `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.
-- `python3 scripts/quality/check-roadmap-portfolio.py --worklist` prints only the H02/H01/H05 order of PR #369 (read-only).
+- `python3 scripts/quality/check-roadmap-portfolio.py --worklist` emits H01/H02/H04/H05/H12/H13/H16 in the approved order (read-only).
 - For H01 use the dedicated `scripts/talos/validate-csi-prereqs.sh` and `smoke-truenas-csi-nfs.sh`. For H02 use the existing `postgresbackup` restoration process. For H05 use `scripts/truenas/verify-service-observability.py`. These scripts have different privileges: do not fuse them into a mutating all-in-one operation.
 
 ## H11 D0 — OpenClaw consumer evidence (offline)
@@ -103,6 +103,12 @@ no Git submodule, LAN endpoint or secret is read. A textual reference is
 **not proof of a live caller**, CLI parity or removal readiness.
 `submodule_parity=NOT_VERIFIED` is deliberate until the OpenClaw checkout
 and runtime contract are checked independently.
+
+`python3 scripts/ops/plan-repository-split.py --compare-openclaw-root ../nabla-openclaw`
+compares only declared long argparse options and SHA-256 hashes in two
+explicit local checkouts. It never executes either script or reads a secret;
+missing files produce exit code 2. The result is static evidence only:
+`behavioral_parity=NOT_VERIFIED`, not permission to remove a wrapper.
 
 ## G1 — Backup verification and secret rotation
 
