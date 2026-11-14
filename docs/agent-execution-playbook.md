@@ -26,6 +26,19 @@ AGENT_EXECUTION_MODE=offline bash scripts/agent-diagnostics.sh --static
 
 The runtime diagnostic runs checks against *only the explicitly named services*; do not send every catalog service to the live LAN on every task. It uses the existing observability verifier and neither mutates TrueNAS nor authenticates to private applications automatically. Review runtime identities and targets before interpreting failures.
 
+## Existing PR first — conflict-free grouped delivery
+
+Review open PRs and overlapping files before modifying instructions,
+skills, roadmaps or script owners. Workstation: dedicated worktree,
+`git fetch origin master`, inspect `git log --left-right
+HEAD...origin/master`, then resolve a reviewed rebase/merge and rerun
+tests. API-only: read exact base/head, build a single coherent tree commit
+with an expected-SHA lease; stop if either ref advances. Do not silently
+force-push, use `--ours` globally, or declare a conflict resolved without
+testing. Accumulate non-urgent cleanups; only production stabilization
+or a completed cross-service migration justifies an immediate
+coordinated publication. Preserve all gates and Draft status.
+
 ## Conditional tools and policies
 
 - For Compose, load `.agents/skills/docker-compose-orchestration/SKILL.md` and `.agents/skills/nabla-service-catalog/SKILL.md`; validate without starting Apps. The active Backstage V2 contract stays authoritative.

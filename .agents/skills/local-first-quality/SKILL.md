@@ -23,6 +23,16 @@ ran without a checkout/toolchain. In a verified connected Claude Code
 workstation session, explicitly choose `AGENT_EXECUTION_MODE=workstation`
 and use local pinned tools for L0–L3. The mode never replaces evidence.
 
+## PR and agent concurrency
+
+Continue the compatible existing PR and synchronize its base **before**
+editing. Resolve scoped conflicts and rerun tests; use a dedicated worktree
+and one logical publication batch. See
+[the conditional playbook](../../../docs/agent-execution-playbook.md).
+Do not force an unleased branch or push one minor adjustment at a time.
+Production stabilization and completed cross-service migration are
+limited exceptions, never bypasses for L3 or security gates.
+
 ## Invariants
 
 - Resolve the user-selected PR, its state, branch and exact remote HEAD before

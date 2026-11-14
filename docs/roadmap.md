@@ -123,6 +123,29 @@ Migration de dépôt **historiquement réceptionnée**. Les futurs travaux Gatew
 - **H05** : vérifier les exports `postgres-exporter`/`pg_up`, jobs Gatus/Prometheus et la fraîcheur ; aucun succès supposé à partir des chiffres du 11/11. [Remédiation](runbooks/2026-11-04-probe-remediation.md).
 - États de livraison des assistants, clés LiteLLM, Slack et exporters : [archive datée](archive/2026-11-13-roadmap-before-compaction.md).
 
+## H11 — scission des scripts opérateur et diagnostics (étude D0–D4)
+
+Référence normative : [ADR-0003 existante](adr/0003-repository-ownership-and-diagnostics.md).
+[Inventaire détaillé](runbooks/operator-script-ownership-inventory.md) issu de
+la PR #386 ; ne pas créer une deuxième ADR-0003.
+
+- **D0** cartographier les consommateurs et comparer arguments/exit codes
+  avant d'attribuer une propriété aux scripts. Les cinq homonymes OpenClaw
+  restent des contrats potentiellement différents ; contrôler leurs usages.
+- **D1–D2** converger les outils Gateway dans `nabla-openclaw` et les audits
+  OS dans `ansible-workstation`, avec wrappers temporaires et rollback.
+  Conserver la logique inter-hôtes de LiteLLM/TrueNAS dans Compose.
+- **D3 / H07** étudier `nabla-pfsense` uniquement après validation de
+  l'ownership, sauvegarde et CLI `plan/check/apply/rollback` ; sous-module
+  seulement si un consommateur exige le SHA d'un arbre Git.
+- **D4 / H05** unifier les transports redondants après tests négatifs ;
+  FastAPI/Gatus/Prometheus fournissent les preuves continues, Compose garde
+  les smokes CSI, restauration, OTLP et les actions de reprise autonomes.
+
+**NO-GO :** pas de suppression de scripts privilégiés, de service redémarré
+ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
+**H02/G1 → H01 → H05** reste prioritaire sur ce refactoring H11.
+
 ## P1 — Fiabilité des scripts et documentation
 
 - **Inventaire H11 du 14/11 — [hotspots de code](code-hotspots.md)** : quantifier les fichiers par domaine (tests, TrueNAS, pfSense, catalogue V2, FastAPI/sondes/UI). Priorité au découpage ciblé des gros scripts seulement après preuve d'un risque de maintenance, avec mêmes exit codes, sorties expurgées et tests négatifs. Le scanner Git local est offline, sans secrets ni LAN : `just code-hotspots`.

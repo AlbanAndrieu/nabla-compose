@@ -47,6 +47,21 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 4. **Context7 is documentation-only and free-first**; load `context7-docs` on demand for external versioned APIs. The `repository/runtime evidence remains authoritative`; Context7 never proves deployed state. No unrelated connector discovery.
 5. Use short failure summaries with pointers to private logs instead of echoing entire responses. A token limit does not excuse missing security/functional validation.
 
+## Cross-repository PR coordination
+
+- **Reuse the compatible open PR**: verify base/HEAD, overlapping files and
+  the existing owner before editing shared `AGENTS.md`, skills, roadmaps
+  or diagnostics. Do not open or publish a second tiny PR for the same work.
+- **Synchronize and resolve conflicts before editing**: dedicated worktree,
+  fetch `master`, rebase or reviewed merge, targeted regression checks.
+  Never discard another agent's changes or update a published branch without
+  an exact SHA lease and explicit authorization for history rewriting.
+- **Batch meaningful changes** under one reviewed commit/push when feasible.
+  Exceptions: urgent production stability/security fixes requiring deployment
+  or a completed cross-service migration with coordinated dependents.
+- Keep Draft until appropriate local gates, no implicit CI/Ready/merge, never
+  disable security checks. Offline L2/L3 and runtime are `NOT_RUN`.
+
 ## Git workflow and acceptance
 
 - Prefer a dedicated worktree and a Draft PR. Workstation: `mise run agent-context` → narrow L1 → `mise run agent-loop` → `mise run agent-fix` → review/commit → `mise run agent-pre-push` on the exact committed HEAD. The full publication gate is not the targeted loop.

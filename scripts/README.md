@@ -77,6 +77,13 @@ build/cleanup cycle when only validation is intended.
 
 ## Documentation and cross-repository script ownership
 
+The [single canonical ADR-0003](../docs/adr/0003-repository-ownership-and-diagnostics.md)
+and its [D0–D4 operator inventory](../docs/runbooks/operator-script-ownership-inventory.md)
+identify possible duplication across Workstation, OpenClaw, pfSense, FastAPI,
+Gatus and Prometheus. No script ownership, runtime role or path is transferred
+before consumer inventory, CLI compatibility tests and rollback acceptance.
+
+
 The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and script-acceptance decisions. The [FastAPI engineering roadmap](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) owns Python API/UI test runners and probes; [OpenClaw](https://github.com/AlbanAndrieu/nabla-openclaw/blob/master/docs/roadmap.md) owns Gateway/heartbeat. Do not copy launchers between repositories. Retain a compatibility wrapper only while a live recipe, test or rollback procedure calls it; track that consumer before removal. No removal of historical OpenClaw or YubiKey entry points without their contract tests.
 
 ## Approved execution and offline portfolio check
