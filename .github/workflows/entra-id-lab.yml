@@ -1,0 +1,143 @@
+---
+name: Entra ID lab - OIDC gated
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - terraform/entra-id-lab/**
+      - scripts/entra/**
+      - tests/test_entra_id_lab_contract.py
+      - tests/test_entra_plan_policy.py
+      - .github/workflows/entra-id-lab.yml
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [validate, plan, apply]
+        default: validate
+        required: true
+        description: "Apply needs a protected environment and Azure Blob state"
+      expected_sha:
+        type: string
+        required: false
+        description: "Full 40-character master commit SHA for plan/apply"
+      confirmation:
+        type: string
+        required: false
+        description: "For apply type APPLY_ENTRA_LAB"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: entra-id-lab-state
+  cancel-in-progress: false
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
+      - name: Validate offline security contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tofu fmt -check -diff terraform/entra-id-lab
+          bash -n scripts/entra/entra-lab-preflight.sh
+          python3 -m unittest tests.test_entra_id_lab_contract tests.test_entra_plan_policy -v
+
+  remote:
+    needs: static
+    if: "${{ github.event_name == 'workflow_dispatch' && (inputs.operation == 'plan' || inputs.operation == 'apply') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: "${{ inputs.operation == 'apply' && 'entra-lab-apply' || 'entra-lab-plan' }}"
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_ci_use_oidc: "true"
+      TF_VAR_enable_group_management: "false"
+      TF_VAR_lab_tenant_confirmed: "true"
+      TF_VAR_tenant_id: "${{ vars.ENTRA_LAB_TENANT_ID }}"
+      TF_VAR_ci_graph_client_id: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"
+      ARM_CLIENT_ID: "${{ vars.ENTRA_STATE_CLIENT_ID }}"
+      ARM_TENANT_ID: "${{ vars.ENTRA_LAB_TENANT_ID }}"
+      ARM_SUBSCRIPTION_ID: "${{ vars.ENTRA_STATE_SUBSCRIPTION_ID }}"
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_USE_CLI: "false"
+      STATE_ACCOUNT: "${{ vars.ENTRA_STATE_ACCOUNT }}"
+      STATE_CONTAINER: "${{ vars.ENTRA_STATE_CONTAINER }}"
+      APPLY_ENABLED: "${{ vars.ENTRA_LAB_APPLY_ENABLED }}"
+    steps:
+      - name: Fail closed on wrong branch, actor, SHA or missing identities
+        shell: bash
+        env:
+          OPERATION: "${{ inputs.operation }}"
+          EXPECTED_SHA: "${{ inputs.expected_sha }}"
+          CONFIRMATION: "${{ inputs.confirmation }}"
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/master" ]] || exit 2
+          [[ "$GITHUB_ACTOR" == "$GITHUB_REPOSITORY_OWNER" ]] || exit 2
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || exit 2
+          [[ "$TF_VAR_tenant_id" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
+          for value in "$ARM_CLIENT_ID" "$TF_VAR_ci_graph_client_id" "$ARM_SUBSCRIPTION_ID"; do
+            [[ "$value" =~ ^[0-9a-fA-F-]{36}$ ]] || exit 2
+          done
+          [[ "$STATE_ACCOUNT" =~ ^[a-z0-9]{3,24}$ ]] || exit 2
+          [[ "$STATE_CONTAINER" =~ ^[a-z0-9-]{3,63}$ ]] || exit 2
+          [[ -z "${ARM_CLIENT_SECRET:-}" && -z "${ARM_ACCESS_KEY:-}" && -z "${ARM_SAS_TOKEN:-}" ]] || exit 2
+          if [[ "$OPERATION" == apply ]]; then
+            [[ "$APPLY_ENABLED" == true && "$CONFIRMATION" == APPLY_ENTRA_LAB ]] || exit 2
+          fi
+          echo "OIDC prerequisites configured; no token printed."
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.5
+          tofu_wrapper: false
+      - name: Initialize native-locked Azure Blob backend
+        working-directory: terraform/entra-id-lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .terraform.lock.hcl || { echo "Missing reviewed provider lock file"; exit 2; }
+          tofu init -input=false -lockfile=readonly \
+            -backend-config="storage_account_name=$STATE_ACCOUNT" \
+            -backend-config="container_name=$STATE_CONTAINER"
+          tofu validate -no-color
+      - name: Plan, enforce creation-only policy, optionally apply exact local plan
+        shell: bash
+        env:
+          OPERATION: "${{ inputs.operation }}"
+        run: |
+          set -euo pipefail
+          umask 077
+          plan="$RUNNER_TEMP/entra.tfplan"
+          json="$RUNNER_TEMP/entra-plan.json"
+          trap 'rm -f "$plan" "$json"' EXIT
+          cd terraform/entra-id-lab
+          tofu plan -input=false -no-color -out="$plan"
+          tofu show -json "$plan" > "$json"
+          python3 ../../scripts/entra/check-plan.py "$json"
+          if [[ "$OPERATION" == apply ]]; then
+            tofu apply -input=false -no-color "$plan"
+            echo "Applied the policy-approved plan generated in this job." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Plan-only; binary plan and state were not uploaded." >> "$GITHUB_STEP_SUMMARY"
+          fi
