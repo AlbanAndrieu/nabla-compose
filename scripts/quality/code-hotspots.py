@@ -14,7 +14,10 @@ import sys
 from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
-EXTENSIONS = frozenset({".py", ".sh", ".bash", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".go", ".rs", ".java", ".php", ".sql"})
+EXTENSIONS = frozenset({
+    ".py", ".sh", ".bash", ".js", ".jsx", ".ts", ".tsx",
+    ".mjs", ".cjs", ".go", ".rs", ".java", ".php", ".sql",
+})
 MAX_FILE_BYTES = 2 * 1024 * 1024
 
 
@@ -34,7 +37,9 @@ def topic(path: str) -> str:
         return "secrets"
     if path.startswith("scripts/quality/") or "agent-quality" in path:
         return "agent-quality"
-    if path.startswith("scripts/nabla_ops/") or any(key in path for key in ("catalog", "topology", "service-consumer")):
+    if path.startswith("scripts/nabla_ops/") or any(
+        key in path for key in ("catalog", "topology", "service-consumer")
+    ):
         return "catalog-topology"
     if path.startswith("scripts/"):
         return "operations-other"
@@ -72,7 +77,11 @@ def scan(root: Path, paths: Iterable[str], *, include_tests: bool = True) -> dic
         if Path(name).suffix.lower() not in EXTENSIONS or (not include_tests and name.startswith("tests/")):
             continue
         candidate = root / name
-        if not candidate.is_relative_to(root) or candidate.is_symlink() or not candidate.is_file():
+        if (
+            candidate.is_symlink()
+            or not candidate.resolve(strict=False).is_relative_to(root)
+            or not candidate.is_file()
+        ):
             skipped += 1
             continue
         try:
@@ -132,7 +141,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     else:
-        print(f"Tracked code: {report['files']} files / {report['total_lines']} physical lines; skipped={report['skipped']}")
+        print(
+            f"Tracked code: {report['files']} files / "
+            f"{report['total_lines']} physical lines; skipped={report['skipped']}"
+        )
         for entry in report["topics"]:
             print(f"  {entry['topic']}: {entry['lines']} lines ({entry['files']} files)")
         print("Largest files (physical lines):")

@@ -48,6 +48,14 @@ def test_symlink_binary_and_absent_are_not_read(tmp_path):
     assert result["skipped"] == 3
 
 
+def test_path_traversal_outside_checkout_is_rejected(tmp_path):
+    outside = tmp_path.parent / "outside_hotspot.py"
+    outside.write_text("secret_like = True\n", encoding="utf-8")
+    report = MOD.scan(tmp_path, ["../outside_hotspot.py"])
+    assert report["files"] == 0
+    assert report["skipped"] == 1
+
+
 def test_git_failure_is_not_a_fake_zero_inventory(tmp_path):
     with patch.object(MOD.subprocess, "run", return_value=subprocess.CompletedProcess([], 128)):
         try:
@@ -61,7 +69,10 @@ def test_git_failure_is_not_a_fake_zero_inventory(tmp_path):
 def test_cli_json_bounded_rankings(tmp_path):
     (tmp_path / "a.py").write_text("one\ntwo\nthree\n")
     (tmp_path / "b.py").write_text("first\n")
-    with patch.object(MOD, "tracked_paths", return_value=["a.py", "b.py"]), redirect_stdout(io.StringIO()) as out:
+    with (
+        patch.object(MOD, "tracked_paths", return_value=["a.py", "b.py"]),
+        redirect_stdout(io.StringIO()) as out,
+    ):
         assert MOD.main(["--root", str(tmp_path), "--json", "--limit", "1", "--min-lines", "1"]) == 0
     report = json.loads(out.getvalue())
     assert len(report["largest_files"]) == 1
