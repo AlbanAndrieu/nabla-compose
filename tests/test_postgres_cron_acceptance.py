@@ -88,12 +88,48 @@ class CronAcceptanceTest(unittest.TestCase):
         item = {**module.JOB, "id": 5, "enabled": True}
         with patch.object(module, "middleware", return_value=[item]):
             module.audit_live(specs)
+        with patch.object(module, "middleware", return_value=[{**item, "enabled": False}]):
+            module.audit_live(specs)
         with patch.object(module, "middleware", return_value=[]):
             with self.assertRaisesRegex(RuntimeError, "expected one live cron"):
                 module.audit_live(specs)
         with patch.object(module, "middleware", return_value=[{**item, "command": "changed"}]):
             with self.assertRaisesRegex(RuntimeError, "contract drift"):
                 module.audit_live(specs)
+
+
+    def test_enable_fails_before_middleware_without_receipt(self):
+        with patch.object(module, "require_environment"), \
+             patch.object(module, "validate_restore_receipt",
+                          side_effect=RuntimeError("restore_receipt_missing_or_symlink")), \
+             patch.object(module, "middleware") as middleware, \
+             patch("sys.argv", ["cron", "--enable", "--job", "daily"]), \
+             patch.dict(os.environ, {"POSTGRES_BACKUP_CRON_APPROVED": "YES"}):
+            with self.assertRaisesRegex(RuntimeError, "restore_receipt_missing"):
+                module.main()
+            middleware.assert_not_called()
+
+    def test_enable_requires_explicit_daily_selection(self):
+        with patch.object(module, "require_environment"), \
+             patch.object(module, "validate_restore_receipt") as verify, \
+             patch.object(module, "middleware") as middleware, \
+             patch("sys.argv", ["cron", "--enable"]), \
+             patch.dict(os.environ, {"POSTGRES_BACKUP_CRON_APPROVED": "YES"}):
+            with self.assertRaisesRegex(RuntimeError, "enable daily job explicitly"):
+                module.main()
+            verify.assert_not_called()
+            middleware.assert_not_called()
+
+    def test_enable_fails_without_operator_approval(self):
+        with patch.object(module, "require_environment"), \
+             patch.object(module, "validate_restore_receipt") as verify, \
+             patch.object(module, "middleware") as middleware, \
+             patch("sys.argv", ["cron", "--enable", "--job", "daily"]), \
+             patch.dict(os.environ, {"POSTGRES_BACKUP_CRON_APPROVED": ""}):
+            with self.assertRaisesRegex(RuntimeError, "APPROVED=YES required"):
+                module.main()
+            verify.assert_not_called()
+            middleware.assert_not_called()
 
     def test_receipt_is_never_accepted_for_sentry(self):
         sentry = self.root / "sentry"
