@@ -27,9 +27,10 @@ class EntraLabContract(unittest.TestCase):
         self.assertIn("ENTRA_LAB_BLOCKED", result.stderr)
 
     def test_private_backend_and_read_only_preflight(self):
-        config = (ROOT / "infrastructure/entra-id-lab/terragrunt.hcl").read_text()
-        self.assertIn('include "root"', config)
-        self.assertIn("ENTRA_LAB_TENANT_ID", config)
+        backend = (LAB / "backend.tofu").read_text()
+        self.assertIn('backend "azurerm"', backend)
+        self.assertIn("use_azuread_auth = true", backend)
+        self.assertFalse((ROOT / "infrastructure/entra-id-lab/terragrunt.hcl").exists())
         preflight = (ROOT / "scripts/entra/entra-lab-preflight.sh").read_text()
         self.assertIn("AGENT_EXECUTION_MODE", preflight)
         self.assertIn("az account show", preflight)
