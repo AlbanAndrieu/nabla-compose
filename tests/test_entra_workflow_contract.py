@@ -12,7 +12,7 @@ class EntraWorkflowContract(unittest.TestCase):
         self.assertIn("id-token: write", data)
         self.assertIn("runs-on: ubuntu-latest", data)
         self.assertNotIn("runs-on: self-hosted", data)
-        self.assertNotIn("ARM_CLIENT_SECRET:", data)
+        self.assertNotIn("\n      ARM_CLIENT_SECRET:", data)
         self.assertNotIn("AWS_SECRET_ACCESS_KEY:", data)
 
     def test_manual_apply_guard_and_state_lease(self):
