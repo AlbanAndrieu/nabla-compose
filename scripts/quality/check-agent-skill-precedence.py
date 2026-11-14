@@ -31,6 +31,11 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
             "Ask the user before installing",
         ),
     ),
+    "docs/agent-execution-modes.md": (
+        None,
+        ("FastAPI Cloud", "TrueNAS", "fastapi-sample.fastapicloud.dev/sickz",
+         "NOT_RUN"),
+    ),
     "docs/agent-skills-architecture.md": (
         None,
         (
@@ -113,7 +118,7 @@ REQUIRED: dict[str, tuple[str | None, tuple[str, ...]]] = {
     "CLAUDE.md": (None, ("AGENTS.md",)),
     ".claude/CLAUDE.md": (None, ("AGENTS.md",)),
     ".github/copilot-instructions.md": (None, ("AGENTS.md",)),
-    "agent.md": (None, ("AGENTS.md",)),
+    "agent.md": (None, ("AGENTS.md", "docs/agent-execution-modes.md")),
     "scripts/agent-quality-gate.sh": (
         None,
         (

@@ -118,3 +118,9 @@ and `bash scripts/agent-diagnostics.sh --runtime <service>` for a bounded,
 read-only direct/Gatus/Prometheus triad (1–3 named services). This does not
 replace full local quality or a TrueNAS authenticated acceptance run.
 See [agent execution playbook](../docs/agent-execution-playbook.md).
+
+## Agents : observateurs TrueNAS puis Cloud
+
+En mode `workstation`, `scripts/agent-diagnostics.sh --runtime <service>` utilise **FastAPI sur TrueNAS** (`/api/homelab/status` puis `/api/homelab/health`) avant **FastAPI Cloud** (`/sickz`, sondes réellement outside-in). Le collecteur `scripts/quality/service-observer-evidence.py` publie seulement les états, les métadonnées autorisées et l'origine des preuves (pas les réponses privées brutes).
+
+En mode `offline`/Codex distant, seule la lecture du code, les tests hermétiques et le plan `python3 scripts/quality/agent-diagnostics.py --scope services` sont autorisés. Les erreurs de réseau, refus Access et preuves périmées restent non vérifiés, pas `DOWN`. Les commandes Gatus/Prometheus directes restent une seconde étape explicite. `just agent-diagnostics-tests` teste le refus du réseau et l'ordre des sondes.

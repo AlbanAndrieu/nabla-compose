@@ -74,3 +74,13 @@ des changements de configuration. Ne jamais escalader silencieusement.
 Une interruption temporaire du homelab est acceptable **quand la mutation est
 autorisée** ; secrets, intégrité des données, réseau/WAN et permissions restent
 protégés. Aucun changement hardware YubiKey sans accord explicite.
+
+## Sources de diagnostic — ordre de confiance
+
+1. **TrueNAS, interne (priorité)** : `http://172.17.0.24:8091/api/homelab/status` puis `/api/homelab/health`. L'API hébergée sur TrueNAS observe les sondes et fournisseurs internes autorisés. Examiner également le timestamp, le cache et les erreurs d'authentification.
+2. **FastAPI Cloud, externe (indépendant)** : `https://fastapi-sample.fastapicloud.dev/sickz`. Le processus FastAPI Cloud effectue des sondes **outside-in** depuis un environnement hors LAN. Recevoir HTTP 200 du domaine Cloud ne prouve ni l'exposition ni la santé des services cibles.
+3. **Approfondissement ciblé** : sondes directes TrueNAS, Gatus, Prometheus, pfSense uniquement lorsque les deux observateurs ne suffisent pas. Aucune connexion directe implicite vers une IP extraite du catalogue.
+
+Les états `DENIED` (401/403), `UNVERIFIED` (timeout, erreurs transport ou formats), `STALE` et `NOT_RUN` sont **distincts** de `DOWN`. Aucun résultat de diagnostic runtime n'est supposé depuis un Codex distant. Le collecteur `scripts/quality/service-observer-evidence.py` affiche seulement des champs allowlistés et limite la collecte à trois endpoints et trois services.
+
+Commande workstation : `AGENT_EXECUTION_MODE=workstation bash scripts/agent-diagnostics.sh --runtime gatus prometheus`. Plan sans requête : `python3 scripts/quality/agent-diagnostics.py --scope services` ; contrat hermétique : `just agent-diagnostics-tests`.

@@ -8,6 +8,13 @@ description: Converge formatter, lint, generated artifacts and targeted contract
 Use this skill for quality failures, PR continuation, formatter/linter fixes and
 publication work. Keep remote CI as an independent safety net, not an edit loop.
 
+## Service observer order
+
+On a connected workstation, query FastAPI on TrueNAS (internal reconciliation
+and health) before FastAPI Cloud `/sickz` (real outside-in vantage). In
+remote/offline mode do not probe LAN; report `NOT_RUN` and the local command.
+Never infer service DOWN from 403/timeout or from a stale observer.
+
 ## Workstation vs remote capability
 
 If `AGENT_EXECUTION_MODE=offline` (the default for remote Codex/API-only),

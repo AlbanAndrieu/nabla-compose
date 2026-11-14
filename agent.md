@@ -28,4 +28,4 @@ Never preload the entire repository, all skills, generated files or historical l
 5. Remote API-only: one Draft PR with expected-SHA updates; disclose missing local L2/L3 and runtime, do not silently trigger CI.
 6. Never mutate `master`, print secrets, bypass hooks or delete data without authorization. Record remaining acceptance in the roadmap.
 
-Use the [conditional playbook](docs/agent-execution-playbook.md) for detailed commands, operator recovery and CI troubleshooting.
+Use the [conditional playbook](docs/agent-execution-playbook.md) and [execution modes](docs/agent-execution-modes.md) for detailed commands, operator recovery and CI troubleshooting.

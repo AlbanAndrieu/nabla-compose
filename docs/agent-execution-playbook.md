@@ -47,3 +47,10 @@ The runtime diagnostic runs checks against *only the explicitly named services*;
 - [Current portfolio H01–H19](roadmap-portfolio.md)
 
 The reference documents are read only when the task needs those details. **Keep the output small, not the validation shallow.**
+
+## Diagnostic FastAPI à deux points d'observation
+
+- **D'abord TrueNAS** : `http://172.17.0.24:8091/api/homelab/status` et `/api/homelab/health`; provider interne et état fonctionnel sont deux signaux distincts.
+- **Ensuite FastAPI Cloud** : `https://fastapi-sample.fastapicloud.dev/sickz`; la plateforme distante produit une mesure outside-in indépendante. Un 200 du endpoint ne valide pas les contrôles de chaque service.
+- **Enfin, si nécessaire** : investigation directe Gatus, Prometheus, CSI, pfSense dans leurs scripts dédiés.
+- `AGENT_EXECUTION_MODE=workstation bash scripts/agent-diagnostics.sh --runtime gatus prometheus` ; mode distant = `NOT_RUN`, sans tentative LAN. Timeout total borné, aucun retour de secret ou de payload brut.
