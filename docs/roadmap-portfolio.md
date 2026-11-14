@@ -1,6 +1,6 @@
 # Portefeuille Homelab — arbitrage inter-dépôts
 
-> Synthèse réconciliée le **14 novembre 2026**, établie à partir des deux roadmaps versionnées. **Ordre validé : G1/H02 → H01 → H05 ; autres chantiers à arbitrer.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
+> Synthèse réconciliée le **14 novembre 2026**, établie à partir des deux roadmaps versionnées. **Ordre approuvé le 14 novembre : H01 → H02 → H04 → H05 → H12 → H13 → H16 ; autres chantiers conservés au backlog.** Ce tableau est un index de décisions : il ne remplace ni les procédures ni les mesures runtime.
 
 ## Autorités et règles
 
@@ -29,7 +29,7 @@
 | H13 | P1 | nabla-compose + fastapi-sample | PARTIAL | NOT_VERIFIED | DefectDojo : compte d'import à droits restreints, suivi asynchrone, déduplication, preuve de non-exposition WAN — [Import privé](defectdojo-private-scan-ingestion.md) |
 | H14 | P1 | fastapi-sample | CODED | NOT_VERIFIED | Tableaux de bord : confirmer la heatmap cAdvisor OWNER, la distinction 0/absent et compléter séparément ZFS/NetFlow sourcés — [Roadmap FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) |
 | H15 | P2 | nabla-compose | CODED | NOT_VERIFIED | Média : tests de non-exposition et de kill-switch avant activation de la pile VPN et des Apps planned — [Architecture média](arr-media-library-roadmap.md) |
-| H16 | P2 | nabla-compose + fastapi-sample | PLANNED | NOT_VERIFIED | PKI Vault et OAuth PostgreSQL, OIDC Keycloak/FastAPI : pilote séparé avec break-glass, révocation et RBAC négatif — [Roadmap sécurité PG](security/postgresql-fips-tls13-vault-oauth-20261110.md) |
+| H16 | P1 | nabla-compose + fastapi-sample | PLANNED | NOT_VERIFIED | PKI Vault et OAuth PostgreSQL, OIDC Keycloak/FastAPI : pilote séparé avec break-glass, révocation et RBAC négatif — [Roadmap sécurité PG](security/postgresql-fips-tls13-vault-oauth-20261110.md) |
 | H17 | P0 | nabla-compose + fastapi-sample + nabla-site-alban | PARTIAL | NOT_VERIFIED | Backstage V2 : Compose [#365](https://github.com/AlbanAndrieu/nabla-compose/pull/365) et FastAPI [#424](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) fusionnées ; [FastAPI #432](https://github.com/AlbanAndrieu/fastapi-sample/pull/432) fusionnée (snapshot V2 et cartes enrichies, **non réceptionnés au runtime**). Parité entityRef/catalogRevision sur SHA déployé, puis migration Site Alban avant suppression legacy — [Contrat V2](service-catalog-v2-normalization.md) |
 | H18 | P2 | nabla-compose | PLANNED | NOT_VERIFIED | EnOcean NodOn et Somfy io/RTS dans Home Assistant : étude de compatibilité, dongle/Overkiz, tests avant achat/appairage — [Étude HA](roadmap-homeassistant-integrations.md) |
 | H19 | P1 | nabla-compose | CODED | NOT_VERIFIED | Home Assistant : migration de l'App native vers Compose et recorder PostgreSQL avec rollback et validation des intégrations — [Runbook Apps](runbooks/2026-11-06-catalog-apps-to-compose.md) |
@@ -44,15 +44,21 @@
 - **Catalogue V2** : génération Compose #365 et lecteur FastAPI #424 fusionnés le 13 novembre ; l'affichage révisé et la synchronisation du snapshot ont été fusionnés via FastAPI #432 (205 entités / 139 bindings dans le snapshot, pas de preuve de déploiement). La réception reste H17.
 - **FastAPI** : heatmap triable #418 et garde budgétaire Nano #419 fusionnées le 11 novembre. Pas de mesure CPU/réplicas ni de recette OWNER post-déploiement attribuée à ces PR.
 
-## Séquence validée — H02 → H01 → H05
+## Séquence approuvée — 14 novembre 2026
 
-1. **H02/G1** — tourner le secret `postgres_exporter`, réaliser un backup en TLS `verify-full` et une **restauration indépendante** avant activation du cron. [Runbook](runbooks/postgres-g1-restore-and-secret-rotation.md).
-2. **H01** — vérifier le pilote CSI réellement installé (pilote officiel TrueNAS versionné), puis PVC RWX, persistance multi-workers et nettoyage après suppression.
-3. **H05** — statut du catalogue, disponibilité directe, Gatus frais et scrapes Prometheus corrélés sans faux DOWN.
-4. **Recevoir H17**, catalogue V2 Compose → FastAPI #424 → Site Alban, et retirer le legacy seulement après preuve.
-5. **Fermer les frontières de sécurité** : H03 (secrets) et H04 (Access/DNS), sans changement de privilèges implicite.
-6. **Mesurer le runtime applicatif** : H06 (FastAPI Cloud et OWNER), puis H14 (heatmap).
-7. **Choisir la migration suivante** : H07 (pfSense), H08 (trois Apps), H09 (PG verify-full), ou H12 (RAG). Ne pas lancer tout le portefeuille d'un coup.
+| Rang | Chantier | Premier livrable vérifiable | Gate de réception |
+| --- | --- | --- | --- |
+| 1 | **H01 — Talos / Kubernetes CSI** | Contrat du driver déployé et diagnostic controller/DaemonSet, test RWX/persistance/reclaim, NetworkPolicy | PVC sur plusieurs workers et reclaim ZFS prouvés sur le cluster |
+| 2 | **H02 — Sauvegardes PostgreSQL** | Audit de rotation du secret, backup TLS verify-full, checksum SHA-256 et procédure de restauration isolée | Restauration comparée et cron observé, sans exposition de secrets |
+| 3 | **H04 — Cloudflare / WAN** | Matrice DNS/Tunnel/Access et tests de refus /realms/master, services privés et s3.int | Tests externes négatifs, plan OpenTofu approuvé avant mutation WAN |
+| 4 | **H05 — Gatus / Prometheus** | Corrélation Gatus/prometheus/app.query avec provenance et fraîcheur | Preuves indépendantes, sans faux DOWN pour DENIED/NOT_RUN |
+| 5 | **H12 — OpenRAG / Docling / LiteLLM** | Smoke d'ingestion et embedding workstation via proxy TrueNAS ; clé virtuelle restreinte | Corpus privé isolé et requêtes autorisées/refusées vérifiées |
+| 6 | **H13 — DefectDojo** | Test import asynchrone, RBAC minimal et déduplication | Réimport idempotent et route WAN non accessible |
+| 7 | **H16 — Vault PKI / OAuth / OIDC** | Pilote de certificats/identité séparé avec matrice des accès | Break-glass, révocation et RBAC négatif exercés |
+
+**Conduite** : commencer les préparations de PR dès disponibilité du checkout ; séquencer les migrations runtime dans cet ordre. Reprendre une PR existante seulement si son périmètre correspond. Toujours relever SHA, quality gate locale, dépendances et test négatif. Sans accès LAN, marquer `NOT_VERIFIED` plutôt que `ACCEPTED`.
+
+**Hors séquence** : H03/H06/H07/H08/H09/H10/H11/H14/H15/H17/H18/H19 restent au portefeuille. Les risques bloquants de secrets, H09 TLS ou H17 identités catalogue sont traités comme dépendances nécessaires sans changer l'ordre approuvé.
 
 ## Dette de code / H11 — revue ciblée au 14 novembre 2026
 
