@@ -14,7 +14,7 @@
 6. **H13 — DefectDojo** : durcir l'import privé (RBAC de l'importeur, import asynchrone, déduplication) et prouver l'absence d'exposition WAN. [Runbook](defectdojo-private-scan-ingestion.md).
 7. **H16 — Vault PKI / OAuth / OIDC** : pilote de PKI et de fédération PostgreSQL/Keycloak/FastAPI avec break-glass, révocation et tests RBAC négatifs ; aucune migration d'identité globale sans recette. [Plan sécurité](security/postgresql-fips-tls13-vault-oauth-20261110.md).
 
-**Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
+**Pilote H16 / Entra ID Free (P0, code sans déploiement)** : [module OpenTofu](../terraform/entra-id-lab/README.md) et [runbook Talos/ZITADEL/SPIRE](security/entra-id-homelab-lab.md). Tenant personnel uniquement ; contrôle bloquant, aucun secret ni privilège, aucun apply. CODED / TESTED NOT_RUN / DEPLOYED NOT_APPLIED / ACCEPTED NOT_VERIFIED. Ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangé.\n\n**Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
 
 ## Règles de suivi
