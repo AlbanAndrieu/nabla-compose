@@ -44,6 +44,14 @@ agent-diagnostics-tests:
     python3 -m unittest discover -s tests -p 'test_agent_diagnostics_modes.py' -v
     python3 -m unittest discover -s tests -p 'test_agent_task_context_compact.py' -v
     python3 -m unittest discover -s tests -p 'test_service_observer_sources.py' -v
+# Offline, tracked-file hotspot inventory; never probes LAN or secrets.
+code-hotspots:
+    python3 scripts/quality/code-hotspots.py --limit 20 --min-lines 400
+
+# Fast, hermetic scanner regression tests; not a full publication gate.
+code-hotspots-tests:
+    python3 -m pytest -q tests/test_code_hotspots.py
+
 # Read-only, detailed generator drift report (no secrets or runtime calls).
 topology-drift-check:
     bash scripts/quality/python-with-repo-deps.sh scripts/generate-service-topology.py --check

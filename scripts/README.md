@@ -126,3 +126,13 @@ See [agent execution playbook](../docs/agent-execution-playbook.md).
 En mode `workstation`, `scripts/agent-diagnostics.sh --runtime <service>` utilise **FastAPI sur TrueNAS** (`/api/homelab/status` puis `/api/homelab/health`) avant **FastAPI Cloud** (`/sickz`, sondes réellement outside-in). Le collecteur `scripts/quality/service-observer-evidence.py` publie seulement les états, les métadonnées autorisées et l'origine des preuves (pas les réponses privées brutes).
 
 En mode `offline`/Codex distant, seule la lecture du code, les tests hermétiques et le plan `python3 scripts/quality/agent-diagnostics.py --scope services` sont autorisés. Les erreurs de réseau, refus Access et preuves périmées restent non vérifiés, pas `DOWN`. Les commandes Gatus/Prometheus directes restent une seconde étape explicite. `just agent-diagnostics-tests` teste le refus du réseau et l'ordre des sondes.
+
+## Offline code hotspot report (H11)
+
+`python3 scripts/quality/code-hotspots.py --limit 20 --min-lines 500` counts
+physical/nonblank LOC by task domain using `git ls-files`, with no LAN,
+secrets, container access or dependency setup. `--root ../fastapi-sample`
+uses a sibling checkout when available. `just code-hotspots-tests` runs the
+hermetic contract tests. The [dated inter-repository baseline](../docs/code-hotspots.md)
+reports GitHub blob sizes separately from LOC; never confuse volume and
+technical risk. `--exclude-tests` keeps test and production code distinct.

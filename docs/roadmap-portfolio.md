@@ -24,7 +24,7 @@
 | H08 | P1 | nabla-compose | CODED | NOT_VERIFIED | Déployer NetBox, Dependency-Track et Joplin un par un ; vérifier authentification, Gatus et exporters avant état active — [Déploiements Apps](runbooks/2026-11-06-catalog-apps-to-compose.md) |
 | H09 | P1 | nabla-compose | PARTIAL | NOT_VERIFIED | PostgreSQL : étendre verify-full aux clients restants, vérifier SAN et CA puis démontrer la rotation — [TLS 1.3 et FIPS](security/postgresql-fips-tls13-vault-oauth-20261110.md) |
 | H10 | P1 | nabla-compose | PARTIAL | NOT_VERIFIED | TrueNAS 27 RC : clôturer la recette post-upgrade, puis remplacer auth.login_with_api_key avant TrueNAS 28 — [Couplage upgrades](truenas-operator-tools.md) |
-| H11 | P1 | nabla-compose + fastapi-sample | CODED | NOT_VERIFIED | Fiabilité scripts : réception des wrappers partagés, diagnostics expurgés, quality gates L1/L2/L3 au HEAD exact, suppression contrôlée des doublons — [Risque refactoring](runbooks/homelab-refactoring-risk-register.md) — PR [#384](https://github.com/AlbanAndrieu/nabla-compose/pull/384) : vérifier en workstation les tests L1/L2/L3, la séquence TrueNAS → FastAPI Cloud /sickz et l'association des résultats Cloud aux services (identifiant non garanti dans /sickz). |
+| H11 | P1 | nabla-compose + fastapi-sample | CODED | NOT_VERIFIED | Fiabilité scripts : réception des wrappers partagés, diagnostics expurgés, quality gates L1/L2/L3 au HEAD exact, suppression contrôlée des doublons — [Registre de risque](runbooks/homelab-refactoring-risk-register.md) ; [hotspots mesurés](code-hotspots.md) (tests/TrueNAS/pfSense/catalogue/sondes/UI) ; découper par contrat, pas par taille — PR [#384](https://github.com/AlbanAndrieu/nabla-compose/pull/384) : vérifier en workstation les tests L1/L2/L3, la séquence TrueNAS → FastAPI Cloud /sickz et l'association des résultats Cloud aux services (identifiant non garanti dans /sickz). |
 | H12 | P1 | nabla-compose | PARTIAL | NOT_VERIFIED | OpenRAG/Docling/LiteLLM : accepter corpus privé, embeddings via workstation et clés applicatives LiteLLM ; éviter clé maître — [Runbook OpenRAG](runbooks/openrag-babou-ingestion-diagnostics.md) |
 | H13 | P1 | nabla-compose + fastapi-sample | PARTIAL | NOT_VERIFIED | DefectDojo : compte d'import à droits restreints, suivi asynchrone, déduplication, preuve de non-exposition WAN — [Import privé](defectdojo-private-scan-ingestion.md) |
 | H14 | P1 | fastapi-sample | CODED | NOT_VERIFIED | Tableaux de bord : confirmer la heatmap cAdvisor OWNER, la distinction 0/absent et compléter séparément ZFS/NetFlow sourcés — [Roadmap FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/engineering-roadmap.md) |
@@ -53,6 +53,25 @@
 5. **Fermer les frontières de sécurité** : H03 (secrets) et H04 (Access/DNS), sans changement de privilèges implicite.
 6. **Mesurer le runtime applicatif** : H06 (FastAPI Cloud et OWNER), puis H14 (heatmap).
 7. **Choisir la migration suivante** : H07 (pfSense), H08 (trois Apps), H09 (PG verify-full), ou H12 (RAG). Ne pas lancer tout le portefeuille d'un coup.
+
+## Dette de code / H11 — revue ciblée au 14 novembre 2026
+
+La [mesure inter-dépôts des hotspots](code-hotspots.md) met en évidence
+`scripts/truenas/` (1,49 Mo), `scripts/pfsense/` (209 Ko) et
+`scripts/nabla_ops/catalog_v2.py` (1 073 lignes) côté infrastructure,
+puis `nabla/api/` (1,63 Mo), dont les contrôleurs JS de sondes,
+côté FastAPI. **Ce sont des volumes, pas des diagnostics de défaut.**
+
+- Après H02/H01/H05, isoler en **H11** les primitives read-only TrueNAS et les
+  contrôles de récupération pfSense, en conservant exit codes et tests de refus.
+- Dans **H05/F03+F09**, traiter en premier les bugs de fraîcheur/provenance des
+  sondes ; la simplification UI ne justifie pas de nouveau polling Cloud.
+- Dans **H17/F11**, éviter de dupliquer l'inventaire V2 ; réceptionner les
+  contrats `entityRef`/`catalogRevision` avant tout retrait legacy.
+- Mesurer en workstation via `just code-hotspots`, ou dans Codex avec un
+  checkout via `python3 scripts/quality/code-hotspots.py --json`.
+  **Pas de LAN requis** et pas de promotion automatique de `CODED` à
+  `ACCEPTED`.
 
 ## Contrat de maintenance et d'archivage
 
