@@ -18,6 +18,12 @@ retired_hostnames: []
 # tunnel hostname must be imported first (import-first, never blind create).
 new_tunnel_hostnames: []
 
+# Tunnel routes deliberately left without a public CNAME (adopted as found on
+# 14/11/2026): the route exists, the name does not resolve. Publishing one is
+# an explicit decision: move it to new_tunnel_hostnames.
+unpublished_tunnel_hostnames:
+  - stirling-albandrieu.albandrieu.com
+
 # Private namespace served by Pi-hole; a public record under it is drift
 # (docs/dns-ingress-ownership.md).
 forbidden_public_suffixes:

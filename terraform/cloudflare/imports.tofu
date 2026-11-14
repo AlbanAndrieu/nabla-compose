@@ -31,6 +31,20 @@ import {
   id = "${var.zone_id}/${each.value}"
 }
 
+import {
+  to = cloudflare_zero_trust_tunnel_cloudflared_config.workstation
+  id = "${var.account_id}/${var.workstation_tunnel_id}"
+}
+
+import {
+  for_each = {
+    for hostname, id in var.dns_tunnel_record_ids : hostname => id
+    if contains(local.workstation_tunnel_hostnames, hostname)
+  }
+  to = module.workstation_dns_records.cloudflare_dns_record.tunnel[each.key]
+  id = "${var.zone_id}/${each.value}"
+}
+
 # Retired records are imported only during the adopt phase.
 import {
   for_each = {
