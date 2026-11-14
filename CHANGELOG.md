@@ -1,3 +1,10 @@
+# [0.87.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.86.0...0.87.0) (2026-11-14)
+
+
+### Features
+
+* **quality:** add offline code hotspot measurement and regression tests ([4f40ab4](https://github.com/AlbanAndrieu/nabla-compose/commit/4f40ab43efb7b4af38de333ef632c7dd53d7976c))
+
 # [0.86.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.85.1...0.86.0) (2026-11-14)
 
 
