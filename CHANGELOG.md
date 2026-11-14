@@ -1,3 +1,10 @@
+## [0.87.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.87.0...0.87.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **quality:** validate approved seven-item roadmap order ([2e5fd3c](https://github.com/AlbanAndrieu/nabla-compose/commit/2e5fd3c3957a217dd35f3a44a7d24624a032379a))
+
 # [0.87.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.86.0...0.87.0) (2026-11-14)
 
 
