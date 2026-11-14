@@ -115,8 +115,10 @@ for compatibility, and domain libraries only where duplication is proven.
 syntax gate. Live verification is explicitly blocked with `NOT_RUN` in that mode.
 On a connected Claude Code workstation choose `AGENT_EXECUTION_MODE=workstation`
 and `bash scripts/agent-diagnostics.sh --runtime <service>` for a bounded,
-read-only direct/Gatus/Prometheus triad (1–3 named services). This does not
-replace full local quality or a TrueNAS authenticated acceptance run.
+read-only FastAPI evidence chain: TrueNAS `/api/homelab/status` and
+`/api/homelab/health`, then Cloud `/sickz` (1–3 named service IDs).
+Direct Gatus/Prometheus checks are separate, opt-in follow-ups. Neither the
+chain nor its HTTP status replaces authenticated runtime acceptance.
 See [agent execution playbook](../docs/agent-execution-playbook.md).
 
 ## Agents : observateurs TrueNAS puis Cloud
