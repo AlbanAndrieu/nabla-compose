@@ -5,6 +5,8 @@ No device, network, home directory, sudo, key, or mutable Git operation.
 """
 from __future__ import annotations
 import argparse
+import ast
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -165,6 +167,55 @@ def openclaw_consumer_inventory(root: Path, tracked: list[str]) -> dict:
         ],
     }
 
+
+def _cli_snapshot(root: Path, name: str) -> dict:
+    """Read only declared argparse options; no imports or script execution."""
+    base = root.resolve()
+    candidate = base / "scripts" / "workstation" / name
+    if candidate.is_symlink() or not candidate.resolve(strict=False).is_relative_to(base):
+        return {"status": "UNREADABLE", "options": [], "sha256": None}
+    try:
+        if not candidate.is_file() or candidate.stat().st_size > MAX_REFERENCE_BYTES:
+            raise OSError("missing or oversized")
+        raw = candidate.read_bytes()
+        tree = ast.parse(raw.decode("utf-8"))
+    except (OSError, UnicodeError, SyntaxError):
+        return {"status": "UNREADABLE", "options": [], "sha256": None}
+    options = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "add_argument"):
+            for arg in node.args:
+                if (isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                        and arg.value.startswith("--")):
+                    options.add(arg.value)
+    return {"status": "READ", "options": sorted(options),
+            "sha256": hashlib.sha256(raw).hexdigest()}
+
+
+def compare_openclaw_cli_contracts(compose_root: Path, openclaw_root: Path) -> dict:
+    """Static inventory only: matching option names do NOT prove CLI parity."""
+    rows = []
+    for name in SHARED_OPENCLAW_SCRIPTS:
+        source = _cli_snapshot(compose_root, name)
+        target = _cli_snapshot(openclaw_root, name)
+        comparable = source["status"] == "READ" and target["status"] == "READ"
+        rows.append({
+            "name": name, "compose": source, "openclaw": target,
+            "static_options_equal": (
+                source["options"] == target["options"] if comparable else None
+            ),
+            "source_identical": (
+                source["sha256"] == target["sha256"] if comparable else None
+            ),
+        })
+    return {
+        "schema": "nabla-openclaw-cli-static/v1",
+        "read_only": True, "removal_authorized": False,
+        "behavioral_parity": "NOT_VERIFIED", "execution": "NOT_RUN",
+        "scripts": rows,
+    }
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--assert-clean-contract", action="store_true",
@@ -173,8 +224,17 @@ def main():
                    help="Inspect tracked reference locations without executing scripts")
     p.add_argument("--root", type=Path, default=ROOT,
                    help="Local checkout to inspect; never follows external symlinks")
+    p.add_argument("--compare-openclaw-root", type=Path,
+                   help="Statically compare five CLI scripts with a separate local OpenClaw checkout")
     args=p.parse_args()
     root=args.root.resolve()
+    if args.compare_openclaw_root:
+        result = compare_openclaw_cli_contracts(root, args.compare_openclaw_root)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if all(
+            row["compose"]["status"] == row["openclaw"]["status"] == "READ"
+            for row in result["scripts"]
+        ) else 2
     if not (root / "justfile").is_file():
         print("inventory=not_in_compose_checkout")
         return 2
