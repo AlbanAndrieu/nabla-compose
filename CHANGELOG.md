@@ -1,3 +1,11 @@
+# [0.83.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.82.0...0.83.0) (2026-11-14)
+
+
+### Features
+
+* **litellm:** one GPU model, add qwen-think, drop llama3.2 and gemma3 [skip ci] ([22ad3fe](https://github.com/AlbanAndrieu/nabla-compose/commit/22ad3fecc26f5502a474bbc7b2dbc7987a0b4092))
+* **litellm:** serve rr-json with bonsai-2:9b, shared with qwen [skip ci] ([ae29fcf](https://github.com/AlbanAndrieu/nabla-compose/commit/ae29fcfac3be0139cc0730cfe2269ca09ee6e6ed))
+
 # [0.82.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.81.0...0.82.0) (2026-11-13)
 
 
