@@ -59,3 +59,9 @@ def test_agent_policy_keeps_modes_and_security() -> None:
     assert "Do not run" in text
     assert "Ask the user before installing" in text
     assert len(text.splitlines()) < 110
+
+
+def test_runtime_wrapper_prioritizes_fastapi_observers() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "service-observer-evidence.py" in source
+    assert "verify-service-observability.py" not in source

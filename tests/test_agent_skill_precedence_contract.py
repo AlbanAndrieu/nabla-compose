@@ -61,6 +61,17 @@ class SkillPrecedenceContractTest(unittest.TestCase):
             path.write_text(text)
             self.assertTrue(any("democratic-csi" in issue for issue in MODULE.audit(root)))
 
+    def test_missing_observer_provenance_policy_is_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            matrix = root / "docs/agent-execution-modes.md"
+            matrix.write_text(matrix.read_text().replace(
+                "fastapi-sample.fastapicloud.dev/sickz", "no-provenance"
+            ))
+            assert any("fastapi-sample.fastapicloud.dev/sickz" in issue
+                       for issue in MODULE.audit(root))
+
     def test_missing_policy_file_blocks(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

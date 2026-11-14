@@ -8,7 +8,7 @@ description: Validate declared, observed, functional, and exposure status of Nab
 Use on deployment/recovery/health tasks only. Read `AGENTS.md` first; this skill does **not** authorize a live change.
 
 - **Disconnected Codex:** no LAN probing; inspect declarative sources, run offline contracts, and return `NOT_RUN`/missing proof. Do not infer `DOWN` from a stale sample or `DENIED`.
-- **Connected workstation Claude Code:** with `AGENT_EXECUTION_MODE=workstation` and observed reachability, inspect one service at a time. Use `bash scripts/agent-diagnostics.sh --runtime <service>` for bounded Gatus/Prometheus/direct evidence, or specialized TrueNAS scripts when the task requires them. Never use an entire catalog fan-out as a startup check.
+- **Connected workstation Claude Code:** use `AGENT_EXECUTION_MODE=workstation` and `scripts/agent-diagnostics.sh --runtime <service>` (max 3). **FastAPI on TrueNAS** `/api/homelab/status` and `/api/homelab/health` comes **first**, then independent **FastAPI Cloud** `/sickz` outside-in. Direct Gatus/Prometheus checks are targeted follow-ups, not the initial fan-out.
 - **Distinct evidence:** declaration/catalog `entityRef` ≠ container RUNNING ≠ TCP reachability ≠ application healthy ≠ externally exposed. Correlate timestamps, vantage, `catalogRevision` and exact target; mark uncertainty explicitly.
 - **Security:** private Access `403` may be expected; unknown/stale/NOT_RUN is not `DOWN`; no secrets or Docker socket exposure. A risky persistent-state migration needs a restoration path.
 - **Completion:** supply SHA/target/observation and update the owning roadmap for unverified work.

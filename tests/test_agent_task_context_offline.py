@@ -21,7 +21,7 @@ def test_context_is_bounded_without_remote_git_base(tmp_path: Path) -> None:
         "AGENT_CONTEXT_MAX_PATHS": "3",
     }
     result = subprocess.run(
-        ["python3", str(CONTEXT_SCRIPT)],
+        ["python3", str(CONTEXT_SCRIPT), "--verbose"],
         cwd=tmp_path,
         env=env,
         capture_output=True,
@@ -41,7 +41,7 @@ def test_context_is_bounded_without_remote_git_base(tmp_path: Path) -> None:
 def test_context_rejects_invalid_output_bound(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     result = subprocess.run(
-        ["python3", str(CONTEXT_SCRIPT)],
+        ["python3", str(CONTEXT_SCRIPT), "--verbose"],
         cwd=tmp_path,
         env={**os.environ, "AGENT_CONTEXT_MAX_PATHS": "0"},
         capture_output=True,
@@ -75,7 +75,7 @@ def test_context_handles_existing_but_unrelated_base(tmp_path: Path) -> None:
     (tmp_path / "untracked.txt").write_text("new\n", encoding="utf-8")
 
     result = subprocess.run(
-        ["python3", str(CONTEXT_SCRIPT)],
+        ["python3", str(CONTEXT_SCRIPT), "--verbose"],
         cwd=tmp_path,
         env={**os.environ, "QUALITY_BASE_REF": old_sha},
         capture_output=True,

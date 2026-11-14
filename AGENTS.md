@@ -25,6 +25,20 @@ Always preserve TrueNAS-managed ZFS bind mounts `/mnt/cpool/<service>`, Vaultwar
 - The mode is an execution *capability*, not an identity claim. `workstation` must be opted into explicitly; no auto-probing of private hosts.
 - Canonical router: `python3 scripts/agent-task-context.py`; read-only diagnostic entry: `bash scripts/agent-diagnostics.sh --help`. `--runtime` is only allowed in workstation mode.
 
+## Service diagnostic observer precedence
+
+On a connected workstation, read FastAPI Sample on **TrueNAS first**:
+`http://172.17.0.24:8091/api/homelab/status` and
+`/api/homelab/health` (internal API/probe privileges). Then query
+`https://fastapi-sample.fastapicloud.dev/sickz`: this is an **independent
+outside-in probe executed in FastAPI Cloud**, not a test from the LAN.
+Cloud HTTP 200 alone never proves the target service exposed or healthy;
+403/401, stale/unavailable Cloudflare, timeouts and missing data are
+`DENIED`/`UNVERIFIED`, never automatic `DOWN`.
+Run the bounded canonical `scripts/agent-diagnostics.sh --runtime <service>`
+only with `AGENT_EXECUTION_MODE=workstation`. Details:
+`docs/agent-execution-modes.md`.
+
 ## Token and tool budget
 
 1. Inspect the selected PR's state and exact HEAD, `git status --short` and changed paths. Read matching code + tests and one relevant roadmap section; do not recursively ingest 1,800 files, submodules, vendored skill references, old incidents or entire logs.
