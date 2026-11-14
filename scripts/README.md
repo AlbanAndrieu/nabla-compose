@@ -81,7 +81,7 @@ The [Compose roadmap](../docs/roadmap.md) owns the remaining infrastructure and 
 
 ## Approved execution and offline portfolio check
 
-The priority proposed in PR #369 is **H02/G1 (PostgreSQL) → H01 (CSI) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
+The approved priority, recorded in merged PR #369, is **H02/G1 (PostgreSQL) → H01 (CSI) → H05 (Gatus / Prometheus)**. See [portfolio](../docs/roadmap-portfolio.md).
 
 - `python3 scripts/quality/check-roadmap-portfolio.py --check` validates the declared order, IDs, state vocabulary and local references offline.
 - `python3 scripts/quality/check-roadmap-portfolio.py --json` exports the dated decision, without claiming live status.

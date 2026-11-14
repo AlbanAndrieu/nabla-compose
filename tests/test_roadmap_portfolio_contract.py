@@ -57,3 +57,21 @@ def test_cli_json_and_check_are_read_only() -> None:
         if option == "--worklist":
             import json
             assert [item["id"] for item in json.loads(result.stdout)] == ["H02", "H01", "H05"]
+
+
+def test_blank_line_between_work_items_is_rejected(tmp_path: Path) -> None:
+    module = load_module()
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "roadmap-portfolio.md").write_text(
+        "## Backlog arbitrable\n"
+        "| ID | Priority | Owner | Code | Runtime | Evidence |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| H01 | P0 | compose | CODED | NOT_VERIFIED | check |\n"
+        "\n"
+        "| H02 | P1 | fastapi | CODED | NOT_VERIFIED | check |\n"
+        "\n## Séquence validée — H02 → H01 → H05\n",
+        encoding="utf-8",
+    )
+    _, issues = module.audit(tmp_path)
+    assert any("split by a blank line" in issue for issue in issues)

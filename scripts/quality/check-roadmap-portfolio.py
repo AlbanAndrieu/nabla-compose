@@ -37,9 +37,18 @@ def audit(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     rows: list[dict[str, str]] = []
     issues: list[str] = []
     seen: set[str] = set()
-    for line in section.splitlines():
+    lines = section.splitlines()
+    previous_row: int | None = None
+    for index, line in enumerate(lines):
         if not line.startswith("| H"):
             continue
+        # A blank line between active rows terminates a Markdown table,
+        # hiding subsequent work items from rendered roadmaps.
+        if previous_row is not None and any(
+            not candidate.strip() for candidate in lines[previous_row + 1:index]
+        ):
+            issues.append("active Markdown table is split by a blank line")
+        previous_row = index
         columns = [item.strip() for item in line.strip().strip("|").split("|")]
         if len(columns) != len(FIELDS):
             issues.append("table row has an invalid column count")
