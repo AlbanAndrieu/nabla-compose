@@ -1,3 +1,16 @@
+# [0.86.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.85.1...0.86.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **diagnostics:** require FastAPI Cloud PaaS provenance before asserting outside-in [skip ci] ([c54a0a3](https://github.com/AlbanAndrieu/nabla-compose/commit/c54a0a3fffe22a14f073a0d3da5817935d1c233c))
+* **docs:** keep H11 portfolio row valid after observer acceptance note [skip ci] ([15ffef5](https://github.com/AlbanAndrieu/nabla-compose/commit/15ffef54ae4fee2b22df03263e5732b3d95c52a0))
+
+
+### Features
+
+* **diagnostics:** implement read-only TrueNAS then Cloud outside-in evidence [skip ci] ([7fc4906](https://github.com/AlbanAndrieu/nabla-compose/commit/7fc49066493d564232c5d5f4432a4ff234241713))
+
 ## [0.85.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.85.0...0.85.1) (2026-11-14)
 
 
