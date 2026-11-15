@@ -1,3 +1,11 @@
+## [0.90.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.90.0...0.90.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **h11:** fail closed on ambiguous Gateway systemd port [skip ci] ([891fbd5](https://github.com/AlbanAndrieu/nabla-compose/commit/891fbd5f0ffc2d23058dadcb83e0fa450fa23746))
+* restore proper Python regex escapes in strict Gateway port check [skip ci] ([50194b0](https://github.com/AlbanAndrieu/nabla-compose/commit/50194b0219b922bd4509de85cd689f1f585507a6))
+
 # [0.90.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.2...0.90.0) (2026-11-15)
 
 
