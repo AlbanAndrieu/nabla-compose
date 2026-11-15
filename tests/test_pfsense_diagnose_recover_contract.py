@@ -310,8 +310,13 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             "sync_snort_package_config();",
             "crowdsec_resync_config();",
             "posix_kill((int)$supervisor, SIGTERM);",
+            # A boot-environment fallback brings back the ACME certs of its config.xml.
+            "nabla_report(\"acme_cert_{$name}\"",
         ):
             self.assertIn(wanted, helper)
+        # Certificates are only checked: the renewal output prints the Cloudflare key.
+        self.assertNotIn("acme_command.sh renewall'", helper)
+        self.assertNotIn("exec('/usr/local/pkg/acme", helper)
         # The bouncer key is only ever tested for presence, never written or printed.
         key_lines = [line for line in helper.splitlines() if "remote_fw_bouncer_api_key" in line]
         self.assertEqual(len(key_lines), 1)

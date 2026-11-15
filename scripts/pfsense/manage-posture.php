@@ -19,6 +19,7 @@ const NABLA_SNORT_ALIAS = 'snort_http_inspect';
 const NABLA_SNORT_ALIAS_PORTS = '80';
 const NABLA_CROWDSEC_LAPI_URL = 'http://172.17.0.24:8084/';
 const NABLA_CROWDSEC_SUPERVISOR_PID = '/var/run/crowdsec_daemon.pid';
+const NABLA_CERT_MIN_DAYS = 14;
 
 $changed = ['snort_rules' => false, 'snort_iface' => false, 'watchdog' => false, 'crowdsec' => false];
 $drift = 0;
@@ -137,6 +138,29 @@ nabla_report('crowdsec_bouncer_key', config_get_path("{$cs}/remote_fw_bouncer_ap
 $supervisor = trim((string)@file_get_contents(NABLA_CROWDSEC_SUPERVISOR_PID));
 $supervisor_alive = ctype_digit($supervisor) && posix_kill((int)$supervisor, 0);
 nabla_report('crowdsec_engine_supervisor', $supervisor_alive ? 'running' : 'absent', 'absent');
+
+// HAProxy serves the ACME certs stored in config.xml, so a fallback brings back old ones. Check only:
+// the renewal output prints the Cloudflare key.
+$cert_ends = [];
+foreach (config_get_path('cert', []) as $cert) {
+    $x509 = openssl_x509_parse(base64_decode((string)($cert['crt'] ?? '')));
+    if ($x509) {
+        $cert_ends[(string)($cert['descr'] ?? '')] = (int)$x509['validTo_time_t'];
+    }
+}
+$cert_drift = false;
+foreach (config_get_path('installedpackages/acme/certificates/item', []) as $acme) {
+    $name = (string)($acme['name'] ?? '');
+    if (($acme['status'] ?? '') !== 'active') {
+        continue;
+    }
+    $days = isset($cert_ends[$name]) ? intdiv($cert_ends[$name] - time(), 86400) : null;
+    $state = $days === null ? 'missing' : ($days < 0 ? 'expired' : ($days < NABLA_CERT_MIN_DAYS ? "expires_in_{$days}d" : 'valid'));
+    $cert_drift = nabla_report("acme_cert_{$name}", $state, 'valid') || $cert_drift;
+}
+if ($cert_drift) {
+    echo "INFO: renew on pfSense with: daemon -f /usr/local/pkg/acme/acme_command.sh renewall\n";
+}
 
 if (!$apply) {
     printf("posture_summary drift=%d mode=check\n", $drift);

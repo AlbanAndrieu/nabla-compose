@@ -658,6 +658,14 @@ keep the 1 GiB appliance out of OOM and on the CrowdSec Small contract:
 | Service Watchdog | `unbound` watched, `crowdsec` not watched |
 | CrowdSec | Log Processor and Local API off, firewall bouncer on, Remote LAPI `http://172.17.0.24:8084/`, bouncer key set |
 | CrowdSec runtime | no `daemon: crowdsec` supervisor left running |
+| ACME certificates | every active certificate valid for at least 14 days (check only) |
+
+A boot-environment fallback restores the `config.xml` of that environment, so
+it can bring back expired ACME certificates, which HAProxy then serves on
+`:443` and `:7000`. Apply mode never renews them: the renewal output prints
+the Cloudflare key. Renew on pfSense with
+`daemon -f /usr/local/pkg/acme/acme_command.sh renewall`. The `int` Domain
+Override that the same fallback drops is repaired by `just pfsense-split-dns-apply`.
 
 Both run `scripts/pfsense/manage-posture.php` over the same SSH contract as the
 identity lifecycle (`admin@home.albandrieu.com:9922`). Apply mode:
