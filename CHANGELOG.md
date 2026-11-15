@@ -1,3 +1,10 @@
+# [0.89.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.88.0...0.89.0) (2026-11-15)
+
+
+### Features
+
+* **cloudflare:** stage import-first home A for Free reverse DNS [skip ci] ([10450cb](https://github.com/AlbanAndrieu/nabla-compose/commit/10450cbd835a94dc09b0ef8042342d544d07b3d6))
+
 # [0.88.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.87.1...0.88.0) (2026-11-15)
 
 
