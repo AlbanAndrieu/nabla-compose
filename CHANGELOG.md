@@ -1,3 +1,36 @@
+# [0.91.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.90.1...0.91.0) (2026-11-15)
+
+
+### Bug Fixes
+
+* **claude:** claude local ([e8dac27](https://github.com/AlbanAndrieu/nabla-compose/commit/e8dac277781047b13e9b5cab3ca63a586130cf92))
+* **pfsense:** align the Unbound watchdog audit with the 2026-11-13 decision ([238e107](https://github.com/AlbanAndrieu/nabla-compose/commit/238e107369520094ae259ea071276fd0064d77b5))
+* **pfsense:** allow the PHP-FPM hardening on the 26.03 fallback boot environment ([41b6d1e](https://github.com/AlbanAndrieu/nabla-compose/commit/41b6d1eca1f8e370594e1f8c74741cdd1920e788))
+* **pfsense:** close the console awk program broken by French apostrophes ([f22bb9f](https://github.com/AlbanAndrieu/nabla-compose/commit/f22bb9fd641e7e199b5bd5940e53578ec5ad5a07))
+* **pfsense:** copy the running config.xml into the fallback boot environment ([bff5597](https://github.com/AlbanAndrieu/nabla-compose/commit/bff5597282b1054e8481270f796c87640dea73b8))
+* **pfsense:** declare certificate bindings and guard pfBlockerNG self-block ([6e9e540](https://github.com/AlbanAndrieu/nabla-compose/commit/6e9e5402ea4e833a7c9a24a998d48cabb82f9bd4))
+* **pfsense:** fail diagnosis while syslog still targets the retired workstation ([0f9b686](https://github.com/AlbanAndrieu/nabla-compose/commit/0f9b686fd8ed1c7dc6b7a56ab35fe1443dddad05))
+* **pfsense:** keep pfBlockerNG GeoIP to IPv4 so every table loads ([3d6046d](https://github.com/AlbanAndrieu/nabla-compose/commit/3d6046d3d1ce7a9e42311aeee4d1d030bc3469ba))
+* **pfsense:** keep the PHP-FPM generator executable so boot environments boot ([1031071](https://github.com/AlbanAndrieu/nabla-compose/commit/1031071a5bac36b5c95bfe23614680a6f9e67b3a))
+* **pfsense:** mark live-only DNS drift and correct runbook formatting [skip ci] ([97f2059](https://github.com/AlbanAndrieu/nabla-compose/commit/97f2059342c8625f04ddae8a40bc747cf7d006c3))
+* **pfsense:** omit TLS override flag for plain DNS to Pi-hole [skip ci] ([f3fa6f5](https://github.com/AlbanAndrieu/nabla-compose/commit/f3fa6f5762eabbe1c297af0385d14e8c7ba055ba))
+* **pfsense:** satisfy ShellCheck in the split-DNS and drift scripts ([3c9d9ab](https://github.com/AlbanAndrieu/nabla-compose/commit/3c9d9ab6d456ae34d212037ef083f76faaa9f048))
+* **pfsense:** version the DHCP static-map restore after a boot-environment fallback ([98b9d03](https://github.com/AlbanAndrieu/nabla-compose/commit/98b9d0370aa84a75fd5eb7510d81233165161820))
+
+
+### Features
+
+* **h16:** add a workstation-only Entra test user and the tenant guide ([c7888c0](https://github.com/AlbanAndrieu/nabla-compose/commit/c7888c0a399b03916140e8e7552e31e8abf2ff64))
+* **pfsense:** aggregate scoped drift checks and document split DNS repair [skip ci] ([2a34186](https://github.com/AlbanAndrieu/nabla-compose/commit/2a34186e7bccf15201c8f05401a5197515d9d300))
+* **pfsense:** check and restore split-DNS Domain Override idempotently [skip ci] ([b8d9ed2](https://github.com/AlbanAndrieu/nabla-compose/commit/b8d9ed23760369bf31895a4a469bdca1bce6d7e1))
+* **pfsense:** colorize Unbound health, split-DNS drift and historic DNSBL warnings [skip ci] ([ac6d8cd](https://github.com/AlbanAndrieu/nabla-compose/commit/ac6d8cd07097e6b986ed44c065e899243bf87504))
+* **pfsense:** delete the retired ntopng and graylog HAProxy pools ([69a4652](https://github.com/AlbanAndrieu/nabla-compose/commit/69a46524746a53caccc820126c88c788c898dd4d))
+* **pfsense:** detect missing Unbound private forwarding and support color override [skip ci] ([e4bde44](https://github.com/AlbanAndrieu/nabla-compose/commit/e4bde44e29ed3f4b1a4139bda27d2730327d7c87))
+* **pfsense:** diff the full config.xml in the drift check ([cb32e18](https://github.com/AlbanAndrieu/nabla-compose/commit/cb32e18458caeb78b0de2f343f00b7890b3e777f))
+* **pfsense:** flag expiring ACME certificates in the posture check ([3d7c663](https://github.com/AlbanAndrieu/nabla-compose/commit/3d7c663b4e33ef4e4368eaa58cef6c26e79a35bf))
+* **pfsense:** restore the native pflow export to Akvorado by script ([a09f40d](https://github.com/AlbanAndrieu/nabla-compose/commit/a09f40d73c275d7d45ea88bad47871bce8685360))
+* **pfsense:** verify every scripted fix in the drift check ([e414053](https://github.com/AlbanAndrieu/nabla-compose/commit/e414053f8c07088a9613e304afa3bf11b877a19a))
+
 ## [0.90.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.90.0...0.90.1) (2026-11-15)
 
 
