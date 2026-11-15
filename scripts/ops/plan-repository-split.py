@@ -168,6 +168,69 @@ def openclaw_consumer_inventory(root: Path, tracked: list[str]) -> dict:
     }
 
 
+
+def compare_openclaw_overlap(compose_root: Path, openclaw_root: Path,
+                             compose_files: list[str], openclaw_files: list[str]) -> dict:
+    """Compare tracked workstation entry points without invoking them.
+
+    Byte identity is not runtime parity and never authorizes deleting a script.
+    Only names and equality states are emitted; file contents are not logged.
+    """
+    def candidates(paths):
+        return {
+            Path(path).name: path for path in sorted(paths)
+            if path.startswith("scripts/workstation/")
+            and Path(path).suffix.lower() in (".py", ".sh")
+            and OPENCLAW.search(Path(path).name)
+            and not SENSITIVE.search(path)
+        }
+
+    def fingerprint(root, relpath):
+        base = root.resolve()
+        path = base / relpath
+        if path.is_symlink() or not path.resolve(strict=False).is_relative_to(base):
+            return None
+        try:
+            if not path.is_file() or path.stat().st_size > MAX_REFERENCE_BYTES:
+                return None
+            return hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            return None
+
+    compose = candidates(compose_files)
+    target = candidates(openclaw_files)
+    overlaps = []
+    for name in sorted(compose.keys() & target.keys()):
+        source_hash = fingerprint(compose_root, compose[name])
+        target_hash = fingerprint(openclaw_root, target[name])
+        state = ("UNREADABLE" if source_hash is None or target_hash is None else
+                 "IDENTICAL" if source_hash == target_hash else "DIFFERENT")
+        overlaps.append({"name": name, "byte_identity": state})
+    return {
+        "schema": "nabla-openclaw-overlap/v1",
+        "read_only": True,
+        "removal_authorized": False,
+        "behavioral_parity": "NOT_VERIFIED",
+        "compose_candidates": len(compose),
+        "openclaw_candidates": len(target),
+        "overlap_count": len(overlaps),
+        "byte_identical_count": sum(
+            row["byte_identity"] == "IDENTICAL" for row in overlaps
+        ),
+        "overlaps": overlaps,
+    }
+
+
+def overlap_gate_status(report: dict) -> int:
+    """0 only means byte-identical overlaps; never migration authorization."""
+    if not report["overlap_count"] or any(
+        row["byte_identity"] == "UNREADABLE" for row in report["overlaps"]
+    ):
+        return 2
+    return 1 if any(
+        row["byte_identity"] == "DIFFERENT" for row in report["overlaps"]
+    ) else 0
+
 def _cli_snapshot(root: Path, name: str) -> dict:
     """Read only declared argparse options; no imports or script execution."""
     base = root.resolve()
@@ -269,14 +332,33 @@ def main():
                    help="Inspect tracked reference locations without executing scripts")
     p.add_argument("--root", type=Path, default=ROOT,
                    help="Local checkout to inspect; never follows external symlinks")
+    p.add_argument("--openclaw-overlap-root", type=Path,
+                   help="Report tracked basename overlaps with a sibling OpenClaw checkout")
+    p.add_argument("--assert-byte-identical-overlap", action="store_true",
+                   help="Static-only: require readable, identical overlaps; not runtime parity")
     p.add_argument("--compare-openclaw-root", type=Path,
                    help="Statically compare five CLI scripts with a separate local OpenClaw checkout")
     p.add_argument("--assert-static-option-shapes", action="store_true",
                    help="Fail on visible argparse semantics drift, not runtime parity")
     args=p.parse_args()
+    if args.assert_byte_identical_overlap and not args.openclaw_overlap_root:
+        p.error("--assert-byte-identical-overlap requires --openclaw-overlap-root")
+    if args.openclaw_overlap_root and args.compare_openclaw_root:
+        p.error("select one OpenClaw comparison mode")
     if args.assert_static_option_shapes and not args.compare_openclaw_root:
         p.error("--assert-static-option-shapes requires --compare-openclaw-root")
     root=args.root.resolve()
+    if args.openclaw_overlap_root:
+        try:
+            result = compare_openclaw_overlap(
+                root, args.openclaw_overlap_root,
+                inventory(root), inventory(args.openclaw_overlap_root)
+            )
+        except RuntimeError:
+            print("inventory=unavailable")
+            return 2
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return overlap_gate_status(result) if args.assert_byte_identical_overlap else 0
     if args.compare_openclaw_root:
         result = compare_openclaw_cli_contracts(root, args.compare_openclaw_root)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
