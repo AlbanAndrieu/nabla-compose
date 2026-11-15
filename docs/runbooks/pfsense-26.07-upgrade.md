@@ -9,10 +9,10 @@ partition EFI et environnements montés en lecture seule).
 | Environnement | Version | Taille | État | Ce qu'il porte d'unique | Décision |
 | --- | --- | --- | --- | --- | --- |
 | `default_clone_20261115_stable` | 26.03-RELEASE | 1,68 Go | **N R** depuis le 15/11 19:48, boot en 47 s | config du 15/11 18:16 + 9 baux DHCP restaurés à 19:55 | garder : config en service |
-| `default_clone` | 26.03-RELEASE (mai) | 513 Mo | boots ratés du 15/11 19:09 et 19:26 (générateur PHP-FPM en 600, réparé à 19:46), pas réessayé | config du 15/11 18:43 : pfBlockerNG IP seul, certificats ACME `vault` et `wildcard` retirés | supprimer après une semaine stable |
+| `default_clone` | 26.03-RELEASE (mai) | 513 Mo | boots ratés du 15/11 19:09 et 19:26 (générateur PHP-FPM en 600, réparé à 19:46), pas réessayé | config du 15/11 18:43 : pfBlockerNG IP seul, certificats ACME `vault` et `wildcard` retirés ; FR retiré de Top Spammers le 15/11 20:31 | supprimer après une semaine stable |
 | `default` | 26.03 (juin, ex-`default_20260604025536`) | 1,67 Go | démarre en 58 s ; **cible du repli** | binaires de juin ; config en service recopiée le 15/11 (révision 20:11), copie de juin conservée en `config.xml.nabla-pre-sync-*` | garder comme repli ; resynchroniser après chaque changement |
-| `default_20260824183037` | 26.07 (octobre) | 1,11 Go | générateur réparé le 15/11 19:46 ; boot non retesté | **seule copie** de la config du 13/11 07:30 (certificats ACME du 26/10, HAProxy, REST API) | prochain essai de boot vers 26.07 |
-| `default_20260824183037_20260926190038` | 26.03.1 | 987 Mo | échoue après `rc.bootup` depuis le 13/11 20:38 ; générateur intact | rien (config du 13/11 20:15, réappliquée) | supprimer en dernier, après un 26.07 stable |
+| `default_20260824183037` | 26.07 (octobre) | 1,11 Go | générateur réparé le 15/11 19:46, FR retiré de Top Spammers à 20:31 (copie d'origine gardée) ; boot non retesté | **seule copie** de la config du 13/11 07:30 (certificats ACME du 26/10, HAProxy, REST API) ; antérieure au retrait des cibles workstation du 14/11 | prochain essai de boot vers 26.07, puis `retire-workstation-targets.php apply` |
+| `default_20260824183037_20260926190038` | 26.03.1 | 987 Mo | échoue après `rc.bootup` depuis le 13/11 20:38 (cause inconnue, générateur intact) ; config en service recopiée le 15/11 20:31 | rien ; origine ZFS du BE 26.07 | supprimer en dernier, après un 26.07 stable |
 
 L'ancien `default` (26.07 d'août, `pfsense:failed=yes` depuis le 27/08) a été
 supprimé par l'opérateur le 15/11 à 18:37 ; `default_20260604025536` a alors
@@ -29,6 +29,8 @@ resynchroniser :
 ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check default < scripts/pfsense/sync-fallback-be-config.sh
 ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- apply default < scripts/pfsense/sync-fallback-be-config.sh
 ```
+
+`bash scripts/pfsense/check-drift.sh` (étape 6) rejoue en `check` chaque script correctif : cibles workstation, baux DHCP, pfBlockerNG IP seul, générateur PHP-FPM de tous les BE, config du BE de repli et FR absent de Top Spammers dans les BE inactifs (`be-drop-own-country.php`). Tout `CHANGE` compte comme dérive.
 
 Au premier boot de repli, pfSense réinstalle les paquets absents de `default`
 (RESTAPI, crowdsec) par Internet : API REST et bouncer CrowdSec manquent
