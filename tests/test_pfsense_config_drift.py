@@ -74,6 +74,20 @@ class PfSenseConfigDriftTests(unittest.TestCase):
         self.assertNotIn("02:00:00:00:10:01", out)
         self.assertNotIn("tftp", out)
 
+    def test_check_drift_verifies_every_scripted_fix_in_check_mode(self) -> None:
+        text = Path(config_drift.__file__).with_name("check-drift.sh").read_text(encoding="utf-8")
+        for remote, script in (
+            ('"php -- check"', "retire-workstation-targets.php"),
+            ('"php -- check"', "restore-dhcp-staticmaps.php"),
+            ('"php -- check"', "pfblocker-ip-only.php"),
+            ('"/bin/sh -s -- check"', "repair-be-php-generator-mode.sh"),
+            ('"/bin/sh -s -- check auto"', "sync-fallback-be-config.sh"),
+            ('"php -- check"', "be-drop-own-country.php"),
+        ):
+            with self.subTest(script=script):
+                self.assertIn(f'{remote} "${{here}}/{script}"', text)
+        self.assertNotIn("-- apply", text)
+
     def test_rejects_non_pfsense_input(self) -> None:
         rc, _ = run("<other/>", BASE)
         self.assertEqual(rc, 1)

@@ -3,21 +3,17 @@
 # activates the OLDEST non-active BE without pfsense:failed=yes; on 2026-11-15 that BE held a
 # June config (GUI 10443 open to the Internet). Re-run after every reviewed config change.
 # Run from the workstation, check first, then apply:
-#   ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check default < scripts/pfsense/sync-fallback-be-config.sh
+#   ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check auto < scripts/pfsense/sync-fallback-be-config.sh
+# BE `auto` is the current fallback target; check-drift.sh runs the check.
 # Packages missing in the fallback BE (RESTAPI, crowdsec on 2026-11-15) reinstall at its first boot.
 set -eu
 mode="${1:-}"
 be="${2:-}"
 if [ -z "${be}" ] || { [ "${mode}" != check ] && [ "${mode}" != apply ]; }; then
-  echo "usage: check|apply BE" >&2
+  echo "usage: check|apply BE|auto" >&2
   exit 2
 fi
 active=$(bectl list -H | awk '$2 ~ /N/ { print $1 }')
-[ "${be}" != "${active}" ] || { echo "ERROR: ${be} is the running boot environment" >&2; exit 1; }
-bectl list -H | awk -v b="${be}" '$1 == b { found=1 } END { exit !found }' || {
-  echo "ERROR: boot environment ${be} not found" >&2
-  exit 1
-}
 
 # Same order as _be_recent_name in /etc/rc.be_functions.sh.
 target=""
@@ -28,6 +24,15 @@ for name in $(bectl list -H -C creation | awk '{ print $1 }'); do
   break
 done
 echo "running=${active} fallback_target=${target:-none}"
+if [ "${be}" = auto ]; then
+  [ -n "${target}" ] || { echo "WARN: no fallback boot environment: a failed boot has nowhere to go"; exit 0; }
+  be="${target}"
+fi
+[ "${be}" != "${active}" ] || { echo "ERROR: ${be} is the running boot environment" >&2; exit 1; }
+bectl list -H | awk -v b="${be}" '$1 == b { found=1 } END { exit !found }' || {
+  echo "ERROR: boot environment ${be} not found" >&2
+  exit 1
+}
 [ "${target}" = "${be}" ] || echo "WARN: ${be} is not the current fallback target"
 
 opts=ro
