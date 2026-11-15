@@ -17,9 +17,17 @@
       "Bash(git push)",
       "Bash(curl -sSL --max-time 15 https://raw.githubusercontent.com/langflow-ai/langflow/main/docs/docs/Develop/observability-opentelemetry.mdx)",
       "Bash(printf *)",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\([\\(i['name'], [\\(f['name'], bool\\(f.get\\('value'\\)\\)\\) for f in i.get\\('fields'\\) or []]\\) for i in d]\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\([\\(i['name'], [\\(f['name'], bool\\(f.get\\('value'\\)\\)\\) for f in i.get\\('fields'\\) or []]\\) for i in d]\\)\")",
+      "Bash(timeout 10 openssl s_client -connect 172.17.0.24:443 -servername defectdojo.int.albandrieu.com)",
+      "Bash(curl --noproxy '*' -sS -o /dev/null -w '%{http_code} t_conn=%{time_connect} t_tls=%{time_appconnect} t_total=%{time_total}\\\\n' --connect-timeout 3 --max-time 40 --resolve defectdojo.int.albandrieu.com:443:172.17.0.24 https://defectdojo.int.albandrieu.com/)",
+      "Bash(curl -sS --max-time 8 http://172.17.0.24:8080/api/http/routers)",
+      "Bash(python3 -c 'import json,sys; [print\\(r[\"name\"], r.get\\(\"status\"\\), r.get\\(\"service\"\\), r.get\\(\"rule\"\\)\\) for r in json.load\\(sys.stdin\\) if \"dojo\" in r[\"name\"].lower\\(\\)]')",
+      "Bash(curl -sS --max-time 8 http://172.17.0.24:8080/api/http/services)",
+      "Bash(python3 -c 'import json,sys; [print\\(s[\"name\"], s.get\\(\"status\"\\), s.get\\(\"serverStatus\"\\)\\) for s in json.load\\(sys.stdin\\) if \"dojo\" in s[\"name\"].lower\\(\\)]')"
     ],
-    "ask": ["Bash(printf *>*)"]
+    "ask": [
+      "Bash(printf *>*)"
+    ]
   },
   "enabledMcpjsonServers": [
     "truenas-readonly",
