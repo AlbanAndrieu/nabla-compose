@@ -70,6 +70,7 @@ jobs:
       TF_INPUT: "false"
       TF_VAR_ci_use_oidc: "true"
       TF_VAR_enable_group_management: "false"
+      TF_VAR_enable_user_management: "false"
       TF_VAR_lab_tenant_confirmed: "true"
       TF_VAR_tenant_id: "${{ vars.ENTRA_LAB_TENANT_ID }}"
       TF_VAR_ci_graph_client_id: "${{ vars.ENTRA_GRAPH_CLIENT_ID }}"

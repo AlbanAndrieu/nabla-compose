@@ -42,6 +42,11 @@ class PlanPolicyTests(unittest.TestCase):
             })
         ]})[1])
 
+    def test_blocks_workstation_test_user_in_ci(self):
+        self.assertTrue(POLICY.evaluate({"resource_changes": [
+            change("azuread_user.test[0]", ["create"])
+        ]})[1])
+
     def test_blocks_enabled_negative_principal(self):
         self.assertTrue(POLICY.evaluate({"resource_changes": [
             change('azuread_service_principal.workload["denied"]', ["create"],

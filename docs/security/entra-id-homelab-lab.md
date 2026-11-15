@@ -24,6 +24,12 @@ Azure resources NOT_APPLIED / runtime NOT_VERIFIED**.
   `enable_group_management=false` avoids Group.ReadWrite.All:
   groups/user membership need a separately reviewed human/bootstrap flow.
   The negative-control Service Principal remains disabled.
+- One test user is created only by a workstation apply
+  (`enable_user_management=true`, pinned false in CI and rejected by
+  `check-plan.py`). Its one-time password comes from Vaultwarden and must be
+  changed at first sign-in; azuread 3.10.0 has no write-only password, so it
+  sits in state until then. Operator guide (FR):
+  [tenant and test user](../runbooks/entra-id-lab-tenant-and-test-user.md).
 
 ## GitHub to Entra federation
 

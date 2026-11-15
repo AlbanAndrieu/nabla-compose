@@ -13,6 +13,11 @@ Source of truth: [H16 security runbook](../../docs/security/entra-id-homelab-lab
   disabled by default to avoid tenant-wide Group.ReadWrite.All permissions.
 - No app secrets, Azure RBAC assignments, privileged roles or Graph grants
   are provisioned by this module. Terraform state remains sensitive.
+- Workstation-only test user (`users.tofu`, `enable_user_management=true`):
+  one-time password from Vaultwarden, changed at first sign-in. CI pins the
+  flag to false and `check-plan.py` rejects `azuread_user`. Step-by-step
+  tenant, state and user guide (FR):
+  [runbook](../../docs/runbooks/entra-id-lab-tenant-and-test-user.md).
 
 Bootstrap requires an Azure subscription and a **separate secured Blob storage
 container** (potential charges). Turn OFF shared account key authentication and
@@ -37,9 +42,10 @@ tofu plan
 # No apply until the reviewed plan, backend permissions and state recovery are proven.
 ~~~
 
-After `tofu init -backend=false`, review and COMMIT the provider lock
-`.terraform.lock.hcl` for reproducible CI `-lockfile=readonly`. It has not
-been generated in the disconnected execution environment.
+The provider lock `.terraform.lock.hcl` (azuread 3.10.0, all platforms) is
+committed for reproducible CI `-lockfile=readonly`. Offline mocked test:
+`TF_VAR_test_user_initial_password=dummy tofu -chdir=terraform/entra-id-lab test`
+after `tofu -chdir=terraform/entra-id-lab init -backend=false`.
 
 GitHub workflow: [entra-id-lab.yml](../../.github/workflows/entra-id-lab.yml).
 Remote plan/apply requires environment variables and identities to be

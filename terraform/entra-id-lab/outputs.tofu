@@ -10,3 +10,6 @@ output "service_principal_object_ids" {
 output "lab_group_ids" {
   value = { for k, v in azuread_group.lab : k => v.object_id }
 }
+output "test_user_principal_name" {
+  value = one(azuread_user.test[*].user_principal_name)
+}
