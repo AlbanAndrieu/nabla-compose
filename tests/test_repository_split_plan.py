@@ -2,6 +2,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -210,6 +212,38 @@ class PlanTests(unittest.TestCase):
             self.assertNotIn("private-secret", json.dumps(report))
             self.assertNotIn("private-detail", json.dumps(report))
             self.assertEqual(report["option_shapes"][0]["flags"], ["--token"])
+
+
+    def test_cli_strict_static_gate_statuses(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as openclaw:
+            for root in (compose, openclaw):
+                folder = Path(root) / "scripts/workstation"
+                folder.mkdir(parents=True)
+                for name in mod.SHARED_OPENCLAW_SCRIPTS:
+                    (folder / name).write_text(
+                        'parser.add_argument("--check", action="store_true")' + chr(10),
+                        encoding="utf-8",
+                    )
+            command = [
+                sys.executable, str(FILE), "--root", compose,
+                "--compare-openclaw-root", openclaw,
+                "--assert-static-option-shapes",
+            ]
+            def run():
+                return subprocess.run(
+                    command, capture_output=True, text=True, timeout=10, check=False,
+                )
+            self.assertEqual(run().returncode, 0)
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            (Path(openclaw) / "scripts/workstation" / name).write_text(
+                'parser.add_argument("--check", action="store_false")' + chr(10),
+                encoding="utf-8",
+            )
+            mismatch = run()
+            self.assertEqual(mismatch.returncode, 1)
+            self.assertFalse(json.loads(mismatch.stdout)["scripts"][0]["static_option_shapes_equal"])
+            (Path(openclaw) / "scripts/workstation" / name).unlink()
+            self.assertEqual(run().returncode, 2)
 
 if __name__=="__main__":
     unittest.main()
