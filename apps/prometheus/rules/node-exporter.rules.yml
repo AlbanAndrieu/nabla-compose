@@ -13,24 +13,35 @@ groups:
           summary: TrueNAS node-exporter telemetry is unavailable
           description: "Prometheus cannot scrape TrueNAS host metrics for more than 2 minutes."
 
+      # MemAvailable excludes the ZFS ARC, which the kernel reclaims down to c_min; without ZFS metrics, fall back to MemAvailable.
       - alert: TrueNASHostOutOfMemory
-        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.10
+        expr: |
+          (
+            node_memory_MemAvailable_bytes{job="truenas_node"}
+            + (clamp_min(node_zfs_arc_size{job="truenas_node"} - node_zfs_arc_c_min{job="truenas_node"}, 0)
+               or node_memory_MemAvailable_bytes{job="truenas_node"} * 0)
+          ) / node_memory_MemTotal_bytes{job="truenas_node"} < 0.10
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: TrueNAS host memory is low
-          description: "Less than 10% of host memory has remained available for 5 minutes."
+          description: "Less than 10% of host memory, counting reclaimable ZFS ARC, has remained available for 5 minutes."
 
       - alert: TrueNASHostMemoryCritical
-        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
+        expr: |
+          (
+            node_memory_MemAvailable_bytes{job="truenas_node"}
+            + (clamp_min(node_zfs_arc_size{job="truenas_node"} - node_zfs_arc_c_min{job="truenas_node"}, 0)
+               or node_memory_MemAvailable_bytes{job="truenas_node"} * 0)
+          ) / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
         for: 2m
         labels:
           severity: critical
           scope: platform
         annotations:
           summary: TrueNAS host memory is critically low
-          description: "Less than 5% of host memory has remained available for 2 minutes."
+          description: "Less than 5% of host memory, counting reclaimable ZFS ARC, has remained available for 2 minutes."
 
       - alert: TrueNASFilesystemSpaceLow
         expr: |

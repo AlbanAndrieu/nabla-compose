@@ -529,6 +529,8 @@ class ObservabilityContractTests(unittest.TestCase):
         )
         self.assertIn("TrueNASHostMemoryCritical", node_rules)
         self.assertIn("severity: critical", node_rules)
+        # MemAvailable alone fires on reclaimable ZFS ARC (false alert of 2026-11-15).
+        self.assertEqual(node_rules.count("node_zfs_arc_c_min"), 2)
 
     def test_talos_cluster_validator_remains_executable(self) -> None:
         mode = (ROOT / "scripts" / "talos" / "validate-cluster.sh").stat().st_mode
