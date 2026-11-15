@@ -339,6 +339,110 @@ internal health check fails. In contrast,
 `reconcile-php-fpm.sh --apply` **also changes the PHP-FPM profile**
 and retains its mandatory explicit confirmation.
 
+## Emergency pfSense access — quick SSH-only recovery (15 November 2026)
+
+The workstation can reach pfSense SSH at `admin@172.17.0.1:9922` even
+when DNS and HTTPS are down. Use the lightweight, standalone
+`scripts/pfsense/recover-access.sh` rather than the full
+`diagnose-recover.sh` API/HTTPS probe matrix.
+
+| Manual command from `nabla-compose` | Result |
+| --- | --- |
+| `just pfsense-check` | Short **read-only** DNS, Unbound, PHP-FPM, GUI checks |
+| `just pfsense-dns` | Restart **only Unbound** |
+| `just pfsense-ui` | Restart **only PHP-FPM + WebConfigurator** |
+| `just pfsense-recover` | Restart Unbound, then PHP-FPM + WebConfigurator |
+
+Alternative without `just`: `bash scripts/pfsense/recover-access.sh
+--check`, `--dns`, `--ui`, or `--all`. The default target/port may be
+overridden via `PFSENSE_SSH_TARGET`, `PFSENSE_SSH_PORT` or explicit
+`--target` / `--port`. The script uses strict host-key checking, requires
+root-equivalent SSH authorization for restart modes, and does **not**
+modify routing, PF rules, IPS services, packages or PHP-FPM pool sizing.
+Restarting the GUI may interrupt the existing WebConfigurator session.
+An offline diagnostic is not a service health attestation.
+
+### When workstation Internet/DNS is already broken
+
+The new commands above require a checkout containing this PR. If the
+workstation cannot fetch GitHub because of its current DNS outage, use
+pfSense's **existing** native recovery commands immediately (no install,
+download, or new script required):
+
+```bash
+# Unbound only — can be run without a working webConfigurator or external DNS.
+ssh -p 9922 admin@172.17.0.1 '/usr/local/sbin/pfSsh.php playback svc restart unbound'
+
+# Only if the GUI remains degraded — restarts PHP-FPM and webConfigurator.
+ssh -p 9922 admin@172.17.0.1 '/etc/rc.php-fpm_restart && /etc/rc.restart_webgui'
+
+# Separate DNS tests from the workstation: local UDP, local TCP, public resolver.
+dig +time=2 +tries=1 @172.17.0.1 example.com A
+dig +tcp +time=2 +tries=1 @172.17.0.1 example.com A
+dig +time=2 +tries=1 @9.9.9.9 example.com A
+```
+
+These commands do not disable pfSense firewall rules or restart the whole
+appliance. If Unbound starts successfully but LAN DNS still times out,
+investigate ACL/binding/PF rather than repeatedly restarting it.
+
+### Confirmed DNS evidence (15/11/2026, operator)
+
+- Workstation direct DNS to **9.9.9.9** succeeds (third `dig`):
+  public UDP DNS transport and IPv4 routing/NAT work at least for this path.
+- Workstation queries to **172.17.0.1** still time out.
+- pfSense `pgrep -x unbound` returns two lines, which does **not**
+  demonstrate that the service listens or answers.
+- pfSense `drill -t A example.com @127.0.0.1` reports
+  `error sending query: could not send or receive`.
+
+**Current hypothesis:** Unbound listener, binding, runtime health or local
+resolver filtering; no evidence yet identifies the cause. Inspect
+`sockstat -4 -l | grep ':53'`, `unbound-control -c
+/var/unbound/unbound.conf status`,
+`unbound-checkconf /var/unbound/unbound.conf`, and the
+DNS Resolver log. Compare the specific listening addresses with the
+workstation and loopback queries. If localhost and LAN both fail,
+an ACL issue affecting only LAN clients is insufficient to explain all
+observations.
+
+For the intended architecture, use **Network Interfaces = LAN and
+Localhost** (plus any other deliberate internal DNS clients) versus
+**Outgoing Network Interfaces = All**: these options serve different
+purposes. Keep `int.albandrieu.com` delegated to Pi-hole only via
+pfSense Unbound. See [Netgate DNS Resolver configuration](https://docs.netgate.com/pfsense/en/latest/services/dns/resolver-config.html)
+and [Unbound access lists](https://docs.netgate.com/pfsense/en/latest/services/dns/resolver-acls.html).
+
+### DNS diagnosis and root-cause classification
+
+The read-only check compares workstation DNS UDP and TCP to
+`172.17.0.1:53`, direct DNS to `9.9.9.9:53`, and on pfSense itself
+DNS via `127.0.0.1`, `172.17.0.1` and `9.9.9.9`. It also reports Unbound's
+process/control status, IPv4 DNS listeners, PHP-FPM socket and bounded
+Unbound/OOM errors.
+
+| Observation | Leading diagnosis (verify before changing config) |
+| --- | --- |
+| Unbound process missing | Daemon crash / OOM / watchdog not running |
+| No IPv4 listener on 53 | Unbound not binding expected interface |
+| Loopback DNS succeeds but workstation LAN DNS times out | LAN binding, Unbound access-control or PF filter |
+| DNS at pfSense loopback fails while direct 9.9.9.9 succeeds | Unbound recursion/config/DNSSEC |
+| DNS direct to 9.9.9.9 also fails | Outbound DNS transport / filtering / route |
+| Workstation TCP DNS succeeds but UDP fails | UDP/53-specific filtering |
+| Workstation DNS works but browser does not | Workstation resolver selection/cache, or HTTPS issue |
+
+A healthy Unbound PID or successful HTTPS from **pfSense itself** does
+not prove LAN DNS or NAT functionality. The documented configuration
+keeps `Forwarding Mode disabled`, `Outgoing Network Interfaces = All`
+and the `int.albandrieu.com` override toward Pi-hole `172.17.0.24`.
+Do not change them without first reproducing the failing layer.
+
+Read-only results precede explicit restarts; after restoring functionality,
+reactivate Snort, CrowdSec and pfBlockerNG **one at a time** and check
+DNS/IPv4 after each. On this Netgate 1100, examine the
+[13/11 OOM incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
+before allowing resource-intensive IDS/IPS updates.
+
 ## Normal read-only check
 
 From the workstation:
