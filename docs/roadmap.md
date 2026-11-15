@@ -29,6 +29,16 @@ l'accès direct IPv4 depuis la workstation et le NAT LAN.
 L'identification du bloqueur initial et IPv6 demeurent ouvertes.
 [Commandes et observations](pfsense-diagnose-recover.md).
 
+**P0 récupération pfSense (15/11) — CODED, runtime NOT_VERIFIED :**
+le nouvel outil `scripts/pfsense/recover-access.sh`, accessible via
+`just pfsense-check`, `pfsense-dns`, `pfsense-ui` et `pfsense-recover`,
+permet la reprise manuelle ciblée en SSH direct sans GUI, pfREST,
+WAN DNS ni changement de firewall. Le diagnostic compare la résolution
+LAN UDP/TCP, Unbound loopback/LAN, DNS public, sockets, erreurs/OOM.
+**DONE** : résolution DNS et NAT IPv4 fonctionnels depuis la workstation,
+GUI rétablie, puis protections restaurées une par une sans régression.
+[Runbook](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 

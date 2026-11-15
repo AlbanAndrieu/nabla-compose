@@ -339,6 +339,59 @@ internal health check fails. In contrast,
 `reconcile-php-fpm.sh --apply` **also changes the PHP-FPM profile**
 and retains its mandatory explicit confirmation.
 
+## Emergency pfSense access — quick SSH-only recovery (15 November 2026)
+
+The workstation can reach pfSense SSH at `admin@172.17.0.1:9922` even
+when DNS and HTTPS are down. Use the lightweight, standalone
+`scripts/pfsense/recover-access.sh` rather than the full
+`diagnose-recover.sh` API/HTTPS probe matrix.
+
+| Manual command from `nabla-compose` | Result |
+| --- | --- |
+| `just pfsense-check` | Short **read-only** DNS, Unbound, PHP-FPM, GUI checks |
+| `just pfsense-dns` | Restart **only Unbound** |
+| `just pfsense-ui` | Restart **only PHP-FPM + WebConfigurator** |
+| `just pfsense-recover` | Restart Unbound, then PHP-FPM + WebConfigurator |
+
+Alternative without `just`: `bash scripts/pfsense/recover-access.sh
+--check`, `--dns`, `--ui`, or `--all`. The default target/port may be
+overridden via `PFSENSE_SSH_TARGET`, `PFSENSE_SSH_PORT` or explicit
+`--target` / `--port`. The script uses strict host-key checking, requires
+root-equivalent SSH authorization for restart modes, and does **not**
+modify routing, PF rules, IPS services, packages or PHP-FPM pool sizing.
+Restarting the GUI may interrupt the existing WebConfigurator session.
+An offline diagnostic is not a service health attestation.
+
+### DNS diagnosis and root-cause classification
+
+The read-only check compares workstation DNS UDP and TCP to
+`172.17.0.1:53`, direct DNS to `9.9.9.9:53`, and on pfSense itself
+DNS via `127.0.0.1`, `172.17.0.1` and `9.9.9.9`. It also reports Unbound's
+process/control status, IPv4 DNS listeners, PHP-FPM socket and bounded
+Unbound/OOM errors.
+
+| Observation | Leading diagnosis (verify before changing config) |
+| --- | --- |
+| Unbound process missing | Daemon crash / OOM / watchdog not running |
+| No IPv4 listener on 53 | Unbound not binding expected interface |
+| Loopback DNS succeeds but workstation LAN DNS times out | LAN binding, Unbound access-control or PF filter |
+| DNS at pfSense loopback fails while direct 9.9.9.9 succeeds | Unbound recursion/config/DNSSEC |
+| DNS direct to 9.9.9.9 also fails | Outbound DNS transport / filtering / route |
+| Workstation TCP DNS succeeds but UDP fails | UDP/53-specific filtering |
+| Workstation DNS works but browser does not | Workstation resolver selection/cache, or HTTPS issue |
+
+A healthy Unbound PID or successful HTTPS from **pfSense itself** does
+not prove LAN DNS or NAT functionality. The documented configuration
+keeps `Forwarding Mode disabled`, `Outgoing Network Interfaces = All`
+and the `int.albandrieu.com` override toward Pi-hole `172.17.0.24`.
+Do not change them without first reproducing the failing layer.
+
+Read-only results precede explicit restarts; after restoring functionality,
+reactivate Snort, CrowdSec and pfBlockerNG **one at a time** and check
+DNS/IPv4 after each. On this Netgate 1100, examine the
+[13/11 OOM incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
+before allowing resource-intensive IDS/IPS updates.
+
 ## Normal read-only check
 
 From the workstation:

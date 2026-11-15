@@ -328,6 +328,23 @@ openclaw-cron-file-cutover:
 # Native OpenClaw dry-run and redaction. Fail closed if dotenv scrub would occur.
 # Wi-Fi path diagnostic moved to ansible-workstation: `mise run workstation-wifi-path`.
 
+# P0 manual recovery via direct LAN SSH (no WAN DNS, pfREST or firewall mutation).
+pfsense-check:
+    bash scripts/pfsense/recover-access.sh --check
+
+pfsense-dns:
+    bash scripts/pfsense/recover-access.sh --dns
+
+pfsense-ui:
+    bash scripts/pfsense/recover-access.sh --ui
+
+pfsense-recover:
+    bash scripts/pfsense/recover-access.sh --all
+
+pfsense-quick-test:
+    bash -n scripts/pfsense/recover-access.sh
+    python3 -m unittest discover -s tests -p 'test_pfsense_recover_access.py' -v
+
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:
     bash -n scripts/pfsense/console.sh
