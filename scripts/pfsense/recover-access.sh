@@ -93,6 +93,21 @@ status_report() {
   else
     echo "WARN: unbound_control=UNAVAILABLE"
   fi
+  echo "==> Unbound generated config sanity (no mutation)"
+  if command -v unbound-checkconf >/dev/null 2>&1; then
+    if unbound-checkconf /var/unbound/unbound.conf 2>&1 | tail -n 8; then
+      echo "INFO: unbound_checkconf=FINISHED (review diagnostics above)"
+    else
+      echo "WARN: unbound_checkconf=UNAVAILABLE"
+    fi
+  else
+    echo "WARN: unbound_checkconf=NOT_INSTALLED"
+  fi
+  echo "==> Effective port, interfaces, ACLs and transports"
+  if [ -r /var/unbound/unbound.conf ]; then
+    grep -E '^[[:space:]]*(interface:|port:|access-control:|do-ip4:|do-udp:|do-tcp:|outgoing-interface:)' \
+      /var/unbound/unbound.conf | head -n 45 || true
+  fi
   echo "==> DNS IPv4 listeners"
   sockstat -4 -l 2>/dev/null |
     awk 'NR > 1 && $6 ~ /:53$/ { print; seen=1 } END { if (!seen) print "WARN: dns_ipv4_listener=MISSING" }'

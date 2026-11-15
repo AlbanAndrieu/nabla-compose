@@ -386,6 +386,33 @@ These commands do not disable pfSense firewall rules or restart the whole
 appliance. If Unbound starts successfully but LAN DNS still times out,
 investigate ACL/binding/PF rather than repeatedly restarting it.
 
+### Confirmed DNS evidence (15/11/2026, operator)
+
+- Workstation direct DNS to **9.9.9.9** succeeds (third `dig`):
+  public UDP DNS transport and IPv4 routing/NAT work at least for this path.
+- Workstation queries to **172.17.0.1** still time out.
+- pfSense `pgrep -x unbound` returns two lines, which does **not**
+  demonstrate that the service listens or answers.
+- pfSense `drill -t A example.com @127.0.0.1` reports
+  `error sending query: could not send or receive`.
+
+**Current hypothesis:** Unbound listener, binding, runtime health or local
+resolver filtering; no evidence yet identifies the cause. Inspect
+`sockstat -4 -l | grep ':53'`, `unbound-control -c
+/var/unbound/unbound.conf status`,
+`unbound-checkconf /var/unbound/unbound.conf`, and the
+DNS Resolver log. Compare the specific listening addresses with the
+workstation and loopback queries. If localhost and LAN both fail,
+an ACL issue affecting only LAN clients is insufficient to explain all
+observations.
+
+For the intended architecture, use **Network Interfaces = LAN and
+Localhost** (plus any other deliberate internal DNS clients) versus
+**Outgoing Network Interfaces = All**: these options serve different
+purposes. Keep `int.albandrieu.com` delegated to Pi-hole only via
+pfSense Unbound. See [Netgate DNS Resolver configuration](https://docs.netgate.com/pfsense/en/latest/services/dns/resolver-config.html)
+and [Unbound access lists](https://docs.netgate.com/pfsense/en/latest/services/dns/resolver-acls.html).
+
 ### DNS diagnosis and root-cause classification
 
 The read-only check compares workstation DNS UDP and TCP to
