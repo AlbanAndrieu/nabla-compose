@@ -95,10 +95,13 @@ status_report() {
   fi
   echo "==> Unbound generated config sanity (no mutation)"
   if command -v unbound-checkconf >/dev/null 2>&1; then
-    if unbound-checkconf /var/unbound/unbound.conf 2>&1 | tail -n 8; then
-      echo "INFO: unbound_checkconf=FINISHED (review diagnostics above)"
+    check_rc=0
+    check_output="$(unbound-checkconf /var/unbound/unbound.conf 2>&1)" || check_rc=$?
+    printf '%s\n' "$check_output" | tail -n 8
+    if [ "$check_rc" -eq 0 ]; then
+      echo "PASS: unbound_checkconf=VALID"
     else
-      echo "WARN: unbound_checkconf=UNAVAILABLE"
+      echo "WARN: unbound_checkconf=INVALID exit=$check_rc"
     fi
   else
     echo "WARN: unbound_checkconf=NOT_INSTALLED"
