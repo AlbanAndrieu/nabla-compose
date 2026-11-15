@@ -1254,7 +1254,7 @@ else
 fi
 
 if ((api_failures > 0)); then
-  if [[ "${MODE}" == "check" && ${ssh_status} -eq 0 ]]; then
+  if [[ "${MODE}" == "check" && ${ssh_status} -eq 0 && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false && "${auth_lockout_risk}" == false ]]; then
     log "WARN: ${api_failures} HTTPS/API probe(s) failed; SSH evidence collected; HTTPS management is degraded"
     log "OK: SSH diagnosis completed (partial: HTTPS/API unavailable)"
     exit 0

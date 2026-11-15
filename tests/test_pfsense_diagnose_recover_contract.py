@@ -96,7 +96,7 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn('if [[ "${MODE}" == "apply" ]]; then', text)
         self.assertIn("SSH unavailable", text)
         self.assertIn("HTTPS/API evidence above remains valid", text)
-        self.assertIn("--port/SSH config", text)
+        self.assertIn("default LAN target admin@172.17.0.1:9922", text)
 
     def test_apply_preserves_explicit_mutation_boundaries(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
