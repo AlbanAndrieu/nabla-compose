@@ -231,7 +231,9 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("/var/unbound/pfb_py_data.txt", text)
         self.assertIn("vaultwarden_runtime_match=", text)
         self.assertIn("pfsense_remote_syslog_enabled=", text)
-        self.assertIn("pfsense_remote_syslog_legacy_workstation=", text)
+        self.assertIn("ERROR: pfsense_remote_syslog_legacy_workstation=present", text)
+        self.assertIn("OK: pfsense_remote_syslog_legacy_workstation=absent", text)
+        self.assertIn("pfSense still sends syslog to the retired workstation", text)
         self.assertIn("pfsense_remote_syslog_alloy_target=", text)
         self.assertIn("vaultwarden_public_override=config_xml_match", text)
         self.assertIn("vaultwarden_public_unbound_generated=present", text)
@@ -281,8 +283,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("WARN: crowdsec_small_mode=reverted", text)
         self.assertIn("OK: crowdsec_bouncer=running lapi=remote-truenas", text)
         self.assertNotIn("crowdsec_engine=absent enabled=on", text)
-        self.assertIn("^((OK|WARN): (snort|crowdsec)_|", text)
-        self.assertIn('OK:* | WARN:*) console_line "${summary_line}"', text)
+        self.assertIn("^((OK|WARN|ERROR): (snort|crowdsec|pfsense_remote_syslog)_|", text)
+        self.assertIn('OK:* | WARN:* | ERROR:*) console_line "${summary_line}"', text)
 
     def test_posture_lifecycle_reconciles_without_touching_secrets(self) -> None:
         shell = SCRIPT.read_text(encoding="utf-8")

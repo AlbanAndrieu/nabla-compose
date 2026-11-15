@@ -94,6 +94,11 @@ ssh -p 9922 admin@172.17.0.1 "grep -n 172.17.0.57 /var/etc/haproxy/haproxy.cfg /
 
 Seules les lignes `:8082` doivent rester.
 
+`scripts/pfsense/diagnose-recover.sh --check` échoue (ligne rouge
+`pfsense_remote_syslog_legacy_workstation=present`) tant que `.57:1514`
+reste configuré. Le 15/11, le repli sur l'environnement de boot
+`default_clone` l'avait réintroduit en `remoteserver`.
+
 Sur la workstation, après dix minutes :
 
 ```bash

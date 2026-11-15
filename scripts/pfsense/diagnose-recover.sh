@@ -851,9 +851,9 @@ if grep -q '<syslog>' /conf/config.xml 2>/dev/null; then
     printf 'pfsense_remote_syslog_%s=%s\n' "${field}" "${value:-<unset>}"
   done
   if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.57:1514'; then
-    printf 'pfsense_remote_syslog_legacy_workstation=present\n'
+    printf 'ERROR: pfsense_remote_syslog_legacy_workstation=present (retired 2026-11-14; a boot-environment fallback brings it back)\n'
   else
-    printf 'pfsense_remote_syslog_legacy_workstation=absent\n'
+    printf 'OK: pfsense_remote_syslog_legacy_workstation=absent\n'
   fi
   if printf '%s\n' "${SYSLOG_BLOCK}" | grep -q '172\.17\.0\.24:1514'; then
     printf 'pfsense_remote_syslog_alloy_target=present\n'
@@ -1244,13 +1244,17 @@ else
     log "SSH summary (full evidence: ${REPORT})"
     while IFS= read -r summary_line; do
       case "${summary_line}" in
-        OK:* | WARN:*) console_line "${summary_line}" ;;
+        OK:* | WARN:* | ERROR:*) console_line "${summary_line}" ;;
         ?*) console_line "INFO: ${summary_line}" ;;
       esac
     done < <(
-      grep -E '^((OK|WARN): (snort|crowdsec)_|unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 64 || true
+      grep -E '^((OK|WARN|ERROR): (snort|crowdsec|pfsense_remote_syslog)_|unbound_control_healthy=|vaultwarden_public_|vaultwarden_runtime_match=|pfsense_remote_syslog_|crowdsec_pkg=|crowdsec_engine_pid=|crowdsec_firewall_bouncer_pid=|crowdsec_firewall_bouncer_api_url=|crowdsec_metrics=|crowdsec_scenario_file=|crowdsec_pf_scan_stuck_lines=|pfblocker_asn_reporting=|pfsense_exporter_auth_|restapi enabled=|identity user=|api_key_count user=|BLOCK_MATCH|LOGIN_PROTECTION_MATCH|block_match_count=|login_protection_match_count=|SNORT_HTTP_|INGRESS_ATTRIBUTION=)' "${REPORT}" | tail -n 64 || true
     )
   fi
+fi
+
+if grep -q '^ERROR: pfsense_remote_syslog_legacy_workstation=present' "${REPORT}"; then
+  fail "pfSense still sends syslog to the retired workstation 172.17.0.57:1514; see docs/runbooks/2026-11-14-pfsense-stale-workstation-targets.md"
 fi
 
 if ((api_failures > 0)); then
