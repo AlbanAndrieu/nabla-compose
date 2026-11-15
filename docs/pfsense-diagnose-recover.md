@@ -362,6 +362,30 @@ modify routing, PF rules, IPS services, packages or PHP-FPM pool sizing.
 Restarting the GUI may interrupt the existing WebConfigurator session.
 An offline diagnostic is not a service health attestation.
 
+### When workstation Internet/DNS is already broken
+
+The new commands above require a checkout containing this PR. If the
+workstation cannot fetch GitHub because of its current DNS outage, use
+pfSense's **existing** native recovery commands immediately (no install,
+download, or new script required):
+
+```bash
+# Unbound only — can be run without a working webConfigurator or external DNS.
+ssh -p 9922 admin@172.17.0.1 '/usr/local/sbin/pfSsh.php playback svc restart unbound'
+
+# Only if the GUI remains degraded — restarts PHP-FPM and webConfigurator.
+ssh -p 9922 admin@172.17.0.1 '/etc/rc.php-fpm_restart && /etc/rc.restart_webgui'
+
+# Separate DNS tests from the workstation: local UDP, local TCP, public resolver.
+dig +time=2 +tries=1 @172.17.0.1 example.com A
+dig +tcp +time=2 +tries=1 @172.17.0.1 example.com A
+dig +time=2 +tries=1 @9.9.9.9 example.com A
+```
+
+These commands do not disable pfSense firewall rules or restart the whole
+appliance. If Unbound starts successfully but LAN DNS still times out,
+investigate ACL/binding/PF rather than repeatedly restarting it.
+
 ### DNS diagnosis and root-cause classification
 
 The read-only check compares workstation DNS UDP and TCP to
