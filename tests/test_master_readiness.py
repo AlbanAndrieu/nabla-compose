@@ -10,6 +10,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "scripts" / "truenas" / "audit-master-readiness.py"
@@ -55,7 +56,9 @@ def run_ops(*args: str, approved: bool = False, tmp_path: Path) -> subprocess.Co
         fake = tmp_path / tool
         fake.write_text(f'#!/bin/sh\necho "{tool} $*" >> "{calls}"\necho "[]"\n', encoding="utf-8")
         fake.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "NO_COLOR": "1"}
+    # app-ops.sh calls python3: resolve it to the interpreter running pytest (it has PyYAML).
+    path = f"{tmp_path}:{Path(sys.executable).parent}:{os.environ['PATH']}"
+    env = {**os.environ, "PATH": path, "NO_COLOR": "1"}
     env.pop("NABLA_RUNTIME_CHANGE_APPROVED", None)
     if approved:
         env["NABLA_RUNTIME_CHANGE_APPROVED"] = "yes"
