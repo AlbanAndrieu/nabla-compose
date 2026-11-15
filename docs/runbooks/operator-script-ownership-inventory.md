@@ -91,6 +91,26 @@ python3 scripts/ops/plan-repository-split.py \\
   --compare-openclaw-root ../nabla-openclaw
 ```
 
+Le comparateur distingue désormais les noms d'options et leur **forme
+statique** : `action`, `required`, `nargs` et `type` lorsqu'ils sont
+déclarés de façon littérale dans `argparse.add_argument`. Il ne publie
+ni `default`, ni `help`, ni `choices`, afin de ne pas divulguer les
+valeurs configurées. Une valeur dynamique reste `DYNAMIC` et ne vaut
+pas validation du comportement.
+
+```bash
+python3 scripts/ops/plan-repository-split.py \\
+  --compare-openclaw-root ../nabla-openclaw \\
+  --assert-static-option-shapes
+```
+
+Avec ce mode strict, le code retour est **0** si les cinq paires sont
+lisibles et qu'aucun écart de forme déclaré n'est identifié, **1** pour
+un écart statique, et **2** pour un script absent/illisible. Même un
+retour 0 **ne prouve aucune parité fonctionnelle** (effets de bord,
+flags positionnels, defaults, codes retour, sortie, prérequis host).
+Ne pas déclencher une migration/suppression à partir de ce résultat.
+
 Le schéma `nabla-openclaw-cli-static/v1` retourne options, empreinte
 SHA-256, `READ` ou `UNREADABLE` par fichier, puis
 `behavioral_parity=NOT_VERIFIED` et `removal_authorized=false`.
