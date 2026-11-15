@@ -345,6 +345,23 @@ pfsense-quick-test:
     bash -n scripts/pfsense/recover-access.sh
     python3 -m unittest discover -s tests -p 'test_pfsense_recover_access.py' -v
 
+# Stable pfSense baseline: read-only review and explicitly approved private DNS repair.
+pfsense-split-dns-check:
+    bash scripts/pfsense/reconcile-split-dns.sh --check
+
+pfsense-split-dns-apply:
+    bash scripts/pfsense/reconcile-split-dns.sh --apply
+
+# Consolidates existing posture, capacity and split-DNS checks; not every config.xml field.
+pfsense-drift:
+    bash scripts/pfsense/check-drift.sh --check
+
+pfsense-drift-test:
+    bash -n scripts/pfsense/check-drift.sh
+    bash -n scripts/pfsense/reconcile-split-dns.sh
+    php -l scripts/pfsense/manage-split-dns.php
+    python3 -m unittest discover -s tests -p 'test_pfsense_split_dns_reconcile.py' -v
+
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:
     bash -n scripts/pfsense/console.sh

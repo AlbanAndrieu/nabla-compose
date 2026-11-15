@@ -443,7 +443,17 @@ DNS/IPv4 after each. On this Netgate 1100, examine the
 [13/11 OOM incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
 before allowing resource-intensive IDS/IPS updates.
 
-## Normal read-only check
+### Réparation du Domain Override et inventaire de dérive (15/11/2026)
+
+La restauration de l'accès DNS public après reboot **ne rétablit pas**
+la zone interne. `just pfsense-split-dns-check` et
+`just pfsense-split-dns-apply` réparent uniquement le transfert de
+`int.albandrieu.com` vers Pi-hole, avec `outgoing_interface=all`.
+`just pfsense-drift` agrège cet invariant, l'audit posture/capacité
+et les preuves du Boot Environment ; voir
+[contrat de réparation et de portée](dns-ingress-ownership.md).
+
+## Normal read-only check## Normal read-only check
 
 From the workstation:
 

@@ -47,6 +47,18 @@ Prioriser l'identification des sockets :53, du binding localhost/LAN,
 de la configuration générée et des logs Unbound, avant modification
 du NAT ou de la passerelle.
 
+**P0 split-DNS après reboot (15/11) — CODED, runtime NOT_VERIFIED** :
+résolution publique à nouveau fonctionnelle, mais
+`int.albandrieu.com` non délégué à Pi-hole par Unbound :
+`list_forwards` vide, `Domain Overrides` vide, réponse Cloudflare
+sans A alors que Pi-hole renvoie `172.17.0.24`.
+`reconcile-split-dns.sh --check/--apply` corrige l'override
+et `outgoing_interface=all` de façon ciblée ; `check-drift.sh`
+agrège les contrôles de posture. **DONE** : même A privé via
+Pi-hole et Unbound, récursion publique OK, pas de reboot involontaire,
+inventaire des dérives Boot Environment/Snort/pfBlockerNG/CrowdSec.
+[Architecture DNS](dns-ingress-ownership.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 
