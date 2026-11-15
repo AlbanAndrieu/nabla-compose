@@ -81,8 +81,9 @@ if ($reload_only) {
     config_set_path('system/maximumtableentries', (string)NABLA_TABLE_LIMIT);
 }
 
-// A failed reload keeps the previous ruleset silently: every table of the generated rules must be loaded.
-preg_match_all('/^table <([^>]+)>/m', (string)@file_get_contents('/tmp/rules.debug'), $m);
+// A failed reload keeps the previous ruleset silently: every persist table of the generated rules must be
+// loaded (pf drops a non-persist table that no rule references, e.g. the 26.03 _private4_ alias).
+preg_match_all('/^table <([^>]+)> persist/m', (string)@file_get_contents('/tmp/rules.debug'), $m);
 exec('/sbin/pfctl -sT 2>/dev/null', $loaded);
 $missing = array_diff($m[1], array_map('trim', $loaded));
 printf("%s: pf_tables_not_loaded=%s\n", $missing ? 'WARN' : 'OK', $missing ? implode(',', array_slice($missing, 0, 8)) . (count($missing) > 8 ? ',...' : '') : 'none');
