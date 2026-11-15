@@ -17,9 +17,9 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
-[[ "$target" =~ ^[A-Za-z0-9._@-]+$ ]] || exit 2
-[[ "$port" =~ ^[0-9]{1,5}$ ]] && ((10#$port > 0 && 10#$port <= 65535)) || exit 2
-echo "pfSense drift audit target=$target:$port desired_version=$desired_version"
+[[ "${target}" =~ ^[A-Za-z0-9._@-]+$ ]] || exit 2
+[[ "${port}" =~ ^[0-9]{1,5}$ ]] && ((10#${port} > 0 && 10#${port} <= 65535)) || exit 2
+echo "pfSense drift audit target=${target}:${port} desired_version=${desired_version}"
 echo "INFO: scope=split_dns, Snort/CrowdSec/pfBlockerNG posture, RAM, DNSBL, PHP-FPM, DHCP, boot environment"
 echo "INFO: scope_not_included=full PF rules, full package inventory, certificates, VPN, interfaces, Cloudflare, live IPv6 SLAAC"
 
@@ -27,7 +27,7 @@ drift_count=0
 audit_errors=0
 echo "==> 1/3 Split-DNS desired vs configured/live"
 dns_result=0
-bash "$here/reconcile-split-dns.sh" --check --target "$target" --port "$port" || dns_result=$?
+bash "${here}/reconcile-split-dns.sh" --check --target "${target}" --port "${port}" || dns_result=$?
 if ((dns_result == 2)); then
   drift_count=$((drift_count+1))
 elif ((dns_result != 0)); then
@@ -37,21 +37,21 @@ fi
 echo "==> 2/3 Security and capacity baseline (reuse existing controllers)"
 posture_output=""
 posture_status=0
-posture_output="$(NO_COLOR=1 PFSENSE_COLOR=never bash "$here/diagnose-recover.sh" \
-  --check-posture --target "$target" --port "$port" 2>&1)" || posture_status=$?
-printf '%s\n' "$posture_output"
-if grep -Eiq 'posture_[[:alnum:]_]+=.*expected=|^[[:space:]]*(FAIL|WARN)[[:space:]]|[[:space:]](FAIL|WARN)[[:space:]]' <<< "$posture_output"; then
+posture_output="$(NO_COLOR=1 PFSENSE_COLOR=never bash "${here}/diagnose-recover.sh" \
+  --check-posture --target "${target}" --port "${port}" 2>&1)" || posture_status=$?
+printf '%s\n' "${posture_output}"
+if grep -Eiq 'posture_[[:alnum:]_]+=.*expected=|^[[:space:]]*(FAIL|WARN)[[:space:]]|[[:space:]](FAIL|WARN)[[:space:]]' <<< "${posture_output}"; then
   drift_count=$((drift_count+1))
 fi
 if ((posture_status != 0)); then
   audit_errors=$((audit_errors+1))
-  echo "WARN: posture_audit_exit=$posture_status (may include an actual failed invariant)"
+  echo "WARN: posture_audit_exit=${posture_status} (may include an actual failed invariant)"
 fi
 
 echo "==> 3/3 Boot Environment, pfSense version and key package versions"
-ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=8 -p "$port")
+ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=8 -p "${port}")
 boot_status=0
-boot_report="$(ssh "${ssh_opts[@]}" "$target" /bin/sh -s <<'REMOTE'
+boot_report="$(ssh "${ssh_opts[@]}" "${target}" /bin/sh -s <<'REMOTE'
 echo "==> Installed version"
 if [ -r /etc/version ]; then
   sed -n '1p' /etc/version
@@ -70,22 +70,22 @@ for name in pfSense-pkg-pfBlockerNG pfSense-pkg-snort pfSense-pkg-crowdsec; do
 done
 REMOTE
 )" || boot_status=$?
-printf '%s\n' "$boot_report"
+printf '%s\n' "${boot_report}"
 if ((boot_status)); then
   echo "ERROR: could not verify pfSense boot/runtime inventory"
   audit_errors=$((audit_errors+1))
 else
-  version="$(sed -n '/^==> Installed version/{n;p;}' <<< "$boot_report")"
-  if [[ "$version" != "$desired_version"* ]]; then
-    echo "DRIFT: pfSense_version=$version expected_target=$desired_version (upgrade is a separate reviewed action)"
+  version="$(sed -n '/^==> Installed version/{n;p;}' <<< "${boot_report}")"
+  if [[ "${version}" != "${desired_version}"* ]]; then
+    echo "DRIFT: pfSense_version=${version} expected_target=${desired_version} (upgrade is a separate reviewed action)"
     drift_count=$((drift_count+1))
   fi
-  if grep -Eq '^default_clone[[:space:]]+NR?[[:space:]]|^default_clone[[:space:]]+N[[:space:]]' <<< "$boot_report"; then
+  if grep -Eq '^default_clone[[:space:]]+NR?[[:space:]]|^default_clone[[:space:]]+N[[:space:]]' <<< "${boot_report}"; then
     echo "WARN: active Boot Environment default_clone; compare against prior 26.07 rollback incident"
   fi
 fi
 echo "==> Summary"
-echo "drift_groups=$drift_count audit_errors=$audit_errors"
+echo "drift_groups=${drift_count} audit_errors=${audit_errors}"
 if ((audit_errors)); then
   echo "result=INCOMPLETE_UNVERIFIED"
   exit 3

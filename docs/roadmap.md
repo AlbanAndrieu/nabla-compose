@@ -114,7 +114,7 @@ Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
 - Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
-  
+
 **[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre validé le 14/11 : H01 → H02 → H04 → H05 → H12 → H13 → H16.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
@@ -128,7 +128,7 @@ Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
 **Politique de nettoyage :** les migrations OpenClaw/YubiKey déjà réceptionnées ne sont pas rouvertes ; conserver les wrappers de rollback qui ont encore des consommateurs. Déplacer une procédure datée en archive uniquement après mise à jour de ses références et des tests de contrat. Les documents historiques ne réintroduisent pas de tâches clôturées.
 
 ## Suivi consolidé — état du code et réception (8 novembre 2026)
-  
+
 Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [archivé intégralement](archive/2026-11-13-roadmap-before-compaction.md) : ne pas le confondre avec la situation runtime actuelle. Pour l'état `CODED` vs `ACCEPTED (runtime)`, consulter [H01–H19](roadmap-portfolio.md).
 
 ## P0 — Réception du catalogue et des sondes (PR #326)
