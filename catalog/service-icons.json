@@ -71,6 +71,7 @@
     "bitcoind": "bitcoin.png",
     "cartography": "cartography.svg",
     "clamav": "clamav.png",
+    "cleanuparr": "generic-app.svg",
     "clickhouse": "clickhouse.png",
     "cloudflare-tunnel": "cloudflare-tunnel.svg",
     "code": "visual-studio-code.svg",
@@ -142,6 +143,7 @@
     "netboot-xyz": "netboot-xyz.png",
     "netbootxyz": "netboot-xyz.png",
     "netbox": "netbox.svg",
+    "netdata": "generic-app.svg",
     "nexus": "sonatype-nexus-repository.png",
     "nginx": "nginx.png",
     "nginx-proxy-manager": "nginx.png",
@@ -222,6 +224,8 @@
     "talos": "kubernetes-icon.svg",
     "tempo": "tempo.svg",
     "terraform": "terraformio-icon.svg",
+    "three-proxy": "generic-app.svg",
+    "tracearr": "generic-app.svg",
     "traefik": "traefik.svg",
     "transmission": "transmission.png",
     "truenas": "truenas-scale.png",
@@ -232,7 +236,9 @@
     "vaultwarden": "vaultwarden.png",
     "watchtower": "watchtower.svg",
     "wazuh": "wazuh.svg",
+    "wizarr": "generic-app.svg",
     "workstation": "linux-original.svg",
+    "zabbix": "generic-app.svg",
     "zap": "zap-by-checkmarx.svg"
   }
 }

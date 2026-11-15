@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Reconcile the TrueNAS cron jobs that run config/truenas/night-window-apps.txt at night only.
+"""Run the TrueNAS Apps the catalog schedules at night only.
 
-The jobs reuse restore-optional-apps.sh --start/--stop with that list. --check is
-offline; --apply creates missing jobs as root on the canonical checkout and refuses drift.
+Entities of catalog/generated/entities.json labelled
+albandrieu.com/operational-schedule: night name the Apps (x-nabla.runtime.appId,
+else the entity name). Two TrueNAS cron jobs call --start/--stop, which hand
+that list to restore-optional-apps.sh. --check is offline; --apply creates
+missing jobs as root on the canonical checkout and refuses drift.
 """
 
 from __future__ import annotations
@@ -12,10 +15,12 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 
 CHECKOUT = Path("/mnt/cpool/compose/nabla-compose")
-APPS_FILE = CHECKOUT / "config/truenas/night-window-apps.txt"
-SCRIPT = CHECKOUT / "scripts/truenas/restore-optional-apps.sh"
+REPO = Path(__file__).resolve().parents[2]
+ENTITIES = "catalog/generated/entities.json"
+SCHEDULE_LABEL = "albandrieu.com/operational-schedule"
 
 
 def job(name: str, mode: str, hour: str, dow: str) -> dict:
@@ -26,7 +31,7 @@ def job(name: str, mode: str, hour: str, dow: str) -> dict:
         "stdout": True,
         "stderr": False,
         "schedule": {"minute": "00", "hour": hour, "dom": "*", "month": "*", "dow": dow},
-        "command": f"env NABLA_OPTIONAL_APPS_FILE={APPS_FILE} bash {SCRIPT} {mode}",
+        "command": f"python3 {CHECKOUT}/scripts/truenas/reconcile-night-window-cron.py {mode}",
     }
 
 
@@ -35,6 +40,26 @@ JOBS = [
     job("nabla-night-window-start", "--start", "01", "1-6"),
     job("nabla-night-window-stop", "--stop", "07", "*"),
 ]
+
+
+def night_apps(root: Path) -> list[str]:
+    entities = json.loads((root / ENTITIES).read_text(encoding="utf-8"))["entities"]
+    return sorted({
+        ((entity.get("x-nabla") or {}).get("runtime") or {}).get("appId") or entity["metadata"]["name"]
+        for entity in entities
+        if (entity["metadata"].get("labels") or {}).get(SCHEDULE_LABEL) == "night"
+    })
+
+
+def run(mode: str) -> int:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt") as listing:
+        listing.write("".join(f"{app}\n" for app in night_apps(REPO)))
+        listing.flush()
+        return subprocess.run(
+            ["bash", str(REPO / "scripts/truenas/restore-optional-apps.sh"), mode],
+            env={**os.environ, "NABLA_OPTIONAL_APPS_FILE": listing.name},
+            check=False,
+        ).returncode
 
 
 def middleware(method: str, *arguments: object) -> object:
@@ -57,14 +82,19 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--apply", action="store_true")
+    mode.add_argument("--start", action="store_true")
+    mode.add_argument("--stop", action="store_true")
     args = parser.parse_args()
+    if args.start or args.stop:
+        return run("--start" if args.start else "--stop")
     if args.check:
+        print(f"APPS: {' '.join(night_apps(REPO))}")
         for spec in JOBS:
             s = spec["schedule"]
             print(f"CHECK: {spec['description']} {s['minute']} {s['hour']} * * {s['dow']} :: {spec['command']}")
         return 0
-    if os.geteuid() != 0 or CHECKOUT.is_symlink() or not APPS_FILE.is_file():
-        raise RuntimeError("run as root on the canonical TrueNAS checkout that holds the night-window list")
+    if os.geteuid() != 0 or CHECKOUT.is_symlink() or not (CHECKOUT / ENTITIES).is_file():
+        raise RuntimeError("run as root on the canonical TrueNAS checkout that holds the catalog")
     records = middleware("cronjob.query")
     if not isinstance(records, list):
         raise RuntimeError("cronjob.query returned non-array")

@@ -7,6 +7,7 @@ metadata:
   description: Planned Lidarr instance of the media stack (media-manager).
   labels:
     albandrieu.com/operational-state: planned
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
   tags:
     - media

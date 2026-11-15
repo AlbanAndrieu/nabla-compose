@@ -248,6 +248,11 @@ def project_route_intent(
             del authored["exposure"]
         if "probePolicy" in authored:
             authored["probePolicy"] = {"rank": authored["probePolicy"]["rank"], "position": 0}
+        if "runtime" in authored:
+            authored["runtime"] = {
+                **{key: authored["runtime"][key] for key in _RUNTIME_FIELDS if authored["runtime"].get(key)},
+                "source": source,
+            }
 
     for path in sorted(compose_files):
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}

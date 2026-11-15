@@ -610,6 +610,33 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: cleanuparr
+  title: Cleanuparr
+  description: Removes stalled downloads from the *arr Apps, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: convertx
   title: ConvertX
   description: File conversion service, installed as a TrueNAS catalog App.
@@ -650,6 +677,7 @@ metadata:
   description: Domain registration monitoring, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -685,6 +713,7 @@ metadata:
   description: RSS feed reader, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1007,6 +1036,33 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: netdata
+  title: Netdata
+  description: Real-time host metrics, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - observability
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: ollama-gpu
   title: Ollama (GPU)
   description: Large language models on the GPU instance, installed as a TrueNAS catalog App.
@@ -1049,6 +1105,7 @@ metadata:
   description: Browser network speed test, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1187,6 +1244,7 @@ metadata:
   description: AI document tagging for Paperless-ngx, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1223,6 +1281,7 @@ metadata:
   description: Document management system, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1579,6 +1638,7 @@ metadata:
   description: Scheduled internet speed tests, installed as a TrueNAS catalog App.
   labels:
     albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1605,6 +1665,10 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/truenas
       backend: https://172.17.0.24:30221
+  # The TrueNAS App id differs from the entity name.
+  runtime:
+    provider: truenas-app
+    appId: speedtest-tracker
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -1682,6 +1746,60 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: three-proxy
+  title: 3proxy
+  description: 3proxy forward proxy, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tracearr
+  title: Tracearr
+  description: Media server stream monitoring, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: transmission
   title: Transmission
   description: BitTorrent client, installed as a TrueNAS catalog App.
@@ -1711,3 +1829,57 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/truenas
       backend: http://172.17.0.24:30096
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: wizarr
+  title: Wizarr
+  description: Media server invitation manager, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: zabbix
+  title: Zabbix
+  description: Zabbix monitoring server, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-schedule: night
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - observability
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

@@ -68,8 +68,11 @@ La synchronisation initiale lit le chainstate au hasard sur les HDD et saturait
 les IO de TrueNAS (PSI IO `full` 33 % le 15/11). L'App ne tourne donc que la
 nuit : démarrée à 01:00 du lundi au samedi (le dimanche est laissé au scrub) et
 arrêtée à 07:00 par deux tâches cron TrueNAS, déclarées par
-`scripts/truenas/reconcile-night-window-cron.py` avec la liste
-`config/truenas/night-window-apps.txt` :
+`scripts/truenas/reconcile-night-window-cron.py`. Le script prend la liste des
+Apps dans le catalogue : les entités étiquetées
+`albandrieu.com/operational-schedule: night` de
+`catalog/generated/entities.json` (identifiant d'App `x-nabla.runtime.appId`,
+sinon nom de l'entité) :
 
 ```bash
 python3 scripts/truenas/reconcile-night-window-cron.py --check

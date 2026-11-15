@@ -33,7 +33,7 @@ apps:
     include:
       - apps/clamav/compose.yml
     state: stopped
-    note: catalog App until migrated (see apps/clamav/README.md); night window only (config/truenas/night-window-apps.txt)
+    note: catalog App until migrated (see apps/clamav/README.md); night window only (catalog label albandrieu.com/operational-schedule=night)
   - name: clickhouse
     include:
       - apps/clickhouse/compose.yml
