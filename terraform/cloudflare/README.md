@@ -260,3 +260,56 @@ tofu -chdir=terraform/cloudflare fmt -check
 tofu -chdir=terraform/cloudflare init -backend=false -input=false
 tofu -chdir=terraform/cloudflare validate
 ```
+
+## Freebox bridge — DNS direct de `home.albandrieu.com` pour le PTR Free
+
+Free confirme l'IPv4 publique de la connexion fibre : `82.66.4.247`.
+Le record Cloudflare demandé est **un A direct**, pas un PTR :
+
+```dns
+home.albandrieu.com. IN A 82.66.4.247
+```
+
+Il est volontairement **DNS only** (`proxied = false`), car le nom sert
+également aux accès pfSense/HAProxy sur des ports hors proxy Cloudflare.
+Cela révèle l'adresse IPv4 publique et **ne constitue pas** un contrôle
+d'accès : conserver les restrictions WAN/HAProxy, sans ajouter de route Tunnel
+ni d'exception à Cloudflare Access. Le DNS inverse n'intervient pas dans le
+rétablissement de la connectivité IP.
+
+**Import d'abord, création uniquement après preuve d'absence** :
+`cloudflare_dns_record.home` est désactivé par défaut, sans effet sur les
+plans Cloudflare existants. Vérifier dans le dashboard ou via un GET API
+`/zones/<zone_id>/dns_records?type=A&name=home.albandrieu.com` si le record
+existe. Le script `scripts/cloudflare/capture-dns-records.py` peut fournir un
+inventaire read-only mais classe les A hors tunnel `unmanaged`.
+
+1. **A existant** : vérifier type/valeur/proxy, puis versionner dans un fichier
+   `terraform/cloudflare/home-dns.auto.tfvars` la valeur
+   `home_dns_a_record_id = "<record-id-existant>"` (ID non secret).
+   Le plan doit montrer l'import de ce record et, si nécessaire, une mise à
+   jour précise vers `82.66.4.247`, `DNS only` ; **0 création**.
+2. **A réellement absent**, prouvé par API Cloudflare : versionner
+   `home_dns_a_create_approved = true` dans ce même `.auto.tfvars`.
+   Le plan doit montrer **une seule création A** ; ne pas autoriser ce cas sur
+   la seule base d'un `dig` sans réponse. Garder l'opt-in versionné après
+   création pour maintenir la ressource sous gestion OpenTofu.
+3. Ne jamais activer ces deux variables simultanément. Garder
+   `prevent_destroy`. Exécuter `tofu fmt -check` et `tofu validate` sur la
+   workstation, puis le **plan complet** avec
+   `scripts/infra/terragrunt-safe.sh infrastructure/cloudflare plan`.
+   Des modifications Tunnel/Access sans rapport étant déjà en attente dans
+   ce module, **ne pas appliquer globalement** avant une revue explicite de
+   toutes les différences. Le state est sur Garage privé, accessible LAN.
+4. Après validation du DNS direct, configurer le **PTR chez Free**, propriétaire
+   de la plage IPv4, avec `home.albandrieu.com` comme cible si l'option de
+   reverse personnalisé est disponible pour cette ligne. **Cloudflare ne peut
+   pas écrire ce PTR**. Vérifier depuis l'extérieur :
+
+   ```bash
+   dig +short A home.albandrieu.com @1.1.1.1
+   dig +short -x 82.66.4.247 @1.1.1.1
+   ```
+
+Cette modification DNS ne rétablit pas à elle seule la connectivité IPv4/IPv6
+de pfSense. Si la passerelle WAN est DOWN, diagnostiquer d'abord le transport.
