@@ -1,6 +1,7 @@
 """No-network regression tests for the Nabla skill-precedence policy check."""
 from __future__ import annotations
 
+import json
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -19,6 +20,16 @@ def fixture(root: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         prefix = f"{heading}\n" if heading else ""
         path.write_text(prefix + "\n".join(markers) + "\n", encoding="utf-8")
+
+    (root / "opencode.json").write_text(json.dumps({"model": "test/model"}))
+    for relative, body in (
+        (".opencode/agents/build.md", "Read AGENTS.md and agent.md."),
+        (".opencode/agents/reviewer.md", "Read AGENTS.md."),
+    ):
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("---\ndescription: fixture\n---\n" + body + "\n")
+
 
 
 class SkillPrecedenceContractTest(unittest.TestCase):
@@ -100,6 +111,59 @@ class SkillPrecedenceContractTest(unittest.TestCase):
                 "scripts/agent-quality-gate.sh" in issue
                 for issue in MODULE.audit(root)
             ))
+
+    def test_opencode_does_not_double_load_root_instructions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            (root / "opencode.json").write_text(
+                json.dumps({"instructions": ["./agent.md"]})
+            )
+            self.assertTrue(any(
+                "duplicate canonical/build instructions" in issue
+                for issue in MODULE.audit(root)
+            ))
+
+    def test_build_must_retain_compact_adapter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            path = root / ".opencode/agents/build.md"
+            path.write_text(path.read_text().replace("agent.md", "missing.md"))
+            self.assertTrue(any(
+                "build must load compact agent.md" in issue
+                for issue in MODULE.audit(root)
+            ))
+
+    def test_reviewer_must_not_preload_build_adapter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            path = root / ".opencode/agents/reviewer.md"
+            path.write_text(path.read_text() + "Also read agent.md.\n")
+            self.assertTrue(any(
+                "reviewer must not preload agent.md" in issue
+                for issue in MODULE.audit(root)
+            ))
+
+    def test_bad_config_and_missing_agent_entry_fail_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            (root / "opencode.json").write_text("{invalid")
+            (root / ".opencode/agents/build.md").unlink()
+            issues = MODULE.audit(root)
+            self.assertTrue(any("invalid JSON" in issue for issue in issues))
+            self.assertTrue(any("missing or unreadable agent entry" in issue
+                                for issue in issues))
+
+    def test_build_adapter_context_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture(root)
+            (root / "agent.md").write_text("A" * 2201 + "\n")
+            self.assertTrue(any("2200-byte context budget" in issue
+                                for issue in MODULE.audit(root)))
 
     def test_is_read_only(self):
         with tempfile.TemporaryDirectory() as tmp:

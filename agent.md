@@ -1,32 +1,29 @@
-# Local agent runbook (OpenCode and smaller models)
+# OpenCode build adapter — compact execution loop
 
-`AGENTS.md` is the canonical repository policy; this file is a compact execution adapter.
-Never preload the entire repository, all skills, generated files or historical logs.
-Never invent a file, test, endpoint, service relation or command; prove it from the repository or runtime first.
+`AGENTS.md` is the **canonical repository policy**; this file only describes
+the short execution path for the smaller OpenCode build agent. It is explicitly
+referenced by `.opencode/agents/build.md`, **not** auto-loaded by OpenCode.
+Do not pre-read all skills, archives, logs, generated files or live `.env` files.
 
-## Start with capability, then scope
+1. Check the current PR state, exact HEAD, dirty paths and nearest tests.
+   Reuse a compatible open PR; never write to `master`.
+2. Select capabilities before tools: `AGENT_EXECUTION_MODE=workstation` only
+   with a real local checkout, toolchain and LAN access. Otherwise stay
+   `offline`; never infer host reachability from documentation.
+3. Run `mise run agent-context` **only on a workstation with mise**; otherwise
+   inspect bounded GitHub refs/diffs. Load one matching skill on demand.
+4. Apply a bounded patch and run the narrowest available L1 contract.
+   Workstation: `mise run agent-loop` → `mise run agent-fix` → commit →
+   `mise run agent-pre-push`. Repeat the gate after any autofix commit.
+5. Remote/API-only: run only available offline tests; mark missing L2/L3
+   and runtime checks `NOT_RUN`. Use a Draft PR and an exact-SHA ref update.
+6. Never bypass hooks, read secrets, mutate the runtime without authorization
+   or claim a `PASS` without an observed test.
 
-- **Connected workstation:** set `AGENT_EXECUTION_MODE=workstation` only when the shell and LAN are genuinely available; run `mise run agent-context`. Work with one Git worktree and use the local CPU and installed toolchain.
-- **Remote Codex/API-only:** default `AGENT_EXECUTION_MODE=offline`. Use GitHub refs, targeted source diffs and offline checks; no TrueNAS, pfSense, Vaultwarden or other LAN calls. If no checkout/mise exists, do not attempt a workstation command. Mark unavailable checks `NOT_RUN`.
-- Runtime diagnostic router: `bash scripts/agent-diagnostics.sh --help`; offline `--runtime` is intentionally refused.
+Skill router: Compose/catalogue → `docker-compose-orchestration` and
+`nabla-service-catalog`; secrets → `homelab-secrets`; pfSense →
+`pfsense-api-debugging`; CI/PR → `local-first-quality`. Security audit
+→ `security-audit` only when explicitly requested.
 
-## Route to the smallest skill
-
-| Task | Skills |
-| --- | --- |
-| Compose service, catalog or env migration | `docker-compose-orchestration`, `nabla-service-catalog`; add `homelab-secrets` for credentials |
-| TrueNAS service acceptance | `homelab-runtime-status` and matching service skill (workstation only) |
-| pfSense, HAProxy, Snort, Unbound | `pfsense-api-debugging` |
-| Quality, CI or PR continuation | `local-first-quality` |
-| Security review | `security-audit` only when the task requests a security audit |
-
-## Delivery loop
-
-1. Confirm the selected PR and exact SHA, changed paths and nearest tests.
-2. Load the matching skill and only the reference subsection needed.
-3. Make one bounded patch; execute narrow L1 checks.
-4. Workstation only: `mise run agent-loop` → `mise run agent-fix` → review/commit → `mise run agent-pre-push`.
-5. Remote API-only: one Draft PR with expected-SHA updates; disclose missing local L2/L3 and runtime, do not silently trigger CI.
-6. Never mutate `master`, print secrets, bypass hooks or delete data without authorization. Record remaining acceptance in the roadmap.
-
-Use the [conditional playbook](docs/agent-execution-playbook.md) and [execution modes](docs/agent-execution-modes.md) for detailed commands, operator recovery and CI troubleshooting.
+Detailed procedures: [execution modes](docs/agent-execution-modes.md) and
+[conditional playbook](docs/agent-execution-playbook.md).
