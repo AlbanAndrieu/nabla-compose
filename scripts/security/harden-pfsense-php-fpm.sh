@@ -147,7 +147,11 @@ if [ "${MODE}" = "--check" ]; then
   if [ "${current_source}" != "${current_generated}" ]; then
     printf 'WARN: generator and active generated profile differ; reconcile before a service restart\n'
   fi
-  if [ "${current_source}" = "${expected}" ] && [ "${current_generated}" = "${expected}" ]; then
+  # pfSense-rc runs the generator directly at boot: without the exec bit the boot stalls and falls back.
+  if [ ! -x "${SOURCE}" ]; then
+    printf 'ERROR: generator is not executable; chmod 0755 %s before any reboot\n' "${SOURCE}"
+    printf 'php_fpm_profile_contract=GENERATOR_NOT_EXECUTABLE\n'
+  elif [ "${current_source}" = "${expected}" ] && [ "${current_generated}" = "${expected}" ]; then
     printf 'php_fpm_profile_contract=CONSTRAINED_MATCH\n'
   else
     printf 'php_fpm_profile_contract=UPSTREAM_OR_DRIFT\n'
@@ -179,7 +183,8 @@ esac
 
 if [ "${MODE}" = "--restore" ]; then
   [ -f "${BACKUP}" ] || fail "backup not found: ${BACKUP}"
-  cp -p "${BACKUP}" "${SOURCE}"
+  # Rewrite in place: keeps the generator's 0755 mode (the backup is 0600).
+  cat "${BACKUP}" >"${SOURCE}"
   run_generator
   /etc/rc.php-fpm_restart
   /etc/rc.restart_webgui
@@ -213,7 +218,8 @@ case "${current_source}" in
       END { if (changes != 5) exit 42 }
     ' "${SOURCE}" >"${tmp}" || { rc=$?; rm -f "${tmp}"; trap - EXIT HUP INT TERM; fail "generator shape changed or patch count was not exactly five (rc=${rc})"; }
 
-    cp -p "${tmp}" "${SOURCE}"
+    # Rewrite in place: `cp -p` of the 0600 mktemp file stripped the exec bit and broke boot (2026-11-15).
+    cat "${tmp}" >"${SOURCE}"
     rm -f "${tmp}"
     trap - EXIT HUP INT TERM
     ;;
@@ -221,6 +227,7 @@ case "${current_source}" in
 esac
 
 [ "$(source_state)" = "${expected}" ] || fail "source generator did not reach expected profile ${expected}"
+[ -x "${SOURCE}" ] || fail "source generator is not executable; pfSense-rc runs it directly at boot"
 
 run_generator
 [ "$(generated_state)" = "${expected}" ] || fail "generated PHP-FPM config does not match expected profile ${expected}"

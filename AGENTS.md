@@ -15,6 +15,7 @@ Always preserve TrueNAS-managed ZFS bind mounts `/mnt/cpool/<service>`, Vaultwar
 
 - Homelab downtime and reversible upgrades are acceptable; **data destruction, secret leakage, weakened authentication or new public exposure are not**. Preserve a tested recovery path for important persistent data. Never print secret values or activate shell tracing around credentials.
 - `nabla-compose` owns TrueNAS/Talos/pfSense, secrets, Cloudflare, self-hosted Sentry, monitoring targets and Backstage catalog. `fastapi-sample` owns API/observer/UI; Site Alban owns its UI; OpenClaw owns heartbeat. Link across repositories rather than copying procedures.
+- **pfSense and TrueNAS changes go through a versioned script (`check` then `apply`) or IaC in this repository**, never GUI clicks or unversioned one-off commands: a boot-environment fallback silently reverts anything not reproducible. Commit the script on the work branch before the `apply`, then re-run its `check` to prove convergence.
 - `CODED` is not `TESTED`, `DEPLOYED` or `ACCEPTED`. A `DENIED`, `NOT_RUN` or stale sample is not a verified `DOWN`. Report exact SHA and observation vantage, not inferred runtime health.
 
 ## Protected default-branch policy
