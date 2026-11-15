@@ -19,6 +19,8 @@ Do not pre-read all skills, archives, logs, generated files or live `.env` files
    and runtime checks `NOT_RUN`. Use a Draft PR and an exact-SHA ref update.
 6. Never bypass hooks, read secrets, mutate the runtime without authorization
    or claim a `PASS` without an observed test.
+7. Never invent a file, test, endpoint, service relation or command; prove it
+   from the repository or runtime first.
 
 Skill router: Compose/catalogue → `docker-compose-orchestration` and
 `nabla-service-catalog`; secrets → `homelab-secrets`; pfSense →
