@@ -169,7 +169,7 @@ class PlanTests(unittest.TestCase):
                 source = Path(root) / "scripts/workstation" / name
                 source.parent.mkdir(parents=True, exist_ok=True)
                 source.write_text(
-                    'parser.add_argument("--check", action="' + action + '")\\n',
+                    'parser.add_argument("--check", action="' + action + '")\n',
                     encoding="utf-8",
                 )
             report = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))
@@ -188,7 +188,7 @@ class PlanTests(unittest.TestCase):
                 source.parent.mkdir(parents=True, exist_ok=True)
                 source.write_text(
                     'parser.add_argument("--top", type=' + typed +
-                    ', required=' + required + ')\\n',
+                    ', required=' + required + ')\n',
                     encoding="utf-8",
                 )
             row = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))["scripts"][0]
@@ -202,7 +202,7 @@ class PlanTests(unittest.TestCase):
             source = root / "scripts/workstation" / name
             source.parent.mkdir(parents=True)
             source.write_text(
-                'parser.add_argument("--token", default="private-secret", help="private-detail")\\n',
+                'parser.add_argument("--token", default="private-secret", help="private-detail")\n',
                 encoding="utf-8",
             )
             report = mod._cli_snapshot(root, name)
