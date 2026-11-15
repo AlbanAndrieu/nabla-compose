@@ -205,7 +205,7 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
   1. Deux chargements du jeu de règles au boot ont échoué (21:56 et 21:57, `Cannot allocate memory` sur `bogonsv6`). L'état final n'a pas été établi. Le BE 26.07 a la vraie liste `bogonsv6` (158k entrées), alors que le stable a encore le fichier vide de mars : avec pfBlockerNG, un rechargement dépasse la limite de 400k. Le stable la dépassera aussi à son prochain rafraîchissement des bogons. `pfblocker-ip-only.php` monte la limite à 1M, appliqué sur le stable le 16/11 vers 00:37.
   2. Vers 23:00, l'interface web et SSH ont cessé de répondre (TCP accepté, ni TLS ni bannière), alors que le routage et le DNS marchaient. Retour au BE stable par cycle d'alimentation le 16/11 à 00:05. Cause inconnue sans console : Snort tournait sur 2 interfaces depuis 21:58, piste non vérifiée.
 
-  Prochain essai seulement avec le câble console, après l'apply de la limite. Les cibles workstation sont déjà retirées dans sa config.
+  Le boot réussi avait levé son drapeau `failed`, donc il était devenu la cible du repli du stable. Il en est de nouveau exclu depuis le 16/11 (`exclude-be-from-fallback.sh`, vérifié par `check-drift.sh`). Le repli est `default`, resynchronisé à la révision 00:36. Prochain essai seulement avec le câble console. Les cibles workstation sont déjà retirées dans sa config.
 - [x] **Clé USB de réinstallation** : l'image du ticket TAC *Firmware Access* est l'installeur en ligne déjà sur la clé ; pas d'image hors ligne pour le 1100. La réinstallation passe par le WAN branché sur la Freebox (procédure dans le runbook).
 
 ## P1 — Performance, stockage et restauration TrueNAS

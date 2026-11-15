@@ -32,4 +32,4 @@ for be in "$@"; do
     echo "OK: ${be} pfsense:failed=yes"
   fi
 done
-echo "summary: ${changes} boot environment(s) still eligible as fallback, mode=${mode}"
+echo "summary: ${changes} boot environment(s) eligible as fallback before this run, mode=${mode}"
