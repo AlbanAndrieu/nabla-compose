@@ -103,7 +103,83 @@ pfsense_ui_render() {
     }
     /^(=== |==> )/ {
       flush();sections++;name=$0;sub(/^=== /,"",name);sub(/^==> /,"",name);sub(/ ===$/,"",name)
+      if(name ~ /^Current Unbound identity [(]not restart cause[)]/) unbound_triage=1
       printf "\n%s🔎 %s%s\n",cyan,name,reset;next
+    }
+    # Distinguish current runtime state from historic events and static capabilities.
+    /^unbound_control=REACHABLE$/ {
+      unbound_control_state="REACHABLE"
+      emit("Unbound control=REACHABLE · DNS query path still requires validation","ok",1)
+      next
+    }
+    /^unbound_control=UNVERIFIED$/ {
+      unbound_control_state="UNVERIFIED"
+      emit("Unbound control=UNVERIFIED · inspect daemon, sockets and DNS service","warn",1)
+      next
+    }
+    /^FAIL: split_dns_forwarder=/ {
+      split_dns_state="DRIFT"
+      emit("P0 current split-DNS drift · "$0,"error",1)
+      next
+    }
+    /^WARN: split_dns_forwarder=/ {
+      split_dns_state="UNVERIFIED"
+      emit($0,"warn",1)
+      next
+    }
+    /^PASS: split_dns_forwarder=/ {
+      split_dns_state="CANDIDATE"
+      emit($0,"ok",1)
+      next
+    }
+    /^watchdog_unbound_membership=/ {
+      if($0 ~ /=LISTED$/) {
+        watchdog_state="LISTED"
+        emit("Service Watchdog: Unbound is LISTED (configured, not restart proof)","ok",1)
+      } else {
+        watchdog_state="OTHER"
+        emit("Watchdog Unbound: "$0" · compare the active Boot Environment posture","warn",1)
+      }
+      next
+    }
+    /^pfblocker_dnsbl_swap_ram_gate=/ {
+      if($0 ~ /=ABSENT$/) {
+        swap_guard_absent=1
+        emit("pfBlockerNG DNSBL: RAM-safe swap guard absent in installed package (static risk, not a cause)","warn",1)
+      } else {
+        emit($0,"ok",0)
+      }
+      next
+    }
+    /^pfblocker_dnsbl_live_reload_marker=/ {
+      if($0 ~ /=ABSENT$/) {
+        live_reload_absent=1
+        emit("pfBlockerNG DNSBL: live reload marker absent (static capability, not evidence of fallback)","warn",1)
+      } else {
+        emit($0,"ok",0)
+      }
+      next
+    }
+    /^WARN: feed_download_signal=asn_ipinfo_retry_signature / {
+      asn_log_families++
+      if(match($0,/count=[0-9]+/)) {
+        count_field=substr($0,RSTART,RLENGTH)
+        sub(/count=/,"",count_field)
+        if(count_field+0>asn_max_window) asn_max_window=count_field+0
+      }
+      emit($0,"warn",0)
+      next
+    }
+    /^(WARN: )?signal_source=pfblockerng event=pfblocker_unbound_(stop|start)_marker / {
+      if($0 ~ /event=pfblocker_unbound_stop_marker/) pfblocker_stop_records++
+      else pfblocker_start_records++
+      emit("🕘 Historical pfBlockerNG action marker · "$0" (not PID/restart causality)", "",0)
+      next
+    }
+    /^signal_source=resolver event=dnsbl_python_exit / {
+      dnsbl_exits++
+      emit($0,"",0)
+      next
     }
     /^sampler_budget=samples=/ {
       sampler_run=1
@@ -187,6 +263,32 @@ pfsense_ui_render() {
         printf "\n%s📊 Memory window · %d %s · available min=%.1f MiB (%s) · max=%.1f MiB (%s) · below 128 MiB=%d · below 64 MiB=%d%s\n",
           cyan,sampler_samples,(sampler_samples==1?"sample":"samples"),sampler_min/1024,sampler_min_ts,sampler_max/1024,sampler_max_ts,
           sampler_below_128,sampler_below_64,reset
+      }
+      if(unbound_triage) {
+        printf "\n%s🚦 Unbound: anomalie vs historique (lecture seule)%s\n",cyan,reset
+        if(split_dns_state=="DRIFT")
+          printf "%s❌ P0 DNS privé : forwarder int.albandrieu.com vers 172.17.0.24 absent ou incorrect. Vérifier via dig et corriger le Domain Override.%s\n",red,reset
+        else if(split_dns_state=="CANDIDATE")
+          printf "%s✅ Transfert DNS privé détecté dans list_forwards ; la réponse A doit encore être vérifiée.%s\n",green,reset
+        else
+          printf "%s⚠️ DNS privé : configuration effective non vérifiée (list_forwards).%s\n",yellow,reset
+        if(unbound_control_state=="REACHABLE")
+          printf "%s✅ Unbound : canal de contrôle joignable ; ne prouve pas la résolution DNS des clients.%s\n",green,reset
+        else
+          printf "%s⚠️ Unbound : canal de contrôle non confirmé.%s\n",yellow,reset
+        if(asn_log_families>0)
+          printf "%s⚠️ P1 pfBlockerNG/IPinfo : tentatives ASN répétées dans %d fenêtres de journaux (maximum %d lignes dans une fenêtre) ; vérifier token/quota/feed, activité ACTUELLE non prouvée.%s\n",yellow,asn_log_families,asn_max_window,reset
+        if(swap_guard_absent || live_reload_absent)
+          printf "%s⚠️ P1 DNSBL : capacités RAM-safe/live-reload manquantes dans le paquet observé ; risque statique, pas la cause prouvée de la panne.%s\n",yellow,reset
+        if(pfblocker_stop_records || pfblocker_start_records)
+          printf "%sℹ️ Historique pfBlockerNG : %d demandes stop, %d demandes start observées ; l'initiateur de la panne Unbound reste NON PROUVÉ.%s\n",dim,pfblocker_stop_records,pfblocker_start_records,reset
+        if(watchdog_state=="LISTED")
+          printf "%s✅ Watchdog : Unbound est déclaré surveillé ; ce n'est ni un restart observé ni un incident en soi.%s\n",green,reset
+        if(oom_unique>0)
+          printf "%s⚠️ %d événement(s) OOM trouvés dans les journaux bornés ; confronter les horodatages à la panne.%s\n",yellow,oom_unique,reset
+        else
+          printf "%sℹ️ Aucun OOM dans les journaux bornés fournis : ne démontre pas l'absence d'OOM historique.%s\n",dim,reset
+        printf "%sℹ️ Cause initiale : NON PROUVÉE sans preuve d'action Unbound/échec DNS au même instant.%s\n",dim,reset
       }
       if(collector_failed || sections==0 || (sampler_run && sampler_expected!=sampler_samples)) {
         printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or missing samples/sections; OOM totals are NOT reliable%s\n",red,reset
