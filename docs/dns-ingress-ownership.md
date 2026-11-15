@@ -393,7 +393,7 @@ La configuration résolue actuelle provient de `default_clone`
 de l'environnement 26.07 vers cet environnement.
 Ne pas déclencher de changement de Boot Environment pendant la
 réparation DNS.
-```
+
 ## 2026-10-17 — Unbound private-zone regression and pfSense posture audit
 
 Workstation SSH alias `home.albandrieu.com` resolves to user `admin`, port `9922`, identity `~/.ssh/id_ed25519`; `scripts/pfsense/audit-posture.sh` now defaults to this alias in SSH mode. Explicit `--ssh`, `--port`, `--api` and `--local` remain supported. The workstation successfully ran the read-only audit.

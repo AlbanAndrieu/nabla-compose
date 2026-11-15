@@ -34,6 +34,12 @@ class PfsenseSplitDnsReconcileTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_live_dns_drift_is_not_reported_as_converged(self) -> None:
+        shell = SPLIT.read_text(encoding="utf-8")
+        self.assertIn("live_status=2", shell)
+        self.assertIn("result=SPLIT_DNS_LIVE_UNVERIFIED", shell)
+        self.assertIn('((live_status == 2))', shell)
+
     def test_native_config_only_and_no_implicit_apply(self) -> None:
         shell = SPLIT.read_text(encoding="utf-8")
         php = PHP.read_text(encoding="utf-8")

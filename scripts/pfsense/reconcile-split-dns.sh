@@ -53,6 +53,7 @@ remote_output="$(ssh "${ssh_opts[@]}" "$target" env "NABLA_SPLIT_DNS_ACTION=$mod
 }
 printf '%s\n' "$remote_output"
 if [[ "$mode" == "check" ]]; then
+  live_status=0
   if command -v dig >/dev/null 2>&1; then
     echo "==> Live DNS check (Pi-hole then pfSense)"
     for dns in 172.17.0.24 172.17.0.1; do
@@ -61,12 +62,20 @@ if [[ "$mode" == "check" ]]; then
         echo "PASS: private_dns_$dns=172.17.0.24"
       else
         echo "DRIFT: private_dns_$dns=UNRESOLVED_OR_WRONG"
+        live_status=2
       fi
     done
+  else
+    echo "WARN: live DNS test unavailable (dig not installed)"
+    live_status=3
   fi
-  if grep -q '^DRIFT:' <<< "$remote_output"; then
+  if grep -q '^DRIFT:' <<< "$remote_output" || ((live_status == 2)); then
     echo "result=SPLIT_DNS_DRIFT"
     exit 2
+  fi
+  if ((live_status == 3)); then
+    echo "result=SPLIT_DNS_LIVE_UNVERIFIED"
+    exit 3
   fi
   echo "result=SPLIT_DNS_CONFIG_CONVERGED"
   exit 0
