@@ -68,3 +68,17 @@ variable "freshrss_site_service_token_id" {
   type        = string
   default     = ""
 }
+
+# Free owns the reverse zone for 82.66.4.247; Cloudflare owns only the forward A.
+# No default opt-in: avoid duplicating an existing dashboard-managed A record.
+variable "home_dns_a_record_id" {
+  description = "Existing home.albandrieu.com/A record ID from the Cloudflare zone inventory; set to adopt without duplicate creation."
+  type        = string
+  default     = ""
+}
+
+variable "home_dns_a_create_approved" {
+  description = "Explicitly allow creating home.albandrieu.com/A only after Cloudflare zone API confirms this name does not already exist."
+  type        = bool
+  default     = false
+}

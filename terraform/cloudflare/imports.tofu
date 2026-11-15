@@ -54,3 +54,11 @@ import {
   to = module.dns_records.cloudflare_dns_record.retired[each.key]
   id = "${var.zone_id}/${each.value}"
 }
+
+# Forward A for Free's PTR: adopt an existing record if found.
+# No import or new record unless one explicit opt-in is set.
+import {
+  for_each = var.home_dns_a_record_id != "" ? { "home.albandrieu.com" = var.home_dns_a_record_id } : {}
+  to       = cloudflare_dns_record.home[each.key]
+  id       = "${var.zone_id}/${each.value}"
+}

@@ -47,10 +47,30 @@ class CloudflareContract(unittest.TestCase):
         } | {"cloudflare_zero_trust_access_policy.freshrss_site"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
         for kind, name in resources:
+            if f"{kind}.{name}" == "cloudflare_dns_record.home":
+                self.assertIn("to       = cloudflare_dns_record.home[each.key]", imports)
+                continue
             if f"{kind}.{name}" in created:
                 self.assertNotIn(f"to = {kind}.{name}\n", imports)
                 continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
+
+    def test_free_ptr_forward_a_requires_safe_import_or_verified_creation(self):
+        dns = (TF / "dns.tofu").read_text(encoding="utf-8")
+        variables = (TF / "variables.tofu").read_text(encoding="utf-8")
+        imports = (TF / "imports.tofu").read_text(encoding="utf-8")
+        self.assertIn('resource "cloudflare_dns_record" "home"', dns)
+        self.assertIn('"home.albandrieu.com" = "82.66.4.247"', dns)
+        self.assertIn('type                    = "A"', dns)
+        self.assertIn("proxied                 = false", dns)
+        self.assertIn("for_each = local.home_dns_a_enabled", dns)
+        self.assertIn('home_dns_a_record_id != "" || var.home_dns_a_create_approved', dns)
+        self.assertIn('default     = ""', variables)
+        self.assertIn("default     = false", variables)
+        self.assertIn('for_each = var.home_dns_a_record_id != ""', imports)
+        self.assertIn("prevent_destroy = true", dns)
+        self.assertIn("local.tunnel_hostnames", dns)
+        self.assertIn("local.workstation_tunnel_hostnames", dns)
 
     def test_postgres_is_not_published(self):
         # Internal-only since 2026-11-10; its CNAME was destroyed on 2026-11-11.
