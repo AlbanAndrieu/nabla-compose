@@ -11,6 +11,8 @@ TARGET_START=1
 TARGET_SPARE=2
 TARGET_REQ=500
 SUPPORTED_RELEASE_PREFIX="26.07-RELEASE"
+# Fallback BE default_clone: its generator equals 26.07's outside the five profile lines.
+FALLBACK_RELEASE_PREFIX="26.03-RELEASE"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -136,29 +138,29 @@ if [ "${MODE}" = "--check" ]; then
     *) fail "unrecognized >1000 MiB generator profile; refuse to infer a safe patch" ;;
   esac
   current_generated=$(generated_state)
-  case "$current_generated" in
-    "$expected") printf 'OK: generated PHP-FPM pool uses the constrained profile\n' ;;
-    "$upstream") printf 'WARN: generated PHP-FPM pool uses the high-memory profile\n' ;;
+  case "${current_generated}" in
+    "${expected}") printf 'OK: generated PHP-FPM pool uses the constrained profile\n' ;;
+    "${upstream}") printf 'WARN: generated PHP-FPM pool uses the high-memory profile\n' ;;
     missing) printf 'WARN: generated PHP-FPM configuration unavailable\n' ;;
     *) printf 'WARN: generated PHP-FPM profile is unexpected; inspect before mutation\n' ;;
   esac
-  if [ "$current_source" != "$current_generated" ]; then
+  if [ "${current_source}" != "${current_generated}" ]; then
     printf 'WARN: generator and active generated profile differ; reconcile before a service restart\n'
   fi
-  if [ "$current_source" = "$expected" ] && [ "$current_generated" = "$expected" ]; then
+  if [ "${current_source}" = "${expected}" ] && [ "${current_generated}" = "${expected}" ]; then
     printf 'php_fpm_profile_contract=CONSTRAINED_MATCH\n'
   else
     printf 'php_fpm_profile_contract=UPSTREAM_OR_DRIFT\n'
   fi
   workers=$(worker_count)
-  case "$workers" in
+  case "${workers}" in
     ''|*[!0-9]*) printf 'WARN: nginx PHP-FPM worker count unavailable\n'
                     printf 'php_fpm_worker_contract=UNKNOWN\n' ;;
     0) printf 'WARN: no nginx PHP-FPM workers observed; process state not confirmed\n'
        printf 'php_fpm_worker_contract=NO_WORKERS\n' ;;
-    *) printf 'php_fpm_nginx_pool_workers=%s\n' "$workers"
-       if [ "$workers" -gt "$TARGET_MAX" ]; then
-         printf 'WARN: running nginx PHP-FPM workers exceed constrained target max=%s\n' "$TARGET_MAX"
+    *) printf 'php_fpm_nginx_pool_workers=%s\n' "${workers}"
+       if [ "${workers}" -gt "${TARGET_MAX}" ]; then
+         printf 'WARN: running nginx PHP-FPM workers exceed constrained target max=%s\n' "${TARGET_MAX}"
          printf 'php_fpm_worker_contract=EXCEEDS_TARGET\n'
        else
          printf 'php_fpm_worker_contract=WITHIN_TARGET\n'
@@ -170,9 +172,9 @@ fi
 
 [ "$(id -u)" -eq 0 ] || fail "--apply/--restore must run as root"
 case "${release}" in
-  "${SUPPORTED_RELEASE_PREFIX}"*) ;;
+  "${SUPPORTED_RELEASE_PREFIX}"* | "${FALLBACK_RELEASE_PREFIX}"*) ;;
   unknown) fail "cannot verify pfSense release before mutation" ;;
-  *) fail "unsupported pfSense release ${release}; reviewed target is ${SUPPORTED_RELEASE_PREFIX}" ;;
+  *) fail "unsupported pfSense release ${release}; reviewed targets are ${SUPPORTED_RELEASE_PREFIX} and ${FALLBACK_RELEASE_PREFIX}" ;;
 esac
 
 if [ "${MODE}" = "--restore" ]; then

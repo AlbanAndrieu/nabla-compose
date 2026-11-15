@@ -16,6 +16,7 @@ class PfSensePhpFpmHardeningContractTests(unittest.TestCase):
         text = SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn('SUPPORTED_RELEASE_PREFIX="26.07-RELEASE"', text)
+        self.assertIn('FALLBACK_RELEASE_PREFIX="26.03-RELEASE"', text)
         self.assertIn('upstream="8/3600/2/7/5000"', text)
         self.assertIn('expected="${TARGET_MAX}/${TARGET_IDLE}/${TARGET_START}/${TARGET_SPARE}/${TARGET_REQ}"', text)
         self.assertIn('TARGET_MAX=4', text)

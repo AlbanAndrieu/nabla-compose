@@ -73,8 +73,10 @@ fail-closed and supports three modes:
 --restore  restore the saved generator and regenerate/restart
 ```
 
-The mutation path is intentionally restricted to `26.07-RELEASE` and to the
-reviewed upstream source profile `8/3600/2/7/5000`. It performs exactly five
+The mutation path is intentionally restricted to `26.07-RELEASE`, plus
+`26.03-RELEASE` for the `default_clone` fallback boot environment (its
+`/etc/rc.php_ini_setup` matches 26.07 except for the five profile lines,
+checked on 2026-11-15), and to the reviewed upstream source profile `8/3600/2/7/5000`. It performs exactly five
 assignment substitutions inside the `REALMEM > 1000` branch. Any unexpected
 source shape aborts the change.
 
