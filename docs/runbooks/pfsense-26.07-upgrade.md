@@ -8,11 +8,20 @@ partition EFI et environnements montés en lecture seule).
 
 | Environnement | Version | Taille | État | Ce qu'il porte d'unique | Décision |
 | --- | --- | --- | --- | --- | --- |
-| `default_clone` | 26.03-RELEASE (mai) | 1,68 Go | **N R**, démarre | config de mai + correctifs du 13/11 | garder : seul repli fiable |
-| `default_20260824183037_20260926190038` | 26.03.1 | 1,40 Go | échoue après `rc.bootup` depuis le 13/11 20:38 | rien (config du 13/11 20:15, réappliquée) ; origine ZFS des trois autres | supprimer en dernier, après un 26.07 stable |
-| `default_20260824183037` | 26.07 (octobre) | 1,11 Go | ne monte plus sa racine, aucun log | **seule copie** de la config du 13/11 07:30 (certificats ACME du 26/10, HAProxy, REST API) | exporter `config.xml`, un essai console série, puis supprimer |
-| `default` | 26.07 (août) | 1,21 Go | `pfsense:failed=yes` depuis le 27/08 | rien | supprimer avant l'upgrade |
-| `default_20260604025536` | 26.03 (juin) | 0,5 Mo | protégé (`pfsense:protect`) | rien | sans enjeu, à supprimer avec le reste |
+| `default_clone_20261115_stable` | 26.03-RELEASE | 1,68 Go | **N R** depuis le 15/11 19:48, boot en 47 s | config du 15/11 18:16 + 9 baux DHCP restaurés à 19:55 | garder : config en service |
+| `default_clone` | 26.03-RELEASE (mai) | 513 Mo | boots ratés du 15/11 19:09 et 19:26 (générateur PHP-FPM en 600, réparé à 19:46), pas réessayé | config du 15/11 18:43 : pfBlockerNG IP seul, certificats ACME `vault` et `wildcard` retirés | supprimer après une semaine stable |
+| `default` | 26.03 (juin, ex-`default_20260604025536`) | 1,67 Go | démarre en 58 s ; **cible du repli** | config du 4 juin : GUI 10443 exposée, Unbound sur WAN, syslog `.57` | ne jamais l'activer ; voir le repli ci-dessous |
+| `default_20260824183037` | 26.07 (octobre) | 1,11 Go | générateur réparé le 15/11 19:46 ; boot non retesté | **seule copie** de la config du 13/11 07:30 (certificats ACME du 26/10, HAProxy, REST API) | prochain essai de boot vers 26.07 |
+| `default_20260824183037_20260926190038` | 26.03.1 | 987 Mo | échoue après `rc.bootup` depuis le 13/11 20:38 ; générateur intact | rien (config du 13/11 20:15, réappliquée) | supprimer en dernier, après un 26.07 stable |
+
+L'ancien `default` (26.07 d'août, `pfsense:failed=yes` depuis le 27/08) a été
+supprimé par l'opérateur le 15/11 à 18:37 ; `default_20260604025536` a alors
+été renommé `default`.
+
+**Repli** : `_be_recent_name` (`/etc/rc.be_functions.sh`) prend le premier
+environnement de `bectl list -C creation`, donc **le plus ancien** non actif et
+non marqué `pfsense:failed`. Aujourd'hui c'est `default` (juin) : un boot raté
+de la config en service retombe sur la config de juin, comme le 15/11 à 19:17.
 
 N = en service, R = au prochain boot. Pool `pfSense` : 7 Go, 81 % utilisé,
 réservation de 694 Mo, **397 Mo disponibles** : trop peu pour un upgrade
@@ -92,6 +101,23 @@ reporter à la main : ils reviennent avec la restauration de la config
 d'octobre après l'upgrade (étape 5 du déroulé).
 
 ## Pourquoi 26.07 n'est jamais resté
+
+**Cause trouvée le 15/11** : `harden-pfsense-php-fpm.sh` recopiait son fichier
+`mktemp` (mode 600) sur `/etc/rc.php_ini_setup` avec `cp -p`. `pfSense-rc`
+(ligne 748) exécute ce générateur directement : sans bit d'exécution, le boot
+cale 4 à 6 min après « Default gateway » (PHP-FPM mal configuré, file
+`check_reload_status` bloquée), puis échoue et bascule. Touchés :
+`default_20260824183037` (profil appliqué le 24/10, reboot raté le 13/11
+14:27), `default_clone` et son point de reprise (profil appliqué le 15/11 à
+17:46). Corrigé dans le script (réécriture en place, contrôle `-x`) et dans
+les environnements inactifs :
+
+```bash
+ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check default_clone default_20260824183037 < scripts/pfsense/repair-be-php-generator-mode.sh
+```
+
+Avant tout reboot : `harden-pfsense-php-fpm.sh --check` ne doit pas afficher
+`GENERATOR_NOT_EXECUTABLE`. Historique antérieur :
 
 - **Août** (`default`) : la vérification de boot a échoué ; journaux tournés,
   cause perdue.
@@ -199,18 +225,16 @@ télécharge pfSense Plus depuis les serveurs Netgate.
   Il n'a pas besoin de pfSense. Câble WAN du 1100 sur la Freebox en bridge :
   le bail DHCP donne l'IP publique. Sinon, partage de connexion de la
   workstation ou d'un téléphone vers le port WAN.
-- **Image vraiment hors ligne** : uniquement par un ticket TAC Netgate,
-  catégorie *Firmware Access*, plateforme *Netgate 1100*. Le ticket demande
-  le compte Netgate de l'opérateur. Écrire ensuite l'image reçue sur la clé
-  (cela efface la clé) :
+- **Image hors ligne** : le ticket TAC *Firmware Access* de l'opérateur a
+  fourni cet installeur en ligne, déjà sur la clé. Il n'existe donc pas
+  d'image hors ligne pour le 1100 : la réinstallation passe par le WAN branché
+  sur la Freebox, qui donne Internet sans pfSense.
+- **Rafraîchir l'installeur** : télécharger `netgate-installer-aarch64.img.gz`
+  depuis le compte Netgate Store, puis l'écrire (cela efface la clé) :
 
   ```bash
-  gunzip -c <image>.img.gz | sudo dd of=/dev/<clé> bs=4M conv=fsync status=progress
+  gunzip -c netgate-installer-aarch64.img.gz | sudo dd of=/dev/<clé> bs=4M conv=fsync status=progress
   ```
-
-- **Rafraîchir l'installeur en ligne** : télécharger
-  `netgate-installer-aarch64.img.gz` depuis le compte Netgate Store, puis
-  l'écrire de la même façon.
 - **Démarrage sur la clé** : console série 115200, appuyer sur une touche pour
   arrêter l'autoboot U-Boot, puis `run usbboot`. En cas d'échec, `usb reset`
   puis `run usbboot`. En dernier recours, `run usbrecovery`, qui efface

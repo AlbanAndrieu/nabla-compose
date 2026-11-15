@@ -61,6 +61,19 @@ class PfSenseConfigDriftTests(unittest.TestCase):
         self.assertNotIn("othersecret", out)
         self.assertIn("result=CONFIG_DRIFT", out)
 
+    def test_added_dhcp_map_hides_mac_and_empty_fields(self) -> None:
+        current = BASE.replace(
+            "</pfsense>",
+            "<dhcpd><lan><staticmap><mac>02:00:00:00:10:01</mac><ipaddr>172.17.0.50</ipaddr>"
+            "<hostname>taloscp01</hostname><tftp></tftp></staticmap></lan></dhcpd></pfsense>",
+        )
+        rc, out = run(BASE, current)
+        self.assertEqual(rc, 2, out)
+        self.assertIn("ipaddr: '172.17.0.50'", out)
+        self.assertIn("mac: 'redacted:", out)
+        self.assertNotIn("02:00:00:00:10:01", out)
+        self.assertNotIn("tftp", out)
+
     def test_rejects_non_pfsense_input(self) -> None:
         rc, _ = run("<other/>", BASE)
         self.assertEqual(rc, 1)

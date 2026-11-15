@@ -22,7 +22,8 @@ from pathlib import Path
 
 IDENTITY_FIELDS = ("tracker", "refid", "uuid", "vpnid", "name", "descr")
 SECRET_TAG = re.compile(
-    r"pass|secret|token|key|psk|prv|crt|cert|hash|community|tls|auth|cookie|salt|seed|otp|license|private",
+    r"pass|secret|token|key|psk|prv|crt|cert|hash|community|tls|auth|cookie|salt|seed|otp|license|private"
+    r"|^(mac|spoofmac)$",
     re.IGNORECASE,
 )
 OPAQUE_VALUE = re.compile(r"^[A-Za-z0-9+/=\s]{64,}$")
@@ -102,7 +103,8 @@ def compare(base: dict[str, str], cur: dict[str, str]) -> list[tuple[str, str, s
     changes = []
     for path in sorted(base.keys() | cur.keys()):
         old, new = base.get(path), cur.get(path)
-        if old == new:
+        # An added or removed empty field (a new DHCP map has ~30) carries no information.
+        if old == new or (old or "") == (new or "") == "":
             continue
         kind = "+" if old is None else "-" if new is None else "~"
         changes.append((kind, path, old or "", new or ""))
