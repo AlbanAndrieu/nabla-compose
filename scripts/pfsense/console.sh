@@ -17,18 +17,18 @@ pfsense_ui_banner() {
   pfsense_ui_active || return 0
   local on='' off=''
   if pfsense_ui_color; then on=$'\033[1;36m'; off=$'\033[0m'; fi
-  printf '%s🛡️ pfSense · %s%s\n' "$on" "$*" "$off"
+  printf '%s🛡️ pfSense · %s%s\n' "${on}" "$*" "${off}"
 }
 pfsense_ui_render() {
   if ! pfsense_ui_active; then cat; return; fi
   local mode="${PFSENSE_OUTPUT:-auto}" c='' g='' y='' r='' z='' d=''
-  [[ "$mode" != auto ]] || mode=compact
+  [[ "${mode}" != auto ]] || mode=compact
   if pfsense_ui_color; then
     c=$'\033[1;36m'; g=$'\033[32m'; y=$'\033[33m'
     r=$'\033[31m'; d=$'\033[2m'; z=$'\033[0m'
   fi
-  LC_ALL=C awk -v mode="$mode" -v cyan="$c" -v green="$g" -v yellow="$y" \
-    -v red="$r" -v dim="$d" -v reset="$z" '
+  LC_ALL=C awk -v mode="${mode}" -v cyan="${c}" -v green="${g}" -v yellow="${y}" \
+    -v red="${r}" -v dim="${d}" -v reset="${z}" '
     function flush( i, bucket) {
       # Collapse historical OOM kills by minute in compact mode.
       if(mode=="compact") {
@@ -281,14 +281,14 @@ pfsense_ui_render() {
         if(swap_guard_absent || live_reload_absent)
           printf "%s⚠️ P1 DNSBL : capacités RAM-safe/live-reload manquantes dans le paquet observé ; risque statique, pas la cause prouvée de la panne.%s\n",yellow,reset
         if(pfblocker_stop_records || pfblocker_start_records)
-          printf "%sℹ️ Historique pfBlockerNG : %d demandes stop, %d demandes start observées ; l'initiateur de la panne Unbound reste NON PROUVÉ.%s\n",dim,pfblocker_stop_records,pfblocker_start_records,reset
+          printf "%sℹ️ Historique pfBlockerNG : %d demandes stop, %d demandes start observées ; l\047initiateur de la panne Unbound reste NON PROUVÉ.%s\n",dim,pfblocker_stop_records,pfblocker_start_records,reset
         if(watchdog_state=="LISTED")
-          printf "%s✅ Watchdog : Unbound est déclaré surveillé ; ce n'est ni un restart observé ni un incident en soi.%s\n",green,reset
+          printf "%s✅ Watchdog : Unbound est déclaré surveillé ; ce n\047est ni un restart observé ni un incident en soi.%s\n",green,reset
         if(oom_unique>0)
           printf "%s⚠️ %d événement(s) OOM trouvés dans les journaux bornés ; confronter les horodatages à la panne.%s\n",yellow,oom_unique,reset
         else
-          printf "%sℹ️ Aucun OOM dans les journaux bornés fournis : ne démontre pas l'absence d'OOM historique.%s\n",dim,reset
-        printf "%sℹ️ Cause initiale : NON PROUVÉE sans preuve d'action Unbound/échec DNS au même instant.%s\n",dim,reset
+          printf "%sℹ️ Aucun OOM dans les journaux bornés fournis : ne démontre pas l\047absence d\047OOM historique.%s\n",dim,reset
+        printf "%sℹ️ Cause initiale : NON PROUVÉE sans preuve d\047action Unbound/échec DNS au même instant.%s\n",dim,reset
       }
       if(collector_failed || sections==0 || (sampler_run && sampler_expected!=sampler_samples)) {
         printf "\n%s❌ EVIDENCE INCOMPLETE · collector failed or missing samples/sections; OOM totals are NOT reliable%s\n",red,reset
