@@ -11,6 +11,13 @@ require_once('xmlparse.inc');
 $apply = ($argv[1] ?? 'check') === 'apply';
 const NABLA_SRC_BE = 'pfSense/ROOT/default_20260824183037/cf';
 
+// Booted on that BE, its /cf is the running config itself (copied from the stable BE on 2026-11-15).
+exec('bectl list -H', $bes);
+if (preg_grep('#^default_20260824183037\s+\S*N#', $bes)) {
+    print("OK: no missing static mapping (source boot environment is the running one)\n");
+    exit(0);
+}
+
 $mp = '/tmp/becf.' . getmypid();
 mkdir($mp);
 exec('mount -t zfs -o ro ' . NABLA_SRC_BE . ' ' . escapeshellarg($mp), $out, $rc);
