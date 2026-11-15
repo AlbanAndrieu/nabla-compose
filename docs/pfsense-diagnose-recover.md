@@ -453,7 +453,47 @@ la zone interne. `just pfsense-split-dns-check` et
 et les preuves du Boot Environment ; voir
 [contrat de réparation et de portée](dns-ingress-ownership.md).
 
-## Normal read-only check## Normal read-only check
+## Normal read-only check### Lecture simplifiée des anomalies Unbound (15/11/2026)
+
+Le script existant `scripts/pfsense/diagnose-unbound-restart-cause.sh`
+classe désormais les anomalies **par état réel et gravité**.
+Le renderer partagé `scripts/pfsense/console.sh` conserve les données
+brutes inchangées pour la CI et le parsing ; le rendu lisible (compact
+ou verbose) ajoute des couleurs, des icônes et une synthèse finale.
+
+```bash
+# Diagnostic court + synthèse P0/P1. Couleur forcée pour un terminal distant
+PFSENSE_OUTPUT=compact bash scripts/pfsense/diagnose-unbound-restart-cause.sh \
+  --check --color always
+
+# Tous les événements horodatés et la synthèse
+PFSENSE_OUTPUT=verbose bash scripts/pfsense/diagnose-unbound-restart-cause.sh \
+  --check --color always
+
+# Sortie machine sans couleurs ni annotations
+PFSENSE_OUTPUT=raw bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+```
+
+`--color auto|always|never` règle la couleur sans altérer le collecte
+read-only ; `NO_COLOR=1` reste prioritaire. La classification indique :
+
+| Catégorie | Signification et prudence |
+| --- | --- |
+| ❌ P0 **split-DNS absent** | `unbound-control list_forwards` ne contient pas le transfert attendu ; confirmer la résolution A depuis la workstation, puis utiliser le correcteur split-DNS |
+| ✅ **Unbound control joignable** | Le daemon répond au canal de contrôle ; **ne prouve pas** la résolution DNS côté clients |
+| ⚠️ P1 **ASN/IPinfo retries** | Compteurs historiques, parfois présents dans plusieurs fenêtres de logs ; un maximum par fenêtre, **pas** un cumul ni une fréquence actuelle |
+| ⚠️ P1 **DNSBL RAM-safe/live reload absent** | Capacités du paquet installé uniquement ; le chemin utilisé à l'exécution demeure inconnu |
+| 🕘 **pfBlockerNG stop/start** | Anciennes demandes journalisées ; **pas** une attribution automatique de la panne à pfBlockerNG |
+| ✅ **Watchdog = LISTED** | État de configuration attendu dans la posture actuellement déclarée ; n'implique aucun redémarrage effectif |
+| ℹ️ **OOM absent dans la fenêtre** | Ne signifie pas qu'aucun OOM n'a eu lieu avant ou hors de la rétention |
+
+Les signaux du 15/11 observés comprennent des demandes stop/start
+pfBlockerNG vers 15:11–15:13, des erreurs répétées IPinfo, et aucun
+nouvel OOM identifié dans la fenêtre bornée ; la responsabilité exacte
+de la panne DNS reste `ROOT_CAUSE_NOT_PROVEN`. Ne pas requalifier des
+signatures DNSBL en OOM, ni l'absence de log en preuve de santé.
+
+## Normal read-only check
 
 From the workstation:
 

@@ -59,6 +59,15 @@ Pi-hole et Unbound, récursion publique OK, pas de reboot involontaire,
 inventaire des dérives Boot Environment/Snort/pfBlockerNG/CrowdSec.
 [Architecture DNS](dns-ingress-ownership.md).
 
+**P0 observabilité Unbound — 15/11** : enrichir
+`diagnose-unbound-restart-cause.sh` et le renderer partagé
+`console.sh` avec triage coloré P0/P1, statut actuel Unbound,
+détection du forwarder DNS privé, alertes ASN/IPinfo et DNSBL,
+et distinction entre les anciens marqueurs stop/start et une
+cause démontrée. Préserver la sortie brute CI et la neutralité
+`ROOT_CAUSE_NOT_PROVEN`.
+[Runbook de récupération](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 
