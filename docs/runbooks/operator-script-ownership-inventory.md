@@ -40,6 +40,19 @@ achevée ou une parité des scripts dans le gitlink OpenClaw.
 La validation locale du parseur ne vaut ni mesure d'exécution systemd,
 ni migration d'un consommateur.
 
+### D1 — durcissement du gate systemd (15/11/2026)
+
+Le contrôle Compose `check-openclaw-runtime-alignment.py` et sa version
+source de vérité `nabla-openclaw` refusent désormais les ports ambigus
+dans `ExecStart` : `gateway --port 187890`, suffixe accolé et
+plusieurs occurrences de `--port`. Il s'agit d'un correctif du
+**contrat de diagnostic** : une correspondance par sous-chaîne pouvait
+produire un faux `PASS`. Les tests hermétiques n'exécutent ni systemd
+ni le Gateway. Un port correct ne démontre pas un bind loopback ou
+une isolation WAN ; vérifier séparément l'adresse d'écoute effective.
+Conserver les deux chemins compatibles tant que l'unité réellement
+installée et le recovery ne sont pas réceptionnés.
+
 ### D0 — consommateurs statiques identifiés (index GitHub, 15/11/2026)
 
 Ce relevé se limite aux références indexées de `nabla-compose` ; il
