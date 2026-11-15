@@ -71,6 +71,18 @@ class RuntimeContracts(unittest.TestCase):
                 return 0,unit
             checks=runtime.classify('24.22.1','2026.10.7',home,fake)
             self.assertEqual(checks,{'node_binary':'match','openclaw_package':'match','systemd_exec':'match'})
+            for invalid_gateway_port in (
+                "gateway --port 187890", "gateway --port 18789bad",
+                "gateway --port 18789 --port 18790",
+            ):
+                def incorrect_port(argv):
+                    if argv[0] == "systemctl":
+                        return 0, unit.replace("gateway --port 18789", invalid_gateway_port)
+                    return fake(argv)
+                with self.subTest(port=invalid_gateway_port):
+                    checks = runtime.classify('24.22.1', '2026.10.7', home, incorrect_port)
+                    self.assertEqual(checks["systemd_exec"], 'mismatch_or_unavailable')
+
             mismatched=runtime.classify('24.22.1','2026.10.7',home,lambda c:(0,unit.replace('24.22.1','24.18.1')))
             self.assertEqual(mismatched['systemd_exec'],'mismatch_or_unavailable')
             manifest.chmod(0o666)
