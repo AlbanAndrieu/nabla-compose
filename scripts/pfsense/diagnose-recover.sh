@@ -6,8 +6,8 @@ IDENTITY_HELPER="${SCRIPT_DIR}/manage-api-identities.php"
 POSTURE_HELPER="${SCRIPT_DIR}/manage-posture.php"
 
 MODE="check"
-SSH_TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-SSH_PORT="${PFSENSE_SSH_PORT:-}"
+SSH_TARGET="${PFSENSE_SSH_TARGET:-admin@172.17.0.1}"
+SSH_PORT="${PFSENSE_SSH_PORT:-9922}"
 API_URL="${PFSENSE_API_URL:-https://home.albandrieu.com:10443}"
 LAN_API_URL="${PFSENSE_LAN_API_URL:-https://172.17.0.1:10443}"
 FASTAPI_URL="${FASTAPI_SAMPLE_URL:-https://fastapi-sample.fastapicloud.dev}"
@@ -55,8 +55,8 @@ usage() {
 Usage: scripts/pfsense/diagnose-recover.sh [options]
 
 Canonical pfSense diagnosis/recovery helper for nabla-compose. Run it from the
-workstation. Read-only HTTPS/API evidence is collected even when pfSense SSH is
-unreachable; SSH is required only for deep appliance diagnostics and --apply.
+workstation. HTTPS and SSH health are independent: --check still collects SSH
+evidence when both HTTPS vantage points fail. SSH is required for --apply.
 
 Options:
   --check                   Read-only diagnosis (default).
@@ -80,8 +80,8 @@ Options:
   --apply-posture           Reconcile that posture, regenerate Snort/CrowdSec runtime
                             and stop a looping CrowdSec engine supervisor. Refuses to
                             run during a package install; never writes the bouncer key.
-  --target USER@HOST        SSH target/alias (default: home.albandrieu.com).
-  --port PORT               Optional SSH port; otherwise SSH config/default applies.
+  --target USER@HOST        SSH target/alias (default: admin@172.17.0.1).
+  --port PORT               SSH port (default: 9922, overrides SSH config).
   --api-url URL             Hostname/public HTTPS URL.
   --lan-api-url URL         Direct LAN HTTPS URL used as a second vantage point.
   --probe-sources "IP ..."  Exact source IPs to attribute/unblock.
@@ -99,8 +99,8 @@ Environment:
                             caller; it is never sent through SSH or printed.
   PFSENSE_SECURITY_API_KEY  Optional diagnostics-table GET-only API key with the
                             same secret-handling contract.
-  PFSENSE_SSH_TARGET        Default SSH target override.
-  PFSENSE_SSH_PORT          Optional SSH port override.
+  PFSENSE_SSH_TARGET        SSH target override (default admin@172.17.0.1).
+  PFSENSE_SSH_PORT          SSH port override (default 9922).
   FASTAPI_SAMPLE_URL        FastAPI Sample base URL for egress discovery.
   PFSENSE_POSTURE_PASSWORD_FILE
                             One-line password file used only when --apply-identities
@@ -336,7 +336,7 @@ identity_ssh_preflight() {
   printf 'pfSense identity SSH path: user=%s host=%s port=%s\n'     "${user:-unknown}" "${hostname:-unknown}" "${port:-unknown}"
 
   if [[ "${user:-}" != "admin" || "${port:-}" != "9922" ]]; then
-    fail "pfSense identity lifecycle must use the workstation management SSH contract admin@home.albandrieu.com:9922; current SSH resolution is ${user:-unknown}@${hostname:-unknown}:${port:-unknown}. Run from the workstation, or pass --target admin@home.albandrieu.com --port 9922 only from a host that already has the required SSH credential."
+    fail "pfSense identity lifecycle must use the workstation management SSH contract admin@172.17.0.1:9922; current SSH resolution is ${user:-unknown}@${hostname:-unknown}:${port:-unknown}. Run from the authorized workstation; override --target/--port only when needed."
   fi
 }
 
@@ -682,9 +682,12 @@ if [[ "${VERBOSE}" != true ]]; then
   fi
 fi
 
-if [[ "${MODE}" == "check" && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
-  warn "both pfSense HTTPS vantage points are unreachable; skipping SSH deep diagnostics to avoid adding load during a possible appliance/network incident"
-  fail "pfSense HTTPS is unreachable from both hostname and LAN vantage points; recover basic management reachability before deep diagnostics"
+if [[ "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false ]]; then
+  if [[ "${API_ONLY}" == true ]]; then
+    warn "both pfSense HTTPS vantage points are unreachable; API-only mode has no SSH fallback"
+  else
+    warn "both pfSense HTTPS vantage points are unreachable; continuing read-only diagnosis via direct LAN SSH ${SSH_TARGET}:${SSH_PORT:-ssh-config}"
+  fi
 fi
 
 if [[ "${API_ONLY}" == true ]]; then
@@ -1234,7 +1237,7 @@ if ((ssh_status != 0)); then
     fail "SSH diagnostics/recovery failed with status ${ssh_status}; no successful apply can be claimed"
   fi
   warn "SSH unavailable (status ${ssh_status}); HTTPS/API evidence above remains valid, but deep appliance diagnostics were not collected"
-  log "WARN: SSH unavailable; use --port/SSH config if pfSense SSH is not on port 22, or --api-only when SSH is intentionally filtered"
+  log "WARN: SSH unavailable; default LAN target admin@172.17.0.1:9922 could not be reached; override --target/--port or use --api-only"
 else
   log "OK: SSH appliance diagnostics completed"
   if [[ "${VERBOSE}" != true ]]; then
@@ -1251,7 +1254,12 @@ else
 fi
 
 if ((api_failures > 0)); then
-  fail "diagnosis completed with ${api_failures} failed HTTPS/API probe(s)"
+  if [[ "${MODE}" == "check" && ${ssh_status} -eq 0 && "${ui_hostname_ok}" == false && "${ui_lan_ok}" == false && "${auth_lockout_risk}" == false ]]; then
+    log "WARN: ${api_failures} HTTPS/API probe(s) failed; SSH evidence collected; HTTPS management is degraded"
+    log "OK: SSH diagnosis completed (partial: HTTPS/API unavailable)"
+    exit 0
+  fi
+  fail "diagnosis ended with ${api_failures} failed pre-recovery HTTPS/API probe(s); SSH status=${ssh_status}. If --apply ran, verify HTTPS again."
 fi
 
 log "OK: pfSense HTTPS/API diagnosis completed"

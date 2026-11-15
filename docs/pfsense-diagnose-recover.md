@@ -4,6 +4,186 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
+
+## Incident WAN Freebox bridge — 15 novembre 2026
+
+**Statut : diagnostic ouvert, retour d'Internet non prouvé.** L'opérateur
+confirme la Freebox fibre en bridge, l'adresse publique Free
+`82.66.4.247` et le préfixe IPv6 `2a01:e0a:a17:3c00::/64`.
+L'adresse privée `10.52.47.193` affichée ailleurs dans Freebox OS
+n'est pas l'adresse WAN publique. L'ADSL indiqué DOWN ne suffit pas
+à diagnostiquer une panne de la fibre.
+
+| Élément | Observation utilisateur |
+| --- | --- |
+| WAN | `mvneta0.4090` / VLAN 4090, `82.66.4.247/24` |
+| Route IPv4 | `default -> 82.66.4.254` présente |
+| ARP gateway | `82.66.4.254 -> 8c:97:ea:39:b3:7b` (correspondance en cache possible) |
+| Ping depuis WAN | 3/3 pertes vers `82.66.4.254` et `1.1.1.1` |
+| TCP IPv4 | `nc -4 -vz -w 5 1.1.1.1 443` : `Permission denied` |
+| Route IPv6 | `default -> fe80::8e97:eaff:fe39:b37b%mvneta0.4090` |
+| Source IPv6 WAN | `fe80::f2ad:4eff:fe23:2f99` (link-local uniquement) |
+| IPv6 Internet | Ping `2606:4700:4700::1111` : 100 % de pertes |
+
+### Modification opérateur — WAN « Disable Gateway Monitoring »
+
+L'opérateur a **activé `Disable Gateway Monitoring`** pour la
+passerelle WAN IPv4. Cette action désactive `dpinger` et la télémétrie
+de disponibilité ; **elle ne restaure pas le transport IP**.
+La documentation Netgate distingue
+[`Disable Gateway Monitoring Action`](https://docs.netgate.com/pfsense/en/latest/routing/gateway-configure.html),
+qui maintient les mesures tout en supprimant les actions automatiques
+lors des changements de statut. Après résolution, évaluer cette seconde
+option sur le WAN unique avec une cible Monitor IP réellement joignable.
+Ne pas considérer la passerelle comme vérifiée UP si elle n'est plus surveillée.
+
+### Plan de reprise IPv4 (lecture seule avant toute mutation)
+
+1. Confirmer `ifconfig mvneta0.4090`, `netstat -rn -f inet`,
+   `route -n get 1.1.1.1`, `arp -an`. Ne pas changer
+   l'IPv4 publique, le masque, la gateway ou le VLAN sans preuve.
+2. Tester avec `Diagnostics > Ping` (source WAN, IPv4)
+   `1.1.1.1`, puis un test TCP vers `1.1.1.1:443`.
+   La réponse `Permission denied` justifie la recherche d'un
+   **blocage PF local** ; elle ne prouve pas un défaut Free.
+3. Lire `Status > System Logs > Firewall` et les règles PF
+   (`pfctl -sr`, sans modification). Capturer via
+   `Diagnostics > Packet Capture` sur l'interface WAN
+   **`mvneta0.4090`**, filtre `arp or icmp or host 1.1.1.1`,
+   pendant un ping depuis pfSense : aucun paquet sortant => piste
+   locale ; sortie sans réponse => piste amont / filtrage retour ;
+   réponse visible => examiner le traitement pfSense.
+4. Refaire les tests depuis un client du LAN `172.17.0.0/24`
+   sans VPN/données mobiles. Si pfSense réussit mais pas les clients,
+   vérifier les règles LAN et le SNAT dans
+   `Firewall > NAT > Outbound`. Tester l'accès numérique avant
+   toute modification Unbound ou Cloudflare.
+
+**DONE IPv4** : transport TCP/HTTPS IPv4 confirmé depuis pfSense
+et client LAN, route et SNAT cohérents, tests datés et tracés.
+Le DNS direct et le reverse PTR Free sont des sujets distincts.
+
+### Plan IPv6 — objectif de la roadmap
+
+- Vérifier dans Freebox OS les routes /64 IPv6 et le **next hop**
+  vers pfSense. Le WAN peut légitimement n'avoir qu'une link-local
+  `fe80::` si Free route un préfixe LAN vers lui.
+- Vérifier si `2a01:e0a:a17:3c00::/64` est **réellement routé**
+  vers le LAN pfSense ; ne pas attribuer le même /64 à plusieurs
+  interfaces. Contrôles read-only :
+  `netstat -rn -f inet6`, `ifconfig mvneta0.4091`,
+  `ndp -an`, puis
+  `ping6 -c 3 'fe80::8e97:eaff:fe39:b37b%mvneta0.4090'`.
+- Après adressage LAN, vérifier RA/SLAAC (mode Assisted relevé,
+  compatible Android), règles IPv6 LAN/WAN sans ouverture entrante
+  supplémentaire, connectivité IPv6 littérale
+  `2606:4700:4700::1111` depuis un client LAN, puis DNS AAAA.
+  Préserver `Unbound > Outgoing Network Interfaces = All`
+  pour le Domain Override privé [déjà documenté](dns-ingress-ownership.md).
+
+**DONE IPv6** : /64 global LAN, client SLAAC opérationnel,
+route IPv6 Internet, tests AAAA et sécurité ingress vérifiés
+depuis le LAN après redémarrage.
+
+
+### Mise à jour opérateur — connectivité TCP IPv4 confirmée (15/11/2026)
+
+Après les premières investigations PF/IPS, deux tests exécutés dans le
+contexte de diagnostic pfSense ont désormais réussi :
+- `nc -4 -vz -w 5 1.1.1.1 443` — **TCP CONNECT OK** ;
+- `nc -4 -vz -w 5 9.9.9.9 443` — **TCP CONNECT OK**.
+
+**Statut : `PF_IPv4_TCP_EGRESS_PASS`, mais `LAN_E2E_NOT_VERIFIED`.**
+Cette observation démontre l'accès TCP sortant depuis pfSense à deux
+destinations Internet. Elle **ne prouve pas** que la route LAN/NAT,
+la résolution DNS/Unbound, ICMP ou IPv6 fonctionnent. Le changement
+précis ayant permis ce rétablissement n'a pas été communiqué :
+ne pas attribuer causalement la réparation à CrowdSec, Snort,
+pfBlockerNG ou à `Disable Gateway Monitoring` sans preuve.
+
+Recette suivante : effectuer `curl -4 -I --connect-timeout 5
+https://www.cloudflare.com` depuis un client LAN, tester
+`Diagnostics > DNS Lookup` sur pfSense et
+`dig @172.17.0.1 www.cloudflare.com A` depuis le LAN ;
+réactiver *une par une* les protections temporairement arrêtées, en
+répétant `nc` et en relevant tout retour de `Permission denied`.
+Restaurer le niveau de protection initial après attribution de la
+cause ; ne jamais désactiver globalement PF. Poursuivre séparément
+le rétablissement IPv6 du LAN.
+
+
+### Évolution de l'incident — connectivité workstation toujours absente (15/11/2026)
+
+L'opérateur précise avoir **arrêté les trois protections simultanément**
+(CrowdSec, Snort, pfBlockerNG). Les connexions TCP depuis pfSense vers
+`1.1.1.1:443` et `9.9.9.9:443` ont réussi **après** ces arrêts,
+sans que cette chronologie permette d'attribuer la cause à l'une
+des trois. Entre-temps, le WebConfigurator pfSense est décrit comme
+**extrêmement lent / difficile d'accès**, tandis que la workstation
+signale **aucune connexion Internet** et que `ping cloudflare.com`
+échoue (résolution DNS ou ICMP non distingués).
+
+**État corrigé du diagnostic : `WAN_IPV4_TCP_OK`,
+`LAN_IPV4_UNKNOWN`, `LAN_DNS_UNKNOWN`, `PFSENSE_PERF_DEGRADED`,
+`ROOT_CAUSE_UNKNOWN`.** Ne pas conclure que la connectivité LAN
+est revenue ; ne pas réactiver trois systèmes IPS simultanément.
+
+Préflight prioritaire depuis la workstation `172.17.0.57` :
+`ip -4 route get 1.1.1.1`, `ping -c 3 172.17.0.1`,
+`nc -4 -vz -w 5 1.1.1.1 443`,
+`dig +time=2 +tries=1 @172.17.0.1 cloudflare.com A`.
+Si TCP externe échoue alors que pfSense le réussit,
+vérifier règles LAN et `Firewall > NAT > Outbound`. Si TCP
+externe réussit mais le DNS local échoue, contrôler Unbound,
+sa réponse sur `172.17.0.1:53`, DNSBL et la configuration de
+résolveur de la workstation. Si la lenteur persiste,
+utiliser SSH **direct LAN** plutôt que le FQDN public/HAProxy,
+puis `uptime`, `swapinfo -h`, `top -aSH` et `netstat -m`
+(sans restart global), conformément au
+[guide Netgate](https://docs.netgate.com/pfsense/en/latest/troubleshooting/high-cpu-load.html).
+
+**Recette encore ouverte :** accès IPv4 et DNS depuis la workstation,
+stabilité WebConfigurator, puis réactivation **une par une**
+des protections, avec tests après chaque étape.
+
+
+### Relevé workstation/Unbound du 15/11/2026 — P0 DNS
+
+Après arrêt de **CrowdSec, Snort et pfBlockerNG**, le TCP IPv4 depuis
+pfSense réussit vers `1.1.1.1:443` et `9.9.9.9:443`.
+La workstation indique `ip -4 route get 1.1.1.1` via
+`172.17.0.1` ; le ping de la passerelle LAN a reçu 3/3 réponses
+et SSH direct vers pfSense fonctionne. Le `dig` LAN dirigé vers
+`172.17.0.1` **expire sans réponse**. La charge observée est
+inférieure à 1 ; `swapinfo -h` n'a retourné aucune donnée exploitable.
+**Conclusion :** réseau workstation ↔ pfSense opérationnel ;
+service DNS local **non fonctionnel depuis le LAN** ; le test TCP
+direct workstation ↔ Internet et la cause du timeout DNS sont
+encore **NOT_VERIFIED**. Ne pas déduire de l'absence de swap une
+pression mémoire ni du faible load l'absence de problème DNS.
+
+Prochain diagnostic sans mutation, d'abord workstation :
+`nc -4 -vz -w 5 1.1.1.1 443`,
+`dig +time=2 +tries=1 @9.9.9.9 cloudflare.com A`,
+`dig +time=2 +tries=1 @172.17.0.1 cloudflare.com A`
+et `dig +tcp +time=2 +tries=1 @172.17.0.1 cloudflare.com A`.
+
+Sur pfSense, en SSH direct LAN :
+`pgrep -laf unbound`,
+`sockstat -4 -l | grep ':53'`,
+`unbound-control -c /var/unbound/unbound.conf status`.
+Dans l'UI : `Status > Services > DNS Resolver`,
+`Status > System Logs > System/DNS Resolver`,
+puis `Services > DNS Resolver` : écoute `LAN` ou `All`
+sur UDP/TCP 53, ACL LAN autorisée, et
+`Outgoing Network Interfaces = All` (contrat private override).
+Si Unbound n'est pas actif, démarrer/redémarrer **uniquement Unbound**
+via `Status > Services`, puis retester le DNS LAN.
+Le projet utilise Unbound en résolution récursive, avec
+`int.albandrieu.com` délégué à Pi-hole `172.17.0.24`.
+Ne pas basculer aveuglément le DNS privé vers Quad9 et
+ne pas réactiver les trois protections en même temps.
+
 ## Auto Config Backup (ACB) et notices `write_config`
 
 Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du
@@ -131,6 +311,33 @@ Close the incident only after verifying:
 FastAPI probe caching, stale/unknown semantics and source-specific timeout
 contracts remain in
 [fastapi-sample's observer note](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/pfsense-webconfigurator-recovery.md).
+
+## Direct LAN SSH by default; HTTPS outage fallback (15 November 2026)
+
+SSH-based pfSense diagnostic scripts now default to
+`admin@172.17.0.1:9922` (variables `PFSENSE_SSH_TARGET` and
+`PFSENSE_SSH_PORT`). This avoids dependence on public DNS or
+HAProxy. Explicit CLI flags and environment overrides are still supported.
+High-impact scripts requiring an explicit target for authorization remain
+unchanged.
+
+When public and LAN HTTPS probes both fail, `--check` **does not quit
+before SSH diagnostics**: it records both probe failures and attempts SSH
+directly. A successful SSH run is reported as **partial diagnostics**,
+not as a working web GUI. `--api-only` remains strict, and failure of
+both HTTPS and SSH is still an error.
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --check --no-auto-egress
+bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check
+```
+
+The bounded `diagnose-recover.sh --apply` recovery over SSH still
+restarts PHP-FPM/webConfigurator and only restarts Unbound if the
+internal health check fails. In contrast,
+`reconcile-php-fpm.sh --apply` **also changes the PHP-FPM profile**
+and retains its mandatory explicit confirmation.
 
 ## Normal read-only check
 

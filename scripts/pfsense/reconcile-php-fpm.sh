@@ -5,8 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 PAYLOAD="${ROOT}/scripts/security/harden-pfsense-php-fpm.sh"
-TARGET="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-PORT="${PFSENSE_SSH_PORT:-}"
+TARGET="${PFSENSE_SSH_TARGET:-admin@172.17.0.1}"
+PORT="${PFSENSE_SSH_PORT:-9922}"
 ACK="${PFSENSE_PHP_FPM_CHANGE_CONFIRM:-}"
 
 usage() {

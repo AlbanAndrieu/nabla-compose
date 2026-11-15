@@ -2,7 +2,64 @@
 
 > Mise à jour : **14 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
+**Actualisation du 15/11 — progrès IPv4 partiel :** les connexions
+TCP `1.1.1.1:443` et `9.9.9.9:443` ont réussi lors des diagnostics
+pfSense. **`PF_IPv4_TCP_EGRESS_PASS`**, mais LAN/NAT, DNS/Unbound,
+IPv6 et identification de la cause initiale **non vérifiés**. Maintenir
+le P0 ouvert jusqu'à test HTTPS IPv4 depuis le LAN et réactivation
+contrôlée des protections arrêtées. Ne pas présenter la désactivation
+de `Gateway Monitoring` comme la cause démontrée de la reprise.
+
+
+**Nouvelle observation (15/11) :** CrowdSec, Snort et pfBlockerNG
+ont tous les trois été arrêtés avant les deux succès TCP depuis
+pfSense. Impossible d'identifier la protection responsable.
+La workstation indique toujours « pas d'Internet »,
+`ping cloudflare.com` échoue et le GUI pfSense est très lent.
+La priorité P0 reste **LAN IPv4/DNS et charge pfSense**
+avant IPv6 et avant réactivation progressive des IPS.
+[Recette détaillée](pfsense-diagnose-recover.md).
+
+
+**Évidence supplémentaire (15/11, workstation) :** passerelle
+`172.17.0.1` routée et joignable (ping 3/3, SSH OK), pfSense
+load < 1, mais `dig @172.17.0.1` timeout. Priorité P0 :
+diagnostiquer l'écoute/état/ACL Unbound (UDP et TCP 53), puis
+l'accès direct IPv4 depuis la workstation et le NAT LAN.
+L'identification du bloqueur initial et IPv6 demeurent ouvertes.
+[Commandes et observations](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
+
+
+## Incident réseau P0 — IPv4 Freebox bridge et IPv6 pfSense (15/11/2026)
+
+**Ouvert (NOT_VERIFIED en runtime).** Free confirme la fibre et
+`82.66.4.247` ; la gateway IPv4 `82.66.4.254` est déclarée
+mais ICMP échoue et le test TCP renvoie `Permission denied`.
+L'opérateur a coché **Disable Gateway Monitoring** sur le WAN :
+cela désactive `dpinger`, sans prouver le retour Internet.
+
+- **P0 IPv4 :** diagnostiquer les règles PF et les refus locaux,
+  capturer les paquets sortants/entrants sur `mvneta0.4090`,
+  puis vérifier le chemin Freebox/Free et le SNAT LAN seulement
+  après test direct sur pfSense. **DONE :** HTTPS IPv4 depuis
+  pfSense et un client LAN, preuves horodatées.
+- **P1 IPv6 :** obtenir une connectivité IPv6 complète sur pfSense
+  et le LAN. Free communique `2a01:e0a:a17:3c00::/64`,
+  route IPv6 par défaut via `fe80::8e97:eaff:fe39:b37b`.
+  Vérifier la route et le next hop Freebox, la disponibilité du /64
+  LAN, RA/SLAAC Assisted, Android, les règles IPv6 et
+  Unbound (Outgoing Network Interfaces = All).
+  **DONE :** IPv6 globale sur client LAN, accès par IP littérale,
+  DNS AAAA et aucune exposition WAN imprévue.
+- **Après rétablissement :** envisager `Disable Gateway Monitoring
+  Action` afin de conserver la surveillance sans actions automatiques
+  inutiles sur un WAN unique.
+
+[Runbook de diagnostic pfSense](pfsense-diagnose-recover.md).
+Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
+
 
 **Décision opérateur : H01 → H02 → H04 → H05 → H12 → H13 → H16.** Cet ordre remplace l'arbitrage du 13/11 (H02/G1 → H01 → H05). Garder un seul [portefeuille H01–H19](roadmap-portfolio.md) ; les tâches non retenues restent suivies sans être supprimées.
 

@@ -8,8 +8,8 @@ usage() { printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT]\n' "$
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
 if [[ "${1:-}" != "--check" ]]; then usage >&2; exit 2; fi
 shift
-target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-port="${PFSENSE_SSH_PORT:-}"
+target="${PFSENSE_SSH_TARGET:-admin@172.17.0.1}"
+port="${PFSENSE_SSH_PORT:-9922}"
 while (($#)); do
   case "$1" in
     --target) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; target="$2"; shift 2 ;;
