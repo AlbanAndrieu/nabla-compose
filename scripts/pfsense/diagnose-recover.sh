@@ -77,7 +77,8 @@ Options:
   --check-posture           SSH-only audit of the Netgate 1100 posture: Snort ET Open/
                             OpenAppID off, WAN HTTP Inspect memcap and ports alias,
                             Service Watchdog (unbound in, crowdsec out), CrowdSec Small,
-                            ACME certificate expiry (check only).
+                            ACME certificate expiry, HAProxy/GUI certificate
+                            bindings (check only), pfBlockerNG own-country guard.
   --apply-posture           Reconcile that posture, regenerate Snort/CrowdSec runtime
                             and stop a looping CrowdSec engine supervisor. Refuses to
                             run during a package install; never writes the bouncer key.

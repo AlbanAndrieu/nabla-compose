@@ -20,12 +20,12 @@ done
 [[ "${target}" =~ ^[A-Za-z0-9._@-]+$ ]] || exit 2
 [[ "${port}" =~ ^[0-9]{1,5}$ ]] && ((10#${port} > 0 && 10#${port} <= 65535)) || exit 2
 echo "pfSense drift audit target=${target}:${port} desired_version=${desired_version}"
-echo "INFO: scope=split_dns, Snort/CrowdSec/pfBlockerNG posture, RAM, DNSBL, PHP-FPM, DHCP, boot environment, full config.xml diff (PFSENSE_DRIFT_BASELINE)"
+echo "INFO: scope=split_dns, Snort/CrowdSec/pfBlockerNG posture, HAProxy/GUI cert bindings, served certs (incl. TrueNAS UI), RAM, DNSBL, PHP-FPM, DHCP, boot environment, full config.xml diff (PFSENSE_DRIFT_BASELINE)"
 echo "INFO: scope_not_included=Cloudflare, live IPv6 SLAAC, runtime state outside config.xml"
 
 drift_count=0
 audit_errors=0
-echo "==> 1/4 Split-DNS desired vs configured/live"
+echo "==> 1/5 Split-DNS desired vs configured/live"
 dns_result=0
 bash "${here}/reconcile-split-dns.sh" --check --target "${target}" --port "${port}" || dns_result=$?
 if ((dns_result == 2)); then
@@ -34,7 +34,7 @@ elif ((dns_result != 0)); then
   audit_errors=$((audit_errors+1))
 fi
 
-echo "==> 2/4 Security and capacity baseline (reuse existing controllers)"
+echo "==> 2/5 Security and capacity baseline (reuse existing controllers)"
 posture_output=""
 posture_status=0
 posture_output="$(NO_COLOR=1 PFSENSE_COLOR=never bash "${here}/diagnose-recover.sh" \
@@ -48,7 +48,7 @@ if ((posture_status != 0)); then
   echo "WARN: posture_audit_exit=${posture_status} (may include an actual failed invariant)"
 fi
 
-echo "==> 3/4 Boot Environment, pfSense version and key package versions"
+echo "==> 3/5 Boot Environment, pfSense version and key package versions"
 ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=8 -p "${port}")
 boot_status=0
 boot_report="$(ssh "${ssh_opts[@]}" "${target}" /bin/sh -s <<'REMOTE'
@@ -84,7 +84,7 @@ else
     echo "WARN: active Boot Environment default_clone; compare against prior 26.07 rollback incident"
   fi
 fi
-echo "==> 4/4 Full config.xml diff: rules, NAT, aliases, HAProxy, VPN, certificates, IPv6, DNS"
+echo "==> 4/5 Full config.xml diff: rules, NAT, aliases, HAProxy, VPN, certificates, IPv6, DNS"
 if [[ -n "${PFSENSE_DRIFT_BASELINE:-}" ]]; then
   config_status=0
   python3 "${here}/config-drift.py" --baseline "${PFSENSE_DRIFT_BASELINE}" --ssh "${target}" --port "${port}" || config_status=$?
@@ -96,6 +96,22 @@ if [[ -n "${PFSENSE_DRIFT_BASELINE:-}" ]]; then
 else
   echo "INFO: set PFSENSE_DRIFT_BASELINE to a known-good config.xml backup (outside Git) for the full diff"
 fi
+echo "==> 5/5 Served certificates: trusted chain, expected name, at least 14 days left"
+cert_drift=0
+# HAProxy :443/:7000, pfSense GUI and the TrueNAS UI (ui_certificate) seen from the LAN.
+for endpoint in home.albandrieu.com:443/home.albandrieu.com truenas.albandrieu.com:7000/truenas.albandrieu.com \
+  172.17.0.1:10443/home.albandrieu.com 172.17.0.24:7000/truenas.albandrieu.com; do
+  addr="${endpoint%/*}"
+  name="${endpoint#*/}"
+  if timeout 10 openssl s_client -connect "${addr}" -servername "${name}" -verify_hostname "${name}" \
+    -verify_return_error </dev/null 2>/dev/null | openssl x509 -noout -checkend 1209600 >/dev/null 2>&1; then
+    echo "PASS: served_cert ${addr} name=${name}"
+  else
+    echo "DRIFT: served_cert ${addr} name=${name} untrusted, wrong name, unreachable or under 14 days"
+    cert_drift=1
+  fi
+done
+drift_count=$((drift_count+cert_drift))
 echo "==> Summary"
 echo "drift_groups=${drift_count} audit_errors=${audit_errors}"
 if ((audit_errors)); then

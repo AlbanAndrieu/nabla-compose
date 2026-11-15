@@ -14,6 +14,25 @@ L'adresse privée `10.52.47.193` affichée ailleurs dans Freebox OS
 n'est pas l'adresse WAN publique. L'ADSL indiqué DOWN ne suffit pas
 à diagnostiquer une panne de la fibre.
 
+**Cause identifiée pour la coupure de 18:43 : blocage PF local par
+pfBlockerNG**, pas Free. Réactivé à 18:43 par `pfblocker-ip-only.php`,
+pfBlockerNG a rechargé la liste GeoIP *Top Spammers*. Cette liste regroupe
+des pays entiers, dont `FR`/`FR_rep`. La règle flottante
+`pfB_Top_v4 auto rule` (WAN, `quick`, direction `any`, source `pfB_Top_v4`)
+bloquait donc aussi les paquets sortants de `82.66.4.247` :
+`pfctl -t pfB_Top_v4 -T test 82.66.4.247` → `1/1 addresses match`, et
+`filter.log` montrait `block,out … 82.66.4.247 → 1.1.1.1:53`. Ce blocage
+explique le `Permission denied` et le DNS public muet (Unbound tourne).
+La coupure a pris fin au reboot console de 19:47 sur
+`default_clone_20261115_stable`, dont la config de 18:19 a pfBlockerNG
+désactivé. `FR` et `FR_rep` ont ensuite été retirés de Top Spammers dans ce
+boot environment, à titre préventif, avant tout nouvel
+`pfblocker-ip-only.php apply`. Le script les retire désormais lui-même, et
+`--check-posture` contrôle les deux points (`pfblockerng_top_own_country`,
+`pfblockerng_wan_self_block`).
+Le `dpinger … sendto error: 13` de 14:36, avec pfBlockerNG actif, a
+probablement la même cause (non prouvé).
+
 | Élément | Observation utilisateur |
 | --- | --- |
 | WAN | `mvneta0.4090` / VLAN 4090, `82.66.4.247/24` |
@@ -699,6 +718,13 @@ keep the 1 GiB appliance out of OOM and on the CrowdSec Small contract:
 | CrowdSec | Log Processor and Local API off, firewall bouncer on, Remote LAPI `http://172.17.0.24:8084/`, bouncer key set |
 | CrowdSec runtime | no `daemon: crowdsec` supervisor left running |
 | ACME certificates | every active certificate valid for at least 14 days (check only) |
+| Certificate bindings | HAProxy `Web_HTTPS` = wildcard + `albandrieu.com`, `freenas` (`:7000`) = `freenas.albandrieu.com` + wildcard, `Web_HTTPS-8082` = wildcard; GUI = `home.albandrieu.com` (check only, map in `NABLA_HAPROXY_CERTS`) |
+| pfBlockerNG | GeoIP Top Spammers without `FR`/`FR_rep`; WAN address in no `pfB_*` table (apply removes FR, then `pfblockerng.php updateip`) |
+
+`just pfsense-drift` (`check-drift.sh`) also probes the served certificates
+from the LAN: HAProxy `:443` and `:7000`, the GUI `:10443` and the TrueNAS UI
+`172.17.0.24:7000` must present a trusted chain, the expected name and at least
+14 days of validity.
 
 A boot-environment fallback restores the `config.xml` of that environment, so
 it can bring back expired ACME certificates, which HAProxy then serves on

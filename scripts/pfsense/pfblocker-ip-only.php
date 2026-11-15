@@ -47,6 +47,17 @@ if ($dnsbl === 'on') {
     config_set_path(NABLA_DNSBL, '');
 }
 
+// Top Spammers holds whole countries: with FR, its floating WAN rule blocked our own address
+// outbound and cut all IPv4 (2026-11-15 18:43).
+$top = 'installedpackages/pfblockerngtopspammers/config/0/countries4';
+$countries = array_filter(explode(',', (string)config_get_path($top, '')));
+$own = array_intersect($countries, ['FR', 'FR_rep']);
+printf("%s: top_spammers_own_country=%s expected=absent\n", $own ? 'CHANGE' : 'OK', $own ? implode('+', $own) : 'absent');
+if ($own) {
+    $changes++;
+    config_set_path($top, implode(',', array_diff($countries, ['FR', 'FR_rep'])));
+}
+
 $cb = config_get_path(NABLA_GENERAL . '/enable_cb', '');
 printf("%s: enable_cb=%s expected=on\n", $cb === 'on' ? 'OK' : 'CHANGE', $cb ?: 'off');
 if ($cb !== 'on') {

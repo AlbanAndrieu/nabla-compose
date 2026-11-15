@@ -312,6 +312,14 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             "posix_kill((int)$supervisor, SIGTERM);",
             # A boot-environment fallback brings back the ACME certs of its config.xml.
             "nabla_report(\"acme_cert_{$name}\"",
+            # Certificate bindings are declared here, not only in config.xml.
+            "'freenas' => ['freenas.albandrieu.com', 'wildcard.albandrieu.com']",
+            "NABLA_WEBGUI_CERT = 'home.albandrieu.com'",
+            "nabla_report(\"haproxy_cert_{$fe}\"",
+            # 2026-11-15: FR in Top Spammers blocked our own WAN address outbound.
+            "NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep']",
+            "nabla_report('pfblockerng_wan_self_block'",
+            "pfblockerng.php updateip",
         ):
             self.assertIn(wanted, helper)
         # Certificates are only checked: the renewal output prints the Cloudflare key.
