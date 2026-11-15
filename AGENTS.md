@@ -76,6 +76,13 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 
 ## OpenCode and smaller-model execution
 
-OpenCode reads this file. `agent.md` is a non-authoritative runbook for the smaller workstation model and this file wins on conflict; `opencode.json` and `.opencode/**` reuse `.agents/skills` instead of copying them. Start non-trivial work with `mise run agent-context` and change one service or logical unit at a time.
+OpenCode loads `AGENTS.md` natively; `agent.md` is **not auto-loaded**. Only
+the OpenCode `build` adapter (`.opencode/agents/build.md`) explicitly reads
+the compact `agent.md` runbook; read-only `reviewer` uses `AGENTS.md` alone.
+Do not list either file again in `opencode.json:instructions`: that duplicates
+context without changing instruction precedence. In any conflict, `AGENTS.md`
+wins by repository convention (OpenCode combines instruction sources; it does
+not enforce this priority itself). Load skills on demand. Start non-trivial
+work with `mise run agent-context` and change one logical unit at a time.
 
 Consult [the conditional playbook](docs/agent-execution-playbook.md) for agent/hook recovery, shell UX, GitHub CI, service migrations and local environment setup. `CLAUDE.md` and `.claude/CLAUDE.md` are thin adapters only.
