@@ -30,7 +30,7 @@ ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check default < scripts/pfsense/sync-
 ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- apply default < scripts/pfsense/sync-fallback-be-config.sh
 ```
 
-`bash scripts/pfsense/check-drift.sh` (étape 6) rejoue en `check` chaque script correctif : cibles workstation, baux DHCP, pfBlockerNG IP seul, générateur PHP-FPM de tous les BE, config du BE de repli et FR absent de Top Spammers dans les BE inactifs (`be-drop-own-country.php`). Tout `CHANGE` compte comme dérive.
+`bash scripts/pfsense/check-drift.sh` (étape 6) rejoue en `check` chaque script correctif : cibles workstation, baux DHCP, pfBlockerNG IP seul, générateur PHP-FPM de tous les BE, config du BE de repli, FR absent de Top Spammers dans les BE inactifs (`be-drop-own-country.php`) et export pflow NetFlow v5 vers Akvorado (`reconcile-pflow.php`). Le check pfBlockerNG signale aussi une table pfB générée mais non chargée dans pf (`WARN: pf_tables_not_loaded`), car un rechargement raté garde l'ancien jeu de règles sans bruit. Tout `CHANGE` ou `WARN` compte comme dérive.
 
 Au premier boot de repli, pfSense réinstalle les paquets absents de `default`
 (RESTAPI, crowdsec) par Internet : API REST et bouncer CrowdSec manquent

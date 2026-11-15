@@ -83,6 +83,7 @@ class PfSenseConfigDriftTests(unittest.TestCase):
             ('"/bin/sh -s -- check"', "repair-be-php-generator-mode.sh"),
             ('"/bin/sh -s -- check auto"', "sync-fallback-be-config.sh"),
             ('"php -- check"', "be-drop-own-country.php"),
+            ('"php -- check"', "reconcile-pflow.php"),
         ):
             with self.subTest(script=script):
                 self.assertIn(f'{remote} "${{here}}/{script}"', text)

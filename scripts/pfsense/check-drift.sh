@@ -132,6 +132,7 @@ run_fix_check pfblocker_ip_only "php -- check" "${here}/pfblocker-ip-only.php"
 run_fix_check php_generator_mode "/bin/sh -s -- check" "${here}/repair-be-php-generator-mode.sh"
 run_fix_check fallback_be_config "/bin/sh -s -- check auto" "${here}/sync-fallback-be-config.sh"
 run_fix_check be_own_country "php -- check" "${here}/be-drop-own-country.php"
+run_fix_check pflow "php -- check" "${here}/reconcile-pflow.php"
 drift_count=$((drift_count+fix_drift))
 echo "==> Summary"
 echo "drift_groups=${drift_count} audit_errors=${audit_errors}"
