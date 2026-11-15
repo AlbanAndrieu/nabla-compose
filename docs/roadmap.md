@@ -4,6 +4,36 @@
 
 ## Ordre d’exécution validé — 14 novembre 2026
 
+
+## Incident réseau P0 — IPv4 Freebox bridge et IPv6 pfSense (15/11/2026)
+
+**Ouvert (NOT_VERIFIED en runtime).** Free confirme la fibre et
+`82.66.4.247` ; la gateway IPv4 `82.66.4.254` est déclarée
+mais ICMP échoue et le test TCP renvoie `Permission denied`.
+L'opérateur a coché **Disable Gateway Monitoring** sur le WAN :
+cela désactive `dpinger`, sans prouver le retour Internet.
+
+- **P0 IPv4 :** diagnostiquer les règles PF et les refus locaux,
+  capturer les paquets sortants/entrants sur `mvneta0.4090`,
+  puis vérifier le chemin Freebox/Free et le SNAT LAN seulement
+  après test direct sur pfSense. **DONE :** HTTPS IPv4 depuis
+  pfSense et un client LAN, preuves horodatées.
+- **P1 IPv6 :** obtenir une connectivité IPv6 complète sur pfSense
+  et le LAN. Free communique `2a01:e0a:a17:3c00::/64`,
+  route IPv6 par défaut via `fe80::8e97:eaff:fe39:b37b`.
+  Vérifier la route et le next hop Freebox, la disponibilité du /64
+  LAN, RA/SLAAC Assisted, Android, les règles IPv6 et
+  Unbound (Outgoing Network Interfaces = All).
+  **DONE :** IPv6 globale sur client LAN, accès par IP littérale,
+  DNS AAAA et aucune exposition WAN imprévue.
+- **Après rétablissement :** envisager `Disable Gateway Monitoring
+  Action` afin de conserver la surveillance sans actions automatiques
+  inutiles sur un WAN unique.
+
+[Runbook de diagnostic pfSense](pfsense-diagnose-recover.md).
+Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
+
+
 **Décision opérateur : H01 → H02 → H04 → H05 → H12 → H13 → H16.** Cet ordre remplace l'arbitrage du 13/11 (H02/G1 → H01 → H05). Garder un seul [portefeuille H01–H19](roadmap-portfolio.md) ; les tâches non retenues restent suivies sans être supprimées.
 
 1. **H01 — Talos / Kubernetes CSI** : établir le pilote réellement installé et sa compatibilité TrueNAS 27 ; vérifier controller/DaemonSet, PVC NFS RWX sur deux workers, persistance, reclaim ZFS et NetworkPolicy. Ne pas déplacer Keycloak/Hermes/Vault avant réception. [Préflight CSI](kubernetes-csi-preflight.md).

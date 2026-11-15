@@ -4,6 +4,88 @@
 consumes read-only pfSense evidence but must not own appliance administration or
 recovery logic.
 
+
+## Incident WAN Freebox bridge — 15 novembre 2026
+
+**Statut : diagnostic ouvert, retour d'Internet non prouvé.** L'opérateur
+confirme la Freebox fibre en bridge, l'adresse publique Free
+`82.66.4.247` et le préfixe IPv6 `2a01:e0a:a17:3c00::/64`.
+L'adresse privée `10.52.47.193` affichée ailleurs dans Freebox OS
+n'est pas l'adresse WAN publique. L'ADSL indiqué DOWN ne suffit pas
+à diagnostiquer une panne de la fibre.
+
+| Élément | Observation utilisateur |
+| --- | --- |
+| WAN | `mvneta0.4090` / VLAN 4090, `82.66.4.247/24` |
+| Route IPv4 | `default -> 82.66.4.254` présente |
+| ARP gateway | `82.66.4.254 -> 8c:97:ea:39:b3:7b` (correspondance en cache possible) |
+| Ping depuis WAN | 3/3 pertes vers `82.66.4.254` et `1.1.1.1` |
+| TCP IPv4 | `nc -4 -vz -w 5 1.1.1.1 443` : `Permission denied` |
+| Route IPv6 | `default -> fe80::8e97:eaff:fe39:b37b%mvneta0.4090` |
+| Source IPv6 WAN | `fe80::f2ad:4eff:fe23:2f99` (link-local uniquement) |
+| IPv6 Internet | Ping `2606:4700:4700::1111` : 100 % de pertes |
+
+### Modification opérateur — WAN « Disable Gateway Monitoring »
+
+L'opérateur a **activé `Disable Gateway Monitoring`** pour la
+passerelle WAN IPv4. Cette action désactive `dpinger` et la télémétrie
+de disponibilité ; **elle ne restaure pas le transport IP**.
+La documentation Netgate distingue
+[`Disable Gateway Monitoring Action`](https://docs.netgate.com/pfsense/en/latest/routing/gateway-configure.html),
+qui maintient les mesures tout en supprimant les actions automatiques
+lors des changements de statut. Après résolution, évaluer cette seconde
+option sur le WAN unique avec une cible Monitor IP réellement joignable.
+Ne pas considérer la passerelle comme vérifiée UP si elle n'est plus surveillée.
+
+### Plan de reprise IPv4 (lecture seule avant toute mutation)
+
+1. Confirmer `ifconfig mvneta0.4090`, `netstat -rn -f inet`,
+   `route -n get 1.1.1.1`, `arp -an`. Ne pas changer
+   l'IPv4 publique, le masque, la gateway ou le VLAN sans preuve.
+2. Tester avec `Diagnostics > Ping` (source WAN, IPv4)
+   `1.1.1.1`, puis un test TCP vers `1.1.1.1:443`.
+   La réponse `Permission denied` justifie la recherche d'un
+   **blocage PF local** ; elle ne prouve pas un défaut Free.
+3. Lire `Status > System Logs > Firewall` et les règles PF
+   (`pfctl -sr`, sans modification). Capturer via
+   `Diagnostics > Packet Capture` sur l'interface WAN
+   **`mvneta0.4090`**, filtre `arp or icmp or host 1.1.1.1`,
+   pendant un ping depuis pfSense : aucun paquet sortant => piste
+   locale ; sortie sans réponse => piste amont / filtrage retour ;
+   réponse visible => examiner le traitement pfSense.
+4. Refaire les tests depuis un client du LAN `172.17.0.0/24`
+   sans VPN/données mobiles. Si pfSense réussit mais pas les clients,
+   vérifier les règles LAN et le SNAT dans
+   `Firewall > NAT > Outbound`. Tester l'accès numérique avant
+   toute modification Unbound ou Cloudflare.
+
+**DONE IPv4** : transport TCP/HTTPS IPv4 confirmé depuis pfSense
+et client LAN, route et SNAT cohérents, tests datés et tracés.
+Le DNS direct et le reverse PTR Free sont des sujets distincts.
+
+### Plan IPv6 — objectif de la roadmap
+
+- Vérifier dans Freebox OS les routes /64 IPv6 et le **next hop**
+  vers pfSense. Le WAN peut légitimement n'avoir qu'une link-local
+  `fe80::` si Free route un préfixe LAN vers lui.
+- Vérifier si `2a01:e0a:a17:3c00::/64` est **réellement routé**
+  vers le LAN pfSense ; ne pas attribuer le même /64 à plusieurs
+  interfaces. Contrôles read-only :
+  `netstat -rn -f inet6`, `ifconfig mvneta0.4091`,
+  `ndp -an`, puis
+  `ping6 -c 3 'fe80::8e97:eaff:fe39:b37b%mvneta0.4090'`.
+- Après adressage LAN, vérifier RA/SLAAC (mode Assisted relevé,
+  compatible Android), règles IPv6 LAN/WAN sans ouverture entrante
+  supplémentaire, connectivité IPv6 littérale
+  `2606:4700:4700::1111` depuis un client LAN, puis DNS AAAA.
+  Préserver `Unbound > Outgoing Network Interfaces = All`
+  pour le Domain Override privé [déjà documenté](dns-ingress-ownership.md).
+
+**DONE IPv6** : /64 global LAN, client SLAAC opérationnel,
+route IPv6 Internet, tests AAAA et sécurité ingress vérifiés
+depuis le LAN après redémarrage.
+
+
 ## Auto Config Backup (ACB) et notices `write_config`
 
 Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du
