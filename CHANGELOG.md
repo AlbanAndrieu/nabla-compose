@@ -1,3 +1,11 @@
+## [0.89.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.1...0.89.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **h11:** audit argparse option semantics and fail on declared drift [skip ci] ([0a996f3](https://github.com/AlbanAndrieu/nabla-compose/commit/0a996f3d272dacb0981b5acbfcdcf7c584b8d43a))
+* **h11:** make CLI fixture sources valid Python newlines [skip ci] ([8d07669](https://github.com/AlbanAndrieu/nabla-compose/commit/8d07669cc0d6bb73598c72c9984819be26c7ffbe))
+
 ## [0.89.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.0...0.89.1) (2026-11-15)
 
 
