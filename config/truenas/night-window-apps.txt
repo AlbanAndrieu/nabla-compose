@@ -1,0 +1,5 @@
+# TrueNAS Apps that run only at night: started at 01:00 Monday to Saturday and
+# stopped at 07:00 every day by the cron jobs of
+# scripts/truenas/reconcile-night-window-cron.py. Sunday night is left to the
+# weekly scrub and cloud syncs. Exact App ids, as in restore-optional-apps.txt.
+bitcoind

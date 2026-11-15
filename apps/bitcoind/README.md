@@ -62,5 +62,21 @@ Sur TrueNAS, depuis le checkout canonique à jour :
    `sudo docker logs --tail 50 -f bitcoind`. Le healthcheck passe à `healthy`
    quand le RPC répond (période de grâce de 30 minutes).
 
+## Fenêtre nocturne
+
+La synchronisation initiale lit le chainstate au hasard sur les HDD et saturait
+les IO de TrueNAS (PSI IO `full` 33 % le 15/11). L'App ne tourne donc que la
+nuit : démarrée à 01:00 du lundi au samedi (le dimanche est laissé au scrub) et
+arrêtée à 07:00 par deux tâches cron TrueNAS, déclarées par
+`scripts/truenas/reconcile-night-window-cron.py` avec la liste
+`config/truenas/night-window-apps.txt` :
+
+```bash
+python3 scripts/truenas/reconcile-night-window-cron.py --check
+sudo python3 scripts/truenas/reconcile-night-window-cron.py --apply
+```
+
+Le nœud se connecte en clair (pas de `proxy=` ni `onion=`), sans Tor ni Arti.
+
 Retour arrière : supprimer la Custom App (`app.delete bitcoind`). Aucune donnée
 à restaurer.
