@@ -40,6 +40,26 @@ achevée ou une parité des scripts dans le gitlink OpenClaw.
 La validation locale du parseur ne vaut ni mesure d'exécution systemd,
 ni migration d'un consommateur.
 
+### D0 — consommateurs statiques identifiés (index GitHub, 15/11/2026)
+
+Ce relevé se limite aux références indexées de `nabla-compose` ; il
+**ne prouve pas** que les unités systemd sont installées ou que les
+recettes Just sont réellement utilisées. L'inventaire complet local
+`--openclaw-consumers` reste l'autorité pour trouver les autres
+fichiers suivis, en les distinguant des tests et de la documentation.
+
+| Script à comparer | Consommateurs de code/configuration visibles | Conséquence avant extraction |
+| --- | --- | --- |
+| `check-openclaw-runtime-alignment.py` | `justfile`, `scripts/workstation/openclaw-recovery-readonly.sh`, `ops/openclaw-workstation/systemd/30-nabla-runtime-alignment.conf.example` | **Priorité haute** : ne pas casser l'ExecStartPre ni le recovery ; tester les codes retour et clés JSON |
+| `diagnose-openclaw-digest-top.py` | `justfile`, `scripts/workstation/plan-openclaw-cron-recovery.py`, `scripts/workstation/reconcile-openclaw-digest-cron.py` | Préserver le mode fixture et les décisions de réparation du cron |
+| `openclaw-heartbeat-gitops.py` | `justfile` ; tests `test_openclaw_heartbeat_gitops.py`, `test_openclaw_briefing_gitops.py` | Comparer opérations sur fichiers et permissions, ne pas fusionner les implémentations sur leur nom |
+| `openclaw-host-context.py` | `justfile`, `scripts/workstation/reconcile-openclaw-digest-cron.py`, `scripts/workstation/diagnose-openclaw-litellm-dual-logs.py` | Conserver les détections d'hôtes et la sortie `unknown` |
+| `reconcile-openclaw-digest-cron.py` | `justfile` ; tests `test_openclaw_digest_gitops.py`, `test_openclaw_policy_relocation.py` | Valider le cron existant, le refus de mutation et la conservation du planning |
+
+Les chemins documentaires, les assertions des tests et l'outil d'audit
+lui-même sont des **références**, pas des appels opérationnels. La revue
+du propriétaire `nabla-openclaw` et des services actifs reste distincte.
+
 ### D1 — comparaison statique des cinq scripts (14/11/2026)
 
 Les cinq fichiers ont été retrouvés dans les deux dépôts via leur code versionné.
@@ -90,6 +110,26 @@ Reproduire la comparaison hors réseau, avec **deux checkouts locaux explicites*
 python3 scripts/ops/plan-repository-split.py \\
   --compare-openclaw-root ../nabla-openclaw
 ```
+
+Le comparateur distingue désormais les noms d'options et leur **forme
+statique** : `action`, `required`, `nargs` et `type` lorsqu'ils sont
+déclarés de façon littérale dans `argparse.add_argument`. Il ne publie
+ni `default`, ni `help`, ni `choices`, afin de ne pas divulguer les
+valeurs configurées. Une valeur dynamique reste `DYNAMIC` et ne vaut
+pas validation du comportement.
+
+```bash
+python3 scripts/ops/plan-repository-split.py \\
+  --compare-openclaw-root ../nabla-openclaw \\
+  --assert-static-option-shapes
+```
+
+Avec ce mode strict, le code retour est **0** si les cinq paires sont
+lisibles et qu'aucun écart de forme déclaré n'est identifié, **1** pour
+un écart statique, et **2** pour un script absent/illisible. Même un
+retour 0 **ne prouve aucune parité fonctionnelle** (effets de bord,
+flags positionnels, defaults, codes retour, sortie, prérequis host).
+Ne pas déclencher une migration/suppression à partir de ce résultat.
 
 Le schéma `nabla-openclaw-cli-static/v1` retourne options, empreinte
 SHA-256, `READ` ou `UNREADABLE` par fichier, puis

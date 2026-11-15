@@ -173,7 +173,7 @@ def _cli_snapshot(root: Path, name: str) -> dict:
     base = root.resolve()
     candidate = base / "scripts" / "workstation" / name
     if candidate.is_symlink() or not candidate.resolve(strict=False).is_relative_to(base):
-        return {"status": "UNREADABLE", "options": [], "sha256": None}
+        return {"status": "UNREADABLE", "options": [], "option_shapes": [], "sha256": None}
     try:
         if not candidate.is_file() or candidate.stat().st_size > MAX_REFERENCE_BYTES:
             raise OSError("missing or oversized")
@@ -182,14 +182,56 @@ def _cli_snapshot(root: Path, name: str) -> dict:
     except (OSError, UnicodeError, SyntaxError):
         return {"status": "UNREADABLE", "options": [], "sha256": None}
     options = set()
+    shapes = []
     for node in ast.walk(tree):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                 and node.func.attr == "add_argument"):
-            for arg in node.args:
-                if (isinstance(arg, ast.Constant) and isinstance(arg.value, str)
-                        and arg.value.startswith("--")):
-                    options.add(arg.value)
+            flags = sorted({
+                arg.value for arg in node.args
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                and arg.value.startswith("--")
+            })
+            if not flags:
+                continue
+            options.update(flags)
+            # Only structural fields with safe, bounded values are exported.
+            # Defaults, help text, choices and positional semantics are excluded.
+            semantics = {}
+            for keyword in node.keywords:
+                if keyword.arg not in ("action", "required", "nargs", "type"):
+                    continue
+                value = keyword.value
+                if keyword.arg == "type":
+                    semantics[keyword.arg] = (
+                        value.id if isinstance(value, ast.Name)
+                        else value.attr if isinstance(value, ast.Attribute)
+                        else "DYNAMIC"
+                    )
+                elif isinstance(value, ast.Constant):
+                    if keyword.arg == "action":
+                        semantics[keyword.arg] = (
+                            value.value if value.value in (
+                                "store", "store_true", "store_false", "append",
+                                "append_const", "store_const", "count", "extend",
+                                "help", "version"
+                            ) else "OTHER"
+                        )
+                    elif keyword.arg == "required":
+                        semantics[keyword.arg] = (
+                            value.value if isinstance(value.value, bool)
+                            else "DYNAMIC"
+                        )
+                    elif keyword.arg == "nargs":
+                        semantics[keyword.arg] = (
+                            value.value if value.value in ("?", "*", "+") or
+                            type(value.value) is int else "OTHER"
+                        )
+                else:
+                    semantics[keyword.arg] = "DYNAMIC"
+            shapes.append({"flags": flags, "semantics": semantics})
+    shapes.sort(key=lambda row: row["flags"])
     return {"status": "READ", "options": sorted(options),
+            "option_shapes": shapes,
             "sha256": hashlib.sha256(raw).hexdigest()}
 
 
@@ -207,6 +249,9 @@ def compare_openclaw_cli_contracts(compose_root: Path, openclaw_root: Path) -> d
             ),
             "source_identical": (
                 source["sha256"] == target["sha256"] if comparable else None
+            ),
+            "static_option_shapes_equal": (
+                source["option_shapes"] == target["option_shapes"] if comparable else None
             ),
         })
     return {
@@ -226,15 +271,25 @@ def main():
                    help="Local checkout to inspect; never follows external symlinks")
     p.add_argument("--compare-openclaw-root", type=Path,
                    help="Statically compare five CLI scripts with a separate local OpenClaw checkout")
+    p.add_argument("--assert-static-option-shapes", action="store_true",
+                   help="Fail on visible argparse semantics drift, not runtime parity")
     args=p.parse_args()
+    if args.assert_static_option_shapes and not args.compare_openclaw_root:
+        p.error("--assert-static-option-shapes requires --compare-openclaw-root")
     root=args.root.resolve()
     if args.compare_openclaw_root:
         result = compare_openclaw_cli_contracts(root, args.compare_openclaw_root)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0 if all(
+        if not all(
             row["compose"]["status"] == row["openclaw"]["status"] == "READ"
             for row in result["scripts"]
-        ) else 2
+        ):
+            return 2
+        if args.assert_static_option_shapes and any(
+            not row["static_option_shapes_equal"] for row in result["scripts"]
+        ):
+            return 1
+        return 0
     if not (root / "justfile").is_file():
         print("inventory=not_in_compose_checkout")
         return 2

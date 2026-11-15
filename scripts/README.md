@@ -107,7 +107,11 @@ and runtime contract are checked independently.
 `python3 scripts/ops/plan-repository-split.py --compare-openclaw-root ../nabla-openclaw`
 compares only declared long argparse options and SHA-256 hashes in two
 explicit local checkouts. It never executes either script or reads a secret;
-missing files produce exit code 2. The result is static evidence only:
+missing files produce exit code 2. Optional
+`--assert-static-option-shapes` fails with exit code 1 on differences in
+declared argparse `action`, `required`, `nargs` or `type`, without
+printing defaults/help/choices. Exit 0 is **not** behavioral parity:
+the result is static evidence only:
 `behavioral_parity=NOT_VERIFIED`, not permission to remove a wrapper.
 
 ## G1 — Backup verification and secret rotation
