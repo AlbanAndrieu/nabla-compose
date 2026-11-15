@@ -9,6 +9,8 @@ from pathlib import Path
 import sys
 from unittest import TestCase, main, mock
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "scripts/truenas/reconcile-night-window-cron.py"
 SPEC = importlib.util.spec_from_file_location("night_window_cron", SOURCE)
@@ -26,9 +28,17 @@ class NightWindowCron(TestCase):
         self.assertTrue(stop["command"].endswith("restore-optional-apps.sh --stop"))
         self.assertIn("night-window-apps.txt", start["command"])
 
-    def test_list_is_bitcoind_only(self):
+    def test_listed_apps_are_never_started_by_day(self):
         lines = (ROOT / "config/truenas/night-window-apps.txt").read_text(encoding="utf-8").splitlines()
-        self.assertEqual([line for line in lines if line and not line.startswith("#")], ["bitcoind"])
+        apps = [line for line in lines if line and not line.startswith("#")]
+        self.assertIn("bitcoind", apps)
+        self.assertEqual(apps, sorted(set(apps)))
+        # Probed 24/7 (n8n is called by OpenClaw) or kept stopped by the operator.
+        self.assertFalse({"n8n", "scrutiny", "graylog", "kasm-workspaces", "homarr"} & set(apps))
+        manifest = yaml.safe_load((ROOT / "config/truenas/custom-apps.yml").read_text(encoding="utf-8"))
+        for entry in manifest["apps"]:
+            if entry["name"] in apps:
+                self.assertEqual(entry.get("state"), "stopped", entry["name"])
 
     def test_check_is_offline(self):
         with (
