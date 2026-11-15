@@ -109,9 +109,10 @@ class PfsenseSshFallbackTest(unittest.TestCase):
                 0,
                 recovered_ssh.stdout + recovered_ssh.stderr,
             )
+            # warn() writes to stderr.
             self.assertIn(
                 "continuing read-only diagnosis via direct LAN SSH",
-                recovered_ssh.stdout,
+                recovered_ssh.stderr,
             )
             self.assertIn(
                 "SSH diagnosis completed (partial: HTTPS/API unavailable)",

@@ -597,10 +597,11 @@ else
 fi
 
 watchdog_unbound="$(sed -n '/<servicewatchdog>/,/<\/servicewatchdog>/p' /conf/config.xml 2>/dev/null | grep -Ei '<name>unbound</name>|<service>unbound</service>|<description>DNS Resolver</description>' || true)"
-if [ -z "$watchdog_unbound" ]; then
-  emit PASS servicewatchdog.unbound absent "Unbound is intentionally not managed by Service Watchdog on this memory-constrained appliance"
+# 2026-11-13 incident: an unwatched OOM-killed Unbound left the LAN without DNS for 7 h.
+if [ -n "$watchdog_unbound" ]; then
+  emit PASS servicewatchdog.unbound configured "Service Watchdog restarts Unbound after an OOM kill; the DNSBL size checks guard the restart loop"
 else
-  emit FAIL servicewatchdog.unbound configured "Service Watchdog can recreate the Unbound OOM restart loop"
+  emit FAIL servicewatchdog.unbound absent "an OOM-killed Unbound stays down until a manual restart (2026-11-13: 7 h without DNS)"
 fi
 
 lighttpd_count="$(number_or_zero "$(pgrep -x lighttpd_pfb 2>/dev/null | wc -l | tr -d ' ')")"
