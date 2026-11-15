@@ -22,6 +22,16 @@ VERSION = re.compile(r'^\d+\.\d+\.\d+$')
 OPENCLAW_VERSION = re.compile(r'^OpenClaw\s+(\d+\.\d+\.\d+)(?:\s|$)', re.M)
 
 
+# Enforce an exact, unique --port token in the effective systemd ExecStart.
+GATEWAY_PORT_TOKEN = re.compile(r'(?<!\\S)gateway[ \\t]+--port[ \\t]+18789(?=[ \\t;}\\]]|$)')
+PORT_FLAGS = re.compile(r'(?<!\\S)--port(?=[ \\t=;}\\]]|$)')
+
+
+def matches_gateway_port(unit: str) -> bool:
+    """Fail closed for port 187890, suffixes or duplicate gateway port flags."""
+    return bool(GATEWAY_PORT_TOKEN.search(unit)) and len(PORT_FLAGS.findall(unit)) == 1
+
+
 def private_regular(path: Path) -> bool:
     try:
         s = path.lstat()
@@ -77,7 +87,7 @@ def classify(node_version: str, release: str, home: Path, runner=invoke) -> dict
     nodes = re.findall(r'/[^\s;{}"\']+/bin/node',unit)
     entries = re.findall(r'/[^\s;{}"\']+/lib/node_modules/openclaw/openclaw\.mjs',unit)
     checks['systemd_exec'] = ('match' if rc==0 and bool(nodes) and set(nodes)=={str(node)} and entries==[str(cli)]
-                               and 'gateway --port 18789' in unit else 'mismatch_or_unavailable')
+                               and matches_gateway_port(unit) else 'mismatch_or_unavailable')
     return checks
 
 

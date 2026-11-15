@@ -22,6 +22,19 @@ observer=load('scripts/workstation/observe-openclaw-rate-limits.py','observer')
 
 
 class RuntimeContracts(unittest.TestCase):
+    def test_gateway_port_must_be_exact_and_unique(self):
+        unit = "{ path=/node ; argv[]=/node /openclaw.mjs gateway --port 18789 ; }"
+        self.assertTrue(runtime.matches_gateway_port(unit))
+        for invalid in (
+            unit.replace("--port 18789", "--port 187890"),
+            unit.replace("--port 18789", "--port 18789extra"),
+            unit.replace("--port 18789", "--port 18789 --port 18790"),
+            unit.replace("--port 18789", "--port 18789 --port=18790"),
+            unit.replace("gateway --port", "gateway --other-flag --port"),
+        ):
+            with self.subTest(unit=invalid):
+                self.assertFalse(runtime.matches_gateway_port(invalid))
+
     def test_contract_pin_matches_mise(self):
         node,version=runtime.expected(ROOT)
         self.assertEqual((node,version),('24.22.1','2026.10.7'))
