@@ -12,8 +12,8 @@ readonly DEFAULT_FREE_WARN_KB=131072
 readonly DEFAULT_FREE_FAIL_KB=65536
 
 mode=""
-ssh_target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-ssh_port="${PFSENSE_SSH_PORT:-}"
+ssh_target="${PFSENSE_SSH_TARGET:-admin@172.17.0.1}"
+ssh_port="${PFSENSE_SSH_PORT:-9922}"
 api_url="${PFSENSE_FASTAPI_URL:-${DEFAULT_API_URL}}"
 output_format="text"
 strict=0
@@ -32,8 +32,8 @@ usage() {
 Audit the pfSense posture established after the Netgate 1100 memory incident.
 
 Usage:
-  scripts/pfsense/audit-posture.sh [--json] [--strict]  # defaults to SSH alias home.albandrieu.com
-  scripts/pfsense/audit-posture.sh --ssh home.albandrieu.com [--json] [--strict]
+  scripts/pfsense/audit-posture.sh [--json] [--strict]  # defaults to admin@172.17.0.1:9922
+  scripts/pfsense/audit-posture.sh --ssh admin@172.17.0.1 [--json] [--strict]
   scripts/pfsense/audit-posture.sh --ssh HOST --port PORT [--json] [--strict]
   scripts/pfsense/audit-posture.sh --api [URL] [--json] [--strict]
   scripts/pfsense/audit-posture.sh --local [--json] [--strict]

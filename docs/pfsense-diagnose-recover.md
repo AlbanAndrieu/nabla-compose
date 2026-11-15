@@ -312,6 +312,33 @@ FastAPI probe caching, stale/unknown semantics and source-specific timeout
 contracts remain in
 [fastapi-sample's observer note](https://github.com/AlbanAndrieu/fastapi-sample/blob/master/docs/pfsense-webconfigurator-recovery.md).
 
+## Direct LAN SSH by default; HTTPS outage fallback (15 November 2026)
+
+SSH-based pfSense diagnostic scripts now default to
+`admin@172.17.0.1:9922` (variables `PFSENSE_SSH_TARGET` and
+`PFSENSE_SSH_PORT`). This avoids dependence on public DNS or
+HAProxy. Explicit CLI flags and environment overrides are still supported.
+High-impact scripts requiring an explicit target for authorization remain
+unchanged.
+
+When public and LAN HTTPS probes both fail, `--check` **does not quit
+before SSH diagnostics**: it records both probe failures and attempts SSH
+directly. A successful SSH run is reported as **partial diagnostics**,
+not as a working web GUI. `--api-only` remains strict, and failure of
+both HTTPS and SSH is still an error.
+
+```bash
+bash scripts/pfsense/diagnose-recover.sh --check --no-auto-egress
+bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+bash scripts/pfsense/diagnose-unbound-split-dns.sh --check
+```
+
+The bounded `diagnose-recover.sh --apply` recovery over SSH still
+restarts PHP-FPM/webConfigurator and only restarts Unbound if the
+internal health check fails. In contrast,
+`reconcile-php-fpm.sh --apply` **also changes the PHP-FPM profile**
+and retains its mandatory explicit confirmation.
+
 ## Normal read-only check
 
 From the workstation:

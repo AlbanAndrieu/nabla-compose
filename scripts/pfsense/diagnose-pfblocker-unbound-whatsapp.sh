@@ -6,8 +6,8 @@ set -euo pipefail
 # shellcheck source=scripts/pfsense/console.sh
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
 
-target="${PFSENSE_SSH_TARGET:-home.albandrieu.com}"
-port="${PFSENSE_SSH_PORT:-}"
+target="${PFSENSE_SSH_TARGET:-admin@172.17.0.1}"
+port="${PFSENSE_SSH_PORT:-9922}"
 usage() {
   printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT]\n' "$0"
 }

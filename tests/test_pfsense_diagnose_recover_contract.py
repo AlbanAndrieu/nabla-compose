@@ -23,13 +23,21 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         )
         self.assertIn("--api-only", text)
         self.assertIn("PFSENSE_SSH_PORT", text)
-        self.assertIn('PFSENSE_SSH_TARGET:-home.albandrieu.com', text)
+        self.assertIn('PFSENSE_SSH_TARGET:-admin@172.17.0.1', text)
+        self.assertIn('PFSENSE_SSH_PORT:-9922', text)
         self.assertIn("==> HTTPS/API vantage points", text)
         self.assertIn("==> Deep appliance evidence over SSH", text)
         self.assertLess(
             text.index("==> HTTPS/API vantage points"),
             text.index("==> Deep appliance evidence over SSH"),
         )
+
+    def test_unreachable_https_does_not_abort_ssh_diagnostic(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("skipping SSH deep diagnostics", text)
+        self.assertIn("continuing read-only diagnosis via direct LAN SSH", text)
+        self.assertIn("SSH diagnosis completed (partial: HTTPS/API unavailable)", text)
+        self.assertIn("API-only mode has no SSH fallback", text)
 
     def test_shell_helper_is_executable(self) -> None:
         mode = SCRIPT.stat().st_mode
