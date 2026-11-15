@@ -531,6 +531,10 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("severity: critical", node_rules)
         # MemAvailable alone fires on reclaimable ZFS ARC (false alert of 2026-11-15).
         self.assertEqual(node_rules.count("node_zfs_arc_c_min"), 2)
+        self.assertIn("TrueNASHostIOPressureHigh", node_rules)
+        self.assertIn("TrueNASZpoolNotOnline", node_rules)
+        pihole_rules = (rules_dir / "pihole.rules.yml").read_text(encoding="utf-8")
+        self.assertNotRegex(pihole_rules, r"rate\(pihole_\w+_today")
 
     def test_talos_cluster_validator_remains_executable(self) -> None:
         mode = (ROOT / "scripts" / "talos" / "validate-cluster.sh").stat().st_mode

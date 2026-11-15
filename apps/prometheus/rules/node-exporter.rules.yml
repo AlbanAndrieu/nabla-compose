@@ -43,6 +43,26 @@ groups:
           summary: TrueNAS host memory is critically low
           description: "Less than 5% of host memory, counting reclaimable ZFS ARC, has remained available for 2 minutes."
 
+      - alert: TrueNASHostIOPressureHigh
+        expr: rate(node_pressure_io_stalled_seconds_total{job="truenas_node"}[15m]) > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          scope: platform
+        annotations:
+          summary: TrueNAS disks are saturated
+          description: "Every runnable task waited on IO more than 30% of the time for 30 minutes (PSI io full); App starts and probes slow down."
+
+      - alert: TrueNASZpoolNotOnline
+        expr: node_zfs_zpool_state{job="truenas_node",state!="online"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          scope: platform
+        annotations:
+          summary: "TrueNAS pool {{ $labels.zpool }} is {{ $labels.state }}"
+          description: "ZFS pool {{ $labels.zpool }} has been {{ $labels.state }} for 5 minutes: check zpool status and the disks."
+
       - alert: TrueNASFilesystemSpaceLow
         expr: |
           (
