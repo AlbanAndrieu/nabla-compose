@@ -230,6 +230,12 @@ def test_committed_manifest_includes_exist_and_are_active() -> None:
             assert facts is not None, f"{entry['name']}: missing {rel}"
             if entry.get("state") == "running":
                 assert facts["statuses"] in ([], ["active"]), f"{entry['name']}: {facts['statuses']}"
+                # A disabled Backstage entity must not be restarted by --apply (cf1da094).
+                info = ROOT / Path(rel).parent / "catalog-info.yaml"
+                docs = list(yaml.safe_load_all(info.read_text(encoding="utf-8"))) if info.exists() else []
+                states = {(d.get("metadata") or {}).get("labels", {}).get("albandrieu.com/operational-state")
+                          for d in docs if d}
+                assert "disabled" not in states, f"{entry['name']}: Backstage entity is disabled"
 
 
 def test_every_active_repository_app_is_declared() -> None:

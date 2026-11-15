@@ -53,8 +53,8 @@ apps:
   - name: ddns-updater
     include:
       - apps/ddns-updater/compose.yml
-    state: running
-    note: catalog App until migrated (see apps/ddns-updater/README.md)
+    state: stopped
+    note: catalog App until migrated (see apps/ddns-updater/README.md); stopped by the operator on 2026-11-11
   - name: defectdojo
     include:
       - apps/defectdojo/compose.yml
@@ -62,8 +62,8 @@ apps:
   - name: dockhand
     include:
       - apps/dockhand/compose.yml
-    state: running
-    note: catalog App until migrated (see apps/dockhand/README.md)
+    state: stopped
+    note: catalog App until migrated (see apps/dockhand/README.md); stopped by the operator on 2026-11-11
   - name: docling
     include:
       - apps/docling/compose.yml
@@ -71,11 +71,13 @@ apps:
   - name: dozzle
     include:
       - apps/dozzle/compose.yml
-    state: running
+    state: stopped
+    note: stopped by the operator on 2026-11-11
   - name: drawio
     include:
       - apps/drawio/compose.yml
-    state: running
+    state: stopped
+    note: stopped by the operator on 2026-11-11
   - name: dsomm
     include:
       - apps/dsomm/compose.yml
@@ -157,7 +159,8 @@ apps:
   - name: openhands
     include:
       - apps/openhands/compose.yml
-    state: running
+    state: stopped
+    note: stopped by the operator on 2026-11-11
   - name: openrag
     include:
       - apps/openrag/compose.yml
