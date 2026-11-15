@@ -10,6 +10,16 @@ le P0 ouvert jusqu'à test HTTPS IPv4 depuis le LAN et réactivation
 contrôlée des protections arrêtées. Ne pas présenter la désactivation
 de `Gateway Monitoring` comme la cause démontrée de la reprise.
 
+
+**Nouvelle observation (15/11) :** CrowdSec, Snort et pfBlockerNG
+ont tous les trois été arrêtés avant les deux succès TCP depuis
+pfSense. Impossible d'identifier la protection responsable.
+La workstation indique toujours « pas d'Internet »,
+`ping cloudflare.com` échoue et le GUI pfSense est très lent.
+La priorité P0 reste **LAN IPv4/DNS et charge pfSense**
+avant IPv6 et avant réactivation progressive des IPS.
+[Recette détaillée](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 

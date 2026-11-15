@@ -111,6 +111,41 @@ Restaurer le niveau de protection initial après attribution de la
 cause ; ne jamais désactiver globalement PF. Poursuivre séparément
 le rétablissement IPv6 du LAN.
 
+
+### Évolution de l'incident — connectivité workstation toujours absente (15/11/2026)
+
+L'opérateur précise avoir **arrêté les trois protections simultanément**
+(CrowdSec, Snort, pfBlockerNG). Les connexions TCP depuis pfSense vers
+`1.1.1.1:443` et `9.9.9.9:443` ont réussi **après** ces arrêts,
+sans que cette chronologie permette d'attribuer la cause à l'une
+des trois. Entre-temps, le WebConfigurator pfSense est décrit comme
+**extrêmement lent / difficile d'accès**, tandis que la workstation
+signale **aucune connexion Internet** et que `ping cloudflare.com`
+échoue (résolution DNS ou ICMP non distingués).
+
+**État corrigé du diagnostic : `WAN_IPV4_TCP_OK`,
+`LAN_IPV4_UNKNOWN`, `LAN_DNS_UNKNOWN`, `PFSENSE_PERF_DEGRADED`,
+`ROOT_CAUSE_UNKNOWN`.** Ne pas conclure que la connectivité LAN
+est revenue ; ne pas réactiver trois systèmes IPS simultanément.
+
+Préflight prioritaire depuis la workstation `172.17.0.57` :
+`ip -4 route get 1.1.1.1`, `ping -c 3 172.17.0.1`,
+`nc -4 -vz -w 5 1.1.1.1 443`,
+`dig +time=2 +tries=1 @172.17.0.1 cloudflare.com A`.
+Si TCP externe échoue alors que pfSense le réussit,
+vérifier règles LAN et `Firewall > NAT > Outbound`. Si TCP
+externe réussit mais le DNS local échoue, contrôler Unbound,
+sa réponse sur `172.17.0.1:53`, DNSBL et la configuration de
+résolveur de la workstation. Si la lenteur persiste,
+utiliser SSH **direct LAN** plutôt que le FQDN public/HAProxy,
+puis `uptime`, `swapinfo -h`, `top -aSH` et `netstat -m`
+(sans restart global), conformément au
+[guide Netgate](https://docs.netgate.com/pfsense/en/latest/troubleshooting/high-cpu-load.html).
+
+**Recette encore ouverte :** accès IPv4 et DNS depuis la workstation,
+stabilité WebConfigurator, puis réactivation **une par une**
+des protections, avec tests après chaque étape.
+
 ## Auto Config Backup (ACB) et notices `write_config`
 
 Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du
