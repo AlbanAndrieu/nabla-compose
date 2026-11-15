@@ -58,6 +58,25 @@ if ($own) {
     config_set_path($top, implode(',', array_diff($countries, ['FR', 'FR_rep'])));
 }
 
+// IPv4 GeoIP only: the v6 lists (190k entries) pushed a filter reload past the 400k pf table-entries
+// limit, because old and new tables coexist during a reload (2026-11-15 20:43, Top Spammers never loaded).
+// shortcut: assumes WAN has no global IPv6; restore v6 countries with a higher table limit if it gets one.
+foreach (config_get_path('installedpackages', []) as $sec => $pkg) {
+    $v6 = $pkg['config'][0]['countries6'] ?? '';
+    if (!str_starts_with($sec, 'pfblockerng') || $v6 === '') {
+        continue;
+    }
+    $changes++;
+    printf("CHANGE: %s countries6=%d expected=0\n", $sec, count(explode(',', $v6)));
+    config_set_path("installedpackages/{$sec}/config/0/countries6", '');
+}
+
+// A failed reload keeps the previous ruleset silently: every pfB table of the generated rules must be loaded.
+preg_match_all('/^table <(pfB_[^>]+)>/m', (string)@file_get_contents('/tmp/rules.debug'), $m);
+exec('/sbin/pfctl -sT 2>/dev/null', $loaded);
+$missing = array_diff($m[1], array_map('trim', $loaded));
+printf("%s: pf_tables_not_loaded=%s\n", $missing ? 'WARN' : 'OK', $missing ? implode(',', $missing) : 'none');
+
 $cb = config_get_path(NABLA_GENERAL . '/enable_cb', '');
 printf("%s: enable_cb=%s expected=on\n", $cb === 'on' ? 'OK' : 'CHANGE', $cb ?: 'off');
 if ($cb !== 'on') {
@@ -70,7 +89,7 @@ if (!$apply || $changes === 0) {
     exit(0);
 }
 
-write_config('nabla: pfBlockerNG IP lists only (DNSBL off, MaxMind_BD_Proxy disabled)');
+write_config('nabla: pfBlockerNG IPv4 lists only (DNSBL off, no v6 GeoIP, MaxMind_BD_Proxy disabled)');
 // Same path as a General settings save in the GUI: cron jobs, aliases and rules.
 global $pfb;
 $pfb['save'] = TRUE;
