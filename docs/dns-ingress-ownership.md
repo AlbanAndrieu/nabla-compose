@@ -362,7 +362,9 @@ Le mode `--apply` exige que Pi-hole réponde directement pour
 les sélections sortantes personnalisées et les installations
 de paquet en cours. Il crée seulement `int.albandrieu.com →
 172.17.0.24` si absent et fait passer `outgoing_interface` de
-`wan` à `all`. Il ne modifie ni DNS Forwarding général, ni
+`wan` à `all`. Le champ `forward_tls_upstream` est absent de
+l'override ajouté (DNS classique sur 53 : pas de TLS implicite).
+Il ne modifie ni DNS Forwarding général, ni
 DNSBL, ni PF, ni Snort/CrowdSec. Après changement il relance
 **uniquement Unbound** et teste le nom privé et la récursion
 publique ; un résultat non vérifié ne peut être déclaré terminé.

@@ -62,9 +62,11 @@ class PfsenseSplitDnsReconcileTest(unittest.TestCase):
             "duplicate private domain overrides",
             "root privilege required",
             "result=ALREADY_CONVERGED_NO_RESTART",
+            "!isset($entry[\'forward_tls_upstream\'])",
             "result=CHECK_ONLY_NO_MUTATION",
         ):
             self.assertIn(wanted, php)
+        self.assertNotIn("\'forward_tls_upstream\' => false", php)
         self.assertIn("exit(0);", php)
         self.assertLess(php.index("exit(0);"), php.index("config_set_path("))
         for unwanted in ("pfctl -F", "pfctl -d", "-T flush", "reboot -",

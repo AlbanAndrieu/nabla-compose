@@ -37,7 +37,7 @@ if (count($matching) > 1) {
 $entry = count($matching) === 1 ? reset($matching) : null;
 $matchesExpected = $entry !== null
     && (string)($entry['ip'] ?? '') === NABLA_PIHOLE_DNS
-    && empty($entry['forward_tls_upstream'])
+    && !isset($entry['forward_tls_upstream'])
     && empty($entry['tls_hostname']);
 $out = strtolower(trim((string)config_get_path('unbound/outgoing_interface', 'all')));
 $out = $out === '' ? 'all' : $out;
@@ -96,7 +96,6 @@ if ($entry === null) {
         'ip' => NABLA_PIHOLE_DNS,
         'descr' => 'nabla-compose: internal split DNS via Pi-hole',
         'tls_hostname' => '',
-        'forward_tls_upstream' => false,
     ];
     config_set_path('unbound/domainoverrides', $overrides);
     $changed = true;
