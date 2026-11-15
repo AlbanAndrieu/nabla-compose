@@ -379,11 +379,17 @@ vérifications existantes sans multiplier les moteurs :
    (Snort/CrowdSec, Service Watchdog, profil mémoire, DNSBL,
    fonctions PHP-FPM, DHCP et seuils) ;
 3. version pfSense, Boot Environment actif/prochain et versions
-   de paquets ciblés.
+   de paquets ciblés ;
+4. si `PFSENSE_DRIFT_BASELINE` désigne une sauvegarde `config.xml`
+   connue bonne (hors Git, mode 600), un diff complet de la config
+   live par `scripts/pfsense/config-drift.py` : règles et NAT, alias,
+   HAProxy, VPN, certificats, interfaces et IPv6, DNS, syslog et
+   toutes les autres sections. Les valeurs secrètes sont remplacées
+   par une empreinte courte : un changement reste visible, la valeur
+   jamais.
 
-**Ce n'est pas** un diff complet de `config.xml` ni une attestation
-de toutes les règles PF/IPv6, VPN, certificats, HAProxy ou secrets.
-Aucune correction d'autre composant n'est automatique.
+Sans `PFSENSE_DRIFT_BASELINE`, l'étape 4 est sautée et le contrôle
+reste partiel. Aucune correction n'est automatique.
 `PFSENSE_DESIRED_VERSION` (défaut `26.07`) sert uniquement à
 signaler l'écart à l'objectif d'upgrade.
 Le résultat est `SCOPED_BASELINE_CONVERGED`, `CONFIG_DRIFT_REQUIRES_REVIEW`

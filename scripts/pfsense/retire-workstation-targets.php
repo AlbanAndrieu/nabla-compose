@@ -100,11 +100,9 @@ if ($ha_changed) {
     print("OK: haproxy reloaded\n");
 }
 if (isset($changes['rdr_rules'])) {
-    if (filter_configure() !== 0) {
-        fwrite(STDERR, "ERROR: filter reload failed\n");
-        exit(1);
-    }
+    // filter_configure() only queues the reload and returns nothing; check with `pfctl -sn` afterwards.
+    filter_configure();
     clear_subsystem_dirty('natconf');
     clear_subsystem_dirty('filter');
-    print("OK: filter reloaded\n");
+    print("OK: filter reload queued\n");
 }

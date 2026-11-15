@@ -171,10 +171,27 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 
 - **DNSBL et ASN reporting — CODED, réception NOT_VERIFIED** : `scripts/pfsense/diagnose-recover.sh --check-posture` appelle désormais l'audit de capacité en lecture seule pour mesurer les entrées DNSBL chargées et préparées et vérifier le paramètre ASN reporting, sans imprimer de jeton. Confirmer les mesures sur l'appliance ; un champ absent doit rester `NOT_VERIFIED`.
 - **Snort arrêté après OOM ou kill — CODED, réception NOT_VERIFIED** : l'audit ajouté à `--check-posture` examine maintenant le processus WAN (`service.snort`), en plus de la configuration ; un processus absent ne devient plus implicitement sain. Confirmer le nom/config de l'instance installée, son âge et le résultat après rebuild, sans redémarrage automatique en cas de pression mémoire.
-- **PHP-FPM hors profil retenu** : dernier relevé détaillé documenté : **7 workers nginx PHP-FPM (environ 280 Mio RSS cumulés)**, contre le profil contraint validé le **24/10 : 4/30/1/2/500** (`PHPFPMMAX/IDLE/START/SPARE/REQ`). Ce relevé historique ne prouve pas l'état du 14/11. Mesurer séparément le générateur, le fichier généré et les workers réels avant toute correction ; prévoir le retour arrière et les smoke tests DNS/GUI.
+- **PHP-FPM — DONE 15/11 17:46** : profil `4/30/1/2/500` appliqué sur `default_clone` (26.03), générateur identique à celui d'octobre, smoke tests DNS et GUI réussis. Le check `php_fpm.nginx_workers` signale 0 worker au repos (mode ondemand, inactivité 30 s) : ajuster son seuil.
 - **Critère de réception** : taille DNSBL + ASN reporting prouvés, Snort actif ou explicitement classé en panne avec horodatage, et PHP-FPM **≤ 4 workers** avec paramètres `4/30/1/2/500`, sans nouveaux OOM ; vérifier Unbound, pfREST et accès WebConfigurator après réglage.
 
 Sources : [incident pfSense du 13/11](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md), [profil PHP-FPM](pfsense-php-fpm-hardening.md) et [plan d'upgrade pfSense](pfsense-upgrade-26-07.md). Ne pas confondre absence de mesure et service sain.
+
+### H07b — pfSense : stabiliser `default_clone`, puis repasser en 26.07 (15/11)
+
+Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisation-du-1511-sur-default_clone).
+
+- [x] **P1 GUI 10443 exposée à Internet** : garde WAN d'octobre restaurée (alias `PFSENSE_ADMIN_WAN`, pass, puis `Block untrusted pfSense GUI/API`, avant l'« Easy Rule »). Chargé dans PF le 15/11 à 18:14. Test depuis Internet NOT_RUN.
+- [x] Unbound `All` et Domain Override `int` ; syslog `.57` retiré ; cibles workstation HAProxy/NAT retirées ; règles `heimdall 443` et `ExternalOffice 7000` désactivées ; 9 réservations DHCP d'octobre restaurées (Talos `.50` à `.52`).
+- [x] Repli sûr : point de reprise protégé `default_clone_20261115_stable`, sauvegardes `config.xml` sur le NFS (mode 600).
+- [x] `check-drift.sh` étape 4 : diff complet de `config.xml` (`config-drift.py`, `PFSENSE_DRIFT_BASELINE`), qui couvre règles, NAT, alias, HAProxy, VPN, certificats, IPv6 et DNS.
+- [ ] **pfBlockerNG** désactivé depuis l'incident WAN du 15/11 (plus de blocage géographique ni de DNSBL) : désactiver la ligne PRI3 `MaxMind_BD_Proxy`, réactiver, contrôler environ 200 k entrées DNSBL, le module Unbound `python` et l'absence d'OOM.
+- [ ] **REST API** : la clé `posture` reçoit un 401 depuis la workstation alors que les identités existent ; `--check-identities`, puis rotation si besoin.
+- [ ] **« Easy Rule » WAN** (`pass tcp all`, depuis 2022, présente aussi en octobre) : inventorier ce qui en dépend (HAProxy :443/:7000, NAT), puis la remplacer par des règles par port. SSH 9922 est ouvert sur le WAN (clé seule) ; la règle « Reject SSH » ne bloque que la source WAN.
+- [ ] **Exposition WAN par NAT** (vault 8200, nomad 4646, consul 8500, traefik 9002, apps TrueNAS 300xx) : revue avec H04.
+- [ ] **HAProxy** : backend par défaut `heimdall-https` (`prod_back`) en 503 sur :443.
+- [x] **Service Watchdog** : `audit-posture.sh` est aligné sur la décision du 13/11 (238e1073). Certificats ACME renouvelés jusqu'au 11/02/2027, et `--check-posture` alerte à moins de 14 jours (3d7c663b).
+- [ ] **Upgrade 26.07** : console série, suppression de `default` (417 Mo libres, il en faut plus de 1,5 Go), vérification de boot automatique, restauration de la config d'octobre, puis `retire-workstation-targets.php`. Les 3 094 chemins encore différents d'octobre (HAProxy, DHCP, règles, pfBlockerNG, certificats) se résolvent par cette restauration, pas à la main.
+- [ ] **Clé USB de réinstallation** : Netgate Installer de décembre 2023, en ligne. Obtenir l'image hors ligne par un ticket TAC *Firmware Access* (Netgate 1100) ou rafraîchir l'installeur en ligne, qui accède à Internet par le WAN du 1100 branché sur la Freebox.
 
 ## P1 — Performance, stockage et restauration TrueNAS
 

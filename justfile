@@ -352,7 +352,7 @@ pfsense-split-dns-check:
 pfsense-split-dns-apply:
     bash scripts/pfsense/reconcile-split-dns.sh --apply
 
-# Consolidates existing posture, capacity and split-DNS checks; not every config.xml field.
+# Posture, capacity and split-DNS checks, plus a full config.xml diff when PFSENSE_DRIFT_BASELINE is set.
 pfsense-drift:
     bash scripts/pfsense/check-drift.sh --check
 
@@ -361,6 +361,7 @@ pfsense-drift-test:
     bash -n scripts/pfsense/reconcile-split-dns.sh
     @if command -v php >/dev/null 2>&1; then php -l scripts/pfsense/manage-split-dns.php; else echo 'PHP CLI unavailable locally: PHP lint skipped'; fi
     python3 -m unittest discover -s tests -p 'test_pfsense_split_dns_reconcile.py' -v
+    python3 -m unittest discover -s tests -p 'test_pfsense_config_drift.py' -v
 
 # Pure offline regressions: no pfSense access or GitHub Actions.
 pfsense-console-test:

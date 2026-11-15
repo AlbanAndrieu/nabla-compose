@@ -42,7 +42,54 @@ récente en 26.07, avec CrowdSec Small et l'ACME du 26/10) est exportée dans
 24.5) : c'est la raison principale de passer en 26.07 rapidement.
 
 En attendant l'upgrade, désactiver dans *Firewall → Rules → WAN* les deux
-règles de l'alias `ExternalOffice` et `heimdall / truenas to wan https`.
+règles de l'alias `ExternalOffice` et `heimdall / truenas to wan https`
+(fait le 15/11, voir plus bas).
+
+## Stabilisation du 15/11 sur `default_clone`
+
+Corrections appliquées par SSH, une révision Config History chacune :
+
+| Heure | Correction | Pourquoi |
+| --- | --- | --- |
+| 17:22 | Unbound `Outgoing Network Interfaces = All` et Domain Override `int.albandrieu.com` | `*.int` en SERVFAIL : la config de mai sortait par le WAN |
+| 17:45 | Syslog distant : `172.17.0.24:1514` seul | `.57:1514` (retiré le 14/11) revenu avec le repli |
+| 17:46 | PHP-FPM `4/30/1/2/500` | profil d'origine 8 workers sur 26.03 |
+| 18:14 | Alias `PFSENSE_ADMIN_WAN`, pass puis `Block untrusted pfSense GUI/API` sur 10443, avant l'« Easy Rule » | **GUI 10443 joignable depuis Internet** : l'« Easy Rule » WAN se charge en `pass in quick proto tcp all` |
+| 18:16 | Règles WAN `heimdall / truenas to wan https` et `ExternalOffice` → 7000 désactivées | consigne intérimaire ci-dessus |
+| 18:17 | `retire-workstation-targets.php apply` : serveurs HAProxy `.57` inactifs, NAT `:8081` supprimé | retrait du 14/11 perdu avec le repli |
+| 18:33 | 9 réservations DHCP d'octobre (dont Talos `.50` à `.52`) | absentes de la config de mai ; les nœuds auraient changé d'IP |
+
+### Ne plus perdre la config au prochain reboot
+
+- Un reboot normal garde la config : `default_clone` est **N R**
+  (`zpool get bootfs pfSense`).
+- La perte du 13/11 vient du **repli** après un échec de boot.
+  `_be_recent_name` (`/etc/rc.be_functions.sh`) choisit alors
+  l'environnement non `failed` **le plus récemment créé**. Avant le 15/11,
+  c'était `default_20260604025536`, avec une config de juin.
+- Point de reprise créé le 15/11 18:19 : `default_clone_20261115_stable`,
+  protégé, clone de la config stabilisée. C'est désormais la cible de repli.
+  Le recréer (*System → Boot Environments*, clone de `default_clone`) après
+  une série de changements, puis supprimer l'ancien.
+- Sauvegardes hors boîtier, mode 600 :
+  `2026-11/config-pfsense.albandrieu.com-20261115181916-be-default_clone-26.03-stabilized.xml`.
+- Contrôle après un reboot ou un repli :
+
+  ```bash
+  PFSENSE_DRIFT_BASELINE=/media/backup/lab/infra/pfsense/2026-11/config-pfsense.albandrieu.com-20261115181916-be-default_clone-26.03-stabilized.xml just pfsense-drift
+  ```
+
+  `config-drift.py` compare toute la config live à cette sauvegarde,
+  y compris les règles, le NAT, HAProxy, les VPN, les certificats et l'IPv6.
+  Le 15/11 à 18:20, le résultat était `CONVERGED`.
+
+### Drift restant par rapport à octobre
+
+Comparée à l'export d'octobre, la config live diffère encore sur 3 094
+chemins : HAProxy 1 333, DHCP 436, règles 363, listes pfBlockerNG 307,
+certificats et CA 203, ACME 91, alias 76, Unbound 22, IPv6 23. Ne pas les
+reporter à la main : ils reviennent avec la restauration de la config
+d'octobre après l'upgrade (étape 5 du déroulé).
 
 ## Pourquoi 26.07 n'est jamais resté
 
@@ -77,7 +124,8 @@ sur chaque suppression, irréversible :
    `default_20260824183037` et `default_20260604025536` (retirer d'abord la
    protection).
 4. Une semaine après un 26.07 stable : supprimer le point de restauration
-   26.03.1.
+   26.03.1, puis `default_clone_20261115_stable`, le point de reprise protégé
+   du 15/11.
 
 ## Upgrade vers 26.07
 
@@ -85,8 +133,8 @@ sur chaque suppression, irréversible :
 
 - Câble console sur le port console du 1100 (115200 8N1), par exemple
   `sudo screen /dev/ttyUSB0 115200`. Sans lui, un nouvel échec reste muet.
-- Clé USB retirée, fenêtre de maintenance de 30 min (le DNS et Internet
-  coupent).
+- Clés USB retirées (Kingston et SanDisk, fait le 15/11), fenêtre de
+  maintenance de 30 min (le DNS et Internet coupent).
 - `default` supprimé ; vérifier `zfs get available pfSense/ROOT` (> 1,5 Go).
 - Sauvegarde de la config courante (*Diagnostics → Backup & Restore*), à
   ranger avec les autres dans `/media/backup/lab/infra/pfsense/<mois>/`.
@@ -128,6 +176,10 @@ sur chaque suppression, irréversible :
    La config d'octobre a ET Open et OpenAppID actifs et pas d'Unbound dans le
    Watchdog : `--apply-posture` corrige les deux. Contrôler aussi que
    l'exporter Prometheus collecte de nouveau.
+7. La config d'octobre précède le retrait du 14/11 : relancer
+   `retire-workstation-targets.php` et vérifier le syslog distant. Comparer
+   ensuite avec `config-drift.py` contre la sauvegarde stabilisée du 15/11 :
+   seuls les écarts voulus d'octobre doivent rester.
 
 ### Plan B
 
@@ -136,8 +188,40 @@ Si 26.07 échoue encore, avec ou sans cause visible : rester sur
 d'installation du 1100 fournie par Netgate et restaurer la config. Un fil du
 forum Netgate rapporte cette sortie pour une boucle d'upgrade 26.07 sur 1100.
 
+### Clé USB de réinstallation
+
+La clé Kingston DataTraveler (29 Go, étiquette `DTBFAT0`) porte le
+**Netgate Installer de décembre 2023**. C'est un installeur en ligne : il
+télécharge pfSense Plus depuis les serveurs Netgate.
+
+- **Internet pendant la réinstallation** : l'installeur configure lui-même le
+  port WAN du 1100, en DHCP, statique ou PPPoE, éventuellement avec un VLAN.
+  Il n'a pas besoin de pfSense. Câble WAN du 1100 sur la Freebox en bridge :
+  le bail DHCP donne l'IP publique. Sinon, partage de connexion de la
+  workstation ou d'un téléphone vers le port WAN.
+- **Image vraiment hors ligne** : uniquement par un ticket TAC Netgate,
+  catégorie *Firmware Access*, plateforme *Netgate 1100*. Le ticket demande
+  le compte Netgate de l'opérateur. Écrire ensuite l'image reçue sur la clé
+  (cela efface la clé) :
+
+  ```bash
+  gunzip -c <image>.img.gz | sudo dd of=/dev/<clé> bs=4M conv=fsync status=progress
+  ```
+
+- **Rafraîchir l'installeur en ligne** : télécharger
+  `netgate-installer-aarch64.img.gz` depuis le compte Netgate Store, puis
+  l'écrire de la même façon.
+- **Démarrage sur la clé** : console série 115200, appuyer sur une touche pour
+  arrêter l'autoboot U-Boot, puis `run usbboot`. En cas d'échec, `usb reset`
+  puis `run usbboot`. En dernier recours, `run usbrecovery`, qui efface
+  l'eMMC.
+- Après réinstallation : restaurer la dernière sauvegarde de
+  `/media/backup/lab/infra/pfsense/<mois>/`, puis suivre les étapes 6 et 7.
+
 ## Sources
 
 - [Troubleshooting Upgrades on Netgate 1100 and Netgate 2100 Devices](https://docs.netgate.com/pfsense/en/latest/troubleshooting/upgrades-1100-2100.html)
 - [Netgate releases pfSense Plus 26.07](https://www.netgate.com/blog/netgate-releases-pfsense-plus-software-version-26.07)
 - Forum Netgate : [post 1249539](https://forum.netgate.com/post/1249539), [post 1247075](https://forum.netgate.com/post/1247075)
+- [Reinstalling pfSense Plus Software (Netgate 1100)](https://docs.netgate.com/pfsense/en/latest/solutions/sg-1100/reinstall-pfsense.html)
+- [Perform the Installation](https://docs.netgate.com/pfsense/en/latest/install/install-pfsense.html) : l'installeur exige Internet (DHCP, statique ou PPPoE).
