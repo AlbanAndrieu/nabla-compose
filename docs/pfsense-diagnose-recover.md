@@ -86,6 +86,31 @@ route IPv6 Internet, tests AAAA et sécurité ingress vérifiés
 depuis le LAN après redémarrage.
 
 
+### Mise à jour opérateur — connectivité TCP IPv4 confirmée (15/11/2026)
+
+Après les premières investigations PF/IPS, deux tests exécutés dans le
+contexte de diagnostic pfSense ont désormais réussi :
+- `nc -4 -vz -w 5 1.1.1.1 443` — **TCP CONNECT OK** ;
+- `nc -4 -vz -w 5 9.9.9.9 443` — **TCP CONNECT OK**.
+
+**Statut : `PF_IPv4_TCP_EGRESS_PASS`, mais `LAN_E2E_NOT_VERIFIED`.**
+Cette observation démontre l'accès TCP sortant depuis pfSense à deux
+destinations Internet. Elle **ne prouve pas** que la route LAN/NAT,
+la résolution DNS/Unbound, ICMP ou IPv6 fonctionnent. Le changement
+précis ayant permis ce rétablissement n'a pas été communiqué :
+ne pas attribuer causalement la réparation à CrowdSec, Snort,
+pfBlockerNG ou à `Disable Gateway Monitoring` sans preuve.
+
+Recette suivante : effectuer `curl -4 -I --connect-timeout 5
+https://www.cloudflare.com` depuis un client LAN, tester
+`Diagnostics > DNS Lookup` sur pfSense et
+`dig @172.17.0.1 www.cloudflare.com A` depuis le LAN ;
+réactiver *une par une* les protections temporairement arrêtées, en
+répétant `nc` et en relevant tout retour de `Permission denied`.
+Restaurer le niveau de protection initial après attribution de la
+cause ; ne jamais désactiver globalement PF. Poursuivre séparément
+le rétablissement IPv6 du LAN.
+
 ## Auto Config Backup (ACB) et notices `write_config`
 
 Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du

@@ -2,6 +2,14 @@
 
 > Mise à jour : **14 novembre 2026** ([passe du 13/11](runbooks/2026-11-10-roadmap-pass-blockers.md#8-reprise-du-1311), [audit TrueNAS du 13/11](runbooks/2026-11-13-truenas-audit-ssd-coverage.md)). Source d'autorité des **travaux restant à réaliser**. Une PR fusionnée ou un script versionné ne constitue pas une réception runtime. Les procédures courantes sont dans les runbooks spécialisés ; les problèmes passés utiles aux diagnostics sont dans [les leçons de migration](incidents/2026-11-06-migrations-retour-experience.md) et dans l'[archive immuable au 24/10](archive/roadmap-through-2026-10-24.md). Ne pas réexécuter d'anciennes commandes d'incident.
 
+**Actualisation du 15/11 — progrès IPv4 partiel :** les connexions
+TCP `1.1.1.1:443` et `9.9.9.9:443` ont réussi lors des diagnostics
+pfSense. **`PF_IPv4_TCP_EGRESS_PASS`**, mais LAN/NAT, DNS/Unbound,
+IPv6 et identification de la cause initiale **non vérifiés**. Maintenir
+le P0 ouvert jusqu'à test HTTPS IPv4 depuis le LAN et réactivation
+contrôlée des protections arrêtées. Ne pas présenter la désactivation
+de `Gateway Monitoring` comme la cause démontrée de la reprise.
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 
