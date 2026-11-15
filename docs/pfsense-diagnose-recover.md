@@ -14,6 +14,25 @@ L'adresse privée `10.52.47.193` affichée ailleurs dans Freebox OS
 n'est pas l'adresse WAN publique. L'ADSL indiqué DOWN ne suffit pas
 à diagnostiquer une panne de la fibre.
 
+**Cause identifiée pour la coupure de 18:43 : blocage PF local par
+pfBlockerNG**, pas Free. Réactivé à 18:43 par `pfblocker-ip-only.php`,
+pfBlockerNG a rechargé la liste GeoIP *Top Spammers*. Cette liste regroupe
+des pays entiers, dont `FR`/`FR_rep`. La règle flottante
+`pfB_Top_v4 auto rule` (WAN, `quick`, direction `any`, source `pfB_Top_v4`)
+bloquait donc aussi les paquets sortants de `82.66.4.247` :
+`pfctl -t pfB_Top_v4 -T test 82.66.4.247` → `1/1 addresses match`, et
+`filter.log` montrait `block,out … 82.66.4.247 → 1.1.1.1:53`. Ce blocage
+explique le `Permission denied` et le DNS public muet (Unbound tourne).
+La coupure a pris fin au reboot console de 19:47 sur
+`default_clone_20261115_stable`, dont la config de 18:19 a pfBlockerNG
+désactivé. `FR` et `FR_rep` ont ensuite été retirés de Top Spammers dans ce
+boot environment, à titre préventif, avant tout nouvel
+`pfblocker-ip-only.php apply`. Le script les retire désormais lui-même, et
+`--check-posture` contrôle les deux points (`pfblockerng_top_own_country`,
+`pfblockerng_wan_self_block`).
+Le `dpinger … sendto error: 13` de 14:36, avec pfBlockerNG actif, a
+probablement la même cause (non prouvé).
+
 | Élément | Observation utilisateur |
 | --- | --- |
 | WAN | `mvneta0.4090` / VLAN 4090, `82.66.4.247/24` |
@@ -443,6 +462,56 @@ DNS/IPv4 after each. On this Netgate 1100, examine the
 [13/11 OOM incident](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md)
 before allowing resource-intensive IDS/IPS updates.
 
+### Réparation du Domain Override et inventaire de dérive (15/11/2026)
+
+La restauration de l'accès DNS public après reboot **ne rétablit pas**
+la zone interne. `just pfsense-split-dns-check` et
+`just pfsense-split-dns-apply` réparent uniquement le transfert de
+`int.albandrieu.com` vers Pi-hole, avec `outgoing_interface=all`.
+`just pfsense-drift` agrège cet invariant, l'audit posture/capacité
+et les preuves du Boot Environment ; voir
+[contrat de réparation et de portée](dns-ingress-ownership.md).
+
+## Normal read-only check### Lecture simplifiée des anomalies Unbound (15/11/2026)
+
+Le script existant `scripts/pfsense/diagnose-unbound-restart-cause.sh`
+classe désormais les anomalies **par état réel et gravité**.
+Le renderer partagé `scripts/pfsense/console.sh` conserve les données
+brutes inchangées pour la CI et le parsing ; le rendu lisible (compact
+ou verbose) ajoute des couleurs, des icônes et une synthèse finale.
+
+```bash
+# Diagnostic court + synthèse P0/P1. Couleur forcée pour un terminal distant
+PFSENSE_OUTPUT=compact bash scripts/pfsense/diagnose-unbound-restart-cause.sh \
+  --check --color always
+
+# Tous les événements horodatés et la synthèse
+PFSENSE_OUTPUT=verbose bash scripts/pfsense/diagnose-unbound-restart-cause.sh \
+  --check --color always
+
+# Sortie machine sans couleurs ni annotations
+PFSENSE_OUTPUT=raw bash scripts/pfsense/diagnose-unbound-restart-cause.sh --check
+```
+
+`--color auto|always|never` règle la couleur sans altérer le collecte
+read-only ; `NO_COLOR=1` reste prioritaire. La classification indique :
+
+| Catégorie | Signification et prudence |
+| --- | --- |
+| ❌ P0 **split-DNS absent** | `unbound-control list_forwards` ne contient pas le transfert attendu ; confirmer la résolution A depuis la workstation, puis utiliser le correcteur split-DNS |
+| ✅ **Unbound control joignable** | Le daemon répond au canal de contrôle ; **ne prouve pas** la résolution DNS côté clients |
+| ⚠️ P1 **ASN/IPinfo retries** | Compteurs historiques, parfois présents dans plusieurs fenêtres de logs ; un maximum par fenêtre, **pas** un cumul ni une fréquence actuelle |
+| ⚠️ P1 **DNSBL RAM-safe/live reload absent** | Capacités du paquet installé uniquement ; le chemin utilisé à l'exécution demeure inconnu |
+| 🕘 **pfBlockerNG stop/start** | Anciennes demandes journalisées ; **pas** une attribution automatique de la panne à pfBlockerNG |
+| ✅ **Watchdog = LISTED** | État de configuration attendu dans la posture actuellement déclarée ; n'implique aucun redémarrage effectif |
+| ℹ️ **OOM absent dans la fenêtre** | Ne signifie pas qu'aucun OOM n'a eu lieu avant ou hors de la rétention |
+
+Les signaux du 15/11 observés comprennent des demandes stop/start
+pfBlockerNG vers 15:11–15:13, des erreurs répétées IPinfo, et aucun
+nouvel OOM identifié dans la fenêtre bornée ; la responsabilité exacte
+de la panne DNS reste `ROOT_CAUSE_NOT_PROVEN`. Ne pas requalifier des
+signatures DNSBL en OOM, ni l'absence de log en preuve de santé.
+
 ## Normal read-only check
 
 From the workstation:
@@ -648,6 +717,21 @@ keep the 1 GiB appliance out of OOM and on the CrowdSec Small contract:
 | Service Watchdog | `unbound` watched, `crowdsec` not watched |
 | CrowdSec | Log Processor and Local API off, firewall bouncer on, Remote LAPI `http://172.17.0.24:8084/`, bouncer key set |
 | CrowdSec runtime | no `daemon: crowdsec` supervisor left running |
+| ACME certificates | every active certificate valid for at least 14 days (check only) |
+| Certificate bindings | HAProxy `Web_HTTPS` = wildcard + `albandrieu.com`, `freenas` (`:7000`) = `freenas.albandrieu.com` + wildcard, `Web_HTTPS-8082` = wildcard; GUI = `home.albandrieu.com` (check only, map in `NABLA_HAPROXY_CERTS`) |
+| pfBlockerNG | GeoIP Top Spammers without `FR`/`FR_rep`; WAN address in no `pfB_*` table (apply removes FR, then `pfblockerng.php updateip`) |
+
+`just pfsense-drift` (`check-drift.sh`) also probes the served certificates
+from the LAN: HAProxy `:443` and `:7000`, the GUI `:10443` and the TrueNAS UI
+`172.17.0.24:7000` must present a trusted chain, the expected name and at least
+14 days of validity.
+
+A boot-environment fallback restores the `config.xml` of that environment, so
+it can bring back expired ACME certificates, which HAProxy then serves on
+`:443` and `:7000`. Apply mode never renews them: the renewal output prints
+the Cloudflare key. Renew on pfSense with
+`daemon -f /usr/local/pkg/acme/acme_command.sh renewall`. The `int` Domain
+Override that the same fallback drops is repaired by `just pfsense-split-dns-apply`.
 
 Both run `scripts/pfsense/manage-posture.php` over the same SSH contract as the
 identity lifecycle (`admin@home.albandrieu.com:9922`). Apply mode:

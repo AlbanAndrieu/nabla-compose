@@ -168,8 +168,10 @@ class AgentDiagnosticModes(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "AGENTS.md").touch()
+            # A bare MagicMock returncode is neither 0 nor JSON serializable.
             with patch.object(MOD.shutil, "which", return_value="/bin/python3"), \
-                 patch.object(MOD.subprocess, "run") as run, \
+                 patch.object(MOD.subprocess, "run",
+                              return_value=MOD.subprocess.CompletedProcess([], 0)) as run, \
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 code = MOD.main(["--scope", "policy", "--execute",
                                  "--root", directory])

@@ -14,9 +14,13 @@ Always preserve TrueNAS-managed ZFS bind mounts `/mnt/cpool/<service>`, Vaultwar
 ## Safety and ownership
 
 - Homelab downtime and reversible upgrades are acceptable; **data destruction, secret leakage, weakened authentication or new public exposure are not**. Preserve a tested recovery path for important persistent data. Never print secret values or activate shell tracing around credentials.
-- Only modify an explicitly created feature branch; never write directly to `master`, bypass a hook, force-push protected refs, weaken security gates or merge without approval.
-- Compose owns TrueNAS/Talos/pfSense, secrets, Cloudflare, monitoring targets and Backstage catalog. FastAPI owns API/observer/UI; Site Alban owns its UI; OpenClaw owns heartbeat. Link across repositories rather than copying procedures.
+- `nabla-compose` owns TrueNAS/Talos/pfSense, secrets, Cloudflare, self-hosted Sentry, monitoring targets and Backstage catalog. `fastapi-sample` owns API/observer/UI; Site Alban owns its UI; OpenClaw owns heartbeat. Link across repositories rather than copying procedures.
+- **pfSense and TrueNAS changes go through a versioned script (`check` then `apply`) or IaC in this repository**, never GUI clicks or unversioned one-off commands: a boot-environment fallback silently reverts anything not reproducible. Commit the script on the work branch before the `apply`, then re-run its `check` to prove convergence.
 - `CODED` is not `TESTED`, `DEPLOYED` or `ACCEPTED`. A `DENIED`, `NOT_RUN` or stale sample is not a verified `DOWN`. Report exact SHA and observation vantage, not inferred runtime health.
+
+## Protected default-branch policy
+
+Agents must never commit, push or write files directly on `master` (Git CLI, GitHub API/Contents, generated, trivial or emergency changes alike), force-update protected refs, bypass a hook, weaken security gates or merge without approval. Before every remote mutation verify the destination is an explicitly created feature branch; never omit a `branch`/`ref` argument that an API would default to `master`.
 
 ## Execution modes — choose by actual capability, never by agent name
 
@@ -42,7 +46,7 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 ## Token and tool budget
 
 1. Inspect the selected PR's state and exact HEAD, `git status --short` and changed paths. Read matching code + tests and one relevant roadmap section; do not recursively ingest 1,800 files, submodules, vendored skill references, old incidents or entire logs.
-2. Load **one or two relevant** `.agents/skills/*/SKILL.md` files on demand. Follow their reference links only when needed. `nabla-service-catalog` is mandatory for service/metadata edits, `homelab-secrets` for credential paths, `pfsense-api-debugging` for pfSense, and `local-first-quality` for CI/release.
+2. Load **one or two relevant** `.agents/skills/*/SKILL.md` files on demand. Follow their reference links only when needed. `nabla-service-catalog` is mandatory for service/metadata edits, `homelab-secrets` for credential paths, `pfsense-api-debugging` for pfSense; load `local-first-quality` for CI/release. Only for an explicit security audit, vulnerability review or source-first pen-test request, load `security-audit` and preserve its sandbox, independent-validation and incomplete-run rules.
 3. Run a small L1 test, then local convergence. Request failing CI job/step and bounded log excerpt before full logs. Reuse fetched evidence while current; batch read-only calls and one logical Git tree with expected-SHA lease.
 4. **Context7 is documentation-only and free-first**; load `context7-docs` on demand for external versioned APIs. The `repository/runtime evidence remains authoritative`; Context7 never proves deployed state. No unrelated connector discovery.
 5. Use short failure summaries with pointers to private logs instead of echoing entire responses. A token limit does not excuse missing security/functional validation.
@@ -65,8 +69,13 @@ only with `AGENT_EXECUTION_MODE=workstation`. Details:
 ## Git workflow and acceptance
 
 - Prefer a dedicated worktree and a Draft PR. Workstation: `mise run agent-context` → narrow L1 → `mise run agent-loop` → `mise run agent-fix` → review/commit → `mise run agent-pre-push` on the exact committed HEAD. The full publication gate is not the targeted loop.
+- Local-first validation: Before every `git push`, `mise run agent-pre-push` (also the pre-push hook) must pass; on `QG_AUTOFIX_APPLIED`, commit only those deterministic changes and rerun before pushing. Do not use remote CI as the edit/format/lint feedback loop.
 - Remote/API-only: bounded offline checks and static review, a Draft PR with expected-SHA writes; **never claim** that L2/L3 or runtime ran. Preserve CI/SAST/SCA/secret scanning; no invented PASS or disabled gate to save credits.
 - Do not start the full Compose stack to validate. For service modifications use the dedicated catalog/Compose contract; for operational acceptance use task-specific read-only probes before any authorized mutation.
 - Record remaining work in [docs/roadmap-portfolio.md](docs/roadmap-portfolio.md) and [docs/roadmap.md](docs/roadmap.md); include what changed, checks **actually** executed and missing proofs. Preserve old wrappers while consumers/tests still use them.
+
+## OpenCode and smaller-model execution
+
+OpenCode reads this file. `agent.md` is a non-authoritative runbook for the smaller workstation model and this file wins on conflict; `opencode.json` and `.opencode/**` reuse `.agents/skills` instead of copying them. Start non-trivial work with `mise run agent-context` and change one service or logical unit at a time.
 
 Consult [the conditional playbook](docs/agent-execution-playbook.md) for agent/hook recovery, shell UX, GitHub CI, service migrations and local environment setup. `CLAUDE.md` and `.claude/CLAUDE.md` are thin adapters only.

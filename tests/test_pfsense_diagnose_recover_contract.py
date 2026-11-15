@@ -231,7 +231,9 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("/var/unbound/pfb_py_data.txt", text)
         self.assertIn("vaultwarden_runtime_match=", text)
         self.assertIn("pfsense_remote_syslog_enabled=", text)
-        self.assertIn("pfsense_remote_syslog_legacy_workstation=", text)
+        self.assertIn("ERROR: pfsense_remote_syslog_legacy_workstation=present", text)
+        self.assertIn("OK: pfsense_remote_syslog_legacy_workstation=absent", text)
+        self.assertIn("pfSense still sends syslog to the retired workstation", text)
         self.assertIn("pfsense_remote_syslog_alloy_target=", text)
         self.assertIn("vaultwarden_public_override=config_xml_match", text)
         self.assertIn("vaultwarden_public_unbound_generated=present", text)
@@ -281,8 +283,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
         self.assertIn("WARN: crowdsec_small_mode=reverted", text)
         self.assertIn("OK: crowdsec_bouncer=running lapi=remote-truenas", text)
         self.assertNotIn("crowdsec_engine=absent enabled=on", text)
-        self.assertIn("^((OK|WARN): (snort|crowdsec)_|", text)
-        self.assertIn('OK:* | WARN:*) console_line "${summary_line}"', text)
+        self.assertIn("^((OK|WARN|ERROR): (snort|crowdsec|pfsense_remote_syslog)_|", text)
+        self.assertIn('OK:* | WARN:* | ERROR:*) console_line "${summary_line}"', text)
 
     def test_posture_lifecycle_reconciles_without_touching_secrets(self) -> None:
         shell = SCRIPT.read_text(encoding="utf-8")
@@ -308,8 +310,21 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             "sync_snort_package_config();",
             "crowdsec_resync_config();",
             "posix_kill((int)$supervisor, SIGTERM);",
+            # A boot-environment fallback brings back the ACME certs of its config.xml.
+            "nabla_report(\"acme_cert_{$name}\"",
+            # Certificate bindings are declared here, not only in config.xml.
+            "'freenas' => ['freenas.albandrieu.com', 'wildcard.albandrieu.com']",
+            "NABLA_WEBGUI_CERT = 'home.albandrieu.com'",
+            "nabla_report(\"haproxy_cert_{$fe}\"",
+            # 2026-11-15: FR in Top Spammers blocked our own WAN address outbound.
+            "NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep']",
+            "nabla_report('pfblockerng_wan_self_block'",
+            "pfblockerng.php updateip",
         ):
             self.assertIn(wanted, helper)
+        # Certificates are only checked: the renewal output prints the Cloudflare key.
+        self.assertNotIn("acme_command.sh renewall'", helper)
+        self.assertNotIn("exec('/usr/local/pkg/acme", helper)
         # The bouncer key is only ever tested for presence, never written or printed.
         key_lines = [line for line in helper.splitlines() if "remote_fw_bouncer_api_key" in line]
         self.assertEqual(len(key_lines), 1)

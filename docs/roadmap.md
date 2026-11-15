@@ -47,6 +47,27 @@ Prioriser l'identification des sockets :53, du binding localhost/LAN,
 de la configuration générée et des logs Unbound, avant modification
 du NAT ou de la passerelle.
 
+**P0 split-DNS après reboot (15/11) — CODED, runtime NOT_VERIFIED** :
+résolution publique à nouveau fonctionnelle, mais
+`int.albandrieu.com` non délégué à Pi-hole par Unbound :
+`list_forwards` vide, `Domain Overrides` vide, réponse Cloudflare
+sans A alors que Pi-hole renvoie `172.17.0.24`.
+`reconcile-split-dns.sh --check/--apply` corrige l'override
+et `outgoing_interface=all` de façon ciblée ; `check-drift.sh`
+agrège les contrôles de posture. **DONE** : même A privé via
+Pi-hole et Unbound, récursion publique OK, pas de reboot involontaire,
+inventaire des dérives Boot Environment/Snort/pfBlockerNG/CrowdSec.
+[Architecture DNS](dns-ingress-ownership.md).
+
+**P0 observabilité Unbound — 15/11** : enrichir
+`diagnose-unbound-restart-cause.sh` et le renderer partagé
+`console.sh` avec triage coloré P0/P1, statut actuel Unbound,
+détection du forwarder DNS privé, alertes ASN/IPinfo et DNSBL,
+et distinction entre les anciens marqueurs stop/start et une
+cause démontrée. Préserver la sortie brute CI et la neutralité
+`ROOT_CAUSE_NOT_PROVEN`.
+[Runbook de récupération](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 
@@ -89,7 +110,7 @@ Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
 6. **H13 — DefectDojo** : durcir l'import privé (RBAC de l'importeur, import asynchrone, déduplication) et prouver l'absence d'exposition WAN. [Runbook](defectdojo-private-scan-ingestion.md).
 7. **H16 — Vault PKI / OAuth / OIDC** : pilote de PKI et de fédération PostgreSQL/Keycloak/FastAPI avec break-glass, révocation et tests RBAC négatifs ; aucune migration d'identité globale sans recette. [Plan sécurité](security/postgresql-fips-tls13-vault-oauth-20261110.md).
 
-**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état Azure Blob verrouillable](../terraform/entra-id-lab/README.md), [workflow GitHub OIDC](../.github/workflows/entra-id-lab.yml) et [threat model/YubiKey/runbook](security/entra-id-homelab-lab.md). Plus de seconde source d’état Garage ; groupes désactivés pour la CI afin d’éviter les permissions Graph tenant-wide. Apply manuel verrouillé par défaut : environnement GitHub, identité, backend, lockfile et approbation à configurer. CODED / TESTED NOT_RUN / DEPLOYED NOT_APPLIED / ACCEPTED NOT_VERIFIED. Ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangé.
+**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état Azure Blob verrouillable](../terraform/entra-id-lab/README.md), [workflow GitHub OIDC](../.github/workflows/entra-id-lab.yml) et [threat model/YubiKey/runbook](security/entra-id-homelab-lab.md). Plus de seconde source d’état Garage ; groupes désactivés pour la CI afin d’éviter les permissions Graph tenant-wide. Utilisateur de test créé seulement par apply local, avec mot de passe initial Vaultwarden à usage unique, et lockfile du provider commité ([guide tenant + utilisateur](runbooks/entra-id-lab-tenant-and-test-user.md)) ; création du tenant et apply NOT_RUN. Apply manuel verrouillé par défaut : environnement GitHub, identité, backend, lockfile et approbation à configurer. CODED / TESTED NOT_RUN / DEPLOYED NOT_APPLIED / ACCEPTED NOT_VERIFIED. Ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangé.
 
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
@@ -102,7 +123,7 @@ Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
 - Avant chaque mutation : identifier le risque de perte de données, les dépendances et une restauration proportionnée. **L'opérateur accepte la coupure de service et les redémarrages réversibles pour expérimenter ; pas d'accord supplémentaire pour la disponibilité.** Toute opération irréversible, destruction de données ou exposition non prévue exige une autorisation spécifique. La quality gate locale s'exécute sans CI payante.
 
 ## Vue inter-dépôts — choix des prochains chantiers (13 novembre 2026)
-  
+
 **[Portefeuille unique H01–H19](roadmap-portfolio.md)**. Les groupes G1–G7 antérieurs sont conservés dans [l'archive datée](archive/2026-11-13-roadmap-before-compaction.md), et non comme seconde source de priorités. **Ordre validé le 14/11 : H01 → H02 → H04 → H05 → H12 → H13 → H16.**
 
 ### Responsabilités canoniques (ne pas dupliquer les checklists)
@@ -116,7 +137,7 @@ Ce P0 incident ne modifie pas l'ordre du portefeuille H01–H19.
 **Politique de nettoyage :** les migrations OpenClaw/YubiKey déjà réceptionnées ne sont pas rouvertes ; conserver les wrappers de rollback qui ont encore des consommateurs. Déplacer une procédure datée en archive uniquement après mise à jour de ses références et des tests de contrat. Les documents historiques ne réintroduisent pas de tâches clôturées.
 
 ## Suivi consolidé — état du code et réception (8 novembre 2026)
-  
+
 Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [archivé intégralement](archive/2026-11-13-roadmap-before-compaction.md) : ne pas le confondre avec la situation runtime actuelle. Pour l'état `CODED` vs `ACCEPTED (runtime)`, consulter [H01–H19](roadmap-portfolio.md).
 
 ## P0 — Réception du catalogue et des sondes (PR #326)
@@ -159,10 +180,28 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 
 - **DNSBL et ASN reporting — CODED, réception NOT_VERIFIED** : `scripts/pfsense/diagnose-recover.sh --check-posture` appelle désormais l'audit de capacité en lecture seule pour mesurer les entrées DNSBL chargées et préparées et vérifier le paramètre ASN reporting, sans imprimer de jeton. Confirmer les mesures sur l'appliance ; un champ absent doit rester `NOT_VERIFIED`.
 - **Snort arrêté après OOM ou kill — CODED, réception NOT_VERIFIED** : l'audit ajouté à `--check-posture` examine maintenant le processus WAN (`service.snort`), en plus de la configuration ; un processus absent ne devient plus implicitement sain. Confirmer le nom/config de l'instance installée, son âge et le résultat après rebuild, sans redémarrage automatique en cas de pression mémoire.
-- **PHP-FPM hors profil retenu** : dernier relevé détaillé documenté : **7 workers nginx PHP-FPM (environ 280 Mio RSS cumulés)**, contre le profil contraint validé le **24/10 : 4/30/1/2/500** (`PHPFPMMAX/IDLE/START/SPARE/REQ`). Ce relevé historique ne prouve pas l'état du 14/11. Mesurer séparément le générateur, le fichier généré et les workers réels avant toute correction ; prévoir le retour arrière et les smoke tests DNS/GUI.
+- **PHP-FPM — DONE 15/11 17:46** : profil `4/30/1/2/500` appliqué sur `default_clone` (26.03), générateur identique à celui d'octobre, smoke tests DNS et GUI réussis. Le check `php_fpm.nginx_workers` signale 0 worker au repos (mode ondemand, inactivité 30 s) : ajuster son seuil.
 - **Critère de réception** : taille DNSBL + ASN reporting prouvés, Snort actif ou explicitement classé en panne avec horodatage, et PHP-FPM **≤ 4 workers** avec paramètres `4/30/1/2/500`, sans nouveaux OOM ; vérifier Unbound, pfREST et accès WebConfigurator après réglage.
 
 Sources : [incident pfSense du 13/11](incidents/2026-11-13-pfsense-unbound-oom-snort-crowdsec.md), [profil PHP-FPM](pfsense-php-fpm-hardening.md) et [plan d'upgrade pfSense](pfsense-upgrade-26-07.md). Ne pas confondre absence de mesure et service sain.
+
+### H07b — pfSense : stabiliser `default_clone`, puis repasser en 26.07 (15/11)
+
+Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisation-du-1511-sur-default_clone).
+
+- [x] **P1 GUI 10443 exposée à Internet** : garde WAN d'octobre restaurée (alias `PFSENSE_ADMIN_WAN`, pass, puis `Block untrusted pfSense GUI/API`, avant l'« Easy Rule »). Chargé dans PF le 15/11 à 18:14. Test depuis Internet NOT_RUN.
+- [x] Unbound `All` et Domain Override `int` ; syslog `.57` retiré ; cibles workstation HAProxy/NAT retirées ; règles `heimdall 443` et `ExternalOffice 7000` désactivées ; 9 réservations DHCP d'octobre restaurées (Talos `.50` à `.52`).
+- [x] **Boots ratés de `default_clone` et du 26.07 d'octobre** : générateur PHP-FPM recopié en 600 par `harden-pfsense-php-fpm.sh` (`cp -p` d'un `mktemp`). Script corrigé, environnements réparés par `repair-be-php-generator-mode.sh` (37c39a3b). `default_clone_20261115_stable` est en service depuis le 15/11 19:48 (boot en 47 s), avec les baux DHCP restaurés par `restore-dhcp-staticmaps.php`. Diff complet contre la sauvegarde stabilisée de 18:19 : seuls les 9 baux DHCP diffèrent.
+- [x] **Repli** : la cible est le BE le plus ancien non marqué `failed`, `default` (binaires de juin). Il porte la config en service depuis le 15/11 (`sync-fallback-be-config.sh`, révision 20:11) ; resynchroniser après chaque changement.
+- [x] `check-drift.sh` étape 4 : diff complet de `config.xml` (`config-drift.py`, `PFSENSE_DRIFT_BASELINE`), qui couvre règles, NAT, alias, HAProxy, VPN, certificats, IPv6 et DNS.
+- [x] **pfBlockerNG IP seul** réactivé le 15/11 à 20:36 sur le BE en service (`pfblocker-ip-only.php apply`, puis `updateip` 20:36 → 20:43). Le premier essai de 18:43 avait coupé tout l'IPv4 sortant : le groupe GeoIP Top Spammers contenait FR, et sa règle WAN flottante (`quick`, toutes directions) bloquait notre propre IP WAN. FR est retiré, `--check-posture` signale `pfblockerng_wan_self_block`. Pendant le chargement : WAN et DNS toujours OK, charge max 5,2, 37 Mo libres une fois, pas d'OOM. Après : 8 tables pfB (75 073 entrées), 8 règles PF ; ni notre IP WAN ni les 15 plages Cloudflare ne sont bloquées. Le BE de repli `default` est resynchronisé (révision 20:55, qui inclut aussi la suppression des pools HAProxy `ntopng`/`graylog`). DNSBL reste coupé. Reste à observer : le cron quotidien `pfblockerng.php cron` de 00:00.
+- [x] **REST API** : identités conformes (`--check-identities`), empreinte de la clé `posture` identique au hash stocké, `system/version` et `dns_resolver/settings` en 200 le 15/11 à 20:0x.
+- [ ] **« Easy Rule » WAN** (`pass tcp all`, depuis 2022, présente aussi en octobre) : inventorier ce qui en dépend (HAProxy :443/:7000, NAT), puis la remplacer par des règles par port. SSH 9922 est ouvert sur le WAN (clé seule) ; la règle « Reject SSH » ne bloque que la source WAN.
+- [ ] **Exposition WAN par NAT** (vault 8200, nomad 4646, consul 8500, traefik 9002, apps TrueNAS 300xx) : revue avec H04.
+- [ ] **HAProxy** : backend par défaut `heimdall-https` (`prod_back`) en 503 sur :443.
+- [x] **Service Watchdog** : `audit-posture.sh` est aligné sur la décision du 13/11 (238e1073). Certificats ACME renouvelés jusqu'au 11/02/2027, et `--check-posture` alerte à moins de 14 jours (3d7c663b).
+- [ ] **Upgrade 26.07** : l'ancien `default` (août) est supprimé (15/11 18:37). Le BE d'octobre `default_20260824183037` a son générateur réparé : tester son boot (console série), sinon upgrade neuf, vérification de boot automatique, restauration de la config d'octobre, puis `retire-workstation-targets.php`. Les 3 094 chemins encore différents d'octobre (HAProxy, DHCP, règles, pfBlockerNG, certificats) se résolvent par cette restauration, pas à la main.
+- [x] **Clé USB de réinstallation** : l'image du ticket TAC *Firmware Access* est l'installeur en ligne déjà sur la clé ; pas d'image hors ligne pour le 1100. La réinstallation passe par le WAN branché sur la Freebox (procédure dans le runbook).
 
 ## P1 — Performance, stockage et restauration TrueNAS
 

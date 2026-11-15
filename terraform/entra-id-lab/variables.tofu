@@ -15,7 +15,7 @@ variable "name_prefix" {
   default = "nabla-iam-lab"
 }
 variable "test_users" {
-  description = "Existing test UPNs only; passwords are NEVER managed in Terraform."
+  description = "Existing UPNs to add to lab groups; the one managed test user lives in users.tofu."
   type = map(object({
     upn   = string
     group = string
@@ -40,4 +40,16 @@ variable "ci_graph_client_id" {
   description = "CI Microsoft Graph application ID, separate from state storage identity."
   type        = string
   default     = ""
+}
+
+variable "enable_user_management" {
+  description = "Workstation-only test user (users.tofu); OFF in CI."
+  type        = bool
+  default     = false
+}
+variable "test_user_initial_password" {
+  description = "One-time password from Vaultwarden (TF_VAR_test_user_initial_password), replaced at first sign-in."
+  type        = string
+  sensitive   = true
+  default     = null
 }

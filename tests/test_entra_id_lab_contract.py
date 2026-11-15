@@ -17,6 +17,20 @@ class EntraLabContract(unittest.TestCase):
                           "azurerm_role_assignment", "required_resource_access"):
             self.assertNotIn(forbidden, main)
 
+    def test_test_user_is_workstation_only_with_one_time_password(self):
+        users = (LAB / "users.tofu").read_text()
+        self.assertRegex(users, r"count\s+= var\.enable_user_management \? 1 : 0")
+        self.assertRegex(users, r"password\s+= var\.test_user_initial_password")
+        self.assertRegex(users, r"force_password_change\s+= true")
+        self.assertIn("ignore_changes = [password]", users)
+        self.assertNotIn("random_password", users)
+        variables = (LAB / "variables.tofu").read_text()
+        self.assertRegex(variables, r'variable "enable_user_management" \{[^}]*default\s+= false')
+        self.assertRegex(variables, r'variable "test_user_initial_password" \{[^}]*sensitive\s+= true')
+        self.assertNotIn("test_user_initial_password", (LAB / "outputs.tofu").read_text())
+        workflow = (ROOT / ".github/workflows/entra-id-lab.yml").read_text()
+        self.assertIn('TF_VAR_enable_user_management: "false"', workflow)
+
     def test_refuses_remote_mode_without_running_azure(self):
         env = {"AGENT_EXECUTION_MODE": "offline"}
         result = subprocess.run(

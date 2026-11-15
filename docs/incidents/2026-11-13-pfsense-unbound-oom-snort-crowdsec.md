@@ -124,6 +124,15 @@ pages CrowdSec et Snort pour régénérer leurs fichiers.
   Inspect WAN à `33554432` ; alias de ports `snort_http_inspect` = `80` sur le
   moteur `default` (`ports { 80 }` dans `snort.conf`).
 - **Service Watchdog** : `unbound` présent, `crowdsec` retiré.
+- **Certificats ACME** (13/11, 23:30) : `default_clone` portait les
+  certificats d'avril, expirés le 22/07, que HAProxy servait sur `:443` et sur
+  `:7000` (UI TrueNAS publique). `acme_command.sh renewall` a renouvelé les sept
+  certificats jusqu'au 11/02/2027. `--check-posture` signale désormais tout
+  certificat ACME actif à moins de 14 jours.
+- **DNS privé `int`** (15/11, 17:22) : plus de Domain Override
+  `int.albandrieu.com -> 172.17.0.24` et Outgoing Network Interfaces = `wan`,
+  d'où un NXDOMAIN LAN pour `defectdojo.int.albandrieu.com`. Les deux sont
+  rétablis ; `just pfsense-split-dns-check` les contrôle.
 
 ## Automatisation
 

@@ -245,5 +245,63 @@ class PlanTests(unittest.TestCase):
             (Path(openclaw) / "scripts/workstation" / name).unlink()
             self.assertEqual(run().returncode, 2)
 
+
+    def test_openclaw_overlap_distinguishes_byte_drift_without_migration(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as target:
+            name = "scripts/workstation/diagnose-openclaw-sample.py"
+            for base in (compose, target):
+                path = Path(base) / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("print(1)\n", encoding="utf-8")
+            report = mod.compare_openclaw_overlap(
+                Path(compose), Path(target), [name], [name]
+            )
+            self.assertEqual(report["overlap_count"], 1)
+            self.assertEqual(report["byte_identical_count"], 1)
+            self.assertEqual(mod.overlap_gate_status(report), 0)
+            self.assertFalse(report["removal_authorized"])
+            self.assertEqual(report["behavioral_parity"], "NOT_VERIFIED")
+            (Path(target) / name).write_text("print(2)\n", encoding="utf-8")
+            report = mod.compare_openclaw_overlap(
+                Path(compose), Path(target), [name], [name]
+            )
+            self.assertEqual(report["overlaps"][0]["byte_identity"], "DIFFERENT")
+            self.assertEqual(mod.overlap_gate_status(report), 1)
+
+    def test_openclaw_overlap_rejects_external_symlink_and_missing_file(self):
+        with (tempfile.TemporaryDirectory() as compose,
+              tempfile.TemporaryDirectory() as target,
+              tempfile.TemporaryDirectory() as outside):
+            name = "scripts/workstation/diagnose-openclaw-sample.py"
+            source = Path(compose) / name
+            source.parent.mkdir(parents=True)
+            source.write_text("print('safe')\n", encoding="utf-8")
+            destination = Path(target) / name
+            destination.parent.mkdir(parents=True)
+            secret = Path(outside) / "private.py"
+            secret.write_text("TOKEN=do-not-emit", encoding="utf-8")
+            destination.symlink_to(secret)
+            report = mod.compare_openclaw_overlap(
+                Path(compose), Path(target), [name], [name]
+            )
+            self.assertEqual(report["overlaps"][0]["byte_identity"], "UNREADABLE")
+            self.assertEqual(mod.overlap_gate_status(report), 2)
+            self.assertNotIn("do-not-emit", json.dumps(report))
+            destination.unlink()
+            report = mod.compare_openclaw_overlap(
+                Path(compose), Path(target), [name], [name]
+            )
+            self.assertEqual(mod.overlap_gate_status(report), 2)
+
+    def test_openclaw_overlap_never_claims_parity_without_candidates(self):
+        result = mod.compare_openclaw_overlap(
+            Path("/unused"), Path("/unused"),
+            ["scripts/workstation/diagnose-openclaw-a.py"],
+            ["scripts/workstation/diagnose-openclaw-b.py"],
+        )
+        self.assertEqual(result["overlap_count"], 0)
+        self.assertEqual(mod.overlap_gate_status(result), 2)
+        self.assertFalse(result["removal_authorized"])
+
 if __name__=="__main__":
     unittest.main()

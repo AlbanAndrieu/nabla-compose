@@ -43,6 +43,58 @@ class ConsoleContract(unittest.TestCase):
         self.assertIn("\x1b[", render(data, color="always").stdout)
         self.assertNotIn("\x1b[", render(data, color="always", no_color="1").stdout)
 
+    def test_unbound_findings_are_colored_but_causality_is_not_invented(self):
+        payload = (
+            "=== Current Unbound identity (not restart cause) ===\n"
+            "unbound_control=REACHABLE\n"
+            "=== Current resolver control plane and split-DNS forwarding ===\n"
+            "FAIL: split_dns_forwarder=MISSING expected=int.albandrieu.com->172.17.0.24\n"
+            "=== Service Watchdog membership (read-only configuration, names only) ===\n"
+            "watchdog_unbound_membership=LISTED\n"
+            "=== Installed DNSBL reload fallback capabilities (static flags only) ===\n"
+            "pfblocker_dnsbl_swap_ram_gate=ABSENT\n"
+            "pfblocker_dnsbl_live_reload_marker=ABSENT\n"
+            "=== pfblockerng lifecycle events (bounded, redacted) ===\n"
+            "signal_source=pfblockerng event=pfblocker_unbound_stop_marker "
+            "timestamp=unknown preceding_header_local=11/15/26 15:11:45 header_gap_lines=10\n"
+            "signal_source=pfblockerng event=pfblocker_unbound_start_marker "
+            "timestamp=unknown preceding_header_local=11/15/26 15:13:02 header_gap_lines=6\n"
+            "=== Feed download errors (bounded, categories only) ===\n"
+            "WARN: feed_download_signal=asn_ipinfo_retry_signature "
+            "family=pfblockerng log=pfblockerng_extras count=2403 last_line_in_window=2468\n"
+        )
+        color = render(payload, mode="verbose", color="always")
+        self.assertEqual(color.returncode, 0, color.stderr)
+        self.assertIn("\x1b[", color.stdout)
+        for term in (
+            "❌ P0 DNS privé",
+            "✅ Unbound : canal de contrôle joignable",
+            "⚠️ P1 pfBlockerNG/IPinfo",
+            "maximum 2403 lignes",
+            "⚠️ P1 DNSBL",
+            "✅ Watchdog",
+            "1 demandes stop, 1 demandes start",
+            "Cause initiale : NON PROUVÉE",
+        ):
+            self.assertIn(term, color.stdout)
+        without_ansi = render(payload, mode="verbose", color="always", no_color="1")
+        self.assertEqual(without_ansi.returncode, 0, without_ansi.stderr)
+        self.assertNotIn("\x1b[", without_ansi.stdout)
+        self.assertEqual(render(payload, mode="raw", color="always").stdout, payload)
+
+    def test_unbound_forwarder_detected_is_only_candidate(self):
+        payload = (
+            "=== Current Unbound identity (not restart cause) ===\n"
+            "unbound_control=REACHABLE\n"
+            "=== Current resolver control plane and split-DNS forwarding ===\n"
+            "PASS: split_dns_forwarder=PRESENT_CANDIDATE "
+            "zone=int.albandrieu.com target=172.17.0.24\n"
+        )
+        result = render(payload, mode="compact", color="never")
+        self.assertIn("✅ Transfert DNS privé détecté", result.stdout)
+        self.assertNotIn("❌ P0 DNS privé", result.stdout)
+        self.assertIn("la réponse A doit encore être vérifiée", result.stdout)
+
     def test_rfc5424_oom_redaction(self):
         log = ("=== OOM ===\n<3>1 2026-10-24T02:10:50.474019+02:00 "
                "kernel - - - failed to reclaim memory token=PRIVATE\n")

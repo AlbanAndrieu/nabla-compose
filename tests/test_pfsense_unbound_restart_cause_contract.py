@@ -70,6 +70,25 @@ class UnboundRestartCauseContract(unittest.TestCase):
                 )
                 self.assertEqual(run.returncode, 2, run.stderr)
 
+    def test_color_option_and_private_forwarder_probe_are_read_only(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        for token in (
+            "--color", "always|auto|never", "list_forwards",
+            "split_dns_forwarder=MISSING", "split_dns_forwarder=UNEXPECTED",
+            "split_dns_forwarder=PRESENT_CANDIDATE",
+            "dns_runtime_health=NOT_PROVEN_BY_CONTROL_OR_FORWARD_LIST",
+        ):
+            self.assertIn(token, src)
+        for bad in ("rainbow", "", "true"):
+            result = subprocess.run(
+                ["bash", str(SCRIPT), "--check", "--color", bad],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+        remote = extract_remote_shell(src)
+        self.assertIn("unbound-control -c /var/unbound/unbound.conf list_forwards", remote)
+        self.assertNotIn("unbound-control -c /var/unbound/unbound.conf reload", remote)
+
     def test_separates_kernel_oom_from_dnsbl_shutdown(self):
         source = (
             "<3>1 2026-10-24T02:10:50.474019+02:00 host kernel - - - "

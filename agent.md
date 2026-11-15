@@ -1,7 +1,8 @@
 # Local agent runbook (OpenCode and smaller models)
 
-`AGENTS.md` is authoritative; this file is a compact execution adapter.
+`AGENTS.md` is the canonical repository policy; this file is a compact execution adapter.
 Never preload the entire repository, all skills, generated files or historical logs.
+Never invent a file, test, endpoint, service relation or command; prove it from the repository or runtime first.
 
 ## Start with capability, then scope
 

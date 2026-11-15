@@ -16,6 +16,7 @@ class PfSensePhpFpmHardeningContractTests(unittest.TestCase):
         text = SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn('SUPPORTED_RELEASE_PREFIX="26.07-RELEASE"', text)
+        self.assertIn('FALLBACK_RELEASE_PREFIX="26.03-RELEASE"', text)
         self.assertIn('upstream="8/3600/2/7/5000"', text)
         self.assertIn('expected="${TARGET_MAX}/${TARGET_IDLE}/${TARGET_START}/${TARGET_SPARE}/${TARGET_REQ}"', text)
         self.assertIn('TARGET_MAX=4', text)
@@ -33,6 +34,11 @@ class PfSensePhpFpmHardeningContractTests(unittest.TestCase):
         self.assertIn('/var/run/php-fpm.socket', text)
         self.assertIn('changes != 5', text)
         self.assertIn('unrecognized >1000 MiB generator profile', text)
+        # pfSense-rc executes the generator at boot; a 0600 copy stalled every boot (2026-11-15).
+        self.assertNotIn('cp -p "${tmp}" "${SOURCE}"', text)
+        self.assertNotIn('cp -p "${BACKUP}" "${SOURCE}"', text)
+        self.assertIn('[ -x "${SOURCE}" ] || fail', text)
+        self.assertIn('php_fpm_profile_contract=GENERATOR_NOT_EXECUTABLE', text)
         self.assertNotIn("pgrep -fc '^php-fpm: pool nginx'", text)
         self.assertNotIn('service php-fpm', text)
         self.assertNotIn('php-fpm -y /usr/local/lib/php-fpm.conf', text)
@@ -77,6 +83,7 @@ pm.max_spare_servers= 7
             config = tmp / "php-fpm.conf"
             backup = tmp / "backup"
             source.write_text(generator, encoding="utf-8")
+            source.chmod(0o755)  # like /etc/rc.php_ini_setup
             config.write_text(generated, encoding="utf-8")
 
             result = subprocess.run(
@@ -123,6 +130,7 @@ pm.max_spare_servers= 7
             backup = tmp / "backup"
             fake_ps = tmp / "ps"
             source.write_text(generator, encoding="utf-8")
+            source.chmod(0o755)  # like /etc/rc.php_ini_setup
             config.write_text(generated, encoding="utf-8")
             fake_ps.write_text(
                 "#!/bin/sh\n"
@@ -189,6 +197,7 @@ pm.max_spare_servers= 7
             config = tmp / "php-fpm.conf"
             fake_ps = tmp / "ps"
             source.write_text(generator, encoding="utf-8")
+            source.chmod(0o755)  # like /etc/rc.php_ini_setup
             config.write_text(generated, encoding="utf-8")
             fake_ps.write_text(
                 "#!/bin/sh\n"

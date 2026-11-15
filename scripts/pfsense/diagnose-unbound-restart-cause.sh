@@ -4,7 +4,7 @@
 set -euo pipefail
 # shellcheck source=scripts/pfsense/console.sh
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/console.sh"
-usage() { printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT]\n' "$0"; }
+usage() { printf 'Usage: %s --check [--target SSH_ALIAS] [--port SSH_PORT] [--color always|auto|never]\n' "$0"; }
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
 if [[ "${1:-}" != "--check" ]]; then usage >&2; exit 2; fi
 shift
@@ -14,6 +14,9 @@ while (($#)); do
   case "$1" in
     --target) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; target="$2"; shift 2 ;;
     --port) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; port="$2"; shift 2 ;;
+    --color) [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      case "$2" in always|auto|never) export PFSENSE_COLOR="$2" ;; *) usage >&2; exit 2 ;; esac
+      shift 2 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
@@ -44,6 +47,32 @@ if unbound-control -c /var/unbound/unbound.conf status >/dev/null 2>&1; then
 else
   echo 'unbound_control=UNVERIFIED'
 fi
+echo '=== Current resolver control plane and split-DNS forwarding ==='
+# This is runtime-only evidence; not an assertion about the stored config.xml.
+if command -v unbound-control >/dev/null 2>&1; then
+  forward_state=UNKNOWN
+  if forwards="$(unbound-control -c /var/unbound/unbound.conf list_forwards 2>/dev/null)"; then
+    if printf '%s\n' "$forwards" | grep -Fq 'int.albandrieu.com'; then
+      if printf '%s\n' "$forwards" | grep -Fq '172.17.0.24'; then
+        forward_state=PRESENT_CANDIDATE
+        echo 'PASS: split_dns_forwarder=PRESENT_CANDIDATE zone=int.albandrieu.com target=172.17.0.24 (validate A record separately)'
+      else
+        forward_state=UNEXPECTED
+        echo 'FAIL: split_dns_forwarder=UNEXPECTED expected=int.albandrieu.com->172.17.0.24'
+      fi
+    else
+      forward_state=MISSING
+      echo 'FAIL: split_dns_forwarder=MISSING expected=int.albandrieu.com->172.17.0.24'
+    fi
+  else
+    echo 'WARN: split_dns_forwarder=UNVERIFIED unbound-control_list_forwards_failed'
+  fi
+else
+  echo 'WARN: split_dns_forwarder=UNVERIFIED unbound-control_unavailable'
+fi
+# The response path is independent of the forwarding list; no DNS result is
+# inferred from merely seeing a daemon process or a forwarding candidate.
+echo 'INFO: dns_runtime_health=NOT_PROVEN_BY_CONTROL_OR_FORWARD_LIST'
 echo '=== Configured task schedules (not proof of execution) ==='
 if [ -r /etc/crontab ]; then
   awk '

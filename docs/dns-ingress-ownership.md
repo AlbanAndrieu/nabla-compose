@@ -320,6 +320,88 @@ The user has confirmed that `https://garage-admin.albandrieu.com/` currently dis
 
 Long-term, Garage Web UI should be private. Keep temporary remote access for now, preferably behind Cloudflare Access, until a reversible and convenient private-access mechanism (Tailscale/WireGuard or equivalent with least-privilege ACLs and MFA) is accepted. Preserve the independence of the S3 API and the Admin API; never assume private intent means proven lack of WAN access.
 
+## Correction du split-DNS et contrôle des dérives — 15 novembre 2026
+
+**Incident vérifié** : Pi-hole `172.17.0.24` répond avec
+`sample.int.albandrieu.com A = 172.17.0.24` mais Unbound pfSense
+`172.17.0.1` suit le DNS public Cloudflare sans A. Dans le GUI
+`Services > DNS Resolver > Domain Overrides`, la liste est vide et
+`unbound-control list_forwards` ne remonte pas de zone. Le redémarrage
+a restauré la récursion publique mais pas le domaine privé.
+
+Après la fusion de la PR #393, la recette `just pfsense-check` est sur
+`master`. Une erreur `justfile does not contain recipe` signifie souvent
+un checkout plus ancien ou une invocation dans un autre répertoire.
+Vérifier `git branch --show-current`, `git status -sb`,
+`git pull --ff-only` sur la bonne branche, puis `just --list`.
+Les scripts sont exécutables directement sans Just.
+
+### Réparation ciblée et idempotente
+
+```bash
+# Depuis un checkout contenant ce script ; lecture seule
+bash scripts/pfsense/reconcile-split-dns.sh --check
+
+# Modification explicite de la configuration native pfSense
+bash scripts/pfsense/reconcile-split-dns.sh --apply
+
+# Inventaire de dérive (lecture seule, non exhaustif)
+bash scripts/pfsense/check-drift.sh --check
+```
+
+Raccourcis : `just pfsense-split-dns-check`,
+`just pfsense-split-dns-apply` et `just pfsense-drift`.
+
+Le correcteur utilise une seule session SSH native
+`admin@172.17.0.1:9922`, exécute un contrôleur PHP via stdin
+(sans déployer de script permanent sur pfSense), puis utilise
+les mécanismes pfSense existants `config_get_path`,
+`config_set_path`, `write_config` et `mark_subsystem_dirty`.
+Le mode `--apply` exige que Pi-hole réponde directement pour
+`sample.int.albandrieu.com`, refuse les conflits/duplicates,
+les sélections sortantes personnalisées et les installations
+de paquet en cours. Il crée seulement `int.albandrieu.com →
+172.17.0.24` si absent et fait passer `outgoing_interface` de
+`wan` à `all`. Le champ `forward_tls_upstream` est absent de
+l'override ajouté (DNS classique sur 53 : pas de TLS implicite).
+Il ne modifie ni DNS Forwarding général, ni
+DNSBL, ni PF, ni Snort/CrowdSec. Après changement il relance
+**uniquement Unbound** et teste le nom privé et la récursion
+publique ; un résultat non vérifié ne peut être déclaré terminé.
+Une nouvelle exécution ne modifie rien si la configuration converge.
+
+### Portée exacte du contrôle de dérive
+
+Le contrôleur `scripts/pfsense/check-drift.sh` compose les
+vérifications existantes sans multiplier les moteurs :
+1. configuration *et réponse* split-DNS ;
+2. `diagnose-recover.sh --check-posture`
+   (Snort/CrowdSec, Service Watchdog, profil mémoire, DNSBL,
+   fonctions PHP-FPM, DHCP et seuils) ;
+3. version pfSense, Boot Environment actif/prochain et versions
+   de paquets ciblés ;
+4. si `PFSENSE_DRIFT_BASELINE` désigne une sauvegarde `config.xml`
+   connue bonne (hors Git, mode 600), un diff complet de la config
+   live par `scripts/pfsense/config-drift.py` : règles et NAT, alias,
+   HAProxy, VPN, certificats, interfaces et IPv6, DNS, syslog et
+   toutes les autres sections. Les valeurs secrètes sont remplacées
+   par une empreinte courte : un changement reste visible, la valeur
+   jamais.
+
+Sans `PFSENSE_DRIFT_BASELINE`, l'étape 4 est sautée et le contrôle
+reste partiel. Aucune correction n'est automatique.
+`PFSENSE_DESIRED_VERSION` (défaut `26.07`) sert uniquement à
+signaler l'écart à l'objectif d'upgrade.
+Le résultat est `SCOPED_BASELINE_CONVERGED`, `CONFIG_DRIFT_REQUIRES_REVIEW`
+ou `INCOMPLETE_UNVERIFIED` ; aucun résultat d'un contrôle absent
+ne doit être interprété comme conforme.
+
+La configuration résolue actuelle provient de `default_clone`
+(active `NR`), et l'incident du 13/11 décrit le rollback
+de l'environnement 26.07 vers cet environnement.
+Ne pas déclencher de changement de Boot Environment pendant la
+réparation DNS.
+
 ## 2026-10-17 — Unbound private-zone regression and pfSense posture audit
 
 Workstation SSH alias `home.albandrieu.com` resolves to user `admin`, port `9922`, identity `~/.ssh/id_ed25519`; `scripts/pfsense/audit-posture.sh` now defaults to this alias in SSH mode. Explicit `--ssh`, `--port`, `--api` and `--local` remain supported. The workstation successfully ran the read-only audit.

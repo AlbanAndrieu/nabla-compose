@@ -2,6 +2,7 @@
 
 require_once('/etc/inc/config.inc');
 require_once('/etc/inc/service-utils.inc');
+require_once('/etc/inc/interfaces.inc');
 
 if (!defined('NABLA_POSTURE_ACTION')) {
     fwrite(STDERR, "ERROR: invoke this helper through diagnose-recover.sh\n");
@@ -19,8 +20,18 @@ const NABLA_SNORT_ALIAS = 'snort_http_inspect';
 const NABLA_SNORT_ALIAS_PORTS = '80';
 const NABLA_CROWDSEC_LAPI_URL = 'http://172.17.0.24:8084/';
 const NABLA_CROWDSEC_SUPERVISOR_PID = '/var/run/crowdsec_daemon.pid';
+const NABLA_CERT_MIN_DAYS = 14;
+// Certificate bindings by description: HAProxy frontend => [offload cert, extra crt-list certs].
+const NABLA_HAPROXY_CERTS = [
+    'Web_HTTPS' => ['wildcard.albandrieu.com', 'albandrieu.com'],
+    'freenas' => ['freenas.albandrieu.com', 'wildcard.albandrieu.com'],
+    'Web_HTTPS-8082' => ['wildcard.albandrieu.com', 'wildcard.albandrieu.com'],
+];
+const NABLA_WEBGUI_CERT = 'home.albandrieu.com';
+// Our WAN address is French: GeoIP Top Spammers must never hold FR.
+const NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep'];
 
-$changed = ['snort_rules' => false, 'snort_iface' => false, 'watchdog' => false, 'crowdsec' => false];
+$changed = ['snort_rules' => false, 'snort_iface' => false, 'watchdog' => false, 'crowdsec' => false, 'pfblockerng' => false];
 $drift = 0;
 
 function nabla_report(string $name, string $current, string $expected): bool {
@@ -138,6 +149,63 @@ $supervisor = trim((string)@file_get_contents(NABLA_CROWDSEC_SUPERVISOR_PID));
 $supervisor_alive = ctype_digit($supervisor) && posix_kill((int)$supervisor, 0);
 nabla_report('crowdsec_engine_supervisor', $supervisor_alive ? 'running' : 'absent', 'absent');
 
+// HAProxy serves the ACME certs stored in config.xml, so a fallback brings back old ones. Check only:
+// the renewal output prints the Cloudflare key.
+$cert_ends = [];
+foreach (config_get_path('cert', []) as $cert) {
+    $x509 = openssl_x509_parse(base64_decode((string)($cert['crt'] ?? '')));
+    if ($x509) {
+        $cert_ends[(string)($cert['descr'] ?? '')] = (int)$x509['validTo_time_t'];
+    }
+}
+$cert_drift = false;
+foreach (config_get_path('installedpackages/acme/certificates/item', []) as $acme) {
+    $name = (string)($acme['name'] ?? '');
+    if (($acme['status'] ?? '') !== 'active') {
+        continue;
+    }
+    $days = isset($cert_ends[$name]) ? intdiv($cert_ends[$name] - time(), 86400) : null;
+    $state = $days === null ? 'missing' : ($days < 0 ? 'expired' : ($days < NABLA_CERT_MIN_DAYS ? "expires_in_{$days}d" : 'valid'));
+    $cert_drift = nabla_report("acme_cert_{$name}", $state, 'valid') || $cert_drift;
+}
+if ($cert_drift) {
+    echo "INFO: renew on pfSense with: daemon -f /usr/local/pkg/acme/acme_command.sh renewall\n";
+}
+
+// Check only: rebinding a certificate is a reviewed HAProxy change.
+$cert_descr = array_column(config_get_path('cert', []), 'descr', 'refid');
+nabla_report('webgui_cert', $cert_descr[config_get_path('system/webgui/ssl-certref', '')] ?? 'missing', NABLA_WEBGUI_CERT);
+$frontends = array_column(config_get_path('installedpackages/haproxy/ha_backends/item', []), null, 'name');
+foreach (NABLA_HAPROXY_CERTS as $fe => $expected) {
+    $bound = array_merge(
+        [$frontends[$fe]['ssloffloadcert'] ?? ''],
+        array_column($frontends[$fe]['ha_certificates']['item'] ?? [], 'ssl_certificate')
+    );
+    $names = implode('+', array_map(static fn($ref) => $cert_descr[$ref] ?? 'missing', $bound));
+    nabla_report("haproxy_cert_{$fe}", isset($frontends[$fe]) ? $names : 'absent', implode('+', $expected));
+}
+
+// 2026-11-15 18:43: Top Spammers held FR, so pfBlockerNG's floating WAN rule matched our own
+// address outbound and cut all IPv4.
+$pfb_top = 'installedpackages/pfblockerngtopspammers/config/0/countries4';
+$top = array_filter(explode(',', (string)config_get_path($pfb_top, '')));
+$own = array_intersect($top, NABLA_PFB_OWN_COUNTRIES);
+if (nabla_report('pfblockerng_top_own_country', $own ? implode('+', $own) : 'absent', 'absent') && $apply) {
+    config_set_path($pfb_top, implode(',', array_diff($top, NABLA_PFB_OWN_COUNTRIES)));
+    $changed['pfblockerng'] = true;
+}
+$wan_ip = (string)get_interface_ip('wan');
+$self_block = [];
+exec('/sbin/pfctl -s Tables 2>/dev/null', $tables);
+foreach (preg_grep('/^pfB_/', array_map('trim', $tables)) as $table) {
+    $hit = [];
+    exec('/sbin/pfctl -t ' . escapeshellarg($table) . ' -T test ' . escapeshellarg($wan_ip) . ' 2>&1', $hit);
+    if (preg_grep('#^1/1 addresses match#', $hit)) {
+        $self_block[] = $table;
+    }
+}
+nabla_report('pfblockerng_wan_self_block', $wan_ip === '' ? 'wan_ip_unknown' : ($self_block ? implode('+', $self_block) : 'none'), 'none');
+
 if (!$apply) {
     printf("posture_summary drift=%d mode=check\n", $drift);
     exit(0);
@@ -188,6 +256,11 @@ if ($changed['crowdsec']) {
     require_once('/usr/local/pkg/crowdsec.inc');
     crowdsec_resync_config();
     echo "INFO: crowdsec configuration resynced\n";
+}
+if ($changed['pfblockerng']) {
+    // Force Reload IP: rebuilds the IP aliases and reloads the filter; DNSBL stays untouched.
+    mwexec('/usr/local/bin/php /usr/local/www/pfblockerng/pfblockerng.php updateip');
+    echo "INFO: pfBlockerNG IP lists reloaded\n";
 }
 
 printf("posture_summary drift=%d mode=apply\n", $drift);
