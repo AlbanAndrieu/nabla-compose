@@ -24,6 +24,82 @@ Cinq noms sont déjà présents dans les deux dépôts, avec **contenu différen
 `check-openclaw-runtime-alignment.py`, `diagnose-openclaw-digest-top.py`,
 `openclaw-heartbeat-gitops.py`, `openclaw-host-context.py`,
 `reconcile-openclaw-digest-cron.py`.
+**D0 implémenté (analyse statique uniquement) :**
+
+```bash
+python3 scripts/ops/plan-repository-split.py --openclaw-consumers
+```
+
+Le rapport `nabla-openclaw-consumers/v1` énumère par fichier commun
+les références textuelles classées (`recipe`, `systemd`, `ci`, `test`,
+`script`, `documentation`), sans afficher de lignes ni de secrets.
+Il utilise `git ls-files` et ne suit pas les liens symboliques ; les
+fichiers omis sont comptés. `removal_authorized=false` et
+`submodule_parity=NOT_VERIFIED` empêchent d'inférer une migration
+achevée ou une parité des scripts dans le gitlink OpenClaw.
+La validation locale du parseur ne vaut ni mesure d'exécution systemd,
+ni migration d'un consommateur.
+
+### D1 — comparaison statique des cinq scripts (14/11/2026)
+
+Les cinq fichiers ont été retrouvés dans les deux dépôts via leur code versionné.
+**5/5 empreintes Git blob distinctes** ; l'inspection des appels
+`argparse.add_argument("--...")` montre des ensembles de noms d'options
+**identiques pour 5/5**, mais **aucune parité comportementale n'est démontrée**.
+Les appels à des exécutables tiers, les défauts, les sorties JSON/texte, les
+codes retour, les chemins et les mutations ne sont pas déduits de cette
+égalité ; par exemple `check-openclaw-runtime-alignment.py` ne déclare
+aucun argument long dans `add_argument`, bien qu'il invoque des outils
+externes avec leurs propres paramètres.
+
+| Script homonyme | Taille Compose / OpenClaw (octets, texte UTF-8) | Options `add_argument` comparées | Conclusion |
+| --- | ---: | --- | --- |
+| `check-openclaw-runtime-alignment.py` | 4 325 / 5 824 | aucune option longue déclarée dans les deux | Sources différentes ; format JSON et vérifications internes à recetter |
+| `diagnose-openclaw-digest-top.py` | 7 205 / 5 787 | `--fixture` | Sources différentes ; contrat de sortie texte et fixture à recetter |
+| `openclaw-heartbeat-gitops.py` | 4 765 / 4 426 | `--check`, `--apply`, `--backup`, `--root`, `--briefing-check`, `--briefing-apply` | Sources différentes ; effets sur sauvegardes et fichiers à recetter |
+| `openclaw-host-context.py` | 1 659 / 958 | `--kind` | Sources différentes ; contexte hôte/arguments externes à recetter |
+| `reconcile-openclaw-digest-cron.py` | 7 152 / 6 705 | `--plan`, `--check`, `--apply`, `--expected-message-sha` | Sources différentes ; préservation cron, rollback et clés privées à recetter |
+
+**Écarts concrets observés en lecture du code** (non exécutés) :
+
+- `check-openclaw-runtime-alignment.py` Compose publie `alignment` et
+  `checks`, tandis que la version OpenClaw construit `alignment` et les
+  champs de `report` ; la stabilité des clés JSON doit être testée.
+- `diagnose-openclaw-digest-top.py` dans OpenClaw expose un contrôle
+  `runtime_install` supplémentaire dans certains états. Les parseurs de
+  sortie texte ne sont pas présumés compatibles.
+- `openclaw-heartbeat-gitops.py` utilise une réconciliation atomique via
+  `atomic_replace` dans le dépôt propriétaire, avec contrôle explicite du
+  résultat et sortie d'erreur. La version Compose applique une logique locale
+  distincte de sauvegarde et remplacement : comparaison des postconditions
+  et permissions obligatoire avant substitution.
+- `openclaw-host-context.py` Compose invoque des commandes via
+  `subprocess`, tandis que le code propriétaire testé à cette date ne le fait
+  pas ; vérifier les valeurs de repli et le diagnostic d'hôte inconnu.
+- `reconcile-openclaw-digest-cron.py` OpenClaw ajoute des informations
+  d'installation runtime et un chemin de résultat d'apply différent. Le
+  contrôle des états `existing_job`, du rollback et des codes retour reste
+  impératif.
+
+Aucun de ces écarts n'autorise une suppression de wrapper ni un transfert
+automatique de l'unité systemd.
+
+Reproduire la comparaison hors réseau, avec **deux checkouts locaux explicites** :
+
+```bash
+python3 scripts/ops/plan-repository-split.py \\
+  --compare-openclaw-root ../nabla-openclaw
+```
+
+Le schéma `nabla-openclaw-cli-static/v1` retourne options, empreinte
+SHA-256, `READ` ou `UNREADABLE` par fichier, puis
+`behavioral_parity=NOT_VERIFIED` et `removal_authorized=false`.
+En cas de script absent, illisible, trop gros ou symlink externe, l'outil
+retourne le code 2. **Aucun import ni exécution** des scripts inspectés,
+et aucune connexion au Gateway. Il ne déduit pas l'existence de consommateurs
+runtime. La migration D1 reste bloquée jusqu'aux tests dynamiques de parité
+avec une identité opérateur et une procédure de rollback.
+
 Leur comparaison doit porter sur les arguments CLI, codes retour, schémas JSON,
 garde-fous, effets de bord, dépendances et tests ; mêmes noms ne signifient pas
 même contrat. Exemples de consommateurs Compose : `justfile`,

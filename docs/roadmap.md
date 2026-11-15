@@ -14,6 +14,8 @@
 6. **H13 — DefectDojo** : durcir l'import privé (RBAC de l'importeur, import asynchrone, déduplication) et prouver l'absence d'exposition WAN. [Runbook](defectdojo-private-scan-ingestion.md).
 7. **H16 — Vault PKI / OAuth / OIDC** : pilote de PKI et de fédération PostgreSQL/Keycloak/FastAPI avec break-glass, révocation et tests RBAC négatifs ; aucune migration d'identité globale sans recette. [Plan sécurité](security/postgresql-fips-tls13-vault-oauth-20261110.md).
 
+**Pilote H16 / Entra ID Free (P0, non déployé)** : [module OpenTofu AzureAD avec état Azure Blob verrouillable](../terraform/entra-id-lab/README.md), [workflow GitHub OIDC](../.github/workflows/entra-id-lab.yml) et [threat model/YubiKey/runbook](security/entra-id-homelab-lab.md). Plus de seconde source d’état Garage ; groupes désactivés pour la CI afin d’éviter les permissions Graph tenant-wide. Apply manuel verrouillé par défaut : environnement GitHub, identité, backend, lockfile et approbation à configurer. CODED / TESTED NOT_RUN / DEPLOYED NOT_APPLIED / ACCEPTED NOT_VERIFIED. Ordre H01 → H02 → H04 → H05 → H12 → H13 → H16 inchangé.
+
 **Mode d'exécution** : réutiliser une PR active lorsqu'elle couvre réellement le chantier ; sinon une PR Draft ciblée. Sur chaque chantier : (a) inventaire des prérequis et diff, (b) tests locaux sur SHA exact, (c) contrôle de sécurité négatif, (d) preuve runtime datée distincte. Les tests hors LAN ne valent pas réception. Les indisponibilités réversibles sont acceptées ; aucune destruction de données ni ouverture WAN implicite.
 
 
@@ -134,7 +136,7 @@ Référence normative : [ADR-0003 existante](adr/0003-repository-ownership-and-d
 [Inventaire détaillé](runbooks/operator-script-ownership-inventory.md) issu de
 la PR #386 ; ne pas créer une deuxième ADR-0003.
 
-- **D0** cartographier les consommateurs et comparer arguments/exit codes
+- **D0** cartographier les consommateurs avec `python3 scripts/ops/plan-repository-split.py --openclaw-consumers` (références textuelles seulement), puis comparer arguments/exit codes
   avant d'attribuer une propriété aux scripts. Les cinq homonymes OpenClaw
   restent des contrats potentiellement différents ; contrôler leurs usages.
 - **D1–D2** converger les outils Gateway dans `nabla-openclaw` et les audits
@@ -149,7 +151,7 @@ la PR #386 ; ne pas créer une deuxième ADR-0003.
 
 **NO-GO :** pas de suppression de scripts privilégiés, de service redémarré
 ou de faux `PASS` runtime sur un simple document. L'ordre opérationnel
-**H02/G1 → H01 → H05** reste prioritaire sur ce refactoring H11.
+**H01 → H02 → H04 → H05 → H12 → H13 → H16** reste prioritaire sur ce refactoring H11.
 
 ## P1 — Fiabilité des scripts et documentation
 

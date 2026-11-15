@@ -79,7 +79,7 @@ def audit(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     if not order or "14 novembre 2026" not in order.group(1):
         issues.append("approved execution heading must reference 14 novembre 2026")
     sequence = source.split("## Séquence approuvée — ", 1)[-1].split("\n## ", 1)[0]
-    actual_order = tuple(re.findall(r"^\\|\\s*([1-7])\\s*\\|\\s*\\*\\*(H[0-9]{2})", sequence, re.M))
+    actual_order = tuple(re.findall(r"^\|\s*([1-7])\s*\|\s*\*\*(H[0-9]{2})", sequence, re.M))
     if tuple(identifier for _, identifier in actual_order) != APPROVED_ORDER or tuple(n for n, _ in actual_order) != tuple(map(str, range(1, len(APPROVED_ORDER) + 1))):
         issues.append("approved execution table must list H01 → H02 → H04 → H05 → H12 → H13 → H16")
     if rows and not {"P0", "P1", "P2"}.issubset({row["priority"] for row in rows}):
