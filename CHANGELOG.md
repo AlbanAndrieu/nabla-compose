@@ -1,3 +1,10 @@
+## [0.89.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.0...0.89.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **pfsense:** default LAN SSH and retain diagnostics when HTTPS is down [skip ci] ([19fe7ed](https://github.com/AlbanAndrieu/nabla-compose/commit/19fe7ed4f95c849e5564533f395759e04d761de7))
+
 # [0.89.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.88.0...0.89.0) (2026-11-15)
 
 
