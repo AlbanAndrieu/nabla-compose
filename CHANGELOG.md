@@ -1,3 +1,20 @@
+# [0.90.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.2...0.90.0) (2026-11-15)
+
+
+### Bug Fixes
+
+* **pfsense:** honor Unbound checkconf status without pipeline masking [skip ci] ([e18bd14](https://github.com/AlbanAndrieu/nabla-compose/commit/e18bd14f983eea12effd2a6868583789c33ffd25))
+
+
+### Features
+
+* **pfsense:** fast SSH-only UI and Unbound recovery helper [skip ci] ([fe63316](https://github.com/AlbanAndrieu/nabla-compose/commit/fe633160b5228409144e7569d90543caac75a52c))
+
+
+### Performance Improvements
+
+* **pfsense:** avoid slow recursive probes before emergency restarts [skip ci] ([f37af91](https://github.com/AlbanAndrieu/nabla-compose/commit/f37af91fc751cf396fb903384b2fe4021c929fe6))
+
 ## [0.89.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.89.1...0.89.2) (2026-11-15)
 
 
