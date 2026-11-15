@@ -1,3 +1,17 @@
+# [0.88.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.87.1...0.88.0) (2026-11-15)
+
+
+### Bug Fixes
+
+* **h11:** correct synthetic fixture newlines in CLI parity tests [skip ci] ([42981a1](https://github.com/AlbanAndrieu/nabla-compose/commit/42981a1bfc8e7c9bdb0e51ef0ee4c106c4bbb4cd))
+* **h11:** reconcile roadmap gate and inventory OpenClaw consumers offline [skip ci] ([a352d6a](https://github.com/AlbanAndrieu/nabla-compose/commit/a352d6a2a15a7bd3fb19d0f1f70b3c55f186d05c))
+
+
+### Features
+
+* **h11:** compare OpenClaw CLI signatures offline without executing scripts [skip ci] ([8e44f63](https://github.com/AlbanAndrieu/nabla-compose/commit/8e44f6398a2b623617c439451a074a4036b4bf7c))
+* **h16:** prepare Entra Free P0 identity lab in existing PR [skip ci] ([cb72cff](https://github.com/AlbanAndrieu/nabla-compose/commit/cb72cff197e7eb82295d8f83311a735fbd7925fc))
+
 ## [0.87.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.87.0...0.87.1) (2026-11-14)
 
 
