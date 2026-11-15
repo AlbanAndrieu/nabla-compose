@@ -161,5 +161,55 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(record["openclaw"]["status"], "UNREADABLE")
             self.assertNotIn("do-not-emit", json.dumps(report))
 
+
+    def test_static_option_semantics_drift_is_not_silent(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as openclaw:
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            for root, action in ((compose, "store_true"), (openclaw, "store_false")):
+                source = Path(root) / "scripts/workstation" / name
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text(
+                    'parser.add_argument("--check", action="' + action + '")\\n',
+                    encoding="utf-8",
+                )
+            report = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))
+            row = report["scripts"][0]
+            self.assertTrue(row["static_options_equal"])
+            self.assertFalse(row["static_option_shapes_equal"])
+            self.assertEqual(row["compose"]["option_shapes"][0]["semantics"]["action"], "store_true")
+            self.assertEqual(row["openclaw"]["option_shapes"][0]["semantics"]["action"], "store_false")
+            self.assertEqual(report["behavioral_parity"], "NOT_VERIFIED")
+
+    def test_static_type_and_required_drift(self):
+        with tempfile.TemporaryDirectory() as compose, tempfile.TemporaryDirectory() as openclaw:
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            for root, typed, required in ((compose, "int", "True"), (openclaw, "str", "False")):
+                source = Path(root) / "scripts/workstation" / name
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text(
+                    'parser.add_argument("--top", type=' + typed +
+                    ', required=' + required + ')\\n',
+                    encoding="utf-8",
+                )
+            row = mod.compare_openclaw_cli_contracts(Path(compose), Path(openclaw))["scripts"][0]
+            self.assertTrue(row["static_options_equal"])
+            self.assertFalse(row["static_option_shapes_equal"])
+
+    def test_no_sensitive_defaults_or_help_in_cli_report(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            name = mod.SHARED_OPENCLAW_SCRIPTS[0]
+            source = root / "scripts/workstation" / name
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                'parser.add_argument("--token", default="private-secret", help="private-detail")\\n',
+                encoding="utf-8",
+            )
+            report = mod._cli_snapshot(root, name)
+            self.assertEqual(report["status"], "READ")
+            self.assertNotIn("private-secret", json.dumps(report))
+            self.assertNotIn("private-detail", json.dumps(report))
+            self.assertEqual(report["option_shapes"][0]["flags"], ["--token"])
+
 if __name__=="__main__":
     unittest.main()
