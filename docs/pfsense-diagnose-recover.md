@@ -146,6 +146,44 @@ puis `uptime`, `swapinfo -h`, `top -aSH` et `netstat -m`
 stabilité WebConfigurator, puis réactivation **une par une**
 des protections, avec tests après chaque étape.
 
+
+### Relevé workstation/Unbound du 15/11/2026 — P0 DNS
+
+Après arrêt de **CrowdSec, Snort et pfBlockerNG**, le TCP IPv4 depuis
+pfSense réussit vers `1.1.1.1:443` et `9.9.9.9:443`.
+La workstation indique `ip -4 route get 1.1.1.1` via
+`172.17.0.1` ; le ping de la passerelle LAN a reçu 3/3 réponses
+et SSH direct vers pfSense fonctionne. Le `dig` LAN dirigé vers
+`172.17.0.1` **expire sans réponse**. La charge observée est
+inférieure à 1 ; `swapinfo -h` n'a retourné aucune donnée exploitable.
+**Conclusion :** réseau workstation ↔ pfSense opérationnel ;
+service DNS local **non fonctionnel depuis le LAN** ; le test TCP
+direct workstation ↔ Internet et la cause du timeout DNS sont
+encore **NOT_VERIFIED**. Ne pas déduire de l'absence de swap une
+pression mémoire ni du faible load l'absence de problème DNS.
+
+Prochain diagnostic sans mutation, d'abord workstation :
+`nc -4 -vz -w 5 1.1.1.1 443`,
+`dig +time=2 +tries=1 @9.9.9.9 cloudflare.com A`,
+`dig +time=2 +tries=1 @172.17.0.1 cloudflare.com A`
+et `dig +tcp +time=2 +tries=1 @172.17.0.1 cloudflare.com A`.
+
+Sur pfSense, en SSH direct LAN :
+`pgrep -laf unbound`,
+`sockstat -4 -l | grep ':53'`,
+`unbound-control -c /var/unbound/unbound.conf status`.
+Dans l'UI : `Status > Services > DNS Resolver`,
+`Status > System Logs > System/DNS Resolver`,
+puis `Services > DNS Resolver` : écoute `LAN` ou `All`
+sur UDP/TCP 53, ACL LAN autorisée, et
+`Outgoing Network Interfaces = All` (contrat private override).
+Si Unbound n'est pas actif, démarrer/redémarrer **uniquement Unbound**
+via `Status > Services`, puis retester le DNS LAN.
+Le projet utilise Unbound en résolution récursive, avec
+`int.albandrieu.com` délégué à Pi-hole `172.17.0.24`.
+Ne pas basculer aveuglément le DNS privé vers Quad9 et
+ne pas réactiver les trois protections en même temps.
+
 ## Auto Config Backup (ACB) et notices `write_config`
 
 Statut : **`ACB_UPLOAD_NOT_VERIFIED`** depuis l'échec d'upload chiffré du

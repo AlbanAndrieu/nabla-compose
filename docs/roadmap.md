@@ -20,6 +20,15 @@ La priorité P0 reste **LAN IPv4/DNS et charge pfSense**
 avant IPv6 et avant réactivation progressive des IPS.
 [Recette détaillée](pfsense-diagnose-recover.md).
 
+
+**Évidence supplémentaire (15/11, workstation) :** passerelle
+`172.17.0.1` routée et joignable (ping 3/3, SSH OK), pfSense
+load < 1, mais `dig @172.17.0.1` timeout. Priorité P0 :
+diagnostiquer l'écoute/état/ACL Unbound (UDP et TCP 53), puis
+l'accès direct IPv4 depuis la workstation et le NAT LAN.
+L'identification du bloqueur initial et IPv6 demeurent ouvertes.
+[Commandes et observations](pfsense-diagnose-recover.md).
+
 ## Ordre d’exécution validé — 14 novembre 2026
 
 
