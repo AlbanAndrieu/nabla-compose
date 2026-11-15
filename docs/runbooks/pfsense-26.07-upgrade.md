@@ -10,7 +10,7 @@ partition EFI et environnements montés en lecture seule).
 | --- | --- | --- | --- | --- | --- |
 | `default_clone_20261115_stable` | 26.03-RELEASE | 1,68 Go | **N R** depuis le 15/11 19:48, boot en 47 s | config du 15/11 18:16 + 9 baux DHCP restaurés à 19:55 | garder : config en service |
 | `default_clone` | 26.03-RELEASE (mai) | 513 Mo | boots ratés du 15/11 19:09 et 19:26 (générateur PHP-FPM en 600, réparé à 19:46), pas réessayé | config du 15/11 18:43 : pfBlockerNG IP seul, certificats ACME `vault` et `wildcard` retirés | supprimer après une semaine stable |
-| `default` | 26.03 (juin, ex-`default_20260604025536`) | 1,67 Go | démarre en 58 s ; **cible du repli** | config du 4 juin : GUI 10443 exposée, Unbound sur WAN, syslog `.57` | ne jamais l'activer ; voir le repli ci-dessous |
+| `default` | 26.03 (juin, ex-`default_20260604025536`) | 1,67 Go | démarre en 58 s ; **cible du repli** | binaires de juin ; config en service recopiée le 15/11 (révision 20:11), copie de juin conservée en `config.xml.nabla-pre-sync-*` | garder comme repli ; resynchroniser après chaque changement |
 | `default_20260824183037` | 26.07 (octobre) | 1,11 Go | générateur réparé le 15/11 19:46 ; boot non retesté | **seule copie** de la config du 13/11 07:30 (certificats ACME du 26/10, HAProxy, REST API) | prochain essai de boot vers 26.07 |
 | `default_20260824183037_20260926190038` | 26.03.1 | 987 Mo | échoue après `rc.bootup` depuis le 13/11 20:38 ; générateur intact | rien (config du 13/11 20:15, réappliquée) | supprimer en dernier, après un 26.07 stable |
 
@@ -20,8 +20,19 @@ supprimé par l'opérateur le 15/11 à 18:37 ; `default_20260604025536` a alors
 
 **Repli** : `_be_recent_name` (`/etc/rc.be_functions.sh`) prend le premier
 environnement de `bectl list -C creation`, donc **le plus ancien** non actif et
-non marqué `pfsense:failed`. Aujourd'hui c'est `default` (juin) : un boot raté
-de la config en service retombe sur la config de juin, comme le 15/11 à 19:17.
+non marqué `pfsense:failed`. Aujourd'hui c'est `default` : le 15/11 à 19:17,
+un boot raté est ainsi retombé sur sa config de juin. Depuis 20:2x, `default`
+porte la config en service. Après chaque changement de config validé,
+resynchroniser :
+
+```bash
+ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- check default < scripts/pfsense/sync-fallback-be-config.sh
+ssh -p 9922 admin@172.17.0.1 /bin/sh -s -- apply default < scripts/pfsense/sync-fallback-be-config.sh
+```
+
+Au premier boot de repli, pfSense réinstalle les paquets absents de `default`
+(RESTAPI, crowdsec) par Internet : API REST et bouncer CrowdSec manquent
+quelques minutes.
 
 N = en service, R = au prochain boot. Pool `pfSense` : 7 Go, 81 % utilisé,
 réservation de 694 Mo, **397 Mo disponibles** : trop peu pour un upgrade
