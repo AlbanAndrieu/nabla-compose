@@ -23,8 +23,8 @@ OPENCLAW_VERSION = re.compile(r'^OpenClaw\s+(\d+\.\d+\.\d+)(?:\s|$)', re.M)
 
 
 # Enforce an exact, unique --port token in the effective systemd ExecStart.
-GATEWAY_PORT_TOKEN = re.compile(r'(?<!\\S)gateway[ \\t]+--port[ \\t]+18789(?=[ \\t;}\\]]|$)')
-PORT_FLAGS = re.compile(r'(?<!\\S)--port(?=[ \\t=;}\\]]|$)')
+GATEWAY_PORT_TOKEN = re.compile(r'(?<!\S)gateway[ \t]+--port[ \t]+18789(?=[ \t;}\]]|$)')
+PORT_FLAGS = re.compile(r'(?<!\S)--port(?=[ \t=;}\]]|$)')
 
 
 def matches_gateway_port(unit: str) -> bool:
