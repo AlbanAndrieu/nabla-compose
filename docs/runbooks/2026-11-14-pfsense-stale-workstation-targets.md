@@ -26,8 +26,8 @@ Relevé par SSH (`ssh -p 9922 admin@172.17.0.1`) dans `/conf/config.xml`,
 | Objet pfSense | Cible | Service aujourd'hui | Décision |
 | --- | --- | --- | --- |
 | Syslog `remoteserver` | `172.17.0.57:1514` | Alloy TrueNAS `172.17.0.24:1514`, déjà en `remoteserver2` | Promouvoir TrueNAS en slot 1, retirer `.57` |
-| HAProxy `ntopng` (`ntopng.albandrieu.com`, frontend WAN :8082) | `172.17.0.57:3000` | App TrueNAS `172.17.0.24:31080` | Serveur `inactive` : pas de réexposition WAN du login ntopng |
-| HAProxy `graylog` (`graylog.albandrieu.com`, :443 et :8082) | `172.17.0.57:9000` | App TrueNAS arrêtée volontairement (`planned`) | Serveur `inactive` |
+| HAProxy `ntopng` (`ntopng.albandrieu.com`, frontend WAN :8082) | `172.17.0.57:3000` | App TrueNAS `172.17.0.24:31080` | Serveur `inactive`, puis pool supprimé le 15/11 : pas de réexposition WAN du login ntopng |
+| HAProxy `graylog` (`graylog.albandrieu.com`, :443 et :8082) | `172.17.0.57:9000` | App TrueNAS arrêtée volontairement (`planned`) | Serveur `inactive`, puis pool supprimé le 15/11 |
 | HAProxy `albandrieu-apache-login-honeypot` (frontend `login`, WAN :3000) | `172.17.0.57:3000` | Aucun | Serveur `inactive` et frontend `login` désactivé |
 | NAT rdr WAN :8081 « albandrieu nexus 8081 » et sa règle pass associée | `172.17.0.57:8081` | Nexus TrueNAS `172.17.0.24:8081`, servi par `nexus.int.albandrieu.com` | Supprimer : la politique d'ingress bloque l'accès direct à l'origine Nexus |
 
@@ -37,6 +37,12 @@ réfléchie depuis le LAN (source réécrite en `172.17.0.1`).
 
 Les backends `ntopng`, `graylog` et `albandrieu-apache-login-honeypot`
 répondent déjà 503 : la décision ne retire aucun accès fonctionnel.
+
+Les pools `ntopng` et `graylog` sont supprimés entiers, pas redirigés vers
+TrueNAS : `172.17.0.24:3000` est Langfuse, `:9000` ClickHouse, et ntopng
+écoute sur `:31080`. Le script ne les supprime que si tous leurs serveurs
+sont `inactive` et qu'aucun frontend ne les utilise ; sinon il s'arrête en
+`ERROR` sans rien écrire.
 
 ## Hors périmètre
 

@@ -41,21 +41,22 @@ function clear_subsystem_dirty($name) {}
 """
 
 
-def server(name: str, address: str, port: str) -> dict:
-    return {"name": name, "address": address, "port": port, "status": "active"}
+def server(name: str, address: str, port: str, status: str = "active") -> dict:
+    return {"name": name, "address": address, "port": port, "status": status}
 
 
 def pfsense_config() -> dict:
     pools = [
-        ("ntopng", server("ntopng", "172.17.0.57", "3000")),
-        ("graylog", server("graylog", "172.17.0.57", "9000")),
-        ("albandrieu-apache-login-honeypot", server("albandrieu", "172.17.0.57", "3000")),
-        ("albandrieu-apache", server("albandrieu", "172.17.0.57", "8082")),
+        ("ntopng", [server("ntopng", "172.17.0.57", "3000", "inactive"),
+                    server("ntopng-lan", "172.17.0.254", "3000", "inactive")]),
+        ("graylog", [server("graylog", "172.17.0.57", "9000", "inactive")]),
+        ("albandrieu-apache-login-honeypot", [server("albandrieu", "172.17.0.57", "3000")]),
+        ("albandrieu-apache", [server("albandrieu", "172.17.0.57", "8082")]),
     ]
     return {
         "installedpackages": {
             "haproxy": {
-                "ha_pools": {"item": [{"name": n, "ha_servers": {"item": [s]}} for n, s in pools]},
+                "ha_pools": {"item": [{"name": n, "ha_servers": {"item": s}} for n, s in pools]},
                 "ha_backends": {"item": [
                     {"name": "Web_HTTPS", "status": "active"},
                     {"name": "login", "status": "active"},
@@ -107,18 +108,33 @@ class RetireWorkstationTargetsTest(unittest.TestCase):
             for p in written["installedpackages"]["haproxy"]["ha_pools"]["item"]
         }
         self.assertEqual(status, {
-            ("ntopng", "3000"): "inactive",
-            ("graylog", "9000"): "inactive",
             ("albandrieu-apache-login-honeypot", "3000"): "inactive",
             ("albandrieu-apache", "8082"): "active",
         })
         frontends = {f["name"]: f["status"] for f in written["installedpackages"]["haproxy"]["ha_backends"]["item"]}
         self.assertEqual(frontends, {"Web_HTTPS": "active", "login": "disabled"})
         self.assertEqual([r["descr"] for r in written["nat"]["rule"]], ["famp freenas webmin https"])
+        again, _ = self.run_helper("check", written)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertNotIn("CHANGE:", again.stdout)
+        self.assertIn("OK: haproxy pool ntopng absent", again.stdout)
+
+    def test_pool_in_use_writes_nothing(self) -> None:
+        active = pfsense_config()
+        active["installedpackages"]["haproxy"]["ha_pools"]["item"][1]["ha_servers"]["item"][0]["status"] = "active"
+        used = pfsense_config()
+        used["installedpackages"]["haproxy"]["ha_backends"]["item"][0]["a_actionitems"] = {
+            "item": [{"action": "use_backend", "use_backendbackend": "ntopng"}]}
+        for case, config in (("active server", active), ("frontend", used)):
+            with self.subTest(case):
+                result, written = self.run_helper("apply", config)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("nothing written", result.stderr)
+                self.assertIsNone(written)
 
     def test_drifted_config_writes_nothing(self) -> None:
         config = pfsense_config()
-        del config["installedpackages"]["haproxy"]["ha_pools"]["item"][1]
+        del config["installedpackages"]["haproxy"]["ha_pools"]["item"][2]
         result, written = self.run_helper("apply", config)
         self.assertEqual(result.returncode, 1)
         self.assertIn("config drifted", result.stderr)

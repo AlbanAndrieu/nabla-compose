@@ -14,19 +14,45 @@ require_once('haproxy/haproxy.inc');
 
 $apply = ($argv[1] ?? 'check') === 'apply';
 const WS = '172.17.0.57';
+// Pools of retired services, deleted whole. Do not repoint them: TrueNAS :3000 is Langfuse, :9000 ClickHouse.
+const RETIRED_POOLS = ['ntopng', 'graylog'];
 // pool, server, port: the services moved to TrueNAS or were stopped.
 const STALE_SERVERS = [
-    ['ntopng', 'ntopng', '3000'],
-    ['graylog', 'graylog', '9000'],
     ['albandrieu-apache-login-honeypot', 'albandrieu', '3000'],
 ];
 const STALE_FRONTEND = 'login';
 const STALE_NAT_DESCR = 'albandrieu nexus 8081';
 
+// Any frontend field equal to the pool name counts as a use: a false match only blocks the delete.
+function uses_pool($value, string $pool): bool
+{
+    return is_array($value) ? (bool)array_filter($value, fn($v) => uses_pool($v, $pool)) : $value === $pool;
+}
+
 $ha_changed = false;
 $found = 0;
 
-foreach (config_get_path('installedpackages/haproxy/ha_pools/item', []) as $pi => $pool) {
+$pools = config_get_path('installedpackages/haproxy/ha_pools/item', []);
+$frontends = config_get_path('installedpackages/haproxy/ha_backends/item', []);
+$drop_pools = [];
+foreach (RETIRED_POOLS as $name) {
+    $pi = array_search($name, array_map(fn($p) => $p['name'] ?? '', $pools), true);
+    if ($pi === false) {
+        print("OK: haproxy pool {$name} absent\n");
+        continue;
+    }
+    $active = array_filter($pools[$pi]['ha_servers']['item'] ?? [], fn($s) => ($s['status'] ?? '') !== 'inactive');
+    $users = array_column(array_filter($frontends, fn($f) => uses_pool($f, $name)), 'name');
+    if ($active || $users) {
+        fwrite(STDERR, sprintf("ERROR: haproxy pool %s has %d active server(s) and is used by [%s]; nothing written\n",
+            $name, count($active), implode(',', $users)));
+        exit(1);
+    }
+    printf("CHANGE: haproxy pool %s (%d inactive server(s), no frontend) to delete\n", $name, count($pools[$pi]['ha_servers']['item'] ?? []));
+    $drop_pools[] = $pi;
+}
+
+foreach ($pools as $pi => $pool) {
     foreach ($pool['ha_servers']['item'] ?? [] as $si => $srv) {
         foreach (STALE_SERVERS as [$p, $n, $port]) {
             if (($pool['name'] ?? '') !== $p || ($srv['name'] ?? '') !== $n
@@ -44,7 +70,7 @@ foreach (config_get_path('installedpackages/haproxy/ha_pools/item', []) as $pi =
     }
 }
 
-foreach (config_get_path('installedpackages/haproxy/ha_backends/item', []) as $fi => $fe) {
+foreach ($frontends as $fi => $fe) {
     if (($fe['name'] ?? '') !== STALE_FRONTEND) {
         continue;
     }
@@ -70,7 +96,8 @@ if (!$nat_ids) {
     print("OK: nat rdr " . STALE_NAT_DESCR . " absent\n");
 }
 
-printf("summary: %d haproxy object(s) matched, %d nat rule(s) to remove, mode=%s\n", $found, count($nat_ids), $apply ? 'apply' : 'check');
+printf("summary: %d haproxy object(s) matched, %d pool(s) to delete, %d nat rule(s) to remove, mode=%s\n",
+    $found, count($drop_pools), count($nat_ids), $apply ? 'apply' : 'check');
 if ($found !== count(STALE_SERVERS) + 1) {
     fwrite(STDERR, "ERROR: expected " . (count(STALE_SERVERS) + 1) . " haproxy objects; config drifted, nothing written\n");
     exit(1);
@@ -79,6 +106,12 @@ if (!$apply) {
     exit(0);
 }
 
+if ($drop_pools) {
+    // Re-read: the loops above may have changed server status in the same array.
+    $kept = array_diff_key(config_get_path('installedpackages/haproxy/ha_pools/item', []), array_flip($drop_pools));
+    config_set_path('installedpackages/haproxy/ha_pools/item', array_values($kept));
+    $ha_changed = true;
+}
 $changes = [];
 if ($nat_ids) {
     remove_rdr_rules($nat_ids, $changes);
@@ -88,7 +121,7 @@ if (!$ha_changed && !isset($changes['rdr_rules'])) {
     exit(0);
 }
 
-write_config('nabla: retire stale workstation 172.17.0.57 targets (HAProxy ntopng/graylog/login, NAT 8081)');
+write_config('nabla: retire stale workstation 172.17.0.57 targets (HAProxy pools ntopng/graylog deleted, login, NAT 8081)');
 
 if ($ha_changed) {
     $messages = '';
