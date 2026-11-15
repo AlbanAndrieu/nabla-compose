@@ -27,7 +27,8 @@ permissions:
     effect: deny
 ---
 
-Read `AGENTS.md` and `agent.md` first.
+Use the automatically loaded `AGENTS.md` repository policy; load only
+matching specialist skills when necessary for the reviewed changes.
 
 Review only the current bounded change. Use `git diff` and targeted reads; do not
 edit files.

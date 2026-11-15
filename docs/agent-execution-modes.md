@@ -44,9 +44,12 @@ des changements de configuration. Ne jamais escalader silencieusement.
 
 ## Économie de contexte et de ressources
 
-- Lire `AGENTS.md` une seule fois, puis **un seul skill pertinent** et au
-  besoin sa référence conditionnelle. Les adaptateurs `CLAUDE.md` et
-  `agent.md` ne répliquent pas les règles du dépôt.
+- OpenCode charge `AGENTS.md` automatiquement ; seul l'agent `build` lit
+  explicitement le guide `agent.md`. Le `reviewer` n'en a pas besoin,
+  et `opencode.json:instructions` ne doit pas charger de doublon.
+- Charger ensuite **un seul skill pertinent** et au besoin sa référence
+  conditionnelle. Les adaptateurs `CLAUDE.md` et `agent.md` ne
+  répliquent pas la politique.
 - `rg` / diff ciblé / lignes bornées, pas de récursion dans submodules,
   archives, rapports générés ou données utilisateur. Logs : première erreur,
   maximum un extrait borné ; compléter uniquement si insuffisant.

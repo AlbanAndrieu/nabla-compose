@@ -7,6 +7,7 @@ run shell commands, install skills or contact services.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
@@ -165,6 +166,59 @@ def audit(root: Path) -> list[str]:
         for marker in required:
             if marker not in scoped:
                 issues.append(f"{relative}: missing policy marker: {marker}")
+    issues.extend(_audit_opencode_wiring(root))
+    return issues
+
+
+def _audit_opencode_wiring(root: Path) -> list[str]:
+    """Verify actual OpenCode loading paths, not merely text mentions."""
+    issues: list[str] = []
+    try:
+        config = json.loads((root / "opencode.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        issues.append("opencode.json: missing or invalid JSON configuration")
+    else:
+        if not isinstance(config, dict):
+            issues.append("opencode.json: expected an object")
+        else:
+            configured = config.get("instructions", [])
+            if not isinstance(configured, list) or not all(
+                isinstance(path, str) for path in configured
+            ):
+                issues.append("opencode.json: instructions must be a string array")
+            elif any(
+                path.removeprefix("./") in {"AGENTS.md", "agent.md"}
+                for path in configured
+            ):
+                issues.append("opencode.json: duplicate canonical/build instructions")
+
+    for relative, needs_adapter in (
+        (".opencode/agents/build.md", True),
+        (".opencode/agents/reviewer.md", False),
+    ):
+        try:
+            content = (root / relative).read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            issues.append(f"{relative}: missing or unreadable agent entry")
+            continue
+        if not content.startswith("---\n") or "\n---\n" not in content[4:]:
+            issues.append(f"{relative}: missing agent frontmatter")
+            continue
+        body = content.split("\n---\n", 1)[1]
+        if "AGENTS.md" not in body:
+            issues.append(f"{relative}: missing canonical AGENTS.md reference")
+        if needs_adapter and "agent.md" not in body:
+            issues.append(f"{relative}: build must load compact agent.md")
+        if not needs_adapter and "agent.md" in body:
+            issues.append(f"{relative}: reviewer must not preload agent.md")
+
+    try:
+        adapter = (root / "agent.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        pass  # The REQUIRED file audit already reports this absence.
+    else:
+        if len(adapter.encode("utf-8")) > 2200:
+            issues.append("agent.md: build adapter exceeds 2200-byte context budget")
     return issues
 
 
