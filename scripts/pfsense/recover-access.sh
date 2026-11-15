@@ -96,10 +96,14 @@ status_report() {
   echo "==> DNS IPv4 listeners"
   sockstat -4 -l 2>/dev/null |
     awk 'NR > 1 && $6 ~ /:53$/ { print; seen=1 } END { if (!seen) print "WARN: dns_ipv4_listener=MISSING" }'
-  echo "==> Real DNS lookups (recursive / upstream)"
-  dns_query dns_loopback 127.0.0.1 || true
-  dns_query dns_lan_ip 172.17.0.1 || true
-  dns_query public_dns_egress 9.9.9.9 || true
+  if [ "$mode" = "--check" ]; then
+    echo "==> Real DNS lookups (recursive / upstream)"
+    dns_query dns_loopback 127.0.0.1 || true
+    dns_query dns_lan_ip 172.17.0.1 || true
+    dns_query public_dns_egress 9.9.9.9 || true
+  else
+    echo "INFO: DNS deep probes skipped in recovery mode for faster restart"
+  fi
   if [ -S /var/run/php-fpm.socket ]; then
     echo "PASS: php_fpm_socket=PRESENT"
   else
