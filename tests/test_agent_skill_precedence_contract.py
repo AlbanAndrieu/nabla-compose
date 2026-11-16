@@ -124,6 +124,36 @@ class SkillPrecedenceContractTest(unittest.TestCase):
                 for issue in MODULE.audit(root)
             ))
 
+    def test_opencode_root_policy_indirect_globs_and_paths_are_rejected(self):
+        examples = (
+            "././AGENTS.md", "docs/../AGENTS.md", "./agent.md",
+            "*.md", "AGENT?.md", "**/*.md",
+        )
+        for instruction in examples:
+            with self.subTest(instruction=instruction):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    fixture(root)
+                    (root / "opencode.json").write_text(json.dumps({
+                        "instructions": [instruction]
+                    }))
+                    self.assertTrue(any(
+                        "duplicate canonical/build instructions" in issue
+                        for issue in MODULE.audit(root)
+                    ))
+
+    def test_opencode_scoped_instructions_are_permitted(self):
+        for instruction in ("docs/*.md", ".opencode/commands/*.md",
+                            "docs/agent-execution-modes.md"):
+            with self.subTest(instruction=instruction):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    fixture(root)
+                    (root / "opencode.json").write_text(json.dumps({
+                        "instructions": [instruction]
+                    }))
+                    self.assertEqual(MODULE.audit(root), [])
+
     def test_build_must_retain_compact_adapter(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

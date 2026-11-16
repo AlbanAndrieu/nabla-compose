@@ -39,6 +39,18 @@ testing. Accumulate non-urgent cleanups; only production stabilization
 or a completed cross-service migration justifies an immediate
 coordinated publication. Preserve all gates and Draft status.
 
+### OpenCode : éviter le double chargement des instructions
+
+OpenCode charge le `AGENTS.md` racine sans qu'il soit nécessaire de l'ajouter
+à `opencode.json:instructions`. Le build lit `agent.md` uniquement via son
+adaptateur, tandis que le reviewer conserve le contexte canonique seul.
+Le contrôle `just agent-skills-check` refuse également les chemins indirects
+(`./AGENTS.md`, `docs/../AGENTS.md`) et motifs glob qui rechargeraient
+`AGENTS.md` ou `agent.md`. Les motifs ciblant uniquement `docs/`
+restent autorisés. Ceci protège le budget de tokens et évite les politiques
+concurrentes ; la réception fonctionnelle d'OpenCode est une vérification
+distincte sur la workstation.
+
 ## Conditional tools and policies
 
 - For Compose, load `.agents/skills/docker-compose-orchestration/SKILL.md` and `.agents/skills/nabla-service-catalog/SKILL.md`; validate without starting Apps. The active Backstage V2 contract stays authoritative.

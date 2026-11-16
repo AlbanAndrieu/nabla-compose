@@ -7,8 +7,10 @@ run shell commands, install skills or contact services.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 from pathlib import Path
+import posixpath
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -170,6 +172,22 @@ def audit(root: Path) -> list[str]:
     return issues
 
 
+def _opencode_duplicates_root_instruction(raw: str) -> bool:
+    """Detect direct or glob-indirect reloads of OpenCode's root policy.
+
+    Normalize harmless ./ and ../ segments; do not resolve links or read
+    arbitrary paths. '**/' can match zero directories in glob syntax.
+    """
+    normalized = posixpath.normpath(raw.replace("\\", "/"))
+    for candidate in ("AGENTS.md", "agent.md"):
+        if normalized == candidate:
+            return True
+        if any(fnmatch.fnmatchcase(candidate, pattern)
+               for pattern in (normalized, normalized.replace("**/", ""))):
+            return True
+    return False
+
+
 def _audit_opencode_wiring(root: Path) -> list[str]:
     """Verify actual OpenCode loading paths, not merely text mentions."""
     issues: list[str] = []
@@ -187,7 +205,7 @@ def _audit_opencode_wiring(root: Path) -> list[str]:
             ):
                 issues.append("opencode.json: instructions must be a string array")
             elif any(
-                path.removeprefix("./") in {"AGENTS.md", "agent.md"}
+                _opencode_duplicates_root_instruction(path)
                 for path in configured
             ):
                 issues.append("opencode.json: duplicate canonical/build instructions")
