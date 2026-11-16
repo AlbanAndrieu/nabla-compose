@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:212f7536d6b5fbcf734a244a2e3704c37203ac24932bf930d5ac8f75b1355365",
+  "catalogRevision": "sha256:582e994ab3609726feec9485b0deb4fe1151e73237033a020a148bcca2e9d063",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -2219,6 +2219,47 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/emby",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Media server, installed as a TrueNAS catalog App and kept stopped.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "name": "emby",
+        "tags": [
+          "media"
+        ],
+        "title": "Emby"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "emby",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/fastapi-sample",
       "kind": "Component",
       "metadata": {
@@ -2629,6 +2670,63 @@
           "containerService": "gatus",
           "provider": "truenas-app",
           "source": "apps/gatus/compose.yml#services/gatus"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/glances",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Host monitoring dashboard, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "glances",
+        "tags": [
+          "observability"
+        ],
+        "title": "Glances"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30015
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "probePath": "/api/4/status",
+            "protocol": "HTTP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ],
+        "runtime": {
+          "appId": "glances",
+          "containerService": "glances",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
         }
       }
     },
@@ -3208,6 +3306,64 @@
           "containerService": "home-assistant",
           "provider": "truenas-app",
           "source": "apps/homeassistant/compose.yml#services/homeassistant"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/immich",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "high",
+          "albandrieu.com/bia-impact-operational": "medium",
+          "albandrieu.com/bia-mbco": "photo-library-restorable-from-backup",
+          "albandrieu.com/bia-mtpd": "P3D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P1D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Photo and video library, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "high",
+          "albandrieu.com/operational-criticality": "medium",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "immich",
+        "tags": [
+          "media"
+        ],
+        "title": "Immich"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 30041
+            },
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "probePath": "/api/server/ping",
+            "protocol": "HTTP",
+            "source": "catalog/catalog-info.yaml",
+            "visibility": "lan"
+          }
+        ],
+        "runtime": {
+          "appId": "immich",
+          "containerService": "server",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
         }
       }
     },
@@ -4127,6 +4283,47 @@
           "containerService": "mcp-cyberbro",
           "provider": "truenas-app",
           "source": "apps/cyberbro/compose.yml#services/mcp-cyberbro"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/memos",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Note-taking service, installed as a TrueNAS catalog App and kept stopped.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "name": "memos",
+        "tags": [
+          "productivity"
+        ],
+        "title": "Memos"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "memos",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
         }
       }
     },
@@ -8641,6 +8838,47 @@
           "containerService": "sybase-exporter",
           "provider": "truenas-app",
           "source": "apps/sybase-exporter/compose.yml#services/sybase-exporter"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/tailscale",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Mesh VPN client, installed as a TrueNAS catalog App and kept stopped.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "disabled"
+        },
+        "name": "tailscale",
+        "tags": [
+          "network"
+        ],
+        "title": "Tailscale"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      },
+      "x-nabla": {
+        "runtime": {
+          "appId": "tailscale",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
         }
       }
     },

@@ -206,6 +206,10 @@
       "ref": "component:default/dsomm-baseline"
     },
     {
+      "dependsOn": [],
+      "ref": "component:default/emby"
+    },
+    {
       "dependsOn": [
         "resource:default/postgresql"
       ],
@@ -230,6 +234,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/gatus"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/glances"
     },
     {
       "dependsOn": [],
@@ -278,6 +286,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/homeassistant"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/immich"
     },
     {
       "dependsOn": [],
@@ -362,6 +374,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/mcp-cyberbro"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/memos"
     },
     {
       "dependsOn": [],
@@ -818,6 +834,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/tailscale"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/three-proxy"
     },
     {
@@ -979,7 +999,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:212f7536d6b5fbcf734a244a2e3704c37203ac24932bf930d5ac8f75b1355365"
+        "value": "sha256:582e994ab3609726feec9485b0deb4fe1151e73237033a020a148bcca2e9d063"
       },
       {
         "name": "nabla:catalog-authority",
@@ -987,7 +1007,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:212f7536-d6b5-fbcf-734a-244a2e3704c3",
+  "serialNumber": "urn:uuid:582e994a-b360-9726-feec-9485b0deb4fe",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2088,6 +2108,33 @@
       ]
     },
     {
+      "bom-ref": "component:default/emby",
+      "description": "Media server, installed as a TrueNAS catalog App and kept stopped.",
+      "name": "Emby",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/emby"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/fastapi-sample",
       "description": "FastAPI service with cloud production and TrueNAS homelab staging deployments.",
       "name": "FastAPI Sample",
@@ -2242,6 +2289,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "status-monitor"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/glances",
+      "description": "Host monitoring dashboard, installed as a TrueNAS catalog App.",
+      "name": "Glances",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/glances"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -2509,6 +2583,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "home-automation"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/immich",
+      "description": "Photo and video library, installed as a TrueNAS catalog App.",
+      "name": "Immich",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/immich"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -2961,6 +3062,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/cyberbro/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/memos",
+      "description": "Note-taking service, installed as a TrueNAS catalog App and kept stopped.",
+      "name": "Memos",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/memos"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -5496,6 +5624,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "metrics-exporter"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/tailscale",
+      "description": "Mesh VPN client, installed as a TrueNAS catalog App and kept stopped.",
+      "name": "Tailscale",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/tailscale"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
