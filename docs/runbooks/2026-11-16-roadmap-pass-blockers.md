@@ -29,6 +29,18 @@ Aucun secret n'a été lu.
 | Noms publics `*-albandrieu` | Le propriétaire a décidé de retirer ces noms du tunnel workstation (branche `fix/roadmap-pass-edge-pfsense-20261116`). Les entités `anythingllm-albandrieu`, `plumber-albandrieu`, `portracker-albandrieu` et `stirling-albandrieu` perdent donc leur nom public, en v2 comme dans l'inventaire legacy, et gardent leur route LAN directe. | Sur le poste (172.17.0.57), :3007, :3001 et :8085 n'écoutent pas ; :4999 n'écoute qu'en boucle locale |
 | Prometheus | Rien à changer | Les 13 cibles à `up=0` portent `operational_state="planned"`, ce qui les exclut de `NablaExporterTargetDown`. Les exporters OpenSearch (:9114, :9115) et HAProxy (:9101) ne sont déployés nulle part. |
 
+### Suite du 16/11 après-midi (plan de performance, Talos, réception)
+
+| Point roadmap | Changement | Preuve |
+| --- | --- | --- |
+| H01 CSI | Le rôle du controller peut lire les Pods (csi-resizer v2). Le smoke attend le marqueur de son écrivain et accepte un namespace jetable. | `install-truenas-csi-nfs.sh --apply` puis `--check` convergé ; PVC RWX écrit sur taloswk01 et relu sur taloswk02 |
+| Plan perf. 4 | VMs Talos arrêtées par `just talos-vms-stop` (workers d'abord, autostart désactivé) | Snapshot etcd préalable sur le poste ; `MemAvailable` passe de 5,7 à 13 Gio ; `--check` : trois VMs `STOPPED` |
+| Incident Talos | taloscp01 a tenu l'IP publique du WAN du 14 au 15/11 ([incident](../incidents/2026-11-14-talos-control-plane-public-wan-lease.md)). `config/talos/nodes/*.yaml` fixe adresse, passerelle et nom d'hôte. | `talosctl validate --mode metal --strict` hors ligne ; test de contrat |
+| Plan perf. 1 | Profil `recordsize=16K` pour `cpool/ntopng` | `tests/test_dataset_profiles.py` |
+| Plan perf. 6 et 8 | `mem_limit` (pic cgroup × 1,5) sur 11 services, rotation du journal de docker-socket-proxy, test cliquet | Relevé `memory.peak` des 133 conteneurs ; `docker compose config` ; générateurs `--check` |
+| Plumber | CORS et URL du frontend sur `http://172.17.0.24:31070` (décision transmise par la session parallèle) | `docker compose config` |
+| Réception TrueNAS 27 | `just truenas-fastapi-check` passe par `sudo -n` | Sans sudo : faux échec critique `docker_fastapi unknown` ; avec sudo : `warning`, aucun échec critique |
+
 ## 2. Constats en lecture seule
 
 | Sujet | Constat |
@@ -46,16 +58,22 @@ Aucun secret n'a été lu.
 
 ## 3. Questions pour l'opérateur
 
-Les questions numérotées, avec commande, impact et retour arrière, figurent dans le compte rendu de la passe. En voici l'index.
+Les questions numérotées, avec commande, impact et retour arrière, figurent dans le compte rendu de la passe. En voici l'index (mis à jour l'après-midi du 16/11).
 
-1. Redéployer Prometheus et clamav, qui relisent les règles d'alerte du 15/11.
+1. Redéployer clamav (Prometheus relit déjà ses règles depuis cba8016b).
 2. Créer les tâches cron de la fenêtre nocturne.
 3. Uptime Kuma : la déployer, ou la passer en `planned` avec `autokuma`.
 4. cartography et scorecard : les créer, ou les passer en `planned`.
 5. OpenClaw : retirer la route LAN :30325 du catalogue, ou publier un port dans le sous-module.
-6. `clamav-scan` : corriger le scan, et l'avancer dans la fenêtre ou sortir clamav de la fenêtre (ansible-workstation).
+6. `clamav-scan` : corriger le scan, et l'avancer dans la fenêtre ou sortir clamav de la fenêtre (ansible-workstation). Y joindre le déplacement des tests SMART longs (plan perf. 5).
 7. Créer la tâche de snapshot mensuelle de `cpool/bitcoind`.
 8. Purger les 59 volumes `candidate:anonymous`.
-9. Après fusion : redéployer scanopy, litellm et ntopng (zombies).
+9. Après fusion : redéployer scanopy, litellm et ntopng (zombies), plumber (CORS) et les Apps qui reçoivent une limite mémoire.
 10. Relire les BIA provisoires d'immich, glances et Plumber.
-11. Services du poste : passer anythingllm, plumber et stirling `-albandrieu` en `disabled`, car rien n'écoute. Pour portracker, choisir entre ouvrir l'écoute au LAN ou retirer sa route. La valeur par défaut `plumber-albandrieu.albandrieu.com` de `FRONTEND_DOMAIN` et `JOBS_CORS_ORIGIN` dans `apps/plumber/compose.yml` est périmée : la changer modifie le CORS de l'API au redéploiement.
+11. Services du poste : passer anythingllm et stirling `-albandrieu` en `disabled` ; portracker : écoute LAN ou retrait de la route.
+12. Appliquer `recordsize=16K` sur `cpool/ntopng`, puis réécrire les fichiers existants, ntopng arrêté.
+13. Abandonner le point 2 du plan (`recordsize` des bases), dont le gain mesuré est faible.
+14. Au redémarrage de Talos : appliquer l'adressage statique des nœuds, supprimer le nœud fantôme et les namespaces de smoke, puis vérifier le reclaim ZFS.
+15. Chemin de niveau 2 entre `br0` et la Freebox (incident du 14/11), côté pfSense et commutateur.
+16. H08 : premier `--apply` de `rollout-pending-apps.sh` (netbox, dependency-track ou joplin).
+17. CSI : passer de `truenas-csi` v1.0.3 à une version sans `auth.login_with_api_key`, testée au redémarrage de Talos.
