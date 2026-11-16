@@ -199,6 +199,66 @@ resource "cloudflare_zero_trust_access_application" "affine" {
   }
 }
 
+# immich and ha answered Error 1050 (no Access app, 16/11): nabla policy plus
+# the monitor token, like affine.
+resource "cloudflare_zero_trust_access_application" "immich" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "immich.albandrieu.com"
+    },
+  ]
+  domain = "immich.albandrieu.com"
+  name   = "immich"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+    {
+      id         = local.access_policy_fastapi_sample_monitor_id
+      precedence = 2
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "cloudflare_zero_trust_access_application" "ha" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "ha.albandrieu.com"
+    },
+  ]
+  domain = "ha.albandrieu.com"
+  name   = "ha"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+    {
+      id         = local.access_policy_fastapi_sample_monitor_id
+      precedence = 2
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 # nabla-site-alban reads the GReader API with its own service token
 # (FRESHRSS_CF_ACCESS_CLIENT_ID/SECRET); the owner creates it, then sets
 # freshrss_site_service_token_id. No public bypass.

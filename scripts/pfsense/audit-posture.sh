@@ -489,13 +489,20 @@ esac
 if fpm_output="$(ps axww -o rss=,command= 2>/dev/null)"; then
   fpm_stats="$(printf '%s\n' "$fpm_output" | awk '
     /^[[:space:]]*[0-9]+[[:space:]]+php-fpm: pool nginx/ {n++; rss+=$1}
-    END {printf "%d %d", n+0, rss+0}
+    /^[[:space:]]*[0-9]+[[:space:]]+php-fpm: master process/ {m++}
+    END {printf "%d %d %d", n+0, rss+0, m+0}
   ')"
   fpm_workers="$(printf '%s\n' "$fpm_stats" | awk '{print $1}')"
   fpm_rss="$(printf '%s\n' "$fpm_stats" | awk '{print $2}')"
+  fpm_masters="$(printf '%s\n' "$fpm_stats" | awk '{print $3}')"
   emit INFO php_fpm.nginx_rss_kib "$fpm_rss" "aggregate worker RSS KiB; shared pages may be double-counted"
   if [ "$fpm_workers" -gt 0 ] && [ "$fpm_workers" -le 4 ]; then
     emit PASS php_fpm.nginx_workers "$fpm_workers" "within four-worker memory profile"
+  elif [ "$fpm_workers" -eq 0 ] && [ "$fpm_masters" -gt 0 ]; then
+    # pm=ondemand reaps every worker after 30 s idle: zero is the healthy idle state.
+    emit PASS php_fpm.nginx_workers 0 "idle: master running, ondemand workers reaped"
+  elif [ "$fpm_workers" -eq 0 ]; then
+    emit WARN php_fpm.nginx_workers 0 "php-fpm master process absent; WebConfigurator cannot serve PHP"
   else
     emit WARN php_fpm.nginx_workers "$fpm_workers" "expected 1 to 4 nginx workers"
   fi

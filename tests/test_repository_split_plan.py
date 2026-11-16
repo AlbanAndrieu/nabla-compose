@@ -101,6 +101,34 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(result["skipped_files"], 1)
 
 
+    def test_shared_scripts_consuming_each_other_are_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            documents = {
+                "scripts/workstation/reconcile-openclaw-digest-cron.py": (
+                    'module("x", "diagnose-openclaw-digest-top.py")\n'
+                    "# reconcile-openclaw-digest-cron.py names itself\n"
+                ),
+                "ops/openclaw-workstation/BACKUP.md": "openclaw-heartbeat-gitops.py --backup",
+            }
+            for name, content in documents.items():
+                candidate = root / name
+                candidate.parent.mkdir(parents=True, exist_ok=True)
+                candidate.write_text(content, encoding="utf-8")
+            result = mod.openclaw_consumer_inventory(root, list(documents))
+            records = {record["name"]: record for record in result["scripts"]}
+            self.assertEqual(
+                records["diagnose-openclaw-digest-top.py"]["references"],
+                [{"path": "scripts/workstation/reconcile-openclaw-digest-cron.py",
+                  "kind": "script", "mentions": 1}],
+            )
+            self.assertEqual(records["reconcile-openclaw-digest-cron.py"]["reference_files"], 0)
+            self.assertEqual(
+                records["openclaw-heartbeat-gitops.py"]["references"][0]["kind"],
+                "documentation",
+            )
+
+
     def test_external_symlink_cannot_be_read_as_consumer(self):
         with tempfile.TemporaryDirectory() as directory, \
                 tempfile.TemporaryDirectory() as outside_directory:

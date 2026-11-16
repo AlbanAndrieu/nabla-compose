@@ -33,7 +33,7 @@ def test_master_realm_is_refused_before_production_paths() -> None:
 
     assert rules == [
         ("^/realms/master(/|$)", "http_status:404"),
-        ("^/(realms|resources|\\\\.well-known)/", "http://172.17.0.24:30238"),
+        ("^/(realms|resources|\\\\.well-known)/", "http_status:404"),
         (None, "http_status:404"),
     ]
 

@@ -21,7 +21,7 @@ apply), depuis une seule workstation sur le LAN (`s3.int.albandrieu.com`).
 | `cloudflare_dns_record.fastapi_sample` | CNAME proxied vers `<tunnel>.cfargotunnel.com` | Renommage = update in-place (`name` ne force pas de remplacement). |
 | `cloudflare_zero_trust_access_application.fastapi_sample` | Application Access `fastapi-sample` (tout le hostname) | Politiques `nabla` (allow) et `fastapi-sample-monitor` (jeton de service). Le tag AUD ne change pas : la validation JWT côté FastAPI reste valide. |
 | `cloudflare_zero_trust_access_application.fastapi_sample_api` | Application Access `fastapi-sample-api` (chemin `/api`) | Politique `nabla` seule : le jeton du monitor n'atteint pas `/api`. À renommer **avec** l'application principale, sinon `/api` retombe sous ses politiques. |
-| `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. |
+| `cloudflare_zero_trust_access_application.keycloak_oidc` | Application Access `keycloakoidc` (chemins `/realms/nabla` et `/resources`) | **Créée**. Politique réutilisable `Everyone bypass` : sans application Access, le compte répond 403 « error code: 1050 » (Default-Deny). `/realms/master` et les autres chemins restent refusés au bord, puis par le Tunnel. Depuis le 16/11, la route Tunnel des chemins publics répond aussi 404 tant qu'aucune App Keycloak n'écoute sur :30238 (H01). |
 | `cloudflare_zero_trust_access_application.vaultwarden_admin` | Application Access `vaultwardenadmin` (chemin `/admin`) | **Créée**. Politique `nabla` : l'application `vaultwarden` du dashboard laisse passer tout le hostname pour les clients Bitwarden ; ce chemin plus précis garde `/admin` derrière Access. |
 | `cloudflare_zero_trust_access_application.joplin` | Application Access `joplin` (tout le hostname) | **Créée**. `Everyone bypass` : les clients de synchronisation ne savent pas passer un login Access ; l'authentification Joplin protège le serveur. |
 
@@ -231,6 +231,8 @@ avec la même table d'identifiants `dns_tunnel_record_ids` ; un bloc `check`
 interdit qu'un hostname soit routé par les deux tunnels.
 
 Adopté le 14/11/2026 (configuration live v54 : 14 routes, 13 CNAME). La route
+**16/11/2026** : seule `famp-albandrieu` reste routée (application Access ajoutée par la branche honeypot). Les 12 autres routes sont retirées : aucune application Access, Error 1050 partout. Leurs 11 CNAME (`stirling` n'en a pas) passent par le circuit de retrait (`retired_hostnames`, plans `adopt` puis `retire`). Si le plan `adopt` montre au contraire un destroy de `module.workstation_dns_records`, l'adoption du 14/11 était appliquée : retirer alors ces noms de `retired_*`, le retrait de route suffit.
+
 `stirling-albandrieu` n'a jamais eu de DNS : elle est listée dans
 `unpublished_tunnel_hostnames` (`dns-policy.yaml`) et n'est pas publiée. La
 publier = la déplacer dans `new_tunnel_hostnames`.

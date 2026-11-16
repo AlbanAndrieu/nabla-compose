@@ -64,11 +64,14 @@ locals {
       origin_request = {}
       service        = "http_status:404"
     },
+    # No Keycloak App listens on :30238 (16/11) while keycloakoidc bypasses
+    # Access on /realms/nabla: refuse until Keycloak runs (H01), then restore
+    # http://172.17.0.24:30238 here.
     {
       hostname       = "keycloak.albandrieu.com"
       path           = "^/(realms|resources|\\.well-known)/"
       origin_request = {}
-      service        = "http://172.17.0.24:30238"
+      service        = "http_status:404"
     },
     {
       hostname       = "keycloak.albandrieu.com"
@@ -242,11 +245,14 @@ locals {
       service        = "http://172.17.0.24:3909"
     },
     # Joplin Server (10/11): sync clients cannot complete an interactive
-    # Access login, so this route relies on Joplin's own authentication.
+    # Access login, so this route relies on Joplin's own authentication, behind
+    # an "Everyone bypass" Access app. No Joplin App runs yet (H08): until it
+    # does, refuse at the edge so whatever binds :22300 is never published
+    # unauthenticated. Restore http://172.17.0.24:22300 in the H08 deploy PR.
     {
       hostname       = "joplin.albandrieu.com"
       origin_request = {}
-      service        = "http://172.17.0.24:22300"
+      service        = "http_status:404"
     },
     {
       service = "http_status:404"

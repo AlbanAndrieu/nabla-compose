@@ -106,7 +106,7 @@ def reference_kind(path: str) -> str:
         return "systemd"
     if path.startswith("tests/"):
         return "test"
-    if path.startswith("docs/"):
+    if path.startswith("docs/") or path.endswith((".md", ".rst")):
         return "documentation"
     if path.startswith(("scripts/", "ops/")):
         return "script"
@@ -127,8 +127,6 @@ def openclaw_consumer_inventory(root: Path, tracked: list[str]) -> dict:
             continue
         if SENSITIVE.search(name):
             continue
-        if name.startswith("scripts/workstation/") and path.name in references:
-            continue
         candidate = root / path
         if (candidate.is_symlink()
                 or not candidate.resolve(strict=False).is_relative_to(root)
@@ -144,6 +142,10 @@ def openclaw_consumer_inventory(root: Path, tracked: list[str]) -> dict:
             skipped += 1
             continue
         for script in SHARED_OPENCLAW_SCRIPTS:
+            # A shared script naming itself is not a consumer; one naming
+            # another (reconcile-...-cron imports digest-top) is.
+            if name == f"scripts/workstation/{script}":
+                continue
             mentions = content.count(script)
             if mentions:
                 references[script].append({
