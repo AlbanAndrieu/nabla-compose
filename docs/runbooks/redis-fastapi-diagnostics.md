@@ -13,7 +13,24 @@ Depuis un checkout de nabla-compose sur TrueNAS :
 
 Prérequis : Python 3, Docker, midclt et droits de lecture du socket Docker.
 Paramètres optionnels : --host (172.17.0.24), --fastapi-url
-(http://172.17.0.24:8091/api/homelab/health), --timeout (0.5 à 10 s).
+(http://172.17.0.24:8091/api/homelab/health), --timeout (0.5 à 10 s,
+Docker/TCP) et --fastapi-timeout (0.5 à 30 s ; 10 s par défaut).
+L'appel HTTP direct ignore explicitement les variables HTTP_PROXY/HTTPS_PROXY.
+
+Si FastAPI est indisponible, le rapport court affiche reason et http_status.
+Vérifier sans exposer le corps ou les en-têtes d'authentification :
+
+    sudo python3 scripts/truenas/diagnose-redis.py --check --json |
+      jq '{fastapi, warnings, failures}'
+
+    curl --noproxy '*' -sS -o /dev/null --max-time 10 \
+      -w 'HTTP=%{http_code} total=%{time_total}s\n' \
+      http://172.17.0.24:8091/api/homelab/health
+
+Interprétation : timeout indique un délai API ; api_auth_required et un code
+401/403 indiquent un contrôle d'accès ; network_error indique une erreur
+transport ; invalid_json ou response_too_large indiquent un problème de
+contrat de réponse. Aucune de ces conditions ne prouve Redis indisponible.
 
 ## Contrats vérifiés
 
