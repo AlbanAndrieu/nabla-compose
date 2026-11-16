@@ -113,6 +113,10 @@ apps:
     include:
       - apps/homarr/compose.yml
     state: running
+  - name: honeypot
+    include:
+      - apps/honeypot/compose.yml
+    state: running
   - name: influxdb
     include:
       - apps/influxdb/compose.yml

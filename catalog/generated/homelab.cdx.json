@@ -289,6 +289,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/honeypot"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/immich"
     },
     {
@@ -999,7 +1003,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:25ac11c4be90ec5a63c0e26409750c42ee64c196a641303bd9bf7729b3772c99"
+        "value": "sha256:142e1f438f9cf7387eeba46b88369644313fc300214da0c7d99535f173261885"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1007,7 +1011,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:25ac11c4-be90-ec5a-63c0-e26409750c42",
+  "serialNumber": "urn:uuid:142e1f43-8f9c-f738-7eeb-a46b88369644",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -2587,6 +2591,33 @@
         {
           "name": "nabla:backstage:lifecycle",
           "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/honeypot",
+      "description": "Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS.",
+      "name": "Project Honey Pot",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/honeypot"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "apps/honeypot/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "security-agent"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "experimental"
         }
       ]
     },

@@ -1,0 +1,75 @@
+---
+name: honeypot
+
+services:
+  honeypot:
+    image: php:8.4.27-apache@sha256:884f64b47174de2c0e813270fe7b24a18605729fcebe201302d98c38805530d0
+    container_name: honeypot
+    x-nabla:
+      id: honeypot
+      name: Project Honey Pot
+      kind: security-agent
+      category: security
+      presentationRole: service
+      criticality: low
+      status: active
+      securityFunctions:
+        - detect
+      description: Project Honey Pot address distribution script, moved from the workstation Apache.
+      runtime:
+        provider: truenas-app
+        containerService: honeypot
+      monitoring:
+        type: port
+        host: 172.17.0.24
+        port: 31090
+      exposure:
+        - name: lan
+          protocol: HTTP
+          visibility: lan
+          gatewayRef: resource:default/truenas
+          backendPort: web
+    labels:
+      com.albandrieu.nabla.entity-ref: component:default/honeypot
+    restart: unless-stopped
+    user: "33:33"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/www/html:uid=33,gid=33,mode=0755,size=1m
+      - /run:mode=1777,size=1m
+      - /tmp:size=8m
+    # Project Honey Pot checks the script's md5 (tag4): fetch it unmodified, pinned and verified.
+    # /healthz is static so health checks never trigger a report to Project Honey Pot.
+    command:
+      - sh
+      - -ec
+      - |
+        curl -fsS --max-time 30 -o /var/www/html/keywaspish.php https://raw.githubusercontent.com/AlbanAndrieu/nabla-site-apache/f62d1f313cd751f5ee899ae70089d5432a6b2035/api/honeypot/keywaspish.php
+        echo "93427a8138a0dac14ae6b6a8001247369032e319d9831750567ed797b9e4debc  /var/www/html/keywaspish.php" | sha256sum -c -
+        echo ok > /var/www/html/healthz
+        exec apache2-foreground
+    volumes:
+      - ./apache/ports.conf:/etc/apache2/ports.conf:ro
+      - ./apache/honeypot.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+    ports:
+      - name: web
+        target: 8080
+        published: "31090"
+        protocol: tcp
+        app_protocol: http
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - http://127.0.0.1:8080/healthz
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

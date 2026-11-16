@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:6c99790d2698aae80dbb09451fa523ad64e8b3cfc359553b2c36c7ac416b0730",
+  "catalogRevision": "sha256:01d3815253314970a6cb00580ab1e12576fccb5c508a01965ed08b89c16e4fba",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1127,6 +1127,30 @@
           "intranet",
           "traefik_network"
         ]
+      }
+    },
+    {
+      "id": "honeypot",
+      "name": "Project Honey Pot",
+      "kind": "security-agent",
+      "category": "security",
+      "sourcePath": "apps/honeypot/compose.yml",
+      "composeService": "honeypot",
+      "description": "Project Honey Pot address distribution script, moved from the workstation Apache.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "active",
+      "securityFunctions": [
+        "detect"
+      ],
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31090
+      },
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "honeypot"
       }
     },
     {
