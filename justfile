@@ -109,8 +109,9 @@ publish:
     mise run agent-publish
 
 # Read-only post-reboot FastAPI/TrueNAS dependency orchestration.
+# sudo: without the docker group, the container probe is a false critical failure.
 truenas-fastapi-check:
-    python3 scripts/truenas/diagnose-fastapi-integrations.py
+    sudo -n python3 scripts/truenas/diagnose-fastapi-integrations.py
 
 # Fast, offline manifest hygiene gate, including duplicate hooks/repos.
 # Mirrors Bababou's local-first workflow; does not install hooks or start CI.
