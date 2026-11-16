@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 90 ; actives : 63 ; planifiées : 24.
+Apps : 90 ; actives : 64 ; planifiées : 23.
 
 ## Écarts par type
 
@@ -13,7 +13,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 30 |
-| `NO_DEPLOY_PATH` | 18 |
+| `NO_DEPLOY_PATH` | 16 |
 | `SECRETS_LEGACY_PATH` | 9 |
 | `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
@@ -29,7 +29,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `bazarr` | planned | deploy-media-stack.sh | `cpool/bazarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | bazarr-exporter | — | générique | — | ✅ |
 | `bichon` | active | custom-apps.yml | `cpool/bichon` (app-state) | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `bitcoind` | active | deploy-bitcoind.sh | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `bitcoind` | active | custom-apps.yml | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `clamav` | active | custom-apps.yml | `cpool/clamav` (❌)<br>`cpool/logs` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | `SNAPSHOT_UNCLASSIFIED`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | manifest | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `NO_AVAILABILITY_PROBE` |
@@ -39,7 +39,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `ddns-updater` | active | custom-apps.yml | `cpool/ddns-updater` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `defectdojo` | active | custom-apps.yml | `cpool/defectdojo` (app-state) | manifest | ✅ | — | ✅ defectdojo | diagnose-defectdojo-deploying.py<br>diagnose-defectdojo-https-route.py<br>diagnose-defectdojo-memory-pressure.py<br>diagnose-defectdojo-postgres-waits.py<br>diagnose-defectdojo.sh | reconcile-defectdojo-admin-password.py<br>reconcile-defectdojo-artifact-cron.py | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `dependency-track` | planned | ❌ | `cpool/dependency-track` (app-state) | manifest | ✅ | dependency-track-api | ✅ dependencytrack | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `docker-socket-proxy` | active | deploy-docker-socket-proxy.sh | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `docker-socket-proxy` | active | custom-apps.yml | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `dockhand` | active | custom-apps.yml | `cpool/dockhand` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `docling` | active | custom-apps.yml | — | n/a | ✅ | docling | — | diagnose-docling-readiness.py | — | ✅ |
 | `dozzle` | active | custom-apps.yml | `cpool/dozzle` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -48,7 +48,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `garage` | active | custom-apps.yml | `cpool/garage` (backup-targets) | legacy | ❌ | garage | — | générique | terraform/garage | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `gatus` | active | custom-apps.yml | `cpool/gatus` (app-state) | n/a | ❌ | gatus | — | diagnose-gatus-monitors.py<br>diagnose-gatus.sh | apps/gatus/config/<br>reconcile-gatus-catalog.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `grafana` | active | custom-apps.yml | `cpool/alloy` (none (noSnapshot))<br>`cpool/grafana` (app-state)<br>`cpool/loki` (none (noSnapshot))<br>`cpool/mimir` (none (noSnapshot))<br>`cpool/tempo` (none (noSnapshot)) | manifest | ✅ | alloy, grafana, loki, mimir, tempo | — | générique | apps/grafana/config/ | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `graylog` | disabled | ❌ | `cpool/graylog` (databases) | manifest | — | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `graylog` | disabled | custom-apps.yml | `cpool/graylog` (databases) | manifest | — | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `haproxy-exporter` | planned | ❌ | — | n/a | — | haproxy-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homarr` | active | custom-apps.yml | `cpool/homarr` (app-state) | manifest | ❌ | — | — | générique | apps/homarr/config/ | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -84,7 +84,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `opensearch-exporter` | planned | ❌ | — | n/a | — | opensearch-exporter, opensearch-security-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `openwebui` | active | custom-apps.yml | `cpool/openwebui` (app-state) | manifest | ❌ | — | — | diagnose-openwebui-backup-pra.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `pihole` | active | custom-apps.yml | `cpool/pihole` (app-state)<br>`cpool/traefik` (app-state) | legacy | ✅ | — | — | générique | — | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `plumber` | planned | ❌ | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `plumber` | active | custom-apps.yml | `cpool/secrets` (critical) | manifest | ✅ | — | ✅ jobs | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `portracker` | active | native App | `cpool/portracker` (app-state) | n/a | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgres-exporter` | active | custom-apps.yml | — | manifest | ✅ | postgres_exporter | ❌ | diagnose-postgres-exporter.sh | — | `DB_NOT_IN_LOGICAL_BACKUP`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `postgresbackup` | active | ❌ | `cpool/backup` (backup-targets)<br>`cpool/secrets` (critical) | manifest | ❌ | — | — | générique | bootstrap-postgresbackup-role.sh<br>reconcile-postgresbackup-cron.py | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
@@ -94,7 +94,7 @@ Apps : 90 ; actives : 63 ; planifiées : 24.
 | `qbittorrent-exporter` | planned | deploy-media-stack.sh | — | manifest | — | qbittorrent-exporter | — | générique | — | ✅ |
 | `radarr` | planned | deploy-media-stack.sh | `cpool/media` (none (noSnapshot))<br>`cpool/radarr` (app-state) | manifest | ✅ | radarr-exporter | — | générique | terraform/media | ✅ |
 | `recyclarr` | planned | deploy-media-stack.sh | `cpool/recyclarr` (app-state) | manifest | — | — | — | générique | apps/recyclarr/config/ | ✅ |
-| `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | générique | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | diagnose-redis.py | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sample` | active | custom-apps.yml | `cpool/secrets` (critical) | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
 | `scanopy` | active | custom-apps.yml | `cpool/scanopy` (app-state) | manifest | ✅ | — | ✅ scanopy | générique | bootstrap-scanopy-postgres.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `scorecard` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |

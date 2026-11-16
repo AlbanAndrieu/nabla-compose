@@ -109,8 +109,9 @@ publish:
     mise run agent-publish
 
 # Read-only post-reboot FastAPI/TrueNAS dependency orchestration.
+# sudo: without the docker group, the container probe is a false critical failure.
 truenas-fastapi-check:
-    python3 scripts/truenas/diagnose-fastapi-integrations.py
+    sudo -n python3 scripts/truenas/diagnose-fastapi-integrations.py
 
 # Fast, offline manifest hygiene gate, including duplicate hooks/repos.
 # Mirrors Bababou's local-first workflow; does not install hooks or start CI.
@@ -850,6 +851,18 @@ talos-stopped-vms-check:
 # Intentional Talos VM start; never upgrade Talos while VMs are stopped.
 talos-stopped-vms-start:
     sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --start --acknowledge I_ACCEPT_STARTING_EXISTING_TALOS_VMS
+
+# Intentional Talos VM stop: workers, then control plane; autostart disabled.
+talos-vms-stop:
+    sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --stop --acknowledge I_ACCEPT_STOPPING_TALOS_VMS
+
+# Static node address and hostname (config/talos/nodes): dry-run diff only.
+talos-node-network-check:
+    for node in taloscp01:172.17.0.50 taloswk01:172.17.0.51 taloswk02:172.17.0.52; do talosctl -n "${node#*:}" patch machineconfig --dry-run --patch "@config/talos/nodes/${node%%:*}.yaml"; done
+
+# Apply the static node network, workers first; no reboot needed.
+talos-node-network-apply:
+    for node in taloswk01:172.17.0.51 taloswk02:172.17.0.52 taloscp01:172.17.0.50; do talosctl -n "${node#*:}" patch machineconfig --patch "@config/talos/nodes/${node%%:*}.yaml"; done
 
 # Read-only audit of ALL canonical runtime secrets and directory modes.
 runtime-secret-modes-check:

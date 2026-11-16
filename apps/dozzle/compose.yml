@@ -22,6 +22,7 @@ services:
       description: Live Docker log viewer and MCP-enabled operations UI.
       runtime:
         provider: truenas-app
+        appId: dozzle
         containerService: dozzle
       monitoring:
         type: port

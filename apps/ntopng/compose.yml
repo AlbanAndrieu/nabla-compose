@@ -8,6 +8,8 @@ services:
     # Upstream only publishes a rolling `latest` (apt-stable, rebuilt daily): pinned by digest for Renovate.
     image: ntop/ntopng:latest@sha256:72433036b248b7aaf5c8b59380dc6162aa292b7bd791f94843cd80a50c8b43d6
     container_name: ntopng
+    # 17 zombies under scanopy, litellm and ntopng on 16/11: tini reaps them.
+    init: true
     restart: unless-stopped
     labels:
       com.albandrieu.nabla.entity-ref: component:default/ntopng

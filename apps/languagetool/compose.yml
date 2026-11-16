@@ -26,6 +26,7 @@ services:
           visibility: public
           gatewayRef: resource:default/cloudflare-tunnel
           backendPort: web
+          probePath: "/v2/languages"
           access:
             required: true
     healthcheck:
@@ -51,6 +52,7 @@ services:
       - prometheus.scrape=true
       - prometheus.port=8010
     restart: unless-stopped
+    mem_limit: 1792m
     ports:
       - name: web
         target: 8010

@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:23ef0277a846d2d53dc9a7f9f9a8cf125043984136945378a25e020e82cd72ab",
+  "catalogRevision": "sha256:6c99790d2698aae80dbb09451fa523ad64e8b3cfc359553b2c36c7ac416b0730",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -466,6 +466,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "ddns-updater",
         "containerService": "ddns-updater"
       }
     },
@@ -670,6 +671,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dockhand",
         "containerService": "dockhand"
       }
     },
@@ -749,6 +751,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
           "traefik_network"
@@ -772,6 +775,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "drawio",
         "containerService": "drawio"
       }
     },
@@ -1031,6 +1035,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "nginx",
         "containerService": "nginx",
         "networks": [
           "traefik_network"
@@ -1835,6 +1840,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "openhands",
         "containerService": "openhands",
         "networks": [
           "intranet"
@@ -2098,7 +2104,7 @@
       "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2125,7 +2131,7 @@
       "composeService": "plumber-api",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2147,7 +2153,7 @@
       "composeService": "plumber-worker",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "plumber-worker",
@@ -2486,6 +2492,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "redis",
         "containerService": "redis",
         "networks": [
           "intranet"

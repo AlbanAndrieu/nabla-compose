@@ -14,7 +14,7 @@
 
 | ID | Priorité | Propriétaire | Code/préparation | Réception runtime | Preuve à produire et référence |
 | --- | --- | --- | --- | --- | --- |
-| H01 | P0 | nabla-compose | CODED | NOT_VERIFIED | CSI Talos : #367 fusionnée (diagnostic code uniquement) ; identifier le driver installé, le rapprocher du pilote officiel TrueNAS CSI déclaré, prouver RWX/persistance/reclaim et valider NetworkPolicy avant Keycloak/Hermes/Vault — [Préflight CSI](kubernetes-csi-preflight.md) |
+| H01 | P0 | nabla-compose | TESTED | NOT_VERIFIED | CSI Talos : `truenas-csi` v1.0.3 identifié, RBAC du csi-resizer corrigé et RWX prouvé sur deux workers le 16/11 ; cluster arrêté depuis. Restent reclaim ZFS, NetworkPolicy et sortie de `auth.login_with_api_key` avant Keycloak/Hermes/Vault — [Préflight CSI](kubernetes-csi-preflight.md) |
 | H02 | P0 | nabla-compose | CODED | NOT_VERIFIED | G1 : rotation postgres_exporter, sauvegarde manuelle en TLS verify-full, restauration isolée et comparaison ciblée puis seulement activer le cron — [Runbook G1](runbooks/postgres-g1-restore-and-secret-rotation.md) |
 | H03 | P0 | nabla-compose | PARTIAL | NOT_VERIFIED | Secrets : finir les matérialisations 0600, corriger la clé Homarr sans afficher de valeur, contrôler fichier → conteneur — [Backlog des secrets](runbooks/2026-11-10-secrets-migration-backlog.md) |
 | H04 | P0 | nabla-compose | PARTIAL | NOT_VERIFIED | Edge : prouver les politiques Access/Service Auth, retirer s3.int public après plan approuvé, vérifier le DNS FastAPI public — [IaC Cloudflare](../terraform/cloudflare/README.md) |

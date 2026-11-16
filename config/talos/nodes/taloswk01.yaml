@@ -1,0 +1,19 @@
+# Static address and hostname: on 14/11 a DHCP lease from outside the LAN
+# renamed this node and gave it the public WAN IP. Same values as the pfSense
+# static mapping. Apply with `just talos-node-network-check` then `-apply`.
+machine:
+  network:
+    interfaces:
+      - deviceSelector:
+          hardwareAddr: "02:00:00:00:20:01"
+        dhcp: false
+        addresses:
+          - 172.17.0.51/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 172.17.0.1
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: "off"
+hostname: taloswk01

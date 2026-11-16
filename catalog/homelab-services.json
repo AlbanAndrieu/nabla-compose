@@ -70,8 +70,6 @@
       "internalHost": "172.17.0.57",
       "internalPort": 3007,
       "internalSecure": false,
-      "tunnelUrl": "https://anythingllm-albandrieu.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/anythingllm.png",
       "external": false
     },
@@ -505,6 +503,7 @@
       "icons": ["fas fa-screwdriver-wrench"],
       "tunnelUrl": "https://languagetool.albandrieu.com",
       "tunnelSecure": true,
+      "healthPath": "/v2/languages",
       "iconSrc": "assets/selfh-icons/languagetool.png"
     },
     {
@@ -849,8 +848,6 @@
       "internalHost": "172.17.0.57",
       "internalPort": 3001,
       "internalSecure": true,
-      "tunnelUrl": "https://plumber-albandrieu.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/plumber.svg",
       "external": false
     },
@@ -901,8 +898,6 @@
       "internalHost": "172.17.0.57",
       "internalPort": 4999,
       "internalSecure": false,
-      "tunnelUrl": "https://portracker-albandrieu.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/portracker.png",
       "external": false
     },
@@ -1128,8 +1123,6 @@
       "internalHost": "172.17.0.57",
       "internalPort": 8085,
       "internalSecure": false,
-      "tunnelUrl": "https://stirling-albandrieu.albandrieu.com",
-      "tunnelSecure": true,
       "iconSrc": "assets/selfh-icons/stirling-pdf.png",
       "external": false
     },

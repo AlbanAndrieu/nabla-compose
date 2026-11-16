@@ -36,6 +36,10 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
+  # csi-resizer v2 watches Pods to detect volumes in use; read-only.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses", "csinodes", "volumeattributesclasses"]
     verbs: ["get", "list", "watch"]

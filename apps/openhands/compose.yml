@@ -17,6 +17,7 @@ services:
       description: Self-hosted coding-agent environment with Docker-backed sandboxes.
       runtime:
         provider: truenas-app
+        appId: openhands
         containerService: openhands
       monitoring:
         type: port

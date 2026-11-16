@@ -22,6 +22,12 @@
         "library/tv",
         "library/music"
       ]
+    },
+    "ntopng": {
+      "purpose": "ntopng RRD time series and its Redis: about 400 small writes/s on 16/11, each rewriting a 128K record. Existing files keep 128K records until rewritten with ntopng stopped (docs/roadmap.md, TrueNAS performance plan item 1).",
+      "properties": {
+        "recordsize": "16K"
+      }
     }
   }
 }

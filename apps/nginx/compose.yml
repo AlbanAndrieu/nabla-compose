@@ -15,6 +15,7 @@ services:
       description: Small internal Nginx service used for ingress and routing experiments.
       runtime:
         provider: truenas-app
+        appId: nginx
         containerService: nginx
       monitoring:
         type: port

@@ -25,6 +25,11 @@ apps:
     include:
       - apps/bichon/compose.yml
     state: running
+  - name: bitcoind
+    include:
+      - apps/bitcoind/compose.yml
+    state: stopped
+    note: Custom App (seen 16/11, was a catalog App); night window only (catalog label albandrieu.com/operational-schedule=night)
   - name: cartography
     include:
       - apps/cartography/compose.yml
@@ -58,6 +63,10 @@ apps:
   - name: defectdojo
     include:
       - apps/defectdojo/compose.yml
+    state: running
+  - name: docker-socket-proxy
+    include:
+      - apps/docker-socket-proxy/compose.yml
     state: running
   - name: dockhand
     include:
@@ -95,6 +104,11 @@ apps:
     include:
       - apps/grafana/compose.yml
     state: running
+  - name: graylog
+    include:
+      - apps/graylog/compose.yml
+    state: stopped
+    note: Backstage entity disabled; the Custom App exists stopped
   - name: homarr
     include:
       - apps/homarr/compose.yml
@@ -177,6 +191,10 @@ apps:
     include:
       - apps/pihole/compose.yml
     state: running
+  - name: plumber
+    include:
+      - apps/plumber/compose.yml
+    state: running
   - name: postgres-exporter
     include:
       - apps/postgres-exporter/compose.yml
@@ -246,13 +264,9 @@ apps:
 # docs/runbooks/2026-11-06-catalog-apps-to-compose.md, then move them to apps.
 catalog_native:
   - adguard-home
-  - arti
-  - bitcoind
   - cleanuparr
   - cloudflared
   - convertx
-  - databasus
-  - docker-socket-proxy
   - domain-watchdog
   - emby
   - freshrss
@@ -274,18 +288,15 @@ catalog_native:
   - paperless-ai
   - paperless-ngx
   - pgadmin
-  - plex
   - portracker
   - postgres
   - reactive-resume
   - searxng
-  - smart-home-dashboard
   - speedtest-tracker
   - stirling-pdf
   - tailscale
   - three-proxy
   - tracearr
-  - transmission
   - twofactor-auth
   - wizarr
   - zabbix

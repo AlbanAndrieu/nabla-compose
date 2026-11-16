@@ -6,7 +6,10 @@ services:
     # image: ghcr.io/berriai/litellm:main-stable
     image: ghcr.io/berriai/litellm:main-stable # v1.84.8-stable
     container_name: litellm
+    # 17 zombies under scanopy, litellm and ntopng on 16/11: tini reaps them.
+    init: true
     restart: unless-stopped
+    mem_limit: 1280m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/litellm
     x-nabla:

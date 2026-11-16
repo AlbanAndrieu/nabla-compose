@@ -83,9 +83,35 @@ class TalosStoppedVMTest(unittest.TestCase):
                                      capture_output=True, text=True, check=False)
                 self.assertEqual(run.returncode, 2)
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn('"vm.stop"', source)
         self.assertNotIn("talosctl upgrade", source)
         self.assertNotIn("etcd reset", source)
+
+    def test_stop_requires_explicit_ack(self):
+        for args in (["--stop"], ["--stop", "--acknowledge", MODULE.ACK]):
+            with self.subTest(args=args):
+                run = subprocess.run([sys.executable, str(SCRIPT), *args],
+                                     capture_output=True, text=True, check=False)
+                self.assertEqual(run.returncode, 2)
+
+    def test_stop_shuts_workers_before_control_plane_and_disables_autostart(self):
+        calls = []
+
+        def fake_midclt(*parts, timeout=90):
+            calls.append(parts)
+            return json.dumps(fixture("RUNNING")) if parts[0] == "vm.query" else "null"
+
+        with patch.object(MODULE, "midclt", side_effect=fake_midclt), \
+             patch.object(MODULE.subprocess, "run") as run, \
+             patch.object(MODULE, "wait_for_vm_state", return_value="STOPPED"), \
+             patch.object(MODULE.os, "geteuid", return_value=0):
+            code = MODULE.main(["--stop", "--acknowledge", MODULE.STOP_ACK])
+        self.assertEqual(code, 0)
+        stopped = [c.args[0][4] for c in run.call_args_list]
+        self.assertEqual(stopped, ["8", "7", "6"])  # taloswk02, taloswk01, taloscp01
+        self.assertTrue(all("--job" in c.args[0] for c in run.call_args_list))
+        updates = [c for c in calls if c[0] == "vm.update"]
+        self.assertEqual([u[1] for u in updates], ["8", "7", "6"])
+        self.assertTrue(all(json.loads(u[2]) == {"autostart": False} for u in updates))
 
 
 if __name__ == "__main__":

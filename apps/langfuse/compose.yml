@@ -123,6 +123,7 @@ services:
       com.albandrieu.nabla.entity-ref: component:default/langfuse-web
     image: ghcr.io/langfuse/langfuse:4.30.0
     restart: always
+    mem_limit: 1792m
     env_file:
       - /mnt/cpool/secrets/runtime/langfuse/.env.secrets
     x-nabla:

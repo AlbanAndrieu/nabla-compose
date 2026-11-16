@@ -473,6 +473,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "ddns-updater",
         "containerService": "ddns-updater"
       },
       "monitoring": {
@@ -678,6 +679,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dockhand",
         "containerService": "dockhand"
       },
       "monitoring": {
@@ -754,6 +756,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
           "traefik_network"
@@ -776,6 +779,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "drawio",
         "containerService": "drawio"
       },
       "monitoring": {
@@ -1082,6 +1086,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "nginx",
         "containerService": "nginx",
         "networks": [
           "traefik_network"
@@ -1958,6 +1963,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "openhands",
         "containerService": "openhands",
         "networks": [
           "intranet"
@@ -2267,7 +2273,7 @@
       "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2293,7 +2299,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2314,7 +2320,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "plumber-worker",
@@ -2676,6 +2682,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "redis",
         "containerService": "redis",
         "networks": [
           "intranet"

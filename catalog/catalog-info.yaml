@@ -69,6 +69,10 @@ x-nabla:
       backend: tcp://172.17.0.24:5432
   probePolicy:
     rank: 3
+  runtime:
+    provider: truenas-app
+    appId: postgres
+    containerService: postgres
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -496,6 +500,10 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/truenas
       backend: http://172.17.0.24:30004
+  runtime:
+    provider: truenas-app
+    appId: adguard-home
+    containerService: adguard
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -504,7 +512,7 @@ metadata:
   title: Affine
   description: Knowledge base and notes, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -541,7 +549,7 @@ metadata:
   title: AnythingLLM
   description: Private LLM workspace and RAG, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -600,9 +608,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - anythingllm-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:3007
@@ -708,6 +714,36 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: emby
+  title: Emby
+  description: Media server, installed as a TrueNAS catalog App and kept stopped.
+  labels:
+    albandrieu.com/operational-state: disabled
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  runtime:
+    provider: truenas-app
+    appId: emby
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: freshrss
   title: FreshRSS
   description: RSS feed reader, installed as a TrueNAS catalog App.
@@ -742,6 +778,44 @@ x-nabla:
       backend: http://172.17.0.24:30108
       access:
         required: true
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: glances
+  title: Glances
+  description: Host monitoring dashboard, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - observability
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30015
+      probePath: "/api/4/status"
+  runtime:
+    provider: truenas-app
+    appId: glances
+    containerService: glances
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -783,6 +857,45 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: immich
+  title: Immich
+  description: Photo and video library, installed as a TrueNAS catalog App.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: medium
+    albandrieu.com/business-criticality: high
+    albandrieu.com/bia-scope: direct
+  tags:
+    - media
+  annotations:
+    albandrieu.com/bia-mtpd: P3D
+    albandrieu.com/bia-rto: P1D
+    albandrieu.com/bia-mbco: photo-library-restorable-from-backup
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: medium
+    albandrieu.com/bia-impact-confidentiality: high
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  exposure:
+    - name: lan
+      protocol: HTTP
+      visibility: lan
+      gatewayRef: resource:default/truenas
+      backend: http://172.17.0.24:30041
+      probePath: "/api/server/ping"
+  runtime:
+    provider: truenas-app
+    appId: immich
+    containerService: server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: ittools
   title: IT Tools
   description: Developer utilities collection, installed as a TrueNAS catalog App.
@@ -816,6 +929,10 @@ x-nabla:
       backend: http://172.17.0.24:30063
       access:
         required: true
+  runtime:
+    provider: truenas-app
+    appId: it-tools
+    containerService: it-tools
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -934,7 +1051,7 @@ metadata:
   title: LocalAI (GPU)
   description: Local AI models on the GPU instance, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -965,11 +1082,41 @@ x-nabla:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: memos
+  title: Memos
+  description: Note-taking service, installed as a TrueNAS catalog App and kept stopped.
+  labels:
+    albandrieu.com/operational-state: disabled
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - productivity
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  runtime:
+    provider: truenas-app
+    appId: memos
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: netalertx
   title: NetAlertX
   description: Network presence scanning and alerts, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1005,7 +1152,7 @@ metadata:
   title: Netbootxyz
   description: Network boot utility, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1173,7 +1320,7 @@ metadata:
   title: OpenArchiver
   description: Email archive management, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1235,6 +1382,10 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/truenas
       backend: https://172.17.0.24:30325
+  runtime:
+    provider: truenas-app
+    appId: openclaw-gateway
+    containerService: openclaw-gateway
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -1375,8 +1526,6 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - plumber-albandrieu.albandrieu.com
       protocol: HTTPS
       visibility: lan
       gatewayRef: resource:default/workstation
@@ -1389,7 +1538,7 @@ metadata:
   title: Portainer
   description: Container management, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1448,9 +1597,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - portracker-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:4999
@@ -1538,7 +1685,7 @@ metadata:
   title: SABnzbd
   description: Usenet downloader, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1704,6 +1851,9 @@ x-nabla:
       visibility: lan
       gatewayRef: resource:default/truenas
       backend: http://172.17.0.24:30124
+  runtime:
+    provider: truenas-app
+    appId: stirling-pdf
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -1736,12 +1886,40 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - stirling-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:8085
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tailscale
+  title: Tailscale
+  description: Mesh VPN client, installed as a TrueNAS catalog App and kept stopped.
+  labels:
+    albandrieu.com/operational-state: disabled
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - network
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-mbco: manual-restore-can-wait-for-the-operator
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab
+x-nabla:
+  runtime:
+    provider: truenas-app
+    appId: tailscale
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -1804,7 +1982,7 @@ metadata:
   title: Transmission
   description: BitTorrent client, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

@@ -335,6 +335,7 @@ services:
 
   sentry-web:
     <<: *sentry-service
+    mem_limit: 2304m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry
     x-nabla:
@@ -510,6 +511,7 @@ services:
 
   sentry-taskworker:
     <<: *sentry-service
+    mem_limit: 1536m
     labels:
       com.albandrieu.nabla.entity-ref: component:default/sentry-taskworker
     x-nabla:

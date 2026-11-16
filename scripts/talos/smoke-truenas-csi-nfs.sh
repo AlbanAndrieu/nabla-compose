@@ -13,7 +13,8 @@ nabla_resolve_talos_client_config "${ROOT}"
 MODE="--check"
 KEEP=false
 CLEANUP_DONE=false
-NAMESPACE="nabla-csi-smoke"
+# A kept namespace (--keep) blocks the next run: pass another disposable name.
+NAMESPACE="${CSI_SMOKE_NAMESPACE:-nabla-csi-smoke}"
 PVC="nabla-csi-rwx"
 STORAGE_CLASS="nabla-truenas-nfs"
 MARKER="nabla-truenas-csi-cross-node-v1"
@@ -38,6 +39,8 @@ for arg in "$@"; do
   esac
 done
 
+[[ "${NAMESPACE}" =~ ^nabla-csi-smoke(-[a-z0-9]+)?$ ]] ||
+  fail "CSI_SMOKE_NAMESPACE must be nabla-csi-smoke or nabla-csi-smoke-<suffix>"
 [[ "${PVC_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
   fail "CSI_PVC_TIMEOUT_SECONDS must be a positive integer"
 [[ "${ATTACH_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] ||
@@ -406,6 +409,11 @@ spec:
           printf '%s\n' '${MARKER}' > /data/marker
           sync
           sleep 3600
+      # Ready only once the marker is written: the container starts before the write.
+      readinessProbe:
+        exec:
+          command: ["test", "-s", "/data/marker"]
+        periodSeconds: 2
       volumeMounts:
         - name: data
           mountPath: /data

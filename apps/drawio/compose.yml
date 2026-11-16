@@ -15,6 +15,7 @@ services:
       description: Self-hosted diagrams.net editor.
       runtime:
         provider: truenas-app
+        appId: drawio
         containerService: drawio
       monitoring:
         type: port
