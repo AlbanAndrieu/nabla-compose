@@ -26,6 +26,7 @@ Aucun secret n'a été lu.
 | `custom-apps.yml` | bitcoind, docker-socket-proxy, graylog et plumber déclarées. arti, databasus, plex, smart-home-dashboard et transmission retirées de `catalog_native`, ainsi que bitcoind et docker-socket-proxy. | Dossiers d'include lus dans `app.config` ; rejeu hors ligne de `classify` |
 | Entités manquantes | `immich` et `glances` créées en `active`, avec route LAN et `probePath`. `emby`, `memos` et `tailscale` créées en `disabled`. BIA provisoire. | `/api/server/ping` et `/api/4/status` répondent 200 |
 | Zombies | `init: true` sur scanopy (2 services), litellm et ntopng ; le test de contrat couvre aussi `kafka-exporter` | 17 zombies relevés, tous sous ces conteneurs |
+| Noms publics `*-albandrieu` | Le propriétaire a décidé de retirer ces noms du tunnel workstation (branche `fix/roadmap-pass-edge-pfsense-20261116`). Les entités `anythingllm-albandrieu`, `plumber-albandrieu`, `portracker-albandrieu` et `stirling-albandrieu` perdent donc leur nom public, en v2 comme dans l'inventaire legacy, et gardent leur route LAN directe. | Sur le poste (172.17.0.57), :3007, :3001 et :8085 n'écoutent pas ; :4999 n'écoute qu'en boucle locale |
 | Prometheus | Rien à changer | Les 13 cibles à `up=0` portent `operational_state="planned"`, ce qui les exclut de `NablaExporterTargetDown`. Les exporters OpenSearch (:9114, :9115) et HAProxy (:9101) ne sont déployés nulle part. |
 
 ## 2. Constats en lecture seule
@@ -57,3 +58,4 @@ Les questions numérotées, avec commande, impact et retour arrière, figurent d
 8. Purger les 59 volumes `candidate:anonymous`.
 9. Après fusion : redéployer scanopy, litellm et ntopng (zombies).
 10. Relire les BIA provisoires d'immich, glances et Plumber.
+11. Services du poste : passer anythingllm, plumber et stirling `-albandrieu` en `disabled`, car rien n'écoute. Pour portracker, choisir entre ouvrir l'écoute au LAN ou retirer sa route. La valeur par défaut `plumber-albandrieu.albandrieu.com` de `FRONTEND_DOMAIN` et `JOBS_CORS_ORIGIN` dans `apps/plumber/compose.yml` est périmée : la changer modifie le CORS de l'API au redéploiement.

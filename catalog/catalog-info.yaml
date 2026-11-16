@@ -608,9 +608,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - anythingllm-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:3007
@@ -1528,8 +1526,6 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - plumber-albandrieu.albandrieu.com
       protocol: HTTPS
       visibility: lan
       gatewayRef: resource:default/workstation
@@ -1601,9 +1597,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - portracker-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:4999
@@ -1892,9 +1886,7 @@ spec:
 x-nabla:
   exposure:
     - name: lan
-      hostnames:
-        - stirling-albandrieu.albandrieu.com
-      protocol: HTTPS
+      protocol: HTTP
       visibility: lan
       gatewayRef: resource:default/workstation
       backend: http://172.17.0.57:8085
