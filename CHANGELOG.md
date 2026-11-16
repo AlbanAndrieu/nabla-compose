@@ -1,3 +1,10 @@
+## [0.97.3](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.2...0.97.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **edge:** keep Sentry and LiteLLM LAN-only ([10855df](https://github.com/AlbanAndrieu/nabla-compose/commit/10855df38280f335f5a218c3a9ead947f6f85ac9))
+
 ## [0.97.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.1...0.97.2) (2026-11-16)
 
 
