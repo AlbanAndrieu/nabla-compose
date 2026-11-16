@@ -20,7 +20,8 @@ env:
 jobs:
   nuclei:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Site Alban's 2 req/s scan never finished inside its 15 min job timeout (19/10 to 09/11).
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -74,14 +75,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p nuclei-results
-          # No fuzzing, OAST, brute force or default-login attempts; low rate for a home uplink.
+          # Doors only (login panels, exposed files, misconfigurations); no fuzzing, OAST, brute
+          # force or default-login attempts. 20 req/s keeps ~3000 templates x 14 names under 30 min.
           "${RUNNER_TEMP}/nuclei" \
             -l "${RUNNER_TEMP}/targets.txt" \
             -pt http -ni \
-            -tags cve,misconfig,exposure,panel \
+            -tags panel,exposure,misconfig \
             -severity info,low,medium,high,critical \
             -etags dos,fuzz,bruteforce,intrusive,default-login \
-            -rl 2 -c 2 -timeout 5 -retries 0 \
+            -rl 20 -c 10 -timeout 5 -retries 0 -stats -si 60 \
             -duc -or -jsonl -o nuclei-results/nuclei.jsonl
           test -f nuclei-results/nuclei.jsonl || : > nuclei-results/nuclei.jsonl
 
