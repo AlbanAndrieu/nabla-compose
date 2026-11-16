@@ -1138,7 +1138,7 @@
       "composeService": "plumber",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31070",
-      "syncEligible": false,
+      "syncEligible": true,
       "description": "Repository-managed developer platform frontend and workflow UI."
     },
     {

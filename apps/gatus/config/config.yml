@@ -469,6 +469,26 @@ endpoints:
   url: tcp://172.17.0.24:9617
   conditions:
   - '[CONNECTED] == true'
+- name: Plumber
+  group: development
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: plumber
+    nabla_service_id: plumber
+    nabla_entity_ref: component:default/plumber
+  url: tcp://172.17.0.24:31070
+  conditions:
+  - '[CONNECTED] == true'
+- name: Plumber API
+  group: development
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: plumber-api
+    nabla_service_id: plumber-api
+    nabla_entity_ref: component:default/plumber-api
+  url: tcp://172.17.0.24:31071
+  conditions:
+  - '[CONNECTED] == true'
 - name: Portracker
   group: operations
   interval: 60s

@@ -2275,7 +2275,7 @@
       "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2301,7 +2301,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2322,7 +2322,7 @@
       "sourcePath": "apps/plumber/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "plumber-worker",

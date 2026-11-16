@@ -29,7 +29,7 @@ services:
       category: development
       presentationRole: service
       criticality: medium
-      status: planned
+      status: active
       securityFunctions:
         - identify
         - protect
@@ -103,7 +103,7 @@ services:
       category: development
       presentationRole: support
       criticality: medium
-      status: planned
+      status: active
       securityFunctions:
         - identify
         - protect
@@ -153,7 +153,7 @@ services:
       category: development
       presentationRole: support
       criticality: low
-      status: planned
+      status: active
       runtime:
         provider: truenas-app
         containerService: plumber-worker

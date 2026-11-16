@@ -488,6 +488,28 @@
     "port": 9617
   },
   {
+    "id": "plumber",
+    "type": "port",
+    "name": "Plumber",
+    "description": "Repository-managed developer platform frontend and workflow UI.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31070
+  },
+  {
+    "id": "plumber-api",
+    "type": "port",
+    "name": "Plumber API",
+    "description": "Backend API for the Plumber developer platform.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31071
+  },
+  {
     "id": "portracker",
     "type": "http",
     "name": "Portracker",

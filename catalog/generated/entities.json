@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:27098f1976818c130fb90b53896a87e268b2d46fe0aec7606b0475a5673bd2e8",
+  "catalogRevision": "sha256:212f7536d6b5fbcf734a244a2e3704c37203ac24932bf930d5ac8f75b1355365",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -6008,7 +6008,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "plumber",
         "tags": [
@@ -6102,7 +6102,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "plumber-api",
         "tags": [
@@ -6161,7 +6161,7 @@
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "plumber-worker",
         "tags": [

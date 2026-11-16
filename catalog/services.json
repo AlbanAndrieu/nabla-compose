@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:911e34cb09779c659c5e8b49d53eef5b024f2a5ac79a1249a0046a0295886a69",
+  "catalogRevision": "sha256:25fffd39a9e408847dc634a8e27b2eabe50524b39c1581cec3cde6b78f833ae5",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -2106,7 +2106,7 @@
       "description": "Repository-managed Plumber frontend replacing the legacy root plumber-platform submodule deployment model.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2133,7 +2133,7 @@
       "composeService": "plumber-api",
       "presentationRole": "support",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify",
         "protect"
@@ -2155,7 +2155,7 @@
       "composeService": "plumber-worker",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "plumber-worker",

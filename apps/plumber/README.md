@@ -1,7 +1,7 @@
 # Plumber — PostgreSQL TLS 1.3 (homelab)
 
-Status: planned / currently unused. Temporary downtime and a failed startup
-until the lab PKI is ready are acceptable. The shared PostgreSQL service
+Status: active since the TrueNAS Custom App `plumber` started (seen running
+on 16/11/2026), with little use so far. Temporary downtime is acceptable. The shared PostgreSQL service
 must be configured for TLS 1.3 with a valid server certificate and SCRAM
 authentication, separately from these Plumber clients.
 
