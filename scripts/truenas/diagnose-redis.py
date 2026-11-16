@@ -14,12 +14,13 @@ import subprocess
 import sys
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 DEFAULT_FASTAPI = "http://172.17.0.24:8091/api/homelab/health"
 EXPECTED_PROJECT = "ix-redis"
 EXPECTED_SERVICE = "redis"
 EXPECTED_PORT = 30059
+EXPECTED_LAN_IP = "172.17.0.24"
 DEPENDENTS = ("sentry-snuba-api", "sentry")
 
 
@@ -170,14 +171,23 @@ def service_evidence(row: dict[str, Any] | None) -> dict[str, Any] | None:
 
 def fastapi_evidence(url: str, timeout: float) -> dict[str, Any]:
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "nabla-redis-diagnostic/1.0"})
+    # Do not send LAN diagnostics through a proxy inherited from sudo or the shell.
+    opener = build_opener(ProxyHandler({}))
     try:
-        with urlopen(req, timeout=timeout) as response:  # noqa: S310 - operator-chosen LAN endpoint
+        with opener.open(req, timeout=timeout) as response:  # noqa: S310 - operator-chosen LAN endpoint
             body = response.read(1_048_577)
             status = response.status
     except HTTPError as exc:
         return {"state": "unavailable", "http_status": exc.code, "reason": "api_auth_required" if exc.code in (401, 403) else "http_error"}
-    except (OSError, URLError, ValueError) as exc:
-        return {"state": "unavailable", "reason": type(exc).__name__}
+    except TimeoutError:
+        return {"state": "unavailable", "reason": "timeout"}
+    except URLError as exc:
+        cause = exc.reason
+        return {"state": "unavailable", "reason": "timeout" if isinstance(cause, TimeoutError) else "network_error", "error_type": type(cause).__name__}
+    except OSError as exc:
+        return {"state": "unavailable", "reason": "network_error", "error_type": type(exc).__name__}
+    except ValueError:
+        return {"state": "unavailable", "reason": "invalid_url"}
     if len(body) > 1_048_576:
         return {"state": "unavailable", "reason": "response_too_large"}
     try:
@@ -191,12 +201,12 @@ def fastapi_evidence(url: str, timeout: float) -> dict[str, Any]:
     return result
 
 
-def diagnose(host: str, api_url: str, timeout: float) -> dict[str, Any]:
+def diagnose(host: str, api_url: str, timeout: float, fastapi_timeout: float | None = None) -> dict[str, Any]:
     docker = docker_evidence("redis", timeout)
     exporter = docker_evidence("redis_exporter", timeout)
     truenas = truenas_evidence(max(timeout, 8.0))
     tcp = tcp_evidence(host, EXPECTED_PORT, timeout)
-    fastapi = fastapi_evidence(api_url, timeout)
+    fastapi = fastapi_evidence(api_url, fastapi_timeout if fastapi_timeout is not None else timeout)
     identity = (
         docker.get("state") == "ok"
         and truenas.get("state") == "ok"
@@ -225,8 +235,15 @@ def diagnose(host: str, api_url: str, timeout: float) -> dict[str, Any]:
         warnings.append("fastapi_observation_unavailable")
     elif fastapi.get("redis") and fastapi["redis"].get("local_state") == "warn":
         warnings.append("fastapi_redis_local_warn_check_probe_and_runtime_binding")
-    if any(p.get("host_ip") in ("0.0.0.0", "::") for p in docker.get("published_6379", [])):
-        warnings.append("redis_port_bound_to_all_host_interfaces_check_firewall")
+    bound_ips = {
+        str(port.get("host_ip"))
+        for port in docker.get("published_6379", [])
+        if str(port.get("host_port")) == str(EXPECTED_PORT)
+    }
+    if docker["state"] == "ok" and bound_ips != {EXPECTED_LAN_IP}:
+        warnings.append("redis_port_not_bound_exclusively_to_lan")
+        if any(ip in {"0.0.0.0", "::"} for ip in bound_ips):
+            warnings.append("redis_port_bound_to_all_host_interfaces_check_firewall")
     return {
         "schema_version": 1,
         "mode": "read_only",
@@ -236,6 +253,8 @@ def diagnose(host: str, api_url: str, timeout: float) -> dict[str, Any]:
         "tcp": tcp,
         "fastapi": fastapi,
         "docker_truenas_identity_consistent": identity,
+        "redis_published_host_ips": sorted(bound_ips),
+        "redis_lan_bind_compliant": docker["state"] == "ok" and bound_ips == {EXPECTED_LAN_IP},
         "authenticated_redis_ping": "not_tested_use_diagnose_shared_data_services",
         "failures": failures,
         "warnings": warnings,
@@ -250,10 +269,14 @@ def main() -> int:
     parser.add_argument("--host", default="172.17.0.24", help="TrueNAS LAN host")
     parser.add_argument("--fastapi-url", default=DEFAULT_FASTAPI)
     parser.add_argument("--timeout", type=float, default=3.0)
+    parser.add_argument("--fastapi-timeout", type=float, default=10.0,
+                        help="FastAPI HTTP read timeout in seconds (default: 10)")
     args = parser.parse_args()
     if not 0.5 <= args.timeout <= 10:
         parser.error("--timeout must be between 0.5 and 10 seconds")
-    report = diagnose(args.host, args.fastapi_url, args.timeout)
+    if not 0.5 <= args.fastapi_timeout <= 30:
+        parser.error("--fastapi-timeout must be between 0.5 and 30 seconds")
+    report = diagnose(args.host, args.fastapi_url, args.timeout, args.fastapi_timeout)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
@@ -262,8 +285,9 @@ def main() -> int:
         print(f"truenas: {report['truenas'].get('app_state', report['truenas']['state'])}")
         print(f"docker_truenas_identity_consistent: {report['docker_truenas_identity_consistent']}")
         print(f"tcp {args.host}:{EXPECTED_PORT}: {report['tcp']['state']}")
+        print(f"redis_lan_bind_compliant: {report['redis_lan_bind_compliant']} · published_ips={report['redis_published_host_ips']}")
         api = report["fastapi"]
-        print(f"fastapi: {api['state']} · snapshot_rows={api.get('service_rows_in_snapshot', 'n/a')} · redis_present={api.get('redis_in_current_snapshot', 'unknown')}")
+        print(f"fastapi: {api['state']} · reason={api.get('reason', 'none')} · http_status={api.get('http_status', 'n/a')} · snapshot_rows={api.get('service_rows_in_snapshot', 'n/a')} · redis_present={api.get('redis_in_current_snapshot', 'unknown')}")
         if api.get("redis_absence_interpretation"):
             print(f"fastapi_missing_redis: {api['redis_absence_interpretation']}")
         if api.get("redis"):

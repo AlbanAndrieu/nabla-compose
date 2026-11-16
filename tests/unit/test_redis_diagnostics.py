@@ -74,7 +74,7 @@ def test_healthy_docker_and_truenas_with_missing_api_row_are_not_failures() -> N
             {
                 "state": "ok", "status": "running", "health": "healthy",
                 "compose_project": "ix-redis", "compose_service": "redis",
-                "published_6379": [],
+                "published_6379": [{"host_ip": "172.17.0.24", "host_port": "30059"}],
             },
             {"state": "ok", "status": "running", "health": "not_configured"},
         ]),
@@ -102,3 +102,112 @@ def test_permissions_error_does_not_become_a_redis_outage() -> None:
     )):
         report = redis_diag.docker_evidence("redis", 3)
     assert report == {"state": "unavailable", "reason": "permission_denied"}
+
+
+def test_fastapi_timeout_is_reported_as_unavailable_without_marking_redis_down() -> None:
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = TimeoutError("timed out")
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {"state": "unavailable", "reason": "timeout"}
+    build.assert_called_once()
+    assert isinstance(build.call_args.args[0], redis_diag.ProxyHandler)
+    assert build.call_args.args[0].proxies == {}
+
+
+def test_fastapi_http_auth_error_has_status_without_response_body() -> None:
+    from urllib.error import HTTPError
+
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = HTTPError(
+            redis_diag.DEFAULT_FASTAPI, 403, "Forbidden", None, None,
+        )
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {"state": "unavailable", "http_status": 403, "reason": "api_auth_required"}
+
+
+def test_fastapi_url_error_preserves_only_exception_type() -> None:
+    from urllib.error import URLError
+
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = URLError(ConnectionRefusedError("SECRET-DO-NOT-PRINT"))
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {
+        "state": "unavailable",
+        "reason": "network_error",
+        "error_type": "ConnectionRefusedError",
+    }
+    assert "SECRET" not in json.dumps(report)
+
+
+def test_redis_compose_binds_only_lan_and_preserves_intranet_consumers() -> None:
+    """The published host port changes, not Docker DNS or its internal port."""
+    import yaml
+
+    root = MODULE_PATH.parents[2]
+    config = yaml.safe_load((root / "apps/redis/compose.yml").read_text(encoding="utf-8"))
+    redis = config["services"]["redis"]
+    assert redis["ports"] == [
+        {
+            "name": "redis", "target": 6379, "published": "30059",
+            "host_ip": "172.17.0.24", "protocol": "tcp",
+        }
+    ]
+    assert redis["networks"]["intranet"]["aliases"] == ["redis"]
+    assert config["services"]["redis_exporter"]["environment"]["REDIS_ADDR"] == "redis:6379"
+    assert redis["volumes"] == ["/mnt/cpool/redis:/data"]
+    sentry = (root / "apps/sentry/compose.yml").read_text(encoding="utf-8")
+    assert "SENTRY_REDIS_HOST: redis" in sentry
+    for path in ("config/monitoring/gatus-endpoints.yml", "apps/gatus/config/config.yml"):
+        assert "tcp://172.17.0.24:30059" in (root / path).read_text(encoding="utf-8")
+
+
+def test_redis_diagnostic_flags_wildcard_bind_even_with_healthy_docker() -> None:
+    with (
+        patch.object(redis_diag, "docker_evidence", side_effect=[
+            {
+                "state": "ok", "status": "running", "health": "healthy",
+                "compose_project": "ix-redis", "compose_service": "redis",
+                "published_6379": [
+                    {"host_ip": "0.0.0.0", "host_port": "30059"},
+                    {"host_ip": "::", "host_port": "30059"},
+                ],
+            },
+            {"state": "ok", "status": "running", "health": "not_configured"},
+        ]),
+        patch.object(redis_diag, "truenas_evidence", return_value={
+            "state": "ok", "app_id": "redis", "app_state": "RUNNING",
+            "containers": [{"service_name": "redis", "state": "running"}],
+        }),
+        patch.object(redis_diag, "tcp_evidence", return_value={"state": "reachable"}),
+        patch.object(redis_diag, "fastapi_evidence", return_value={"state": "ok", "redis": None}),
+    ):
+        report = redis_diag.diagnose("172.17.0.24", redis_diag.DEFAULT_FASTAPI, 3)
+    assert report["docker_truenas_identity_consistent"]
+    assert report["redis_lan_bind_compliant"] is False
+    assert "redis_port_not_bound_exclusively_to_lan" in report["warnings"]
+    assert "redis_port_bound_to_all_host_interfaces_check_firewall" in report["warnings"]
+    assert report["failures"] == []
+
+
+def test_redis_diagnostic_reports_lan_bind_compliant_after_cutover() -> None:
+    with (
+        patch.object(redis_diag, "docker_evidence", side_effect=[
+            {
+                "state": "ok", "status": "running", "health": "healthy",
+                "compose_project": "ix-redis", "compose_service": "redis",
+                "published_6379": [{"host_ip": "172.17.0.24", "host_port": "30059"}],
+            },
+            {"state": "ok", "status": "running", "health": "not_configured"},
+        ]),
+        patch.object(redis_diag, "truenas_evidence", return_value={
+            "state": "ok", "app_id": "redis", "app_state": "RUNNING",
+            "containers": [{"service_name": "redis", "state": "running"}],
+        }),
+        patch.object(redis_diag, "tcp_evidence", return_value={"state": "reachable"}),
+        patch.object(redis_diag, "fastapi_evidence", return_value={"state": "ok", "redis": None}),
+    ):
+        report = redis_diag.diagnose("172.17.0.24", redis_diag.DEFAULT_FASTAPI, 3)
+    assert report["redis_published_host_ips"] == ["172.17.0.24"]
+    assert report["redis_lan_bind_compliant"] is True
+    assert report["failures"] == []
+    assert not any("redis_port_" in warning for warning in report["warnings"])
