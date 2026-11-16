@@ -137,6 +137,43 @@ class PfsenseSshFallbackTest(unittest.TestCase):
             single_http_failure = execute("--check", lan_ok=True)
             self.assertNotEqual(single_http_failure.returncode, 0)
 
+    @unittest.skipUnless(shutil.which("jq"), "jq is required by the shell helper")
+    def test_live_control_master_is_reused_and_stale_one_is_not(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            tmp = Path(folder)
+            commands = tmp / "bin"
+            commands.mkdir()
+            calls = tmp / "ssh-calls.txt"
+            socket = tmp / "cm-admin@172.17.0.1:9922"
+            (commands / "curl").write_text("#!/bin/sh\nexit 7\n", encoding="utf-8")
+            (commands / "ssh").write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$SSH_CALLS\"\n"
+                "case \"$*\" in\n"
+                "  -G*) echo \"controlpath $MOCK_SOCKET\"; exit 0 ;;\n"
+                "  -O\\ check*) [ \"$MOCK_MASTER\" = 1 ] && exit 0; exit 255 ;;\n"
+                "esac\n"
+                "echo 'mock_remote_ssh=REACHED'\n",
+                encoding="utf-8",
+            )
+            for name in ("curl", "ssh"):
+                (commands / name).chmod(0o755)
+            env = {k: v for k, v in os.environ.items() if not k.startswith("PFSENSE_")}
+            env.update({"PATH": str(commands) + os.pathsep + env["PATH"], "SSH_CALLS": str(calls),
+                        "MOCK_SOCKET": str(socket), "NO_COLOR": "1"})
+            for master, expected in (("1", f"ControlPath={socket}"), ("0", "ControlPath=none")):
+                with self.subTest(master=master):
+                    calls.write_text("", encoding="utf-8")
+                    subprocess.run(
+                        ["bash", str(SCRIPT), "--check", "--no-auto-egress", "--report", str(tmp / "r.log")],
+                        env=env | {"MOCK_MASTER": master}, cwd=ROOT, capture_output=True,
+                        text=True, timeout=30, check=False,
+                    )
+                    deep = [line for line in calls.read_text().splitlines() if "/bin/sh -s" in line]
+                    self.assertEqual(len(deep), 1, calls.read_text())
+                    self.assertIn(expected, deep[0])
+                    self.assertIn("ControlMaster=no", deep[0])
+
 
 if __name__ == "__main__":
     unittest.main()
