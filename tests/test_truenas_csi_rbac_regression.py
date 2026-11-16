@@ -21,6 +21,15 @@ class TrueNasCsiRbacRegressionTests(unittest.TestCase):
         self.assertIn('resources: ["volumeattachments/status"]', text)
         self.assertIn('verbs: ["patch"]', text)
 
+    def test_controller_can_read_pods_for_csi_resizer(self) -> None:
+        # 16/11: csi-resizer v2.1.0 logged "pods is forbidden" 642 times in 8 h.
+        text = DRIVER.read_text()
+        controller_role = text.split("name: truenas-csi-controller-role", 1)[1].split("---", 1)[0]
+        self.assertIn('resources: ["pods"]\n    verbs: ["get", "list", "watch"]', controller_role)
+        installer = INSTALL.read_text()
+        self.assertIn("controller_pod_watch_rbac_ok", installer)
+        self.assertIn("csi-resizer fails in a loop", installer)
+
     def test_installer_reconciles_volumeattachment_rbac_from_manifest(self) -> None:
         text = INSTALL.read_text()
 

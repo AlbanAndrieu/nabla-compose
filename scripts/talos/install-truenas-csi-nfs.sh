@@ -91,6 +91,14 @@ dump_node_rollout_diagnostics() {
   )
 }
 
+# csi-resizer v2 lists and watches Pods; without it, it logs "pods is forbidden" in a loop.
+controller_pod_watch_rbac_ok() {
+  local verb
+  for verb in get list watch; do
+    [[ "$(kubectl auth can-i --as="${CONTROLLER_SERVICE_ACCOUNT}" "${verb}" pods -A 2>/dev/null)" == "yes" ]] || return 1
+  done
+}
+
 controller_volumeattachment_rbac_ok() {
   local verb
 
@@ -398,6 +406,9 @@ if [[ "${MODE}" == "--check" ]]; then
   if kubectl get clusterrole "${CONTROLLER_CLUSTERROLE}" >/dev/null 2>&1; then
     report_controller_volumeattachment_rbac ||
       fail "installed CSI controller RBAC cannot support csi-attacher publishContext persistence; run --apply"
+    controller_pod_watch_rbac_ok ||
+      fail "installed CSI controller RBAC cannot watch Pods, csi-resizer fails in a loop; run --apply"
+    ok "CSI controller RBAC allows csi-resizer to read Pods"
   else
     printf 'ℹ️  CSI controller ClusterRole is not installed yet; --apply will create the publishContext RBAC contract\n'
   fi
@@ -441,6 +452,8 @@ report_attach_contract ||
 controller_volumeattachment_rbac_ok ||
   fail "TrueNAS CSI controller VolumeAttachment RBAC did not converge after applying the canonical manifest"
 ok "CSI controller VolumeAttachment RBAC supports read + patch/status only; create/update/delete remain denied"
+controller_pod_watch_rbac_ok ||
+  fail "TrueNAS CSI controller Pod read RBAC did not converge after applying the canonical manifest"
 
 reload_credential_consumers_if_needed
 
