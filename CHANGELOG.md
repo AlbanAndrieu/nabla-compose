@@ -1,3 +1,11 @@
+## [0.97.2](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.1...0.97.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **pfsense:** preserve unused CA cleanup and Netgate cold-boot incident on current master ([e5dacdf](https://github.com/AlbanAndrieu/nabla-compose/commit/e5dacdfc9a46baa969df82d133a149f778c4ce3c))
+* **pfsense:** reconcile HAProxy leftovers with latest master and roadmap ([cda088f](https://github.com/AlbanAndrieu/nabla-compose/commit/cda088f7c945f34862ede9bb75f3ebc95426ae2c))
+
 ## [0.97.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.0...0.97.1) (2026-11-16)
 
 
