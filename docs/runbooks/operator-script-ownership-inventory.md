@@ -73,6 +73,19 @@ Les chemins documentaires, les assertions des tests et l'outil d'audit
 lui-même sont des **références**, pas des appels opérationnels. La revue
 du propriétaire `nabla-openclaw` et des services actifs reste distincte.
 
+**Relevé local du 16/11/2026** (`--openclaw-consumers` sur `a649cf88`,
+workstation, sans LAN) : il confirme le tableau ci-dessus, une fois
+corrigé un défaut de l'outil. Celui-ci ignorait les cinq scripts partagés
+eux-mêmes, et donc leurs **dépendances croisées** :
+`reconcile-openclaw-digest-cron.py` charge `diagnose-openclaw-digest-top.py`
+et `openclaw-host-context.py`. Ces trois scripts migrent ensemble, ou le
+cron en dernier. Seule l'auto-référence est désormais exclue, et un `.md`
+hors `docs/` (`ops/openclaw-workstation/BACKUP.md`) est classé
+`documentation`. `--compare-openclaw-root ../nabla-openclaw` (OpenClaw
+`1bf9857`, même jour) : formes d'options `argparse` identiques 5/5,
+sources différentes 5/5, `execution=NOT_RUN`. Les codes retour et sorties
+restent à recetter par exécution sur fixtures avant toute attribution.
+
 ### D1 — comparaison statique des cinq scripts (14/11/2026)
 
 Les cinq fichiers ont été retrouvés dans les deux dépôts via leur code versionné.
@@ -259,4 +272,3 @@ par fonction, aucun test supprimé sans équivalent, historique/rollback
 préservés, diagnostics read-only non dépendants de privileges write,
 `just quality` et gates du propriétaire au SHA exact, preuves runtime
 séparées. Aucun déplacement ou nouveau dépôt n'est effectué par cet ADR.
-

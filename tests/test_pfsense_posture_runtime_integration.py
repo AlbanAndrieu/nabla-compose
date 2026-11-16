@@ -42,3 +42,31 @@ def test_h07_does_not_claim_runtime_accepted():
     for needle in ("DNSBL", "ASN reporting", "Snort", "7 workers",
                    "280 Mio", "24/10", "4/30/1/2/500", "NOT_VERIFIED"):
         assert needle in h07
+
+
+def _php_fpm_verdict(ps_lines: str, tmp_path: Path) -> str:
+    """Run the collector's PHP-FPM block against a stubbed ``ps``."""
+    source = AUDIT.read_text(encoding="utf-8")
+    block = 'if fpm_output="$(ps axww' + source.split('if fpm_output="$(ps axww', 1)[1]
+    block = block.split("if [ -r /usr/local/lib/php-fpm.conf ]", 1)[0]
+    ps_stub = tmp_path / "ps"
+    ps_stub.write_text(f"#!/bin/sh\ncat <<'PS'\n{ps_lines}\nPS\n", encoding="utf-8")
+    ps_stub.chmod(0o755)
+    script = "emit() { printf '%s %s %s\\n' \"$1\" \"$2\" \"$3\"; }\n" + block
+    result = subprocess.run(["sh", "-c", script], capture_output=True, text=True,
+                            timeout=10, check=True,
+                            env={"PATH": f"{tmp_path}:/usr/bin:/bin"})
+    return next(line for line in result.stdout.splitlines()
+                if "php_fpm.nginx_workers" in line)
+
+
+def test_php_fpm_idle_ondemand_pool_is_healthy(tmp_path):
+    master = " 9000 php-fpm: master process (/usr/local/lib/php-fpm.conf)"
+    worker = " 40000 php-fpm: pool nginx (php-fpm)"
+    assert _php_fpm_verdict(master, tmp_path).startswith("PASS php_fpm.nginx_workers 0")
+    assert _php_fpm_verdict(f"{master}\n{worker}\n{worker}", tmp_path).startswith(
+        "PASS php_fpm.nginx_workers 2")
+    assert _php_fpm_verdict("\n".join([master] + [worker] * 5), tmp_path).startswith(
+        "WARN php_fpm.nginx_workers 5")
+    assert _php_fpm_verdict(" 100 nginx: worker process", tmp_path).startswith(
+        "WARN php_fpm.nginx_workers 0")
