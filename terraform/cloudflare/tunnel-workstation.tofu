@@ -11,7 +11,7 @@ locals {
     {
       hostname       = "famp-albandrieu.albandrieu.com"
       origin_request = {}
-      service        = "http://172.17.0.57:8082"
+      service        = "http://127.0.0.1:8082"
     },
     # The dashboard stored explicit zeros on the catch-all; these attributes
     # are not computed, so omitting them would show as drift.

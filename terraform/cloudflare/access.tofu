@@ -201,6 +201,37 @@ resource "cloudflare_zero_trust_access_application" "affine" {
 
 # immich and ha answered Error 1050 (no Access app, 16/11): nabla policy plus
 # the monitor token, like affine.
+# Workstation Apache, published only through the workstation tunnel (15/11/2026).
+# Without an Access application the account answers 403 "error code: 1050".
+resource "cloudflare_zero_trust_access_application" "famp_albandrieu" {
+  account_id           = var.account_id
+  app_launcher_visible = true
+  destinations = [
+    {
+      type = "public"
+      uri  = "famp-albandrieu.albandrieu.com"
+    },
+  ]
+  domain = "famp-albandrieu.albandrieu.com"
+  name   = "famp-albandrieu"
+  policies = [
+    {
+      id         = local.access_policy_nabla_id
+      precedence = 1
+    },
+  ]
+  session_duration = "24h"
+  type             = "self_hosted"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# nabla-site-alban reads the GReader API with its own service token
+# (FRESHRSS_CF_ACCESS_CLIENT_ID/SECRET); the owner creates it, then sets
+# freshrss_site_service_token_id. No public bypass.
+
 resource "cloudflare_zero_trust_access_application" "immich" {
   account_id           = var.account_id
   app_launcher_visible = true

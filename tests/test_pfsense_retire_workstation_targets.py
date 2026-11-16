@@ -52,6 +52,9 @@ def pfsense_config() -> dict:
         ("graylog", [server("graylog", "172.17.0.57", "9000", "inactive")]),
         ("albandrieu-apache-login-honeypot", [server("albandrieu", "172.17.0.57", "3000")]),
         ("albandrieu-apache", [server("albandrieu", "172.17.0.57", "8082")]),
+        ("nabla-index", [server("famp", "172.17.0.57", "8082")]),
+        ("prod_front", [server("apache", "172.17.0.57", "8082")]),
+        ("prod_back", [server("heimdall-https", "172.17.0.24", "30120")]),
     ]
     return {
         "installedpackages": {
@@ -96,7 +99,7 @@ class RetireWorkstationTargetsTest(unittest.TestCase):
     def test_check_reports_without_writing(self) -> None:
         result, written = self.run_helper("check", pfsense_config())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.count("CHANGE:"), 5)
+        self.assertEqual(result.stdout.count("CHANGE:"), 8)
         self.assertIsNone(written)
 
     def test_apply_retires_only_the_dead_targets(self) -> None:
@@ -109,7 +112,11 @@ class RetireWorkstationTargetsTest(unittest.TestCase):
         }
         self.assertEqual(status, {
             ("albandrieu-apache-login-honeypot", "3000"): "inactive",
-            ("albandrieu-apache", "8082"): "active",
+            # The workstation Apache leaves HAProxy: the Cloudflare tunnel publishes it (15/11).
+            ("albandrieu-apache", "8082"): "inactive",
+            ("nabla-index", "8082"): "inactive",
+            ("prod_front", "8082"): "inactive",
+            ("prod_back", "30120"): "active",
         })
         frontends = {f["name"]: f["status"] for f in written["installedpackages"]["haproxy"]["ha_backends"]["item"]}
         self.assertEqual(frontends, {"Web_HTTPS": "active", "login": "disabled"})
