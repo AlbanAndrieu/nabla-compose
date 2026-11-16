@@ -146,6 +146,25 @@ Le tableau de déploiements/sondes/versions **daté du 8–13 novembre** est [ar
 - **H17** : [#365 Compose](https://github.com/AlbanAndrieu/nabla-compose/pull/365) fusionnée, [#424 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/424) et [#432 FastAPI](https://github.com/AlbanAndrieu/fastapi-sample/pull/432) fusionnées ; réception runtime et migration Site Alban en attente avant suppression de l'inventaire legacy. [Contrat](service-catalog-v2-normalization.md).
 - **H03/H08** : matérialisation Homarr/secret `0600`, puis NetBox, Dependency-Track, Joplin. [Secrets](runbooks/2026-11-10-secrets-migration-backlog.md) et [Apps](runbooks/2026-11-06-catalog-apps-to-compose.md).
 - Anciennes instructions Kibana/Graylog/AIStor et Apps déjà déployées : [archive du 13/11](archive/2026-11-13-roadmap-before-compaction.md), **ne pas relancer**.
+- **Diagnostic des états du 16/11 00:41 CET** (lecture seule ; sources : Sample TrueNAS et Cloud, `app.query`, Gatus, Prometheus, DNS et HTTP). 100 cartes sur 147 sont cohérentes, et aucune carte `ok` ne correspond à une App arrêtée. Ce qui revient à nabla-compose, par priorité :
+  - **Sécurité** : l'ingress `joplin` vers :22300 n'a aucune App derrière lui et son application Access est en « Everyone bypass ». Tout service qui se lierait à ce port deviendrait public sans authentification.
+  - **Panne** : Uptime Kuma n'a ni App ni données (`custom-apps.yml` la déclare `running` ; `autokuma` et Gatus sont en échec). Retrouver d'abord l'emplacement des anciennes données, avant tout `reconcile-custom-apps.py --apply`.
+  - **Cloudflare** :
+    - Error 1050 (Default-Deny, aucune application Access) sur `freshrss`, `immich`, `ha`, `affine`, `adguardhome` et 13 noms `*-albandrieu`.
+    - L'application Access `motion-albandrieu` est déclarée sur un domaine mal orthographié.
+    - Un doublon `nexus` n'a aucune policy.
+    - Ingress orphelins : `keycloak` et `drawio` ; `ddns-updater` vise :8000 au lieu de :30007.
+    - Le token Cloudflare de FastAPI Cloud renvoie `AuthenticationError`, ce qui produit 23 `warn`.
+  - **Catalogue** :
+    - Ajouter `x-nabla.runtime.appId` à `redis`, `nginx`, `adguardhome`, `homeassistant` (`home-assistant`), `ittools`, `stirling`, `postgresql`, `openclaw`, ainsi qu'aux Apps arrêtées.
+    - Créer une entité `immich`, puis glances, emby, memos et tailscale.
+    - Passer en `planned` ce qui n'est pas déployé : affine, anythingllm, netalertx, netbootxyz, openarchiver, portainer, sabnzbd, transmission, localai-gpu.
+    - `plumber` est `planned` dans le catalogue alors que son App tourne.
+    - Sondes : `languagetool` doit viser `/v2/languages` ; la cible `openclaw` :30325 n'écoute pas.
+  - **`custom-apps.yml`** : `cartography`, `scorecard` et `keycloak` n'existent pas sur TrueNAS ; `catalog_native` liste des Apps fantômes (arti, databasus, plex, smart-home-dashboard, transmission).
+  - **Prometheus** : 13 cibles sont à `up=0` sans alerte (exporters non déployés, OpenSearch :9114 et :9115, `haproxy` :9101). Ajouter une règle `TargetDown`.
+  - **pfSense** : le WAN `*.int` renvoie 503 depuis Cloud, à diagnostiquer par script versionné.
+  - La logique d'état côté Sample est suivie dans fastapi-sample (F14).
 
 ## P0 — Keycloak, Home Assistant, PostgreSQL et Apps en attente (#330)
 
