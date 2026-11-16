@@ -108,7 +108,7 @@ class TalosStoppedVMTest(unittest.TestCase):
         self.assertEqual(code, 0)
         stopped = [c.args[0][4] for c in run.call_args_list]
         self.assertEqual(stopped, ["8", "7", "6"])  # taloswk02, taloswk01, taloscp01
-        self.assertTrue(all("-job" in c.args[0] for c in run.call_args_list))
+        self.assertTrue(all("--job" in c.args[0] for c in run.call_args_list))
         updates = [c for c in calls if c[0] == "vm.update"]
         self.assertEqual([u[1] for u in updates], ["8", "7", "6"])
         self.assertTrue(all(json.loads(u[2]) == {"autostart": False} for u in updates))

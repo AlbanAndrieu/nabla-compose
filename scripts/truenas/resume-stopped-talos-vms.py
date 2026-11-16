@@ -111,7 +111,7 @@ def stop_and_observe(vm: dict) -> bool:
     print(f"STOP: {name} (ACPI shutdown, forced after timeout)", flush=True)
     request_problem = None
     try:
-        subprocess.run(["midclt", "call", "-job", "vm.stop", str(vm["id"]),
+        subprocess.run(["midclt", "call", "--job", "vm.stop", str(vm["id"]),
                         json.dumps({"force": False, "force_after_timeout": True})],
                        check=True, capture_output=True, text=True, timeout=300)
     except (OSError, subprocess.CalledProcessError,
