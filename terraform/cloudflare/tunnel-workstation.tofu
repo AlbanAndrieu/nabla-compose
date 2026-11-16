@@ -4,74 +4,14 @@
 # with its CNAME. Never point it at the shared homelab tunnel.
 
 locals {
+  # 16/11/2026: the 12 other routes are retired (no Access app: every one
+  # answered Error 1050). famp-albandrieu stays: the honeypot branch gives it
+  # an Access app. Their CNAMEs go through the dns-policy.yaml retirement.
   workstation_tunnel_ingress = [
-    {
-      hostname       = "honeypot-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:3000"
-    },
-    {
-      hostname       = "nexus-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:8081"
-    },
-    {
-      hostname       = "localai-gpu-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:8083"
-    },
-    {
-      hostname       = "ollama-gpu-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:11434"
-    },
-    {
-      hostname       = "netalertx-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:20211"
-    },
     {
       hostname       = "famp-albandrieu.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.57:8082"
-    },
-    {
-      hostname       = "ntopng-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:4000"
-    },
-    {
-      hostname       = "anythingllm-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:1111"
-    },
-    {
-      hostname       = "plumber-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:3001"
-    },
-    # plumber-api-albandrieu (live: 172.17.0.57:3003) moved to the homelab
-    # tunnel on 13/11/2026 (tunnel.tofu): the first apply drops it here.
-    {
-      hostname       = "portracker-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:4999"
-    },
-    {
-      hostname       = "vaultwarden-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:8007"
-    },
-    # Routed but never published: no public CNAME exists (dns-policy.yaml).
-    {
-      hostname       = "stirling-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:30124"
-    },
-    {
-      hostname       = "motion-albandrieu.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.57:8078"
     },
     # The dashboard stored explicit zeros on the catch-all; these attributes
     # are not computed, so omitting them would show as drift.

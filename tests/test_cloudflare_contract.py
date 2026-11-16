@@ -42,7 +42,7 @@ class CloudflareContract(unittest.TestCase):
             f"cloudflare_zero_trust_access_application.{name}"
             for name in (
                 "keycloak_oidc", "joplin", "vaultwarden_admin",
-                "affine", "freshrss", "plumber_api",
+                "affine", "freshrss", "plumber_api", "immich", "ha",
             )
         } | {"cloudflare_zero_trust_access_policy.freshrss_site"}
         resources = re.findall(r'resource "(\w+)" "(\w+)"', module_source())
@@ -54,6 +54,17 @@ class CloudflareContract(unittest.TestCase):
                 self.assertNotIn(f"to = {kind}.{name}\n", imports)
                 continue
             self.assertIn(f"to = {kind}.{name}\n", imports)
+
+    def test_bypassed_joplin_route_is_refused_until_its_app_runs(self):
+        # The joplin Access app is "Everyone bypass"; with no Joplin App behind
+        # :22300 (H08), any listener there would be public without auth.
+        tunnel = (TF / "tunnel.tofu").read_text(encoding="utf-8")
+        route = re.search(
+            r'hostname\s*=\s*"joplin\.albandrieu\.com".*?service\s*=\s*"([^"]*)"',
+            tunnel, re.S,
+        )
+        self.assertIsNotNone(route)
+        self.assertEqual(route.group(1), "http_status:404")
 
     def test_free_ptr_forward_a_requires_safe_import_or_verified_creation(self):
         dns = (TF / "dns.tofu").read_text(encoding="utf-8")

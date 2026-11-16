@@ -12,7 +12,20 @@ version: 1
 # history for the list. The second round, postgres.albandrieu.com, was
 # destroyed on 11/11/2026. The third round, s3.int (Garage S3 must stay
 # LAN-only), was destroyed on 12/11/2026.
-retired_hostnames: []
+# Fourth round (16/11/2026): the workstation tunnel routes retired with their
+# route, except famp-albandrieu (tunnel-workstation.tofu).
+retired_hostnames:
+  - anythingllm-albandrieu.albandrieu.com
+  - honeypot-albandrieu.albandrieu.com
+  - localai-gpu-albandrieu.albandrieu.com
+  - motion-albandrieu.albandrieu.com
+  - netalertx-albandrieu.albandrieu.com
+  - nexus-albandrieu.albandrieu.com
+  - ntopng-albandrieu.albandrieu.com
+  - ollama-gpu-albandrieu.albandrieu.com
+  - plumber-albandrieu.albandrieu.com
+  - portracker-albandrieu.albandrieu.com
+  - vaultwarden-albandrieu.albandrieu.com
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other
 # tunnel hostname must be imported first (import-first, never blind create).
@@ -21,8 +34,7 @@ new_tunnel_hostnames: []
 # Tunnel routes deliberately left without a public CNAME (adopted as found on
 # 14/11/2026): the route exists, the name does not resolve. Publishing one is
 # an explicit decision: move it to new_tunnel_hostnames.
-unpublished_tunnel_hostnames:
-  - stirling-albandrieu.albandrieu.com
+unpublished_tunnel_hostnames: []
 
 # Private namespace served by Pi-hole; a public record under it is drift
 # (docs/dns-ingress-ownership.md).
