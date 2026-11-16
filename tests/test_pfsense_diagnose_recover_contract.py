@@ -319,6 +319,8 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             # No HAProxy server may reach the workstation: its tunnel is the only public path.
             "NABLA_WORKSTATION_IP = '172.17.0.57'",
             "nabla_report('haproxy_workstation_servers'",
+            # 16/11: unrouted WAN hosts get the honeypot, not the Heimdall login.
+            "nabla_report('haproxy_default_backend'",
             # 2026-11-15: FR in Top Spammers blocked our own WAN address outbound.
             "NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep']",
             "nabla_report('pfblockerng_wan_self_block'",
