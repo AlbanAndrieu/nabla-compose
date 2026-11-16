@@ -40,6 +40,8 @@ services:
       - name: redis
         target: 6379
         published: "30059"
+        # Publish only on the TrueNAS LAN address; intranet clients use redis:6379.
+        host_ip: 172.17.0.24
         protocol: tcp
     volumes:
       - /mnt/cpool/redis:/data
