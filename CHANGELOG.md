@@ -1,3 +1,10 @@
+# [0.93.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.92.0...0.93.0) (2026-11-16)
+
+
+### Features
+
+* **diagnostics:** add read-only Redis TrueNAS Docker FastAPI evidence report ([97a2922](https://github.com/AlbanAndrieu/nabla-compose/commit/97a2922d6f537a713a82c3e5702bd8db8efc9f12))
+
 # [0.92.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.91.0...0.92.0) (2026-11-16)
 
 
