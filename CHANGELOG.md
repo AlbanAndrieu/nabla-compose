@@ -1,3 +1,28 @@
+# [0.92.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.91.0...0.92.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **agents:** restore the never-invent rule in the OpenCode runbook ([4d5acc4](https://github.com/AlbanAndrieu/nabla-compose/commit/4d5acc4ab878a7ebb6c6432cd206aa291a759579))
+* **pfsense:** compare only persist pf tables in the table load check ([a4e0744](https://github.com/AlbanAndrieu/nabla-compose/commit/a4e07448d9f1f097f790361f40ba715056fe14f7))
+* **pfsense:** let diagnose-recover reuse a live SSH ControlMaster ([ff8a517](https://github.com/AlbanAndrieu/nabla-compose/commit/ff8a517822062c1dc4aada3702fb45d1fc57408c))
+* **pfsense:** raise the pf table limit so 26.07 loads its ruleset ([43e8994](https://github.com/AlbanAndrieu/nabla-compose/commit/43e8994a3b5d138a6f2f8e23ec7d5537755a023b))
+* **pfsense:** skip the DHCP map check when the October BE is running ([ee8367e](https://github.com/AlbanAndrieu/nabla-compose/commit/ee8367e4c30fd8e7218534e8e80ed0730d537d9b))
+* **prometheus:** count reclaimable ZFS ARC in TrueNAS memory alerts ([5836606](https://github.com/AlbanAndrieu/nabla-compose/commit/5836606267417fea94484b001b15cd34d24209da))
+* **prometheus:** repair Pi-hole gauge alerts, alert on TrueNAS IO and pool state ([3d4d837](https://github.com/AlbanAndrieu/nabla-compose/commit/3d4d837ac28d9caf95a2e0d6f4c690ec4e2714a5))
+* **quality:** restore the executable bit of check-agent-skill-precedence.py ([f708956](https://github.com/AlbanAndrieu/nabla-compose/commit/f708956300809bcf0796734599fff950a2ed6d84))
+* **quality:** restore the executable bit of two scripts lost on master ([4b4bcea](https://github.com/AlbanAndrieu/nabla-compose/commit/4b4bcea2fb8c6fb09d9535b6df64b4e8aefee983))
+* **truenas:** keep operator-stopped Custom Apps stopped on reconcile ([ce0cf5a](https://github.com/AlbanAndrieu/nabla-compose/commit/ce0cf5a5b531b63036ca311bb62a9c5c87f1f6ec))
+
+
+### Features
+
+* **catalog:** schedule the night-window Apps in the catalog ([87dfad1](https://github.com/AlbanAndrieu/nabla-compose/commit/87dfad1f5126d7fd6afc650a5a4b665c749d7170))
+* **pfsense:** keep the 26.07 boot environment out of the fallback ([6ef813d](https://github.com/AlbanAndrieu/nabla-compose/commit/6ef813da6ec3ec7b742dc9646bd098881b1f235d))
+* **prometheus:** alert on TrueNAS OOM kills and workstation host health ([94e3147](https://github.com/AlbanAndrieu/nabla-compose/commit/94e314740951ec4e01b6425812b021a62c9af708))
+* **truenas:** extend the night window to optional Apps ([b40efc2](https://github.com/AlbanAndrieu/nabla-compose/commit/b40efc23666e9d7300d76e2f45c7506079711d0a))
+* **truenas:** run bitcoind in a night window only ([91d28c2](https://github.com/AlbanAndrieu/nabla-compose/commit/91d28c280b23c798c5e43d5ce115929481e67475))
+
 # [0.91.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.90.1...0.91.0) (2026-11-15)
 
 
