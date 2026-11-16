@@ -102,3 +102,38 @@ def test_permissions_error_does_not_become_a_redis_outage() -> None:
     )):
         report = redis_diag.docker_evidence("redis", 3)
     assert report == {"state": "unavailable", "reason": "permission_denied"}
+
+
+def test_fastapi_timeout_is_reported_as_unavailable_without_marking_redis_down() -> None:
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = TimeoutError("timed out")
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {"state": "unavailable", "reason": "timeout"}
+    build.assert_called_once()
+    assert isinstance(build.call_args.args[0], redis_diag.ProxyHandler)
+    assert build.call_args.args[0].proxies == {}
+
+
+def test_fastapi_http_auth_error_has_status_without_response_body() -> None:
+    from urllib.error import HTTPError
+
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = HTTPError(
+            redis_diag.DEFAULT_FASTAPI, 403, "Forbidden", None, None,
+        )
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {"state": "unavailable", "http_status": 403, "reason": "api_auth_required"}
+
+
+def test_fastapi_url_error_preserves_only_exception_type() -> None:
+    from urllib.error import URLError
+
+    with patch.object(redis_diag, "build_opener") as build:
+        build.return_value.open.side_effect = URLError(ConnectionRefusedError("SECRET-DO-NOT-PRINT"))
+        report = redis_diag.fastapi_evidence(redis_diag.DEFAULT_FASTAPI, 10)
+    assert report == {
+        "state": "unavailable",
+        "reason": "network_error",
+        "error_type": "ConnectionRefusedError",
+    }
+    assert "SECRET" not in json.dumps(report)
