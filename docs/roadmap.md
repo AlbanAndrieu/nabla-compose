@@ -225,6 +225,11 @@ Détail et preuves : [runbook 26.07](runbooks/pfsense-26.07-upgrade.md#stabilisa
   2. Vers 23:00, l'interface web et SSH ont cessé de répondre (TCP accepté, ni TLS ni bannière), alors que le routage et le DNS marchaient. Retour au BE stable par cycle d'alimentation le 16/11 à 00:05. Cause inconnue sans console : Snort tournait sur 2 interfaces depuis 21:58, piste non vérifiée.
 
   Le boot réussi avait levé son drapeau `failed`, donc il était devenu la cible du repli du stable. Il en est de nouveau exclu depuis le 16/11 (`exclude-be-from-fallback.sh`, vérifié par `check-drift.sh`). Le repli est `default`, resynchronisé à la révision 00:36. Prochain essai seulement avec le câble console. Les cibles workstation sont déjà retirées dans sa config.
+  - [ ] **Retester le 26.07 et son upgrade cette semaine (au plus tard le 22/11)**, console série branchée et master SSH ouvert (`sshp`) :
+    1. recopier la config en service dans le BE 26.07 (`sync-fallback-be-config.sh`), puis vérifier `maximumtableentries` à 1M ;
+    2. boot unique (`bectl activate -t`), puis `pfblocker-ip-only.php check` (aucun `pf_tables_not_loaded`) et 2 h d'observation (mémoire, Snort, interface, SSH) ;
+    3. si le boot tient, tester l'upgrade depuis le stable 26.03 (`prepare-upgrade.sh`, puis `pfSense-upgrade` dans un nouveau BE), avec le même contrôle ;
+    4. une fois le 26.07 en service, retirer la ligne `fallback_exclusion` de `check-drift.sh`. Sinon, remettre le stable et noter la cause vue sur la console.
 - [x] **Clé USB de réinstallation** : l'image du ticket TAC *Firmware Access* est l'installeur en ligne déjà sur la clé ; pas d'image hors ligne pour le 1100. La réinstallation passe par le WAN branché sur la Freebox (procédure dans le runbook).
 
 ## P1 — Performance, stockage et restauration TrueNAS
