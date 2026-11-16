@@ -1,3 +1,16 @@
+# [0.97.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.96.0...0.97.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **honeypot:** cap memory and rotate logs for the master ratchet ([c30b135](https://github.com/AlbanAndrieu/nabla-compose/commit/c30b1358e975454ff58bbc7b51b34679e14f384b))
+* **quality:** restore the executable bit of check-agent-skill-precedence.py ([8231466](https://github.com/AlbanAndrieu/nabla-compose/commit/8231466f83a9849d3d29192b302f6788e7a87b06)), closes [#402](https://github.com/AlbanAndrieu/nabla-compose/issues/402)
+
+
+### Features
+
+* **pfsense:** make the honeypot the default HAProxy backend ([1966bba](https://github.com/AlbanAndrieu/nabla-compose/commit/1966bba992fd0e7b932ed5a6ad455bd8f78e639d))
+
 # [0.96.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.95.0...0.96.0) (2026-11-16)
 
 
