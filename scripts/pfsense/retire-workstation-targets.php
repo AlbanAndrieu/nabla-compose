@@ -23,6 +23,9 @@ const STALE_SERVERS = [
     ['albandrieu-apache', 'albandrieu', '8082'],
     ['nabla-index', 'famp', '8082'],
     ['prod_front', 'apache', '8082'],
+    // Pools no frontend uses, so never generated: inactive keeps the "nothing to .57" check true.
+    ['nexus', 'nexus', '8081'],
+    ['vault', 'vault', '8200'],
 ];
 const STALE_FRONTEND = 'login';
 const STALE_NAT_DESCR = 'albandrieu nexus 8081';

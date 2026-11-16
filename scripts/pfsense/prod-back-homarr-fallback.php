@@ -45,6 +45,8 @@ if (!$apply || $changes === 0) {
     exit(0);
 }
 
+// Same server id assignment as a pool save in the GUI.
+config_id();
 write_config('nabla: Homarr backup server for HAProxy prod_back (Heimdall down)');
 $messages = '';
 if (!haproxy_check_and_run($messages, true)) {

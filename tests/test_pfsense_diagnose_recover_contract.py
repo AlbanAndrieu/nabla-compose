@@ -316,6 +316,9 @@ class PfSenseDiagnoseRecoverContractTest(unittest.TestCase):
             "'freenas' => ['freenas.albandrieu.com', 'wildcard.albandrieu.com']",
             "NABLA_WEBGUI_CERT = 'home.albandrieu.com'",
             "nabla_report(\"haproxy_cert_{$fe}\"",
+            # No HAProxy server may reach the workstation: its tunnel is the only public path.
+            "NABLA_WORKSTATION_IP = '172.17.0.57'",
+            "nabla_report('haproxy_workstation_servers'",
             # 2026-11-15: FR in Top Spammers blocked our own WAN address outbound.
             "NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep']",
             "nabla_report('pfblockerng_wan_self_block'",

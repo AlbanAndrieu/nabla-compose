@@ -30,7 +30,7 @@ class ProdBackHomarrFallbackTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="nabla-pfsense-homarr-") as tmp:
             stubs = Path(tmp)
             (stubs / "haproxy").mkdir()
-            (stubs / "config.inc").write_text(STUB, encoding="utf-8")
+            (stubs / "config.inc").write_text(STUB + "function config_id() {}\n", encoding="utf-8")
             for name in ("util.inc", "haproxy/haproxy.inc"):
                 (stubs / name).write_text("<?php\n", encoding="utf-8")
             (stubs / "config.json").write_text(json.dumps(config), encoding="utf-8")

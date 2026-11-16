@@ -72,6 +72,17 @@ Ordre d'application : `tofu apply` (Access + origine `127.0.0.1:8082`),
 puis les deux scripts pfSense en `apply`, puis le playbook
 `stabilize-workstation` (écoute sur la boucle locale).
 
+**APPLIQUÉ le 15/11 vers 23:05** : `retire-workstation-targets.php` (serveurs
+`.57` de `prod_front`, `nabla-index`, `albandrieu-apache`, `nexus`, `vault`
+passés `inactive`), puis `prune-dead-haproxy-routes.php` (13 règles
+`use_backend` vers ces pools vides et 24 ACL inutilisées supprimées).
+`--check-posture` : `haproxy_workstation_servers=none`, `drift=0`. Effet
+constaté : `apache`, `account`, `redis` et `traefik` (en-tête `Host` vers
+`82.66.4.247`) tombent désormais sur le backend par défaut `prod_back`
+(login Heimdall, 302), et les chemins `signature`/`logo` servis par
+`prod_front` répondent 503. Le frontend `Web_HTTPS-8082` garde `nabla-index`,
+vide, comme backend par défaut. Secours Homarr et `tofu apply` non appliqués.
+
 ## Procédure
 
 ### 1. Syslog

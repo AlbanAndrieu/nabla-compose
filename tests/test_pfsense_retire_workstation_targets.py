@@ -55,6 +55,8 @@ def pfsense_config() -> dict:
         ("nabla-index", [server("famp", "172.17.0.57", "8082")]),
         ("prod_front", [server("apache", "172.17.0.57", "8082")]),
         ("prod_back", [server("heimdall-https", "172.17.0.24", "30120")]),
+        ("nexus", [server("nexus", "172.17.0.57", "8081")]),
+        ("vault", [server("vault", "172.17.0.57", "8200")]),
     ]
     return {
         "installedpackages": {
@@ -99,7 +101,7 @@ class RetireWorkstationTargetsTest(unittest.TestCase):
     def test_check_reports_without_writing(self) -> None:
         result, written = self.run_helper("check", pfsense_config())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.count("CHANGE:"), 8)
+        self.assertEqual(result.stdout.count("CHANGE:"), 10)
         self.assertIsNone(written)
 
     def test_apply_retires_only_the_dead_targets(self) -> None:
@@ -117,6 +119,8 @@ class RetireWorkstationTargetsTest(unittest.TestCase):
             ("nabla-index", "8082"): "inactive",
             ("prod_front", "8082"): "inactive",
             ("prod_back", "30120"): "active",
+            ("nexus", "8081"): "inactive",
+            ("vault", "8200"): "inactive",
         })
         frontends = {f["name"]: f["status"] for f in written["installedpackages"]["haproxy"]["ha_backends"]["item"]}
         self.assertEqual(frontends, {"Web_HTTPS": "active", "login": "disabled"})

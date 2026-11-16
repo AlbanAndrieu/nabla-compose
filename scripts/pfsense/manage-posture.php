@@ -28,6 +28,7 @@ const NABLA_HAPROXY_CERTS = [
     'Web_HTTPS-8082' => ['wildcard.albandrieu.com', 'wildcard.albandrieu.com'],
 ];
 const NABLA_WEBGUI_CERT = 'home.albandrieu.com';
+const NABLA_WORKSTATION_IP = '172.17.0.57';
 // Our WAN address is French: GeoIP Top Spammers must never hold FR.
 const NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep'];
 
@@ -183,6 +184,20 @@ foreach (NABLA_HAPROXY_CERTS as $fe => $expected) {
     );
     $names = implode('+', array_map(static fn($ref) => $cert_descr[$ref] ?? 'missing', $bound));
     nabla_report("haproxy_cert_{$fe}", isset($frontends[$fe]) ? $names : 'absent', implode('+', $expected));
+}
+
+// 15/11: the workstation is published only by its Cloudflare tunnel; a fallback BE brought its
+// HAProxy servers back once already.
+$ws_servers = [];
+foreach (config_get_path('installedpackages/haproxy/ha_pools/item', []) as $pool) {
+    foreach (is_array($pool['ha_servers']['item'] ?? null) ? $pool['ha_servers']['item'] : [] as $srv) {
+        if (($srv['address'] ?? '') === NABLA_WORKSTATION_IP && in_array($srv['status'] ?? 'active', ['active', 'backup'], true)) {
+            $ws_servers[] = ($pool['name'] ?? '?') . '/' . ($srv['name'] ?? '?');
+        }
+    }
+}
+if (nabla_report('haproxy_workstation_servers', $ws_servers ? implode('+', $ws_servers) : 'none', 'none')) {
+    echo "INFO: retire them with scripts/pfsense/retire-workstation-targets.php\n";
 }
 
 // 2026-11-15 18:43: Top Spammers held FR, so pfBlockerNG's floating WAN rule matched our own
