@@ -1,3 +1,20 @@
+# [0.95.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.94.0...0.95.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **agents:** reject indirect OpenCode policy reloads in instruction globs [skip ci] ([9869a40](https://github.com/AlbanAndrieu/nabla-compose/commit/9869a40abb3851e296012e15ba206b66a98b8530))
+* **catalog:** present the honeypot as support tooling ([f36306f](https://github.com/AlbanAndrieu/nabla-compose/commit/f36306fee717d877829c7ed1ab65fa3f3f9ad759))
+* **catalog:** recompute revision after honeypot rebase ([2508e17](https://github.com/AlbanAndrieu/nabla-compose/commit/2508e173955863205d43dd7b9ec1353d8dea7a21))
+* **quality:** keep Biome off the Claude Code settings.local.json ([7d3031d](https://github.com/AlbanAndrieu/nabla-compose/commit/7d3031d7bcdaee905fe59be9b131052613ac9a72))
+
+
+### Features
+
+* **pfsense:** prune dead HAProxy routes and check that nothing reaches the workstation ([636dd77](https://github.com/AlbanAndrieu/nabla-compose/commit/636dd7742a2ef1ff388cae935d0a778954c34de1))
+* **pfsense:** publish the workstation Apache only through the tunnel and add a Homarr fallback ([86e27d2](https://github.com/AlbanAndrieu/nabla-compose/commit/86e27d26c84ca9ca1a42352e51d64ec4efdab892))
+* **truenas:** move the Project Honey Pot script to a TrueNAS App ([5ef1155](https://github.com/AlbanAndrieu/nabla-compose/commit/5ef115569d1b9565fb6e6d385110bccd2ee4a2e7))
+
 # [0.94.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.93.0...0.94.0) (2026-11-16)
 
 
