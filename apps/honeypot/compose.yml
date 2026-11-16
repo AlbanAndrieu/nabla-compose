@@ -1,8 +1,16 @@
 ---
 name: honeypot
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   honeypot:
+    logging: *nabla-logging
     image: php:8.4.27-apache@sha256:884f64b47174de2c0e813270fe7b24a18605729fcebe201302d98c38805530d0
     container_name: honeypot
     x-nabla:
