@@ -123,7 +123,8 @@ class TrueNASAppLifecycleContractTests(unittest.TestCase):
         self.assertNotIn("disable", compose)
         self.assertIn("PGSSLROOTCERT: /etc/nabla/pki/postgres-ca.crt", compose)
         self.assertIn("volumes: *plumber-postgres-ca", compose)
-        self.assertIn("status: planned", compose)
+        # The Custom App runs since the 16/11 roadmap pass marked it active.
+        self.assertIn("status: active", compose)
         self.assertIn("driver/DSN construction", readme)
         self.assertIn("DNS or IP SAN", readme)
 

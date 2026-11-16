@@ -1166,8 +1166,8 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
-        "appId": "home-assistant",
-        "containerService": "home-assistant",
+        "appId": "homeassistant",
+        "containerService": "homeassistant",
         "networks": [
           "intranet",
           "traefik_network"
@@ -1457,7 +1457,6 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "lidarr",
         "containerService": "lidarr",
         "networks": [
           "media",
@@ -1488,7 +1487,6 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "lidarr",
         "containerService": "lidarr-exporter",
         "networks": [
           "intranet",

@@ -111,10 +111,10 @@ def test_lifecycle_planner_orders_shared_data_before_new_persistent_apps() -> No
         {"id": "defectdojo", "state": "RUNNING"},
         {"id": "neo4j", "state": "RUNNING"},
     ]
-    # plumber, netbox and dependency-track are declared ``planned`` (not
-    # deployed on TrueNAS yet): the planner suppresses them unless an operator
-    # explicitly includes them for a bounded activation test.
-    planned = ("plumber", "netbox", "dependency-track")
+    # netbox and dependency-track are declared ``planned`` (not deployed on
+    # TrueNAS yet): the planner suppresses them unless an operator explicitly
+    # includes them for a bounded activation test. plumber is active (16/11).
+    planned = ("netbox", "dependency-track")
 
     def plan_for(*extra: str) -> dict:
         with tempfile.TemporaryDirectory() as tmp:

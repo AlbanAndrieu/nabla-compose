@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:25fffd39a9e408847dc634a8e27b2eabe50524b39c1581cec3cde6b78f833ae5",
+  "catalogRevision": "sha256:6c99790d2698aae80dbb09451fa523ad64e8b3cfc359553b2c36c7ac416b0730",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1121,8 +1121,8 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "home-assistant",
-        "containerService": "home-assistant",
+        "appId": "homeassistant",
+        "containerService": "homeassistant",
         "networks": [
           "intranet",
           "traefik_network"
@@ -1379,7 +1379,6 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "lidarr",
         "containerService": "lidarr",
         "networks": [
           "media",
@@ -1404,7 +1403,6 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "lidarr",
         "containerService": "lidarr-exporter",
         "networks": [
           "intranet",

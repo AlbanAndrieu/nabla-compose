@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:582e994ab3609726feec9485b0deb4fe1151e73237033a020a148bcca2e9d063",
+  "catalogRevision": "sha256:632ffb1c25d82b185b64cd5570c4c4e4328c5726a92d927bbb6ac4974562ae0b",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3302,8 +3302,8 @@
       },
       "x-nabla": {
         "runtime": {
-          "appId": "home-assistant",
-          "containerService": "home-assistant",
+          "appId": "homeassistant",
+          "containerService": "homeassistant",
           "provider": "truenas-app",
           "source": "apps/homeassistant/compose.yml#services/homeassistant"
         }
@@ -3983,7 +3983,6 @@
           }
         ],
         "runtime": {
-          "appId": "lidarr",
           "containerService": "lidarr",
           "provider": "truenas-app",
           "source": "apps/lidarr/compose.yml#services/lidarr"
@@ -4023,7 +4022,6 @@
       },
       "x-nabla": {
         "runtime": {
-          "appId": "lidarr",
           "containerService": "lidarr-exporter",
           "provider": "truenas-app",
           "source": "apps/lidarr/compose.yml#services/lidarr-exporter"

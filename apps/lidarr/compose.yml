@@ -22,7 +22,6 @@ services:
       internalUrl: http://lidarr:8686
       runtime:
         provider: truenas-app
-        appId: lidarr
         containerService: lidarr
       lifecycle:
         phase: applications
@@ -125,7 +124,6 @@ services:
         by Prometheus over the intranet network.
       runtime:
         provider: truenas-app
-        appId: lidarr
         containerService: lidarr-exporter
       lifecycle:
         phase: applications
