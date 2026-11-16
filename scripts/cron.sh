@@ -47,7 +47,7 @@ if ! flock -n 9; then
   exit 0
 fi
 
-log_info "Hourly sync of ${REPO_DIR}: fast-forward to origin/${DEPLOY_BRANCH} (never reset), plan (never apply) the redeploy of TrueNAS Apps the new commits touch, report TrueNAS Apps and containers started in the last ${RECENT_MINUTES} min, update FastAPI Sample only when ${FASTAPI_CLOUD_URL} is fully healthy."
+log_info "Hourly sync of ${REPO_DIR}: fast-forward to origin/${DEPLOY_BRANCH} (never reset), plan (never apply) the redeploy of TrueNAS Apps the new commits touch, reload Prometheus when its rules change, report TrueNAS Apps and containers started in the last ${RECENT_MINUTES} min, update FastAPI Sample only when ${FASTAPI_CLOUD_URL} is fully healthy."
 
 cd "${REPO_DIR}"
 
@@ -106,6 +106,11 @@ sync_checkout() {
   # Plan only: redeploying Apps waits for the operator's --apply.
   python3 "${SCRIPT_DIR}/truenas/redeploy-impacted-apps.py" --from "${local_sha}" --to HEAD 2>&1 ||
     log_info "Impacted TrueNAS Apps: plan incomplete, nothing redeployed."
+  # Exception to "plan only": a rule/config change needs a SIGHUP, not a redeploy, and an
+  # invalid file is refused by promtool before any signal.
+  if ! git diff --quiet "${local_sha}" HEAD -- apps/prometheus/prometheus.yml apps/prometheus/rules/; then
+    log_info "Prometheus: $(sudo -n bash "${SCRIPT_DIR}/truenas/reload-prometheus-rules.sh" apply 2>&1 | tail -n 1)"
+  fi
 
   if git diff --quiet "${local_sha}" HEAD -- bootstrap/ docker-compose-truenas.yml .doco-cd.yaml; then
     log_info "Checkout synchronized; no Doco-CD configuration changed."
