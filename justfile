@@ -855,6 +855,14 @@ talos-stopped-vms-start:
 talos-vms-stop:
     sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --stop --acknowledge I_ACCEPT_STOPPING_TALOS_VMS
 
+# Static node address and hostname (config/talos/nodes): dry-run diff only.
+talos-node-network-check:
+    for node in taloscp01:172.17.0.50 taloswk01:172.17.0.51 taloswk02:172.17.0.52; do talosctl -n "${node#*:}" patch machineconfig --dry-run --patch "@config/talos/nodes/${node%%:*}.yaml"; done
+
+# Apply the static node network, workers first; no reboot needed.
+talos-node-network-apply:
+    for node in taloswk01:172.17.0.51 taloswk02:172.17.0.52 taloscp01:172.17.0.50; do talosctl -n "${node#*:}" patch machineconfig --patch "@config/talos/nodes/${node%%:*}.yaml"; done
+
 # Read-only audit of ALL canonical runtime secrets and directory modes.
 runtime-secret-modes-check:
     sudo -n python3 scripts/truenas/audit-runtime-secret-permissions.py --check
