@@ -64,6 +64,21 @@ class TrueNASGenericLiteLLMTests(unittest.TestCase):
         self.assertIn("enable_pre_call_checks: true", SOURCE)
         self.assertNotIn("num_retries: 5", SOURCE)
 
+    def test_cpu_fallback_and_auto_router_stay_local(self):
+        routes = dict(active_models())
+        # Workstation off: every GPU route falls back to the TrueNAS CPU model.
+        self.assertIn("172.17.0.24:30068", routes["qwen-cpu"])
+        for name in ("qwen", "qwen-think", "rr-json"):
+            self.assertIn('- { "%s": ["qwen-cpu"] }' % name, SOURCE)
+        ollama = (CONFIG.parents[1] / "ollama/compose.yml").read_text(encoding="utf-8")
+        # Another num_ctx would reload the model on the TrueNAS CPU.
+        self.assertIn("num_ctx: 8192", routes["qwen-cpu"])
+        self.assertIn("OLLAMA_CONTEXT_LENGTH=8192", ollama)
+        # The auto router only picks free local routes, never a paid model.
+        self.assertIn("model: auto_router/complexity_router", routes["auto"])
+        tiers = re.findall(r"(?m)^          [A-Z]+: (\S+)$", routes["auto"])
+        self.assertEqual(set(tiers), {"qwen", "qwen-think"})
+
     def test_optional_paid_generic_providers_not_active(self):
         routes = dict(active_models())
         for alias in ("gpt-image", "claude-3-5-sonnet-20241022", "deepseek-chat"):
