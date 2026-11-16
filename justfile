@@ -851,6 +851,10 @@ talos-stopped-vms-check:
 talos-stopped-vms-start:
     sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --start --acknowledge I_ACCEPT_STARTING_EXISTING_TALOS_VMS
 
+# Intentional Talos VM stop: workers, then control plane; autostart disabled.
+talos-vms-stop:
+    sudo -n python3 scripts/truenas/resume-stopped-talos-vms.py --stop --acknowledge I_ACCEPT_STOPPING_TALOS_VMS
+
 # Read-only audit of ALL canonical runtime secrets and directory modes.
 runtime-secret-modes-check:
     sudo -n python3 scripts/truenas/audit-runtime-secret-permissions.py --check

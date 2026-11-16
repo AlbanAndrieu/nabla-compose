@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Resume three existing, stopped TrueNAS Talos VMs; never upgrade/reset Talos."""
+"""Stop or resume the three existing TrueNAS Talos VMs; never upgrade/reset Talos.
+
+--stop shuts the workers down before the control plane and disables autostart,
+so a TrueNAS reboot does not bring the cluster back; --start re-enables it.
+"""
 from __future__ import annotations
 
 import argparse
@@ -12,6 +16,7 @@ from pathlib import Path
 
 VM_NAMES = ("taloscp01", "taloswk01", "taloswk02")
 ACK = "I_ACCEPT_STARTING_EXISTING_TALOS_VMS"
+STOP_ACK = "I_ACCEPT_STOPPING_TALOS_VMS"
 
 
 def midclt(*parts: str, timeout: int = 90) -> str:
@@ -94,22 +99,53 @@ def start_and_observe(vm: dict) -> bool:
     return False
 
 
+def set_autostart(vm: dict, enabled: bool) -> None:
+    if vm["autostart"] != enabled:
+        midclt("vm.update", str(vm["id"]), json.dumps({"autostart": enabled}))
+        print(f"AUTOSTART: {vm['name']} autostart={str(enabled).lower()}")
+
+
+def stop_and_observe(vm: dict) -> bool:
+    """Graceful ACPI shutdown, forced only after the middleware timeout."""
+    name = vm["name"]
+    print(f"STOP: {name} (ACPI shutdown, forced after timeout)", flush=True)
+    request_problem = None
+    try:
+        subprocess.run(["midclt", "call", "-job", "vm.stop", str(vm["id"]),
+                        json.dumps({"force": False, "force_after_timeout": True})],
+                       check=True, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.CalledProcessError,
+            subprocess.TimeoutExpired) as exc:
+        request_problem = type(exc).__name__
+    state = wait_for_vm_state(name, "STOPPED", attempts=15)
+    if state == "STOPPED":
+        print(f"OK: {name} VM STOPPED")
+        return True
+    print(f"UNVERIFIED: {name} vm.stop={request_problem or 'returned'} "
+          f"current_state={state}; do NOT retry until middleware job settles",
+          file=sys.stderr)
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--check", action="store_true")
     action.add_argument("--start", action="store_true")
+    action.add_argument("--stop", action="store_true")
     parser.add_argument("--acknowledge", default="")
     parser.add_argument("--query-json", type=Path, help="offline --check fixture only")
     args = parser.parse_args(argv)
     if args.start and args.acknowledge != ACK:
         parser.error("--start needs exact --acknowledge " + ACK)
-    if args.query_json and args.start:
-        parser.error("synthetic query forbidden with --start")
+    if args.stop and args.acknowledge != STOP_ACK:
+        parser.error("--stop needs exact --acknowledge " + STOP_ACK)
+    if args.query_json and not args.check:
+        parser.error("synthetic query is only valid with --check")
     if args.check and args.acknowledge:
-        parser.error("--acknowledge is only valid with --start")
-    if args.start and hasattr(os, "geteuid") and os.geteuid() != 0:
-        parser.error("--start requires root on TrueNAS")
+        parser.error("--acknowledge is only valid with --start or --stop")
+    if not args.check and hasattr(os, "geteuid") and os.geteuid() != 0:
+        parser.error("--start/--stop require root on TrueNAS")
     try:
         raw = args.query_json.read_text() if args.query_json else midclt("vm.query")
         vms = inventory(json.loads(raw))
@@ -124,12 +160,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         print("READ_ONLY: no Talos upgrades, VM startups or Kubernetes mutations")
         return 0
+    if args.stop:
+        # Workers first, the control plane (single etcd member) last.
+        for vm in reversed(vms):
+            if vm["state"] == "RUNNING" and not stop_and_observe(vm):
+                return 1
+            set_autostart(vm, False)
+        print("NEXT: --start --acknowledge " + ACK + " to bring the cluster back")
+        return 0
     for vm in vms:
         if vm["state"] == "RUNNING":
             print(f"SKIP: {vm['name']} already RUNNING")
-            continue
-        if not start_and_observe(vm):
+        elif not start_and_observe(vm):
             return 1
+        set_autostart(vm, True)
     print("NEXT: from workstation run validate-cluster.sh and retained CSI smoke")
     return 0
 
