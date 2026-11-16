@@ -1,0 +1,36 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: honeypot
+  title: Project Honey Pot
+  description: Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS.
+  labels:
+    albandrieu.com/operational-state: active
+    albandrieu.com/operational-criticality: low
+    albandrieu.com/business-criticality: low
+    albandrieu.com/bia-scope: direct
+  tags:
+    - security
+  annotations:
+    albandrieu.com/bia-mtpd: P7D
+    albandrieu.com/bia-rto: P3D
+    albandrieu.com/bia-rpo: P7D
+    albandrieu.com/bia-mbco: spam-harvester-detection-can-pause-without-user-impact
+    albandrieu.com/bia-status: provisional
+    albandrieu.com/bia-reviewed-at: "2026-11-16"
+    albandrieu.com/bia-impact-operational: low
+    albandrieu.com/bia-impact-customer: low
+    albandrieu.com/bia-impact-financial: low
+    albandrieu.com/bia-impact-legal-regulatory: low
+    albandrieu.com/bia-impact-reputation: low
+    albandrieu.com/bia-impact-confidentiality: low
+    albandrieu.com/bia-impact-integrity: low
+    albandrieu.com/bia-impact-privacy: low
+    backstage.io/source-location: url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/honeypot/
+    github.com/project-slug: AlbanAndrieu/nabla-compose
+spec:
+  type: security-agent
+  lifecycle: experimental
+  owner: group:default/nabla-platform
+  system: system:default/nabla-homelab

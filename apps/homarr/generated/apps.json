@@ -584,6 +584,18 @@
       "description": "Home automation control plane exposed through the dedicated IoT network."
     },
     {
+      "id": "honeypot",
+      "entityRef": "component:default/honeypot",
+      "name": "Project Honey Pot",
+      "group": "security",
+      "sourcePath": "apps/honeypot/compose.yml",
+      "composeService": "honeypot",
+      "dockerManaged": true,
+      "href": null,
+      "syncEligible": false,
+      "description": "Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS."
+    },
+    {
       "id": "influxdb",
       "entityRef": "resource:default/influxdb",
       "name": "InfluxDB",

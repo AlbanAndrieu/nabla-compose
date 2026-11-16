@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:25ac11c4be90ec5a63c0e26409750c42ee64c196a641303bd9bf7729b3772c99",
+  "catalogRevision": "sha256:142e1f438f9cf7387eeba46b88369644313fc300214da0c7d99535f173261885",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -287,6 +287,12 @@
       "entityRef": "component:default/homeassistant",
       "evidence": "apps/homeassistant/compose.yml:services.homeassistant.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/homeassistant/compose.yml#services/homeassistant",
+      "sourceType": "compose"
+    },
+    {
+      "entityRef": "component:default/honeypot",
+      "evidence": "apps/honeypot/compose.yml:services.honeypot.labels.com.albandrieu.nabla.entity-ref",
+      "sourceId": "apps/honeypot/compose.yml#services/honeypot",
       "sourceType": "compose"
     },
     {

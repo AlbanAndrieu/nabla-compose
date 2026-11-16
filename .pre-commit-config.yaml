@@ -99,8 +99,9 @@ repos:
         language_version: system
         additional_dependencies: ["@biomejs/biome@2.4.12"]
         # These JSON artifacts are fully generated and checked byte-for-byte.
-        # A second formatter must not compete with the canonical generator.
-        exclude: '^(trivy-sbom\.json|catalog/(?:service-topology|services)\.json|catalog/generated/.*\.json|apps/(?:homarr/generated/apps|autokuma/static/generated-monitors)\.json|apps/n8n/.*)$'
+        # A second formatter must not compete with the canonical generator
+        # (Claude Code rewrites .claude/settings.local.json on every permission grant).
+        exclude: '^(trivy-sbom\.json|catalog/(?:service-topology|services)\.json|catalog/generated/.*\.json|apps/(?:homarr/generated/apps|autokuma/static/generated-monitors)\.json|apps/n8n/.*|\.claude/settings\.local\.json)$'
 
   # pre-commit/mirrors-prettier is archived: install the pinned npm package
   # directly instead of trusting another third-party mirror.

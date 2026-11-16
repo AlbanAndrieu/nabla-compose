@@ -46,12 +46,42 @@ sont `inactive` et qu'aucun frontend ne les utilise ; sinon il s'arrête en
 
 ## Hors périmètre
 
-- `apache` / `famp` / `albandrieu` → `172.17.0.57:8082` : le service est
-  vivant et ufw l'autorise depuis le LAN. Inchangé.
 - Pools `nexus` (`.57:8081`) et `vault` (`.57:8200`) : référencés par aucun
   frontend, donc ni générés ni sondés. Périmés mais inertes.
-- `prod_back` → `heimdall-https 172.17.0.24:30120` est DOWN : c'est le
-  backend par défaut des frontends `Web_HTTPS` et `freenas`. À traiter à part.
+
+## Ajout du 15/11 : Apache de la workstation et secours Homarr
+
+Décision opérateur du 15/11 : l'Apache de la workstation (`:8082`) n'est plus
+publié que par le tunnel Cloudflare de la workstation, derrière Access
+(`famp-albandrieu.albandrieu.com`, `terraform/cloudflare`). Le script passe donc
+`inactive` les serveurs `.57:8082` des pools `albandrieu-apache`, `nabla-index`
+et `prod_front` ; les hôtes `apache`, `account` et `famp` répondent 503 sur
+HAProxy. Apache écoute sur `127.0.0.1:8082` (ansible-workstation,
+`files/etc/apache2/ports.conf`), et la règle ufw LAN du 8082 disparaît.
+
+`prod_back` (backend par défaut de `Web_HTTPS` et `freenas`) reçoit Homarr
+(`172.17.0.24:30100`) en serveur `backup` quand Heimdall est DOWN. Sa sonde
+passe de `/tag/nabla` à `/` : Homarr répond 404 sur `/tag/nabla`, donc un
+backup sondé là ne servirait jamais.
+
+```bash
+ssh -p 9922 admin@172.17.0.1 "php -- check" < scripts/pfsense/prod-back-homarr-fallback.php
+```
+
+Ordre d'application : `tofu apply` (Access + origine `127.0.0.1:8082`),
+puis les deux scripts pfSense en `apply`, puis le playbook
+`stabilize-workstation` (écoute sur la boucle locale).
+
+**APPLIQUÉ le 15/11 vers 23:05** : `retire-workstation-targets.php` (serveurs
+`.57` de `prod_front`, `nabla-index`, `albandrieu-apache`, `nexus`, `vault`
+passés `inactive`), puis `prune-dead-haproxy-routes.php` (13 règles
+`use_backend` vers ces pools vides et 24 ACL inutilisées supprimées).
+`--check-posture` : `haproxy_workstation_servers=none`, `drift=0`. Effet
+constaté : `apache`, `account`, `redis` et `traefik` (en-tête `Host` vers
+`82.66.4.247`) tombent désormais sur le backend par défaut `prod_back`
+(login Heimdall, 302), et les chemins `signature`/`logo` servis par
+`prod_front` répondent 503. Le frontend `Web_HTTPS-8082` garde `nabla-index`,
+vide, comme backend par défaut. Secours Homarr et `tofu apply` non appliqués.
 
 ## Procédure
 

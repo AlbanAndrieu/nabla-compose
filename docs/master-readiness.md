@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 90 ; actives : 64 ; planifiées : 23.
+Apps : 91 ; actives : 65 ; planifiées : 23.
 
 ## Écarts par type
 
@@ -53,6 +53,7 @@ Apps : 90 ; actives : 64 ; planifiées : 23.
 | `hermes` | planned | ❌ | `cpool/compose` (none (noSnapshot))<br>`cpool/hermes` (app-state) | manifest | — | — | — | diagnose-hermes-agent.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homarr` | active | custom-apps.yml | `cpool/homarr` (app-state) | manifest | ❌ | — | — | générique | apps/homarr/config/ | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `homeassistant` | active | ❌ | `cpool/ha` (app-state) | n/a | ✅ | — | — | diagnose-homeassistant-overkiz.sh<br>diagnose-homeassistant-usb.sh<br>diagnose-homeassistant.sh | bootstrap-homeassistant-postgres.sh | `NO_DEPLOY_PATH` |
+| `honeypot` | active | custom-apps.yml | — | n/a | ✅ | — | — | générique | — | ✅ |
 | `influxdb` | active | custom-apps.yml | `cpool/influxdb` (none (noSnapshot)) | n/a | ❌ | influxdb | — | diagnose-influxdb.sh | bootstrap-scrutiny-influxdb.sh | `NO_AVAILABILITY_PROBE` |
 | `jellyfin` | planned | deploy-media-stack.sh | `cpool/jellyfin` (app-state)<br>`cpool/jellyfin-cache` (none (noSnapshot))<br>`cpool/media` (none (noSnapshot)) | n/a | ✅ | jellyfin | — | générique | config/media/settings.yml | ✅ |
 | `joplin` | planned | deploy-joplin.sh | — | manifest | ✅ | — | ✅ joplin | générique | bootstrap-joplin-postgres.sh | ✅ |

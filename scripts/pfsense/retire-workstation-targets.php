@@ -16,9 +16,16 @@ $apply = ($argv[1] ?? 'check') === 'apply';
 const WS = '172.17.0.57';
 // Pools of retired services, deleted whole. Do not repoint them: TrueNAS :3000 is Langfuse, :9000 ClickHouse.
 const RETIRED_POOLS = ['ntopng', 'graylog'];
-// pool, server, port: the services moved to TrueNAS or were stopped.
+// pool, server, port: the services moved to TrueNAS or were stopped. Since 15/11 the workstation
+// Apache (:8082) is published only by the workstation Cloudflare tunnel, behind Access.
 const STALE_SERVERS = [
     ['albandrieu-apache-login-honeypot', 'albandrieu', '3000'],
+    ['albandrieu-apache', 'albandrieu', '8082'],
+    ['nabla-index', 'famp', '8082'],
+    ['prod_front', 'apache', '8082'],
+    // Pools no frontend uses, so never generated: inactive keeps the "nothing to .57" check true.
+    ['nexus', 'nexus', '8081'],
+    ['vault', 'vault', '8200'],
 ];
 const STALE_FRONTEND = 'login';
 const STALE_NAT_DESCR = 'albandrieu nexus 8081';
@@ -121,7 +128,7 @@ if (!$ha_changed && !isset($changes['rdr_rules'])) {
     exit(0);
 }
 
-write_config('nabla: retire stale workstation 172.17.0.57 targets (HAProxy pools ntopng/graylog deleted, login, NAT 8081)');
+write_config('nabla: retire stale workstation 172.17.0.57 targets (HAProxy ntopng/graylog, login, Apache 8082, NAT 8081)');
 
 if ($ha_changed) {
     $messages = '';

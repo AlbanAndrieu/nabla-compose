@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:25ac11c4be90ec5a63c0e26409750c42ee64c196a641303bd9bf7729b3772c99",
+  "catalogRevision": "sha256:142e1f438f9cf7387eeba46b88369644313fc300214da0c7d99535f173261885",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -3303,6 +3303,72 @@
           "containerService": "homeassistant",
           "provider": "truenas-app",
           "source": "apps/homeassistant/compose.yml#services/homeassistant"
+        }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/honeypot",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-confidentiality": "low",
+          "albandrieu.com/bia-impact-customer": "low",
+          "albandrieu.com/bia-impact-financial": "low",
+          "albandrieu.com/bia-impact-integrity": "low",
+          "albandrieu.com/bia-impact-legal-regulatory": "low",
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-impact-privacy": "low",
+          "albandrieu.com/bia-impact-reputation": "low",
+          "albandrieu.com/bia-mbco": "spam-harvester-detection-can-pause-without-user-impact",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rpo": "P7D",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional",
+          "backstage.io/source-location": "url:https://github.com/AlbanAndrieu/nabla-compose/tree/master/apps/honeypot/",
+          "github.com/project-slug": "AlbanAndrieu/nabla-compose"
+        },
+        "description": "Project Honey Pot address distribution script, moved from the workstation Apache to TrueNAS.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "honeypot",
+        "tags": [
+          "security"
+        ],
+        "title": "Project Honey Pot"
+      },
+      "sourcePath": "apps/honeypot/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "experimental",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "security-agent"
+      },
+      "x-nabla": {
+        "exposure": [
+          {
+            "backend": {
+              "appProtocol": "http",
+              "host": "172.17.0.24",
+              "port": 31090
+            },
+            "backendPort": "web",
+            "gatewayRef": "resource:default/truenas",
+            "name": "lan",
+            "protocol": "HTTP",
+            "source": "apps/honeypot/compose.yml#services/honeypot",
+            "visibility": "lan"
+          }
+        ],
+        "runtime": {
+          "containerService": "honeypot",
+          "provider": "truenas-app",
+          "source": "apps/honeypot/compose.yml#services/honeypot"
         }
       }
     },

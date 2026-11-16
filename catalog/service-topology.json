@@ -1182,6 +1182,29 @@
       }
     },
     {
+      "id": "honeypot",
+      "name": "Project Honey Pot",
+      "kind": "security-agent",
+      "category": "security",
+      "sourcePath": "apps/honeypot/compose.yml",
+      "description": "Project Honey Pot address distribution script, moved from the workstation Apache.",
+      "presentationRole": "support",
+      "criticality": "low",
+      "status": "active",
+      "securityFunctions": [
+        "detect"
+      ],
+      "runtime": {
+        "provider": "truenas-app",
+        "containerService": "honeypot"
+      },
+      "monitoring": {
+        "type": "port",
+        "host": "172.17.0.24",
+        "port": 31090
+      }
+    },
+    {
       "id": "influxdb",
       "name": "InfluxDB",
       "kind": "time-series-database",
@@ -4478,6 +4501,16 @@
       "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
       "evidence": [
         "apps/homeassistant/compose.yml:homeassistant.x-nabla.runtime.containerService"
+      ]
+    },
+    {
+      "source": "honeypot",
+      "target": "docker",
+      "type": "hostedBy",
+      "strength": "required",
+      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
+      "evidence": [
+        "apps/honeypot/compose.yml:honeypot.x-nabla.runtime.containerService"
       ]
     },
     {

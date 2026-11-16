@@ -1,0 +1,24 @@
+# Homelab names reachable from the Internet through the pfSense HAProxy (WAN 82.66.4.247),
+# scanned weekly by .github/workflows/external-attack-surface.yml with bounded Nuclei templates.
+# One https URL per line. "@wan" pins a name to the WAN address, as an attacker forging the
+# Host header would: those HAProxy aliases have no public DNS record.
+# Retired names stay listed: an empty scan proves the door is closed.
+
+# Default backend: any unknown Host or the bare address lands on prod_back (Heimdall login).
+https://82.66.4.247
+https://manager.albandrieu.com
+https://truenas.albandrieu.com:7000
+
+# Workstation Apache, retired from HAProxy on 15/11 (tunnel + Access only).
+https://apache.albandrieu.com
+https://account.albandrieu.com
+https://famp-albandrieu.albandrieu.com
+https://famp.albandrieu.com @wan
+https://albandrieu.albandrieu.com @wan
+
+# HAProxy aliases of the workstation Apache, not the real services.
+https://redis.albandrieu.com @wan
+https://nomad.albandrieu.com @wan
+https://consul.albandrieu.com @wan
+https://traefik.albandrieu.com @wan
+https://clamav.albandrieu.com @wan
