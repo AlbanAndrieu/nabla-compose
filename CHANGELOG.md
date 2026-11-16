@@ -1,3 +1,19 @@
+## [0.97.1](https://github.com/AlbanAndrieu/nabla-compose/compare/0.97.0...0.97.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **catalog:** plan the undeployed monitors and drop routes nothing serves ([fe9a2c2](https://github.com/AlbanAndrieu/nabla-compose/commit/fe9a2c24518692d93833126af86464cf1f2c76ad))
+* **netbox:** drop the housekeeping service removed in NetBox 4.7 ([fe117e0](https://github.com/AlbanAndrieu/nabla-compose/commit/fe117e0fd75ca2b14b1355f608a000e0cc471e06))
+* **quality:** restore the executable bit of check-agent-skill-precedence.py ([ee6bb1d](https://github.com/AlbanAndrieu/nabla-compose/commit/ee6bb1df3cd590f94bd1201088c4e04855d9f4e9))
+
+
+### Performance Improvements
+
+* **compose:** rotate the honeypot logs merged in [#401](https://github.com/AlbanAndrieu/nabla-compose/issues/401) ([1210426](https://github.com/AlbanAndrieu/nabla-compose/commit/121042622afa225618f968c59423b9dfb40cd200))
+* **compose:** rotate the json-file logs of every service ([e88b8c6](https://github.com/AlbanAndrieu/nabla-compose/commit/e88b8c610e7fb117ddcfebdbd65c7122416d4d94))
+* **truenas:** rewrite ntopng files once to pick up the 16K recordsize ([1dae62e](https://github.com/AlbanAndrieu/nabla-compose/commit/1dae62ee2e4e4a17a613032b30464062170e74f9))
+
 # [0.97.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.96.0...0.97.0) (2026-11-16)
 
 
