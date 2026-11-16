@@ -16,8 +16,12 @@ version: 1
 # route, except famp-albandrieu (tunnel-workstation.tofu).
 # Fifth round (16/11/2026): Sentry is LAN-only (owner decision), served as
 # sentry.int.albandrieu.com by Traefik; its public route is removed.
+# Sixth round (17/11/2026): traefik, drawio, pihole and autoxpose stay LAN-only
+# (owner decision); immich and nexus keep their public route behind Access.
 retired_hostnames:
   - anythingllm-albandrieu.albandrieu.com
+  - autoxpose.albandrieu.com
+  - drawio.albandrieu.com
   - honeypot-albandrieu.albandrieu.com
   - localai-gpu-albandrieu.albandrieu.com
   - motion-albandrieu.albandrieu.com
@@ -25,9 +29,11 @@ retired_hostnames:
   - nexus-albandrieu.albandrieu.com
   - ntopng-albandrieu.albandrieu.com
   - ollama-gpu-albandrieu.albandrieu.com
+  - pihole.albandrieu.com
   - plumber-albandrieu.albandrieu.com
   - portracker-albandrieu.albandrieu.com
   - sentry.albandrieu.com
+  - traefik.albandrieu.com
   - vaultwarden-albandrieu.albandrieu.com
 
 # Tunnel routes whose CNAME does not exist yet and may be created. Every other

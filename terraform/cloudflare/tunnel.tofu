@@ -134,16 +134,6 @@ locals {
       service        = "http://172.17.0.24:31071"
     },
     {
-      hostname       = "traefik.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:8080"
-    },
-    {
-      hostname       = "drawio.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:9080"
-    },
-    {
       hostname       = "nginx.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:8099"
@@ -157,16 +147,6 @@ locals {
       hostname       = "cadvisor.albandrieu.com"
       origin_request = {}
       service        = "http://172.17.0.24:8089"
-    },
-    {
-      hostname       = "pihole.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:20720"
-    },
-    {
-      hostname       = "autoxpose.albandrieu.com"
-      origin_request = {}
-      service        = "http://172.17.0.24:4949"
     },
     {
       hostname       = "npmplus.albandrieu.com"
