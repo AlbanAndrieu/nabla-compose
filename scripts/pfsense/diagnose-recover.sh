@@ -342,6 +342,23 @@ identity_ssh_preflight() {
   fi
 }
 
+# Reuse a live ControlMaster (opened once with a YubiKey touch): BatchMode cannot ask for a touch, so a
+# fresh connection fails with 255. Never create a master, and never trust a stale socket.
+ssh_control_path() {
+  local -a probe=(-o BatchMode=yes)
+  local path
+  if [[ -n "${SSH_PORT}" ]]; then
+    probe+=(-p "${SSH_PORT}")
+  fi
+  path="$(ssh -G "${probe[@]}" "${SSH_TARGET}" 2>/dev/null | awk '$1 == "controlpath" {print $2; exit}')" || path=""
+  if [[ -n "${path}" && "${path}" != none ]] &&
+    ssh -O check -o ControlPath="${path}" "${probe[@]}" "${SSH_TARGET}" >/dev/null 2>&1; then
+    printf 'ControlPath=%s\n' "${path}"
+  else
+    printf 'ControlPath=none\n'
+  fi
+}
+
 pfsense_php() {
   local -a ssh_opts=(
     -o BatchMode=yes
@@ -349,7 +366,7 @@ pfsense_php() {
     -o ServerAliveInterval=5
     -o ServerAliveCountMax=2
     -o ControlMaster=no
-    -o ControlPath=none
+    -o "$(ssh_control_path)"
   )
   if [[ -n "${SSH_PORT}" ]]; then
     ssh_opts+=(-p "${SSH_PORT}")
@@ -706,7 +723,7 @@ SSH_OPTS=(
   -o ServerAliveInterval=5
   -o ServerAliveCountMax=2
   -o ControlMaster=no
-  -o ControlPath=none
+  -o "$(ssh_control_path)"
 )
 if [[ -n "${SSH_PORT}" ]]; then
   SSH_OPTS+=(-p "${SSH_PORT}")

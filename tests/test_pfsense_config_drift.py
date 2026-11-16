@@ -84,6 +84,7 @@ class PfSenseConfigDriftTests(unittest.TestCase):
             ('"/bin/sh -s -- check auto"', "sync-fallback-be-config.sh"),
             ('"php -- check"', "be-drop-own-country.php"),
             ('"php -- check"', "reconcile-pflow.php"),
+            ('"/bin/sh -s -- check default_20260824183037"', "exclude-be-from-fallback.sh"),
         ):
             with self.subTest(script=script):
                 self.assertIn(f'{remote} "${{here}}/{script}"', text)

@@ -13,24 +13,63 @@ groups:
           summary: TrueNAS node-exporter telemetry is unavailable
           description: "Prometheus cannot scrape TrueNAS host metrics for more than 2 minutes."
 
+      # MemAvailable excludes the ZFS ARC, which the kernel reclaims down to c_min; without ZFS metrics, fall back to MemAvailable.
       - alert: TrueNASHostOutOfMemory
-        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.10
+        expr: |
+          (
+            node_memory_MemAvailable_bytes{job="truenas_node"}
+            + (clamp_min(node_zfs_arc_size{job="truenas_node"} - node_zfs_arc_c_min{job="truenas_node"}, 0)
+               or node_memory_MemAvailable_bytes{job="truenas_node"} * 0)
+          ) / node_memory_MemTotal_bytes{job="truenas_node"} < 0.10
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: TrueNAS host memory is low
-          description: "Less than 10% of host memory has remained available for 5 minutes."
+          description: "Less than 10% of host memory, counting reclaimable ZFS ARC, has remained available for 5 minutes."
 
       - alert: TrueNASHostMemoryCritical
-        expr: node_memory_MemAvailable_bytes{job="truenas_node"} / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
+        expr: |
+          (
+            node_memory_MemAvailable_bytes{job="truenas_node"}
+            + (clamp_min(node_zfs_arc_size{job="truenas_node"} - node_zfs_arc_c_min{job="truenas_node"}, 0)
+               or node_memory_MemAvailable_bytes{job="truenas_node"} * 0)
+          ) / node_memory_MemTotal_bytes{job="truenas_node"} < 0.05
         for: 2m
         labels:
           severity: critical
           scope: platform
         annotations:
           summary: TrueNAS host memory is critically low
-          description: "Less than 5% of host memory has remained available for 2 minutes."
+          description: "Less than 5% of host memory, counting reclaimable ZFS ARC, has remained available for 2 minutes."
+
+      - alert: TrueNASHostOomKill
+        expr: increase(node_vmstat_oom_kill{job="truenas_node"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: The TrueNAS kernel killed a process for lack of memory
+          description: "OOM killer ran in the last 15 minutes: read journalctl -k for the victim before dmesg rotates."
+
+      - alert: TrueNASHostIOPressureHigh
+        expr: rate(node_pressure_io_stalled_seconds_total{job="truenas_node"}[15m]) > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          scope: platform
+        annotations:
+          summary: TrueNAS disks are saturated
+          description: "Every runnable task waited on IO more than 30% of the time for 30 minutes (PSI io full); App starts and probes slow down."
+
+      - alert: TrueNASZpoolNotOnline
+        expr: node_zfs_zpool_state{job="truenas_node",state!="online"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          scope: platform
+        annotations:
+          summary: "TrueNAS pool {{ $labels.zpool }} is {{ $labels.state }}"
+          description: "ZFS pool {{ $labels.zpool }} has been {{ $labels.state }} for 5 minutes: check zpool status and the disks."
 
       - alert: TrueNASFilesystemSpaceLow
         expr: |
@@ -101,3 +140,33 @@ groups:
         annotations:
           summary: "NVMe {{ $labels.device }} on the workstation reports a critical warning or media errors"
           description: "The NVMe holds /home, /workspace, /docker and the ollama models: back up now and check smartctl -a."
+
+  # docker-health.prom and the nvidia metrics come from the workstation textfile collector (ansible-workstation).
+  - name: WorkstationHost
+    rules:
+      - alert: WorkstationSystemdUnitFailed
+        expr: node_systemd_unit_state{job="workstation_node",state="failed"} == 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "systemd unit {{ $labels.name }} failed on the workstation"
+          description: "Check systemctl status {{ $labels.name }} and journalctl -u {{ $labels.name }}."
+
+      - alert: WorkstationContainerUnhealthy
+        expr: workstation_container_healthy{job="workstation_node"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.container }} is unhealthy on the workstation"
+          description: "Its Docker healthcheck has failed for 10 minutes: docker inspect {{ $labels.container }}."
+
+      - alert: WorkstationGpuHot
+        expr: nvidia_gpu_temperature_celsius{job="workstation_node"} > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Workstation GPU is above 85 °C
+          description: "GPU {{ $labels.uuid }} is at {{ $value }} °C (about 42 °C at idle): check its fans and load."

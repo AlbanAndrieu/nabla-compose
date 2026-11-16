@@ -71,11 +71,22 @@ foreach (config_get_path('installedpackages', []) as $sec => $pkg) {
     config_set_path("installedpackages/{$sec}/config/0/countries6", '');
 }
 
-// A failed reload keeps the previous ruleset silently: every pfB table of the generated rules must be loaded.
-preg_match_all('/^table <(pfB_[^>]+)>/m', (string)@file_get_contents('/tmp/rules.debug'), $m);
+// 26.07 also loads bogonsv6 (158k entries): with pfB (151k) a reload needs twice that while both sets coexist.
+// pfSense applies the limit (pfctl -Of rules.limits) before loading the rules, so a reload is enough.
+const NABLA_TABLE_LIMIT = 1000000;
+$limit = (int)config_get_path('system/maximumtableentries', 0);
+printf("%s: maximumtableentries=%s expected>=%d\n", $limit >= NABLA_TABLE_LIMIT ? 'OK' : 'CHANGE', $limit ?: 'default', NABLA_TABLE_LIMIT);
+$reload_only = $limit < NABLA_TABLE_LIMIT;
+if ($reload_only) {
+    config_set_path('system/maximumtableentries', (string)NABLA_TABLE_LIMIT);
+}
+
+// A failed reload keeps the previous ruleset silently: every persist table of the generated rules must be
+// loaded (pf drops a non-persist table that no rule references, e.g. the 26.03 _private4_ alias).
+preg_match_all('/^table <([^>]+)> persist/m', (string)@file_get_contents('/tmp/rules.debug'), $m);
 exec('/sbin/pfctl -sT 2>/dev/null', $loaded);
 $missing = array_diff($m[1], array_map('trim', $loaded));
-printf("%s: pf_tables_not_loaded=%s\n", $missing ? 'WARN' : 'OK', $missing ? implode(',', $missing) : 'none');
+printf("%s: pf_tables_not_loaded=%s\n", $missing ? 'WARN' : 'OK', $missing ? implode(',', array_slice($missing, 0, 8)) . (count($missing) > 8 ? ',...' : '') : 'none');
 
 $cb = config_get_path(NABLA_GENERAL . '/enable_cb', '');
 printf("%s: enable_cb=%s expected=on\n", $cb === 'on' ? 'OK' : 'CHANGE', $cb ?: 'off');
@@ -84,12 +95,18 @@ if ($cb !== 'on') {
     config_set_path(NABLA_GENERAL . '/enable_cb', 'on');
 }
 
-printf("summary: %d change(s), mode=%s\n", $changes, $apply ? 'apply' : 'check');
-if (!$apply || $changes === 0) {
+printf("summary: %d change(s), mode=%s\n", $changes + (int)$reload_only, $apply ? 'apply' : 'check');
+if (!$apply || ($changes === 0 && !$reload_only)) {
     exit(0);
 }
 
-write_config('nabla: pfBlockerNG IPv4 lists only (DNSBL off, no v6 GeoIP, MaxMind_BD_Proxy disabled)');
+write_config('nabla: pfBlockerNG IPv4 lists only (DNSBL off, no v6 GeoIP, MaxMind_BD_Proxy disabled), pf table limit 1M');
+if ($changes === 0) {
+    // Only the table limit changed: a filter reload applies it and retries the failed tables.
+    filter_configure();
+    print("OK: table limit saved; filter reload queued, re-run check to confirm every table loaded\n");
+    exit(0);
+}
 // Same path as a General settings save in the GUI: cron jobs, aliases and rules.
 global $pfb;
 $pfb['save'] = TRUE;

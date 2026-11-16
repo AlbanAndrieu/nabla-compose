@@ -810,9 +810,11 @@ but the same diagnostic run subsequently completed its appliance snapshot. The
 runtime listener evidence also showed sshd on TCP 9922.
 
 Treat a multiplexed-session `Broken pipe` as a potentially stale SSH control
-connection, not immediate proof that sshd or pfSense is down. The helper now
-disables SSH connection multiplexing for diagnostic sessions with
-`ControlMaster=no` and `ControlPath=none`.
+connection, not immediate proof that sshd or pfSense is down. The helper never
+becomes a master (`ControlMaster=no`). Since 2026-11-16 it reuses a master that
+answers `ssh -O check` (opened with the dotfiles alias `sshp`) and otherwise
+falls back to `ControlPath=none`. The other pfSense scripts reuse the same
+socket through the shared ssh config (`ControlPath ~/.ssh/cm-%r@%h:%p`).
 
 The script deliberately does not hard-code TCP 9922: an operator SSH alias may
 already map the target to the correct port. Use `--port 9922` only when the

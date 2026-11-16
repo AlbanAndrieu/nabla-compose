@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:9fb25382454bb4b2bec4fe67144c1f38270a3ddb416238fafe17ca46a6abc9be",
+  "catalogRevision": "sha256:c47a982de0761d4e4be784ac498f728d1daade42b3a2028e44db5a0708450c9e",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -855,6 +855,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "bitcoind",
@@ -965,6 +966,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "medium",
           "albandrieu.com/operational-criticality": "high",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "clamav",
@@ -1007,6 +1009,41 @@
           "provider": "truenas-app",
           "source": "apps/clamav/compose.yml#services/clamav"
         }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/cleanuparr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Removes stalled downloads from the *arr Apps, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "cleanuparr",
+        "tags": [
+          "media"
+        ],
+        "title": "Cleanuparr"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -1898,6 +1935,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "domain-watchdog",
@@ -2262,6 +2300,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "freshrss",
@@ -3734,6 +3773,7 @@
         "description": "Planned Lidarr instance of the media stack (media-manager).",
         "labels": {
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "planned"
         },
         "name": "lidarr",
@@ -4401,6 +4441,41 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/netdata",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Real-time host metrics, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "netdata",
+        "tags": [
+          "observability"
+        ],
+        "title": "Netdata"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/nexus",
       "kind": "Component",
       "metadata": {
@@ -4934,6 +5009,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "open-speed-test",
@@ -5622,6 +5698,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "paperless-ai",
@@ -5676,6 +5753,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "paperless-ngx",
@@ -8222,6 +8300,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
           "albandrieu.com/operational-state": "active"
         },
         "name": "speedtest",
@@ -8254,7 +8333,12 @@
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "speedtest-tracker",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
       }
     },
     {
@@ -8526,6 +8610,76 @@
           "provider": "truenas-app",
           "source": "apps/sybase-exporter/compose.yml#services/sybase-exporter"
         }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/three-proxy",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "3proxy forward proxy, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "three-proxy",
+        "tags": [
+          "network"
+        ],
+        "title": "3proxy"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/tracearr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Media server stream monitoring, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "tracearr",
+        "tags": [
+          "media"
+        ],
+        "title": "Tracearr"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {
@@ -9066,6 +9220,76 @@
           "provider": "truenas-app",
           "source": "apps/wazuh/compose.yml#services/wazuh.manager"
         }
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/wizarr",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Media server invitation manager, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "wizarr",
+        "tags": [
+          "media"
+        ],
+        "title": "Wizarr"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
+      }
+    },
+    {
+      "apiVersion": "backstage.io/v1alpha1",
+      "entityRef": "component:default/zabbix",
+      "kind": "Component",
+      "metadata": {
+        "annotations": {
+          "albandrieu.com/bia-impact-operational": "low",
+          "albandrieu.com/bia-mbco": "manual-restore-can-wait-for-the-operator",
+          "albandrieu.com/bia-mtpd": "P7D",
+          "albandrieu.com/bia-reviewed-at": "2026-11-16",
+          "albandrieu.com/bia-rto": "P3D",
+          "albandrieu.com/bia-status": "provisional"
+        },
+        "description": "Zabbix monitoring server, installed as a TrueNAS catalog App.",
+        "labels": {
+          "albandrieu.com/bia-scope": "direct",
+          "albandrieu.com/business-criticality": "low",
+          "albandrieu.com/operational-criticality": "low",
+          "albandrieu.com/operational-schedule": "night",
+          "albandrieu.com/operational-state": "active"
+        },
+        "name": "zabbix",
+        "tags": [
+          "observability"
+        ],
+        "title": "Zabbix"
+      },
+      "sourcePath": "catalog/catalog-info.yaml",
+      "spec": {
+        "lifecycle": "production",
+        "owner": "group:default/nabla-platform",
+        "system": "system:default/nabla-homelab",
+        "type": "service"
       }
     },
     {

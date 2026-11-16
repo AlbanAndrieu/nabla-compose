@@ -102,6 +102,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/cleanuparr"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/code-server"
     },
     {
@@ -385,6 +389,10 @@
     {
       "dependsOn": [],
       "ref": "component:default/netbox-worker"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/netdata"
     },
     {
       "dependsOn": [],
@@ -810,6 +818,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "component:default/three-proxy"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/tracearr"
+    },
+    {
+      "dependsOn": [],
       "ref": "component:default/traefik"
     },
     {
@@ -855,6 +871,14 @@
     {
       "dependsOn": [],
       "ref": "component:default/wazuh-manager"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/wizarr"
+    },
+    {
+      "dependsOn": [],
+      "ref": "component:default/zabbix"
     },
     {
       "dependsOn": [],
@@ -955,7 +979,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:9fb25382454bb4b2bec4fe67144c1f38270a3ddb416238fafe17ca46a6abc9be"
+        "value": "sha256:c47a982de0761d4e4be784ac498f728d1daade42b3a2028e44db5a0708450c9e"
       },
       {
         "name": "nabla:catalog-authority",
@@ -963,7 +987,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:9fb25382-454b-b4b2-bec4-fe67144c1f38",
+  "serialNumber": "urn:uuid:c47a982d-e076-1d4e-4be7-84ac498f728d",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -1464,6 +1488,33 @@
         {
           "name": "nabla:source-path",
           "value": "apps/clamav/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/cleanuparr",
+      "description": "Removes stalled downloads from the *arr Apps, installed as a TrueNAS catalog App.",
+      "name": "Cleanuparr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/cleanuparr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
         },
         {
           "name": "nabla:backstage:type",
@@ -3073,6 +3124,33 @@
         {
           "name": "nabla:backstage:type",
           "value": "worker"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/netdata",
+      "description": "Real-time host metrics, installed as a TrueNAS catalog App.",
+      "name": "Netdata",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/netdata"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
@@ -5426,6 +5504,60 @@
       ]
     },
     {
+      "bom-ref": "component:default/three-proxy",
+      "description": "3proxy forward proxy, installed as a TrueNAS catalog App.",
+      "name": "3proxy",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/three-proxy"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/tracearr",
+      "description": "Media server stream monitoring, installed as a TrueNAS catalog App.",
+      "name": "Tracearr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/tracearr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
       "bom-ref": "component:default/traefik",
       "description": "Internal reverse proxy for repository-managed homelab services.",
       "name": "Traefik",
@@ -5736,6 +5868,60 @@
         {
           "name": "nabla:backstage:type",
           "value": "security-manager"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/wizarr",
+      "description": "Media server invitation manager, installed as a TrueNAS catalog App.",
+      "name": "Wizarr",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/wizarr"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
+        },
+        {
+          "name": "nabla:backstage:lifecycle",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "bom-ref": "component:default/zabbix",
+      "description": "Zabbix monitoring server, installed as a TrueNAS catalog App.",
+      "name": "Zabbix",
+      "properties": [
+        {
+          "name": "nabla:backstage:kind",
+          "value": "Component"
+        },
+        {
+          "name": "nabla:backstage:entity-ref",
+          "value": "component:default/zabbix"
+        },
+        {
+          "name": "nabla:source-path",
+          "value": "catalog/catalog-info.yaml"
+        },
+        {
+          "name": "nabla:backstage:type",
+          "value": "service"
         },
         {
           "name": "nabla:backstage:lifecycle",
