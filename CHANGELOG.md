@@ -1,3 +1,16 @@
+# [0.96.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.95.0...0.96.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **redis-diag:** expose sanitized FastAPI failure reason and use bounded direct LAN request ([d063970](https://github.com/AlbanAndrieu/nabla-compose/commit/d063970d001e8fcb0ed2f53707b5f52ba98db0df))
+* **redis:** bind published TCP 30059 only to TrueNAS LAN 172.17.0.24 ([9e398c8](https://github.com/AlbanAndrieu/nabla-compose/commit/9e398c8f79544b0c227b708b51854ea8fc6cad37))
+
+
+### Features
+
+* **redis-diag:** check exact published IPv4 LAN bind and detect policy drift ([c784ae7](https://github.com/AlbanAndrieu/nabla-compose/commit/c784ae7fca7548546426bbbc04ac52888cbb5018))
+
 # [0.95.0](https://github.com/AlbanAndrieu/nabla-compose/compare/0.94.0...0.95.0) (2026-11-16)
 
 
