@@ -19,6 +19,7 @@ services:
       id: uptimekuma
       name: Uptime Kuma
       kind: uptime-monitor
+      status: planned
       category: observability
       url: http://172.17.0.24:31050
       description: Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.

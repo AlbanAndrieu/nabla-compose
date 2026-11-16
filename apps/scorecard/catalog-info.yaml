@@ -6,7 +6,7 @@ metadata:
   title: OpenSSF Scorecard
   description: Manual repository security-posture scanner whose results can be regenerated from source repositories.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

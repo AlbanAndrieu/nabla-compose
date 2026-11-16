@@ -29,6 +29,7 @@ services:
       id: cartography
       name: Cartography
       kind: security-asset-graph-ingestor
+      status: planned
       category: security
       presentationRole: support
       criticality: low

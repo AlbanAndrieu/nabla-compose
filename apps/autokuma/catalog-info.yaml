@@ -6,7 +6,7 @@ metadata:
   title: AutoKuma
   description: Declarative monitor reconciler for the homelab Uptime Kuma instance.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

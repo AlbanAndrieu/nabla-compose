@@ -19,6 +19,7 @@ services:
       id: autokuma
       name: AutoKuma
       kind: monitoring-controller
+      status: planned
       category: observability
       description: Declarative monitor reconciler for the existing Uptime Kuma instance.
       runtime:

@@ -1783,7 +1783,7 @@
       "composeService": "uptimekuma",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31050",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma."
     },
     {

@@ -184,6 +184,7 @@
       "category": "observability",
       "sourcePath": "apps/autokuma/compose.yml",
       "description": "Declarative monitor reconciler for the existing Uptime Kuma instance.",
+      "status": "planned",
       "lifecycle": {
         "phase": "platform-services",
         "priority": 40
@@ -319,6 +320,7 @@
       "description": "Scheduled/manual security asset and relationship ingestion into Neo4j for attack-path and blast-radius analysis.",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -2125,6 +2127,7 @@
       "description": "One-shot repository and upstream dependency security-posture scanner. Results are evidence, not a service criticality score.",
       "presentationRole": "support",
       "criticality": "low",
+      "status": "planned",
       "securityFunctions": [
         "identify",
         "detect"
@@ -3219,6 +3222,7 @@
       "sourcePath": "apps/uptimekuma/compose.yml",
       "url": "http://172.17.0.24:31050",
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma.",
+      "status": "planned",
       "lifecycle": {
         "phase": "platform-services",
         "priority": 40
