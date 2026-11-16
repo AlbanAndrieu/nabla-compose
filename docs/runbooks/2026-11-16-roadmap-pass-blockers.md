@@ -77,3 +77,13 @@ Les questions numérotées, avec commande, impact et retour arrière, figurent d
 15. Chemin de niveau 2 entre `br0` et la Freebox (incident du 14/11), côté pfSense et commutateur.
 16. H08 : premier `--apply` de `rollout-pending-apps.sh` (netbox, dependency-track ou joplin).
 17. CSI : passer de `truenas-csi` v1.0.3 à une version sans `auth.login_with_api_key`, testée au redémarrage de Talos.
+
+### Décisions de l'opérateur (16/11 soir)
+
+« Tes suggestions me conviennent, met les en production », « modifie les 151 autres services d'un coup », « Ok pour les planned ». Traduites dans Git :
+- Q3 et Q4 : uptimekuma, autokuma, cartography et scorecard passent en `planned`. Les trois Apps jamais déployées sortent de `custom-apps.yml`, et autokuma y est déclarée `stopped`.
+- Q5 et Q11 : les routes LAN d'OpenClaw (:30325) et de portracker (:4999) sont retirées ; anythingllm et stirling `-albandrieu` passent en `disabled`.
+- Q12 : `rewrite-ntopng-records.sh` réécrit une fois les fichiers de ntopng. Q13 : point 2 du plan abandonné.
+- Plan perf. 8 : rotation des journaux sur les 151 services restants.
+- `just` est déjà installé sur TrueNAS (1.58.0, `bootstrap-dev-tools.sh`). Il est dans le PATH des shells interactifs (`ssht`), pas dans celui des commandes SSH non interactives (`bash -ic`), ni sous `sudo`.
+- Q17 (CSI) reste ouvert : les notes de v1.3.0 et v1.4.0 ne disent pas si `auth.login_ex` remplace `auth.login_with_api_key`. Q14 attend le prochain démarrage de Talos. Q15 est transmise à la session pfSense.
