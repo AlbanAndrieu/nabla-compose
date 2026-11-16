@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:11b719c23e17583bd145157bac854119c4ea990248b655185978b714c40b34fa",
+  "catalogRevision": "sha256:c9b9b6b0d162dfdb03105884108f6bf9e1fa4ea9037b35a95a0282e2e5460214",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -4609,7 +4609,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "high",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "netbox",
         "tags": [
@@ -4655,45 +4655,13 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/netbox-housekeeping",
-      "kind": "Component",
-      "metadata": {
-        "labels": {
-          "albandrieu.com/bia-scope": "inherited",
-          "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
-        },
-        "name": "netbox-housekeeping",
-        "tags": [
-          "infrastructure"
-        ],
-        "title": "NetBox Housekeeping"
-      },
-      "sourcePath": "apps/netbox/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "subcomponentOf": "component:default/netbox",
-        "system": "system:default/nabla-homelab",
-        "type": "worker"
-      },
-      "x-nabla": {
-        "runtime": {
-          "containerService": "netbox-housekeeping",
-          "provider": "truenas-app",
-          "source": "apps/netbox/compose.yml#services/netbox-housekeeping"
-        }
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/netbox-worker",
       "kind": "Component",
       "metadata": {
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "netbox-worker",
         "tags": [

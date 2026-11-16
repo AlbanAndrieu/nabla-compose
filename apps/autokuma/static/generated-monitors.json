@@ -357,6 +357,17 @@
     "url": "http://172.17.0.24:30109/healthz"
   },
   {
+    "id": "netbox",
+    "type": "port",
+    "name": "NetBox",
+    "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces.",
+    "interval": 60,
+    "max_retries": 3,
+    "retry_interval": 60,
+    "hostname": "172.17.0.24",
+    "port": 31082
+  },
+  {
     "id": "nexus",
     "type": "port",
     "name": "Nexus Repository",

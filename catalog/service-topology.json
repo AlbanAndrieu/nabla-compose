@@ -1696,7 +1696,7 @@
       "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify"
       ],
@@ -1714,23 +1714,6 @@
       }
     },
     {
-      "id": "netbox-housekeeping",
-      "name": "NetBox Housekeeping",
-      "kind": "maintenance-worker",
-      "category": "infrastructure",
-      "sourcePath": "apps/netbox/compose.yml",
-      "presentationRole": "support",
-      "criticality": "low",
-      "status": "planned",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "netbox-housekeeping",
-        "networks": [
-          "intranet"
-        ]
-      }
-    },
-    {
       "id": "netbox-worker",
       "name": "NetBox Worker",
       "kind": "background-worker",
@@ -1738,7 +1721,7 @@
       "sourcePath": "apps/netbox/compose.yml",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "netbox-worker",
@@ -5155,25 +5138,6 @@
       "strength": "required",
       "evidence": [
         "apps/netbox/compose.yml:REDIS_HOST"
-      ]
-    },
-    {
-      "source": "netbox-housekeeping",
-      "target": "docker",
-      "type": "hostedBy",
-      "strength": "required",
-      "description": "Compose workload is hosted by the Docker runtime on TrueNAS.",
-      "evidence": [
-        "apps/netbox/compose.yml:netbox-housekeeping.x-nabla.runtime.containerService"
-      ]
-    },
-    {
-      "source": "netbox-housekeeping",
-      "target": "netbox",
-      "type": "partOf",
-      "strength": "required",
-      "evidence": [
-        "apps/netbox/compose.yml:netbox-housekeeping"
       ]
     },
     {

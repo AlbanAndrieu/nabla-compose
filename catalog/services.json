@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:b326ad94e33f80276d65973a8f99ba210d9d36d6dc234dc8686641f1b1bd3f16",
+  "catalogRevision": "sha256:1c1abbaaf29d8086aa6f886fbd6b67eac13ab45ad65f79c7e7eb2cf340a2eb8d",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -1610,7 +1610,7 @@
       "description": "Network and infrastructure source of truth for IPAM, prefixes, VLANs, devices, VMs and interfaces; x-nabla remains authoritative for application/service identity.",
       "presentationRole": "service",
       "criticality": "medium",
-      "status": "planned",
+      "status": "active",
       "securityFunctions": [
         "identify"
       ],
@@ -1628,24 +1628,6 @@
       }
     },
     {
-      "id": "netbox-housekeeping",
-      "name": "NetBox Housekeeping",
-      "kind": "maintenance-worker",
-      "category": "infrastructure",
-      "sourcePath": "apps/netbox/compose.yml",
-      "composeService": "netbox-housekeeping",
-      "presentationRole": "support",
-      "criticality": "low",
-      "status": "planned",
-      "runtime": {
-        "provider": "truenas-app",
-        "containerService": "netbox-housekeeping",
-        "networks": [
-          "intranet"
-        ]
-      }
-    },
-    {
       "id": "netbox-worker",
       "name": "NetBox Worker",
       "kind": "background-worker",
@@ -1654,7 +1636,7 @@
       "composeService": "netbox-worker",
       "presentationRole": "support",
       "criticality": "low",
-      "status": "planned",
+      "status": "active",
       "runtime": {
         "provider": "truenas-app",
         "containerService": "netbox-worker",

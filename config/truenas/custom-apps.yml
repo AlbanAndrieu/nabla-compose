@@ -151,6 +151,10 @@ apps:
     include:
       - apps/mongo/compose.yml
     state: running
+  - name: netbox
+    include:
+      - apps/netbox/compose.yml
+    state: running
   - name: nexus
     include:
       - apps/nexus/compose.yml

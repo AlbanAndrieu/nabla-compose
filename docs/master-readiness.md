@@ -5,7 +5,7 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 61 ; planifiées : 27.
+Apps : 91 ; actives : 62 ; planifiées : 26.
 
 ## Écarts par type
 
@@ -13,9 +13,9 @@ Apps : 91 ; actives : 61 ; planifiées : 27.
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
 | `NO_AVAILABILITY_PROBE` | 26 |
-| `NO_DEPLOY_PATH` | 19 |
+| `NO_DEPLOY_PATH` | 18 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -69,7 +69,7 @@ Apps : 91 ; actives : 61 ; planifiées : 27.
 | `mongo` | active | custom-apps.yml | `cpool/mongo` (databases) | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `n8n` | active | native App | — | n/a | ❌ | n8n | ✅ n8n | générique | — | `NO_AVAILABILITY_PROBE` |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
-| `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `netbox` | active | custom-apps.yml | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | ✅ |
 | `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | manifest | ✅ | — | — | générique | terraform/nexus | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |

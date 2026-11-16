@@ -404,10 +404,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "component:default/netbox-housekeeping"
-    },
-    {
-      "dependsOn": [],
       "ref": "component:default/netbox-worker"
     },
     {
@@ -1003,7 +999,7 @@
     "properties": [
       {
         "name": "nabla:catalog-revision",
-        "value": "sha256:11b719c23e17583bd145157bac854119c4ea990248b655185978b714c40b34fa"
+        "value": "sha256:c9b9b6b0d162dfdb03105884108f6bf9e1fa4ea9037b35a95a0282e2e5460214"
       },
       {
         "name": "nabla:catalog-authority",
@@ -1011,7 +1007,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:11b719c2-3e17-583b-d145-157bac854119",
+  "serialNumber": "urn:uuid:c9b9b6b0-d162-dfdb-0310-5884108f6bf9",
   "services": [
     {
       "bom-ref": "component:default/2fauth",
@@ -3231,32 +3227,6 @@
         {
           "name": "nabla:backstage:type",
           "value": "service"
-        },
-        {
-          "name": "nabla:backstage:lifecycle",
-          "value": "production"
-        }
-      ]
-    },
-    {
-      "bom-ref": "component:default/netbox-housekeeping",
-      "name": "NetBox Housekeeping",
-      "properties": [
-        {
-          "name": "nabla:backstage:kind",
-          "value": "Component"
-        },
-        {
-          "name": "nabla:backstage:entity-ref",
-          "value": "component:default/netbox-housekeeping"
-        },
-        {
-          "name": "nabla:source-path",
-          "value": "apps/netbox/catalog-info.yaml"
-        },
-        {
-          "name": "nabla:backstage:type",
-          "value": "worker"
         },
         {
           "name": "nabla:backstage:lifecycle",
