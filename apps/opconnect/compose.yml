@@ -1,6 +1,14 @@
 ---
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   op-connect-api:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/op-connect-api
     image: 1password/connect-api:latest
@@ -33,6 +41,7 @@ services:
       # - op_data:/home/opuser/.op/data
 
   op-connect-sync:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/op-connect-sync
     image: 1password/connect-sync:latest

@@ -1,8 +1,16 @@
 ---
 name: dsomm
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   dsomm:
+    logging: *nabla-logging
     image: ${DSOMM_IMAGE:-wurstbrot/dsomm:4.4.1}
     container_name: dsomm
     restart: unless-stopped
@@ -71,6 +79,7 @@ services:
           backendPort: web
 
   dsomm-baseline:
+    logging: *nabla-logging
     build:
       context: ./baseline
       args:

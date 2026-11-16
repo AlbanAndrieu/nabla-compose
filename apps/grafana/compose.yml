@@ -4,8 +4,16 @@ x-nabla:
     probePolicy:
       rank: 9
       primaryEndpoint: component:default/grafana
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   grafana:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/grafana
     image: grafana/grafana:13.1.3
@@ -125,6 +133,7 @@ services:
         max-file: "3"
 
   mimir:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/mimir
     image: grafana/mimir:3.2.0
@@ -152,6 +161,7 @@ services:
       - /mnt/cpool/mimir:/data
 
   tempo:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/tempo
     image: grafana/tempo:2.10.7
@@ -179,6 +189,7 @@ services:
       - /mnt/cpool/tempo:/var/tempo
 
   alloy:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/alloy
     image: grafana/alloy:v1.18.0

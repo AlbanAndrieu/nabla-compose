@@ -10,8 +10,16 @@ x-nabla:
       category: ai
       description: Logical Langfuse v4 observability platform composed of web and worker workloads.
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   langfuse-worker:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/langfuse-worker
     image: ghcr.io/langfuse/langfuse-worker:4.30.0
@@ -119,6 +127,7 @@ services:
       - intranet
 
   langfuse-web:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/langfuse-web
     image: ghcr.io/langfuse/langfuse:4.30.0

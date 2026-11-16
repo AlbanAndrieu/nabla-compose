@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:142e1f438f9cf7387eeba46b88369644313fc300214da0c7d99535f173261885",
+  "catalogRevision": "sha256:c9b9b6b0d162dfdb03105884108f6bf9e1fa4ea9037b35a95a0282e2e5460214",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",
@@ -413,12 +413,6 @@
       "entityRef": "component:default/netbox",
       "evidence": "apps/netbox/compose.yml:services.netbox.labels.com.albandrieu.nabla.entity-ref",
       "sourceId": "apps/netbox/compose.yml#services/netbox",
-      "sourceType": "compose"
-    },
-    {
-      "entityRef": "component:default/netbox-housekeeping",
-      "evidence": "apps/netbox/compose.yml:services.netbox-housekeeping.labels.com.albandrieu.nabla.entity-ref",
-      "sourceId": "apps/netbox/compose.yml#services/netbox-housekeeping",
       "sourceType": "compose"
     },
     {

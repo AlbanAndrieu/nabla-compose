@@ -1,7 +1,15 @@
 ---
 name: homeassistant
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   homeassistant:
+    logging: *nabla-logging
     container_name: homeassistant
     # Same release and digest as the native TrueNAS App "home-assistant" it
     # replaces: the cutover changes the runtime owner, not the version. Upgrade

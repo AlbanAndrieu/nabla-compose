@@ -5,17 +5,17 @@
 > [`scripts/truenas/app-ops.sh`](../scripts/truenas/app-ops.sh) ; procédure :
 > [runbook](runbooks/production-app-operations.md).
 
-Apps : 91 ; actives : 65 ; planifiées : 23.
+Apps : 91 ; actives : 62 ; planifiées : 26.
 
 ## Écarts par type
 
 | Écart | Apps |
 | --- | --- |
 | `DB_NOT_IN_LOGICAL_BACKUP` | 1 |
-| `NO_AVAILABILITY_PROBE` | 30 |
-| `NO_DEPLOY_PATH` | 16 |
+| `NO_AVAILABILITY_PROBE` | 26 |
+| `NO_DEPLOY_PATH` | 18 |
 | `SECRETS_LEGACY_PATH` | 9 |
-| `SERVICE_WITHOUT_HEALTHCHECK` | 47 |
+| `SERVICE_WITHOUT_HEALTHCHECK` | 46 |
 | `SNAPSHOT_UNCLASSIFIED` | 1 |
 
 ## Matrice
@@ -25,12 +25,12 @@ Apps : 91 ; actives : 65 ; planifiées : 23.
 | `2fauth` | active | ❌ | — | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE`, `NO_DEPLOY_PATH` |
 | `akvorado` | active | custom-apps.yml | `cpool/akvorado` (none (noSnapshot)) | legacy | ✅ | — | — | diagnose-akvorado-config.sh<br>diagnose-akvorado-flow.py | apps/akvorado/config/ | `SECRETS_LEGACY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `apisix` | planned | ❌ | — | n/a | — | — | — | générique | apps/apisix/config/ | `NO_DEPLOY_PATH` |
-| `autokuma` | active | custom-apps.yml | `cpool/autokuma` (app-state) | manifest | ❌ | — | — | générique | bootstrap-autokuma-token.sh<br>render-autokuma-monitors.py | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `autokuma` | planned | custom-apps.yml | `cpool/autokuma` (app-state) | manifest | — | — | — | générique | bootstrap-autokuma-token.sh<br>render-autokuma-monitors.py | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `autoxpose` | active | custom-apps.yml | `cpool/autoxpose` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `bazarr` | planned | deploy-media-stack.sh | `cpool/bazarr` (app-state)<br>`cpool/media` (none (noSnapshot)) | manifest | ✅ | bazarr-exporter | — | générique | — | ✅ |
 | `bichon` | active | custom-apps.yml | `cpool/bichon` (app-state) | manifest | ✅ | — | — | générique | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `bitcoind` | active | custom-apps.yml | `cpool/bitcoind` (resync-shortcut) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
-| `cartography` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `cartography` | planned | ❌ | — | manifest | — | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `clamav` | active | custom-apps.yml | `cpool/clamav` (❌)<br>`cpool/logs` (none (noSnapshot)) | n/a | ✅ | — | — | générique | — | `SNAPSHOT_UNCLASSIFIED`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `clickhouse` | active | custom-apps.yml | `cpool/clickhouse` (databases)<br>`cpool/logs` (none (noSnapshot)) | manifest | ❌ | clickhouse | — | diagnose-sentry-runtime-clickhouse-credential.sh | apps/clickhouse/config/<br>reconcile-sentry-runtime-clickhouse-credential.sh | `NO_AVAILABILITY_PROBE` |
 | `code` | active | custom-apps.yml | `cpool/code` (app-state) | manifest | ✅ | — | — | générique | — | ✅ |
@@ -69,7 +69,7 @@ Apps : 91 ; actives : 65 ; planifiées : 23.
 | `mongo` | active | custom-apps.yml | `cpool/mongo` (databases) | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `n8n` | active | native App | — | n/a | ❌ | n8n | ✅ n8n | générique | — | `NO_AVAILABILITY_PROBE` |
 | `neo4j` | planned | ❌ | `cpool/neo4j` (databases) | manifest | ✅ | — | — | générique | — | `NO_DEPLOY_PATH` |
-| `netbox` | planned | ❌ | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
+| `netbox` | active | custom-apps.yml | `cpool/netbox` (app-state) | manifest | ✅ | netbox | ✅ netbox | générique | — | ✅ |
 | `nexus` | active | custom-apps.yml | `cpool/nexus3` (recreatable) | manifest | ✅ | — | — | générique | terraform/nexus | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx` | active | custom-apps.yml | `cpool/nginx` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `nginx-proxy-manager` | disabled | ❌ | `cpool/npm` (app-state) | n/a | ✅ | — | — | diagnose-nginx-proxy-manager.sh | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -98,7 +98,7 @@ Apps : 91 ; actives : 65 ; planifiées : 23.
 | `redis` | active | custom-apps.yml | `cpool/redis` (none (noSnapshot)) | n/a | ❌ | redis_exporter | — | diagnose-redis.py | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `sample` | active | custom-apps.yml | `cpool/secrets` (critical) | legacy | ✅ | — | ✅ fastapisample | diagnose-fastapi-sample.sh | — | `SECRETS_LEGACY_PATH` |
 | `scanopy` | active | custom-apps.yml | `cpool/scanopy` (app-state) | manifest | ✅ | — | ✅ scanopy | générique | bootstrap-scanopy-postgres.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
-| `scorecard` | active | custom-apps.yml | — | manifest | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `scorecard` | planned | ❌ | — | manifest | — | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `scrutiny` | active | custom-apps.yml | `cpool/scrutiny` (app-state) | manifest | ✅ | — | — | diagnose-scrutiny.sh | bootstrap-scrutiny-influxdb.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
 | `seerr` | planned | deploy-media-stack.sh | `cpool/seerr` (app-state) | n/a | ✅ | — | — | générique | — | ✅ |
 | `sentry` | active | custom-apps.yml | `cpool/sentry` (app-state) | manifest | ✅ | — | ✅ sentry | diagnose-sentry-consumers.sh<br>diagnose-sentry-migrator-credential.sh<br>diagnose-sentry-runtime-clickhouse-credential.sh<br>diagnose-sentry-taskbroker.sh<br>diagnose-sentry.sh | apps/sentry/config/<br>reconcile-sentry-migrator-credential.sh<br>reconcile-sentry-runtime-clickhouse-credential.sh<br>reconcile-sentry-system-secret.sh | `SERVICE_WITHOUT_HEALTHCHECK` |
@@ -109,7 +109,7 @@ Apps : 91 ; actives : 65 ; planifiées : 23.
 | `suricata` | active | custom-apps.yml | `cpool/suricata` (none (noSnapshot)) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
 | `sybase-exporter` | planned | ❌ | — | n/a | — | sybase-exporter | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `traefik` | active | custom-apps.yml | `cpool/traefik` (app-state) | legacy | ❌ | traefik | — | générique | — | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
-| `uptimekuma` | active | custom-apps.yml | `cpool/uptimekuma` (app-state) | n/a | ❌ | — | — | générique | — | `NO_AVAILABILITY_PROBE` |
+| `uptimekuma` | planned | ❌ | `cpool/uptimekuma` (app-state) | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH` |
 | `vaultwarden` | active | custom-apps.yml | `cpool/vaultwarden` (critical) | n/a | ❌ | — | — | diagnose-vaultwarden-cli.sh | — | `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `watchtower` | planned | ❌ | — | n/a | — | — | — | générique | — | `NO_DEPLOY_PATH`, `SERVICE_WITHOUT_HEALTHCHECK` |
 | `wazuh` | active | custom-apps.yml | `cpool/secrets` (critical)<br>`cpool/wazuh` (databases) | legacy | ❌ | — | — | diagnose-wazuh.sh | apps/wazuh/config/<br>bootstrap-wazuh.sh | `SECRETS_LEGACY_PATH`, `NO_AVAILABILITY_PROBE`, `SERVICE_WITHOUT_HEALTHCHECK` |

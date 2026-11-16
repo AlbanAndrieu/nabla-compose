@@ -1,8 +1,16 @@
 ---
 name: cartography
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   cartography:
+    logging: *nabla-logging
     image: ${CARTOGRAPHY_IMAGE:-ghcr.io/cartography-cncf/cartography:latest}
     container_name: cartography
     init: true
@@ -21,6 +29,7 @@ services:
       id: cartography
       name: Cartography
       kind: security-asset-graph-ingestor
+      status: planned
       category: security
       presentationRole: support
       criticality: low

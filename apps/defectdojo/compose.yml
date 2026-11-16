@@ -17,8 +17,16 @@ x-defectdojo-django: &defectdojo-django
   networks:
     - intranet
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   defectdojo-initializer:
+    logging: *nabla-logging
     <<: *defectdojo-django
     container_name: defectdojo-initializer
     restart: "no"
@@ -52,6 +60,7 @@ services:
             - apps/defectdojo/compose.yml:DD_DATABASE_URL
 
   defectdojo-uwsgi:
+    logging: *nabla-logging
     <<: *defectdojo-django
     container_name: defectdojo-uwsgi
     depends_on:
@@ -95,6 +104,7 @@ services:
             - apps/defectdojo/compose.yml:DD_CELERY_BROKER_URL
 
   defectdojo-celerybeat:
+    logging: *nabla-logging
     <<: *defectdojo-django
     container_name: defectdojo-celerybeat
     depends_on:
@@ -127,6 +137,7 @@ services:
             - apps/defectdojo/compose.yml:defectdojo-celerybeat
 
   defectdojo-celeryworker:
+    logging: *nabla-logging
     <<: *defectdojo-django
     container_name: defectdojo-celeryworker
     depends_on:
@@ -161,6 +172,7 @@ services:
             - apps/defectdojo/compose.yml:defectdojo-celeryworker
 
   defectdojo:
+    logging: *nabla-logging
     image: ${DEFECTDOJO_NGINX_IMAGE:-defectdojo/defectdojo-nginx@sha256:dfc78638ba09530ebf85bbf6a89465496f4e71510104a4acf8ee8cd29d6f1ac8}
     container_name: defectdojo
     restart: unless-stopped

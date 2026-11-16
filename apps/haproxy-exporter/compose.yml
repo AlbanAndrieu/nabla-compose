@@ -1,6 +1,14 @@
 ---
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   haproxy-exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/haproxy-exporter
     image: quay.io/prometheus/haproxy-exporter:v0.15.0

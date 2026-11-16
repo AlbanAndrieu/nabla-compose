@@ -1,7 +1,15 @@
 ---
 name: squid
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   squid:
+    logging: *nabla-logging
     image: sameersbn/squid:3.5.27-2
     x-nabla:
       id: squid

@@ -1,7 +1,15 @@
 ---
 name: openhands
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   openhands:
+    logging: *nabla-logging
     image: docker.openhands.dev/openhands/openhands:1.8
     pull_policy: missing
     container_name: openhands-app

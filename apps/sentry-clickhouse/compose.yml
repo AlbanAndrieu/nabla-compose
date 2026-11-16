@@ -4,8 +4,16 @@ configs:
   sentry_clickhouse_config:
     file: ./config.xml
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   sentry-clickhouse:
+    logging: *nabla-logging
     image: altinity/clickhouse-server:25.3.6.10034.altinitystable
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/sentry-clickhouse

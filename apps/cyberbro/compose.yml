@@ -1,7 +1,15 @@
 ---
 name: cyberbro
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   cyberbro:
+    logging: *nabla-logging
     image: ghcr.io/stanfrbd/cyberbro:v0.14.2
     container_name: cyberbro
     restart: unless-stopped
@@ -67,6 +75,7 @@ services:
       - intranet
 
   mcp-cyberbro:
+    logging: *nabla-logging
     image: ghcr.io/stanfrbd/mcp-cyberbro:v0.0.5
     container_name: mcp-cyberbro
     restart: unless-stopped

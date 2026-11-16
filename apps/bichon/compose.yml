@@ -1,7 +1,15 @@
 ---
 name: bichon
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   bichon:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/bichon
     image: rustmailer/bichon:2.0.3

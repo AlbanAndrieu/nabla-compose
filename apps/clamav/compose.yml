@@ -1,7 +1,15 @@
 ---
 name: clamav
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   clamav:
+    logging: *nabla-logging
     image: clamav/clamav:1.5.4@sha256:45fe5149fbee5a46509c9848ef20d0c354b7b2323c9369f285939a37cf33422a
     # No container_name: the TrueNAS cron jobs (ansible-workstation truenas-stabilize.yml) exec into ix-clamav-clamav-1.
     x-nabla:

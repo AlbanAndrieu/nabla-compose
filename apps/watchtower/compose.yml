@@ -6,8 +6,16 @@ x-nabla:
     criticality: high
     stateful: false
     upgradePolicy: excluded
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   watchtower:
+    logging: *nabla-logging
     # Maintained upstream fork; archived containrrr/watchtower must not be used.
     # Manual dry-run only until TrueNAS/Docker API and socket gates pass.
     image: nickfedor/watchtower:1.23.1

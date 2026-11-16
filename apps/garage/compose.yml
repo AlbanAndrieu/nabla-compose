@@ -39,8 +39,16 @@ configs:
   garage_config:
     file: ./garage.toml
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   garage:
+    logging: *nabla-logging
     container_name: garage
     image: dxflrs/garage:v2.3.0
     restart: unless-stopped
@@ -133,6 +141,7 @@ services:
       - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
 
   webui:
+    logging: *nabla-logging
     container_name: garage-webui
     image: khairul169/garage-webui:1.1.0
     restart: unless-stopped

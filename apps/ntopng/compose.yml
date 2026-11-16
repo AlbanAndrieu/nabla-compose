@@ -3,8 +3,16 @@ secrets:
   ntopng_runtime_env:
     file: /mnt/cpool/secrets/runtime/ntopng/.env.secrets
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   ntopng:
+    logging: *nabla-logging
     # Upstream only publishes a rolling `latest` (apt-stable, rebuilt daily): pinned by digest for Renovate.
     image: ntop/ntopng:latest@sha256:72433036b248b7aaf5c8b59380dc6162aa292b7bd791f94843cd80a50c8b43d6
     container_name: ntopng

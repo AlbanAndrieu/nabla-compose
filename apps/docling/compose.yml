@@ -10,8 +10,16 @@ x-nabla:
       evidence:
         - apps/openrag/compose.yml:DOCLING_SERVE_URL
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   docling:
+    logging: *nabla-logging
     image: quay.io/docling-project/docling-serve-cpu:${DOCLING_VERSION:-v1.32.0}
     container_name: docling
     restart: unless-stopped

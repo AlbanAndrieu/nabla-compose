@@ -6,7 +6,7 @@ metadata:
   title: Cartography
   description: Scheduled or manual security asset and relationship ingestion into Neo4j.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

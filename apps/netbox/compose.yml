@@ -1,7 +1,15 @@
 ---
 name: netbox
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   netbox:
+    logging: *nabla-logging
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox
     restart: unless-stopped
@@ -51,7 +59,7 @@ services:
       category: infrastructure
       presentationRole: service
       criticality: medium
-      status: planned
+      status: active
       securityFunctions:
         - identify
       url: http://172.17.0.24:31082
@@ -88,6 +96,7 @@ services:
           backendPort: web
 
   netbox-worker:
+    logging: *nabla-logging
     image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
     container_name: netbox-worker
     restart: unless-stopped
@@ -120,7 +129,7 @@ services:
       category: infrastructure
       presentationRole: support
       criticality: low
-      status: planned
+      status: active
       runtime:
         provider: truenas-app
         containerService: netbox-worker
@@ -130,42 +139,6 @@ services:
           strength: required
           evidence:
             - apps/netbox/compose.yml:netbox-worker
-
-  netbox-housekeeping:
-    image: ${NETBOX_IMAGE:-docker.io/netboxcommunity/netbox:v4.7-5.1.1}
-    container_name: netbox-housekeeping
-    restart: unless-stopped
-    user: "netbox:root"
-    env_file:
-      - /mnt/cpool/secrets/runtime/netbox/.env.secrets
-    environment: *netbox-env
-    command:
-      - /opt/netbox/housekeeping.sh
-    volumes:
-      - /mnt/cpool/netbox/media:/opt/netbox/netbox/media
-      - /mnt/cpool/netbox/reports:/opt/netbox/netbox/reports
-      - /mnt/cpool/netbox/scripts:/opt/netbox/netbox/scripts
-    networks:
-      - intranet
-    labels:
-      com.albandrieu.nabla.entity-ref: component:default/netbox-housekeeping
-    x-nabla:
-      id: netbox-housekeeping
-      name: NetBox Housekeeping
-      kind: maintenance-worker
-      category: infrastructure
-      presentationRole: support
-      criticality: low
-      status: planned
-      runtime:
-        provider: truenas-app
-        containerService: netbox-housekeeping
-      relations:
-        - target: netbox
-          type: partOf
-          strength: required
-          evidence:
-            - apps/netbox/compose.yml:netbox-housekeeping
 
 networks:
   intranet:

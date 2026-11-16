@@ -16,7 +16,8 @@ apps:
   - name: autokuma
     include:
       - apps/autokuma/compose.yml
-    state: running
+    state: stopped
+    note: planned with Uptime Kuma (operator decision 16/11); nothing to reconcile until it is deployed
   - name: autoxpose
     include:
       - apps/autoxpose/compose.yml
@@ -30,10 +31,6 @@ apps:
       - apps/bitcoind/compose.yml
     state: stopped
     note: Custom App (seen 16/11, was a catalog App); night window only (catalog label albandrieu.com/operational-schedule=night)
-  - name: cartography
-    include:
-      - apps/cartography/compose.yml
-    state: running
   - name: clamav
     include:
       - apps/clamav/compose.yml
@@ -154,6 +151,10 @@ apps:
     include:
       - apps/mongo/compose.yml
     state: running
+  - name: netbox
+    include:
+      - apps/netbox/compose.yml
+    state: running
   - name: nexus
     include:
       - apps/nexus/compose.yml
@@ -223,10 +224,6 @@ apps:
     include:
       - apps/scanopy/compose.yml
     state: running
-  - name: scorecard
-    include:
-      - apps/scorecard/compose.yml
-    state: running
   - name: scrutiny
     include:
       - apps/scrutiny/compose.yml
@@ -250,10 +247,6 @@ apps:
   - name: traefik
     include:
       - apps/traefik/compose.yml
-    state: running
-  - name: uptimekuma
-    include:
-      - apps/uptimekuma/compose.yml
     state: running
   - name: vaultwarden
     include:

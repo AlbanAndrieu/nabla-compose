@@ -1,7 +1,15 @@
 ---
 name: dockhand
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   dockhand:
+    logging: *nabla-logging
     image: fnsys/dockhand:v1.0.57
     container_name: dockhand
     x-nabla:

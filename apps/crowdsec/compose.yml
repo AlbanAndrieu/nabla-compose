@@ -16,8 +16,16 @@ x-nabla:
         conditions:
           - "[STATUS] == 200"
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   crowdsec:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/crowdsec
     image: crowdsecurity/crowdsec:v1.8.1

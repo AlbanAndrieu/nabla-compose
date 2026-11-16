@@ -1,6 +1,14 @@
 ---
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   opensearch:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: resource:default/opensearch
     image: docker.io/langflowai/openrag-opensearch:${OPENRAG_VERSION:-latest}
@@ -65,6 +73,7 @@ services:
           - opensearch
 
   opensearch-security:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/opensearch-security
     image: docker.io/opensearchproject/opensearch:2.19.5
@@ -107,6 +116,7 @@ services:
       start_period: 60s
 
   dashboards:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/opensearch-dashboards
     image: docker.io/opensearchproject/opensearch-dashboards:3.6.0

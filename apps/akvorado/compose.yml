@@ -7,8 +7,16 @@ x-akvorado-service: &akvorado-service
   volumes:
     - ./config:/etc/akvorado:ro
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   akvorado-orchestrator:
+    logging: *nabla-logging
     <<: *akvorado-service
     labels:
       com.albandrieu.nabla.entity-ref: component:default/akvorado-orchestrator
@@ -43,6 +51,7 @@ services:
       - /mnt/cpool/akvorado/.env.secrets
     command: ["orchestrator", "/etc/akvorado/akvorado.yaml"]
   akvorado-inlet:
+    logging: *nabla-logging
     <<: *akvorado-service
     labels:
       com.albandrieu.nabla.entity-ref: component:default/akvorado-inlet
@@ -80,6 +89,7 @@ services:
       akvorado-orchestrator:
         condition: service_healthy
   akvorado-outlet:
+    logging: *nabla-logging
     <<: *akvorado-service
     labels:
       com.albandrieu.nabla.entity-ref: component:default/akvorado-outlet
@@ -128,6 +138,7 @@ services:
       AKVORADO_CFG_OUTLET_METADATA_CACHEPERSISTFILE: /run/akvorado/metadata.cache
       AKVORADO_CFG_OUTLET_FLOW_STATEPERSISTFILE: /run/akvorado/flow.state
   akvorado-console:
+    logging: *nabla-logging
     <<: *akvorado-service
     labels:
       com.albandrieu.nabla.entity-ref: component:default/akvorado-console

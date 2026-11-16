@@ -840,17 +840,6 @@
       "description": "Network and infrastructure source of truth for IPAM, VLANs, devices, VMs and interfaces."
     },
     {
-      "id": "netbox-housekeeping",
-      "entityRef": "component:default/netbox-housekeeping",
-      "name": "NetBox Housekeeping",
-      "group": "infrastructure",
-      "sourcePath": "apps/netbox/compose.yml",
-      "composeService": "netbox-housekeeping",
-      "dockerManaged": true,
-      "href": null,
-      "syncEligible": false
-    },
-    {
       "id": "netbox-worker",
       "entityRef": "component:default/netbox-worker",
       "name": "NetBox Worker",
@@ -1783,7 +1772,7 @@
       "composeService": "uptimekuma",
       "dockerManaged": true,
       "href": "http://172.17.0.24:31050",
-      "syncEligible": true,
+      "syncEligible": false,
       "description": "Repository-owned Uptime Kuma monitoring engine and UI, reconciled by AutoKuma."
     },
     {

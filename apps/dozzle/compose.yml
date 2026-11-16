@@ -8,8 +8,16 @@ configs:
           name: "Admin"
           password: "${DOZZLE_ADMIN_PASSWORD_BCRYPTED}"
 
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   dozzle:
+    logging: *nabla-logging
     container_name: dozzle
     image: amir20/dozzle:v10.6.3 # amir20/dozzle:latest
     x-nabla:

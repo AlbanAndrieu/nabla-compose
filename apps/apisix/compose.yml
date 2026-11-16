@@ -1,8 +1,16 @@
 ---
 name: apisix
 # Explicit local/TrueNAS opt-in only: no Traefik labels or host port mappings.
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   apisix:
+    logging: *nabla-logging
     image: ${APISIX_IMAGE:-apache/apisix:3.19.0-debian}
     profiles: ["apisix"]
     restart: "no"
@@ -31,10 +39,21 @@ services:
     networks: [isolated]
 
   echo:
+    logging: *nabla-logging
     image: python:3.13-alpine
     profiles: ["apisix"]
     restart: "no"
-    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/poc"]
+    command:
+      [
+        "python",
+        "-m",
+        "http.server",
+        "8080",
+        "--bind",
+        "0.0.0.0",
+        "--directory",
+        "/srv/poc",
+      ]
     volumes:
       - ./fixtures:/srv/poc:ro
     security_opt:

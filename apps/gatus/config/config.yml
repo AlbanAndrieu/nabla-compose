@@ -348,6 +348,16 @@ endpoints:
   url: http://172.17.0.24:30109/healthz
   conditions:
   - '[STATUS] == 200'
+- name: NetBox
+  group: infrastructure
+  interval: 60s
+  extra-labels:
+    nabla_monitor_id: netbox
+    nabla_service_id: netbox
+    nabla_entity_ref: component:default/netbox
+  url: tcp://172.17.0.24:31082
+  conditions:
+  - '[CONNECTED] == true'
 - name: Nexus Repository
   group: development
   interval: 60s
@@ -671,16 +681,6 @@ endpoints:
     nabla_service_id: truenas
     nabla_entity_ref: resource:default/truenas
   url: tcp://172.17.0.24:7000
-  conditions:
-  - '[CONNECTED] == true'
-- name: Uptime Kuma
-  group: observability
-  interval: 60s
-  extra-labels:
-    nabla_monitor_id: uptimekuma
-    nabla_service_id: uptimekuma
-    nabla_entity_ref: component:default/uptimekuma
-  url: tcp://172.17.0.24:31050
   conditions:
   - '[CONNECTED] == true'
 - name: Vaultwarden

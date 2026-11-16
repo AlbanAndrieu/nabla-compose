@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:142e1f438f9cf7387eeba46b88369644313fc300214da0c7d99535f173261885",
+  "catalogRevision": "sha256:c9b9b6b0d162dfdb03105884108f6bf9e1fa4ea9037b35a95a0282e2e5460214",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -477,7 +477,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "anythingllm-albandrieu",
         "tags": [
@@ -577,7 +577,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "autokuma",
         "tags": [
@@ -912,7 +912,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "cartography",
         "tags": [
@@ -4609,7 +4609,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "high",
           "albandrieu.com/operational-criticality": "medium",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "netbox",
         "tags": [
@@ -4655,45 +4655,13 @@
     },
     {
       "apiVersion": "backstage.io/v1alpha1",
-      "entityRef": "component:default/netbox-housekeeping",
-      "kind": "Component",
-      "metadata": {
-        "labels": {
-          "albandrieu.com/bia-scope": "inherited",
-          "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
-        },
-        "name": "netbox-housekeeping",
-        "tags": [
-          "infrastructure"
-        ],
-        "title": "NetBox Housekeeping"
-      },
-      "sourcePath": "apps/netbox/catalog-info.yaml",
-      "spec": {
-        "lifecycle": "production",
-        "owner": "group:default/nabla-platform",
-        "subcomponentOf": "component:default/netbox",
-        "system": "system:default/nabla-homelab",
-        "type": "worker"
-      },
-      "x-nabla": {
-        "runtime": {
-          "containerService": "netbox-housekeeping",
-          "provider": "truenas-app",
-          "source": "apps/netbox/compose.yml#services/netbox-housekeeping"
-        }
-      }
-    },
-    {
-      "apiVersion": "backstage.io/v1alpha1",
       "entityRef": "component:default/netbox-worker",
       "kind": "Component",
       "metadata": {
         "labels": {
           "albandrieu.com/bia-scope": "inherited",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "planned"
+          "albandrieu.com/operational-state": "active"
         },
         "name": "netbox-worker",
         "tags": [
@@ -5460,23 +5428,6 @@
         "type": "ai-service"
       },
       "x-nabla": {
-        "exposure": [
-          {
-            "backend": {
-              "appProtocol": "https",
-              "host": "172.17.0.24",
-              "port": 30325
-            },
-            "gatewayRef": "resource:default/truenas",
-            "hostnames": [
-              "openclaw.albandrieu.com"
-            ],
-            "name": "lan",
-            "protocol": "HTTPS",
-            "source": "catalog/catalog-info.yaml",
-            "visibility": "lan"
-          }
-        ],
         "runtime": {
           "appId": "openclaw-gateway",
           "containerService": "openclaw-gateway",
@@ -5861,7 +5812,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "openssf-scorecard",
         "tags": [
@@ -6603,22 +6554,6 @@
         "owner": "group:default/nabla-platform",
         "system": "system:default/nabla-homelab",
         "type": "website"
-      },
-      "x-nabla": {
-        "exposure": [
-          {
-            "backend": {
-              "appProtocol": "http",
-              "host": "172.17.0.57",
-              "port": 4999
-            },
-            "gatewayRef": "resource:default/workstation",
-            "name": "lan",
-            "protocol": "HTTP",
-            "source": "catalog/catalog-info.yaml",
-            "visibility": "lan"
-          }
-        ]
       }
     },
     {
@@ -8763,7 +8698,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "disabled"
         },
         "name": "stirling-albandrieu",
         "tags": [
@@ -9204,7 +9139,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "links": [
           {

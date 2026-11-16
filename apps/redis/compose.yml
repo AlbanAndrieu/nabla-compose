@@ -5,8 +5,16 @@ x-nabla:
     probePolicy:
       rank: 4
       primaryEndpoint: resource:default/redis
+# Docker keeps json-file logs without rotation on TrueNAS (16/11 performance plan).
+x-logging: &nabla-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   redis:
+    logging: *nabla-logging
     image: docker.io/redis:8.8.0
     # image: redis:7-alpine
     # image: registry.community.greenbone.net/community/redis-server
@@ -57,6 +65,7 @@ services:
           - redis
 
   redis_exporter:
+    logging: *nabla-logging
     labels:
       com.albandrieu.nabla.entity-ref: component:default/redis-redis-exporter
     image: oliver006/redis_exporter:latest

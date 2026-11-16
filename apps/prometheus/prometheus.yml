@@ -300,7 +300,7 @@ scrape_configs:
           - 172.17.0.24:31082
         labels:
           platform: truenas
-          operational_state: planned
+          operational_state: active
           role: network-source-of-truth
 
   # *arr media stack (docs/arr-media-library-roadmap.md). Exporters join the
