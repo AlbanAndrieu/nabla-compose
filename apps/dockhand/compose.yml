@@ -14,6 +14,7 @@ services:
       description: Docker container management UI.
       runtime:
         provider: truenas-app
+        appId: dockhand
         containerService: dockhand
       monitoring:
         type: port

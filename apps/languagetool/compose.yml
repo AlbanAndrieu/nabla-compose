@@ -26,6 +26,7 @@ services:
           visibility: public
           gatewayRef: resource:default/cloudflare-tunnel
           backendPort: web
+          probePath: "/v2/languages"
           access:
             required: true
     healthcheck:

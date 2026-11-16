@@ -473,6 +473,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "ddns-updater",
         "containerService": "ddns-updater"
       },
       "monitoring": {
@@ -678,6 +679,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dockhand",
         "containerService": "dockhand"
       },
       "monitoring": {
@@ -754,6 +756,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
           "traefik_network"
@@ -776,6 +779,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "drawio",
         "containerService": "drawio"
       },
       "monitoring": {
@@ -1082,6 +1086,7 @@
       "criticality": "low",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "nginx",
         "containerService": "nginx",
         "networks": [
           "traefik_network"
@@ -1161,8 +1166,8 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
-        "appId": "homeassistant",
-        "containerService": "homeassistant",
+        "appId": "home-assistant",
+        "containerService": "home-assistant",
         "networks": [
           "intranet",
           "traefik_network"
@@ -1452,6 +1457,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "lidarr",
         "containerService": "lidarr",
         "networks": [
           "media",
@@ -1482,6 +1488,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "lidarr",
         "containerService": "lidarr-exporter",
         "networks": [
           "intranet",
@@ -1958,6 +1965,7 @@
       "criticality": "medium",
       "runtime": {
         "provider": "truenas-app",
+        "appId": "openhands",
         "containerService": "openhands",
         "networks": [
           "intranet"
@@ -2676,6 +2684,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "redis",
         "containerService": "redis",
         "networks": [
           "intranet"

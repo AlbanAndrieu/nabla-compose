@@ -17,8 +17,8 @@ services:
       description: Home automation control plane on the TrueNAS bridge network; IoT devices on the pfSense OPT network are reached by explicit address.
       runtime:
         provider: truenas-app
-        appId: homeassistant
-        containerService: homeassistant
+        appId: home-assistant
+        containerService: home-assistant
       monitoring:
         type: http
         target: http://172.17.0.24:30103/manifest.json

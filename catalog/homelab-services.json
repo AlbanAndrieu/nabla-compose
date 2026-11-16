@@ -505,6 +505,7 @@
       "icons": ["fas fa-screwdriver-wrench"],
       "tunnelUrl": "https://languagetool.albandrieu.com",
       "tunnelSecure": true,
+      "healthPath": "/v2/languages",
       "iconSrc": "assets/selfh-icons/languagetool.png"
     },
     {

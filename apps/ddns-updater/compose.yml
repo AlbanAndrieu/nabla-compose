@@ -14,6 +14,7 @@ services:
       description: Keeps reviewed public Cloudflare DNS records aligned with the homelab public IP.
       runtime:
         provider: truenas-app
+        appId: ddns-updater
         containerService: ddns-updater
       monitoring:
         type: port

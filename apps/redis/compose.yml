@@ -20,6 +20,7 @@ services:
       category: data
       runtime:
         provider: truenas-app
+        appId: redis
         containerService: redis
       lifecycle:
         phase: primary-data

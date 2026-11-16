@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c47a982de0761d4e4be784ac498f728d1daade42b3a2028e44db5a0708450c9e",
+  "catalogRevision": "sha256:9d86c6a3c15cf420e99affd7406a2948e2a08ca29f406140676c5487e3519346",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -119,7 +119,13 @@
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "adguard-home",
+          "containerService": "adguard",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
       }
     },
     {
@@ -1366,6 +1372,7 @@
           }
         ],
         "runtime": {
+          "appId": "ddns-updater",
           "containerService": "ddns-updater",
           "provider": "truenas-app",
           "source": "apps/ddns-updater/compose.yml#services/ddns-updater"
@@ -1788,6 +1795,7 @@
           }
         ],
         "runtime": {
+          "appId": "dockhand",
           "containerService": "dockhand",
           "provider": "truenas-app",
           "source": "apps/dockhand/compose.yml#services/dockhand"
@@ -2036,6 +2044,7 @@
           }
         ],
         "runtime": {
+          "appId": "dozzle",
           "containerService": "dozzle",
           "provider": "truenas-app",
           "source": "apps/dozzle/compose.yml#services/dozzle"
@@ -2102,6 +2111,7 @@
           }
         ],
         "runtime": {
+          "appId": "drawio",
           "containerService": "drawio",
           "provider": "truenas-app",
           "source": "apps/drawio/compose.yml#services/drawio"
@@ -2989,6 +2999,7 @@
           }
         ],
         "runtime": {
+          "appId": "nginx",
           "containerService": "nginx",
           "provider": "truenas-app",
           "source": "apps/nginx/compose.yml#services/nginx"
@@ -3193,8 +3204,8 @@
       },
       "x-nabla": {
         "runtime": {
-          "appId": "homeassistant",
-          "containerService": "homeassistant",
+          "appId": "home-assistant",
+          "containerService": "home-assistant",
           "provider": "truenas-app",
           "source": "apps/homeassistant/compose.yml#services/homeassistant"
         }
@@ -3253,7 +3264,13 @@
             "source": "catalog/catalog-info.yaml",
             "visibility": "public"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "it-tools",
+          "containerService": "it-tools",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
       }
     },
     {
@@ -3749,6 +3766,7 @@
               "languagetool.albandrieu.com"
             ],
             "name": "public",
+            "probePath": "/v2/languages",
             "protocol": "HTTPS",
             "source": "apps/languagetool/compose.yml#services/languagetool",
             "visibility": "public"
@@ -3809,6 +3827,7 @@
           }
         ],
         "runtime": {
+          "appId": "lidarr",
           "containerService": "lidarr",
           "provider": "truenas-app",
           "source": "apps/lidarr/compose.yml#services/lidarr"
@@ -3848,6 +3867,7 @@
       },
       "x-nabla": {
         "runtime": {
+          "appId": "lidarr",
           "containerService": "lidarr-exporter",
           "provider": "truenas-app",
           "source": "apps/lidarr/compose.yml#services/lidarr-exporter"
@@ -5198,7 +5218,13 @@
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "openclaw-gateway",
+          "containerService": "openclaw-gateway",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
       }
     },
     {
@@ -5300,6 +5326,7 @@
           }
         ],
         "runtime": {
+          "appId": "openhands",
           "containerService": "openhands",
           "provider": "truenas-app",
           "source": "apps/openhands/compose.yml#services/openhands"
@@ -8458,7 +8485,12 @@
             "source": "catalog/catalog-info.yaml",
             "visibility": "lan"
           }
-        ]
+        ],
+        "runtime": {
+          "appId": "stirling-pdf",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
+        }
       }
     },
     {
@@ -10107,6 +10139,12 @@
         "probePolicy": {
           "position": 0,
           "rank": 3
+        },
+        "runtime": {
+          "appId": "postgres",
+          "containerService": "postgres",
+          "provider": "truenas-app",
+          "source": "catalog/catalog-info.yaml"
         }
       }
     },
@@ -10159,6 +10197,7 @@
           "rank": 4
         },
         "runtime": {
+          "appId": "redis",
           "containerService": "redis",
           "provider": "truenas-app",
           "source": "apps/redis/compose.yml#services/redis"

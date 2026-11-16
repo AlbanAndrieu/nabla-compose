@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:c47a982de0761d4e4be784ac498f728d1daade42b3a2028e44db5a0708450c9e",
+  "catalogRevision": "sha256:9d86c6a3c15cf420e99affd7406a2948e2a08ca29f406140676c5487e3519346",
   "mappings": [
     {
       "entityRef": "component:default/2fauth",

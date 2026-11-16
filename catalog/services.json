@@ -1,7 +1,7 @@
 {
   "$schema": "./services.schema.json",
   "version": 1,
-  "catalogRevision": "sha256:23ef0277a846d2d53dc9a7f9f9a8cf125043984136945378a25e020e82cd72ab",
+  "catalogRevision": "sha256:911e34cb09779c659c5e8b49d53eef5b024f2a5ac79a1249a0046a0295886a69",
   "topologyVersion": 1,
   "name": "Nabla homelab declared services",
   "services": [
@@ -466,6 +466,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "ddns-updater",
         "containerService": "ddns-updater"
       }
     },
@@ -670,6 +671,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dockhand",
         "containerService": "dockhand"
       }
     },
@@ -749,6 +751,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "dozzle",
         "containerService": "dozzle",
         "networks": [
           "traefik_network"
@@ -772,6 +775,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "drawio",
         "containerService": "drawio"
       }
     },
@@ -1031,6 +1035,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "nginx",
         "containerService": "nginx",
         "networks": [
           "traefik_network"
@@ -1116,8 +1121,8 @@
       },
       "runtime": {
         "provider": "truenas-app",
-        "appId": "homeassistant",
-        "containerService": "homeassistant",
+        "appId": "home-assistant",
+        "containerService": "home-assistant",
         "networks": [
           "intranet",
           "traefik_network"
@@ -1374,6 +1379,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "lidarr",
         "containerService": "lidarr",
         "networks": [
           "media",
@@ -1398,6 +1404,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "lidarr",
         "containerService": "lidarr-exporter",
         "networks": [
           "intranet",
@@ -1835,6 +1842,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "openhands",
         "containerService": "openhands",
         "networks": [
           "intranet"
@@ -2486,6 +2494,7 @@
       },
       "runtime": {
         "provider": "truenas-app",
+        "appId": "redis",
         "containerService": "redis",
         "networks": [
           "intranet"
