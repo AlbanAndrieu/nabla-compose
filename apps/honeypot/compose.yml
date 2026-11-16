@@ -10,7 +10,7 @@ services:
       name: Project Honey Pot
       kind: security-agent
       category: security
-      presentationRole: service
+      presentationRole: support
       criticality: low
       status: active
       securityFunctions:
