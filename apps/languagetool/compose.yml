@@ -52,6 +52,7 @@ services:
       - prometheus.scrape=true
       - prometheus.port=8010
     restart: unless-stopped
+    mem_limit: 1792m
     ports:
       - name: web
         target: 8010

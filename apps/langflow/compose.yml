@@ -81,6 +81,7 @@ services:
           - langflow
       traefik_network: {}
     restart: unless-stopped
+    mem_limit: 1536m
 
 networks:
   intranet:

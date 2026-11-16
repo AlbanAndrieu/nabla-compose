@@ -10,6 +10,7 @@ services:
       target: production
     container_name: fastapi-sample
     restart: unless-stopped
+    mem_limit: 1280m
     cap_drop:
       - ALL
     security_opt:

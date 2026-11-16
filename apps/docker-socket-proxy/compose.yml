@@ -9,6 +9,12 @@ services:
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:0.3.0
     container_name: docker-socket-proxy
+    # Largest container log on 16/11 (101 MiB, no rotation by default).
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     labels:
       com.albandrieu.nabla.entity-ref: component:default/docker-socket-proxy
     x-nabla:
