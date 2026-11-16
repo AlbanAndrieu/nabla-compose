@@ -1,0 +1,112 @@
+name: External attack surface (homelab)
+
+# Outside-in Nuclei scan of the homelab names that reach the pfSense HAProxy.
+# Scheduled and manual only: it hits production, so it is never a PR gate.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-attack-surface-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WAN_ADDRESS: 82.66.4.247
+
+jobs:
+  nuclei:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Nuclei with checksum verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/nuclei.zip"
+          curl --fail --location --silent --show-error --max-time 90 \
+            "https://github.com/projectdiscovery/nuclei/releases/download/v3.11.1/nuclei_3.11.1_linux_amd64.zip" \
+            --output "${archive}"
+          printf '%s  %s\n' \
+            'ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6' "${archive}" \
+            | sha256sum --check --status
+          unzip -p "${archive}" nuclei > "${RUNNER_TEMP}/nuclei"
+          chmod 700 "${RUNNER_TEMP}/nuclei"
+          "${RUNNER_TEMP}/nuclei" -version
+          "${RUNNER_TEMP}/nuclei" -ut
+
+      - name: Read the declared targets and pin the HAProxy-only aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > "${RUNNER_TEMP}/targets.txt"
+          while read -r url pin; do
+            [[ -z "${url}" || "${url}" == \#* ]] && continue
+            if [[ ! "${url}" =~ ^https://(82\.66\.4\.247|[a-z0-9-]+(\.[a-z0-9-]+)*\.albandrieu\.com)(:[0-9]{1,5})?$ ]]; then
+              echo "::error::target outside the homelab scope"
+              exit 2
+            fi
+            if [[ "${pin}" == "@wan" ]]; then
+              host="${url#https://}"
+              echo "${WAN_ADDRESS} ${host%%:*}" | sudo tee -a /etc/hosts >/dev/null
+            elif [[ -n "${pin}" ]]; then
+              echo "::error::unknown target option"
+              exit 2
+            fi
+            echo "${url}" >> "${RUNNER_TEMP}/targets.txt"
+          done < config/security/external-attack-surface.txt
+          wc -l < "${RUNNER_TEMP}/targets.txt"
+
+      - name: Scan (bounded, non-intrusive templates)
+        id: nuclei
+        shell: bash
+        env:
+          NUCLEI_DISABLE_UPDATE_CHECK: "true"
+          NUCLEI_NO_COLOR: "true"
+        run: |
+          set -euo pipefail
+          mkdir -p nuclei-results
+          # No fuzzing, OAST, brute force or default-login attempts; low rate for a home uplink.
+          "${RUNNER_TEMP}/nuclei" \
+            -l "${RUNNER_TEMP}/targets.txt" \
+            -pt http -ni \
+            -tags cve,misconfig,exposure,panel \
+            -severity info,low,medium,high,critical \
+            -etags dos,fuzz,bruteforce,intrusive,default-login \
+            -rl 2 -c 2 -timeout 5 -retries 0 \
+            -duc -or -jsonl -o nuclei-results/nuclei.jsonl
+          test -f nuclei-results/nuclei.jsonl || : > nuclei-results/nuclei.jsonl
+
+      - name: Summarize findings per host and severity
+        if: always()
+        shell: bash
+        env:
+          SCAN_OUTCOME: ${{ steps.nuclei.outcome }}
+        run: |
+          {
+            echo "## External attack surface"
+            if [[ "${SCAN_OUTCOME}" != "success" ]]; then
+              echo "Scan INCOMPLETE / NOT_RUN: empty results are not zero findings."
+            else
+              echo "| Host | Severity | Template |"
+              echo "| --- | --- | --- |"
+              jq -r '"| \(.host) | \(.info.severity) | \(."template-id") |"' nuclei-results/nuclei.jsonl | sort -u
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload findings (raw HTTP omitted, short retention)
+        if: steps.nuclei.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: external-attack-surface-${{ github.run_id }}
+          path: nuclei-results/nuclei.jsonl
+          retention-days: 7
+          if-no-files-found: error
