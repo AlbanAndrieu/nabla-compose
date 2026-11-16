@@ -32,6 +32,14 @@ services:
     labels:
       com.albandrieu.nabla.entity-ref: component:default/honeypot
     restart: unless-stopped
+    # Not deployed yet, so no memory.peak to scale from: 256m is the plan's smallest step.
+    # Revisit with memory.peak x 1.5 once the App runs on TrueNAS.
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     user: "33:33"
     read_only: true
     cap_drop:

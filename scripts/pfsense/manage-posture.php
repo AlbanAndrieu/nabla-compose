@@ -29,6 +29,8 @@ const NABLA_HAPROXY_CERTS = [
 ];
 const NABLA_WEBGUI_CERT = 'home.albandrieu.com';
 const NABLA_WORKSTATION_IP = '172.17.0.57';
+// 16/11: unrouted WAN hosts get the honeypot, never the Heimdall login.
+const NABLA_HONEYPOT_FRONTENDS = ['Web_HTTPS', 'freenas', 'Web_HTTPS-8082'];
 // Our WAN address is French: GeoIP Top Spammers must never hold FR.
 const NABLA_PFB_OWN_COUNTRIES = ['FR', 'FR_rep'];
 
@@ -198,6 +200,17 @@ foreach (config_get_path('installedpackages/haproxy/ha_pools/item', []) as $pool
 }
 if (nabla_report('haproxy_workstation_servers', $ws_servers ? implode('+', $ws_servers) : 'none', 'none')) {
     echo "INFO: retire them with scripts/pfsense/retire-workstation-targets.php\n";
+}
+
+$not_honeypot = [];
+foreach (NABLA_HONEYPOT_FRONTENDS as $fe) {
+    $pool = $frontends[$fe]['backend_serverpool'] ?? 'absent';
+    if ($pool !== 'honeypot') {
+        $not_honeypot[] = "{$fe}/{$pool}";
+    }
+}
+if (nabla_report('haproxy_default_backend', $not_honeypot ? implode('+', $not_honeypot) : 'honeypot', 'honeypot')) {
+    echo "INFO: switch them with scripts/pfsense/haproxy-honeypot-default.php\n";
 }
 
 // 2026-11-15 18:43: Top Spammers held FR, so pfBlockerNG's floating WAN rule matched our own
