@@ -20,6 +20,7 @@ DEFAULT_FASTAPI = "http://172.17.0.24:8091/api/homelab/health"
 EXPECTED_PROJECT = "ix-redis"
 EXPECTED_SERVICE = "redis"
 EXPECTED_PORT = 30059
+EXPECTED_LAN_IP = "172.17.0.24"
 DEPENDENTS = ("sentry-snuba-api", "sentry")
 
 
@@ -234,8 +235,15 @@ def diagnose(host: str, api_url: str, timeout: float, fastapi_timeout: float | N
         warnings.append("fastapi_observation_unavailable")
     elif fastapi.get("redis") and fastapi["redis"].get("local_state") == "warn":
         warnings.append("fastapi_redis_local_warn_check_probe_and_runtime_binding")
-    if any(p.get("host_ip") in ("0.0.0.0", "::") for p in docker.get("published_6379", [])):
-        warnings.append("redis_port_bound_to_all_host_interfaces_check_firewall")
+    bound_ips = {
+        str(port.get("host_ip"))
+        for port in docker.get("published_6379", [])
+        if str(port.get("host_port")) == str(EXPECTED_PORT)
+    }
+    if docker["state"] == "ok" and bound_ips != {EXPECTED_LAN_IP}:
+        warnings.append("redis_port_not_bound_exclusively_to_lan")
+        if any(ip in {"0.0.0.0", "::"} for ip in bound_ips):
+            warnings.append("redis_port_bound_to_all_host_interfaces_check_firewall")
     return {
         "schema_version": 1,
         "mode": "read_only",
@@ -245,6 +253,8 @@ def diagnose(host: str, api_url: str, timeout: float, fastapi_timeout: float | N
         "tcp": tcp,
         "fastapi": fastapi,
         "docker_truenas_identity_consistent": identity,
+        "redis_published_host_ips": sorted(bound_ips),
+        "redis_lan_bind_compliant": docker["state"] == "ok" and bound_ips == {EXPECTED_LAN_IP},
         "authenticated_redis_ping": "not_tested_use_diagnose_shared_data_services",
         "failures": failures,
         "warnings": warnings,
@@ -275,6 +285,7 @@ def main() -> int:
         print(f"truenas: {report['truenas'].get('app_state', report['truenas']['state'])}")
         print(f"docker_truenas_identity_consistent: {report['docker_truenas_identity_consistent']}")
         print(f"tcp {args.host}:{EXPECTED_PORT}: {report['tcp']['state']}")
+        print(f"redis_lan_bind_compliant: {report['redis_lan_bind_compliant']} · published_ips={report['redis_published_host_ips']}")
         api = report["fastapi"]
         print(f"fastapi: {api['state']} · reason={api.get('reason', 'none')} · http_status={api.get('http_status', 'n/a')} · snapshot_rows={api.get('service_rows_in_snapshot', 'n/a')} · redis_present={api.get('redis_in_current_snapshot', 'unknown')}")
         if api.get("redis_absence_interpretation"):
