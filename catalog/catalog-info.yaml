@@ -512,7 +512,7 @@ metadata:
   title: Affine
   description: Knowledge base and notes, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -549,7 +549,7 @@ metadata:
   title: AnythingLLM
   description: Private LLM workspace and RAG, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -946,7 +946,7 @@ metadata:
   title: LocalAI (GPU)
   description: Local AI models on the GPU instance, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -981,7 +981,7 @@ metadata:
   title: NetAlertX
   description: Network presence scanning and alerts, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1017,7 +1017,7 @@ metadata:
   title: Netbootxyz
   description: Network boot utility, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1185,7 +1185,7 @@ metadata:
   title: OpenArchiver
   description: Email archive management, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1405,7 +1405,7 @@ metadata:
   title: Portainer
   description: Container management, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1554,7 +1554,7 @@ metadata:
   title: SABnzbd
   description: Usenet downloader, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct
@@ -1823,7 +1823,7 @@ metadata:
   title: Transmission
   description: BitTorrent client, installed as a TrueNAS catalog App.
   labels:
-    albandrieu.com/operational-state: active
+    albandrieu.com/operational-state: planned
     albandrieu.com/operational-criticality: low
     albandrieu.com/business-criticality: low
     albandrieu.com/bia-scope: direct

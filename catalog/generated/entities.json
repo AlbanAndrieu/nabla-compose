@@ -1,5 +1,5 @@
 {
-  "catalogRevision": "sha256:9d86c6a3c15cf420e99affd7406a2948e2a08ca29f406140676c5487e3519346",
+  "catalogRevision": "sha256:27098f1976818c130fb90b53896a87e268b2d46fe0aec7606b0475a5673bd2e8",
   "entities": [
     {
       "apiVersion": "backstage.io/v1alpha1",
@@ -146,7 +146,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "affine",
         "tags": [
@@ -424,7 +424,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "anythingllm",
         "tags": [
@@ -4061,7 +4061,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "localai-gpu",
         "tags": [
@@ -4234,7 +4234,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "netalertx",
         "tags": [
@@ -4288,7 +4288,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "netbootxyz",
         "tags": [
@@ -5133,7 +5133,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "openarchiver",
         "tags": [
@@ -6203,7 +6203,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "portainer",
         "tags": [
@@ -7159,7 +7159,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "sabnzbd",
         "tags": [
@@ -8854,7 +8854,7 @@
           "albandrieu.com/bia-scope": "direct",
           "albandrieu.com/business-criticality": "low",
           "albandrieu.com/operational-criticality": "low",
-          "albandrieu.com/operational-state": "active"
+          "albandrieu.com/operational-state": "planned"
         },
         "name": "transmission",
         "tags": [
